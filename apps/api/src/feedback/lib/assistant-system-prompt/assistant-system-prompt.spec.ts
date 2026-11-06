@@ -17,6 +17,8 @@ describe(buildAssistantSystemPrompt.name, () => {
     expect(prompt).toContain("Pass a diagnosis only when you quote at least one line you read");
     expect(prompt).toContain("prefer a template whose source is console, then console_curated, over community ones");
     expect(prompt).toContain("holds back one nobody can bid on with the reason");
+    expect(prompt).toContain("End every turn with an answer, never with tool calls alone.");
+    expect(prompt).not.toContain("Latest assistant cards");
     expect(prompt.split("\n").at(-1)).toBe("The user has a paid account.");
   });
 
@@ -28,6 +30,25 @@ describe(buildAssistantSystemPrompt.name, () => {
       'The user opened the assistant on the Console page "/deployments/42".',
       'The user is looking at deployment "42".'
     ]);
+  });
+
+  it("lists the latest cards the user acted on, so a vague reference resolves to them", () => {
+    const prompt = buildAssistantSystemPrompt({
+      supportUrl: "https://discord.example",
+      isTrialing: null,
+      recentActions: [
+        'create deployment named "dart": confirmed, succeeded at 2026-11-06 05:38 UTC',
+        "close deployment on deployment 7: cancelled at 2026-11-06 05:40 UTC"
+      ]
+    });
+
+    expect(prompt.split("\n").at(-1)).toBe(
+      'Latest assistant cards the user acted on, oldest first: create deployment named "dart": confirmed, succeeded at 2026-11-06 05:38 UTC; close deployment on deployment 7: cancelled at 2026-11-06 05:40 UTC. When the user refers to what they just did, start from these; a deployment created from a card is their newest one.'
+    );
+  });
+
+  it("leaves recent actions out when there are none", () => {
+    expect(buildAssistantSystemPrompt({ supportUrl: "https://discord.example", isTrialing: null, recentActions: [] })).not.toContain("Latest assistant cards");
   });
 
   it("leaves the account status out when it is unknown", () => {

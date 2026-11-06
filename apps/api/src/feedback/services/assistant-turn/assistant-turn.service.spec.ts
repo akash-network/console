@@ -21,8 +21,10 @@ import type { AssistantLimitsService } from "@src/feedback/services/assistant-li
 import type { AssistantToolRunnerService } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
 import type { AssistantTranscriptService } from "@src/feedback/services/assistant-transcript/assistant-transcript.service";
 import {
+  ANSWER_NOW_NOTE,
   type AssistantTurn,
   AssistantTurnService,
+  LAST_TOOL_ROUND_NOTE,
   MAX_COMPLETION_TOKENS,
   MAX_TOOL_ROUNDS,
   PENDING_TURN_TTL_MS,
@@ -144,12 +146,154 @@ describe(AssistantTurnService.name, () => {
     expect(transcriptService.record).not.toHaveBeenCalled();
   });
 
-  it("reports a cut answer and stores no empty answer", async () => {
-    const { akashMlClient, transcriptService, run } = setup();
-    akashMlClient.streamChatCompletion.mockImplementation(streamed({ finishReason: "length" }));
+  it("reports a cut answer", async () => {
+    const { akashMlClient, run } = setup();
+    akashMlClient.streamChatCompletion.mockImplementation(streamed({ content: "Your deployment", finishReason: "length" }));
 
-    expect(await run({ stored: true })).toEqual([{ type: "done", reason: "length" }]);
-    expect(transcriptService.record).not.toHaveBeenCalled();
+    expect((await run({})).at(-1)).toEqual({ type: "done", reason: "length" });
+  });
+
+  it("asks once more without tools when the model ends the turn with no visible answer, and stores that answer", async () => {
+    const { akashMlClient, transcriptService, logger, run } = setup();
+    akashMlClient.streamChatCompletion
+      .mockImplementationOnce(streamed({ content: "  ", finishReason: "length" }))
+      .mockImplementationOnce(streamed({ content: "It closed with no bids. Ask me why." }));
+
+    const events = await run({ stored: true });
+
+    expect(akashMlClient.streamChatCompletion).toHaveBeenCalledTimes(2);
+    expect(akashMlClient.streamChatCompletion.mock.calls[1][0]).toMatchObject({
+      messages: [{ role: "user", content: "hi" }, ANSWER_NOW_NOTE],
+      tool_choice: "none"
+    });
+    expect(events.at(-2)).toEqual({ type: "text_delta", text: "\n\nIt closed with no bids. Ask me why." });
+    expect(events.at(-1)).toEqual({ type: "done", reason: "stop" });
+    expect(transcriptService.record).toHaveBeenCalledWith("conversation-1", { role: "assistant", content: "  \n\nIt closed with no bids. Ask me why." });
+    expect(logger.info).toHaveBeenCalledWith({ event: "ASSISTANT_EMPTY_ANSWER_RECOVERED", recoveredBy: "answer_now" });
+  });
+
+  it("answers with what it read and a next step when the model stays silent twice", async () => {
+    const { akashMlClient, toolRunner, transcriptService, logger, run } = setup();
+    akashMlClient.streamChatCompletion
+      .mockImplementationOnce(streamed({ toolCalls: [toolCall("c1", "get_bids", { dseq: "42" })] }))
+      .mockImplementation(streamed({}));
+    toolRunner.run.mockResolvedValue({ kind: "result", content: "{}", summary: "Read the bids on deployment 42", ok: true });
+    const answer =
+      'I read the bids on deployment 42, but could not finish my answer. Next step: ask "Why no bids on deployment 42?", or redeploy it from the deployment editor with changed requirements.';
+
+    const events = await run({ stored: true });
+
+    expect(akashMlClient.streamChatCompletion).toHaveBeenCalledTimes(3);
+    expect(events.slice(-2)).toEqual([
+      { type: "text_delta", text: answer },
+      { type: "done", reason: "stop" }
+    ]);
+    expect(transcriptService.record).toHaveBeenLastCalledWith("conversation-1", { role: "assistant", content: answer });
+    expect(logger.info).toHaveBeenCalledWith({ event: "ASSISTANT_EMPTY_ANSWER_RECOVERED", recoveredBy: "fallback" });
+  });
+
+  it("recovers a silent forced final round", async () => {
+    const { akashMlClient, toolRunner, run } = setup();
+    akashMlClient.streamChatCompletion.mockImplementation(async request =>
+      completion(
+        request.tool_choice === "auto" ? { toolCalls: [toolCall(`c${request.messages.length}`, "get_bids", { dseq: `${request.messages.length}` })] } : {}
+      )
+    );
+    toolRunner.run.mockResolvedValue({ kind: "result", content: "{}", summary: "Read", ok: true });
+
+    const events = await run({});
+
+    expect(akashMlClient.streamChatCompletion).toHaveBeenCalledTimes(MAX_TOOL_ROUNDS + 2);
+    expect(events.at(-2)).toMatchObject({ type: "text_delta", text: expect.stringContaining("Next step") });
+  });
+
+  it("tells the model its last tool round and to answer in the round after it", async () => {
+    const { akashMlClient, toolRunner, run } = setup();
+    akashMlClient.streamChatCompletion.mockImplementation(async request =>
+      completion({ content: "checking", toolCalls: [toolCall(`c${request.messages.length}`, "get_bids", { dseq: `${request.messages.length}` })] })
+    );
+    toolRunner.run.mockResolvedValue({ kind: "result", content: "{}", summary: "Read", ok: true });
+
+    await run({});
+
+    const lastMessages = akashMlClient.streamChatCompletion.mock.calls.map(([request]) => request.messages.at(-1));
+    expect(lastMessages.slice(0, MAX_TOOL_ROUNDS - 1)).not.toContainEqual(LAST_TOOL_ROUND_NOTE);
+    expect(lastMessages.slice(0, MAX_TOOL_ROUNDS - 1)).not.toContainEqual(ANSWER_NOW_NOTE);
+    expect(lastMessages[MAX_TOOL_ROUNDS - 1]).toEqual(LAST_TOOL_ROUND_NOTE);
+    expect(lastMessages[MAX_TOOL_ROUNDS]).toEqual(ANSWER_NOW_NOTE);
+  });
+
+  it("returns the earlier result of a repeated call instead of running it again, without showing another read", async () => {
+    const { akashMlClient, toolRunner, transcriptService, run } = setup();
+    akashMlClient.streamChatCompletion
+      .mockImplementationOnce(streamed({ toolCalls: [toolCall("c1", "list_deployments", { state: "closed", search: "dart" })] }))
+      .mockImplementationOnce(streamed({ toolCalls: [toolCall("c2", "list_deployments", { search: "dart", state: "closed" })] }))
+      .mockImplementationOnce(streamed({ content: "It closed." }));
+    toolRunner.run.mockResolvedValue({ kind: "result", content: '{"tool":"list_deployments","data":{"total":1}}', summary: "Read your deployments", ok: true });
+
+    const events = await run({ stored: true });
+
+    expect(toolRunner.run).toHaveBeenCalledTimes(1);
+    expect(events.filter(({ type }) => type === "tool_started")).toHaveLength(1);
+    expect(transcriptService.record).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(akashMlClient.streamChatCompletion.mock.calls[2][0].messages.at(-1)!.content as string)).toEqual({
+      tool: "list_deployments",
+      data: {
+        note: "Already read this turn, so this is the earlier result. Answer from it instead of calling the tool again.",
+        earlierResult: { tool: "list_deployments", data: { total: 1 } }
+      }
+    });
+  });
+
+  it("returns an earlier result that is not JSON as it was", async () => {
+    const { akashMlClient, toolRunner, run } = setup();
+    akashMlClient.streamChatCompletion
+      .mockImplementationOnce(streamed({ toolCalls: [toolCall("c1", "get_bids", { dseq: "42" }), toolCall("c2", "get_bids", { dseq: "42" })] }))
+      .mockImplementationOnce(streamed({ content: "No bids." }));
+    toolRunner.run.mockResolvedValue({ kind: "result", content: "cut...[truncated]", summary: "Read the bids on deployment 42", ok: true });
+
+    await run({});
+
+    expect(JSON.parse(akashMlClient.streamChatCompletion.mock.calls[1][0].messages.at(-1)!.content as string).data.earlierResult).toBe("cut...[truncated]");
+  });
+
+  it("remembers what a resumed turn read before it paused", async () => {
+    const { akashMlClient, toolRunner, run } = setup();
+    const earlier = toolCall("c1", "get_bids", { dseq: "42" });
+    akashMlClient.streamChatCompletion
+      .mockImplementationOnce(streamed({ toolCalls: [toolCall("c2", "get_bids", { dseq: "42" })] }))
+      .mockImplementationOnce(streamed({ content: "No bids." }));
+
+    await run({
+      roundsUsed: 1,
+      messages: [
+        { role: "user", content: "why?" },
+        { role: "assistant", content: null, tool_calls: [earlier] },
+        { role: "tool", tool_call_id: "c1", content: "{}" }
+      ]
+    });
+
+    expect(toolRunner.run).not.toHaveBeenCalled();
+  });
+
+  it("runs a call again in a new turn", async () => {
+    const { akashMlClient, toolRunner, run } = setup();
+    akashMlClient.streamChatCompletion
+      .mockImplementationOnce(streamed({ toolCalls: [toolCall("c2", "get_bids", { dseq: "42" })] }))
+      .mockImplementationOnce(streamed({ content: "No bids." }));
+    toolRunner.run.mockResolvedValue({ kind: "result", content: "{}", summary: "Read the bids on deployment 42", ok: true });
+
+    await run({
+      messages: [
+        { role: "user", content: "why?" },
+        { role: "assistant", content: null, tool_calls: [toolCall("c1", "get_bids", { dseq: "42" })] },
+        { role: "tool", tool_call_id: "c1", content: "{}" },
+        { role: "assistant", content: "No bids." },
+        { role: "user", content: "and now?" }
+      ]
+    });
+
+    expect(toolRunner.run).toHaveBeenCalledTimes(1);
   });
 
   it("runs requested tools, feeds their results back and reports what was read", async () => {
@@ -323,12 +467,19 @@ describe(AssistantTurnService.name, () => {
 
   it("stops offering tools after the last round and ends the turn with whatever the model says", async () => {
     const { akashMlClient, toolRunner, run } = setup();
-    akashMlClient.streamChatCompletion.mockImplementation(streamed({ content: "still checking", toolCalls: [toolCall("c", "get_bids", { dseq: "1" })] }));
+    akashMlClient.streamChatCompletion.mockImplementation(async (request, { onContentDelta }) => {
+      await onContentDelta("still checking");
+      return completion({
+        content: "still checking",
+        toolCalls: [toolCall(`c${request.messages.length}`, "get_bids", { dseq: `${request.messages.length}` })]
+      });
+    });
     toolRunner.run.mockResolvedValue({ kind: "result", content: "{}", summary: "Read the bids on deployment 1", ok: true });
 
     const events = await run({});
 
     expect(akashMlClient.streamChatCompletion).toHaveBeenCalledTimes(MAX_TOOL_ROUNDS + 1);
+    expect(events.at(-2)).toEqual({ type: "text_delta", text: "\n\nstill checking" });
     expect(akashMlClient.streamChatCompletion.mock.calls.map(([request]) => request.tool_choice)).toEqual([...Array(MAX_TOOL_ROUNDS).fill("auto"), "none"]);
     expect(toolRunner.run).toHaveBeenCalledTimes(MAX_TOOL_ROUNDS);
     expect(events.at(-1)).toEqual({ type: "done", reason: "stop" });

@@ -127,6 +127,22 @@ describe(scoreAssistantEval.name, () => {
     expect(result.failures).toEqual(['answer lacks "escrow"', 'answer says "Raise Your Price"']);
   });
 
+  it("reports repeated calls when they are not allowed", () => {
+    const toolCalls = [
+      { name: "get_bids", arguments: { dseq: "1" } },
+      { name: "get_bids", arguments: { dseq: "1" }, repeated: true }
+    ];
+
+    expect(scoreAssistantEval("repeats", { neverRepeatsCalls: true }, { toolCalls, answer: "No bids." }).failures).toEqual(["repeated get_bids"]);
+    expect(scoreAssistantEval("repeats", {}, { toolCalls, answer: "No bids." }).failures).toEqual([]);
+  });
+
+  it("fails an answer the model left to the fallback", () => {
+    expect(scoreAssistantEval("silent", {}, { toolCalls: [], answer: "I read your deployments.", fellBack: true }).failures).toEqual([
+      "answered only with the fallback"
+    ]);
+  });
+
   it("names only tools the assistant offers in every case", () => {
     const toolNames = new Set(assistantChatTools().map(tool => tool.function.name));
     const named = ASSISTANT_EVAL_CASES.flatMap(evalCase => [

@@ -17,7 +17,7 @@ import type {
   SubmitClientToolResultsRequest
 } from "@src/feedback/http-schemas/assistant-conversation.schema";
 import { ASSISTANT_ERROR_CODES, assistantUnavailable } from "@src/feedback/lib/assistant-errors/assistant-errors";
-import { ACTION_RESULT_TOOL_NAME, historyFromClient, historyFromStored } from "@src/feedback/lib/assistant-history/assistant-history";
+import { ACTION_RESULT_TOOL_NAME, historyFromClient, historyFromStored, recentActionsOf } from "@src/feedback/lib/assistant-history/assistant-history";
 import { buildAssistantSystemPrompt } from "@src/feedback/lib/assistant-system-prompt/assistant-system-prompt";
 import { countRedactions, redactSecrets } from "@src/feedback/lib/redact-secrets/redact-secrets";
 import type { AssistantConversationContext } from "@src/feedback/model-schemas";
@@ -97,12 +97,13 @@ export class AssistantConversationService {
 
     const stored = !!conversation && consent.reviewOptIn;
     const userMessage = redactSecrets(content);
-    const earlier = conversation ? historyFromStored(await this.assistantMessageRepository.findAllOf(conversation.id)) : historyFromClient(history);
+    const storedMessages = conversation ? await this.assistantMessageRepository.findAllOf(conversation.id) : [];
+    const earlier = conversation ? historyFromStored(storedMessages) : historyFromClient(history);
 
     if (stored) await this.transcriptService.record(conversationId, { role: "user", content: userMessage });
 
     const messages: ChatMessage[] = [
-      { role: "system", content: this.#systemPromptFor(context ?? conversation?.context, isTrialing) },
+      { role: "system", content: this.#systemPromptFor(context ?? conversation?.context, isTrialing, recentActionsOf(storedMessages)) },
       ...earlier,
       { role: "user", content: userMessage }
     ];
@@ -257,7 +258,7 @@ export class AssistantConversationService {
     return wallet?.isTrialing ?? null;
   }
 
-  #systemPromptFor(context: ConversationContextInput | AssistantConversationContext | undefined, isTrialing: boolean | null): string {
-    return buildAssistantSystemPrompt({ supportUrl: this.config.ASSISTANT_SUPPORT_URL, isTrialing, page: context?.page, dseq: context?.dseq });
+  #systemPromptFor(context: ConversationContextInput | AssistantConversationContext | undefined, isTrialing: boolean | null, recentActions: string[]): string {
+    return buildAssistantSystemPrompt({ supportUrl: this.config.ASSISTANT_SUPPORT_URL, isTrialing, page: context?.page, dseq: context?.dseq, recentActions });
   }
 }

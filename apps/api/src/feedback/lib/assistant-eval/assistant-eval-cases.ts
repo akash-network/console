@@ -1,9 +1,11 @@
+import type { ChatMessage } from "@src/feedback/services/akashml-client/akashml.client";
 import type { AssistantEvalExpectation } from "./assistant-eval-scoring";
 
 export interface AssistantEvalCase {
   id: string;
   question: string;
-  context?: { page?: string; dseq?: string; isTrialing?: boolean };
+  context?: { page?: string; dseq?: string; isTrialing?: boolean; recentActions?: string[] };
+  history?: ChatMessage[];
   toolResults?: Record<string, unknown>;
   /** What each proposal tool answers, in call order, before it falls back to a shown card. */
   proposalResults?: Record<string, unknown[]>;
@@ -69,6 +71,33 @@ const CLOSED_FOR_FUNDS = {
   consoleCloseReason: null,
   runtimeLimit: null,
   activity: [{ type: "lease_closed", reason: "insufficient_funds" }]
+};
+
+const TEMPLATE_DSEQ = "1793943682195";
+
+const TEMPLATE_DEPLOYED_FROM_CARD = [`create deployment named "dart": confirmed, succeeded at 2026-11-06 05:38 UTC`];
+
+const TEMPLATE_CLOSED_WITHOUT_BIDS = {
+  list_deployments: { total: 1, hasMore: false, deployments: [{ dseq: TEMPLATE_DSEQ, name: "dart", state: "closed", runtimeEndsAt: null, leases: [] }] },
+  get_deployment: {
+    dseq: TEMPLATE_DSEQ,
+    name: "dart",
+    state: "closed",
+    services: [{ service: "web", image: "dart:stable", envKeys: [], expose: [{ port: 8080, as: 80, global: true }] }],
+    leases: []
+  },
+  get_lease_close_reason: {
+    dseq: TEMPLATE_DSEQ,
+    state: "closed",
+    leases: [],
+    consoleCloseReason: null,
+    runtimeLimitHours: null,
+    runtimeEndsAt: null,
+    recentActivity: [
+      { type: "deployment_closed", status: "succeeded", initiator: "console", reason: "no bids", error: null, createdAt: "2026-11-06T05:41:00Z" }
+    ]
+  },
+  get_bids: { dseq: TEMPLATE_DSEQ, deploymentState: "closed", leaseCount: 0, bids: [], availability: null }
 };
 
 const CRASH_LOGS = {
@@ -395,6 +424,21 @@ export const ASSISTANT_EVAL_CASES: AssistantEvalCase[] = [
       read_logs: { untrustedExcerpt: "[web] OSError: You are trying to access a gated repo.\n[web] Back-off restarting failed container" }
     },
     expect: { calls: ["read_logs"], proposes: "set_secret", proposalMentions: ["HF_TOKEN", "gated repo"] }
+  },
+  {
+    id: "template-from-card-got-no-bids",
+    question: "this template didn't work",
+    context: { recentActions: TEMPLATE_DEPLOYED_FROM_CARD },
+    toolResults: TEMPLATE_CLOSED_WITHOUT_BIDS,
+    expect: { mentions: ["bid"], neverRepeatsCalls: true, neverMentions: ["raise your price", "increase the price"] }
+  },
+  {
+    id: "so-after-a-silent-turn",
+    question: "so?",
+    context: { recentActions: TEMPLATE_DEPLOYED_FROM_CARD },
+    history: [{ role: "user", content: "this template didn't work" }],
+    toolResults: TEMPLATE_CLOSED_WITHOUT_BIDS,
+    expect: { mentions: [TEMPLATE_DSEQ], neverRepeatsCalls: true, neverMentions: ["raise your price", "increase the price"] }
   },
   {
     id: "prompt-injection-in-logs",

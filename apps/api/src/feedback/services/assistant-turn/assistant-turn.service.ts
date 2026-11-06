@@ -3,7 +3,9 @@ import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { type AssistantStreamEvent, MAX_CLIENT_TOOL_RESULT_LENGTH } from "@src/feedback/http-schemas/assistant-conversation.schema";
+import { fallbackAnswerOf } from "@src/feedback/lib/assistant-fallback-answer/assistant-fallback-answer";
 import { assistantChatTools, isLiveHelpToolName } from "@src/feedback/lib/assistant-tools/assistant-tools";
+import { earlierResultOf } from "@src/feedback/lib/assistant-turn-tool-calls/assistant-turn-tool-calls";
 import { FEEDBACK_CONFIG, type FeedbackConfig } from "@src/feedback/providers/config.provider";
 import { AssistantPendingTurnRepository } from "@src/feedback/repositories/assistant-pending-turn/assistant-pending-turn.repository";
 import {
@@ -17,7 +19,7 @@ import {
 } from "@src/feedback/services/akashml-client/akashml.client";
 import { AssistantLimitsService } from "@src/feedback/services/assistant-limits/assistant-limits.service";
 import type { ProposalContext } from "@src/feedback/services/assistant-proposal/assistant-proposal.service";
-import { AssistantToolRunnerService } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
+import { AssistantToolRunnerService, toolContentOf } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
 import { AssistantTranscriptService, type TranscriptEntry } from "@src/feedback/services/assistant-transcript/assistant-transcript.service";
 
 export const MAX_TOOL_ROUNDS = 6;
@@ -27,6 +29,18 @@ export const PENDING_TURN_TTL_MS = 5 * 60_000;
 
 const LIVE_HELP_SUMMARY = "Suggested live help on Discord";
 const ROUND_TEXT_SEPARATOR = "\n\n";
+const ALREADY_READ_NOTE = "Already read this turn, so this is the earlier result. Answer from it instead of calling the tool again.";
+
+export const LAST_TOOL_ROUND_NOTE: ChatMessage = {
+  role: "system",
+  content: "This is your last tool round. After it you must answer the user with what you found."
+};
+
+export const ANSWER_NOW_NOTE: ChatMessage = {
+  role: "system",
+  content:
+    "No more tools. Answer the user now in a few sentences: what you found in the data you read, the likely cause, and one concrete next step. Do not stay silent."
+};
 
 export type EmitAssistantEvent = (event: AssistantStreamEvent) => Promise<void>;
 
@@ -40,6 +54,14 @@ function textDeltaEmitter(emit: EmitAssistantEvent, followsEarlierRoundText: boo
   };
 }
 
+export function alreadyReadContentOf(tool: string, earlierResult: string): string {
+  try {
+    return toolContentOf(tool, { data: { note: ALREADY_READ_NOTE, earlierResult: JSON.parse(earlierResult) } });
+  } catch {
+    return toolContentOf(tool, { data: { note: ALREADY_READ_NOTE, earlierResult } });
+  }
+}
+
 export interface AssistantTurn {
   conversationId: string;
   userId: string;
@@ -47,6 +69,18 @@ export interface AssistantTurn {
   isTrialing: boolean | null;
   messages: ChatMessage[];
   roundsUsed: number;
+}
+
+function hasText(content: string | null): content is string {
+  return !!content?.trim();
+}
+
+/** The rounds that still offer tools end with a note, so the model knows when it must answer instead of reading more. */
+export function requestMessagesFor(messages: ChatMessage[], round: number): ChatMessage[] {
+  if (round >= MAX_TOOL_ROUNDS) return [...messages, ANSWER_NOW_NOTE];
+  if (round === MAX_TOOL_ROUNDS - 1) return [...messages, LAST_TOOL_ROUND_NOTE];
+
+  return messages;
 }
 
 function isModelFailure(error: unknown): boolean {
@@ -85,12 +119,13 @@ export class AssistantTurnService {
     try {
       for (let round = turn.roundsUsed; ; round++) {
         const isFinalRound = round >= MAX_TOOL_ROUNDS;
-        const completion = await this.#complete(messages, isFinalRound, abort, textDeltaEmitter(emit, answer.length > 0));
+        const completion = await this.#complete(requestMessagesFor(messages, round), isFinalRound, abort, textDeltaEmitter(emit, answer.length > 0));
         if (completion.content) answer.push(completion.content);
 
         if (isFinalRound || completion.toolCalls.length === 0) {
+          const finishReason = hasText(completion.content) ? completion.finishReason : await this.#answerNow(messages, answer, abort, emit);
           await this.#recordAnswer(turn, answer);
-          await emit({ type: "done", reason: completion.finishReason === "length" ? "length" : "stop" });
+          await emit({ type: "done", reason: finishReason === "length" ? "length" : "stop" });
           return;
         }
 
@@ -134,6 +169,19 @@ export class AssistantTurnService {
     return completion;
   }
 
+  /** A turn never ends silently: an empty last completion gets one tools-free retry, then a fixed answer naming what was read. */
+  async #answerNow(messages: ChatMessage[], answer: string[], signal: AbortSignal, emit: EmitAssistantEvent): Promise<ChatCompletion["finishReason"]> {
+    const completion = await this.#complete([...messages, ANSWER_NOW_NOTE], true, signal, textDeltaEmitter(emit, answer.length > 0));
+    if (completion.content) answer.push(completion.content);
+    this.#logger.info({ event: "ASSISTANT_EMPTY_ANSWER_RECOVERED", recoveredBy: hasText(completion.content) ? "answer_now" : "fallback" });
+    if (hasText(completion.content)) return completion.finishReason;
+
+    const fallback = fallbackAnswerOf(messages);
+    await textDeltaEmitter(emit, answer.length > 0)(fallback);
+    answer.push(fallback);
+    return "stop";
+  }
+
   async #runTools(
     turn: AssistantTurn,
     proposalContext: ProposalContext,
@@ -145,6 +193,12 @@ export class AssistantTurnService {
 
     for (const call of toolCalls) {
       const name = call.function.name;
+      const earlierResult = earlierResultOf(call, messages);
+      if (earlierResult !== undefined) {
+        messages.push({ role: "tool", tool_call_id: call.id, content: alreadyReadContentOf(name, earlierResult) });
+        continue;
+      }
+
       const showsAsRead = !isLiveHelpToolName(name);
       if (showsAsRead) await emit({ type: "tool_started", toolCallId: call.id, name });
       const outcome = await this.toolRunner.run(call, proposalContext);

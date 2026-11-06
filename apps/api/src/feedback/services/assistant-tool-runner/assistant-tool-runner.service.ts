@@ -40,6 +40,7 @@ const FAILED_TOOL_MESSAGE = "The tool failed. Tell the user this data could not 
 const WITHHELD_PROPOSAL_NOTE =
   "No provider can bid on this, so the user did not see a card. Propose an adjusted SDL that has bidders, keeping its price and denom: drop placement attributes no audited provider signed, change resources the user did not ask for, or pick another template. If nothing fits, explain why to the user.";
 const TEMPLATE_SDL_LEFT_OUT_NOTE = "The template's SDL is too long to include here, so pick another template or explain why nothing fits.";
+const RETRY_ONCE_HINT = "Call it once more with corrected arguments, or answer without it.";
 
 export type ClientToolCall = { [K in ClientToolName]: { id: string; name: K; arguments: ClientToolArguments<K> } }[ClientToolName];
 
@@ -116,7 +117,6 @@ function redactedDiagnosisOf(diagnosis: unknown): AssistantDiagnosis | undefined
 }
 
 function rejectionOf(error: unknown): string | null {
-  if (error instanceof ZodError) return `Invalid arguments: ${error.issues.map(issue => `${issue.path.join(".") || "(root)"} ${issue.message}`).join("; ")}`;
   if (error instanceof AssistantToolError) return error.message;
   if (isHttpError(error) && error.status < 500) return error.message;
 
@@ -132,7 +132,7 @@ function parsedArguments(call: ChatToolCall): unknown {
   try {
     return JSON.parse(call.function.arguments || "{}");
   } catch {
-    throw new AssistantToolError("The arguments are not valid JSON.");
+    throw new ZodError([{ code: "custom", path: [], message: "The arguments are not valid JSON" }]);
   }
 }
 
@@ -239,6 +239,7 @@ export class AssistantToolRunnerService {
   }
 
   #reasonOf(tool: string, error: unknown): string {
+    if (error instanceof ZodError) return this.#rejectedArgumentsReasonOf(tool, error);
     const rejection = rejectionOf(error);
     if (rejection === null) {
       this.#logger.warn({ event: "ASSISTANT_TOOL_FAILED", tool, error });
@@ -247,5 +248,13 @@ export class AssistantToolRunnerService {
 
     this.#logger.info({ event: "ASSISTANT_TOOL_REJECTED", tool, reason: loggedRejectionOf(rejection) });
     return rejection;
+  }
+
+  /** Logs where the arguments failed but never their values, which can quote the user's own data. */
+  #rejectedArgumentsReasonOf(tool: string, error: ZodError): string {
+    const issues = error.issues.map(({ path, code, message }) => ({ path: path.join(".") || "(root)", code, message }));
+    this.#logger.warn({ event: "ASSISTANT_TOOL_ARGUMENTS_REJECTED", tool, issues: issues.map(({ path, code }) => ({ path, code })) });
+
+    return `Invalid arguments for ${tool}: ${issues.map(({ path, message }) => `${path} ${message}`).join("; ")}. ${RETRY_ONCE_HINT}`;
   }
 }
