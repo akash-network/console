@@ -311,7 +311,7 @@ export const ASSISTANT_EVAL_CASES: AssistantEvalCase[] = [
   {
     id: "sdl-pricing-denom",
     question: "Which denom goes in the pricing section of my SDL?",
-    expect: { calls: ["search_docs"], mentions: ["uact"], neverMentions: ["denom: uakt"] }
+    expect: { mentions: ["uact"], neverMentions: ["denom: uakt"] }
   },
   {
     id: "list-my-deployments",

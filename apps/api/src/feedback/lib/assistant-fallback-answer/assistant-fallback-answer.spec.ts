@@ -16,11 +16,15 @@ function turnOf(...calls: ChatToolCall[]): ChatMessage[] {
 }
 
 function turnWithResultsOf(...reads: { call: ChatToolCall; result?: string }[]): ChatMessage[] {
+  return askedTurnOf("this deployment didn't work", ...reads);
+}
+
+function askedTurnOf(question: string, ...reads: { call: ChatToolCall; result?: string }[]): ChatMessage[] {
   return [
-    { role: "user", content: "earlier" },
+    { role: "user", content: "my deployment 7 has no bids" },
     { role: "assistant", content: null, tool_calls: [toolCall("old", "get_bids", { dseq: "7" })] },
     { role: "tool", tool_call_id: "old", content: toolContentOf("get_bids", { data: NO_BIDS }) },
-    { role: "user", content: "this template didn't work" },
+    { role: "user", content: question },
     { role: "assistant", content: null, tool_calls: reads.map(({ call }) => call) },
     ...reads.flatMap(({ call, result }): ChatMessage[] => (result === undefined ? [] : [{ role: "tool", tool_call_id: call.id, content: result }]))
   ];
@@ -93,6 +97,49 @@ describe(fallbackAnswerOf.name, () => {
     expect(fallbackAnswerOf(turnOf(toolCall("c1", "search_docs", { query: "bids" }), toolCall("c2", "list_templates")))).toBe(
       "I read the Console docs and the template gallery, but could not finish my answer. Next step: tell me which deployment you mean, or ask on Discord for live help."
     );
+  });
+
+  it("points a pasted SDL at the validating import instead of asking which deployment is meant", () => {
+    const question = 'This SDL fails, what is wrong?\n\nversion: "2.0"\nservices:\n  web:\n    image: nginx\nprofiles:\n  compute:\n    web: {}';
+
+    expect(fallbackAnswerOf(askedTurnOf(question, { call: toolCall("c1", "search_docs", { query: "sdl memory" }) }))).toBe(
+      "I read the Console docs, but could not finish my answer. Next step: paste the SDL into Import SDL on the new deployment page, which validates it as you paste, or ask about one service at a time."
+    );
+  });
+
+  it.each(["What is ACT?", "How do I start with Akash?", "How do I deploy an app?", "Can a service expose two ports?"])(
+    "asks for a shorter question when %j names no deployment and it read none",
+    question => {
+      expect(fallbackAnswerOf(askedTurnOf(question))).toBe(
+        "I could not finish my answer this time. Next step: ask again in a shorter question, or ask on Discord for live help."
+      );
+    }
+  );
+
+  it.each([
+    "services:\n  web: {}\nprofiles:\n  compute: {}",
+    "Why?\n    services:\n      web: {}\n    profiles:\n      compute: {}",
+    "profiles:\n  compute: {}\nservices:\n  web: {}"
+  ])("takes %j for a pasted SDL", question => {
+    expect(fallbackAnswerOf(askedTurnOf(question))).toContain("Import SDL");
+  });
+
+  it.each(["which services: web or db?", "services:\n  web: {}", "Why?\n\nprofiles:\n  compute: {}", "Why?\nprofiles:"])(
+    "does not take %j for a pasted SDL",
+    question => {
+      expect(fallbackAnswerOf(askedTurnOf(question))).not.toContain("Import SDL");
+    }
+  );
+
+  it.each(["why is my app down?", "This lease keeps restarting", "What is the dseq of it?", "deployment 42 is stuck", "Is deployment #42 running?"])(
+    "asks which deployment is meant when %j names one but reaches no read",
+    question => {
+      expect(fallbackAnswerOf(askedTurnOf(question))).toContain("tell me which deployment you mean");
+    }
+  );
+
+  it("asks for a shorter question when the turn has no question", () => {
+    expect(fallbackAnswerOf([])).toBe("I could not finish my answer this time. Next step: ask again in a shorter question, or ask on Discord for live help.");
   });
 
   it("leaves out proposals, unknown tools and reads without a valid dseq", () => {
