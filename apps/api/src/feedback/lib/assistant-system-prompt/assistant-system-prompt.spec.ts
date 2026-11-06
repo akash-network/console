@@ -10,6 +10,7 @@ describe(buildAssistantSystemPrompt.name, () => {
     expect(prompt).not.toContain("{supportUrl}");
     expect(prompt).toContain("Never ask the user to paste a secret");
     expect(prompt).toContain("Never propose changing an SDL's price or denom.");
+    expect(prompt).toContain("uact is the right denom, not a typo of uakt");
     expect(prompt).toContain("never tell the user to raise the price, bid or pay more, or switch the denom");
     expect(prompt).toContain('try another template, or ask "Why no bids?" on that deployment');
     expect(prompt).toContain("never suggest depositing into a deployment's escrow");
