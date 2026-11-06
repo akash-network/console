@@ -145,6 +145,85 @@ describe(BidScreeningRepository.name, () => {
       expect(owners(rows)).toEqual(["akash1signedByB"]);
     });
 
+    it("rejects a provider whose anyOf auditor audited it without signing the attribute it self-declares", async () => {
+      await seed({
+        owner: "akash1selfDeclaredOnly",
+        auditedBy: ["aud-a"],
+        selfAttributes: [{ key: "host", value: "akash" }],
+        signedAttributes: []
+      });
+      await seed({
+        owner: "akash1signedHost",
+        auditedBy: ["aud-a"],
+        selfAttributes: [{ key: "host", value: "akash" }],
+        signedAttributes: [{ key: "host", value: "akash", auditor: "aud-a" }]
+      });
+
+      const rows = await repository.findCandidates(
+        [unit({})],
+        requirements({ signedBy: { allOf: [], anyOf: ["aud-a"] }, attributes: [{ key: "host", value: "akash" }] })
+      );
+
+      expect(owners(rows)).toEqual(["akash1signedHost"]);
+    });
+
+    it("rejects a provider whose auditor signed only some of the requested attributes", async () => {
+      const selfAttributes = [
+        { key: "host", value: "akash" },
+        { key: "tier", value: "community" }
+      ];
+      await seed({
+        owner: "akash1partlySigned",
+        auditedBy: ["aud-a"],
+        selfAttributes,
+        signedAttributes: [{ key: "host", value: "akash", auditor: "aud-a" }]
+      });
+      await seed({
+        owner: "akash1fullySigned",
+        auditedBy: ["aud-a"],
+        selfAttributes,
+        signedAttributes: selfAttributes.map(attribute => ({ ...attribute, auditor: "aud-a" }))
+      });
+
+      const rows = await repository.findCandidates([unit({})], requirements({ signedBy: { allOf: [], anyOf: ["aud-a"] }, attributes: selfAttributes }));
+
+      expect(owners(rows)).toEqual(["akash1fullySigned"]);
+    });
+
+    it("rejects a provider when one allOf auditor audited it without signing the requested attribute", async () => {
+      await seed({
+        owner: "akash1signedByOne",
+        auditedBy: ["aud-a", "aud-b"],
+        selfAttributes: [{ key: "host", value: "akash" }],
+        signedAttributes: [{ key: "host", value: "akash", auditor: "aud-a" }]
+      });
+      await seed({
+        owner: "akash1signedByBoth",
+        auditedBy: ["aud-a", "aud-b"],
+        selfAttributes: [{ key: "host", value: "akash" }],
+        signedAttributes: [
+          { key: "host", value: "akash", auditor: "aud-a" },
+          { key: "host", value: "akash", auditor: "aud-b" }
+        ]
+      });
+
+      const rows = await repository.findCandidates(
+        [unit({})],
+        requirements({ signedBy: { allOf: ["aud-a", "aud-b"], anyOf: [] }, attributes: [{ key: "host", value: "akash" }] })
+      );
+
+      expect(owners(rows)).toEqual(["akash1signedByBoth"]);
+    });
+
+    it("matches self-declared attributes alone when signedBy is empty", async () => {
+      await seed({ owner: "akash1selfDeclared", auditedBy: [], selfAttributes: [{ key: "host", value: "akash" }], signedAttributes: [] });
+      await seed({ owner: "akash1otherHost", auditedBy: [], selfAttributes: [{ key: "host", value: "other" }], signedAttributes: [] });
+
+      const rows = await repository.findCandidates([unit({})], requirements({ attributes: [{ key: "host", value: "akash" }] }));
+
+      expect(owners(rows)).toEqual(["akash1selfDeclared"]);
+    });
+
     it("matches a glob placement attribute against the auditor's signed keys", async () => {
       await seed({
         owner: "akash1leaf",

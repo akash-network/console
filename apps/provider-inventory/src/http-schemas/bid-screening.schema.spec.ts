@@ -1,3 +1,5 @@
+import { generateManifest, type SDLInput, yaml } from "@akashnetwork/chain-sdk";
+import { GroupSpec } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -8,6 +10,82 @@ import {
   MAX_SIGNED_BY_AUDITORS,
   MAX_STORAGE_VOLUMES
 } from "./bid-screening.schema";
+
+const CONSOLE_AUDITOR = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
+
+const DART_TEMPLATE_SDL = `
+version: "2.0"
+services:
+  dart:
+    image: google/dart-hello
+    expose:
+      - port: 8080
+        as: 80
+        to:
+          - global: true
+profiles:
+  compute:
+    dart:
+      resources:
+        cpu:
+          units: 0.1
+        memory:
+          size: 512Mi
+        storage:
+          size: 512Mi
+  placement:
+    akash:
+      attributes:
+        host: akash
+      signedBy:
+        anyOf:
+          - "${CONSOLE_AUDITOR}"
+      pricing:
+        dart:
+          denom: uact
+          amount: 10000
+deployment:
+  dart:
+    akash:
+      profile: dart
+      count: 1
+`;
+
+const LEASED_IP_SDL = `
+version: "2.0"
+endpoints:
+  myip:
+    kind: ip
+services:
+  web:
+    image: nginx
+    expose:
+      - port: 80
+        to:
+          - global: true
+            ip: myip
+profiles:
+  compute:
+    web:
+      resources:
+        cpu:
+          units: 0.5
+        memory:
+          size: 512Mi
+        storage:
+          size: 1Gi
+  placement:
+    dc:
+      pricing:
+        web:
+          denom: uact
+          amount: 1000
+deployment:
+  web:
+    dc:
+      profile: web
+      count: 1
+`;
 
 describe("BidScreeningRequestSchema", () => {
   it("accepts a request that declares no CPU attributes", () => {
@@ -159,6 +237,76 @@ describe("BidScreeningRequestSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  describe("when the request uses chain-sdk proto JSON field names", () => {
+    it("keeps the signer list of a group spec serialized by GroupSpec.toJSON", () => {
+      const result = BidScreeningRequestSchema.parse(buildGroupSpecRequest(DART_TEMPLATE_SDL));
+
+      expect(result.requirements).toEqual({
+        signedBy: { allOf: [], anyOf: [CONSOLE_AUDITOR] },
+        attributes: [{ key: "host", value: "akash" }]
+      });
+    });
+
+    it("keeps the sequence number of a leased IP serialized by GroupSpec.toJSON", () => {
+      const result = BidScreeningRequestSchema.parse(buildGroupSpecRequest(LEASED_IP_SDL));
+
+      expect(result.resources[0].resource.endpoints).toEqual([{}, { kind: "LEASED_IP", sequenceNumber: 1 }]);
+    });
+
+    it("reads both signer lists from snake_case names", () => {
+      const result = BidScreeningRequestSchema.parse(
+        buildRequestWithRequirements({ signed_by: { all_of: ["akash1allof"], any_of: ["akash1anyof"] }, attributes: [] })
+      );
+
+      expect(result.requirements.signedBy).toEqual({ allOf: ["akash1allof"], anyOf: ["akash1anyof"] });
+    });
+
+    it("prefers the camelCase field when a request spells it both ways", () => {
+      const result = BidScreeningRequestSchema.parse(
+        buildRequestWithRequirements({ signedBy: { allOf: ["akash1camel"] }, signed_by: { all_of: ["akash1snake"] }, attributes: [] })
+      );
+
+      expect(result.requirements.signedBy).toEqual({ allOf: ["akash1camel"], anyOf: [] });
+    });
+
+    it("applies the auditor cap to a snake_case signer list", () => {
+      const result = BidScreeningRequestSchema.safeParse(
+        buildRequestWithRequirements({ signed_by: { any_of: buildAuditors(MAX_SIGNED_BY_AUDITORS + 1) }, attributes: [] })
+      );
+
+      expect(result.success).toBe(false);
+      expect((result as { error: { issues: unknown[] } }).error.issues).toContainEqual(
+        expect.objectContaining({ code: "too_big", path: ["requirements", "signedBy", "anyOf"] })
+      );
+    });
+
+    it.each([
+      { shape: "a string", requirements: "signed" },
+      { shape: "null", requirements: null },
+      { shape: "an array", requirements: [{ signedBy: { allOf: [] } }] }
+    ])("rejects requirements given as $shape", ({ requirements }) => {
+      const result = BidScreeningRequestSchema.safeParse({ ...buildRequest(), requirements });
+
+      expect(result.success).toBe(false);
+    });
+
+    it("rejects an endpoint given as an array", () => {
+      const unit = buildResourceUnit();
+      const result = BidScreeningRequestSchema.safeParse(
+        buildRequestWithUnits([{ ...unit, resource: { ...unit.resource, endpoints: [["LEASED_IP", 1]] as unknown as never[] } }])
+      );
+
+      expect(result.success).toBe(false);
+    });
+  });
+
+  function buildGroupSpecRequest(sdl: string) {
+    const manifest = generateManifest(yaml.raw(sdl) as SDLInput);
+    const [groupSpec] = (manifest as Extract<typeof manifest, { ok: true }>).value.groupSpecs;
+
+    return { ...(GroupSpec.toJSON(groupSpec) as object), timezone: "UTC" };
+  }
+
   function buildRequestWithUnits(resources: ReturnType<typeof buildResourceUnit>[]) {
     return { ...buildRequest(), resources };
   }
@@ -190,7 +338,11 @@ describe("BidScreeningRequestSchema", () => {
     return Array.from({ length: count }, (_, index) => ({ key: `region${index}`, value: "us-west" }));
   }
 
-  function buildRequestWithRequirements(requirements: { signedBy: { allOf?: string[]; anyOf?: string[] }; attributes: { key: string; value: string }[] }) {
+  function buildRequestWithRequirements(requirements: {
+    signedBy?: { allOf?: string[]; anyOf?: string[] };
+    signed_by?: { all_of?: string[]; any_of?: string[] };
+    attributes: { key: string; value: string }[];
+  }) {
     return { ...buildRequest(), requirements };
   }
 
