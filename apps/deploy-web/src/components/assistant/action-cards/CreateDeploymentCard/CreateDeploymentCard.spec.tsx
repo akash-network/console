@@ -117,6 +117,15 @@ describe("CreateDeploymentCard", () => {
     expect(screen.getByRole("link", { name: "Choose a provider" })).toHaveAttribute("href", "/new-deployment/configure/1234");
   });
 
+  it("watches the new deployment for bids, offering to ask why when none arrive", async () => {
+    const { chromeProps, NoBidsYetNotice, continueConversation } = setup();
+    expect(NoBidsYetNotice).not.toHaveBeenCalled();
+
+    await act(() => chromeProps().onConfirm!(""));
+
+    expect(NoBidsYetNotice).toHaveBeenLastCalledWith({ dseq: "1234", continueConversation }, expect.anything());
+  });
+
   it("explains a project budget refusal", async () => {
     const { chromeProps, createDeployment } = setup();
     createDeployment.mockRejectedValue(new ApiError(403, { code: "project_budget_exceeded", message: "over budget" }, "403"));
@@ -181,6 +190,8 @@ describe("CreateDeploymentCard", () => {
     const sealSdlSecrets = vi.fn<typeof DEPENDENCIES.sealSdlSecrets>(async () => "empty-seal");
     const createConfigureDraft = vi.fn<typeof DEPENDENCIES.createConfigureDraft>(() => "draft-1");
     const ActionCardChrome = vi.fn((props: ActionCardChromeProps) => <>{props.children}</>);
+    const NoBidsYetNotice = vi.fn<typeof DEPENDENCIES.NoBidsYetNotice>(() => null);
+    const continueConversation = vi.fn();
     const decision = mock<ActionCardDecision>({ status: input.decisionStatus ?? "pending" });
 
     render(
@@ -188,12 +199,14 @@ describe("CreateDeploymentCard", () => {
         <CreateDeploymentCard
           action={action}
           decision={decision}
+          continueConversation={continueConversation}
           dependencies={{
             useServices: () => Object.assign(mock<Container>(), { api }),
             useQueryClient: () => queryClient,
             useRouter: () => router,
             useRecordOneClickDeploy: () => recordOneClickDeploy,
             ActionCardChrome: ActionCardChrome as unknown as typeof DEPENDENCIES.ActionCardChrome,
+            NoBidsYetNotice,
             sealSdlSecrets,
             createConfigureDraft
           }}
@@ -209,7 +222,9 @@ describe("CreateDeploymentCard", () => {
       queryClient,
       router,
       createConfigureDraft,
-      decision
+      decision,
+      NoBidsYetNotice,
+      continueConversation
     };
   }
 });

@@ -59,12 +59,21 @@ describe("RedeployWithResourcesCard", () => {
           added: ["CPU / memory / storage: 8 CPU / 32Gi / 100Gi"],
           unchanged: "Image, env, ports and pricing unchanged"
         },
-        rows: [{ label: "Why", value: "The container ran out of memory." }],
+        rows: [
+          { label: "Why", value: "The container ran out of memory." },
+          { label: "Providers able to bid now", value: "6" }
+        ],
         costNote: "Opens a new deployment in the editor with your current secrets. The old one keeps running, and billing, until you close it.",
         confirmLabel: "Open in editor",
         isConfirmDisabled: false
       })
     );
+  });
+
+  it("leaves the provider count out when screening did not answer", () => {
+    const { chromeProps } = setup({ providersAbleToBid: null });
+
+    expect(chromeProps().rows).toEqual([{ label: "Why", value: "The container ran out of memory." }]);
   });
 
   it("lists GPU and replica changes per service when several change", () => {
@@ -136,13 +145,14 @@ describe("RedeployWithResourcesCard", () => {
     expect(redeploy).not.toHaveBeenCalled();
   });
 
-  function setup(input: { services?: Action["services"]; definition?: Partial<DeploymentDefinition> } = {}) {
+  function setup(input: { services?: Action["services"]; definition?: Partial<DeploymentDefinition>; providersAbleToBid?: number | null } = {}) {
     const action: Action = {
       type: "redeploy_with_resources",
       tier: "deep_link",
       dseq: "42",
       reason: "The container ran out of memory.",
-      services: input.services ?? [{ service: "web", before: BEFORE, after: { ...BEFORE, memory: "32Gi" } }]
+      services: input.services ?? [{ service: "web", before: BEFORE, after: { ...BEFORE, memory: "32Gi" } }],
+      providersAbleToBid: input.providersAbleToBid === undefined ? 6 : input.providersAbleToBid
     };
     const definition: DeploymentDefinition = { sdl: SDL, name: "llama", source: "api", ...input.definition };
     const useDeploymentDefinition = vi.fn<typeof DEPENDENCIES.useDeploymentDefinition>(() => definition);

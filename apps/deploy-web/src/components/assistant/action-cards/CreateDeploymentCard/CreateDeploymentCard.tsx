@@ -17,6 +17,7 @@ import type { ActionCardRow } from "../ActionCardChrome/ActionCardChrome";
 import { ActionCardChrome } from "../ActionCardChrome/ActionCardChrome";
 import type { ActionCardProps } from "../actionCardTypes";
 import { computeLabelOf, gpuLabelOf } from "../serviceResourcesFormat/serviceResourcesFormat";
+import { NoBidsYetNotice } from "./NoBidsYetNotice/NoBidsYetNotice";
 import { exposedPortsOf } from "./exposedPortsOf";
 
 export const DEPENDENCIES = {
@@ -25,6 +26,7 @@ export const DEPENDENCIES = {
   useRouter,
   useRecordOneClickDeploy,
   ActionCardChrome,
+  NoBidsYetNotice,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   sealSdlSecrets,
   // eslint-disable-next-line akash/dependencies-component-or-hook
@@ -42,6 +44,7 @@ interface CreatedDeployment {
 export const CreateDeploymentCard: FC<ActionCardProps<"create_deployment"> & { dependencies?: typeof DEPENDENCIES }> = ({
   action,
   decision,
+  continueConversation,
   dependencies: d = DEPENDENCIES
 }) => {
   const { api } = d.useServices();
@@ -103,6 +106,7 @@ export const CreateDeploymentCard: FC<ActionCardProps<"create_deployment"> & { d
           Open in editor
         </Button>
       )}
+      {created && <d.NoBidsYetNotice dseq={created.dseq} continueConversation={continueConversation} />}
       {created && !created.isAutoLeased && (
         <Link
           href={UrlService.configureDeployment({ dseq: created.dseq })}
