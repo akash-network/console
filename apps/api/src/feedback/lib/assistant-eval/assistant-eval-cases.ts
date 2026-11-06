@@ -172,7 +172,7 @@ const DART_WITHHELD = {
   ],
   gpuModelsWithFreeCapacity: null,
   templateSdl: DART_SDL,
-  note: "No provider can bid on this, so the user did not see a card. Propose an adjusted SDL that has bidders, keeping its price and denom: drop placement attributes no audited provider signed, change resources the user did not ask for, or pick another template. If nothing fits, explain why to the user."
+  note: "No provider can bid on this, so the user did not see a card. Propose an adjusted SDL that has bidders, keeping its price and denom: drop placement attributes no audited provider signed, change resources the user did not ask for, or pick another template, after at most two availability checks. If nothing fits, say which requirement no provider meets right now, and offer request_hardware or a smaller alternative."
 };
 
 const PLENTY_OF_BIDDERS = { providersAbleToBid: 14, groups: [{ group: "dcloud", requestedGpus: [], providersAbleToBid: 14 }], gpuModelsWithFreeCapacity: null };

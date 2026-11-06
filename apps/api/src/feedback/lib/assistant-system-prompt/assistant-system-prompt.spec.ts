@@ -20,6 +20,9 @@ describe(buildAssistantSystemPrompt.name, () => {
     expect(prompt).toContain("prefer a template whose source is console, then console_curated, over community ones");
     expect(prompt).toContain("holds back one nobody can bid on with the reason");
     expect(prompt).toContain("End every turn with an answer, never with tool calls alone.");
+    expect(prompt).toContain("propose its card in the same turn instead of asking whether to");
+    expect(prompt).toContain("at most twice per request");
+    expect(prompt).toContain("never a running commentary of what you are about to read or propose, and never name your tools");
     expect(prompt).not.toContain("Latest assistant cards");
     expect(prompt.split("\n").at(-1)).toBe("The user has a paid account.");
   });

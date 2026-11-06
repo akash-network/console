@@ -36,7 +36,7 @@ const CLIENT_TOOL_DESCRIPTIONS: Record<ClientToolName, string> = {
 
 const PROPOSAL_TOOL_DESCRIPTIONS: Record<ProposalActionType, string> = {
   create_deployment:
-    "Proposes a new deployment from a template or a generated SDL. The SDL is validated and screened before the card is shown, and held back when no provider can bid.",
+    "Proposes a new deployment from a template or a generated SDL. The SDL is validated and screened before the card is shown, and held back when no provider can bid. The card's Deploy button leases from the first provider that bids, so the user does not pick a bid.",
   choose_bid: "Proposes the bid to accept for each group of a deployment waiting on bids. Starting the lease starts billing.",
   update_deployment:
     "Proposes changes to running services: image, command, args, non-secret env (null removes a variable), exposed ports, accepted domains, http options, storage mount and read-only. Resources cannot change here.",
