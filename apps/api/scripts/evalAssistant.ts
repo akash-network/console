@@ -127,8 +127,10 @@ async function main() {
     return;
   }
 
+  const caseIds = process.argv.slice(2);
+  const cases = caseIds.length > 0 ? ASSISTANT_EVAL_CASES.filter(({ id }) => caseIds.includes(id)) : ASSISTANT_EVAL_CASES;
   const results: AssistantEvalResult[] = [];
-  for (const evalCase of ASSISTANT_EVAL_CASES) {
+  for (const evalCase of cases) {
     results.push(
       await runCase(evalCase).catch(error => ({
         id: evalCase.id,

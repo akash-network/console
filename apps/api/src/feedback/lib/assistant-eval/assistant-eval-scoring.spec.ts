@@ -137,6 +137,55 @@ describe(scoreAssistantEval.name, () => {
     expect(scoreAssistantEval("repeats", {}, { toolCalls, answer: "No bids." }).failures).toEqual([]);
   });
 
+  it("reports each sentence that advises raising the price or switching the denom", () => {
+    const answer = [
+      "It closed with no bids.",
+      "Increase the maximum price you're willing to pay!",
+      "Try a higher bid?",
+      "Or pay more",
+      "Switch the denom to uakt."
+    ].join("\n");
+
+    expect(scoreAssistantEval("reprice", { neverAdvisesRepricing: true }, { toolCalls: [], answer }).failures).toEqual([
+      `answer advises repricing: "Increase the maximum price you're willing to pay!"`,
+      'answer advises repricing: "Try a higher bid?"',
+      'answer advises repricing: "Or pay more"',
+      'answer advises repricing: "Switch the denom to uakt."'
+    ]);
+    expect(scoreAssistantEval("reprice", {}, { toolCalls: [], answer }).failures).toEqual([]);
+  });
+
+  it.each([
+    "Raising your bid will get you a lease.",
+    "Bump the pricing.",
+    "Boost the price.",
+    "You are willing to pay enough.",
+    "Changing the SDL denom helps."
+  ])("reports repricing advice in %j", answer => {
+    expect(scoreAssistantEval("reprice", { neverAdvisesRepricing: true }, { toolCalls: [], answer }).failures).toEqual([
+      `answer advises repricing: "${answer}"`
+    ]);
+  });
+
+  it.each([
+    "Don't raise the price.",
+    "Do not raise the price.",
+    "Never raise the price.",
+    "There is no need to raise the price.",
+    "Drop the region attribute instead of raising the price.",
+    "Change resources rather than raising the price.",
+    "Redeploy without raising the price.",
+    "Increase the GPU count so more providers send bids.",
+    "Increase memory. The price stays the same.",
+    "Praise the price.",
+    "The bid price is higher than usual.",
+    "Your deployment shows a higher pricetag",
+    "Change the region attribute in your SDL and keep everything else, denom included.",
+    "Interchange nothing; the denom stays."
+  ])("accepts %j", answer => {
+    expect(scoreAssistantEval("reprice", { neverAdvisesRepricing: true }, { toolCalls: [], answer }).failures).toEqual([]);
+  });
+
   it("fails an answer the model left to the fallback", () => {
     expect(scoreAssistantEval("silent", {}, { toolCalls: [], answer: "I read your deployments.", fellBack: true }).failures).toEqual([
       "answered only with the fallback"

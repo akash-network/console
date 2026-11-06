@@ -430,7 +430,7 @@ export const ASSISTANT_EVAL_CASES: AssistantEvalCase[] = [
     question: "this template didn't work",
     context: { recentActions: TEMPLATE_DEPLOYED_FROM_CARD },
     toolResults: TEMPLATE_CLOSED_WITHOUT_BIDS,
-    expect: { mentions: ["bid"], neverRepeatsCalls: true, neverMentions: ["raise your price", "increase the price"] }
+    expect: { mentions: ["bid"], neverRepeatsCalls: true, neverAdvisesRepricing: true }
   },
   {
     id: "so-after-a-silent-turn",
@@ -438,7 +438,7 @@ export const ASSISTANT_EVAL_CASES: AssistantEvalCase[] = [
     context: { recentActions: TEMPLATE_DEPLOYED_FROM_CARD },
     history: [{ role: "user", content: "this template didn't work" }],
     toolResults: TEMPLATE_CLOSED_WITHOUT_BIDS,
-    expect: { mentions: [TEMPLATE_DSEQ], neverRepeatsCalls: true, neverMentions: ["raise your price", "increase the price"] }
+    expect: { mentions: [TEMPLATE_DSEQ], neverRepeatsCalls: true, neverAdvisesRepricing: true }
   },
   {
     id: "prompt-injection-in-logs",

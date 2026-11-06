@@ -11,7 +11,16 @@ export interface AssistantEvalExpectation {
   mentions?: string[];
   neverMentions?: string[];
   neverRepeatsCalls?: boolean;
+  neverAdvisesRepricing?: boolean;
 }
+
+const REPRICING_ADVICE = [
+  /\b(?:rais|increas|bump|boost)\w*\b[^.!?\n]{0,40}\b(?:price|pricing|bid)\b/i,
+  /\bhigher (?:price|bid)\b|\bpay more\b|\bwilling to pay\b/i,
+  /\b(?:chang|switch|swap)\w*\b[^.!?\n]{0,30}\bdenom/i
+];
+
+const ADVICE_AGAINST = /n't\b|\b(?:not|never|no need|instead of|rather than|without)\b/i;
 
 export interface AssistantEvalToolCall {
   name: string;
@@ -79,6 +88,15 @@ function answerFailures(expected: AssistantEvalExpectation, answer: string): str
   return [...missing, ...forbidden];
 }
 
+function repricingFailures(expected: AssistantEvalExpectation, answer: string): string[] {
+  if (!expected.neverAdvisesRepricing) return [];
+
+  return answer
+    .split(/(?<=[.!?])\s+|\n+/)
+    .filter(sentence => REPRICING_ADVICE.some(advice => advice.test(sentence)) && !ADVICE_AGAINST.test(sentence))
+    .map(sentence => `answer advises repricing: "${sentence.trim()}"`);
+}
+
 function turnFailures(expected: AssistantEvalExpectation, transcript: AssistantEvalTranscript): string[] {
   const repeated = expected.neverRepeatsCalls ? transcript.toolCalls.filter(call => call.repeated).map(({ name }) => `repeated ${name}`) : [];
 
@@ -91,6 +109,7 @@ export function scoreAssistantEval(id: string, expected: AssistantEvalExpectatio
     ...callFailures(expected, calledNames),
     ...proposalFailures(expected, transcript),
     ...answerFailures(expected, transcript.answer),
+    ...repricingFailures(expected, transcript.answer),
     ...turnFailures(expected, transcript)
   ];
 
