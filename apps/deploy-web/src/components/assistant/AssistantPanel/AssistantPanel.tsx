@@ -94,9 +94,9 @@ export const AssistantPanel: FC<Props> = ({ isOpen, onOpenChange, conversation, 
         event.preventDefault();
         onOpenChange(false);
       }
-      document.addEventListener("keydown", closeOnEscape);
+      window.addEventListener("keydown", closeOnEscape);
       return function stopClosingOnEscape() {
-        document.removeEventListener("keydown", closeOnEscape);
+        window.removeEventListener("keydown", closeOnEscape);
       };
     },
     [isOpen, onOpenChange]

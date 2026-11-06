@@ -96,6 +96,20 @@ describe("AssistantPanel", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
+  it("leaves Escape to a page overlay that opened after the panel", () => {
+    const { onOpenChange } = setup({ consent: CURRENT_CONSENT });
+    const dismissOverlay = vi.fn((event: KeyboardEvent) => {
+      if (!event.defaultPrevented) event.preventDefault();
+    });
+    document.addEventListener("keydown", dismissOverlay);
+
+    fireEvent.keyDown(screen.getByRole("button", { name: "Page action" }), { key: "Escape" });
+    document.removeEventListener("keydown", dismissOverlay);
+
+    expect(dismissOverlay).toHaveBeenCalledTimes(1);
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
   it("stops listening for Escape once closed", () => {
     const { onOpenChange, rerenderOpen } = setup({ consent: CURRENT_CONSENT });
 
