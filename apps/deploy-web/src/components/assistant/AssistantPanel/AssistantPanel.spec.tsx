@@ -4,6 +4,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { AssistantConsentCard } from "../AssistantConsentCard/AssistantConsentCard";
 import { ASSISTANT_CONSENT_COPY_VERSION } from "../assistantConsentCopy";
+import { createTranscriptMessage } from "../transcriptModel/transcriptModel";
 import type { AssistantConversation } from "../useAssistantConversation/useAssistantConversation";
 import { ASSISTANT_PANEL_WIDTH_VAR, AssistantPanel, DEPENDENCIES } from "./AssistantPanel";
 
@@ -206,6 +207,49 @@ describe("AssistantPanel", () => {
     const { conversation } = setup({ consent, question: "Why no bids?", sendsQuestion: true, isAnswering });
 
     expect(conversation.send).not.toHaveBeenCalled();
+  });
+
+  it("asks the waiting question once the answer in progress finishes", () => {
+    const { conversation, rerenderOpen } = setup({ consent: CURRENT_CONSENT, question: "Why no bids?", sendsQuestion: true, isAnswering: true });
+
+    conversation.isAnswering = false;
+    rerenderOpen(true);
+
+    expect(conversation.send).toHaveBeenCalledTimes(1);
+    expect(conversation.send).toHaveBeenCalledWith("Why no bids?");
+  });
+
+  it("drops a repeat click while the same question is still being answered", () => {
+    const { conversation, rerenderOpen } = setup({ consent: CURRENT_CONSENT, question: "Why no bids?", sendsQuestion: true });
+    conversation.messages = [createTranscriptMessage("1", "user", "Why no bids?"), createTranscriptMessage("2", "assistant")];
+    conversation.isAnswering = true;
+    rerenderOpen(true, 2);
+
+    conversation.isAnswering = false;
+    rerenderOpen(true, 2);
+
+    expect(conversation.send).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks the same question again on a click after its answer has finished", () => {
+    const { conversation, rerenderOpen } = setup({ consent: CURRENT_CONSENT, question: "Why no bids?", sendsQuestion: true });
+    conversation.messages = [createTranscriptMessage("1", "user", "Why no bids?"), createTranscriptMessage("2", "assistant", "No provider matched.")];
+
+    rerenderOpen(true, 2);
+
+    expect(conversation.send).toHaveBeenCalledTimes(2);
+  });
+
+  it("asks a different question once the answer in progress finishes", () => {
+    const { conversation, rerenderOpen } = setup({ consent: CURRENT_CONSENT, question: "Why no bids?", sendsQuestion: true });
+    conversation.messages = [createTranscriptMessage("1", "user", "Is it up?"), createTranscriptMessage("2", "assistant")];
+    conversation.isAnswering = true;
+    rerenderOpen(true, 2);
+
+    conversation.isAnswering = false;
+    rerenderOpen(true, 2);
+
+    expect(conversation.send).toHaveBeenCalledTimes(2);
   });
 
   it.each([

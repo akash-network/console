@@ -52,6 +52,7 @@ export const AssistantPanel: FC<Props> = ({ isOpen, onOpenChange, conversation, 
   const isReady = !!privacy.data && !needsConsent;
   const sentForOpenRef = useRef<number | null>(null);
   const willSendQuestion = !!sendsQuestion && !!question;
+  const isAnsweringThisQuestion = conversation.isAnswering && conversation.messages.findLast(message => message.role === "user")?.text === question;
 
   useEffect(
     function followTheLatestMessage() {
@@ -63,11 +64,16 @@ export const AssistantPanel: FC<Props> = ({ isOpen, onOpenChange, conversation, 
 
   useEffect(
     function askTheQuestionTheUserClicked() {
-      if (!isOpen || !isReady || !sendsQuestion || !question || conversation.isAnswering || sentForOpenRef.current === openedAt) return;
+      if (!isOpen || !isReady || !sendsQuestion || !question || sentForOpenRef.current === openedAt) return;
+      if (isAnsweringThisQuestion) {
+        sentForOpenRef.current = openedAt;
+        return;
+      }
+      if (conversation.isAnswering) return;
       sentForOpenRef.current = openedAt;
       conversation.send(question);
     },
-    [isOpen, isReady, sendsQuestion, question, openedAt, conversation]
+    [isOpen, isReady, sendsQuestion, question, openedAt, isAnsweringThisQuestion, conversation.isAnswering, conversation.send]
   );
 
   useEffect(
