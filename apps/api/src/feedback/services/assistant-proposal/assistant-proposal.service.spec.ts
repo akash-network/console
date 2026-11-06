@@ -8,6 +8,7 @@ import type { DeploymentController } from "@src/deployment/controllers/deploymen
 import type { DeploymentSettingController } from "@src/deployment/controllers/deployment-setting/deployment-setting.controller";
 import type { DeploymentSetting } from "@src/deployment/http-schemas/deployment-setting.schema";
 import type { SdlService } from "@src/deployment/services/sdl/sdl.service";
+import type { AssistantActionOf } from "@src/feedback/http-schemas/assistant-action.schema";
 import { AssistantProposalWithheldError, AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
 import type { ProposalActionType, ProposalArguments } from "@src/feedback/lib/assistant-tools/assistant-tool-arguments";
 import type { AssistantAccountToolsService } from "@src/feedback/services/assistant-account-tools/assistant-account-tools.service";
@@ -30,6 +31,24 @@ const SHARED_PROFILE_SDL = ASSISTANT_TEST_SDL.replace(
   "deployment:\n  web:\n    dcloud:\n      profile: web\n      count: 1\n  api:\n    dcloud:\n      profile: web\n      count: 1\n"
 );
 
+const CRAZY_PRICED_SDL = ASSISTANT_TEST_SDL.replace(
+  "    dcloud:\n      pricing:\n        web:\n          denom: uact\n          amount: 1000\n",
+  "    dcloud:\n      pricing:\n        web:\n          denom: uakt\n          amount: 999999999999\n        db:\n          denom: usd\n          amount: -1\n    backup:\n      pricing:\n        web:\n          denom: uact\n          amount: 1\n"
+).replace(
+  "deployment:\n  web:\n    dcloud:\n      profile: web\n      count: 1\n",
+  "deployment:\n  web:\n    dcloud:\n      profile: web\n      count: 1\n    backup:\n      profile: web\n      count: 1\n  db:\n    dcloud:\n      profile: db\n      count: 1\n"
+);
+
+const DEFAULT_CEILING = { denom: "uact", amount: 100000 };
+
+const CHANGED_PRICING_MESSAGE =
+  "This SDL changes the price or denom of the template or deployment it is based on. Keep its pricing exactly and change only placement attributes or resources, or pick another template by templateId.";
+
+function pricingOf(sdl: string | null) {
+  const { profiles } = yaml.raw(sdl!) as { profiles: { placement: Record<string, { pricing: unknown }> } };
+  return Object.fromEntries(Object.entries(profiles.placement).map(([name, { pricing }]) => [name, pricing]));
+}
+
 function availabilityOf(providersAbleToBid: number | null, reason?: string): SdlAvailability {
   return {
     providersAbleToBid,
@@ -45,7 +64,7 @@ describe(AssistantProposalService.name, () => {
       accountTools.templateSdl.mockResolvedValue(ASSISTANT_TEST_SDL);
       bidTools.checkAvailability.mockResolvedValue(availabilityOf(3));
 
-      const action = await propose(service, "create_deployment", { templateId: "hello-world" }, { isTrialing: true, withheldSdls: [] });
+      const action = await propose(service, "create_deployment", { templateId: "hello-world" }, { isTrialing: true, withheldTemplateSdls: [] });
 
       expect(accountTools.templateSdl).toHaveBeenCalledWith("hello-world");
       expect(bidTools.checkAvailability).toHaveBeenCalledWith(ASSISTANT_TEST_SDL, { isTrialing: true });
@@ -69,11 +88,40 @@ describe(AssistantProposalService.name, () => {
         service,
         "create_deployment",
         { sdl: ASSISTANT_TEST_SDL, name: "web", runtimeLimitHours: 12 },
-        { isTrialing: null, withheldSdls: [] }
+        { isTrialing: null, withheldTemplateSdls: [] }
       );
 
-      expect(bidTools.checkAvailability).toHaveBeenCalledWith(ASSISTANT_TEST_SDL, { isTrialing: false });
+      expect(bidTools.checkAvailability).toHaveBeenCalledWith(action.sdl, { isTrialing: false });
       expect(action).toMatchObject({ templateId: null, name: "web", runtimeLimitHours: 12, providersAbleToBid: null });
+    });
+
+    it("prices every deployed service of a generated SDL at Console's default ceiling and screens that SDL", async () => {
+      const { service, bidTools } = setup();
+
+      const action = await propose(service, "create_deployment", { sdl: CRAZY_PRICED_SDL });
+
+      expect(pricingOf(action.sdl)).toEqual({
+        dcloud: { web: DEFAULT_CEILING, db: DEFAULT_CEILING },
+        backup: { web: DEFAULT_CEILING }
+      });
+      expect(bidTools.checkAvailability).toHaveBeenCalledWith(action.sdl, { isTrialing: false });
+    });
+
+    it("restates a generated SDL's uakt price as the default uact ceiling", async () => {
+      const { service } = setup();
+
+      const action = await propose(service, "create_deployment", { sdl: ASSISTANT_TEST_SDL.replace("denom: uact", "denom: uakt") });
+
+      expect(pricingOf(action.sdl)).toEqual({ dcloud: { web: DEFAULT_CEILING } });
+    });
+
+    it("keeps a template's own pricing when it is deployed as is", async () => {
+      const { service, accountTools } = setup();
+      accountTools.templateSdl.mockResolvedValue(CRAZY_PRICED_SDL);
+
+      const action = await propose(service, "create_deployment", { templateId: "pricey" });
+
+      expect(action.sdl).toBe(CRAZY_PRICED_SDL);
     });
 
     it("lists no services for an SDL the summary cannot read", async () => {
@@ -88,6 +136,7 @@ describe(AssistantProposalService.name, () => {
       bidTools.checkAvailability.mockRejectedValue(new AssistantToolError("The SDL is not valid: bad indent"));
 
       await expect(propose(service, "create_deployment", { sdl: "bad" })).rejects.toThrow(new AssistantToolError("The SDL is not valid: bad indent"));
+      expect(bidTools.checkAvailability).toHaveBeenCalledWith("bad", { isTrialing: false });
     });
 
     it("holds back a template no provider can bid on, with the reason and the template's SDL to adjust", async () => {
@@ -95,32 +144,35 @@ describe(AssistantProposalService.name, () => {
       accountTools.templateSdl.mockResolvedValue(PLACED_SDL);
       const availability = availabilityOf(0, "No audited provider has signed the placement attributes host=akash.");
       bidTools.checkAvailability.mockResolvedValue(availability);
-      const context = { isTrialing: false, withheldSdls: [] };
+      const context = { isTrialing: false, withheldTemplateSdls: [] };
 
       const error = await propose(service, "create_deployment", { templateId: "akash-network-awesome-akash-dart" }, context).catch(caught => caught);
 
       expect(error).toBeInstanceOf(AssistantProposalWithheldError);
       expect(error.feedback).toEqual({ ...availability, templateSdl: PLACED_SDL });
-      expect(context.withheldSdls).toEqual([PLACED_SDL]);
+      expect(context.withheldTemplateSdls).toEqual([PLACED_SDL]);
     });
 
-    it("holds back a generated SDL without repeating it", async () => {
+    it("holds back a generated SDL without repeating or remembering it", async () => {
       const { service, bidTools } = setup();
       bidTools.checkAvailability.mockResolvedValue(availabilityOf(0));
+      const context = { isTrialing: false, withheldTemplateSdls: [] };
 
-      const error = await propose(service, "create_deployment", { sdl: ASSISTANT_TEST_SDL }).catch(caught => caught);
+      const error = await propose(service, "create_deployment", { sdl: ASSISTANT_TEST_SDL }, context).catch(caught => caught);
 
       expect(error.feedback).toEqual(availabilityOf(0));
+      expect(context.withheldTemplateSdls).toEqual([]);
     });
 
-    it("proposes an adjusted SDL that drops placement attributes and keeps the pricing of the one held back", async () => {
+    it("proposes an SDL adjusted from a held-back template as is, keeping the template's pricing", async () => {
       const { service, bidTools } = setup();
       bidTools.checkAvailability.mockResolvedValue(availabilityOf(5));
       const adjusted = PLACED_SDL.replace("      attributes:\n        host: akash\n", "");
 
-      const action = await propose(service, "create_deployment", { sdl: adjusted }, { isTrialing: false, withheldSdls: [PLACED_SDL] });
+      const action = await propose(service, "create_deployment", { sdl: adjusted }, { isTrialing: false, withheldTemplateSdls: [PLACED_SDL] });
 
       expect(action).toMatchObject({ sdl: adjusted, providersAbleToBid: 5 });
+      expect(bidTools.checkAvailability).toHaveBeenCalledWith(adjusted, { isTrialing: false });
     });
 
     it.each([
@@ -134,13 +186,22 @@ describe(AssistantProposalService.name, () => {
         ).replace("deployment:\n  web:\n    dcloud:", "deployment:\n  web:\n    dear:")
       ],
       ["unreadable", "services: ["]
-    ])("refuses an adjusted SDL that changes the pricing (%s) of the one held back", async (_, adjusted) => {
+    ])("refuses an SDL that changes the pricing (%s) of the template held back", async (_, adjusted) => {
       const { service, bidTools } = setup();
 
-      await expect(propose(service, "create_deployment", { sdl: adjusted }, { isTrialing: false, withheldSdls: [PLACED_SDL] })).rejects.toThrow(
-        AssistantToolError
+      await expect(propose(service, "create_deployment", { sdl: adjusted }, { isTrialing: false, withheldTemplateSdls: [PLACED_SDL] })).rejects.toThrow(
+        new AssistantToolError(CHANGED_PRICING_MESSAGE)
       );
       expect(bidTools.checkAvailability).not.toHaveBeenCalled();
+    });
+
+    it("compares against the template held back last", async () => {
+      const { service } = setup();
+      const repriced = PLACED_SDL.replace("amount: 1000", "amount: 5000");
+
+      const action = await propose(service, "create_deployment", { sdl: repriced }, { isTrialing: false, withheldTemplateSdls: [PLACED_SDL, repriced] });
+
+      expect(action.sdl).toBe(repriced);
     });
 
     it("lets another template replace one held back", async () => {
@@ -148,27 +209,52 @@ describe(AssistantProposalService.name, () => {
       accountTools.templateSdl.mockResolvedValue(ASSISTANT_TEST_SDL);
       bidTools.checkAvailability.mockResolvedValue(availabilityOf(9));
 
-      const action = await propose(service, "create_deployment", { templateId: "hello-world" }, { isTrialing: false, withheldSdls: [PLACED_SDL] });
+      const action = await propose(service, "create_deployment", { templateId: "hello-world" }, { isTrialing: false, withheldTemplateSdls: [PLACED_SDL] });
 
       expect(action).toMatchObject({ templateId: "hello-world", providersAbleToBid: 9 });
     });
   });
 
+  describe("pricedSdl", () => {
+    it("prices an SDL the model wrote at the default ceiling", () => {
+      const { service } = setup();
+
+      expect(pricingOf(service.pricedSdl(CRAZY_PRICED_SDL, { isTrialing: false, withheldTemplateSdls: [] }))).toEqual({
+        dcloud: { web: DEFAULT_CEILING, db: DEFAULT_CEILING },
+        backup: { web: DEFAULT_CEILING }
+      });
+    });
+  });
+
   describe("open_in_editor", () => {
-    it("refuses to open an SDL that changes the pricing of the one held back", async () => {
+    it("prices an SDL the model wrote at the default ceiling", async () => {
+      const { service, deploymentController, accountTools } = setup();
+
+      const action = await propose(service, "open_in_editor", { sdl: CRAZY_PRICED_SDL });
+
+      expect(action).toMatchObject({ type: "open_in_editor", tier: "deep_link", dseq: null, templateId: null });
+      expect(pricingOf(action.sdl)).toEqual({
+        dcloud: { web: DEFAULT_CEILING, db: DEFAULT_CEILING },
+        backup: { web: DEFAULT_CEILING }
+      });
+      expect(deploymentController.findByDseq).not.toHaveBeenCalled();
+      expect(accountTools.templateSdl).not.toHaveBeenCalled();
+    });
+
+    it("refuses to open an SDL that changes the pricing of the template held back", async () => {
       const { service } = setup();
       const repriced = PLACED_SDL.replace("amount: 1000", "amount: 5000");
 
-      await expect(propose(service, "open_in_editor", { sdl: repriced }, { isTrialing: false, withheldSdls: [PLACED_SDL] })).rejects.toThrow(
-        AssistantToolError
+      await expect(propose(service, "open_in_editor", { sdl: repriced }, { isTrialing: false, withheldTemplateSdls: [PLACED_SDL] })).rejects.toThrow(
+        new AssistantToolError(CHANGED_PRICING_MESSAGE)
       );
     });
 
-    it("opens an adjusted SDL that keeps the pricing of the one held back", async () => {
+    it("opens an adjusted SDL that keeps the pricing of the template held back", async () => {
       const { service } = setup();
       const adjusted = PLACED_SDL.replace("      attributes:\n        host: akash\n", "");
 
-      expect(await propose(service, "open_in_editor", { sdl: adjusted }, { isTrialing: false, withheldSdls: [PLACED_SDL] })).toEqual({
+      expect(await propose(service, "open_in_editor", { sdl: adjusted }, { isTrialing: false, withheldTemplateSdls: [PLACED_SDL] })).toEqual({
         type: "open_in_editor",
         tier: "deep_link",
         dseq: null,
@@ -177,13 +263,67 @@ describe(AssistantProposalService.name, () => {
       });
     });
 
-    it("opens a template or deployment without a pricing check after a hold back", async () => {
+    it("opens an edit of an existing deployment that keeps its pricing, as is", async () => {
+      const { service, deploymentController } = setup();
+      const edited = ASSISTANT_TEST_SDL.replace("nginx:1.25.3", "nginx:1.27.0");
+
+      expect(await propose(service, "open_in_editor", { dseq: "42", templateId: "hello-world", sdl: edited })).toEqual({
+        type: "open_in_editor",
+        tier: "deep_link",
+        dseq: "42",
+        templateId: "hello-world",
+        sdl: edited
+      });
+      expect(deploymentController.findByDseq).toHaveBeenCalledWith("42");
+    });
+
+    it.each([
+      ["price", ASSISTANT_TEST_SDL.replace("amount: 1000", "amount: 100000")],
+      ["denom", ASSISTANT_TEST_SDL.replace("denom: uact", "denom: uakt")],
+      ["unreadable", "services: ["]
+    ])("refuses an edit of an existing deployment that changes its %s", async (_, edited) => {
       const { service } = setup();
 
-      expect(await propose(service, "open_in_editor", { templateId: "hello-world" }, { isTrialing: false, withheldSdls: [PLACED_SDL] })).toMatchObject({
+      await expect(propose(service, "open_in_editor", { dseq: "42", sdl: edited })).rejects.toThrow(new AssistantToolError(CHANGED_PRICING_MESSAGE));
+    });
+
+    it("refuses an edit of a deployment Console holds no SDL for", async () => {
+      const { service, deploymentController } = setup();
+      deploymentController.findByDseq.mockResolvedValue({ data: createGetDeploymentResponseData({ dseq: "42", sdl: null }) });
+
+      await expect(propose(service, "open_in_editor", { dseq: "42", sdl: ASSISTANT_TEST_SDL })).rejects.toThrow(
+        new AssistantToolError("Console holds no readable SDL for deployment 42, so it cannot be changed from here.")
+      );
+    });
+
+    it("opens an edit of a template that keeps its pricing, as is", async () => {
+      const { service, accountTools } = setup();
+      accountTools.templateSdl.mockResolvedValue(PLACED_SDL);
+      const edited = PLACED_SDL.replace("      attributes:\n        host: akash\n", "");
+
+      expect(await propose(service, "open_in_editor", { templateId: "dart", sdl: edited })).toMatchObject({ templateId: "dart", sdl: edited });
+      expect(accountTools.templateSdl).toHaveBeenCalledWith("dart");
+    });
+
+    it("refuses an edit of a template that changes its pricing", async () => {
+      const { service, accountTools } = setup();
+      accountTools.templateSdl.mockResolvedValue(PLACED_SDL);
+
+      await expect(propose(service, "open_in_editor", { templateId: "dart", sdl: CRAZY_PRICED_SDL })).rejects.toThrow(
+        new AssistantToolError(CHANGED_PRICING_MESSAGE)
+      );
+    });
+
+    it("opens a template or deployment without a lookup when the model sends no SDL", async () => {
+      const { service, deploymentController, accountTools } = setup();
+
+      expect(await propose(service, "open_in_editor", { templateId: "hello-world" }, { isTrialing: false, withheldTemplateSdls: [PLACED_SDL] })).toMatchObject({
         templateId: "hello-world",
         sdl: null
       });
+      expect(await propose(service, "open_in_editor", { dseq: "42" })).toMatchObject({ dseq: "42", sdl: null });
+      expect(deploymentController.findByDseq).not.toHaveBeenCalled();
+      expect(accountTools.templateSdl).not.toHaveBeenCalled();
     });
   });
 
@@ -380,7 +520,7 @@ describe(AssistantProposalService.name, () => {
         service,
         "redeploy_with_resources",
         { dseq: "42", reason: "OOMKilled", services: { web: { memory: "4Gi" } } },
-        { isTrialing: true, withheldSdls: [] }
+        { isTrialing: true, withheldTemplateSdls: [] }
       );
 
       const [screenedSdl, options] = bidTools.checkAvailability.mock.calls[0];
@@ -580,12 +720,11 @@ describe(AssistantProposalService.name, () => {
       ["buy_credits", { amountUsd: 20 }, { type: "buy_credits", tier: "deep_link", amountUsd: 20 }],
       ["configure_auto_recharge", {}, { type: "configure_auto_recharge", tier: "deep_link", thresholdUsd: null, amountUsd: null }],
       ["configure_auto_recharge", { thresholdUsd: 5, amountUsd: 20 }, { type: "configure_auto_recharge", tier: "deep_link", thresholdUsd: 5, amountUsd: 20 }],
-      ["open_in_editor", {}, { type: "open_in_editor", tier: "deep_link", dseq: null, templateId: null, sdl: null }],
-      ["open_in_editor", { dseq: "42", templateId: "t", sdl: "s" }, { type: "open_in_editor", tier: "deep_link", dseq: "42", templateId: "t", sdl: "s" }]
+      ["open_in_editor", {}, { type: "open_in_editor", tier: "deep_link", dseq: null, templateId: null, sdl: null }]
     ])("builds %s from its arguments alone", async (type, args, expected) => {
       const { service, deploymentController } = setup();
 
-      expect(await service.propose(type, args as ProposalArguments<typeof type>, { isTrialing: false, withheldSdls: [] })).toEqual(expected);
+      expect(await service.propose(type, args as ProposalArguments<typeof type>, { isTrialing: false, withheldTemplateSdls: [] })).toEqual(expected);
       expect(deploymentController.findByDseq).not.toHaveBeenCalled();
     });
   });
@@ -594,9 +733,9 @@ describe(AssistantProposalService.name, () => {
     service: AssistantProposalService,
     type: T,
     args: ProposalArguments<T>,
-    context: ProposalContext = { isTrialing: false, withheldSdls: [] }
+    context: ProposalContext = { isTrialing: false, withheldTemplateSdls: [] }
   ) {
-    return service.propose(type, args, context);
+    return service.propose(type, args, context) as Promise<AssistantActionOf<T>>;
   }
 
   function setup(input: { runtimeLimitHours?: number | null; runtimeEndsAt?: string | null } = {}) {

@@ -199,7 +199,7 @@ export class AssistantToolRunnerService {
   }
 
   async #checkAvailability({ templateId, sdl }: ReadToolArguments<"check_availability">, context: ProposalContext) {
-    const checkedSdl = templateId ? await this.accountTools.templateSdl(templateId) : (sdl as string);
+    const checkedSdl = templateId ? await this.accountTools.templateSdl(templateId) : this.proposalService.pricedSdl(sdl as string, context);
     return await this.bidTools.checkAvailability(checkedSdl, { isTrialing: context.isTrialing === true });
   }
 

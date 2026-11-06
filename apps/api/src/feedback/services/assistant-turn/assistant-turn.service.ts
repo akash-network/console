@@ -80,7 +80,7 @@ export class AssistantTurnService {
     const abort = AbortSignal.any([signal, deadline]);
     const messages = [...turn.messages];
     const answer: string[] = [];
-    const proposalContext: ProposalContext = { isTrialing: turn.isTrialing, withheldSdls: [] };
+    const proposalContext: ProposalContext = { isTrialing: turn.isTrialing, withheldTemplateSdls: [] };
 
     try {
       for (let round = turn.roundsUsed; ; round++) {
