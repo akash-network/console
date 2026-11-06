@@ -24,6 +24,7 @@ import { DeploymentReadyHost } from "@src/components/activity/DeploymentReadyHos
 import { AccountCreatedTracker } from "@src/components/analytics/AccountCreatedTracker/AccountCreatedTracker";
 import { AppBootstrap } from "@src/components/AppBootstrap/AppBootstrap";
 import { AssistantHost } from "@src/components/assistant/AssistantHost/AssistantHost";
+import { TOASTS_BESIDE_ASSISTANT_PANEL } from "@src/components/assistant/AssistantPanel/AssistantPanel";
 import { RequireAuth } from "@src/components/auth/RequireAuth/RequireAuth";
 import { AddCreditsHost } from "@src/components/billing-usage/AddCreditsHost/AddCreditsHost";
 import { CloseDeploymentConfirmHost } from "@src/components/deployments/CloseDeploymentConfirmHost/CloseDeploymentConfirmHost";
@@ -126,7 +127,7 @@ function AppRoot(props: Props & { children: React.ReactNode }) {
               <QueryClientProvider client={queryClient}>
                 <AppThemeProvider>
                   <ColorModeProvider>
-                    <CustomSnackbarProvider>
+                    <CustomSnackbarProvider containerClassName={TOASTS_BESIDE_ASSISTANT_PANEL}>
                       <TooltipProvider>
                         <PopupProvider>
                           <BlockchainStatusProvider>

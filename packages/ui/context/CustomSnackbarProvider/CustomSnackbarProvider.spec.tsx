@@ -61,7 +61,15 @@ describe(CustomSnackbarProvider.name, () => {
     expect(screen.queryByRole("button", { name: "Dismiss" })).not.toBeInTheDocument();
   });
 
-  function setup(input: { message: SnackbarMessage; options?: OptionsObject }) {
+  it("adds the given classes to the toast container", async () => {
+    setup({ message: "Event has been created", containerClassName: "beside-panel" });
+
+    const toast = await screen.findByRole("alert");
+
+    expect(toast.closest(".beside-panel")).toHaveClass("pb-3", "!w-[400px]");
+  });
+
+  function setup(input: { message: SnackbarMessage; options?: OptionsObject; containerClassName?: string }) {
     function Notify() {
       const { enqueueSnackbar } = useSnackbar();
 
@@ -76,7 +84,7 @@ describe(CustomSnackbarProvider.name, () => {
     }
 
     return render(
-      <CustomSnackbarProvider>
+      <CustomSnackbarProvider containerClassName={input.containerClassName}>
         <Notify />
       </CustomSnackbarProvider>
     );

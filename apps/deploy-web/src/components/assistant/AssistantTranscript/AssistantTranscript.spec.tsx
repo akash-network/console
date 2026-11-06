@@ -23,7 +23,7 @@ describe("AssistantTranscript", () => {
     });
 
     expect(screen.getByText("Why no bids?")).toBeInTheDocument();
-    expect(within(screen.getByRole("list", { name: "What the assistant read" })).getByRole("listitem")).toHaveTextContent("Read: deployment, bids");
+    expect(within(screen.getByRole("list", { name: "What the assistant read" })).getByRole("listitem")).toHaveTextContent(/^deployment, bids$/);
     expect(screen.getByText("No provider has 8 GPUs free.")).toBeInTheDocument();
   });
 
@@ -83,14 +83,14 @@ describe("AssistantTranscript", () => {
       ]
     });
 
-    expect(screen.getByRole("listitem")).toHaveTextContent(/^Read: Checked which providers could bidretried$/);
+    expect(screen.getByRole("listitem")).toHaveTextContent(/^Checked which providers could bidretried$/);
     expect(screen.queryByText("failed")).not.toBeInTheDocument();
   });
 
   it("shows a read that needed no retry without a hint", () => {
     setup({ messages: [message("2", { text: "x", reads: [{ id: "t-1", tool: "search_docs", label: "Searched the Console docs", ok: true }] })] });
 
-    expect(screen.getByRole("listitem")).toHaveTextContent(/^Read: Searched the Console docs$/);
+    expect(screen.getByRole("listitem")).toHaveTextContent(/^Searched the Console docs$/);
   });
 
   it("renders a card for each proposed action with the conversation it belongs to", () => {

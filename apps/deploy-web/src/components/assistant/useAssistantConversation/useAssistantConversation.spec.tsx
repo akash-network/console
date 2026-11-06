@@ -102,7 +102,7 @@ describe(useAssistantConversation.name, () => {
       expect.any(AbortSignal)
     );
     expect(result.current.messages[1]).toEqual(
-      expect.objectContaining({ text: "It ran out of memory.", reads: [{ id: "t-1", tool: "read_logs", label: "logs (web, last 200 lines)", ok: true }] })
+      expect.objectContaining({ text: "It ran out of memory.", reads: [{ id: "t-1", tool: "read_logs", label: "Read logs (web, last 200 lines)", ok: true }] })
     );
   });
 
