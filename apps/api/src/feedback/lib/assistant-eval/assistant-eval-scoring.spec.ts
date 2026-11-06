@@ -53,6 +53,20 @@ describe(scoreAssistantEval.name, () => {
     expect(result).toEqual({ id: "calls", passed: false, failures: ["did not call get_bids", "called get_deployment"] });
   });
 
+  it("reports a first call that is not the expected one", () => {
+    const expectation = { callsFirst: "read_configure_form" };
+    const readFirst = [
+      { name: "read_configure_form", arguments: {} },
+      { name: "search_docs", arguments: {} }
+    ];
+
+    expect(scoreAssistantEval("first", expectation, { toolCalls: readFirst, answer: "" }).failures).toEqual([]);
+    expect(scoreAssistantEval("first", expectation, { toolCalls: [...readFirst].reverse(), answer: "" }).failures).toEqual([
+      "called search_docs before read_configure_form"
+    ]);
+    expect(scoreAssistantEval("first", expectation, { toolCalls: [], answer: "" }).failures).toEqual(["called nothing before read_configure_form"]);
+  });
+
   it("reports a missing proposal", () => {
     const result = scoreAssistantEval(
       "proposal",
@@ -227,6 +241,7 @@ describe(scoreAssistantEval.name, () => {
     const named = ASSISTANT_EVAL_CASES.flatMap(evalCase => [
       ...(evalCase.expect.calls ?? []),
       ...(evalCase.expect.neverCalls ?? []),
+      ...(evalCase.expect.callsFirst ? [evalCase.expect.callsFirst] : []),
       ...Object.keys(evalCase.toolResults ?? {})
     ]);
 

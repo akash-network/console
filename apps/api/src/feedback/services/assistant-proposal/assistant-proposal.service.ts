@@ -18,6 +18,8 @@ import { PricingService } from "@src/pricing/services/pricing/pricing.service";
 
 export interface ProposalContext {
   isTrialing: boolean | null;
+  /** The browser said the configure page's form is open, so it can answer the configure form tools. */
+  configureFormOpen?: boolean;
   /** Template SDLs held back earlier in the turn for having no bidders, whose pricing an adjusted SDL has to keep. */
   withheldTemplateSdls: string[];
 }
@@ -137,6 +139,14 @@ export class AssistantProposalService {
         return { type: "buy_credits", tier: "deep_link", amountUsd: input.args.amountUsd ?? null };
       case "configure_auto_recharge":
         return { type: "configure_auto_recharge", tier: "deep_link", thresholdUsd: input.args.thresholdUsd ?? null, amountUsd: input.args.amountUsd ?? null };
+      case "edit_configure_form":
+        return {
+          type: "edit_configure_form",
+          tier: "confirm",
+          reason: input.args.reason,
+          services: Object.entries(input.args.services ?? {}).map(([service, changes]) => ({ service, changes })),
+          placements: Object.entries(input.args.placements ?? {}).map(([placement, changes]) => ({ placement, changes }))
+        };
     }
   }
 

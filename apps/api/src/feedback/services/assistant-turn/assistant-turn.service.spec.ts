@@ -9,7 +9,7 @@ import type { CreateLogger } from "@src/core";
 import { envSchema } from "@src/feedback/config/env.config";
 import type { AssistantAction } from "@src/feedback/http-schemas/assistant-action.schema";
 import type { AssistantStreamEvent } from "@src/feedback/http-schemas/assistant-conversation.schema";
-import { assistantChatTools } from "@src/feedback/lib/assistant-tools/assistant-tools";
+import { assistantChatToolsFor } from "@src/feedback/lib/assistant-tools/assistant-tools";
 import type { AssistantPendingTurnRepository } from "@src/feedback/repositories/assistant-pending-turn/assistant-pending-turn.repository";
 import {
   AkashMlClient,
@@ -81,7 +81,7 @@ describe(AssistantTurnService.name, () => {
       {
         model: "assistant-model",
         messages: [{ role: "user", content: "hi" }],
-        tools: assistantChatTools(),
+        tools: assistantChatToolsFor({ configureFormOpen: false }),
         tool_choice: "auto",
         max_completion_tokens: MAX_COMPLETION_TOKENS,
         reasoning_effort: "medium"
@@ -92,6 +92,19 @@ describe(AssistantTurnService.name, () => {
     expect(limitsService.recordUsage).toHaveBeenCalledWith(USAGE);
     expect(transcriptService.record).toHaveBeenCalledWith("conversation-1", { role: "assistant", content: "Your deployment is live." });
     expect(service).toBeInstanceOf(AssistantTurnService);
+  });
+
+  it("offers the configure form tools only while the browser has the form open", async () => {
+    const { akashMlClient, run } = setup();
+    akashMlClient.streamChatCompletion.mockImplementation(streamed({ content: "Done." }));
+
+    await run({ configureFormOpen: true });
+    await run({ configureFormOpen: false });
+
+    const offered = akashMlClient.streamChatCompletion.mock.calls.map(([request]) => request.tools?.map(tool => tool.function.name));
+    expect(offered[0]).toEqual(expect.arrayContaining(["read_configure_form", "propose_edit_configure_form"]));
+    expect(offered[1]).not.toContain("read_configure_form");
+    expect(offered[1]).not.toContain("propose_edit_configure_form");
   });
 
   it("emits each piece of the answer as the model streams it, and stores the answer whole", async () => {
@@ -322,9 +335,9 @@ describe(AssistantTurnService.name, () => {
       .mockImplementationOnce(streamed({ content: "It is running." }));
     toolRunner.run.mockResolvedValue({ kind: "result", content: '{"tool":"get_deployment"}', summary: "Read deployment 42", ok: true });
 
-    const events = await run({ stored: true, isTrialing: true });
+    const events = await run({ stored: true, isTrialing: true, configureFormOpen: true });
 
-    expect(toolRunner.run).toHaveBeenCalledWith(call, { isTrialing: true, withheldTemplateSdls: [] });
+    expect(toolRunner.run).toHaveBeenCalledWith(call, { isTrialing: true, configureFormOpen: true, withheldTemplateSdls: [] });
     expect(events).toEqual([
       { type: "text_delta", text: "Let me check." },
       { type: "tool_started", toolCallId: "c1", name: "get_deployment" },
@@ -557,7 +570,7 @@ describe(AssistantTurnService.name, () => {
     toolRunner.run.mockResolvedValueOnce({ kind: "client", call: { id: "c1", name: "read_logs", arguments: { dseq: "42", tailLines: 100 } } });
     toolRunner.run.mockResolvedValueOnce({ kind: "result", content: "{}", summary: "Read deployment 42", ok: true });
 
-    const events = await run({ stored: true, isTrialing: false, roundsUsed: 2 });
+    const events = await run({ stored: true, isTrialing: false, configureFormOpen: true, roundsUsed: 2 });
 
     expect(events).toEqual([
       { type: "text_delta", text: "Reading logs." },
@@ -579,7 +592,8 @@ describe(AssistantTurnService.name, () => {
         clientToolCalls: [logs],
         roundsUsed: 3,
         stored: true,
-        isTrialing: false
+        isTrialing: false,
+        configureFormOpen: true
       },
       expiresAt: new Date(NOW.getTime() + PENDING_TURN_TTL_MS)
     });
@@ -648,15 +662,39 @@ describe(AssistantTurnService.name, () => {
     expect(logger.error).toHaveBeenCalledWith({ event: "ASSISTANT_TURN_FAILED", error });
   });
 
-  it("reports a turn that ran out of time", async () => {
-    const timeout = vi.spyOn(AbortSignal, "timeout").mockReturnValue(AbortSignal.abort());
+  it("answers a turn that ran out of time with what it read, and logs it", async () => {
+    const deadline = new AbortController();
+    const timeout = vi.spyOn(AbortSignal, "timeout").mockReturnValue(deadline.signal);
+    const { akashMlClient, toolRunner, transcriptService, logger, run } = setup();
+    akashMlClient.streamChatCompletion
+      .mockImplementationOnce(streamed({ content: "Let me check.", toolCalls: [toolCall("c1", "list_deployments")] }))
+      .mockImplementationOnce(async () => {
+        deadline.abort();
+        throw new Error("aborted");
+      });
+    toolRunner.run.mockResolvedValue({ kind: "result", content: "{}", summary: "Read your deployments", ok: true });
+
+    const events = await run({ stored: true });
+
+    const fallback = "I read your deployments, but could not finish my answer. Next step: ask again in a shorter question, or ask on Discord for live help.";
+    expect(events.slice(-2)).toEqual([
+      { type: "text_delta", text: `\n\n${fallback}` },
+      { type: "done", reason: "stop" }
+    ]);
+    expect(logger.warn).toHaveBeenCalledWith({ event: "ASSISTANT_TURN_TIMED_OUT", round: 1, timeoutMs: TURN_TIMEOUT_MS });
+    expect(transcriptService.record).toHaveBeenLastCalledWith("conversation-1", { role: "assistant", content: `Let me check.\n\n${fallback}` });
+    expect(timeout).toHaveBeenCalledWith(TURN_TIMEOUT_MS);
+  });
+
+  it("answers a turn that ran out of time before reading anything", async () => {
+    vi.spyOn(AbortSignal, "timeout").mockReturnValue(AbortSignal.abort());
     const { akashMlClient, run } = setup();
     akashMlClient.streamChatCompletion.mockRejectedValue(new Error("aborted"));
 
     expect(await run({})).toEqual([
-      { type: "error", code: "assistant_timeout", message: "The assistant took too long to answer. Try again, or ask on Discord." }
+      { type: "text_delta", text: "I could not finish my answer this time. Next step: ask again in a shorter question, or ask on Discord for live help." },
+      { type: "done", reason: "stop" }
     ]);
-    expect(timeout).toHaveBeenCalledWith(TURN_TIMEOUT_MS);
   });
 
   it("stops quietly when the user left", async () => {
@@ -702,7 +740,7 @@ describe(AssistantTurnService.name, () => {
       const events: AssistantStreamEvent[] = [];
       const messages: ChatMessage[] = [{ role: "user", content: "hi" }];
       await service.run(
-        { conversationId: "conversation-1", userId: "user-1", stored: false, isTrialing: null, messages, roundsUsed: 0, ...turn },
+        { conversationId: "conversation-1", userId: "user-1", stored: false, isTrialing: null, configureFormOpen: false, messages, roundsUsed: 0, ...turn },
         async event => {
           events.push(event);
         },

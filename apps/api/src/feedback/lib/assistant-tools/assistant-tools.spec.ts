@@ -4,8 +4,10 @@ import { z } from "zod";
 import { CLIENT_TOOL_ARGUMENTS, PROPOSAL_TOOL_ARGUMENTS, READ_TOOL_ARGUMENTS } from "./assistant-tool-arguments";
 import {
   assistantChatTools,
+  assistantChatToolsFor,
   buildAssistantChatTools,
   isClientToolName,
+  isConfigureFormToolName,
   isLiveHelpToolName,
   isReadToolName,
   jsonSchemaOf,
@@ -95,6 +97,41 @@ describe("assistant tools", () => {
 
     expect(assistantChatTools()).toBe(tools);
     expect(tools).toEqual(buildAssistantChatTools());
+  });
+
+  it("offers the configure form tools only while the form is open", () => {
+    const namesWhenClosed = assistantChatToolsFor({ configureFormOpen: false }).map(({ function: { name } }) => name);
+
+    expect(assistantChatToolsFor({ configureFormOpen: true })).toBe(assistantChatTools());
+    expect(assistantChatToolsFor({ configureFormOpen: false })).toBe(assistantChatToolsFor({ configureFormOpen: false }));
+    expect(namesWhenClosed).toEqual(
+      assistantChatTools()
+        .map(({ function: { name } }) => name)
+        .filter(name => name !== "read_configure_form" && name !== "propose_edit_configure_form")
+    );
+    expect(isConfigureFormToolName("read_configure_form")).toBe(true);
+    expect(isConfigureFormToolName("propose_edit_configure_form")).toBe(true);
+    expect(isConfigureFormToolName("read_logs")).toBe(false);
+  });
+
+  it("takes a form edit that names fields to change, never pricing", () => {
+    const edit = PROPOSAL_TOOL_ARGUMENTS.edit_configure_form;
+
+    expect(
+      edit.parse({
+        reason: "9 providers can bid without persistent storage",
+        services: { web: { memory: "512Mi", persistentStorage: { remove: true } } },
+        placements: { dcloud: { attributes: [] } }
+      })
+    ).toEqual({
+      reason: "9 providers can bid without persistent storage",
+      services: { web: { memory: "512Mi", persistentStorage: { remove: true } } },
+      placements: { dcloud: { attributes: [] } }
+    });
+    expect(edit.safeParse({ reason: "cheaper", services: { web: { pricing: { amount: 1 } } } }).success).toBe(false);
+    expect(edit.safeParse({ reason: "nothing" }).success).toBe(false);
+    expect(edit.safeParse({ reason: "nothing", services: {}, placements: {} }).success).toBe(false);
+    expect(edit.safeParse({ reason: "ssd", placements: { dcloud: {} } }).success).toBe(true);
   });
 
   it("lets a fix carry an optional diagnosis next to its own arguments", () => {

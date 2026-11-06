@@ -786,7 +786,34 @@ describe(AssistantProposalService.name, () => {
       ["buy_credits", { amountUsd: 20 }, { type: "buy_credits", tier: "deep_link", amountUsd: 20 }],
       ["configure_auto_recharge", {}, { type: "configure_auto_recharge", tier: "deep_link", thresholdUsd: null, amountUsd: null }],
       ["configure_auto_recharge", { thresholdUsd: 5, amountUsd: 20 }, { type: "configure_auto_recharge", tier: "deep_link", thresholdUsd: 5, amountUsd: 20 }],
-      ["open_in_editor", {}, { type: "open_in_editor", tier: "deep_link", dseq: null, templateId: null, sdl: null }]
+      ["open_in_editor", {}, { type: "open_in_editor", tier: "deep_link", dseq: null, templateId: null, sdl: null }],
+      [
+        "edit_configure_form",
+        { reason: "9 providers offer SSD", services: { web: { persistentStorage: { class: "beta2" } } }, placements: { dcloud: { attributes: [] } } },
+        {
+          type: "edit_configure_form",
+          tier: "confirm",
+          reason: "9 providers offer SSD",
+          services: [{ service: "web", changes: { persistentStorage: { class: "beta2" } } }],
+          placements: [{ placement: "dcloud", changes: { attributes: [] } }]
+        }
+      ],
+      [
+        "edit_configure_form",
+        { reason: "No persistent storage on this network", services: { web: { persistentStorage: { remove: true } } } },
+        {
+          type: "edit_configure_form",
+          tier: "confirm",
+          reason: "No persistent storage on this network",
+          services: [{ service: "web", changes: { persistentStorage: { remove: true } } }],
+          placements: []
+        }
+      ],
+      [
+        "edit_configure_form",
+        { reason: "Any region", placements: { dcloud: { regions: [] } } },
+        { type: "edit_configure_form", tier: "confirm", reason: "Any region", services: [], placements: [{ placement: "dcloud", changes: { regions: [] } }] }
+      ]
     ])("builds %s from its arguments alone", async (type, args, expected) => {
       const { service, deploymentController } = setup();
 

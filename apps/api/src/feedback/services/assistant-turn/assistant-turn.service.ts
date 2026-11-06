@@ -4,7 +4,7 @@ import { inject, singleton } from "tsyringe";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { type AssistantStreamEvent, MAX_CLIENT_TOOL_RESULT_LENGTH } from "@src/feedback/http-schemas/assistant-conversation.schema";
 import { fallbackAnswerOf } from "@src/feedback/lib/assistant-fallback-answer/assistant-fallback-answer";
-import { assistantChatTools, isLiveHelpToolName, isReadToolName } from "@src/feedback/lib/assistant-tools/assistant-tools";
+import { assistantChatToolsFor, isLiveHelpToolName, isReadToolName } from "@src/feedback/lib/assistant-tools/assistant-tools";
 import { earlierResultOf, toolCallKeyOf } from "@src/feedback/lib/assistant-turn-tool-calls/assistant-turn-tool-calls";
 import { FEEDBACK_CONFIG, type FeedbackConfig } from "@src/feedback/providers/config.provider";
 import { AssistantPendingTurnRepository } from "@src/feedback/repositories/assistant-pending-turn/assistant-pending-turn.repository";
@@ -70,6 +70,7 @@ export interface AssistantTurn {
   userId: string;
   stored: boolean;
   isTrialing: boolean | null;
+  configureFormOpen: boolean;
   messages: ChatMessage[];
   roundsUsed: number;
 }
@@ -117,16 +118,22 @@ export class AssistantTurnService {
     const abort = AbortSignal.any([signal, deadline]);
     const messages = [...turn.messages];
     const answer: string[] = [];
-    const proposalContext: ProposalContext = { isTrialing: turn.isTrialing, withheldTemplateSdls: [] };
+    const proposalContext: ProposalContext = { isTrialing: turn.isTrialing, configureFormOpen: turn.configureFormOpen, withheldTemplateSdls: [] };
+    let round = turn.roundsUsed;
 
     try {
-      for (let round = turn.roundsUsed; ; round++) {
+      for (; ; round++) {
         const isFinalRound = round >= MAX_TOOL_ROUNDS;
-        const completion = await this.#complete(requestMessagesFor(messages, round), isFinalRound, abort, textDeltaEmitter(emit, answer.length > 0));
+        const completion = await this.#complete(
+          requestMessagesFor(messages, round),
+          { isFinalRound, configureFormOpen: turn.configureFormOpen },
+          abort,
+          textDeltaEmitter(emit, answer.length > 0)
+        );
         if (completion.content) answer.push(completion.content);
 
         if (isFinalRound || completion.toolCalls.length === 0) {
-          const finishReason = hasText(completion.content) ? completion.finishReason : await this.#answerNow(messages, answer, abort, emit);
+          const finishReason = hasText(completion.content) ? completion.finishReason : await this.#answerNow(turn, messages, answer, abort, emit);
           await this.#recordAnswer(turn, answer);
           await emit({ type: "done", reason: finishReason === "length" ? "length" : "stop" });
           return;
@@ -144,14 +151,24 @@ export class AssistantTurnService {
       }
     } catch (error) {
       if (signal.aborted) return;
+      if (deadline.aborted) return await this.#endTimedOutTurn(turn, messages, answer, round, emit);
 
-      await emit(this.#errorEventOf(error, deadline.aborted));
+      await emit(this.#errorEventOf(error));
     }
+  }
+
+  /** A turn that runs out of time still answers with what it read, since an error would hide reads the user already saw as chips. */
+  async #endTimedOutTurn(turn: AssistantTurn, messages: ChatMessage[], answer: string[], round: number, emit: EmitAssistantEvent): Promise<void> {
+    this.#logger.warn({ event: "ASSISTANT_TURN_TIMED_OUT", round, timeoutMs: TURN_TIMEOUT_MS });
+    const fallback = fallbackAnswerOf(messages);
+    await textDeltaEmitter(emit, answer.length > 0)(fallback);
+    await this.#recordAnswer(turn, [...answer, fallback]);
+    await emit({ type: "done", reason: "stop" });
   }
 
   async #complete(
     messages: ChatMessage[],
-    isFinalRound: boolean,
+    { isFinalRound, configureFormOpen }: { isFinalRound: boolean; configureFormOpen: boolean },
     signal: AbortSignal,
     onContentDelta: (text: string) => Promise<void>
   ): Promise<ChatCompletion> {
@@ -161,7 +178,7 @@ export class AssistantTurnService {
       {
         model: this.config.ASSISTANT_MODEL,
         messages,
-        tools: assistantChatTools(),
+        tools: assistantChatToolsFor({ configureFormOpen }),
         tool_choice: isFinalRound ? "none" : "auto",
         max_completion_tokens: MAX_COMPLETION_TOKENS,
         reasoning_effort: this.config.ASSISTANT_REASONING_EFFORT
@@ -174,8 +191,19 @@ export class AssistantTurnService {
   }
 
   /** A turn never ends silently: an empty last completion gets one tools-free retry, then a fixed answer naming what was read. */
-  async #answerNow(messages: ChatMessage[], answer: string[], signal: AbortSignal, emit: EmitAssistantEvent): Promise<ChatCompletion["finishReason"]> {
-    const completion = await this.#complete([...messages, ANSWER_NOW_NOTE], true, signal, textDeltaEmitter(emit, answer.length > 0));
+  async #answerNow(
+    turn: AssistantTurn,
+    messages: ChatMessage[],
+    answer: string[],
+    signal: AbortSignal,
+    emit: EmitAssistantEvent
+  ): Promise<ChatCompletion["finishReason"]> {
+    const completion = await this.#complete(
+      [...messages, ANSWER_NOW_NOTE],
+      { isFinalRound: true, configureFormOpen: turn.configureFormOpen },
+      signal,
+      textDeltaEmitter(emit, answer.length > 0)
+    );
     if (completion.content) answer.push(completion.content);
     this.#logger.info({ event: "ASSISTANT_EMPTY_ANSWER_RECOVERED", recoveredBy: hasText(completion.content) ? "answer_now" : "fallback" });
     if (hasText(completion.content)) return completion.finishReason;
@@ -281,7 +309,7 @@ export class AssistantTurnService {
     await this.pendingTurnRepository.hold({
       conversationId: turn.conversationId,
       userId: turn.userId,
-      state: { messages, clientToolCalls, roundsUsed, stored: turn.stored, isTrialing: turn.isTrialing },
+      state: { messages, clientToolCalls, roundsUsed, stored: turn.stored, isTrialing: turn.isTrialing, configureFormOpen: turn.configureFormOpen },
       expiresAt: new Date(Date.now() + PENDING_TURN_TTL_MS)
     });
   }
@@ -298,11 +326,7 @@ export class AssistantTurnService {
     await this.transcriptService.record(turn.conversationId, entry);
   }
 
-  #errorEventOf(error: unknown, timedOut: boolean): AssistantStreamEvent {
-    if (timedOut) {
-      return { type: "error", code: "assistant_timeout", message: "The assistant took too long to answer. Try again, or ask on Discord." };
-    }
-
+  #errorEventOf(error: unknown): AssistantStreamEvent {
     if (isModelFailure(error)) {
       this.#logger.warn({ event: "ASSISTANT_MODEL_FAILED", error });
       return { type: "error", code: "assistant_unavailable", message: "The assistant is unavailable right now. Ask on Discord for live help." };

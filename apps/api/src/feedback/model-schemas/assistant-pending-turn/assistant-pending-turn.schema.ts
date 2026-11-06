@@ -9,6 +9,8 @@ export type AssistantPendingTurnState = {
   roundsUsed: number;
   stored: boolean;
   isTrialing: boolean | null;
+  /** Absent on turns held before the configure form tools existed. */
+  configureFormOpen?: boolean;
 };
 
 /** A turn paused on a browser tool, held only until the browser answers or the row expires, whatever the user consented to. */

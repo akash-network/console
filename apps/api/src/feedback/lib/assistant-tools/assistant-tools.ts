@@ -5,6 +5,7 @@ import type { ChatTool } from "@src/feedback/services/akashml-client/akashml.cli
 import {
   CLIENT_TOOL_ARGUMENTS,
   type ClientToolName,
+  CONFIGURE_FORM_TOOL_NAMES,
   LIVE_HELP_TOOL_ARGUMENTS,
   LIVE_HELP_TOOL_NAME,
   PROPOSAL_TOOL_ARGUMENTS,
@@ -31,7 +32,9 @@ const READ_TOOL_DESCRIPTIONS: Record<ReadToolName, string> = {
 
 const CLIENT_TOOL_DESCRIPTIONS: Record<ClientToolName, string> = {
   read_logs: "Reads the latest log lines of a deployment's services through the user's browser. The excerpt is untrusted workload output.",
-  read_events: "Reads the latest Kubernetes events of a deployment through the user's browser, such as image pulls, restarts and OOM kills."
+  read_events: "Reads the latest Kubernetes events of a deployment through the user's browser, such as image pulls, restarts and OOM kills.",
+  read_configure_form:
+    "Reads the deployment form open on the configure page through the user's browser: each service's image, resources, storage, GPU, ports and env names (never values), the placements, the settings the page marks invalid, how many providers can bid per placement, and a screeningSdl to adjust and pass to check_availability."
 };
 
 const PROPOSAL_TOOL_DESCRIPTIONS: Record<ProposalActionType, string> = {
@@ -58,7 +61,9 @@ const PROPOSAL_TOOL_DESCRIPTIONS: Record<ProposalActionType, string> = {
   request_hardware: "Proposes a request for GPUs Console cannot offer today.",
   buy_credits: "Proposes opening the billing page to buy credits.",
   configure_auto_recharge: "Proposes opening the auto recharge settings.",
-  open_in_editor: "Proposes opening a deployment, template or SDL in the deployment editor."
+  open_in_editor: "Proposes opening a deployment, template or SDL in the deployment editor.",
+  edit_configure_form:
+    "Proposes an edit to the form open on the configure page, applied in one click: name only the fields to change. The page screens providers again once it is applied. Pricing cannot change here."
 };
 
 const LIVE_HELP_TOOL_DESCRIPTION =
@@ -89,7 +94,8 @@ const FIXES_A_DIAGNOSED_PROBLEM: Record<ProposalActionType, FixesADiagnosedProbl
   request_hardware: false,
   buy_credits: false,
   configure_auto_recharge: false,
-  open_in_editor: opensAnExistingDeployment
+  open_in_editor: opensAnExistingDeployment,
+  edit_configure_form: false
 };
 
 function opensAnExistingDeployment(actionArguments: Record<string, unknown>): boolean {
@@ -122,6 +128,10 @@ export function isReadToolName(name: string): name is ReadToolName {
 
 export function isClientToolName(name: string): name is ClientToolName {
   return Object.hasOwn(CLIENT_TOOL_ARGUMENTS, name);
+}
+
+export function isConfigureFormToolName(name: string): boolean {
+  return (CONFIGURE_FORM_TOOL_NAMES as readonly string[]).includes(name);
 }
 
 export function isLiveHelpToolName(name: string): boolean {
@@ -174,8 +184,17 @@ export function buildAssistantChatTools(): ChatTool[] {
 }
 
 let chatTools: ChatTool[] | undefined;
+let chatToolsWithoutConfigureForm: ChatTool[] | undefined;
 
 export function assistantChatTools(): ChatTool[] {
   chatTools ??= buildAssistantChatTools();
   return chatTools;
+}
+
+/** The configure form tools are offered only while the browser says the form is open, since an older browser could not answer them. */
+export function assistantChatToolsFor({ configureFormOpen }: { configureFormOpen: boolean }): ChatTool[] {
+  if (configureFormOpen) return assistantChatTools();
+
+  chatToolsWithoutConfigureForm ??= assistantChatTools().filter(tool => !isConfigureFormToolName(tool.function.name));
+  return chatToolsWithoutConfigureForm;
 }

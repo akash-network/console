@@ -3,6 +3,7 @@ import { proposalActionTypeOf } from "@src/feedback/lib/assistant-tools/assistan
 
 export interface AssistantEvalExpectation {
   calls?: string[];
+  callsFirst?: string;
   neverCalls?: string[];
   proposes?: ProposalActionType;
   proposalMentions?: string[];
@@ -53,11 +54,14 @@ function proposalsOf(transcript: AssistantEvalTranscript): { type: ProposalActio
   });
 }
 
-function callFailures(expected: AssistantEvalExpectation, calledNames: Set<string>): string[] {
+function callFailures(expected: AssistantEvalExpectation, toolCalls: AssistantEvalToolCall[]): string[] {
+  const calledNames = new Set(toolCalls.map(({ name }) => name));
   const missing = (expected.calls ?? []).filter(name => !calledNames.has(name)).map(name => `did not call ${name}`);
   const forbidden = (expected.neverCalls ?? []).filter(name => calledNames.has(name)).map(name => `called ${name}`);
+  const firstName = toolCalls[0]?.name;
+  const notFirst = expected.callsFirst && firstName !== expected.callsFirst ? [`called ${firstName ?? "nothing"} before ${expected.callsFirst}`] : [];
 
-  return [...missing, ...forbidden];
+  return [...missing, ...forbidden, ...notFirst];
 }
 
 function proposalFailures(expected: AssistantEvalExpectation, transcript: AssistantEvalTranscript): string[] {
@@ -122,9 +126,8 @@ function turnFailures(expected: AssistantEvalExpectation, transcript: AssistantE
 }
 
 export function scoreAssistantEval(id: string, expected: AssistantEvalExpectation, transcript: AssistantEvalTranscript): AssistantEvalResult {
-  const calledNames = new Set(transcript.toolCalls.map(({ name }) => name));
   const failures = [
-    ...callFailures(expected, calledNames),
+    ...callFailures(expected, transcript.toolCalls),
     ...proposalFailures(expected, transcript),
     ...answerFailures(expected, transcript.answer),
     ...deploymentLinkFailures(expected, transcript.answer),

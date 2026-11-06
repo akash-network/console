@@ -50,6 +50,12 @@ describe(fallbackAnswerOf.name, () => {
     );
   });
 
+  it("names the configure form it read", () => {
+    expect(fallbackAnswerOf(turnOf(toolCall("c1", "read_configure_form")))).toBe(
+      "I read the configure form, but could not finish my answer. Next step: ask me again which setting to change in the form, or ask on Discord for live help."
+    );
+  });
+
   it("points at the latest deployment without bids", () => {
     const answer = fallbackAnswerOf(
       turnWithResultsOf(
