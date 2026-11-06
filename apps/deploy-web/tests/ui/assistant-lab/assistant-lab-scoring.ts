@@ -12,10 +12,17 @@ export interface TurnProposal {
   action: Record<string, unknown>;
 }
 
+export interface TurnTimelineMark {
+  atMs: number;
+  type: string;
+  name?: string;
+}
+
 export interface TurnRecord {
   said: string;
   ttftMs: number | null;
   totalMs: number;
+  timeline: TurnTimelineMark[];
   toolCalls: TurnToolCall[];
   proposals: TurnProposal[];
   liveHelp: boolean;
@@ -56,6 +63,23 @@ const LONG_ANSWER_WORDS = 250;
 const POINTS_THE_WAY = /\b(go to|open|click|select|choose|page|tab|settings|billing|templates|deploy button|discord)\b/i;
 const TOOL_NAME_LEAK = /\b((?:propose|get|list|read|check|search|suggest)_[a-z_]+|tool call)\b/;
 
+const TIMED_EVENT_TYPES = new Set(["tool_started", "tool_result_summary", "client_tool_request", "action_proposal", "live_help_suggested", "done", "error"]);
+
+function timelineOf(sentAt: number, requests: RecordedRequest[]): TurnTimelineMark[] {
+  return requests.flatMap(request => {
+    const firstText = request.events.find(({ event }) => event.type === "text_delta" && String(event.text ?? "").trim());
+    const marks = request.events
+      .filter(entry => entry === firstText || TIMED_EVENT_TYPES.has(entry.event.type))
+      .map(({ at, event }) => ({
+        atMs: at - sentAt,
+        type: event.type === "text_delta" ? "first_text" : event.type,
+        ...(typeof event.name === "string" && { name: event.name })
+      }));
+
+    return [{ atMs: request.startedAt - sentAt, type: "request" }, ...marks];
+  });
+}
+
 export function turnRecordOf(said: string, sentAt: number, requests: RecordedRequest[], timedOut: boolean): TurnRecord {
   const events = requests.flatMap(request => request.events);
   const firstText = events.find(({ event }) => event.type === "text_delta" && String(event.text ?? "").trim());
@@ -72,6 +96,7 @@ export function turnRecordOf(said: string, sentAt: number, requests: RecordedReq
     said,
     ttftMs: firstText ? firstText.at - sentAt : null,
     totalMs: endedAt - sentAt,
+    timeline: timelineOf(sentAt, requests),
     toolCalls: events
       .filter(({ event }) => event.type === "tool_started")
       .map(({ event }) => ({ name: String(event.name), ...(summaries.get(String(event.toolCallId)) ?? { summary: null, ok: null }) })),

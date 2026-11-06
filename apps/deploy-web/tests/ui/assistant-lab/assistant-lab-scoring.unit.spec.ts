@@ -28,6 +28,15 @@ describe(turnRecordOf.name, () => {
       said: "fix it",
       ttftMs: 1_500,
       totalMs: 3_000,
+      timeline: [
+        { atMs: 0, type: "request" },
+        { atMs: 500, type: "tool_started", name: "get_deployment" },
+        { atMs: 600, type: "tool_result_summary", name: "get_deployment" },
+        { atMs: 1_500, type: "first_text" },
+        { atMs: 1_700, type: "action_proposal" },
+        { atMs: 1_800, type: "live_help_suggested" },
+        { atMs: 2_900, type: "done" }
+      ],
       toolCalls: [{ name: "get_deployment", summary: "Read deployment 1", ok: true }],
       proposals: [{ type: "update_deployment", action: { type: "update_deployment", dseq: "1" } }],
       liveHelp: true,
@@ -57,6 +66,41 @@ describe(turnRecordOf.name, () => {
 
     expect(turn).toMatchObject({ ttftMs: null, error: "assistant_timeout", doneReason: null, timedOut: true });
     expect(turn.toolCalls).toEqual([{ name: "read_logs", summary: null, ok: null }]);
+  });
+
+  it("times each request of a turn that waits on a client tool, without the streamed text", () => {
+    const requests: RecordedRequest[] = [
+      {
+        url: "/messages",
+        startedAt: 100,
+        endedAt: 400,
+        status: 200,
+        events: [
+          { at: 300, event: { type: "client_tool_request", toolCallId: "a", name: "read_logs", arguments: { dseq: "1" } } },
+          { at: 350, event: { type: "done", reason: "awaiting_client_tool" } }
+        ]
+      },
+      {
+        url: "/client-tool-results",
+        startedAt: 900,
+        endedAt: 1_500,
+        status: 200,
+        events: [
+          { at: 1_200, event: { type: "text_delta", text: "The logs show EADDRINUSE." } },
+          { at: 1_300, event: { type: "text_delta", text: " Change the port." } },
+          { at: 1_400, event: { type: "error", code: "assistant_timeout", message: "slow" } }
+        ]
+      }
+    ];
+
+    expect(turnRecordOf("logs", 100, requests, false).timeline).toEqual([
+      { atMs: 0, type: "request" },
+      { atMs: 200, type: "client_tool_request", name: "read_logs" },
+      { atMs: 250, type: "done" },
+      { atMs: 800, type: "request" },
+      { atMs: 1_100, type: "first_text" },
+      { atMs: 1_300, type: "error" }
+    ]);
   });
 
   it("reports a refused request by its status", () => {
@@ -211,6 +255,7 @@ describe(scoreScenario.name, () => {
       said: "question",
       ttftMs: 800,
       totalMs: 5_000,
+      timeline: [],
       toolCalls: [],
       proposals: [],
       liveHelp: false,
