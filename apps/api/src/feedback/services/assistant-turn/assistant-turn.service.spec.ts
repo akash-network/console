@@ -22,7 +22,7 @@ import {
   type ChatToolCall
 } from "@src/feedback/services/akashml-client/akashml.client";
 import type { AssistantLimitsService } from "@src/feedback/services/assistant-limits/assistant-limits.service";
-import { type AssistantToolRunnerService, toolContentOf } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
+import { type AssistantToolRunnerService, toolContentOf, type ToolOutcome } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
 import type { AssistantTranscriptService } from "@src/feedback/services/assistant-transcript/assistant-transcript.service";
 import {
   ANSWER_NOW_NOTE,
@@ -30,6 +30,7 @@ import {
   AssistantTurnService,
   LAST_TOOL_ROUND_NOTE,
   MAX_COMPLETION_TOKENS,
+  MAX_PARALLEL_READS,
   MAX_TOOL_ROUNDS,
   PENDING_TURN_TTL_MS,
   TURN_TIMEOUT_MS
@@ -371,12 +372,77 @@ describe(AssistantTurnService.name, () => {
     ]);
     expect(events).toEqual([
       { type: "tool_started", toolCallId: deployment.id, name: "get_deployment" },
-      { type: "tool_result_summary", toolCallId: deployment.id, name: "get_deployment", ok: true, summary: "Read deployment 42" },
       { type: "tool_started", toolCallId: bids.id, name: "get_bids" },
+      { type: "tool_result_summary", toolCallId: deployment.id, name: "get_deployment", ok: true, summary: "Read deployment 42" },
       { type: "tool_result_summary", toolCallId: bids.id, name: "get_bids", ok: true, summary: "Read bids" },
       { type: "text_delta", text: "It is running." },
       { type: "done", reason: "stop" }
     ]);
+  });
+
+  it("runs the reads that open a round at once and feeds their results back in the order the model asked", async () => {
+    const { akashMlClient, toolRunner, run } = setup();
+    const bidsRead = Promise.withResolvers<ToolOutcome>();
+    akashMlClient.streamChatCompletion
+      .mockImplementationOnce(streamed({ toolCalls: [toolCall("c1", "get_bids", { dseq: "42" }), toolCall("c2", "get_deployment", { dseq: "42" })] }))
+      .mockImplementationOnce(streamed({ content: "Done." }));
+    toolRunner.run.mockImplementation(async call =>
+      call.function.name === "get_bids" ? bidsRead.promise : { kind: "result", content: "deployment", summary: "Read deployment 42", ok: true }
+    );
+
+    const turn = run({});
+    await vi.waitFor(() => expect(toolRunner.run).toHaveBeenCalledTimes(2));
+    bidsRead.resolve({ kind: "result", content: "bids", summary: "Read the bids on deployment 42", ok: true });
+    await turn;
+
+    expect(akashMlClient.streamChatCompletion.mock.calls[1][0].messages.slice(-2)).toEqual([
+      { role: "tool", tool_call_id: "c1", content: "bids" },
+      { role: "tool", tool_call_id: "c2", content: "deployment" }
+    ]);
+  });
+
+  it("starts at most MAX_PARALLEL_READS reads at once and runs the rest of the round after them", async () => {
+    const { akashMlClient, toolRunner, run } = setup();
+    const reads = Array.from({ length: MAX_PARALLEL_READS + 1 }, (_, index) => toolCall(`c${index}`, "get_deployment", { dseq: `${index}` }));
+    const firstRead = Promise.withResolvers<ToolOutcome>();
+    akashMlClient.streamChatCompletion.mockImplementationOnce(streamed({ toolCalls: reads })).mockImplementationOnce(streamed({ content: "Done." }));
+    toolRunner.run.mockImplementation(async call => (call.id === "c0" ? firstRead.promise : { kind: "result", content: call.id, summary: "Read", ok: true }));
+
+    const turn = run({});
+    await vi.waitFor(() => expect(toolRunner.run).toHaveBeenCalledTimes(MAX_PARALLEL_READS));
+    firstRead.resolve({ kind: "result", content: "c0", summary: "Read", ok: true });
+    await turn;
+
+    expect(toolRunner.run.mock.calls.map(([call]) => call.id)).toEqual(reads.map(({ id }) => id));
+    expect(akashMlClient.streamChatCompletion.mock.calls[1][0].messages.slice(-reads.length)).toEqual(
+      reads.map(({ id }) => ({ role: "tool", tool_call_id: id, content: id }))
+    );
+  });
+
+  it("runs a read after a card only once the card is proposed, and a repeated read once", async () => {
+    const { akashMlClient, toolRunner, run } = setup();
+    const order: string[] = [];
+    akashMlClient.streamChatCompletion
+      .mockImplementationOnce(
+        streamed({
+          toolCalls: [
+            toolCall("c1", "get_bids", { dseq: "42" }),
+            toolCall("c2", "get_bids", { dseq: "42" }),
+            toolCall("c3", "propose_rename_deployment", { dseq: "42", name: "web" }),
+            toolCall("c4", "check_availability", { templateId: "hello" })
+          ]
+        })
+      )
+      .mockImplementationOnce(streamed({ content: "Done." }));
+    toolRunner.run.mockImplementation(async call => {
+      order.push(call.id);
+      return { kind: "result", content: "{}", summary: "Read", ok: true };
+    });
+
+    const events = await run({});
+
+    expect(order).toEqual(["c1", "c3", "c4"]);
+    expect(events.filter(({ type }) => type === "tool_started").map(event => ("toolCallId" in event ? event.toolCallId : null))).toEqual(["c1", "c3", "c4"]);
   });
 
   it("keeps the SDLs held back earlier in the turn for the proposals after them", async () => {
