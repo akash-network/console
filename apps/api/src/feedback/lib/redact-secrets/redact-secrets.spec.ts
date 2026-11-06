@@ -1,7 +1,7 @@
 import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 
-import { REDACTED, redactSecrets } from "./redact-secrets";
+import { countRedactions, REDACTED, redactSecrets } from "./redact-secrets";
 
 describe(redactSecrets.name, () => {
   it.each([
@@ -129,4 +129,22 @@ describe(redactSecrets.name, () => {
   function digits(length: number) {
     return faker.string.numeric(length);
   }
+});
+
+describe(countRedactions.name, () => {
+  it("counts every secret the redaction took out", () => {
+    const original = `first ${`hf_${"a1".repeat(12)}`} then password=hunter22`;
+
+    expect(countRedactions(original, redactSecrets(original))).toBe(2);
+  });
+
+  it("counts nothing for a text without secrets", () => {
+    expect(countRedactions("why no bids?", redactSecrets("why no bids?"))).toBe(0);
+  });
+
+  it("does not count a placeholder the user typed themselves", () => {
+    const original = `I already replaced it with ${REDACTED}`;
+
+    expect(countRedactions(original, redactSecrets(original))).toBe(0);
+  });
 });

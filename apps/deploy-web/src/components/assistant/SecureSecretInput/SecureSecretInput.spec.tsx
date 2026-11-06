@@ -47,6 +47,17 @@ describe(SecureSecretInput.name, () => {
     expect(secret().hasValue).toBe(false);
   });
 
+  it("seals values the card passes alongside into the same seal", async () => {
+    const { secret, sealSdlSecrets } = setup();
+    await userEvent.type(screen.getByLabelText("Value"), "hunter2");
+
+    await act(async () => {
+      await secret().sealAndClear("REGISTRY_PASSWORD", { REGISTRY_USERNAME: "acme-bot" });
+    });
+
+    expect(sealSdlSecrets).toHaveBeenCalledWith({ context: SEAL_CONTEXT, secrets: { REGISTRY_USERNAME: "acme-bot", REGISTRY_PASSWORD: "hunter2" } });
+  });
+
   it("clears the value even when sealing fails", async () => {
     const { secret, sealSdlSecrets } = setup();
     sealSdlSecrets.mockRejectedValue(new Error("bad key"));

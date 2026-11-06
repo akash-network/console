@@ -6,7 +6,7 @@ import type { AssistantAction, AssistantLiveHelpReason } from "@src/types/assist
 import type { AssistantTranscriptMessage } from "../transcriptModel/transcriptModel";
 import { createTranscriptMessage } from "../transcriptModel/transcriptModel";
 import type { AssistantConversation } from "../useAssistantConversation/useAssistantConversation";
-import { AssistantTranscript, DEPENDENCIES, FOLLOW_UP_ANSWERS } from "./AssistantTranscript";
+import { AssistantTranscript, DEPENDENCIES, FOLLOW_UP_ANSWERS, PASTE_REDACTED_NOTICE, SECURE_FIELD_REQUEST } from "./AssistantTranscript";
 
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -25,6 +25,41 @@ describe("AssistantTranscript", () => {
     expect(screen.getByText("Why no bids?")).toBeInTheDocument();
     expect(within(screen.getByRole("list", { name: "What the assistant read" })).getByRole("listitem")).toHaveTextContent("Read: deployment, bids");
     expect(screen.getByText("No provider has 8 GPUs free.")).toBeInTheDocument();
+  });
+
+  it("warns under a message the api removed a secret from, and offers the secure card on a deployment", async () => {
+    const { conversation } = setup({ deploymentDseq: "42", messages: [question("1", "my token is hf_abc", 1), message("2", { text: "Got it." })] });
+
+    expect(screen.getByRole("note")).toHaveTextContent(PASTE_REDACTED_NOTICE);
+    await userEvent.click(screen.getByRole("button", { name: "Add it securely" }));
+
+    expect(conversation.send).toHaveBeenCalledWith(SECURE_FIELD_REQUEST);
+  });
+
+  it("keeps only the warning without a deployment in view", () => {
+    setup({ deploymentDseq: null, messages: [question("1", "my token is hf_abc", 1)] });
+
+    expect(screen.getByRole("note")).toHaveTextContent(PASTE_REDACTED_NOTICE);
+    expect(screen.queryByRole("button", { name: "Add it securely" })).not.toBeInTheDocument();
+  });
+
+  it("offers the secure card only on the latest question and never while answering", () => {
+    setup({ deploymentDseq: "42", messages: [question("1", "my token is hf_abc", 1), message("2", { text: "Ok." }), question("3", "thanks", 0)] });
+
+    expect(screen.getByRole("note")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add it securely" })).not.toBeInTheDocument();
+  });
+
+  it("hides the button while the assistant answers", () => {
+    setup({ deploymentDseq: "42", isAnswering: true, messages: [question("1", "my token is hf_abc", 1)] });
+
+    expect(screen.queryByRole("button", { name: "Add it securely" })).not.toBeInTheDocument();
+  });
+
+  it("shows no warning for a message nothing was removed from", () => {
+    setup({ deploymentDseq: "42", messages: [question("1", "why no bids?", 0)] });
+
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
   });
 
   it("marks a read that failed", () => {
@@ -163,7 +198,11 @@ describe("AssistantTranscript", () => {
     return { ...createTranscriptMessage(id, "assistant"), ...input };
   }
 
-  function setup(input: Partial<Pick<AssistantConversation, "messages" | "isAnswering" | "problem" | "endedAs" | "isStored">>) {
+  function question(id: string, text: string, redactedSecretCount: number): AssistantTranscriptMessage {
+    return { ...createTranscriptMessage(id, "user", text), redactedSecretCount };
+  }
+
+  function setup(input: Partial<Pick<AssistantConversation, "messages" | "isAnswering" | "problem" | "endedAs" | "isStored" | "deploymentDseq">>) {
     const conversation = Object.assign(mock<AssistantConversation>(), {
       messages: [],
       isAnswering: false,
@@ -171,6 +210,7 @@ describe("AssistantTranscript", () => {
       endedAs: null,
       isStored: false,
       conversationId: "c-1",
+      deploymentDseq: null,
       send: vi.fn(),
       end: vi.fn(),
       startOver: vi.fn(),

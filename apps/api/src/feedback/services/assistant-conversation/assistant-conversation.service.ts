@@ -19,7 +19,7 @@ import type {
 import { ASSISTANT_ERROR_CODES, assistantUnavailable } from "@src/feedback/lib/assistant-errors/assistant-errors";
 import { ACTION_RESULT_TOOL_NAME, historyFromClient, historyFromStored } from "@src/feedback/lib/assistant-history/assistant-history";
 import { buildAssistantSystemPrompt } from "@src/feedback/lib/assistant-system-prompt/assistant-system-prompt";
-import { redactSecrets } from "@src/feedback/lib/redact-secrets/redact-secrets";
+import { countRedactions, redactSecrets } from "@src/feedback/lib/redact-secrets/redact-secrets";
 import type { AssistantConversationContext } from "@src/feedback/model-schemas";
 import { FEEDBACK_CONFIG, type FeedbackConfig } from "@src/feedback/providers/config.provider";
 import { type AssistantConsentOutput, AssistantConsentRepository } from "@src/feedback/repositories/assistant-consent/assistant-consent.repository";
@@ -107,8 +107,12 @@ export class AssistantConversationService {
       { role: "user", content: userMessage }
     ];
 
-    return (emit, signal) =>
-      this.turnService.run({ conversationId, userId: this.authService.currentUser.id, stored, isTrialing, messages, roundsUsed: 0 }, emit, signal);
+    const redactedSecretCount = countRedactions(content, userMessage);
+
+    return async (emit, signal) => {
+      if (redactedSecretCount > 0) await emit({ type: "secret_redacted", count: redactedSecretCount });
+      await this.turnService.run({ conversationId, userId: this.authService.currentUser.id, stored, isTrialing, messages, roundsUsed: 0 }, emit, signal);
+    };
   }
 
   /** Each requested call must be answered once, so a resumed turn never shows the model a result it did not ask for. */

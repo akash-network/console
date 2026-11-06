@@ -1,7 +1,7 @@
 "use client";
 import type { FC } from "react";
 import { Button } from "@akashnetwork/ui/components";
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle, ShieldAlert } from "lucide-react";
 
 import { ActionCard } from "../action-cards/ActionCard/ActionCard";
 import { AssistantMarkdown } from "../AssistantMarkdown/AssistantMarkdown";
@@ -16,6 +16,11 @@ export const FOLLOW_UP_ANSWERS = [
   { label: "Deploy something new", message: "I was trying to deploy something new." },
   { label: "Fix a running deployment", message: "I was trying to fix a deployment that's already running." }
 ];
+
+export const PASTE_REDACTED_NOTICE = "Looks like you pasted a secret. We removed it before sending. Use a secure field instead.";
+
+/** Asks for the set_secret card through the assistant, which knows the deployment's services and variable names the browser doesn't. */
+export const SECURE_FIELD_REQUEST = "Help me add that secret to this deployment with the secure field.";
 
 const PROBLEM_MESSAGES: Record<Exclude<AssistantProblem, "consent">, string> = {
   unavailable: "The assistant is unavailable right now.",
@@ -44,9 +49,12 @@ export const AssistantTranscript: FC<Props> = ({ conversation, dependencies: d =
     <div role="log" aria-label="Conversation" className="flex flex-col gap-5">
       {messages.map(message =>
         message.role === "user" ? (
-          <p key={message.id} className="ml-8 self-end whitespace-pre-wrap rounded-xl border bg-muted px-4 py-2.5 text-sm">
-            {message.text}
-          </p>
+          <AssistantQuestion
+            key={message.id}
+            message={message}
+            canAddSecretSecurely={!!conversation.deploymentDseq && !isAnswering && message.id === lastQuestion?.id}
+            onAddSecretSecurely={() => conversation.send(SECURE_FIELD_REQUEST)}
+          />
         ) : (
           <AssistantAnswer
             key={message.id}
@@ -115,6 +123,29 @@ export const AssistantTranscript: FC<Props> = ({ conversation, dependencies: d =
     </div>
   );
 };
+
+const AssistantQuestion: FC<{ message: AssistantTranscriptMessage; canAddSecretSecurely: boolean; onAddSecretSecurely: () => void }> = ({
+  message,
+  canAddSecretSecurely,
+  onAddSecretSecurely
+}) => (
+  <div className="ml-8 flex flex-col items-end gap-2 self-end">
+    <p className="whitespace-pre-wrap rounded-xl border bg-muted px-4 py-2.5 text-sm">{message.text}</p>
+    {message.redactedSecretCount > 0 && (
+      <div className="flex flex-col items-end gap-2">
+        <p role="note" className="text-right text-xs text-muted-foreground">
+          <ShieldAlert className="mr-1 inline h-3.5 w-3.5 align-[-3px]" aria-hidden="true" />
+          {PASTE_REDACTED_NOTICE}
+        </p>
+        {canAddSecretSecurely && (
+          <Button type="button" variant="outline" size="xs" onClick={onAddSecretSecurely}>
+            Add it securely
+          </Button>
+        )}
+      </div>
+    )}
+  </div>
+);
 
 type AnswerProps = {
   message: AssistantTranscriptMessage;

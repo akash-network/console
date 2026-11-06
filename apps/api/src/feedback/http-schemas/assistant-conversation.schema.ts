@@ -118,6 +118,14 @@ export const AssistantStreamEventSchema = z
       reason: z.enum(ASSISTANT_LIVE_HELP_REASONS).openapi({ description: "Why the assistant cannot solve this itself; the client offers live help on Discord" })
     }),
     z.object({
+      type: z.literal("secret_redacted"),
+      count: z
+        .number()
+        .int()
+        .positive()
+        .openapi({ description: "How many secrets were removed from the user's message before it reached the model. Never says which or what kind." })
+    }),
+    z.object({
       type: z.literal("done"),
       reason: z.enum(["stop", "length", "awaiting_client_tool"]).openapi({
         description: "`awaiting_client_tool`: the turn is paused until the browser posts the requested results to `client-tool-results`"

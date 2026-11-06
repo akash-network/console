@@ -21,3 +21,12 @@ const SECRET_REPLACEMENTS: [RegExp, string][] = [
 export function redactSecrets(text: string): string {
   return SECRET_REPLACEMENTS.reduce((redacted, [pattern, replacement]) => redacted.replace(pattern, replacement), text);
 }
+
+/** How many secrets `redactSecrets` took out of a text, from its output, so a caller can tell the user without the value or its kind leaving the API. */
+export function countRedactions(original: string, redacted: string): number {
+  return occurrencesOfRedacted(redacted) - occurrencesOfRedacted(original);
+}
+
+function occurrencesOfRedacted(text: string): number {
+  return text.split(REDACTED).length - 1;
+}

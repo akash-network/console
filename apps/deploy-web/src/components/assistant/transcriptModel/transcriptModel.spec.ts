@@ -2,7 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import type { AssistantAction, AssistantStreamEvent } from "@src/types/assistant";
 import type { AssistantTranscriptMessage } from "./transcriptModel";
-import { applyAssistantEvent, createTranscriptMessage, historyOf, MAX_HISTORY_MESSAGES, readLabelOfClientTool, tailLinesOf } from "./transcriptModel";
+import {
+  applyAssistantEvent,
+  applyTurnEvent,
+  createTranscriptMessage,
+  historyOf,
+  MAX_HISTORY_MESSAGES,
+  readLabelOfClientTool,
+  tailLinesOf
+} from "./transcriptModel";
 
 describe("transcriptModel", () => {
   describe(applyAssistantEvent.name, () => {
@@ -129,6 +137,27 @@ describe("transcriptModel", () => {
       expect(history).toHaveLength(MAX_HISTORY_MESSAGES);
       expect(history[0].content).toBe("message 3");
       expect(history.at(-1)?.content).toHaveLength(8000);
+    });
+  });
+
+  describe(applyTurnEvent.name, () => {
+    const ids = { questionId: "q-1", answerId: "a-1" };
+
+    it("marks the question with the count of secrets removed, adding up over a turn", () => {
+      const messages = [createTranscriptMessage("q-0", "user", "earlier"), createTranscriptMessage("q-1", "user", "my key"), answer()];
+
+      const once = applyTurnEvent(messages, ids, { type: "secret_redacted", count: 1 });
+      const twice = applyTurnEvent(once, ids, { type: "secret_redacted", count: 2 });
+
+      expect(twice.map(message => message.redactedSecretCount)).toEqual([0, 3, 0]);
+    });
+
+    it("builds the answer from every other event", () => {
+      const messages = [createTranscriptMessage("q-1", "user", "hi"), answer()];
+
+      const next = applyTurnEvent(messages, ids, { type: "text_delta", text: "Hello" });
+
+      expect(next.map(message => message.text)).toEqual(["hi", "Hello"]);
     });
   });
 

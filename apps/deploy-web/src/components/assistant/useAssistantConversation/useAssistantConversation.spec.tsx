@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AssistantConversationClient } from "@src/services/assistant-conversation/assistant-conversation-client";
-import type { AssistantClientToolRequest, AssistantStreamEvent } from "@src/types/assistant";
+import type { AssistantClientToolRequest, AssistantContext, AssistantStreamEvent } from "@src/types/assistant";
 import { ASSISTANT_CONSENT_COPY_VERSION } from "../assistantConsentCopy";
 import { DEPENDENCIES, problemOfError, problemOfStreamError, useAssistantConversation } from "./useAssistantConversation";
 
@@ -29,6 +29,24 @@ describe(useAssistantConversation.name, () => {
     ]);
     expect(result.current.conversationId).toBe("c-1");
     expect(result.current.isAnswering).toBe(false);
+  });
+
+  it("marks the question when the api says it removed a secret from it, and knows the deployment in view", async () => {
+    const { result } = setup({ turns: [[{ type: "secret_redacted", count: 1 }, ...answerOf("Use a secret instead.")]] });
+
+    await act(() => result.current.send("my token is hf_abc"));
+
+    expect(result.current.messages.map(({ role, text, redactedSecretCount }) => ({ role, text, redactedSecretCount }))).toEqual([
+      { role: "user", text: "my token is hf_abc", redactedSecretCount: 1 },
+      { role: "assistant", text: "Use a secret instead.", redactedSecretCount: 0 }
+    ]);
+    expect(result.current.deploymentDseq).toBe("42");
+  });
+
+  it("knows no deployment outside a deployment page", () => {
+    const { result } = setup({ context: { page: "/templates" } });
+
+    expect(result.current.deploymentDseq).toBeNull();
   });
 
   it("resends the earlier messages of a conversation the api does not store and reuses the conversation", async () => {
@@ -256,7 +274,13 @@ describe(useAssistantConversation.name, () => {
     yield { type: "done", reason: "stop" };
   }
 
-  function setup(input: { turns?: AssistantStreamEvent[][]; resumed?: AssistantStreamEvent[][]; stored?: boolean; startError?: unknown }) {
+  function setup(input: {
+    turns?: AssistantStreamEvent[][];
+    resumed?: AssistantStreamEvent[][];
+    stored?: boolean;
+    startError?: unknown;
+    context?: AssistantContext;
+  }) {
     const turns = [...(input.turns ?? [])];
     const resumed = [...(input.resumed ?? [])];
     const assistantConversation = mock<AssistantConversationClient>();
@@ -280,7 +304,8 @@ describe(useAssistantConversation.name, () => {
         mock<ReturnType<typeof DEPENDENCIES.useEndAssistantConversationMutation>>({ mutateAsync: endConversation as never })
     };
 
-    const hook = renderHook(() => useAssistantConversation({ context: { page: "/deployments/42", dseq: "42" } }, dependencies));
+    const context = input.context ?? { page: "/deployments/42", dseq: "42" };
+    const hook = renderHook(() => useAssistantConversation({ context }, dependencies));
 
     return { ...hook, assistantConversation, startConversation, endConversation, runClientTool };
   }
