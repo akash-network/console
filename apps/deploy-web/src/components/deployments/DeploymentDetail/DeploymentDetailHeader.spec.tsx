@@ -14,7 +14,7 @@ import type { Activity } from "@src/queries/useLatestActivitiesQuery";
 import type { LeaseServiceStatus, LeaseStatusDto } from "@src/queries/useLeaseQuery";
 import type { DeploymentDto, DeploymentGroup, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
-import { DEPENDENCIES, DeploymentDetailHeader } from "./DeploymentDetailHeader";
+import { ASK_ABOUT_DEPLOYMENT_QUESTION, DEPENDENCIES, DeploymentDetailHeader } from "./DeploymentDetailHeader";
 
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -29,6 +29,18 @@ describe(DeploymentDetailHeader.name, () => {
 
     expect(DeploymentProjectBreadcrumb.mock.lastCall?.[0]).toEqual({ dseq: "1786440078202" });
     expect(screen.getByText("breadcrumb")).toBeInTheDocument();
+  });
+
+  it("offers to ask the assistant about the deployment", () => {
+    const AskAssistantButton = vi.fn<typeof DEPENDENCIES.AskAssistantButton>(() => null);
+    setup({ dependencies: { AskAssistantButton } });
+
+    expect(AskAssistantButton.mock.lastCall?.[0]).toEqual({
+      dseq: "1786440078202",
+      question: ASK_ABOUT_DEPLOYMENT_QUESTION,
+      label: "Ask the assistant",
+      variant: "ghost"
+    });
   });
 
   it("counts the services of every placement, not just the one whose status is loaded", () => {

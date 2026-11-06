@@ -16,10 +16,7 @@ describe(useSendDeploymentAgain.name, () => {
     await act(() =>
       result.current.sendAgain({
         dseq: "1234",
-        leases: [
-          lease({ gseq: 1, oseq: 1, provider: "akash1live", state: "active" }),
-          lease({ gseq: 2, oseq: 1, provider: "akash1gone", state: "closed" })
-        ]
+        leases: [lease({ gseq: 1, oseq: 1, provider: "akash1live", state: "active" }), lease({ gseq: 2, oseq: 1, provider: "akash1gone", state: "closed" })]
       })
     );
 
@@ -60,6 +57,16 @@ describe(useSendDeploymentAgain.name, () => {
     expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ subTitle: "Try again in a moment." }) }), {
       variant: "error"
     });
+  });
+
+  it("rejects with the refusal for a caller that shows it, marking it as shown without a snackbar", async () => {
+    const refusal = new ApiError(409, { message: "A lease is already being created" }, "POST /v1/leases → 409");
+    const { result, enqueueSnackbar, markOutcomeHandled } = setup({ refusal });
+
+    await act(() => expect(result.current.requestAgain({ dseq: "1234", leases: [lease({ state: "active" })] })).rejects.toBe(refusal));
+
+    expect(markOutcomeHandled).toHaveBeenCalledWith("lease_create", "1234", "failed");
+    expect(enqueueSnackbar).not.toHaveBeenCalled();
   });
 
   it("reports while a send is on its way", () => {

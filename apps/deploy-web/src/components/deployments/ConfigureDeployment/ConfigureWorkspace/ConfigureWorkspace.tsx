@@ -340,8 +340,10 @@ export const ConfigureWorkspace: FC<Props> = ({
                       flow.noBidsReceived ? (
                         <d.NoBidsNotice
                           requestLabel={isQuoteFlowEnabled ? "Request this hardware" : "Request compute"}
+                          dseq={flow.dseq}
                           onRequestCompute={() => requestCompute("no_bids_notice", "capacity")}
                         />
+
                       ) : undefined
                     }
                   />

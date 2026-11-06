@@ -8,6 +8,10 @@ import {
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
 import { sentryTraceToW3C } from "@src/services/error-handler/error-handler.service";
 
+/** Assistant turns stream for up to 90 seconds on the API side, past the proxy's default 60 second cut-off. */
+const ASSISTANT_TURN_PATH = /^\/v1\/assistant\/conversations\/[^/]+\/(messages|client-tool-results)(\?|$)/;
+const ASSISTANT_TURN_TIMEOUT_MS = 150_000;
+
 export default defineApiHandler({
   route: "/api/proxy/[...path]",
   async handler({ req, res, services, session }) {
@@ -57,6 +61,7 @@ export default defineApiHandler({
       target: services.apiUrlService.getBaseApiUrlFor(services.privateConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID) + url,
       headers,
       omitRequestHeaders: [ACTIVE_ORGANIZATION_HEADER_NAME],
+      timeout: ASSISTANT_TURN_PATH.test(url) ? ASSISTANT_TURN_TIMEOUT_MS : undefined,
       onError: error => {
         services.logger.error({ event: "PROXY_API_REQUEST_ERROR", error });
       }

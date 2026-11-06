@@ -13,11 +13,12 @@ import {
   SheetTrigger
 } from "@akashnetwork/ui/components";
 import { cn, REMOVE_SCROLL_CLASS_NAMES } from "@akashnetwork/ui/utils";
-import { ChevronDown, Cloud, Files, LayoutGrid, Menu, Server } from "lucide-react";
+import { ChevronDown, Cloud, Files, LayoutGrid, Menu, Server, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { ActivityBell } from "@src/components/activity/ActivityBell/ActivityBell";
+import { useAssistantPanel } from "@src/components/assistant/useAssistantPanel/useAssistantPanel";
 import { CommandMenu } from "@src/components/command-menu/CommandMenu/CommandMenu";
 import { SendFeedbackDialog } from "@src/components/feedback/SendFeedbackDialog/SendFeedbackDialog";
 import { SkipOnboardingButton } from "@src/components/onboarding-picker/SkipOnboardingButton/SkipOnboardingButton";
@@ -45,6 +46,7 @@ export const DEPENDENCIES = {
   useFlag,
   useActiveOrganization,
   useOpenWhatsNew,
+  useAssistantPanel,
   TopBanner,
   HackathonCouponNavEntry,
   CommandMenu,
@@ -84,9 +86,9 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
   const openWhatsNew = d.useOpenWhatsNew();
   const replayWhatsNew = isOrganizationsEnabled ? () => openWhatsNew("account_menu") : undefined;
   const { projectsEnabled } = d.useActiveOrganization();
-  const isFeedbackEnabled = d.useFlag("user_feedback_loop");
+  const isFeedbackLoopEnabled = d.useFlag("user_feedback_loop");
   const [isSendFeedbackOpen, setIsSendFeedbackOpen] = useState(false);
-  const openSendFeedback = isFeedbackEnabled && isAuthenticated ? () => setIsSendFeedbackOpen(true) : undefined;
+  const openSendFeedback = isFeedbackLoopEnabled && isAuthenticated ? () => setIsSendFeedbackOpen(true) : undefined;
 
   const projectsLink: TopNavLink[] =
     isOrganizationsEnabled && projectsEnabled
@@ -107,6 +109,9 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
   const isCommandMenuEnabled = d.useFlag("ui_command_menu");
   const showOrganizationSwitcher = isAuthenticated && !!openCreateOrganization;
   const createOrganizationFromSwitcher = minimal ? undefined : openCreateOrganization;
+  const { open: openAssistant } = d.useAssistantPanel();
+  const showAssistantLauncher = showNavLinks && isFeedbackLoopEnabled;
+  const openAssistantFromShortcut = showAssistantLauncher ? () => openAssistant() : undefined;
 
   return (
     <header ref={headerRef} className={cn("fixed left-0 right-0 top-0 z-50 border-b border-border bg-header", REMOVE_SCROLL_CLASS_NAMES.zeroRight)}>
@@ -154,7 +159,13 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
 
           {minimal && <d.SkipOnboardingButton source="auto_deploy" />}
 
-          {showNavLinks && isCommandMenuEnabled && <d.CommandMenu />}
+          {showNavLinks && isCommandMenuEnabled && <d.CommandMenu onOpenAssistant={openAssistantFromShortcut} />}
+
+          {showAssistantLauncher && (
+            <Button size="icon" variant="ghost" className="h-9 w-9 rounded-full" aria-label="Ask the assistant" onClick={() => openAssistant()}>
+              <Sparkles className="h-5 w-5" />
+            </Button>
+          )}
 
           {showNavLinks && <d.ActivityBell />}
 

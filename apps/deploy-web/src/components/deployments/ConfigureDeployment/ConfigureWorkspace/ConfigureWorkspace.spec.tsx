@@ -450,6 +450,7 @@ describe(ConfigureWorkspace.name, () => {
       const { marketplaceProps, dependencies } = setup({ phase: "quoting", noBidsReceived: true });
 
       expect((marketplaceProps().notice as ReactElement).type).toBe(dependencies.NoBidsNotice);
+      expect(((marketplaceProps().notice as ReactElement).props as ComponentProps<typeof NoBidsNotice>).dseq).toBe("42");
     });
 
     it("keeps the waiting card while the wait for a first bid is still running", () => {

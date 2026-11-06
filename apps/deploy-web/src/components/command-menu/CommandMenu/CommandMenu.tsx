@@ -13,10 +13,12 @@ import { useStartDeployment } from "../useStartDeployment";
 export const DEPENDENCIES = { CommandMenuTrigger, CommandMenuDialog, ShortcutsSheet, useGlobalShortcuts, useStartDeployment, useRouter };
 
 type Props = {
+  /** Adds the assistant shortcut, and its row in the shortcuts sheet, while the assistant is available. */
+  onOpenAssistant?: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
-export function CommandMenu({ dependencies: d = DEPENDENCIES }: Props) {
+export function CommandMenu({ onOpenAssistant, dependencies: d = DEPENDENCIES }: Props) {
   const { analyticsService } = useServices();
   const router = d.useRouter();
   const startDeployment = d.useStartDeployment();
@@ -56,14 +58,20 @@ export function CommandMenu({ dependencies: d = DEPENDENCIES }: Props) {
     onGoTo: page => {
       recordShortcut(`go_to_${page.id}`);
       router.push(page.href);
-    }
+    },
+    onOpenAssistant: onOpenAssistant
+      ? () => {
+          recordShortcut("open_assistant");
+          onOpenAssistant();
+        }
+      : undefined
   });
 
   return (
     <>
       <d.CommandMenuTrigger onClick={() => openMenu("button")} />
       <d.CommandMenuDialog isOpen={isOpen} onOpenChange={setIsOpen} onShowShortcuts={showShortcuts} returnFocusRef={returnFocusRef} />
-      <d.ShortcutsSheet isOpen={isShortcutsOpen} onOpenChange={setIsShortcutsOpen} returnFocusRef={returnFocusRef} />
+      <d.ShortcutsSheet isOpen={isShortcutsOpen} onOpenChange={setIsShortcutsOpen} returnFocusRef={returnFocusRef} hasAssistant={!!onOpenAssistant} />
     </>
   );
 }

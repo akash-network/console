@@ -61,7 +61,11 @@ describe(DeploymentRecoveryAction.name, () => {
 
   function setup(input: { recovery: DeploymentRecovery; leases?: LeaseDto[]; isSending?: boolean; isCompact?: boolean }) {
     const sendAgain = vi.fn(async () => {});
-    const useSendDeploymentAgain: typeof DEPENDENCIES.useSendDeploymentAgain = () => ({ sendAgain, isSending: input.isSending ?? false });
+    const useSendDeploymentAgain: typeof DEPENDENCIES.useSendDeploymentAgain = () => ({
+      sendAgain,
+      requestAgain: vi.fn(),
+      isSending: input.isSending ?? false
+    });
 
     render(
       <DeploymentRecoveryAction

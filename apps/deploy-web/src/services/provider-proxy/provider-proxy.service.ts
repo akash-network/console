@@ -77,33 +77,7 @@ export class ProviderProxyService {
     type: "logs" | "events";
     signal?: AbortSignal;
   }): Promise<DownloadMessagesResult> {
-    const abortController = new AbortController();
-    const logsStream = this.getLogsStream({
-      ...input,
-      follow: false,
-      tail: 10000000,
-      signal: input.signal ? AbortSignal.any([abortController.signal, input.signal]) : abortController.signal
-    });
-    let abortTimerId: NodeJS.Timeout | undefined;
-    const scheduleAbortTimeout = () => {
-      if (abortTimerId) clearTimeout(abortTimerId);
-      abortTimerId = setTimeout(() => abortController.abort(), 3_000);
-    };
-
-    scheduleAbortTimeout();
-    let logFileContent = "";
-    for await (const logEntry of logsStream) {
-      scheduleAbortTimeout();
-
-      if (logEntry.closed) {
-        clearTimeout(abortTimerId);
-        break;
-      }
-      if (!logEntry.message) continue;
-
-      const logMessage = input.type === "logs" ? formatLogMessage(logEntry.message as LogEntryMessage) : formatK8sEvent(logEntry.message as K8sEventMessage);
-      logFileContent += logMessage + "\n";
-    }
+    const logFileContent = await this.readLogs({ ...input, tail: 10000000 });
 
     if (input.signal?.aborted) {
       return { ok: false, code: "cancelled" };
@@ -115,6 +89,49 @@ export class ProviderProxyService {
       return { ok: true };
     }
     return { ok: false, code: "unknown", message: "No log content received from server" };
+  }
+
+  /** Reads what the lease has logged so far, one formatted line each, and stops once the provider goes quiet for 3 seconds. */
+  async readLogs(input: {
+    providerBaseUrl: string;
+    providerAddress: string;
+    ensureToken: () => Promise<string>;
+    dseq: string;
+    gseq: number;
+    oseq: number;
+    type: "logs" | "events";
+    tail: number;
+    services?: string[];
+    signal?: AbortSignal;
+  }): Promise<string> {
+    const abortController = new AbortController();
+    const logsStream = this.getLogsStream({
+      ...input,
+      follow: false,
+      signal: input.signal ? AbortSignal.any([abortController.signal, input.signal]) : abortController.signal
+    });
+    let abortTimerId: NodeJS.Timeout | undefined;
+    const scheduleAbortTimeout = () => {
+      if (abortTimerId) clearTimeout(abortTimerId);
+      abortTimerId = setTimeout(() => abortController.abort(), 3_000);
+    };
+
+    scheduleAbortTimeout();
+    let content = "";
+    for await (const logEntry of logsStream) {
+      scheduleAbortTimeout();
+
+      if (logEntry.closed) {
+        clearTimeout(abortTimerId);
+        break;
+      }
+      if (!logEntry.message) continue;
+
+      const line = input.type === "logs" ? formatLogMessage(logEntry.message as LogEntryMessage) : formatK8sEvent(logEntry.message as K8sEventMessage);
+      content += line + "\n";
+    }
+
+    return content;
   }
 
   async downloadFileFromShell(input: {

@@ -5,7 +5,14 @@ import { DialogClose, DialogTitle } from "@akashnetwork/ui/components";
 import { X } from "lucide-react";
 
 import type { Shortcut } from "../commandMenuCatalog";
-import { COMMAND_PAGES, DEPLOYMENT_START_COMMANDS, goToShortcut, MENU_TOGGLE_SHORTCUT, SHOW_SHORTCUTS_SHORTCUT } from "../commandMenuCatalog";
+import {
+  COMMAND_PAGES,
+  DEPLOYMENT_START_COMMANDS,
+  goToShortcut,
+  MENU_TOGGLE_SHORTCUT,
+  OPEN_ASSISTANT_SHORTCUT,
+  SHOW_SHORTCUTS_SHORTCUT
+} from "../commandMenuCatalog";
 import { CommandPanel } from "../CommandPanel/CommandPanel";
 import { Keycaps } from "../Keycaps/Keycaps";
 
@@ -13,6 +20,7 @@ type Props = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   returnFocusRef?: MutableRefObject<Element | null>;
+  hasAssistant?: boolean;
 };
 
 type ShortcutGroupProps = {
@@ -50,7 +58,11 @@ const SHORTCUT_GROUPS: ShortcutGroupProps[] = [
   }
 ];
 
-export function ShortcutsSheet({ isOpen, onOpenChange, returnFocusRef }: Props) {
+const ASSISTANT_GROUP: ShortcutGroupProps = { title: "Assistant", rows: [{ label: "Ask the assistant", shortcut: OPEN_ASSISTANT_SHORTCUT }] };
+
+export function ShortcutsSheet({ isOpen, onOpenChange, returnFocusRef, hasAssistant }: Props) {
+  const groups = hasAssistant ? [...SHORTCUT_GROUPS, ASSISTANT_GROUP] : SHORTCUT_GROUPS;
+
   return (
     <CommandPanel isOpen={isOpen} onOpenChange={onOpenChange} returnFocusRef={returnFocusRef} className="max-w-[700px]">
       <div className="flex h-[52px] shrink-0 items-center justify-between gap-3 border-b pl-5 pr-3">
@@ -63,7 +75,7 @@ export function ShortcutsSheet({ isOpen, onOpenChange, returnFocusRef }: Props) 
         </DialogClose>
       </div>
       <div className="grid grid-cols-1 gap-x-8 gap-y-6 overflow-y-auto overscroll-contain p-5 min-[641px]:grid-cols-2">
-        {SHORTCUT_GROUPS.map(group => (
+        {groups.map(group => (
           <ShortcutGroup key={group.title} {...group} />
         ))}
       </div>

@@ -142,11 +142,45 @@ describe(CommandMenu.name, () => {
     await waitFor(() => expect(trigger).toHaveFocus());
   });
 
-  function setup(input: { hasRealPanels?: boolean } = {}) {
+  it("opens the assistant from its shortcut and records it", () => {
+    const { analyticsService, press, onOpenAssistant } = setup({ withAssistant: true });
+
+    press(handlers => handlers.onOpenAssistant!());
+
+    expect(onOpenAssistant).toHaveBeenCalledTimes(1);
+    expect(analyticsService.track).toHaveBeenCalledWith("command_menu_action_ran", { action: "open_assistant", via: "shortcut" });
+  });
+
+  it("binds no assistant shortcut while the assistant is off", () => {
+    const { handlers, ShortcutsSheetMock } = setup({});
+
+    expect(handlers().onOpenAssistant).toBeUndefined();
+    expect(ShortcutsSheetMock).toHaveBeenLastCalledWith(expect.objectContaining({ hasAssistant: false }), expect.anything());
+  });
+
+  it("lists the assistant shortcut in the shortcuts sheet while it is on", () => {
+    const { ShortcutsSheetMock } = setup({ withAssistant: true });
+
+    expect(ShortcutsSheetMock).toHaveBeenLastCalledWith(expect.objectContaining({ hasAssistant: true }), expect.anything());
+  });
+
+  function setup(input: { hasRealPanels?: boolean; withAssistant?: boolean } = {}) {
     const analyticsService = mock<AnalyticsService>();
     const push = vi.fn();
     const startDeployment = vi.fn(async () => undefined);
     let handlers: GlobalShortcutHandlers | undefined;
+    const onOpenAssistant = input.withAssistant ? vi.fn() : undefined;
+    const ShortcutsSheetMock = vi.fn<typeof DEPENDENCIES.ShortcutsSheet>(({ isOpen, onOpenChange }) => (
+      <>
+        {isOpen && (
+          <div role="dialog" aria-label="Keyboard shortcuts">
+            <button type="button" onClick={() => onOpenChange(false)}>
+              Close sheet
+            </button>
+          </div>
+        )}
+      </>
+    ));
 
     const dependencies: typeof DEPENDENCIES = {
       CommandMenuTrigger: ({ onClick }) => (
@@ -168,17 +202,7 @@ describe(CommandMenu.name, () => {
           )}
         </>
       ),
-      ShortcutsSheet: ({ isOpen, onOpenChange }) => (
-        <>
-          {isOpen && (
-            <div role="dialog" aria-label="Keyboard shortcuts">
-              <button type="button" onClick={() => onOpenChange(false)}>
-                Close sheet
-              </button>
-            </div>
-          )}
-        </>
-      ),
+      ShortcutsSheet: ShortcutsSheetMock,
       ...(input.hasRealPanels && {
         CommandMenuDialog: props => (
           <CommandMenuDialog
@@ -205,12 +229,12 @@ describe(CommandMenu.name, () => {
 
     render(
       <TestContainerProvider services={{ analyticsService: () => analyticsService }}>
-        <CommandMenu dependencies={dependencies} />
+        <CommandMenu onOpenAssistant={onOpenAssistant} dependencies={dependencies} />
       </TestContainerProvider>
     );
 
     const press = (run: (handlers: GlobalShortcutHandlers) => void) => act(() => run(handlers as GlobalShortcutHandlers));
 
-    return { analyticsService, push, startDeployment, press };
+    return { analyticsService, push, startDeployment, press, onOpenAssistant, ShortcutsSheetMock, handlers: () => handlers as GlobalShortcutHandlers };
   }
 });

@@ -1,3 +1,4 @@
+import type { Mock } from "vitest";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { COMMAND_PAGES, DEPLOYMENT_START_COMMANDS } from "./commandMenuCatalog";
@@ -76,6 +77,22 @@ describe(useGlobalShortcuts.name, () => {
 
       expect(handlers.onShowShortcuts).toHaveBeenCalledTimes(1);
       expect(isNotCancelled).toBe(false);
+    });
+
+    it("opens the assistant with Shift A when it is available and stops the browser's handling", () => {
+      const { handlers } = setup({ withAssistant: true });
+
+      const isNotCancelled = fireEvent.keyDown(window, { key: "A", shiftKey: true });
+      fireEvent.keyDown(window, { key: "a" });
+
+      expect(handlers.onOpenAssistant).toHaveBeenCalledTimes(1);
+      expect(isNotCancelled).toBe(false);
+    });
+
+    it("leaves Shift A to the browser while the assistant is off", () => {
+      setup({});
+
+      expect(fireEvent.keyDown(window, { key: "A", shiftKey: true })).toBe(true);
     });
 
     it("does nothing for keys without a shortcut", () => {
@@ -282,14 +299,17 @@ describe(useGlobalShortcuts.name, () => {
     return { onToggleMenu: vi.fn(), onShowShortcuts: vi.fn(), onStartDeployment: vi.fn(), onGoTo: vi.fn() };
   }
 
-  function setup(input: { platform?: string }) {
+  function setup(input: { platform?: string; withAssistant?: boolean }) {
     const platform = vi.spyOn(navigator, "platform", "get").mockReturnValue(input.platform ?? "MacIntel");
     const now = vi.spyOn(Date, "now");
     onTestFinished(() => {
       platform.mockRestore();
       now.mockRestore();
     });
-    const handlers = createHandlers();
+    const handlers: ReturnType<typeof createHandlers> & { onOpenAssistant?: Mock } = {
+      ...createHandlers(),
+      onOpenAssistant: input.withAssistant ? vi.fn() : undefined
+    };
 
     const { rerender, unmount } = renderHook(nextHandlers => useGlobalShortcuts(nextHandlers), { initialProps: handlers });
 

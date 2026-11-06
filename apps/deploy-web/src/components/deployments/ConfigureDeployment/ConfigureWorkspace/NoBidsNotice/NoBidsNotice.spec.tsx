@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { NoBidsNotice } from "./NoBidsNotice";
+import { DEPENDENCIES, NoBidsNotice, WHY_NO_BIDS_QUESTION } from "./NoBidsNotice";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -38,9 +38,29 @@ describe(NoBidsNotice.name, () => {
     expect(screen.getByText("A late bid still shows up here. To change your configuration, use Close and Edit.")).toBeInTheDocument();
   });
 
-  function setup(input: { requestLabel?: string } = {}) {
+  it("offers to ask the assistant why the deployment got no bids", () => {
+    const { AskAssistantButton } = setup({ dseq: "42" });
+
+    expect(AskAssistantButton).toHaveBeenCalledWith({ dseq: "42", question: WHY_NO_BIDS_QUESTION, label: "Why no bids?" }, expect.anything());
+  });
+
+  it("has nothing to ask about before the deployment exists", () => {
+    const { AskAssistantButton } = setup({ dseq: null });
+
+    expect(AskAssistantButton).not.toHaveBeenCalled();
+  });
+
+  function setup(input: { requestLabel?: string; dseq?: string | null } = {}) {
     const onRequestCompute = vi.fn();
-    render(<NoBidsNotice requestLabel={input.requestLabel} onRequestCompute={onRequestCompute} />);
-    return { onRequestCompute };
+    const AskAssistantButton = vi.fn(() => null);
+    render(
+      <NoBidsNotice
+        requestLabel={input.requestLabel}
+        dseq={input.dseq ?? null}
+        onRequestCompute={onRequestCompute}
+        dependencies={{ ...DEPENDENCIES, AskAssistantButton }}
+      />
+    );
+    return { onRequestCompute, AskAssistantButton };
   }
 });

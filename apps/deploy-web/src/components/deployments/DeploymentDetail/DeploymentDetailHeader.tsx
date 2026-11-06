@@ -5,6 +5,7 @@ import { Button, Card, CardContent, CustomTooltip, Skeleton } from "@akashnetwor
 import { cn } from "@akashnetwork/ui/utils";
 import { Info, Pencil } from "lucide-react";
 
+import { AskAssistantButton } from "@src/components/assistant/AskAssistantButton/AskAssistantButton";
 import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { DeploymentProjectBreadcrumb } from "@src/components/projects/DeploymentProjectBreadcrumb/DeploymentProjectBreadcrumb";
 import { ConfidentialComputeBadge } from "@src/components/shared/ConfidentialComputeBadge";
@@ -62,7 +63,8 @@ export const DEPENDENCIES = {
   ConfidentialComputeBadge,
   GpuInterconnectBadge,
   TrialDeploymentBadge,
-  DeploymentProjectBreadcrumb
+  DeploymentProjectBreadcrumb,
+  AskAssistantButton
 };
 
 /**
@@ -71,6 +73,8 @@ export const DEPENDENCIES = {
  * `visibility`, which would drop the button out of the tab order and make the focus rule unreachable.
  */
 const HOVER_REVEALED = "transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-visible:opacity-100";
+
+export const ASK_ABOUT_DEPLOYMENT_QUESTION = "Is anything wrong with this deployment?";
 
 export interface DeploymentDetailHeaderProps {
   deployment: DeploymentDto;
@@ -148,6 +152,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
           )}
         </div>
         <d.DeploymentVisitControl leases={leases ?? []} providers={providers} />
+        <d.AskAssistantButton dseq={deployment.dseq} question={ASK_ABOUT_DEPLOYMENT_QUESTION} label="Ask the assistant" variant="ghost" />
       </div>
 
       <Card className="w-full shrink-0 lg:w-auto">
