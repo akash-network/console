@@ -62,7 +62,7 @@ function formatGi(bytes: number): string {
 }
 
 /** Resource quantities decode as bigint from chain-sdk types but as Uint8Array on the protobuf wire. */
-function resourceValToNumber(val: Uint8Array | bigint | undefined): number {
+export function resourceValToNumber(val: Uint8Array | bigint | undefined): number {
   if (typeof val === "bigint") return Number(val);
   if (!val || val.length === 0) return 0;
   return parseInt(uint8arrayToString(val), 10);

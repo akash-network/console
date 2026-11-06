@@ -7,12 +7,14 @@ import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import type { AssistantAction, AssistantActionOf, ServiceResources } from "@src/feedback/http-schemas/assistant-action.schema";
 import { AssistantProposalWithheldError, AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
 import type { ProposalActionType, ProposalArguments } from "@src/feedback/lib/assistant-tools/assistant-tool-arguments";
+import { type DeploymentCost, deploymentCostOf } from "@src/feedback/lib/deployment-cost/deployment-cost";
 import { redactSecrets } from "@src/feedback/lib/redact-secrets/redact-secrets";
 import { keepsPlacementPricing, keepsPricing, withDefaultPricing } from "@src/feedback/lib/sdl-pricing/sdl-pricing";
 import { sdlWithResources } from "@src/feedback/lib/sdl-resources/sdl-with-resources";
 import { type SdlServiceSummary, summarizeSdl } from "@src/feedback/lib/sdl-summary/sdl-summary";
 import { AssistantAccountToolsService } from "@src/feedback/services/assistant-account-tools/assistant-account-tools.service";
 import { AssistantBidToolsService, type SdlAvailability } from "@src/feedback/services/assistant-bid-tools/assistant-bid-tools.service";
+import { PricingService } from "@src/pricing/services/pricing/pricing.service";
 
 export interface ProposalContext {
   isTrialing: boolean | null;
@@ -61,7 +63,8 @@ export class AssistantProposalService {
     private readonly bidController: BidController,
     private readonly sdlService: SdlService,
     private readonly accountTools: AssistantAccountToolsService,
-    private readonly bidTools: AssistantBidToolsService
+    private readonly bidTools: AssistantBidToolsService,
+    private readonly pricingService: PricingService
   ) {}
 
   async propose<T extends ProposalActionType>(type: T, args: ProposalArguments<T>, context: ProposalContext): Promise<AssistantAction> {
@@ -170,8 +173,18 @@ export class AssistantProposalService {
       name: args.name ?? null,
       runtimeLimitHours: args.runtimeLimitHours ?? null,
       services: services.map(({ service, image, resources }) => ({ service, image, resources })),
-      providersAbleToBid: availability.providersAbleToBid
+      providersAbleToBid: availability.providersAbleToBid,
+      cost: await this.#costOf(sdl)
     };
+  }
+
+  async #costOf(sdl: string): Promise<DeploymentCost | null> {
+    const manifest = await this.sdlService.generateManifest(sdl);
+    if (!manifest.ok) return null;
+
+    return deploymentCostOf(manifest.value.groupSpecs, ({ cpuMillis, memoryBytes, storageBytes }) =>
+      this.pricingService.getAkashPricing(cpuMillis, memoryBytes, storageBytes)
+    );
   }
 
   async #openInEditor({ dseq, templateId, sdl }: ProposalArguments<"open_in_editor">, context: ProposalContext): Promise<AssistantActionOf<"open_in_editor">> {

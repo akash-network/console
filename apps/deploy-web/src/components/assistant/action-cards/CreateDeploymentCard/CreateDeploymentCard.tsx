@@ -17,6 +17,7 @@ import type { ActionCardRow } from "../ActionCardChrome/ActionCardChrome";
 import { ActionCardChrome } from "../ActionCardChrome/ActionCardChrome";
 import type { ActionCardProps } from "../actionCardTypes";
 import { assertOpensInEditor } from "../assertOpensInEditor/assertOpensInEditor";
+import { formatUsd } from "../formatUsd";
 import { computeLabelOf, gpuLabelOf } from "../serviceResourcesFormat/serviceResourcesFormat";
 import { NoBidsYetNotice } from "./NoBidsYetNotice/NoBidsYetNotice";
 import { exposedPortsOf } from "./exposedPortsOf";
@@ -95,7 +96,7 @@ export const CreateDeploymentCard: FC<ActionCardProps<"create_deployment"> & { d
       tier={action.tier}
       decision={decision}
       rows={rowsOf(action)}
-      costNote="A provider is picked automatically. Billing starts when the lease starts."
+      costNote={costNoteOf(action)}
       confirmLabel="Deploy"
       successMessage={successMessageOf(created)}
       onConfirm={deploy}
@@ -150,7 +151,21 @@ function rowsOf(action: AssistantActionOf<"create_deployment">): ActionCardRow[]
 
   return [
     ...serviceRows,
+    ...costRowsOf(action.cost),
     ...(action.providersAbleToBid === null ? [] : [{ label: "Providers able to bid now", value: String(action.providersAbleToBid) }]),
     ...(action.runtimeLimitHours ? [{ label: "Runtime limit", value: `${action.runtimeLimitHours} hours` }] : [])
   ];
+}
+
+function costRowsOf(cost: AssistantActionOf<"create_deployment">["cost"]): ActionCardRow[] {
+  return [
+    ...(typeof cost?.estimatedUsdPerMonth === "number" ? [{ label: "Estimated cost", value: `About ${formatUsd(cost.estimatedUsdPerMonth)}/month` }] : []),
+    ...(typeof cost?.maxUsdPerMonth === "number" ? [{ label: "Price cap", value: `${formatUsd(cost.maxUsdPerMonth)}/month` }] : [])
+  ];
+}
+
+function costNoteOf(action: AssistantActionOf<"create_deployment">): string {
+  return typeof action.cost?.maxUsdPerMonth === "number"
+    ? "A provider is picked automatically, and you pay its bid, never more than the price cap. Billing starts when the lease starts."
+    : "A provider is picked automatically. Billing starts when the lease starts.";
 }
