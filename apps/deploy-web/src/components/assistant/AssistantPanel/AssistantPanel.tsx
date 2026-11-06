@@ -34,12 +34,13 @@ type Props = {
   onOpenChange: (isOpen: boolean) => void;
   conversation: AssistantConversation;
   question?: string;
+  sendsQuestion?: boolean;
   /** Changes on every open request, so a new prefilled question replaces whatever was typed before. */
   openedAt: number;
   dependencies?: typeof DEPENDENCIES;
 };
 
-export const AssistantPanel: FC<Props> = ({ isOpen, onOpenChange, conversation, question, openedAt, dependencies: d = DEPENDENCIES }) => {
+export const AssistantPanel: FC<Props> = ({ isOpen, onOpenChange, conversation, question, sendsQuestion, openedAt, dependencies: d = DEPENDENCIES }) => {
   const privacy = d.useAssistantPrivacyQuery({ enabled: isOpen });
   const { mutateAsync: updateConsent, isPending: isSavingConsent } = d.useUpdateAssistantConsentMutation();
   const [hasConsentFailed, setHasConsentFailed] = useState(false);
@@ -49,6 +50,9 @@ export const AssistantPanel: FC<Props> = ({ isOpen, onOpenChange, conversation, 
   const consent = privacy.data?.consent;
   const needsConsent = conversation.problem === "consent" || (!!privacy.data && consent?.copyVersion !== ASSISTANT_CONSENT_COPY_VERSION);
   const isReady = !!privacy.data && !needsConsent;
+  const sentForOpenRef = useRef<number | null>(null);
+  const willSendQuestion = !!sendsQuestion && !!question;
+  const isAnsweringThisQuestion = conversation.isAnswering && conversation.messages.findLast(message => message.role === "user")?.text === question;
 
   useEffect(
     function followTheLatestMessage() {
@@ -56,6 +60,20 @@ export const AssistantPanel: FC<Props> = ({ isOpen, onOpenChange, conversation, 
       if (scrollArea) scrollArea.scrollTop = scrollArea.scrollHeight;
     },
     [conversation.messages, conversation.problem, conversation.endedAs]
+  );
+
+  useEffect(
+    function askTheQuestionTheUserClicked() {
+      if (!isOpen || !isReady || !sendsQuestion || !question || sentForOpenRef.current === openedAt) return;
+      if (isAnsweringThisQuestion) {
+        sentForOpenRef.current = openedAt;
+        return;
+      }
+      if (conversation.isAnswering) return;
+      sentForOpenRef.current = openedAt;
+      conversation.send(question);
+    },
+    [isOpen, isReady, sendsQuestion, question, openedAt, isAnsweringThisQuestion, conversation.isAnswering, conversation.send]
   );
 
   useEffect(
@@ -172,7 +190,12 @@ export const AssistantPanel: FC<Props> = ({ isOpen, onOpenChange, conversation, 
 
       {isReady && (
         <footer className="shrink-0 border-t p-3">
-          <d.AssistantComposer key={openedAt} initialValue={question} isSending={conversation.isAnswering} onSend={conversation.send} />
+          <d.AssistantComposer
+            key={openedAt}
+            initialValue={willSendQuestion ? undefined : question}
+            isSending={conversation.isAnswering}
+            onSend={conversation.send}
+          />
         </footer>
       )}
     </aside>

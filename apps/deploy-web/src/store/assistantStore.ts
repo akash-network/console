@@ -4,8 +4,9 @@ import type { AssistantContext } from "@src/types/assistant";
 
 export type AssistantOpenRequest = {
   context?: Pick<AssistantContext, "dseq">;
-  /** Put in the message box for the user to send or edit, never sent on their behalf. */
+  /** Put in the message box for the user to send or edit, unless the user clicked a button that says it asks. */
   question?: string;
+  sendsQuestion?: boolean;
 };
 
 export type AssistantPanelState = { isOpen: boolean; request: AssistantOpenRequest; openedAt: number };

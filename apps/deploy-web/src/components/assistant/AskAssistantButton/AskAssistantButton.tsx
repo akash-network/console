@@ -14,18 +14,25 @@ type Props = {
   question: string;
   label: string;
   variant?: ButtonProps["variant"];
+  sendsQuestion?: boolean;
   dependencies?: typeof DEPENDENCIES;
 };
 
-/** Opens the assistant about one deployment with a question ready to send; renders nothing while the assistant is off. */
-export const AskAssistantButton: FC<Props> = ({ dseq, question, label, variant = "outline", dependencies: d = DEPENDENCIES }) => {
+/** Opens the assistant about one deployment with the question ready to send, or sends it at once with `sendsQuestion`; renders nothing while the assistant is off. */
+export const AskAssistantButton: FC<Props> = ({ dseq, question, label, variant = "outline", sendsQuestion, dependencies: d = DEPENDENCIES }) => {
   const isEnabled = d.useFlag("user_feedback_loop");
   const { open } = d.useAssistantPanel();
 
   if (!isEnabled) return null;
 
   return (
-    <Button type="button" variant={variant} size="sm" className="gap-1.5" onClick={() => open({ context: { dseq }, question })}>
+    <Button
+      type="button"
+      variant={variant}
+      size="sm"
+      className="gap-1.5"
+      onClick={() => open({ context: { dseq }, question, ...(sendsQuestion && { sendsQuestion }) })}
+    >
       <Sparkles className="h-4 w-4" aria-hidden="true" />
       {label}
     </Button>

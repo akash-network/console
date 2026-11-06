@@ -34,6 +34,7 @@ function AssistantPanelHost({ dependencies: d }: { dependencies: typeof DEPENDEN
       onOpenChange={isOpen => (isOpen ? undefined : close())}
       conversation={conversation}
       question={panel.request.question}
+      sendsQuestion={panel.request.sendsQuestion}
       openedAt={panel.openedAt}
     />
   );

@@ -19,7 +19,7 @@ import { useDeclaredGpuInterconnect } from "@src/hooks/useDeclaredGpuInterconnec
 import { useDeclaredTeeTypes } from "@src/hooks/useDeclaredTeeTypes";
 import { useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useDeploymentEscrowBalance } from "@src/hooks/useDeploymentEscrowBalance/useDeploymentEscrowBalance";
-import { useDeploymentStatus } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
+import { type ResolvedDeploymentStatus, useDeploymentStatus } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
 import { useHasDeploymentStopped } from "@src/hooks/useHasDeploymentStopped";
 import { isLeaseStatusWithheld, useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useTickingNow } from "@src/hooks/useTickingNow";
@@ -75,6 +75,11 @@ export const DEPENDENCIES = {
 const HOVER_REVEALED = "transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-visible:opacity-100";
 
 export const ASK_ABOUT_DEPLOYMENT_QUESTION = "Is anything wrong with this deployment?";
+
+export function diagnoseQuestionOf({ label, reason, launch }: Pick<ResolvedDeploymentStatus, "label" | "reason" | "launch">): string {
+  const detail = reason ?? (launch?.phase === "failed" ? launch.reason : undefined);
+  return `This deployment shows "${label}"${detail ? ` (${detail})` : ""}. What went wrong, and how do I fix it?`;
+}
 
 export interface DeploymentDetailHeaderProps {
   deployment: DeploymentDto;
@@ -152,7 +157,17 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
           )}
         </div>
         <d.DeploymentVisitControl leases={leases ?? []} providers={providers} />
-        <d.AskAssistantButton dseq={deployment.dseq} question={ASK_ABOUT_DEPLOYMENT_QUESTION} label="Ask the assistant" variant="ghost" />
+        {status.tone === "warning" ? (
+          <d.AskAssistantButton
+            dseq={deployment.dseq}
+            question={diagnoseQuestionOf(status)}
+            label="Diagnose with the assistant"
+            variant="default"
+            sendsQuestion
+          />
+        ) : (
+          <d.AskAssistantButton dseq={deployment.dseq} question={ASK_ABOUT_DEPLOYMENT_QUESTION} label="Ask the assistant" variant="ghost" />
+        )}
       </div>
 
       <Card className="w-full shrink-0 lg:w-auto">
