@@ -8,6 +8,7 @@ import { WalletSettingController } from "@src/billing/controllers/wallet-setting
 import { DeploymentController } from "@src/deployment/controllers/deployment/deployment.controller";
 import { tokenize } from "@src/feedback/lib/assistant-knowledge/assistant-knowledge";
 import type { ReadToolArguments } from "@src/feedback/lib/assistant-tools/assistant-tool-arguments";
+import { CONSOLE_TEMPLATES, consoleTemplateById } from "@src/feedback/lib/console-templates/console-templates";
 import { TemplateController } from "@src/template/controllers/template/template.controller";
 
 const LISTED_TEMPLATES_LIMIT = 10;
@@ -22,6 +23,7 @@ const TemplateGallerySchema = z.object({
           id: z.string(),
           name: z.string(),
           summary: z.string().nullish(),
+          tags: z.array(z.string()).optional(),
           hardware: z
             .object({ gpu: z.object({ units: z.number(), models: z.array(z.string()) }).optional() })
             .passthrough()
@@ -32,13 +34,36 @@ const TemplateGallerySchema = z.object({
   )
 });
 
+type TemplateSource = "console" | "console_curated" | "community";
+
+/** Worth up to one matched query word, so a Console template wins a close match but not one a community template matches clearly better. */
+const SOURCE_BONUS: Record<TemplateSource, number> = { console: 1, console_curated: 0.5, community: 0 };
+
+const CURATED_TAGS = new Set(["recommended", "popular"]);
+
 interface ListedTemplate {
   id: string;
   name: string;
   category: string;
+  source: TemplateSource;
   summary: string;
   gpu: { units: number; models: string[] } | null;
   terms: Set<string>;
+}
+
+const BUILT_IN_TEMPLATES: ListedTemplate[] = CONSOLE_TEMPLATES.map(({ id, name, summary }) => ({
+  id,
+  name,
+  category: "Console",
+  source: "console",
+  summary,
+  gpu: null,
+  terms: new Set(tokenize(`${id} ${name} ${summary}`))
+}));
+
+function relevanceOf(template: ListedTemplate, terms: string[]): number {
+  const hits = terms.filter(term => template.terms.has(term)).length;
+  return hits > 0 ? hits + SOURCE_BONUS[template.source] : 0;
 }
 
 async function settledOrNull<T>(read: Promise<T>): Promise<T | null> {
@@ -88,32 +113,39 @@ export class AssistantAccountToolsService {
   }
 
   async listTemplates({ query }: ReadToolArguments<"list_templates">) {
-    const templates = await this.#templates();
+    const templates = [...BUILT_IN_TEMPLATES, ...(await this.#galleryTemplates())];
     const terms = tokenize(query ?? "");
     const matches = terms.length
       ? templates
-          .map(template => ({ template, hits: terms.filter(term => template.terms.has(term)).length }))
-          .filter(({ hits }) => hits > 0)
-          .sort((left, right) => right.hits - left.hits)
+          .map(template => ({ template, relevance: relevanceOf(template, terms) }))
+          .filter(({ relevance }) => relevance > 0)
+          .sort((left, right) => right.relevance - left.relevance)
           .map(({ template }) => template)
       : templates;
 
     return {
-      templates: matches.slice(0, LISTED_TEMPLATES_LIMIT).map(({ id, name, category, summary, gpu }) => ({ id, name, category, summary, gpu }))
+      templates: matches
+        .slice(0, LISTED_TEMPLATES_LIMIT)
+        .map(({ id, name, category, source, summary, gpu }) => ({ id, name, category, source, summary, gpu }))
     };
   }
 
+  async templateSdl(id: string): Promise<string> {
+    return consoleTemplateById(id)?.sdl ?? (await this.templateController.getTemplateById(id)).data.deploy;
+  }
+
   /** Parsed once per gallery build, since the gallery is large and only changes when its cache is rebuilt. */
-  async #templates(): Promise<ListedTemplate[]> {
+  async #galleryTemplates(): Promise<ListedTemplate[]> {
     const source = await this.templateController.getTemplatesListJson();
     if (this.#gallery?.source === source) return this.#gallery.templates;
 
     const { data } = TemplateGallerySchema.parse(JSON.parse(source.toString("utf8")));
     const templates = data.flatMap(({ title, templates }) =>
-      templates.map(({ id, name, summary, hardware }) => ({
+      templates.map(({ id, name, summary, tags, hardware }) => ({
         id,
         name,
         category: title,
+        source: tags?.some(tag => CURATED_TAGS.has(tag)) ? ("console_curated" as const) : ("community" as const),
         summary: (summary ?? "").slice(0, MAX_TEMPLATE_SUMMARY_LENGTH),
         gpu: hardware?.gpu ?? null,
         terms: new Set(tokenize(`${id} ${name} ${title} ${summary ?? ""}`))

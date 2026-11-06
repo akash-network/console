@@ -22,8 +22,11 @@ const READ_TOOL_DESCRIPTIONS: Record<ReadToolName, string> = {
     "Reads the bids on a deployment. When it has none, also reports how many providers could bid on each group now and which GPU models have free capacity.",
   get_balance_and_spend: "Reads the user's credit balance, trial status, weekly spend, spend per running deployment and whether auto recharge is on.",
   get_lease_close_reason: "Explains why a deployment or its leases closed, from the leases, Console's own close reason and recent activity.",
-  list_templates: "Searches the template gallery by name and summary.",
-  search_docs: "Searches the Console and Akash knowledge pack. Use it before answering how-to or troubleshooting questions."
+  list_templates:
+    "Searches Console's own templates and the template gallery by name and summary. Each template has a source: console (built by Console), console_curated (recommended by Console) or community.",
+  search_docs: "Searches the Console and Akash knowledge pack. Use it before answering how-to or troubleshooting questions.",
+  check_availability:
+    "Screens how many providers could bid now on a template or an SDL, per group, and why none can when that is the case. Use it to try an adjusted SDL before proposing it."
 };
 
 const CLIENT_TOOL_DESCRIPTIONS: Record<ClientToolName, string> = {
@@ -32,13 +35,15 @@ const CLIENT_TOOL_DESCRIPTIONS: Record<ClientToolName, string> = {
 };
 
 const PROPOSAL_TOOL_DESCRIPTIONS: Record<ProposalActionType, string> = {
-  create_deployment: "Proposes a new deployment from a gallery template or a generated SDL. The SDL is validated before the card is shown.",
+  create_deployment:
+    "Proposes a new deployment from a template or a generated SDL. The SDL is validated and screened before the card is shown, and held back when no provider can bid.",
   choose_bid: "Proposes the bid to accept for each group of a deployment waiting on bids. Starting the lease starts billing.",
   update_deployment:
     "Proposes changes to running services: image, command, args, non-secret env (null removes a variable), exposed ports, accepted domains, http options, storage mount and read-only. Resources cannot change here.",
   set_secret: "Proposes setting a secret env variable. Only the name goes here; the user types the value in the card.",
   set_registry_credentials: "Proposes private registry credentials for a service. The user types the password in the card.",
-  redeploy_with_resources: "Proposes a redeploy with different CPU, memory, GPU, storage size or replicas, opened as a prefilled draft.",
+  redeploy_with_resources:
+    "Proposes a redeploy with different CPU, memory, GPU, storage size or replicas, opened as a prefilled draft. Held back when no provider can bid on the new resources.",
   rename_deployment: "Proposes renaming a deployment.",
   move_deployment: "Proposes moving a deployment to another project.",
   add_runtime_hours: "Proposes extending a deployment's runtime limit, by 48 hours at most.",

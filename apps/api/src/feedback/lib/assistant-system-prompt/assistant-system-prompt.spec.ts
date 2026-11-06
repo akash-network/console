@@ -15,6 +15,8 @@ describe(buildAssistantSystemPrompt.name, () => {
     expect(prompt).toContain("Whenever you cannot help, call suggest_live_help with the reason");
     expect(prompt).toContain("propose the fix with its propose_* tool and pass a diagnosis");
     expect(prompt).toContain("Pass a diagnosis only when you quote at least one line you read");
+    expect(prompt).toContain("prefer a template whose source is console, then console_curated, over community ones");
+    expect(prompt).toContain("holds back one nobody can bid on with the reason");
     expect(prompt.split("\n").at(-1)).toBe("The user has a paid account.");
   });
 

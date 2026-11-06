@@ -4,7 +4,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { CreateLogger } from "@src/core";
 import type { AssistantAction } from "@src/feedback/http-schemas/assistant-action.schema";
-import { AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
+import { AssistantProposalWithheldError, AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
 import { REDACTED } from "@src/feedback/lib/redact-secrets/redact-secrets";
 import type { ChatToolCall } from "@src/feedback/services/akashml-client/akashml.client";
 import type { AssistantAccountToolsService } from "@src/feedback/services/assistant-account-tools/assistant-account-tools.service";
@@ -49,7 +49,7 @@ describe(AssistantToolRunnerService.name, () => {
       const read = vi.mocked((mocks[tools] as unknown as Record<string, (...args: unknown[]) => Promise<unknown>>)[method]);
       read.mockResolvedValue({ read: name });
 
-      const outcome = await mocks.runner.run(call(name, args), { isTrialing: false });
+      const outcome = await mocks.runner.run(call(name, args), { isTrialing: false, withheldSdls: [] });
 
       expect(read).toHaveBeenCalledWith(args);
       expect(outcome).toEqual({ kind: "result", content: toolContentOf(name, { data: { read: name } }), summary, ok: true });
@@ -59,7 +59,7 @@ describe(AssistantToolRunnerService.name, () => {
       const { runner, deploymentTools } = setup();
       deploymentTools.listDeployments.mockResolvedValue({ total: 0, hasMore: false, deployments: [] });
 
-      await runner.run(call("list_deployments", { search: "web" }), { isTrialing: false });
+      await runner.run(call("list_deployments", { search: "web" }), { isTrialing: false, withheldSdls: [] });
 
       expect(deploymentTools.listDeployments).toHaveBeenCalledWith({ search: "web" });
     });
@@ -67,7 +67,7 @@ describe(AssistantToolRunnerService.name, () => {
     it("searches the knowledge pack", async () => {
       const { runner } = setup();
 
-      const outcome = await runner.run(call("search_docs", { query: "OOMKilled memory" }), { isTrialing: false });
+      const outcome = await runner.run(call("search_docs", { query: "OOMKilled memory" }), { isTrialing: false, withheldSdls: [] });
 
       expect(outcome).toMatchObject({ kind: "result", ok: true, summary: "Searched the Console docs" });
       expect((outcome as Extract<typeof outcome, { kind: "result" }>).content).toContain("troubleshooting-runtime#out-memory");
@@ -76,7 +76,7 @@ describe(AssistantToolRunnerService.name, () => {
     it("treats empty arguments as an empty object", async () => {
       const { runner } = setup();
 
-      expect(await runner.run(call("get_balance_and_spend", ""), { isTrialing: false })).toMatchObject({ ok: true });
+      expect(await runner.run(call("get_balance_and_spend", ""), { isTrialing: false, withheldSdls: [] })).toMatchObject({ ok: true });
     });
   });
 
@@ -84,11 +84,11 @@ describe(AssistantToolRunnerService.name, () => {
     it("hands browser tools back with defaults applied", async () => {
       const { runner } = setup();
 
-      expect(await runner.run(call("read_logs", { dseq: "42" }), { isTrialing: false })).toEqual({
+      expect(await runner.run(call("read_logs", { dseq: "42" }), { isTrialing: false, withheldSdls: [] })).toEqual({
         kind: "client",
         call: { id: "call-1", name: "read_logs", arguments: { dseq: "42", tailLines: 100 } }
       });
-      expect(await runner.run(call("read_events", { dseq: "42", extra: 1 }), { isTrialing: false })).toEqual({
+      expect(await runner.run(call("read_events", { dseq: "42", extra: 1 }), { isTrialing: false, withheldSdls: [] })).toEqual({
         kind: "client",
         call: { id: "call-1", name: "read_events", arguments: { dseq: "42" } }
       });
@@ -101,10 +101,10 @@ describe(AssistantToolRunnerService.name, () => {
       const action: AssistantAction = { type: "buy_credits", tier: "deep_link", amountUsd: 20 };
       proposalService.propose.mockResolvedValue(action);
 
-      const outcome = await runner.run(call("propose_buy_credits", { amountUsd: 20 }), { isTrialing: true });
+      const outcome = await runner.run(call("propose_buy_credits", { amountUsd: 20 }), { isTrialing: true, withheldSdls: [] });
       const proposal = outcome as Extract<typeof outcome, { kind: "proposal" }>;
 
-      expect(proposalService.propose).toHaveBeenCalledWith("buy_credits", { amountUsd: 20 }, { isTrialing: true });
+      expect(proposalService.propose).toHaveBeenCalledWith("buy_credits", { amountUsd: 20 }, { isTrialing: true, withheldSdls: [] });
       expect(proposal).toMatchObject({ kind: "proposal", ok: true, summary: "Proposed buy credits", action, proposalId: expect.stringMatching(UUID) });
       expect(JSON.parse(proposal.content)).toEqual({
         tool: "propose_buy_credits",
@@ -120,9 +120,9 @@ describe(AssistantToolRunnerService.name, () => {
       proposalService.propose.mockResolvedValue(action);
       const diagnosis = { summary: "The model is gated and token=abc123 is wrong.", evidence: ["OSError: gated repo", "HF_TOKEN=hf_abcdefghijklmnopqrstuvwx"] };
 
-      const outcome = await runner.run(call("propose_send_manifest_again", { dseq: "42", diagnosis }), { isTrialing: false });
+      const outcome = await runner.run(call("propose_send_manifest_again", { dseq: "42", diagnosis }), { isTrialing: false, withheldSdls: [] });
 
-      expect(proposalService.propose).toHaveBeenCalledWith("send_manifest_again", { dseq: "42" }, { isTrialing: false });
+      expect(proposalService.propose).toHaveBeenCalledWith("send_manifest_again", { dseq: "42" }, { isTrialing: false, withheldSdls: [] });
       expect(outcome).toMatchObject({
         kind: "proposal",
         action,
@@ -134,7 +134,7 @@ describe(AssistantToolRunnerService.name, () => {
       const { runner, proposalService } = setup();
       proposalService.propose.mockResolvedValue({ type: "send_manifest_again", tier: "confirm", dseq: "42" });
 
-      const outcome = await runner.run(call("propose_send_manifest_again", { dseq: "42" }), { isTrialing: false });
+      const outcome = await runner.run(call("propose_send_manifest_again", { dseq: "42" }), { isTrialing: false, withheldSdls: [] });
 
       expect(outcome).not.toHaveProperty("diagnosis");
     });
@@ -144,7 +144,7 @@ describe(AssistantToolRunnerService.name, () => {
       proposalService.propose.mockResolvedValue({ type: "send_manifest_again", tier: "confirm", dseq: "42" });
       const diagnosis = { summary: "The provider lost the manifest.", evidence: ["", "  "] };
 
-      const outcome = await runner.run(call("propose_send_manifest_again", { dseq: "42", diagnosis }), { isTrialing: false });
+      const outcome = await runner.run(call("propose_send_manifest_again", { dseq: "42", diagnosis }), { isTrialing: false, withheldSdls: [] });
 
       expect(outcome).toMatchObject({ kind: "proposal" });
       expect(outcome).not.toHaveProperty("diagnosis");
@@ -155,7 +155,7 @@ describe(AssistantToolRunnerService.name, () => {
       proposalService.propose.mockResolvedValue({ type: "send_manifest_again", tier: "confirm", dseq: "42" });
       const diagnosis = { summary: "The provider lost the manifest.", evidence: ["", "manifest not found"] };
 
-      const outcome = await runner.run(call("propose_send_manifest_again", { dseq: "42", diagnosis }), { isTrialing: false });
+      const outcome = await runner.run(call("propose_send_manifest_again", { dseq: "42", diagnosis }), { isTrialing: false, withheldSdls: [] });
 
       expect(outcome).toMatchObject({ diagnosis: { summary: "The provider lost the manifest.", evidence: ["manifest not found"] } });
     });
@@ -165,9 +165,9 @@ describe(AssistantToolRunnerService.name, () => {
       proposalService.propose.mockResolvedValue({ type: "buy_credits", tier: "deep_link", amountUsd: null });
       const diagnosis = { summary: "The user wants more credits.", evidence: ["balance: 0"] };
 
-      const outcome = await runner.run(call("propose_buy_credits", { diagnosis }), { isTrialing: false });
+      const outcome = await runner.run(call("propose_buy_credits", { diagnosis }), { isTrialing: false, withheldSdls: [] });
 
-      expect(proposalService.propose).toHaveBeenCalledWith("buy_credits", {}, { isTrialing: false });
+      expect(proposalService.propose).toHaveBeenCalledWith("buy_credits", {}, { isTrialing: false, withheldSdls: [] });
       expect(outcome).toMatchObject({ kind: "proposal" });
       expect(outcome).not.toHaveProperty("diagnosis");
     });
@@ -176,7 +176,7 @@ describe(AssistantToolRunnerService.name, () => {
       const { runner, proposalService } = setup();
       const diagnosis = { summary: "Crash loop", evidence: Array.from({ length: 7 }, (_, index) => `line ${index}`) };
 
-      const outcome = await runner.run(call("propose_send_manifest_again", { dseq: "42", diagnosis }), { isTrialing: false });
+      const outcome = await runner.run(call("propose_send_manifest_again", { dseq: "42", diagnosis }), { isTrialing: false, withheldSdls: [] });
 
       expect(outcome).toMatchObject({ kind: "result", ok: false });
       expect((outcome as Extract<typeof outcome, { kind: "result" }>).content).toContain("Invalid arguments: diagnosis.evidence");
@@ -184,11 +184,85 @@ describe(AssistantToolRunnerService.name, () => {
     });
   });
 
+  describe("check_availability", () => {
+    it("screens a template's SDL as a trial would", async () => {
+      const { runner, accountTools, bidTools } = setup();
+      accountTools.templateSdl.mockResolvedValue("template sdl");
+      const availability = { providersAbleToBid: 4, groups: [], gpuModelsWithFreeCapacity: null };
+      bidTools.checkAvailability.mockResolvedValue(availability);
+
+      const outcome = await runner.run(call("check_availability", { templateId: "hello-world" }), { isTrialing: true, withheldSdls: [] });
+
+      expect(accountTools.templateSdl).toHaveBeenCalledWith("hello-world");
+      expect(bidTools.checkAvailability).toHaveBeenCalledWith("template sdl", { isTrialing: true });
+      expect(outcome).toEqual({
+        kind: "result",
+        content: toolContentOf("check_availability", { data: availability }),
+        summary: "Checked which providers could bid",
+        ok: true
+      });
+    });
+
+    it("screens a generated SDL as a paid account would when the status is unknown", async () => {
+      const { runner, accountTools, bidTools } = setup();
+      bidTools.checkAvailability.mockResolvedValue({ providersAbleToBid: 0, groups: [], gpuModelsWithFreeCapacity: null });
+
+      await runner.run(call("check_availability", { sdl: "generated sdl" }), { isTrialing: null, withheldSdls: [] });
+
+      expect(accountTools.templateSdl).not.toHaveBeenCalled();
+      expect(bidTools.checkAvailability).toHaveBeenCalledWith("generated sdl", { isTrialing: false });
+    });
+  });
+
+  describe("withheld proposals", () => {
+    it("tells the model no card was shown, with the screening result and how to adjust", async () => {
+      const { runner, proposalService } = setup();
+      const feedback = {
+        providersAbleToBid: 0,
+        groups: [{ group: "dcloud", requestedGpus: [], providersAbleToBid: 0, reason: "No audited provider has signed host=akash." }]
+      };
+      proposalService.propose.mockRejectedValue(new AssistantProposalWithheldError(feedback));
+
+      const outcome = await runner.run(call("propose_create_deployment", { templateId: "dart" }), { isTrialing: false, withheldSdls: [] });
+
+      expect(outcome).toMatchObject({ kind: "result", summary: "Held back a proposal no provider can bid on", ok: false });
+      const { data } = JSON.parse((outcome as Extract<typeof outcome, { kind: "result" }>).content);
+      expect(data).toMatchObject({ shownToUser: false, ...feedback });
+      expect(data.note).toContain("keeping its price and denom");
+    });
+
+    it("hands the model the template's SDL to adjust when it fits the result", async () => {
+      const { runner, proposalService } = setup();
+      const templateSdl = 'version: "2.0"\nservices: {}\n';
+      proposalService.propose.mockRejectedValue(new AssistantProposalWithheldError({ providersAbleToBid: 0, groups: [], templateSdl }));
+
+      const outcome = await runner.run(call("propose_create_deployment", { templateId: "dart" }), { isTrialing: false, withheldSdls: [] });
+
+      const { data } = JSON.parse((outcome as Extract<typeof outcome, { kind: "result" }>).content);
+      expect(data).toMatchObject({ shownToUser: false, providersAbleToBid: 0, templateSdl });
+      expect(data.note).not.toContain("too long");
+    });
+
+    it("leaves out a template SDL too long for the result and still sends whole JSON with the note", async () => {
+      const { runner, proposalService } = setup();
+      const templateSdl = `version: "2.0"\n${"#".repeat(MAX_TOOL_RESULT_LENGTH)}\n`;
+      proposalService.propose.mockRejectedValue(new AssistantProposalWithheldError({ providersAbleToBid: 0, groups: [], templateSdl }));
+
+      const outcome = await runner.run(call("propose_create_deployment", { templateId: "dart" }), { isTrialing: false, withheldSdls: [] });
+
+      const { data } = JSON.parse((outcome as Extract<typeof outcome, { kind: "result" }>).content);
+      expect(data).toMatchObject({ shownToUser: false, providersAbleToBid: 0 });
+      expect(data).not.toHaveProperty("templateSdl");
+      expect(data.note).toContain("keeping its price and denom");
+      expect(data.note).toContain("too long to include");
+    });
+  });
+
   describe("live help", () => {
     it("signals live help with the reason and asks the model to follow up", async () => {
       const { runner } = setup();
 
-      const outcome = await runner.run(call("suggest_live_help", { reason: "provider_side_issue" }), { isTrialing: false });
+      const outcome = await runner.run(call("suggest_live_help", { reason: "provider_side_issue" }), { isTrialing: false, withheldSdls: [] });
 
       expect(outcome).toEqual({
         kind: "live_help",
@@ -202,7 +276,10 @@ describe(AssistantToolRunnerService.name, () => {
     it("refuses a reason it does not know", async () => {
       const { runner } = setup();
 
-      expect(await runner.run(call("suggest_live_help", { reason: "bored" }), { isTrialing: false })).toMatchObject({ kind: "result", ok: false });
+      expect(await runner.run(call("suggest_live_help", { reason: "bored" }), { isTrialing: false, withheldSdls: [] })).toMatchObject({
+        kind: "result",
+        ok: false
+      });
     });
   });
 
@@ -216,7 +293,7 @@ describe(AssistantToolRunnerService.name, () => {
     ])("reports %o back to the model", async (toolCall, error) => {
       const { runner } = setup();
 
-      expect(await runner.run(toolCall, { isTrialing: false })).toEqual({
+      expect(await runner.run(toolCall, { isTrialing: false, withheldSdls: [] })).toEqual({
         kind: "result",
         content: toolContentOf(toolCall.function.name, { error }),
         summary: `Could not run ${toolCall.function.name}`,
@@ -229,10 +306,10 @@ describe(AssistantToolRunnerService.name, () => {
       proposalService.propose.mockRejectedValue(new AssistantToolError("No such service"));
       deploymentTools.getDeployment.mockRejectedValue(createError(404, "Deployment not found"));
 
-      expect(await runner.run(call("propose_send_manifest_again", { dseq: "1" }), { isTrialing: false })).toMatchObject({
+      expect(await runner.run(call("propose_send_manifest_again", { dseq: "1" }), { isTrialing: false, withheldSdls: [] })).toMatchObject({
         content: toolContentOf("propose_send_manifest_again", { error: "No such service" })
       });
-      expect(await runner.run(call("get_deployment", { dseq: "1" }), { isTrialing: false })).toMatchObject({
+      expect(await runner.run(call("get_deployment", { dseq: "1" }), { isTrialing: false, withheldSdls: [] })).toMatchObject({
         content: toolContentOf("get_deployment", { error: "Deployment not found" })
       });
     });
@@ -242,7 +319,7 @@ describe(AssistantToolRunnerService.name, () => {
       const error = createError(500, "connection string leaked");
       deploymentTools.getDeployment.mockRejectedValue(error);
 
-      const outcome = await runner.run(call("get_deployment", { dseq: "1" }), { isTrialing: false });
+      const outcome = await runner.run(call("get_deployment", { dseq: "1" }), { isTrialing: false, withheldSdls: [] });
 
       expect(outcome).toMatchObject({
         ok: false,

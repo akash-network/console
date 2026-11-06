@@ -103,7 +103,12 @@ export const AssistantActionSchema = z
       tier: DEEP_LINK,
       dseq: AssistantDseqSchema,
       reason: z.string(),
-      services: z.array(z.object({ service: z.string(), before: ServiceResourcesSchema, after: ServiceResourcesSchema }))
+      services: z.array(z.object({ service: z.string(), before: ServiceResourcesSchema, after: ServiceResourcesSchema })),
+      providersAbleToBid: z
+        .number()
+        .int()
+        .nullable()
+        .openapi({ description: "Providers bid screening expects could bid on every group with the new resources, or null when screening did not answer." })
     }),
     z.object({ type: z.literal("rename_deployment"), tier: CONFIRM, dseq: AssistantDseqSchema, from: z.string().nullable(), to: z.string() }),
     z.object({ type: z.literal("move_deployment"), tier: CONFIRM, dseq: AssistantDseqSchema, projectId: z.string().uuid() }),

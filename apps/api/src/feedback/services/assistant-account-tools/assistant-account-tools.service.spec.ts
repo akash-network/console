@@ -8,6 +8,7 @@ import type { WalletSettingController } from "@src/billing/controllers/wallet-se
 import type { WalletSettingsResponse } from "@src/billing/http-schemas/wallet.schema";
 import type { DeploymentController } from "@src/deployment/controllers/deployment/deployment.controller";
 import type { TemplateController } from "@src/template/controllers/template/template.controller";
+import type { Template } from "@src/template/types/template";
 import type { UserOutput } from "@src/user/repositories";
 import { AssistantAccountToolsService } from "./assistant-account-tools.service";
 
@@ -22,10 +23,16 @@ const GALLERY = {
           summary: "Serve Llama with vLLM",
           hardware: { cpu: 8, memoryBytes: 1, storageBytes: 1, gpu: { units: 1, models: ["a100"] } }
         },
-        { id: "comfyui", name: "ComfyUI", summary: null }
+        { id: "comfyui", name: "ComfyUI", summary: null, tags: ["recommended"] }
       ]
     },
-    { title: "Web", templates: [{ id: "nginx", name: "Nginx", summary: "Static site".repeat(40) }] }
+    {
+      title: "Web",
+      templates: [
+        { id: "nginx", name: "Nginx", summary: "Static site".repeat(40), tags: ["popular"] },
+        { id: "akash-network-awesome-akash-dart", name: "Dart", summary: "A hello world web server written in Dart" }
+      ]
+    }
   ]
 };
 
@@ -107,18 +114,52 @@ describe(AssistantAccountToolsService.name, () => {
       const { templates } = await service.listTemplates({ query: "llama vllm gpu" });
 
       expect(templates).toEqual([
-        { id: "llama-3-8b", name: "Llama 3 8B", category: "AI - GPU", summary: "Serve Llama with vLLM", gpu: { units: 1, models: ["a100"] } },
-        { id: "comfyui", name: "ComfyUI", category: "AI - GPU", summary: "", gpu: null }
+        {
+          id: "llama-3-8b",
+          name: "Llama 3 8B",
+          category: "AI - GPU",
+          source: "community",
+          summary: "Serve Llama with vLLM",
+          gpu: { units: 1, models: ["a100"] }
+        },
+        { id: "comfyui", name: "ComfyUI", category: "AI - GPU", source: "console_curated", summary: "", gpu: null }
       ]);
     });
 
-    it("lists the gallery in order without a query, and trims long summaries", async () => {
+    it("ranks Console's own hello world above a community template that matches as well", async () => {
+      const { service } = setup();
+
+      const { templates } = await service.listTemplates({ query: "deploy a hello world" });
+
+      expect(templates.map(({ id, source }) => ({ id, source }))).toEqual([
+        { id: "hello-world", source: "console" },
+        { id: "akash-network-awesome-akash-dart", source: "community" }
+      ]);
+    });
+
+    it("ranks a curated template above a community one that matches as well", async () => {
+      const { service } = setup();
+
+      const { templates } = await service.listTemplates({ query: "web" });
+
+      expect(templates.map(({ id }) => id)).toEqual(["hello-world", "nginx", "akash-network-awesome-akash-dart"]);
+    });
+
+    it("ranks a community template first when it matches clearly better", async () => {
+      const { service } = setup();
+
+      const { templates } = await service.listTemplates({ query: "dart hello world server" });
+
+      expect(templates.map(({ id }) => id)).toEqual(["akash-network-awesome-akash-dart", "hello-world"]);
+    });
+
+    it("lists Console's own templates, then the gallery in order without a query, and trims long summaries", async () => {
       const { service } = setup();
 
       const { templates } = await service.listTemplates({});
 
-      expect(templates.map(({ id }) => id)).toEqual(["llama-3-8b", "comfyui", "nginx"]);
-      expect(templates[2].summary).toHaveLength(200);
+      expect(templates.map(({ id }) => id)).toEqual(["hello-world", "llama-3-8b", "comfyui", "nginx", "akash-network-awesome-akash-dart"]);
+      expect(templates[3].summary).toHaveLength(200);
     });
 
     it("parses the gallery once until it is rebuilt", async () => {
@@ -136,6 +177,26 @@ describe(AssistantAccountToolsService.name, () => {
       const { service } = setup();
 
       expect(await service.listTemplates({ query: "kubernetes" })).toEqual({ templates: [] });
+    });
+  });
+
+  describe("templateSdl", () => {
+    it("reads Console's own templates without the gallery", async () => {
+      const { service, templateController } = setup();
+
+      const sdl = await service.templateSdl("hello-world");
+
+      expect(sdl).toContain("image: ghcr.io/akash-network/hello-akash-world:2.1.0");
+      expect(sdl).not.toContain("attributes");
+      expect(templateController.getTemplateById).not.toHaveBeenCalled();
+    });
+
+    it("reads a gallery template's SDL", async () => {
+      const { service, templateController } = setup();
+      templateController.getTemplateById.mockResolvedValue({ data: mock<Template>({ deploy: "gallery sdl" }) });
+
+      expect(await service.templateSdl("akash-network-awesome-akash-dart")).toBe("gallery sdl");
+      expect(templateController.getTemplateById).toHaveBeenCalledWith("akash-network-awesome-akash-dart");
     });
   });
 
