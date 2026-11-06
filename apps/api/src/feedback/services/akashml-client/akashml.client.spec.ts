@@ -1,5 +1,6 @@
 import type { HttpClient } from "@akashnetwork/http-sdk";
 import { AxiosError, AxiosHeaders, type AxiosResponse } from "axios";
+import { PassThrough, Readable } from "node:stream";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 import { z } from "zod";
@@ -37,6 +38,22 @@ function httpError(status: number | undefined, data?: unknown, code = "ERR_BAD_R
   const errorResponse = status === undefined ? undefined : response(data, status);
 
   return new AxiosError("Request failed", code, errorResponse?.config, undefined, errorResponse);
+}
+
+function sse(payload: unknown): string {
+  return `data: ${typeof payload === "string" ? payload : JSON.stringify(payload)}\n\n`;
+}
+
+function delta(delta: Record<string, unknown>, finishReason: string | null = null) {
+  return sse({ choices: [{ index: 0, delta, finish_reason: finishReason }] });
+}
+
+function usageChunk(promptTokens: number, completionTokens: number) {
+  return sse({ choices: [], usage: { prompt_tokens: promptTokens, completion_tokens: completionTokens } });
+}
+
+function streamOf(...parts: (string | Buffer)[]): Readable {
+  return Readable.from(parts.map(part => Buffer.from(part)));
 }
 
 describe(AkashMlClient.name, () => {
@@ -171,6 +188,307 @@ describe(AkashMlClient.name, () => {
       await vi.runAllTimersAsync();
 
       expect(await result).toMatchObject({ status: undefined, message: "AkashML request failed: Error: boom" });
+    });
+  });
+
+  describe("streamChatCompletion", () => {
+    it("asks for a stream with usage and hands over each content delta as it arrives", async () => {
+      const { client, httpClient, logger } = setup();
+      const upstream = new PassThrough();
+      httpClient.post.mockResolvedValue(response(upstream));
+      const onContentDelta = vi.fn(async () => {});
+
+      const result = client.streamChatCompletion(REQUEST, { onContentDelta });
+      upstream.write(delta({ role: "assistant", content: "Hel" }));
+      await vi.waitFor(() => expect(onContentDelta).toHaveBeenCalledWith("Hel"));
+      const deltasBeforeTheRest = onContentDelta.mock.calls.length;
+      upstream.end(delta({ content: "lo" }, "stop") + usageChunk(12, 3) + sse("[DONE]"));
+
+      expect(await result).toEqual({ content: "Hello", toolCalls: [], finishReason: "stop", usage: { promptTokens: 12, completionTokens: 3 } });
+      expect(deltasBeforeTheRest).toBe(1);
+      expect(onContentDelta.mock.calls).toEqual([["Hel"], ["lo"]]);
+      expect(httpClient.post).toHaveBeenCalledWith(
+        "/chat/completions",
+        { ...REQUEST, stream: true, stream_options: { include_usage: true } },
+        { timeout: undefined, signal: undefined, responseType: "stream", headers: { Accept: "text/event-stream" } }
+      );
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "AKASHML_COMPLETION",
+        model: "test-model",
+        finishReason: "stop",
+        usage: { promptTokens: 12, completionTokens: 3 }
+      });
+    });
+
+    it("passes a per-call timeout and abort signal", async () => {
+      const { client, httpClient } = setup();
+      const signal = new AbortController().signal;
+      httpClient.post.mockResolvedValue(response(streamOf(sse("[DONE]"))));
+
+      await client.streamChatCompletion(REQUEST, { timeoutMs: 5000, signal, onContentDelta: vi.fn() });
+
+      expect(httpClient.post).toHaveBeenCalledWith("/chat/completions", expect.anything(), expect.objectContaining({ timeout: 5000, signal }));
+    });
+
+    it("assembles tool calls from argument fragments split across chunks, in index order", async () => {
+      const { client, httpClient } = setup();
+      httpClient.post.mockResolvedValue(
+        response(
+          streamOf(
+            delta({ tool_calls: [{ index: 1, id: "call-2", type: "function", function: { name: "get_bids", arguments: "" } }] }),
+            delta({ tool_calls: [{ index: 0, id: "call-1", type: "function", function: { name: "get_deployment", arguments: '{"ds' } }] }),
+            delta({ tool_calls: [{ index: 1, function: { arguments: '{"dseq":"2"}' } }] }),
+            delta({ tool_calls: [{ index: 0, function: { arguments: 'eq":"1"}' } }] }),
+            delta({}, "tool_calls"),
+            sse("[DONE]")
+          )
+        )
+      );
+      const onContentDelta = vi.fn(async () => {});
+
+      const result = await client.streamChatCompletion(REQUEST, { onContentDelta });
+
+      expect(result).toEqual({
+        content: null,
+        toolCalls: [
+          { id: "call-1", type: "function", function: { name: "get_deployment", arguments: '{"dseq":"1"}' } },
+          { id: "call-2", type: "function", function: { name: "get_bids", arguments: '{"dseq":"2"}' } }
+        ],
+        finishReason: "tool_calls",
+        usage: null
+      });
+      expect(onContentDelta).not.toHaveBeenCalled();
+    });
+
+    it("keeps a tool call's id and name when later fragments leave them out", async () => {
+      const { client, httpClient } = setup();
+      httpClient.post.mockResolvedValue(
+        response(
+          streamOf(
+            delta({ tool_calls: [{ index: 0, id: "call-1", function: { name: "search_docs" } }] }),
+            delta({ tool_calls: [{ index: 0, id: null, function: { name: null, arguments: "{}" } }] }),
+            delta({ tool_calls: [{ index: 0 }] }, "tool_calls"),
+            sse("[DONE]")
+          )
+        )
+      );
+
+      const { toolCalls } = await client.streamChatCompletion(REQUEST, { onContentDelta: vi.fn() });
+
+      expect(toolCalls).toEqual([{ id: "call-1", type: "function", function: { name: "search_docs", arguments: "{}" } }]);
+    });
+
+    it("never hands reasoning over as text", async () => {
+      const { client, httpClient } = setup();
+      httpClient.post.mockResolvedValue(
+        response(
+          streamOf(
+            delta({ role: "assistant", content: null, reasoning: "The user asks about bids." }),
+            delta({ reasoning_content: "Let me answer briefly." }),
+            delta({ content: "", reasoning: "Done thinking." }),
+            delta({ content: "No bids yet." }, "stop"),
+            sse("[DONE]")
+          )
+        )
+      );
+      const onContentDelta = vi.fn(async () => {});
+
+      const result = await client.streamChatCompletion(REQUEST, { onContentDelta });
+
+      expect(result.content).toBe("No bids yet.");
+      expect(onContentDelta.mock.calls).toEqual([["No bids yet."]]);
+    });
+
+    it("reads events split across chunks, multibyte text split mid-character, comments and a last line without a newline", async () => {
+      const { client, httpClient } = setup();
+      const event = delta({ content: "Ready 🚀" });
+      const bytes = Buffer.from(event);
+      const rocketAt = bytes.indexOf(Buffer.from("🚀"));
+      httpClient.post.mockResolvedValue(
+        response(
+          streamOf(
+            ": keep-alive\n\n",
+            bytes.subarray(0, rocketAt + 2),
+            bytes.subarray(rocketAt + 2),
+            "event: ignored\r\n",
+            'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}'
+          )
+        )
+      );
+      const onContentDelta = vi.fn(async () => {});
+
+      const result = await client.streamChatCompletion(REQUEST, { onContentDelta });
+
+      expect(result).toMatchObject({ content: "Ready 🚀", finishReason: "stop" });
+      expect(onContentDelta.mock.calls).toEqual([["Ready 🚀"]]);
+    });
+
+    it("keeps the usage when the final chunk carries no choices, even after the finish reason", async () => {
+      const { client, httpClient } = setup();
+      httpClient.post.mockResolvedValue(response(streamOf(delta({ content: "a" }, "length"), usageChunk(40, 1200), delta({}), sse("[DONE]"))));
+
+      const result = await client.streamChatCompletion(REQUEST, { onContentDelta: vi.fn() });
+
+      expect(result).toEqual({ content: "a", toolCalls: [], finishReason: "length", usage: { promptTokens: 40, completionTokens: 1200 } });
+    });
+
+    it("answers no content, tool calls, finish reason or usage for an empty stream", async () => {
+      const { client, httpClient } = setup();
+      httpClient.post.mockResolvedValue(response(streamOf(sse("[DONE]"))));
+
+      expect(await client.streamChatCompletion(REQUEST, { onContentDelta: vi.fn() })).toEqual({
+        content: null,
+        toolCalls: [],
+        finishReason: null,
+        usage: null
+      });
+    });
+
+    it("stops reading at the end marker", async () => {
+      const { client, httpClient } = setup();
+      httpClient.post.mockResolvedValue(response(streamOf(delta({ content: "a" }), sse("[DONE]"), delta({ content: "b" }))));
+      const onContentDelta = vi.fn(async () => {});
+
+      expect((await client.streamChatCompletion(REQUEST, { onContentDelta })).content).toBe("a");
+      expect(onContentDelta.mock.calls).toEqual([["a"]]);
+    });
+
+    it("rejects a stream that ends before the completion does", async () => {
+      const { client, httpClient } = setup();
+      httpClient.post.mockResolvedValue(response(streamOf(delta({ content: "partial" }))));
+
+      await expect(client.streamChatCompletion(REQUEST, { onContentDelta: vi.fn() })).rejects.toThrow(
+        new AkashMlRequestError("AkashML stream ended before the completion did", undefined)
+      );
+    });
+
+    it("rejects a chunk that is not JSON", async () => {
+      const { client, httpClient } = setup();
+      httpClient.post.mockResolvedValue(response(streamOf(sse("{oops"))));
+
+      await expect(client.streamChatCompletion(REQUEST, { onContentDelta: vi.fn() })).rejects.toThrow(
+        new AkashMlOutputError("AkashML streamed malformed JSON")
+      );
+    });
+
+    it("rejects a chunk outside the completion shape", async () => {
+      const { client, httpClient } = setup();
+      httpClient.post.mockResolvedValue(response(streamOf(sse({ choices: "none" }))));
+
+      await expect(client.streamChatCompletion(REQUEST, { onContentDelta: vi.fn() })).rejects.toThrow(
+        new AkashMlOutputError("AkashML streamed an unexpected chunk shape")
+      );
+    });
+
+    it.each([
+      [{ message: "upstream overloaded" }, "AkashML stream failed: upstream overloaded"],
+      [{ message: "m".repeat(500) }, `AkashML stream failed: ${"m".repeat(200)}`],
+      [{}, "AkashML stream failed: unknown error"]
+    ])("rejects an error the provider streams after the first delta (%j), without retrying", async (error, message) => {
+      const { client, httpClient } = setup();
+      httpClient.post.mockResolvedValue(response(streamOf(delta({ content: "Hi" }), sse({ error }))));
+      const onContentDelta = vi.fn(async () => {});
+
+      const failure = await client.streamChatCompletion(REQUEST, { onContentDelta }).catch(caught => caught);
+
+      expect(failure).toBeInstanceOf(AkashMlRequestError);
+      expect(failure).toMatchObject({ status: undefined, message });
+      expect(onContentDelta.mock.calls).toEqual([["Hi"]]);
+      expect(httpClient.post).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      [Object.assign(new Error("socket hang up"), { code: "ECONNRESET" }), "AkashML stream failed: ECONNRESET"],
+      [new Error("boom"), "AkashML stream failed: Error: boom"]
+    ])("rejects a connection that breaks mid-stream without retrying", async (error, message) => {
+      const { client, httpClient } = setup();
+      const upstream = new PassThrough();
+      httpClient.post.mockResolvedValue(response(upstream));
+      const onContentDelta = vi.fn(async () => {});
+
+      const result = client.streamChatCompletion(REQUEST, { onContentDelta }).catch(caught => caught);
+      upstream.write(delta({ content: "Hi" }));
+      await vi.waitFor(() => expect(onContentDelta).toHaveBeenCalled());
+      upstream.destroy(error);
+
+      expect(await result).toMatchObject({ name: "AkashMlRequestError", status: undefined, message });
+      expect(httpClient.post).toHaveBeenCalledTimes(1);
+    });
+
+    it("stops reading and tears the stream down when aborted mid-stream", async () => {
+      const { client, httpClient } = setup();
+      const upstream = new PassThrough();
+      httpClient.post.mockResolvedValue(response(upstream));
+      const controller = new AbortController();
+      const onContentDelta = vi.fn(async () => {});
+
+      const result = client.streamChatCompletion(REQUEST, { signal: controller.signal, onContentDelta }).catch(caught => caught);
+      upstream.write(delta({ content: "Hi" }));
+      await vi.waitFor(() => expect(onContentDelta).toHaveBeenCalled());
+      controller.abort();
+
+      expect(await result).toMatchObject({ name: "AkashMlRequestError", message: "AkashML stream failed: AbortError: This operation was aborted" });
+      expect(upstream.destroyed).toBe(true);
+      expect(onContentDelta.mock.calls).toEqual([["Hi"]]);
+    });
+
+    it("passes on a failure to hand over a delta as it is", async () => {
+      const { client, httpClient } = setup();
+      const upstream = streamOf(delta({ content: "Hi" }), sse("[DONE]"));
+      httpClient.post.mockResolvedValue(response(upstream));
+      const error = new Error("client gone");
+
+      await expect(client.streamChatCompletion(REQUEST, { onContentDelta: vi.fn().mockRejectedValue(error) })).rejects.toBe(error);
+      expect(upstream.destroyed).toBe(true);
+    });
+
+    it("retries an answer that failed before the stream opened, with the provider's message read from the stream", async () => {
+      vi.useFakeTimers();
+      const { client, httpClient } = setup();
+      httpClient.post
+        .mockRejectedValueOnce(httpError(503, streamOf(JSON.stringify({ error: { message: "no healthy backend" } }))))
+        .mockResolvedValueOnce(response(streamOf(delta({ content: "ok" }, "stop"), sse("[DONE]"))));
+
+      const result = client.streamChatCompletion(REQUEST, { onContentDelta: vi.fn() });
+      await vi.advanceTimersByTimeAsync(AKASHML_RETRY_DELAYS_MS[0]);
+
+      expect((await result).content).toBe("ok");
+      expect(httpClient.post).toHaveBeenCalledTimes(2);
+    });
+
+    it("answers the provider's message read from the stream of a refused request, without retrying", async () => {
+      const { client, httpClient } = setup();
+      httpClient.post.mockRejectedValue(httpError(400, streamOf('{"error":', '{"message":"context too long"}}')));
+
+      await expect(client.streamChatCompletion(REQUEST, { onContentDelta: vi.fn() })).rejects.toMatchObject({
+        status: 400,
+        message: "AkashML answered 400: context too long"
+      });
+      expect(httpClient.post).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      ["a body that is not JSON", streamOf("<html>Bad gateway</html>")],
+      ["a body longer than it reads", streamOf(`{"error":{"message":"${"m".repeat(4_096)}`, '"}}')]
+    ])("answers the status alone for %s", async (_name, body) => {
+      const { client, httpClient } = setup();
+      httpClient.post.mockRejectedValue(httpError(401, body));
+
+      await expect(client.streamChatCompletion(REQUEST, { onContentDelta: vi.fn() })).rejects.toMatchObject({ message: "AkashML answered 401" });
+    });
+
+    it("answers the provider's message when the error body was already read", async () => {
+      const { client, httpClient } = setup();
+      httpClient.post.mockRejectedValue(httpError(400, { error: { message: "bad tools" } }));
+
+      await expect(client.streamChatCompletion(REQUEST, { onContentDelta: vi.fn() })).rejects.toMatchObject({ message: "AkashML answered 400: bad tools" });
+    });
+
+    it("refuses without calling out when no API key is configured", async () => {
+      const { client, httpClient } = setup({ apiKey: undefined });
+
+      await expect(client.streamChatCompletion(REQUEST, { onContentDelta: vi.fn() })).rejects.toBeInstanceOf(AkashMlUnavailableError);
+      expect(httpClient.post).not.toHaveBeenCalled();
     });
   });
 

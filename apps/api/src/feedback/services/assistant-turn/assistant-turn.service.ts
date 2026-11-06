@@ -72,12 +72,8 @@ export class AssistantTurnService {
     try {
       for (let round = turn.roundsUsed; ; round++) {
         const isFinalRound = round >= MAX_TOOL_ROUNDS;
-        const completion = await this.#complete(messages, isFinalRound, abort);
-
-        if (completion.content) {
-          answer.push(completion.content);
-          await emit({ type: "text_delta", text: completion.content });
-        }
+        const completion = await this.#complete(messages, isFinalRound, abort, emit);
+        if (completion.content) answer.push(completion.content);
 
         if (isFinalRound || completion.toolCalls.length === 0) {
           await this.#recordAnswer(turn, answer);
@@ -102,10 +98,10 @@ export class AssistantTurnService {
     }
   }
 
-  async #complete(messages: ChatMessage[], isFinalRound: boolean, signal: AbortSignal): Promise<ChatCompletion> {
+  async #complete(messages: ChatMessage[], isFinalRound: boolean, signal: AbortSignal, emit: EmitAssistantEvent): Promise<ChatCompletion> {
     await this.limitsService.assertWithinBudget();
 
-    const completion = await this.akashMlClient.createChatCompletion(
+    const completion = await this.akashMlClient.streamChatCompletion(
       {
         model: this.config.ASSISTANT_MODEL,
         messages,
@@ -113,7 +109,7 @@ export class AssistantTurnService {
         tool_choice: isFinalRound ? "none" : "auto",
         max_completion_tokens: MAX_COMPLETION_TOKENS
       },
-      { signal }
+      { signal, onContentDelta: text => emit({ type: "text_delta", text }) }
     );
     await this.limitsService.recordUsage(completion.usage);
 
