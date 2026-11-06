@@ -367,6 +367,22 @@ describe(AssistantToolRunnerService.name, () => {
       });
     });
 
+    it("tells the model the SDL lines around a YAML error but keeps them out of the logged reason", async () => {
+      const { runner, bidTools, logger } = setup();
+      const rejection =
+        "The SDL is not valid: bad indentation of a mapping entry (6:6)\n\n 5 |       - DATABASE_URL=postgres://db.internal/app\n 6 |      bad: [";
+      bidTools.checkAvailability.mockRejectedValue(new AssistantToolError(rejection));
+
+      const outcome = await runner.run(call("check_availability", { sdl: "services: {}" }), { isTrialing: false, withheldTemplateSdls: [] });
+
+      expect(outcome).toMatchObject({ content: toolContentOf("check_availability", { error: rejection }), ok: false });
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "ASSISTANT_TOOL_REJECTED",
+        tool: "check_availability",
+        reason: "The SDL is not valid: bad indentation of a mapping entry (6:6)"
+      });
+    });
+
     it("reports refusals and client errors from the tools as they are", async () => {
       const { runner, deploymentTools, proposalService } = setup();
       proposalService.propose.mockRejectedValue(new AssistantToolError("No such service"));

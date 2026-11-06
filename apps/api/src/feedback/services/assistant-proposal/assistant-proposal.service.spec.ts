@@ -232,6 +232,17 @@ describe(AssistantProposalService.name, () => {
       expect(action.sdl).toBe(repriced);
     });
 
+    it("refuses a repriced SDL after a hold back even when a templateId comes with it", async () => {
+      const { service, accountTools, bidTools } = setup();
+      const repriced = PLACED_SDL.replace("amount: 1000", "amount: 5000");
+
+      await expect(
+        propose(service, "create_deployment", { templateId: "hello-world", sdl: repriced }, { isTrialing: false, withheldTemplateSdls: [PLACED_SDL] })
+      ).rejects.toThrow(AssistantToolError);
+      expect(accountTools.templateSdl).not.toHaveBeenCalled();
+      expect(bidTools.checkAvailability).not.toHaveBeenCalled();
+    });
+
     it("lets another template replace one held back", async () => {
       const { service, accountTools, bidTools } = setup();
       accountTools.templateSdl.mockResolvedValue(ASSISTANT_TEST_SDL);

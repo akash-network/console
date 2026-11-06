@@ -123,6 +123,11 @@ function rejectionOf(error: unknown): string | null {
   return null;
 }
 
+/** A YAML parse error quotes the SDL lines around the fault after its first line, so only that first line reaches the logs. */
+function loggedRejectionOf(rejection: string): string {
+  return redactSecrets(rejection.split("\n", 1)[0]);
+}
+
 function parsedArguments(call: ChatToolCall): unknown {
   try {
     return JSON.parse(call.function.arguments || "{}");
@@ -240,7 +245,7 @@ export class AssistantToolRunnerService {
       return FAILED_TOOL_MESSAGE;
     }
 
-    this.#logger.info({ event: "ASSISTANT_TOOL_REJECTED", tool, reason: redactSecrets(rejection) });
+    this.#logger.info({ event: "ASSISTANT_TOOL_REJECTED", tool, reason: loggedRejectionOf(rejection) });
     return rejection;
   }
 }
