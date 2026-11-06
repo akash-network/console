@@ -65,13 +65,16 @@ function renderCode(code?: string): string {
           </div>`;
 }
 
+/** Fills the rest of the inbox preview so clients don't append the body text, which repeats the code, after the preheader. */
+const PREHEADER_PADDING = "&nbsp;&zwnj;".repeat(80);
+
 /** Hidden in the body; mail clients show it as the inbox preview line. */
 function renderCodePreheader(code?: string): string {
   if (!code) {
     return "";
   }
 
-  return `<div class="preheader" style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;mso-hide:all;">Your verification code is ${escape(code)}</div>`;
+  return `<div class="preheader" style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;mso-hide:all;">Your verification code is ${escape(code)}${PREHEADER_PADDING}</div>`;
 }
 
 const FOOTER_TEXT_STYLE = "font-size:12px;line-height:1.6;color:#71717a;";
