@@ -467,6 +467,21 @@ describe(AkashMlClient.name, () => {
       expect(httpClient.post).toHaveBeenCalledTimes(1);
     });
 
+    it("stops waiting on a refused request's stalled body when aborted", async () => {
+      const { client, httpClient } = setup();
+      const stalledBody = new PassThrough();
+      httpClient.post.mockRejectedValue(httpError(400, stalledBody));
+      const controller = new AbortController();
+
+      const result = client.streamChatCompletion(REQUEST, { signal: controller.signal, onContentDelta: vi.fn() }).catch(caught => caught);
+      stalledBody.write('{"error":');
+      await vi.waitFor(() => expect(httpClient.post).toHaveBeenCalled());
+      controller.abort();
+
+      expect(await result).toMatchObject({ name: "AkashMlRequestError", status: 400, message: "AkashML answered 400" });
+      expect(stalledBody.destroyed).toBe(true);
+    });
+
     it.each([
       ["a body that is not JSON", streamOf("<html>Bad gateway</html>")],
       ["a body longer than it reads", streamOf(`{"error":{"message":"${"m".repeat(4_096)}`, '"}}')]

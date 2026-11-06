@@ -1,7 +1,7 @@
 import type { HttpClient } from "@akashnetwork/http-sdk";
 import { isAxiosError } from "axios";
 import { handleWhen, IterableBackoff, retry, type RetryPolicy } from "cockatiel";
-import { Readable } from "node:stream";
+import { addAbortSignal, Readable } from "node:stream";
 import { inject, singleton } from "tsyringe";
 import { z } from "zod";
 
@@ -154,8 +154,10 @@ function toRequestError(error: unknown): AkashMlRequestError {
   return new AkashMlRequestError(`AkashML answered ${status}${apiMessage && `: ${apiMessage}`}`, status);
 }
 
-async function toOpenStreamError(error: unknown): Promise<AkashMlRequestError> {
+/** Axios stops watching the signal once it rejects, so a stalled error body would outlive the turn unless the signal is tied to it here. */
+async function toOpenStreamError(error: unknown, signal: AbortSignal | undefined): Promise<AkashMlRequestError> {
   if (isAxiosError(error) && error.response?.data instanceof Readable) {
+    if (signal) addAbortSignal(signal, error.response.data);
     error.response.data = await readJsonErrorBody(error.response.data);
   }
 
@@ -379,7 +381,7 @@ export class AkashMlClient {
 
       return response.data;
     } catch (error) {
-      throw await toOpenStreamError(error);
+      throw await toOpenStreamError(error, signal);
     }
   }
 }
