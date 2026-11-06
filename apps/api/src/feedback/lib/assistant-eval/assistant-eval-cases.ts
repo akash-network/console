@@ -584,7 +584,7 @@ export const ASSISTANT_EVAL_CASES: AssistantEvalCase[] = [
   {
     id: "what-is-uact",
     question: "What is uact?",
-    expect: { mentionsAnyOf: ["ACT", "uact"] }
+    expect: { mentionsAnyOf: ["million", "1,000,000"] }
   },
   {
     id: "audited-providers",
