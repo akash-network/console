@@ -101,7 +101,7 @@ export function applyAssistantEvent(message: AssistantTranscriptMessage, event: 
         })
       };
     case "client_tool_request":
-      return { ...message, reads: [...message.reads, { id: event.toolCallId, tool: event.name, label: readLabelOfClientTool(event), ok: true }] };
+      return { ...message, reads: upsertRead(message.reads, { id: event.toolCallId, tool: event.name, label: readLabelOfClientTool(event), ok: true }) };
     case "action_proposal":
       return { ...message, proposals: [...message.proposals, { proposalId: event.proposalId, action: event.action, diagnosis: event.diagnosis }] };
     case "live_help_suggested":

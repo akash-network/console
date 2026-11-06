@@ -108,6 +108,21 @@ describe("transcriptModel", () => {
       expect(message.reads).toEqual([{ id: "t-3", tool: "read_logs", label: "Read logs (web, last 100 lines)", ok: true }]);
     });
 
+    it("replaces the started chip of a browser read with what the browser reads", () => {
+      const events: AssistantStreamEvent[] = [
+        { type: "tool_started", toolCallId: "t-1", name: "list_deployments" },
+        { type: "tool_started", toolCallId: "t-3", name: "read_logs" },
+        { type: "client_tool_request", toolCallId: "t-3", name: "read_logs", arguments: { dseq: "1", tailLines: 100 }, maxLength: 16000 }
+      ];
+
+      const message = events.reduce(applyAssistantEvent, answer());
+
+      expect(message.reads).toEqual([
+        { id: "t-1", tool: "list_deployments", label: "Reading deployments", ok: true },
+        { id: "t-3", tool: "read_logs", label: "Read logs (last 100 lines)", ok: true }
+      ]);
+    });
+
     it("collects proposed actions", () => {
       const action: AssistantAction = { type: "send_manifest_again", tier: "confirm", dseq: "42" };
 
