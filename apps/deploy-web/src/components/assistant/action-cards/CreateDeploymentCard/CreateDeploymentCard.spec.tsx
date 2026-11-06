@@ -19,7 +19,41 @@ type Action = AssistantActionOf<"create_deployment">;
 type Container = ReturnType<typeof DEPENDENCIES.useServices>;
 
 const SEAL_CONTEXT: SdlSecretsSealContext = { kid: "k-1", sub: "user-1", jwk: { kty: "RSA", n: "n", e: "AQAB" } };
-const SDL = "services:\n  web:\n    image: vllm/vllm-openai:v0.6.3\n    expose:\n      - port: 8000\n        as: 80\n";
+const SDL = [
+  'version: "2.0"',
+  "services:",
+  "  web:",
+  "    image: vllm/vllm-openai:v0.6.3",
+  "    expose:",
+  "      - port: 8000",
+  "        as: 80",
+  "        accept:",
+  "          - llama.example.com",
+  "        to:",
+  "          - global: true",
+  "profiles:",
+  "  compute:",
+  "    web:",
+  "      resources:",
+  "        cpu:",
+  "          units: 0.5",
+  "        memory:",
+  "          size: 512Mi",
+  "        storage:",
+  "          size: 2Gi",
+  "  placement:",
+  "    dcloud:",
+  "      pricing:",
+  "        web:",
+  "          denom: uact",
+  "          amount: 100000",
+  "deployment:",
+  "  web:",
+  "    dcloud:",
+  "      profile: web",
+  "      count: 1",
+  ""
+].join("\n");
 const WEB: Action["services"][number] = {
   service: "web",
   image: "vllm/vllm-openai:v0.6.3",
@@ -144,21 +178,36 @@ describe("CreateDeploymentCard", () => {
   });
 
   it("opens the SDL in the editor as a draft", async () => {
-    const { decision, createConfigureDraft, router } = setup();
+    const { createConfigureDraft, router, openInEditor } = setup();
 
-    await userEvent.click(screen.getByRole("button", { name: "Open in editor" }));
+    await openInEditor();
 
     expect(createConfigureDraft).toHaveBeenCalledWith(SDL, { name: "llama-8b-vllm" });
-    expect(decision.markOpened).toHaveBeenCalled();
     expect(router.push).toHaveBeenCalledWith("/new-deployment/configure?templateId=akash-network-awesome-akash-vllm&draftId=draft-1");
   });
 
   it("opens an unnamed SDL in the editor without a name", async () => {
-    const { createConfigureDraft } = setup({ action: { name: null } });
+    const { createConfigureDraft, openInEditor } = setup({ action: { name: null } });
 
-    await userEvent.click(screen.getByRole("button", { name: "Open in editor" }));
+    await openInEditor();
 
     expect(createConfigureDraft).toHaveBeenCalledWith(SDL, {});
+  });
+
+  it("refuses an SDL the editor can't import instead of opening a blank deployment", async () => {
+    const { createConfigureDraft, router, openInEditor } = setup({
+      action: { sdl: SDL.replace("    dcloud:\n      profile", "    elsewhere:\n      profile") }
+    });
+
+    await expect(openInEditor()).rejects.toThrow("The editor can't open this SDL. Unable to find placement: elsewhere");
+    expect(createConfigureDraft).not.toHaveBeenCalled();
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("says the SDL opened in the editor once it has", () => {
+    const { chromeProps } = setup({ decisionStatus: "succeeded" });
+
+    expect(chromeProps().successMessage).toBe("Opened in the editor. Review and deploy from there.");
   });
 
   it("stops offering the editor once deploying", () => {
@@ -214,8 +263,15 @@ describe("CreateDeploymentCard", () => {
       </TestContainerProvider>
     );
 
+    const openInEditor = async () => {
+      await userEvent.click(screen.getByRole("button", { name: "Open in editor" }));
+      const [run] = decision.confirm.mock.lastCall!;
+      return run();
+    };
+
     return {
       chromeProps: () => ActionCardChrome.mock.lastCall![0],
+      openInEditor,
       createDeployment,
       sealSdlSecrets,
       recordOneClickDeploy,

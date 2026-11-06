@@ -16,6 +16,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import type { ActionCardRow } from "../ActionCardChrome/ActionCardChrome";
 import { ActionCardChrome } from "../ActionCardChrome/ActionCardChrome";
 import type { ActionCardProps } from "../actionCardTypes";
+import { assertOpensInEditor } from "../assertOpensInEditor/assertOpensInEditor";
 import { computeLabelOf, gpuLabelOf } from "../serviceResourcesFormat/serviceResourcesFormat";
 import { NoBidsYetNotice } from "./NoBidsYetNotice/NoBidsYetNotice";
 import { exposedPortsOf } from "./exposedPortsOf";
@@ -34,6 +35,8 @@ export const DEPENDENCIES = {
 };
 
 const BUDGET_EXCEEDED_MESSAGE = "Starting this deployment would take the project past its monthly budget. An owner or admin can raise the budget.";
+
+const OPENED_IN_EDITOR_MESSAGE = "Opened in the editor. Review and deploy from there.";
 
 interface CreatedDeployment {
   dseq: string;
@@ -79,9 +82,9 @@ export const CreateDeploymentCard: FC<ActionCardProps<"create_deployment"> & { d
     return { dseq };
   };
 
-  const openInEditor = () => {
+  const openInEditor = async () => {
+    assertOpensInEditor(action.sdl);
     const draftId = d.createConfigureDraft(action.sdl, action.name ? { name: action.name } : {});
-    decision.markOpened();
     router.push(UrlService.configureDeployment({ draftId, templateId }));
   };
 
@@ -102,7 +105,7 @@ export const CreateDeploymentCard: FC<ActionCardProps<"create_deployment"> & { d
         <pre className="mt-2 max-h-64 overflow-auto rounded-md border bg-muted p-3 font-mono text-xs">{action.sdl}</pre>
       </details>
       {isOpen && (
-        <Button type="button" variant="outline" size="sm" className="self-start" onClick={openInEditor}>
+        <Button type="button" variant="outline" size="sm" className="self-start" onClick={() => decision.confirm(openInEditor)}>
           Open in editor
         </Button>
       )}
@@ -123,8 +126,8 @@ function explainBudgetRefusal(cause: unknown): never {
   throw readProjectBudgetRefusal(cause) ? new Error(BUDGET_EXCEEDED_MESSAGE, { cause }) : cause;
 }
 
-function successMessageOf(created: CreatedDeployment | null): string | undefined {
-  if (!created) return undefined;
+function successMessageOf(created: CreatedDeployment | null): string {
+  if (!created) return OPENED_IN_EDITOR_MESSAGE;
   return created.isAutoLeased
     ? `Deploying ${created.dseq}. Console picks a provider and starts the lease. Follow it in Activities.`
     : `Created deployment ${created.dseq}. Choose a provider to start it.`;

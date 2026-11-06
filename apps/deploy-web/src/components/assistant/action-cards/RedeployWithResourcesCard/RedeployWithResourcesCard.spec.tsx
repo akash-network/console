@@ -145,6 +145,13 @@ describe("RedeployWithResourcesCard", () => {
     expect(redeploy).not.toHaveBeenCalled();
   });
 
+  it("refuses a configuration the editor can't import instead of opening a blank deployment", async () => {
+    const { chromeProps, redeploy } = setup({ definition: { sdl: SDL.replace("deployment:\n  web:\n    dcloud:", "deployment:\n  web:\n    elsewhere:") } });
+
+    await expect(chromeProps().onConfirm!("")).rejects.toThrow("The editor can't open this SDL. Unable to find placement: elsewhere");
+    expect(redeploy).not.toHaveBeenCalled();
+  });
+
   function setup(input: { services?: Action["services"]; definition?: Partial<DeploymentDefinition>; providersAbleToBid?: number | null } = {}) {
     const action: Action = {
       type: "redeploy_with_resources",

@@ -9,6 +9,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import type { ActionCardRow } from "../ActionCardChrome/ActionCardChrome";
 import { ActionCardChrome } from "../ActionCardChrome/ActionCardChrome";
 import type { ActionCardProps } from "../actionCardTypes";
+import { assertOpensInEditor } from "../assertOpensInEditor/assertOpensInEditor";
 import { keepsPricing, PRICING_CHANGE_MESSAGE } from "../pricingGuard/pricingGuard";
 import { keepsSecretsWithTheirServices } from "./keepsSecretsWithTheirServices";
 
@@ -31,14 +32,16 @@ export const OpenInEditorCard: FC<ActionCardProps<"open_in_editor"> & { dependen
 
   const openInEditor = async () => {
     if (!action.dseq) {
-      if (action.sdl) redeploy({ sdl: action.sdl, templateId });
-      else router.push(UrlService.configureDeployment({ templateId }));
-      return;
+      if (!action.sdl) return router.push(UrlService.configureDeployment({ templateId }));
+      assertOpensInEditor(action.sdl);
+      return redeploy({ sdl: action.sdl, templateId });
     }
 
     if (!currentSdl) throw new Error(DEFINITION_UNAVAILABLE_MESSAGE);
     if (action.sdl && !keepsPricing(currentSdl, action.sdl)) throw new Error(PRICING_CHANGE_MESSAGE);
-    redeploy({ sdl: action.sdl ?? currentSdl, name: definition.name, templateId, ...(inheritsSecrets ? { sourceDseq: action.dseq } : {}) });
+    const sdl = action.sdl ?? currentSdl;
+    assertOpensInEditor(sdl);
+    redeploy({ sdl, name: definition.name, templateId, ...(inheritsSecrets ? { sourceDseq: action.dseq } : {}) });
   };
 
   return (
