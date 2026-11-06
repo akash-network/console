@@ -38,6 +38,7 @@ const DiagnosisArgumentSchema = z.object({ diagnosis: AssistantDiagnosisSchema.o
 const FAILED_TOOL_MESSAGE = "The tool failed. Tell the user this data could not be read right now.";
 const WITHHELD_PROPOSAL_NOTE =
   "No provider can bid on this, so the user did not see a card. Propose an adjusted SDL that has bidders, keeping its price and denom: drop placement attributes no audited provider signed, change resources the user did not ask for, or pick another template. If nothing fits, explain why to the user.";
+const TEMPLATE_SDL_LEFT_OUT_NOTE = "The template's SDL is too long to include here, so pick another template or explain why nothing fits.";
 
 export type ClientToolCall = { [K in ClientToolName]: { id: string; name: K; arguments: ClientToolArguments<K> } }[ClientToolName];
 
@@ -54,6 +55,18 @@ export function truncated(text: string, maxLength: number): string {
 /** Tool results reach the model as JSON data, redacted and bounded, so their content cannot pass for instructions or flood the context. */
 export function toolContentOf(tool: string, payload: { data: unknown } | { error: string }): string {
   return truncated(redactSecrets(JSON.stringify({ tool, ...payload })), MAX_TOOL_RESULT_LENGTH);
+}
+
+function fitsToolResult(tool: string, payload: { data: unknown }): boolean {
+  return redactSecrets(JSON.stringify({ tool, ...payload })).length <= MAX_TOOL_RESULT_LENGTH;
+}
+
+/** Leaves out a template SDL too long for the result cap, since a cut payload would reach the model as broken JSON without its note. */
+function withheldContentOf(tool: string, { templateSdl, ...feedback }: Record<string, unknown>): string {
+  const payload = { data: { shownToUser: false, ...feedback, templateSdl, note: WITHHELD_PROPOSAL_NOTE } };
+  if (fitsToolResult(tool, payload)) return toolContentOf(tool, payload);
+
+  return toolContentOf(tool, { data: { shownToUser: false, ...feedback, note: `${WITHHELD_PROPOSAL_NOTE} ${TEMPLATE_SDL_LEFT_OUT_NOTE}` } });
 }
 
 function summaryOf(name: ReadToolName, args: Record<string, unknown>): string {
@@ -111,7 +124,7 @@ export class AssistantToolRunnerService {
       if (error instanceof AssistantProposalWithheldError) {
         return {
           kind: "result",
-          content: toolContentOf(name, { data: { shownToUser: false, ...error.feedback, note: WITHHELD_PROPOSAL_NOTE } }),
+          content: withheldContentOf(name, error.feedback),
           summary: "Held back a proposal no provider can bid on",
           ok: false
         };

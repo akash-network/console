@@ -217,7 +217,10 @@ describe(AssistantToolRunnerService.name, () => {
   describe("withheld proposals", () => {
     it("tells the model no card was shown, with the screening result and how to adjust", async () => {
       const { runner, proposalService } = setup();
-      const feedback = { providersAbleToBid: 0, groups: [{ group: "dcloud", requestedGpus: [], providersAbleToBid: 0, reason: "No audited provider has signed host=akash." }] };
+      const feedback = {
+        providersAbleToBid: 0,
+        groups: [{ group: "dcloud", requestedGpus: [], providersAbleToBid: 0, reason: "No audited provider has signed host=akash." }]
+      };
       proposalService.propose.mockRejectedValue(new AssistantProposalWithheldError(feedback));
 
       const outcome = await runner.run(call("propose_create_deployment", { templateId: "dart" }), { isTrialing: false, withheldSdls: [] });
@@ -226,6 +229,32 @@ describe(AssistantToolRunnerService.name, () => {
       const { data } = JSON.parse((outcome as Extract<typeof outcome, { kind: "result" }>).content);
       expect(data).toMatchObject({ shownToUser: false, ...feedback });
       expect(data.note).toContain("keeping its price and denom");
+    });
+
+    it("hands the model the template's SDL to adjust when it fits the result", async () => {
+      const { runner, proposalService } = setup();
+      const templateSdl = 'version: "2.0"\nservices: {}\n';
+      proposalService.propose.mockRejectedValue(new AssistantProposalWithheldError({ providersAbleToBid: 0, groups: [], templateSdl }));
+
+      const outcome = await runner.run(call("propose_create_deployment", { templateId: "dart" }), { isTrialing: false, withheldSdls: [] });
+
+      const { data } = JSON.parse((outcome as Extract<typeof outcome, { kind: "result" }>).content);
+      expect(data).toMatchObject({ shownToUser: false, providersAbleToBid: 0, templateSdl });
+      expect(data.note).not.toContain("too long");
+    });
+
+    it("leaves out a template SDL too long for the result and still sends whole JSON with the note", async () => {
+      const { runner, proposalService } = setup();
+      const templateSdl = `version: "2.0"\n${"#".repeat(MAX_TOOL_RESULT_LENGTH)}\n`;
+      proposalService.propose.mockRejectedValue(new AssistantProposalWithheldError({ providersAbleToBid: 0, groups: [], templateSdl }));
+
+      const outcome = await runner.run(call("propose_create_deployment", { templateId: "dart" }), { isTrialing: false, withheldSdls: [] });
+
+      const { data } = JSON.parse((outcome as Extract<typeof outcome, { kind: "result" }>).content);
+      expect(data).toMatchObject({ shownToUser: false, providersAbleToBid: 0 });
+      expect(data).not.toHaveProperty("templateSdl");
+      expect(data.note).toContain("keeping its price and denom");
+      expect(data.note).toContain("too long to include");
     });
   });
 
@@ -247,7 +276,10 @@ describe(AssistantToolRunnerService.name, () => {
     it("refuses a reason it does not know", async () => {
       const { runner } = setup();
 
-      expect(await runner.run(call("suggest_live_help", { reason: "bored" }), { isTrialing: false, withheldSdls: [] })).toMatchObject({ kind: "result", ok: false });
+      expect(await runner.run(call("suggest_live_help", { reason: "bored" }), { isTrialing: false, withheldSdls: [] })).toMatchObject({
+        kind: "result",
+        ok: false
+      });
     });
   });
 
