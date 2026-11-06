@@ -237,6 +237,21 @@ describe("BidScreeningRequestSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it.each(["1000", "100000.000000000000000000", "0.5"])("accepts %s as a price amount, as the chain spells DecCoin amounts", amount => {
+    const result = BidScreeningRequestSchema.safeParse(buildRequestWithUnits([buildResourceUnit({ priceAmount: amount })]));
+
+    expect(result.success).toBe(true);
+  });
+
+  it.each(["-1", "1.", ".5", "1e3", "1,000", ""])("rejects %j as a price amount", amount => {
+    const result = BidScreeningRequestSchema.safeParse(buildRequestWithUnits([buildResourceUnit({ priceAmount: amount })]));
+
+    expect(result.success).toBe(false);
+    expect((result as { error: { issues: unknown[] } }).error.issues).toContainEqual(
+      expect.objectContaining({ message: "Must be a non-negative decimal string", path: ["resources", 0, "price", "amount"] })
+    );
+  });
+
   describe("when the request uses chain-sdk proto JSON field names", () => {
     it("keeps the signer list of a group spec serialized by GroupSpec.toJSON", () => {
       const result = BidScreeningRequestSchema.parse(buildGroupSpecRequest(DART_TEMPLATE_SDL));
@@ -311,7 +326,14 @@ describe("BidScreeningRequestSchema", () => {
     return { ...buildRequest(), resources };
   }
 
-  function buildResourceUnit(input?: { count?: number; cpu?: string; memory?: string; gpu?: string; storage?: ReturnType<typeof buildStorageVolumes> }) {
+  function buildResourceUnit(input?: {
+    count?: number;
+    cpu?: string;
+    memory?: string;
+    gpu?: string;
+    storage?: ReturnType<typeof buildStorageVolumes>;
+    priceAmount?: string;
+  }) {
     return {
       resource: {
         id: 1,
@@ -322,7 +344,7 @@ describe("BidScreeningRequestSchema", () => {
         endpoints: []
       },
       count: input?.count ?? 1,
-      price: { denom: "uakt", amount: "1000" }
+      price: { denom: "uakt", amount: input?.priceAmount ?? "1000" }
     };
   }
 

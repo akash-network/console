@@ -2,7 +2,8 @@ import { z } from "@hono/zod-openapi";
 
 import { CPU_ARCHITECTURES } from "@src/mappers/cpu-attribute-parser/cpu-attribute-parser";
 
-const UIntStringSchema = z.string().regex(/^\d+$/, "Must be an unsigned integer string");
+/** A group spec read from the chain prices in DecCoin, whose amount carries 18 decimal places. */
+const DecimalAmountStringSchema = z.string().regex(/^\d+(\.\d+)?$/, "Must be a non-negative decimal string");
 
 const ResourceValueSchema = z.object({
   val: z
@@ -118,7 +119,7 @@ const ResourceSchema = z
 
 const PriceSchema = z.object({
   denom: z.string(),
-  amount: UIntStringSchema
+  amount: DecimalAmountStringSchema
 });
 
 const ResourceUnitSchema = z.object({
