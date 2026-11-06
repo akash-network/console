@@ -99,6 +99,19 @@ src/
 
 Functional tests use the Akash sandbox environment and require wallet credentials. By default, `TestWalletService` generates a unique wallet for each test file, which increases startup time. To improve performance, you can configure a single shared wallet by setting `MASTER_WALLET_MNEMONIC` in `env/.env.functional.test.local`. Simply create a wallet, add its mnemonic to this file, and fund it via the Akash sandbox faucet (https://faucet.sandbox-2.aksh.pw).
 
+## Assistant knowledge
+
+The in-app assistant's `search_docs` tool answers from two sources: the Console notes in `src/feedback/lib/assistant-knowledge/assistant-knowledge-pack.ts`, and a curated part of the [Akash skill](https://github.com/akash-network/akash-skill) (MIT) in `akash-skill-knowledge.gen.ts` next to it. Don't edit the generated file by hand.
+
+`src/feedback/lib/akash-skill-curation/akash-skill-curation-manifest.ts` pins the skill version and commit, and lists the sections to keep, the corrections to apply for Console, and the guards that reject outdated or non-Console guidance (`uakt` pricing, escrow deposits, CLI and self-custody flows, the old bid screening shape).
+
+To move to a newer skill version:
+
+1. Set `version` and `commit` in the manifest to the new release tag and its commit (`gh api repos/akash-network/akash-skill/git/ref/tags/<tag>`).
+2. Run `npm run knowledge:refresh`. It fetches the selected files at that commit and rewrites the generated file. To try an unpublished version first, pass a local checkout: `npm run knowledge:refresh -- /path/to/akash-skill`.
+3. If it fails, it lists every section that is missing, too long, or trips a guard. Update the section headings, add a correction, or drop the section, then run it again.
+4. Review the diff of the generated file, bump `ASSISTANT_KNOWLEDGE_PACK_VERSION`, and run the unit tests and `npm run eval:assistant` (needs `AKASHML_API_KEY`).
+
 ## Changes from **beta** to **v1** (February 2024)
 
 ### Api Versioning

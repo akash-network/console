@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { assistantKnowledge, chunkDocument, KnowledgeIndex, tokenize } from "./assistant-knowledge";
+import { AKASH_SKILL_KNOWLEDGE_DOCUMENTS, AKASH_SKILL_KNOWLEDGE_SOURCE } from "./akash-skill-knowledge.gen";
+import { ASSISTANT_KNOWLEDGE_VERSION, assistantKnowledge, chunkDocument, KnowledgeIndex, tokenize } from "./assistant-knowledge";
 import { ASSISTANT_KNOWLEDGE_DOCUMENTS, ASSISTANT_KNOWLEDGE_PACK_VERSION } from "./assistant-knowledge-pack";
 
 describe("assistant knowledge", () => {
@@ -65,9 +66,17 @@ describe("assistant knowledge", () => {
   });
 
   describe("assistantKnowledge", () => {
-    it("indexes the versioned pack", () => {
-      expect(assistantKnowledge.version).toBe(ASSISTANT_KNOWLEDGE_PACK_VERSION);
+    it("indexes the Console pack and the curated Akash skill under one version naming both", () => {
+      expect(assistantKnowledge.version).toBe(ASSISTANT_KNOWLEDGE_VERSION);
+      expect(ASSISTANT_KNOWLEDGE_VERSION).toBe(`${ASSISTANT_KNOWLEDGE_PACK_VERSION}+akash-skill-${AKASH_SKILL_KNOWLEDGE_SOURCE.version}`);
       expect(ASSISTANT_KNOWLEDGE_DOCUMENTS.flatMap(chunkDocument).length).toBeGreaterThan(20);
+      expect(AKASH_SKILL_KNOWLEDGE_DOCUMENTS.flatMap(chunkDocument).length).toBeGreaterThan(50);
+    });
+
+    it("keeps every chunk id unique across both sources", () => {
+      const ids = [...ASSISTANT_KNOWLEDGE_DOCUMENTS, ...AKASH_SKILL_KNOWLEDGE_DOCUMENTS].flatMap(chunkDocument).map(({ id }) => id);
+
+      expect(new Set(ids).size).toBe(ids.length);
     });
 
     it.each([
@@ -75,7 +84,14 @@ describe("assistant knowledge", () => {
       ["OOMKilled out of memory", "troubleshooting-runtime#out-memory"],
       ["ImagePullBackOff private registry", "troubleshooting-runtime#image-fails-pull"],
       ["auto recharge", "console-billing#auto-recharge"],
-      ["custom domain CNAME", "console-domains#custom-domains"]
+      ["custom domain CNAME", "console-domains#custom-domains"],
+      ["signedBy auditor no bids", "troubleshooting-no-bids#placement-attributes-auditors"],
+      ["signedBy anyOf allOf", "akash-placement#auditors-signedby"],
+      ["gpu model vram interface", "akash-sdl-compute#request-gpu-sdl-model-vram-interface"],
+      ["keep database files when container restarts", "akash-sdl-example-database#database-storage-that-survives-restarts"],
+      ["storage class hdd ssd nvme", "akash-storage#storage-classes-beta1-beta2-beta3-ram"],
+      ["expose port proto global", "akash-sdl-services#exposing-ports"],
+      ["nginx latest tag", "akash-sdl-services#image-tag"]
     ])("finds the right chunk for %s", (query, chunkId) => {
       expect(assistantKnowledge.search(query).results[0].id).toBe(chunkId);
     });

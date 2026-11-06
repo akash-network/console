@@ -1,3 +1,4 @@
+import { AKASH_SKILL_KNOWLEDGE_DOCUMENTS, AKASH_SKILL_KNOWLEDGE_SOURCE } from "./akash-skill-knowledge.gen";
 import { ASSISTANT_KNOWLEDGE_DOCUMENTS, ASSISTANT_KNOWLEDGE_PACK_VERSION, type KnowledgeDocument } from "./assistant-knowledge-pack";
 
 export interface KnowledgeChunk {
@@ -116,4 +117,9 @@ export class KnowledgeIndex {
   }
 }
 
-export const assistantKnowledge = new KnowledgeIndex(ASSISTANT_KNOWLEDGE_DOCUMENTS.flatMap(chunkDocument), ASSISTANT_KNOWLEDGE_PACK_VERSION);
+export const ASSISTANT_KNOWLEDGE_VERSION = `${ASSISTANT_KNOWLEDGE_PACK_VERSION}+akash-skill-${AKASH_SKILL_KNOWLEDGE_SOURCE.version}`;
+
+export const assistantKnowledge = new KnowledgeIndex(
+  [...ASSISTANT_KNOWLEDGE_DOCUMENTS, ...AKASH_SKILL_KNOWLEDGE_DOCUMENTS].flatMap(chunkDocument),
+  ASSISTANT_KNOWLEDGE_VERSION
+);
