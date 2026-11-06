@@ -2,6 +2,7 @@ import { redactQueryError } from "@akashnetwork/logging";
 import { createMongoAbility, type MongoAbility, type RawRuleOf } from "@casl/ability";
 import { context, propagation, SpanStatusCode, trace } from "@opentelemetry/api";
 import {
+  type ConstructorOptions as PgBossConstructorOptions,
   type JobWithMetadata as PgBossJobWithMetadata,
   PgBoss,
   Queue as PgBossQueue,
@@ -28,6 +29,8 @@ const QUEUE_RETRY_OPTIONS: QueueRetryOptions = {
   retryDelay: 30,
   retryDelayMax: 5 * 60
 };
+
+const PG_BOSS_FEATURES_KEPT_OFF = { reindex: false, openTelemetry: { enabled: false } } satisfies PgBossConstructorOptions;
 
 const DEFAULT_QUEUE_POLICY: NonNullable<PgBossQueue["policy"]> = "standard";
 
@@ -133,6 +136,7 @@ export class JobQueueService implements Disposable {
         connectionString: this.coreConfig.get("POSTGRES_DB_URI"),
         schema: this.coreConfig.get("POSTGRES_BACKGROUND_JOBS_SCHEMA"),
         schedule: false,
+        ...PG_BOSS_FEATURES_KEPT_OFF,
         max: this.coreConfig.get("POSTGRES_BACKGROUND_JOBS_POOL_SIZE"),
         connectionTimeoutMillis: this.coreConfig.get("POSTGRES_BACKGROUND_JOBS_CONNECT_TIMEOUT") * 1000
       });
@@ -466,7 +470,7 @@ export class JobQueueService implements Disposable {
     const jobs = this.handlers.map(async handler => {
       const queueName = handler.accepts[JOB_NAME];
       const workersPromises = Array.from({ length: handler.concurrency ?? concurrency ?? 2 }).map(() =>
-        this.pgBoss.work<JobPayload<Job>>(queueName, workerOptions, async ([job]) => {
+        this.pgBoss.work<JobPayload<Job>, void, typeof workerOptions>(queueName, workerOptions, async ([job]) => {
           await this.#executeWithOtelContext(queueName, job.id, async () => {
             await this.executionContextService.runWithContext(async () => {
               this.executionContextService.set("CURRENT_USER", {
