@@ -54,7 +54,7 @@ const SLOW_FIRST_TOKEN_MS = 10_000;
 const SLOW_TURN_MS = 45_000;
 const LONG_ANSWER_WORDS = 250;
 const POINTS_THE_WAY = /\b(go to|open|click|select|choose|page|tab|settings|billing|templates|deploy button|discord)\b/i;
-const TOOL_NAME_LEAK = /\b(propose_[a-z_]+|search_docs|get_bids|get_deployment|list_templates|read_logs|read_events|suggest_live_help|tool call)\b/;
+const TOOL_NAME_LEAK = /\b((?:propose|get|list|read|check|search|suggest)_[a-z_]+|tool call)\b/;
 
 export function turnRecordOf(said: string, sentAt: number, requests: RecordedRequest[], timedOut: boolean): TurnRecord {
   const events = requests.flatMap(request => request.events);
@@ -157,6 +157,10 @@ function uxIssuesOf(turns: TurnRecord[]): UxIssue[] {
   return [...issues];
 }
 
+function expectsAction(expected: ScenarioExpectation): boolean {
+  return !!(expected.proposes?.length || expected.proposesAnyOf?.length || expected.liveHelp);
+}
+
 export function scoreScenario(expected: ScenarioExpectation, turns: TurnRecord[], panel: { isOpen: boolean }): ScenarioScore {
   const spoken = turns.filter(turn => turn.said);
   const failures = expectationFailures(expected, spoken, panel);
@@ -170,7 +174,7 @@ export function scoreScenario(expected: ScenarioExpectation, turns: TurnRecord[]
     answered,
     correct: failures.length === 0,
     actionable,
-    resolved: answered && failures.length === 0 && actionable,
+    resolved: answered && failures.length === 0 && (actionable || !expectsAction(expected)),
     failures,
     uxIssues: uxIssuesOf(spoken),
     toolCalls: spoken.reduce((total, turn) => total + turn.toolCalls.length, 0),

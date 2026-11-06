@@ -177,6 +177,17 @@ describe(scoreScenario.name, () => {
     expect(scoreScenario({ panelClosed: true }, [turn({ text: "Hi." })], { isOpen: false }).actionable).toBe(true);
   });
 
+  it("resolves an informational answer without a card, but not a scenario that expects one", () => {
+    expect(scoreScenario({ mentions: ["no deployments"] }, [turn({ text: "You have no deployments." })], { isOpen: true }).resolved).toBe(true);
+    expect(scoreScenario({ proposesAnyOf: ["close_deployment"] }, [turn({ text: "You have no deployments." })], { isOpen: true }).resolved).toBe(false);
+  });
+
+  it("flags any tool name written into the answer", () => {
+    expect(scoreScenario({}, [turn({ text: "I read your spend (get_balance_and_spend)." })], { isOpen: true }).uxIssues).toContain("leaks_tool_names");
+    expect(scoreScenario({}, [turn({ text: "I checked with check_availability." })], { isOpen: true }).uxIssues).toContain("leaks_tool_names");
+    expect(scoreScenario({}, [turn({ text: "Your balance covers about a week." })], { isOpen: true }).uxIssues).not.toContain("leaks_tool_names");
+  });
+
   it("does not count repeated proposals as duplicate reads", () => {
     const score = scoreScenario({}, [turn({ toolCalls: [read("propose_rename_deployment"), read("propose_rename_deployment")] })], { isOpen: true });
 
