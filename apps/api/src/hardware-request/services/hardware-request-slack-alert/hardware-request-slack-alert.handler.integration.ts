@@ -29,7 +29,7 @@ describe(HardwareRequestSlackAlertHandler.name, () => {
     vi.restoreAllMocks();
   });
 
-  it("posts the request, its requester and links to the user, run the way a worker runs it", async () => {
+  it("posts the request, its requester and links to its match report and the user, run the way a worker runs it", async () => {
     const { user, hardwareRequest, slackPosts, alertFor } = await setup();
 
     await alertFor(hardwareRequest.id);
@@ -42,7 +42,7 @@ describe(HardwareRequestSlackAlertHandler.name, () => {
           "Trial · via the request form",
           `${user.email} · reply to ${hardwareRequest.contactEmail}`,
           "> Training run for 3 months",
-          `<${AMPLITUDE_PROJECT_URL}/search/user_id%3D${user.id}|Amplitude sessions> · <${CONSOLE_ADMIN_URL}/users/${user.id}?tab=hardware-requests|Admin>`
+          `<${CONSOLE_ADMIN_URL}/hardware-requests/${hardwareRequest.id}|Match report> · <${AMPLITUDE_PROJECT_URL}/search/user_id%3D${user.id}|Amplitude sessions> · <${CONSOLE_ADMIN_URL}/users/${user.id}?tab=hardware-requests|User in admin>`
         ].join("\n")
       }
     ]);
