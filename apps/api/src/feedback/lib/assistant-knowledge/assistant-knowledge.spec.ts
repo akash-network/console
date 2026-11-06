@@ -91,7 +91,16 @@ describe("assistant knowledge", () => {
       ["keep database files when container restarts", "akash-sdl-example-database#database-storage-that-survives-restarts"],
       ["storage class hdd ssd nvme", "akash-storage#storage-classes-beta1-beta2-beta3-ram"],
       ["expose port proto global", "akash-sdl-services#exposing-ports"],
-      ["nginx latest tag", "akash-sdl-services#image-tag"]
+      ["nginx latest tag", "akash-sdl-services#image-tag"],
+      ["Akash vs AWS", "console-basics#akash-console"],
+      ["ACT token", "console-basics#act-uact"],
+      ["close deployment lose data", "console-basics#happens-data-deployment-closes"],
+      ["ssh into container", "console-basics#shell-access-ssh"],
+      ["deploy from CI API key", "console-basics#api-keys-deploying-from-ci"],
+      ["when does my API key expire", "console-basics#api-keys-deploying-from-ci"],
+      ["conversation privacy stored", "console-basics#assistant-conversations-privacy"],
+      ["which GPUs can I rent", "console-basics#finding-gpus-providers"],
+      ["delete my account", "console-basics#account-organization-project-deletion"]
     ])("finds the right chunk for %s", (query, chunkId) => {
       expect(assistantKnowledge.search(query).results[0].id).toBe(chunkId);
     });
