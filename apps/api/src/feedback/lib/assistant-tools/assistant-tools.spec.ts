@@ -4,6 +4,7 @@ import { z } from "zod";
 import { CLIENT_TOOL_ARGUMENTS, PROPOSAL_TOOL_ARGUMENTS, READ_TOOL_ARGUMENTS } from "./assistant-tool-arguments";
 import {
   assistantChatTools,
+  buildAssistantChatTools,
   isClientToolName,
   isLiveHelpToolName,
   isReadToolName,
@@ -76,7 +77,7 @@ describe("assistant tools", () => {
   });
 
   it("offers every read, client and proposal tool once, with a description and no references", () => {
-    const tools = assistantChatTools();
+    const tools = buildAssistantChatTools();
     const names = tools.map(({ function: { name } }) => name);
 
     expect(names).toEqual([
@@ -87,11 +88,17 @@ describe("assistant tools", () => {
     ]);
     expect(tools.every(({ type, function: { description, parameters } }) => type === "function" && !!description && parameters.type === "object")).toBe(true);
     expect(JSON.stringify(tools)).not.toContain("$ref");
+  });
+
+  it("builds the offered tools once and reuses them", () => {
+    const tools = assistantChatTools();
+
     expect(assistantChatTools()).toBe(tools);
+    expect(tools).toEqual(buildAssistantChatTools());
   });
 
   it("lets a fix carry an optional diagnosis next to its own arguments", () => {
-    const parameters = assistantChatTools().find(tool => tool.function.name === "propose_close_deployment")!.function.parameters;
+    const parameters = buildAssistantChatTools().find(tool => tool.function.name === "propose_close_deployment")!.function.parameters;
 
     expect(parameters.required).toEqual(["dseq", "reason"]);
     expect(parameters.properties).toMatchObject({
@@ -106,7 +113,7 @@ describe("assistant tools", () => {
   });
 
   it("offers a diagnosis only on proposals that fix a problem", () => {
-    const proposalsWithDiagnosis = assistantChatTools()
+    const proposalsWithDiagnosis = buildAssistantChatTools()
       .filter(({ function: { name, parameters } }) => name.startsWith("propose_") && Object.hasOwn(parameters.properties as object, "diagnosis"))
       .map(({ function: { name } }) => name);
 
@@ -122,7 +129,7 @@ describe("assistant tools", () => {
   });
 
   it("asks for a typed reason when offering live help", () => {
-    const parameters = assistantChatTools().find(tool => tool.function.name === "suggest_live_help")!.function.parameters;
+    const parameters = buildAssistantChatTools().find(tool => tool.function.name === "suggest_live_help")!.function.parameters;
 
     expect(parameters).toMatchObject({
       required: ["reason"],
@@ -131,13 +138,13 @@ describe("assistant tools", () => {
   });
 
   it("offers no shell, deletion, role or key tools", () => {
-    const names = assistantChatTools().map(({ function: { name } }) => name);
+    const names = buildAssistantChatTools().map(({ function: { name } }) => name);
 
     expect(names.filter(name => /shell|exec|delete|role|owner|api_key|payment_method/.test(name))).toEqual([]);
   });
 
   it("describes what each read tool returns", () => {
-    const describe = (name: string) => assistantChatTools().find(tool => tool.function.name === name)?.function.description;
+    const describe = (name: string) => buildAssistantChatTools().find(tool => tool.function.name === name)?.function.description;
 
     expect(describe("get_bids")).toMatch(/how many providers could bid/);
     expect(describe("read_logs")).toMatch(/untrusted/);

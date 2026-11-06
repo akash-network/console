@@ -159,15 +159,18 @@ function proposalToolOf(type: ProposalActionType): ChatTool {
   };
 }
 
-let chatTools: ChatTool[] | undefined;
-
-export function assistantChatTools(): ChatTool[] {
-  chatTools ??= [
+export function buildAssistantChatTools(): ChatTool[] {
+  return [
     ...Object.entries(READ_TOOL_ARGUMENTS).map(([name, schema]) => toolOf(name, READ_TOOL_DESCRIPTIONS[name as ReadToolName], schema)),
     ...Object.entries(CLIENT_TOOL_ARGUMENTS).map(([name, schema]) => toolOf(name, CLIENT_TOOL_DESCRIPTIONS[name as ClientToolName], schema)),
     ...Object.keys(PROPOSAL_TOOL_ARGUMENTS).map(type => proposalToolOf(type as ProposalActionType)),
     toolOf(LIVE_HELP_TOOL_NAME, LIVE_HELP_TOOL_DESCRIPTION, LIVE_HELP_TOOL_ARGUMENTS)
   ];
+}
 
+let chatTools: ChatTool[] | undefined;
+
+export function assistantChatTools(): ChatTool[] {
+  chatTools ??= buildAssistantChatTools();
   return chatTools;
 }
