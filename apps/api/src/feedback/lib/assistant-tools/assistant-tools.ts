@@ -61,8 +61,10 @@ const LIVE_HELP_TOOL_DESCRIPTION =
 
 const DIAGNOSIS_PARAMETER = "diagnosis";
 
+type FixesADiagnosedProblem = boolean | ((actionArguments: Record<string, unknown>) => boolean);
+
 /** Only proposals that fix a problem found in logs, events or lease state may carry a diagnosis; a new proposal type has to pick a side. */
-const FIXES_A_DIAGNOSED_PROBLEM: Record<ProposalActionType, boolean> = {
+const FIXES_A_DIAGNOSED_PROBLEM: Record<ProposalActionType, FixesADiagnosedProblem> = {
   create_deployment: false,
   choose_bid: false,
   update_deployment: true,
@@ -82,11 +84,20 @@ const FIXES_A_DIAGNOSED_PROBLEM: Record<ProposalActionType, boolean> = {
   request_hardware: false,
   buy_credits: false,
   configure_auto_recharge: false,
-  open_in_editor: true
+  open_in_editor: opensAnExistingDeployment
 };
 
-function acceptsDiagnosis(type: ProposalActionType): boolean {
-  return FIXES_A_DIAGNOSED_PROBLEM[type];
+function opensAnExistingDeployment(actionArguments: Record<string, unknown>): boolean {
+  return actionArguments.dseq !== undefined;
+}
+
+function mayCarryDiagnosis(type: ProposalActionType): boolean {
+  return FIXES_A_DIAGNOSED_PROBLEM[type] !== false;
+}
+
+function keepsDiagnosis(type: ProposalActionType, actionArguments: Record<string, unknown>): boolean {
+  const fixesADiagnosedProblem = FIXES_A_DIAGNOSED_PROBLEM[type];
+  return typeof fixesADiagnosedProblem === "function" ? fixesADiagnosedProblem(actionArguments) : fixesADiagnosedProblem;
 }
 
 export function proposalToolNameOf(type: ProposalActionType): string {
@@ -117,7 +128,7 @@ export function splitProposalArguments(type: ProposalActionType, args: unknown):
   if (typeof args !== "object" || args === null || Array.isArray(args)) return { actionArguments: args, diagnosis: undefined };
 
   const { [DIAGNOSIS_PARAMETER]: diagnosis, ...actionArguments } = args as Record<string, unknown>;
-  return { actionArguments, diagnosis: acceptsDiagnosis(type) ? diagnosis : undefined };
+  return { actionArguments, diagnosis: keepsDiagnosis(type, actionArguments) ? diagnosis : undefined };
 }
 
 /** Reuses the OpenAPI 3.1 generator the routes already rely on, whose schemas are JSON Schema the model's tool calling accepts. */
@@ -135,7 +146,7 @@ function toolOf(name: string, description: string, schema: z.ZodTypeAny): ChatTo
 
 function proposalToolOf(type: ProposalActionType): ChatTool {
   const tool = toolOf(proposalToolNameOf(type), PROPOSAL_TOOL_DESCRIPTIONS[type], PROPOSAL_TOOL_ARGUMENTS[type]);
-  if (!acceptsDiagnosis(type)) return tool;
+  if (!mayCarryDiagnosis(type)) return tool;
 
   const { properties, ...parameters } = tool.function.parameters;
 

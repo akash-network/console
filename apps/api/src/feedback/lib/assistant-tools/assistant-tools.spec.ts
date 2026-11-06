@@ -61,6 +61,20 @@ describe("assistant tools", () => {
     });
   });
 
+  it("keeps an editor diagnosis only when the editor opens an existing deployment", () => {
+    const diagnosis = { summary: "The provider closed the lease.", evidence: ["lease closed: insufficient funds"] };
+
+    expect(splitProposalArguments("open_in_editor", { dseq: "42", diagnosis })).toEqual({ actionArguments: { dseq: "42" }, diagnosis });
+    expect(splitProposalArguments("open_in_editor", { templateId: "hello", diagnosis })).toEqual({
+      actionArguments: { templateId: "hello" },
+      diagnosis: undefined
+    });
+    expect(splitProposalArguments("open_in_editor", { sdl: "version: '2.0'", diagnosis })).toEqual({
+      actionArguments: { sdl: "version: '2.0'" },
+      diagnosis: undefined
+    });
+  });
+
   it("offers every read, client and proposal tool once, with a description and no references", () => {
     const tools = assistantChatTools();
     const names = tools.map(({ function: { name } }) => name);
