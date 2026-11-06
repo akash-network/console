@@ -7,7 +7,7 @@ import type { ActivityController } from "@src/activity/controllers/activity/acti
 import type { ActivityResponse } from "@src/activity/http-schemas/activity.schema";
 import type { DeploymentController } from "@src/deployment/controllers/deployment/deployment.controller";
 import type { DeploymentSettingController } from "@src/deployment/controllers/deployment-setting/deployment-setting.controller";
-import type { ListDeploymentsItem } from "@src/deployment/http-schemas/deployment.schema";
+import type { GetDeploymentResponse, ListDeploymentsItem } from "@src/deployment/http-schemas/deployment.schema";
 import type { DeploymentSetting } from "@src/deployment/http-schemas/deployment-setting.schema";
 import type { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { AssistantDeploymentToolsService } from "./assistant-deployment-tools.service";
@@ -137,6 +137,17 @@ describe(AssistantDeploymentToolsService.name, () => {
         services: [expect.objectContaining({ service: "web", envKeys: ["PORT", "API_KEY"] })]
       });
       expect(JSON.stringify(result)).not.toContain("ac-secret");
+    });
+
+    it("reads a lease whose provider reports no services or forwarded ports yet", async () => {
+      const { service, deploymentController } = setup();
+      const providerStatus: unknown = { services: null, forwarded_ports: null, ips: null };
+      const lease = createDeploymentLease({ dseq: "42", status: providerStatus as GetDeploymentResponse["data"]["leases"][number]["status"] });
+      deploymentController.findByDseq.mockResolvedValue({ data: createGetDeploymentResponseData({ dseq: "42", leases: [lease] }) });
+
+      const result = await service.getDeployment({ dseq: "42" });
+
+      expect(result.leases).toEqual([expect.objectContaining({ services: [], forwardedPorts: [] })]);
     });
 
     it("reports no services when Console holds no SDL or it does not parse", async () => {
