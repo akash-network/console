@@ -98,7 +98,10 @@ export class OrganizationContextResolver {
       return await this.#resolvePersonalContext(request, mode);
     }
 
-    const membership = await this.#resolveMembership(request.user, request.apiKey, normalizeHeader(request.organizationHeader));
+    const membership = await this.#withPersonalDefaultProjectRestored(
+      request.user,
+      await this.#resolveMembership(request.user, request.apiKey, normalizeHeader(request.organizationHeader))
+    );
     const { role, organization } = membership;
     const roleScope = await this.#projectScopeOf(membership, request.user.id);
     const keyScope = request.apiKey?.projectId ? await this.#narrowToKeyProject(roleScope, organization.id, request.apiKey.projectId) : roleScope;
@@ -205,6 +208,18 @@ export class OrganizationContextResolver {
     }
 
     await this.personalOrganizationService.restoreDefaultProject(user, membership.organization);
+
+    return membership;
+  }
+
+  async #withPersonalDefaultProjectRestored(
+    user: OrganizationContextRequest["user"],
+    membership: MembershipWithProjectAccess
+  ): Promise<MembershipWithProjectAccess> {
+    if (membership.organization.type !== "personal" || this.#personalMemberships.has(user.id)) return membership;
+
+    await this.personalOrganizationService.restoreDefaultProject(user, membership.organization);
+    this.#personalMemberships.set(user.id, membership);
 
     return membership;
   }

@@ -204,6 +204,22 @@ describe(OrganizationContextResolver.name, () => {
       expect(context).toMatchObject({ organizationId: personal.organization.id, role: "owner" });
     });
 
+    it("restores the default project of the personal organization the key is bound to", async () => {
+      const { resolver, personal, user, personalOrganizationService } = setup({});
+
+      await resolver.resolve({ user, apiKey: { organizationId: personal.organization.id, projectId: null } });
+
+      expect(personalOrganizationService.restoreDefaultProject).toHaveBeenCalledWith(user, personal.organization);
+    });
+
+    it("leaves the projects of a team the key is bound to alone", async () => {
+      const { resolver, team, user, personalOrganizationService } = setup({});
+
+      await resolver.resolve({ user, apiKey: { organizationId: team.organization.id, projectId: null } });
+
+      expect(personalOrganizationService.restoreDefaultProject).not.toHaveBeenCalled();
+    });
+
     it("narrows every project down to the live one the key is bound to", async () => {
       const { resolver, team, user, projectRepository } = setup({ teamRole: "owner" });
       const project = createProject({ organizationId: team.organization.id });
@@ -362,6 +378,24 @@ describe(OrganizationContextResolver.name, () => {
       expect(organizationMemberRepository.findActiveMembership).toHaveBeenCalledWith(user.id, { idOrSlug: team.organization.id });
     });
 
+    it("restores the default project of the personal organization it names, once per user", async () => {
+      const { resolver, personal, user, personalOrganizationService } = setup({});
+
+      await resolver.resolve({ user, organizationHeader: personal.organization.id });
+      await resolver.resolve({ user, organizationHeader: personal.organization.id });
+
+      expect(personalOrganizationService.restoreDefaultProject).toHaveBeenCalledOnce();
+      expect(personalOrganizationService.restoreDefaultProject).toHaveBeenCalledWith(user, personal.organization);
+    });
+
+    it("fails the request when the default project of the personal organization it names cannot be restored", async () => {
+      const { resolver, personal, user, personalOrganizationService } = setup({});
+      const error = new Error("database unavailable");
+      personalOrganizationService.restoreDefaultProject.mockRejectedValue(error);
+
+      await expect(resolver.resolve({ user, organizationHeader: personal.organization.id })).rejects.toBe(error);
+    });
+
     it("looks up a header that is not a uuid by slug", async () => {
       const { resolver, team, user, organizationMemberRepository } = setup({});
 
@@ -475,6 +509,15 @@ describe(OrganizationContextResolver.name, () => {
       const context = await resolver.resolve({ user });
 
       expect(context?.organizationId).toBe(team.organization.id);
+    });
+
+    it("restores the default project of the personal organization used last", async () => {
+      const { resolver, personal, personalOrganizationService } = setup({});
+      const user = createUser({ lastUsedOrganizationId: personal.organization.id });
+
+      await resolver.resolve({ user });
+
+      expect(personalOrganizationService.restoreDefaultProject).toHaveBeenCalledWith(user, personal.organization);
     });
 
     it("falls back to the personal organization and forgets the last used one once the caller left it", async () => {
