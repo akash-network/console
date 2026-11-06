@@ -24251,7 +24251,7 @@
                             },
                             "amount": {
                               "type": "string",
-                              "pattern": "^\\d+$"
+                              "pattern": "^\\d+(\\.\\d+)?$"
                             }
                           },
                           "required": [

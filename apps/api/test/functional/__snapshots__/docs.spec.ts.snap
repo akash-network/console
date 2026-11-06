@@ -3724,7 +3724,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "price": {
                           "properties": {
                             "amount": {
-                              "pattern": "^\\d+$",
+                              "pattern": "^\\d+(\\.\\d+)?$",
                               "type": "string",
                             },
                             "denom": {
