@@ -23,7 +23,8 @@ import { AssistantToolRunnerService, toolContentOf } from "@src/feedback/service
 import { AssistantTranscriptService, type TranscriptEntry } from "@src/feedback/services/assistant-transcript/assistant-transcript.service";
 
 export const MAX_TOOL_ROUNDS = 6;
-export const MAX_COMPLETION_TOKENS = 1_200;
+/** Reasoning models spend part of this thinking before they write, so it has to leave room for a whole answer or SDL after that. */
+export const MAX_COMPLETION_TOKENS = 8_000;
 export const TURN_TIMEOUT_MS = 90_000;
 export const PENDING_TURN_TTL_MS = 5 * 60_000;
 
