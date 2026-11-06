@@ -351,7 +351,7 @@ export const ASSISTANT_EVAL_CASES: AssistantEvalCase[] = [
     question: "Deploy the dart hello world template.",
     toolResults: { list_templates: HELLO_WORLD_TEMPLATES, check_availability: PLENTY_OF_BIDDERS },
     proposalResults: { propose_create_deployment: [DART_WITHHELD] },
-    expect: { proposes: "create_deployment", mentions: ["host"], neverMentions: ["deposit", "raise the price"] }
+    expect: { proposes: "create_deployment", mentions: ["placement attribute"], neverMentions: ["deposit", "raise the price"] }
   },
   {
     id: "gpu-capacity-request",
