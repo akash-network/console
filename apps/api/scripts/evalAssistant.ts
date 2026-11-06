@@ -167,7 +167,7 @@ async function runCase(evalCase: AssistantEvalCase): Promise<CaseRun> {
 
   metrics.totalMs = Date.now() - startedAt;
   metrics.answer = answer.join("\n\n");
-  metrics.emptyAnswer = fellBack || (!metrics.answer.trim() && !toolCalls.some(call => proposalActionTypeOf(call.name) || isLiveHelpToolName(call.name)));
+  metrics.emptyAnswer = fellBack;
 
   return { ...scoreAssistantEval(evalCase.id, evalCase.expect, { toolCalls, answer: metrics.answer, fellBack }), ...metrics };
 }
