@@ -16,6 +16,7 @@ import {
   type ChatToolCall
 } from "@src/feedback/services/akashml-client/akashml.client";
 import { AssistantLimitsService } from "@src/feedback/services/assistant-limits/assistant-limits.service";
+import type { ProposalContext } from "@src/feedback/services/assistant-proposal/assistant-proposal.service";
 import { AssistantToolRunnerService } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
 import { AssistantTranscriptService, type TranscriptEntry } from "@src/feedback/services/assistant-transcript/assistant-transcript.service";
 
@@ -79,6 +80,7 @@ export class AssistantTurnService {
     const abort = AbortSignal.any([signal, deadline]);
     const messages = [...turn.messages];
     const answer: string[] = [];
+    const proposalContext: ProposalContext = { isTrialing: turn.isTrialing, withheldSdls: [] };
 
     try {
       for (let round = turn.roundsUsed; ; round++) {
@@ -93,7 +95,7 @@ export class AssistantTurnService {
         }
 
         messages.push({ role: "assistant", content: completion.content, tool_calls: completion.toolCalls });
-        const clientToolCalls = await this.#runTools(turn, completion.toolCalls, messages, emit);
+        const clientToolCalls = await this.#runTools(turn, proposalContext, completion.toolCalls, messages, emit);
 
         if (clientToolCalls.length > 0) {
           await this.#pause(turn, messages, clientToolCalls, round + 1);
@@ -132,14 +134,20 @@ export class AssistantTurnService {
     return completion;
   }
 
-  async #runTools(turn: AssistantTurn, toolCalls: ChatToolCall[], messages: ChatMessage[], emit: EmitAssistantEvent): Promise<ChatToolCall[]> {
+  async #runTools(
+    turn: AssistantTurn,
+    proposalContext: ProposalContext,
+    toolCalls: ChatToolCall[],
+    messages: ChatMessage[],
+    emit: EmitAssistantEvent
+  ): Promise<ChatToolCall[]> {
     const clientToolCalls: ChatToolCall[] = [];
 
     for (const call of toolCalls) {
       const name = call.function.name;
       const showsAsRead = !isLiveHelpToolName(name);
       if (showsAsRead) await emit({ type: "tool_started", toolCallId: call.id, name });
-      const outcome = await this.toolRunner.run(call, { isTrialing: turn.isTrialing });
+      const outcome = await this.toolRunner.run(call, proposalContext);
 
       if (outcome.kind === "client") {
         clientToolCalls.push(call);

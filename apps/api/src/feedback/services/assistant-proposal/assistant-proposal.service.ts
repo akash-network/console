@@ -3,18 +3,25 @@ import { singleton } from "tsyringe";
 import { BidController } from "@src/bid/controllers/bid/bid.controller";
 import { DeploymentController } from "@src/deployment/controllers/deployment/deployment.controller";
 import { DeploymentSettingController } from "@src/deployment/controllers/deployment-setting/deployment-setting.controller";
-import { BidScreeningHttpService } from "@src/deployment/services/bid-screening-http/bid-screening-http.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import type { AssistantAction, AssistantActionOf, ServiceResources } from "@src/feedback/http-schemas/assistant-action.schema";
-import { AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
+import { AssistantProposalWithheldError, AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
 import type { ProposalActionType, ProposalArguments } from "@src/feedback/lib/assistant-tools/assistant-tool-arguments";
 import { redactSecrets } from "@src/feedback/lib/redact-secrets/redact-secrets";
+import { keepsPricing } from "@src/feedback/lib/sdl-pricing/sdl-pricing";
+import { sdlWithResources } from "@src/feedback/lib/sdl-resources/sdl-with-resources";
 import { type SdlServiceSummary, summarizeSdl } from "@src/feedback/lib/sdl-summary/sdl-summary";
-import { TemplateController } from "@src/template/controllers/template/template.controller";
+import { AssistantAccountToolsService } from "@src/feedback/services/assistant-account-tools/assistant-account-tools.service";
+import { AssistantBidToolsService, type SdlAvailability } from "@src/feedback/services/assistant-bid-tools/assistant-bid-tools.service";
 
 export interface ProposalContext {
   isTrialing: boolean | null;
+  /** SDLs held back earlier in the turn for having no bidders, whose pricing an adjusted SDL has to keep. */
+  withheldSdls: string[];
 }
+
+const CHANGED_PRICING_MESSAGE =
+  "This SDL changes the price or denom of the SDL held back for having no bidders. Keep its pricing and adjust only placement attributes or resources, or pick another template by templateId.";
 
 type ResourceChange = ProposalArguments<"redeploy_with_resources">["services"][string];
 
@@ -52,9 +59,9 @@ export class AssistantProposalService {
     private readonly deploymentController: DeploymentController,
     private readonly deploymentSettingController: DeploymentSettingController,
     private readonly bidController: BidController,
-    private readonly templateController: TemplateController,
     private readonly sdlService: SdlService,
-    private readonly bidScreeningHttpService: BidScreeningHttpService
+    private readonly accountTools: AssistantAccountToolsService,
+    private readonly bidTools: AssistantBidToolsService
   ) {}
 
   async propose<T extends ProposalActionType>(type: T, args: ProposalArguments<T>, context: ProposalContext): Promise<AssistantAction> {
@@ -72,7 +79,7 @@ export class AssistantProposalService {
       case "set_registry_credentials":
         return await this.#setRegistryCredentials(input.args);
       case "redeploy_with_resources":
-        return await this.#redeployWithResources(input.args);
+        return await this.#redeployWithResources(input.args, context);
       case "rename_deployment":
         return { type: "rename_deployment", tier: "confirm", dseq: input.args.dseq, from: (await this.#deployment(input.args.dseq)).name, to: input.args.name };
       case "add_runtime_hours":
@@ -136,9 +143,15 @@ export class AssistantProposalService {
   }
 
   async #createDeployment(args: ProposalArguments<"create_deployment">, context: ProposalContext): Promise<AssistantActionOf<"create_deployment">> {
-    const sdl = args.templateId ? (await this.templateController.getTemplateById(args.templateId)).data.deploy : (args.sdl as string);
-    const manifest = await this.sdlService.generateManifest(sdl, { isTrialing: context.isTrialing === true });
-    if (!manifest.ok) throw new AssistantToolError(`The SDL is not valid: ${manifest.value.map(({ message }) => message).join("; ")}`);
+    const sdl = args.templateId ? await this.accountTools.templateSdl(args.templateId) : (args.sdl as string);
+    const withheldSdl = context.withheldSdls.at(-1);
+    if (args.sdl && withheldSdl && !keepsPricing(withheldSdl, sdl)) throw new AssistantToolError(CHANGED_PRICING_MESSAGE);
+
+    const availability = await this.bidTools.checkAvailability(sdl, { isTrialing: context.isTrialing === true });
+    if (availability.providersAbleToBid === 0) {
+      context.withheldSdls.push(sdl);
+      throw new AssistantProposalWithheldError({ ...availability, ...(args.templateId && { templateSdl: sdl }) });
+    }
 
     const parsed = this.sdlService.parse(sdl);
     const services = (parsed.ok && summarizeSdl(parsed.value)) || [];
@@ -151,7 +164,7 @@ export class AssistantProposalService {
       name: args.name ?? null,
       runtimeLimitHours: args.runtimeLimitHours ?? null,
       services: services.map(({ service, image, resources }) => ({ service, image, resources })),
-      providersAbleToBid: await this.#countProvidersAbleToBid(manifest.value.groupSpecs)
+      providersAbleToBid: availability.providersAbleToBid
     };
   }
 
@@ -216,23 +229,28 @@ export class AssistantProposalService {
     };
   }
 
-  async #redeployWithResources({
-    dseq,
-    reason,
-    services
-  }: ProposalArguments<"redeploy_with_resources">): Promise<AssistantActionOf<"redeploy_with_resources">> {
-    const { declared } = await this.#deploymentWithServices(dseq);
+  async #redeployWithResources(
+    { dseq, reason, services }: ProposalArguments<"redeploy_with_resources">,
+    context: ProposalContext
+  ): Promise<AssistantActionOf<"redeploy_with_resources">> {
+    const { data, declared } = await this.#deploymentWithServices(dseq);
+    const changes = Object.entries(services).map(([name, change]) => {
+      const before = serviceNamed(declared, name).resources;
+      return { service: name, before, after: resourcesAfter(before, change) };
+    });
+    const availability = await this.#availabilityAfter(data.consoleSettings!.sdl, changes, context);
+    if (availability?.providersAbleToBid === 0) throw new AssistantProposalWithheldError({ ...availability });
 
-    return {
-      type: "redeploy_with_resources",
-      tier: "deep_link",
-      dseq,
-      reason,
-      services: Object.entries(services).map(([name, change]) => {
-        const before = serviceNamed(declared, name).resources;
-        return { service: name, before, after: resourcesAfter(before, change) };
-      })
-    };
+    return { type: "redeploy_with_resources", tier: "deep_link", dseq, reason, services: changes, providersAbleToBid: availability?.providersAbleToBid ?? null };
+  }
+
+  async #availabilityAfter(
+    sdl: string,
+    changes: Parameters<typeof sdlWithResources>[1],
+    context: ProposalContext
+  ): Promise<SdlAvailability | null> {
+    const changedSdl = sdlWithResources(sdl, changes);
+    return changedSdl ? await this.bidTools.checkAvailability(changedSdl, { isTrialing: context.isTrialing === true }) : null;
   }
 
   async #addRuntimeHours({ dseq, hours }: ProposalArguments<"add_runtime_hours">): Promise<AssistantActionOf<"add_runtime_hours">> {
@@ -280,14 +298,5 @@ export class AssistantProposalService {
     if (!declared) throw new AssistantToolError(`Console holds no readable SDL for deployment ${dseq}, so it cannot be changed from here.`);
 
     return { data, declared };
-  }
-
-  async #countProvidersAbleToBid(groupSpecs: Parameters<BidScreeningHttpService["findScreenedProviders"]>[0][]): Promise<number | null> {
-    try {
-      const counts = await Promise.all(groupSpecs.map(async groupSpec => (await this.bidScreeningHttpService.findScreenedProviders(groupSpec)).length));
-      return Math.min(...counts);
-    } catch {
-      return null;
-    }
   }
 }

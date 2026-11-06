@@ -36065,6 +36065,11 @@
                                       "after"
                                     ]
                                   }
+                                },
+                                "providersAbleToBid": {
+                                  "type": "integer",
+                                  "nullable": true,
+                                  "description": "Providers bid screening expects could bid on every group with the new resources, or null when screening did not answer."
                                 }
                               },
                               "required": [
@@ -36072,7 +36077,8 @@
                                 "tier",
                                 "dseq",
                                 "reason",
-                                "services"
+                                "services",
+                                "providersAbleToBid"
                               ]
                             },
                             {
@@ -37605,6 +37611,11 @@
                                       "after"
                                     ]
                                   }
+                                },
+                                "providersAbleToBid": {
+                                  "type": "integer",
+                                  "nullable": true,
+                                  "description": "Providers bid screening expects could bid on every group with the new resources, or null when screening did not answer."
                                 }
                               },
                               "required": [
@@ -37612,7 +37623,8 @@
                                 "tier",
                                 "dseq",
                                 "reason",
-                                "services"
+                                "services",
+                                "providersAbleToBid"
                               ]
                             },
                             {

@@ -33,12 +33,14 @@ function argumentsOf(call: ChatToolCall): Record<string, unknown> {
   }
 }
 
-function toolMessageOf(evalCase: AssistantEvalCase, call: ChatToolCall): ChatMessage {
+const SHOWN_CARD = { shown: true, note: "The user sees a card and decides; nothing ran yet." };
+
+function toolMessageOf(evalCase: AssistantEvalCase, call: ChatToolCall, proposalResults: Map<string, unknown[]>): ChatMessage {
   const name = call.function.name;
   const fixture = evalCase.toolResults?.[name] ?? (name === "search_docs" ? assistantKnowledge.search(String(argumentsOf(call).query ?? "")) : undefined);
   const payload =
     proposalActionTypeOf(name) || isLiveHelpToolName(name)
-      ? { data: { shown: true, note: "The user sees a card and decides; nothing ran yet." } }
+      ? { data: proposalResults.get(name)?.shift() ?? SHOWN_CARD }
       : fixture !== undefined
         ? { data: fixture }
         : { error: "No data for this tool in this case." };
@@ -61,6 +63,7 @@ async function runCase(evalCase: AssistantEvalCase): Promise<AssistantEvalResult
   ];
   const toolCalls: AssistantEvalToolCall[] = [];
   const answer: string[] = [];
+  const proposalResults = new Map(Object.entries(evalCase.proposalResults ?? {}).map(([name, results]) => [name, [...results]]));
 
   for (let round = 0; round < MAX_ROUNDS; round++) {
     const completion = await akashMlClient.createChatCompletion(
@@ -79,7 +82,7 @@ async function runCase(evalCase: AssistantEvalCase): Promise<AssistantEvalResult
     messages.push({ role: "assistant", content: completion.content, tool_calls: completion.toolCalls });
     for (const call of completion.toolCalls) {
       toolCalls.push({ name: call.function.name, arguments: argumentsOf(call) });
-      messages.push(toolMessageOf(evalCase, call));
+      messages.push(toolMessageOf(evalCase, call, proposalResults));
     }
   }
 

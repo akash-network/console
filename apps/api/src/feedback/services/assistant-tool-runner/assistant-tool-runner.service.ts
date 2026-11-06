@@ -7,7 +7,7 @@ import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { type AssistantAction, type AssistantDiagnosis, AssistantDiagnosisSchema } from "@src/feedback/http-schemas/assistant-action.schema";
 import type { AssistantLiveHelpReason } from "@src/feedback/http-schemas/assistant-conversation.schema";
 import { assistantKnowledge } from "@src/feedback/lib/assistant-knowledge/assistant-knowledge";
-import { AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
+import { AssistantProposalWithheldError, AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
 import {
   CLIENT_TOOL_ARGUMENTS,
   type ClientToolArguments,
@@ -36,6 +36,8 @@ export const MAX_TOOL_RESULT_LENGTH = 8_000;
 const TRUNCATION_MARK = "...[truncated]";
 const DiagnosisArgumentSchema = z.object({ diagnosis: AssistantDiagnosisSchema.optional() });
 const FAILED_TOOL_MESSAGE = "The tool failed. Tell the user this data could not be read right now.";
+const WITHHELD_PROPOSAL_NOTE =
+  "No provider can bid on this, so the user did not see a card. Propose an adjusted SDL that has bidders, keeping its price and denom: drop placement attributes no audited provider signed, change resources the user did not ask for, or pick another template. If nothing fits, explain why to the user.";
 
 export type ClientToolCall = { [K in ClientToolName]: { id: string; name: K; arguments: ClientToolArguments<K> } }[ClientToolName];
 
@@ -62,7 +64,8 @@ function summaryOf(name: ReadToolName, args: Record<string, unknown>): string {
     get_balance_and_spend: "Read your balance and spend",
     get_lease_close_reason: `Read why deployment ${args.dseq} closed`,
     list_templates: "Searched the template gallery",
-    search_docs: "Searched the Console docs"
+    search_docs: "Searched the Console docs",
+    check_availability: "Checked which providers could bid"
   };
 
   return summaries[name];
@@ -105,6 +108,15 @@ export class AssistantToolRunnerService {
     try {
       return await this.#run(call, context);
     } catch (error) {
+      if (error instanceof AssistantProposalWithheldError) {
+        return {
+          kind: "result",
+          content: toolContentOf(name, { data: { shownToUser: false, ...error.feedback, note: WITHHELD_PROPOSAL_NOTE } }),
+          summary: "Held back a proposal no provider can bid on",
+          ok: false
+        };
+      }
+
       return { kind: "result", content: toolContentOf(name, { error: this.#reasonOf(name, error) }), summary: `Could not run ${name}`, ok: false };
     }
   }
@@ -115,7 +127,7 @@ export class AssistantToolRunnerService {
 
     if (isReadToolName(name)) {
       const parsed = READ_TOOL_ARGUMENTS[name].parse(args);
-      return { kind: "result", content: toolContentOf(name, { data: await this.#read(name, parsed) }), summary: summaryOf(name, parsed), ok: true };
+      return { kind: "result", content: toolContentOf(name, { data: await this.#read(name, parsed, context) }), summary: summaryOf(name, parsed), ok: true };
     }
 
     if (isClientToolName(name)) {
@@ -152,7 +164,7 @@ export class AssistantToolRunnerService {
     };
   }
 
-  async #read(name: ReadToolName, args: unknown): Promise<unknown> {
+  async #read(name: ReadToolName, args: unknown, context: ProposalContext): Promise<unknown> {
     switch (name) {
       case "list_deployments":
         return await this.deploymentTools.listDeployments(args as ReadToolArguments<"list_deployments">);
@@ -168,7 +180,14 @@ export class AssistantToolRunnerService {
         return await this.accountTools.listTemplates(args as ReadToolArguments<"list_templates">);
       case "search_docs":
         return assistantKnowledge.search((args as ReadToolArguments<"search_docs">).query);
+      case "check_availability":
+        return await this.#checkAvailability(args as ReadToolArguments<"check_availability">, context);
     }
+  }
+
+  async #checkAvailability({ templateId, sdl }: ReadToolArguments<"check_availability">, context: ProposalContext) {
+    const checkedSdl = templateId ? await this.accountTools.templateSdl(templateId) : (sdl as string);
+    return await this.bidTools.checkAvailability(checkedSdl, { isTrialing: context.isTrialing === true });
   }
 
   #reasonOf(tool: string, error: unknown): string {

@@ -19576,6 +19576,8 @@ export interface operations {
                           count: number | null;
                         };
                       }[];
+                      /** @description Providers bid screening expects could bid on every group with the new resources, or null when screening did not answer. */
+                      providersAbleToBid: number | null;
                     }
                   | {
                       /** @enum {string} */
@@ -20031,6 +20033,8 @@ export interface operations {
                           count: number | null;
                         };
                       }[];
+                      /** @description Providers bid screening expects could bid on every group with the new resources, or null when screening did not answer. */
+                      providersAbleToBid: number | null;
                     }
                   | {
                       /** @enum {string} */

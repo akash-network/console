@@ -5,6 +5,8 @@ export interface AssistantEvalCase {
   question: string;
   context?: { page?: string; dseq?: string; isTrialing?: boolean };
   toolResults?: Record<string, unknown>;
+  /** What each proposal tool answers, in call order, before it falls back to a shown card. */
+  proposalResults?: Record<string, unknown[]>;
   expect: AssistantEvalExpectation;
 }
 
@@ -76,6 +78,75 @@ const CRASH_LOGS = {
 const OOM_EVENTS = {
   untrustedExcerpt: "[web] Back-off restarting failed container\n[web] OOMKilled: container exceeded its memory limit"
 };
+
+const HELLO_WORLD_TEMPLATES = {
+  templates: [
+    { id: "hello-world", name: "Hello World", category: "Console", source: "console", summary: "Console's own hello world web page.", gpu: null },
+    {
+      id: "akash-network-awesome-akash-dart",
+      name: "dart",
+      category: "Hosting",
+      source: "community",
+      summary: "A hello world web server written in Dart.",
+      gpu: null
+    }
+  ]
+};
+
+const DART_SDL = `version: "2.0"
+services:
+  web:
+    image: google/dart-hello
+    expose:
+      - port: 8080
+        as: 80
+        to:
+          - global: true
+profiles:
+  compute:
+    web:
+      resources:
+        cpu:
+          units: 0.5
+        memory:
+          size: 512Mi
+        storage:
+          size: 512Mi
+  placement:
+    akash:
+      attributes:
+        host: akash
+      signedBy:
+        anyOf:
+          - akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63
+      pricing:
+        web:
+          denom: uact
+          amount: 1000
+deployment:
+  web:
+    akash:
+      profile: web
+      count: 1
+`;
+
+const DART_WITHHELD = {
+  shownToUser: false,
+  providersAbleToBid: 0,
+  groups: [
+    {
+      group: "akash",
+      requestedGpus: [],
+      providersAbleToBid: 0,
+      reason: "No audited provider has signed the placement attributes host=akash. Without them, 14 providers could bid."
+    }
+  ],
+  gpuModelsWithFreeCapacity: null,
+  templateSdl: DART_SDL,
+  note: "No provider can bid on this, so the user did not see a card. Propose an adjusted SDL that has bidders, keeping its price and denom: drop placement attributes no audited provider signed, change resources the user did not ask for, or pick another template. If nothing fits, explain why to the user."
+};
+
+const PLENTY_OF_BIDDERS = { providersAbleToBid: 14, groups: [{ group: "dcloud", requestedGpus: [], providersAbleToBid: 14 }], gpuModelsWithFreeCapacity: null };
 
 export const ASSISTANT_EVAL_CASES: AssistantEvalCase[] = [
   {
@@ -261,6 +332,26 @@ export const ASSISTANT_EVAL_CASES: AssistantEvalCase[] = [
     question: "Deploy a Postgres database for me.",
     toolResults: { list_templates: { templates: [{ id: "akash-network-awesome-akash-postgres", name: "Postgres", summary: "PostgreSQL database" }] } },
     expect: { calls: ["list_templates"], proposes: "create_deployment", proposalMentions: ["postgres"] }
+  },
+  {
+    id: "deploy-hello-world",
+    question: "Deploy a hello world for me.",
+    toolResults: { list_templates: HELLO_WORLD_TEMPLATES, check_availability: PLENTY_OF_BIDDERS },
+    expect: { calls: ["list_templates"], proposes: "create_deployment", proposalMentions: ["hello-world"], neverMentions: ["deposit"] }
+  },
+  {
+    id: "deploy-hello-world-trial",
+    question: "I just signed up. Deploy something simple so I can see deploying works.",
+    context: { isTrialing: true },
+    toolResults: { list_templates: HELLO_WORLD_TEMPLATES, check_availability: PLENTY_OF_BIDDERS },
+    expect: { proposes: "create_deployment", proposalMentions: ["hello-world"], neverProposesTypes: ["buy_credits"] }
+  },
+  {
+    id: "deploy-template-without-bidders",
+    question: "Deploy the dart hello world template.",
+    toolResults: { list_templates: HELLO_WORLD_TEMPLATES, check_availability: PLENTY_OF_BIDDERS },
+    proposalResults: { propose_create_deployment: [DART_WITHHELD] },
+    expect: { proposes: "create_deployment", mentions: ["host"], neverMentions: ["deposit", "raise the price"] }
   },
   {
     id: "gpu-capacity-request",

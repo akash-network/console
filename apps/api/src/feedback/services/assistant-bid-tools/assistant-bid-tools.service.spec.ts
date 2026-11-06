@@ -8,6 +8,7 @@ import type { DeploymentController } from "@src/deployment/controllers/deploymen
 import type { BidScreeningHttpService } from "@src/deployment/services/bid-screening-http/bid-screening-http.service";
 import type { PlacementOptionsHttpService } from "@src/deployment/services/placement-options-http/placement-options-http.service";
 import type { SdlService } from "@src/deployment/services/sdl/sdl.service";
+import { AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
 import { AssistantBidToolsService } from "./assistant-bid-tools.service";
 
 import { createBid } from "@test/seeders/bid.seeder";
@@ -16,6 +17,10 @@ import { createDeploymentLease, createGetDeploymentResponseData } from "@test/se
 function groupSpec(name: string, gpuModel?: string): GroupSpec {
   const attributes = gpuModel ? [{ key: `vendor/nvidia/model/${gpuModel}`, value: "true" }] : [];
   return GroupSpec.fromPartial({ name, resources: [{ resource: { gpu: { attributes } } }] });
+}
+
+function placedGroupSpec(name: string, attributes: { key: string; value: string }[]): GroupSpec {
+  return GroupSpec.fromPartial({ name, requirements: { signedBy: { anyOf: ["akash1auditor"] }, attributes }, resources: [{ resource: {} }] });
 }
 
 describe(AssistantBidToolsService.name, () => {
@@ -64,8 +69,9 @@ describe(AssistantBidToolsService.name, () => {
     expect(bidScreeningHttpService.findScreenedProviders).toHaveBeenCalledWith(gpuGroup);
     expect(result.bids[0]).toMatchObject({ state: "closed", reclamationWindow: "3600s" });
     expect(result.availability).toEqual({
+      providersAbleToBid: 0,
       groups: [
-        { group: "gpu", requestedGpus: ["nvidia/h100"], providersAbleToBid: 0 },
+        { group: "gpu", requestedGpus: ["nvidia/h100"], providersAbleToBid: 0, reason: "No provider has nvidia/h100 free right now." },
         { group: "web", requestedGpus: [], providersAbleToBid: 2 }
       ],
       gpuModelsWithFreeCapacity: ["nvidia/a100"]
@@ -80,7 +86,11 @@ describe(AssistantBidToolsService.name, () => {
 
     const result = await service.getBids({ dseq: "42" });
 
-    expect(result.availability).toEqual({ groups: [{ group: "web", requestedGpus: [], providersAbleToBid: null }], gpuModelsWithFreeCapacity: null });
+    expect(result.availability).toEqual({
+      providersAbleToBid: null,
+      groups: [{ group: "web", requestedGpus: [], providersAbleToBid: null }],
+      gpuModelsWithFreeCapacity: null
+    });
     expect(placementOptionsHttpService.findAvailableGpuModels).not.toHaveBeenCalled();
     expect(logger.warn).toHaveBeenCalledWith({ event: "ASSISTANT_BID_SCREENING_FAILED", error });
   });
@@ -104,6 +114,154 @@ describe(AssistantBidToolsService.name, () => {
 
     sdlService.generateManifest.mockResolvedValue({ ok: false, value: [] });
     expect((await service.getBids({ dseq: "42" })).availability).toBeNull();
+  });
+
+  describe("checkAvailability", () => {
+    it("screens the SDL as a create would and counts the providers able to bid on every group", async () => {
+      const { service, sdlService, bidScreeningHttpService } = setup();
+      sdlService.generateManifest.mockResolvedValue({ ok: true, value: { groups: [], groupSpecs: [groupSpec("web"), groupSpec("db")] } });
+      bidScreeningHttpService.findScreenedProviders.mockResolvedValueOnce(["p1", "p2", "p3"]).mockResolvedValueOnce(["p1"]);
+
+      const availability = await service.checkAvailability("sdl", { isTrialing: true });
+
+      expect(sdlService.generateManifest).toHaveBeenCalledWith("sdl", { isTrialing: true });
+      expect(availability).toEqual({
+        providersAbleToBid: 1,
+        groups: [
+          { group: "web", requestedGpus: [], providersAbleToBid: 3 },
+          { group: "db", requestedGpus: [], providersAbleToBid: 1 }
+        ],
+        gpuModelsWithFreeCapacity: null
+      });
+    });
+
+    it("refuses an SDL a create would refuse, with every reason", async () => {
+      const { service, sdlService } = setup();
+      sdlService.generateManifest.mockResolvedValue({
+        ok: false,
+        value: [
+          { schemaPath: "", instancePath: "", keyword: "gpu", params: {}, message: "H100 not available on free trial" },
+          { schemaPath: "", instancePath: "", keyword: "yaml", params: {}, message: "bad indent" }
+        ]
+      });
+
+      await expect(service.checkAvailability("bad", { isTrialing: true })).rejects.toThrow(
+        new AssistantToolError("The SDL is not valid: H100 not available on free trial; bad indent")
+      );
+    });
+
+    it("reports the count as unknown when any group's screening did not answer", async () => {
+      const { service, sdlService, bidScreeningHttpService } = setup();
+      sdlService.generateManifest.mockResolvedValue({ ok: true, value: { groups: [], groupSpecs: [groupSpec("web"), groupSpec("db")] } });
+      bidScreeningHttpService.findScreenedProviders.mockResolvedValueOnce(["p1"]).mockRejectedValueOnce(new Error("down"));
+
+      expect((await service.checkAvailability("sdl", { isTrialing: false })).providersAbleToBid).toBeNull();
+    });
+
+    it("lists every unsigned placement attribute", async () => {
+      const { service, sdlService, bidScreeningHttpService } = setup();
+      const attributes = [
+        { key: "host", value: "akash" },
+        { key: "tier", value: "community" }
+      ];
+      sdlService.generateManifest.mockResolvedValue({ ok: true, value: { groups: [], groupSpecs: [placedGroupSpec("dcloud", attributes)] } });
+      bidScreeningHttpService.findScreenedProviders.mockResolvedValueOnce([]).mockResolvedValueOnce(["p1"]);
+
+      const availability = await service.checkAvailability("sdl", { isTrialing: false });
+
+      expect(availability.groups[0].reason).toBe(
+        "No audited provider has signed the placement attributes host=akash, tier=community. Without them, 1 providers could bid."
+      );
+    });
+
+    it("names every requested gpu model when none of them has free capacity", async () => {
+      const { service, sdlService, bidScreeningHttpService, placementOptionsHttpService } = setup();
+      const twoModels = GroupSpec.fromPartial({
+        name: "gpu",
+        resources: [
+          { resource: { gpu: { attributes: [{ key: "vendor/nvidia/model/h100", value: "true" }] } } },
+          { resource: { gpu: { attributes: [{ key: "vendor/nvidia/model/h200", value: "true" }] } } }
+        ]
+      });
+      sdlService.generateManifest.mockResolvedValue({ ok: true, value: { groups: [], groupSpecs: [twoModels] } });
+      bidScreeningHttpService.findScreenedProviders.mockResolvedValue([]);
+      placementOptionsHttpService.findAvailableGpuModels.mockResolvedValue([{ vendor: "nvidia", model: "a100" }]);
+
+      const availability = await service.checkAvailability("sdl", { isTrialing: false });
+
+      expect(availability.groups[0].reason).toBe("No provider has nvidia/h100, nvidia/h200 free right now.");
+    });
+
+    it("blames missing capacity when one of the requested gpu models is free", async () => {
+      const { service, sdlService, bidScreeningHttpService, placementOptionsHttpService } = setup();
+      const twoModels = GroupSpec.fromPartial({
+        name: "gpu",
+        resources: [
+          { resource: { gpu: { attributes: [{ key: "vendor/nvidia/model/h100", value: "true" }] } } },
+          { resource: { gpu: { attributes: [{ key: "vendor/nvidia/model/a100", value: "true" }] } } }
+        ]
+      });
+      sdlService.generateManifest.mockResolvedValue({ ok: true, value: { groups: [], groupSpecs: [twoModels] } });
+      bidScreeningHttpService.findScreenedProviders.mockResolvedValue([]);
+      placementOptionsHttpService.findAvailableGpuModels.mockResolvedValue([{ vendor: "nvidia", model: "a100" }]);
+
+      const availability = await service.checkAvailability("sdl", { isTrialing: false });
+
+      expect(availability.groups[0].reason).toBe("No provider has these resources free right now.");
+    });
+
+    it("names placement attributes no audited provider signed when the group has bidders without them", async () => {
+      const { service, sdlService, bidScreeningHttpService } = setup();
+      const placed = placedGroupSpec("dcloud", [{ key: "host", value: "akash" }]);
+      sdlService.generateManifest.mockResolvedValue({ ok: true, value: { groups: [], groupSpecs: [placed] } });
+      bidScreeningHttpService.findScreenedProviders.mockResolvedValueOnce([]).mockResolvedValueOnce(["p1", "p2", "p3", "p4"]);
+
+      const availability = await service.checkAvailability("sdl", { isTrialing: false });
+
+      expect(bidScreeningHttpService.findScreenedProviders).toHaveBeenLastCalledWith({ ...placed, requirements: { ...placed.requirements, attributes: [] } });
+      expect(availability.groups[0].reason).toBe("No audited provider has signed the placement attributes host=akash. Without them, 4 providers could bid.");
+    });
+
+    it.each([
+      ["no bidders", async () => []],
+      [
+        "a failed screening",
+        async () => {
+          throw new Error("down");
+        }
+      ]
+    ])("blames missing capacity when dropping the placement attributes leaves %s", async (_, screenWithoutAttributes) => {
+      const { service, sdlService, bidScreeningHttpService } = setup();
+      sdlService.generateManifest.mockResolvedValue({
+        ok: true,
+        value: { groups: [], groupSpecs: [placedGroupSpec("dcloud", [{ key: "region", value: "us-west" }])] }
+      });
+      bidScreeningHttpService.findScreenedProviders.mockResolvedValueOnce([]).mockImplementationOnce(screenWithoutAttributes);
+
+      const availability = await service.checkAvailability("sdl", { isTrialing: false });
+
+      expect(availability.groups[0].reason).toBe("No provider has these resources free right now.");
+    });
+
+    it.each([
+      ["has free capacity", async () => [{ vendor: "nvidia", model: "h100" }]],
+      [
+        "is unknown",
+        async () => {
+          throw new Error("down");
+        }
+      ]
+    ])("blames missing capacity rather than the gpu model when the model %s", async (_, findAvailableGpuModels) => {
+      const { service, sdlService, bidScreeningHttpService, placementOptionsHttpService } = setup();
+      sdlService.generateManifest.mockResolvedValue({ ok: true, value: { groups: [], groupSpecs: [groupSpec("gpu", "h100")] } });
+      bidScreeningHttpService.findScreenedProviders.mockResolvedValue([]);
+      placementOptionsHttpService.findAvailableGpuModels.mockImplementation(findAvailableGpuModels);
+
+      const availability = await service.checkAvailability("sdl", { isTrialing: false });
+
+      expect(availability.groups[0].reason).toBe("No provider has these resources free right now.");
+      expect(bidScreeningHttpService.findScreenedProviders).toHaveBeenCalledTimes(1);
+    });
   });
 
   function setup() {

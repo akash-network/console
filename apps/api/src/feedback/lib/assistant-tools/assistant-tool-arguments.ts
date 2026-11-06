@@ -23,6 +23,15 @@ const EnvName = z
   .regex(/^[-._a-zA-Z][-._a-zA-Z0-9]*$/)
   .max(MAX_NAME_LENGTH);
 
+const TemplateId = TemplateIdSchema.max(MAX_TEMPLATE_ID_LENGTH).openapi({ description: "An id list_templates returned" });
+const GeneratedSdl = z.string().max(MAX_GENERATED_SDL_LENGTH);
+
+function givesEitherTemplateOrSdl({ templateId, sdl }: { templateId?: string; sdl?: string }): boolean {
+  return !!templateId !== !!sdl;
+}
+
+const EITHER_TEMPLATE_OR_SDL = { message: "Give either a templateId or an sdl, not both" };
+
 export const READ_TOOL_ARGUMENTS = {
   list_deployments: z.object({
     state: z.enum(["active", "closed"]).optional().openapi({ description: "Defaults to active" }),
@@ -33,7 +42,8 @@ export const READ_TOOL_ARGUMENTS = {
   get_balance_and_spend: z.object({}),
   get_lease_close_reason: z.object({ dseq: Dseq }),
   list_templates: z.object({ query: z.string().max(MAX_TEXT_LENGTH).optional().openapi({ description: "Words to match, such as a model or app name" }) }),
-  search_docs: z.object({ query: ShortText })
+  search_docs: z.object({ query: ShortText }),
+  check_availability: z.object({ templateId: TemplateId.optional(), sdl: GeneratedSdl.optional() }).refine(givesEitherTemplateOrSdl, EITHER_TEMPLATE_OR_SDL)
 };
 
 export const CLIENT_TOOL_ARGUMENTS = {
@@ -71,12 +81,12 @@ const ResourceChangeSchema = z
 export const PROPOSAL_TOOL_ARGUMENTS = {
   create_deployment: z
     .object({
-      templateId: TemplateIdSchema.max(MAX_TEMPLATE_ID_LENGTH).optional(),
-      sdl: z.string().max(MAX_GENERATED_SDL_LENGTH).optional(),
+      templateId: TemplateId.optional(),
+      sdl: GeneratedSdl.optional(),
       name: z.string().trim().min(1).max(MAX_DEPLOYMENT_NAME_LENGTH).optional(),
       runtimeLimitHours: z.number().int().min(1).max(MAX_RUNTIME_LIMIT_INCREMENT_HOURS).optional()
     })
-    .refine(({ templateId, sdl }) => !!templateId !== !!sdl, { message: "Give either a templateId or an sdl, not both" }),
+    .refine(givesEitherTemplateOrSdl, EITHER_TEMPLATE_OR_SDL),
   choose_bid: z.object({
     dseq: Dseq,
     choices: z

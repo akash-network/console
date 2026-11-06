@@ -1,5 +1,4 @@
 import { yaml } from "@akashnetwork/chain-sdk";
-import type { GroupSpec } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import createError from "http-errors";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -8,13 +7,12 @@ import type { BidController } from "@src/bid/controllers/bid/bid.controller";
 import type { DeploymentController } from "@src/deployment/controllers/deployment/deployment.controller";
 import type { DeploymentSettingController } from "@src/deployment/controllers/deployment-setting/deployment-setting.controller";
 import type { DeploymentSetting } from "@src/deployment/http-schemas/deployment-setting.schema";
-import type { BidScreeningHttpService } from "@src/deployment/services/bid-screening-http/bid-screening-http.service";
 import type { SdlService } from "@src/deployment/services/sdl/sdl.service";
-import { AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
+import { AssistantProposalWithheldError, AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
 import type { ProposalActionType, ProposalArguments } from "@src/feedback/lib/assistant-tools/assistant-tool-arguments";
-import type { TemplateController } from "@src/template/controllers/template/template.controller";
-import type { Template } from "@src/template/types/template";
-import { AssistantProposalService } from "./assistant-proposal.service";
+import type { AssistantAccountToolsService } from "@src/feedback/services/assistant-account-tools/assistant-account-tools.service";
+import type { AssistantBidToolsService, SdlAvailability } from "@src/feedback/services/assistant-bid-tools/assistant-bid-tools.service";
+import { AssistantProposalService, type ProposalContext } from "./assistant-proposal.service";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createBid } from "@test/seeders/bid.seeder";
@@ -25,63 +23,122 @@ const GPU_SDL = ASSISTANT_TEST_SDL.replace(
   "        storage:\n          size: 2Gi\n        gpu:\n          units: 2\n          attributes:\n            vendor:\n              nvidia:\n                - model: a100"
 );
 
+const PLACED_SDL = ASSISTANT_TEST_SDL.replace("    dcloud:\n      pricing:", "    dcloud:\n      attributes:\n        host: akash\n      pricing:");
+
+const SHARED_PROFILE_SDL = ASSISTANT_TEST_SDL.replace(
+  "deployment:\n  web:\n    dcloud:\n      profile: web\n      count: 1\n",
+  "deployment:\n  web:\n    dcloud:\n      profile: web\n      count: 1\n  api:\n    dcloud:\n      profile: web\n      count: 1\n"
+);
+
+function availabilityOf(providersAbleToBid: number | null, reason?: string): SdlAvailability {
+  return {
+    providersAbleToBid,
+    groups: [{ group: "dcloud", requestedGpus: [], providersAbleToBid, ...(reason && { reason }) }],
+    gpuModelsWithFreeCapacity: null
+  };
+}
+
 describe(AssistantProposalService.name, () => {
   describe("create_deployment", () => {
-    it("validates a template's SDL as a trial would and reports how many providers could bid on every group", async () => {
-      const { service, templateController, sdlService, bidScreeningHttpService } = setup();
-      templateController.getTemplateById.mockResolvedValue({ data: mock<Template>({ deploy: ASSISTANT_TEST_SDL }) });
-      const groupSpecs = [mock<GroupSpec>(), mock<GroupSpec>()];
-      sdlService.generateManifest.mockResolvedValue({ ok: true, value: { groups: [], groupSpecs } });
-      bidScreeningHttpService.findScreenedProviders.mockResolvedValueOnce(["a", "b", "c"]).mockResolvedValueOnce(["a"]);
+    it("screens a template's SDL as a trial would and shows how many providers could bid", async () => {
+      const { service, accountTools, bidTools } = setup();
+      accountTools.templateSdl.mockResolvedValue(ASSISTANT_TEST_SDL);
+      bidTools.checkAvailability.mockResolvedValue(availabilityOf(3));
 
-      const action = await propose(service, "create_deployment", { templateId: "akash-network-awesome-akash-nginx" }, { isTrialing: true });
+      const action = await propose(service, "create_deployment", { templateId: "hello-world" }, { isTrialing: true, withheldSdls: [] });
 
-      expect(sdlService.generateManifest).toHaveBeenCalledWith(ASSISTANT_TEST_SDL, { isTrialing: true });
-      expect(bidScreeningHttpService.findScreenedProviders.mock.calls).toEqual([[groupSpecs[0]], [groupSpecs[1]]]);
+      expect(accountTools.templateSdl).toHaveBeenCalledWith("hello-world");
+      expect(bidTools.checkAvailability).toHaveBeenCalledWith(ASSISTANT_TEST_SDL, { isTrialing: true });
       expect(action).toEqual({
         type: "create_deployment",
         tier: "confirm",
-        templateId: "akash-network-awesome-akash-nginx",
+        templateId: "hello-world",
         sdl: ASSISTANT_TEST_SDL,
         name: null,
         runtimeLimitHours: null,
         services: [{ service: "web", image: "nginx:1.25.3", resources: { cpu: 1, memory: "1Gi", storage: ["2Gi"], gpu: null, count: 1 } }],
-        providersAbleToBid: 1
+        providersAbleToBid: 3
       });
     });
 
-    it("takes a generated SDL with a name and runtime limit, and reports no count when screening fails", async () => {
-      const { service, sdlService, bidScreeningHttpService } = setup();
-      sdlService.generateManifest.mockResolvedValue({ ok: true, value: { groups: [], groupSpecs: [mock<GroupSpec>()] } });
-      bidScreeningHttpService.findScreenedProviders.mockRejectedValue(new Error("inventory down"));
+    it("takes a generated SDL with a name and runtime limit, and shows no count when screening does not answer", async () => {
+      const { service, bidTools } = setup();
+      bidTools.checkAvailability.mockResolvedValue(availabilityOf(null));
 
-      const action = await propose(service, "create_deployment", { sdl: ASSISTANT_TEST_SDL, name: "web", runtimeLimitHours: 12 }, { isTrialing: null });
+      const action = await propose(service, "create_deployment", { sdl: ASSISTANT_TEST_SDL, name: "web", runtimeLimitHours: 12 }, { isTrialing: null, withheldSdls: [] });
 
-      expect(sdlService.generateManifest).toHaveBeenCalledWith(ASSISTANT_TEST_SDL, { isTrialing: false });
+      expect(bidTools.checkAvailability).toHaveBeenCalledWith(ASSISTANT_TEST_SDL, { isTrialing: false });
       expect(action).toMatchObject({ templateId: null, name: "web", runtimeLimitHours: 12, providersAbleToBid: null });
     });
 
     it("lists no services for an SDL the summary cannot read", async () => {
       const { service, sdlService } = setup();
-      sdlService.generateManifest.mockResolvedValue({ ok: true, value: { groups: [], groupSpecs: [] } });
       sdlService.parse.mockReturnValue({ ok: false, value: [] });
 
       expect(await propose(service, "create_deployment", { sdl: "x" })).toMatchObject({ services: [] });
     });
 
-    it("refuses an SDL the create would refuse, with every reason", async () => {
-      const { service, sdlService } = setup();
-      sdlService.generateManifest.mockResolvedValue({
-        ok: false,
-        value: [
-          { schemaPath: "", instancePath: "", keyword: "gpu", params: {}, message: "H100 not available on free trial" },
-          { schemaPath: "", instancePath: "", keyword: "yaml", params: {}, message: "bad indent" }
-        ]
-      });
+    it("lets a refusal of the SDL through", async () => {
+      const { service, bidTools } = setup();
+      bidTools.checkAvailability.mockRejectedValue(new AssistantToolError("The SDL is not valid: bad indent"));
 
-      await expect(propose(service, "create_deployment", { sdl: "bad" })).rejects.toThrow(
-        new AssistantToolError("The SDL is not valid: H100 not available on free trial; bad indent")
+      await expect(propose(service, "create_deployment", { sdl: "bad" })).rejects.toThrow(new AssistantToolError("The SDL is not valid: bad indent"));
+    });
+
+    it("holds back a template no provider can bid on, with the reason and the template's SDL to adjust", async () => {
+      const { service, accountTools, bidTools } = setup();
+      accountTools.templateSdl.mockResolvedValue(PLACED_SDL);
+      const availability = availabilityOf(0, "No audited provider has signed the placement attributes host=akash.");
+      bidTools.checkAvailability.mockResolvedValue(availability);
+      const context = { isTrialing: false, withheldSdls: [] };
+
+      const error = await propose(service, "create_deployment", { templateId: "akash-network-awesome-akash-dart" }, context).catch(caught => caught);
+
+      expect(error).toBeInstanceOf(AssistantProposalWithheldError);
+      expect(error.feedback).toEqual({ ...availability, templateSdl: PLACED_SDL });
+      expect(context.withheldSdls).toEqual([PLACED_SDL]);
+    });
+
+    it("holds back a generated SDL without repeating it", async () => {
+      const { service, bidTools } = setup();
+      bidTools.checkAvailability.mockResolvedValue(availabilityOf(0));
+
+      const error = await propose(service, "create_deployment", { sdl: ASSISTANT_TEST_SDL }).catch(caught => caught);
+
+      expect(error.feedback).toEqual(availabilityOf(0));
+    });
+
+    it("proposes an adjusted SDL that drops placement attributes and keeps the pricing of the one held back", async () => {
+      const { service, bidTools } = setup();
+      bidTools.checkAvailability.mockResolvedValue(availabilityOf(5));
+      const adjusted = PLACED_SDL.replace("      attributes:\n        host: akash\n", "");
+
+      const action = await propose(service, "create_deployment", { sdl: adjusted }, { isTrialing: false, withheldSdls: [PLACED_SDL] });
+
+      expect(action).toMatchObject({ sdl: adjusted, providersAbleToBid: 5 });
+    });
+
+    it.each([
+      ["price", PLACED_SDL.replace("amount: 1000", "amount: 5000")],
+      ["denom", PLACED_SDL.replace("denom: uact", "denom: uakt")],
+      ["unreadable", "services: ["]
+    ])("refuses an adjusted SDL that changes the pricing (%s) of the one held back", async (_, adjusted) => {
+      const { service, bidTools } = setup();
+
+      await expect(propose(service, "create_deployment", { sdl: adjusted }, { isTrialing: false, withheldSdls: [PLACED_SDL] })).rejects.toThrow(
+        AssistantToolError
       );
+      expect(bidTools.checkAvailability).not.toHaveBeenCalled();
+    });
+
+    it("lets another template replace one held back", async () => {
+      const { service, accountTools, bidTools } = setup();
+      accountTools.templateSdl.mockResolvedValue(ASSISTANT_TEST_SDL);
+      bidTools.checkAvailability.mockResolvedValue(availabilityOf(9));
+
+      const action = await propose(service, "create_deployment", { templateId: "hello-world" }, { isTrialing: false, withheldSdls: [PLACED_SDL] });
+
+      expect(action).toMatchObject({ templateId: "hello-world", providersAbleToBid: 9 });
     });
   });
 
@@ -266,8 +323,43 @@ describe(AssistantProposalService.name, () => {
             before: { cpu: 1, memory: "1Gi", storage: ["2Gi"], gpu: { units: 2, models: ["nvidia/a100"] }, count: 1 },
             after: { cpu: 1, memory: "4Gi", storage: ["20Gi"], gpu: { units: 1, models: ["nvidia/a100"] }, count: 2 }
           }
-        ]
+        ],
+        providersAbleToBid: 2
       });
+    });
+
+    it("screens the SDL with the new resources, leaving its pricing alone", async () => {
+      const { service, bidTools } = setup();
+
+      await propose(service, "redeploy_with_resources", { dseq: "42", reason: "OOMKilled", services: { web: { memory: "4Gi" } } }, { isTrialing: true, withheldSdls: [] });
+
+      const [screenedSdl, options] = bidTools.checkAvailability.mock.calls[0];
+      expect(options).toEqual({ isTrialing: true });
+      expect(yaml.raw(screenedSdl)).toMatchObject({
+        profiles: { compute: { web: { resources: { memory: { size: "4Gi" } } } }, placement: { dcloud: { pricing: { web: { denom: "uact", amount: 1000 } } } } }
+      });
+    });
+
+    it("holds back new resources no provider can bid on", async () => {
+      const { service, bidTools } = setup();
+      bidTools.checkAvailability.mockResolvedValue(availabilityOf(0, "No provider has nvidia/h200 free right now."));
+
+      const error = await propose(service, "redeploy_with_resources", { dseq: "42", reason: "r", services: { web: { gpu: { units: 8, models: ["nvidia/h200"] } } } }).catch(
+        caught => caught
+      );
+
+      expect(error).toBeInstanceOf(AssistantProposalWithheldError);
+      expect(error.feedback).toEqual(availabilityOf(0, "No provider has nvidia/h200 free right now."));
+    });
+
+    it("shows no count for a compute profile two services share", async () => {
+      const { service, deploymentController, bidTools } = setup();
+      deploymentController.findByDseq.mockResolvedValue({ data: createGetDeploymentResponseData({ dseq: "42", sdl: SHARED_PROFILE_SDL }) });
+
+      const action = await propose(service, "redeploy_with_resources", { dseq: "42", reason: "r", services: { web: { cpu: 2 } } });
+
+      expect(action).toMatchObject({ providersAbleToBid: null });
+      expect(bidTools.checkAvailability).not.toHaveBeenCalled();
     });
 
     it("drops the gpu at zero units, takes new models and keeps unchanged fields", async () => {
@@ -441,7 +533,7 @@ describe(AssistantProposalService.name, () => {
     ])("builds %s from its arguments alone", async (type, args, expected) => {
       const { service, deploymentController } = setup();
 
-      expect(await service.propose(type, args as ProposalArguments<typeof type>, { isTrialing: false })).toEqual(expected);
+      expect(await service.propose(type, args as ProposalArguments<typeof type>, { isTrialing: false, withheldSdls: [] })).toEqual(expected);
       expect(deploymentController.findByDseq).not.toHaveBeenCalled();
     });
   });
@@ -450,7 +542,7 @@ describe(AssistantProposalService.name, () => {
     service: AssistantProposalService,
     type: T,
     args: ProposalArguments<T>,
-    context: { isTrialing: boolean | null } = { isTrialing: false }
+    context: ProposalContext = { isTrialing: false, withheldSdls: [] }
   ) {
     return service.propose(type, args, context);
   }
@@ -463,19 +555,13 @@ describe(AssistantProposalService.name, () => {
       data: mock<DeploymentSetting>({ runtimeLimitHours: input.runtimeLimitHours ?? null, runtimeEndsAt: input.runtimeEndsAt ?? null })
     });
     const bidController = mock<BidController>();
-    const templateController = mock<TemplateController>();
     const sdlService = mock<SdlService>();
     sdlService.parse.mockImplementation(sdl => ({ ok: true, value: yaml.raw(sdl) }));
-    const bidScreeningHttpService = mock<BidScreeningHttpService>();
-    const service = new AssistantProposalService(
-      deploymentController,
-      deploymentSettingController,
-      bidController,
-      templateController,
-      sdlService,
-      bidScreeningHttpService
-    );
+    const accountTools = mock<AssistantAccountToolsService>();
+    const bidTools = mock<AssistantBidToolsService>();
+    bidTools.checkAvailability.mockResolvedValue(availabilityOf(2));
+    const service = new AssistantProposalService(deploymentController, deploymentSettingController, bidController, sdlService, accountTools, bidTools);
 
-    return { service, deploymentController, deploymentSettingController, bidController, templateController, sdlService, bidScreeningHttpService };
+    return { service, deploymentController, deploymentSettingController, bidController, sdlService, accountTools, bidTools };
   }
 });

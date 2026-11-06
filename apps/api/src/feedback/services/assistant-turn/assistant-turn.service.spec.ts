@@ -162,7 +162,7 @@ describe(AssistantTurnService.name, () => {
 
     const events = await run({ stored: true, isTrialing: true });
 
-    expect(toolRunner.run).toHaveBeenCalledWith(call, { isTrialing: true });
+    expect(toolRunner.run).toHaveBeenCalledWith(call, { isTrialing: true, withheldSdls: [] });
     expect(events).toEqual([
       { type: "text_delta", text: "Let me check." },
       { type: "tool_started", toolCallId: "c1", name: "get_deployment" },
@@ -179,6 +179,24 @@ describe(AssistantTurnService.name, () => {
       ["conversation-1", { role: "tool", content: "Read deployment 42", toolName: "get_deployment", toolPayload: { toolCallId: "c1", ok: true } }],
       ["conversation-1", { role: "assistant", content: "Let me check.\n\nIt is running." }]
     ]);
+  });
+
+  it("keeps the SDLs held back earlier in the turn for the proposals after them", async () => {
+    const { akashMlClient, toolRunner, run } = setup();
+    akashMlClient.streamChatCompletion
+      .mockImplementationOnce(streamed({ toolCalls: [toolCall("c1", "propose_create_deployment", { templateId: "dart" })] }))
+      .mockImplementationOnce(streamed({ toolCalls: [toolCall("c2", "propose_create_deployment", { sdl: "adjusted" })] }))
+      .mockImplementationOnce(streamed({ content: "Adjusted." }));
+    const withheldSdlsSeen: string[][] = [];
+    toolRunner.run.mockImplementation(async (_, context) => {
+      withheldSdlsSeen.push([...context.withheldSdls]);
+      context.withheldSdls.push("dart sdl");
+      return { kind: "result", content: "{}", summary: "Held back a proposal no provider can bid on", ok: false };
+    });
+
+    await run({});
+
+    expect(withheldSdlsSeen).toEqual([[], ["dart sdl"]]);
   });
 
   it("emits a proposed action as a card and records it", async () => {
