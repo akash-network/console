@@ -83,7 +83,7 @@ describe(AssistantProposalService.name, () => {
         runtimeLimitHours: null,
         services: [{ service: "web", image: "nginx:1.25.3", resources: { cpu: 1, memory: "1Gi", storage: ["2Gi"], gpu: null, count: 1 } }],
         providersAbleToBid: 3,
-        cost: { estimatedUsdPerMonth: 6.01, maxUsdPerMonth: 438.29 }
+        cost: { estimatedUsdPerMonth: 6.01, maxUsdPerMonth: 438.3 }
       });
     });
 
@@ -93,7 +93,7 @@ describe(AssistantProposalService.name, () => {
 
       const action = await propose(service, "create_deployment", { templateId: "gpu" });
 
-      expect(action.cost).toEqual({ estimatedUsdPerMonth: null, maxUsdPerMonth: 438.29 });
+      expect(action.cost).toEqual({ estimatedUsdPerMonth: null, maxUsdPerMonth: 438.3 });
     });
 
     it("shows no cost when the SDL builds no manifest", async () => {

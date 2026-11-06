@@ -43,7 +43,7 @@ describe(deploymentCostOf.name, () => {
     expect(typicalUsdPerMonthOf).toHaveBeenCalledWith({ cpuMillis: 1000, memoryBytes: 2 * GIB, storageBytes: GIB });
     expect(cost).toEqual({
       estimatedUsdPerMonth: 2 * 0.75 + 1.25,
-      maxUsdPerMonth: Math.round(((2 * 1000 + 500.5) * BLOCKS_IN_A_MONTH) / 10_000) / 100
+      maxUsdPerMonth: Math.ceil(((2 * 1000 + 500.5) * BLOCKS_IN_A_MONTH) / 10_000) / 100
     });
   });
 
@@ -84,10 +84,10 @@ describe(deploymentCostOf.name, () => {
     expect(cost).toEqual({ estimatedUsdPerMonth: 0.25, maxUsdPerMonth: null });
   });
 
-  it("rounds both to cents", () => {
+  it("rounds the estimate to the nearest cent and the price cap up to the cent", () => {
     const { cost } = setup([groupOf(unit({ cpuMillis: 100, memoryBytes: GIB, storageBytes: [] }))], () => 1.23456);
 
-    expect(cost).toEqual({ estimatedUsdPerMonth: 1.23, maxUsdPerMonth: 438.29 });
+    expect(cost).toEqual({ estimatedUsdPerMonth: 1.23, maxUsdPerMonth: 438.3 });
   });
 
   function setup(groups: GroupSpec[], typical: (spec: ResourceSpec) => number = ({ cpuMillis }) => cpuMillis / 1000 + 0.25) {

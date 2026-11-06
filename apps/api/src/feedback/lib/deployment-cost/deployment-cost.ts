@@ -32,11 +32,12 @@ function requestsGpu({ resource }: ResourceUnit): boolean {
   return resourceValToNumber(resource?.gpu?.units?.val) > 0;
 }
 
+/** Rounded up to the cent, so the cap shown is never under what the SDL allows. */
 function maxUsdPerMonthOf(units: ResourceUnit[]): number | null {
   if (!units.every(({ price }) => price?.denom === "uact")) return null;
 
   const uactPerBlock = units.reduce((total, { price, count }) => total + Number(price!.amount) * count, 0);
-  return round((uactPerBlock * averageBlockCountInAMonth) / UACT_PER_USD, 2);
+  return Math.ceil((uactPerBlock * averageBlockCountInAMonth * 100) / UACT_PER_USD) / 100;
 }
 
 function estimatedUsdPerMonthOf(units: ResourceUnit[], typicalUsdPerMonthOf: (spec: ResourceSpec) => number): number | null {
