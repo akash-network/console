@@ -128,6 +128,13 @@ async function main() {
   }
 
   const caseIds = process.argv.slice(2);
+  const unknownIds = caseIds.filter(caseId => !ASSISTANT_EVAL_CASES.some(({ id }) => id === caseId));
+  if (unknownIds.length > 0) {
+    process.stderr.write(`No eval case named ${unknownIds.join(", ")}.\n`);
+    process.exitCode = 1;
+    return;
+  }
+
   const cases = caseIds.length > 0 ? ASSISTANT_EVAL_CASES.filter(({ id }) => caseIds.includes(id)) : ASSISTANT_EVAL_CASES;
   const results: AssistantEvalResult[] = [];
   for (const evalCase of cases) {
