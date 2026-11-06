@@ -65,7 +65,12 @@ describe(AssistantProposalService.name, () => {
       const { service, bidTools } = setup();
       bidTools.checkAvailability.mockResolvedValue(availabilityOf(null));
 
-      const action = await propose(service, "create_deployment", { sdl: ASSISTANT_TEST_SDL, name: "web", runtimeLimitHours: 12 }, { isTrialing: null, withheldSdls: [] });
+      const action = await propose(
+        service,
+        "create_deployment",
+        { sdl: ASSISTANT_TEST_SDL, name: "web", runtimeLimitHours: 12 },
+        { isTrialing: null, withheldSdls: [] }
+      );
 
       expect(bidTools.checkAvailability).toHaveBeenCalledWith(ASSISTANT_TEST_SDL, { isTrialing: false });
       expect(action).toMatchObject({ templateId: null, name: "web", runtimeLimitHours: 12, providersAbleToBid: null });
@@ -123,10 +128,10 @@ describe(AssistantProposalService.name, () => {
       ["denom", PLACED_SDL.replace("denom: uact", "denom: uakt")],
       [
         "dearer placement listed first",
-        ASSISTANT_TEST_SDL.replace("  placement:\n", "  placement:\n    dear:\n      pricing:\n        web:\n          denom: uact\n          amount: 99999\n").replace(
-          "deployment:\n  web:\n    dcloud:",
-          "deployment:\n  web:\n    dear:"
-        )
+        ASSISTANT_TEST_SDL.replace(
+          "  placement:\n",
+          "  placement:\n    dear:\n      pricing:\n        web:\n          denom: uact\n          amount: 99999\n"
+        ).replace("deployment:\n  web:\n    dcloud:", "deployment:\n  web:\n    dear:")
       ],
       ["unreadable", "services: ["]
     ])("refuses an adjusted SDL that changes the pricing (%s) of the one held back", async (_, adjusted) => {
@@ -146,6 +151,39 @@ describe(AssistantProposalService.name, () => {
       const action = await propose(service, "create_deployment", { templateId: "hello-world" }, { isTrialing: false, withheldSdls: [PLACED_SDL] });
 
       expect(action).toMatchObject({ templateId: "hello-world", providersAbleToBid: 9 });
+    });
+  });
+
+  describe("open_in_editor", () => {
+    it("refuses to open an SDL that changes the pricing of the one held back", async () => {
+      const { service } = setup();
+      const repriced = PLACED_SDL.replace("amount: 1000", "amount: 5000");
+
+      await expect(propose(service, "open_in_editor", { sdl: repriced }, { isTrialing: false, withheldSdls: [PLACED_SDL] })).rejects.toThrow(
+        AssistantToolError
+      );
+    });
+
+    it("opens an adjusted SDL that keeps the pricing of the one held back", async () => {
+      const { service } = setup();
+      const adjusted = PLACED_SDL.replace("      attributes:\n        host: akash\n", "");
+
+      expect(await propose(service, "open_in_editor", { sdl: adjusted }, { isTrialing: false, withheldSdls: [PLACED_SDL] })).toEqual({
+        type: "open_in_editor",
+        tier: "deep_link",
+        dseq: null,
+        templateId: null,
+        sdl: adjusted
+      });
+    });
+
+    it("opens a template or deployment without a pricing check after a hold back", async () => {
+      const { service } = setup();
+
+      expect(await propose(service, "open_in_editor", { templateId: "hello-world" }, { isTrialing: false, withheldSdls: [PLACED_SDL] })).toMatchObject({
+        templateId: "hello-world",
+        sdl: null
+      });
     });
   });
 
@@ -338,7 +376,12 @@ describe(AssistantProposalService.name, () => {
     it("screens the SDL with the new resources, leaving its pricing alone", async () => {
       const { service, bidTools } = setup();
 
-      await propose(service, "redeploy_with_resources", { dseq: "42", reason: "OOMKilled", services: { web: { memory: "4Gi" } } }, { isTrialing: true, withheldSdls: [] });
+      await propose(
+        service,
+        "redeploy_with_resources",
+        { dseq: "42", reason: "OOMKilled", services: { web: { memory: "4Gi" } } },
+        { isTrialing: true, withheldSdls: [] }
+      );
 
       const [screenedSdl, options] = bidTools.checkAvailability.mock.calls[0];
       expect(options).toEqual({ isTrialing: true });
@@ -351,9 +394,11 @@ describe(AssistantProposalService.name, () => {
       const { service, bidTools } = setup();
       bidTools.checkAvailability.mockResolvedValue(availabilityOf(0, "No provider has nvidia/h200 free right now."));
 
-      const error = await propose(service, "redeploy_with_resources", { dseq: "42", reason: "r", services: { web: { gpu: { units: 8, models: ["nvidia/h200"] } } } }).catch(
-        caught => caught
-      );
+      const error = await propose(service, "redeploy_with_resources", {
+        dseq: "42",
+        reason: "r",
+        services: { web: { gpu: { units: 8, models: ["nvidia/h200"] } } }
+      }).catch(caught => caught);
 
       expect(error).toBeInstanceOf(AssistantProposalWithheldError);
       expect(error.feedback).toEqual(availabilityOf(0, "No provider has nvidia/h200 free right now."));

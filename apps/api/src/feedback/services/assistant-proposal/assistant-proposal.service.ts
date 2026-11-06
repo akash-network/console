@@ -94,6 +94,9 @@ export class AssistantProposalService {
       case "create_alert":
         await this.#activeDeployment(input.args.dseq);
         return { type: "create_alert", tier: "confirm", alert: "deployment_closed", dseq: input.args.dseq, channel: "email" };
+      case "open_in_editor":
+        this.#assertKeepsWithheldPricing(input.args.sdl, context);
+        return this.#withoutLookup(input);
       default:
         return this.#withoutLookup(input);
     }
@@ -143,9 +146,8 @@ export class AssistantProposalService {
   }
 
   async #createDeployment(args: ProposalArguments<"create_deployment">, context: ProposalContext): Promise<AssistantActionOf<"create_deployment">> {
+    this.#assertKeepsWithheldPricing(args.sdl, context);
     const sdl = args.templateId ? await this.accountTools.templateSdl(args.templateId) : (args.sdl as string);
-    const withheldSdl = context.withheldSdls.at(-1);
-    if (args.sdl && withheldSdl && !keepsPricing(withheldSdl, sdl)) throw new AssistantToolError(CHANGED_PRICING_MESSAGE);
 
     const availability = await this.bidTools.checkAvailability(sdl, { isTrialing: context.isTrialing === true });
     if (availability.providersAbleToBid === 0) {
@@ -166,6 +168,11 @@ export class AssistantProposalService {
       services: services.map(({ service, image, resources }) => ({ service, image, resources })),
       providersAbleToBid: availability.providersAbleToBid
     };
+  }
+
+  #assertKeepsWithheldPricing(sdl: string | undefined, context: ProposalContext) {
+    const withheldSdl = context.withheldSdls.at(-1);
+    if (sdl && withheldSdl && !keepsPricing(withheldSdl, sdl)) throw new AssistantToolError(CHANGED_PRICING_MESSAGE);
   }
 
   async #chooseBid({ dseq, choices }: ProposalArguments<"choose_bid">): Promise<AssistantActionOf<"choose_bid">> {
@@ -241,14 +248,17 @@ export class AssistantProposalService {
     const availability = await this.#availabilityAfter(data.consoleSettings!.sdl, changes, context);
     if (availability?.providersAbleToBid === 0) throw new AssistantProposalWithheldError({ ...availability });
 
-    return { type: "redeploy_with_resources", tier: "deep_link", dseq, reason, services: changes, providersAbleToBid: availability?.providersAbleToBid ?? null };
+    return {
+      type: "redeploy_with_resources",
+      tier: "deep_link",
+      dseq,
+      reason,
+      services: changes,
+      providersAbleToBid: availability?.providersAbleToBid ?? null
+    };
   }
 
-  async #availabilityAfter(
-    sdl: string,
-    changes: Parameters<typeof sdlWithResources>[1],
-    context: ProposalContext
-  ): Promise<SdlAvailability | null> {
+  async #availabilityAfter(sdl: string, changes: Parameters<typeof sdlWithResources>[1], context: ProposalContext): Promise<SdlAvailability | null> {
     const changedSdl = sdlWithResources(sdl, changes);
     return changedSdl ? await this.bidTools.checkAvailability(changedSdl, { isTrialing: context.isTrialing === true }) : null;
   }

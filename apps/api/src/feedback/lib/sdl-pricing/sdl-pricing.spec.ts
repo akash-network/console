@@ -41,13 +41,19 @@ deployment:
 
 describe(keepsPricing.name, () => {
   it("keeps pricing when the placement loses its attributes or is renamed", () => {
-    const renamed = SOURCE.replace("    akash:\n      attributes:\n        host: akash\n", "    dcloud:\n").replace("    akash:\n      profile", "    dcloud:\n      profile");
+    const renamed = SOURCE.replace("    akash:\n      attributes:\n        host: akash\n", "    dcloud:\n").replace(
+      "    akash:\n      profile",
+      "    dcloud:\n      profile"
+    );
 
     expect(keepsPricing(SOURCE, renamed)).toBe(true);
   });
 
   it("ignores pricing of a placement nothing deploys to", () => {
-    const withUnusedPlacement = SOURCE.replace("deployment:", "    spare:\n      pricing:\n        web:\n          denom: uakt\n          amount: 1\ndeployment:");
+    const withUnusedPlacement = SOURCE.replace(
+      "deployment:",
+      "    spare:\n      pricing:\n        web:\n          denom: uakt\n          amount: 1\ndeployment:"
+    );
 
     expect(keepsPricing(SOURCE, withUnusedPlacement)).toBe(true);
   });
@@ -71,6 +77,10 @@ describe(keepsPricing.name, () => {
         "deployment:\n  db:\n    akash:\n      profile: db\n      count: 1\n"
       )
     ],
+    [
+      "the same price under a renamed profile",
+      SOURCE.replace("        web:\n          denom", "        app:\n          denom").replace("profile: web", "profile: app")
+    ],
     ["pricing removed", SOURCE.replace("      pricing:\n        web:\n          denom: uact\n          amount: 1000\n", "")],
     ["nothing deployed", 'version: "2.0"\n'],
     ["unreadable yaml", "profiles: ["]
@@ -83,8 +93,17 @@ describe(keepsPricing.name, () => {
   });
 
   it("vouches for nothing when the source deploys an unpriced profile", () => {
-    const unpriced = SOURCE.replace("      pricing:\n        web:\n          denom: uact\n          amount: 1000\n", "");
+    const unpriced = SOURCE.replace("        web:\n          denom", "        db:\n          denom");
 
     expect(keepsPricing(unpriced, unpriced)).toBe(false);
+  });
+
+  it("keeps pricing of an SDL that deploys several priced profiles", () => {
+    const twoServices = SOURCE.replace("      pricing:\n", "      pricing:\n        db:\n          denom: uact\n          amount: 50\n").replace(
+      "deployment:\n",
+      "deployment:\n  db:\n    akash:\n      profile: db\n      count: 1\n"
+    );
+
+    expect(keepsPricing(twoServices, twoServices)).toBe(true);
   });
 });
