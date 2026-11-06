@@ -14,6 +14,9 @@ const isRecording = process.env.PW_RECORD === "1" || slowMo > 0;
 const RECORDING_VIEWPORT = { width: 1728, height: 1080 };
 /** The organizations release checklist takes about 30 minutes on beta, so deploy gates skip it and `test:e2e:orgs-release` runs it on demand. */
 const isOrganizationsReleaseRun = process.env.PW_ORGS_RELEASE === "1";
+/** The assistant lab drives about a hundred assistant conversations against beta, so it only runs through `test:e2e:assistant-lab` and closes only what it created. */
+const isAssistantLabRun = process.env.PW_ASSISTANT_LAB === "1";
+const onDemandSuites = [...(isOrganizationsReleaseRun ? [] : ["**/organizations-release/**"]), ...(isAssistantLabRun ? [] : ["**/assistant-lab/**"])];
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -21,8 +24,8 @@ const isOrganizationsReleaseRun = process.env.PW_ORGS_RELEASE === "1";
 export default defineConfig({
   testDir: "./tests/ui",
   /* Vitest owns *.unit.spec.ts files colocated in tests/ui (see vitest.config.ts "unit-e2e-helpers" project). */
-  testIgnore: isOrganizationsReleaseRun ? "**/*.unit.spec.ts" : ["**/*.unit.spec.ts", "**/organizations-release/**"],
-  globalTeardown: "./tests/ui/fixture/global-teardown.ts",
+  testIgnore: ["**/*.unit.spec.ts", ...onDemandSuites],
+  globalTeardown: isAssistantLabRun ? undefined : "./tests/ui/fixture/global-teardown.ts",
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env.CI,
