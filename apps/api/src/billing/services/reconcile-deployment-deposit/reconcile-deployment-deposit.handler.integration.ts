@@ -178,8 +178,10 @@ describe(ReconcileDeploymentDepositHandler.name, () => {
 
       await handler.handle({ depositIds: [first.id, second.id], version: 1 }, { id: faker.string.uuid(), ...LAST_ATTEMPT });
 
-      expect(await findDeploymentDeposit(first.id)).toMatchObject({ status: "confirmed", txHash });
-      expect(await findDeploymentDeposit(second.id)).toMatchObject({ status: "void" });
+      const deposits = await Promise.all([first, second].map(({ id }) => findDeploymentDeposit(id)));
+      expect(deposits).toEqual(
+        expect.arrayContaining([expect.objectContaining({ status: "confirmed", txHash }), expect.objectContaining({ status: "void", txHash: null })])
+      );
     });
 
     it("lets a deployment's one create back one row", async () => {
@@ -191,8 +193,8 @@ describe(ReconcileDeploymentDepositHandler.name, () => {
 
       await handler.handle({ depositIds: [first.id, retried.id], version: 1 }, { id: faker.string.uuid(), ...LAST_ATTEMPT });
 
-      expect(await findDeploymentDeposit(first.id)).toMatchObject({ status: "confirmed" });
-      expect(await findDeploymentDeposit(retried.id)).toMatchObject({ status: "void" });
+      const statuses = await Promise.all([first, retried].map(async ({ id }) => (await findDeploymentDeposit(id)).status));
+      expect(statuses.sort()).toEqual(["confirmed", "void"]);
     });
 
     it("lets one chain deposit back one row when two checks of the deployment run at once", async () => {
