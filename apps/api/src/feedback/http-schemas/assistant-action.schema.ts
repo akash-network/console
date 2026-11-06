@@ -56,7 +56,16 @@ export const AssistantActionSchema = z
         .number()
         .int()
         .nullable()
-        .openapi({ description: "Providers bid screening expects could bid on every group now, or null when screening did not answer." })
+        .openapi({ description: "Providers bid screening expects could bid on every group now, or null when screening did not answer." }),
+      cost: z
+        .object({
+          estimatedUsdPerMonth: z
+            .number()
+            .nullable()
+            .openapi({ description: "Typical provider prices for its CPU, memory and storage, or null when it requests GPUs." })
+        })
+        .nullable()
+        .optional()
     }),
     z.object({
       type: z.literal("choose_bid"),

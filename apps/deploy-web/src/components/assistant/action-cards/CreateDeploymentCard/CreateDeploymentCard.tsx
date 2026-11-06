@@ -17,6 +17,7 @@ import type { ActionCardRow } from "../ActionCardChrome/ActionCardChrome";
 import { ActionCardChrome } from "../ActionCardChrome/ActionCardChrome";
 import type { ActionCardProps } from "../actionCardTypes";
 import { assertOpensInEditor } from "../assertOpensInEditor/assertOpensInEditor";
+import { formatUsd } from "../formatUsd";
 import { computeLabelOf, gpuLabelOf } from "../serviceResourcesFormat/serviceResourcesFormat";
 import { NoBidsYetNotice } from "./NoBidsYetNotice/NoBidsYetNotice";
 import { exposedPortsOf } from "./exposedPortsOf";
@@ -95,7 +96,7 @@ export const CreateDeploymentCard: FC<ActionCardProps<"create_deployment"> & { d
       tier={action.tier}
       decision={decision}
       rows={rowsOf(action)}
-      costNote="A provider is picked automatically. Billing starts when the lease starts."
+      costNote={costNoteOf(action)}
       confirmLabel="Deploy"
       successMessage={successMessageOf(created)}
       onConfirm={deploy}
@@ -150,7 +151,24 @@ function rowsOf(action: AssistantActionOf<"create_deployment">): ActionCardRow[]
 
   return [
     ...serviceRows,
+    ...costRowsOf(action),
     ...(action.providersAbleToBid === null ? [] : [{ label: "Providers able to bid now", value: String(action.providersAbleToBid) }]),
     ...(action.runtimeLimitHours ? [{ label: "Runtime limit", value: `${action.runtimeLimitHours} hours` }] : [])
   ];
+}
+
+function estimatedUsdPerMonthOf(action: AssistantActionOf<"create_deployment">): number | null {
+  return action.cost?.estimatedUsdPerMonth ?? null;
+}
+
+function costRowsOf(action: AssistantActionOf<"create_deployment">): ActionCardRow[] {
+  const estimatedUsdPerMonth = estimatedUsdPerMonthOf(action);
+
+  return estimatedUsdPerMonth === null ? [] : [{ label: "Estimated cost", value: `About ${formatUsd(estimatedUsdPerMonth)}/month` }];
+}
+
+function costNoteOf(action: AssistantActionOf<"create_deployment">): string {
+  return estimatedUsdPerMonthOf(action) === null
+    ? "A provider is picked automatically. Billing starts when the lease starts."
+    : "A provider is picked automatically, and the lease runs at the winning provider's bid. Billing starts when the lease starts.";
 }

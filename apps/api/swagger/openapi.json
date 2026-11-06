@@ -35497,6 +35497,20 @@
                                   "type": "integer",
                                   "nullable": true,
                                   "description": "Providers bid screening expects could bid on every group now, or null when screening did not answer."
+                                },
+                                "cost": {
+                                  "type": "object",
+                                  "nullable": true,
+                                  "properties": {
+                                    "estimatedUsdPerMonth": {
+                                      "type": "number",
+                                      "nullable": true,
+                                      "description": "Typical provider prices for its CPU, memory and storage, or null when it requests GPUs."
+                                    }
+                                  },
+                                  "required": [
+                                    "estimatedUsdPerMonth"
+                                  ]
                                 }
                               },
                               "required": [
@@ -37043,6 +37057,20 @@
                                   "type": "integer",
                                   "nullable": true,
                                   "description": "Providers bid screening expects could bid on every group now, or null when screening did not answer."
+                                },
+                                "cost": {
+                                  "type": "object",
+                                  "nullable": true,
+                                  "properties": {
+                                    "estimatedUsdPerMonth": {
+                                      "type": "number",
+                                      "nullable": true,
+                                      "description": "Typical provider prices for its CPU, memory and storage, or null when it requests GPUs."
+                                    }
+                                  },
+                                  "required": [
+                                    "estimatedUsdPerMonth"
+                                  ]
                                 }
                               },
                               "required": [

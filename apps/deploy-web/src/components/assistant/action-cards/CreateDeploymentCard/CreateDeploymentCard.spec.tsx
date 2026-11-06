@@ -60,6 +60,12 @@ const WEB: Action["services"][number] = {
   resources: { cpu: 8, memory: "32Gi", storage: ["100Gi"], gpu: { units: 1, models: ["nvidia/rtx4090"] }, count: 1 }
 };
 
+const CPU_ONLY: Action["services"][number] = {
+  service: "web",
+  image: "nginx:1.25.3",
+  resources: { cpu: 1, memory: "1Gi", storage: ["2Gi"], gpu: null, count: 1 }
+};
+
 describe("CreateDeploymentCard", () => {
   it("shows what will be deployed, how many providers can bid now and the runtime limit", () => {
     const { chromeProps, decision } = setup();
@@ -82,6 +88,33 @@ describe("CreateDeploymentCard", () => {
         confirmLabel: "Deploy"
       })
     );
+  });
+
+  it("shows the estimated cost before Deploy and says the lease runs at the winning bid", () => {
+    const { chromeProps } = setup({ action: { services: [CPU_ONLY], cost: { estimatedUsdPerMonth: 6.01 } } });
+
+    expect(chromeProps().rows).toEqual([
+      { label: "Image", value: "nginx:1.25.3" },
+      { label: "CPU / memory / storage", value: "1 CPU / 1Gi / 2Gi" },
+      { label: "Port", value: "8000 to 80 (HTTP)" },
+      { label: "Estimated cost", value: "About $6.01/month" },
+      { label: "Providers able to bid now", value: "11" },
+      { label: "Runtime limit", value: "4 hours" }
+    ]);
+    expect(chromeProps().costNote).toBe(
+      "A provider is picked automatically, and the lease runs at the winning provider's bid. Billing starts when the lease starts."
+    );
+  });
+
+  it.each([
+    { case: "a GPU deployment", cost: { estimatedUsdPerMonth: null } },
+    { case: "a proposal without a cost", cost: null },
+    { case: "a proposal from an API that sends no cost", cost: undefined }
+  ])("shows no dollar figure for $case", ({ cost }) => {
+    const { chromeProps } = setup({ action: { cost } });
+
+    expect((chromeProps().rows ?? []).filter(({ value }) => String(value).includes("$"))).toEqual([]);
+    expect(chromeProps().costNote).toBe("A provider is picked automatically. Billing starts when the lease starts.");
   });
 
   it("labels each service's rows and leaves out what the action doesn't carry", () => {

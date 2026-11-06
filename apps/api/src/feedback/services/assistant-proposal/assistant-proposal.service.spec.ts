@@ -1,4 +1,4 @@
-import { yaml } from "@akashnetwork/chain-sdk";
+import { generateManifest, yaml } from "@akashnetwork/chain-sdk";
 import createError from "http-errors";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -13,6 +13,7 @@ import { AssistantProposalWithheldError, AssistantToolError } from "@src/feedbac
 import type { ProposalActionType, ProposalArguments } from "@src/feedback/lib/assistant-tools/assistant-tool-arguments";
 import type { AssistantAccountToolsService } from "@src/feedback/services/assistant-account-tools/assistant-account-tools.service";
 import type { AssistantBidToolsService, SdlAvailability } from "@src/feedback/services/assistant-bid-tools/assistant-bid-tools.service";
+import { PricingService } from "@src/pricing/services/pricing/pricing.service";
 import { AssistantProposalService, type ProposalContext } from "./assistant-proposal.service";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
@@ -81,8 +82,26 @@ describe(AssistantProposalService.name, () => {
         name: null,
         runtimeLimitHours: null,
         services: [{ service: "web", image: "nginx:1.25.3", resources: { cpu: 1, memory: "1Gi", storage: ["2Gi"], gpu: null, count: 1 } }],
-        providersAbleToBid: 3
+        providersAbleToBid: 3,
+        cost: { estimatedUsdPerMonth: 6.01 }
       });
+    });
+
+    it("gives a GPU deployment no estimate", async () => {
+      const { service, accountTools } = setup();
+      accountTools.templateSdl.mockResolvedValue(GPU_SDL);
+
+      const action = await propose(service, "create_deployment", { templateId: "gpu" });
+
+      expect(action.cost).toEqual({ estimatedUsdPerMonth: null });
+    });
+
+    it("shows no cost when the SDL builds no manifest", async () => {
+      const { service, accountTools, sdlService } = setup();
+      accountTools.templateSdl.mockResolvedValue(ASSISTANT_TEST_SDL);
+      sdlService.generateManifest.mockResolvedValue({ ok: false, value: [] });
+
+      expect((await propose(service, "create_deployment", { templateId: "hello-world" })).cost).toBeNull();
     });
 
     it("takes a generated SDL with a name and runtime limit, and shows no count when screening does not answer", async () => {
@@ -795,10 +814,19 @@ describe(AssistantProposalService.name, () => {
     const bidController = mock<BidController>();
     const sdlService = mock<SdlService>();
     sdlService.parse.mockImplementation(sdl => ({ ok: true, value: yaml.raw(sdl) }));
+    sdlService.generateManifest.mockImplementation(async sdl => generateManifest(yaml.raw(sdl) as Parameters<typeof generateManifest>[0]));
     const accountTools = mock<AssistantAccountToolsService>();
     const bidTools = mock<AssistantBidToolsService>();
     bidTools.checkAvailability.mockResolvedValue(availabilityOf(2));
-    const service = new AssistantProposalService(deploymentController, deploymentSettingController, bidController, sdlService, accountTools, bidTools);
+    const service = new AssistantProposalService(
+      deploymentController,
+      deploymentSettingController,
+      bidController,
+      sdlService,
+      accountTools,
+      bidTools,
+      new PricingService()
+    );
 
     return { service, deploymentController, deploymentSettingController, bidController, sdlService, accountTools, bidTools };
   }

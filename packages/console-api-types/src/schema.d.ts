@@ -19436,6 +19436,10 @@ export interface operations {
                       }[];
                       /** @description Providers bid screening expects could bid on every group now, or null when screening did not answer. */
                       providersAbleToBid: number | null;
+                      cost?: {
+                        /** @description Typical provider prices for its CPU, memory and storage, or null when it requests GPUs. */
+                        estimatedUsdPerMonth: number | null;
+                      } | null;
                     }
                   | {
                       /** @enum {string} */
@@ -19893,6 +19897,10 @@ export interface operations {
                       }[];
                       /** @description Providers bid screening expects could bid on every group now, or null when screening did not answer. */
                       providersAbleToBid: number | null;
+                      cost?: {
+                        /** @description Typical provider prices for its CPU, memory and storage, or null when it requests GPUs. */
+                        estimatedUsdPerMonth: number | null;
+                      } | null;
                     }
                   | {
                       /** @enum {string} */

@@ -23,7 +23,7 @@ export class PricingService {
     return Array.isArray(specs) ? pricing : pricing[0];
   }
 
-  private getAkashPricing(cpu: number, memory: number, storage: number) {
+  getAkashPricing(cpu: number, memory: number, storage: number) {
     // Pricing obtained from https://github.com/akash-network/helm-charts/blob/main/charts/akash-provider/scripts/price_script_generic.sh
     const targetMemory = 1.25; // USD/GB-month
     const targetHDEphemeral = 0.08; // USD/GB-month
