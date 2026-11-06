@@ -140,6 +140,28 @@ describe(EmailSenderService.name, () => {
       expect(loggerService.info).toHaveBeenCalledWith(expect.objectContaining({ event: "EMAIL_SENT", notificationId: undefined }));
     });
 
+    it("leaves the subject out of the log for an email that carries a code", async () => {
+      const { service, loggerService } = await setup();
+      const code = faker.string.numeric(6);
+      const params = {
+        addresses: [faker.internet.email()],
+        subject: `${code} is your Akash Console verification code`,
+        content: faker.lorem.paragraph(),
+        userId: faker.string.uuid(),
+        code,
+        notificationId: `emailVerificationCode.${faker.string.uuid()}`
+      };
+
+      await service.send(params);
+
+      expect(loggerService.info).toHaveBeenCalledWith({
+        event: "EMAIL_SENT",
+        notificationId: params.notificationId,
+        userId: params.userId,
+        recipientCount: 1
+      });
+    });
+
     it("strips disallowed markup from the content", async () => {
       const { service, novu } = await setup();
 

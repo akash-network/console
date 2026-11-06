@@ -74,7 +74,7 @@ export class EmailSenderService {
       event: "EMAIL_SENT",
       notificationId,
       userId,
-      subject,
+      ...(!code && { subject }),
       recipientCount: addresses.length
     });
   }

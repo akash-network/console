@@ -90,6 +90,35 @@ describe(renderEmailLayout.name, () => {
     expect(html).not.toContain('class="code-box"');
   });
 
+  it("puts the verification code in a hidden preheader ahead of the card", () => {
+    const code = faker.string.numeric(6);
+    const { html } = setup({ code });
+
+    const preheader = html.match(/<div class="preheader" style="([^"]*)">Your verification code is ([^&<]*)/);
+    expect(preheader?.[1]).toContain("display:none");
+    expect(preheader?.[2]).toBe(code);
+    expect(html.indexOf('class="preheader"')).toBeLessThan(html.indexOf('class="card"'));
+  });
+
+  it("pads the preheader with invisible characters so the preview ends after the code", () => {
+    const code = faker.string.numeric(6);
+    const { html } = setup({ code });
+
+    const padding = html.match(new RegExp(`Your verification code is ${code}((?:&nbsp;&zwnj;)*)</div>`))?.[1] ?? "";
+    expect(padding.length / "&nbsp;&zwnj;".length).toBeGreaterThanOrEqual(80);
+  });
+
+  it("escapes html in the preheader code", () => {
+    const { html } = setup({ code: "<b>1</b>" });
+    expect(html).toContain("Your verification code is &lt;b&gt;1&lt;/b&gt;&nbsp;");
+  });
+
+  it("renders no preheader when there is no code", () => {
+    const { html } = setup({});
+    expect(html).not.toContain('class="preheader"');
+    expect(html).toMatch(/<body[^>]*>\s*<table/);
+  });
+
   it("stacks the buttons full width on a narrow screen", () => {
     const { html } = setup({ actions: [{ label: "Add credits", url: "https://console.akash.network/billing" }] });
 
