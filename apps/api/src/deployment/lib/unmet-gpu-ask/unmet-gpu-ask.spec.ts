@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import type { GpuAsk, GpuAskSource } from "./unmet-gpu-ask";
-import { classifyEmptyScreening, countGpus, findGpuAsks, findRegionArea, toAskToken, toDedupeKey } from "./unmet-gpu-ask";
+import { classifyEmptyScreening, countGpus, findGpuAsks, findRegionArea, MAX_ASKED_GPUS, toAskToken, toDedupeKey } from "./unmet-gpu-ask";
 
 describe("unmet gpu ask", () => {
   describe(findGpuAsks.name, () => {
@@ -56,6 +56,39 @@ describe("unmet gpu ask", () => {
       const source = aSource({ units: [aUnit({ gpus: 0, keys: ["vendor/nvidia/model/h100"] }), { count: 1 }] });
 
       expect(findGpuAsks(source)).toEqual([]);
+    });
+
+    it("drops an ask for more gpus than real demand could hold", () => {
+      const source = aSource({
+        units: [
+          aUnit({ gpus: MAX_ASKED_GPUS, keys: ["vendor/nvidia/model/h100"] }),
+          aUnit({ gpus: MAX_ASKED_GPUS, replicas: 1, keys: ["vendor/nvidia/model/a100"] })
+        ]
+      });
+      const overflowing = aSource({
+        units: [aUnit({ gpus: MAX_ASKED_GPUS, keys: ["vendor/nvidia/model/b200"] }), aUnit({ gpus: 1, keys: ["vendor/nvidia/model/b200"] })]
+      });
+
+      expect(findGpuAsks(source).map(ask => ask.model)).toEqual(["h100", "a100"]);
+      expect(findGpuAsks(overflowing)).toEqual([]);
+    });
+
+    it("skips a unit whose gpu count is not a safe integer", () => {
+      const source = aSource({ units: [aUnit({ gpus: 2 ** 40, replicas: 2 ** 20, keys: ["vendor/nvidia/model/h100"] })] });
+
+      expect(findGpuAsks(source)).toEqual([]);
+    });
+
+    it("drops a vendor or model name longer than its stored column", () => {
+      const source = aSource({
+        units: [
+          aUnit({ gpus: 1, keys: [`vendor/${"v".repeat(65)}/model/h100`] }),
+          aUnit({ gpus: 1, keys: [`vendor/nvidia/model/${"m".repeat(256)}`] }),
+          aUnit({ gpus: 1, keys: [`vendor/${"v".repeat(64)}/model/${"m".repeat(255)}`] })
+        ]
+      });
+
+      expect(findGpuAsks(source)).toEqual([{ vendor: "v".repeat(64), model: "m".repeat(255), gpuCount: 1, regionArea: null }]);
     });
   });
 

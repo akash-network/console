@@ -39,6 +39,12 @@ const GPU_ATTRIBUTE_KEY = /^vendor\/([^/]+)(?:\/model\/([^/]+))?/;
 
 const ANY_GPU: AskedGpuModel = { vendor: null, model: null };
 
+/** Asks above this are not real demand, and they would overflow the stored int4 count. */
+export const MAX_ASKED_GPUS = 10_000;
+
+const MAX_VENDOR_LENGTH = 64;
+const MAX_MODEL_LENGTH = 255;
+
 /** A unit naming several models accepts any of them, so its gpus count toward each model it names. */
 export function findGpuAsks(source: GpuAskSource): GpuAsk[] {
   const regionArea = findRegionArea(source);
@@ -46,9 +52,9 @@ export function findGpuAsks(source: GpuAskSource): GpuAsk[] {
 
   for (const unit of source.resources) {
     const gpuCount = toGpuCount(unit);
-    if (gpuCount <= 0) continue;
+    if (!Number.isSafeInteger(gpuCount) || gpuCount <= 0) continue;
 
-    for (const { vendor, model } of findAskedModels(unit.resource?.gpu?.attributes ?? [])) {
+    for (const { vendor, model } of findAskedModels(unit.resource?.gpu?.attributes ?? []).filter(fitsStoredColumns)) {
       const key = `${vendor ?? "*"}/${model ?? "*"}`;
       const ask = asksByModel.get(key) ?? { vendor, model, gpuCount: 0, regionArea };
       ask.gpuCount += gpuCount;
@@ -56,7 +62,7 @@ export function findGpuAsks(source: GpuAskSource): GpuAsk[] {
     }
   }
 
-  return [...asksByModel.values()];
+  return [...asksByModel.values()].filter(ask => ask.gpuCount <= MAX_ASKED_GPUS);
 }
 
 export function countGpus({ resources }: GpuAskSource): number {
@@ -100,6 +106,10 @@ function toAskedModel(key: string): AskedGpuModel {
 
 function withoutWildcard(name: string | undefined): string | null {
   return name && !name.includes("*") ? name.toLowerCase() : null;
+}
+
+function fitsStoredColumns({ vendor, model }: AskedGpuModel): boolean {
+  return (vendor?.length ?? 0) <= MAX_VENDOR_LENGTH && (model?.length ?? 0) <= MAX_MODEL_LENGTH;
 }
 
 function sha256(value: string): string {

@@ -5,6 +5,8 @@ import { container } from "tsyringe";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { startJobQueues } from "@src/app/providers/jobs.provider";
+import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
+import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { BID_SCREENING_CONFIG } from "@src/bid-screening/providers/config.provider";
 import { JOB_NAME } from "@src/core";
 import { GpuBidCheckRepository } from "@src/deployment/repositories/gpu-bid-check/gpu-bid-check.repository";
@@ -12,6 +14,7 @@ import { RecordUnmetGpuScreening } from "@src/deployment/services/record-unmet-g
 import { app } from "@src/rest-app";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { findJobRows } from "@test/services/job-queue-harness";
 
 describe("Bid screening API", () => {
@@ -82,7 +85,10 @@ describe("Bid screening API", () => {
       const model = `h100-${faker.string.alphanumeric({ length: 8, casing: "lower" })}`;
       nock(PROVIDER_INVENTORY_API_URL).post("/v1/bid-screening").reply(200, { providers: [] });
 
-      const response = await screenProviders({ body: aGpuRequest(`vendor/nvidia/model/${model}`, { gpus: 4, region: "eu-central" }) });
+      const response = await screenProviders({
+        body: aGpuRequest(`vendor/nvidia/model/${model}`, { gpus: 4, region: "eu-central" }),
+        apiKey: await seedApiKey()
+      });
 
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({ providers: [] });
@@ -97,13 +103,23 @@ describe("Bid screening API", () => {
       ]);
     });
 
+    it("answers an empty screening to a caller who is not signed in without counting it as unmet demand", async () => {
+      const model = `h100-${faker.string.alphanumeric({ length: 8, casing: "lower" })}`;
+      nock(PROVIDER_INVENTORY_API_URL).post("/v1/bid-screening").reply(200, { providers: [] });
+
+      const response = await screenProviders({ body: aGpuRequest(`vendor/nvidia/model/${model}`) });
+
+      expect(await response.json()).toEqual({ providers: [] });
+      expect(await findUnmetScreeningJobs(model)).toEqual([]);
+    });
+
     it("queues no unmet demand when screening lists a provider for the gpu ask", async () => {
       const model = `h100-${faker.string.alphanumeric({ length: 8, casing: "lower" })}`;
       nock(PROVIDER_INVENTORY_API_URL)
         .post("/v1/bid-screening")
         .reply(200, { providers: [{ owner: createAkashAddress(), hostUri: "https://provider:8443" }] });
 
-      await screenProviders({ body: aGpuRequest(`vendor/nvidia/model/${model}`) });
+      await screenProviders({ body: aGpuRequest(`vendor/nvidia/model/${model}`), apiKey: await seedApiKey() });
 
       expect(await findUnmetScreeningJobs(model)).toEqual([]);
     });
@@ -162,10 +178,24 @@ describe("Bid screening API", () => {
     };
   }
 
-  function screenProviders(input?: { signal?: AbortSignal; body?: unknown }) {
+  async function seedApiKey() {
+    const user = await seedUser();
+    const apiKeyGenerator = container.resolve(ApiKeyGeneratorService);
+    const apiKey = apiKeyGenerator.generateApiKey();
+    await container.resolve(ApiKeyRepository).create({
+      userId: user.id,
+      name: faker.company.name(),
+      hashedKey: apiKeyGenerator.hashApiKeySha256(apiKey),
+      keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey)
+    });
+
+    return apiKey;
+  }
+
+  function screenProviders(input?: { signal?: AbortSignal; body?: unknown; apiKey?: string }) {
     return app.request("/v1/bid-screening", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(input?.apiKey ? { "x-api-key": input.apiKey } : {}) },
       body: JSON.stringify(input?.body ?? { resources: [], timezone: "UTC" }),
       signal: input?.signal
     });
