@@ -37,6 +37,32 @@ describe(UnmetDemandEventRepository.name, () => {
     });
   });
 
+  describe("summarizeSince", () => {
+    it("counts each kind and adds up the gpus asked per model and area since the cutoff", async () => {
+      const { repository, anEvent } = setup();
+      const model = `h100-${faker.string.alphanumeric({ length: 8, casing: "lower" })}`;
+      const since = new Date("2026-11-01T00:00:00Z");
+      await repository.insertMany([
+        anEvent({ model, kind: "no_fit", gpuCount: 8, occurredAt: since }),
+        anEvent({ model, kind: "no_fit", gpuCount: 4 }),
+        anEvent({ model, kind: "missing_gpu", gpuCount: 1 }),
+        anEvent({ model, kind: "zero_bid", gpuCount: 2 }),
+        anEvent({ model, kind: "zero_bid", gpuCount: 2, regionArea: "eu" }),
+        anEvent({ model, kind: "no_fit", gpuCount: 64, occurredAt: new Date("2026-10-31T23:59:59Z") })
+      ]);
+
+      const summaries = await repository.summarizeSince(since);
+
+      expect(summaries.filter(summary => summary.model === model)).toEqual(
+        expect.arrayContaining([
+          { vendor: "nvidia", model, regionArea: null, noFit: 2, missingGpu: 1, zeroBid: 1, gpusAsked: 15 },
+          { vendor: "nvidia", model, regionArea: "eu", noFit: 0, missingGpu: 0, zeroBid: 1, gpusAsked: 2 }
+        ])
+      );
+      expect(summaries.filter(summary => summary.model === model)).toHaveLength(2);
+    });
+  });
+
   function setup() {
     const repository = container.resolve(UnmetDemandEventRepository);
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);

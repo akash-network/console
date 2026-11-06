@@ -3,6 +3,7 @@ import { approveAffiliateRouter, revokeAffiliateRouter } from "@src/affiliate";
 import type { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { leasesDurationInternalRouter } from "@src/dashboard";
 import { internalDeploymentNameRouter } from "@src/deployment/routes/deployment-name/internal-deployment-name.router";
+import { internalUnmetDemandRouter } from "@src/deployment/routes/unmet-demand/internal-unmet-demand.router";
 import { getGpuPricesInternalRouter, internalGpuMarketRouter, listGpuModelsInternalRouter, listGpusInternalRouter } from "@src/gpu";
 import { internalHardwareRequestRouter } from "@src/hardware-request/routes/internal-hardware-request.router";
 import emailDomainCheck from "./email-domain-check";
@@ -14,6 +15,7 @@ export const internalOpenApiHonoHandlers: OpenApiHonoHandler[] = [
   internalDeploymentNameRouter,
   internalHardwareRequestRouter,
   internalGpuMarketRouter,
+  internalUnmetDemandRouter,
   approveAffiliateRouter,
   revokeAffiliateRouter
 ];
