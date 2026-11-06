@@ -83,7 +83,8 @@ describe(AssistantTurnService.name, () => {
         messages: [{ role: "user", content: "hi" }],
         tools: assistantChatTools(),
         tool_choice: "auto",
-        max_completion_tokens: MAX_COMPLETION_TOKENS
+        max_completion_tokens: MAX_COMPLETION_TOKENS,
+        reasoning_effort: "medium"
       },
       { signal: expect.any(AbortSignal), onContentDelta: expect.any(Function) }
     );

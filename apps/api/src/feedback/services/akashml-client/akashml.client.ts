@@ -43,6 +43,7 @@ export interface ChatCompletionRequest {
   response_format?: { type: "json_object" } | { type: "json_schema"; json_schema: { name: string; strict: boolean; schema: Record<string, unknown> } };
   temperature?: number;
   max_completion_tokens?: number;
+  reasoning_effort?: "low" | "medium" | "high";
 }
 
 export interface ChatCompletion {

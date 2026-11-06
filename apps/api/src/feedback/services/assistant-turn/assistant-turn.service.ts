@@ -163,7 +163,8 @@ export class AssistantTurnService {
         messages,
         tools: assistantChatTools(),
         tool_choice: isFinalRound ? "none" : "auto",
-        max_completion_tokens: MAX_COMPLETION_TOKENS
+        max_completion_tokens: MAX_COMPLETION_TOKENS,
+        reasoning_effort: this.config.ASSISTANT_REASONING_EFFORT
       },
       { signal, onContentDelta }
     );
