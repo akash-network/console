@@ -7,6 +7,7 @@ import { WalletController } from "@src/billing/controllers/wallet/wallet.control
 import { WalletSettingController } from "@src/billing/controllers/wallet-settings/wallet-settings.controller";
 import { DeploymentController } from "@src/deployment/controllers/deployment/deployment.controller";
 import { tokenize } from "@src/feedback/lib/assistant-knowledge/assistant-knowledge";
+import { AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
 import type { ReadToolArguments } from "@src/feedback/lib/assistant-tools/assistant-tool-arguments";
 import { CONSOLE_TEMPLATES, consoleTemplateById } from "@src/feedback/lib/console-templates/console-templates";
 import { TemplateController } from "@src/template/controllers/template/template.controller";
@@ -124,14 +125,22 @@ export class AssistantAccountToolsService {
       : templates;
 
     return {
-      templates: matches
-        .slice(0, LISTED_TEMPLATES_LIMIT)
-        .map(({ id, name, category, source, summary, gpu }) => ({ id, name, category, source, summary, gpu }))
+      templates: matches.slice(0, LISTED_TEMPLATES_LIMIT).map(({ id, name, category, source, summary, gpu }) => ({ id, name, category, source, summary, gpu }))
     };
   }
 
   async templateSdl(id: string): Promise<string> {
-    return consoleTemplateById(id)?.sdl ?? (await this.templateController.getTemplateById(id)).data.deploy;
+    return consoleTemplateById(id)?.sdl ?? (await this.#galleryTemplateSdl(id));
+  }
+
+  async #galleryTemplateSdl(id: string): Promise<string> {
+    try {
+      return (await this.templateController.getTemplateById(id)).data.deploy;
+    } catch (error) {
+      if (isHttpError(error) && error.status === 404)
+        throw new AssistantToolError(`No template has id ${JSON.stringify(id)}. Call list_templates or pass an sdl.`);
+      throw error;
+    }
   }
 
   /** Parsed once per gallery build, since the gallery is large and only changes when its cache is rebuilt. */

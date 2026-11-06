@@ -24,13 +24,13 @@ const EnvName = z
   .max(MAX_NAME_LENGTH);
 
 const TemplateId = TemplateIdSchema.max(MAX_TEMPLATE_ID_LENGTH).openapi({ description: "An id list_templates returned" });
-const GeneratedSdl = z.string().max(MAX_GENERATED_SDL_LENGTH);
+const GeneratedSdl = z.string().max(MAX_GENERATED_SDL_LENGTH).openapi({ description: "Used instead of templateId when both are given" });
 
-function givesEitherTemplateOrSdl({ templateId, sdl }: { templateId?: string; sdl?: string }): boolean {
-  return !!templateId !== !!sdl;
+function givesTemplateOrSdl({ templateId, sdl }: { templateId?: string; sdl?: string }): boolean {
+  return !!templateId || !!sdl;
 }
 
-const EITHER_TEMPLATE_OR_SDL = { message: "Give either a templateId or an sdl, not both" };
+const TEMPLATE_OR_SDL = { message: "Give a templateId or an sdl" };
 
 export const READ_TOOL_ARGUMENTS = {
   list_deployments: z.object({
@@ -43,7 +43,7 @@ export const READ_TOOL_ARGUMENTS = {
   get_lease_close_reason: z.object({ dseq: Dseq }),
   list_templates: z.object({ query: z.string().max(MAX_TEXT_LENGTH).optional().openapi({ description: "Words to match, such as a model or app name" }) }),
   search_docs: z.object({ query: ShortText }),
-  check_availability: z.object({ templateId: TemplateId.optional(), sdl: GeneratedSdl.optional() }).refine(givesEitherTemplateOrSdl, EITHER_TEMPLATE_OR_SDL)
+  check_availability: z.object({ templateId: TemplateId.optional(), sdl: GeneratedSdl.optional() }).refine(givesTemplateOrSdl, TEMPLATE_OR_SDL)
 };
 
 export const CLIENT_TOOL_ARGUMENTS = {
@@ -86,7 +86,7 @@ export const PROPOSAL_TOOL_ARGUMENTS = {
       name: z.string().trim().min(1).max(MAX_DEPLOYMENT_NAME_LENGTH).optional(),
       runtimeLimitHours: z.number().int().min(1).max(MAX_RUNTIME_LIMIT_INCREMENT_HOURS).optional()
     })
-    .refine(givesEitherTemplateOrSdl, EITHER_TEMPLATE_OR_SDL),
+    .refine(givesTemplateOrSdl, TEMPLATE_OR_SDL),
   choose_bid: z.object({
     dseq: Dseq,
     choices: z

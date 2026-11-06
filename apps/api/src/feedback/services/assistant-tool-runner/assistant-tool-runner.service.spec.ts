@@ -203,6 +203,34 @@ describe(AssistantToolRunnerService.name, () => {
       });
     });
 
+    it("screens the generated SDL at the price it would be proposed with when the model also names a template", async () => {
+      const { runner, accountTools, bidTools, proposalService } = setup();
+      proposalService.pricedSdl.mockReturnValue("priced sdl");
+      bidTools.checkAvailability.mockResolvedValue({ providersAbleToBid: 2, groups: [], gpuModelsWithFreeCapacity: null });
+      const context = { isTrialing: false, withheldTemplateSdls: [] };
+
+      const outcome = await runner.run(call("check_availability", { templateId: "hello-world", sdl: "generated sdl" }), context);
+
+      expect(accountTools.templateSdl).not.toHaveBeenCalled();
+      expect(proposalService.pricedSdl).toHaveBeenCalledWith("generated sdl", context);
+      expect(bidTools.checkAvailability).toHaveBeenCalledWith("priced sdl", { isTrialing: false });
+      expect(outcome).toMatchObject({ ok: true, summary: "Checked which providers could bid" });
+    });
+
+    it("refuses a call that names neither a template nor an SDL", async () => {
+      const { runner, bidTools } = setup();
+
+      const outcome = await runner.run(call("check_availability", {}), { isTrialing: false, withheldTemplateSdls: [] });
+
+      expect(outcome).toEqual({
+        kind: "result",
+        content: toolContentOf("check_availability", { error: "Invalid arguments: (root) Give a templateId or an sdl" }),
+        summary: "Could not check which providers could bid",
+        ok: false
+      });
+      expect(bidTools.checkAvailability).not.toHaveBeenCalled();
+    });
+
     it("screens a generated SDL at the price it would be proposed with, as a paid account would when the status is unknown", async () => {
       const { runner, accountTools, bidTools, proposalService } = setup();
       proposalService.pricedSdl.mockReturnValue("priced sdl");
@@ -292,15 +320,66 @@ describe(AssistantToolRunnerService.name, () => {
       [call("get_deployment", "{not json"), "The arguments are not valid JSON."],
       [call("propose_send_manifest_again", "[]"), "Invalid arguments: (root) Expected object, received array"],
       [call("get_deployment", { dseq: "abc" }), "Invalid arguments: dseq A dseq is a positive integer"],
-      [call("propose_create_deployment", { templateId: "a", sdl: "b" }), "Invalid arguments: (root) Give either a templateId or an sdl, not both"]
-    ])("reports %o back to the model", async (toolCall, error) => {
-      const { runner } = setup();
+      [call("propose_create_deployment", {}), "Invalid arguments: (root) Give a templateId or an sdl"]
+    ])("reports %o back to the model and logs the rejection without the arguments", async (toolCall, error) => {
+      const { runner, logger } = setup();
 
-      expect(await runner.run(toolCall, { isTrialing: false, withheldTemplateSdls: [] })).toEqual({
+      expect(await runner.run(toolCall, { isTrialing: false, withheldTemplateSdls: [] })).toMatchObject({
         kind: "result",
         content: toolContentOf(toolCall.function.name, { error }),
-        summary: `Could not run ${toolCall.function.name}`,
         ok: false
+      });
+      expect(logger.info).toHaveBeenCalledWith({ event: "ASSISTANT_TOOL_REJECTED", tool: toolCall.function.name, reason: error });
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["list_deployments", "Could not read your deployments"],
+      ["get_deployment", "Could not read the deployment"],
+      ["get_bids", "Could not read the bids"],
+      ["get_balance_and_spend", "Could not read your balance and spend"],
+      ["get_lease_close_reason", "Could not read why the deployment closed"],
+      ["list_templates", "Could not search the template gallery"],
+      ["search_docs", "Could not search the Console docs"],
+      ["check_availability", "Could not check which providers could bid"],
+      ["read_logs", "Could not read the logs"],
+      ["read_events", "Could not read the events"],
+      ["suggest_live_help", "Could not suggest live help"],
+      ["propose_send_manifest_again", "Could not propose send manifest again"],
+      ["open_shell", "Could not use a tool the assistant does not have"],
+      ["toString", "Could not use a tool the assistant does not have"]
+    ])("summarizes a refused %s in words the user reads", async (name, summary) => {
+      const { runner } = setup();
+
+      expect(await runner.run(call(name, "{not json"), { isTrialing: false, withheldTemplateSdls: [] })).toMatchObject({ summary, ok: false });
+    });
+
+    it("redacts secrets from the logged rejection reason", async () => {
+      const { runner, proposalService, logger } = setup();
+      proposalService.propose.mockRejectedValue(new AssistantToolError("The SDL is not valid: password=hunter2"));
+
+      await runner.run(call("propose_send_manifest_again", { dseq: "1" }), { isTrialing: false, withheldTemplateSdls: [] });
+
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "ASSISTANT_TOOL_REJECTED",
+        tool: "propose_send_manifest_again",
+        reason: `The SDL is not valid: password=${REDACTED}`
+      });
+    });
+
+    it("tells the model the SDL lines around a YAML error but keeps them out of the logged reason", async () => {
+      const { runner, bidTools, logger } = setup();
+      const rejection =
+        "The SDL is not valid: bad indentation of a mapping entry (6:6)\n\n 5 |       - DATABASE_URL=postgres://db.internal/app\n 6 |      bad: [";
+      bidTools.checkAvailability.mockRejectedValue(new AssistantToolError(rejection));
+
+      const outcome = await runner.run(call("check_availability", { sdl: "services: {}" }), { isTrialing: false, withheldTemplateSdls: [] });
+
+      expect(outcome).toMatchObject({ content: toolContentOf("check_availability", { error: rejection }), ok: false });
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "ASSISTANT_TOOL_REJECTED",
+        tool: "check_availability",
+        reason: "The SDL is not valid: bad indentation of a mapping entry (6:6)"
       });
     });
 
@@ -329,6 +408,7 @@ describe(AssistantToolRunnerService.name, () => {
         content: toolContentOf("get_deployment", { error: "The tool failed. Tell the user this data could not be read right now." })
       });
       expect(logger.warn).toHaveBeenCalledWith({ event: "ASSISTANT_TOOL_FAILED", tool: "get_deployment", error });
+      expect(logger.info).not.toHaveBeenCalled();
     });
   });
 

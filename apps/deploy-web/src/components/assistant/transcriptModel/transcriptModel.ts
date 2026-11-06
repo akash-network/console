@@ -9,8 +9,13 @@ import type {
 
 export interface AssistantReadChip {
   id: string;
+  tool: string;
   label: string;
   ok: boolean;
+}
+
+export interface AssistantVisibleReadChip extends AssistantReadChip {
+  retried: boolean;
 }
 
 export interface AssistantProposal {
@@ -46,6 +51,21 @@ const TOOL_NAME_VERB = /^(get|list|read|search)_/;
 
 const PROPOSAL_TOOL_PREFIX = "propose_";
 
+const FAILED_READ_LABELS: Record<string, string> = {
+  list_deployments: "Could not read your deployments",
+  get_deployment: "Could not read the deployment",
+  get_bids: "Could not read the bids",
+  get_balance_and_spend: "Could not read your balance and spend",
+  get_lease_close_reason: "Could not read why the deployment closed",
+  list_templates: "Could not search the template gallery",
+  search_docs: "Could not search the Console docs",
+  check_availability: "Could not check which providers could bid",
+  read_logs: "Could not read the logs",
+  read_events: "Could not read the events"
+};
+
+const UNKNOWN_FAILED_READ_LABEL = "Could not finish a check";
+
 export function createTranscriptMessage(id: string, role: AssistantTranscriptMessage["role"], text = ""): AssistantTranscriptMessage {
   return { id, role, text, reads: [], proposals: [], liveHelpReason: null, redactedSecretCount: 0 };
 }
@@ -68,12 +88,20 @@ export function applyAssistantEvent(message: AssistantTranscriptMessage, event: 
       return { ...message, text: message.text + event.text };
     case "tool_started":
       if (isProposalTool(event.name)) return message;
-      return { ...message, reads: [...message.reads, { id: event.toolCallId, label: readLabelOfTool(event.name), ok: true }] };
+      return { ...message, reads: [...message.reads, { id: event.toolCallId, tool: event.name, label: readLabelOfTool(event.name), ok: true }] };
     case "tool_result_summary":
       if (isProposalTool(event.name)) return message;
-      return { ...message, reads: upsertRead(message.reads, { id: event.toolCallId, label: event.summary || readLabelOfTool(event.name), ok: event.ok }) };
+      return {
+        ...message,
+        reads: upsertRead(message.reads, {
+          id: event.toolCallId,
+          tool: event.name,
+          label: event.ok ? event.summary || readLabelOfTool(event.name) : failedReadLabelOf(event.name),
+          ok: event.ok
+        })
+      };
     case "client_tool_request":
-      return { ...message, reads: [...message.reads, { id: event.toolCallId, label: readLabelOfClientTool(event), ok: true }] };
+      return { ...message, reads: [...message.reads, { id: event.toolCallId, tool: event.name, label: readLabelOfClientTool(event), ok: true }] };
     case "action_proposal":
       return { ...message, proposals: [...message.proposals, { proposalId: event.proposalId, action: event.action, diagnosis: event.diagnosis }] };
     case "live_help_suggested":
@@ -87,6 +115,16 @@ export function readLabelOfClientTool(request: Pick<AssistantClientToolRequest, 
   const kind = request.name === "read_logs" ? "logs" : "events";
   const scope = [request.arguments.service, `last ${request.arguments.tailLines ?? DEFAULT_TAIL_LINES} lines`].filter(Boolean).join(", ");
   return `${kind} (${scope})`;
+}
+
+/** Drops a failed read the same tool later got right in this answer, and marks that success as retried. */
+export function visibleReadsOf(reads: AssistantReadChip[]): AssistantVisibleReadChip[] {
+  return reads.flatMap((read, index) => {
+    const isSameTool = (other: AssistantReadChip) => other.tool === read.tool;
+    if (!read.ok && reads.slice(index + 1).some(other => isSameTool(other) && other.ok)) return [];
+
+    return [{ ...read, retried: read.ok && reads.slice(0, index).some(other => isSameTool(other) && !other.ok) }];
+  });
 }
 
 export function tailLinesOf(request: Pick<AssistantClientToolRequest, "arguments">): number {
@@ -108,6 +146,11 @@ function isProposalTool(name: string): boolean {
 
 function readLabelOfTool(name: string): string {
   return name.replace(TOOL_NAME_VERB, "").replace(/_/g, " ");
+}
+
+/** Worded here rather than taken from the api's summary, which older api versions filled with the raw tool name. */
+function failedReadLabelOf(tool: string): string {
+  return Object.hasOwn(FAILED_READ_LABELS, tool) ? FAILED_READ_LABELS[tool] : UNKNOWN_FAILED_READ_LABEL;
 }
 
 function upsertRead(reads: AssistantReadChip[], read: AssistantReadChip): AssistantReadChip[] {

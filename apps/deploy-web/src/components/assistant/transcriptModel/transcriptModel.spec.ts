@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { AssistantAction, AssistantStreamEvent } from "@src/types/assistant";
-import type { AssistantTranscriptMessage } from "./transcriptModel";
+import type { AssistantReadChip, AssistantTranscriptMessage } from "./transcriptModel";
 import {
   applyAssistantEvent,
   applyTurnEvent,
@@ -9,7 +9,8 @@ import {
   historyOf,
   MAX_HISTORY_MESSAGES,
   readLabelOfClientTool,
-  tailLinesOf
+  tailLinesOf,
+  visibleReadsOf
 } from "./transcriptModel";
 
 describe("transcriptModel", () => {
@@ -23,7 +24,7 @@ describe("transcriptModel", () => {
     it("adds a read chip named after the tool when a tool starts", () => {
       const message = applyAssistantEvent(answer(), { type: "tool_started", toolCallId: "t-1", name: "get_lease_close_reason" });
 
-      expect(message.reads).toEqual([{ id: "t-1", label: "lease close reason", ok: true }]);
+      expect(message.reads).toEqual([{ id: "t-1", tool: "get_lease_close_reason", label: "lease close reason", ok: true }]);
     });
 
     it("replaces the chip with the summary of what the tool read", () => {
@@ -33,17 +34,36 @@ describe("transcriptModel", () => {
         type: "tool_result_summary",
         toolCallId: "t-1",
         name: "get_bids",
-        ok: false,
-        summary: "bids, GPU availability"
+        ok: true,
+        summary: "Read the bids on deployment 42"
       });
 
-      expect(message.reads).toEqual([{ id: "t-1", label: "bids, GPU availability", ok: false }]);
+      expect(message.reads).toEqual([{ id: "t-1", tool: "get_bids", label: "Read the bids on deployment 42", ok: true }]);
+    });
+
+    it.each([
+      ["list_deployments", "Could not read your deployments"],
+      ["get_deployment", "Could not read the deployment"],
+      ["get_bids", "Could not read the bids"],
+      ["get_balance_and_spend", "Could not read your balance and spend"],
+      ["get_lease_close_reason", "Could not read why the deployment closed"],
+      ["list_templates", "Could not search the template gallery"],
+      ["search_docs", "Could not search the Console docs"],
+      ["check_availability", "Could not check which providers could bid"],
+      ["read_logs", "Could not read the logs"],
+      ["read_events", "Could not read the events"],
+      ["open_shell", "Could not finish a check"],
+      ["toString", "Could not finish a check"]
+    ])("words a failed %s for the user instead of naming the tool", (name, label) => {
+      const message = applyAssistantEvent(answer(), { type: "tool_result_summary", toolCallId: "t-1", name, ok: false, summary: `Could not run ${name}` });
+
+      expect(message.reads).toEqual([{ id: "t-1", tool: name, label, ok: false }]);
     });
 
     it("keeps the tool name when the summary is empty, and adds a chip for a summary of a tool it never saw start", () => {
       const message = applyAssistantEvent(answer(), { type: "tool_result_summary", toolCallId: "t-2", name: "search_docs", ok: true, summary: "" });
 
-      expect(message.reads).toEqual([{ id: "t-2", label: "docs", ok: true }]);
+      expect(message.reads).toEqual([{ id: "t-2", tool: "search_docs", label: "docs", ok: true }]);
     });
 
     it("leaves the other chips alone when a summary arrives", () => {
@@ -67,7 +87,7 @@ describe("transcriptModel", () => {
 
       const message = events.reduce(applyAssistantEvent, answer());
 
-      expect(message.reads).toEqual([{ id: "t-1", label: "templates", ok: true }]);
+      expect(message.reads).toEqual([{ id: "t-1", tool: "list_templates", label: "templates", ok: true }]);
     });
 
     it("adds a chip saying what the browser reads for a client tool", () => {
@@ -79,7 +99,7 @@ describe("transcriptModel", () => {
         maxLength: 16000
       });
 
-      expect(message.reads).toEqual([{ id: "t-3", label: "logs (web, last 100 lines)", ok: true }]);
+      expect(message.reads).toEqual([{ id: "t-3", tool: "read_logs", label: "logs (web, last 100 lines)", ok: true }]);
     });
 
     it("collects proposed actions", () => {
@@ -111,6 +131,43 @@ describe("transcriptModel", () => {
       expect(applyAssistantEvent(message, { type: "done", reason: "stop" })).toBe(message);
       expect(applyAssistantEvent(message, { type: "error", code: "assistant_error", message: "x" })).toBe(message);
     });
+  });
+
+  describe(visibleReadsOf.name, () => {
+    it("keeps only the success of a tool that failed and was retried, marked as retried", () => {
+      const reads = [
+        read({ id: "t-1", tool: "list_templates" }),
+        read({ id: "t-2", tool: "check_availability", ok: false }),
+        read({ id: "t-3", tool: "check_availability" })
+      ];
+
+      expect(visibleReadsOf(reads)).toEqual([
+        { ...reads[0], retried: false },
+        { ...reads[2], retried: true }
+      ]);
+    });
+
+    it("keeps a failure the tool never got right in the answer", () => {
+      const reads = [read({ id: "t-1", tool: "check_availability", ok: false }), read({ id: "t-2", tool: "search_docs" })];
+
+      expect(visibleReadsOf(reads)).toEqual([
+        { ...reads[0], retried: false },
+        { ...reads[1], retried: false }
+      ]);
+    });
+
+    it("keeps a failure that came after the tool's last success", () => {
+      const reads = [read({ id: "t-1", tool: "get_bids" }), read({ id: "t-2", tool: "get_bids", ok: false })];
+
+      expect(visibleReadsOf(reads)).toEqual([
+        { ...reads[0], retried: false },
+        { ...reads[1], retried: false }
+      ]);
+    });
+
+    function read(input: Partial<AssistantReadChip> & Pick<AssistantReadChip, "id" | "tool">): AssistantReadChip {
+      return { label: input.tool, ok: true, ...input };
+    }
   });
 
   describe(readLabelOfClientTool.name, () => {

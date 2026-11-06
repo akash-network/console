@@ -7,6 +7,7 @@ import type { WalletController } from "@src/billing/controllers/wallet/wallet.co
 import type { WalletSettingController } from "@src/billing/controllers/wallet-settings/wallet-settings.controller";
 import type { WalletSettingsResponse } from "@src/billing/http-schemas/wallet.schema";
 import type { DeploymentController } from "@src/deployment/controllers/deployment/deployment.controller";
+import { AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
 import type { TemplateController } from "@src/template/controllers/template/template.controller";
 import type { Template } from "@src/template/types/template";
 import type { UserOutput } from "@src/user/repositories";
@@ -197,6 +198,21 @@ describe(AssistantAccountToolsService.name, () => {
 
       expect(await service.templateSdl("akash-network-awesome-akash-dart")).toBe("gallery sdl");
       expect(templateController.getTemplateById).toHaveBeenCalledWith("akash-network-awesome-akash-dart");
+    });
+
+    it("tells the model how to recover from a template id that does not exist", async () => {
+      const { service, templateController } = setup();
+      templateController.getTemplateById.mockRejectedValue(createError(404, "Template not found"));
+
+      await expect(service.templateSdl("nginx")).rejects.toThrow(new AssistantToolError('No template has id "nginx". Call list_templates or pass an sdl.'));
+    });
+
+    it("lets other failures to read a template through", async () => {
+      const { service, templateController } = setup();
+      const error = createError(503, "Gallery unavailable");
+      templateController.getTemplateById.mockRejectedValue(error);
+
+      await expect(service.templateSdl("nginx")).rejects.toBe(error);
     });
   });
 

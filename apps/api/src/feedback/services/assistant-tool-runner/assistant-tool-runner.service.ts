@@ -13,6 +13,7 @@ import {
   type ClientToolArguments,
   type ClientToolName,
   LIVE_HELP_TOOL_ARGUMENTS,
+  type LIVE_HELP_TOOL_NAME,
   PROPOSAL_TOOL_ARGUMENTS,
   READ_TOOL_ARGUMENTS,
   type ReadToolArguments,
@@ -84,6 +85,27 @@ function summaryOf(name: ReadToolName, args: Record<string, unknown>): string {
   return summaries[name];
 }
 
+const FAILED_SUMMARIES: Record<ReadToolName | ClientToolName | typeof LIVE_HELP_TOOL_NAME, string> = {
+  list_deployments: "Could not read your deployments",
+  get_deployment: "Could not read the deployment",
+  get_bids: "Could not read the bids",
+  get_balance_and_spend: "Could not read your balance and spend",
+  get_lease_close_reason: "Could not read why the deployment closed",
+  list_templates: "Could not search the template gallery",
+  search_docs: "Could not search the Console docs",
+  check_availability: "Could not check which providers could bid",
+  read_logs: "Could not read the logs",
+  read_events: "Could not read the events",
+  suggest_live_help: "Could not suggest live help"
+};
+
+function failedSummaryOf(name: string): string {
+  if (Object.hasOwn(FAILED_SUMMARIES, name)) return FAILED_SUMMARIES[name as keyof typeof FAILED_SUMMARIES];
+
+  const type = proposalActionTypeOf(name);
+  return type ? `Could not propose ${type.replaceAll("_", " ")}` : "Could not use a tool the assistant does not have";
+}
+
 /** Evidence is quoted from logs and events the user's workload wrote, so it is redacted like any tool result before the user or the team sees it. */
 function redactedDiagnosisOf(diagnosis: unknown): AssistantDiagnosis | undefined {
   const parsed = DiagnosisArgumentSchema.parse({ diagnosis }).diagnosis;
@@ -91,6 +113,19 @@ function redactedDiagnosisOf(diagnosis: unknown): AssistantDiagnosis | undefined
 
   const evidence = parsed.evidence.filter(line => line.trim());
   return evidence.length > 0 ? { summary: redactSecrets(parsed.summary), evidence: evidence.map(redactSecrets) } : undefined;
+}
+
+function rejectionOf(error: unknown): string | null {
+  if (error instanceof ZodError) return `Invalid arguments: ${error.issues.map(issue => `${issue.path.join(".") || "(root)"} ${issue.message}`).join("; ")}`;
+  if (error instanceof AssistantToolError) return error.message;
+  if (isHttpError(error) && error.status < 500) return error.message;
+
+  return null;
+}
+
+/** A YAML parse error quotes the SDL lines around the fault after its first line, so only that first line reaches the logs. */
+function loggedRejectionOf(rejection: string): string {
+  return redactSecrets(rejection.split("\n", 1)[0]);
 }
 
 function parsedArguments(call: ChatToolCall): unknown {
@@ -130,7 +165,7 @@ export class AssistantToolRunnerService {
         };
       }
 
-      return { kind: "result", content: toolContentOf(name, { error: this.#reasonOf(name, error) }), summary: `Could not run ${name}`, ok: false };
+      return { kind: "result", content: toolContentOf(name, { error: this.#reasonOf(name, error) }), summary: failedSummaryOf(name), ok: false };
     }
   }
 
@@ -199,16 +234,18 @@ export class AssistantToolRunnerService {
   }
 
   async #checkAvailability({ templateId, sdl }: ReadToolArguments<"check_availability">, context: ProposalContext) {
-    const checkedSdl = templateId ? await this.accountTools.templateSdl(templateId) : this.proposalService.pricedSdl(sdl as string, context);
+    const checkedSdl = sdl ? this.proposalService.pricedSdl(sdl, context) : await this.accountTools.templateSdl(templateId as string);
     return await this.bidTools.checkAvailability(checkedSdl, { isTrialing: context.isTrialing === true });
   }
 
   #reasonOf(tool: string, error: unknown): string {
-    if (error instanceof ZodError) return `Invalid arguments: ${error.issues.map(issue => `${issue.path.join(".") || "(root)"} ${issue.message}`).join("; ")}`;
-    if (error instanceof AssistantToolError) return error.message;
-    if (isHttpError(error) && error.status < 500) return error.message;
+    const rejection = rejectionOf(error);
+    if (rejection === null) {
+      this.#logger.warn({ event: "ASSISTANT_TOOL_FAILED", tool, error });
+      return FAILED_TOOL_MESSAGE;
+    }
 
-    this.#logger.warn({ event: "ASSISTANT_TOOL_FAILED", tool, error });
-    return FAILED_TOOL_MESSAGE;
+    this.#logger.info({ event: "ASSISTANT_TOOL_REJECTED", tool, reason: loggedRejectionOf(rejection) });
+    return rejection;
   }
 }

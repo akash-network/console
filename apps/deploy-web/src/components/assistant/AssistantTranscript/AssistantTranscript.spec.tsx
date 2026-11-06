@@ -18,7 +18,7 @@ describe("AssistantTranscript", () => {
     setup({
       messages: [
         createTranscriptMessage("1", "user", "Why no bids?"),
-        message("2", { text: "No provider has 8 GPUs free.", reads: [{ id: "t-1", label: "deployment, bids", ok: true }] })
+        message("2", { text: "No provider has 8 GPUs free.", reads: [{ id: "t-1", tool: "get_bids", label: "deployment, bids", ok: true }] })
       ]
     });
 
@@ -62,10 +62,35 @@ describe("AssistantTranscript", () => {
     expect(screen.queryByRole("note")).not.toBeInTheDocument();
   });
 
-  it("marks a read that failed", () => {
-    setup({ messages: [message("2", { text: "x", reads: [{ id: "t-1", label: "logs (last 200 lines)", ok: false }] })] });
+  it("marks a read the tool never got right in the answer as failed", () => {
+    setup({
+      messages: [message("2", { text: "x", reads: [{ id: "t-1", tool: "check_availability", label: "Could not check which providers could bid", ok: false }] })]
+    });
 
-    expect(screen.getByRole("listitem")).toHaveTextContent("Read: logs (last 200 lines)failed");
+    expect(screen.getByRole("listitem")).toHaveTextContent(/^Could not check which providers could bidfailed$/);
+  });
+
+  it("shows only the success of a read retried after a failure, without marking it failed", () => {
+    setup({
+      messages: [
+        message("2", {
+          text: "x",
+          reads: [
+            { id: "t-1", tool: "check_availability", label: "Could not check which providers could bid", ok: false },
+            { id: "t-2", tool: "check_availability", label: "Checked which providers could bid", ok: true }
+          ]
+        })
+      ]
+    });
+
+    expect(screen.getByRole("listitem")).toHaveTextContent(/^Read: Checked which providers could bidretried$/);
+    expect(screen.queryByText("failed")).not.toBeInTheDocument();
+  });
+
+  it("shows a read that needed no retry without a hint", () => {
+    setup({ messages: [message("2", { text: "x", reads: [{ id: "t-1", tool: "search_docs", label: "Searched the Console docs", ok: true }] })] });
+
+    expect(screen.getByRole("listitem")).toHaveTextContent(/^Read: Searched the Console docs$/);
   });
 
   it("renders a card for each proposed action with the conversation it belongs to", () => {

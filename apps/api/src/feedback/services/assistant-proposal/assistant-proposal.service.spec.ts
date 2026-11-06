@@ -158,6 +158,29 @@ describe(AssistantProposalService.name, () => {
       expect(context.withheldTemplateSdls).toEqual([PLACED_SDL]);
     });
 
+    it("deploys the generated SDL at the default ceiling and keeps the template it came from when both are given", async () => {
+      const { service, accountTools, bidTools } = setup();
+      bidTools.checkAvailability.mockResolvedValue(availabilityOf(4));
+
+      const action = await propose(service, "create_deployment", { templateId: "hello-world", sdl: CRAZY_PRICED_SDL });
+
+      expect(accountTools.templateSdl).not.toHaveBeenCalled();
+      expect(pricingOf(action.sdl)).toEqual({ dcloud: { web: DEFAULT_CEILING, db: DEFAULT_CEILING }, backup: { web: DEFAULT_CEILING } });
+      expect(bidTools.checkAvailability).toHaveBeenCalledWith(action.sdl, { isTrialing: false });
+      expect(action).toMatchObject({ templateId: "hello-world", providersAbleToBid: 4 });
+    });
+
+    it("holds back a generated SDL given with a template without repeating it or treating it as the template's", async () => {
+      const { service, bidTools } = setup();
+      bidTools.checkAvailability.mockResolvedValue(availabilityOf(0));
+      const context = { isTrialing: false, withheldTemplateSdls: [] };
+
+      const error = await propose(service, "create_deployment", { templateId: "hello-world", sdl: ASSISTANT_TEST_SDL }, context).catch(caught => caught);
+
+      expect(error.feedback).toEqual(availabilityOf(0));
+      expect(context.withheldTemplateSdls).toEqual([]);
+    });
+
     it("holds back a generated SDL without repeating or remembering it", async () => {
       const { service, bidTools } = setup();
       bidTools.checkAvailability.mockResolvedValue(availabilityOf(0));
@@ -207,6 +230,17 @@ describe(AssistantProposalService.name, () => {
       const action = await propose(service, "create_deployment", { sdl: repriced }, { isTrialing: false, withheldTemplateSdls: [PLACED_SDL, repriced] });
 
       expect(action.sdl).toBe(repriced);
+    });
+
+    it("refuses a repriced SDL after a hold back even when a templateId comes with it", async () => {
+      const { service, accountTools, bidTools } = setup();
+      const repriced = PLACED_SDL.replace("amount: 1000", "amount: 5000");
+
+      await expect(
+        propose(service, "create_deployment", { templateId: "hello-world", sdl: repriced }, { isTrialing: false, withheldTemplateSdls: [PLACED_SDL] })
+      ).rejects.toThrow(AssistantToolError);
+      expect(accountTools.templateSdl).not.toHaveBeenCalled();
+      expect(bidTools.checkAvailability).not.toHaveBeenCalled();
     });
 
     it("lets another template replace one held back", async () => {

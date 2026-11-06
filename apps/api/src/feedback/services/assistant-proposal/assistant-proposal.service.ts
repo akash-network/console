@@ -151,12 +151,12 @@ export class AssistantProposalService {
   }
 
   async #createDeployment(args: ProposalArguments<"create_deployment">, context: ProposalContext): Promise<AssistantActionOf<"create_deployment">> {
-    const sdl = args.templateId ? await this.accountTools.templateSdl(args.templateId) : this.pricedSdl(args.sdl as string, context);
+    const sdl = args.sdl ? this.pricedSdl(args.sdl, context) : await this.accountTools.templateSdl(args.templateId as string);
 
     const availability = await this.bidTools.checkAvailability(sdl, { isTrialing: context.isTrialing === true });
     if (availability.providersAbleToBid === 0) {
-      if (args.templateId) context.withheldTemplateSdls.push(sdl);
-      throw new AssistantProposalWithheldError({ ...availability, ...(args.templateId && { templateSdl: sdl }) });
+      if (!args.sdl) context.withheldTemplateSdls.push(sdl);
+      throw new AssistantProposalWithheldError({ ...availability, ...(!args.sdl && { templateSdl: sdl }) });
     }
 
     const parsed = this.sdlService.parse(sdl);

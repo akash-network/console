@@ -7,7 +7,8 @@ import { ActionCard } from "../action-cards/ActionCard/ActionCard";
 import { AssistantMarkdown } from "../AssistantMarkdown/AssistantMarkdown";
 import { DiagnosisBlock } from "../DiagnosisBlock/DiagnosisBlock";
 import { DiscordHelpCard } from "../DiscordHelpCard/DiscordHelpCard";
-import type { AssistantProposal, AssistantReadChip, AssistantTranscriptMessage } from "../transcriptModel/transcriptModel";
+import type { AssistantProposal, AssistantTranscriptMessage, AssistantVisibleReadChip } from "../transcriptModel/transcriptModel";
+import { visibleReadsOf } from "../transcriptModel/transcriptModel";
 import type { AssistantConversation, AssistantProblem } from "../useAssistantConversation/useAssistantConversation";
 
 export const DEPENDENCIES = { ActionCard, AssistantMarkdown, DiagnosisBlock, DiscordHelpCard };
@@ -154,27 +155,31 @@ type AnswerProps = {
   dependencies: typeof DEPENDENCIES;
 };
 
-const AssistantAnswer: FC<AnswerProps> = ({ message, conversationId, continueConversation, dependencies: d }) => (
-  <div className="flex flex-col gap-3">
-    {message.reads.length > 0 && (
-      <ul aria-label="What the assistant read" className="flex flex-wrap gap-1.5">
-        {message.reads.map(read => (
-          <ReadChip key={read.id} read={read} />
-        ))}
-      </ul>
-    )}
-    {message.text && <d.AssistantMarkdown>{message.text}</d.AssistantMarkdown>}
-    {message.proposals.map(proposal => (
-      <ProposalCard
-        key={proposal.proposalId}
-        proposal={proposal}
-        conversationId={conversationId}
-        continueConversation={continueConversation}
-        dependencies={d}
-      />
-    ))}
-  </div>
-);
+const AssistantAnswer: FC<AnswerProps> = ({ message, conversationId, continueConversation, dependencies: d }) => {
+  const reads = visibleReadsOf(message.reads);
+
+  return (
+    <div className="flex flex-col gap-3">
+      {reads.length > 0 && (
+        <ul aria-label="What the assistant read" className="flex flex-wrap gap-1.5">
+          {reads.map(read => (
+            <ReadChip key={read.id} read={read} />
+          ))}
+        </ul>
+      )}
+      {message.text && <d.AssistantMarkdown>{message.text}</d.AssistantMarkdown>}
+      {message.proposals.map(proposal => (
+        <ProposalCard
+          key={proposal.proposalId}
+          proposal={proposal}
+          conversationId={conversationId}
+          continueConversation={continueConversation}
+          dependencies={d}
+        />
+      ))}
+    </div>
+  );
+};
 
 const ProposalCard: FC<Omit<AnswerProps, "message"> & { proposal: AssistantProposal }> = ({
   proposal,
@@ -189,10 +194,11 @@ const ProposalCard: FC<Omit<AnswerProps, "message"> & { proposal: AssistantPropo
   return proposal.diagnosis?.evidence.length ? <d.DiagnosisBlock diagnosis={proposal.diagnosis}>{card}</d.DiagnosisBlock> : card;
 };
 
-const ReadChip: FC<{ read: AssistantReadChip }> = ({ read }) => (
+const ReadChip: FC<{ read: AssistantVisibleReadChip }> = ({ read }) => (
   <li data-ok={read.ok} className="group flex items-center gap-1.5 rounded-md border bg-muted px-2 py-1 font-mono text-xs text-muted-foreground">
     <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-green-500 group-data-[ok=false]:bg-muted-foreground" />
-    Read: {read.label}
+    {read.ok ? `Read: ${read.label}` : read.label}
+    {read.retried && <span className="opacity-70">retried</span>}
     {!read.ok && <span className="text-destructive">failed</span>}
   </li>
 );
