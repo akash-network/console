@@ -30,6 +30,7 @@ import {
   AssistantTurnService,
   LAST_TOOL_ROUND_NOTE,
   MAX_COMPLETION_TOKENS,
+  MAX_PARALLEL_READS,
   MAX_TOOL_ROUNDS,
   PENDING_TURN_TTL_MS,
   TURN_TIMEOUT_MS
@@ -398,6 +399,24 @@ describe(AssistantTurnService.name, () => {
       { role: "tool", tool_call_id: "c1", content: "bids" },
       { role: "tool", tool_call_id: "c2", content: "deployment" }
     ]);
+  });
+
+  it("starts at most MAX_PARALLEL_READS reads at once and runs the rest of the round after them", async () => {
+    const { akashMlClient, toolRunner, run } = setup();
+    const reads = Array.from({ length: MAX_PARALLEL_READS + 1 }, (_, index) => toolCall(`c${index}`, "get_deployment", { dseq: `${index}` }));
+    const firstRead = Promise.withResolvers<ToolOutcome>();
+    akashMlClient.streamChatCompletion.mockImplementationOnce(streamed({ toolCalls: reads })).mockImplementationOnce(streamed({ content: "Done." }));
+    toolRunner.run.mockImplementation(async call => (call.id === "c0" ? firstRead.promise : { kind: "result", content: call.id, summary: "Read", ok: true }));
+
+    const turn = run({});
+    await vi.waitFor(() => expect(toolRunner.run).toHaveBeenCalledTimes(MAX_PARALLEL_READS));
+    firstRead.resolve({ kind: "result", content: "c0", summary: "Read", ok: true });
+    await turn;
+
+    expect(toolRunner.run.mock.calls.map(([call]) => call.id)).toEqual(reads.map(({ id }) => id));
+    expect(akashMlClient.streamChatCompletion.mock.calls[1][0].messages.slice(-reads.length)).toEqual(
+      reads.map(({ id }) => ({ role: "tool", tool_call_id: id, content: id }))
+    );
   });
 
   it("runs a read after a card only once the card is proposed, and a repeated read once", async () => {

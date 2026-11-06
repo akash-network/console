@@ -27,6 +27,8 @@ export const MAX_TOOL_ROUNDS = 6;
 export const MAX_COMPLETION_TOKENS = 8_000;
 export const TURN_TIMEOUT_MS = 90_000;
 export const PENDING_TURN_TTL_MS = 5 * 60_000;
+/** Bounds the burst one round sends to the chain, the provider-proxy and bid screening, since the model can ask for any number of reads at once. */
+export const MAX_PARALLEL_READS = 4;
 
 const LIVE_HELP_SUMMARY = "Suggested live help on Discord";
 const ROUND_TEXT_SEPARATOR = "\n\n";
@@ -261,7 +263,7 @@ export class AssistantTurnService {
     const startedKeys = new Set<string>();
 
     for (const call of toolCalls) {
-      if (!isReadToolName(call.function.name)) break;
+      if (!isReadToolName(call.function.name) || started.size >= MAX_PARALLEL_READS) break;
 
       const key = toolCallKeyOf(call);
       if (startedKeys.has(key) || earlierResultOf(call, messages) !== undefined) continue;
