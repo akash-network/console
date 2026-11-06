@@ -95,7 +95,8 @@ async function complete(messages: ChatMessage[], isFinalRound: boolean, metrics:
       messages,
       tools: assistantChatTools(),
       tool_choice: isFinalRound ? "none" : "auto",
-      max_completion_tokens: maxCompletionTokens
+      max_completion_tokens: maxCompletionTokens,
+      reasoning_effort: config.ASSISTANT_REASONING_EFFORT
     },
     {
       timeoutMs: COMPLETION_TIMEOUT_MS,
@@ -198,7 +199,11 @@ async function main() {
     process.stdout.write(`${result.id} ${result.passed ? "PASS" : "FAIL"}\n`);
   }
 
-  if (outFile) writeFileSync(outFile, JSON.stringify({ model: config.ASSISTANT_MODEL, maxCompletionTokens, results }, null, 2));
+  if (outFile)
+    writeFileSync(
+      outFile,
+      JSON.stringify({ model: config.ASSISTANT_MODEL, reasoningEffort: config.ASSISTANT_REASONING_EFFORT, maxCompletionTokens, results }, null, 2)
+    );
   process.stdout.write(`${formatAssistantEvalTable(results)}\n`);
   process.exitCode = results.every(({ passed }) => passed) ? 0 : 1;
 }

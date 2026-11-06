@@ -25,6 +25,7 @@ export const envSchema = z.object({
   AKASHML_API_KEY: z.preprocess(blankToUndefined, z.string().optional()),
   FEEDBACK_CLASSIFIER_MODEL: z.preprocess(blankToUndefined, z.string().optional().default("Qwen/Qwen3.6-35B-A3B")),
   ASSISTANT_MODEL: z.preprocess(blankToUndefined, z.string().optional().default("zai-org/GLM-5.3")),
+  ASSISTANT_REASONING_EFFORT: z.preprocess(blankToUndefined, z.enum(["low", "medium", "high"]).optional().default("medium")),
   FEEDBACK_THEME_SCORE_WEIGHTS: z.preprocess(parseJson, feedbackThemeScoreWeightsSchema),
   ASSISTANT_MESSAGES_PER_MINUTE: positiveIntegerOr(6),
   ASSISTANT_MESSAGES_PER_DAY: positiveIntegerOr(100),
