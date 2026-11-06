@@ -153,7 +153,7 @@ _Avoid_: matcher, scheduler
 >
 > **Engineer:** "If the **GroupSpec** asks for region=us-west, do I match the **self-attribute** or the **signed-attribute**?"
 >
-> **Domain expert:** "`requirements.attributes` matches **self-attributes** only. `requirements.signedBy` is independent — it asserts the provider has *some* signature from those auditors, not that the matched attribute itself is signed. Different fields, different semantics, two columns."
+> **Domain expert:** "Both, once the spec names auditors. `requirements.attributes` always matches **self-attributes**. With `requirements.signedBy` set, each `allOf` auditor (or at least one `anyOf` auditor) must also have signed every requested attribute as a **signed-attribute**, mirroring the bid engine's `MatchRequirements`. With no requested attributes, `signedBy` only asks that the auditor audited the provider."
 
 ## Flagged ambiguities
 

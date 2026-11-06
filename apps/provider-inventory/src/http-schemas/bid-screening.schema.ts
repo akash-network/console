@@ -97,10 +97,13 @@ const ResourceSchema = z
     storage: z.array(StorageResourceSchema).max(MAX_STORAGE_VOLUMES),
     endpoints: z
       .array(
-        z.object({
-          kind: z.enum(["SHARED_HTTP", "RANDOM_PORT", "LEASED_IP", "UNRECOGNIZED"]).optional(),
-          sequenceNumber: z.number({ coerce: true }).int().nonnegative().optional()
-        })
+        acceptingProtoJsonNames(
+          z.object({
+            kind: z.enum(["SHARED_HTTP", "RANDOM_PORT", "LEASED_IP", "UNRECOGNIZED"]).optional(),
+            sequenceNumber: z.number({ coerce: true }).int().nonnegative().optional()
+          }),
+          { sequence_number: "sequenceNumber" }
+        )
       )
       .optional()
   })
@@ -128,15 +131,35 @@ const ResourceUnitSchema = z.object({
 export const MAX_SIGNED_BY_AUDITORS = 16;
 export const MAX_PLACEMENT_ATTRIBUTES = 32;
 
-const SignedBySchema = z.object({
-  allOf: z.array(z.string()).max(MAX_SIGNED_BY_AUDITORS).default([]),
-  anyOf: z.array(z.string()).max(MAX_SIGNED_BY_AUDITORS).default([])
-});
+const SignedBySchema = acceptingProtoJsonNames(
+  z.object({
+    allOf: z.array(z.string()).max(MAX_SIGNED_BY_AUDITORS).default([]),
+    anyOf: z.array(z.string()).max(MAX_SIGNED_BY_AUDITORS).default([])
+  }),
+  { all_of: "allOf", any_of: "anyOf" }
+);
 
-const RequirementsSchema = z.object({
-  signedBy: SignedBySchema.default({}),
-  attributes: z.array(AttributeSchema).max(MAX_PLACEMENT_ATTRIBUTES).default([])
-});
+const RequirementsSchema = acceptingProtoJsonNames(
+  z.object({
+    signedBy: SignedBySchema.default({}),
+    attributes: z.array(AttributeSchema).max(MAX_PLACEMENT_ATTRIBUTES).default([])
+  }),
+  { signed_by: "signedBy" }
+);
+
+/** chain-sdk's `GroupSpec.toJSON` spells multi-word fields in snake_case, and an unknown key is stripped, so a signer list sent that way would screen as if it named none. */
+function acceptingProtoJsonNames<T extends z.ZodTypeAny>(schema: T, camelCaseByProtoJsonName: Record<string, string>) {
+  return z.preprocess(value => withCamelCaseNames(value, camelCaseByProtoJsonName), schema);
+}
+
+function withCamelCaseNames(value: unknown, camelCaseByProtoJsonName: Record<string, string>): unknown {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return value;
+
+  const fields = value as Record<string, unknown>;
+  const renamed = Object.entries(camelCaseByProtoJsonName).map(([protoJsonName, camelCaseName]) => [camelCaseName, fields[protoJsonName]]);
+
+  return { ...Object.fromEntries(renamed), ...fields };
+}
 
 /**
  * Accepts any IANA zone the runtime recognizes, including aliases such as `Asia/Kolkata`, `UTC`, or
