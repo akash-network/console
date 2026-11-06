@@ -1,9 +1,11 @@
 import "reflect-metadata";
 import "@akashnetwork/env-loader";
+import "@src/routers/open-api-handlers";
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { container } from "tsyringe";
 
+import { stripHiddenOperations } from "@src/core/lib/create-route/create-route";
 import { ASSISTANT_EVAL_CASES, type AssistantEvalCase } from "@src/feedback/lib/assistant-eval/assistant-eval-cases";
 import {
   type AssistantEvalResult,
@@ -34,7 +36,8 @@ const akashMlClient = container.resolve(AkashMlClient);
 const config = container.resolve(FEEDBACK_CONFIG);
 const outFile = process.env.ASSISTANT_EVAL_OUT;
 const maxCompletionTokens = Number(process.env.ASSISTANT_EVAL_MAX_COMPLETION_TOKENS) || MAX_COMPLETION_TOKENS;
-const consoleApiCatalog = consoleApiCatalogOf(consoleApiRoutesOf(JSON.parse(readFileSync("swagger/openapi.json", "utf8"))));
+const committedDocument = JSON.parse(readFileSync("swagger/openapi.json", "utf8"));
+const consoleApiCatalog = consoleApiCatalogOf(consoleApiRoutesOf({ ...committedDocument, paths: stripHiddenOperations(committedDocument.paths) }));
 
 interface CaseMetrics {
   model: string;
