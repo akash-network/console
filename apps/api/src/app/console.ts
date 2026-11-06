@@ -15,6 +15,7 @@ import { ExecutionContextService } from "@src/core/services/execution-context/ex
 import { TopUpDeploymentsController } from "@src/deployment/controllers/deployment/top-up-deployments.controller";
 import { GpuBotController } from "@src/deployment/controllers/gpu-bot/gpu-bot.controller";
 import { LeaseGpuController } from "@src/deployment/controllers/lease-gpu.controller";
+import { GpuMarketPriceService } from "@src/gpu/services/gpu-market-price/gpu-market-price.service";
 import { ProviderController } from "@src/provider/controllers/provider/provider.controller";
 import { DataKeyRekeyController } from "@src/secret/controllers/data-key-rekey/data-key-rekey.controller";
 import { DataKeyRewrapController } from "@src/secret/controllers/data-key-rewrap/data-key-rewrap.controller";
@@ -114,6 +115,16 @@ program
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
       return container.resolve(LeaseGpuController).detectLeaseGpus(options);
+    });
+  });
+
+program
+  .command("refresh-gpu-market-prices")
+  .description("Recompute the market price range of every gpu model from the window's bids and leases")
+  .option("-d, --dry-run", "Compute and log the ranges without replacing the stored ones", false)
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      return container.resolve(GpuMarketPriceService).refresh({ dryRun: options.dryRun });
     });
   });
 

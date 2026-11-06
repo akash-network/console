@@ -14,6 +14,7 @@ import type { AppInitializer } from "@src/core/providers/app-initializer";
 import { APP_INITIALIZER, ON_APP_START } from "@src/core/providers/app-initializer";
 import * as deploymentSchemas from "@src/deployment/model-schemas";
 import * as feedbackSchemas from "@src/feedback/model-schemas";
+import * as gpuSchemas from "@src/gpu/model-schemas";
 import * as hardwareRequestSchemas from "@src/hardware-request/model-schemas";
 import * as organizationSchemas from "@src/organization/model-schemas";
 import * as secretSchemas from "@src/secret/model-schemas";
@@ -66,7 +67,8 @@ const schema = {
   ...activitySchemas,
   ...organizationSchemas,
   ...feedbackSchemas,
-  ...affiliateSchemas
+  ...affiliateSchemas,
+  ...gpuSchemas
 };
 const getDrizzleOptions = (config: Pick<CoreConfig, "SQL_LOG_FORMAT">) => ({
   logger: new PostgresLoggerService(container.resolve(LOGGER_FACTORY), { useFormat: config.SQL_LOG_FORMAT === "pretty" }),

@@ -683,7 +683,10 @@ describe(GpuPriceService.name, () => {
 
     const gpuConfig: GpuConfig = {
       PROVIDER_UPTIME_GRACE_PERIOD_MINUTES: 180,
-      PRICING_BOT_ADDRESS: input.pricingBotAddress ?? "akash1pas6v0905jgyznpvnjhg7tsthuyqek60gkz7uf"
+      PRICING_BOT_ADDRESS: input.pricingBotAddress ?? "akash1pas6v0905jgyznpvnjhg7tsthuyqek60gkz7uf",
+      GPU_MARKET_PRICE_WINDOW_DAYS: 30,
+      GPU_MARKET_PRICE_MIN_PROVIDERS: 3,
+      GPU_MARKET_PRICE_MIN_SAMPLES: 5
     };
 
     const typeRegistry = container.resolve<Registry>(TYPE_REGISTRY);

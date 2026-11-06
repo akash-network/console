@@ -6,7 +6,7 @@ import { beforeAll, describe, expect, it, onTestFinished, vi } from "vitest";
 import { CHAIN_DB } from "@src/chain";
 import { LeaseRepository } from "./lease.repository";
 
-import { createAkashAddress, createDeployment, createDeploymentGroup, createLease, createProvider } from "@test/seeders";
+import { createAkashAddress, createAkashBlock, createDeployment, createDeploymentGroup, createLease, createProvider } from "@test/seeders";
 
 describe(LeaseRepository.name, () => {
   beforeAll(async () => {
@@ -335,6 +335,56 @@ describe(LeaseRepository.name, () => {
 
       expect(page).toEqual({ rows: [expect.anything()], hasNextPage: false });
     });
+  });
+
+  describe("findGpuLeasePricesOfDeployments", () => {
+    it("returns the price, gpu units and creation day of each gpu lease of the asked deployments", async () => {
+      const { repository } = setup();
+      const [provider, deployment, otherDeployment] = await Promise.all([seedProvider(), seedDeployment(), seedDeployment()]);
+      const block = await createAkashBlock({
+        height: faker.number.int({ min: 20_000_000, max: 30_000_000 }),
+        dayId: faker.string.uuid(),
+        datetime: new Date("2026-11-03T04:05:06Z")
+      });
+      await createLease({
+        ...(await leaseOf(deployment, 2)),
+        providerAddress: provider,
+        oseq: 3,
+        createdHeight: block.height,
+        gpuUnits: 4,
+        price: 1234.5,
+        denom: "uact"
+      });
+      await createLease({ ...(await leaseOf(deployment, 3)), providerAddress: provider, createdHeight: block.height, gpuUnits: 0 });
+      await createLease({ ...(await leaseOf(otherDeployment, 1)), providerAddress: provider, createdHeight: block.height, gpuUnits: 1 });
+
+      const found = await repository.findGpuLeasePricesOfDeployments([deployment.id]);
+
+      expect(found).toEqual([
+        {
+          deploymentId: deployment.id,
+          providerAddress: provider,
+          gseq: 2,
+          oseq: 3,
+          price: 1234.5,
+          denom: "uact",
+          gpuUnits: 4,
+          dayId: block.dayId,
+          createdAt: new Date("2026-11-03T04:05:06Z")
+        }
+      ]);
+    });
+
+    it("returns nothing when no deployment is asked for", async () => {
+      const { repository } = setup();
+
+      expect(await repository.findGpuLeasePricesOfDeployments([])).toEqual([]);
+    });
+
+    async function leaseOf(deployment: { id: string; owner: string; dseq: string }, gseq: number) {
+      const group = await createDeploymentGroup({ deploymentId: deployment.id, owner: deployment.owner, dseq: deployment.dseq, gseq });
+      return { deploymentId: deployment.id, deploymentGroupId: group.id, owner: deployment.owner, dseq: deployment.dseq, gseq };
+    }
   });
 
   function setup() {

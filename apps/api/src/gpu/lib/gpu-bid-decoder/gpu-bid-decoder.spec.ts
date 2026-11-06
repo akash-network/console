@@ -35,6 +35,20 @@ describe(decodeGpuBid.name, () => {
       expect(bid).toMatchObject({ cpuUnits: 350, memoryUnits: 1536, storageUnits: 6144 });
     });
 
+    it("counts gpu units across offered resources and their replicas", () => {
+      const { typeRegistry } = setup();
+      const message = createV5Bid({
+        resources: [
+          { cpu: 100, memory: 1024, storage: [], gpuUnits: 2, count: 4 },
+          { cpu: 100, memory: 1024, storage: [], gpuUnits: 1 }
+        ]
+      });
+
+      const bid = decodeGpuBid(typeRegistry, message);
+
+      expect(bid.gpuUnits).toBe(9);
+    });
+
     it("keeps a JSON-serializable copy of the message", () => {
       const { typeRegistry } = setup();
       const message = createV5Bid({ provider: "akash1provider" });
@@ -116,7 +130,7 @@ describe(decodeGpuBid.name, () => {
     denom?: string;
     amount?: string;
     gpuAttributes?: { key: string; value: string }[];
-    resources?: { cpu: number; memory: number; storage: number[]; gpuUnits: number }[];
+    resources?: { cpu: number; memory: number; storage: number[]; gpuUnits: number; count?: number }[];
   }) {
     const resources = input.resources ?? [{ cpu: 100, memory: 1024, storage: [2048], gpuUnits: 1 }];
     const bid = MsgCreateBidV5.fromPartial({
@@ -131,7 +145,7 @@ describe(decodeGpuBid.name, () => {
           gpu: { units: { val: BigInt(resource.gpuUnits) }, attributes: input.gpuAttributes ?? [H100_ATTRIBUTE] },
           endpoints: []
         },
-        count: 1
+        count: resource.count ?? 1
       }))
     });
 
