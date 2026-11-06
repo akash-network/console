@@ -1,6 +1,7 @@
 import "reflect-metadata";
 import "@akashnetwork/env-loader";
 
+import { writeFileSync } from "node:fs";
 import { container } from "tsyringe";
 
 import { ASSISTANT_EVAL_CASES, type AssistantEvalCase } from "@src/feedback/lib/assistant-eval/assistant-eval-cases";
@@ -30,6 +31,38 @@ const COMPLETION_TIMEOUT_MS = 90_000;
 
 const akashMlClient = container.resolve(AkashMlClient);
 const config = container.resolve(FEEDBACK_CONFIG);
+const outFile = process.env.ASSISTANT_EVAL_OUT;
+const maxCompletionTokens = Number(process.env.ASSISTANT_EVAL_MAX_COMPLETION_TOKENS) || MAX_COMPLETION_TOKENS;
+
+interface CaseMetrics {
+  model: string;
+  completions: number;
+  toolCalls: string[];
+  finishReasons: (string | null)[];
+  emptyAnswer: boolean;
+  firstTokenMs: number | null;
+  totalMs: number;
+  promptTokens: number;
+  completionTokens: number;
+  answer: string;
+}
+
+type CaseRun = AssistantEvalResult & Partial<CaseMetrics>;
+
+function newMetrics(): CaseMetrics {
+  return {
+    model: config.ASSISTANT_MODEL,
+    completions: 0,
+    toolCalls: [],
+    finishReasons: [],
+    emptyAnswer: false,
+    firstTokenMs: null,
+    totalMs: 0,
+    promptTokens: 0,
+    completionTokens: 0,
+    answer: ""
+  };
+}
 
 function argumentsOf(call: ChatToolCall): Record<string, unknown> {
   try {
@@ -55,25 +88,38 @@ function toolMessageOf(evalCase: AssistantEvalCase, call: ChatToolCall, proposal
   return { role: "tool", tool_call_id: call.id, content: toolContentOf(name, payload) };
 }
 
-async function complete(messages: ChatMessage[], isFinalRound: boolean) {
-  return await akashMlClient.createChatCompletion(
+async function complete(messages: ChatMessage[], isFinalRound: boolean, metrics: CaseMetrics, startedAt: number) {
+  const completion = await akashMlClient.streamChatCompletion(
     {
       model: config.ASSISTANT_MODEL,
       messages,
       tools: assistantChatTools(),
       tool_choice: isFinalRound ? "none" : "auto",
-      max_completion_tokens: MAX_COMPLETION_TOKENS
+      max_completion_tokens: maxCompletionTokens
     },
-    { timeoutMs: COMPLETION_TIMEOUT_MS }
+    {
+      timeoutMs: COMPLETION_TIMEOUT_MS,
+      onContentDelta: async text => {
+        if (metrics.firstTokenMs === null && text.trim()) metrics.firstTokenMs = Date.now() - startedAt;
+      }
+    }
   );
+  metrics.completions++;
+  metrics.finishReasons.push(completion.finishReason);
+  metrics.promptTokens += completion.usage?.promptTokens ?? 0;
+  metrics.completionTokens += completion.usage?.completionTokens ?? 0;
+
+  return completion;
 }
 
-async function answerNow(messages: ChatMessage[]): Promise<{ text: string; fellBack: boolean }> {
-  const { content } = await complete([...messages, ANSWER_NOW_NOTE], true);
+async function answerNow(messages: ChatMessage[], metrics: CaseMetrics, startedAt: number): Promise<{ text: string; fellBack: boolean }> {
+  const { content } = await complete([...messages, ANSWER_NOW_NOTE], true, metrics, startedAt);
   return content?.trim() ? { text: content, fellBack: false } : { text: fallbackAnswerOf(messages), fellBack: true };
 }
 
-async function runCase(evalCase: AssistantEvalCase): Promise<AssistantEvalResult> {
+async function runCase(evalCase: AssistantEvalCase): Promise<CaseRun> {
+  const metrics = newMetrics();
+  const startedAt = Date.now();
   const messages: ChatMessage[] = [
     {
       role: "system",
@@ -95,11 +141,11 @@ async function runCase(evalCase: AssistantEvalCase): Promise<AssistantEvalResult
 
   for (let round = 0; ; round++) {
     const isFinalRound = round >= MAX_TOOL_ROUNDS;
-    const completion = await complete(requestMessagesFor(messages, round), isFinalRound);
+    const completion = await complete(requestMessagesFor(messages, round), isFinalRound, metrics, startedAt);
     if (completion.content) answer.push(completion.content);
     if (isFinalRound || completion.toolCalls.length === 0) {
       if (!completion.content?.trim()) {
-        const recovered = await answerNow(messages);
+        const recovered = await answerNow(messages, metrics, startedAt);
         answer.push(recovered.text);
         fellBack = recovered.fellBack;
       }
@@ -110,6 +156,7 @@ async function runCase(evalCase: AssistantEvalCase): Promise<AssistantEvalResult
     for (const call of completion.toolCalls) {
       const earlierResult = earlierResultOf(call, messages);
       toolCalls.push({ name: call.function.name, arguments: argumentsOf(call), ...(earlierResult !== undefined && { repeated: true }) });
+      metrics.toolCalls.push(call.function.name);
       messages.push(
         earlierResult !== undefined
           ? { role: "tool", tool_call_id: call.id, content: alreadyReadContentOf(call.function.name, earlierResult) }
@@ -118,7 +165,11 @@ async function runCase(evalCase: AssistantEvalCase): Promise<AssistantEvalResult
     }
   }
 
-  return scoreAssistantEval(evalCase.id, evalCase.expect, { toolCalls, answer: answer.join("\n\n"), fellBack });
+  metrics.totalMs = Date.now() - startedAt;
+  metrics.answer = answer.join("\n\n");
+  metrics.emptyAnswer = fellBack || (!metrics.answer.trim() && !toolCalls.some(call => proposalActionTypeOf(call.name) || isLiveHelpToolName(call.name)));
+
+  return { ...scoreAssistantEval(evalCase.id, evalCase.expect, { toolCalls, answer: metrics.answer, fellBack }), ...metrics };
 }
 
 async function main() {
@@ -136,17 +187,18 @@ async function main() {
   }
 
   const cases = caseIds.length > 0 ? ASSISTANT_EVAL_CASES.filter(({ id }) => caseIds.includes(id)) : ASSISTANT_EVAL_CASES;
-  const results: AssistantEvalResult[] = [];
+  const results: CaseRun[] = [];
   for (const evalCase of cases) {
-    results.push(
-      await runCase(evalCase).catch(error => ({
-        id: evalCase.id,
-        passed: false,
-        failures: [`run failed: ${error instanceof Error ? error.message : String(error)}`]
-      }))
-    );
+    const result = await runCase(evalCase).catch(error => ({
+      id: evalCase.id,
+      passed: false,
+      failures: [`run failed: ${error instanceof Error ? error.message : String(error)}`]
+    }));
+    results.push(result);
+    process.stdout.write(`${result.id} ${result.passed ? "PASS" : "FAIL"}\n`);
   }
 
+  if (outFile) writeFileSync(outFile, JSON.stringify({ model: config.ASSISTANT_MODEL, maxCompletionTokens, results }, null, 2));
   process.stdout.write(`${formatAssistantEvalTable(results)}\n`);
   process.exitCode = results.every(({ passed }) => passed) ? 0 : 1;
 }
