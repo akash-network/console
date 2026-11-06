@@ -139,6 +139,39 @@ describe(AssistantToolRunnerService.name, () => {
       expect(outcome).not.toHaveProperty("diagnosis");
     });
 
+    it("leaves out a diagnosis that quotes no evidence", async () => {
+      const { runner, proposalService } = setup();
+      proposalService.propose.mockResolvedValue({ type: "send_manifest_again", tier: "confirm", dseq: "42" });
+      const diagnosis = { summary: "The provider lost the manifest.", evidence: ["", "  "] };
+
+      const outcome = await runner.run(call("propose_send_manifest_again", { dseq: "42", diagnosis }), { isTrialing: false });
+
+      expect(outcome).toMatchObject({ kind: "proposal" });
+      expect(outcome).not.toHaveProperty("diagnosis");
+    });
+
+    it("keeps only the evidence lines that say something", async () => {
+      const { runner, proposalService } = setup();
+      proposalService.propose.mockResolvedValue({ type: "send_manifest_again", tier: "confirm", dseq: "42" });
+      const diagnosis = { summary: "The provider lost the manifest.", evidence: ["", "manifest not found"] };
+
+      const outcome = await runner.run(call("propose_send_manifest_again", { dseq: "42", diagnosis }), { isTrialing: false });
+
+      expect(outcome).toMatchObject({ diagnosis: { summary: "The provider lost the manifest.", evidence: ["manifest not found"] } });
+    });
+
+    it("leaves out the diagnosis of a proposal that fixes nothing", async () => {
+      const { runner, proposalService } = setup();
+      proposalService.propose.mockResolvedValue({ type: "buy_credits", tier: "deep_link", amountUsd: null });
+      const diagnosis = { summary: "The user wants more credits.", evidence: ["balance: 0"] };
+
+      const outcome = await runner.run(call("propose_buy_credits", { diagnosis }), { isTrialing: false });
+
+      expect(proposalService.propose).toHaveBeenCalledWith("buy_credits", {}, { isTrialing: false });
+      expect(outcome).toMatchObject({ kind: "proposal" });
+      expect(outcome).not.toHaveProperty("diagnosis");
+    });
+
     it("refuses evidence past the size limits before proposing anything", async () => {
       const { runner, proposalService } = setup();
       const diagnosis = { summary: "Crash loop", evidence: Array.from({ length: 7 }, (_, index) => `line ${index}`) };

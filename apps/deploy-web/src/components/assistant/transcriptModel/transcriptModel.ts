@@ -37,6 +37,8 @@ const DEFAULT_TAIL_LINES = 200;
 
 const TOOL_NAME_VERB = /^(get|list|read|search)_/;
 
+const PROPOSAL_TOOL_PREFIX = "propose_";
+
 export function createTranscriptMessage(id: string, role: AssistantTranscriptMessage["role"], text = ""): AssistantTranscriptMessage {
   return { id, role, text, reads: [], proposals: [], liveHelpReason: null };
 }
@@ -46,8 +48,10 @@ export function applyAssistantEvent(message: AssistantTranscriptMessage, event: 
     case "text_delta":
       return { ...message, text: message.text + event.text };
     case "tool_started":
+      if (isProposalTool(event.name)) return message;
       return { ...message, reads: [...message.reads, { id: event.toolCallId, label: readLabelOfTool(event.name), ok: true }] };
     case "tool_result_summary":
+      if (isProposalTool(event.name)) return message;
       return { ...message, reads: upsertRead(message.reads, { id: event.toolCallId, label: event.summary || readLabelOfTool(event.name), ok: event.ok }) };
     case "client_tool_request":
       return { ...message, reads: [...message.reads, { id: event.toolCallId, label: readLabelOfClientTool(event), ok: true }] };
@@ -76,6 +80,11 @@ export function historyOf(messages: AssistantTranscriptMessage[]): AssistantHist
     .filter(message => message.text.trim().length > 0)
     .slice(-MAX_HISTORY_MESSAGES)
     .map(message => ({ role: message.role, content: message.text.slice(0, MAX_HISTORY_MESSAGE_LENGTH) }));
+}
+
+/** A proposal shows as its action card, so it gets no read chip. */
+function isProposalTool(name: string): boolean {
+  return name.startsWith(PROPOSAL_TOOL_PREFIX);
 }
 
 function readLabelOfTool(name: string): string {

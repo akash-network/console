@@ -217,10 +217,10 @@ describe("Assistant conversations", () => {
 
     it("streams the redacted diagnosis behind a proposed fix", async () => {
       const { token } = await setup({ consent: { reviewOptIn: false } });
-      const diagnosis = { summary: "The checkout needs a new balance.", evidence: ["insufficient funds", `password=${FAKE_TOKEN}`] };
+      const diagnosis = { summary: "The provider reclaimed its capacity.", evidence: ["lease closed: provider", `password=${FAKE_TOKEN}`] };
       replyWith([
-        { toolCalls: [{ id: "call-1", name: "propose_buy_credits", arguments: { amountUsd: 20, diagnosis } }] },
-        { content: "Here is a card to add credits." }
+        { toolCalls: [{ id: "call-1", name: "propose_open_in_editor", arguments: { dseq: "42", diagnosis } }] },
+        { content: "Here is a card to redeploy it." }
       ]);
 
       const events = await eventsOf(
@@ -230,8 +230,8 @@ describe("Assistant conversations", () => {
       expect(events).toContainEqual({
         type: "action_proposal",
         proposalId: expect.any(String),
-        action: { type: "buy_credits", tier: "deep_link", amountUsd: 20 },
-        diagnosis: { summary: "The checkout needs a new balance.", evidence: ["insufficient funds", "password=[REDACTED]"] }
+        action: { type: "open_in_editor", tier: "deep_link", dseq: "42", templateId: null, sdl: null },
+        diagnosis: { summary: "The provider reclaimed its capacity.", evidence: ["lease closed: provider", "password=[REDACTED]"] }
       });
     });
 

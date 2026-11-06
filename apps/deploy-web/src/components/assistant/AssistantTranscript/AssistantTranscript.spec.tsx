@@ -46,6 +46,30 @@ describe("AssistantTranscript", () => {
     expect(DiagnosisBlock).not.toHaveBeenCalled();
   });
 
+  it("shows the card alone when its diagnosis quotes no evidence", () => {
+    const action: AssistantAction = {
+      type: "create_deployment",
+      tier: "confirm",
+      templateId: "hello",
+      sdl: "version: 2.0",
+      name: null,
+      runtimeLimitHours: null,
+      services: [],
+      providersAbleToBid: null
+    };
+    const { ActionCard, DiagnosisBlock } = setup({
+      messages: [
+        message("2", {
+          text: "Here it is.",
+          proposals: [{ proposalId: "p-1", action, diagnosis: { summary: "User wants a Hello World app deployed.", evidence: [] } }]
+        })
+      ]
+    });
+
+    expect(DiagnosisBlock).not.toHaveBeenCalled();
+    expect(ActionCard).toHaveBeenCalledWith(expect.objectContaining({ proposalId: "p-1", action }), expect.anything());
+  });
+
   it("shows the diagnosis behind a proposed fix around its card", () => {
     const action: AssistantAction = { type: "send_manifest_again", tier: "confirm", dseq: "42" };
     const diagnosis = { summary: "The provider lost the manifest.", evidence: ["manifest not found"] };

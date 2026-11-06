@@ -43,13 +43,22 @@ describe("assistant tools", () => {
     expect(isLiveHelpToolName("propose_suggest_live_help")).toBe(false);
   });
 
-  it("splits a proposal's diagnosis from the action's arguments", () => {
+  it("splits a fix's diagnosis from the action's arguments", () => {
     const diagnosis = { summary: "Out of memory", evidence: ["OOMKilled"] };
 
-    expect(splitProposalArguments({ dseq: "42", diagnosis })).toEqual({ actionArguments: { dseq: "42" }, diagnosis });
-    expect(splitProposalArguments({ dseq: "42" })).toEqual({ actionArguments: { dseq: "42" }, diagnosis: undefined });
-    expect(splitProposalArguments(["42"])).toEqual({ actionArguments: ["42"], diagnosis: undefined });
-    expect(splitProposalArguments(null)).toEqual({ actionArguments: null, diagnosis: undefined });
+    expect(splitProposalArguments("redeploy_with_resources", { dseq: "42", diagnosis })).toEqual({ actionArguments: { dseq: "42" }, diagnosis });
+    expect(splitProposalArguments("redeploy_with_resources", { dseq: "42" })).toEqual({ actionArguments: { dseq: "42" }, diagnosis: undefined });
+    expect(splitProposalArguments("redeploy_with_resources", ["42"])).toEqual({ actionArguments: ["42"], diagnosis: undefined });
+    expect(splitProposalArguments("redeploy_with_resources", null)).toEqual({ actionArguments: null, diagnosis: undefined });
+  });
+
+  it("drops the diagnosis of a proposal that fixes nothing", () => {
+    const diagnosis = { summary: "User wants a Hello World app deployed.", evidence: [] };
+
+    expect(splitProposalArguments("create_deployment", { templateId: "hello", diagnosis })).toEqual({
+      actionArguments: { templateId: "hello" },
+      diagnosis: undefined
+    });
   });
 
   it("offers every read, client and proposal tool once, with a description and no references", () => {
@@ -67,7 +76,7 @@ describe("assistant tools", () => {
     expect(assistantChatTools()).toBe(tools);
   });
 
-  it("lets every proposal carry an optional diagnosis next to its own arguments", () => {
+  it("lets a fix carry an optional diagnosis next to its own arguments", () => {
     const parameters = assistantChatTools().find(tool => tool.function.name === "propose_close_deployment")!.function.parameters;
 
     expect(parameters.required).toEqual(["dseq", "reason"]);
@@ -80,6 +89,22 @@ describe("assistant tools", () => {
         required: ["summary", "evidence"]
       }
     });
+  });
+
+  it("offers a diagnosis only on proposals that fix a problem", () => {
+    const proposalsWithDiagnosis = assistantChatTools()
+      .filter(({ function: { name, parameters } }) => name.startsWith("propose_") && Object.hasOwn(parameters.properties as object, "diagnosis"))
+      .map(({ function: { name } }) => name);
+
+    expect(proposalsWithDiagnosis).toEqual([
+      "propose_update_deployment",
+      "propose_set_secret",
+      "propose_set_registry_credentials",
+      "propose_redeploy_with_resources",
+      "propose_send_manifest_again",
+      "propose_close_deployment",
+      "propose_open_in_editor"
+    ]);
   });
 
   it("asks for a typed reason when offering live help", () => {
