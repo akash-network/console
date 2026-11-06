@@ -158,6 +158,29 @@ describe(AssistantProposalService.name, () => {
       expect(context.withheldTemplateSdls).toEqual([PLACED_SDL]);
     });
 
+    it("deploys the generated SDL at the default ceiling and keeps the template it came from when both are given", async () => {
+      const { service, accountTools, bidTools } = setup();
+      bidTools.checkAvailability.mockResolvedValue(availabilityOf(4));
+
+      const action = await propose(service, "create_deployment", { templateId: "hello-world", sdl: CRAZY_PRICED_SDL });
+
+      expect(accountTools.templateSdl).not.toHaveBeenCalled();
+      expect(pricingOf(action.sdl)).toEqual({ dcloud: { web: DEFAULT_CEILING, db: DEFAULT_CEILING }, backup: { web: DEFAULT_CEILING } });
+      expect(bidTools.checkAvailability).toHaveBeenCalledWith(action.sdl, { isTrialing: false });
+      expect(action).toMatchObject({ templateId: "hello-world", providersAbleToBid: 4 });
+    });
+
+    it("holds back a generated SDL given with a template without repeating it or treating it as the template's", async () => {
+      const { service, bidTools } = setup();
+      bidTools.checkAvailability.mockResolvedValue(availabilityOf(0));
+      const context = { isTrialing: false, withheldTemplateSdls: [] };
+
+      const error = await propose(service, "create_deployment", { templateId: "hello-world", sdl: ASSISTANT_TEST_SDL }, context).catch(caught => caught);
+
+      expect(error.feedback).toEqual(availabilityOf(0));
+      expect(context.withheldTemplateSdls).toEqual([]);
+    });
+
     it("holds back a generated SDL without repeating or remembering it", async () => {
       const { service, bidTools } = setup();
       bidTools.checkAvailability.mockResolvedValue(availabilityOf(0));
