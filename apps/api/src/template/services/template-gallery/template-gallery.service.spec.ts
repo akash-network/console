@@ -1,4 +1,3 @@
-import { load } from "js-yaml";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 import { z } from "zod";
@@ -388,7 +387,7 @@ describe(TemplateGalleryService.name, () => {
   describe("getTemplateById", () => {
     it("returns template when found in file", async () => {
       const { service, fsMock } = setup();
-      const template = { id: "t1", name: "Template 1" };
+      const template = createTemplate({ id: "t1", name: "Template 1" });
 
       fsMock.readFile.mockResolvedValue(JSON.stringify({ data: template }));
 
@@ -405,8 +404,7 @@ describe(TemplateGalleryService.name, () => {
 
       const result = await service.getTemplateById("dart");
 
-      expect(result).toEqual({ ...template, deploy: expect.not.stringContaining("host") });
-      expect(load(result!.deploy)).toMatchObject({ profiles: { placement: { akash: { pricing: { app: { denom: "uact", amount: 10000 } } } } } });
+      expect(result).toEqual({ ...template, deploy: PLACEMENT_ATTRIBUTES_SDL.replace("      attributes:\n        host: akash\n", "") });
     });
 
     it("returns null when template file not found", async () => {
@@ -427,7 +425,7 @@ describe(TemplateGalleryService.name, () => {
 
     it("caches parsed template in memory", async () => {
       const { service, fsMock } = setup();
-      const template = { id: "t1", name: "Template 1" };
+      const template = createTemplate({ id: "t1", name: "Template 1" });
 
       fsMock.readFile.mockResolvedValue(JSON.stringify({ data: template }));
 
@@ -456,7 +454,7 @@ describe(TemplateGalleryService.name, () => {
 
     it("reads the correct file for a legit id containing dots", async () => {
       const { service, fsMock } = setup();
-      const template = { id: "akash-network-awesome-akash-DeepSeek-V3.1", name: "DeepSeek" };
+      const template = createTemplate({ id: "akash-network-awesome-akash-DeepSeek-V3.1", name: "DeepSeek" });
 
       fsMock.readFile.mockResolvedValue(JSON.stringify({ data: template }));
 

@@ -5,6 +5,8 @@ import { withoutPlacementAttributes } from "./template-placement-attributes";
 
 const AUDITOR = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
 
+const HOST_ATTRIBUTE_LINES = "      attributes:\n        host: akash\n";
+
 const DART_SDL = `---
 version: "2.0"
 
@@ -29,9 +31,7 @@ profiles:
           size: 512Mi
   placement:
     akash:
-      attributes:
-        host: akash
-      signedBy:
+${HOST_ATTRIBUTE_LINES}      signedBy:
         anyOf:
           - "${AUDITOR}"
       pricing:
@@ -55,11 +55,13 @@ describe(withoutPlacementAttributes.name, () => {
     });
   });
 
-  it("leaves everything outside the placement attributes unchanged", () => {
-    const original = load(DART_SDL) as Sdl;
-    delete original.profiles.placement.akash.attributes;
+  it("removes only the attribute lines, keeping comments, quotes and blank lines as the author wrote them", () => {
+    const commentedSdl = DART_SDL.replace("services:", "# Runs the Dart hello world sample\nservices:")
+      .replace("    image: google/dart-hello", "    image: 'google/dart-hello' # pinned by the template")
+      .replace("    akash:\n", "    # audited hosts only\n    akash:\n")
+      .replace("        host: akash\n", "        host: akash # gallery default\n");
 
-    expect(load(withoutPlacementAttributes(DART_SDL))).toEqual(original);
+    expect(withoutPlacementAttributes(commentedSdl)).toBe(commentedSdl.replace("      attributes:\n        host: akash # gallery default\n", ""));
   });
 
   it("removes the attributes of every placement profile", () => {
@@ -73,12 +75,64 @@ describe(withoutPlacementAttributes.name, () => {
       "          denom: uakt",
       "          amount: 100"
     ];
-    const sdl = withoutPlacementAttributes(DART_SDL.replace("\ndeployment:", `${secondPlacement.join("\n")}\n\ndeployment:`));
+    const sdl = DART_SDL.replace("\ndeployment:", `${secondPlacement.join("\n")}\n\ndeployment:`);
 
-    expect(placementsOf(sdl)).toEqual({
+    expect(withoutPlacementAttributes(sdl)).toBe(
+      sdl.replace(HOST_ATTRIBUTE_LINES, "").replace("      attributes:\n        organization: akash.network\n        ip-lease: true\n", "")
+    );
+  });
+
+  it("removes an attributes key left empty", () => {
+    const sdl = DART_SDL.replace(HOST_ATTRIBUTE_LINES, "      attributes:\n");
+
+    expect(withoutPlacementAttributes(sdl)).toBe(DART_SDL.replace(HOST_ATTRIBUTE_LINES, ""));
+  });
+
+  it("removes an explicit attributes key that has no value", () => {
+    const sdl = DART_SDL.replace(HOST_ATTRIBUTE_LINES, "      ? attributes\n");
+
+    expect(withoutPlacementAttributes(sdl)).toBe(DART_SDL.replace(HOST_ATTRIBUTE_LINES, ""));
+  });
+
+  it("removes attributes that end the document without a trailing newline", () => {
+    const sdl =
+      "version: '2.0'\nprofiles:\n  placement:\n    akash:\n      pricing:\n        dart:\n          denom: uact\n          amount: 1\n      attributes:\n        host: akash";
+
+    expect(withoutPlacementAttributes(sdl)).toBe(
+      "version: '2.0'\nprofiles:\n  placement:\n    akash:\n      pricing:\n        dart:\n          denom: uact\n          amount: 1\n"
+    );
+  });
+
+  it("keeps Windows line endings", () => {
+    const sdl = DART_SDL.replaceAll("\n", "\r\n");
+
+    expect(withoutPlacementAttributes(sdl)).toBe(DART_SDL.replace(HOST_ATTRIBUTE_LINES, "").replaceAll("\n", "\r\n"));
+  });
+
+  it("removes attributes written inline in a flow style profile and keeps the comments and long lines of the rest of the document", () => {
+    const longCommand = `echo ${"a".repeat(120)} && echo ${"b".repeat(120)}`;
+    const blockProfile = [
+      "    westcoast:",
+      "      attributes:",
+      "        host: akash",
+      "      pricing:",
+      "        dart:",
+      "          denom: uakt",
+      "          amount: 100"
+    ];
+    const sdl = DART_SDL.replace("    image: google/dart-hello", `    image: google/dart-hello\n    command: "${longCommand}"`).replace(
+      `    akash:\n${HOST_ATTRIBUTE_LINES}      signedBy:\n        anyOf:\n          - "${AUDITOR}"\n      pricing:\n        dart:\n          denom: uact\n          amount: 10000\n`,
+      `    # audited hosts only\n    akash: { attributes: { host: akash }, signedBy: { anyOf: ["${AUDITOR}"] }, pricing: { dart: { denom: uact, amount: 10000 } } }\n${blockProfile.join("\n")}\n`
+    );
+
+    const stripped = withoutPlacementAttributes(sdl);
+
+    expect(placementsOf(stripped)).toEqual({
       akash: { signedBy: { anyOf: [AUDITOR] }, pricing: { dart: { denom: "uact", amount: 10000 } } },
       westcoast: { pricing: { dart: { denom: "uakt", amount: 100 } } }
     });
+    expect(stripped).toContain("# audited hosts only\n");
+    expect(stripped).toContain(`command: "${longCommand}"\n`);
   });
 
   it("keeps resource attributes such as the GPU vendor and storage class", () => {
@@ -109,16 +163,8 @@ describe(withoutPlacementAttributes.name, () => {
     });
   });
 
-  it("keeps long values on a single line", () => {
-    const longCommand = `echo ${"a".repeat(120)} && echo ${"b".repeat(120)}`;
-
-    const sdl = withoutPlacementAttributes(DART_SDL.replace("    image: google/dart-hello", `    image: google/dart-hello\n    command: "${longCommand}"`));
-
-    expect(sdl).toContain(`command: ${longCommand}\n`);
-  });
-
   it("returns an SDL without placement attributes as the same text, comments included", () => {
-    const sdl = `# keep me\n${DART_SDL.replace("      attributes:\n        host: akash\n", "")}`;
+    const sdl = `# keep me\n${DART_SDL.replace(HOST_ATTRIBUTE_LINES, "")}`;
 
     expect(withoutPlacementAttributes(sdl)).toBe(sdl);
   });
@@ -136,6 +182,12 @@ describe(withoutPlacementAttributes.name, () => {
 
   it("returns text it cannot parse unchanged", () => {
     const sdl = "profiles:\n  placement: [unclosed\n";
+
+    expect(withoutPlacementAttributes(sdl)).toBe(sdl);
+  });
+
+  it("returns an SDL with a parse error unchanged even when it sets placement attributes", () => {
+    const sdl = `${DART_SDL}deployment:\n  other: {}\n`;
 
     expect(withoutPlacementAttributes(sdl)).toBe(sdl);
   });
