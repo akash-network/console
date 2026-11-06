@@ -8,6 +8,7 @@ import type { ExecutionContextService } from "@src/core/services/execution-conte
 import type { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import type { TxService } from "@src/core/services/tx/tx.service";
 import { envSchema } from "@src/feedback/config/env.config";
+import { ACTION_RESULT_TOOL_NAME } from "@src/feedback/lib/assistant-history/assistant-history";
 import { REDACTED } from "@src/feedback/lib/redact-secrets/redact-secrets";
 import type { AssistantConsentOutput, AssistantConsentRepository } from "@src/feedback/repositories/assistant-consent/assistant-consent.repository";
 import type {
@@ -180,6 +181,30 @@ describe(AssistantConversationService.name, () => {
       expect(turn.messages[0].content).toContain('deployment "42"');
       expect(turn.messages[0].content).toContain("https://discord.example");
       expect(turn.messages[0].content).toContain("free trial");
+    });
+
+    it("tells the model what the user did with the latest cards of a stored conversation", async () => {
+      const { service, conversationRepository, messageRepository, turnService } = setup();
+      conversationRepository.findOneBy.mockResolvedValue(conversation({}));
+      messageRepository.findAllOf.mockResolvedValue([
+        message({
+          role: "tool",
+          toolName: "propose_create_deployment",
+          toolPayload: { proposalId: "p1", action: { type: "create_deployment", name: "dart" } }
+        }),
+        message({
+          role: "tool",
+          toolName: ACTION_RESULT_TOOL_NAME,
+          content: "create deployment, confirmed, succeeded",
+          toolPayload: { proposalId: "p1", actionType: "create_deployment", decision: "confirmed", outcome: "succeeded", error: null }
+        })
+      ]);
+
+      const run = await service.prepareMessage(CONVERSATION_ID, { content: "this template didn't work" });
+      await run(vi.fn(), new AbortController().signal);
+
+      const [turn] = turnService.run.mock.calls[0];
+      expect(turn.messages[0].content).toContain('create deployment named "dart": confirmed, succeeded at 2026-11-04 23:30 UTC');
     });
 
     it("tells the browser how many secrets it removed before the turn, without the value or its kind", async () => {

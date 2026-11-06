@@ -1,6 +1,7 @@
 import createError from "http-errors";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
+import { ZodError } from "zod";
 
 import type { CreateLogger } from "@src/core";
 import type { AssistantAction } from "@src/feedback/http-schemas/assistant-action.schema";
@@ -179,7 +180,9 @@ describe(AssistantToolRunnerService.name, () => {
       const outcome = await runner.run(call("propose_send_manifest_again", { dseq: "42", diagnosis }), { isTrialing: false, withheldTemplateSdls: [] });
 
       expect(outcome).toMatchObject({ kind: "result", ok: false });
-      expect((outcome as Extract<typeof outcome, { kind: "result" }>).content).toContain("Invalid arguments: diagnosis.evidence");
+      expect((outcome as Extract<typeof outcome, { kind: "result" }>).content).toContain(
+        "Invalid arguments for propose_send_manifest_again: diagnosis.evidence"
+      );
       expect(proposalService.propose).not.toHaveBeenCalled();
     });
   });
@@ -224,7 +227,7 @@ describe(AssistantToolRunnerService.name, () => {
 
       expect(outcome).toEqual({
         kind: "result",
-        content: toolContentOf("check_availability", { error: "Invalid arguments: (root) Give a templateId or an sdl" }),
+        content: toolContentOf("check_availability", { error: `Invalid arguments for check_availability: (root) Give a templateId or an sdl. ${RETRY_ONCE}` }),
         summary: "Could not check which providers could bid",
         ok: false
       });
@@ -317,19 +320,26 @@ describe(AssistantToolRunnerService.name, () => {
   describe("refusals", () => {
     it.each([
       [call("open_shell", {}), "There is no tool named open_shell."],
-      [call("get_deployment", "{not json"), "The arguments are not valid JSON."],
-      [call("propose_send_manifest_again", "[]"), "Invalid arguments: (root) Expected object, received array"],
-      [call("get_deployment", { dseq: "abc" }), "Invalid arguments: dseq A dseq is a positive integer"],
-      [call("propose_create_deployment", {}), "Invalid arguments: (root) Give a templateId or an sdl"]
-    ])("reports %o back to the model and logs the rejection without the arguments", async (toolCall, error) => {
-      const { runner, logger } = setup();
+      [call("get_deployment", "{not json"), `Invalid arguments for get_deployment: (root) The arguments are not valid JSON. ${RETRY_ONCE}`],
+      [call("propose_send_manifest_again", "[]"), `Invalid arguments for propose_send_manifest_again: (root) Expected object, received array. ${RETRY_ONCE}`],
+      [call("get_deployment", { dseq: "abc" }), `Invalid arguments for get_deployment: dseq A dseq is a positive integer. ${RETRY_ONCE}`],
+      [call("propose_create_deployment", {}), `Invalid arguments for propose_create_deployment: (root) Give a templateId or an sdl. ${RETRY_ONCE}`]
+    ])("reports %o back to the model", async (toolCall, error) => {
+      const { runner } = setup();
 
       expect(await runner.run(toolCall, { isTrialing: false, withheldTemplateSdls: [] })).toMatchObject({
         kind: "result",
         content: toolContentOf(toolCall.function.name, { error }),
         ok: false
       });
-      expect(logger.info).toHaveBeenCalledWith({ event: "ASSISTANT_TOOL_REJECTED", tool: toolCall.function.name, reason: error });
+    });
+
+    it("logs a refused tool call with its reason", async () => {
+      const { runner, logger } = setup();
+
+      await runner.run(call("open_shell", {}), { isTrialing: false, withheldTemplateSdls: [] });
+
+      expect(logger.info).toHaveBeenCalledWith({ event: "ASSISTANT_TOOL_REJECTED", tool: "open_shell", reason: "There is no tool named open_shell." });
       expect(logger.warn).not.toHaveBeenCalled();
     });
 
@@ -383,6 +393,81 @@ describe(AssistantToolRunnerService.name, () => {
       });
     });
 
+    it("logs where rejected arguments failed without their values", async () => {
+      const { runner, logger } = setup();
+
+      await runner.run(call("list_deployments", { state: "all", search: "x".repeat(500) }), { isTrialing: false, withheldTemplateSdls: [] });
+
+      expect(logger.warn).toHaveBeenCalledWith({
+        event: "ASSISTANT_TOOL_ARGUMENTS_REJECTED",
+        tool: "list_deployments",
+        issues: [
+          { path: "state", code: "invalid_enum_value" },
+          { path: "search", code: "too_big" }
+        ]
+      });
+      expect(JSON.stringify(logger.warn.mock.calls)).not.toContain("all");
+    });
+
+    it("logs argument-supplied record keys only as placeholders", async () => {
+      const { runner, logger } = setup();
+      const services = { "sk-live-4242": { memory: "lots" } };
+
+      const outcome = await runner.run(call("propose_redeploy_with_resources", { dseq: "1", reason: "more memory", services }), {
+        isTrialing: false,
+        withheldTemplateSdls: []
+      });
+
+      expect(outcome).toMatchObject({ ok: false, content: expect.stringContaining("services.sk-live-4242.memory Invalid") });
+      expect(logger.warn).toHaveBeenCalledWith({
+        event: "ASSISTANT_TOOL_ARGUMENTS_REJECTED",
+        tool: "propose_redeploy_with_resources",
+        issues: [{ path: "services.*.memory", code: "invalid_string" }]
+      });
+      expect(JSON.stringify(logger.warn.mock.calls)).not.toContain("sk-live-4242");
+    });
+
+    it.each([
+      ["read_events", { dseq: "x" }, "dseq"],
+      ["suggest_live_help", { reason: "bored" }, "reason"],
+      ["propose_send_manifest_again", { dseq: "42", diagnosis: { summary: 1, evidence: [] } }, "diagnosis.summary"],
+      ["propose_choose_bid", { dseq: "42", choices: [{ gseq: 0, oseq: 1, provider: "p" }] }, "choices.0.gseq"]
+    ])("rejects the arguments of %s", async (name, args, path) => {
+      const { runner, logger } = setup();
+
+      expect(await runner.run(call(name, args), { isTrialing: false, withheldTemplateSdls: [] })).toMatchObject({
+        content: expect.stringContaining(`Invalid arguments for ${name}: ${path} `)
+      });
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "ASSISTANT_TOOL_ARGUMENTS_REJECTED", issues: [expect.objectContaining({ path })] })
+      );
+    });
+
+    it("reports a schema error from a tool's own data as a failure, not as rejected arguments", async () => {
+      const { runner, accountTools, proposalService, logger } = setup();
+      const error = new ZodError([{ code: "custom", path: ["templates", 0], message: "Bad cache" }]);
+      accountTools.listTemplates.mockRejectedValue(error);
+      proposalService.propose.mockRejectedValue(error);
+      const failed = "The tool failed. Tell the user this data could not be read right now.";
+
+      expect(await runner.run(call("list_templates", {}), { isTrialing: false, withheldTemplateSdls: [] })).toMatchObject({
+        content: toolContentOf("list_templates", { error: failed })
+      });
+      expect(await runner.run(call("propose_send_manifest_again", { dseq: "42" }), { isTrialing: false, withheldTemplateSdls: [] })).toMatchObject({
+        content: toolContentOf("propose_send_manifest_again", { error: failed })
+      });
+      expect(logger.warn).toHaveBeenCalledWith({ event: "ASSISTANT_TOOL_FAILED", tool: "list_templates", error });
+      expect(logger.warn).not.toHaveBeenCalledWith(expect.objectContaining({ event: "ASSISTANT_TOOL_ARGUMENTS_REJECTED" }));
+    });
+
+    it("logs arguments that are not JSON", async () => {
+      const { runner, logger } = setup();
+
+      await runner.run(call("get_bids", "{oops"), { isTrialing: false, withheldTemplateSdls: [] });
+
+      expect(logger.warn).toHaveBeenCalledWith({ event: "ASSISTANT_TOOL_ARGUMENTS_REJECTED", tool: "get_bids", issues: [{ path: "(root)", code: "custom" }] });
+    });
+
     it("reports refusals and client errors from the tools as they are", async () => {
       const { runner, deploymentTools, proposalService } = setup();
       proposalService.propose.mockRejectedValue(new AssistantToolError("No such service"));
@@ -411,6 +496,8 @@ describe(AssistantToolRunnerService.name, () => {
       expect(logger.info).not.toHaveBeenCalled();
     });
   });
+
+  const RETRY_ONCE = "Call it once more with corrected arguments, or answer without it.";
 
   function setup() {
     const deploymentTools = mock<AssistantDeploymentToolsService>();

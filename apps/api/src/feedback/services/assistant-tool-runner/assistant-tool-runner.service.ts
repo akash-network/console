@@ -1,7 +1,7 @@
 import { isHttpError } from "http-errors";
 import { randomUUID } from "node:crypto";
 import { inject, singleton } from "tsyringe";
-import { z, ZodError } from "zod";
+import { z, ZodError, type ZodIssue } from "zod";
 
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { type AssistantAction, type AssistantDiagnosis, AssistantDiagnosisSchema } from "@src/feedback/http-schemas/assistant-action.schema";
@@ -20,6 +20,7 @@ import {
   type ReadToolName
 } from "@src/feedback/lib/assistant-tools/assistant-tool-arguments";
 import {
+  assistantChatTools,
   isClientToolName,
   isLiveHelpToolName,
   isReadToolName,
@@ -40,6 +41,7 @@ const FAILED_TOOL_MESSAGE = "The tool failed. Tell the user this data could not 
 const WITHHELD_PROPOSAL_NOTE =
   "No provider can bid on this, so the user did not see a card. Propose an adjusted SDL that has bidders, keeping its price and denom: drop placement attributes no audited provider signed, change resources the user did not ask for, or pick another template. If nothing fits, explain why to the user.";
 const TEMPLATE_SDL_LEFT_OUT_NOTE = "The template's SDL is too long to include here, so pick another template or explain why nothing fits.";
+const RETRY_ONCE_HINT = "Call it once more with corrected arguments, or answer without it.";
 
 export type ClientToolCall = { [K in ClientToolName]: { id: string; name: K; arguments: ClientToolArguments<K> } }[ClientToolName];
 
@@ -116,7 +118,6 @@ function redactedDiagnosisOf(diagnosis: unknown): AssistantDiagnosis | undefined
 }
 
 function rejectionOf(error: unknown): string | null {
-  if (error instanceof ZodError) return `Invalid arguments: ${error.issues.map(issue => `${issue.path.join(".") || "(root)"} ${issue.message}`).join("; ")}`;
   if (error instanceof AssistantToolError) return error.message;
   if (isHttpError(error) && error.status < 500) return error.message;
 
@@ -128,12 +129,41 @@ function loggedRejectionOf(rejection: string): string {
   return redactSecrets(rejection.split("\n", 1)[0]);
 }
 
+class AssistantToolArgumentsRejectedError extends Error {
+  constructor(readonly issues: ZodIssue[]) {
+    super("The tool arguments were rejected");
+  }
+}
+
+/** Only argument validation counts as a rejection, so a schema error from a downstream service still reads as a tool failure. */
+function validArguments<T>(parse: () => T): T {
+  try {
+    return parse();
+  } catch (error) {
+    if (error instanceof ZodError) throw new AssistantToolArgumentsRejectedError(error.issues);
+    throw error;
+  }
+}
+
 function parsedArguments(call: ChatToolCall): unknown {
   try {
     return JSON.parse(call.function.arguments || "{}");
   } catch {
-    throw new AssistantToolError("The arguments are not valid JSON.");
+    throw new AssistantToolArgumentsRejectedError([{ code: "custom", path: [], message: "The arguments are not valid JSON" }]);
   }
+}
+
+function propertyNamesOf(schema: unknown): string[] {
+  if (!schema || typeof schema !== "object") return [];
+
+  const { properties } = schema as { properties?: object };
+  return [...Object.keys(properties ?? {}), ...Object.values(schema).flatMap(propertyNamesOf)];
+}
+
+/** Record keys such as service names come from the arguments, so only the tools' own parameter names reach the log. */
+function loggedPathOf(path: (string | number)[]): string {
+  const parameterNames = new Set(assistantChatTools().flatMap(tool => propertyNamesOf(tool.function.parameters)));
+  return path.map(segment => (typeof segment === "number" || parameterNames.has(segment) ? segment : "*")).join(".") || "(root)";
 }
 
 @singleton()
@@ -174,16 +204,16 @@ export class AssistantToolRunnerService {
     const args = parsedArguments(call);
 
     if (isReadToolName(name)) {
-      const parsed = READ_TOOL_ARGUMENTS[name].parse(args);
+      const parsed = validArguments(() => READ_TOOL_ARGUMENTS[name].parse(args));
       return { kind: "result", content: toolContentOf(name, { data: await this.#read(name, parsed, context) }), summary: summaryOf(name, parsed), ok: true };
     }
 
     if (isClientToolName(name)) {
-      return { kind: "client", call: { id: call.id, name, arguments: CLIENT_TOOL_ARGUMENTS[name].parse(args) } as ClientToolCall };
+      return { kind: "client", call: { id: call.id, name, arguments: validArguments(() => CLIENT_TOOL_ARGUMENTS[name].parse(args)) } as ClientToolCall };
     }
 
     if (isLiveHelpToolName(name)) {
-      const { reason } = LIVE_HELP_TOOL_ARGUMENTS.parse(args);
+      const { reason } = validArguments(() => LIVE_HELP_TOOL_ARGUMENTS.parse(args));
       return {
         kind: "live_help",
         content: toolContentOf(name, {
@@ -197,8 +227,12 @@ export class AssistantToolRunnerService {
     if (!type) throw new AssistantToolError(`There is no tool named ${name}.`);
 
     const { actionArguments, diagnosis } = splitProposalArguments(type, args);
-    const redactedDiagnosis = redactedDiagnosisOf(diagnosis);
-    const action = await this.proposalService.propose(type, PROPOSAL_TOOL_ARGUMENTS[type].parse(actionArguments), context);
+    const redactedDiagnosis = validArguments(() => redactedDiagnosisOf(diagnosis));
+    const action = await this.proposalService.propose(
+      type,
+      validArguments(() => PROPOSAL_TOOL_ARGUMENTS[type].parse(actionArguments)),
+      context
+    );
     const proposalId = randomUUID();
 
     return {
@@ -239,6 +273,7 @@ export class AssistantToolRunnerService {
   }
 
   #reasonOf(tool: string, error: unknown): string {
+    if (error instanceof AssistantToolArgumentsRejectedError) return this.#rejectedArgumentsReasonOf(tool, error.issues);
     const rejection = rejectionOf(error);
     if (rejection === null) {
       this.#logger.warn({ event: "ASSISTANT_TOOL_FAILED", tool, error });
@@ -247,5 +282,12 @@ export class AssistantToolRunnerService {
 
     this.#logger.info({ event: "ASSISTANT_TOOL_REJECTED", tool, reason: loggedRejectionOf(rejection) });
     return rejection;
+  }
+
+  /** Logs where the arguments failed but never their values, which can quote the user's own data. */
+  #rejectedArgumentsReasonOf(tool: string, issues: ZodIssue[]): string {
+    this.#logger.warn({ event: "ASSISTANT_TOOL_ARGUMENTS_REJECTED", tool, issues: issues.map(({ path, code }) => ({ path: loggedPathOf(path), code })) });
+
+    return `Invalid arguments for ${tool}: ${issues.map(({ path, message }) => `${path.join(".") || "(root)"} ${message}`).join("; ")}. ${RETRY_ONCE_HINT}`;
   }
 }

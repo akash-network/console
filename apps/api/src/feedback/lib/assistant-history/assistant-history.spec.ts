@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { MAX_ASSISTANT_HISTORY_MESSAGES } from "@src/feedback/http-schemas/assistant-conversation.schema";
 import { REDACTED } from "@src/feedback/lib/redact-secrets/redact-secrets";
-import { ACTION_RESULT_TOOL_NAME, historyFromClient, historyFromStored, MAX_HISTORY_LENGTH } from "./assistant-history";
+import { ACTION_RESULT_TOOL_NAME, historyFromClient, historyFromStored, MAX_HISTORY_LENGTH, MAX_RECENT_ACTIONS, recentActionsOf } from "./assistant-history";
 
 describe("assistant history", () => {
   describe(historyFromStored.name, () => {
@@ -22,6 +22,65 @@ describe("assistant history", () => {
         { role: "assistant", content: "Try one GPU." },
         { role: "user", content: "[Action card outcome reported by Console] redeploy with resources, confirmed" }
       ]);
+    });
+  });
+
+  describe(recentActionsOf.name, () => {
+    const at = new Date("2026-11-06T05:38:41.000Z");
+
+    it("describes each card outcome with its deployment, status and minute", () => {
+      expect(
+        recentActionsOf([
+          { toolName: "get_bids", toolPayload: { toolCallId: "c1", ok: true }, createdAt: at },
+          { toolName: "propose_create_deployment", toolPayload: { proposalId: "p1", action: { type: "create_deployment", name: "dart" } }, createdAt: at },
+          {
+            toolName: "propose_close_deployment",
+            toolPayload: { proposalId: "p2", action: { type: "close_deployment", dseq: "7", name: "web" } },
+            createdAt: at
+          },
+          { toolName: "propose_buy_credits", toolPayload: { proposalId: "p3", action: { type: "buy_credits" } }, createdAt: at },
+          {
+            toolName: ACTION_RESULT_TOOL_NAME,
+            toolPayload: { proposalId: "p1", actionType: "create_deployment", decision: "confirmed", outcome: "succeeded", error: null },
+            createdAt: at
+          },
+          {
+            toolName: ACTION_RESULT_TOOL_NAME,
+            toolPayload: { proposalId: "p2", actionType: "close_deployment", decision: "confirmed", outcome: "failed", error: `boom ${"x".repeat(200)}` },
+            createdAt: at
+          },
+          { toolName: ACTION_RESULT_TOOL_NAME, toolPayload: { proposalId: "p3", actionType: "buy_credits", decision: "cancelled" }, createdAt: at }
+        ])
+      ).toEqual([
+        'create deployment named "dart": confirmed, succeeded at 2026-11-06 05:38 UTC',
+        `close deployment on deployment 7: confirmed, failed, error: boom ${"x".repeat(115)} at 2026-11-06 05:38 UTC`,
+        "buy credits: cancelled at 2026-11-06 05:38 UTC"
+      ]);
+    });
+
+    it("keeps only the latest outcomes", () => {
+      const outcomes = Array.from({ length: MAX_RECENT_ACTIONS + 1 }, (_, index) => ({
+        toolName: ACTION_RESULT_TOOL_NAME,
+        toolPayload: { proposalId: `p${index}`, actionType: `action_${index}`, decision: "cancelled" },
+        createdAt: at
+      }));
+
+      const actions = recentActionsOf(outcomes);
+
+      expect(actions).toHaveLength(MAX_RECENT_ACTIONS);
+      expect(actions[0]).toBe("action 1: cancelled at 2026-11-06 05:38 UTC");
+    });
+
+    it("skips payloads it cannot read and redacts what it shows", () => {
+      expect(
+        recentActionsOf([
+          { toolName: "propose_rename_deployment", toolPayload: null, createdAt: at },
+          { toolName: "propose_rename_deployment", toolPayload: { proposalId: "p1", action: { name: "token=abcdef123456" } }, createdAt: at },
+          { toolName: ACTION_RESULT_TOOL_NAME, toolPayload: { proposalId: "p2" }, createdAt: at },
+          { toolName: null, toolPayload: { proposalId: "p3", actionType: "x", decision: "cancelled" }, createdAt: at },
+          { toolName: ACTION_RESULT_TOOL_NAME, toolPayload: { proposalId: "p1", actionType: "rename_deployment", decision: "cancelled" }, createdAt: at }
+        ])
+      ).toEqual([`rename deployment named "token=${REDACTED}": cancelled at 2026-11-06 05:38 UTC`]);
     });
   });
 
