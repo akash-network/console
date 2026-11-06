@@ -20,8 +20,12 @@ export class AssistantPanelPage {
   async open(): Promise<void> {
     if (await this.isOpen()) return;
 
-    const launcher = this.launcher();
-    if (await launcher.isVisible({ timeout: PANEL_TIMEOUT_MS }).catch(() => false)) {
+    const launcher = this.launcher().first();
+    const hasLauncher = await launcher
+      .waitFor({ state: "visible", timeout: PANEL_TIMEOUT_MS })
+      .then(() => true)
+      .catch(() => false);
+    if (hasLauncher) {
       await launcher.click();
     } else {
       await this.press("Shift+A");
