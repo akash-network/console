@@ -42,24 +42,27 @@ describe(useProvidersExplorerModel.name, () => {
     expect(result.current.pageIndex).toBe(0);
   });
 
-  it("asks for offline and unaudited providers too once both filters are off", () => {
+  it("keeps asking for online audited providers only while the user narrows the list", () => {
     const { result, useProviderSearch } = setup();
 
-    act(() => result.current.updateFilters({ isActiveOnly: false, isAuditedOnly: false }));
+    act(() => result.current.updateFilters({ regions: ["eu-central"], isFavoritesOnly: true }));
 
-    expect(useProviderSearch).toHaveBeenLastCalledWith(expect.objectContaining({ online: undefined, audited: undefined }), { enabled: true });
-    expect(result.current.hasFilters).toBe(true);
+    expect(useProviderSearch).toHaveBeenLastCalledWith(expect.objectContaining({ online: true, audited: true }), expect.anything());
   });
 
-  it.each([
-    ["offline providers", { isActiveOnly: false }],
-    ["unaudited providers", { isAuditedOnly: false }]
-  ])("counts showing %s as a filter without narrowing the pins", (_, change) => {
-    const { result } = setup({ locations: [createLocation({ owner: "akash1a" })] });
+  it("leaves unaudited providers off the map, the filter options and the network numbers", () => {
+    const locations = [
+      createLocation({ owner: "akash1audited", locationRegion: "eu-central", gpuModels: ["h100"], gpus: 2, uptime30d: 0.9 }),
+      createLocation({ owner: "akash1unaudited", locationRegion: "na-us-west", gpuModels: ["a100"], gpus: 8, uptime30d: 0.5, isAudited: false })
+    ];
+    const { result } = setup({ locations });
 
-    act(() => result.current.updateFilters(change));
-
-    expect(result.current).toMatchObject({ hasFilters: true, matchingLocationIds: null });
+    expect(result.current).toMatchObject({
+      locations: [locations[0]],
+      regionOptions: [{ value: "eu-central", count: 1 }],
+      gpuModelOptions: [{ value: "h100", count: 1 }],
+      networkStats: { availableGpuCount: 2, activeProviderCount: 1, availableVcpuCount: 8, averageUptime30d: 0.9 }
+    });
   });
 
   it.each([
@@ -134,14 +137,11 @@ describe(useProvidersExplorerModel.name, () => {
   it("follows the providers, the map and the network numbers as they arrive", () => {
     const { result, rerender, providerSearch, providerLocations, dashboard } = setup({ page: undefined, locations: undefined, dashboard: undefined });
     const providers = [createProvider("akash1late")];
-    const locations = [createLocation({ owner: "akash1late", locationRegion: "eu-central", gpuModels: ["h100"], uptime30d: 0.9 })];
+    const locations = [createLocation({ owner: "akash1late", locationRegion: "eu-central", gpuModels: ["h100"], gpus: 3, uptime30d: 0.9 })];
 
     providerSearch.data = createPage(providers, 1);
     providerLocations.data = locations;
-    dashboard.data = mock<DashboardData>({
-      now: mock<DashboardData["now"]>({ activeLeaseCount: 12 }),
-      networkCapacity: mock<DashboardData["networkCapacity"]>({ availableGPU: 3, activeProviderCount: 1, availableCPU: 4000 })
-    });
+    dashboard.data = mock<DashboardData>({ now: mock<DashboardData["now"]>({ activeLeaseCount: 12 }) });
     rerender();
 
     expect(result.current).toMatchObject({
@@ -149,7 +149,7 @@ describe(useProvidersExplorerModel.name, () => {
       locations,
       regionOptions: [{ value: "eu-central", count: 1 }],
       gpuModelOptions: [{ value: "h100", count: 1 }],
-      networkStats: { availableGpuCount: 3, activeProviderCount: 1, availableVcpuCount: 4, activeLeaseCount: 12, averageUptime30d: 0.9 }
+      networkStats: { availableGpuCount: 3, activeProviderCount: 1, availableVcpuCount: 8, activeLeaseCount: 12, averageUptime30d: 0.9 }
     });
   });
 
@@ -205,7 +205,7 @@ describe(useProvidersExplorerModel.name, () => {
     const { result } = setup();
 
     act(() => result.current.changeSearch("europlots"));
-    act(() => result.current.updateFilters({ regions: ["eu-central"], isAuditedOnly: false }));
+    act(() => result.current.updateFilters({ regions: ["eu-central"], isFavoritesOnly: true }));
     act(() => result.current.changePageIndex(2));
     act(() => result.current.clearFilters());
 
@@ -213,7 +213,7 @@ describe(useProvidersExplorerModel.name, () => {
       search: "",
       pageIndex: 0,
       hasFilters: false,
-      filters: { regions: [], gpuModels: [], isGpuOnly: false, isActiveOnly: true, isAuditedOnly: true, isFavoritesOnly: false }
+      filters: { regions: [], gpuModels: [], isGpuOnly: false, isFavoritesOnly: false }
     });
   });
 
@@ -372,7 +372,7 @@ describe(useProvidersExplorerModel.name, () => {
     const locations = [createLocation({ owner: "akash1favorite" }), createLocation({ owner: "akash1other" })];
     const { result } = setup({ locations, favoriteProviders: ["akash1favorite", "akash1other"] });
 
-    act(() => result.current.updateFilters({ isFavoritesOnly: true, isAuditedOnly: false }));
+    act(() => result.current.updateFilters({ isFavoritesOnly: true }));
     act(() => result.current.changeSearch("  akash1fav  "));
 
     expect(result.current.matchingLocationIds).toEqual(new Set(["akash1favorite"]));
@@ -405,30 +405,27 @@ describe(useProvidersExplorerModel.name, () => {
     expect(result.current.matchingLocationIds).toEqual(new Set(["akash1mixed"]));
   });
 
-  it("sums up the network from the dashboard and the located providers' uptime", () => {
-    const dashboard = mock<DashboardData>({
-      now: mock<DashboardData["now"]>({ activeLeaseCount: 678 }),
-      networkCapacity: mock<DashboardData["networkCapacity"]>({ availableGPU: 60, activeProviderCount: 59, availableCPU: 8_868_362 })
-    });
+  it("sums up the located providers' free capacity and uptime, and the dashboard's leases", () => {
+    const dashboard = mock<DashboardData>({ now: mock<DashboardData["now"]>({ activeLeaseCount: 678 }) });
     const locations = [
-      createLocation({ owner: "akash1a", uptime30d: 0.99 }),
-      createLocation({ owner: "akash1b", uptime30d: 0.9 }),
+      createLocation({ owner: "akash1a", gpus: 4, vcpuMillicores: 1_500, leased: 1_000, uptime30d: 0.99 }),
+      createLocation({ owner: "akash1b", gpus: 2, vcpuMillicores: 2_200, leased: 1_000, uptime30d: 0.9 }),
       createLocation({ owner: "akash1c", uptime30d: null }),
       createLocation({ owner: "akash1d", uptime30d: undefined })
     ];
     const { result } = setup({ dashboard, locations });
 
     expect(result.current.networkStats).toEqual({
-      availableGpuCount: 60,
-      activeProviderCount: 59,
-      availableVcpuCount: 8868,
+      availableGpuCount: 6,
+      activeProviderCount: 4,
+      availableVcpuCount: 20,
       activeLeaseCount: 678,
       averageUptime30d: expect.closeTo(0.945, 5)
     });
   });
 
   it("leaves the network numbers empty until they load", () => {
-    const { result } = setup({ dashboard: undefined, locations: [] });
+    const { result } = setup({ dashboard: undefined, locations: undefined });
 
     expect(result.current.networkStats).toEqual({
       availableGpuCount: null,
@@ -452,10 +449,12 @@ describe(useProvidersExplorerModel.name, () => {
       locationRegion?: string | null;
       uptime30d?: number | null;
       gpus?: number;
+      vcpuMillicores?: number;
+      leased?: number;
     }
   ): ApiProviderLocation {
-    const { gpus = 0, ...fields } = overrides;
-    const item = (total: number): StatsItem => ({ active: 0, available: total, pending: 0, total });
+    const { gpus = 0, vcpuMillicores = 8000, leased = 0, ...fields } = overrides;
+    const item = (available: number): StatsItem => ({ active: leased, available, pending: leased, total: available + 2 * leased });
     return Object.assign(mock<ApiProviderLocation>(), {
       owner: "akash1provider",
       hostUri: "https://provider.example.com:8443",
@@ -463,7 +462,7 @@ describe(useProvidersExplorerModel.name, () => {
       locationRegion: null,
       uptime30d: null,
       gpuModels: [],
-      stats: { cpu: item(8000), gpu: item(gpus), memory: item(0), storage: { ephemeral: item(0), persistent: item(0), total: item(0) } },
+      stats: { cpu: item(vcpuMillicores), gpu: item(gpus), memory: item(0), storage: { ephemeral: item(0), persistent: item(0), total: item(0) } },
       ...fields
     });
   }

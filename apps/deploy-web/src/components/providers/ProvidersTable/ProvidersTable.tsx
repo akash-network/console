@@ -195,9 +195,6 @@ const ProviderRow: FC<ProviderRowProps> = ({ provider, isSelected, isFavorite, i
             >
               {provider.name}
             </button>
-            {!provider.isOnline && (
-              <span className="shrink-0 rounded-full bg-warning/15 px-1.5 py-px font-mono text-[10px] font-medium text-warning">Offline</span>
-            )}
           </span>
           <span className="truncate font-mono text-[10.5px] text-muted-foreground" title={provider.owner}>
             {provider.owner}

@@ -50,7 +50,6 @@ describe("ProviderPanel", () => {
       owner: "akash1selected",
       name: "provider.selected.com",
       locationRegion: "eu-central",
-      isAudited: true,
       location: "Hesse, DE",
       gpuCount: 4,
       gpuModels: ["h100"],
@@ -64,7 +63,6 @@ describe("ProviderPanel", () => {
     expect(screen.getByRole("heading", { name: "provider.selected.com" })).toBeInTheDocument();
     expect(screen.getByText("akash1selected")).toBeInTheDocument();
     expect(screen.getByText("EU Central")).toBeInTheDocument();
-    expect(screen.getByText("Audited")).toBeInTheDocument();
     expect(screen.getByText("Hesse, DE")).toBeInTheDocument();
     expect(screen.getByText("4×")).toBeInTheDocument();
     expect(screen.getByText("H100")).toBeInTheDocument();
@@ -76,28 +74,13 @@ describe("ProviderPanel", () => {
     expect(screen.getByRole("link", { name: "View full profile" })).toHaveAttribute("href", UrlService.providerDetail("akash1selected"));
   });
 
-  it("marks an offline provider", () => {
-    const provider = createSummary({ isOnline: false, locationRegion: null, isAudited: false });
-    setup({ providers: [provider], selected: provider });
-
-    expect(screen.getByText("Offline")).toBeInTheDocument();
-  });
-
-  it("leaves an online provider unmarked", () => {
-    const provider = createSummary({});
-    setup({ providers: [provider], selected: provider });
-
-    expect(screen.queryByText("Offline")).not.toBeInTheDocument();
-  });
-
   it("says when a provider runs no GPU, has no measured uptime and no known location", () => {
-    const provider = createSummary({ gpuCount: 0, gpuModels: [], uptime30d: null, location: null, locationRegion: null, isAudited: false });
+    const provider = createSummary({ gpuCount: 0, gpuModels: [], uptime30d: null, location: null, locationRegion: null });
     setup({ providers: [provider], selected: provider });
 
     expect(screen.getByText("CPU only")).toBeInTheDocument();
     expect(screen.getByText("Not measured yet")).toBeInTheDocument();
     expect(screen.getByText("Location unknown")).toBeInTheDocument();
-    expect(screen.queryByText("Audited")).not.toBeInTheDocument();
     expect(screen.getAllByRole("definition").map(definition => definition.textContent)).toEqual([
       "—",
       "CPU only",
@@ -115,14 +98,6 @@ describe("ProviderPanel", () => {
     setup({ providers: [provider], selected: provider });
 
     expect(screen.getByText("H100, A100")).toBeInTheDocument();
-  });
-
-  it("shows the region of an unaudited provider", () => {
-    const provider = createSummary({ locationRegion: "eu-central", isAudited: false });
-    setup({ providers: [provider], selected: provider });
-
-    expect(screen.getByText("EU Central")).toBeInTheDocument();
-    expect(screen.queryByText("Audited")).not.toBeInTheDocument();
   });
 
   it("adds the selected provider to the favorites", async () => {
@@ -174,8 +149,6 @@ describe("ProviderPanel", () => {
       hostUri: "https://provider.example.com:8443",
       location: "Missouri, US",
       locationRegion: "na-us-midwest",
-      isAudited: true,
-      isOnline: true,
       uptime30d: 0.995,
       gpuCount: 0,
       gpuModels: [],

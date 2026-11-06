@@ -26,7 +26,7 @@ export const NetworkStats: FC<Props> = ({ stats, layout, className }) => (
     <StatTile
       label="Avg uptime (30d)"
       value={stats.averageUptime30d === null ? null : formatUptime(stats.averageUptime30d)}
-      foot="Online providers, rolling 30 days"
+      foot="Audited providers, rolling 30 days"
       delayMs={70}
     />
     <StatTile
