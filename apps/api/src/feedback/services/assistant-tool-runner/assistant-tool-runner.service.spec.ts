@@ -263,6 +263,8 @@ describe(AssistantToolRunnerService.name, () => {
       const { data } = JSON.parse((outcome as Extract<typeof outcome, { kind: "result" }>).content);
       expect(data).toMatchObject({ shownToUser: false, ...feedback });
       expect(data.note).toContain("keeping its price and denom");
+      expect(data.note).toContain("after at most two availability checks");
+      expect(data.note).toContain("offer request_hardware or a smaller alternative");
     });
 
     it("hands the model the template's SDL to adjust when it fits the result", async () => {

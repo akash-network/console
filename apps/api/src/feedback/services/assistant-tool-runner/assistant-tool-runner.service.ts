@@ -39,7 +39,7 @@ const TRUNCATION_MARK = "...[truncated]";
 const DiagnosisArgumentSchema = z.object({ diagnosis: AssistantDiagnosisSchema.optional() });
 const FAILED_TOOL_MESSAGE = "The tool failed. Tell the user this data could not be read right now.";
 const WITHHELD_PROPOSAL_NOTE =
-  "No provider can bid on this, so the user did not see a card. Propose an adjusted SDL that has bidders, keeping its price and denom: drop placement attributes no audited provider signed, change resources the user did not ask for, or pick another template. If nothing fits, explain why to the user.";
+  "No provider can bid on this, so the user did not see a card. Propose an adjusted SDL that has bidders, keeping its price and denom: drop placement attributes no audited provider signed, change resources the user did not ask for, or pick another template, after at most two availability checks. If nothing fits, say which requirement no provider meets right now, and offer request_hardware or a smaller alternative.";
 const TEMPLATE_SDL_LEFT_OUT_NOTE = "The template's SDL is too long to include here, so pick another template or explain why nothing fits.";
 const RETRY_ONCE_HINT = "Call it once more with corrected arguments, or answer without it.";
 

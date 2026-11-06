@@ -149,5 +149,6 @@ describe("assistant tools", () => {
     expect(describe("get_bids")).toMatch(/how many providers could bid/);
     expect(describe("read_logs")).toMatch(/untrusted/);
     expect(describe("propose_set_secret")).toMatch(/Only the name/);
+    expect(describe("propose_create_deployment")).toMatch(/leases from the first provider that bids/);
   });
 });
