@@ -94,8 +94,7 @@ export function useConfigureDraft(intent: DeploymentIntent, dependencies: typeof
   const { api } = dependencies.useServices();
   const queryClient = dependencies.useQueryClient();
   const storage = useMemo(() => dependencies.getStorage(), [dependencies]);
-  /** Read once per mount, so the screen keeps what it was handed even after its first save lets the account take over. */
-  const [handedOver] = useState(() => (intent.draftId ? handedOverDrafts.get(intent.draftId) : undefined));
+  const handedOver = useHandedOverDraft(intent.draftId);
 
   const accountDraft = api.v1.getConfigureDraft.useQuery(
     { draftId: intent.draftId ?? "" },
@@ -235,6 +234,20 @@ export function useConfigureDraft(intent: DeploymentIntent, dependencies: typeof
     }),
     [draftId, isLoading, stored, inheritSecretsFrom, save, dropInheritance, clear]
   );
+}
+
+/** Read once per draft id, so the screen keeps what it was handed after its first save lets the account take over, and still takes a draft pushed onto it while mounted. */
+function useHandedOverDraft(draftId: string | undefined): ConfigureDraftContent | undefined {
+  const [handedOver, setHandedOver] = useState(() => ({ draftId, content: handedOverDraftOf(draftId) }));
+  if (handedOver.draftId === draftId) return handedOver.content;
+
+  const content = handedOverDraftOf(draftId);
+  setHandedOver({ draftId, content });
+  return content;
+}
+
+function handedOverDraftOf(draftId: string | undefined): ConfigureDraftContent | undefined {
+  return draftId ? handedOverDrafts.get(draftId) : undefined;
 }
 
 /**

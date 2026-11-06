@@ -207,6 +207,17 @@ describe(useConfigureDraft.name, () => {
       });
       expect(getConfigureDraft).not.toHaveBeenCalled();
     });
+
+    it("exposes a draft handed over while the screen is already open, since a push onto it keeps it mounted", async () => {
+      const { result, getConfigureDraft, navigateToDraft } = setup({ intent: { draftId: "open-session" } });
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      const draftId = createConfigureDraft("assistant: sdl", { name: "nginx-api" }, mintingDependencies("handed-over-while-open"));
+
+      navigateToDraft(draftId);
+
+      expect(result.current).toMatchObject({ draftId, isLoading: false, persistedSdl: "assistant: sdl", persistedName: "nginx-api" });
+      expect(getConfigureDraft).not.toHaveBeenCalledWith({ draftId });
+    });
   });
 
   describe("saving", () => {
@@ -534,6 +545,10 @@ describe(useConfigureDraft.name, () => {
       intent = { ...intent, draftId: new URL(url, "http://localhost").searchParams.get("draftId") ?? undefined };
       view.rerender();
     };
+    const navigateToDraft = (draftId: string) => {
+      intent = { ...intent, draftId };
+      view.rerender();
+    };
 
     return {
       ...view,
@@ -546,7 +561,8 @@ describe(useConfigureDraft.name, () => {
       legacyEntry,
       cachedAccountDraft,
       answerSave,
-      followReplacedUrl
+      followReplacedUrl,
+      navigateToDraft
     };
   }
 });

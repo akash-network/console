@@ -8,6 +8,7 @@ import type { AssistantActionOf } from "@src/types/assistant";
 import type { ActionCardDiff } from "../ActionCardChrome/ActionCardChrome";
 import { ActionCardChrome } from "../ActionCardChrome/ActionCardChrome";
 import type { ActionCardProps } from "../actionCardTypes";
+import { assertOpensInEditor } from "../assertOpensInEditor/assertOpensInEditor";
 import { keepsPricing, PRICING_CHANGE_MESSAGE } from "../pricingGuard/pricingGuard";
 import type { ServiceResources } from "../serviceResourcesFormat/serviceResourcesFormat";
 import { computeLabelOf, gpuLabelOf } from "../serviceResourcesFormat/serviceResourcesFormat";
@@ -31,6 +32,7 @@ export const RedeployWithResourcesCard: FC<ActionCardProps<"redeploy_with_resour
     const sourceSdl = sdlToRedeploy(definition);
     const sdl = withServiceResources(sourceSdl, action.services);
     if (!keepsPricing(sourceSdl, sdl)) throw new Error(PRICING_CHANGE_MESSAGE);
+    assertOpensInEditor(sdl);
     redeploy({ sdl, name: definition.name, sourceDseq: action.dseq });
   };
 

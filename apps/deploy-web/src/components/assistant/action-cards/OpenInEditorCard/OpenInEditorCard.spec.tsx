@@ -12,8 +12,35 @@ import { render, screen } from "@testing-library/react";
 
 type Action = AssistantActionOf<"open_in_editor">;
 
-const STORED_SDL =
-  "services:\n  web:\n    image: nginx\nprofiles:\n  placement:\n    dcloud:\n      pricing:\n        web:\n          denom: uact\n          amount: 1000\n";
+const STORED_SDL = [
+  'version: "2.0"',
+  "services:",
+  "  web:",
+  "    image: nginx",
+  "profiles:",
+  "  compute:",
+  "    web:",
+  "      resources:",
+  "        cpu:",
+  "          units: 0.5",
+  "        memory:",
+  "          size: 512Mi",
+  "        storage:",
+  "          size: 1Gi",
+  "  placement:",
+  "    dcloud:",
+  "      pricing:",
+  "        web:",
+  "          denom: uact",
+  "          amount: 1000",
+  "deployment:",
+  "  web:",
+  "    dcloud:",
+  "      profile: web",
+  "      count: 1",
+  ""
+].join("\n");
+const SERVICELESS_SDL = 'version: "2.0"\nservices: {}\n';
 
 describe("OpenInEditorCard", () => {
   it("describes a deployment-based draft and shows its SDL", () => {
@@ -99,6 +126,20 @@ describe("OpenInEditorCard", () => {
     await expect(chromeProps().onConfirm!("")).rejects.toThrow(
       "This change would touch pricing, which the assistant can't change. Edit pricing in the editor yourself."
     );
+    expect(redeploy).not.toHaveBeenCalled();
+  });
+
+  it("refuses a new SDL the editor can't import instead of opening a blank deployment", async () => {
+    const { chromeProps, redeploy } = setup({ action: { sdl: SERVICELESS_SDL } });
+
+    await expect(chromeProps().onConfirm!("")).rejects.toThrow("The editor can't open this SDL. This SDL doesn't define any services to configure.");
+    expect(redeploy).not.toHaveBeenCalled();
+  });
+
+  it("refuses a deployment whose configuration the editor can't import", async () => {
+    const { chromeProps, redeploy } = setup({ action: { dseq: "42" }, definition: { sdl: SERVICELESS_SDL } });
+
+    await expect(chromeProps().onConfirm!("")).rejects.toThrow("The editor can't open this SDL. This SDL doesn't define any services to configure.");
     expect(redeploy).not.toHaveBeenCalled();
   });
 

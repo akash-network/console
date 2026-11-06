@@ -100,6 +100,19 @@ describe(ConfigureDeployment.name, () => {
     expect(usePublicTemplate).toHaveBeenCalledWith(undefined);
   });
 
+  it("opens a draft handed over while the screen is open on a fresh form and flow seeded from it", () => {
+    const { ConfigureDeploymentForm, handOverDraft } = setup({ draftId: "open-session" });
+    const firstFlow = ConfigureDeploymentForm.mock.lastCall?.[0].flow;
+
+    handOverDraft({ draftId: "handed-over", sdl: "assistant: sdl", name: "nginx-api" });
+
+    expect(ConfigureDeploymentForm).toHaveBeenLastCalledWith(
+      expect.objectContaining({ initialSdl: "assistant: sdl", initialName: "nginx-api", intent: expect.objectContaining({ draftId: "handed-over" }) }),
+      expect.anything()
+    );
+    expect(ConfigureDeploymentForm.mock.lastCall?.[0].flow).not.toBe(firstFlow);
+  });
+
   it("falls back to the template when the draft has nothing persisted", () => {
     const { ConfigureDeploymentForm, usePublicTemplate } = setup({
       templateId: "tpl-1",
@@ -626,12 +639,13 @@ describe(ConfigureDeployment.name, () => {
     const useUserTemplate = vi.fn(() => mock<ReturnType<typeof DEPENDENCIES.useUserTemplate>>(input.userTemplate as never));
     const save = vi.fn();
     const clear = vi.fn();
+    let draft = { draftId: input.draftId ?? "minted-id", sdl: input.persistedSdl, name: input.persistedName };
     const useConfigureDraft = vi.fn(() =>
       mock<ReturnType<typeof DEPENDENCIES.useConfigureDraft>>({
-        draftId: input.draftId ?? "minted-id",
+        draftId: draft.draftId,
         isLoading: !!input.isDraftLoading,
-        persistedSdl: input.persistedSdl,
-        persistedName: input.persistedName,
+        persistedSdl: draft.sdl,
+        persistedName: draft.name,
         save,
         clear
       })
@@ -687,6 +701,12 @@ describe(ConfigureDeployment.name, () => {
       rerender(renderScreen());
     };
 
+    const handOverDraft = (next: { draftId: string; sdl: string; name: string }) => {
+      draft = next;
+      params = new URLSearchParams({ draftId: next.draftId });
+      rerender(renderScreen());
+    };
+
     return {
       ConfigureDeploymentForm,
       AutoDeployFlow,
@@ -699,7 +719,8 @@ describe(ConfigureDeployment.name, () => {
       enqueueSnackbar,
       rerenderWithTemplate,
       markAutoDeployStart,
-      navigate
+      navigate,
+      handOverDraft
     };
   }
 });
