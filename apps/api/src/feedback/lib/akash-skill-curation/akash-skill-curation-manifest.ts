@@ -101,8 +101,7 @@ export const AKASH_SKILL_CURATION_MANIFEST: SkillCurationManifest = {
           consoleNote:
             "persistent storage survives container restarts on the same lease. It is deleted when the deployment closes or moves to another provider, so back up data you need to keep."
         },
-        { heading: "### Mounting Volumes", title: "Mounting a persistent volume" },
-        { heading: "## Provider Availability", title: "Providers that offer a storage class" }
+        { heading: "### Mounting Volumes", title: "Mounting a persistent volume" }
       ]
     },
     {
@@ -226,6 +225,10 @@ export const AKASH_SKILL_CURATION_MANIFEST: SkillCurationManifest = {
       replace: "Fewer providers offer persistent storage, so a persistent volume narrows the pool."
     },
     { find: "`featEndpointIp` is relatively rare; avoid if not essential.", replace: "Few providers offer IP endpoints; avoid them if not essential." },
+    {
+      find: "The IP lease is billed separately from the deployment pricing.",
+      replace: "Providers include the IP in their bid, so the lease price is higher than for the same compute without one."
+    },
     { find: "aren't visible in the providers endpoint and aren't fixable", replace: "aren't visible before deploying and aren't fixable" },
     { find: "A `cpu_arch` plateau", replace: "A CPU architecture plateau" },
     {

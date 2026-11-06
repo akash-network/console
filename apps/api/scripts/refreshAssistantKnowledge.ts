@@ -6,6 +6,7 @@ import { curateAkashSkill, renderKnowledgeModule } from "@src/feedback/lib/akash
 import { AKASH_SKILL_CURATION_MANIFEST as manifest } from "@src/feedback/lib/akash-skill-curation/akash-skill-curation-manifest";
 
 const OUTPUT_PATH = "src/feedback/lib/assistant-knowledge/akash-skill-knowledge.gen.ts";
+const LICENSE_PATH = "LICENSE";
 
 async function fetchSkillFile(path: string): Promise<string> {
   const response = await fetch(`https://raw.githubusercontent.com/${manifest.repository}/${manifest.commit}/${path}`);
@@ -15,7 +16,7 @@ async function fetchSkillFile(path: string): Promise<string> {
 }
 
 async function readSkillFiles(localCheckout: string | undefined): Promise<Map<string, string>> {
-  const paths = manifest.files.map(({ path }) => path);
+  const paths = [LICENSE_PATH, ...manifest.files.map(({ path }) => path)];
   const contents = await Promise.all(paths.map(path => (localCheckout ? readFileSync(join(localCheckout, path), "utf8") : fetchSkillFile(path))));
 
   return new Map(paths.map((path, index) => [path, contents[index]]));
@@ -26,7 +27,7 @@ async function main() {
   const files = await readSkillFiles(localCheckout);
   const documents = curateAkashSkill(manifest, path => files.get(path) ?? "");
 
-  writeFileSync(OUTPUT_PATH, renderKnowledgeModule(manifest, documents));
+  writeFileSync(OUTPUT_PATH, renderKnowledgeModule(manifest, documents, files.get(LICENSE_PATH) ?? ""));
   execFileSync("npx", ["prettier", "--write", OUTPUT_PATH], { stdio: "inherit" });
 
   const origin = localCheckout ? `the local checkout ${localCheckout}` : `${manifest.repository} ${manifest.version} (${manifest.commit})`;
