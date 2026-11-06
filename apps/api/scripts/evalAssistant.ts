@@ -1,10 +1,9 @@
 import "reflect-metadata";
 import "@akashnetwork/env-loader";
 
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { container } from "tsyringe";
 
-import { OpenApiDocsService } from "@src/core/services/openapi-docs/openapi-docs.service";
 import { ASSISTANT_EVAL_CASES, type AssistantEvalCase } from "@src/feedback/lib/assistant-eval/assistant-eval-cases";
 import {
   type AssistantEvalResult,
@@ -28,7 +27,6 @@ import {
   MAX_TOOL_ROUNDS,
   requestMessagesFor
 } from "@src/feedback/services/assistant-turn/assistant-turn.service";
-import { openApiHonoHandlers } from "@src/routers/open-api-handlers";
 
 const COMPLETION_TIMEOUT_MS = 90_000;
 
@@ -36,10 +34,7 @@ const akashMlClient = container.resolve(AkashMlClient);
 const config = container.resolve(FEEDBACK_CONFIG);
 const outFile = process.env.ASSISTANT_EVAL_OUT;
 const maxCompletionTokens = Number(process.env.ASSISTANT_EVAL_MAX_COMPLETION_TOKENS) || MAX_COMPLETION_TOKENS;
-const consoleApiCatalog = container
-  .resolve(OpenApiDocsService)
-  .generateDocs(openApiHonoHandlers, { scope: "full", source: "file" })
-  .then(document => consoleApiCatalogOf(consoleApiRoutesOf(document)));
+const consoleApiCatalog = consoleApiCatalogOf(consoleApiRoutesOf(JSON.parse(readFileSync("swagger/openapi.json", "utf8"))));
 
 interface CaseMetrics {
   model: string;
@@ -103,7 +98,7 @@ async function complete(messages: ChatMessage[], isFinalRound: boolean, metrics:
     {
       model: config.ASSISTANT_MODEL,
       messages,
-      tools: assistantChatTools(await consoleApiCatalog),
+      tools: assistantChatTools(consoleApiCatalog),
       tool_choice: isFinalRound ? "none" : "auto",
       max_completion_tokens: maxCompletionTokens,
       reasoning_effort: config.ASSISTANT_REASONING_EFFORT
