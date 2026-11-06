@@ -8,8 +8,8 @@ describe("envSchema", () => {
     expect(envSchema.parse({})).toEqual({
       AKASHML_API_URL: "https://api.akashml.com/v1",
       AKASHML_API_KEY: undefined,
-      FEEDBACK_CLASSIFIER_MODEL: "Qwen/Qwen3.5-35B-A3B",
-      ASSISTANT_MODEL: "deepseek-ai/DeepSeek-V4-Flash",
+      FEEDBACK_CLASSIFIER_MODEL: "Qwen/Qwen3.6-35B-A3B",
+      ASSISTANT_MODEL: "zai-org/GLM-5.3",
       FEEDBACK_THEME_SCORE_WEIGHTS: DEFAULT_FEEDBACK_THEME_SCORE_WEIGHTS,
       ASSISTANT_MESSAGES_PER_MINUTE: 6,
       ASSISTANT_MESSAGES_PER_DAY: 100,
