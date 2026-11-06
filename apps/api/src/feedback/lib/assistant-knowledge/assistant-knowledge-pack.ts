@@ -33,7 +33,7 @@ To deploy from a script or a CI pipeline, create an API key on the API keys page
 Messages to the assistant, and the deployment and billing details it reads to answer, are processed by an AI model running on Akash (AkashML). Conversations are saved only when "Improve Console with my assistant conversations" is on in Settings, under Privacy, and saved ones can be read by the Akash team to improve Console. Turn it off or delete your saved conversations there at any time. Secrets are removed before anything is sent or saved.
 
 ## Finding GPUs and providers
-The Providers page lists the providers on the network with their region, uptime and audit status. GPU availability changes by the minute, so ask the assistant to check which providers can bid on a given SDL or GPU model right before deploying. When nobody offers the GPUs you need, send a hardware request from Console so the team knows.
+The Providers page lists the audited providers on the network with their region, GPUs and 30-day uptime. GPU availability changes by the minute, so ask the assistant to check which providers can bid on a given SDL or GPU model right before deploying. When nobody offers the GPUs you need, send a hardware request from Console so the team knows.
 
 ## Account, organization and project deletion
 Deleting your account is in Settings, under Delete account. Organizations and projects are managed from their own settings pages. The assistant cannot delete accounts, organizations or projects.
