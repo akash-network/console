@@ -204,7 +204,7 @@ describe("ability rules", () => {
           { action: "manage", subject: "ConfigureDraft", conditions: { userId: user.id } },
           { action: ["create", "read"], subject: "FeedbackSubmission", conditions: { userId: user.id } },
           { action: ["create", "read"], subject: "AssistantConsent", conditions: { userId: user.id } },
-          { action: ["read", "delete"], subject: "AssistantConversation", conditions: { userId: user.id } },
+          { action: ["create", "read", "update", "delete"], subject: "AssistantConversation", conditions: { userId: user.id } },
           { action: "manage", subject: "Template", conditions: { userId: user.userId } }
         ])
       );

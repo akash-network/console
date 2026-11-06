@@ -1,0 +1,154 @@
+import createError from "http-errors";
+import { describe, expect, it } from "vitest";
+import { mock } from "vitest-mock-extended";
+
+import type { AuthService } from "@src/auth/services/auth.service";
+import type { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
+import type { WalletSettingController } from "@src/billing/controllers/wallet-settings/wallet-settings.controller";
+import type { WalletSettingsResponse } from "@src/billing/http-schemas/wallet.schema";
+import type { DeploymentController } from "@src/deployment/controllers/deployment/deployment.controller";
+import type { TemplateController } from "@src/template/controllers/template/template.controller";
+import type { UserOutput } from "@src/user/repositories";
+import { AssistantAccountToolsService } from "./assistant-account-tools.service";
+
+const GALLERY = {
+  data: [
+    {
+      title: "AI - GPU",
+      templates: [
+        {
+          id: "llama-3-8b",
+          name: "Llama 3 8B",
+          summary: "Serve Llama with vLLM",
+          hardware: { cpu: 8, memoryBytes: 1, storageBytes: 1, gpu: { units: 1, models: ["a100"] } }
+        },
+        { id: "comfyui", name: "ComfyUI", summary: null }
+      ]
+    },
+    { title: "Web", templates: [{ id: "nginx", name: "Nginx", summary: "Static site".repeat(40) }] }
+  ]
+};
+
+describe(AssistantAccountToolsService.name, () => {
+  describe("getBalanceAndSpend", () => {
+    it("reads the balance, trial, spend and auto recharge of the signed-in user", async () => {
+      const { service, walletController, walletSettingController, deploymentController } = setup();
+      walletController.getWallets.mockResolvedValue({
+        data: [
+          {
+            id: 1,
+            userId: "user-1",
+            creditAmount: 12.5,
+            address: "akash1",
+            denom: "uact",
+            isTrialing: true,
+            trialEndsAt: new Date("2026-12-01T00:00:00.000Z"),
+            trialDurationDays: 30,
+            topUpMinAmountUsd: 20,
+            createdAt: new Date()
+          }
+        ]
+      });
+      walletSettingController.getWalletSettings.mockResolvedValue({
+        data: mock<WalletSettingsResponse["data"]>({ autoReloadEnabled: true, autoReloadThreshold: 5, autoReloadAmount: 20 })
+      });
+      deploymentController.getSpendRate.mockResolvedValue({ data: { deployments: [{ dseq: "42", price: { denom: "uact", amount: "10" } }] } });
+      deploymentController.getWeeklyDeploymentCost.mockResolvedValue({ data: { weeklyCost: 3.5 } });
+
+      const result = await service.getBalanceAndSpend({});
+
+      expect(walletController.getWallets).toHaveBeenCalledWith({ userId: "user-1" });
+      expect(result).toEqual({
+        creditBalanceUsd: 12.5,
+        isTrialing: true,
+        trialEndsAt: new Date("2026-12-01T00:00:00.000Z"),
+        weeklyCostUsd: 3.5,
+        spendPerBlockByDeployment: [{ dseq: "42", price: { denom: "uact", amount: "10" } }],
+        autoRecharge: { enabled: true, thresholdUsd: 5, amountUsd: 20 }
+      });
+    });
+
+    it("reports what it could not read as unknown, and auto recharge off without settings", async () => {
+      const { service, walletController, walletSettingController, deploymentController } = setup();
+      walletController.getWallets.mockResolvedValue({ data: [] });
+      walletSettingController.getWalletSettings.mockRejectedValue(createError(404, "WalletSetting Not Found"));
+      deploymentController.getSpendRate.mockRejectedValue(createError(403, "Wallet not initialized"));
+      deploymentController.getWeeklyDeploymentCost.mockRejectedValue(createError(404));
+
+      expect(await service.getBalanceAndSpend({})).toEqual({
+        creditBalanceUsd: null,
+        isTrialing: null,
+        trialEndsAt: null,
+        weeklyCostUsd: null,
+        spendPerBlockByDeployment: null,
+        autoRecharge: { enabled: false }
+      });
+    });
+
+    it("lets server failures through", async () => {
+      const { service, walletController } = setup();
+      walletController.getWallets.mockRejectedValue(createError(500, "boom"));
+
+      await expect(service.getBalanceAndSpend({})).rejects.toThrow("boom");
+    });
+
+    it("lets failures that are not http errors through", async () => {
+      const { service, walletController } = setup();
+      walletController.getWallets.mockRejectedValue(new Error("db down"));
+
+      await expect(service.getBalanceAndSpend({})).rejects.toThrow("db down");
+    });
+  });
+
+  describe("listTemplates", () => {
+    it("ranks templates by how many query words they match, with a short summary and gpu needs", async () => {
+      const { service } = setup();
+
+      const { templates } = await service.listTemplates({ query: "llama vllm gpu" });
+
+      expect(templates).toEqual([
+        { id: "llama-3-8b", name: "Llama 3 8B", category: "AI - GPU", summary: "Serve Llama with vLLM", gpu: { units: 1, models: ["a100"] } },
+        { id: "comfyui", name: "ComfyUI", category: "AI - GPU", summary: "", gpu: null }
+      ]);
+    });
+
+    it("lists the gallery in order without a query, and trims long summaries", async () => {
+      const { service } = setup();
+
+      const { templates } = await service.listTemplates({});
+
+      expect(templates.map(({ id }) => id)).toEqual(["llama-3-8b", "comfyui", "nginx"]);
+      expect(templates[2].summary).toHaveLength(200);
+    });
+
+    it("parses the gallery once until it is rebuilt", async () => {
+      const { service, templateController } = setup();
+      const parse = (await service.listTemplates({ query: "nginx" })).templates;
+
+      expect(await service.listTemplates({ query: "nginx" })).toEqual({ templates: parse });
+      templateController.getTemplatesListJson.mockResolvedValue(
+        Buffer.from(JSON.stringify({ data: [{ title: "New", templates: [{ id: "nginx-2", name: "Nginx 2" }] }] }))
+      );
+      expect((await service.listTemplates({ query: "nginx" })).templates.map(({ id }) => id)).toEqual(["nginx-2"]);
+    });
+
+    it("finds nothing for unmatched words", async () => {
+      const { service } = setup();
+
+      expect(await service.listTemplates({ query: "kubernetes" })).toEqual({ templates: [] });
+    });
+  });
+
+  function setup() {
+    const authService = mock<AuthService>({ currentUser: mock<UserOutput>({ id: "user-1" }) });
+    const walletController = mock<WalletController>();
+    const walletSettingController = mock<WalletSettingController>();
+    const deploymentController = mock<DeploymentController>();
+    const templateController = mock<TemplateController>();
+    const gallery = Buffer.from(JSON.stringify(GALLERY));
+    templateController.getTemplatesListJson.mockResolvedValue(gallery);
+    const service = new AssistantAccountToolsService(authService, walletController, walletSettingController, deploymentController, templateController);
+
+    return { service, walletController, walletSettingController, deploymentController, templateController };
+  }
+});

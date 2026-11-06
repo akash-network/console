@@ -90,7 +90,7 @@ export class OpenApiDocsService {
           // routes (e.g. Stripe) are typed and addressable via api.v1.*; the served /v1/doc keeps
           // stripping them so the public Swagger surface stays clean.
           const paths = options.includeHidden ? handlerDocs.paths : stripHiddenOperations(handlerDocs.paths);
-          Object.assign(docs.paths, this.#documentOrganizationContextHeaders(this.#stripUndocumentedRequestFields(paths), authenticatesCaller));
+          this.#mergePaths(docs.paths, this.#documentOrganizationContextHeaders(this.#stripUndocumentedRequestFields(paths), authenticatesCaller));
         } catch (error) {
           logger.error({
             name: `Error generating OpenAPI docs for handler, example path: ${handler.routes[0]?.path || "unknown"}`,
@@ -162,6 +162,13 @@ export class OpenApiDocsService {
     } catch (error) {
       logger.warn({ event: "EXTERNAL_OPENAPI_FETCH_ERROR", error, url: externalOpenApiUrl });
       return null;
+    }
+  }
+
+  /** Two handlers may declare different methods on one path, so a later handler must not replace the methods of an earlier one. */
+  #mergePaths(target: PathsObject, paths: PathsObject): void {
+    for (const [path, pathItem] of Object.entries(paths)) {
+      target[path] = { ...target[path], ...pathItem };
     }
   }
 

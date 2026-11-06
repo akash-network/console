@@ -4,6 +4,7 @@ import { mock } from "vitest-mock-extended";
 import type { CreateLogger } from "@src/core";
 import type { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import type { AssistantConversationRepository } from "@src/feedback/repositories/assistant-conversation/assistant-conversation.repository";
+import type { AssistantPendingTurnRepository } from "@src/feedback/repositories/assistant-pending-turn/assistant-pending-turn.repository";
 import type { FeedbackSubmissionRepository } from "@src/feedback/repositories/feedback-submission/feedback-submission.repository";
 import type { AkashMlClient } from "@src/feedback/services/akashml-client/akashml.client";
 import { ClassifyConversation, classifyConversationOptionsFor } from "@src/feedback/services/classify-conversation/classify-conversation.handler";
@@ -31,9 +32,18 @@ describe(SweepFeedbackHandler.name, () => {
     expect(new SweepFeedback()).toMatchObject({ name: "SweepFeedback", version: 1, data: {} });
   });
 
-  it("queues the next sweep, the unclassified items and rescores every theme", async () => {
+  it("queues the next sweep, the unclassified items, rescores every theme and drops expired assistant turns", async () => {
     vi.useFakeTimers({ now: NOW });
-    const { handler, jobQueueService, feedbackSubmissionRepository, assistantConversationRepository, feedbackThemeScoreService, logger } = setup();
+    const {
+      handler,
+      jobQueueService,
+      feedbackSubmissionRepository,
+      assistantConversationRepository,
+      feedbackThemeScoreService,
+      assistantPendingTurnRepository,
+      logger
+    } = setup();
+    assistantPendingTurnRepository.deleteExpired.mockResolvedValue(3);
     feedbackSubmissionRepository.findUnclassifiedIds.mockResolvedValue(["s1", "s2"]);
     assistantConversationRepository.findUnclassifiedIds.mockResolvedValue(["c1"]);
     feedbackThemeScoreService.rescoreAll.mockResolvedValue(7);
@@ -49,7 +59,13 @@ describe(SweepFeedbackHandler.name, () => {
     expect(feedbackSubmissionRepository.findUnclassifiedIds).toHaveBeenCalledWith(BACKFILL_BATCH_SIZE);
     expect(assistantConversationRepository.findUnclassifiedIds).toHaveBeenCalledWith(new Date("2026-11-04T11:30:00.000Z"), BACKFILL_BATCH_SIZE);
     expect(feedbackThemeScoreService.rescoreAll).toHaveBeenCalledWith(NOW);
-    expect(logger.info).toHaveBeenCalledWith({ event: "FEEDBACK_SWEPT", backfilled: { submissions: 2, conversations: 1 }, rescored: 7 });
+    expect(assistantPendingTurnRepository.deleteExpired).toHaveBeenCalledWith(NOW);
+    expect(logger.info).toHaveBeenCalledWith({
+      event: "FEEDBACK_SWEPT",
+      backfilled: { submissions: 2, conversations: 1 },
+      rescored: 7,
+      expiredPendingTurns: 3
+    });
   });
 
   it("only rescores while the model is unavailable", async () => {
@@ -61,7 +77,7 @@ describe(SweepFeedbackHandler.name, () => {
     expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
     expect(jobQueueService.enqueue).toHaveBeenCalledWith(expect.any(SweepFeedback), expect.anything());
     expect(feedbackSubmissionRepository.findUnclassifiedIds).not.toHaveBeenCalled();
-    expect(logger.info).toHaveBeenCalledWith({ event: "FEEDBACK_SWEPT", backfilled: null, rescored: 2 });
+    expect(logger.info).toHaveBeenCalledWith({ event: "FEEDBACK_SWEPT", backfilled: null, rescored: 2, expiredPendingTurns: 0 });
   });
 
   function setup(input: { isAvailable?: boolean } = {}) {
@@ -73,6 +89,8 @@ describe(SweepFeedbackHandler.name, () => {
     const akashMlClient = mock<AkashMlClient>();
     akashMlClient.isAvailable.mockReturnValue(input.isAvailable ?? true);
     const feedbackThemeScoreService = mock<FeedbackThemeScoreService>();
+    const assistantPendingTurnRepository = mock<AssistantPendingTurnRepository>();
+    assistantPendingTurnRepository.deleteExpired.mockResolvedValue(0);
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
     const handler = new SweepFeedbackHandler(
@@ -81,9 +99,18 @@ describe(SweepFeedbackHandler.name, () => {
       assistantConversationRepository,
       akashMlClient,
       feedbackThemeScoreService,
+      assistantPendingTurnRepository,
       createLogger
     );
 
-    return { handler, jobQueueService, feedbackSubmissionRepository, assistantConversationRepository, feedbackThemeScoreService, logger };
+    return {
+      handler,
+      jobQueueService,
+      feedbackSubmissionRepository,
+      assistantConversationRepository,
+      feedbackThemeScoreService,
+      assistantPendingTurnRepository,
+      logger
+    };
   }
 });

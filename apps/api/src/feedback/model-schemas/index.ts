@@ -5,3 +5,6 @@ export * from "./assistant-consent/assistant-consent.schema";
 export * from "./assistant-conversation/assistant-conversation.schema";
 export * from "./assistant-message/assistant-message.schema";
 export * from "./assistant-conversation-daily-count/assistant-conversation-daily-count.schema";
+export * from "./assistant-user-usage/assistant-user-usage.schema";
+export * from "./assistant-daily-token-usage/assistant-daily-token-usage.schema";
+export * from "./assistant-pending-turn/assistant-pending-turn.schema";

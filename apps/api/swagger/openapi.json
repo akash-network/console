@@ -35044,6 +35044,3320 @@
             "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ]
+      },
+      "post": {
+        "operationId": "createAssistantConversation",
+        "summary": "Start an assistant conversation",
+        "tags": [
+          "Assistant"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "copyVersion": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "description": "The consent copy version the client showed"
+                      },
+                      "context": {
+                        "type": "object",
+                        "properties": {
+                          "page": {
+                            "type": "string",
+                            "maxLength": 300,
+                            "description": "The Console path the assistant was opened on"
+                          },
+                          "dseq": {
+                            "type": "string",
+                            "pattern": "^[1-9]\\d{0,19}$",
+                            "description": "The deployment the user was looking at"
+                          }
+                        }
+                      }
+                    },
+                    "required": [
+                      "copyVersion"
+                    ]
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The conversation, and whether the API stores it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "stored": {
+                          "type": "boolean",
+                          "description": "True when the user allowed review, so the API keeps the history. When false the API keeps nothing, and the client sends `history` with each message."
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "stored"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "409": {
+            "description": "`assistant_consent_required` when the user never agreed to the assistant. `assistant_consent_outdated` when the copy version differs from the one agreed to"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      }
+    },
+    "/v1/assistant/conversations/{id}/messages": {
+      "post": {
+        "operationId": "sendAssistantMessage",
+        "summary": "Send a message to the assistant and stream its answer",
+        "tags": [
+          "Assistant"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "content": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 4000
+                      },
+                      "history": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "role": {
+                              "type": "string",
+                              "enum": [
+                                "user",
+                                "assistant"
+                              ]
+                            },
+                            "content": {
+                              "type": "string",
+                              "maxLength": 8000
+                            }
+                          },
+                          "required": [
+                            "role",
+                            "content"
+                          ]
+                        },
+                        "maxItems": 20,
+                        "description": "The earlier messages of a conversation the API does not store, oldest first. Ignored for a stored conversation."
+                      },
+                      "context": {
+                        "type": "object",
+                        "properties": {
+                          "page": {
+                            "type": "string",
+                            "maxLength": 300,
+                            "description": "The Console path the assistant was opened on"
+                          },
+                          "dseq": {
+                            "type": "string",
+                            "pattern": "^[1-9]\\d{0,19}$",
+                            "description": "The deployment the user was looking at"
+                          }
+                        }
+                      }
+                    },
+                    "required": [
+                      "content"
+                    ]
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A server-sent event stream of the assistant turn. Each event's `event` field is its `type`, and its `data` is the event as JSON. The stream ends after `done` or `error`.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "text_delta"
+                          ]
+                        },
+                        "text": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "text"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "tool_started"
+                          ]
+                        },
+                        "toolCallId": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "toolCallId",
+                        "name"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "tool_result_summary"
+                          ]
+                        },
+                        "toolCallId": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "ok": {
+                          "type": "boolean"
+                        },
+                        "summary": {
+                          "type": "string",
+                          "description": "What the assistant read, shown under the answer"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "toolCallId",
+                        "name",
+                        "ok",
+                        "summary"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "client_tool_request"
+                          ]
+                        },
+                        "toolCallId": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string",
+                          "enum": [
+                            "read_logs",
+                            "read_events"
+                          ]
+                        },
+                        "arguments": {
+                          "type": "object",
+                          "properties": {
+                            "dseq": {
+                              "type": "string"
+                            },
+                            "service": {
+                              "type": "string"
+                            },
+                            "tailLines": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "dseq"
+                          ]
+                        },
+                        "maxLength": {
+                          "type": "integer",
+                          "description": "The longest `content` the API accepts for this result"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "toolCallId",
+                        "name",
+                        "arguments",
+                        "maxLength"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "action_proposal"
+                          ]
+                        },
+                        "proposalId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "action": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "create_deployment"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "templateId": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "sdl": {
+                                  "type": "string",
+                                  "description": "Validated with the same checks a create runs before the card is shown."
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "runtimeLimitHours": {
+                                  "type": "integer",
+                                  "nullable": true
+                                },
+                                "services": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "service": {
+                                        "type": "string"
+                                      },
+                                      "image": {
+                                        "type": "string",
+                                        "nullable": true
+                                      },
+                                      "resources": {
+                                        "type": "object",
+                                        "properties": {
+                                          "cpu": {
+                                            "type": "number",
+                                            "nullable": true
+                                          },
+                                          "memory": {
+                                            "type": "string",
+                                            "nullable": true
+                                          },
+                                          "storage": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "gpu": {
+                                            "type": "object",
+                                            "nullable": true,
+                                            "properties": {
+                                              "units": {
+                                                "type": "integer"
+                                              },
+                                              "models": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "string"
+                                                }
+                                              }
+                                            },
+                                            "required": [
+                                              "units",
+                                              "models"
+                                            ]
+                                          },
+                                          "count": {
+                                            "type": "integer",
+                                            "nullable": true,
+                                            "description": "Replicas"
+                                          }
+                                        },
+                                        "required": [
+                                          "cpu",
+                                          "memory",
+                                          "storage",
+                                          "gpu",
+                                          "count"
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "service",
+                                      "image",
+                                      "resources"
+                                    ]
+                                  }
+                                },
+                                "providersAbleToBid": {
+                                  "type": "integer",
+                                  "nullable": true,
+                                  "description": "Providers bid screening expects could bid on every group now, or null when screening did not answer."
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "templateId",
+                                "sdl",
+                                "name",
+                                "runtimeLimitHours",
+                                "services",
+                                "providersAbleToBid"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "choose_bid"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "pattern": "^[1-9]\\d{0,19}$"
+                                },
+                                "choices": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "gseq": {
+                                        "type": "integer"
+                                      },
+                                      "oseq": {
+                                        "type": "integer"
+                                      },
+                                      "provider": {
+                                        "type": "string"
+                                      },
+                                      "price": {
+                                        "type": "object",
+                                        "properties": {
+                                          "denom": {
+                                            "type": "string"
+                                          },
+                                          "amount": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "denom",
+                                          "amount"
+                                        ],
+                                        "description": "The bid's own price per block, as the bid list returns it."
+                                      }
+                                    },
+                                    "required": [
+                                      "gseq",
+                                      "oseq",
+                                      "provider",
+                                      "price"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "dseq",
+                                "choices"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "update_deployment"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "pattern": "^[1-9]\\d{0,19}$"
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "manifestVersion": {
+                                  "type": "string",
+                                  "description": "Send as `ifManifestVersion`, so the patch is refused when the deployment changed since the card was shown."
+                                },
+                                "services": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "service": {
+                                        "type": "string"
+                                      },
+                                      "before": {
+                                        "type": "object",
+                                        "properties": {
+                                          "image": {
+                                            "type": "string",
+                                            "nullable": true
+                                          },
+                                          "command": {
+                                            "type": "array",
+                                            "nullable": true,
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "args": {
+                                            "type": "array",
+                                            "nullable": true,
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "envKeys": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            },
+                                            "description": "Names of the variables the service declares today. Values are never included."
+                                          },
+                                          "expose": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "port": {
+                                                  "type": "integer"
+                                                },
+                                                "as": {
+                                                  "type": "integer",
+                                                  "nullable": true
+                                                },
+                                                "accept": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "string"
+                                                  }
+                                                },
+                                                "global": {
+                                                  "type": "boolean"
+                                                }
+                                              },
+                                              "required": [
+                                                "port",
+                                                "as",
+                                                "accept",
+                                                "global"
+                                              ]
+                                            }
+                                          },
+                                          "storage": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "volume": {
+                                                  "type": "string"
+                                                },
+                                                "mount": {
+                                                  "type": "string",
+                                                  "nullable": true
+                                                },
+                                                "readOnly": {
+                                                  "type": "boolean"
+                                                }
+                                              },
+                                              "required": [
+                                                "volume",
+                                                "mount",
+                                                "readOnly"
+                                              ]
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "image",
+                                          "command",
+                                          "args",
+                                          "envKeys",
+                                          "expose",
+                                          "storage"
+                                        ]
+                                      },
+                                      "patch": {
+                                        "type": "object",
+                                        "properties": {
+                                          "image": {
+                                            "type": "string"
+                                          },
+                                          "command": {
+                                            "type": "array",
+                                            "nullable": true,
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "args": {
+                                            "type": "array",
+                                            "nullable": true,
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "env": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                              "type": "string",
+                                              "nullable": true
+                                            },
+                                            "description": "Merged into the service's env, keyed by environment variable name. A null value removes the variable. A patched variable is re-appended, so the order of the stored env list may change. Written values are sealed unless the request carries `sealedSecrets`."
+                                          },
+                                          "expose": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                              "type": "object",
+                                              "properties": {
+                                                "port": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "maximum": 65535,
+                                                  "description": "Moves the container port the workload listens on. The entry is still addressed by the port it declares today. Refused onto a port the service already exposes, and on an endpoint reached through a leased IP."
+                                                },
+                                                "as": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "maximum": 65535,
+                                                  "description": "Moves the port the endpoint is reached on. Refused when it would change the endpoint's kind (a public TCP endpoint moving onto or off port 80), onto a port another endpoint of the service uses, and on an endpoint reached through a leased IP."
+                                                },
+                                                "accept": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "string"
+                                                  },
+                                                  "description": "Custom domains. Replaces the existing list. Emptying it is rejected by providers that do not generate a hostname of their own, which leaves the patch recorded but undeployed."
+                                                },
+                                                "httpOptions": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "maxBodySize": {
+                                                      "type": "integer",
+                                                      "minimum": 1,
+                                                      "maximum": 104857600
+                                                    },
+                                                    "readTimeout": {
+                                                      "type": "integer",
+                                                      "minimum": 1,
+                                                      "maximum": 4294967295
+                                                    },
+                                                    "sendTimeout": {
+                                                      "type": "integer",
+                                                      "minimum": 1,
+                                                      "maximum": 4294967295
+                                                    },
+                                                    "nextTries": {
+                                                      "type": "integer",
+                                                      "minimum": 0,
+                                                      "maximum": 4294967295
+                                                    },
+                                                    "nextTimeout": {
+                                                      "type": "integer",
+                                                      "minimum": 0,
+                                                      "maximum": 4294967295
+                                                    },
+                                                    "nextCases": {
+                                                      "type": "array",
+                                                      "items": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                          "error",
+                                                          "timeout",
+                                                          "500",
+                                                          "502",
+                                                          "503",
+                                                          "504",
+                                                          "403",
+                                                          "404",
+                                                          "429",
+                                                          "off"
+                                                        ]
+                                                      },
+                                                      "minItems": 1,
+                                                      "description": "Conditions the proxy retries on. Replaces the existing list; \"off\" disables retrying and stands alone."
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            },
+                                            "description": "Keyed by the container port the stored SDL declares. Port numbers, hosts and http options are patchable; protocol, routing, endpoint kind and count are fixed at create. A random-port endpoint whose numbers change gets a new public port from the provider, and so can the service's other random-port endpoints when a container port move reorders them."
+                                          },
+                                          "storage": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                              "type": "object",
+                                              "properties": {
+                                                "mount": {
+                                                  "type": "string"
+                                                },
+                                                "readOnly": {
+                                                  "type": "boolean"
+                                                }
+                                              }
+                                            },
+                                            "description": "Keyed by volume name. Mount point and read-only flag only — sizes are fixed at create."
+                                          }
+                                        },
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "required": [
+                                      "service",
+                                      "before",
+                                      "patch"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "dseq",
+                                "name",
+                                "manifestVersion",
+                                "services"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "set_secret"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "pattern": "^[1-9]\\d{0,19}$"
+                                },
+                                "service": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "description": "The variable name. The value is typed into the card's secure input and sealed in the browser."
+                                },
+                                "replacesExisting": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "dseq",
+                                "service",
+                                "name",
+                                "replacesExisting"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "set_registry_credentials"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "pattern": "^[1-9]\\d{0,19}$"
+                                },
+                                "service": {
+                                  "type": "string"
+                                },
+                                "image": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "host": {
+                                  "type": "string"
+                                },
+                                "usernameHint": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "description": "Prefills the username field. The password is typed into the card's secure input."
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "dseq",
+                                "service",
+                                "image",
+                                "host",
+                                "usernameHint"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "redeploy_with_resources"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "deep_link"
+                                  ]
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "pattern": "^[1-9]\\d{0,19}$"
+                                },
+                                "reason": {
+                                  "type": "string"
+                                },
+                                "services": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "service": {
+                                        "type": "string"
+                                      },
+                                      "before": {
+                                        "type": "object",
+                                        "properties": {
+                                          "cpu": {
+                                            "type": "number",
+                                            "nullable": true
+                                          },
+                                          "memory": {
+                                            "type": "string",
+                                            "nullable": true
+                                          },
+                                          "storage": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "gpu": {
+                                            "type": "object",
+                                            "nullable": true,
+                                            "properties": {
+                                              "units": {
+                                                "type": "integer"
+                                              },
+                                              "models": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "string"
+                                                }
+                                              }
+                                            },
+                                            "required": [
+                                              "units",
+                                              "models"
+                                            ]
+                                          },
+                                          "count": {
+                                            "type": "integer",
+                                            "nullable": true,
+                                            "description": "Replicas"
+                                          }
+                                        },
+                                        "required": [
+                                          "cpu",
+                                          "memory",
+                                          "storage",
+                                          "gpu",
+                                          "count"
+                                        ]
+                                      },
+                                      "after": {
+                                        "type": "object",
+                                        "properties": {
+                                          "cpu": {
+                                            "type": "number",
+                                            "nullable": true
+                                          },
+                                          "memory": {
+                                            "type": "string",
+                                            "nullable": true
+                                          },
+                                          "storage": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "gpu": {
+                                            "type": "object",
+                                            "nullable": true,
+                                            "properties": {
+                                              "units": {
+                                                "type": "integer"
+                                              },
+                                              "models": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "string"
+                                                }
+                                              }
+                                            },
+                                            "required": [
+                                              "units",
+                                              "models"
+                                            ]
+                                          },
+                                          "count": {
+                                            "type": "integer",
+                                            "nullable": true,
+                                            "description": "Replicas"
+                                          }
+                                        },
+                                        "required": [
+                                          "cpu",
+                                          "memory",
+                                          "storage",
+                                          "gpu",
+                                          "count"
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "service",
+                                      "before",
+                                      "after"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "dseq",
+                                "reason",
+                                "services"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "rename_deployment"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "pattern": "^[1-9]\\d{0,19}$"
+                                },
+                                "from": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "to": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "dseq",
+                                "from",
+                                "to"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "move_deployment"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "pattern": "^[1-9]\\d{0,19}$"
+                                },
+                                "projectId": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "dseq",
+                                "projectId"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "add_runtime_hours"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "pattern": "^[1-9]\\d{0,19}$"
+                                },
+                                "hours": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 48
+                                },
+                                "currentLimitHours": {
+                                  "type": "integer"
+                                },
+                                "newLimitHours": {
+                                  "type": "integer",
+                                  "description": "Send as `runtimeLimitHours`, which takes the new total."
+                                },
+                                "runtimeEndsAt": {
+                                  "type": "string",
+                                  "nullable": true
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "dseq",
+                                "hours",
+                                "currentLimitHours",
+                                "newLimitHours",
+                                "runtimeEndsAt"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "remove_runtime_limit"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "pattern": "^[1-9]\\d{0,19}$"
+                                },
+                                "currentLimitHours": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "dseq",
+                                "currentLimitHours"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "send_manifest_again"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "pattern": "^[1-9]\\d{0,19}$"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "dseq"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "close_deployment"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "destructive"
+                                  ]
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "pattern": "^[1-9]\\d{0,19}$"
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "reason": {
+                                  "type": "string",
+                                  "enum": [
+                                    "no_longer_needed",
+                                    "cost_or_budget",
+                                    "migrating_elsewhere",
+                                    "performance_or_reliability",
+                                    "testing_or_project_complete",
+                                    "other"
+                                  ]
+                                },
+                                "reasonDetails": {
+                                  "type": "string",
+                                  "nullable": true
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "dseq",
+                                "name",
+                                "reason",
+                                "reasonDetails"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "create_alert"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "alert": {
+                                  "type": "string",
+                                  "enum": [
+                                    "deployment_balance",
+                                    "deployment_closed",
+                                    "wallet_balance"
+                                  ]
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "pattern": "^[1-9]\\d{0,19}$"
+                                },
+                                "thresholdUsd": {
+                                  "type": "number",
+                                  "nullable": true
+                                },
+                                "channel": {
+                                  "type": "string",
+                                  "enum": [
+                                    "email"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "alert",
+                                "dseq",
+                                "thresholdUsd",
+                                "channel"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "redeem_coupon"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "code": {
+                                  "type": "string",
+                                  "nullable": true
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "code"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "save_as_template"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "pattern": "^[1-9]\\d{0,19}$"
+                                },
+                                "title": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string",
+                                  "nullable": true
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "dseq",
+                                "title",
+                                "description"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "favorite_provider"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "provider": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "provider"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "request_hardware"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "gpuModel": {
+                                  "type": "string"
+                                },
+                                "gpuCount": {
+                                  "type": "integer"
+                                },
+                                "interconnect": {
+                                  "type": "string",
+                                  "enum": [
+                                    "none",
+                                    "server",
+                                    "cluster"
+                                  ]
+                                },
+                                "notes": {
+                                  "type": "string",
+                                  "nullable": true
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "gpuModel",
+                                "gpuCount",
+                                "interconnect",
+                                "notes"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "buy_credits"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "deep_link"
+                                  ]
+                                },
+                                "amountUsd": {
+                                  "type": "number",
+                                  "nullable": true
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "amountUsd"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "configure_auto_recharge"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "deep_link"
+                                  ]
+                                },
+                                "thresholdUsd": {
+                                  "type": "number",
+                                  "nullable": true
+                                },
+                                "amountUsd": {
+                                  "type": "number",
+                                  "nullable": true
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "thresholdUsd",
+                                "amountUsd"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "open_in_editor"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "deep_link"
+                                  ]
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "pattern": "^[1-9]\\d{0,19}$"
+                                },
+                                "templateId": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "sdl": {
+                                  "type": "string",
+                                  "nullable": true
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "dseq",
+                                "templateId",
+                                "sdl"
+                              ]
+                            }
+                          ],
+                          "description": "An action the assistant proposes. The API never executes it: the card shows it and, on Confirm, runs the same request the regular UI makes (`confirm`, `destructive`) or opens the existing page prefilled (`deep_link`)."
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "proposalId",
+                        "action"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "done"
+                          ]
+                        },
+                        "reason": {
+                          "type": "string",
+                          "enum": [
+                            "stop",
+                            "length",
+                            "awaiting_client_tool"
+                          ],
+                          "description": "`awaiting_client_tool`: the turn is paused until the browser posts the requested results to `client-tool-results`"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "reason"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "error"
+                          ]
+                        },
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "assistant_unavailable",
+                            "assistant_timeout",
+                            "assistant_error"
+                          ]
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "code",
+                        "message"
+                      ]
+                    }
+                  ],
+                  "description": "One server-sent event. The SSE `event` field repeats `type`, and `data` holds this object as JSON."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "409": {
+            "description": "`assistant_consent_required` when the user never agreed to the assistant. `assistant_consent_outdated` when the copy version differs from the one agreed to. `assistant_conversation_ended` when the conversation already ended"
+          },
+          "429": {
+            "description": "`assistant_rate_limited` (too many messages this minute) or `assistant_daily_limit` (too many today)"
+          },
+          "503": {
+            "description": "`assistant_unavailable`: the assistant is off or over its budget. Point the user to Discord"
+          }
+        }
+      }
+    },
+    "/v1/assistant/conversations/{id}/client-tool-results": {
+      "post": {
+        "operationId": "submitAssistantClientToolResults",
+        "summary": "Return what the browser read for the assistant and stream the rest of the turn",
+        "tags": [
+          "Assistant"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "results": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "toolCallId": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            },
+                            "content": {
+                              "type": "string",
+                              "maxLength": 16000,
+                              "description": "The excerpt the browser read, or why it could not read it"
+                            },
+                            "ok": {
+                              "type": "boolean",
+                              "default": true
+                            }
+                          },
+                          "required": [
+                            "toolCallId",
+                            "content"
+                          ]
+                        },
+                        "minItems": 1,
+                        "maxItems": 5
+                      }
+                    },
+                    "required": [
+                      "results"
+                    ]
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A server-sent event stream of the assistant turn. Each event's `event` field is its `type`, and its `data` is the event as JSON. The stream ends after `done` or `error`.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "text_delta"
+                          ]
+                        },
+                        "text": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "text"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "tool_started"
+                          ]
+                        },
+                        "toolCallId": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "toolCallId",
+                        "name"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "tool_result_summary"
+                          ]
+                        },
+                        "toolCallId": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "ok": {
+                          "type": "boolean"
+                        },
+                        "summary": {
+                          "type": "string",
+                          "description": "What the assistant read, shown under the answer"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "toolCallId",
+                        "name",
+                        "ok",
+                        "summary"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "client_tool_request"
+                          ]
+                        },
+                        "toolCallId": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string",
+                          "enum": [
+                            "read_logs",
+                            "read_events"
+                          ]
+                        },
+                        "arguments": {
+                          "type": "object",
+                          "properties": {
+                            "dseq": {
+                              "type": "string"
+                            },
+                            "service": {
+                              "type": "string"
+                            },
+                            "tailLines": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "dseq"
+                          ]
+                        },
+                        "maxLength": {
+                          "type": "integer",
+                          "description": "The longest `content` the API accepts for this result"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "toolCallId",
+                        "name",
+                        "arguments",
+                        "maxLength"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "action_proposal"
+                          ]
+                        },
+                        "proposalId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "action": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "create_deployment"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "templateId": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "sdl": {
+                                  "type": "string",
+                                  "description": "Validated with the same checks a create runs before the card is shown."
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "runtimeLimitHours": {
+                                  "type": "integer",
+                                  "nullable": true
+                                },
+                                "services": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "service": {
+                                        "type": "string"
+                                      },
+                                      "image": {
+                                        "type": "string",
+                                        "nullable": true
+                                      },
+                                      "resources": {
+                                        "type": "object",
+                                        "properties": {
+                                          "cpu": {
+                                            "type": "number",
+                                            "nullable": true
+                                          },
+                                          "memory": {
+                                            "type": "string",
+                                            "nullable": true
+                                          },
+                                          "storage": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "gpu": {
+                                            "type": "object",
+                                            "nullable": true,
+                                            "properties": {
+                                              "units": {
+                                                "type": "integer"
+                                              },
+                                              "models": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "string"
+                                                }
+                                              }
+                                            },
+                                            "required": [
+                                              "units",
+                                              "models"
+                                            ]
+                                          },
+                                          "count": {
+                                            "type": "integer",
+                                            "nullable": true,
+                                            "description": "Replicas"
+                                          }
+                                        },
+                                        "required": [
+                                          "cpu",
+                                          "memory",
+                                          "storage",
+                                          "gpu",
+                                          "count"
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "service",
+                                      "image",
+                                      "resources"
+                                    ]
+                                  }
+                                },
+                                "providersAbleToBid": {
+                                  "type": "integer",
+                                  "nullable": true,
+                                  "description": "Providers bid screening expects could bid on every group now, or null when screening did not answer."
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "templateId",
+                                "sdl",
+                                "name",
+                                "runtimeLimitHours",
+                                "services",
+                                "providersAbleToBid"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "choose_bid"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "pattern": "^[1-9]\\d{0,19}$"
+                                },
+                                "choices": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "gseq": {
+                                        "type": "integer"
+                                      },
+                                      "oseq": {
+                                        "type": "integer"
+                                      },
+                                      "provider": {
+                                        "type": "string"
+                                      },
+                                      "price": {
+                                        "type": "object",
+                                        "properties": {
+                                          "denom": {
+                                            "type": "string"
+                                          },
+                                          "amount": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "denom",
+                                          "amount"
+                                        ],
+                                        "description": "The bid's own price per block, as the bid list returns it."
+                                      }
+                                    },
+                                    "required": [
+                                      "gseq",
+                                      "oseq",
+                                      "provider",
+                                      "price"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "dseq",
+                                "choices"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "update_deployment"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "pattern": "^[1-9]\\d{0,19}$"
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "manifestVersion": {
+                                  "type": "string",
+                                  "description": "Send as `ifManifestVersion`, so the patch is refused when the deployment changed since the card was shown."
+                                },
+                                "services": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "service": {
+                                        "type": "string"
+                                      },
+                                      "before": {
+                                        "type": "object",
+                                        "properties": {
+                                          "image": {
+                                            "type": "string",
+                                            "nullable": true
+                                          },
+                                          "command": {
+                                            "type": "array",
+                                            "nullable": true,
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "args": {
+                                            "type": "array",
+                                            "nullable": true,
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "envKeys": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            },
+                                            "description": "Names of the variables the service declares today. Values are never included."
+                                          },
+                                          "expose": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "port": {
+                                                  "type": "integer"
+                                                },
+                                                "as": {
+                                                  "type": "integer",
+                                                  "nullable": true
+                                                },
+                                                "accept": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "string"
+                                                  }
+                                                },
+                                                "global": {
+                                                  "type": "boolean"
+                                                }
+                                              },
+                                              "required": [
+                                                "port",
+                                                "as",
+                                                "accept",
+                                                "global"
+                                              ]
+                                            }
+                                          },
+                                          "storage": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "volume": {
+                                                  "type": "string"
+                                                },
+                                                "mount": {
+                                                  "type": "string",
+                                                  "nullable": true
+                                                },
+                                                "readOnly": {
+                                                  "type": "boolean"
+                                                }
+                                              },
+                                              "required": [
+                                                "volume",
+                                                "mount",
+                                                "readOnly"
+                                              ]
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "image",
+                                          "command",
+                                          "args",
+                                          "envKeys",
+                                          "expose",
+                                          "storage"
+                                        ]
+                                      },
+                                      "patch": {
+                                        "type": "object",
+                                        "properties": {
+                                          "image": {
+                                            "type": "string"
+                                          },
+                                          "command": {
+                                            "type": "array",
+                                            "nullable": true,
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "args": {
+                                            "type": "array",
+                                            "nullable": true,
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "env": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                              "type": "string",
+                                              "nullable": true
+                                            },
+                                            "description": "Merged into the service's env, keyed by environment variable name. A null value removes the variable. A patched variable is re-appended, so the order of the stored env list may change. Written values are sealed unless the request carries `sealedSecrets`."
+                                          },
+                                          "expose": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                              "type": "object",
+                                              "properties": {
+                                                "port": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "maximum": 65535,
+                                                  "description": "Moves the container port the workload listens on. The entry is still addressed by the port it declares today. Refused onto a port the service already exposes, and on an endpoint reached through a leased IP."
+                                                },
+                                                "as": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "maximum": 65535,
+                                                  "description": "Moves the port the endpoint is reached on. Refused when it would change the endpoint's kind (a public TCP endpoint moving onto or off port 80), onto a port another endpoint of the service uses, and on an endpoint reached through a leased IP."
+                                                },
+                                                "accept": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "string"
+                                                  },
+                                                  "description": "Custom domains. Replaces the existing list. Emptying it is rejected by providers that do not generate a hostname of their own, which leaves the patch recorded but undeployed."
+                                                },
+                                                "httpOptions": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "maxBodySize": {
+                                                      "type": "integer",
+                                                      "minimum": 1,
+                                                      "maximum": 104857600
+                                                    },
+                                                    "readTimeout": {
+                                                      "type": "integer",
+                                                      "minimum": 1,
+                                                      "maximum": 4294967295
+                                                    },
+                                                    "sendTimeout": {
+                                                      "type": "integer",
+                                                      "minimum": 1,
+                                                      "maximum": 4294967295
+                                                    },
+                                                    "nextTries": {
+                                                      "type": "integer",
+                                                      "minimum": 0,
+                                                      "maximum": 4294967295
+                                                    },
+                                                    "nextTimeout": {
+                                                      "type": "integer",
+                                                      "minimum": 0,
+                                                      "maximum": 4294967295
+                                                    },
+                                                    "nextCases": {
+                                                      "type": "array",
+                                                      "items": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                          "error",
+                                                          "timeout",
+                                                          "500",
+                                                          "502",
+                                                          "503",
+                                                          "504",
+                                                          "403",
+                                                          "404",
+                                                          "429",
+                                                          "off"
+                                                        ]
+                                                      },
+                                                      "minItems": 1,
+                                                      "description": "Conditions the proxy retries on. Replaces the existing list; \"off\" disables retrying and stands alone."
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            },
+                                            "description": "Keyed by the container port the stored SDL declares. Port numbers, hosts and http options are patchable; protocol, routing, endpoint kind and count are fixed at create. A random-port endpoint whose numbers change gets a new public port from the provider, and so can the service's other random-port endpoints when a container port move reorders them."
+                                          },
+                                          "storage": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                              "type": "object",
+                                              "properties": {
+                                                "mount": {
+                                                  "type": "string"
+                                                },
+                                                "readOnly": {
+                                                  "type": "boolean"
+                                                }
+                                              }
+                                            },
+                                            "description": "Keyed by volume name. Mount point and read-only flag only — sizes are fixed at create."
+                                          }
+                                        },
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "required": [
+                                      "service",
+                                      "before",
+                                      "patch"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "dseq",
+                                "name",
+                                "manifestVersion",
+                                "services"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "set_secret"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "pattern": "^[1-9]\\d{0,19}$"
+                                },
+                                "service": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "description": "The variable name. The value is typed into the card's secure input and sealed in the browser."
+                                },
+                                "replacesExisting": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "dseq",
+                                "service",
+                                "name",
+                                "replacesExisting"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "set_registry_credentials"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "pattern": "^[1-9]\\d{0,19}$"
+                                },
+                                "service": {
+                                  "type": "string"
+                                },
+                                "image": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "host": {
+                                  "type": "string"
+                                },
+                                "usernameHint": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "description": "Prefills the username field. The password is typed into the card's secure input."
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "dseq",
+                                "service",
+                                "image",
+                                "host",
+                                "usernameHint"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "redeploy_with_resources"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "deep_link"
+                                  ]
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "pattern": "^[1-9]\\d{0,19}$"
+                                },
+                                "reason": {
+                                  "type": "string"
+                                },
+                                "services": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "service": {
+                                        "type": "string"
+                                      },
+                                      "before": {
+                                        "type": "object",
+                                        "properties": {
+                                          "cpu": {
+                                            "type": "number",
+                                            "nullable": true
+                                          },
+                                          "memory": {
+                                            "type": "string",
+                                            "nullable": true
+                                          },
+                                          "storage": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "gpu": {
+                                            "type": "object",
+                                            "nullable": true,
+                                            "properties": {
+                                              "units": {
+                                                "type": "integer"
+                                              },
+                                              "models": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "string"
+                                                }
+                                              }
+                                            },
+                                            "required": [
+                                              "units",
+                                              "models"
+                                            ]
+                                          },
+                                          "count": {
+                                            "type": "integer",
+                                            "nullable": true,
+                                            "description": "Replicas"
+                                          }
+                                        },
+                                        "required": [
+                                          "cpu",
+                                          "memory",
+                                          "storage",
+                                          "gpu",
+                                          "count"
+                                        ]
+                                      },
+                                      "after": {
+                                        "type": "object",
+                                        "properties": {
+                                          "cpu": {
+                                            "type": "number",
+                                            "nullable": true
+                                          },
+                                          "memory": {
+                                            "type": "string",
+                                            "nullable": true
+                                          },
+                                          "storage": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "gpu": {
+                                            "type": "object",
+                                            "nullable": true,
+                                            "properties": {
+                                              "units": {
+                                                "type": "integer"
+                                              },
+                                              "models": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "string"
+                                                }
+                                              }
+                                            },
+                                            "required": [
+                                              "units",
+                                              "models"
+                                            ]
+                                          },
+                                          "count": {
+                                            "type": "integer",
+                                            "nullable": true,
+                                            "description": "Replicas"
+                                          }
+                                        },
+                                        "required": [
+                                          "cpu",
+                                          "memory",
+                                          "storage",
+                                          "gpu",
+                                          "count"
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "service",
+                                      "before",
+                                      "after"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "dseq",
+                                "reason",
+                                "services"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "rename_deployment"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "pattern": "^[1-9]\\d{0,19}$"
+                                },
+                                "from": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "to": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "dseq",
+                                "from",
+                                "to"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "move_deployment"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "pattern": "^[1-9]\\d{0,19}$"
+                                },
+                                "projectId": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "dseq",
+                                "projectId"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "add_runtime_hours"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "pattern": "^[1-9]\\d{0,19}$"
+                                },
+                                "hours": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 48
+                                },
+                                "currentLimitHours": {
+                                  "type": "integer"
+                                },
+                                "newLimitHours": {
+                                  "type": "integer",
+                                  "description": "Send as `runtimeLimitHours`, which takes the new total."
+                                },
+                                "runtimeEndsAt": {
+                                  "type": "string",
+                                  "nullable": true
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "dseq",
+                                "hours",
+                                "currentLimitHours",
+                                "newLimitHours",
+                                "runtimeEndsAt"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "remove_runtime_limit"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "pattern": "^[1-9]\\d{0,19}$"
+                                },
+                                "currentLimitHours": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "dseq",
+                                "currentLimitHours"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "send_manifest_again"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "pattern": "^[1-9]\\d{0,19}$"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "dseq"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "close_deployment"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "destructive"
+                                  ]
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "pattern": "^[1-9]\\d{0,19}$"
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "reason": {
+                                  "type": "string",
+                                  "enum": [
+                                    "no_longer_needed",
+                                    "cost_or_budget",
+                                    "migrating_elsewhere",
+                                    "performance_or_reliability",
+                                    "testing_or_project_complete",
+                                    "other"
+                                  ]
+                                },
+                                "reasonDetails": {
+                                  "type": "string",
+                                  "nullable": true
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "dseq",
+                                "name",
+                                "reason",
+                                "reasonDetails"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "create_alert"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "alert": {
+                                  "type": "string",
+                                  "enum": [
+                                    "deployment_balance",
+                                    "deployment_closed",
+                                    "wallet_balance"
+                                  ]
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "pattern": "^[1-9]\\d{0,19}$"
+                                },
+                                "thresholdUsd": {
+                                  "type": "number",
+                                  "nullable": true
+                                },
+                                "channel": {
+                                  "type": "string",
+                                  "enum": [
+                                    "email"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "alert",
+                                "dseq",
+                                "thresholdUsd",
+                                "channel"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "redeem_coupon"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "code": {
+                                  "type": "string",
+                                  "nullable": true
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "code"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "save_as_template"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "pattern": "^[1-9]\\d{0,19}$"
+                                },
+                                "title": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string",
+                                  "nullable": true
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "dseq",
+                                "title",
+                                "description"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "favorite_provider"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "provider": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "provider"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "request_hardware"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "gpuModel": {
+                                  "type": "string"
+                                },
+                                "gpuCount": {
+                                  "type": "integer"
+                                },
+                                "interconnect": {
+                                  "type": "string",
+                                  "enum": [
+                                    "none",
+                                    "server",
+                                    "cluster"
+                                  ]
+                                },
+                                "notes": {
+                                  "type": "string",
+                                  "nullable": true
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "gpuModel",
+                                "gpuCount",
+                                "interconnect",
+                                "notes"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "buy_credits"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "deep_link"
+                                  ]
+                                },
+                                "amountUsd": {
+                                  "type": "number",
+                                  "nullable": true
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "amountUsd"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "configure_auto_recharge"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "deep_link"
+                                  ]
+                                },
+                                "thresholdUsd": {
+                                  "type": "number",
+                                  "nullable": true
+                                },
+                                "amountUsd": {
+                                  "type": "number",
+                                  "nullable": true
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "thresholdUsd",
+                                "amountUsd"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "open_in_editor"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "deep_link"
+                                  ]
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "pattern": "^[1-9]\\d{0,19}$"
+                                },
+                                "templateId": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "sdl": {
+                                  "type": "string",
+                                  "nullable": true
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "dseq",
+                                "templateId",
+                                "sdl"
+                              ]
+                            }
+                          ],
+                          "description": "An action the assistant proposes. The API never executes it: the card shows it and, on Confirm, runs the same request the regular UI makes (`confirm`, `destructive`) or opens the existing page prefilled (`deep_link`)."
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "proposalId",
+                        "action"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "done"
+                          ]
+                        },
+                        "reason": {
+                          "type": "string",
+                          "enum": [
+                            "stop",
+                            "length",
+                            "awaiting_client_tool"
+                          ],
+                          "description": "`awaiting_client_tool`: the turn is paused until the browser posts the requested results to `client-tool-results`"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "reason"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "error"
+                          ]
+                        },
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "assistant_unavailable",
+                            "assistant_timeout",
+                            "assistant_error"
+                          ]
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "code",
+                        "message"
+                      ]
+                    }
+                  ],
+                  "description": "One server-sent event. The SSE `event` field repeats `type`, and `data` holds this object as JSON."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body, or `assistant_tool_results_mismatch` when the results do not answer each requested call exactly once"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "409": {
+            "description": "`assistant_consent_required` when the user never agreed to the assistant. `assistant_consent_outdated` when the copy version differs from the one agreed to. `assistant_no_pending_tool_request` when no turn waits on the browser, or it expired"
+          },
+          "503": {
+            "description": "`assistant_unavailable`: the assistant is off or over its budget. Point the user to Discord"
+          }
+        }
+      }
+    },
+    "/v1/assistant/conversations/{id}/end": {
+      "post": {
+        "operationId": "endAssistantConversation",
+        "summary": "End an assistant conversation and say whether it helped",
+        "tags": [
+          "Assistant"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "resolvedByUser": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "How the conversation ended",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "resolved",
+                            "unresolved"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "status"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/v1/assistant/conversations/{id}/action-results": {
+      "post": {
+        "operationId": "createAssistantActionResult",
+        "summary": "Record whether the user confirmed a proposed action, and how it ended",
+        "tags": [
+          "Assistant"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "proposalId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "actionType": {
+                        "type": "string",
+                        "enum": [
+                          "create_deployment",
+                          "choose_bid",
+                          "update_deployment",
+                          "set_secret",
+                          "set_registry_credentials",
+                          "redeploy_with_resources",
+                          "rename_deployment",
+                          "move_deployment",
+                          "add_runtime_hours",
+                          "remove_runtime_limit",
+                          "send_manifest_again",
+                          "close_deployment",
+                          "create_alert",
+                          "redeem_coupon",
+                          "save_as_template",
+                          "favorite_provider",
+                          "request_hardware",
+                          "buy_credits",
+                          "configure_auto_recharge",
+                          "open_in_editor"
+                        ]
+                      },
+                      "decision": {
+                        "type": "string",
+                        "enum": [
+                          "confirmed",
+                          "cancelled"
+                        ]
+                      },
+                      "outcome": {
+                        "type": "string",
+                        "enum": [
+                          "succeeded",
+                          "failed"
+                        ],
+                        "description": "How the confirmed request ended"
+                      },
+                      "error": {
+                        "type": "string",
+                        "maxLength": 500
+                      }
+                    },
+                    "required": [
+                      "proposalId",
+                      "actionType",
+                      "decision"
+                    ]
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Whether the result was stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "recorded": {
+                          "type": "boolean",
+                          "description": "False for a conversation the API does not store"
+                        }
+                      },
+                      "required": [
+                        "recorded"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "`assistant_proposal_not_found` when the stored conversation holds no such proposal"
+          }
+        }
       }
     }
   },

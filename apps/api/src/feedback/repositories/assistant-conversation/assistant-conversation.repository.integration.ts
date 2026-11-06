@@ -28,6 +28,23 @@ describe(AssistantConversationRepository.name, () => {
     });
   });
 
+  describe("endOpen", () => {
+    it("ends an open conversation once and answers nothing for one that already ended", async () => {
+      const { repository, userId } = await setup();
+      const conversation = await seedAssistantConversation({ userId });
+      const endedAt = new Date("2026-11-04T12:00:00.000Z");
+
+      expect(await repository.endOpen(conversation.id, { status: "resolved", resolvedByUser: true, endedAt })).toMatchObject({
+        id: conversation.id,
+        status: "resolved",
+        resolvedByUser: true,
+        endedAt
+      });
+      expect(await repository.endOpen(conversation.id, { status: "unresolved", resolvedByUser: false, endedAt: new Date() })).toBeUndefined();
+      expect(await repository.findById(conversation.id)).toMatchObject({ status: "resolved", endedAt });
+    });
+  });
+
   describe("findUnclassifiedIds", () => {
     it("answers unclassified conversations that ended or went quiet, oldest first", async () => {
       const { repository, userId } = await setup();

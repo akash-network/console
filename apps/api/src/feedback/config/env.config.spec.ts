@@ -10,13 +10,29 @@ describe("envSchema", () => {
       AKASHML_API_KEY: undefined,
       FEEDBACK_CLASSIFIER_MODEL: "Qwen/Qwen3.5-35B-A3B",
       ASSISTANT_MODEL: "deepseek-ai/DeepSeek-V4-Flash",
-      FEEDBACK_THEME_SCORE_WEIGHTS: DEFAULT_FEEDBACK_THEME_SCORE_WEIGHTS
+      FEEDBACK_THEME_SCORE_WEIGHTS: DEFAULT_FEEDBACK_THEME_SCORE_WEIGHTS,
+      ASSISTANT_MESSAGES_PER_MINUTE: 6,
+      ASSISTANT_MESSAGES_PER_DAY: 100,
+      ASSISTANT_TRIAL_MESSAGES_PER_DAY: 30,
+      ASSISTANT_DAILY_TOKEN_BUDGET: 20_000_000,
+      ASSISTANT_SUPPORT_URL: "https://discord.gg/akash"
     });
   });
 
   it("treats blank values as unset", () => {
     expect(
-      envSchema.parse({ AKASHML_API_URL: "", AKASHML_API_KEY: "", FEEDBACK_CLASSIFIER_MODEL: "", ASSISTANT_MODEL: "", FEEDBACK_THEME_SCORE_WEIGHTS: "" })
+      envSchema.parse({
+        AKASHML_API_URL: "",
+        AKASHML_API_KEY: "",
+        FEEDBACK_CLASSIFIER_MODEL: "",
+        ASSISTANT_MODEL: "",
+        FEEDBACK_THEME_SCORE_WEIGHTS: "",
+        ASSISTANT_MESSAGES_PER_MINUTE: "",
+        ASSISTANT_MESSAGES_PER_DAY: "",
+        ASSISTANT_TRIAL_MESSAGES_PER_DAY: "",
+        ASSISTANT_DAILY_TOKEN_BUDGET: "",
+        ASSISTANT_SUPPORT_URL: ""
+      })
     ).toEqual(envSchema.parse({}));
   });
 
@@ -27,14 +43,24 @@ describe("envSchema", () => {
         AKASHML_API_KEY: "test-key",
         FEEDBACK_CLASSIFIER_MODEL: "classifier-model",
         ASSISTANT_MODEL: "assistant-model",
-        FEEDBACK_THEME_SCORE_WEIGHTS: '{"payingUser":3,"recencyHalfLifeDays":7}'
+        FEEDBACK_THEME_SCORE_WEIGHTS: '{"payingUser":3,"recencyHalfLifeDays":7}',
+        ASSISTANT_MESSAGES_PER_MINUTE: "3",
+        ASSISTANT_MESSAGES_PER_DAY: "50",
+        ASSISTANT_TRIAL_MESSAGES_PER_DAY: "10",
+        ASSISTANT_DAILY_TOKEN_BUDGET: "1000",
+        ASSISTANT_SUPPORT_URL: "https://support.example.com"
       })
     ).toEqual({
       AKASHML_API_URL: "https://akashml.example.com/v1",
       AKASHML_API_KEY: "test-key",
       FEEDBACK_CLASSIFIER_MODEL: "classifier-model",
       ASSISTANT_MODEL: "assistant-model",
-      FEEDBACK_THEME_SCORE_WEIGHTS: { ...DEFAULT_FEEDBACK_THEME_SCORE_WEIGHTS, payingUser: 3, recencyHalfLifeDays: 7 }
+      FEEDBACK_THEME_SCORE_WEIGHTS: { ...DEFAULT_FEEDBACK_THEME_SCORE_WEIGHTS, payingUser: 3, recencyHalfLifeDays: 7 },
+      ASSISTANT_MESSAGES_PER_MINUTE: 3,
+      ASSISTANT_MESSAGES_PER_DAY: 50,
+      ASSISTANT_TRIAL_MESSAGES_PER_DAY: 10,
+      ASSISTANT_DAILY_TOKEN_BUDGET: 1000,
+      ASSISTANT_SUPPORT_URL: "https://support.example.com"
     });
   });
 
@@ -47,6 +73,9 @@ describe("envSchema", () => {
 
   it.each([
     { AKASHML_API_URL: "not-a-url" },
+    { ASSISTANT_SUPPORT_URL: "not-a-url" },
+    { ASSISTANT_MESSAGES_PER_MINUTE: "0" },
+    { ASSISTANT_MESSAGES_PER_DAY: "1.5" },
     { FEEDBACK_THEME_SCORE_WEIGHTS: "{not json" },
     { FEEDBACK_THEME_SCORE_WEIGHTS: '{"unknownWeight":1}' },
     { FEEDBACK_THEME_SCORE_WEIGHTS: '{"payingUser":-1}' },

@@ -35,7 +35,12 @@ const UNRELEASED_FEEDBACK_ROUTES = [
   "GET /v1/feedback/outcome-prompts/{dseq}",
   "GET /v1/assistant/consent",
   "PUT /v1/assistant/consent",
-  "DELETE /v1/assistant/conversations"
+  "DELETE /v1/assistant/conversations",
+  "POST /v1/assistant/conversations",
+  "POST /v1/assistant/conversations/{id}/messages",
+  "POST /v1/assistant/conversations/{id}/client-tool-results",
+  "POST /v1/assistant/conversations/{id}/end",
+  "POST /v1/assistant/conversations/{id}/action-results"
 ];
 
 describe("API Docs", () => {
