@@ -115,6 +115,7 @@
     "ts-results": "^3.3.0",
     "tsyringe": "^4.10.0",
     "unleash-client": "^6.6.0",
+    "yaml": "^2.8.3",
     "zod": "3.*"
   },
   "devDependencies": {

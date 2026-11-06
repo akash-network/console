@@ -38,6 +38,36 @@ deployment:
       count: 1
 `;
 
+const PLACEMENT_ATTRIBUTES_SDL = `
+version: "2.0"
+services:
+  app:
+    image: google/dart-hello
+profiles:
+  compute:
+    app:
+      resources:
+        cpu:
+          units: 0.1
+        memory:
+          size: 512Mi
+        storage:
+          size: 512Mi
+  placement:
+    akash:
+      attributes:
+        host: akash
+      pricing:
+        app:
+          denom: uact
+          amount: 10000
+deployment:
+  app:
+    akash:
+      profile: app
+      count: 1
+`;
+
 describe(TemplateGalleryService.name, () => {
   afterEach(() => {
     cacheEngine.clearAllKeyInCache();
@@ -357,7 +387,7 @@ describe(TemplateGalleryService.name, () => {
   describe("getTemplateById", () => {
     it("returns template when found in file", async () => {
       const { service, fsMock } = setup();
-      const template = { id: "t1", name: "Template 1" };
+      const template = createTemplate({ id: "t1", name: "Template 1" });
 
       fsMock.readFile.mockResolvedValue(JSON.stringify({ data: template }));
 
@@ -365,6 +395,16 @@ describe(TemplateGalleryService.name, () => {
 
       expect(result).toEqual(template);
       expect(fsMock.readFile).toHaveBeenCalledWith("/data/templates/v1/templates/t1.json", "utf8");
+    });
+
+    it("serves the template's SDL without its placement attributes, keeping the rest of the template", async () => {
+      const { service, fsMock } = setup();
+      const template = createTemplate({ id: "dart", deploy: PLACEMENT_ATTRIBUTES_SDL });
+      fsMock.readFile.mockResolvedValue(JSON.stringify({ data: template }));
+
+      const result = await service.getTemplateById("dart");
+
+      expect(result).toEqual({ ...template, deploy: PLACEMENT_ATTRIBUTES_SDL.replace("      attributes:\n        host: akash\n", "") });
     });
 
     it("returns null when template file not found", async () => {
@@ -385,7 +425,7 @@ describe(TemplateGalleryService.name, () => {
 
     it("caches parsed template in memory", async () => {
       const { service, fsMock } = setup();
-      const template = { id: "t1", name: "Template 1" };
+      const template = createTemplate({ id: "t1", name: "Template 1" });
 
       fsMock.readFile.mockResolvedValue(JSON.stringify({ data: template }));
 
@@ -414,7 +454,7 @@ describe(TemplateGalleryService.name, () => {
 
     it("reads the correct file for a legit id containing dots", async () => {
       const { service, fsMock } = setup();
-      const template = { id: "akash-network-awesome-akash-DeepSeek-V3.1", name: "DeepSeek" };
+      const template = createTemplate({ id: "akash-network-awesome-akash-DeepSeek-V3.1", name: "DeepSeek" });
 
       fsMock.readFile.mockResolvedValue(JSON.stringify({ data: template }));
 

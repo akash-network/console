@@ -278,6 +278,17 @@ describe("sdlImport", () => {
   });
 
   describe("SDL roundtrip", () => {
+    it("keeps the placement attributes of an SDL the user imported", () => {
+      const yml = fs
+        .readFileSync(path.resolve(__dirname, "../../../tests/mocks/two-services-sdl.yml"), "utf8")
+        .replace('        console/trials: "true"', '        console/trials: "true"\n        host: akash');
+
+      const regenerated = generateSdl(importSimpleSdl(yml));
+      const parsed = yaml.load(regenerated) as { profiles: { placement: Record<string, { attributes?: Record<string, string> }> } };
+
+      expect(parsed.profiles.placement.dcloud.attributes).toEqual({ "console/trials": "true", host: "akash" });
+    });
+
     it("preserves params.tee when importing then regenerating the SDL", () => {
       const regenerated = generateSdl(importSimpleSdl(teeSdl("cpu")));
       const parsed = yaml.load(regenerated) as { services: Record<string, { params?: { tee?: string } }> };
