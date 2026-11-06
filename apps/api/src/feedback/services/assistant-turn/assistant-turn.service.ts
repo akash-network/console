@@ -4,8 +4,8 @@ import { inject, singleton } from "tsyringe";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { type AssistantStreamEvent, MAX_CLIENT_TOOL_RESULT_LENGTH } from "@src/feedback/http-schemas/assistant-conversation.schema";
 import { fallbackAnswerOf } from "@src/feedback/lib/assistant-fallback-answer/assistant-fallback-answer";
-import { assistantChatTools, isLiveHelpToolName } from "@src/feedback/lib/assistant-tools/assistant-tools";
-import { earlierResultOf } from "@src/feedback/lib/assistant-turn-tool-calls/assistant-turn-tool-calls";
+import { assistantChatTools, isLiveHelpToolName, isReadToolName } from "@src/feedback/lib/assistant-tools/assistant-tools";
+import { earlierResultOf, toolCallKeyOf } from "@src/feedback/lib/assistant-turn-tool-calls/assistant-turn-tool-calls";
 import { FEEDBACK_CONFIG, type FeedbackConfig } from "@src/feedback/providers/config.provider";
 import { AssistantPendingTurnRepository } from "@src/feedback/repositories/assistant-pending-turn/assistant-pending-turn.repository";
 import {
@@ -19,7 +19,7 @@ import {
 } from "@src/feedback/services/akashml-client/akashml.client";
 import { AssistantLimitsService } from "@src/feedback/services/assistant-limits/assistant-limits.service";
 import type { ProposalContext } from "@src/feedback/services/assistant-proposal/assistant-proposal.service";
-import { AssistantToolRunnerService, toolContentOf } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
+import { AssistantToolRunnerService, toolContentOf, type ToolOutcome } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
 import { AssistantTranscriptService, type TranscriptEntry } from "@src/feedback/services/assistant-transcript/assistant-transcript.service";
 
 export const MAX_TOOL_ROUNDS = 6;
@@ -191,6 +191,7 @@ export class AssistantTurnService {
     emit: EmitAssistantEvent
   ): Promise<ChatToolCall[]> {
     const clientToolCalls: ChatToolCall[] = [];
+    const startedReads = await this.#startLeadingReads(toolCalls, messages, proposalContext, emit);
 
     for (const call of toolCalls) {
       const name = call.function.name;
@@ -201,8 +202,9 @@ export class AssistantTurnService {
       }
 
       const showsAsRead = !isLiveHelpToolName(name);
-      if (showsAsRead) await emit({ type: "tool_started", toolCallId: call.id, name });
-      const outcome = await this.toolRunner.run(call, proposalContext);
+      const startedRead = startedReads.get(call.id);
+      if (showsAsRead && !startedRead) await emit({ type: "tool_started", toolCallId: call.id, name });
+      const outcome = await (startedRead ?? this.toolRunner.run(call, proposalContext));
 
       if (outcome.kind === "client") {
         clientToolCalls.push(call);
@@ -246,6 +248,30 @@ export class AssistantTurnService {
     }
 
     return clientToolCalls;
+  }
+
+  /** Only reads ahead of the round's first card or browser tool run at once, since a card can change what a later call in the round sees. */
+  async #startLeadingReads(
+    toolCalls: ChatToolCall[],
+    messages: ChatMessage[],
+    proposalContext: ProposalContext,
+    emit: EmitAssistantEvent
+  ): Promise<Map<string, Promise<ToolOutcome>>> {
+    const started = new Map<string, Promise<ToolOutcome>>();
+    const startedKeys = new Set<string>();
+
+    for (const call of toolCalls) {
+      if (!isReadToolName(call.function.name)) break;
+
+      const key = toolCallKeyOf(call);
+      if (startedKeys.has(key) || earlierResultOf(call, messages) !== undefined) continue;
+
+      startedKeys.add(key);
+      await emit({ type: "tool_started", toolCallId: call.id, name: call.function.name });
+      started.set(call.id, this.toolRunner.run(call, proposalContext));
+    }
+
+    return started;
   }
 
   async #pause(turn: AssistantTurn, messages: ChatMessage[], clientToolCalls: ChatToolCall[], roundsUsed: number): Promise<void> {
