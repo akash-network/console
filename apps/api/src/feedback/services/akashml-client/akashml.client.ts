@@ -10,6 +10,7 @@ import { AKASHML_HTTP_CLIENT } from "@src/feedback/providers/akashml-http-client
 import { FEEDBACK_CONFIG, type FeedbackConfig } from "@src/feedback/providers/config.provider";
 
 export const AKASHML_RETRY_DELAYS_MS = [500, 2000];
+export const MAX_STREAM_LINE_LENGTH = 1_048_576;
 
 const RETRYABLE_STATUSES = new Set([408, 409, 425, 429, 500, 502, 503, 504, 529]);
 const MAX_ERROR_MESSAGE_LENGTH = 200;
@@ -195,6 +196,7 @@ async function* readStreamPayloads(body: Readable): AsyncGenerator<string> {
       buffered += decoder.decode(chunk, { stream: true });
       const lines = buffered.split("\n");
       buffered = lines.pop() ?? "";
+      if (buffered.length > MAX_STREAM_LINE_LENGTH) throw Object.assign(new Error("Stream line too long"), { code: "ERR_STREAM_LINE_TOO_LONG" });
       yield* payloadsOf(lines);
     }
   } catch (error) {

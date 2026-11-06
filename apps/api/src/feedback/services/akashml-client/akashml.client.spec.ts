@@ -15,6 +15,7 @@ import {
   AkashMlUnavailableError,
   type ChatCompletionRequest,
   type JsonOutputSchema,
+  MAX_STREAM_LINE_LENGTH,
   parseJsonOutput
 } from "./akashml.client";
 
@@ -321,6 +322,28 @@ describe(AkashMlClient.name, () => {
 
       expect(result).toMatchObject({ content: "Ready 🚀", finishReason: "stop" });
       expect(onContentDelta.mock.calls).toEqual([["Ready 🚀"]]);
+    });
+
+    it("reads a line as long as the line limit", async () => {
+      const { client, httpClient } = setup();
+      const head = 'data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}],"padding":"';
+      const tail = '"}';
+      const longestLine = head + "x".repeat(MAX_STREAM_LINE_LENGTH - head.length - tail.length) + tail;
+      httpClient.post.mockResolvedValue(response(streamOf(longestLine, "\n\n", sse("[DONE]"))));
+
+      expect(await client.streamChatCompletion(REQUEST, { onContentDelta: vi.fn() })).toMatchObject({ content: "ok", finishReason: "stop" });
+    });
+
+    it("stops reading a line longer than the line limit before it ends", async () => {
+      const { client, httpClient } = setup();
+      const upstream = new PassThrough();
+      httpClient.post.mockResolvedValue(response(upstream));
+
+      const result = client.streamChatCompletion(REQUEST, { onContentDelta: vi.fn() }).catch(caught => caught);
+      upstream.write(`data: ${"x".repeat(MAX_STREAM_LINE_LENGTH)}`);
+
+      expect(await result).toMatchObject({ name: "AkashMlRequestError", status: undefined, message: "AkashML stream failed: ERR_STREAM_LINE_TOO_LONG" });
+      expect(upstream.destroyed).toBe(true);
     });
 
     it("keeps the usage when the final chunk carries no choices, even after the finish reason", async () => {
