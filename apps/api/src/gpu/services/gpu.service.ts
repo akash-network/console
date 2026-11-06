@@ -1,5 +1,6 @@
 import type { HttpClient } from "@akashnetwork/http-sdk";
 import { minutesToSeconds } from "date-fns";
+import uniqBy from "lodash/uniqBy";
 import { inject, singleton } from "tsyringe";
 
 import { Memoize, memoizeAsync } from "@src/caching/helpers";
@@ -96,6 +97,15 @@ export class GpuService {
   async getGpuModels() {
     const response = await this.httpClient.get<ProviderConfigGpusType>("/gpus.json");
     return this.gpuFormattingService.mapProviderConfig(response.data);
+  }
+
+  /** Lists a model an online provider has even when every unit is taken, since that tells a model the network lacks from one that is only busy. */
+  @Memoize({ ttlInSeconds: minutesToSeconds(5) })
+  async findOfferedGpuModels(): Promise<Array<{ vendor: string; model: string }>> {
+    const gpuNodes = await this.gpuRepository.getGpuList({});
+    const models = gpuNodes.flatMap(({ vendor, modelName }) => (vendor && modelName ? [{ vendor: vendor.toLowerCase(), model: modelName.toLowerCase() }] : []));
+
+    return uniqBy(models, ({ vendor, model }) => `${vendor}/${model}`);
   }
 
   readonly getGpuBreakdown = memoizeAsync((query: GpuBreakdownQuery) => this.gpuRepository.getGpuBreakdown(query), {

@@ -19,7 +19,11 @@ describe(ScreenUserGpuDeploymentHandler.name, () => {
     vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-19T12:01:00Z") });
     try {
       const { handler, jobQueueService } = setup({
-        groups: [aGroup(1, ["vendor/nvidia/model/h100"]), aGroup(2, ["vendor/nvidia/model/a100"]), aGroup(3, [])],
+        groups: [
+          aGroup(1, ["vendor/nvidia/model/h100"], { gpuUnits: 2, replicas: 3, region: "na-us-west" }),
+          aGroup(2, ["vendor/nvidia/model/a100"]),
+          aGroup(3, [])
+        ],
         screened: { "group-1": ["akash1first", "akash1second"], "group-2": ["akash1third"] },
         openGseqs: [1]
       });
@@ -31,8 +35,8 @@ describe(ScreenUserGpuDeploymentHandler.name, () => {
           owner: "akash1owner",
           dseq: "123",
           groups: [
-            { gseq: 1, vendor: "nvidia", model: "h100", screened: ["akash1first", "akash1second"], wasOpenThroughWait: true },
-            { gseq: 2, vendor: "nvidia", model: "a100", screened: ["akash1third"], wasOpenThroughWait: false }
+            { gseq: 1, vendor: "nvidia", model: "h100", gpuCount: 6, regionArea: "us", screened: ["akash1first", "akash1second"], wasOpenThroughWait: true },
+            { gseq: 2, vendor: "nvidia", model: "a100", gpuCount: 1, regionArea: null, screened: ["akash1third"], wasOpenThroughWait: false }
           ]
         }),
         { singletonKey: "recordUserGpuBids.akash1owner.123", startAfter: "2026-10-19T12:05:00.000Z" }
@@ -126,13 +130,25 @@ describe(ScreenUserGpuDeploymentHandler.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: ScreenUserGpuDeploymentHandler.name });
   });
 
-  function aGroup(gseq: number, gpuKeys: string[]): QueryDeploymentResponse["groups"][number] {
+  function aGroup(
+    gseq: number,
+    gpuKeys: string[],
+    options?: { gpuUnits?: number; replicas?: number; region?: string }
+  ): QueryDeploymentResponse["groups"][number] {
     return {
       id: { owner: "akash1owner", dseq: 123n, gseq },
       state: 1,
       groupSpec: GroupSpec.fromPartial({
         name: `group-${gseq}`,
-        resources: [{ resource: { gpu: { attributes: gpuKeys.map(key => ({ key, value: "true" })) } } }]
+        requirements: { attributes: options?.region ? [{ key: "location-region", value: options.region }] : [] },
+        resources: [
+          {
+            resource: {
+              gpu: { units: { val: BigInt(options?.gpuUnits ?? 1) }, attributes: gpuKeys.map(key => ({ key, value: "true" })) }
+            },
+            count: options?.replicas ?? 1
+          }
+        ]
       }),
       createdAt: 1n
     };

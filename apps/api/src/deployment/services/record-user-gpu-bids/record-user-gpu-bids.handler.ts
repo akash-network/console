@@ -3,14 +3,20 @@ import { inject, singleton } from "tsyringe";
 
 import { CHAIN_SDK, type ChainSDK } from "@src/chain/providers/chain-sdk.provider";
 import { type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions } from "@src/core";
+import type { GpuAsk } from "@src/deployment/lib/unmet-gpu-ask/unmet-gpu-ask";
 import { type CheckedGpuModel, type GpuBidCheckInsert, GpuBidCheckRepository } from "@src/deployment/repositories/gpu-bid-check/gpu-bid-check.repository";
+import { UnmetGpuDemandService } from "@src/deployment/services/unmet-gpu-demand/unmet-gpu-demand.service";
 import { findDeploymentBids } from "@src/deployment/utils/find-deployment-bids/find-deployment-bids";
+import type { RegionArea } from "@src/gpu/lib/region-area/region-area";
 
 export interface ScreenedGpuGroup extends CheckedGpuModel {
   gseq: number;
   screened: string[];
   /** False for a group leased before the configure page's wait ended, which stopped taking bids early. */
   wasOpenThroughWait: boolean;
+  /** Absent on a job queued before unmet demand was recorded, which then records no zero bid for the group. */
+  gpuCount?: number;
+  regionArea?: RegionArea | null;
 }
 
 export class RecordUserGpuBids implements Job {
@@ -32,7 +38,8 @@ export class RecordUserGpuBidsHandler implements JobHandler<RecordUserGpuBids> {
 
   constructor(
     @inject(CHAIN_SDK) chainSdk: ChainSDK,
-    private readonly gpuBidCheckRepository: GpuBidCheckRepository
+    private readonly gpuBidCheckRepository: GpuBidCheckRepository,
+    private readonly unmetGpuDemandService: UnmetGpuDemandService
   ) {
     this.#chainSdk = chainSdk;
   }
@@ -47,6 +54,7 @@ export class RecordUserGpuBidsHandler implements JobHandler<RecordUserGpuBids> {
     const checkedAt = new Date();
 
     await this.gpuBidCheckRepository.insertMany(groups.flatMap(group => toCheckRows(group, bids, dseq, checkedAt)));
+    await this.unmetGpuDemandService.recordZeroBids({ asks: findZeroBidAsks(groups, bids), actorId: owner, occurredAt: checkedAt });
   }
 }
 
@@ -65,4 +73,13 @@ function toCheckRows({ gseq, vendor, model, screened, wasOpenThroughWait }: Scre
     bid: bidders.has(provider),
     checkedAt
   }));
+}
+
+/** Only a group that stayed open through the wait and drew no bid at all counts, the same groups a silent provider is judged on. */
+function findZeroBidAsks(groups: ScreenedGpuGroup[], bids: Bid[]): GpuAsk[] {
+  const biddedGseqs = new Set(bids.flatMap(({ id }) => (id ? [id.gseq] : [])));
+
+  return groups.flatMap(({ gseq, vendor, model, wasOpenThroughWait, gpuCount, regionArea }) =>
+    wasOpenThroughWait && gpuCount !== undefined && !biddedGseqs.has(gseq) ? [{ vendor, model, gpuCount, regionArea: regionArea ?? null }] : []
+  );
 }

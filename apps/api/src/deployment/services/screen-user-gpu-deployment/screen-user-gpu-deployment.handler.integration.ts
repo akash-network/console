@@ -32,7 +32,12 @@ describe(ScreenUserGpuDeploymentHandler.name, () => {
     expect(await recordJobs()).toEqual([
       expect.objectContaining({
         state: "created",
-        data: { owner, dseq, groups: [{ gseq: 1, vendor: "nvidia", model: "h100", screened, wasOpenThroughWait: true }], version: 1 }
+        data: {
+          owner,
+          dseq,
+          groups: [{ gseq: 1, vendor: "nvidia", model: "h100", gpuCount: 1, regionArea: null, screened, wasOpenThroughWait: true }],
+          version: 1
+        }
       })
     ]);
   });
