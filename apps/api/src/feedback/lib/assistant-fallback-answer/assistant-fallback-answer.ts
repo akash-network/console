@@ -58,7 +58,18 @@ function dseqOf(call: ChatToolCall): string | undefined {
   }
 }
 
+function isFailedRead(result: string | undefined): boolean {
+  try {
+    const { error, data } = JSON.parse(result ?? "{}");
+    return error !== undefined || data?.earlierResult?.error !== undefined;
+  } catch {
+    return false;
+  }
+}
+
 function readOf({ call, result }: TurnToolCall): Read | undefined {
+  if (isFailedRead(result)) return undefined;
+
   const name = call.function.name;
   if (Object.hasOwn(ACCOUNT_READS, name)) return { phrase: ACCOUNT_READS[name], showsNoBids: false };
 

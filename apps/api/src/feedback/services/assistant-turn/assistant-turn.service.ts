@@ -57,6 +57,18 @@ function textDeltaEmitter(emit: EmitAssistantEvent, followsEarlierRoundText: boo
   };
 }
 
+function trackingShownText(emit: EmitAssistantEvent): { emit: EmitAssistantEvent; shownText: () => string } {
+  const shown: string[] = [];
+
+  return {
+    emit: event => {
+      if (event.type === "text_delta") shown.push(event.text);
+      return emit(event);
+    },
+    shownText: () => shown.join("")
+  };
+}
+
 export function alreadyReadContentOf(tool: string, earlierResult: string): string {
   try {
     return toolContentOf(tool, { data: { note: ALREADY_READ_NOTE, earlierResult: JSON.parse(earlierResult) } });
@@ -113,7 +125,8 @@ export class AssistantTurnService {
     this.#logger = createLogger({ context: AssistantTurnService.name });
   }
 
-  async run(turn: AssistantTurn, emit: EmitAssistantEvent, signal: AbortSignal): Promise<void> {
+  async run(turn: AssistantTurn, emitEvent: EmitAssistantEvent, signal: AbortSignal): Promise<void> {
+    const { emit, shownText } = trackingShownText(emitEvent);
     const deadline = AbortSignal.timeout(TURN_TIMEOUT_MS);
     const abort = AbortSignal.any([signal, deadline]);
     const messages = [...turn.messages];
@@ -151,18 +164,18 @@ export class AssistantTurnService {
       }
     } catch (error) {
       if (signal.aborted) return;
-      if (deadline.aborted) return await this.#endTimedOutTurn(turn, messages, answer, round, emit);
+      if (deadline.aborted) return await this.#endTimedOutTurn(turn, messages, shownText(), round, emit);
 
       await emit(this.#errorEventOf(error));
     }
   }
 
   /** A turn that runs out of time still answers with what it read, since an error would hide reads the user already saw as chips. */
-  async #endTimedOutTurn(turn: AssistantTurn, messages: ChatMessage[], answer: string[], round: number, emit: EmitAssistantEvent): Promise<void> {
+  async #endTimedOutTurn(turn: AssistantTurn, messages: ChatMessage[], shownText: string, round: number, emit: EmitAssistantEvent): Promise<void> {
     this.#logger.warn({ event: "ASSISTANT_TURN_TIMED_OUT", round, timeoutMs: TURN_TIMEOUT_MS });
     const fallback = fallbackAnswerOf(messages);
-    await textDeltaEmitter(emit, answer.length > 0)(fallback);
-    await this.#recordAnswer(turn, [...answer, fallback]);
+    await textDeltaEmitter(emit, shownText.length > 0)(fallback);
+    await this.#recordAnswer(turn, shownText ? [shownText, fallback] : [fallback]);
     await emit({ type: "done", reason: "stop" });
   }
 

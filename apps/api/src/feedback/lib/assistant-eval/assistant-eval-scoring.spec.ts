@@ -53,17 +53,25 @@ describe(scoreAssistantEval.name, () => {
     expect(result).toEqual({ id: "calls", passed: false, failures: ["did not call get_bids", "called get_deployment"] });
   });
 
-  it("reports a first call that is not the expected one", () => {
+  it("reports a first round that does not call only the expected tool", () => {
     const expectation = { callsFirst: "read_configure_form" };
-    const readFirst = [
-      { name: "read_configure_form", arguments: {} },
-      { name: "search_docs", arguments: {} }
-    ];
+    const readForm = { name: "read_configure_form", arguments: {} };
+    const searchDocs = { name: "search_docs", arguments: {} };
 
-    expect(scoreAssistantEval("first", expectation, { toolCalls: readFirst, answer: "" }).failures).toEqual([]);
-    expect(scoreAssistantEval("first", expectation, { toolCalls: [...readFirst].reverse(), answer: "" }).failures).toEqual([
+    expect(scoreAssistantEval("first", expectation, { toolCalls: [{ ...readForm, round: 0 }, { ...searchDocs, round: 1 }], answer: "" }).failures).toEqual([]);
+    expect(scoreAssistantEval("first", expectation, { toolCalls: [{ ...searchDocs, round: 0 }, { ...readForm, round: 1 }], answer: "" }).failures).toEqual([
       "called search_docs before read_configure_form"
     ]);
+    expect(
+      scoreAssistantEval("first", expectation, {
+        toolCalls: [
+          { ...readForm, round: 0 },
+          { ...searchDocs, round: 0 },
+          { ...searchDocs, round: 0 }
+        ],
+        answer: ""
+      }).failures
+    ).toEqual(["called search_docs alongside read_configure_form"]);
     expect(scoreAssistantEval("first", expectation, { toolCalls: [], answer: "" }).failures).toEqual(["called nothing before read_configure_form"]);
   });
 
