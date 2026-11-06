@@ -1,9 +1,10 @@
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
+import type { CreateLogger } from "@src/core";
 import type { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
 import type { UserOutput } from "@src/user/repositories";
 import { akashAddressesIn, AssistantAddressNamesService, providerNameOf } from "./assistant-address-names.service";
@@ -48,6 +49,15 @@ describe(AssistantAddressNamesService.name, () => {
       expect(await service.providerNamesOf([])).toEqual(new Map());
       expect(providerRepository.getProvidersByAddressesWithAttributes).not.toHaveBeenCalled();
     });
+
+    it("names no provider and logs the failure when the lookup fails", async () => {
+      const error = new Error("connection refused");
+      const { service, providerRepository, logger } = setup();
+      providerRepository.getProvidersByAddressesWithAttributes.mockRejectedValue(error);
+
+      expect(await service.providerNamesOf([PROVIDER])).toEqual(new Map());
+      expect(logger.warn).toHaveBeenCalledWith({ event: "ASSISTANT_PROVIDER_NAMES_FAILED", error });
+    });
   });
 
   describe("withAddressesNamed", () => {
@@ -78,6 +88,13 @@ describe(AssistantAddressNamesService.name, () => {
       expect(providerRepository.getProvidersByAddressesWithAttributes).not.toHaveBeenCalled();
       expect(userWalletRepository.findOneUsedBy).not.toHaveBeenCalled();
     });
+
+    it("fails rather than label a provider as another account when the lookup fails", async () => {
+      const { service, providerRepository } = setup();
+      providerRepository.getProvidersByAddressesWithAttributes.mockRejectedValue(new Error("connection refused"));
+
+      await expect(service.withAddressesNamed(PROVIDER)).rejects.toThrow("connection refused");
+    });
   });
 
   function setup(input: { providers?: Record<string, string>; ownWallet?: string } = {}) {
@@ -88,8 +105,14 @@ describe(AssistantAddressNamesService.name, () => {
     const userWalletRepository = mock<UserWalletRepository>();
     userWalletRepository.findOneUsedBy.mockResolvedValue(input.ownWallet ? mock<UserWalletOutput>({ address: input.ownWallet }) : undefined);
     const authService = mock<AuthService>({ currentUser: mock<UserOutput>({ id: "user-1" }) });
-    const service = new AssistantAddressNamesService(providerRepository, userWalletRepository, authService);
+    const logger = mock<ReturnType<CreateLogger>>();
+    const service = new AssistantAddressNamesService(
+      providerRepository,
+      userWalletRepository,
+      authService,
+      vi.fn<CreateLogger>(() => logger)
+    );
 
-    return { service, providerRepository, userWalletRepository };
+    return { service, providerRepository, userWalletRepository, logger };
   }
 });
