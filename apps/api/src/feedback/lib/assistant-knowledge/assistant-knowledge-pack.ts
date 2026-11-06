@@ -6,9 +6,39 @@ export interface KnowledgeDocument {
 }
 
 /** Bump on every content change, so a stored conversation can tell which pack answered it. */
-export const ASSISTANT_KNOWLEDGE_PACK_VERSION = "2026-11-05.1";
+export const ASSISTANT_KNOWLEDGE_PACK_VERSION = "2026-11-06.1";
 
 export const ASSISTANT_KNOWLEDGE_DOCUMENTS: KnowledgeDocument[] = [
+  {
+    id: "console-basics",
+    title: "Akash and Console basics",
+    source: "Akash docs; apps/deploy-web pages and settings",
+    markdown: `
+## What Akash and Console are
+Akash Network is a decentralized cloud: independent providers rent out their servers (CPU, GPU, memory and storage), and anyone can lease them. Unlike AWS or Google Cloud, no single company runs the hardware. You describe the workload in an SDL file, providers bid to run it, and you lease from one of them. Akash Console is the web app for deploying on Akash with a card: it holds your USD credits, funds each deployment, and shows logs, events and a shell for it.
+
+## ACT and uact
+Prices in an SDL are in \`uact\`, one millionth of ACT. ACT is the token Akash leases are paid in, and it is pegged 1:1 to the US dollar, so 1,000,000 uact is $1. Prices are per block, and a block is about 6 seconds. The SDL amount is the most you accept per block; providers bid at or below it and the lease runs at the winning bid's price. Console users pay with USD credits, so there is no token to buy.
+
+## What happens to data when a deployment closes
+Closing a deployment, or its lease ending for any reason, removes its containers and all their storage on the provider, persistent storage included. Nothing can be recovered afterwards. Persistent storage only keeps data across container restarts while the lease is active. Before closing, copy anything you need (a database dump, uploaded files) somewhere outside the deployment.
+
+## Shell access and SSH
+The deployment page has a Shell tab that opens a terminal inside a running service's container, from the browser. There is no access to the provider's host machine. To use SSH instead, run an SSH server in your image and expose its port globally; the provider maps it to a public port shown on the deployment page. The assistant cannot run commands in a container.
+
+## API keys and deploying from CI
+To deploy from a script or a CI pipeline, create an API key on the API keys page in the account menu, then call the Console API with the key in the \`x-api-key\` header. The API can create deployments from an SDL, accept bids, update and close deployments, all billed to the same credits. The assistant cannot create or delete API keys.
+
+## Assistant conversations and privacy
+Messages to the assistant, and the deployment and billing details it reads to answer, are processed by an AI model running on Akash (AkashML). Conversations are saved only when "Improve Console with my assistant conversations" is on in Settings, under Privacy, and saved ones can be read by the Akash team to improve Console. Turn it off or delete your saved conversations there at any time. Secrets are removed before anything is sent or saved.
+
+## Finding GPUs and providers
+The Providers page lists the providers on the network with their region, uptime and audit status. GPU availability changes by the minute, so ask the assistant to check which providers can bid on a given SDL or GPU model right before deploying. When nobody offers the GPUs you need, send a hardware request from Console so the team knows.
+
+## Account, organization and project deletion
+Deleting your account is in Settings, under Delete account. Organizations and projects are managed from their own settings pages. The assistant cannot delete accounts, organizations or projects.
+`
+  },
   {
     id: "sdl-essentials",
     title: "SDL essentials",
