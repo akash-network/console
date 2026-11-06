@@ -1,6 +1,7 @@
 import createError from "http-errors";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
+import { ZodError } from "zod";
 
 import type { CreateLogger } from "@src/core";
 import type { AssistantAction } from "@src/feedback/http-schemas/assistant-action.schema";
@@ -406,6 +407,57 @@ describe(AssistantToolRunnerService.name, () => {
         ]
       });
       expect(JSON.stringify(logger.warn.mock.calls)).not.toContain("all");
+    });
+
+    it("logs argument-supplied record keys only as placeholders", async () => {
+      const { runner, logger } = setup();
+      const services = { "sk-live-4242": { memory: "lots" } };
+
+      const outcome = await runner.run(call("propose_redeploy_with_resources", { dseq: "1", reason: "more memory", services }), {
+        isTrialing: false,
+        withheldTemplateSdls: []
+      });
+
+      expect(outcome).toMatchObject({ ok: false, content: expect.stringContaining("services.sk-live-4242.memory Invalid") });
+      expect(logger.warn).toHaveBeenCalledWith({
+        event: "ASSISTANT_TOOL_ARGUMENTS_REJECTED",
+        tool: "propose_redeploy_with_resources",
+        issues: [{ path: "services.*.memory", code: "invalid_string" }]
+      });
+      expect(JSON.stringify(logger.warn.mock.calls)).not.toContain("sk-live-4242");
+    });
+
+    it.each([
+      ["read_events", { dseq: "x" }, "dseq"],
+      ["suggest_live_help", { reason: "bored" }, "reason"],
+      ["propose_send_manifest_again", { dseq: "42", diagnosis: { summary: 1, evidence: [] } }, "diagnosis.summary"],
+      ["propose_choose_bid", { dseq: "42", choices: [{ gseq: 0, oseq: 1, provider: "p" }] }, "choices.0.gseq"]
+    ])("rejects the arguments of %s", async (name, args, path) => {
+      const { runner, logger } = setup();
+
+      expect(await runner.run(call(name, args), { isTrialing: false, withheldTemplateSdls: [] })).toMatchObject({
+        content: expect.stringContaining(`Invalid arguments for ${name}: ${path} `)
+      });
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "ASSISTANT_TOOL_ARGUMENTS_REJECTED", issues: [expect.objectContaining({ path })] })
+      );
+    });
+
+    it("reports a schema error from a tool's own data as a failure, not as rejected arguments", async () => {
+      const { runner, accountTools, proposalService, logger } = setup();
+      const error = new ZodError([{ code: "custom", path: ["templates", 0], message: "Bad cache" }]);
+      accountTools.listTemplates.mockRejectedValue(error);
+      proposalService.propose.mockRejectedValue(error);
+      const failed = "The tool failed. Tell the user this data could not be read right now.";
+
+      expect(await runner.run(call("list_templates", {}), { isTrialing: false, withheldTemplateSdls: [] })).toMatchObject({
+        content: toolContentOf("list_templates", { error: failed })
+      });
+      expect(await runner.run(call("propose_send_manifest_again", { dseq: "42" }), { isTrialing: false, withheldTemplateSdls: [] })).toMatchObject({
+        content: toolContentOf("propose_send_manifest_again", { error: failed })
+      });
+      expect(logger.warn).toHaveBeenCalledWith({ event: "ASSISTANT_TOOL_FAILED", tool: "list_templates", error });
+      expect(logger.warn).not.toHaveBeenCalledWith(expect.objectContaining({ event: "ASSISTANT_TOOL_ARGUMENTS_REJECTED" }));
     });
 
     it("logs arguments that are not JSON", async () => {
