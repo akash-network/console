@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { AssistantAction } from "@src/types/assistant";
+import type { AssistantAction, AssistantActionType } from "@src/types/assistant";
 import { UrlService } from "@src/utils/urlUtils";
 import type { ActionCardDecision } from "../useActionCardDecision/useActionCardDecision";
-import { consoleHrefOf, GenericActionCard, summaryRowsOf } from "./GenericActionCard";
+import { actionTitleOf, consoleHrefOf, GenericActionCard, summaryRowsOf } from "./GenericActionCard";
 
 import { render, screen } from "@testing-library/react";
 
@@ -23,6 +23,33 @@ describe(GenericActionCard.name, () => {
   it("drops the link once the card is dismissed, and has none for an action without a page", () => {
     setup({ action: { type: "rename_deployment", tier: "confirm", dseq: "42", from: null, to: "x" }, status: "cancelled" });
     expect(screen.queryByRole("link", { name: "Open in Console" })).not.toBeInTheDocument();
+  });
+
+  describe(actionTitleOf.name, () => {
+    it.each<[AssistantActionType, string]>([
+      ["create_deployment", "Create a deployment"],
+      ["choose_bid", "Choose a provider"],
+      ["update_deployment", "Update the deployment"],
+      ["set_secret", "Set a secret"],
+      ["set_registry_credentials", "Set registry credentials"],
+      ["redeploy_with_resources", "Redeploy with different resources"],
+      ["rename_deployment", "Rename the deployment"],
+      ["move_deployment", "Move the deployment"],
+      ["add_runtime_hours", "Add runtime hours"],
+      ["remove_runtime_limit", "Remove the runtime limit"],
+      ["send_manifest_again", "Send the deployment again"],
+      ["close_deployment", "Close the deployment"],
+      ["create_alert", "Create an alert"],
+      ["redeem_coupon", "Redeem a coupon"],
+      ["save_as_template", "Save as a template"],
+      ["favorite_provider", "Favorite a provider"],
+      ["request_hardware", "Request hardware"],
+      ["buy_credits", "Buy credits"],
+      ["configure_auto_recharge", "Set up auto recharge"],
+      ["open_in_editor", "Open in the editor"]
+    ])("titles a %s proposal %s", (type, title) => {
+      expect(actionTitleOf(type)).toBe(title);
+    });
   });
 
   describe(summaryRowsOf.name, () => {

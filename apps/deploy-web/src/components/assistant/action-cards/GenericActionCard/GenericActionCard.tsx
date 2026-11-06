@@ -11,28 +11,51 @@ import type { ActionCardDecision } from "../useActionCardDecision/useActionCardD
 
 export const DEPENDENCIES = { ActionCardChrome };
 
-export const ACTION_TITLES: Record<AssistantActionType, string> = {
-  create_deployment: "Create a deployment",
-  choose_bid: "Choose a provider",
-  update_deployment: "Update the deployment",
-  set_secret: "Set a secret",
-  set_registry_credentials: "Set registry credentials",
-  redeploy_with_resources: "Redeploy with different resources",
-  rename_deployment: "Rename the deployment",
-  move_deployment: "Move the deployment",
-  add_runtime_hours: "Add runtime hours",
-  remove_runtime_limit: "Remove the runtime limit",
-  send_manifest_again: "Send the deployment again",
-  close_deployment: "Close the deployment",
-  create_alert: "Create an alert",
-  redeem_coupon: "Redeem a coupon",
-  save_as_template: "Save as a template",
-  favorite_provider: "Favorite a provider",
-  request_hardware: "Request hardware",
-  buy_credits: "Buy credits",
-  configure_auto_recharge: "Set up auto recharge",
-  open_in_editor: "Open in the editor"
-};
+/** A switch rather than a record keyed by action type, so a key like set_secret never reads to Snyk Code as a hardcoded secret. */
+export function actionTitleOf(type: AssistantActionType): string {
+  switch (type) {
+    case "create_deployment":
+      return "Create a deployment";
+    case "choose_bid":
+      return "Choose a provider";
+    case "update_deployment":
+      return "Update the deployment";
+    case "set_secret":
+      return "Set a secret";
+    case "set_registry_credentials":
+      return "Set registry credentials";
+    case "redeploy_with_resources":
+      return "Redeploy with different resources";
+    case "rename_deployment":
+      return "Rename the deployment";
+    case "move_deployment":
+      return "Move the deployment";
+    case "add_runtime_hours":
+      return "Add runtime hours";
+    case "remove_runtime_limit":
+      return "Remove the runtime limit";
+    case "send_manifest_again":
+      return "Send the deployment again";
+    case "close_deployment":
+      return "Close the deployment";
+    case "create_alert":
+      return "Create an alert";
+    case "redeem_coupon":
+      return "Redeem a coupon";
+    case "save_as_template":
+      return "Save as a template";
+    case "favorite_provider":
+      return "Favorite a provider";
+    case "request_hardware":
+      return "Request hardware";
+    case "buy_credits":
+      return "Buy credits";
+    case "configure_auto_recharge":
+      return "Set up auto recharge";
+    case "open_in_editor":
+      return "Open in the editor";
+  }
+}
 
 const HIDDEN_FIELDS = new Set(["type", "tier", "sdl"]);
 
@@ -43,7 +66,7 @@ export const GenericActionCard: FC<Props> = ({ action, decision, dependencies: d
   const href = consoleHrefOf(action);
 
   return (
-    <d.ActionCardChrome title={ACTION_TITLES[action.type]} tier={action.tier} decision={decision} rows={summaryRowsOf(action)}>
+    <d.ActionCardChrome title={actionTitleOf(action.type)} tier={action.tier} decision={decision} rows={summaryRowsOf(action)}>
       {href && decision.status === "pending" && (
         <Link href={href} className={buttonVariants({ variant: "outline", size: "sm", className: "self-start" })}>
           Open in Console
