@@ -8,7 +8,7 @@ import type { AssistantAction, AssistantActionOf, ServiceResources } from "@src/
 import { AssistantProposalWithheldError, AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
 import type { ProposalActionType, ProposalArguments } from "@src/feedback/lib/assistant-tools/assistant-tool-arguments";
 import { redactSecrets } from "@src/feedback/lib/redact-secrets/redact-secrets";
-import { keepsPricing, withDefaultPricing } from "@src/feedback/lib/sdl-pricing/sdl-pricing";
+import { keepsPlacementPricing, keepsPricing, withDefaultPricing } from "@src/feedback/lib/sdl-pricing/sdl-pricing";
 import { sdlWithResources } from "@src/feedback/lib/sdl-resources/sdl-with-resources";
 import { type SdlServiceSummary, summarizeSdl } from "@src/feedback/lib/sdl-summary/sdl-summary";
 import { AssistantAccountToolsService } from "@src/feedback/services/assistant-account-tools/assistant-account-tools.service";
@@ -142,12 +142,12 @@ export class AssistantProposalService {
     const withheldTemplateSdl = context.withheldTemplateSdls.at(-1);
     if (!withheldTemplateSdl) return withDefaultPricing(sdl);
 
-    this.#assertKeepsPricing(withheldTemplateSdl, sdl);
+    this.#assertKeepsPricing(keepsPricing(withheldTemplateSdl, sdl));
     return sdl;
   }
 
-  #assertKeepsPricing(sourceSdl: string, sdl: string) {
-    if (!keepsPricing(sourceSdl, sdl)) throw new AssistantToolError(CHANGED_PRICING_MESSAGE);
+  #assertKeepsPricing(keeps: boolean) {
+    if (!keeps) throw new AssistantToolError(CHANGED_PRICING_MESSAGE);
   }
 
   async #createDeployment(args: ProposalArguments<"create_deployment">, context: ProposalContext): Promise<AssistantActionOf<"create_deployment">> {
@@ -184,12 +184,12 @@ export class AssistantProposalService {
     };
   }
 
-  /** An SDL based on a deployment or template edits a ceiling the user already has, so it must keep that pricing exactly. */
+  /** An SDL based on a deployment or template edits a ceiling the user already has; a deployment edit is held to the card's stricter per-placement check. */
   async #editorSdl(sdl: string, { dseq, templateId }: { dseq?: string; templateId?: string }, context: ProposalContext): Promise<string> {
-    const sourceSdl = dseq ? await this.#consoleSdl(dseq) : templateId && (await this.accountTools.templateSdl(templateId));
-    if (!sourceSdl) return this.pricedSdl(sdl, context);
+    if (dseq) this.#assertKeepsPricing(keepsPlacementPricing(await this.#consoleSdl(dseq), sdl));
+    else if (templateId) this.#assertKeepsPricing(keepsPricing(await this.accountTools.templateSdl(templateId), sdl));
+    else return this.pricedSdl(sdl, context);
 
-    this.#assertKeepsPricing(sourceSdl, sdl);
     return sdl;
   }
 

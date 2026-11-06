@@ -41,6 +41,11 @@ const CRAZY_PRICED_SDL = ASSISTANT_TEST_SDL.replace(
 
 const DEFAULT_CEILING = { denom: "uact", amount: 100000 };
 
+const RENAMED_PLACEMENT_SDL = ASSISTANT_TEST_SDL.replace("  placement:\n    dcloud:", "  placement:\n    akash:").replace(
+  "deployment:\n  web:\n    dcloud:",
+  "deployment:\n  web:\n    akash:"
+);
+
 const CHANGED_PRICING_MESSAGE =
   "This SDL changes the price or denom of the template or deployment it is based on. Keep its pricing exactly and change only placement attributes or resources, or pick another template by templateId.";
 
@@ -280,6 +285,7 @@ describe(AssistantProposalService.name, () => {
     it.each([
       ["price", ASSISTANT_TEST_SDL.replace("amount: 1000", "amount: 100000")],
       ["denom", ASSISTANT_TEST_SDL.replace("denom: uact", "denom: uakt")],
+      ["placement name, as the card would", RENAMED_PLACEMENT_SDL],
       ["unreadable", "services: ["]
     ])("refuses an edit of an existing deployment that changes its %s", async (_, edited) => {
       const { service } = setup();
@@ -303,6 +309,13 @@ describe(AssistantProposalService.name, () => {
 
       expect(await propose(service, "open_in_editor", { templateId: "dart", sdl: edited })).toMatchObject({ templateId: "dart", sdl: edited });
       expect(accountTools.templateSdl).toHaveBeenCalledWith("dart");
+    });
+
+    it("opens an edit of a template that renames its placement at the same price", async () => {
+      const { service, accountTools } = setup();
+      accountTools.templateSdl.mockResolvedValue(ASSISTANT_TEST_SDL);
+
+      expect(await propose(service, "open_in_editor", { templateId: "hello-world", sdl: RENAMED_PLACEMENT_SDL })).toMatchObject({ sdl: RENAMED_PLACEMENT_SDL });
     });
 
     it("refuses an edit of a template that changes its pricing", async () => {

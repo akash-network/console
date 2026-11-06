@@ -40,12 +40,24 @@ export function keepsPricing(sourceSdl: string, nextSdl: string): boolean {
   );
 }
 
+/** Same rule as deploy-web's card guard on a deployment edit, so the server refuses what the card would refuse at click time. */
+export function keepsPlacementPricing(sourceSdl: string, nextSdl: string): boolean {
+  const sourcePricing = placementPricingOf(sourceSdl);
+  return sourcePricing !== null && isEqual(sourcePricing, placementPricingOf(nextSdl));
+}
+
+function placementPricingOf(sdl: string): Mapping | null {
+  const placements = placementsOf(parsedMapping(sdl));
+  if (!placements) return null;
+
+  return Object.fromEntries(Object.entries(placements).map(([name, placement]) => [name, isMapping(placement) ? placement.pricing ?? null : null]));
+}
+
 /** Prices every profile of every placement at Console's default ceiling; an SDL that won't parse comes back as is, for validation to refuse. */
 export function withDefaultPricing(sdl: string): string {
   const document = parsedMapping(sdl);
-  const profiles = document?.profiles;
-  const placements = isMapping(profiles) ? profiles.placement : undefined;
-  if (!document || !isMapping(placements)) return sdl;
+  const placements = placementsOf(document);
+  if (!document || !placements) return sdl;
 
   for (const [name, placement] of Object.entries(placements)) {
     if (!isMapping(placement)) continue;
@@ -65,6 +77,12 @@ function parsedMapping(sdl: string): Mapping | null {
   } catch {
     return null;
   }
+}
+
+function placementsOf(document: Mapping | null): Mapping | null {
+  const profiles = document?.profiles;
+  const placements = isMapping(profiles) ? profiles.placement : undefined;
+  return isMapping(placements) ? placements : null;
 }
 
 function profilesDeployedTo(deployment: unknown, placement: string): string[] {

@@ -3,7 +3,7 @@ import { load } from "js-yaml";
 import { join } from "path";
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_MAX_PRICE, keepsPricing, withDefaultPricing } from "./sdl-pricing";
+import { DEFAULT_MAX_PRICE, keepsPlacementPricing, keepsPricing, withDefaultPricing } from "./sdl-pricing";
 
 const SOURCE = `version: "2.0"
 profiles:
@@ -108,6 +108,44 @@ describe(keepsPricing.name, () => {
     );
 
     expect(keepsPricing(twoServices, twoServices)).toBe(true);
+  });
+});
+
+describe(keepsPlacementPricing.name, () => {
+  it("keeps pricing when every placement keeps its pricing block, whatever else changes", () => {
+    const edited = SOURCE.replace("      attributes:\n        host: akash\n", "").replace("count: 1", "count: 3");
+
+    expect(keepsPlacementPricing(SOURCE, edited)).toBe(true);
+  });
+
+  it("treats a placement it cannot read as unpriced on both sides", () => {
+    const withBrokenPlacement = SOURCE.replace("deployment:", "    broken: 1\ndeployment:");
+
+    expect(keepsPlacementPricing(withBrokenPlacement, withBrokenPlacement.replace("broken: 1", "broken: 2"))).toBe(true);
+  });
+
+  it.each([
+    [
+      "a renamed placement at the same price",
+      SOURCE.replace("    akash:\n      attributes", "    dcloud:\n      attributes").replace("    akash:\n      profile", "    dcloud:\n      profile")
+    ],
+    [
+      "a placement nothing deploys to",
+      SOURCE.replace("deployment:", "    spare:\n      pricing:\n        web:\n          denom: uact\n          amount: 1000\ndeployment:")
+    ],
+    ["a new amount", SOURCE.replace("amount: 1000", "amount: 100000")],
+    ["a new denom", SOURCE.replace("denom: uact", "denom: uakt")],
+    ["pricing removed", SOURCE.replace("      pricing:\n        web:\n          denom: uact\n          amount: 1000\n", "")],
+    ["unreadable yaml", "profiles: ["]
+  ])("refuses %s", (_, next) => {
+    expect(keepsPlacementPricing(SOURCE, next)).toBe(false);
+  });
+
+  it.each([
+    ["does not parse", "profiles: ["],
+    ["has no placements", 'version: "2.0"\nprofiles:\n  compute: {}\n']
+  ])("vouches for nothing when the source %s", (_, source) => {
+    expect(keepsPlacementPricing(source, source)).toBe(false);
   });
 });
 
