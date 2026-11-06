@@ -33,7 +33,7 @@ export function buildAssistantSystemPrompt(context: AssistantPromptContext): str
     context.page ? `The user opened the assistant on the Console page ${JSON.stringify(context.page)}.` : null,
     context.dseq ? `The user is looking at deployment ${JSON.stringify(context.dseq)}.` : null,
     context.recentActions?.length
-      ? `Latest assistant cards the user acted on, oldest first: ${context.recentActions.join("; ")}. When the user refers to what they just did, start from these; a deployment created from a card is their newest one.`
+      ? `Latest assistant cards the user acted on, oldest first: ${context.recentActions.join("; ")}. When the user refers to what they just did, read that deployment instead of asking which one, and name its dseq; a deployment created from a card is their newest one.`
       : null
   ].filter((fact): fact is string => fact !== null);
 

@@ -45,7 +45,7 @@ describe(buildAssistantSystemPrompt.name, () => {
     });
 
     expect(prompt.split("\n").at(-1)).toBe(
-      'Latest assistant cards the user acted on, oldest first: create deployment named "dart": confirmed, succeeded at 2026-11-06 05:38 UTC; close deployment on deployment 7: cancelled at 2026-11-06 05:40 UTC. When the user refers to what they just did, start from these; a deployment created from a card is their newest one.'
+      'Latest assistant cards the user acted on, oldest first: create deployment named "dart": confirmed, succeeded at 2026-11-06 05:38 UTC; close deployment on deployment 7: cancelled at 2026-11-06 05:40 UTC. When the user refers to what they just did, read that deployment instead of asking which one, and name its dseq; a deployment created from a card is their newest one.'
     );
   });
 
