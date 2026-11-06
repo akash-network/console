@@ -8,17 +8,24 @@ import { useFlag } from "@src/hooks/useFlag";
 import { UrlService } from "@src/utils/urlUtils";
 import { ActionCardChrome } from "../ActionCardChrome/ActionCardChrome";
 import type { ActionCardProps } from "../actionCardTypes";
+import { GenericActionCard } from "../GenericActionCard/GenericActionCard";
 
-export const DEPENDENCIES = { useServices, useQueryClient, useFlag, ActionCardChrome };
+export const DEPENDENCIES = { useServices, useQueryClient, useFlag, ActionCardChrome, GenericActionCard };
 
 /** The page the alerts settings list their channels with, so the card reads the same cached answer. */
 const CHANNELS_PAGE = { page: 1, limit: 10 };
 
-export const CreateAlertCard: FC<ActionCardProps<"create_alert"> & { dependencies?: typeof DEPENDENCIES }> = ({
-  action,
-  decision,
-  dependencies: d = DEPENDENCIES
-}) => {
+type Props = ActionCardProps<"create_alert"> & { dependencies?: typeof DEPENDENCIES };
+
+/** An API older than this card can still propose a balance alert or one without a dseq, which only gets the read-only summary. */
+export const CreateAlertCard: FC<Props> = ({ action, decision, dependencies: d = DEPENDENCIES }) =>
+  action.alert === "deployment_closed" && !!action.dseq ? (
+    <DeploymentClosedAlertCard action={action} decision={decision} dependencies={d} />
+  ) : (
+    <d.GenericActionCard action={action} decision={decision} />
+  );
+
+const DeploymentClosedAlertCard: FC<Props & { dependencies: typeof DEPENDENCIES }> = ({ action, decision, dependencies: d }) => {
   const { api } = d.useServices();
   const queryClient = d.useQueryClient();
   const isAvailable = d.useFlag("ui_deployment_closed_alert");

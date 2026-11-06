@@ -1,8 +1,10 @@
+import type { ComponentProps } from "react";
 import { createProxy } from "@akashnetwork/react-query-proxy";
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { AssistantActionOf } from "@src/types/assistant";
 import type { ActionCardChromeProps } from "../ActionCardChrome/ActionCardChrome";
 import type { ActionCardDecision } from "../useActionCardDecision/useActionCardDecision";
 import type { DEPENDENCIES } from "./CreateAlertCard";
@@ -12,6 +14,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 type Container = ReturnType<typeof DEPENDENCIES.useServices>;
+type CreateAlertAction = AssistantActionOf<"create_alert">;
 
 const PRIMARY = { id: "11111111-1111-4111-8111-111111111111", name: "Primary", type: "email", config: { addresses: ["me@example.com"] } };
 const TEAM = { id: "22222222-2222-4222-8222-222222222222", name: "Team", type: "email", config: { addresses: ["ops@example.com", "cto@example.com"] } };
@@ -87,10 +90,29 @@ describe(CreateAlertCard.name, () => {
     expect(screen.getByText("Deployment closed alerts aren't available on your account yet.")).toBeInTheDocument();
   });
 
+  it.each([
+    { alert: "deployment_balance", dseq: "42", thresholdUsd: 5 },
+    { alert: "wallet_balance", dseq: null, thresholdUsd: 10 },
+    { alert: "deployment_closed", dseq: null, thresholdUsd: null }
+  ])("only summarizes an alert an older API proposed that this card can't set up: %o", async legacyAlert => {
+    const { GenericActionCard, ActionCardChrome, listDeploymentAlerts, upsertDeploymentAlert, decision } = setup({
+      channels: [PRIMARY],
+      action: { type: "create_alert", tier: "confirm", channel: "email", ...legacyAlert } as unknown as CreateAlertAction
+    });
+
+    const [genericProps] = GenericActionCard.mock.lastCall!;
+    expect(genericProps.action).toEqual({ type: "create_alert", tier: "confirm", channel: "email", ...legacyAlert });
+    expect(genericProps.decision).toBe(decision);
+    expect(ActionCardChrome).not.toHaveBeenCalled();
+    expect(listDeploymentAlerts).not.toHaveBeenCalled();
+    expect(upsertDeploymentAlert).not.toHaveBeenCalled();
+  });
+
   function setup(input: {
     channels: (typeof PRIMARY)[];
     existing?: { notificationChannelId: string; enabled: boolean; id: string; status: string };
     isAvailable?: boolean;
+    action?: CreateAlertAction;
   }) {
     const listNotificationChannels = vi.fn(async (_input: unknown) => ({
       data: input.channels,
@@ -102,23 +124,34 @@ describe(CreateAlertCard.name, () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     vi.spyOn(queryClient, "invalidateQueries");
     const ActionCardChrome = vi.fn((props: ActionCardChromeProps) => <>{props.children}</>);
+    const GenericActionCard = vi.fn((_props: ComponentProps<typeof DEPENDENCIES.GenericActionCard>) => null);
     const decision = mock<ActionCardDecision>({ status: "pending" });
 
     render(
       <TestContainerProvider services={{ queryClient: () => queryClient }}>
         <CreateAlertCard
-          action={{ type: "create_alert", tier: "confirm", alert: "deployment_closed", dseq: "42", channel: "email" }}
+          action={input.action ?? { type: "create_alert", tier: "confirm", alert: "deployment_closed", dseq: "42", channel: "email" }}
           decision={decision}
           dependencies={{
             useServices: () => Object.assign(mock<Container>(), { api }),
             useQueryClient: () => queryClient,
             useFlag: () => input.isAvailable ?? true,
-            ActionCardChrome: ActionCardChrome as unknown as typeof DEPENDENCIES.ActionCardChrome
+            ActionCardChrome: ActionCardChrome as unknown as typeof DEPENDENCIES.ActionCardChrome,
+            GenericActionCard
           }}
         />
       </TestContainerProvider>
     );
 
-    return { chromeProps: () => ActionCardChrome.mock.lastCall![0], upsertDeploymentAlert, listNotificationChannels, queryClient, decision };
+    return {
+      chromeProps: () => ActionCardChrome.mock.lastCall![0],
+      ActionCardChrome,
+      GenericActionCard,
+      upsertDeploymentAlert,
+      listNotificationChannels,
+      listDeploymentAlerts,
+      queryClient,
+      decision
+    };
   }
 });

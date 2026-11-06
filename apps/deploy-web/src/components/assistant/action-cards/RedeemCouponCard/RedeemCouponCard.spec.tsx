@@ -90,7 +90,7 @@ describe(RedeemCouponCard.name, () => {
     response?: { amountAdded?: number; error?: { message: string; code?: string } };
     status?: ActionCardDecision["status"];
   }) {
-    const applyCoupon = vi.fn(async (_input: { coupon: string; userId: string }): Promise<CouponResponse> => ({ coupon: null, ...input.response }));
+    const applyCoupon = vi.fn(async (_input: { coupon: string; userId: string }): Promise<CouponResponse> => ({ ...input.response }));
     const pollForPayment = vi.fn();
     const handleCouponError = vi.fn<typeof DEPENDENCIES.handleCouponError>();
     const handleStripeError = vi.fn<typeof DEPENDENCIES.handleStripeError>();
