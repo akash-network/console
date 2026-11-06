@@ -22,9 +22,9 @@ describe(AssistantHost.name, () => {
   });
 
   it("hands the panel the open request and the conversation", () => {
-    const { panelProps, conversation } = setup({ request: { question: "Why no bids?" }, isOpen: true, openedAt: 7 });
+    const { panelProps, conversation } = setup({ request: { question: "Why no bids?", sendsQuestion: true }, isOpen: true, openedAt: 7 });
 
-    expect(panelProps()).toEqual(expect.objectContaining({ isOpen: true, conversation, question: "Why no bids?", openedAt: 7 }));
+    expect(panelProps()).toEqual(expect.objectContaining({ isOpen: true, conversation, question: "Why no bids?", sendsQuestion: true, openedAt: 7 }));
   });
 
   it("gives the conversation the current page and the deployment the request is about", () => {

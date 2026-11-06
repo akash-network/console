@@ -181,6 +181,43 @@ describe("AssistantPanel", () => {
     expect(screen.getByText("Ask about your deployments, bids, logs, or billing. The assistant reads your account to answer.")).toBeInTheDocument();
   });
 
+  it("asks the question at once, with an empty composer, when the user opened it from a button that asks", () => {
+    const { dependencies, conversation, rerenderOpen } = setup({ consent: CURRENT_CONSENT, question: "Why no bids?", sendsQuestion: true });
+
+    rerenderOpen(true);
+
+    expect(conversation.send).toHaveBeenCalledTimes(1);
+    expect(conversation.send).toHaveBeenCalledWith("Why no bids?");
+    expect(dependencies.AssistantComposer).toHaveBeenLastCalledWith(expect.objectContaining({ initialValue: undefined }), expect.anything());
+  });
+
+  it("asks again on a new open request from a button that asks", () => {
+    const { conversation, rerenderOpen } = setup({ consent: CURRENT_CONSENT, question: "Why no bids?", sendsQuestion: true });
+
+    rerenderOpen(true, 2);
+
+    expect(conversation.send).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    { case: "the user has not agreed yet", consent: null, isAnswering: false },
+    { case: "an answer is still streaming", consent: CURRENT_CONSENT, isAnswering: true }
+  ])("waits to ask while $case", ({ consent, isAnswering }) => {
+    const { conversation } = setup({ consent, question: "Why no bids?", sendsQuestion: true, isAnswering });
+
+    expect(conversation.send).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { case: "the button only prefills", question: "Why no bids?", sendsQuestion: false, isOpen: true },
+    { case: "there is no question", question: undefined, sendsQuestion: true, isOpen: true },
+    { case: "the panel is closed", question: "Why no bids?", sendsQuestion: true, isOpen: false }
+  ])("sends nothing when $case", ({ question, sendsQuestion, isOpen }) => {
+    const { conversation } = setup({ consent: CURRENT_CONSENT, question, sendsQuestion, isOpen });
+
+    expect(conversation.send).not.toHaveBeenCalled();
+  });
+
   it("drops the intro once the conversation has messages", () => {
     setup({ consent: CURRENT_CONSENT, hasMessages: true });
 
@@ -223,6 +260,8 @@ describe("AssistantPanel", () => {
     isLoading?: boolean;
     isError?: boolean;
     question?: string;
+    sendsQuestion?: boolean;
+    isAnswering?: boolean;
     hasMessages?: boolean;
   }) {
     const updateConsent = vi.fn(async (_input: unknown) => ({ data: { consent: CURRENT_CONSENT, storedConversationCount: 0 } }));
@@ -242,7 +281,7 @@ describe("AssistantPanel", () => {
       messages: input.hasMessages ? [{ id: "1", role: "user" as const, text: "Hi", reads: [], proposals: [], liveHelpReason: null }] : [],
       problem: input.problem ?? null,
       endedAs: null,
-      isAnswering: false,
+      isAnswering: !!input.isAnswering,
       send: vi.fn(),
       clearProblem: vi.fn()
     });
@@ -258,6 +297,7 @@ describe("AssistantPanel", () => {
           onOpenChange={onOpenChange}
           conversation={conversation}
           question={input.question}
+          sendsQuestion={input.sendsQuestion}
           openedAt={openedAt}
           dependencies={dependencies}
         />

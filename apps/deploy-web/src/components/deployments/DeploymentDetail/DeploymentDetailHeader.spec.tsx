@@ -14,7 +14,7 @@ import type { Activity } from "@src/queries/useLatestActivitiesQuery";
 import type { LeaseServiceStatus, LeaseStatusDto } from "@src/queries/useLeaseQuery";
 import type { DeploymentDto, DeploymentGroup, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
-import { ASK_ABOUT_DEPLOYMENT_QUESTION, DEPENDENCIES, DeploymentDetailHeader } from "./DeploymentDetailHeader";
+import { ASK_ABOUT_DEPLOYMENT_QUESTION, DEPENDENCIES, DeploymentDetailHeader, diagnoseQuestionOf } from "./DeploymentDetailHeader";
 
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -41,6 +41,31 @@ describe(DeploymentDetailHeader.name, () => {
       label: "Ask the assistant",
       variant: "ghost"
     });
+  });
+
+  it("offers to diagnose a deployment whose status is a warning, asking about that status at once", () => {
+    const AskAssistantButton = vi.fn<typeof DEPENDENCIES.AskAssistantButton>(() => null);
+    const useDeploymentStatus = vi.fn<typeof DEPENDENCIES.useDeploymentStatus>(() => ({
+      label: "Closed by Console",
+      summaryLabel: "Closed by Console",
+      tone: "warning",
+      reason: "No provider bid on it"
+    }));
+    setup({ dependencies: { AskAssistantButton, useDeploymentStatus } });
+
+    expect(AskAssistantButton.mock.lastCall?.[0]).toEqual({
+      dseq: "1786440078202",
+      question: 'This deployment shows "Closed by Console" (No provider bid on it). What went wrong, and how do I fix it?',
+      label: "Diagnose with the assistant",
+      variant: "default",
+      sendsQuestion: true
+    });
+  });
+
+  it("names the status alone when it has no reason", () => {
+    expect(diagnoseQuestionOf({ label: "Provider not responding" })).toBe(
+      'This deployment shows "Provider not responding". What went wrong, and how do I fix it?'
+    );
   });
 
   it("counts the services of every placement, not just the one whose status is loaded", () => {
