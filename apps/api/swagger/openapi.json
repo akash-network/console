@@ -35500,6 +35500,7 @@
                                 },
                                 "cost": {
                                   "type": "object",
+                                  "nullable": true,
                                   "properties": {
                                     "estimatedUsdPerMonth": {
                                       "type": "number",
@@ -35515,8 +35516,7 @@
                                   "required": [
                                     "estimatedUsdPerMonth",
                                     "maxUsdPerMonth"
-                                  ],
-                                  "nullable": true
+                                  ]
                                 }
                               },
                               "required": [
@@ -37066,6 +37066,7 @@
                                 },
                                 "cost": {
                                   "type": "object",
+                                  "nullable": true,
                                   "properties": {
                                     "estimatedUsdPerMonth": {
                                       "type": "number",
@@ -37081,8 +37082,7 @@
                                   "required": [
                                     "estimatedUsdPerMonth",
                                     "maxUsdPerMonth"
-                                  ],
-                                  "nullable": true
+                                  ]
                                 }
                               },
                               "required": [
