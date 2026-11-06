@@ -4,6 +4,7 @@ import { z } from "zod";
 import { CLIENT_TOOL_ARGUMENTS, PROPOSAL_TOOL_ARGUMENTS, READ_TOOL_ARGUMENTS } from "./assistant-tool-arguments";
 import {
   assistantChatTools,
+  buildAssistantChatTools,
   isClientToolName,
   isLiveHelpToolName,
   isReadToolName,
@@ -43,17 +44,40 @@ describe("assistant tools", () => {
     expect(isLiveHelpToolName("propose_suggest_live_help")).toBe(false);
   });
 
-  it("splits a proposal's diagnosis from the action's arguments", () => {
+  it("splits a fix's diagnosis from the action's arguments", () => {
     const diagnosis = { summary: "Out of memory", evidence: ["OOMKilled"] };
 
-    expect(splitProposalArguments({ dseq: "42", diagnosis })).toEqual({ actionArguments: { dseq: "42" }, diagnosis });
-    expect(splitProposalArguments({ dseq: "42" })).toEqual({ actionArguments: { dseq: "42" }, diagnosis: undefined });
-    expect(splitProposalArguments(["42"])).toEqual({ actionArguments: ["42"], diagnosis: undefined });
-    expect(splitProposalArguments(null)).toEqual({ actionArguments: null, diagnosis: undefined });
+    expect(splitProposalArguments("redeploy_with_resources", { dseq: "42", diagnosis })).toEqual({ actionArguments: { dseq: "42" }, diagnosis });
+    expect(splitProposalArguments("redeploy_with_resources", { dseq: "42" })).toEqual({ actionArguments: { dseq: "42" }, diagnosis: undefined });
+    expect(splitProposalArguments("redeploy_with_resources", ["42"])).toEqual({ actionArguments: ["42"], diagnosis: undefined });
+    expect(splitProposalArguments("redeploy_with_resources", null)).toEqual({ actionArguments: null, diagnosis: undefined });
+  });
+
+  it("drops the diagnosis of a proposal that fixes nothing", () => {
+    const diagnosis = { summary: "User wants a Hello World app deployed.", evidence: [] };
+
+    expect(splitProposalArguments("create_deployment", { templateId: "hello", diagnosis })).toEqual({
+      actionArguments: { templateId: "hello" },
+      diagnosis: undefined
+    });
+  });
+
+  it("keeps an editor diagnosis only when the editor opens an existing deployment", () => {
+    const diagnosis = { summary: "The provider closed the lease.", evidence: ["lease closed: insufficient funds"] };
+
+    expect(splitProposalArguments("open_in_editor", { dseq: "42", diagnosis })).toEqual({ actionArguments: { dseq: "42" }, diagnosis });
+    expect(splitProposalArguments("open_in_editor", { templateId: "hello", diagnosis })).toEqual({
+      actionArguments: { templateId: "hello" },
+      diagnosis: undefined
+    });
+    expect(splitProposalArguments("open_in_editor", { sdl: "version: '2.0'", diagnosis })).toEqual({
+      actionArguments: { sdl: "version: '2.0'" },
+      diagnosis: undefined
+    });
   });
 
   it("offers every read, client and proposal tool once, with a description and no references", () => {
-    const tools = assistantChatTools();
+    const tools = buildAssistantChatTools();
     const names = tools.map(({ function: { name } }) => name);
 
     expect(names).toEqual([
@@ -64,11 +88,17 @@ describe("assistant tools", () => {
     ]);
     expect(tools.every(({ type, function: { description, parameters } }) => type === "function" && !!description && parameters.type === "object")).toBe(true);
     expect(JSON.stringify(tools)).not.toContain("$ref");
-    expect(assistantChatTools()).toBe(tools);
   });
 
-  it("lets every proposal carry an optional diagnosis next to its own arguments", () => {
-    const parameters = assistantChatTools().find(tool => tool.function.name === "propose_close_deployment")!.function.parameters;
+  it("builds the offered tools once and reuses them", () => {
+    const tools = assistantChatTools();
+
+    expect(assistantChatTools()).toBe(tools);
+    expect(tools).toEqual(buildAssistantChatTools());
+  });
+
+  it("lets a fix carry an optional diagnosis next to its own arguments", () => {
+    const parameters = buildAssistantChatTools().find(tool => tool.function.name === "propose_close_deployment")!.function.parameters;
 
     expect(parameters.required).toEqual(["dseq", "reason"]);
     expect(parameters.properties).toMatchObject({
@@ -82,8 +112,24 @@ describe("assistant tools", () => {
     });
   });
 
+  it("offers a diagnosis only on proposals that fix a problem", () => {
+    const proposalsWithDiagnosis = buildAssistantChatTools()
+      .filter(({ function: { name, parameters } }) => name.startsWith("propose_") && Object.hasOwn(parameters.properties as object, "diagnosis"))
+      .map(({ function: { name } }) => name);
+
+    expect(proposalsWithDiagnosis).toEqual([
+      "propose_update_deployment",
+      "propose_set_secret",
+      "propose_set_registry_credentials",
+      "propose_redeploy_with_resources",
+      "propose_send_manifest_again",
+      "propose_close_deployment",
+      "propose_open_in_editor"
+    ]);
+  });
+
   it("asks for a typed reason when offering live help", () => {
-    const parameters = assistantChatTools().find(tool => tool.function.name === "suggest_live_help")!.function.parameters;
+    const parameters = buildAssistantChatTools().find(tool => tool.function.name === "suggest_live_help")!.function.parameters;
 
     expect(parameters).toMatchObject({
       required: ["reason"],
@@ -92,13 +138,13 @@ describe("assistant tools", () => {
   });
 
   it("offers no shell, deletion, role or key tools", () => {
-    const names = assistantChatTools().map(({ function: { name } }) => name);
+    const names = buildAssistantChatTools().map(({ function: { name } }) => name);
 
     expect(names.filter(name => /shell|exec|delete|role|owner|api_key|payment_method/.test(name))).toEqual([]);
   });
 
   it("describes what each read tool returns", () => {
-    const describe = (name: string) => assistantChatTools().find(tool => tool.function.name === name)?.function.description;
+    const describe = (name: string) => buildAssistantChatTools().find(tool => tool.function.name === name)?.function.description;
 
     expect(describe("get_bids")).toMatch(/how many providers could bid/);
     expect(describe("read_logs")).toMatch(/untrusted/);

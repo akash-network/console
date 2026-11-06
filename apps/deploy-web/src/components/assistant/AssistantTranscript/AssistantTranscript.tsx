@@ -186,7 +186,7 @@ const ProposalCard: FC<Omit<AnswerProps, "message"> & { proposal: AssistantPropo
     <d.ActionCard conversationId={conversationId} proposalId={proposal.proposalId} action={proposal.action} continueConversation={continueConversation} />
   );
 
-  return proposal.diagnosis ? <d.DiagnosisBlock diagnosis={proposal.diagnosis}>{card}</d.DiagnosisBlock> : card;
+  return proposal.diagnosis?.evidence.length ? <d.DiagnosisBlock diagnosis={proposal.diagnosis}>{card}</d.DiagnosisBlock> : card;
 };
 
 const ReadChip: FC<{ read: AssistantReadChip }> = ({ read }) => (

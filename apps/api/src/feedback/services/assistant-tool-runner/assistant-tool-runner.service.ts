@@ -71,7 +71,10 @@ function summaryOf(name: ReadToolName, args: Record<string, unknown>): string {
 /** Evidence is quoted from logs and events the user's workload wrote, so it is redacted like any tool result before the user or the team sees it. */
 function redactedDiagnosisOf(diagnosis: unknown): AssistantDiagnosis | undefined {
   const parsed = DiagnosisArgumentSchema.parse({ diagnosis }).diagnosis;
-  return parsed && { summary: redactSecrets(parsed.summary), evidence: parsed.evidence.map(redactSecrets) };
+  if (!parsed) return undefined;
+
+  const evidence = parsed.evidence.filter(line => line.trim());
+  return evidence.length > 0 ? { summary: redactSecrets(parsed.summary), evidence: evidence.map(redactSecrets) } : undefined;
 }
 
 function parsedArguments(call: ChatToolCall): unknown {
@@ -133,7 +136,7 @@ export class AssistantToolRunnerService {
     const type = proposalActionTypeOf(name);
     if (!type) throw new AssistantToolError(`There is no tool named ${name}.`);
 
-    const { actionArguments, diagnosis } = splitProposalArguments(args);
+    const { actionArguments, diagnosis } = splitProposalArguments(type, args);
     const redactedDiagnosis = redactedDiagnosisOf(diagnosis);
     const action = await this.proposalService.propose(type, PROPOSAL_TOOL_ARGUMENTS[type].parse(actionArguments), context);
     const proposalId = randomUUID();

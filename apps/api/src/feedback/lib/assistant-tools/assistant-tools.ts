@@ -61,6 +61,45 @@ const LIVE_HELP_TOOL_DESCRIPTION =
 
 const DIAGNOSIS_PARAMETER = "diagnosis";
 
+type FixesADiagnosedProblem = boolean | ((actionArguments: Record<string, unknown>) => boolean);
+
+/** Only proposals that fix a problem found in logs, events or lease state may carry a diagnosis; a new proposal type has to pick a side. */
+const FIXES_A_DIAGNOSED_PROBLEM: Record<ProposalActionType, FixesADiagnosedProblem> = {
+  create_deployment: false,
+  choose_bid: false,
+  update_deployment: true,
+  set_secret: true,
+  set_registry_credentials: true,
+  redeploy_with_resources: true,
+  rename_deployment: false,
+  move_deployment: false,
+  add_runtime_hours: false,
+  remove_runtime_limit: false,
+  send_manifest_again: true,
+  close_deployment: true,
+  create_alert: false,
+  redeem_coupon: false,
+  save_as_template: false,
+  favorite_provider: false,
+  request_hardware: false,
+  buy_credits: false,
+  configure_auto_recharge: false,
+  open_in_editor: opensAnExistingDeployment
+};
+
+function opensAnExistingDeployment(actionArguments: Record<string, unknown>): boolean {
+  return actionArguments.dseq !== undefined;
+}
+
+function mayCarryDiagnosis(type: ProposalActionType): boolean {
+  return FIXES_A_DIAGNOSED_PROBLEM[type] !== false;
+}
+
+function keepsDiagnosis(type: ProposalActionType, actionArguments: Record<string, unknown>): boolean {
+  const fixesADiagnosedProblem = FIXES_A_DIAGNOSED_PROBLEM[type];
+  return typeof fixesADiagnosedProblem === "function" ? fixesADiagnosedProblem(actionArguments) : fixesADiagnosedProblem;
+}
+
 export function proposalToolNameOf(type: ProposalActionType): string {
   return `${PROPOSAL_TOOL_PREFIX}${type}`;
 }
@@ -84,12 +123,12 @@ export function isLiveHelpToolName(name: string): boolean {
   return name === LIVE_HELP_TOOL_NAME;
 }
 
-/** Splits the optional diagnosis every proposal tool accepts from the action's own arguments, which are validated apart. */
-export function splitProposalArguments(args: unknown): { actionArguments: unknown; diagnosis: unknown } {
+/** Splits the optional diagnosis from the action's own arguments, which are validated apart, and drops it on a proposal that fixes nothing. */
+export function splitProposalArguments(type: ProposalActionType, args: unknown): { actionArguments: unknown; diagnosis: unknown } {
   if (typeof args !== "object" || args === null || Array.isArray(args)) return { actionArguments: args, diagnosis: undefined };
 
   const { [DIAGNOSIS_PARAMETER]: diagnosis, ...actionArguments } = args as Record<string, unknown>;
-  return { actionArguments, diagnosis };
+  return { actionArguments, diagnosis: keepsDiagnosis(type, actionArguments) ? diagnosis : undefined };
 }
 
 /** Reuses the OpenAPI 3.1 generator the routes already rely on, whose schemas are JSON Schema the model's tool calling accepts. */
@@ -107,6 +146,8 @@ function toolOf(name: string, description: string, schema: z.ZodTypeAny): ChatTo
 
 function proposalToolOf(type: ProposalActionType): ChatTool {
   const tool = toolOf(proposalToolNameOf(type), PROPOSAL_TOOL_DESCRIPTIONS[type], PROPOSAL_TOOL_ARGUMENTS[type]);
+  if (!mayCarryDiagnosis(type)) return tool;
+
   const { properties, ...parameters } = tool.function.parameters;
 
   return {
@@ -118,15 +159,18 @@ function proposalToolOf(type: ProposalActionType): ChatTool {
   };
 }
 
-let chatTools: ChatTool[] | undefined;
-
-export function assistantChatTools(): ChatTool[] {
-  chatTools ??= [
+export function buildAssistantChatTools(): ChatTool[] {
+  return [
     ...Object.entries(READ_TOOL_ARGUMENTS).map(([name, schema]) => toolOf(name, READ_TOOL_DESCRIPTIONS[name as ReadToolName], schema)),
     ...Object.entries(CLIENT_TOOL_ARGUMENTS).map(([name, schema]) => toolOf(name, CLIENT_TOOL_DESCRIPTIONS[name as ClientToolName], schema)),
     ...Object.keys(PROPOSAL_TOOL_ARGUMENTS).map(type => proposalToolOf(type as ProposalActionType)),
     toolOf(LIVE_HELP_TOOL_NAME, LIVE_HELP_TOOL_DESCRIPTION, LIVE_HELP_TOOL_ARGUMENTS)
   ];
+}
 
+let chatTools: ChatTool[] | undefined;
+
+export function assistantChatTools(): ChatTool[] {
+  chatTools ??= buildAssistantChatTools();
   return chatTools;
 }

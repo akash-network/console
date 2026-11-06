@@ -58,6 +58,18 @@ describe("transcriptModel", () => {
       expect(message.reads.map(read => read.label)).toEqual(["deployments", "balance"]);
     });
 
+    it("adds no chip for a proposal, which shows as its card", () => {
+      const events: AssistantStreamEvent[] = [
+        { type: "tool_started", toolCallId: "t-1", name: "list_templates" },
+        { type: "tool_started", toolCallId: "t-2", name: "propose_create_deployment" },
+        { type: "tool_result_summary", toolCallId: "t-2", name: "propose_create_deployment", ok: true, summary: "Proposed create deployment" }
+      ];
+
+      const message = events.reduce(applyAssistantEvent, answer());
+
+      expect(message.reads).toEqual([{ id: "t-1", label: "templates", ok: true }]);
+    });
+
     it("adds a chip saying what the browser reads for a client tool", () => {
       const message = applyAssistantEvent(answer(), {
         type: "client_tool_request",
