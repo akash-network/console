@@ -393,7 +393,21 @@ describe(useDeploymentActivity.name, () => {
   it("reports no close for a pending lease creation", () => {
     const { result } = setup({ activities: [leaseCreation({ status: "pending" })] });
 
-    expect(result.current).toMatchObject({ isClosing: false, isUpdating: false, leaseCreation: { type: "lease_create" } });
+    expect(result.current).toMatchObject({ isCreating: false, isClosing: false, isUpdating: false, leaseCreation: { type: "lease_create" } });
+  });
+
+  it("reports a create of the deployment still running in the background", () => {
+    const { result } = setup({ activities: [buildActivity({ type: "deployment_create", status: "pending", meta: { dseq: DSEQ } })] });
+
+    expect(result.current).toMatchObject({ isCreating: true, isClosing: false, isUpdating: false });
+  });
+
+  it("reports no create once the create of the deployment has landed or for another deployment", () => {
+    const landed = setup({ activities: [buildActivity({ type: "deployment_create", status: "succeeded", meta: { dseq: DSEQ } })] });
+    const elsewhere = setup({ activities: [buildActivity({ type: "deployment_create", status: "pending", meta: { dseq: "9999" } })] });
+
+    expect(landed.result.current.isCreating).toBe(false);
+    expect(elsewhere.result.current.isCreating).toBe(false);
   });
 
   it("reports an update of the deployment still being applied in the background", () => {
@@ -437,7 +451,7 @@ describe(useDeploymentActivity.name, () => {
   it("reads nothing before the feed has loaded", () => {
     const { result } = setup({ activities: undefined });
 
-    expect(result.current).toEqual({ isClosing: false, isUpdating: false, leaseCreation: undefined, isResolving: false });
+    expect(result.current).toEqual({ isCreating: false, isClosing: false, isUpdating: false, leaseCreation: undefined, isResolving: false });
   });
 
   function setup(input: { activities?: Activity[]; isFetchedAfterMount?: boolean; isSignedIn?: boolean }) {

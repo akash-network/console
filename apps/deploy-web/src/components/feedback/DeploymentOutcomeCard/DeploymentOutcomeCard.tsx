@@ -54,7 +54,7 @@ export const DeploymentOutcomeCard: FC<Props> = ({ outcome, deploymentName, isSe
   return (
     <section
       aria-labelledby={titleId}
-      className="fixed inset-x-0 bottom-0 z-50 rounded-t-2xl border bg-card p-5 text-card-foreground shadow-xl sm:inset-x-auto sm:bottom-6 sm:right-6 sm:w-[420px] sm:rounded-2xl"
+      className="fixed inset-x-0 bottom-0 z-50 rounded-t-2xl border bg-card p-5 text-card-foreground shadow-xl sm:inset-x-auto sm:bottom-6 sm:right-6 sm:w-[420px] sm:rounded-2xl lg:right-[calc(var(--assistant-panel-width,0px)_+_1.5rem)]"
     >
       <div className="flex items-start justify-between gap-3">
         <p className="flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-muted-foreground">

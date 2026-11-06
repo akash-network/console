@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { extractApiErrorMessage } from "@akashnetwork/openapi-sdk";
 
 import { useRecordAssistantActionResultMutation } from "@src/queries/useAssistantQueries";
@@ -34,6 +34,14 @@ export function useActionCardDecision(
   const [status, setStatus] = useState<ActionCardStatus>("pending");
   const [error, setError] = useState<string | null>(null);
   const [deploymentDseq, setDeploymentDseq] = useState<string | null>(null);
+  const isShown = useRef(false);
+
+  useEffect(function trackWhetherTheCardIsShown() {
+    isShown.current = true;
+    return function forgetTheCard() {
+      isShown.current = false;
+    };
+  }, []);
 
   const record = (result: { decision: "confirmed" | "cancelled"; outcome?: "succeeded" | "failed"; error?: string }) => {
     if (!conversationId) return;
@@ -58,7 +66,7 @@ export function useActionCardDecision(
     const affectedDseq = outcome?.dseq ?? dseq;
     if (!affectedDseq) return;
     setDeploymentDseq(affectedDseq);
-    followDeployment?.(affectedDseq);
+    if (isShown.current) followDeployment?.(affectedDseq);
   };
 
   const cancel = () => {

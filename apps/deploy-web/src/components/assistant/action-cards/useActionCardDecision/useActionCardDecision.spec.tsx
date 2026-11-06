@@ -48,6 +48,21 @@ describe(useActionCardDecision.name, () => {
     expect(followDeployment).toHaveBeenCalledWith("99");
   });
 
+  it("does not follow the deployment once the card is gone, as when the panel closed while the action ran", async () => {
+    const { result, followDeployment, unmount } = setup({ dseq: "42" });
+    const run = Promise.withResolvers<void>();
+    let confirming: Promise<void> | undefined;
+    act(() => {
+      confirming = result.current.confirm(() => run.promise);
+    });
+
+    unmount();
+    run.resolve();
+    await confirming;
+
+    expect(followDeployment).not.toHaveBeenCalled();
+  });
+
   it("still links the deployment when nothing follows it", async () => {
     const { result } = setup({ dseq: "42", isFollowing: false });
 
