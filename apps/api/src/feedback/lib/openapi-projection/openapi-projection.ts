@@ -2,6 +2,7 @@ import type { ReferenceObject, SchemaObject } from "openapi3-ts/oas30";
 
 type Schema = SchemaObject | ReferenceObject;
 type Schemas = Record<string, Schema>;
+type Properties = Record<string, Schema>;
 
 const SCHEMA_REF_PREFIX = "#/components/schemas/";
 const MAX_DEPTH = 32;
@@ -18,6 +19,15 @@ function resolvedSchemaOf(schema: Schema, schemas: Schemas, depth: number): Sche
   return target ? resolvedSchemaOf(target, schemas, depth + 1) : null;
 }
 
+function mergedPropertiesOf(merged: Properties = {}, branch: Properties = {}): Properties {
+  return Object.fromEntries(
+    Object.entries({ ...branch, ...merged }).map(([name, schema]) => [
+      name,
+      Object.hasOwn(merged, name) && Object.hasOwn(branch, name) ? { anyOf: [merged[name], branch[name]] } : schema
+    ])
+  );
+}
+
 /** Folds allOf, anyOf and oneOf into one schema that admits every property any branch declares. */
 function mergedSchemaOf(schema: SchemaObject, schemas: Schemas, depth: number): SchemaObject {
   const branches = [...(schema.allOf ?? []), ...(schema.anyOf ?? []), ...(schema.oneOf ?? [])]
@@ -28,7 +38,7 @@ function mergedSchemaOf(schema: SchemaObject, schemas: Schemas, depth: number): 
   return branches.reduce<SchemaObject>(
     (merged, branch) => ({
       ...merged,
-      properties: { ...branch.properties, ...merged.properties },
+      properties: mergedPropertiesOf(merged.properties, branch.properties),
       items: merged.items ?? branch.items,
       additionalProperties: merged.additionalProperties ?? branch.additionalProperties
     }),

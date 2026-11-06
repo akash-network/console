@@ -33,6 +33,26 @@ describe(projectedToSchema.name, () => {
     ).toEqual({ id: "1", name: "web", trial: true, tags: ["a"] });
   });
 
+  it("admits what every branch declares for a property two branches share", () => {
+    const schema: SchemaObject = {
+      oneOf: [
+        { type: "object", properties: { type: { type: "string" }, params: { type: "object", properties: { dseq: { type: "string" } } } } },
+        { $ref: "#/components/schemas/WalletAlert" }
+      ]
+    };
+    const schemas: Record<string, SchemaObject> = {
+      WalletAlert: {
+        type: "object",
+        properties: { type: { type: "string" }, params: { type: "object", properties: { owner: { type: "string" }, denom: { type: "string" } } } }
+      }
+    };
+
+    expect(projectedToSchema({ type: "WALLET_BALANCE", params: { owner: "o1", denom: "uact", token: "x" } }, schema, schemas)).toEqual({
+      type: "WALLET_BALANCE",
+      params: { owner: "o1", denom: "uact" }
+    });
+  });
+
   it("keeps additional properties a record schema allows, projected to its value schema", () => {
     const schema: SchemaObject = { type: "object", additionalProperties: { type: "object", properties: { name: { type: "string" } } } };
 
