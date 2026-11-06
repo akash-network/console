@@ -14,7 +14,10 @@ const FALLBACK_ERROR = "Something went wrong. Try again in a moment.";
 
 export interface ActionCardOutcome {
   dseq: string;
+  followUrl?: string;
 }
+
+export type FollowDeployment = (dseq: string, url?: string) => void;
 
 export interface ActionCardDecisionInput {
   conversationId: string | null;
@@ -22,7 +25,7 @@ export interface ActionCardDecisionInput {
   actionType: AssistantActionType;
   /** The deployment the action acts on; a card that creates one returns it from its confirm run instead. */
   dseq?: string;
-  followDeployment?: (dseq: string) => void;
+  followDeployment?: FollowDeployment;
 }
 
 /** Records every decision and its outcome with the api, which never runs the action itself; recording is best effort and never blocks the card. */
@@ -66,7 +69,7 @@ export function useActionCardDecision(
     const affectedDseq = outcome?.dseq ?? dseq;
     if (!affectedDseq) return;
     setDeploymentDseq(affectedDseq);
-    if (isShown.current) followDeployment?.(affectedDseq);
+    if (isShown.current) followDeployment?.(affectedDseq, outcome?.followUrl);
   };
 
   const cancel = () => {

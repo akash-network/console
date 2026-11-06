@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
-import type { DeploymentFlow, DeploymentFlowActions } from "../useDeploymentFlow/useDeploymentFlow";
+import type { DeploymentFlow, DeploymentFlowActions, PendingCreate } from "../useDeploymentFlow/useDeploymentFlow";
 import type { DEPENDENCIES, DeploymentFlowContext } from "./DeploymentFlowProvider";
 import { DeploymentFlowProvider, useDeploymentLeaveGuard, useIsDeploymentCreating } from "./DeploymentFlowProvider";
 
@@ -15,6 +15,14 @@ describe(DeploymentFlowProvider.name, () => {
     setup({ intent, useDeploymentFlow });
 
     expect(useDeploymentFlow).toHaveBeenCalledWith(expect.objectContaining({ intent }));
+  });
+
+  it("passes a create still running for the resumed deployment into the deployment flow", () => {
+    const useDeploymentFlow = vi.fn(() => mock<DeploymentFlow>());
+    const intent = intentFor("555");
+    setup({ intent, pendingCreate: { activityId: "activity-1" }, useDeploymentFlow });
+
+    expect(useDeploymentFlow).toHaveBeenCalledWith({ intent, pendingCreate: { activityId: "activity-1" } });
   });
 
   it("exposes the flow to its children", () => {
@@ -239,6 +247,7 @@ describe(DeploymentFlowProvider.name, () => {
 
   function setup(input: {
     intent?: DeploymentIntent;
+    pendingCreate?: PendingCreate;
     flow?: DeploymentFlow;
     useDeploymentFlow?: typeof DEPENDENCIES.useDeploymentFlow;
     failedOutcome?: ReturnType<typeof DEPENDENCIES.useDeployFlowOutcome>;
@@ -274,7 +283,7 @@ describe(DeploymentFlowProvider.name, () => {
       DeploymentOutcomePrompt
     };
     const provider = () => (
-      <DeploymentFlowProvider intent={input.intent ?? intentFor(undefined)} dependencies={dependencies}>
+      <DeploymentFlowProvider intent={input.intent ?? intentFor(undefined)} pendingCreate={input.pendingCreate} dependencies={dependencies}>
         {renderChild}
       </DeploymentFlowProvider>
     );

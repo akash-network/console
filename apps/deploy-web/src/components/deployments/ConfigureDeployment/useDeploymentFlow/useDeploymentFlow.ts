@@ -39,6 +39,11 @@ export type DeploymentFlowPhase = "configuring" | "creating" | "quoting" | "depl
 /** A close still settling after a cancel; `failed` marks one verified still open, which the next create must close first. */
 export type PendingClose = { dseq: string; failed: boolean; message?: string };
 
+type BackgroundCreate = { dseq: string; activityId: string; attempt: number };
+
+/** A create of the resumed deployment that another surface, such as the assistant, sent and the api still runs in the background. */
+export type PendingCreate = { activityId: string };
+
 /** Which toast the form shows. A close failure reads differently from a failed quote request, and a refusal the user can pay their way out of needs an Add Funds action rather than an apology. */
 export type FlowErrorKind = "create" | "close" | "no-providers" | "needs-funds" | "top-up-pending" | "no-match" | "inherited-unreadable" | "budget-exceeded";
 
@@ -140,6 +145,7 @@ export type DeploymentFlow = DeploymentFlowState & { actions: DeploymentFlowActi
 
 interface UseDeploymentFlowInput {
   intent: DeploymentIntent;
+  pendingCreate?: PendingCreate;
 }
 
 /** Default escrow deposit in USD (ACT maps 1:1 to USD). Matches `DEFAULT_DEPOSIT_USD` in the phased flow so a trial grant covers it. */
@@ -214,9 +220,9 @@ export const DEPENDENCIES = {
  * Controlled lifecycle state machine for the configure flow. Owns interaction state (phase, dseq,
  * bidStrategy) and mirrors dseq/bid-strategy to the URL; server state (screened providers, bids)
  * lives in react-query via `usePlacementOffers`. Resumes in `quoting` when the URL already carries
- * a dseq, so a reload picks up live bids rather than restarting.
+ * a dseq, so a reload picks up live bids rather than restarting, or in `creating` while that dseq's create still runs.
  */
-export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependencies: typeof DEPENDENCIES = DEPENDENCIES): DeploymentFlow {
+export function useDeploymentFlow({ intent, pendingCreate }: UseDeploymentFlowInput, dependencies: typeof DEPENDENCIES = DEPENDENCIES): DeploymentFlow {
   const { api, analyticsService } = dependencies.useServices();
   const router = dependencies.useRouter();
   const queryClient = dependencies.useQueryClient();
@@ -248,7 +254,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const getDeployment = api.v1.getDeployment.useMutation();
   const getSdlSecretsContext = api.v1.getSDLSecretsContext.useMutation();
 
-  const [phase, setPhase] = useState<DeploymentFlowPhase>(intent.dseq ? "quoting" : "configuring");
+  const [phase, setPhase] = useState<DeploymentFlowPhase>(() => initialPhaseOf(intent.dseq, pendingCreate));
   const [dseq, setDseq] = useState<string | null>(intent.dseq ?? null);
   const [bidStrategy, setBidStrategyState] = useState<BidStrategy>(intent.bidStrategy);
   const [error, setError] = useState<FlowError | undefined>(undefined);
@@ -275,19 +281,20 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const { data: activities } = dependencies.useLatestActivitiesQuery({ enabled: backgroundClose !== null });
 
   /** A create the api took on in the background, followed by its activity's id until it settles; `attempt` is the request that sent it. */
-  const [backgroundCreate, setBackgroundCreate] = useState<{ dseq: string; activityId: string; attempt: number } | null>(null);
+  const [backgroundCreate, setBackgroundCreate] = useState<BackgroundCreate | null>(() => resumedCreateOf(intent.dseq, pendingCreate));
 
-  /** Read on unmount: a create still unsettled when the page goes is the activity host's to announce. */
+  /** Read on mount to follow a resumed create, and on unmount: a create still unsettled when the page goes is the activity host's to announce. */
   const followedCreateIdRef = useRef<string | null>(null);
   followedCreateIdRef.current = backgroundCreate?.activityId ?? null;
 
   useEffect(
     function handTheFollowedCreateToTheHost() {
+      if (followedCreateIdRef.current) followUntilSettled(followedCreateIdRef.current);
       return function stopFollowingTheCreate() {
         if (followedCreateIdRef.current) stopFollowing(followedCreateIdRef.current);
       };
     },
-    [stopFollowing]
+    [followUntilSettled, stopFollowing]
   );
 
   /** Read by id rather than from the feed, whose latest page a burst of other actions can push the create out of before it settles. */
@@ -320,7 +327,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const closingDseqRef = useRef<string | null>(null);
 
   /** A second create sent while one is out would take over its callbacks, leaving whatever the first opens unclosed, so the next create waits for it. */
-  const createInFlightRef = useRef(false);
+  const createInFlightRef = useRef(backgroundCreate !== null);
 
   /** The create waiting on that close or create, run once the deployment is verified gone and dropped when it is not. */
   const queuedCreateRef = useRef<(() => void) | null>(null);
@@ -1324,6 +1331,16 @@ function deploymentResourcesFromSdl(sdl: string): { gpuAmount: number; cpuAmount
   } catch {
     return { gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 };
   }
+}
+
+function initialPhaseOf(dseq: string | undefined, pendingCreate: PendingCreate | undefined): DeploymentFlowPhase {
+  if (!dseq) return "configuring";
+  return pendingCreate ? "creating" : "quoting";
+}
+
+/** Settled like a create this page sent, so it moves to quoting or fails the same way and a cancel closes it once it lands. */
+function resumedCreateOf(dseq: string | undefined, pendingCreate: PendingCreate | undefined): BackgroundCreate | null {
+  return dseq && pendingCreate ? { dseq, activityId: pendingCreate.activityId, attempt: 0 } : null;
 }
 
 /** Builds the canonical configure URL preserving both template ids, sdl-strategy, draftId and vm alongside the current dseq + bid-strategy. */

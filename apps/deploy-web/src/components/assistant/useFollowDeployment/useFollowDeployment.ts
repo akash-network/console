@@ -20,9 +20,9 @@ export function useFollowDeployment(d: typeof DEPENDENCIES = DEPENDENCIES) {
   );
 
   return useCallback(
-    (dseq: string) => {
+    (dseq: string, url?: string) => {
       if (dseqOfPath(pathnameRef.current) === dseq) return;
-      router.push(UrlService.deploymentDetails(dseq));
+      router.push(url ?? UrlService.deploymentDetails(dseq));
     },
     [router]
   );

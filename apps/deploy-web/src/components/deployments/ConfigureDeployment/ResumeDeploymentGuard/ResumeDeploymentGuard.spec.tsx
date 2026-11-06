@@ -157,9 +157,31 @@ describe(ResumeDeploymentGuard.name, () => {
   });
 
   describe("when the deployment may still be being created", () => {
+    it("hands a create still running to the manual form, which follows it itself", () => {
+      const create = createOf("555", "pending");
+      const { getResume, replace, enqueueSnackbar } = setup({
+        intent: intentFor("555"),
+        query: notFound(),
+        feed: { activities: [createOf("777", "pending"), createOf("555", "failed"), create] }
+      });
+
+      expect(getResume()).toEqual({ activeLeases: [], pendingCreate: { activityId: create.id } });
+      expect(screen.queryByRole("heading", { name: "Creating your deployment" })).not.toBeInTheDocument();
+      expect(replace).not.toHaveBeenCalled();
+      expect(enqueueSnackbar).not.toHaveBeenCalled();
+    });
+
+    it("hands the manual form a create the feed reports done while the chain does not show it yet", () => {
+      const create = createOf("555", "succeeded");
+      const { getResume } = setup({ intent: intentFor("555"), query: notFound(), feed: { activities: [create] } });
+
+      expect(getResume()).toEqual({ activeLeases: [], pendingCreate: { activityId: create.id } });
+    });
+
     it("shows a deployment the feed reports still being created as in progress rather than missing", () => {
       const { replace, enqueueSnackbar } = setup({
         intent: intentFor("555"),
+        canResume: true,
         query: notFound(),
         feed: { activities: [createOf("777", "failed"), createOf("555", "pending")] }
       });
@@ -174,6 +196,7 @@ describe(ResumeDeploymentGuard.name, () => {
     it("reads the deployment again until the chain has the one being created", () => {
       const { useGetDeployment } = setup({
         intent: intentFor("555"),
+        canResume: true,
         query: notFound(),
         feed: { activities: [createOf("555", "pending")] }
       });
@@ -184,6 +207,7 @@ describe(ResumeDeploymentGuard.name, () => {
     it("resumes choosing a provider once the chain has the created deployment, and stops reading it again", () => {
       const { respond, getResume, useGetDeployment } = setup({
         intent: intentFor("555"),
+        canResume: true,
         query: notFound(),
         feed: { activities: [createOf("555", "pending")] }
       });
@@ -196,7 +220,7 @@ describe(ResumeDeploymentGuard.name, () => {
     });
 
     it("keeps waiting on a create the feed reports done while the chain does not show it yet", () => {
-      const { replace } = setup({ intent: intentFor("555"), query: notFound(), feed: { activities: [createOf("555", "succeeded")] } });
+      const { replace } = setup({ intent: intentFor("555"), canResume: true, query: notFound(), feed: { activities: [createOf("555", "succeeded")] } });
 
       expect(screen.getByRole("heading", { name: "Creating your deployment" })).toBeInTheDocument();
       expect(replace).not.toHaveBeenCalled();
@@ -220,6 +244,7 @@ describe(ResumeDeploymentGuard.name, () => {
       const pending = createOf("555", "pending");
       const { replace, enqueueSnackbar, respond } = setup({
         intent: intentFor("555"),
+        canResume: true,
         query: notFound(),
         feed: { activities: [pending] }
       });
@@ -234,6 +259,7 @@ describe(ResumeDeploymentGuard.name, () => {
     it("keeps saying the deployment is being created, and keeps following the feed, while the deployment is read again", () => {
       const { useActivityFeedQuery, useGetDeployment, respond } = setup({
         intent: intentFor("555"),
+        canResume: true,
         query: notFound(),
         feed: { activities: [createOf("555", "pending")] }
       });
