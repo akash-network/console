@@ -25,8 +25,19 @@ export const TURN_TIMEOUT_MS = 90_000;
 export const PENDING_TURN_TTL_MS = 5 * 60_000;
 
 const LIVE_HELP_SUMMARY = "Suggested live help on Discord";
+const ROUND_TEXT_SEPARATOR = "\n\n";
 
 export type EmitAssistantEvent = (event: AssistantStreamEvent) => Promise<void>;
+
+function textDeltaEmitter(emit: EmitAssistantEvent, followsEarlierRoundText: boolean): (text: string) => Promise<void> {
+  let separator = followsEarlierRoundText ? ROUND_TEXT_SEPARATOR : "";
+
+  return text => {
+    const delta = separator + text;
+    separator = "";
+    return emit({ type: "text_delta", text: delta });
+  };
+}
 
 export interface AssistantTurn {
   conversationId: string;
@@ -72,12 +83,8 @@ export class AssistantTurnService {
     try {
       for (let round = turn.roundsUsed; ; round++) {
         const isFinalRound = round >= MAX_TOOL_ROUNDS;
-        const completion = await this.#complete(messages, isFinalRound, abort);
-
-        if (completion.content) {
-          answer.push(completion.content);
-          await emit({ type: "text_delta", text: completion.content });
-        }
+        const completion = await this.#complete(messages, isFinalRound, abort, textDeltaEmitter(emit, answer.length > 0));
+        if (completion.content) answer.push(completion.content);
 
         if (isFinalRound || completion.toolCalls.length === 0) {
           await this.#recordAnswer(turn, answer);
@@ -102,10 +109,15 @@ export class AssistantTurnService {
     }
   }
 
-  async #complete(messages: ChatMessage[], isFinalRound: boolean, signal: AbortSignal): Promise<ChatCompletion> {
+  async #complete(
+    messages: ChatMessage[],
+    isFinalRound: boolean,
+    signal: AbortSignal,
+    onContentDelta: (text: string) => Promise<void>
+  ): Promise<ChatCompletion> {
     await this.limitsService.assertWithinBudget();
 
-    const completion = await this.akashMlClient.createChatCompletion(
+    const completion = await this.akashMlClient.streamChatCompletion(
       {
         model: this.config.ASSISTANT_MODEL,
         messages,
@@ -113,7 +125,7 @@ export class AssistantTurnService {
         tool_choice: isFinalRound ? "none" : "auto",
         max_completion_tokens: MAX_COMPLETION_TOKENS
       },
-      { signal }
+      { signal, onContentDelta }
     );
     await this.limitsService.recordUsage(completion.usage);
 
@@ -185,7 +197,7 @@ export class AssistantTurnService {
   async #recordAnswer(turn: AssistantTurn, answer: string[]): Promise<void> {
     if (answer.length === 0) return;
 
-    await this.#record(turn, { role: "assistant", content: answer.join("\n\n") });
+    await this.#record(turn, { role: "assistant", content: answer.join(ROUND_TEXT_SEPARATOR) });
   }
 
   async #record(turn: AssistantTurn, entry: TranscriptEntry): Promise<void> {

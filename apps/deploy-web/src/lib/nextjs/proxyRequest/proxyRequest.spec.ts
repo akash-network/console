@@ -436,6 +436,40 @@ describe(proxyRequest.name, () => {
     });
   });
 
+  describe("when upstream streams server-sent events", () => {
+    it("passes each event on as it arrives, with the headers that keep later proxies from buffering it", async () => {
+      const firstEvent = 'event: text_delta\ndata: {"type":"text_delta","text":"Your "}\n\n';
+      const lastEvent = 'event: done\ndata: {"type":"done","reason":"stop"}\n\n';
+      let sendLastEvent = () => {};
+      const lastEventReleased = new Promise<void>(resolve => {
+        sendLastEvent = resolve;
+      });
+      const upstream = await startUpstream(async (_req, res) => {
+        res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache, no-transform", "x-accel-buffering": "no" });
+        res.write(firstEvent);
+        await lastEventReleased;
+        res.end(lastEvent);
+      });
+      const res = createCapturingRes();
+
+      try {
+        const proxied = proxyRequest(createStreamingReq({ method: "POST", body: "{}" }), res, { target: upstream.url });
+        await vi.waitFor(() => expect(res.body).toBe(firstEvent));
+        sendLastEvent();
+        await proxied;
+      } finally {
+        sendLastEvent();
+        await upstream.close();
+      }
+
+      expect(res.body).toBe(firstEvent + lastEvent);
+      expect(res.writeHead).toHaveBeenCalledWith(
+        200,
+        expect.objectContaining({ "content-type": "text/event-stream", "cache-control": "no-cache, no-transform", "x-accel-buffering": "no" })
+      );
+    });
+  });
+
   describe("when upstream returns 401 for a request with a body", () => {
     it("forwards the 401 and its body to the client instead of failing with a proxy error", async () => {
       const upstream = await startUpstream((_req, res) => {

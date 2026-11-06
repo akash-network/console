@@ -150,16 +150,19 @@ describe("Assistant conversations", () => {
 
       expect(response.status).toBe(200);
       expect(response.headers.get("content-type")).toContain("text/event-stream");
+      expect(response.headers.get("cache-control")).toBe("no-cache, no-transform");
+      expect(response.headers.get("x-accel-buffering")).toBe("no");
       const events = await eventsOf(response);
       expect(events).toEqual([
         { type: "secret_redacted", count: 1 },
         { type: "tool_started", toolCallId: "call-1", name: "search_docs" },
         { type: "tool_result_summary", toolCallId: "call-1", name: "search_docs", ok: true, summary: expect.any(String) },
-        { type: "text_delta", text: "Add a persistent storage volume to the profile." },
+        ...textDeltasOf("Add a persistent storage volume to the profile."),
         { type: "done", reason: "stop" }
       ]);
       expect(JSON.stringify(events)).not.toContain(FAKE_TOKEN);
       expect(JSON.stringify(events)).not.toMatch(/ghp|github/i);
+      expect(completions.bodies[0]).toMatchObject({ stream: true, stream_options: { include_usage: true } });
       expect(JSON.stringify(completions.bodies[0])).not.toContain(FAKE_TOKEN);
       expect(JSON.stringify(completions.bodies[0])).toContain(REDACTED);
       expect(await assistantMessageRepository.findAllOf(conversation.id)).toMatchObject([
@@ -182,10 +185,7 @@ describe("Assistant conversations", () => {
         ]
       });
 
-      expect(await eventsOf(response)).toEqual([
-        { type: "text_delta", text: "Yes, the same SDL works." },
-        { type: "done", reason: "stop" }
-      ]);
+      expect(await eventsOf(response)).toEqual([...textDeltasOf("Yes, the same SDL works."), { type: "done", reason: "stop" }]);
       expect(completions.bodies[0].messages.slice(1)).toEqual([
         { role: "user", content: "Can I deploy nginx?" },
         { role: "assistant", content: "Yes." },
@@ -250,7 +250,7 @@ describe("Assistant conversations", () => {
 
       expect(events).toEqual([
         { type: "live_help_suggested", reason: "provider_side_issue" },
-        { type: "text_delta", text: "This needs the provider. Ask on Discord." },
+        ...textDeltasOf("This needs the provider. Ask on Discord."),
         { type: "done", reason: "stop" }
       ]);
     });
@@ -281,10 +281,7 @@ describe("Assistant conversations", () => {
         },
         { type: "done", reason: "awaiting_client_tool" }
       ]);
-      expect(await eventsOf(resumed)).toEqual([
-        { type: "text_delta", text: "The container exits because the port is taken." },
-        { type: "done", reason: "stop" }
-      ]);
+      expect(await eventsOf(resumed)).toEqual([...textDeltasOf("The container exits because the port is taken."), { type: "done", reason: "stop" }]);
       const toolMessage = completions.bodies[1].messages.at(-1)!;
       expect(toolMessage).toMatchObject({ role: "tool", tool_call_id: "call-logs" });
       expect(toolMessage.content).toContain("EADDRINUSE");
@@ -424,35 +421,57 @@ describe("Assistant conversations", () => {
       .map(line => JSON.parse(line.slice("data: ".length)));
   }
 
+  function textDeltasOf(text: string): AssistantStreamEvent[] {
+    return wordsOf(text).map(word => ({ type: "text_delta", text: word }));
+  }
+
+  function wordsOf(text: string): string[] {
+    return text.split(/(?<= )/);
+  }
+
   function replyWith(replies: CompletionReply[]) {
-    const bodies: { messages: { role: string; content: string; tool_call_id?: string }[] }[] = [];
+    const bodies: { stream?: boolean; messages: { role: string; content: string; tool_call_id?: string }[] }[] = [];
     const scope = nock(config.AKASHML_API_URL);
 
     for (const reply of replies) {
-      scope.post("/chat/completions").reply(200, (_uri, body) => {
-        bodies.push(body as (typeof bodies)[number]);
+      scope.post("/chat/completions").reply(
+        200,
+        (_uri, body) => {
+          bodies.push(body as (typeof bodies)[number]);
 
-        return {
-          choices: [
-            {
-              finish_reason: reply.toolCalls ? "tool_calls" : "stop",
-              message: {
-                role: "assistant",
-                content: reply.content ?? null,
-                tool_calls: reply.toolCalls?.map(call => ({
-                  id: call.id,
-                  type: "function",
-                  function: { name: call.name, arguments: JSON.stringify(call.arguments) }
-                }))
-              }
-            }
-          ],
-          usage: { prompt_tokens: 100, completion_tokens: 10 }
-        };
-      });
+          return streamedChunksOf(reply)
+            .map(chunk => `data: ${JSON.stringify(chunk)}\n\n`)
+            .concat("data: [DONE]\n\n")
+            .join("");
+        },
+        { "Content-Type": "text/event-stream" }
+      );
     }
 
     return { bodies };
+  }
+
+  function streamedChunksOf(reply: CompletionReply): Record<string, unknown>[] {
+    const choice = (delta: Record<string, unknown>, finishReason: string | null = null) => ({ choices: [{ index: 0, delta, finish_reason: finishReason }] });
+    const toolCallChunks = (reply.toolCalls ?? []).flatMap((call, index) => {
+      const args = JSON.stringify(call.arguments);
+      const half = Math.floor(args.length / 2);
+
+      return [
+        choice({ tool_calls: [{ index, id: call.id, type: "function", function: { name: call.name, arguments: args.slice(0, half) } }] }),
+        choice({ tool_calls: [{ index, function: { arguments: args.slice(half) } }] })
+      ];
+    });
+
+    return [
+      choice({ role: "assistant", content: null, reasoning: "Thinking about the question." }),
+      ...wordsOf(reply.content ?? "")
+        .filter(Boolean)
+        .map(word => choice({ content: word })),
+      ...toolCallChunks,
+      choice({}, reply.toolCalls ? "tool_calls" : "stop"),
+      { choices: [], usage: { prompt_tokens: 100, completion_tokens: 10 } }
+    ];
   }
 
   async function countsToday() {

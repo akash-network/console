@@ -36,6 +36,13 @@ function completion(overrides: Partial<ChatCompletion> = {}): ChatCompletion {
   return { content: null, toolCalls: [], finishReason: "stop", usage: USAGE, ...overrides };
 }
 
+function streamed(overrides: Partial<ChatCompletion> = {}, deltas = overrides.content ? [overrides.content] : []): AkashMlClient["streamChatCompletion"] {
+  return async (_request, { onContentDelta }) => {
+    for (const text of deltas) await onContentDelta(text);
+    return completion(overrides);
+  };
+}
+
 function toolCall(id: string, name: string, args: Record<string, unknown> = {}): ChatToolCall {
   return { id, type: "function", function: { name, arguments: JSON.stringify(args) } };
 }
@@ -48,7 +55,7 @@ describe(AssistantTurnService.name, () => {
 
   it("streams a text answer, bounded and budgeted, and stores it for a stored conversation", async () => {
     const { service, akashMlClient, limitsService, transcriptService, run } = setup();
-    akashMlClient.createChatCompletion.mockResolvedValue(completion({ content: "Your deployment is live." }));
+    akashMlClient.streamChatCompletion.mockImplementation(streamed({ content: "Your deployment is live." }));
 
     const events = await run({ stored: true });
 
@@ -56,7 +63,7 @@ describe(AssistantTurnService.name, () => {
       { type: "text_delta", text: "Your deployment is live." },
       { type: "done", reason: "stop" }
     ]);
-    expect(akashMlClient.createChatCompletion).toHaveBeenCalledWith(
+    expect(akashMlClient.streamChatCompletion).toHaveBeenCalledWith(
       {
         model: "assistant-model",
         messages: [{ role: "user", content: "hi" }],
@@ -64,7 +71,7 @@ describe(AssistantTurnService.name, () => {
         tool_choice: "auto",
         max_completion_tokens: MAX_COMPLETION_TOKENS
       },
-      { signal: expect.any(AbortSignal) }
+      { signal: expect.any(AbortSignal), onContentDelta: expect.any(Function) }
     );
     expect(limitsService.assertWithinBudget).toHaveBeenCalledTimes(1);
     expect(limitsService.recordUsage).toHaveBeenCalledWith(USAGE);
@@ -72,11 +79,64 @@ describe(AssistantTurnService.name, () => {
     expect(service).toBeInstanceOf(AssistantTurnService);
   });
 
+  it("emits each piece of the answer as the model streams it, and stores the answer whole", async () => {
+    const { akashMlClient, toolRunner, transcriptService, run } = setup();
+    akashMlClient.streamChatCompletion
+      .mockImplementationOnce(streamed({ content: "Let me check.", toolCalls: [toolCall("c1", "get_deployment", { dseq: "42" })] }, ["Let me ", "check."]))
+      .mockImplementationOnce(streamed({ content: "It is running." }, ["It is ", "running."]));
+    toolRunner.run.mockResolvedValue({ kind: "result", content: "{}", summary: "Read deployment 42", ok: true });
+
+    const events = await run({ stored: true });
+
+    expect(events).toEqual([
+      { type: "text_delta", text: "Let me " },
+      { type: "text_delta", text: "check." },
+      { type: "tool_started", toolCallId: "c1", name: "get_deployment" },
+      { type: "tool_result_summary", toolCallId: "c1", name: "get_deployment", ok: true, summary: "Read deployment 42" },
+      { type: "text_delta", text: "\n\nIt is " },
+      { type: "text_delta", text: "running." },
+      { type: "done", reason: "stop" }
+    ]);
+    expect(transcriptService.record).toHaveBeenLastCalledWith("conversation-1", { role: "assistant", content: "Let me check.\n\nIt is running." });
+  });
+
+  it("separates only rounds that wrote text, so the streamed answer reads the same as the stored one", async () => {
+    const { akashMlClient, toolRunner, transcriptService, run } = setup();
+    akashMlClient.streamChatCompletion
+      .mockImplementationOnce(streamed({ toolCalls: [toolCall("c1", "get_deployment", { dseq: "42" })] }))
+      .mockImplementationOnce(streamed({ content: "Let me check.", toolCalls: [toolCall("c2", "get_bids", { dseq: "42" })] }, ["Let me ", "check."]))
+      .mockImplementationOnce(streamed({ toolCalls: [toolCall("c3", "get_lease", { dseq: "42" })] }))
+      .mockImplementationOnce(streamed({ content: "It is running." }, ["It is ", "running."]));
+    toolRunner.run.mockResolvedValue({ kind: "result", content: "{}", summary: "Read", ok: true });
+
+    const events = await run({ stored: true });
+    const streamedText = events.flatMap(event => (event.type === "text_delta" ? [event.text] : []));
+
+    expect(streamedText).toEqual(["Let me ", "check.", "\n\nIt is ", "running."]);
+    expect(transcriptService.record).toHaveBeenLastCalledWith("conversation-1", { role: "assistant", content: streamedText.join("") });
+  });
+
+  it("reports a model that fails after streaming part of the answer, and stores no partial answer", async () => {
+    const { akashMlClient, logger, transcriptService, run } = setup();
+    const error = new AkashMlRequestError("AkashML stream failed: ECONNRESET", undefined);
+    akashMlClient.streamChatCompletion.mockImplementation(async (_request, { onContentDelta }) => {
+      await onContentDelta("Your dep");
+      throw error;
+    });
+
+    expect(await run({ stored: true })).toEqual([
+      { type: "text_delta", text: "Your dep" },
+      { type: "error", code: "assistant_unavailable", message: "The assistant is unavailable right now. Ask on Discord for live help." }
+    ]);
+    expect(logger.warn).toHaveBeenCalledWith({ event: "ASSISTANT_MODEL_FAILED", error });
+    expect(transcriptService.record).not.toHaveBeenCalled();
+  });
+
   it("stores nothing for a conversation the user did not allow to be reviewed", async () => {
     const { akashMlClient, transcriptService, toolRunner, run } = setup();
-    akashMlClient.createChatCompletion
-      .mockResolvedValueOnce(completion({ toolCalls: [toolCall("c1", "search_docs", { query: "bids" })] }))
-      .mockResolvedValueOnce(completion({ content: "Answer" }));
+    akashMlClient.streamChatCompletion
+      .mockImplementationOnce(streamed({ toolCalls: [toolCall("c1", "search_docs", { query: "bids" })] }))
+      .mockImplementationOnce(streamed({ content: "Answer" }));
     toolRunner.run.mockResolvedValue({ kind: "result", content: "{}", summary: "Searched the Console docs", ok: true });
 
     await run({ stored: false });
@@ -86,7 +146,7 @@ describe(AssistantTurnService.name, () => {
 
   it("reports a cut answer and stores no empty answer", async () => {
     const { akashMlClient, transcriptService, run } = setup();
-    akashMlClient.createChatCompletion.mockResolvedValue(completion({ finishReason: "length" }));
+    akashMlClient.streamChatCompletion.mockImplementation(streamed({ finishReason: "length" }));
 
     expect(await run({ stored: true })).toEqual([{ type: "done", reason: "length" }]);
     expect(transcriptService.record).not.toHaveBeenCalled();
@@ -95,9 +155,9 @@ describe(AssistantTurnService.name, () => {
   it("runs requested tools, feeds their results back and reports what was read", async () => {
     const { akashMlClient, toolRunner, transcriptService, run } = setup();
     const call = toolCall("c1", "get_deployment", { dseq: "42" });
-    akashMlClient.createChatCompletion
-      .mockResolvedValueOnce(completion({ content: "Let me check.", toolCalls: [call] }))
-      .mockResolvedValueOnce(completion({ content: "It is running." }));
+    akashMlClient.streamChatCompletion
+      .mockImplementationOnce(streamed({ content: "Let me check.", toolCalls: [call] }))
+      .mockImplementationOnce(streamed({ content: "It is running." }));
     toolRunner.run.mockResolvedValue({ kind: "result", content: '{"tool":"get_deployment"}', summary: "Read deployment 42", ok: true });
 
     const events = await run({ stored: true, isTrialing: true });
@@ -107,10 +167,10 @@ describe(AssistantTurnService.name, () => {
       { type: "text_delta", text: "Let me check." },
       { type: "tool_started", toolCallId: "c1", name: "get_deployment" },
       { type: "tool_result_summary", toolCallId: "c1", name: "get_deployment", ok: true, summary: "Read deployment 42" },
-      { type: "text_delta", text: "It is running." },
+      { type: "text_delta", text: "\n\nIt is running." },
       { type: "done", reason: "stop" }
     ]);
-    expect(akashMlClient.createChatCompletion.mock.calls[1][0].messages).toEqual([
+    expect(akashMlClient.streamChatCompletion.mock.calls[1][0].messages).toEqual([
       { role: "user", content: "hi" },
       { role: "assistant", content: "Let me check.", tool_calls: [call] },
       { role: "tool", tool_call_id: "c1", content: '{"tool":"get_deployment"}' }
@@ -124,9 +184,9 @@ describe(AssistantTurnService.name, () => {
   it("emits a proposed action as a card and records it", async () => {
     const { akashMlClient, toolRunner, transcriptService, run } = setup();
     const action: AssistantAction = { type: "send_manifest_again", tier: "confirm", dseq: "42" };
-    akashMlClient.createChatCompletion
-      .mockResolvedValueOnce(completion({ toolCalls: [toolCall("c1", "propose_send_manifest_again", { dseq: "42" })] }))
-      .mockResolvedValueOnce(completion({ content: "Confirm the card to send it." }));
+    akashMlClient.streamChatCompletion
+      .mockImplementationOnce(streamed({ toolCalls: [toolCall("c1", "propose_send_manifest_again", { dseq: "42" })] }))
+      .mockImplementationOnce(streamed({ content: "Confirm the card to send it." }));
     toolRunner.run.mockResolvedValue({ kind: "proposal", content: "{}", summary: "Proposed send manifest again", ok: true, proposalId: "p1", action });
 
     const events = await run({ stored: true });
@@ -148,9 +208,9 @@ describe(AssistantTurnService.name, () => {
     const { akashMlClient, toolRunner, transcriptService, run } = setup();
     const action: AssistantAction = { type: "send_manifest_again", tier: "confirm", dseq: "42" };
     const diagnosis = { summary: "The provider lost the manifest.", evidence: ["manifest not found"] };
-    akashMlClient.createChatCompletion
-      .mockResolvedValueOnce(completion({ toolCalls: [toolCall("c1", "propose_send_manifest_again", { dseq: "42", diagnosis })] }))
-      .mockResolvedValueOnce(completion({ content: "Confirm the card to send it." }));
+    akashMlClient.streamChatCompletion
+      .mockImplementationOnce(streamed({ toolCalls: [toolCall("c1", "propose_send_manifest_again", { dseq: "42", diagnosis })] }))
+      .mockImplementationOnce(streamed({ content: "Confirm the card to send it." }));
     toolRunner.run.mockResolvedValue({
       kind: "proposal",
       content: "{}",
@@ -172,9 +232,9 @@ describe(AssistantTurnService.name, () => {
 
   it("signals live help without showing it as something the assistant read", async () => {
     const { akashMlClient, toolRunner, transcriptService, run } = setup();
-    akashMlClient.createChatCompletion
-      .mockResolvedValueOnce(completion({ toolCalls: [toolCall("c1", "suggest_live_help", { reason: "provider_side_issue" })] }))
-      .mockResolvedValueOnce(completion({ content: "Ask on Discord. What were you trying to do?" }));
+    akashMlClient.streamChatCompletion
+      .mockImplementationOnce(streamed({ toolCalls: [toolCall("c1", "suggest_live_help", { reason: "provider_side_issue" })] }))
+      .mockImplementationOnce(streamed({ content: "Ask on Discord. What were you trying to do?" }));
     toolRunner.run.mockResolvedValue({ kind: "live_help", content: '{"shownToUser":true}', reason: "provider_side_issue" });
 
     const events = await run({ stored: true });
@@ -184,7 +244,7 @@ describe(AssistantTurnService.name, () => {
       { type: "text_delta", text: "Ask on Discord. What were you trying to do?" },
       { type: "done", reason: "stop" }
     ]);
-    expect(akashMlClient.createChatCompletion.mock.calls[1][0].messages).toContainEqual({ role: "tool", tool_call_id: "c1", content: '{"shownToUser":true}' });
+    expect(akashMlClient.streamChatCompletion.mock.calls[1][0].messages).toContainEqual({ role: "tool", tool_call_id: "c1", content: '{"shownToUser":true}' });
     expect(transcriptService.record).toHaveBeenCalledWith("conversation-1", {
       role: "tool",
       content: "Suggested live help on Discord",
@@ -195,9 +255,9 @@ describe(AssistantTurnService.name, () => {
 
   it("keeps a refused live help call out of the reads", async () => {
     const { akashMlClient, toolRunner, run } = setup();
-    akashMlClient.createChatCompletion
-      .mockResolvedValueOnce(completion({ toolCalls: [toolCall("c1", "suggest_live_help", { reason: "bored" })] }))
-      .mockResolvedValueOnce(completion({ content: "Ask on Discord." }));
+    akashMlClient.streamChatCompletion
+      .mockImplementationOnce(streamed({ toolCalls: [toolCall("c1", "suggest_live_help", { reason: "bored" })] }))
+      .mockImplementationOnce(streamed({ content: "Ask on Discord." }));
     toolRunner.run.mockResolvedValue({ kind: "result", content: "{}", summary: "Could not run suggest_live_help", ok: false });
 
     const events = await run({ stored: false });
@@ -210,7 +270,7 @@ describe(AssistantTurnService.name, () => {
     const { akashMlClient, toolRunner, pendingTurnRepository, transcriptService, run } = setup();
     const logs = toolCall("c1", "read_logs", { dseq: "42" });
     const deployment = toolCall("c2", "get_deployment", { dseq: "42" });
-    akashMlClient.createChatCompletion.mockResolvedValueOnce(completion({ content: "Reading logs.", toolCalls: [logs, deployment] }));
+    akashMlClient.streamChatCompletion.mockImplementationOnce(streamed({ content: "Reading logs.", toolCalls: [logs, deployment] }));
     toolRunner.run.mockResolvedValueOnce({ kind: "client", call: { id: "c1", name: "read_logs", arguments: { dseq: "42", tailLines: 100 } } });
     toolRunner.run.mockResolvedValueOnce({ kind: "result", content: "{}", summary: "Read deployment 42", ok: true });
 
@@ -245,25 +305,25 @@ describe(AssistantTurnService.name, () => {
 
   it("stops offering tools after the last round and ends the turn with whatever the model says", async () => {
     const { akashMlClient, toolRunner, run } = setup();
-    akashMlClient.createChatCompletion.mockResolvedValue(completion({ content: "still checking", toolCalls: [toolCall("c", "get_bids", { dseq: "1" })] }));
+    akashMlClient.streamChatCompletion.mockImplementation(streamed({ content: "still checking", toolCalls: [toolCall("c", "get_bids", { dseq: "1" })] }));
     toolRunner.run.mockResolvedValue({ kind: "result", content: "{}", summary: "Read the bids on deployment 1", ok: true });
 
     const events = await run({});
 
-    expect(akashMlClient.createChatCompletion).toHaveBeenCalledTimes(MAX_TOOL_ROUNDS + 1);
-    expect(akashMlClient.createChatCompletion.mock.calls.map(([request]) => request.tool_choice)).toEqual([...Array(MAX_TOOL_ROUNDS).fill("auto"), "none"]);
+    expect(akashMlClient.streamChatCompletion).toHaveBeenCalledTimes(MAX_TOOL_ROUNDS + 1);
+    expect(akashMlClient.streamChatCompletion.mock.calls.map(([request]) => request.tool_choice)).toEqual([...Array(MAX_TOOL_ROUNDS).fill("auto"), "none"]);
     expect(toolRunner.run).toHaveBeenCalledTimes(MAX_TOOL_ROUNDS);
     expect(events.at(-1)).toEqual({ type: "done", reason: "stop" });
   });
 
   it("counts the rounds a resumed turn already used", async () => {
     const { akashMlClient, run } = setup();
-    akashMlClient.createChatCompletion.mockResolvedValue(completion({ content: "done", toolCalls: [toolCall("c", "get_bids", { dseq: "1" })] }));
+    akashMlClient.streamChatCompletion.mockImplementation(streamed({ content: "done", toolCalls: [toolCall("c", "get_bids", { dseq: "1" })] }));
 
     await run({ roundsUsed: MAX_TOOL_ROUNDS });
 
-    expect(akashMlClient.createChatCompletion).toHaveBeenCalledTimes(1);
-    expect(akashMlClient.createChatCompletion.mock.calls[0][0].tool_choice).toBe("none");
+    expect(akashMlClient.streamChatCompletion).toHaveBeenCalledTimes(1);
+    expect(akashMlClient.streamChatCompletion.mock.calls[0][0].tool_choice).toBe("none");
   });
 
   it.each([
@@ -273,7 +333,7 @@ describe(AssistantTurnService.name, () => {
     createError(503, "over budget")
   ])("reports %s as the assistant being unavailable", async error => {
     const { akashMlClient, logger, run } = setup();
-    akashMlClient.createChatCompletion.mockRejectedValue(error);
+    akashMlClient.streamChatCompletion.mockRejectedValue(error);
 
     expect(await run({})).toEqual([
       { type: "error", code: "assistant_unavailable", message: "The assistant is unavailable right now. Ask on Discord for live help." }
@@ -286,13 +346,13 @@ describe(AssistantTurnService.name, () => {
     limitsService.assertWithinBudget.mockRejectedValue(createError(503, "over budget"));
 
     expect(await run({})).toEqual([expect.objectContaining({ type: "error", code: "assistant_unavailable" })]);
-    expect(akashMlClient.createChatCompletion).not.toHaveBeenCalled();
+    expect(akashMlClient.streamChatCompletion).not.toHaveBeenCalled();
   });
 
   it("reports other failures generically and logs them", async () => {
     const { akashMlClient, logger, run } = setup();
     const error = createError(400, "bad");
-    akashMlClient.createChatCompletion.mockRejectedValue(error);
+    akashMlClient.streamChatCompletion.mockRejectedValue(error);
 
     expect(await run({})).toEqual([{ type: "error", code: "assistant_error", message: "Something went wrong. Try again, or ask on Discord." }]);
     expect(logger.error).toHaveBeenCalledWith({ event: "ASSISTANT_TURN_FAILED", error });
@@ -301,7 +361,7 @@ describe(AssistantTurnService.name, () => {
   it("reports a turn that ran out of time", async () => {
     const timeout = vi.spyOn(AbortSignal, "timeout").mockReturnValue(AbortSignal.abort());
     const { akashMlClient, run } = setup();
-    akashMlClient.createChatCompletion.mockRejectedValue(new Error("aborted"));
+    akashMlClient.streamChatCompletion.mockRejectedValue(new Error("aborted"));
 
     expect(await run({})).toEqual([
       { type: "error", code: "assistant_timeout", message: "The assistant took too long to answer. Try again, or ask on Discord." }
@@ -311,7 +371,7 @@ describe(AssistantTurnService.name, () => {
 
   it("stops quietly when the user left", async () => {
     const { akashMlClient, run } = setup();
-    akashMlClient.createChatCompletion.mockRejectedValue(new Error("aborted"));
+    akashMlClient.streamChatCompletion.mockRejectedValue(new Error("aborted"));
 
     expect(await run({}, AbortSignal.abort())).toEqual([]);
   });
@@ -319,10 +379,10 @@ describe(AssistantTurnService.name, () => {
   it("aborts the model call when the user leaves", async () => {
     const { akashMlClient, run } = setup();
     const controller = new AbortController();
-    akashMlClient.createChatCompletion.mockResolvedValue(completion({ content: "late" }));
+    akashMlClient.streamChatCompletion.mockImplementation(streamed({ content: "late" }));
 
     await run({}, controller.signal);
-    const signal = akashMlClient.createChatCompletion.mock.calls[0][1]?.signal;
+    const signal = akashMlClient.streamChatCompletion.mock.calls[0][1]?.signal;
     controller.abort();
 
     expect(signal?.aborted).toBe(true);
