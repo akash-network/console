@@ -11,8 +11,14 @@ import { MockComponents } from "@tests/unit/mocks";
 
 describe(AssistantHost.name, () => {
   it("renders nothing while the assistant is off or nobody is signed in", () => {
-    expect(setup({ isEnabled: false }).dependencies.AssistantPanel).not.toHaveBeenCalled();
-    expect(setup({ userId: null }).dependencies.AssistantPanel).not.toHaveBeenCalled();
+    const disabled = setup({ isEnabled: false });
+    expect(disabled.dependencies.useFlag).toHaveBeenCalledWith("user_feedback_loop");
+    expect(disabled.dependencies.AssistantPanel).not.toHaveBeenCalled();
+    expect(disabled.dependencies.useAssistantConversation).not.toHaveBeenCalled();
+
+    const signedOut = setup({ userId: null });
+    expect(signedOut.dependencies.AssistantPanel).not.toHaveBeenCalled();
+    expect(signedOut.dependencies.useAssistantConversation).not.toHaveBeenCalled();
   });
 
   it("hands the panel the open request and the conversation", () => {

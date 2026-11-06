@@ -142,6 +142,15 @@ describe("proxy [...path] handler", () => {
     expect(proxyRequest.mock.calls[0]![2].timeout).toBe(150_000);
   });
 
+  it.each(["/api/proxy/v1/tx", "/api/proxy/v1/deployments/42/messages", "/api/proxy/v2/assistant/conversations/c-1/messages"])(
+    "keeps the default timeout for %s, which is not an assistant turn",
+    async requestUrl => {
+      const { proxyRequest } = await setup({ session: null, requestUrl });
+
+      expect(proxyRequest.mock.calls[0]![2].timeout).toBeUndefined();
+    }
+  );
+
   function getForwardedHeaders(proxyRequest: Mock): Record<string, string> {
     return proxyRequest.mock.calls[0]![2].headers as Record<string, string>;
   }

@@ -24,7 +24,7 @@ describe("AskAssistantButton", () => {
   function setup(input: { isEnabled: boolean }) {
     const open = vi.fn();
     const dependencies: typeof DEPENDENCIES = {
-      useFlag: () => input.isEnabled,
+      useFlag: flag => flag === "user_feedback_loop" && input.isEnabled,
       useAssistantPanel: () => ({ isOpen: false, request: {}, openedAt: 0, open, close: vi.fn() })
     };
     render(<AskAssistantButton dseq="42" question="Why isn't my deployment getting any bids?" label="Why no bids?" dependencies={dependencies} />);

@@ -150,7 +150,7 @@ describe("AssistantPrivacySection", () => {
     );
     const dependencies: typeof DEPENDENCIES = {
       ...DEPENDENCIES,
-      useFlag: () => input.isEnabled ?? true,
+      useFlag: flag => flag === "user_feedback_loop" && (input.isEnabled ?? true),
       usePopup: () => mock<ReturnType<typeof DEPENDENCIES.usePopup>>({ confirm }),
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
       useAssistantPrivacyQuery,
