@@ -20,6 +20,7 @@ import {
 } from "./akashml.client";
 
 const REQUEST: ChatCompletionRequest = { model: "test-model", messages: [{ role: "user", content: "hi" }] };
+const MINTED_TOOL_CALL_ID = /^call_[0-9a-f-]{36}$/;
 
 const ANSWER_SCHEMA: JsonOutputSchema<{ answer: number }> = {
   name: "answer",
@@ -102,6 +103,28 @@ describe(AkashMlClient.name, () => {
       httpClient.post.mockResolvedValue(response({ choices: [{ message: { content: null, tool_calls: null } }] }));
 
       expect(await client.createChatCompletion(REQUEST)).toEqual({ content: null, toolCalls: [], finishReason: null, usage: null });
+    });
+
+    it("gives each tool call answered without an id an id of its own", async () => {
+      const { client, httpClient } = setup();
+      httpClient.post.mockResolvedValue(
+        response(
+          completion({
+            tool_calls: [
+              { type: "function", function: { name: "get_deployment", arguments: "{}" } },
+              { id: null, type: "function", function: { name: "get_bids", arguments: "{}" } },
+              { id: "", type: "function", function: { name: "get_lease", arguments: "{}" } }
+            ]
+          })
+        )
+      );
+
+      const { toolCalls } = await client.createChatCompletion(REQUEST);
+      const ids = toolCalls.map(({ id }) => id);
+
+      expect(toolCalls.map(({ function: { name } }) => name)).toEqual(["get_deployment", "get_bids", "get_lease"]);
+      expect(ids).toEqual([expect.stringMatching(MINTED_TOOL_CALL_ID), expect.stringMatching(MINTED_TOOL_CALL_ID), expect.stringMatching(MINTED_TOOL_CALL_ID)]);
+      expect(new Set(ids).size).toBe(3);
     });
 
     it("refuses without calling out when no API key is configured", async () => {
@@ -277,6 +300,28 @@ describe(AkashMlClient.name, () => {
       const { toolCalls } = await client.streamChatCompletion(REQUEST, { onContentDelta: vi.fn() });
 
       expect(toolCalls).toEqual([{ id: "call-1", type: "function", function: { name: "search_docs", arguments: "{}" } }]);
+    });
+
+    it("gives each parallel tool call streamed without an id an id of its own", async () => {
+      const { client, httpClient } = setup();
+      httpClient.post.mockResolvedValue(
+        response(
+          streamOf(
+            delta({ tool_calls: [{ index: 0, type: "function", function: { name: "get_deployment", arguments: '{"dseq":"1"}' } }] }),
+            delta({ tool_calls: [{ index: 1, id: "", type: "function", function: { name: "get_bids", arguments: '{"dseq":"1"}' } }] }),
+            delta({}, "tool_calls"),
+            sse("[DONE]")
+          )
+        )
+      );
+
+      const { toolCalls } = await client.streamChatCompletion(REQUEST, { onContentDelta: vi.fn() });
+
+      expect(toolCalls).toEqual([
+        { id: expect.stringMatching(MINTED_TOOL_CALL_ID), type: "function", function: { name: "get_deployment", arguments: '{"dseq":"1"}' } },
+        { id: expect.stringMatching(MINTED_TOOL_CALL_ID), type: "function", function: { name: "get_bids", arguments: '{"dseq":"1"}' } }
+      ]);
+      expect(toolCalls[0].id).not.toBe(toolCalls[1].id);
     });
 
     it("never hands reasoning over as text", async () => {
