@@ -25,7 +25,7 @@ export const DEPENDENCIES = {
 export const ASSISTANT_PANEL_WIDTH_VAR = "--assistant-panel-width";
 
 /** Moves toasts off the panel's composer while it is open; 20px is notistack's own right indent. */
-export const TOASTS_BESIDE_ASSISTANT_PANEL = "sm:!right-[calc(var(--assistant-panel-width,0px)+20px)]";
+export const TOASTS_BESIDE_ASSISTANT_PANEL = "lg:!right-[calc(var(--assistant-panel-width,0px)+20px)]";
 
 const DOCKED_PANEL_WIDTH = "440px";
 
