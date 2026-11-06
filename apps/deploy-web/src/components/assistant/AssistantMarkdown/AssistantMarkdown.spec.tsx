@@ -93,9 +93,10 @@ describe(AssistantMarkdown.name, () => {
 
   function setup(input: { markdown: string }) {
     const navigateInApp = vi.fn();
-    const Link = ({ href, children }: { href: string; children: ReactNode }) => (
+    const Link = ({ href, children, ...rest }: { href: string; children: ReactNode }) => (
       <a
         href={href}
+        {...rest}
         onClick={event => {
           event.preventDefault();
           navigateInApp(href);
