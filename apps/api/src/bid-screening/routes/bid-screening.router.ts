@@ -16,9 +16,6 @@ import { BidScreeningRequestSchema, BidScreeningResponseSchema } from "../http-s
 
 export const bidScreeningRouter = new OpenApiHonoHandler();
 
-/** Folds every unidentified asker into one, so anonymous asks undercount rather than count once per request. */
-const ANONYMOUS_ACTOR_ID = "anonymous";
-
 const postBidScreeningRoute = createRoute({
   method: "post",
   operationId: "screenProviders",
@@ -79,11 +76,10 @@ bidScreeningRouter.openapi(postBidScreeningRoute, async function routePostBidScr
   }
 
   const screening = await upstream.json();
-  await container.resolve(UnmetGpuDemandService).recordEmptyScreening(screening, {
-    asks: gpuAsks,
-    actorId: container.resolve(AuthService).safeCurrentUser?.id ?? c.var.clientInfo?.fingerprint ?? ANONYMOUS_ACTOR_ID,
-    occurredAt: new Date()
-  });
+  const userId = container.resolve(AuthService).safeCurrentUser?.id;
+  if (userId) {
+    await container.resolve(UnmetGpuDemandService).recordEmptyScreening(screening, { asks: gpuAsks, actorId: userId, occurredAt: new Date() });
+  }
 
   const gpuModels = findRequestedGpuModels(request);
   const screeningWithBidding = gpuModels.length ? await container.resolve(ProviderGpuBiddingService).addBidding(screening, gpuModels) : screening;
