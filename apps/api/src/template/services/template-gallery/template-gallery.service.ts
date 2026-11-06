@@ -9,6 +9,7 @@ import type z from "zod";
 import type { CreateLogger } from "@src/core";
 import type { Category, FinalCategory, Template } from "@src/template/types/template";
 import { summarizeTemplateHardware } from "@src/template/utils/template-hardware/template-hardware";
+import { withoutPlacementAttributes } from "@src/template/utils/template-placement-attributes/template-placement-attributes";
 import { cacheRegistry, nominalEntrySizing } from "../../../caching/cache-registry.ts";
 import { reusePendingPromise } from "../../../caching/helpers.ts";
 import { GitHubArchiveService } from "../github-archive/github-archive.service.ts";
@@ -255,7 +256,8 @@ export class TemplateGalleryService {
 
     try {
       const templateContent = await this.#fs.readFile(this.#templateCachePath(id), "utf8");
-      const template = JSON.parse(templateContent).data;
+      const storedTemplate: Template = JSON.parse(templateContent).data;
+      const template = { ...storedTemplate, deploy: withoutPlacementAttributes(storedTemplate.deploy) };
       this.#parsedTemplates.set(id, template);
       return template;
     } catch (error) {

@@ -1,3 +1,4 @@
+import { load } from "js-yaml";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 import { z } from "zod";
@@ -31,6 +32,36 @@ profiles:
                 - model: a100
         storage:
           size: 50Gi
+deployment:
+  app:
+    akash:
+      profile: app
+      count: 1
+`;
+
+const PLACEMENT_ATTRIBUTES_SDL = `
+version: "2.0"
+services:
+  app:
+    image: google/dart-hello
+profiles:
+  compute:
+    app:
+      resources:
+        cpu:
+          units: 0.1
+        memory:
+          size: 512Mi
+        storage:
+          size: 512Mi
+  placement:
+    akash:
+      attributes:
+        host: akash
+      pricing:
+        app:
+          denom: uact
+          amount: 10000
 deployment:
   app:
     akash:
@@ -365,6 +396,17 @@ describe(TemplateGalleryService.name, () => {
 
       expect(result).toEqual(template);
       expect(fsMock.readFile).toHaveBeenCalledWith("/data/templates/v1/templates/t1.json", "utf8");
+    });
+
+    it("serves the template's SDL without its placement attributes, keeping the rest of the template", async () => {
+      const { service, fsMock } = setup();
+      const template = createTemplate({ id: "dart", deploy: PLACEMENT_ATTRIBUTES_SDL });
+      fsMock.readFile.mockResolvedValue(JSON.stringify({ data: template }));
+
+      const result = await service.getTemplateById("dart");
+
+      expect(result).toEqual({ ...template, deploy: expect.not.stringContaining("host") });
+      expect(load(result!.deploy)).toMatchObject({ profiles: { placement: { akash: { pricing: { app: { denom: "uact", amount: 10000 } } } } } });
     });
 
     it("returns null when template file not found", async () => {
