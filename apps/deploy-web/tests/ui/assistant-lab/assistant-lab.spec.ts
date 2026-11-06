@@ -40,6 +40,7 @@ let page: Page;
 let hasReachedDailyLimit = false;
 const createdByScenarios = new Set<string>();
 const fixtures = new Map<LabFixture, FixtureDeployment>();
+let activeBeforeLab: string[] = [];
 
 test.describe.configure({ mode: "serial" });
 
@@ -59,6 +60,7 @@ test.beforeAll(async ({ browser }) => {
   await injectUIConfig(page);
   await routeTestingClientToken(page);
   await loginExistingUser(page);
+  activeBeforeLab = await listActiveDseqs(page, testEnvConfig.BASE_URL);
 
   for (const fixture of neededFixtures) {
     const deployment = await createFixtureDeployment(page, testEnvConfig.BASE_URL, fixture);
@@ -70,7 +72,8 @@ test.beforeAll(async ({ browser }) => {
 test.afterAll(async () => {
   test.setTimeout(10 * 60 * 1000);
   const fixtureDseqs = [...fixtures.values()].flatMap(({ dseq }) => (dseq ? [dseq] : []));
-  const closed = await closeAll([...fixtureDseqs, ...createdByScenarios]);
+  const leftByTheLab = (await listActiveDseqs(page, testEnvConfig.BASE_URL).catch(() => [])).filter(dseq => !activeBeforeLab.includes(dseq));
+  const closed = await closeAll([...fixtureDseqs, ...createdByScenarios, ...leftByTheLab]);
   writeFileSync(path.join(OUT_DIR, "_closed.json"), JSON.stringify(closed, null, 2));
   await page.context().close();
 });
@@ -94,15 +97,17 @@ async function closeWhatTheScenarioCreated(activeBefore: string[]): Promise<stri
   return closeAll(created);
 }
 
-async function ensureFixtureIsUsable(fixture: LabFixture, notes: string[]): Promise<void> {
+async function ensureFixtureIsUsable(fixture: LabFixture, notes: string[]): Promise<boolean> {
   const current = fixtures.get(fixture);
   const usable = current?.dseq && (fixture === "closed" || (await isUsableFixture(page, testEnvConfig.BASE_URL, fixture, current.dseq).catch(() => false)));
-  if (usable) return;
+  if (usable) return true;
 
   const replacement = await createFixtureDeployment(page, testEnvConfig.BASE_URL, fixture);
   fixtures.set(fixture, replacement);
   if (replacement.dseq) createdByScenarios.add(replacement.dseq);
   notes.push(`recreated fixture ${fixture} as ${replacement.dseq ?? "nothing"}${replacement.error ? ` (${replacement.error})` : ""}`);
+
+  return !replacement.error;
 }
 
 function urlOf(start: StartPage): string | null {
@@ -135,7 +140,12 @@ for (const scenario of selected) {
     }
 
     await page.setViewportSize(scenario.viewport === "mobile" ? MOBILE : DESKTOP);
-    for (const fixture of fixturesOf(scenario)) await ensureFixtureIsUsable(fixture, notes);
+    for (const fixture of fixturesOf(scenario)) {
+      if (!(await ensureFixtureIsUsable(fixture, notes))) {
+        writeResult(scenario, { skipped: `fixture ${fixture} is unavailable`, notes });
+        return;
+      }
+    }
     const startUrl = urlOf(scenario.start);
     if (!startUrl) {
       writeResult(scenario, { skipped: `fixture ${JSON.stringify(scenario.start)} is unavailable` });

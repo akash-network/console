@@ -116,12 +116,13 @@ async function firstOpenBid(page: Page, baseUrl: string, dseq: string): Promise<
 
 export async function createFixtureDeployment(page: Page, baseUrl: string, fixture: LabFixture): Promise<FixtureDeployment> {
   const { sdl, lease } = FIXTURE_SDLS[fixture];
+  let dseq: string | null = null;
 
   try {
     const created = await api(page, baseUrl, "POST", "/v1/deployments", {
       data: { sdl, name: `lab-${fixture.replaceAll("_", "-")}`, runtimeLimitHours: FIXTURE_RUNTIME_LIMIT_HOURS }
     });
-    const dseq = String(created.data.dseq);
+    dseq = String(created.data.dseq);
     if (!lease) return { fixture, dseq, leased: false };
 
     const bid = await firstOpenBid(page, baseUrl, dseq);
@@ -134,8 +135,12 @@ export async function createFixtureDeployment(page: Page, baseUrl: string, fixtu
 
     return { fixture, dseq, leased: true };
   } catch (error) {
-    return { fixture, dseq: null, leased: false, error: error instanceof Error ? error.message : String(error) };
+    return { fixture, dseq, leased: false, error: firstLineOf(error) };
   }
+}
+
+function firstLineOf(error: unknown): string {
+  return (error instanceof Error ? error.message : String(error)).split("\n")[0];
 }
 
 export async function closeDeployment(page: Page, baseUrl: string, dseq: string): Promise<void> {
