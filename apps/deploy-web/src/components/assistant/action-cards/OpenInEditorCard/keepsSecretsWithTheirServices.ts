@@ -1,14 +1,25 @@
 import yaml from "js-yaml";
+import isEqual from "lodash/isEqual";
 
 import { secretNameOf } from "@src/utils/sdl/sdlSecrets";
 
+interface SdlServiceShape {
+  image?: unknown;
+  command?: unknown;
+  args?: unknown;
+  env?: unknown;
+  credentials?: Record<string, unknown> | null;
+}
+
 interface ServiceSecrets {
   image: unknown;
+  command: unknown;
+  args: unknown;
   registryHost: unknown;
   secretNames: Set<string>;
 }
 
-/** An SDL the assistant wrote may inherit stored secrets only when no secret would reach a service, image or registry that didn't already receive it. */
+/** An SDL the assistant wrote may inherit stored secrets only when no secret would reach a service, image, command or registry that didn't already receive it. */
 export function keepsSecretsWithTheirServices(sourceSdl: string, nextSdl: string): boolean {
   const source = servicesOf(sourceSdl);
   const next = servicesOf(nextSdl);
@@ -20,6 +31,8 @@ export function keepsSecretsWithTheirServices(sourceSdl: string, nextSdl: string
     return (
       !!original &&
       original.image === service.image &&
+      isEqual(original.command, service.command) &&
+      isEqual(original.args, service.args) &&
       original.registryHost === service.registryHost &&
       [...service.secretNames].every(secretName => original.secretNames.has(secretName))
     );
@@ -28,11 +41,17 @@ export function keepsSecretsWithTheirServices(sourceSdl: string, nextSdl: string
 
 function servicesOf(sdl: string): Record<string, ServiceSecrets> | null {
   try {
-    const document = yaml.load(sdl) as { services?: Record<string, { image?: unknown; env?: unknown; credentials?: Record<string, unknown> | null }> } | null;
+    const document = yaml.load(sdl) as { services?: Record<string, SdlServiceShape | null> } | null;
     return Object.fromEntries(
       Object.entries(document?.services ?? {}).map(([name, service]) => [
         name,
-        { image: service?.image, registryHost: service?.credentials?.host, secretNames: secretNamesOf(service?.env, service?.credentials) }
+        {
+          image: service?.image,
+          command: service?.command,
+          args: service?.args,
+          registryHost: service?.credentials?.host,
+          secretNames: secretNamesOf(service?.env, service?.credentials)
+        }
       ])
     );
   } catch {

