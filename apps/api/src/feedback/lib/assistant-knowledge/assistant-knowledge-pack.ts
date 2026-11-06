@@ -27,16 +27,16 @@ Closing a deployment, or its lease ending for any reason, removes its containers
 The deployment page has a Shell tab that opens a terminal inside a running service's container, from the browser. There is no access to the provider's host machine. To use SSH instead, run an SSH server in your image and expose its port globally; the provider maps it to a public port shown on the deployment page. The assistant cannot run commands in a container.
 
 ## API keys and deploying from CI
-To deploy from a script or a CI pipeline, create an API key on the API keys page in the account menu, then call the Console API with the key in the \`x-api-key\` header. The API can create deployments from an SDL, accept bids, update and close deployments, all billed to the same credits. The assistant cannot create or delete API keys.
+To deploy from a script or a CI pipeline, create an API key under Settings, then API Keys, then call the Console API with the key in the \`x-api-key\` header. The secret is shown only once, so store it in your CI's secret store. A key expires after at most one year (one year by default) and the owner is emailed before it does. The API can create deployments from an SDL, accept bids, update and close deployments, all billed to the same credits. The assistant cannot create or delete API keys.
 
 ## Assistant conversations and privacy
-Messages to the assistant, and the deployment and billing details it reads to answer, are processed by an AI model running on Akash (AkashML). Conversations are saved only when "Improve Console with my assistant conversations" is on in Settings, under Privacy, and saved ones can be read by the Akash team to improve Console. Turn it off or delete your saved conversations there at any time. Secrets are removed before anything is sent or saved.
+Messages to the assistant, and the deployment and billing details it reads to answer, are processed by an AI model running on Akash (AkashML). Conversations are saved only when "Improve Console with my assistant conversations" is on in the Privacy section of the Profile page (account menu, then Profile), and saved ones can be read by the Akash team to improve Console. Turn it off or delete your saved conversations there at any time. Secrets are removed before anything is sent or saved.
 
 ## Finding GPUs and providers
 The Providers page lists the audited providers on the network with their region, GPUs and 30-day uptime. GPU availability changes by the minute, so ask the assistant to check which providers can bid on a given SDL or GPU model right before deploying. When nobody offers the GPUs you need, send a hardware request from Console so the team knows.
 
 ## Account, organization and project deletion
-Deleting your account is in Settings, under Delete account. Organizations and projects are managed from their own settings pages. The assistant cannot delete accounts, organizations or projects.
+To delete your account, open the Profile page (account menu, then Profile) and use Delete account in the Danger zone. Close your active deployments first, and make another member an owner of any organization other people belong to. Remaining credits are not refunded. Console then emails a confirmation link that must be opened within 15 minutes; nothing is deleted until then. Deletion removes the account, its API keys, templates and saved settings, and organizations where you are the only member, and cannot be undone. An owner deletes an organization under Settings, then General, which forfeits its remaining credits. A project without open deployments is deleted from its menu on the Projects page. The assistant cannot delete accounts, organizations or projects.
 `
   },
   {

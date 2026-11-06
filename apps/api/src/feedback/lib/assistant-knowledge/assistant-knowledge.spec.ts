@@ -97,6 +97,7 @@ describe("assistant knowledge", () => {
       ["close deployment lose data", "console-basics#happens-data-deployment-closes"],
       ["ssh into container", "console-basics#shell-access-ssh"],
       ["deploy from CI API key", "console-basics#api-keys-deploying-from-ci"],
+      ["when does my API key expire", "console-basics#api-keys-deploying-from-ci"],
       ["conversation privacy stored", "console-basics#assistant-conversations-privacy"],
       ["which GPUs can I rent", "console-basics#finding-gpus-providers"],
       ["delete my account", "console-basics#account-organization-project-deletion"]
