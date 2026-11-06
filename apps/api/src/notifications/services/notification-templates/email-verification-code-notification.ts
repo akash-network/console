@@ -6,7 +6,7 @@ export function emailVerificationCodeNotification(user: { id: string; email: str
   return {
     notificationId: `emailVerificationCode.${user.id}.${randomUUID()}`,
     payload: {
-      summary: "Your verification code",
+      summary: `${vars.code} is your Akash Console verification code`,
       description: "Enter this code to verify your email address. It expires in 10 minutes. If you did not request it, please ignore this email.",
       code: vars.code
     },
