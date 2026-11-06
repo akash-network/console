@@ -6,7 +6,7 @@ import type { AssistantAction, AssistantLiveHelpReason } from "@src/types/assist
 import type { AssistantTranscriptMessage } from "../transcriptModel/transcriptModel";
 import { createTranscriptMessage } from "../transcriptModel/transcriptModel";
 import type { AssistantConversation } from "../useAssistantConversation/useAssistantConversation";
-import { AssistantTranscript, DEPENDENCIES, FOLLOW_UP_ANSWERS, SECRET_REDACTED_NOTICE, SECURE_SECRET_REQUEST } from "./AssistantTranscript";
+import { AssistantTranscript, DEPENDENCIES, FOLLOW_UP_ANSWERS, PASTE_REDACTED_NOTICE, SECURE_FIELD_REQUEST } from "./AssistantTranscript";
 
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -30,16 +30,16 @@ describe("AssistantTranscript", () => {
   it("warns under a message the api removed a secret from, and offers the secure card on a deployment", async () => {
     const { conversation } = setup({ deploymentDseq: "42", messages: [question("1", "my token is hf_abc", 1), message("2", { text: "Got it." })] });
 
-    expect(screen.getByRole("note")).toHaveTextContent(SECRET_REDACTED_NOTICE);
+    expect(screen.getByRole("note")).toHaveTextContent(PASTE_REDACTED_NOTICE);
     await userEvent.click(screen.getByRole("button", { name: "Add it securely" }));
 
-    expect(conversation.send).toHaveBeenCalledWith(SECURE_SECRET_REQUEST);
+    expect(conversation.send).toHaveBeenCalledWith(SECURE_FIELD_REQUEST);
   });
 
   it("keeps only the warning without a deployment in view", () => {
     setup({ deploymentDseq: null, messages: [question("1", "my token is hf_abc", 1)] });
 
-    expect(screen.getByRole("note")).toHaveTextContent(SECRET_REDACTED_NOTICE);
+    expect(screen.getByRole("note")).toHaveTextContent(PASTE_REDACTED_NOTICE);
     expect(screen.queryByRole("button", { name: "Add it securely" })).not.toBeInTheDocument();
   });
 
