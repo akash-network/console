@@ -121,6 +121,13 @@ describe(AssistantProposalService.name, () => {
     it.each([
       ["price", PLACED_SDL.replace("amount: 1000", "amount: 5000")],
       ["denom", PLACED_SDL.replace("denom: uact", "denom: uakt")],
+      [
+        "dearer placement listed first",
+        ASSISTANT_TEST_SDL.replace("  placement:\n", "  placement:\n    dear:\n      pricing:\n        web:\n          denom: uact\n          amount: 99999\n").replace(
+          "deployment:\n  web:\n    dcloud:",
+          "deployment:\n  web:\n    dear:"
+        )
+      ],
       ["unreadable", "services: ["]
     ])("refuses an adjusted SDL that changes the pricing (%s) of the one held back", async (_, adjusted) => {
       const { service, bidTools } = setup();
