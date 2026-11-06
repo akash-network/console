@@ -40,7 +40,10 @@ export const RedeployWithResourcesCard: FC<ActionCardProps<"redeploy_with_resour
       tier={action.tier}
       decision={decision}
       diff={resourcesDiffOf(action.services)}
-      rows={[{ label: "Why", value: action.reason }]}
+      rows={[
+        { label: "Why", value: action.reason },
+        ...(action.providersAbleToBid === null ? [] : [{ label: "Providers able to bid now", value: String(action.providersAbleToBid) }])
+      ]}
       costNote="Opens a new deployment in the editor with your current secrets. The old one keeps running, and billing, until you close it."
       confirmLabel="Open in editor"
       successMessage="Opened in the editor. Review and deploy from there."
