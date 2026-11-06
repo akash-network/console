@@ -151,21 +151,24 @@ function rowsOf(action: AssistantActionOf<"create_deployment">): ActionCardRow[]
 
   return [
     ...serviceRows,
-    ...costRowsOf(action.cost),
+    ...costRowsOf(action),
     ...(action.providersAbleToBid === null ? [] : [{ label: "Providers able to bid now", value: String(action.providersAbleToBid) }]),
     ...(action.runtimeLimitHours ? [{ label: "Runtime limit", value: `${action.runtimeLimitHours} hours` }] : [])
   ];
 }
 
-function costRowsOf(cost: AssistantActionOf<"create_deployment">["cost"]): ActionCardRow[] {
-  return [
-    ...(typeof cost?.estimatedUsdPerMonth === "number" ? [{ label: "Estimated cost", value: `About ${formatUsd(cost.estimatedUsdPerMonth)}/month` }] : []),
-    ...(typeof cost?.maxUsdPerMonth === "number" ? [{ label: "Price cap", value: `${formatUsd(cost.maxUsdPerMonth)}/month` }] : [])
-  ];
+function estimatedUsdPerMonthOf(action: AssistantActionOf<"create_deployment">): number | null {
+  return action.cost?.estimatedUsdPerMonth ?? null;
+}
+
+function costRowsOf(action: AssistantActionOf<"create_deployment">): ActionCardRow[] {
+  const estimatedUsdPerMonth = estimatedUsdPerMonthOf(action);
+
+  return estimatedUsdPerMonth === null ? [] : [{ label: "Estimated cost", value: `About ${formatUsd(estimatedUsdPerMonth)}/month` }];
 }
 
 function costNoteOf(action: AssistantActionOf<"create_deployment">): string {
-  return typeof action.cost?.maxUsdPerMonth === "number"
-    ? "A provider is picked automatically, and you pay its bid, never more than the price cap. Billing starts when the lease starts."
-    : "A provider is picked automatically. Billing starts when the lease starts.";
+  return estimatedUsdPerMonthOf(action) === null
+    ? "A provider is picked automatically. Billing starts when the lease starts."
+    : "A provider is picked automatically, and the lease runs at the winning provider's bid. Billing starts when the lease starts.";
 }

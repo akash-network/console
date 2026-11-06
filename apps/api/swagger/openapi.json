@@ -35506,16 +35506,10 @@
                                       "type": "number",
                                       "nullable": true,
                                       "description": "Typical provider prices for its CPU, memory and storage, or null when it requests GPUs."
-                                    },
-                                    "maxUsdPerMonth": {
-                                      "type": "number",
-                                      "nullable": true,
-                                      "description": "The most its price ceiling allows, or null when the SDL is not priced in uact."
                                     }
                                   },
                                   "required": [
-                                    "estimatedUsdPerMonth",
-                                    "maxUsdPerMonth"
+                                    "estimatedUsdPerMonth"
                                   ]
                                 }
                               },
@@ -37072,16 +37066,10 @@
                                       "type": "number",
                                       "nullable": true,
                                       "description": "Typical provider prices for its CPU, memory and storage, or null when it requests GPUs."
-                                    },
-                                    "maxUsdPerMonth": {
-                                      "type": "number",
-                                      "nullable": true,
-                                      "description": "The most its price ceiling allows, or null when the SDL is not priced in uact."
                                     }
                                   },
                                   "required": [
-                                    "estimatedUsdPerMonth",
-                                    "maxUsdPerMonth"
+                                    "estimatedUsdPerMonth"
                                   ]
                                 }
                               },

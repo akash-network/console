@@ -19439,8 +19439,6 @@ export interface operations {
                       cost?: {
                         /** @description Typical provider prices for its CPU, memory and storage, or null when it requests GPUs. */
                         estimatedUsdPerMonth: number | null;
-                        /** @description The most its price ceiling allows, or null when the SDL is not priced in uact. */
-                        maxUsdPerMonth: number | null;
                       } | null;
                     }
                   | {
@@ -19902,8 +19900,6 @@ export interface operations {
                       cost?: {
                         /** @description Typical provider prices for its CPU, memory and storage, or null when it requests GPUs. */
                         estimatedUsdPerMonth: number | null;
-                        /** @description The most its price ceiling allows, or null when the SDL is not priced in uact. */
-                        maxUsdPerMonth: number | null;
                       } | null;
                     }
                   | {

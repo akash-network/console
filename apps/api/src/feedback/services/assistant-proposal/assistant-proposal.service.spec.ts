@@ -83,17 +83,17 @@ describe(AssistantProposalService.name, () => {
         runtimeLimitHours: null,
         services: [{ service: "web", image: "nginx:1.25.3", resources: { cpu: 1, memory: "1Gi", storage: ["2Gi"], gpu: null, count: 1 } }],
         providersAbleToBid: 3,
-        cost: { estimatedUsdPerMonth: 6.01, maxUsdPerMonth: 438.3 }
+        cost: { estimatedUsdPerMonth: 6.01 }
       });
     });
 
-    it("shows the price cap of a GPU deployment without an estimate", async () => {
+    it("gives a GPU deployment no estimate", async () => {
       const { service, accountTools } = setup();
       accountTools.templateSdl.mockResolvedValue(GPU_SDL);
 
       const action = await propose(service, "create_deployment", { templateId: "gpu" });
 
-      expect(action.cost).toEqual({ estimatedUsdPerMonth: null, maxUsdPerMonth: 438.3 });
+      expect(action.cost).toEqual({ estimatedUsdPerMonth: null });
     });
 
     it("shows no cost when the SDL builds no manifest", async () => {

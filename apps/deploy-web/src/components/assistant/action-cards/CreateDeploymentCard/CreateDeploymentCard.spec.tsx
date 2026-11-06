@@ -90,35 +90,31 @@ describe("CreateDeploymentCard", () => {
     );
   });
 
-  it("shows the estimated cost and the price cap before Deploy", () => {
-    const { chromeProps } = setup({ action: { services: [CPU_ONLY], cost: { estimatedUsdPerMonth: 6.01, maxUsdPerMonth: 438.29 } } });
+  it("shows the estimated cost before Deploy and says the lease runs at the winning bid", () => {
+    const { chromeProps } = setup({ action: { services: [CPU_ONLY], cost: { estimatedUsdPerMonth: 6.01 } } });
 
     expect(chromeProps().rows).toEqual([
       { label: "Image", value: "nginx:1.25.3" },
       { label: "CPU / memory / storage", value: "1 CPU / 1Gi / 2Gi" },
       { label: "Port", value: "8000 to 80 (HTTP)" },
       { label: "Estimated cost", value: "About $6.01/month" },
-      { label: "Price cap", value: "$438.29/month" },
       { label: "Providers able to bid now", value: "11" },
       { label: "Runtime limit", value: "4 hours" }
     ]);
     expect(chromeProps().costNote).toBe(
-      "A provider is picked automatically, and you pay its bid, never more than the price cap. Billing starts when the lease starts."
+      "A provider is picked automatically, and the lease runs at the winning provider's bid. Billing starts when the lease starts."
     );
   });
 
   it.each([
-    { case: "a GPU deployment", cost: { estimatedUsdPerMonth: null, maxUsdPerMonth: 438.29 }, labels: ["Price cap"], mentionsCap: true },
-    { case: "an SDL priced in another denom", cost: { estimatedUsdPerMonth: 6.01, maxUsdPerMonth: null }, labels: ["Estimated cost"], mentionsCap: false },
-    { case: "a proposal without a cost", cost: null, labels: [], mentionsCap: false },
-    { case: "a proposal from an API that sends no cost", cost: undefined, labels: [], mentionsCap: false }
-  ])("shows only the cost it has for $case", ({ cost, labels, mentionsCap }) => {
+    { case: "a GPU deployment", cost: { estimatedUsdPerMonth: null } },
+    { case: "a proposal without a cost", cost: null },
+    { case: "a proposal from an API that sends no cost", cost: undefined }
+  ])("shows no dollar figure for $case", ({ cost }) => {
     const { chromeProps } = setup({ action: { cost } });
 
-    const costLabels = (chromeProps().rows ?? []).map(({ label }) => label).filter(label => ["Estimated cost", "Price cap"].includes(label));
-
-    expect(costLabels).toEqual(labels);
-    expect(chromeProps().costNote?.includes("price cap")).toBe(mentionsCap);
+    expect((chromeProps().rows ?? []).filter(({ value }) => String(value).includes("$"))).toEqual([]);
+    expect(chromeProps().costNote).toBe("A provider is picked automatically. Billing starts when the lease starts.");
   });
 
   it("labels each service's rows and leaves out what the action doesn't carry", () => {

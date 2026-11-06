@@ -62,8 +62,7 @@ export const AssistantActionSchema = z
           estimatedUsdPerMonth: z
             .number()
             .nullable()
-            .openapi({ description: "Typical provider prices for its CPU, memory and storage, or null when it requests GPUs." }),
-          maxUsdPerMonth: z.number().nullable().openapi({ description: "The most its price ceiling allows, or null when the SDL is not priced in uact." })
+            .openapi({ description: "Typical provider prices for its CPU, memory and storage, or null when it requests GPUs." })
         })
         .nullable()
         .optional()

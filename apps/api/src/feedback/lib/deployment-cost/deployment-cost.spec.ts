@@ -4,16 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 import { deploymentCostOf, type ResourceSpec } from "./deployment-cost";
 
 const GIB = 1024 ** 3;
-const BLOCKS_IN_A_MONTH = 438_292.8;
 
-function unit(input: {
-  cpuMillis: number;
-  memoryBytes: number;
-  storageBytes: number[];
-  gpus?: number;
-  count?: number;
-  price?: { denom: string; amount: string };
-}) {
+function unit(input: { cpuMillis: number; memoryBytes: number; storageBytes: number[]; gpus?: number; count?: number }) {
   return {
     resource: {
       id: 1,
@@ -24,7 +16,7 @@ function unit(input: {
       endpoints: []
     },
     count: input.count ?? 1,
-    price: input.price ?? { denom: "uact", amount: "1000" }
+    price: { denom: "uact", amount: "1000" }
   };
 }
 
@@ -33,18 +25,15 @@ function groupOf(...units: ReturnType<typeof unit>[]): GroupSpec {
 }
 
 describe(deploymentCostOf.name, () => {
-  it("adds up every service's typical price and price cap, times its count, across groups", () => {
+  it("adds up every service's typical price, times its count, across groups", () => {
     const { cost, typicalUsdPerMonthOf } = setup([
-      groupOf(unit({ cpuMillis: 500, memoryBytes: GIB, storageBytes: [GIB, 2 * GIB], count: 2, price: { denom: "uact", amount: "1000" } })),
-      groupOf(unit({ cpuMillis: 1000, memoryBytes: 2 * GIB, storageBytes: [GIB], price: { denom: "uact", amount: "500.5" } }))
+      groupOf(unit({ cpuMillis: 500, memoryBytes: GIB, storageBytes: [GIB, 2 * GIB], count: 2 })),
+      groupOf(unit({ cpuMillis: 1000, memoryBytes: 2 * GIB, storageBytes: [GIB] }))
     ]);
 
     expect(typicalUsdPerMonthOf).toHaveBeenCalledWith({ cpuMillis: 500, memoryBytes: GIB, storageBytes: 3 * GIB });
     expect(typicalUsdPerMonthOf).toHaveBeenCalledWith({ cpuMillis: 1000, memoryBytes: 2 * GIB, storageBytes: GIB });
-    expect(cost).toEqual({
-      estimatedUsdPerMonth: 2 * 0.75 + 1.25,
-      maxUsdPerMonth: Math.ceil(((2 * 1000 + 500.5) * BLOCKS_IN_A_MONTH) / 10_000) / 100
-    });
+    expect(cost).toEqual({ estimatedUsdPerMonth: 2 * 0.75 + 1.25 });
   });
 
   it("gives no estimate for a deployment that requests a GPU", () => {
@@ -52,19 +41,8 @@ describe(deploymentCostOf.name, () => {
       groupOf(unit({ cpuMillis: 500, memoryBytes: GIB, storageBytes: [GIB] }), unit({ cpuMillis: 8000, memoryBytes: 64 * GIB, storageBytes: [GIB], gpus: 1 }))
     ]);
 
-    expect(cost).toEqual({ estimatedUsdPerMonth: null, maxUsdPerMonth: 876.59 });
+    expect(cost).toEqual({ estimatedUsdPerMonth: null });
     expect(typicalUsdPerMonthOf).not.toHaveBeenCalled();
-  });
-
-  it("gives no price cap when a service is priced in another denom", () => {
-    const { cost } = setup([
-      groupOf(
-        unit({ cpuMillis: 500, memoryBytes: GIB, storageBytes: [GIB] }),
-        unit({ cpuMillis: 500, memoryBytes: GIB, storageBytes: [GIB], price: { denom: "uakt", amount: "1000" } })
-      )
-    ]);
-
-    expect(cost).toEqual({ estimatedUsdPerMonth: 1.5, maxUsdPerMonth: null });
   });
 
   it.each([
@@ -75,19 +53,17 @@ describe(deploymentCostOf.name, () => {
       resource: { cpu: { units: {} }, memory: { quantity: {} }, storage: [{ name: "default", quantity: {} }], gpu: { units: {} } }
     },
     { case: "empty resources", resource: {} }
-  ])("prices a unit with $case as nothing requested and gives no price cap without a price", ({ resource }) => {
-    const { cost, typicalUsdPerMonthOf } = setup([
-      groupOf({ ...unit({ cpuMillis: 0, memoryBytes: 0, storageBytes: [] }), resource, price: undefined } as never)
-    ]);
+  ])("prices a unit with $case as nothing requested", ({ resource }) => {
+    const { cost, typicalUsdPerMonthOf } = setup([groupOf({ ...unit({ cpuMillis: 0, memoryBytes: 0, storageBytes: [] }), resource } as never)]);
 
     expect(typicalUsdPerMonthOf).toHaveBeenCalledWith({ cpuMillis: 0, memoryBytes: 0, storageBytes: 0 });
-    expect(cost).toEqual({ estimatedUsdPerMonth: 0.25, maxUsdPerMonth: null });
+    expect(cost).toEqual({ estimatedUsdPerMonth: 0.25 });
   });
 
-  it("rounds the estimate to the nearest cent and the price cap up to the cent", () => {
-    const { cost } = setup([groupOf(unit({ cpuMillis: 100, memoryBytes: GIB, storageBytes: [] }))], () => 1.23456);
+  it("rounds the estimate to the nearest cent", () => {
+    const { cost } = setup([groupOf(unit({ cpuMillis: 100, memoryBytes: GIB, storageBytes: [] }))], () => 1.23556);
 
-    expect(cost).toEqual({ estimatedUsdPerMonth: 1.23, maxUsdPerMonth: 438.3 });
+    expect(cost).toEqual({ estimatedUsdPerMonth: 1.24 });
   });
 
   function setup(groups: GroupSpec[], typical: (spec: ResourceSpec) => number = ({ cpuMillis }) => cpuMillis / 1000 + 0.25) {
