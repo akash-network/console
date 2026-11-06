@@ -18,7 +18,7 @@ type Props = {
   dependencies?: typeof DEPENDENCIES;
 };
 
-/** Opens the assistant about one deployment with a question ready to send; renders nothing while the assistant is off. */
+/** Opens the assistant about one deployment with the question ready to send, or sends it at once with `sendsQuestion`; renders nothing while the assistant is off. */
 export const AskAssistantButton: FC<Props> = ({ dseq, question, label, variant = "outline", sendsQuestion, dependencies: d = DEPENDENCIES }) => {
   const isEnabled = d.useFlag("user_feedback_loop");
   const { open } = d.useAssistantPanel();

@@ -19,7 +19,7 @@ import { useDeclaredGpuInterconnect } from "@src/hooks/useDeclaredGpuInterconnec
 import { useDeclaredTeeTypes } from "@src/hooks/useDeclaredTeeTypes";
 import { useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useDeploymentEscrowBalance } from "@src/hooks/useDeploymentEscrowBalance/useDeploymentEscrowBalance";
-import { useDeploymentStatus } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
+import { type ResolvedDeploymentStatus, useDeploymentStatus } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
 import { useHasDeploymentStopped } from "@src/hooks/useHasDeploymentStopped";
 import { isLeaseStatusWithheld, useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useTickingNow } from "@src/hooks/useTickingNow";
@@ -41,7 +41,7 @@ import {
   summarizeWorkloadStatusUnlessWithheld
 } from "./DeploymentPlacements/placementModel";
 import { DeploymentVisitControl } from "./DeploymentVisitControl/DeploymentVisitControl";
-import { DeploymentStatusBadge, type DeploymentStatusView } from "./DeploymentStatusBadge";
+import { DeploymentStatusBadge } from "./DeploymentStatusBadge";
 import { RuntimeLimitMeter } from "./RuntimeLimitMeter";
 
 export const DEPENDENCIES = {
@@ -76,8 +76,9 @@ const HOVER_REVEALED = "transition-opacity [@media(hover:hover)]:opacity-0 [@med
 
 export const ASK_ABOUT_DEPLOYMENT_QUESTION = "Is anything wrong with this deployment?";
 
-export function diagnoseQuestionOf({ label, reason }: Pick<DeploymentStatusView, "label" | "reason">): string {
-  return `This deployment shows "${label}"${reason ? ` (${reason})` : ""}. What went wrong, and how do I fix it?`;
+export function diagnoseQuestionOf({ label, reason, launch }: Pick<ResolvedDeploymentStatus, "label" | "reason" | "launch">): string {
+  const detail = reason ?? (launch?.phase === "failed" ? launch.reason : undefined);
+  return `This deployment shows "${label}"${detail ? ` (${detail})` : ""}. What went wrong, and how do I fix it?`;
 }
 
 export interface DeploymentDetailHeaderProps {

@@ -8,7 +8,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
-import { useDeploymentStatus } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
+import { type DeploymentLaunch, useDeploymentStatus } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
 import type { ProviderTokenMode, UseProviderCredentialsResult } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import type { Activity } from "@src/queries/useLatestActivitiesQuery";
 import type { LeaseServiceStatus, LeaseStatusDto } from "@src/queries/useLeaseQuery";
@@ -65,6 +65,20 @@ describe(DeploymentDetailHeader.name, () => {
   it("names the status alone when it has no reason", () => {
     expect(diagnoseQuestionOf({ label: "Provider not responding" })).toBe(
       'This deployment shows "Provider not responding". What went wrong, and how do I fix it?'
+    );
+  });
+
+  it("names the error of a failed launch", () => {
+    const launch: DeploymentLaunch = { phase: "failed", providers: [], recovery: "deploy-again", reason: "Not sent." };
+
+    expect(diagnoseQuestionOf({ label: "Deploy failed", launch })).toBe(
+      'This deployment shows "Deploy failed" (Not sent.). What went wrong, and how do I fix it?'
+    );
+  });
+
+  it("leaves out the launch of a deployment that is still launching", () => {
+    expect(diagnoseQuestionOf({ label: "Finding a provider", launch: { phase: "finding-provider", providers: [] } })).toBe(
+      'This deployment shows "Finding a provider". What went wrong, and how do I fix it?'
     );
   });
 
