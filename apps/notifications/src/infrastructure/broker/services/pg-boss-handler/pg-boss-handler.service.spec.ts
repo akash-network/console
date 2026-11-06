@@ -49,11 +49,11 @@ describe(PgBossHandlerService.name, () => {
     });
   });
 
-  it("should handle errors from the message handler", async () => {
+  it("logs the failed job by id without its payload", async () => {
     const { service, brokerService, loggerService, dto, handlerMethod, testKey } = await setup();
     const mockError = new Error(faker.lorem.sentence());
     const mockMessage = generateMock(dto.schema);
-    const mockJob = { data: mockMessage } as Job<any>;
+    const mockJob = { id: faker.string.uuid(), data: mockMessage } as Job<any>;
 
     brokerService.subscribe.mockImplementation(async (key, options, callback) => {
       try {
@@ -69,7 +69,7 @@ describe(PgBossHandlerService.name, () => {
     expect(loggerService.error).toHaveBeenCalledWith({
       event: "MESSAGE_WORKER_FAILURE",
       key: testKey,
-      job: mockJob,
+      jobId: mockJob.id,
       error: mockError
     });
   });

@@ -64,7 +64,7 @@ export class PgBossHandlerService {
         this.loggerService.error({
           event: "MESSAGE_WORKER_FAILURE",
           key: config.key,
-          job,
+          jobId: job.id,
           error: redactedError
         });
         throw redactedError;
