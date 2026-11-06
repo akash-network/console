@@ -15,6 +15,10 @@ describe(buildAssistantSystemPrompt.name, () => {
     expect(prompt).toContain("Never mention uact, ACT, AKT, denoms, blocks or per-block prices in an answer unless the user asks what they are");
     expect(prompt).toContain("linked to its page as [name](/deployments/<dseq>)");
     expect(prompt).toContain("Never write a bare dseq in an answer.");
+    expect(prompt).toContain("using read_console_api when no other read tool covers it");
+    expect(prompt).toContain("Search the docs only for how-to and product questions, never to look up the user's own data.");
+    expect(prompt).toContain("Never write an akash1 address in an answer; name providers by name.");
+    expect(prompt).toContain("providerAddress fields are only for propose_* arguments");
     expect(prompt).toContain("never tell the user to raise the price, bid or pay more, or switch the denom");
     expect(prompt).toContain('try another template, or ask "Why no bids?" on that deployment');
     expect(prompt).toContain("never suggest depositing into a deployment's escrow");

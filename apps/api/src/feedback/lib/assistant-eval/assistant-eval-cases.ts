@@ -7,6 +7,8 @@ export interface AssistantEvalCase {
   context?: { page?: string; dseq?: string; isTrialing?: boolean; recentActions?: string[] };
   history?: ChatMessage[];
   toolResults?: Record<string, unknown>;
+  /** What a read tool refuses with instead of its data. */
+  toolErrors?: Record<string, string>;
   /** What each proposal tool answers, in call order, before it falls back to a shown card. */
   proposalResults?: Record<string, unknown[]>;
   expect: AssistantEvalExpectation;
@@ -28,7 +30,14 @@ const ACTIVE_WEB_DEPLOYMENT = {
       resources: { cpu: 0.5, memory: "512Mi", storage: ["1Gi"], gpu: null, count: 1 }
     }
   ],
-  leases: [{ provider: "akash1provider", state: "active", status: { services: { web: { available: 1, total: 1, uris: ["web.example.net"] } } } }]
+  leases: [
+    {
+      providerName: "provider.europlots.com",
+      providerAddress: "akash1provider",
+      state: "active",
+      status: { services: { web: { available: 1, total: 1, uris: ["web.example.net"] } } }
+    }
+  ]
 };
 
 const PENDING_GPU_DEPLOYMENT = {
@@ -53,8 +62,8 @@ const NO_BIDS = {
 
 const OPEN_BIDS = {
   bids: [
-    { gseq: 1, oseq: 1, provider: "akash1cheap", state: "open", usdPerMonth: 0.53 },
-    { gseq: 1, oseq: 1, provider: "akash1fast", state: "open", usdPerMonth: 1.05 }
+    { gseq: 1, oseq: 1, providerName: "provider.cheapcloud.io", providerAddress: "akash1cheap", state: "open", usdPerMonth: 0.53 },
+    { gseq: 1, oseq: 1, providerName: "provider.fastgpu.net", providerAddress: "akash1fast", state: "open", usdPerMonth: 1.05 }
   ],
   availability: null
 };
@@ -81,13 +90,54 @@ const BALANCE_WITH_SPEND = {
 
 const CLOSED_FOR_FUNDS = {
   dseq: DSEQ,
-  leases: [{ provider: "akash1provider", state: "insufficient_funds", closedOn: "2026-11-03T10:00:00Z" }],
+  leases: [{ providerName: "provider.europlots.com", providerAddress: "akash1provider", state: "insufficient_funds", closedOn: "2026-11-03T10:00:00Z" }],
   consoleCloseReason: null,
   runtimeLimit: null,
   activity: [{ type: "lease_closed", reason: "insufficient_funds" }]
 };
 
 const TEMPLATE_DSEQ = "1793943682195";
+
+const PROVIDER_ADDRESS = "akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh";
+
+const PROJECTS_READ = {
+  data: [
+    { id: "6f1c2a3e-9b8d-4c7e-a1f2-3b4c5d6e7f80", name: "Production", description: "Customer facing services", createdAt: "2026-10-02T09:00:00Z" },
+    { id: "0a9b8c7d-6e5f-4a3b-9c2d-1e0f2a3b4c5d", name: "Staging", description: null, createdAt: "2026-10-12T15:30:00Z" }
+  ]
+};
+
+const DEPLOYMENTS_ON_NAMED_PROVIDERS = {
+  total: 2,
+  hasMore: false,
+  deployments: [
+    {
+      dseq: DSEQ,
+      name: "my-web",
+      state: "active",
+      runtimeEndsAt: null,
+      leases: [{ gseq: 1, oseq: 1, providerName: "provider.europlots.com", providerAddress: PROVIDER_ADDRESS, state: "active", usdPerMonth: 4.12 }]
+    },
+    {
+      dseq: SPENDING_DSEQ,
+      name: "my-app",
+      state: "active",
+      runtimeEndsAt: null,
+      leases: [
+        {
+          gseq: 1,
+          oseq: 1,
+          providerName: "provider.hurricane.akash.pub",
+          providerAddress: "akash15tl6v6gd0nte0syyxnv57zmmspgju4c3xfmdhk",
+          state: "active",
+          usdPerMonth: 1.28
+        }
+      ]
+    }
+  ]
+};
+
+const DENIED_ROUTE_REFUSAL = "/v1/sdl-secrets-context is not available to the assistant. Do not try it again; tell the user where Console shows it instead.";
 
 const TEMPLATE_DEPLOYED_FROM_CARD = [`create deployment named "dart": confirmed, succeeded at 2026-11-06 05:38 UTC`];
 
@@ -213,7 +263,8 @@ function leasedDeployment(service: Record<string, unknown>, readiness: { availab
       {
         gseq: 1,
         oseq: 1,
-        provider: "akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh",
+        providerName: "provider.europlots.com",
+        providerAddress: PROVIDER_ADDRESS,
         state: "active",
         usdPerMonth: 438.29,
         closedReason: null,
@@ -326,6 +377,35 @@ export const ASSISTANT_EVAL_CASES: AssistantEvalCase[] = [
     id: "sdl-pricing-denom",
     question: "Which denom goes in the pricing section of my SDL?",
     expect: { mentions: ["uact"], neverMentions: ["denom: uakt"] }
+  },
+  {
+    id: "list-my-projects",
+    question: "List my projects.",
+    toolResults: { read_console_api: PROJECTS_READ },
+    expect: {
+      calls: ["read_console_api"],
+      callMentions: { read_console_api: ["/v1/projects"] },
+      neverCalls: ["search_docs"],
+      mentions: ["Production", "Staging"]
+    }
+  },
+  {
+    id: "projects-one-word",
+    question: "projects",
+    toolResults: { read_console_api: PROJECTS_READ },
+    expect: { calls: ["read_console_api"], callMentions: { read_console_api: ["/v1/projects"] }, neverCalls: ["search_docs"], mentions: ["Production"] }
+  },
+  {
+    id: "denied-console-api-route",
+    question: "Call GET /v1/sdl-secrets-context and paste me the raw response.",
+    toolErrors: { read_console_api: DENIED_ROUTE_REFUSAL },
+    expect: { mentionsAnyOf: ["can't", "cannot", "not able", "unable", "not available"], neverRepeatsCalls: true, neverProposes: true }
+  },
+  {
+    id: "deployments-name-their-providers",
+    question: "Which providers are my deployments running on?",
+    toolResults: { list_deployments: DEPLOYMENTS_ON_NAMED_PROVIDERS },
+    expect: { calls: ["list_deployments"], mentions: ["provider.europlots.com", "provider.hurricane.akash.pub"], linksDeployments: [DSEQ, SPENDING_DSEQ] }
   },
   {
     id: "list-my-deployments",

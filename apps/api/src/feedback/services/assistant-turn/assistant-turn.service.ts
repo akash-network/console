@@ -4,7 +4,7 @@ import { inject, singleton } from "tsyringe";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { type AssistantStreamEvent, MAX_CLIENT_TOOL_RESULT_LENGTH } from "@src/feedback/http-schemas/assistant-conversation.schema";
 import { fallbackAnswerOf } from "@src/feedback/lib/assistant-fallback-answer/assistant-fallback-answer";
-import { assistantChatTools, isLiveHelpToolName, isReadToolName } from "@src/feedback/lib/assistant-tools/assistant-tools";
+import { isLiveHelpToolName, isReadToolName } from "@src/feedback/lib/assistant-tools/assistant-tools";
 import { earlierResultOf, toolCallKeyOf } from "@src/feedback/lib/assistant-turn-tool-calls/assistant-turn-tool-calls";
 import { FEEDBACK_CONFIG, type FeedbackConfig } from "@src/feedback/providers/config.provider";
 import { AssistantPendingTurnRepository } from "@src/feedback/repositories/assistant-pending-turn/assistant-pending-turn.repository";
@@ -161,7 +161,7 @@ export class AssistantTurnService {
       {
         model: this.config.ASSISTANT_MODEL,
         messages,
-        tools: assistantChatTools(),
+        tools: await this.toolRunner.chatTools(),
         tool_choice: isFinalRound ? "none" : "auto",
         max_completion_tokens: MAX_COMPLETION_TOKENS,
         reasoning_effort: this.config.ASSISTANT_REASONING_EFFORT

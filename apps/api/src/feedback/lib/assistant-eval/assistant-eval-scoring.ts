@@ -3,6 +3,7 @@ import { proposalActionTypeOf } from "@src/feedback/lib/assistant-tools/assistan
 
 export interface AssistantEvalExpectation {
   calls?: string[];
+  callMentions?: Record<string, string[]>;
   neverCalls?: string[];
   proposes?: ProposalActionType;
   proposalMentions?: string[];
@@ -21,6 +22,8 @@ const REPRICING_ADVICE = [
   /\bhigher (?:prices?|bids?)\b|\bpay more\b|\bwilling to pay\b/i,
   /\b(?:chang|switch|swap)\w*\b[^.!?\n]{0,30}\bdenom/i
 ];
+
+const AKASH_ADDRESS = /akash1/i;
 
 const ADVICE_AGAINST = /n't\b|\b(?:not|never|no need|instead of|rather than|without)\b/i;
 
@@ -58,6 +61,17 @@ function callFailures(expected: AssistantEvalExpectation, calledNames: Set<strin
   const forbidden = (expected.neverCalls ?? []).filter(name => calledNames.has(name)).map(name => `called ${name}`);
 
   return [...missing, ...forbidden];
+}
+
+function callArgumentFailures(expected: AssistantEvalExpectation, transcript: AssistantEvalTranscript): string[] {
+  return Object.entries(expected.callMentions ?? {}).flatMap(([name, texts]) => {
+    const argumentsText = transcript.toolCalls
+      .filter(call => call.name === name)
+      .map(call => JSON.stringify(call.arguments))
+      .join("\n");
+
+    return texts.filter(text => !includesText(argumentsText, text)).map(text => `${name} call lacks "${text}"`);
+  });
 }
 
 function proposalFailures(expected: AssistantEvalExpectation, transcript: AssistantEvalTranscript): string[] {
@@ -106,6 +120,10 @@ function deploymentLinkFailures(expected: AssistantEvalExpectation, answer: stri
   });
 }
 
+function addressFailures(answer: string): string[] {
+  return AKASH_ADDRESS.test(answer) ? ["answer writes an akash1 address"] : [];
+}
+
 function repricingFailures(expected: AssistantEvalExpectation, answer: string): string[] {
   if (!expected.neverAdvisesRepricing) return [];
 
@@ -125,9 +143,11 @@ export function scoreAssistantEval(id: string, expected: AssistantEvalExpectatio
   const calledNames = new Set(transcript.toolCalls.map(({ name }) => name));
   const failures = [
     ...callFailures(expected, calledNames),
+    ...callArgumentFailures(expected, transcript),
     ...proposalFailures(expected, transcript),
     ...answerFailures(expected, transcript.answer),
     ...deploymentLinkFailures(expected, transcript.answer),
+    ...addressFailures(transcript.answer),
     ...repricingFailures(expected, transcript.answer),
     ...turnFailures(expected, transcript)
   ];

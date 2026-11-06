@@ -15,6 +15,8 @@ import {
 
 const PROPOSAL_TOOL_PREFIX = "propose_";
 
+export const CONSOLE_API_READ_TOOL_NAME = "read_console_api" satisfies ReadToolName;
+
 const READ_TOOL_DESCRIPTIONS: Record<ReadToolName, string> = {
   list_deployments: "Lists the user's deployments, newest first, with their leases.",
   get_deployment: "Reads one deployment: state, leases with their status and service readiness, and the services its SDL declares (env names only).",
@@ -26,7 +28,9 @@ const READ_TOOL_DESCRIPTIONS: Record<ReadToolName, string> = {
     "Searches Console's own templates and the template gallery by name and summary. Each template has a source: console (built by Console), console_curated (recommended by Console) or community.",
   search_docs: "Searches the Console and Akash knowledge pack. Use it before answering how-to or troubleshooting questions.",
   check_availability:
-    "Screens how many providers could bid now on a template or an SDL, per group, and why none can when that is the case. Use it to try an adjusted SDL before proposing it."
+    "Screens how many providers could bid now on a template or an SDL, per group, and why none can when that is the case. Use it to try an adjusted SDL before proposing it.",
+  read_console_api:
+    "Reads a GET route of the Console API as the user, with only the access they have. Use it for the user's own data no other read tool covers, such as projects, organizations, members, alerts, usage, payments, API key names and notifications. Amounts come back in USD and addresses as names. Routes by tag, query parameters after ?:"
 };
 
 const CLIENT_TOOL_DESCRIPTIONS: Record<ClientToolName, string> = {
@@ -164,6 +168,13 @@ function proposalToolOf(type: ProposalActionType): ChatTool {
   };
 }
 
+/** The read tool's catalog is generated from the published OpenAPI document at runtime, so it joins the static description per turn. */
+function withConsoleApiCatalog(tool: ChatTool, catalog: string): ChatTool {
+  if (tool.function.name !== CONSOLE_API_READ_TOOL_NAME || !catalog) return tool;
+
+  return { ...tool, function: { ...tool.function, description: `${tool.function.description}\n${catalog}` } };
+}
+
 export function buildAssistantChatTools(): ChatTool[] {
   return [
     ...Object.entries(READ_TOOL_ARGUMENTS).map(([name, schema]) => toolOf(name, READ_TOOL_DESCRIPTIONS[name as ReadToolName], schema)),
@@ -175,7 +186,7 @@ export function buildAssistantChatTools(): ChatTool[] {
 
 let chatTools: ChatTool[] | undefined;
 
-export function assistantChatTools(): ChatTool[] {
+export function assistantChatTools(consoleApiCatalog = ""): ChatTool[] {
   chatTools ??= buildAssistantChatTools();
-  return chatTools;
+  return consoleApiCatalog ? chatTools.map(tool => withConsoleApiCatalog(tool, consoleApiCatalog)) : chatTools;
 }

@@ -10,6 +10,7 @@ import type { BidScreeningHttpService } from "@src/deployment/services/bid-scree
 import type { PlacementOptionsHttpService } from "@src/deployment/services/placement-options-http/placement-options-http.service";
 import type { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
+import type { AssistantAddressNamesService } from "@src/feedback/services/assistant-address-names/assistant-address-names.service";
 import { AssistantUsdService } from "@src/feedback/services/assistant-usd/assistant-usd.service";
 import { AssistantBidToolsService } from "./assistant-bid-tools.service";
 
@@ -26,20 +27,34 @@ function placedGroupSpec(name: string, attributes: { key: string; value: string 
 }
 
 describe(AssistantBidToolsService.name, () => {
-  it("lists the bids and skips screening when an open bid exists", async () => {
-    const { service, bidController, sdlService } = setup();
+  it("lists the bids with their provider names and skips screening when an open bid exists", async () => {
     const bid = createBid({ dseq: "42", gseq: 1, oseq: 1 });
+    const unnamedBid = createBid({ dseq: "42", gseq: 1, oseq: 1 });
+    unnamedBid.bid.price = { denom: "uact", amount: "2.93" };
+    const { service, bidController, sdlService, addressNamesService } = setup({ providerNames: { [bid.bid.id.provider]: "provider.europlots.com" } });
     bid.bid.price = { denom: "uact", amount: "2.93" };
-    bidController.list.mockResolvedValue({ data: [bid] });
+    bidController.list.mockResolvedValue({ data: [bid, unnamedBid] });
 
     const result = await service.getBids({ dseq: "42" });
 
     expect(bidController.list).toHaveBeenCalledWith("42");
+    expect(addressNamesService.providerNamesOf).toHaveBeenCalledWith([bid.bid.id.provider, unnamedBid.bid.id.provider]);
     expect(result).toEqual({
       dseq: "42",
       deploymentState: "active",
       leaseCount: 0,
-      bids: [{ gseq: 1, oseq: 1, provider: bid.bid.id.provider, state: "open", usdPerMonth: 1.28, reclamationWindow: null }],
+      bids: [
+        {
+          gseq: 1,
+          oseq: 1,
+          providerName: "provider.europlots.com",
+          providerAddress: bid.bid.id.provider,
+          state: "open",
+          usdPerMonth: 1.28,
+          reclamationWindow: null
+        },
+        { gseq: 1, oseq: 1, providerName: null, providerAddress: unnamedBid.bid.id.provider, state: "open", usdPerMonth: 1.28, reclamationWindow: null }
+      ],
       availability: null
     });
     expect(sdlService.generateManifest).not.toHaveBeenCalled();
@@ -267,7 +282,7 @@ describe(AssistantBidToolsService.name, () => {
     });
   });
 
-  function setup() {
+  function setup(input: { providerNames?: Record<string, string> } = {}) {
     const bidController = mock<BidController>();
     bidController.list.mockResolvedValue({ data: [] });
     const deploymentController = mock<DeploymentController>();
@@ -277,6 +292,8 @@ describe(AssistantBidToolsService.name, () => {
     const placementOptionsHttpService = mock<PlacementOptionsHttpService>();
     const logger = mock<ReturnType<CreateLogger>>();
     const denomExchangeService = mock<DenomExchangeService>();
+    const addressNamesService = mock<AssistantAddressNamesService>();
+    addressNamesService.providerNamesOf.mockResolvedValue(new Map(Object.entries(input.providerNames ?? {})));
     denomExchangeService.getExchangeRateToUSD.mockResolvedValue(mock<Awaited<ReturnType<DenomExchangeService["getExchangeRateToUSD"]>>>({ price: 1 }));
     const service = new AssistantBidToolsService(
       bidController,
@@ -285,9 +302,10 @@ describe(AssistantBidToolsService.name, () => {
       bidScreeningHttpService,
       placementOptionsHttpService,
       new AssistantUsdService(denomExchangeService),
+      addressNamesService,
       vi.fn<CreateLogger>(() => logger)
     );
 
-    return { service, bidController, deploymentController, sdlService, bidScreeningHttpService, placementOptionsHttpService, logger };
+    return { service, bidController, deploymentController, sdlService, bidScreeningHttpService, placementOptionsHttpService, logger, addressNamesService };
   }
 });

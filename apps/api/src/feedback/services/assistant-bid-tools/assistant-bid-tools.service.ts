@@ -10,6 +10,7 @@ import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { extractRequestedGpusFromGroupSpecs } from "@src/deployment/utils/blocked-gpu/blocked-gpu";
 import { AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
 import type { ReadToolArguments } from "@src/feedback/lib/assistant-tools/assistant-tool-arguments";
+import { AssistantAddressNamesService } from "@src/feedback/services/assistant-address-names/assistant-address-names.service";
 import { AssistantUsdService } from "@src/feedback/services/assistant-usd/assistant-usd.service";
 
 export interface GroupAvailability {
@@ -36,6 +37,7 @@ export class AssistantBidToolsService {
     private readonly bidScreeningHttpService: BidScreeningHttpService,
     private readonly placementOptionsHttpService: PlacementOptionsHttpService,
     private readonly usdService: AssistantUsdService,
+    private readonly addressNamesService: AssistantAddressNamesService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.#logger = createLogger({ context: AssistantBidToolsService.name });
@@ -44,6 +46,7 @@ export class AssistantBidToolsService {
   /** Screens availability only for a deployment still waiting on its first bid, since that is the only case it explains. */
   async getBids({ dseq }: ReadToolArguments<"get_bids">) {
     const [{ data: bids }, { data: deployment }] = await Promise.all([this.bidController.list(dseq), this.deploymentController.findByDseq(dseq)]);
+    const providerNames = await this.addressNamesService.providerNamesOf(bids.map(({ bid }) => bid.id.provider));
     const isWaitingOnBids = deployment.deployment.state === "active" && deployment.leases.length === 0 && !bids.some(({ bid }) => bid.state === "open");
 
     return {
@@ -54,7 +57,8 @@ export class AssistantBidToolsService {
         bids.map(async ({ bid }) => ({
           gseq: bid.id.gseq,
           oseq: bid.id.oseq,
-          provider: bid.id.provider,
+          providerName: providerNames.get(bid.id.provider) ?? null,
+          providerAddress: bid.id.provider,
           state: bid.state,
           usdPerMonth: await this.usdService.usdPerMonthOf([bid.price]),
           reclamationWindow: bid.reclamation_window ?? null

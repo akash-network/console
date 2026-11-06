@@ -6,10 +6,12 @@ import { ZodError } from "zod";
 import type { CreateLogger } from "@src/core";
 import type { AssistantAction } from "@src/feedback/http-schemas/assistant-action.schema";
 import { AssistantProposalWithheldError, AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
+import { assistantChatTools } from "@src/feedback/lib/assistant-tools/assistant-tools";
 import { REDACTED } from "@src/feedback/lib/redact-secrets/redact-secrets";
 import type { ChatToolCall } from "@src/feedback/services/akashml-client/akashml.client";
 import type { AssistantAccountToolsService } from "@src/feedback/services/assistant-account-tools/assistant-account-tools.service";
 import type { AssistantBidToolsService } from "@src/feedback/services/assistant-bid-tools/assistant-bid-tools.service";
+import type { AssistantConsoleApiService } from "@src/feedback/services/assistant-console-api/assistant-console-api.service";
 import type { AssistantDeploymentToolsService } from "@src/feedback/services/assistant-deployment-tools/assistant-deployment-tools.service";
 import type { AssistantProposalService } from "@src/feedback/services/assistant-proposal/assistant-proposal.service";
 import { AssistantToolRunnerService, MAX_TOOL_RESULT_LENGTH, toolContentOf, truncated } from "./assistant-tool-runner.service";
@@ -54,6 +56,48 @@ describe(AssistantToolRunnerService.name, () => {
 
       expect(read).toHaveBeenCalledWith(args);
       expect(outcome).toEqual({ kind: "result", content: toolContentOf(name, { data: { read: name } }), summary, ok: true });
+    });
+
+    it("reads the Console API and summarizes the read with the label the route gives it", async () => {
+      const { runner, consoleApi } = setup();
+      consoleApi.read.mockResolvedValue({ summary: "Read your projects", data: { data: [{ name: "Web" }] } });
+
+      const outcome = await runner.run(call("read_console_api", { path: " /v1/projects ", query: { limit: 5 } }), {
+        isTrialing: false,
+        withheldTemplateSdls: []
+      });
+
+      expect(consoleApi.read).toHaveBeenCalledWith({ path: "/v1/projects", query: { limit: 5 } });
+      expect(outcome).toEqual({
+        kind: "result",
+        content: toolContentOf("read_console_api", { data: { data: [{ name: "Web" }] } }),
+        summary: "Read your projects",
+        ok: true
+      });
+    });
+
+    it("hands a refused Console API read back to the model", async () => {
+      const { runner, consoleApi } = setup();
+      consoleApi.read.mockRejectedValue(new AssistantToolError("/v1/sdl-secrets-context is not available to the assistant."));
+
+      const outcome = await runner.run(call("read_console_api", { path: "/v1/sdl-secrets-context" }), { isTrialing: false, withheldTemplateSdls: [] });
+
+      expect(outcome).toEqual({
+        kind: "result",
+        content: toolContentOf("read_console_api", { error: "/v1/sdl-secrets-context is not available to the assistant." }),
+        summary: "Could not read your Console data",
+        ok: false
+      });
+    });
+
+    it("rejects a Console API path that carries its own query", async () => {
+      const { runner, consoleApi } = setup();
+
+      const outcome = await runner.run(call("read_console_api", { path: "/v1/projects?limit=5" }), { isTrialing: false, withheldTemplateSdls: [] });
+
+      expect(outcome).toMatchObject({ ok: false, summary: "Could not read your Console data" });
+      expect((outcome as Extract<typeof outcome, { kind: "result" }>).content).toContain("Start the path with / and leave out the query");
+      expect(consoleApi.read).not.toHaveBeenCalled();
     });
 
     it("passes the parsed arguments to the read", async () => {
@@ -499,22 +543,45 @@ describe(AssistantToolRunnerService.name, () => {
     });
   });
 
+  describe("chatTools", () => {
+    it("adds the Console API catalog to the read tool's description", async () => {
+      const { runner, consoleApi } = setup();
+      consoleApi.catalog.mockResolvedValue("Projects: /v1/projects List the projects");
+
+      const tools = await runner.chatTools();
+
+      expect(tools).toEqual(assistantChatTools("Projects: /v1/projects List the projects"));
+      expect(tools.find(tool => tool.function.name === "read_console_api")?.function.description).toMatch(/\nProjects: \/v1\/projects List the projects$/);
+    });
+
+    it("keeps every tool without the catalog when it cannot be loaded", async () => {
+      const { runner, consoleApi, logger } = setup();
+      const error = new Error("docs unavailable");
+      consoleApi.catalog.mockRejectedValue(error);
+
+      expect(await runner.chatTools()).toBe(assistantChatTools());
+      expect(logger.warn).toHaveBeenCalledWith({ event: "ASSISTANT_CONSOLE_API_CATALOG_FAILED", error });
+    });
+  });
+
   const RETRY_ONCE = "Call it once more with corrected arguments, or answer without it.";
 
   function setup() {
     const deploymentTools = mock<AssistantDeploymentToolsService>();
     const bidTools = mock<AssistantBidToolsService>();
     const accountTools = mock<AssistantAccountToolsService>();
+    const consoleApi = mock<AssistantConsoleApiService>();
     const proposalService = mock<AssistantProposalService>();
     const logger = mock<ReturnType<CreateLogger>>();
     const runner = new AssistantToolRunnerService(
       deploymentTools,
       bidTools,
       accountTools,
+      consoleApi,
       proposalService,
       vi.fn<CreateLogger>(() => logger)
     );
 
-    return { runner, deploymentTools, bidTools, accountTools, proposalService, logger };
+    return { runner, deploymentTools, bidTools, accountTools, consoleApi, proposalService, logger };
   }
 });

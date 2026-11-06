@@ -14,6 +14,8 @@ export const MAX_GENERATED_SDL_LENGTH = 20_000;
 const MAX_TEXT_LENGTH = 300;
 const MAX_NAME_LENGTH = 100;
 const MAX_TEMPLATE_ID_LENGTH = 255;
+const MAX_API_PATH_LENGTH = 300;
+const MAX_QUERY_PARAMETERS = 10;
 
 const Dseq = AssistantDseqSchema.openapi({ description: "Deployment sequence number" });
 const ServiceName = z.string().min(1).max(MAX_NAME_LENGTH).openapi({ description: "A service name the deployment's SDL declares" });
@@ -43,7 +45,20 @@ export const READ_TOOL_ARGUMENTS = {
   get_lease_close_reason: z.object({ dseq: Dseq }),
   list_templates: z.object({ query: z.string().max(MAX_TEXT_LENGTH).optional().openapi({ description: "Words to match, such as a model or app name" }) }),
   search_docs: z.object({ query: ShortText }),
-  check_availability: z.object({ templateId: TemplateId.optional(), sdl: GeneratedSdl.optional() }).refine(givesTemplateOrSdl, TEMPLATE_OR_SDL)
+  check_availability: z.object({ templateId: TemplateId.optional(), sdl: GeneratedSdl.optional() }).refine(givesTemplateOrSdl, TEMPLATE_OR_SDL),
+  read_console_api: z.object({
+    path: z
+      .string()
+      .trim()
+      .regex(/^\/[^\s?#]*$/, "Start the path with / and leave out the query")
+      .max(MAX_API_PATH_LENGTH)
+      .openapi({ description: "A catalog path with every {parameter} filled in, such as /v1/projects" }),
+    query: z
+      .record(z.string().max(MAX_NAME_LENGTH), z.union([z.string().max(MAX_TEXT_LENGTH), z.number(), z.boolean()]))
+      .refine(query => Object.keys(query).length <= MAX_QUERY_PARAMETERS, { message: `Pass at most ${MAX_QUERY_PARAMETERS} query parameters` })
+      .optional()
+      .openapi({ description: "Query parameters the catalog lists after ? for that path" })
+  })
 };
 
 export const CLIENT_TOOL_ARGUMENTS = {
@@ -90,7 +105,13 @@ export const PROPOSAL_TOOL_ARGUMENTS = {
   choose_bid: z.object({
     dseq: Dseq,
     choices: z
-      .array(z.object({ gseq: z.number().int().positive(), oseq: z.number().int().positive(), provider: z.string().max(MAX_NAME_LENGTH) }))
+      .array(
+        z.object({
+          gseq: z.number().int().positive(),
+          oseq: z.number().int().positive(),
+          provider: z.string().max(MAX_NAME_LENGTH).openapi({ description: "The bid's providerAddress" })
+        })
+      )
       .min(1)
       .max(10)
   }),
@@ -123,7 +144,7 @@ export const PROPOSAL_TOOL_ARGUMENTS = {
   create_alert: z.object({ dseq: Dseq }),
   redeem_coupon: z.object({ code: z.string().trim().min(1).max(MAX_NAME_LENGTH).optional() }),
   save_as_template: z.object({ dseq: Dseq, title: z.string().trim().min(1).max(MAX_NAME_LENGTH), description: ShortText.optional() }),
-  favorite_provider: z.object({ provider: AkashAddressSchema.openapi({ description: "Provider address" }) }),
+  favorite_provider: z.object({ provider: AkashAddressSchema.openapi({ description: "A providerAddress a read returned" }) }),
   request_hardware: z.object({
     gpuModel: z.string().trim().min(1).max(MAX_NAME_LENGTH),
     gpuCount: z.number().int().min(1).max(1000),

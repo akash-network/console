@@ -81,7 +81,7 @@ describe(AssistantTurnService.name, () => {
       {
         model: "assistant-model",
         messages: [{ role: "user", content: "hi" }],
-        tools: assistantChatTools(),
+        tools: assistantChatTools("Projects: /v1/projects"),
         tool_choice: "auto",
         max_completion_tokens: MAX_COMPLETION_TOKENS,
         reasoning_effort: "medium"
@@ -682,6 +682,7 @@ describe(AssistantTurnService.name, () => {
     const akashMlClient = mock<AkashMlClient>();
     const akashMlHttpClient = mock<HttpClient>();
     const toolRunner = mock<AssistantToolRunnerService>();
+    toolRunner.chatTools.mockResolvedValue(assistantChatTools("Projects: /v1/projects"));
     const limitsService = mock<AssistantLimitsService>();
     const transcriptService = mock<AssistantTranscriptService>();
     const pendingTurnRepository = mock<AssistantPendingTurnRepository>();

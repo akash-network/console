@@ -210,6 +210,30 @@ describe(scoreAssistantEval.name, () => {
     ]);
   });
 
+  it("fails an answer that writes an akash1 address, whatever the case expects", () => {
+    expect(scoreAssistantEval("address", {}, { toolCalls: [], answer: "It runs on AKASH1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh." }).failures).toEqual([
+      "answer writes an akash1 address"
+    ]);
+    expect(scoreAssistantEval("address", {}, { toolCalls: [], answer: "It runs on provider.europlots.com." }).failures).toEqual([]);
+  });
+
+  it("reports each text a tool's arguments lack, across every call of that tool", () => {
+    const result = scoreAssistantEval(
+      "call-arguments",
+      { callMentions: { read_console_api: ["/V1/PROJECTS", "limit"], get_bids: ["42"] } },
+      {
+        toolCalls: [
+          { name: "read_console_api", arguments: { path: "/v1/organizations" } },
+          { name: "read_console_api", arguments: { path: "/v1/projects" } },
+          { name: "get_deployment", arguments: { dseq: "42" } }
+        ],
+        answer: ""
+      }
+    );
+
+    expect(result.failures).toEqual(['read_console_api call lacks "limit"', 'get_bids call lacks "42"']);
+  });
+
   it("passes when the answer says any one of the alternatives, ignoring case", () => {
     const result = scoreAssistantEval("alternatives", { mentionsAnyOf: ["redeploy", "Deadline"] }, { toolCalls: [], answer: "Move it before the DEADLINE." });
 
@@ -227,7 +251,9 @@ describe(scoreAssistantEval.name, () => {
     const named = ASSISTANT_EVAL_CASES.flatMap(evalCase => [
       ...(evalCase.expect.calls ?? []),
       ...(evalCase.expect.neverCalls ?? []),
-      ...Object.keys(evalCase.toolResults ?? {})
+      ...Object.keys(evalCase.expect.callMentions ?? {}),
+      ...Object.keys(evalCase.toolResults ?? {}),
+      ...Object.keys(evalCase.toolErrors ?? {})
     ]);
 
     expect(named.filter(name => !toolNames.has(name))).toEqual([]);

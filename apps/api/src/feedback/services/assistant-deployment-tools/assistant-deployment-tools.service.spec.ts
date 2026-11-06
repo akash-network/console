@@ -11,6 +11,7 @@ import type { DeploymentSettingController } from "@src/deployment/controllers/de
 import type { GetDeploymentResponse, ListDeploymentsItem } from "@src/deployment/http-schemas/deployment.schema";
 import type { DeploymentSetting } from "@src/deployment/http-schemas/deployment-setting.schema";
 import type { SdlService } from "@src/deployment/services/sdl/sdl.service";
+import type { AssistantAddressNamesService } from "@src/feedback/services/assistant-address-names/assistant-address-names.service";
 import { AssistantUsdService } from "@src/feedback/services/assistant-usd/assistant-usd.service";
 import { AssistantDeploymentToolsService } from "./assistant-deployment-tools.service";
 
@@ -18,9 +19,9 @@ import { createDeploymentLease, createGetDeploymentResponseData } from "@test/se
 
 describe(AssistantDeploymentToolsService.name, () => {
   describe("listDeployments", () => {
-    it("lists the newest active deployments with their leases", async () => {
-      const { service, deploymentController } = setup();
+    it("lists the newest active deployments with their leases and provider names", async () => {
       const { status: _status, ...lease } = createDeploymentLease({ dseq: "42", reason: "lease_closed_reason_unstable" });
+      const { service, deploymentController, addressNamesService } = setup({ providerNames: { [lease.id.provider]: "provider.europlots.com" } });
       const listed = (dseq: string, name: string | null, overrides: Partial<ListDeploymentsItem> = {}): ListDeploymentsItem => {
         const { deployment, escrow_account } = createGetDeploymentResponseData({ dseq });
         return { deployment, escrow_account, leases: [], name, groups: [], settings: null, ...overrides };
@@ -41,6 +42,7 @@ describe(AssistantDeploymentToolsService.name, () => {
       const result = await service.listDeployments({});
 
       expect(deploymentController.list).toHaveBeenCalledWith({ state: "active", reverse: true, skip: 0, limit: 20, search: undefined });
+      expect(addressNamesService.providerNamesOf).toHaveBeenCalledWith([lease.id.provider]);
       expect(result).toEqual({
         total: 2,
         hasMore: false,
@@ -54,7 +56,8 @@ describe(AssistantDeploymentToolsService.name, () => {
               {
                 gseq: 1,
                 oseq: 1,
-                provider: lease.id.provider,
+                providerName: "provider.europlots.com",
+                providerAddress: lease.id.provider,
                 state: "active",
                 usdPerMonth: 438.29,
                 closedReason: "lease_closed_reason_unstable",
@@ -123,7 +126,8 @@ describe(AssistantDeploymentToolsService.name, () => {
           {
             gseq: 1,
             oseq: 1,
-            provider: lease.id.provider,
+            providerName: null,
+            providerAddress: lease.id.provider,
             state: "active",
             usdPerMonth: 438.29,
             closedReason: null,
@@ -166,8 +170,10 @@ describe(AssistantDeploymentToolsService.name, () => {
 
   describe("getLeaseCloseReason", () => {
     it("combines lease close reasons, Console's own reason and the deployment's recent activity", async () => {
-      const { service, deploymentController, deploymentSettingController, activityController } = setup();
       const lease = createDeploymentLease({ dseq: "42", state: "closed", closed_on: "123", reason: "lease_closed_reason_insufficient_funds" });
+      const { service, deploymentController, deploymentSettingController, activityController } = setup({
+        providerNames: { [lease.id.provider]: "provider.europlots.com" }
+      });
       deploymentController.findByDseq.mockResolvedValue({
         data: createGetDeploymentResponseData({ dseq: "42", name: "site", state: "closed", leases: [lease] })
       });
@@ -196,7 +202,14 @@ describe(AssistantDeploymentToolsService.name, () => {
         name: "site",
         state: "closed",
         leases: [
-          { provider: lease.id.provider, state: "closed", usdPerMonth: 438.29, closedOn: "123", closedReason: "lease_closed_reason_insufficient_funds" }
+          {
+            providerName: "provider.europlots.com",
+            providerAddress: lease.id.provider,
+            state: "closed",
+            usdPerMonth: 438.29,
+            closedOn: "123",
+            closedReason: "lease_closed_reason_insufficient_funds"
+          }
         ],
         consoleCloseReason: "runtime_limit_reached",
         runtimeLimitHours: 2,
@@ -267,7 +280,7 @@ describe(AssistantDeploymentToolsService.name, () => {
     };
   }
 
-  function setup() {
+  function setup(input: { providerNames?: Record<string, string> } = {}) {
     const deploymentController = mock<DeploymentController>();
     deploymentController.findByDseq.mockImplementation(async dseq => ({ data: createGetDeploymentResponseData({ dseq }) }));
     const deploymentSettingController = mock<DeploymentSettingController>();
@@ -275,8 +288,17 @@ describe(AssistantDeploymentToolsService.name, () => {
     const sdlService = mock<SdlService>();
     sdlService.parse.mockImplementation(sdl => ({ ok: true, value: yaml.raw(sdl) }));
     const usdService = new AssistantUsdService(mock<DenomExchangeService>());
-    const service = new AssistantDeploymentToolsService(deploymentController, deploymentSettingController, activityController, sdlService, usdService);
+    const addressNamesService = mock<AssistantAddressNamesService>();
+    addressNamesService.providerNamesOf.mockResolvedValue(new Map(Object.entries(input.providerNames ?? {})));
+    const service = new AssistantDeploymentToolsService(
+      deploymentController,
+      deploymentSettingController,
+      activityController,
+      sdlService,
+      usdService,
+      addressNamesService
+    );
 
-    return { service, deploymentController, deploymentSettingController, activityController, sdlService };
+    return { service, deploymentController, deploymentSettingController, activityController, sdlService, addressNamesService };
   }
 });
