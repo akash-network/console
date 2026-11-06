@@ -93,11 +93,27 @@ describe(AssistantTurnService.name, () => {
       { type: "text_delta", text: "check." },
       { type: "tool_started", toolCallId: "c1", name: "get_deployment" },
       { type: "tool_result_summary", toolCallId: "c1", name: "get_deployment", ok: true, summary: "Read deployment 42" },
-      { type: "text_delta", text: "It is " },
+      { type: "text_delta", text: "\n\nIt is " },
       { type: "text_delta", text: "running." },
       { type: "done", reason: "stop" }
     ]);
     expect(transcriptService.record).toHaveBeenLastCalledWith("conversation-1", { role: "assistant", content: "Let me check.\n\nIt is running." });
+  });
+
+  it("separates only rounds that wrote text, so the streamed answer reads the same as the stored one", async () => {
+    const { akashMlClient, toolRunner, transcriptService, run } = setup();
+    akashMlClient.streamChatCompletion
+      .mockImplementationOnce(streamed({ toolCalls: [toolCall("c1", "get_deployment", { dseq: "42" })] }))
+      .mockImplementationOnce(streamed({ content: "Let me check.", toolCalls: [toolCall("c2", "get_bids", { dseq: "42" })] }, ["Let me ", "check."]))
+      .mockImplementationOnce(streamed({ toolCalls: [toolCall("c3", "get_lease", { dseq: "42" })] }))
+      .mockImplementationOnce(streamed({ content: "It is running." }, ["It is ", "running."]));
+    toolRunner.run.mockResolvedValue({ kind: "result", content: "{}", summary: "Read", ok: true });
+
+    const events = await run({ stored: true });
+    const streamedText = events.flatMap(event => (event.type === "text_delta" ? [event.text] : []));
+
+    expect(streamedText).toEqual(["Let me ", "check.", "\n\nIt is ", "running."]);
+    expect(transcriptService.record).toHaveBeenLastCalledWith("conversation-1", { role: "assistant", content: streamedText.join("") });
   });
 
   it("reports a model that fails after streaming part of the answer, and stores no partial answer", async () => {
@@ -151,7 +167,7 @@ describe(AssistantTurnService.name, () => {
       { type: "text_delta", text: "Let me check." },
       { type: "tool_started", toolCallId: "c1", name: "get_deployment" },
       { type: "tool_result_summary", toolCallId: "c1", name: "get_deployment", ok: true, summary: "Read deployment 42" },
-      { type: "text_delta", text: "It is running." },
+      { type: "text_delta", text: "\n\nIt is running." },
       { type: "done", reason: "stop" }
     ]);
     expect(akashMlClient.streamChatCompletion.mock.calls[1][0].messages).toEqual([
