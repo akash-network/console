@@ -144,6 +144,52 @@ describe(PersonalOrganizationService.name, () => {
     });
   });
 
+  describe("restoreDefaultProject", () => {
+    it("gives the organization its default project back whichever organization the request is active in, and logs the restore", async () => {
+      const user = createUser();
+      const { service, organization, project, projectRepository, logger } = setup();
+      projectRepository.createDefaultUnlessExists.mockResolvedValue(project);
+
+      await service.restoreDefaultProject(user, organization);
+
+      expect(projectRepository.unscoped).toHaveBeenCalledWith("personal-organization-provisioning");
+      expect(projectRepository.createDefaultUnlessExists).toHaveBeenCalledWith({ organizationId: organization.id, createdByUserId: user.id });
+      expect(logger.warn).toHaveBeenCalledWith({
+        event: "PERSONAL_ORGANIZATION_DEFAULT_PROJECT_RESTORED",
+        userId: user.id,
+        organizationId: organization.id,
+        projectId: project.id
+      });
+      expect(projectRepository.findDefaultByOrganizationId).not.toHaveBeenCalled();
+    });
+
+    it("stays quiet when the organization already has its default project", async () => {
+      const user = createUser();
+      const { service, organization, projectRepository, logger } = setup();
+
+      await service.restoreDefaultProject(user, organization);
+
+      expect(logger.warn).not.toHaveBeenCalled();
+      expect(logger.error).not.toHaveBeenCalled();
+      expect(projectRepository.findDefaultByOrganizationId).toHaveBeenCalledWith(organization.id);
+    });
+
+    it("logs an error when another project holds the default project's name and the default project is still missing", async () => {
+      const user = createUser();
+      const { service, organization, projectRepository, logger } = setup();
+      projectRepository.findDefaultByOrganizationId.mockResolvedValue(undefined);
+
+      await service.restoreDefaultProject(user, organization);
+
+      expect(logger.warn).not.toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith({
+        event: "PERSONAL_ORGANIZATION_DEFAULT_PROJECT_RESTORE_BLOCKED",
+        userId: user.id,
+        organizationId: organization.id
+      });
+    });
+  });
+
   describe("renameToUsername", () => {
     it("renames the user's personal organization to their username", async () => {
       const user = createUser({ id: USER_ID, username: "alice" });
