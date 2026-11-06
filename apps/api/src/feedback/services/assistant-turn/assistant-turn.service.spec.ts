@@ -686,15 +686,40 @@ describe(AssistantTurnService.name, () => {
     expect(timeout).toHaveBeenCalledWith(TURN_TIMEOUT_MS);
   });
 
-  it("answers a turn that ran out of time before reading anything", async () => {
-    vi.spyOn(AbortSignal, "timeout").mockReturnValue(AbortSignal.abort());
-    const { akashMlClient, run } = setup();
-    akashMlClient.streamChatCompletion.mockRejectedValue(new Error("aborted"));
+  it("keeps the text a timed-out completion already streamed, apart from the answer that follows it", async () => {
+    const deadline = new AbortController();
+    vi.spyOn(AbortSignal, "timeout").mockReturnValue(deadline.signal);
+    const { akashMlClient, transcriptService, run } = setup();
+    akashMlClient.streamChatCompletion.mockImplementation(async (_request, { onContentDelta }) => {
+      await onContentDelta("Your deployment ");
+      await onContentDelta("is ");
+      deadline.abort();
+      throw new Error("aborted");
+    });
 
-    expect(await run({})).toEqual([
-      { type: "text_delta", text: "I could not finish my answer this time. Next step: ask again in a shorter question, or ask on Discord for live help." },
+    const events = await run({ stored: true });
+
+    const fallback = "I could not finish my answer this time. Next step: ask again in a shorter question, or ask on Discord for live help.";
+    expect(events).toEqual([
+      { type: "text_delta", text: "Your deployment " },
+      { type: "text_delta", text: "is " },
+      { type: "text_delta", text: `\n\n${fallback}` },
       { type: "done", reason: "stop" }
     ]);
+    expect(transcriptService.record).toHaveBeenLastCalledWith("conversation-1", { role: "assistant", content: `Your deployment is \n\n${fallback}` });
+  });
+
+  it("answers a turn that ran out of time before reading anything, and stores that answer", async () => {
+    vi.spyOn(AbortSignal, "timeout").mockReturnValue(AbortSignal.abort());
+    const { akashMlClient, transcriptService, run } = setup();
+    akashMlClient.streamChatCompletion.mockRejectedValue(new Error("aborted"));
+    const fallback = "I could not finish my answer this time. Next step: ask again in a shorter question, or ask on Discord for live help.";
+
+    expect(await run({ stored: true })).toEqual([
+      { type: "text_delta", text: fallback },
+      { type: "done", reason: "stop" }
+    ]);
+    expect(transcriptService.record).toHaveBeenLastCalledWith("conversation-1", { role: "assistant", content: fallback });
   });
 
   it("stops quietly when the user left", async () => {

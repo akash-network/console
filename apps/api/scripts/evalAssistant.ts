@@ -171,7 +171,7 @@ async function runCase(evalCase: AssistantEvalCase): Promise<CaseRun> {
     messages.push({ role: "assistant", content: completion.content, tool_calls: completion.toolCalls });
     for (const call of completion.toolCalls) {
       const earlierResult = earlierResultOf(call, messages);
-      toolCalls.push({ name: call.function.name, arguments: argumentsOf(call), ...(earlierResult !== undefined && { repeated: true }) });
+      toolCalls.push({ name: call.function.name, arguments: argumentsOf(call), round, ...(earlierResult !== undefined && { repeated: true }) });
       metrics.toolCalls.push(call.function.name);
       messages.push(
         earlierResult !== undefined

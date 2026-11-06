@@ -29,6 +29,7 @@ export interface AssistantEvalToolCall {
   name: string;
   arguments: Record<string, unknown>;
   repeated?: boolean;
+  round?: number;
 }
 
 export interface AssistantEvalTranscript {
@@ -54,12 +55,20 @@ function proposalsOf(transcript: AssistantEvalTranscript): { type: ProposalActio
   });
 }
 
+function firstRoundFailures(callsFirst: string, toolCalls: AssistantEvalToolCall[]): string[] {
+  if (toolCalls.length === 0) return [`called nothing before ${callsFirst}`];
+
+  const firstRoundNames = new Set(toolCalls.filter(({ round }) => round === toolCalls[0].round).map(({ name }) => name));
+  const order = firstRoundNames.has(callsFirst) ? "alongside" : "before";
+
+  return [...firstRoundNames].filter(name => name !== callsFirst).map(name => `called ${name} ${order} ${callsFirst}`);
+}
+
 function callFailures(expected: AssistantEvalExpectation, toolCalls: AssistantEvalToolCall[]): string[] {
   const calledNames = new Set(toolCalls.map(({ name }) => name));
   const missing = (expected.calls ?? []).filter(name => !calledNames.has(name)).map(name => `did not call ${name}`);
   const forbidden = (expected.neverCalls ?? []).filter(name => calledNames.has(name)).map(name => `called ${name}`);
-  const firstName = toolCalls[0]?.name;
-  const notFirst = expected.callsFirst && firstName !== expected.callsFirst ? [`called ${firstName ?? "nothing"} before ${expected.callsFirst}`] : [];
+  const notFirst = expected.callsFirst ? firstRoundFailures(expected.callsFirst, toolCalls) : [];
 
   return [...missing, ...forbidden, ...notFirst];
 }
