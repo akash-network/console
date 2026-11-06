@@ -195,7 +195,11 @@ describe(useConfigureDraft.name, () => {
     });
 
     it("exposes a draft handed over from outside the screen at once, without asking the account", () => {
-      const draftId = createConfigureDraft("uploaded: sdl", { name: "upload", inheritSecretsFrom: "99" }, mintingDependencies("handed-over"));
+      const draftId = createConfigureDraft(
+        "uploaded: sdl",
+        { name: "upload", runtimeLimitHours: 4, inheritSecretsFrom: "99" },
+        mintingDependencies("handed-over")
+      );
       const { result, getConfigureDraft } = setup({ intent: { draftId } });
 
       expect(result.current.isLoading).toBe(false);
@@ -203,6 +207,7 @@ describe(useConfigureDraft.name, () => {
         persistedSdl: "uploaded: sdl",
         persistedStartingSdl: "uploaded: sdl",
         persistedName: "upload",
+        persistedRuntimeLimitHours: 4,
         persistedInheritSecretsFrom: "99"
       });
       expect(getConfigureDraft).not.toHaveBeenCalled();

@@ -76,14 +76,18 @@ export const CreateDeploymentCard: FC<ActionCardProps<"create_deployment"> & { d
     const isAutoLeased = "autoLease" in response.data && response.data.autoLease === true;
     const createdDeployment: CreatedDeployment = isAutoLeased
       ? { dseq, isAutoLeased }
-      : { dseq, isAutoLeased, configureUrl: UrlService.configureDeployment({ dseq, draftId: createDraft(), templateId }) };
+      : { dseq, isAutoLeased, configureUrl: UrlService.configureDeployment({ dseq, draftId: createDraft() }) };
     if (isAutoLeased) recordOneClickDeploy(dseq, templateId);
     setCreated(createdDeployment);
     await queryClient.invalidateQueries({ queryKey: api.v1.listActivities.getKey() });
     return createdDeployment.isAutoLeased ? { dseq } : { dseq, followUrl: createdDeployment.configureUrl };
   };
 
-  const createDraft = () => d.createConfigureDraft(action.sdl, action.name ? { name: action.name } : {});
+  const createDraft = () =>
+    d.createConfigureDraft(action.sdl, {
+      ...(action.name ? { name: action.name } : {}),
+      ...(action.runtimeLimitHours ? { runtimeLimitHours: action.runtimeLimitHours } : {})
+    });
 
   const openInEditor = async () => {
     assertOpensInEditor(action.sdl);
