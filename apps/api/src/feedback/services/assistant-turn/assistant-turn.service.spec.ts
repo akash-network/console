@@ -18,7 +18,7 @@ import {
   type ChatToolCall
 } from "@src/feedback/services/akashml-client/akashml.client";
 import type { AssistantLimitsService } from "@src/feedback/services/assistant-limits/assistant-limits.service";
-import type { AssistantToolRunnerService } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
+import { type AssistantToolRunnerService, toolContentOf } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
 import type { AssistantTranscriptService } from "@src/feedback/services/assistant-transcript/assistant-transcript.service";
 import {
   ANSWER_NOW_NOTE,
@@ -177,7 +177,12 @@ describe(AssistantTurnService.name, () => {
     akashMlClient.streamChatCompletion
       .mockImplementationOnce(streamed({ toolCalls: [toolCall("c1", "get_bids", { dseq: "42" })] }))
       .mockImplementation(streamed({}));
-    toolRunner.run.mockResolvedValue({ kind: "result", content: "{}", summary: "Read the bids on deployment 42", ok: true });
+    toolRunner.run.mockResolvedValue({
+      kind: "result",
+      content: toolContentOf("get_bids", { data: { bids: [], leaseCount: 0 } }),
+      summary: "Read the bids on deployment 42",
+      ok: true
+    });
     const answer =
       'I read the bids on deployment 42, but could not finish my answer. Next step: ask "Why no bids on deployment 42?", or redeploy it from the deployment editor with changed requirements.';
 

@@ -1,30 +1,44 @@
 import { describe, expect, it } from "vitest";
 
 import type { ChatMessage, ChatToolCall } from "@src/feedback/services/akashml-client/akashml.client";
+import { toolContentOf } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
 import { fallbackAnswerOf } from "./assistant-fallback-answer";
+
+const NO_BIDS = { bids: [], leaseCount: 0 };
+const NEVER_LEASED = { leases: [] };
 
 function toolCall(id: string, name: string, args: Record<string, unknown> | string = {}): ChatToolCall {
   return { id, type: "function", function: { name, arguments: typeof args === "string" ? args : JSON.stringify(args) } };
 }
 
 function turnOf(...calls: ChatToolCall[]): ChatMessage[] {
+  return turnWithResultsOf(...calls.map(call => ({ call })));
+}
+
+function turnWithResultsOf(...reads: { call: ChatToolCall; result?: string }[]): ChatMessage[] {
   return [
     { role: "user", content: "earlier" },
     { role: "assistant", content: null, tool_calls: [toolCall("old", "get_bids", { dseq: "7" })] },
+    { role: "tool", tool_call_id: "old", content: toolContentOf("get_bids", { data: NO_BIDS }) },
     { role: "user", content: "this template didn't work" },
-    { role: "assistant", content: null, tool_calls: calls }
+    { role: "assistant", content: null, tool_calls: reads.map(({ call }) => call) },
+    ...reads.flatMap(({ call, result }): ChatMessage[] => (result === undefined ? [] : [{ role: "tool", tool_call_id: call.id, content: result }]))
   ];
+}
+
+function readOf(id: string, name: string, dseq: string, data: unknown) {
+  return { call: toolCall(id, name, { dseq }), result: toolContentOf(name, { data }) };
 }
 
 describe(fallbackAnswerOf.name, () => {
   it("names each read once and suggests asking why there are no bids on a closed or bidless deployment", () => {
     expect(
       fallbackAnswerOf(
-        turnOf(
-          toolCall("c1", "list_deployments", { state: "closed" }),
-          toolCall("c2", "list_deployments"),
-          toolCall("c3", "get_lease_close_reason", { dseq: "1793943682195" }),
-          toolCall("c4", "read_logs", { dseq: "1793943682195" })
+        turnWithResultsOf(
+          { call: toolCall("c1", "list_deployments", { state: "closed" }) },
+          { call: toolCall("c2", "list_deployments") },
+          readOf("c3", "get_lease_close_reason", "1793943682195", NEVER_LEASED),
+          { call: toolCall("c4", "read_logs", { dseq: "1793943682195" }) }
         )
       )
     ).toBe(
@@ -33,8 +47,35 @@ describe(fallbackAnswerOf.name, () => {
   });
 
   it("points at the latest deployment without bids", () => {
-    expect(fallbackAnswerOf(turnOf(toolCall("c1", "get_bids", { dseq: "1" }), toolCall("c2", "get_bids", { dseq: "2" })))).toContain(
-      '"Why no bids on deployment 2?"'
+    const answer = fallbackAnswerOf(
+      turnWithResultsOf(
+        readOf("c1", "get_bids", "1", NO_BIDS),
+        readOf("c2", "get_bids", "2", NO_BIDS),
+        readOf("c3", "get_bids", "3", { bids: [{ provider: "akash1p" }], leaseCount: 0 })
+      )
+    );
+
+    expect(answer).toContain('"Why no bids on deployment 2?"');
+  });
+
+  it.each([
+    { case: "bids it read", name: "get_bids", data: { bids: [{ provider: "akash1p" }], leaseCount: 0 } },
+    { case: "a lease it read", name: "get_bids", data: { bids: [], leaseCount: 1 } },
+    { case: "bids without a lease count", name: "get_bids", data: { bids: [] } },
+    { case: "a closed lease", name: "get_lease_close_reason", data: { leases: [{ state: "closed" }] } },
+    { case: "a close reason without leases", name: "get_lease_close_reason", data: {} },
+    { case: "a read that is not a bid read", name: "get_deployment", data: { ...NO_BIDS, ...NEVER_LEASED } },
+    { case: "data that is not an object", name: "get_bids", data: "no bids" },
+    { case: "no data", name: "get_bids", data: null }
+  ])("does not suggest asking about missing bids after $case", ({ name, data }) => {
+    expect(fallbackAnswerOf(turnWithResultsOf(readOf("c1", name, "1", data)))).toContain("Next step: tell me what you expected deployment 1 to do");
+  });
+
+  it("does not suggest asking about missing bids when the bid read has no parseable result", () => {
+    const truncated = { call: toolCall("c1", "get_bids", { dseq: "1" }), result: '{"tool":"get_bids","data":{"bids":[...[truncated]' };
+
+    expect(fallbackAnswerOf(turnWithResultsOf(truncated, { call: toolCall("c2", "get_bids", { dseq: "2" }) }))).toContain(
+      "Next step: tell me what you expected deployment 2 to do"
     );
   });
 
