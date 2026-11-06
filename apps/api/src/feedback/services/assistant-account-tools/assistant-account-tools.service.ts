@@ -1,4 +1,5 @@
 import { isHttpError } from "http-errors";
+import uniq from "lodash/uniq";
 import { singleton } from "tsyringe";
 import { z } from "zod";
 
@@ -6,10 +7,12 @@ import { AuthService } from "@src/auth/services/auth.service";
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
 import { WalletSettingController } from "@src/billing/controllers/wallet-settings/wallet-settings.controller";
 import { DeploymentController } from "@src/deployment/controllers/deployment/deployment.controller";
+import type { DeploymentSpendRate } from "@src/deployment/http-schemas/deployment.schema";
 import { tokenize } from "@src/feedback/lib/assistant-knowledge/assistant-knowledge";
 import { AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
 import type { ReadToolArguments } from "@src/feedback/lib/assistant-tools/assistant-tool-arguments";
 import { CONSOLE_TEMPLATES, consoleTemplateById } from "@src/feedback/lib/console-templates/console-templates";
+import { AssistantUsdService } from "@src/feedback/services/assistant-usd/assistant-usd.service";
 import { TemplateController } from "@src/template/controllers/template/template.controller";
 
 const LISTED_TEMPLATES_LIMIT = 10;
@@ -85,7 +88,8 @@ export class AssistantAccountToolsService {
     private readonly walletController: WalletController,
     private readonly walletSettingController: WalletSettingController,
     private readonly deploymentController: DeploymentController,
-    private readonly templateController: TemplateController
+    private readonly templateController: TemplateController,
+    private readonly usdService: AssistantUsdService
   ) {}
 
   async getBalanceAndSpend(_: ReadToolArguments<"get_balance_and_spend">) {
@@ -98,11 +102,11 @@ export class AssistantAccountToolsService {
     const wallet = wallets?.data[0];
 
     return {
-      creditBalanceUsd: wallet?.creditAmount ?? null,
+      creditBalanceUsd: wallet ? await this.usdService.usdOf([{ denom: wallet.denom, amount: wallet.creditAmount }]) : null,
       isTrialing: wallet?.isTrialing ?? null,
       trialEndsAt: wallet?.trialEndsAt ?? null,
       weeklyCostUsd: weeklyCost?.data.weeklyCost ?? null,
-      spendPerBlockByDeployment: spendRate?.data.deployments ?? null,
+      spendByDeployment: spendRate ? await this.#spendByDeployment(spendRate.data.deployments) : null,
       autoRecharge: walletSettings
         ? {
             enabled: walletSettings.data.autoReloadEnabled,
@@ -111,6 +115,20 @@ export class AssistantAccountToolsService {
           }
         : { enabled: false }
     };
+  }
+
+  /** The spend rate lists one entry per denom of a deployment, so each deployment's entries are summed into one monthly cost. */
+  async #spendByDeployment(spendRates: DeploymentSpendRate[]) {
+    const dseqs = uniq(spendRates.map(({ dseq }) => dseq));
+    const names = await settledOrNull(this.deploymentController.findNames(dseqs));
+
+    return await Promise.all(
+      dseqs.map(async dseq => ({
+        dseq,
+        name: names?.data[dseq] ?? null,
+        usdPerMonth: await this.usdService.usdPerMonthOf(spendRates.filter(spendRate => spendRate.dseq === dseq).map(({ price }) => price))
+      }))
+    );
   }
 
   async listTemplates({ query }: ReadToolArguments<"list_templates">) {

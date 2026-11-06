@@ -11,6 +11,10 @@ describe(buildAssistantSystemPrompt.name, () => {
     expect(prompt).toContain("Never ask the user to paste a secret");
     expect(prompt).toContain("Never propose changing an SDL's price or denom.");
     expect(prompt).toContain("uact is the right denom, not a typo of uakt");
+    expect(prompt).toContain("State every amount in US dollars");
+    expect(prompt).toContain("Never mention uact, ACT, AKT, denoms, blocks or per-block prices in an answer unless the user asks what they are");
+    expect(prompt).toContain("linked to its page as [name](/deployments/<dseq>)");
+    expect(prompt).toContain("Never write a bare dseq in an answer.");
     expect(prompt).toContain("never tell the user to raise the price, bid or pay more, or switch the denom");
     expect(prompt).toContain('try another template, or ask "Why no bids?" on that deployment');
     expect(prompt).toContain("never suggest depositing into a deployment's escrow");
@@ -56,7 +60,7 @@ describe(buildAssistantSystemPrompt.name, () => {
     });
 
     expect(prompt.split("\n").at(-1)).toBe(
-      'Latest assistant cards the user acted on, oldest first: create deployment named "dart": confirmed, succeeded at 2026-11-06 05:38 UTC; close deployment on deployment 7: cancelled at 2026-11-06 05:40 UTC. When the user refers to what they just did, read that deployment instead of asking which one, and name its dseq; a deployment created from a card is their newest one.'
+      'Latest assistant cards the user acted on, oldest first: create deployment named "dart": confirmed, succeeded at 2026-11-06 05:38 UTC; close deployment on deployment 7: cancelled at 2026-11-06 05:40 UTC. When the user refers to what they just did, read that deployment instead of asking which one, and link it by name; a deployment created from a card is their newest one.'
     );
   });
 

@@ -3,12 +3,14 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { BidController } from "@src/bid/controllers/bid/bid.controller";
+import type { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import type { CreateLogger } from "@src/core";
 import type { DeploymentController } from "@src/deployment/controllers/deployment/deployment.controller";
 import type { BidScreeningHttpService } from "@src/deployment/services/bid-screening-http/bid-screening-http.service";
 import type { PlacementOptionsHttpService } from "@src/deployment/services/placement-options-http/placement-options-http.service";
 import type { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
+import { AssistantUsdService } from "@src/feedback/services/assistant-usd/assistant-usd.service";
 import { AssistantBidToolsService } from "./assistant-bid-tools.service";
 
 import { createBid } from "@test/seeders/bid.seeder";
@@ -27,6 +29,7 @@ describe(AssistantBidToolsService.name, () => {
   it("lists the bids and skips screening when an open bid exists", async () => {
     const { service, bidController, sdlService } = setup();
     const bid = createBid({ dseq: "42", gseq: 1, oseq: 1 });
+    bid.bid.price = { denom: "uact", amount: "2.93" };
     bidController.list.mockResolvedValue({ data: [bid] });
 
     const result = await service.getBids({ dseq: "42" });
@@ -36,7 +39,7 @@ describe(AssistantBidToolsService.name, () => {
       dseq: "42",
       deploymentState: "active",
       leaseCount: 0,
-      bids: [{ gseq: 1, oseq: 1, provider: bid.bid.id.provider, state: "open", price: bid.bid.price, reclamationWindow: null }],
+      bids: [{ gseq: 1, oseq: 1, provider: bid.bid.id.provider, state: "open", usdPerMonth: 1.28, reclamationWindow: null }],
       availability: null
     });
     expect(sdlService.generateManifest).not.toHaveBeenCalled();
@@ -273,12 +276,15 @@ describe(AssistantBidToolsService.name, () => {
     const bidScreeningHttpService = mock<BidScreeningHttpService>();
     const placementOptionsHttpService = mock<PlacementOptionsHttpService>();
     const logger = mock<ReturnType<CreateLogger>>();
+    const denomExchangeService = mock<DenomExchangeService>();
+    denomExchangeService.getExchangeRateToUSD.mockResolvedValue(mock<Awaited<ReturnType<DenomExchangeService["getExchangeRateToUSD"]>>>({ price: 1 }));
     const service = new AssistantBidToolsService(
       bidController,
       deploymentController,
       sdlService,
       bidScreeningHttpService,
       placementOptionsHttpService,
+      new AssistantUsdService(denomExchangeService),
       vi.fn<CreateLogger>(() => logger)
     );
 

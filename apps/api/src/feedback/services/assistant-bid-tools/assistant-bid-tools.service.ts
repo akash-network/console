@@ -10,6 +10,7 @@ import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { extractRequestedGpusFromGroupSpecs } from "@src/deployment/utils/blocked-gpu/blocked-gpu";
 import { AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
 import type { ReadToolArguments } from "@src/feedback/lib/assistant-tools/assistant-tool-arguments";
+import { AssistantUsdService } from "@src/feedback/services/assistant-usd/assistant-usd.service";
 
 export interface GroupAvailability {
   group: string;
@@ -34,6 +35,7 @@ export class AssistantBidToolsService {
     private readonly sdlService: SdlService,
     private readonly bidScreeningHttpService: BidScreeningHttpService,
     private readonly placementOptionsHttpService: PlacementOptionsHttpService,
+    private readonly usdService: AssistantUsdService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.#logger = createLogger({ context: AssistantBidToolsService.name });
@@ -48,14 +50,16 @@ export class AssistantBidToolsService {
       dseq,
       deploymentState: deployment.deployment.state,
       leaseCount: deployment.leases.length,
-      bids: bids.map(({ bid }) => ({
-        gseq: bid.id.gseq,
-        oseq: bid.id.oseq,
-        provider: bid.id.provider,
-        state: bid.state,
-        price: bid.price,
-        reclamationWindow: bid.reclamation_window ?? null
-      })),
+      bids: await Promise.all(
+        bids.map(async ({ bid }) => ({
+          gseq: bid.id.gseq,
+          oseq: bid.id.oseq,
+          provider: bid.id.provider,
+          state: bid.state,
+          usdPerMonth: await this.usdService.usdPerMonthOf([bid.price]),
+          reclamationWindow: bid.reclamation_window ?? null
+        }))
+      ),
       availability: isWaitingOnBids ? await this.#availabilityOf(deployment.consoleSettings?.sdl) : null
     };
   }

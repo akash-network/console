@@ -189,6 +189,21 @@ describe(scoreAssistantEval.name, () => {
     expect(scoreAssistantEval("reprice", { neverAdvisesRepricing: true }, { toolCalls: [], answer }).failures).toEqual([]);
   });
 
+  it("passes an answer that names a deployment only through its link", () => {
+    const answer = "[my-web](/deployments/42) costs $1.28 per month.";
+
+    expect(scoreAssistantEval("spend", { linksDeployments: ["42"] }, { toolCalls: [], answer })).toEqual({ id: "spend", passed: true, failures: [] });
+  });
+
+  it("reports a deployment it does not link and one whose dseq it also writes bare", () => {
+    const answer = "Deployment 42 costs $1.28 per month, and [deployment 4...](/deployments/43) on 43 costs $2.";
+
+    expect(scoreAssistantEval("spend", { linksDeployments: ["42", "43"] }, { toolCalls: [], answer }).failures).toEqual([
+      "answer does not link deployment 42",
+      "answer writes a bare dseq 43"
+    ]);
+  });
+
   it("fails an answer the model left to the fallback", () => {
     expect(scoreAssistantEval("silent", {}, { toolCalls: [], answer: "I read your deployments.", fellBack: true }).failures).toEqual([
       "answered only with the fallback"
