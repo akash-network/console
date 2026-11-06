@@ -5,9 +5,9 @@ import { mock } from "vitest-mock-extended";
 import type { AssistantConsentCard } from "../AssistantConsentCard/AssistantConsentCard";
 import { ASSISTANT_CONSENT_COPY_VERSION } from "../assistantConsentCopy";
 import type { AssistantConversation } from "../useAssistantConversation/useAssistantConversation";
-import { AssistantPanel, DEPENDENCIES } from "./AssistantPanel";
+import { ASSISTANT_PANEL_WIDTH_VAR, AssistantPanel, DEPENDENCIES } from "./AssistantPanel";
 
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
@@ -21,10 +21,55 @@ const CURRENT_CONSENT: Privacy["consent"] = {
 };
 
 describe("AssistantPanel", () => {
+  it("docks beside the page without a modal or backdrop, so the page stays usable", async () => {
+    const { onPageAction } = setup({ consent: CURRENT_CONSENT });
+
+    expect(screen.getByRole("complementary", { name: "Console assistant" })).not.toHaveAttribute("aria-modal");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Page action" }));
+    expect(onPageAction).toHaveBeenCalledTimes(1);
+  });
+
+  it("makes room for itself beside the page while open", () => {
+    const { rerenderOpen, unmount } = setup({ consent: CURRENT_CONSENT });
+    expect(document.documentElement.style.getPropertyValue(ASSISTANT_PANEL_WIDTH_VAR)).toBe("440px");
+
+    rerenderOpen(false);
+    expect(document.documentElement.style.getPropertyValue(ASSISTANT_PANEL_WIDTH_VAR)).toBe("");
+
+    rerenderOpen(true);
+    unmount();
+    expect(document.documentElement.style.getPropertyValue(ASSISTANT_PANEL_WIDTH_VAR)).toBe("");
+  });
+
+  it("moves focus into the panel when it opens and on every new open request", () => {
+    const { rerenderOpen } = setup({ consent: CURRENT_CONSENT });
+    expect(screen.getByRole("complementary", { name: "Console assistant" })).toHaveFocus();
+
+    screen.getByRole("button", { name: "Page action" }).focus();
+    rerenderOpen(true, 2);
+
+    expect(screen.getByRole("complementary", { name: "Console assistant" })).toHaveFocus();
+  });
+
+  it("closes on Escape unless something inside handled it", () => {
+    const { onOpenChange } = setup({ consent: CURRENT_CONSENT });
+    const panel = screen.getByRole("complementary", { name: "Console assistant" });
+    const handled = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+    handled.preventDefault();
+
+    fireEvent(panel, handled);
+    fireEvent.keyDown(panel, { key: "Enter" });
+    expect(onOpenChange).not.toHaveBeenCalled();
+
+    expect(fireEvent.keyDown(panel, { key: "Escape" })).toBe(false);
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
   it("asks for consent before the first message", () => {
     const { dependencies } = setup({ consent: null });
 
-    expect(screen.getByRole("dialog", { name: "Console assistant" })).toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: "Console assistant" })).toBeInTheDocument();
     expect(dependencies.AssistantConsentCard).toHaveBeenCalled();
     expect(dependencies.AssistantTranscript).not.toHaveBeenCalled();
     expect(dependencies.AssistantComposer).not.toHaveBeenCalled();
@@ -93,7 +138,7 @@ describe("AssistantPanel", () => {
     const { dependencies } = setup({ consent: null, isOpen: false });
 
     expect(dependencies.useAssistantPrivacyQuery).toHaveBeenCalledWith({ enabled: false });
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
   });
 
   it("shows a loader while consent loads", () => {
@@ -115,7 +160,7 @@ describe("AssistantPanel", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Close" }));
 
-    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
   function setup(input: {
@@ -149,20 +194,28 @@ describe("AssistantPanel", () => {
       clearProblem: vi.fn()
     });
     const onOpenChange = vi.fn();
-
-    render(
-      <AssistantPanel
-        isOpen={input.isOpen ?? true}
-        onOpenChange={onOpenChange}
-        conversation={conversation}
-        question={input.question}
-        openedAt={1}
-        dependencies={dependencies}
-      />
+    const onPageAction = vi.fn();
+    const renderAt = (isOpen: boolean, openedAt = 1) => (
+      <>
+        <button type="button" onClick={onPageAction}>
+          Page action
+        </button>
+        <AssistantPanel
+          isOpen={isOpen}
+          onOpenChange={onOpenChange}
+          conversation={conversation}
+          question={input.question}
+          openedAt={openedAt}
+          dependencies={dependencies}
+        />
+      </>
     );
+
+    const view = render(renderAt(input.isOpen ?? true));
+    const rerenderOpen = (isOpen: boolean, openedAt?: number) => view.rerender(renderAt(isOpen, openedAt));
 
     const consentCardProps = () => vi.mocked(dependencies.AssistantConsentCard).mock.lastCall![0] as ComponentProps<typeof AssistantConsentCard>;
 
-    return { dependencies, conversation, updateConsent, onOpenChange, consentCardProps };
+    return { dependencies, conversation, updateConsent, onOpenChange, onPageAction, consentCardProps, rerenderOpen, unmount: view.unmount };
   }
 });

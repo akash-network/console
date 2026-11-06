@@ -91,6 +91,12 @@ describe("CreateDeploymentCard", () => {
     expect(chromeProps().successMessage).toBe("Deploying 1234. Console picks a provider and starts the lease. Follow it in Activities.");
   });
 
+  it("reports the new deployment so the assistant can follow it", async () => {
+    const { chromeProps } = setup();
+
+    await expect(chromeProps().onConfirm!("")).resolves.toEqual({ dseq: "1234" });
+  });
+
   it("leaves the optional fields out of the create when the action has none", async () => {
     const { chromeProps, createDeployment, recordOneClickDeploy } = setup({ action: { name: null, templateId: null, runtimeLimitHours: null } });
 

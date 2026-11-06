@@ -2,12 +2,13 @@
 import type { FC } from "react";
 
 import type { AssistantAction } from "@src/types/assistant";
+import { useFollowDeployment } from "../../useFollowDeployment/useFollowDeployment";
 import { ACTION_CARD_REGISTRY } from "../actionCardRegistry";
 import type { ActionCardComponent, ActionCardRegistry } from "../actionCardTypes";
 import { GenericActionCard } from "../GenericActionCard/GenericActionCard";
 import { useActionCardDecision } from "../useActionCardDecision/useActionCardDecision";
 
-export const DEPENDENCIES = { useActionCardDecision, GenericActionCard };
+export const DEPENDENCIES = { useActionCardDecision, useFollowDeployment, GenericActionCard };
 
 type Props = {
   conversationId: string | null;
@@ -27,7 +28,8 @@ export const ActionCard: FC<Props> = ({
   continueConversation,
   dependencies: d = DEPENDENCIES
 }) => {
-  const decision = d.useActionCardDecision({ conversationId, proposalId, actionType: action.type });
+  const followDeployment = d.useFollowDeployment();
+  const decision = d.useActionCardDecision({ conversationId, proposalId, actionType: action.type, ...followedDeploymentOf(action, followDeployment) });
   const Card = registry[action.type] as ActionCardComponent<typeof action.type> | undefined;
 
   return Card ? (
@@ -36,3 +38,16 @@ export const ActionCard: FC<Props> = ({
     <d.GenericActionCard action={action} decision={decision} />
   );
 };
+
+function followedDeploymentOf(action: AssistantAction, followDeployment: (dseq: string) => void) {
+  switch (action.type) {
+    case "create_deployment":
+      return { followDeployment };
+    case "update_deployment":
+    case "close_deployment":
+    case "choose_bid":
+      return { dseq: action.dseq, followDeployment };
+    default:
+      return {};
+  }
+}

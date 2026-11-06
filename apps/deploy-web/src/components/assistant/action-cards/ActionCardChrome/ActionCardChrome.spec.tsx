@@ -87,6 +87,20 @@ describe(ActionCardChrome.name, () => {
     expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
   });
 
+  it("links to the deployment the action acted on once done", () => {
+    setup({ status: "succeeded", deploymentDseq: "1234" });
+
+    expect(screen.getByRole("link", { name: "View deployment" })).toHaveAttribute("href", "/deployments/1234");
+  });
+
+  it("links to no deployment before the action is done or when it acted on none", () => {
+    setup({ status: "running", deploymentDseq: "1234" });
+    expect(screen.queryByRole("link", { name: "View deployment" })).not.toBeInTheDocument();
+
+    setup({ status: "succeeded" });
+    expect(screen.queryByRole("link", { name: "View deployment" })).not.toBeInTheDocument();
+  });
+
   it("says a cancelled card was cancelled", () => {
     setup({ status: "cancelled" });
 
@@ -116,9 +130,9 @@ describe(ActionCardChrome.name, () => {
     expect(screen.getAllByRole("button").map(button => button.textContent)).toEqual(["Cancel"]);
   });
 
-  function setup(input: Partial<Omit<ActionCardChromeProps, "decision">> & { status?: ActionCardDecision["status"]; error?: string }) {
-    const { status = "pending", error = null, ...props } = input;
-    const decision = mock<ActionCardDecision>({ status, error, confirm: vi.fn(), cancel: vi.fn(), markOpened: vi.fn() });
+  function setup(input: Partial<Omit<ActionCardChromeProps, "decision">> & { status?: ActionCardDecision["status"]; error?: string; deploymentDseq?: string }) {
+    const { status = "pending", error = null, deploymentDseq = null, ...props } = input;
+    const decision = mock<ActionCardDecision>({ status, error, deploymentDseq, confirm: vi.fn(), cancel: vi.fn(), markOpened: vi.fn() });
     const onConfirm = vi.fn(async (_reason: string) => {});
 
     render(<ActionCardChrome title="Card" tier="confirm" decision={decision} onConfirm={onConfirm} {...props} />);
