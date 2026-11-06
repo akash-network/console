@@ -64,8 +64,9 @@ export const CLIENT_TOOL_ARGUMENTS = {
 
 export const CONFIGURE_FORM_TOOL_NAMES = ["read_configure_form", "propose_edit_configure_form"] as const;
 
-function changesSomething({ services, placements }: { services?: object; placements?: object }): boolean {
-  return Object.keys(services ?? {}).length + Object.keys(placements ?? {}).length > 0;
+function changesSomething({ services, placements }: { services?: Record<string, object>; placements?: Record<string, object> }): boolean {
+  const edits = [...Object.values(services ?? {}), ...Object.values(placements ?? {})];
+  return edits.length > 0 && edits.every(changes => Object.keys(changes).length > 0);
 }
 
 const ResourceChangeSchema = z
@@ -158,7 +159,7 @@ export const PROPOSAL_TOOL_ARGUMENTS = {
         .record(z.string().min(1).max(MAX_NAME_LENGTH).openapi({ description: "A placement name read_configure_form returned" }), ConfigurePlacementEditSchema)
         .optional()
     })
-    .refine(changesSomething, { message: "Change at least one service or placement" })
+    .refine(changesSomething, { message: "Change at least one field of each service or placement you name" })
 };
 
 export const LIVE_HELP_TOOL_NAME = "suggest_live_help";

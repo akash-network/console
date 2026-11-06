@@ -131,7 +131,9 @@ describe("assistant tools", () => {
     expect(edit.safeParse({ reason: "cheaper", services: { web: { pricing: { amount: 1 } } } }).success).toBe(false);
     expect(edit.safeParse({ reason: "nothing" }).success).toBe(false);
     expect(edit.safeParse({ reason: "nothing", services: {}, placements: {} }).success).toBe(false);
-    expect(edit.safeParse({ reason: "ssd", placements: { dcloud: {} } }).success).toBe(true);
+    expect(edit.safeParse({ reason: "ssd", placements: { dcloud: {} } }).success).toBe(false);
+    expect(edit.safeParse({ reason: "ssd", services: { web: { memory: "1Gi" } }, placements: { dcloud: {} } }).success).toBe(false);
+    expect(edit.safeParse({ reason: "any region", placements: { dcloud: { regions: [] } } }).success).toBe(true);
   });
 
   it("lets a fix carry an optional diagnosis next to its own arguments", () => {
