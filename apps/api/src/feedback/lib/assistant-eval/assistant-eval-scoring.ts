@@ -9,6 +9,7 @@ export interface AssistantEvalExpectation {
   neverProposes?: boolean;
   neverProposesTypes?: ProposalActionType[];
   mentions?: string[];
+  mentionsAnyOf?: string[];
   neverMentions?: string[];
   neverRepeatsCalls?: boolean;
   neverAdvisesRepricing?: boolean;
@@ -83,9 +84,12 @@ function proposalFailures(expected: AssistantEvalExpectation, transcript: Assist
 
 function answerFailures(expected: AssistantEvalExpectation, answer: string): string[] {
   const missing = (expected.mentions ?? []).filter(text => !includesText(answer, text)).map(text => `answer lacks "${text}"`);
+  const alternatives = expected.mentionsAnyOf ?? [];
+  const lacksEveryAlternative = alternatives.length > 0 && !alternatives.some(text => includesText(answer, text));
+  const missingAlternative = lacksEveryAlternative ? [`answer lacks any of "${alternatives.join('", "')}"`] : [];
   const forbidden = (expected.neverMentions ?? []).filter(text => includesText(answer, text)).map(text => `answer says "${text}"`);
 
-  return [...missing, ...forbidden];
+  return [...missing, ...missingAlternative, ...forbidden];
 }
 
 function repricingFailures(expected: AssistantEvalExpectation, answer: string): string[] {

@@ -195,6 +195,18 @@ describe(scoreAssistantEval.name, () => {
     ]);
   });
 
+  it("passes when the answer says any one of the alternatives, ignoring case", () => {
+    const result = scoreAssistantEval("alternatives", { mentionsAnyOf: ["redeploy", "Deadline"] }, { toolCalls: [], answer: "Move it before the DEADLINE." });
+
+    expect(result).toEqual({ id: "alternatives", passed: true, failures: [] });
+  });
+
+  it("reports an answer that says none of the alternatives", () => {
+    const result = scoreAssistantEval("alternatives", { mentionsAnyOf: ["redeploy", "deadline"] }, { toolCalls: [], answer: "Nothing to do." });
+
+    expect(result.failures).toEqual(['answer lacks any of "redeploy", "deadline"']);
+  });
+
   it("names only tools the assistant offers in every case", () => {
     const toolNames = new Set(assistantChatTools().map(tool => tool.function.name));
     const named = ASSISTANT_EVAL_CASES.flatMap(evalCase => [
