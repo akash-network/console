@@ -73,6 +73,7 @@ export const CreateDeploymentCard: FC<ActionCardProps<"create_deployment"> & { d
     if (isAutoLeased) recordOneClickDeploy(dseq, templateId);
     setCreated({ dseq, isAutoLeased });
     await queryClient.invalidateQueries({ queryKey: api.v1.listActivities.getKey() });
+    return { dseq };
   };
 
   const openInEditor = () => {

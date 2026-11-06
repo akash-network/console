@@ -141,15 +141,16 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   const leaseProviderAddresses = useMemo(() => leases?.map(lease => lease.provider) ?? [], [leases]);
   const { data: providers, isFetching: isLoadingProviders } = d.useProvidersByAddresses(leaseProviderAddresses);
 
-  const { leaseCreation, isUpdating, isResolving: isResolvingActivity } = d.useDeploymentActivity(dseq);
+  const { leaseCreation, isUpdating, isCreating, isResolving: isResolvingActivity } = d.useDeploymentActivity(dseq);
   const launch = deployment && deploymentLaunchOf({ state: deployment.state, leases, leaseCreation, isUpdating });
 
   const definition = d.useDeploymentDefinition(dseq, { acceptReferences: true });
   const deploymentManifest = definition.sdl || "";
   const isActive = deployment?.state === "active" && !!leases?.some(isLeaseLive);
   const isAwaitingLease = !!leases && deployment?.state === "active" && leases.length === 0 && !deployment.groups?.some(g => g.state === "paused");
-  const isDeploymentNotFound = !!extractApiErrorMessage(deploymentError)?.includes("Deployment not found") && !isLoadingDeployment;
-  const showsPageSkeleton = !isDeploymentNotFound && !deploymentError && !isLeasesError && (!deployment || !isLeasesLoaded);
+  const isAwaitingCreate = isCreating && !deployment;
+  const isDeploymentNotFound = !isAwaitingCreate && !!extractApiErrorMessage(deploymentError)?.includes("Deployment not found") && !isLoadingDeployment;
+  const showsPageSkeleton = isAwaitingCreate || (!isDeploymentNotFound && !deploymentError && !isLeasesError && (!deployment || !isLeasesLoaded));
   /** The placement cards read their services off the definition, so rendering them before it lands shows "0 services" and then corrects itself. */
   const showsPlacementsSkeleton = definition.source === "resolving";
   const { outcomes: recordedOutcomes } = d.useDeploymentOutcomes();

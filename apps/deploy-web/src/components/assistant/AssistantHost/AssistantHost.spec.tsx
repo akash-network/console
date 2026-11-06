@@ -4,7 +4,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { AssistantPanel } from "../AssistantPanel/AssistantPanel";
 import type { AssistantConversation } from "../useAssistantConversation/useAssistantConversation";
-import { AssistantHost, DEPENDENCIES, dseqOfPath } from "./AssistantHost";
+import { AssistantHost, DEPENDENCIES } from "./AssistantHost";
 
 import { act, render } from "@testing-library/react";
 import { MockComponents } from "@tests/unit/mocks";
@@ -33,6 +33,12 @@ describe(AssistantHost.name, () => {
     expect(dependencies.useAssistantConversation).toHaveBeenCalledWith({ context: { page: "/new-deployment", dseq: "77" } });
   });
 
+  it("prefers the deployment on the page, which the panel follows across navigation", () => {
+    const { dependencies } = setup({ pathname: "/deployments/42", request: { context: { dseq: "77" } } });
+
+    expect(dependencies.useAssistantConversation).toHaveBeenCalledWith({ context: { page: "/deployments/42", dseq: "42" } });
+  });
+
   it("reads the deployment from the page when the request names none", () => {
     const { dependencies } = setup({ pathname: "/deployments/42" });
 
@@ -49,26 +55,13 @@ describe(AssistantHost.name, () => {
     expect(close).toHaveBeenCalledTimes(1);
   });
 
-  it("closes the panel when the user navigates, and only then", () => {
-    const { close, rerenderAt } = setup({ pathname: "/deployments" });
+  it("keeps the panel open with the same conversation while the user navigates", () => {
+    const { close, conversation, panelProps, rerenderAt } = setup({ pathname: "/new-deployment", isOpen: true });
+
+    rerenderAt("/deployments/42");
+
     expect(close).not.toHaveBeenCalled();
-
-    rerenderAt("/deployments");
-    expect(close).not.toHaveBeenCalled();
-
-    rerenderAt("/billing");
-    expect(close).toHaveBeenCalledTimes(1);
-  });
-
-  describe(dseqOfPath.name, () => {
-    it("finds the dseq of a deployment page only", () => {
-      expect(dseqOfPath("/deployments/123")).toBe("123");
-      expect(dseqOfPath("/deployments/123/logs")).toBe("123");
-      expect(dseqOfPath("/deployments")).toBeUndefined();
-      expect(dseqOfPath("/deployments/abc")).toBeUndefined();
-      expect(dseqOfPath("/x/deployments/1")).toBeUndefined();
-      expect(dseqOfPath(null)).toBeUndefined();
-    });
+    expect(panelProps()).toEqual(expect.objectContaining({ isOpen: true, conversation }));
   });
 
   function setup(input: {

@@ -47,6 +47,7 @@ export const LAUNCH_STATUSES: Record<DeploymentLaunchStep, DeploymentStatusView>
 export type ResolvedDeploymentStatus = DeploymentStatusView & { launch?: DeploymentLaunch };
 
 export interface DeploymentActivity {
+  isCreating: boolean;
   isClosing: boolean;
   isUpdating: boolean;
   /** The newest one, as the feed lists newest first, so a retry replaces the attempt it follows. */
@@ -66,6 +67,7 @@ export function useDeploymentActivity(dseq: string, dependencies: typeof DEPENDE
     const aboutDeployment = activities?.filter(activity => activity.meta.dseq === dseq) ?? [];
 
     return {
+      isCreating: aboutDeployment.some(activity => isPending(activity, "deployment_create")),
       isClosing: aboutDeployment.some(activity => isPending(activity, "deployment_close")),
       isUpdating: aboutDeployment.some(activity => isPending(activity, "deployment_update")),
       leaseCreation: standingLeaseCreationOf(aboutDeployment),

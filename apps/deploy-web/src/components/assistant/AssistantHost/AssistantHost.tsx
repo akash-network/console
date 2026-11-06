@@ -1,10 +1,10 @@
 "use client";
-import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 
 import { useFlag } from "@src/hooks/useFlag";
 import { useUser } from "@src/hooks/useUser";
 import { AssistantPanel } from "../AssistantPanel/AssistantPanel";
+import { dseqOfPath } from "../dseqOfPath/dseqOfPath";
 import { useAssistantConversation } from "../useAssistantConversation/useAssistantConversation";
 import { useAssistantPanel } from "../useAssistantPanel/useAssistantPanel";
 
@@ -12,13 +12,7 @@ export const DEPENDENCIES = { useFlag, useUser, usePathname, useAssistantPanel, 
 
 type Props = { dependencies?: typeof DEPENDENCIES };
 
-const DEPLOYMENT_PATH = /^\/deployments\/(\d+)(?:\/|$)/;
-
-export function dseqOfPath(pathname: string | null): string | undefined {
-  return pathname?.match(DEPLOYMENT_PATH)?.[1];
-}
-
-/** Hosts the one assistant panel, for signed-in users with the feedback loop enabled. */
+/** Hosts the one assistant panel above the pages, so it stays open with its conversation while the user navigates. */
 export function AssistantHost({ dependencies: d = DEPENDENCIES }: Props) {
   const isEnabled = d.useFlag("user_feedback_loop");
   const { user } = d.useUser();
@@ -30,19 +24,9 @@ function AssistantPanelHost({ dependencies: d }: { dependencies: typeof DEPENDEN
   const pathname = d.usePathname();
   const panel = d.useAssistantPanel();
   const conversation = d.useAssistantConversation({
-    context: { page: pathname ?? undefined, dseq: panel.request.context?.dseq ?? dseqOfPath(pathname) }
+    context: { page: pathname ?? undefined, dseq: dseqOfPath(pathname) ?? panel.request.context?.dseq }
   });
-  const shownPathname = useRef(pathname);
   const { close } = panel;
-
-  useEffect(
-    function closeOnNavigation() {
-      if (shownPathname.current === pathname) return;
-      shownPathname.current = pathname;
-      close();
-    },
-    [pathname, close]
-  );
 
   return (
     <d.AssistantPanel

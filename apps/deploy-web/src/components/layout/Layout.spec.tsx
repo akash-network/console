@@ -48,6 +48,12 @@ describe("Layout", () => {
     expect(wrapper).toHaveClass("flex", "h-page-viewport");
   });
 
+  it("makes room on wide screens for the docked assistant panel", () => {
+    const { container } = setup({ children: <div>page content</div> });
+
+    expect(container.firstElementChild).toHaveClass("lg:pr-[var(--assistant-panel-width,0px)]");
+  });
+
   it("renders the top navigation", () => {
     const { dependencies } = setup({});
 
@@ -68,13 +74,13 @@ describe("Layout", () => {
       useTopBanner: () => mock<ReturnType<typeof DEPENDENCIES.useTopBanner>>({ hasBanner: false })
     });
 
-    render(
+    const view = render(
       <Layout isLoading={input.isLoading} disableContainer={input.disableContainer} containerClassName={input.containerClassName} dependencies={dependencies}>
         {input.children}
       </Layout>
     );
 
-    return { dependencies };
+    return { dependencies, container: view.container };
   }
 });
 

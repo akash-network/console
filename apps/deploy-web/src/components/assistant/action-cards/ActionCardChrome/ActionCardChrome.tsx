@@ -7,7 +7,8 @@ import { CircleAlert, CircleCheck, ExternalLink } from "lucide-react";
 import Link from "next/link";
 
 import type { AssistantAction } from "@src/types/assistant";
-import type { ActionCardDecision } from "../useActionCardDecision/useActionCardDecision";
+import { UrlService } from "@src/utils/urlUtils";
+import type { ActionCardDecision, ActionCardOutcome } from "../useActionCardDecision/useActionCardDecision";
 
 export interface ActionCardRow {
   label: string;
@@ -42,7 +43,7 @@ export interface ActionCardChromeProps {
   reasonLabel?: string;
   successMessage?: string;
   /** Run on Confirm with the typed reason, if any; throws to show the error in the card. */
-  onConfirm?: (reason: string) => Promise<void>;
+  onConfirm?: (reason: string) => Promise<ActionCardOutcome | void>;
   isConfirmDisabled?: boolean;
   children?: ReactNode;
 }
@@ -120,6 +121,15 @@ export const ActionCardChrome: FC<ActionCardChromeProps> = ({
           <CircleCheck className="h-4 w-4 shrink-0 text-green-600" aria-hidden="true" />
           {deepLink ? "Opened." : successMessage}
         </p>
+      )}
+
+      {decision.status === "succeeded" && decision.deploymentDseq && (
+        <Link
+          href={UrlService.deploymentDetails(decision.deploymentDseq)}
+          className={buttonVariants({ variant: "outline", size: "sm", className: "self-start" })}
+        >
+          View deployment
+        </Link>
       )}
 
       {decision.status === "cancelled" && (

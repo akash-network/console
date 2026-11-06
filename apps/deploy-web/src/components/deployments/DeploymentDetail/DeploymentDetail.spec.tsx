@@ -112,6 +112,21 @@ describe("DeploymentDetail", () => {
     expect(screen.queryByText("shell")).not.toBeInTheDocument();
   });
 
+  it("waits on the skeleton instead of claiming the deployment is missing while Console still creates it", () => {
+    const error = new ApiError(404, { message: "Deployment not found" }, "GET /v1/deployments/1786440078202/info → 404");
+    setup({ deployment: null, error, isCreating: true });
+
+    expect(screen.queryByText(/this deployment does not exist/i)).not.toBeInTheDocument();
+    expect(screen.getByTestId("deployment-detail-skeleton")).toBeInTheDocument();
+  });
+
+  it("shows the deployment once the chain has it even while its create is still reported as running", () => {
+    setup({ isCreating: true });
+
+    expect(screen.queryByTestId("deployment-detail-skeleton")).not.toBeInTheDocument();
+    expect(screen.getByRole("tablist")).toBeInTheDocument();
+  });
+
   it("shows a not-found message when the deployment does not exist", () => {
     const error = new ApiError(404, { message: "Deployment not found" }, "GET /v1/deployments/1786440078202/info → 404");
     setup({ deployment: null, error });
@@ -789,6 +804,7 @@ describe("DeploymentDetail", () => {
     leaseCreation?: Activity;
     isResolvingActivity?: boolean;
     isUpdating?: boolean;
+    isCreating?: boolean;
     template?: TemplateOutput;
     templateId?: string;
     recordedOutcome?: RecordedDeploymentOutcome;
@@ -866,6 +882,7 @@ describe("DeploymentDetail", () => {
     let currentLeaseCreation = input?.leaseCreation;
     let isResolvingActivity = input?.isResolvingActivity ?? false;
     const useDeploymentActivity = vi.fn<typeof DEPENDENCIES.useDeploymentActivity>(() => ({
+      isCreating: input?.isCreating ?? false,
       isClosing: false,
       isUpdating: input?.isUpdating ?? false,
       leaseCreation: currentLeaseCreation,

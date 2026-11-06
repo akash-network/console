@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { AssistantAction } from "@src/types/assistant";
+import type { AssistantAction, AssistantActionOf } from "@src/types/assistant";
 import type { ActionCardRegistry } from "../actionCardTypes";
 import type { ActionCardDecision } from "../useActionCardDecision/useActionCardDecision";
 import { ActionCard, DEPENDENCIES } from "./ActionCard";
@@ -19,6 +19,24 @@ describe(ActionCard.name, () => {
     );
     expect(useActionCardDecision).toHaveBeenCalledWith({ conversationId: "c-1", proposalId: "p-1", actionType: "send_manifest_again" });
     expect(GenericActionCard).not.toHaveBeenCalled();
+  });
+
+  it("follows the deployment a Deploy creates, once the card reports it", () => {
+    const { useActionCardDecision, followDeployment } = setup({
+      action: mock<AssistantActionOf<"create_deployment">>({ type: "create_deployment", tier: "confirm" })
+    });
+
+    expect(useActionCardDecision).toHaveBeenCalledWith({ conversationId: "c-1", proposalId: "p-1", actionType: "create_deployment", followDeployment });
+  });
+
+  it.each<AssistantAction>([
+    mock<AssistantActionOf<"update_deployment">>({ type: "update_deployment", tier: "confirm", dseq: "42" }),
+    mock<AssistantActionOf<"close_deployment">>({ type: "close_deployment", tier: "destructive", dseq: "42" }),
+    mock<AssistantActionOf<"choose_bid">>({ type: "choose_bid", tier: "confirm", dseq: "42" })
+  ])("follows the deployment a $type card acts on", action => {
+    const { useActionCardDecision, followDeployment } = setup({ action });
+
+    expect(useActionCardDecision).toHaveBeenCalledWith({ conversationId: "c-1", proposalId: "p-1", actionType: action.type, dseq: "42", followDeployment });
   });
 
   it("lets the card continue the conversation", () => {
@@ -39,6 +57,7 @@ describe(ActionCard.name, () => {
   function setup(input: { action: AssistantAction; continueConversation?: (message: string) => void }) {
     const decision = mock<ActionCardDecision>({ status: "pending" });
     const useActionCardDecision = vi.fn(() => decision);
+    const followDeployment = vi.fn();
     const GenericActionCard = vi.fn(() => <p>generic card</p>);
     const registered = vi.fn(() => <p>registered card</p>);
     const registry: ActionCardRegistry = { send_manifest_again: registered };
@@ -50,10 +69,10 @@ describe(ActionCard.name, () => {
         action={input.action}
         registry={registry}
         continueConversation={input.continueConversation}
-        dependencies={{ ...DEPENDENCIES, useActionCardDecision, GenericActionCard }}
+        dependencies={{ ...DEPENDENCIES, useActionCardDecision, useFollowDeployment: () => followDeployment, GenericActionCard }}
       />
     );
 
-    return { decision, useActionCardDecision, GenericActionCard, registered };
+    return { decision, useActionCardDecision, followDeployment, GenericActionCard, registered };
   }
 });

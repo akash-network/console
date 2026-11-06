@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { extractApiErrorMessage } from "@akashnetwork/openapi-sdk";
 
 import { useRecordAssistantActionResultMutation } from "@src/queries/useAssistantQueries";
@@ -12,28 +12,48 @@ const MAX_RECORDED_ERROR_LENGTH = 500;
 
 const FALLBACK_ERROR = "Something went wrong. Try again in a moment.";
 
+export interface ActionCardOutcome {
+  dseq: string;
+}
+
 export interface ActionCardDecisionInput {
   conversationId: string | null;
   proposalId: string;
   actionType: AssistantActionType;
+  /** The deployment the action acts on; a card that creates one returns it from its confirm run instead. */
+  dseq?: string;
+  followDeployment?: (dseq: string) => void;
 }
 
 /** Records every decision and its outcome with the api, which never runs the action itself; recording is best effort and never blocks the card. */
-export function useActionCardDecision({ conversationId, proposalId, actionType }: ActionCardDecisionInput, d: typeof DEPENDENCIES = DEPENDENCIES) {
+export function useActionCardDecision(
+  { conversationId, proposalId, actionType, dseq, followDeployment }: ActionCardDecisionInput,
+  d: typeof DEPENDENCIES = DEPENDENCIES
+) {
   const { mutateAsync: recordResult } = d.useRecordAssistantActionResultMutation();
   const [status, setStatus] = useState<ActionCardStatus>("pending");
   const [error, setError] = useState<string | null>(null);
+  const [deploymentDseq, setDeploymentDseq] = useState<string | null>(null);
+  const isShown = useRef(false);
+
+  useEffect(function trackWhetherTheCardIsShown() {
+    isShown.current = true;
+    return function forgetTheCard() {
+      isShown.current = false;
+    };
+  }, []);
 
   const record = (result: { decision: "confirmed" | "cancelled"; outcome?: "succeeded" | "failed"; error?: string }) => {
     if (!conversationId) return;
     recordResult({ id: conversationId, data: { proposalId, actionType, ...result } }).catch(() => undefined);
   };
 
-  const confirm = async (run: () => Promise<void>) => {
+  const confirm = async (run: () => Promise<ActionCardOutcome | void>) => {
     setStatus("running");
     setError(null);
+    let outcome: ActionCardOutcome | void;
     try {
-      await run();
+      outcome = await run();
     } catch (cause) {
       const message = errorMessageOf(cause);
       setError(message);
@@ -43,6 +63,10 @@ export function useActionCardDecision({ conversationId, proposalId, actionType }
     }
     setStatus("succeeded");
     record({ decision: "confirmed", outcome: "succeeded" });
+    const affectedDseq = outcome?.dseq ?? dseq;
+    if (!affectedDseq) return;
+    setDeploymentDseq(affectedDseq);
+    if (isShown.current) followDeployment?.(affectedDseq);
   };
 
   const cancel = () => {
@@ -55,7 +79,7 @@ export function useActionCardDecision({ conversationId, proposalId, actionType }
     record({ decision: "confirmed", outcome: "succeeded" });
   };
 
-  return { status, error, confirm, cancel, markOpened };
+  return { status, error, deploymentDseq, confirm, cancel, markOpened };
 }
 
 export type ActionCardDecision = ReturnType<typeof useActionCardDecision>;

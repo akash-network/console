@@ -29,6 +29,60 @@ describe(useActionCardDecision.name, () => {
     });
   });
 
+  it("follows the deployment the action acts on once it succeeds", async () => {
+    const { result, followDeployment } = setup({ dseq: "42" });
+    expect(result.current.deploymentDseq).toBeNull();
+
+    await act(() => result.current.confirm(async () => {}));
+
+    expect(result.current.deploymentDseq).toBe("42");
+    expect(followDeployment).toHaveBeenCalledWith("42");
+  });
+
+  it("follows the deployment a confirm run created over the one the action named", async () => {
+    const { result, followDeployment } = setup({ dseq: "42" });
+
+    await act(() => result.current.confirm(async () => ({ dseq: "99" })));
+
+    expect(result.current.deploymentDseq).toBe("99");
+    expect(followDeployment).toHaveBeenCalledWith("99");
+  });
+
+  it("does not follow the deployment once the card is gone, as when the panel closed while the action ran", async () => {
+    const { result, followDeployment, unmount } = setup({ dseq: "42" });
+    const run = Promise.withResolvers<void>();
+    let confirming: Promise<void> | undefined;
+    act(() => {
+      confirming = result.current.confirm(() => run.promise);
+    });
+
+    unmount();
+    run.resolve();
+    await confirming;
+
+    expect(followDeployment).not.toHaveBeenCalled();
+  });
+
+  it("still links the deployment when nothing follows it", async () => {
+    const { result } = setup({ dseq: "42", isFollowing: false });
+
+    await act(() => result.current.confirm(async () => {}));
+
+    expect(result.current.deploymentDseq).toBe("42");
+  });
+
+  it("follows nothing when the action fails or names no deployment", async () => {
+    const failed = setup({ dseq: "42" });
+    await act(() => failed.result.current.confirm(() => Promise.reject(new Error("Nope"))));
+    expect(failed.result.current.deploymentDseq).toBeNull();
+    expect(failed.followDeployment).not.toHaveBeenCalled();
+
+    const withoutDeployment = setup({});
+    await act(() => withoutDeployment.result.current.confirm(async () => {}));
+    expect(withoutDeployment.result.current.deploymentDseq).toBeNull();
+    expect(withoutDeployment.followDeployment).not.toHaveBeenCalled();
+  });
+
   it("shows the api's message when the action fails and records the failure", async () => {
     const { result, recordResult } = setup({});
 
@@ -97,7 +151,8 @@ describe(useActionCardDecision.name, () => {
     expect(failingRecord.result.current.status).toBe("succeeded");
   });
 
-  function setup(input: { conversationId?: string | null }) {
+  function setup(input: { conversationId?: string | null; dseq?: string; isFollowing?: boolean }) {
+    const followDeployment = vi.fn();
     const recordResult = vi.fn(async (_input: { id: string; data: Record<string, unknown> }) => ({ data: { recorded: true } }));
     const dependencies: typeof DEPENDENCIES = {
       useRecordAssistantActionResultMutation: () =>
@@ -106,11 +161,17 @@ describe(useActionCardDecision.name, () => {
 
     const hook = renderHook(() =>
       useActionCardDecision(
-        { conversationId: input.conversationId === undefined ? "c-1" : input.conversationId, proposalId: "p-1", actionType: "send_manifest_again" },
+        {
+          conversationId: input.conversationId === undefined ? "c-1" : input.conversationId,
+          proposalId: "p-1",
+          actionType: "send_manifest_again",
+          dseq: input.dseq,
+          followDeployment: input.isFollowing === false ? undefined : followDeployment
+        },
         dependencies
       )
     );
 
-    return { ...hook, recordResult };
+    return { ...hook, recordResult, followDeployment };
   }
 });
