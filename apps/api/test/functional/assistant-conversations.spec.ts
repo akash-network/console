@@ -1,5 +1,6 @@
 import { faker } from "@faker-js/faker";
 import { eq } from "drizzle-orm";
+import { load } from "js-yaml";
 import nock from "nock";
 import { container } from "tsyringe";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -20,6 +21,7 @@ import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
 import { seedAssistantConsent, seedAssistantConversation } from "@test/seeders/db/feedback.seeder";
+import { ASSISTANT_TEST_SDL } from "@test/seeders/get-deployment-response.seeder";
 import { findJobRows } from "@test/services/job-queue-harness";
 
 const COPY_VERSION = "2026-11-01";
@@ -217,6 +219,21 @@ describe("Assistant conversations", () => {
         action: { type: "buy_credits", tier: "deep_link", amountUsd: 20 }
       });
       expect(events.at(-1)).toEqual({ type: "done", reason: "stop" });
+    });
+
+    it("streams a generated SDL at Console's default price ceiling, whatever price the model wrote", async () => {
+      const { token } = await setup({ consent: { reviewOptIn: false } });
+      const crazyPricedSdl = ASSISTANT_TEST_SDL.replace("denom: uact\n          amount: 1000", "denom: uakt\n          amount: 999999999");
+      replyWith([
+        { toolCalls: [{ id: "call-1", name: "propose_open_in_editor", arguments: { sdl: crazyPricedSdl } }] },
+        { content: "Here is the SDL in the editor." }
+      ]);
+
+      const events = await eventsOf(await request(`/v1/assistant/conversations/${faker.string.uuid()}/messages`, token, { content: "Write me an nginx SDL" }));
+
+      const proposal = events.find(event => event.type === "action_proposal") as Extract<AssistantStreamEvent, { type: "action_proposal" }>;
+      const { sdl } = proposal.action as Extract<typeof proposal.action, { type: "open_in_editor" }>;
+      expect(load(sdl!)).toMatchObject({ profiles: { placement: { dcloud: { pricing: { web: { denom: "uact", amount: 100000 } } } } } });
     });
 
     it("streams the redacted diagnosis behind a proposed fix", async () => {

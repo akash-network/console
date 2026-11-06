@@ -8,7 +8,7 @@ import type { AssistantAction, AssistantActionOf, ServiceResources } from "@src/
 import { AssistantProposalWithheldError, AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
 import type { ProposalActionType, ProposalArguments } from "@src/feedback/lib/assistant-tools/assistant-tool-arguments";
 import { redactSecrets } from "@src/feedback/lib/redact-secrets/redact-secrets";
-import { keepsPricing } from "@src/feedback/lib/sdl-pricing/sdl-pricing";
+import { keepsPlacementPricing, keepsPricing, withDefaultPricing } from "@src/feedback/lib/sdl-pricing/sdl-pricing";
 import { sdlWithResources } from "@src/feedback/lib/sdl-resources/sdl-with-resources";
 import { type SdlServiceSummary, summarizeSdl } from "@src/feedback/lib/sdl-summary/sdl-summary";
 import { AssistantAccountToolsService } from "@src/feedback/services/assistant-account-tools/assistant-account-tools.service";
@@ -16,12 +16,12 @@ import { AssistantBidToolsService, type SdlAvailability } from "@src/feedback/se
 
 export interface ProposalContext {
   isTrialing: boolean | null;
-  /** SDLs held back earlier in the turn for having no bidders, whose pricing an adjusted SDL has to keep. */
-  withheldSdls: string[];
+  /** Template SDLs held back earlier in the turn for having no bidders, whose pricing an adjusted SDL has to keep. */
+  withheldTemplateSdls: string[];
 }
 
 const CHANGED_PRICING_MESSAGE =
-  "This SDL changes the price or denom of the SDL held back for having no bidders. Keep its pricing and adjust only placement attributes or resources, or pick another template by templateId.";
+  "This SDL changes the price or denom of the template or deployment it is based on. Keep its pricing exactly and change only placement attributes or resources, or pick another template by templateId.";
 
 type ResourceChange = ProposalArguments<"redeploy_with_resources">["services"][string];
 
@@ -95,8 +95,7 @@ export class AssistantProposalService {
         await this.#activeDeployment(input.args.dseq);
         return { type: "create_alert", tier: "confirm", alert: "deployment_closed", dseq: input.args.dseq, channel: "email" };
       case "open_in_editor":
-        this.#assertKeepsWithheldPricing(input.args.sdl, context);
-        return this.#withoutLookup(input);
+        return await this.#openInEditor(input.args, context);
       default:
         return this.#withoutLookup(input);
     }
@@ -117,6 +116,7 @@ export class AssistantProposalService {
       | "close_deployment"
       | "send_manifest_again"
       | "create_alert"
+      | "open_in_editor"
     >]
   ): AssistantAction {
     switch (input.type) {
@@ -134,24 +134,28 @@ export class AssistantProposalService {
         return { type: "buy_credits", tier: "deep_link", amountUsd: input.args.amountUsd ?? null };
       case "configure_auto_recharge":
         return { type: "configure_auto_recharge", tier: "deep_link", thresholdUsd: input.args.thresholdUsd ?? null, amountUsd: input.args.amountUsd ?? null };
-      case "open_in_editor":
-        return {
-          type: "open_in_editor",
-          tier: "deep_link",
-          dseq: input.args.dseq ?? null,
-          templateId: input.args.templateId ?? null,
-          sdl: input.args.sdl ?? null
-        };
     }
   }
 
+  /** The model never chooses a price: an SDL it wrote gets Console's default ceiling, and one adjusted from a held-back template keeps that template's. */
+  pricedSdl(sdl: string, context: ProposalContext): string {
+    const withheldTemplateSdl = context.withheldTemplateSdls.at(-1);
+    if (!withheldTemplateSdl) return withDefaultPricing(sdl);
+
+    this.#assertKeepsPricing(keepsPricing(withheldTemplateSdl, sdl));
+    return sdl;
+  }
+
+  #assertKeepsPricing(keeps: boolean) {
+    if (!keeps) throw new AssistantToolError(CHANGED_PRICING_MESSAGE);
+  }
+
   async #createDeployment(args: ProposalArguments<"create_deployment">, context: ProposalContext): Promise<AssistantActionOf<"create_deployment">> {
-    this.#assertKeepsWithheldPricing(args.sdl, context);
-    const sdl = args.templateId ? await this.accountTools.templateSdl(args.templateId) : (args.sdl as string);
+    const sdl = args.templateId ? await this.accountTools.templateSdl(args.templateId) : this.pricedSdl(args.sdl as string, context);
 
     const availability = await this.bidTools.checkAvailability(sdl, { isTrialing: context.isTrialing === true });
     if (availability.providersAbleToBid === 0) {
-      context.withheldSdls.push(sdl);
+      if (args.templateId) context.withheldTemplateSdls.push(sdl);
       throw new AssistantProposalWithheldError({ ...availability, ...(args.templateId && { templateSdl: sdl }) });
     }
 
@@ -170,9 +174,30 @@ export class AssistantProposalService {
     };
   }
 
-  #assertKeepsWithheldPricing(sdl: string | undefined, context: ProposalContext) {
-    const withheldSdl = context.withheldSdls.at(-1);
-    if (sdl && withheldSdl && !keepsPricing(withheldSdl, sdl)) throw new AssistantToolError(CHANGED_PRICING_MESSAGE);
+  async #openInEditor({ dseq, templateId, sdl }: ProposalArguments<"open_in_editor">, context: ProposalContext): Promise<AssistantActionOf<"open_in_editor">> {
+    return {
+      type: "open_in_editor",
+      tier: "deep_link",
+      dseq: dseq ?? null,
+      templateId: templateId ?? null,
+      sdl: sdl ? await this.#editorSdl(sdl, { dseq, templateId }, context) : null
+    };
+  }
+
+  /** An SDL based on a deployment or template edits a ceiling the user already has; a deployment edit is held to the card's stricter per-placement check. */
+  async #editorSdl(sdl: string, { dseq, templateId }: { dseq?: string; templateId?: string }, context: ProposalContext): Promise<string> {
+    if (dseq) this.#assertKeepsPricing(keepsPlacementPricing(await this.#consoleSdl(dseq), sdl));
+    else if (templateId) this.#assertKeepsPricing(keepsPricing(await this.accountTools.templateSdl(templateId), sdl));
+    else return this.pricedSdl(sdl, context);
+
+    return sdl;
+  }
+
+  async #consoleSdl(dseq: string): Promise<string> {
+    const { consoleSettings } = await this.#deployment(dseq);
+    if (!consoleSettings) throw new AssistantToolError(`Console holds no readable SDL for deployment ${dseq}, so it cannot be changed from here.`);
+
+    return consoleSettings.sdl;
   }
 
   async #chooseBid({ dseq, choices }: ProposalArguments<"choose_bid">): Promise<AssistantActionOf<"choose_bid">> {
