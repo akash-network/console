@@ -52,7 +52,33 @@ describe("AssistantPanel", () => {
     expect(screen.getByRole("complementary", { name: "Console assistant" })).toHaveFocus();
   });
 
-  it("closes on Escape unless something inside handled it", () => {
+  it("returns focus to where it was once closed, even after a new open request", () => {
+    const { rerenderOpen } = setup({ consent: CURRENT_CONSENT, isOpen: false });
+    const pageAction = screen.getByRole("button", { name: "Page action" });
+    pageAction.focus();
+
+    rerenderOpen(true);
+    rerenderOpen(true, 2);
+    expect(pageAction).not.toHaveFocus();
+    rerenderOpen(false);
+
+    expect(pageAction).toHaveFocus();
+  });
+
+  it("leaves focus where the user moved it before the panel closed", () => {
+    const { rerenderOpen } = setup({ consent: CURRENT_CONSENT, isOpen: false });
+    screen.getByRole("button", { name: "Page action" }).focus();
+    rerenderOpen(true);
+    const elsewhere = document.body.appendChild(document.createElement("input"));
+    elsewhere.focus();
+
+    rerenderOpen(false);
+
+    expect(elsewhere).toHaveFocus();
+    elsewhere.remove();
+  });
+
+  it("closes on Escape pressed inside the panel or on the page unless something handled it", () => {
     const { onOpenChange } = setup({ consent: CURRENT_CONSENT });
     const panel = screen.getByRole("complementary", { name: "Console assistant" });
     const handled = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
@@ -64,6 +90,19 @@ describe("AssistantPanel", () => {
 
     expect(fireEvent.keyDown(panel, { key: "Escape" })).toBe(false);
     expect(onOpenChange).toHaveBeenCalledWith(false);
+
+    onOpenChange.mockClear();
+    fireEvent.keyDown(screen.getByRole("button", { name: "Page action" }), { key: "Escape" });
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("stops listening for Escape once closed", () => {
+    const { onOpenChange, rerenderOpen } = setup({ consent: CURRENT_CONSENT });
+
+    rerenderOpen(false);
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(onOpenChange).not.toHaveBeenCalled();
   });
 
   it("asks for consent before the first message", () => {

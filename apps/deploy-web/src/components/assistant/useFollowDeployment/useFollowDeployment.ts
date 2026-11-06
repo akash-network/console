@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import { UrlService } from "@src/utils/urlUtils";
@@ -11,7 +11,13 @@ export function useFollowDeployment(d: typeof DEPENDENCIES = DEPENDENCIES) {
   const router = d.useRouter();
   const pathname = d.usePathname();
   const pathnameRef = useRef(pathname);
-  pathnameRef.current = pathname;
+
+  useEffect(
+    function rememberTheCommittedPage() {
+      pathnameRef.current = pathname;
+    },
+    [pathname]
+  );
 
   return useCallback(
     (dseq: string) => {

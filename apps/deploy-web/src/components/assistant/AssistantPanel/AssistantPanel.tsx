@@ -1,5 +1,5 @@
 "use client";
-import type { FC, KeyboardEvent } from "react";
+import type { FC } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { Badge, Spinner } from "@akashnetwork/ui/components";
 import { X } from "lucide-react";
@@ -68,17 +68,39 @@ export const AssistantPanel: FC<Props> = ({ isOpen, onOpenChange, conversation, 
   );
 
   useEffect(
+    function returnFocusOnceClosed() {
+      if (!isOpen) return;
+      const focusedBeforeOpening = document.activeElement;
+      return function returnFocusUnlessTheUserMovedOn() {
+        if (document.activeElement !== document.body || !(focusedBeforeOpening instanceof HTMLElement)) return;
+        focusedBeforeOpening.focus();
+      };
+    },
+    [isOpen]
+  );
+
+  useEffect(
     function moveFocusIntoThePanel() {
       panelRef.current?.focus();
     },
     [isOpen, openedAt]
   );
 
-  const closeOnEscape = (event: KeyboardEvent) => {
-    if (event.key !== "Escape" || event.defaultPrevented) return;
-    event.preventDefault();
-    onOpenChange(false);
-  };
+  useEffect(
+    function closeOnEscapeAnywhere() {
+      if (!isOpen) return;
+      function closeOnEscape(event: KeyboardEvent) {
+        if (event.key !== "Escape" || event.defaultPrevented) return;
+        event.preventDefault();
+        onOpenChange(false);
+      }
+      document.addEventListener("keydown", closeOnEscape);
+      return function stopClosingOnEscape() {
+        document.removeEventListener("keydown", closeOnEscape);
+      };
+    },
+    [isOpen, onOpenChange]
+  );
 
   const agree = async ({ reviewOptIn }: { reviewOptIn: boolean }) => {
     setHasConsentFailed(false);
@@ -97,7 +119,6 @@ export const AssistantPanel: FC<Props> = ({ isOpen, onOpenChange, conversation, 
       ref={panelRef}
       tabIndex={-1}
       aria-labelledby={titleId}
-      onKeyDown={closeOnEscape}
       className="fixed bottom-0 right-0 top-[var(--app-header-height,57px)] z-40 flex w-full flex-col border-l border-border bg-background shadow-lg outline-none duration-300 animate-in slide-in-from-right-8 motion-reduce:animate-none sm:w-[440px] lg:shadow-none"
     >
       <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b px-4">
