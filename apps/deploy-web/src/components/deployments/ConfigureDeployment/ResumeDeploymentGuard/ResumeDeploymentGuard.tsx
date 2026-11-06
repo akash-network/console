@@ -13,6 +13,7 @@ import { PENDING_ACTIVITY_POLL_MS, useActivityFeedQuery } from "@src/queries/use
 import { isStoredSdlRedeployable } from "@src/utils/sdl/storedDefinition";
 import { UrlService } from "@src/utils/urlUtils";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
+import type { PendingCreate } from "../useDeploymentFlow/useDeploymentFlow";
 import { buildConfigureUrl } from "../useDeploymentFlow/useDeploymentFlow";
 
 /** The coordinates identifying a lease, in the same shape the auto flow reconstructs a selection from. */
@@ -29,6 +30,7 @@ export type ResumeResolution = {
   activeLeases: ResumeLease[];
   /** The definition the console recorded for the version the chain runs, so a resume this browser holds no SDL for can still be leased. */
   recordedDefinition?: RecordedDefinition;
+  pendingCreate?: PendingCreate;
 };
 
 const EMPTY_RESUME: ResumeResolution = { activeLeases: [] };
@@ -77,8 +79,8 @@ type Outcome = { kind: "render"; resume: ResumeResolution } | { kind: "redirect"
  * - **No dseq** — a fresh start; the children render immediately with no query.
  * - **Not found (404)** — the deployment is gone; strip the dseq from the URL, toast, and fall through to a fresh
  *   deployment (rendered only once the URL has cleared, so no flow ever initializes against the dead dseq).
- * - **Not found but being created**: the activity feed holds its create, still running in the background, so it shows in
- *   progress and is read again until the chain has it.
+ * - **Not found but being created**: the activity feed holds its create, still running in the background. The manual
+ *   form takes it over and follows the create itself; the auto flow shows it in progress and reads it again until the chain has it.
  * - **Closed** — redirect to the deployment detail page.
  * - **Open while Console is still leasing it** — redirect to the detail page, which follows that lease to its end.
  * - **Open with live (non-closed) leases** — already leased: resume so the flow re-sends the manifest when
@@ -116,7 +118,8 @@ export const ResumeDeploymentGuard: FC<Props> = ({ intent, canResume, children, 
         case "loading":
           return;
         case "creating":
-          setIsAwaitingCreate(true);
+          if (canResume) setIsAwaitingCreate(true);
+          else setOutcome({ kind: "render", resume: { ...EMPTY_RESUME, pendingCreate: { activityId: decision.activityId } } });
           return;
         case "render":
           setOutcome({ kind: "render", resume: decision.resume });
@@ -141,7 +144,7 @@ export const ResumeDeploymentGuard: FC<Props> = ({ intent, canResume, children, 
           return;
       }
     },
-    [outcome, decision, resumeDseq, intent, router, enqueueSnackbar, d]
+    [outcome, decision, resumeDseq, canResume, intent, router, enqueueSnackbar, d]
   );
 
   if (outcome?.kind === "render") {
@@ -163,7 +166,12 @@ export const ResumeDeploymentGuard: FC<Props> = ({ intent, canResume, children, 
   );
 };
 
-type Decision = { kind: "loading" } | { kind: "creating" } | { kind: "render"; resume: ResumeResolution } | { kind: "redirect" } | { kind: "notFound" };
+type Decision =
+  | { kind: "loading" }
+  | { kind: "creating"; activityId: string }
+  | { kind: "render"; resume: ResumeResolution }
+  | { kind: "redirect" }
+  | { kind: "notFound" };
 
 type FeedActivities = { activities?: Activity[]; isUnavailable: boolean };
 
@@ -203,10 +211,8 @@ function resolveMissingDeployment(resumeDseq: string, feedActivities: FeedActivi
   if (feedActivities.isUnavailable) return { kind: "notFound" };
   if (!feedActivities.activities) return { kind: "loading" };
 
-  const isBeingCreated = feedActivities.activities.some(
-    ({ type, status, meta }) => type === "deployment_create" && status !== "failed" && meta.dseq === resumeDseq
-  );
-  return isBeingCreated ? { kind: "creating" } : { kind: "notFound" };
+  const create = feedActivities.activities.find(({ type, status, meta }) => type === "deployment_create" && status !== "failed" && meta.dseq === resumeDseq);
+  return create ? { kind: "creating", activityId: create.id } : { kind: "notFound" };
 }
 
 /** A copy recorded under an older version would lease a superseded document, and one with a value blanked out has lost it for good. */

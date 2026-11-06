@@ -9,7 +9,7 @@ import { useDeployFlowOutcome } from "@src/components/feedback/useDeployFlowOutc
 import { useUnlockAppOnFirstCreate } from "@src/hooks/useUnlockAppOnFirstCreate/useUnlockAppOnFirstCreate";
 import { useWarnBeforeUnload } from "@src/hooks/useWarnBeforeUnload/useWarnBeforeUnload";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
-import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
+import type { DeploymentFlow, PendingCreate } from "../useDeploymentFlow/useDeploymentFlow";
 import { useDeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 
 export const DEPENDENCIES = {
@@ -41,6 +41,7 @@ export type DeploymentLeaveGuard = {
 interface Props {
   /** The resolved configure intent whose dseq (already settled by the `ResumeDeploymentGuard`) seeds the flow. */
   intent: DeploymentIntent;
+  pendingCreate?: PendingCreate;
   children: (context: DeploymentFlowContext) => ReactNode;
   dependencies?: typeof DEPENDENCIES;
 }
@@ -73,8 +74,8 @@ export function useDeploymentLeaveGuard(): DeploymentLeaveGuard {
  * while an auto→manual switch within the same draft keeps the instance so the in-progress deployment is handed off
  * rather than abandoned.
  */
-export const DeploymentFlowProvider: FC<Props> = ({ intent, children, dependencies: d = DEPENDENCIES }) => {
-  const flow = d.useDeploymentFlow({ intent });
+export const DeploymentFlowProvider: FC<Props> = ({ intent, pendingCreate, children, dependencies: d = DEPENDENCIES }) => {
+  const flow = d.useDeploymentFlow({ intent, pendingCreate });
   const isCreating = flow.phase === "creating" && !flow.isCreatingInBackground;
   const { isLeaseInFlight } = flow;
   const holdsUnleasedDeployment = isAwaitingLease(flow) && !flow.isCreatingInBackground && !isLeaseInFlight;

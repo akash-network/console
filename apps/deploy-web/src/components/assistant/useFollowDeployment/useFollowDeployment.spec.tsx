@@ -15,6 +15,14 @@ describe(useFollowDeployment.name, () => {
     expect(router.push).toHaveBeenCalledWith("/deployments/42");
   });
 
+  it("takes the user where the action points instead of the deployment's page", () => {
+    const { result, router } = setup({ pathname: "/new-deployment" });
+
+    result.current("42", "/new-deployment/configure/42?draftId=draft-1");
+
+    expect(router.push).toHaveBeenCalledWith("/new-deployment/configure/42?draftId=draft-1");
+  });
+
   it("stays put when the user already looks at that deployment", () => {
     const { result, router } = setup({ pathname: "/deployments/42" });
 

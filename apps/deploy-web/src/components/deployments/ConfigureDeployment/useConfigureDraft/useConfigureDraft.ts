@@ -50,6 +50,7 @@ export interface ConfigureDraftContent {
 
 export interface CreateConfigureDraftOptions {
   name?: string;
+  runtimeLimitHours?: number;
   inheritSecretsFrom?: string;
 }
 
@@ -257,7 +258,13 @@ function handedOverDraftOf(draftId: string | undefined): ConfigureDraftContent |
  */
 export function createConfigureDraft(sdl: string, options: CreateConfigureDraftOptions = {}, dependencies: typeof DEPENDENCIES = DEPENDENCIES): string {
   const draftId = dependencies.mintDraftId();
-  handedOverDrafts.set(draftId, { sdl, name: options.name, inheritSecretsFrom: options.inheritSecretsFrom, startingSdl: sdl });
+  handedOverDrafts.set(draftId, {
+    sdl,
+    name: options.name,
+    runtimeLimitHours: options.runtimeLimitHours,
+    inheritSecretsFrom: options.inheritSecretsFrom,
+    startingSdl: sdl
+  });
   return draftId;
 }
 

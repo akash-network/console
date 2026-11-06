@@ -183,7 +183,7 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({ intent, isStartedByConsole
           if (isTemplateLoading) return loadingScreen;
 
           return (
-            <d.DeploymentFlowProvider key={draft.draftId} intent={resolvedIntent}>
+            <d.DeploymentFlowProvider key={draft.draftId} intent={resolvedIntent} pendingCreate={resume.pendingCreate}>
               {({ flow }) => (
                 <>
                   <ReportDeployStarted flow={flow} onChange={onDeployStartedChange} />

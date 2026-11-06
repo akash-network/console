@@ -576,6 +576,12 @@ describe(ConfigureDeployment.name, () => {
     );
   });
 
+  it("hands the flow a create still running for the resumed deployment", () => {
+    const { DeploymentFlowProvider } = setup({ templateId: null, resume: { activeLeases: [], pendingCreate: { activityId: "activity-1" } } });
+
+    expect(DeploymentFlowProvider).toHaveBeenCalledWith(expect.objectContaining({ pendingCreate: { activityId: "activity-1" } }), expect.anything());
+  });
+
   it("prefers the persisted draft over the recorded definition", () => {
     const { ConfigureDeploymentForm } = setup({
       templateId: null,

@@ -173,15 +173,31 @@ describe("CreateDeploymentCard", () => {
     expect(recordOneClickDeploy).toHaveBeenCalledWith("1234", undefined);
   });
 
-  it("points to choosing a provider when Console doesn't lease it in the background", async () => {
-    const { chromeProps, createDeployment, recordOneClickDeploy } = setup({ decisionStatus: "succeeded" });
+  it("points to choosing a provider in the editor, carrying the SDL, when Console doesn't lease it in the background", async () => {
+    const { chromeProps, createDeployment, recordOneClickDeploy, createConfigureDraft } = setup({ decisionStatus: "succeeded" });
     createDeployment.mockResolvedValue({ data: { dseq: "1234", manifest: "m", activityId: "activity-1" } });
 
     await act(() => chromeProps().onConfirm!(""));
 
     expect(recordOneClickDeploy).not.toHaveBeenCalled();
+    expect(createConfigureDraft).toHaveBeenCalledWith(SDL, { name: "llama-8b-vllm", runtimeLimitHours: 4 });
     expect(chromeProps().successMessage).toBe("Created deployment 1234. Choose a provider to start it.");
-    expect(screen.getByRole("link", { name: "Choose a provider" })).toHaveAttribute("href", "/new-deployment/configure/1234");
+    expect(screen.getByRole("link", { name: "Choose a provider" })).toHaveAttribute("href", "/new-deployment/configure/1234?draftId=draft-1");
+  });
+
+  it("has the assistant follow a deployment Console doesn't lease into the editor, where its bids come in", async () => {
+    const { chromeProps, createDeployment } = setup({ action: { templateId: null } });
+    createDeployment.mockResolvedValue({ data: { dseq: "1234", manifest: "m", activityId: "activity-1", autoLease: false } });
+
+    await expect(chromeProps().onConfirm!("")).resolves.toEqual({ dseq: "1234", followUrl: "/new-deployment/configure/1234?draftId=draft-1" });
+  });
+
+  it("starts no draft for a deployment Console leases in the background", async () => {
+    const { chromeProps, createConfigureDraft } = setup();
+
+    await act(() => chromeProps().onConfirm!(""));
+
+    expect(createConfigureDraft).not.toHaveBeenCalled();
   });
 
   it("watches the new deployment for bids, offering to ask why when none arrive", async () => {
@@ -215,12 +231,12 @@ describe("CreateDeploymentCard", () => {
 
     await openInEditor();
 
-    expect(createConfigureDraft).toHaveBeenCalledWith(SDL, { name: "llama-8b-vllm" });
+    expect(createConfigureDraft).toHaveBeenCalledWith(SDL, { name: "llama-8b-vllm", runtimeLimitHours: 4 });
     expect(router.push).toHaveBeenCalledWith("/new-deployment/configure?templateId=akash-network-awesome-akash-vllm&draftId=draft-1");
   });
 
   it("opens an unnamed SDL in the editor without a name", async () => {
-    const { createConfigureDraft, openInEditor } = setup({ action: { name: null } });
+    const { createConfigureDraft, openInEditor } = setup({ action: { name: null, runtimeLimitHours: null } });
 
     await openInEditor();
 

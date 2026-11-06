@@ -39,10 +39,7 @@ const BUDGET_EXCEEDED_MESSAGE = "Starting this deployment would take the project
 
 const OPENED_IN_EDITOR_MESSAGE = "Opened in the editor. Review and deploy from there.";
 
-interface CreatedDeployment {
-  dseq: string;
-  isAutoLeased: boolean;
-}
+type CreatedDeployment = { dseq: string; isAutoLeased: true } | { dseq: string; isAutoLeased: false; configureUrl: string };
 
 /** Deploys the way one-click deploy does: created in the background, with Console picking the provider and starting the lease. */
 export const CreateDeploymentCard: FC<ActionCardProps<"create_deployment"> & { dependencies?: typeof DEPENDENCIES }> = ({
@@ -77,16 +74,24 @@ export const CreateDeploymentCard: FC<ActionCardProps<"create_deployment"> & { d
     }).catch(explainBudgetRefusal);
     const { dseq } = response.data;
     const isAutoLeased = "autoLease" in response.data && response.data.autoLease === true;
+    const createdDeployment: CreatedDeployment = isAutoLeased
+      ? { dseq, isAutoLeased }
+      : { dseq, isAutoLeased, configureUrl: UrlService.configureDeployment({ dseq, draftId: createDraft() }) };
     if (isAutoLeased) recordOneClickDeploy(dseq, templateId);
-    setCreated({ dseq, isAutoLeased });
+    setCreated(createdDeployment);
     await queryClient.invalidateQueries({ queryKey: api.v1.listActivities.getKey() });
-    return { dseq };
+    return createdDeployment.isAutoLeased ? { dseq } : { dseq, followUrl: createdDeployment.configureUrl };
   };
+
+  const createDraft = () =>
+    d.createConfigureDraft(action.sdl, {
+      ...(action.name ? { name: action.name } : {}),
+      ...(action.runtimeLimitHours ? { runtimeLimitHours: action.runtimeLimitHours } : {})
+    });
 
   const openInEditor = async () => {
     assertOpensInEditor(action.sdl);
-    const draftId = d.createConfigureDraft(action.sdl, action.name ? { name: action.name } : {});
-    router.push(UrlService.configureDeployment({ draftId, templateId }));
+    router.push(UrlService.configureDeployment({ draftId: createDraft(), templateId }));
   };
 
   return (
@@ -112,10 +117,7 @@ export const CreateDeploymentCard: FC<ActionCardProps<"create_deployment"> & { d
       )}
       {created && <d.NoBidsYetNotice dseq={created.dseq} continueConversation={continueConversation} />}
       {created && !created.isAutoLeased && (
-        <Link
-          href={UrlService.configureDeployment({ dseq: created.dseq })}
-          className={buttonVariants({ variant: "outline", size: "sm", className: "self-start" })}
-        >
+        <Link href={created.configureUrl} className={buttonVariants({ variant: "outline", size: "sm", className: "self-start" })}>
           Choose a provider
         </Link>
       )}

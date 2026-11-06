@@ -6,6 +6,7 @@ import { useFollowDeployment } from "../../useFollowDeployment/useFollowDeployme
 import { ACTION_CARD_REGISTRY } from "../actionCardRegistry";
 import type { ActionCardComponent, ActionCardRegistry } from "../actionCardTypes";
 import { GenericActionCard } from "../GenericActionCard/GenericActionCard";
+import type { FollowDeployment } from "../useActionCardDecision/useActionCardDecision";
 import { useActionCardDecision } from "../useActionCardDecision/useActionCardDecision";
 
 export const DEPENDENCIES = { useActionCardDecision, useFollowDeployment, GenericActionCard };
@@ -39,7 +40,7 @@ export const ActionCard: FC<Props> = ({
   );
 };
 
-function followedDeploymentOf(action: AssistantAction, followDeployment: (dseq: string) => void) {
+function followedDeploymentOf(action: AssistantAction, followDeployment: FollowDeployment) {
   switch (action.type) {
     case "create_deployment":
       return { followDeployment };

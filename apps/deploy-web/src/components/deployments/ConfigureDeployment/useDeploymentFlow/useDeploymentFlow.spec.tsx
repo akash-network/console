@@ -12,7 +12,7 @@ import type { Project } from "@src/types/project";
 import { servicesPatchBetween } from "@src/utils/sdl/sdlServicesPatch";
 import { UrlService } from "@src/utils/urlUtils";
 import type { DeploymentIntent } from "./deploymentIntent";
-import type { DEPENDENCIES, DeploymentFlowActions } from "./useDeploymentFlow";
+import type { DEPENDENCIES, DeploymentFlowActions, PendingCreate } from "./useDeploymentFlow";
 import { buildConfigureUrl, useDeploymentFlow } from "./useDeploymentFlow";
 
 import { act, renderHook, waitFor } from "@testing-library/react";
@@ -3858,6 +3858,99 @@ describe(useDeploymentFlow.name, () => {
     });
   });
 
+  describe("when resuming a deployment whose create another surface sent", () => {
+    it("shows the create as in progress, following its activity, so bids are collected as soon as it lands", () => {
+      const { result, services, followUntilSettled } = setupResumedCreate();
+
+      expect(result.current).toMatchObject({ phase: "creating", dseq: "1000", isCreatingInBackground: true });
+      expect(services.api.v1.getActivity.useQuery).toHaveBeenLastCalledWith({ id: "activity-1" }, { enabled: true, refetchInterval: 5_000 });
+      expect(followUntilSettled).toHaveBeenCalledWith("activity-1");
+    });
+
+    it("moves on to choosing a provider once its activity reports the deployment created", () => {
+      const { result, api, rerender } = setupResumedCreate();
+
+      api.activities = [createActivity("succeeded")];
+      rerender();
+
+      expect(result.current).toMatchObject({ phase: "quoting", dseq: "1000", isCreatingInBackground: false });
+    });
+
+    it("hands the form back with the reason once its activity reports the create failed", () => {
+      const { result, api, rerender } = setupResumedCreate();
+
+      api.activities = [
+        buildActivity({
+          id: "activity-1",
+          type: "deployment_create",
+          status: "failed",
+          meta: { dseq: "1000", error: { code: "create_incomplete", message: "Out of funds" } }
+        })
+      ];
+      rerender();
+
+      expect(result.current).toMatchObject({ phase: "error", dseq: null, error: { message: "Out of funds", kind: "create" } });
+    });
+
+    it("hands a create still running back to the activity host when the page goes", () => {
+      const { unmount, stopFollowing } = setupResumedCreate();
+
+      unmount();
+
+      expect(stopFollowing).toHaveBeenCalledWith("activity-1");
+    });
+
+    it("closes a cancelled create once it exists", () => {
+      const { result, api, rerender, closeMutate } = setupResumedCreate();
+
+      act(() => result.current.actions.cancelAndEdit());
+      api.activities = [createActivity("succeeded")];
+      rerender();
+
+      expect(result.current).toMatchObject({ phase: "configuring", dseq: null });
+      expect(closeMutate).toHaveBeenCalledWith({ dseq: "1000", async: "true" }, expect.any(Object));
+    });
+
+    it("queues a new create behind it, closing it first once it exists", async () => {
+      const { result, api, rerender, closeMutate, createMutate } = setupResumedCreate();
+
+      act(() => result.current.actions.requestQuotes("sdl-2"));
+      await settleSeal();
+      const createsWhileQueued = createMutate.mock.calls.length;
+      api.activities = [createActivity("succeeded")];
+      rerender();
+      act(() => closeMutate.mock.calls[0][1].onSuccess?.({ data: { success: true } }));
+      await settleSeal();
+
+      expect(createsWhileQueued).toBe(0);
+      expect(closeMutate).toHaveBeenCalledWith({ dseq: "1000" }, expect.any(Object));
+      expect(createMutate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ sdl: "sdl-2" }) }), expect.any(Object));
+    });
+
+    it("starts afresh when there is no deployment to resume", () => {
+      const { result, services, followUntilSettled } = setup({
+        intent: { sdlStrategy: "edit", bidStrategy: "select" },
+        pendingCreate: { activityId: "activity-1" }
+      });
+
+      expect(result.current).toMatchObject({ phase: "configuring", dseq: null, isCreatingInBackground: false });
+      expect(services.api.v1.getActivity.useQuery).toHaveBeenLastCalledWith({ id: "" }, { enabled: false, refetchInterval: 5_000 });
+      expect(followUntilSettled).not.toHaveBeenCalled();
+    });
+
+    function setupResumedCreate() {
+      const createMutate = vi.fn();
+      const closeMutate = vi.fn();
+      const view = setup({
+        intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "1000" },
+        pendingCreate: { activityId: "activity-1" },
+        createMutate,
+        closeMutate
+      });
+      return { ...view, createMutate, closeMutate };
+    }
+  });
+
   describe("creating in the background", () => {
     it("asks the api to finish the create in the background", async () => {
       const { createMutate } = await setupBackgroundCreate({});
@@ -4230,6 +4323,7 @@ describe(useDeploymentFlow.name, () => {
 
   function setup(input: {
     intent?: { sdlStrategy: "default" | "edit"; bidStrategy: "auto" | "select"; dseq?: string; templateId?: string; draftId?: string; vm?: boolean };
+    pendingCreate?: PendingCreate;
     replace?: ReturnType<typeof vi.fn>;
     createMutate?: ReturnType<typeof vi.fn>;
     closeMutate?: ReturnType<typeof vi.fn>;
@@ -4285,7 +4379,7 @@ describe(useDeploymentFlow.name, () => {
     };
     return {
       services,
-      ...renderDeploymentFlow(intent, dependencies),
+      ...renderDeploymentFlow(intent, dependencies, undefined, input.pendingCreate),
       feed,
       api,
       useLatestActivitiesQuery,
@@ -4475,10 +4569,15 @@ describe(useDeploymentFlow.name, () => {
     return services;
   }
 
-  function renderDeploymentFlow(intent: DeploymentIntent, dependencies: typeof DEPENDENCIES, settingsId: string | null = "akash1owner") {
+  function renderDeploymentFlow(
+    intent: DeploymentIntent,
+    dependencies: typeof DEPENDENCIES,
+    settingsId: string | null = "akash1owner",
+    pendingCreate?: PendingCreate
+  ) {
     const store = createStore();
     store.set(settingsIdAtom, settingsId);
-    const view = renderHook(() => useDeploymentFlow({ intent }, dependencies), {
+    const view = renderHook(() => useDeploymentFlow({ intent, pendingCreate }, dependencies), {
       wrapper: ({ children }: PropsWithChildren) => <JotaiStoreProvider store={store}>{children}</JotaiStoreProvider>
     });
     return { ...view, store };

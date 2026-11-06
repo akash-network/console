@@ -36,7 +36,16 @@ describe(useActionCardDecision.name, () => {
     await act(() => result.current.confirm(async () => {}));
 
     expect(result.current.deploymentDseq).toBe("42");
-    expect(followDeployment).toHaveBeenCalledWith("42");
+    expect(followDeployment).toHaveBeenCalledWith("42", undefined);
+  });
+
+  it("follows the deployment to where the confirm run points", async () => {
+    const { result, followDeployment } = setup({});
+
+    await act(() => result.current.confirm(async () => ({ dseq: "99", followUrl: "/new-deployment/configure/99?draftId=draft-1" })));
+
+    expect(result.current.deploymentDseq).toBe("99");
+    expect(followDeployment).toHaveBeenCalledWith("99", "/new-deployment/configure/99?draftId=draft-1");
   });
 
   it("follows the deployment a confirm run created over the one the action named", async () => {
@@ -45,7 +54,7 @@ describe(useActionCardDecision.name, () => {
     await act(() => result.current.confirm(async () => ({ dseq: "99" })));
 
     expect(result.current.deploymentDseq).toBe("99");
-    expect(followDeployment).toHaveBeenCalledWith("99");
+    expect(followDeployment).toHaveBeenCalledWith("99", undefined);
   });
 
   it("does not follow the deployment once the card is gone, as when the panel closed while the action ran", async () => {
