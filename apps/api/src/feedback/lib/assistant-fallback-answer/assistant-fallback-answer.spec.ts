@@ -107,29 +107,36 @@ describe(fallbackAnswerOf.name, () => {
     );
   });
 
-  it.each(["What is ACT?", "How do I start with Akash?"])("asks for a shorter question when %j names no deployment and it read none", question => {
-    expect(fallbackAnswerOf(askedTurnOf(question))).toBe(
-      "I could not finish my answer this time. Next step: ask again in a shorter question, or ask on Discord for live help."
-    );
-  });
-
-  it.each(["services:\n  web: {}\nprofiles:\n  compute: {}", "Why?\n    services:\n      web: {}\n    profiles:\n      compute: {}"])(
-    "takes %j for a pasted SDL",
+  it.each(["What is ACT?", "How do I start with Akash?", "How do I deploy an app?", "Can a service expose two ports?"])(
+    "asks for a shorter question when %j names no deployment and it read none",
     question => {
-      expect(fallbackAnswerOf(askedTurnOf(question))).toContain("Import SDL");
+      expect(fallbackAnswerOf(askedTurnOf(question))).toBe(
+        "I could not finish my answer this time. Next step: ask again in a shorter question, or ask on Discord for live help."
+      );
     }
   );
 
-  it.each(["which services: web or db?", "profiles:\n  compute: {}\nservices:\n  web: {}", "services:\n  web: {}", "Why?\n\nprofiles:\n  compute: {}"])(
+  it.each([
+    "services:\n  web: {}\nprofiles:\n  compute: {}",
+    "Why?\n    services:\n      web: {}\n    profiles:\n      compute: {}",
+    "profiles:\n  compute: {}\nservices:\n  web: {}"
+  ])("takes %j for a pasted SDL", question => {
+    expect(fallbackAnswerOf(askedTurnOf(question))).toContain("Import SDL");
+  });
+
+  it.each(["which services: web or db?", "services:\n  web: {}", "Why?\n\nprofiles:\n  compute: {}", "Why?\nprofiles:"])(
     "does not take %j for a pasted SDL",
     question => {
       expect(fallbackAnswerOf(askedTurnOf(question))).not.toContain("Import SDL");
     }
   );
 
-  it("asks which deployment is meant when a question that names one reaches no read", () => {
-    expect(fallbackAnswerOf(askedTurnOf("why is my app down?"))).toContain("tell me which deployment you mean");
-  });
+  it.each(["why is my app down?", "This lease keeps restarting", "What is the dseq of it?", "deployment 42 is stuck", "Is deployment #42 running?"])(
+    "asks which deployment is meant when %j names one but reaches no read",
+    question => {
+      expect(fallbackAnswerOf(askedTurnOf(question))).toContain("tell me which deployment you mean");
+    }
+  );
 
   it("asks for a shorter question when the turn has no question", () => {
     expect(fallbackAnswerOf([])).toBe("I could not finish my answer this time. Next step: ask again in a shorter question, or ask on Discord for live help.");
