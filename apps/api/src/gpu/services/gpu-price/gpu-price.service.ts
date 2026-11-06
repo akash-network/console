@@ -19,7 +19,7 @@ import { GPU_CONFIG } from "../../providers/config.provider";
 import { DayRepository } from "../../repositories/day.repository";
 
 /** The cpu of the pricing bot's tiny pricing order; its other check orders carry cpu, memory and storage that would skew their gpu's price. */
-const PRICING_BOT_CPU_UNITS = 100;
+export const PRICING_BOT_CPU_UNITS = 100;
 
 @injectable()
 export class GpuPriceService {

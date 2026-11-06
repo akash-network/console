@@ -27,6 +27,18 @@ export class ProviderRepository {
     return trialProviders.map(provider => provider.provider);
   }
 
+  async findLocationRegions(owners: string[]): Promise<Map<string, string>> {
+    if (owners.length === 0) return new Map();
+
+    const attributes = await ProviderAttribute.findAll({
+      attributes: ["provider", "value"],
+      where: { provider: { [Op.in]: owners }, key: "location-region" },
+      raw: true
+    });
+
+    return new Map(attributes.map(attribute => [attribute.provider, attribute.value]));
+  }
+
   async getWithAttributesAndAuditors({
     trial = false,
     addresses,
