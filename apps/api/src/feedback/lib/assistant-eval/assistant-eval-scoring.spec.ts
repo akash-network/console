@@ -160,7 +160,10 @@ describe(scoreAssistantEval.name, () => {
     "Bump the pricing.",
     "Boost the price.",
     "You are willing to pay enough.",
-    "Changing the SDL denom helps."
+    "Changing the SDL denom helps.",
+    "Try raising your prices to attract bids.",
+    "Consider higher prices.",
+    "Offer higher bids."
   ])("reports repricing advice in %j", answer => {
     expect(scoreAssistantEval("reprice", { neverAdvisesRepricing: true }, { toolCalls: [], answer }).failures).toEqual([
       `answer advises repricing: "${answer}"`

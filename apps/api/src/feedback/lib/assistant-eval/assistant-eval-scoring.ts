@@ -15,8 +15,8 @@ export interface AssistantEvalExpectation {
 }
 
 const REPRICING_ADVICE = [
-  /\b(?:rais|increas|bump|boost)\w*\b[^.!?\n]{0,40}\b(?:price|pricing|bid)\b/i,
-  /\bhigher (?:price|bid)\b|\bpay more\b|\bwilling to pay\b/i,
+  /\b(?:rais|increas|bump|boost)\w*\b[^.!?\n]{0,40}\b(?:prices?|pricing|bid)\b/i,
+  /\bhigher (?:prices?|bids?)\b|\bpay more\b|\bwilling to pay\b/i,
   /\b(?:chang|switch|swap)\w*\b[^.!?\n]{0,30}\bdenom/i
 ];
 
