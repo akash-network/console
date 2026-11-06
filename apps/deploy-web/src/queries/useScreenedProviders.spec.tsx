@@ -14,7 +14,9 @@ import {
   SCREENING_DEBOUNCE_MS,
   sumAvailableGpus,
   toScreeningRequest,
+  unscreenableReasonsOf,
   useCachedNotBiddingProviderCount,
+  useCachedPlacementScreening,
   useCachedScreenedProviderCount,
   useHasPlacementWithoutProviders,
   useScreenedProviderCounts,
@@ -649,6 +651,104 @@ describe(useCachedNotBiddingProviderCount.name, () => {
     await waitFor(() => expect(result.current.isScreened).toBe(true));
 
     expect(result.current.countNotBiddingProviders(TWO_PLACEMENT_SDL, [{ name: "west" }, { name: "east" }])).toBe(2);
+  });
+});
+
+describe(useCachedPlacementScreening.name, () => {
+  it("reports what screening found for each placement, in its picked regions", async () => {
+    const { result, readFor } = setup({
+      screenedPlacements: ["west", "east"],
+      providersByRegion: { "na-us-west": 2, "eu-west": 0 },
+      notBidding: [true, false]
+    });
+
+    await waitFor(() => expect(result.current.isScreened).toBe(true));
+
+    expect(readFor([{ name: "west" }, { name: "east" }])).toEqual([
+      { placement: "west", status: "screened", providersAbleToBid: 2, notBidding: 1 },
+      { placement: "east", status: "screened", providersAbleToBid: 0, notBidding: 0 }
+    ]);
+    expect(readFor([{ name: "west", regions: ["eu-west", "us-east"] }])).toEqual([
+      { placement: "west", status: "screened", providersAbleToBid: 0, notBidding: 0 }
+    ]);
+  });
+
+  it("reports a placement whose screening failed", async () => {
+    const { result, readFor } = setup({ screenedPlacements: ["west", "east"], providersByRegion: { "na-us-west": 1 }, failingRegion: "eu-west" });
+
+    await waitFor(() => expect(result.current.isScreened).toBe(true));
+
+    expect(readFor([{ name: "east" }])).toEqual([{ placement: "east", status: "failed" }]);
+  });
+
+  it("reports a placement not screened yet as screening", async () => {
+    const { result, readFor } = setup({ screenedPlacements: ["west"], providersByRegion: { "na-us-west": 1 } });
+
+    await waitFor(() => expect(result.current.isScreened).toBe(true));
+
+    expect(readFor([{ name: "east" }])).toEqual([{ placement: "east", status: "screening" }]);
+  });
+
+  it("explains a placement the spec cannot screen", async () => {
+    const { result, readFor } = setup({ screenedPlacements: ["west"], providersByRegion: { "na-us-west": 1 } });
+
+    await waitFor(() => expect(result.current.isScreened).toBe(true));
+
+    expect(readFor([{ name: "north" }])).toEqual([{ placement: "north", status: "not_screenable", reasons: ["The SDL has no placement named north."] }]);
+  });
+
+  function setup(input: {
+    screenedPlacements: Array<"west" | "east">;
+    providersByRegion: Record<string, number>;
+    notBidding?: boolean[];
+    failingRegion?: string;
+  }) {
+    const screenProviders = vi.fn(async (request: ScreeningRequest): Promise<ScreenedProvidersResponse> => {
+      const region = (request.requirements?.attributes ?? []).find(attribute => attribute.key === "location-region")!.value;
+      if (region === input.failingRegion) throw new Error("screening failed");
+      return {
+        providers: Array.from({ length: input.providersByRegion[region] ?? 0 }, (_, index) =>
+          buildScreenedProvider({ location: region, isNotBidding: input.notBidding?.[index] ?? false })
+        )
+      };
+    });
+    const api = createProxy({ v1: { screenProviders } }) as unknown as ReturnType<
+      NonNullable<NonNullable<NonNullable<Parameters<typeof setupQuery>[1]>["services"]>["api"]>
+    >;
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    const view = setupQuery(
+      () => {
+        const west = useScreenedProviders({ sdl: TWO_PLACEMENT_SDL, placementName: "west", enabled: input.screenedPlacements.includes("west") });
+        const east = useScreenedProviders({ sdl: TWO_PLACEMENT_SDL, placementName: "east", enabled: input.screenedPlacements.includes("east") });
+        const screened = input.screenedPlacements.map(name => (name === "west" ? west : east));
+        return { readPlacementScreening: useCachedPlacementScreening(), isScreened: screened.every(placement => !placement.isLoading) };
+      },
+      { services: { api: () => api, queryClient: () => queryClient } }
+    );
+
+    function readFor(placements: Array<{ name: string; regions?: readonly string[] }>) {
+      return view.result.current.readPlacementScreening(TWO_PLACEMENT_SDL, placements);
+    }
+
+    return { result: view.result, readFor };
+  }
+});
+
+describe(unscreenableReasonsOf.name, () => {
+  it("has no reason for a placement the SDL declares", () => {
+    expect(unscreenableReasonsOf(HELLO_WORLD_SDL, "dcloud")).toEqual([]);
+  });
+
+  it("names the SDL errors that keep it from being screened", () => {
+    const reasons = unscreenableReasonsOf(HELLO_WORLD_SDL.replace("units: 0.1", "units: lots"), "dcloud");
+
+    expect(reasons.length).toBeGreaterThan(0);
+    expect(reasons.join("\n")).toContain("/profiles/compute/web/resources/cpu/units");
+  });
+
+  it("says when the SDL does not parse", () => {
+    expect(unscreenableReasonsOf("services: [", "dcloud")).toEqual(["The SDL could not be read."]);
   });
 });
 

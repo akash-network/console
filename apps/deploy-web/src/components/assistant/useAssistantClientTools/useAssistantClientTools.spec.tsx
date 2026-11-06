@@ -8,6 +8,8 @@ import type { ProviderLookupService } from "@src/services/provider-lookup/provid
 import type { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
 import type { AssistantClientToolRequest } from "@src/types/assistant";
 import type { ApiProviderList } from "@src/types/provider";
+import type { ConfigureFormHandle, ConfigureFormRead } from "../configureFormRegistry/configureFormRegistry";
+import { ConfigureFormRegistry } from "../configureFormRegistry/configureFormRegistry";
 import type { DEPENDENCIES } from "./useAssistantClientTools";
 import { useAssistantClientTools } from "./useAssistantClientTools";
 
@@ -112,6 +114,80 @@ describe(useAssistantClientTools.name, () => {
     expect((await runClientTool(request({ maxLength: 10 }))).content).toBe("Couldn't r");
   });
 
+  it("refuses a log read that names no deployment", async () => {
+    const { runClientTool, listLeases } = setup({});
+
+    expect(await runClientTool(request({ arguments: {} }))).toEqual({
+      toolCallId: "t-1",
+      ok: false,
+      content: "No deployment was named, so there is nothing to read."
+    });
+    expect(listLeases).not.toHaveBeenCalled();
+  });
+
+  describe("read_configure_form", () => {
+    it("returns the open form as JSON", async () => {
+      const { runClientTool, registry } = setup({});
+      registry.publish(mock<ConfigureFormHandle>({ read: () => formRead({ screeningSdl: "version: 2.0" }) }));
+
+      const result = await runClientTool(request({ name: "read_configure_form", arguments: {} }));
+
+      expect(result).toEqual({ toolCallId: "t-1", ok: true, content: JSON.stringify(formRead({ screeningSdl: "version: 2.0" })) });
+    });
+
+    it("drops the screening SDL from a read the api would cut", async () => {
+      const { runClientTool, registry } = setup({});
+      const screeningSdl = "x".repeat(6_000);
+      registry.publish(mock<ConfigureFormHandle>({ read: () => formRead({ screeningSdl }) }));
+
+      const result = await runClientTool(request({ name: "read_configure_form", arguments: {} }));
+
+      expect(JSON.parse(result.content)).toEqual(formRead({ screeningSdl: null }));
+    });
+
+    it("keeps the screening SDL of a read exactly at the length the api keeps", async () => {
+      const { runClientTool, registry } = setup({});
+      const emptyRead = JSON.stringify(formRead({ screeningSdl: "" }));
+      const screeningSdl = "x".repeat(6_000 - emptyRead.length);
+      registry.publish(mock<ConfigureFormHandle>({ read: () => formRead({ screeningSdl }) }));
+
+      const result = await runClientTool(request({ name: "read_configure_form", arguments: {} }));
+
+      expect(JSON.parse(result.content).screeningSdl).toBe(screeningSdl);
+    });
+
+    it("explains that no configure form is open", async () => {
+      const { runClientTool } = setup({});
+
+      expect(await runClientTool(request({ name: "read_configure_form", arguments: {} }))).toEqual({
+        toolCallId: "t-1",
+        ok: false,
+        content: "The configure page is not open, so there is no form to read."
+      });
+    });
+
+    it("explains that the form could not be read", async () => {
+      const { runClientTool, registry } = setup({});
+      registry.publish(
+        mock<ConfigureFormHandle>({
+          read: () => {
+            throw new Error("boom");
+          }
+        })
+      );
+
+      expect(await runClientTool(request({ name: "read_configure_form", arguments: {} }))).toEqual({
+        toolCallId: "t-1",
+        ok: false,
+        content: "Couldn't read the configure form."
+      });
+    });
+  });
+
+  function formRead(input: Partial<ConfigureFormRead>): ConfigureFormRead {
+    return { phase: "configuring", editable: true, services: [], placements: [], invalidSettings: [], providers: [], screeningSdl: null, ...input };
+  }
+
   function request(input: Partial<AssistantClientToolRequest> = {}): AssistantClientToolRequest {
     return { type: "client_tool_request", toolCallId: "t-1", name: "read_logs", arguments: { dseq: "42" }, maxLength: 16000, ...input };
   }
@@ -131,13 +207,15 @@ describe(useAssistantClientTools.name, () => {
     providerProxy.readLogs.mockResolvedValue(input.readLogs ?? "");
     const ensureToken = vi.fn<UseProviderCredentialsResult["ensureToken"]>(async () => "jwt");
     const container = Object.assign(mock<Container>(), { api: api as unknown as Container["api"], providerLookup, providerProxy });
+    const registry = new ConfigureFormRegistry();
     const dependencies: typeof DEPENDENCIES = {
       useServices: () => container,
-      useProviderCredentials: () => mock<UseProviderCredentialsResult>({ ensureToken })
+      useProviderCredentials: () => mock<UseProviderCredentialsResult>({ ensureToken }),
+      useConfigureFormRegistry: () => registry
     };
 
     const { result } = renderHook(() => useAssistantClientTools(dependencies));
 
-    return { runClientTool: result.current, providerProxy, providerLookup, listLeases, ensureToken };
+    return { runClientTool: result.current, providerProxy, providerLookup, listLeases, ensureToken, registry };
   }
 });

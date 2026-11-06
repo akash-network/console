@@ -46,7 +46,8 @@ describe(GenericActionCard.name, () => {
       ["request_hardware", "Request hardware"],
       ["buy_credits", "Buy credits"],
       ["configure_auto_recharge", "Set up auto recharge"],
-      ["open_in_editor", "Open in the editor"]
+      ["open_in_editor", "Open in the editor"],
+      ["edit_configure_form", "Change the deployment settings"]
     ])("titles a %s proposal %s", (type, title) => {
       expect(actionTitleOf(type)).toBe(title);
     });

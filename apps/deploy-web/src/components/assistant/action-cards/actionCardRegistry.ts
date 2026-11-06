@@ -5,6 +5,7 @@ import { CloseDeploymentCard } from "./CloseDeploymentCard/CloseDeploymentCard";
 import { ConfigureAutoRechargeCard } from "./ConfigureAutoRechargeCard/ConfigureAutoRechargeCard";
 import { CreateAlertCard } from "./CreateAlertCard/CreateAlertCard";
 import { CreateDeploymentCard } from "./CreateDeploymentCard/CreateDeploymentCard";
+import { EditConfigureFormCard } from "./EditConfigureFormCard/EditConfigureFormCard";
 import { FavoriteProviderCard } from "./FavoriteProviderCard/FavoriteProviderCard";
 import { MoveDeploymentCard } from "./MoveDeploymentCard/MoveDeploymentCard";
 import { OpenInEditorCard } from "./OpenInEditorCard/OpenInEditorCard";
@@ -36,6 +37,7 @@ export const ACTION_CARD_REGISTRY: ActionCardRegistry = {
   favorite_provider: FavoriteProviderCard,
   request_hardware: RequestHardwareCard,
   configure_auto_recharge: ConfigureAutoRechargeCard,
+  edit_configure_form: EditConfigureFormCard,
   create_deployment: withPricingGuard(CreateDeploymentCard),
   choose_bid: withPricingGuard(ChooseBidCard),
   update_deployment: withPricingGuard(UpdateDeploymentCard),

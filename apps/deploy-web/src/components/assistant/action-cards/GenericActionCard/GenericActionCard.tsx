@@ -54,6 +54,8 @@ export function actionTitleOf(type: AssistantActionType): string {
       return "Set up auto recharge";
     case "open_in_editor":
       return "Open in the editor";
+    case "edit_configure_form":
+      return "Change the deployment settings";
   }
 }
 
