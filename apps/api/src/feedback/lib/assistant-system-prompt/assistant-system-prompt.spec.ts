@@ -22,6 +22,13 @@ describe(buildAssistantSystemPrompt.name, () => {
     expect(prompt).toContain("End every turn with an answer, never with tool calls alone.");
     expect(prompt).toContain("propose its card in the same turn instead of asking whether to");
     expect(prompt).toContain("at most twice per request");
+    expect(prompt).toContain("a deployment's Shell tab opens a terminal in its running container");
+    expect(prompt).toContain("API keys for scripts and CI are created under Settings, then API Keys");
+    expect(prompt).toContain("an account is deleted with Delete account in the Danger zone of the Profile page");
+    expect(prompt).toContain("conversations are saved for review only while the Privacy setting on that Profile page is on");
+    expect(prompt).toContain(
+      "saved ones stay until deleted there, while a reply waiting on a browser action is held for up to 5 minutes to resume either way, then deleted by an hourly cleanup"
+    );
     expect(prompt).toContain("never a running commentary of what you are about to read or propose, and never name your tools");
     expect(prompt).not.toContain("Latest assistant cards");
     expect(prompt.split("\n").at(-1)).toBe("The user has a paid account.");
