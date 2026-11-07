@@ -1,7 +1,7 @@
 import type { MongoAbility, MongoQuery, RawRuleOf } from "@casl/ability";
 
 import type { ApiKeyOutput } from "@src/auth/repositories/api-key/api-key.repository";
-import type { FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlags, type FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { type OrganizationRole, organizationRoleEnum } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import type { OrganizationContext, ProjectScope } from "@src/organization/types/organization-context";
@@ -40,6 +40,8 @@ export const ORGANIZATION_LEVEL_SUBJECTS: readonly string[] = [
   "StripePayment",
   "ApiKey"
 ];
+
+const PUBLISHING_ROLES: readonly OrganizationRole[] = ["owner", "admin"];
 
 /** An allow-list rather than `$ne: "owner"`, which CASL also matches against a payload that names no role. */
 const ROLES_BELOW_OWNER = organizationRoleEnum.enumValues.filter(role => role !== "owner");
@@ -124,7 +126,13 @@ export function organizationRules(user: RuleUser, context: OrganizationContext, 
   }
 
   const conditions = tenantConditionsOf(user, context);
-  const rules = [...userKeyedRules(user), ...everyMemberRules(conditions), ...ROLE_RULES[context.role](conditions, context), ...deploymentFilingRules(user)];
+  const rules = [
+    ...userKeyedRules(user),
+    ...everyMemberRules(conditions),
+    ...ROLE_RULES[context.role](conditions, context),
+    ...deploymentFilingRules(user),
+    ...templatePublishingRules(context)
+  ];
 
   return apiKey?.projectId
     ? [...withoutOrganizationLevelSubjects(rules), ...projectBoundKeyRules(conditions)]
@@ -134,6 +142,11 @@ export function organizationRules(user: RuleUser, context: OrganizationContext, 
 /** Must follow the role rules it narrows: a member files deployment settings under their own id and only updates a teammate's. */
 function deploymentFilingRules(user: RuleUser): AbilityRule[] {
   return [{ action: "create", subject: "DeploymentSetting", conditions: { userId: { $nin: [user.id] } }, inverted: true }];
+}
+
+/** Must follow the role rules, whose `manage` on templates would otherwise cover `publish` for every member. */
+function templatePublishingRules({ role }: OrganizationContext): AbilityRule[] {
+  return PUBLISHING_ROLES.includes(role) ? [] : [{ action: "publish", subject: "Template", inverted: true }];
 }
 
 /** Notification channels serve the whole organization, so a project-bound key reads them to attach its project's alerts but changes none. */
@@ -241,6 +254,7 @@ function projectAdministrationRules({
 
 function everyMemberRules({ organization, inOrg, inScope, ownInOrg }: TenantConditions): AbilityRule[] {
   return [
+    { action: "read", subject: "Template", conditions: { ...inOrg, visibility: "organization" }, enabledIf: FeatureFlags.TEMPLATE_MARKETPLACE },
     { action: "read", subject: "Organization", conditions: organization },
     { action: "read", subject: ["OrganizationMember", "UserWallet"], conditions: inOrg },
     { action: "read", subject: "OrganizationActivity", conditions: inScope },
