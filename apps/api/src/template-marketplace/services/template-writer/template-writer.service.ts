@@ -102,9 +102,10 @@ function isMapping(value: unknown): value is Record<string, unknown> {
 function toIssue({ keyword, message, params }: ValidationError): string {
   if (keyword !== "yaml") return message;
 
-  const { reason, line, column } = params as YamlErrorParams;
+  const { reason, line, column }: Partial<YamlErrorParams> = params;
+  const position = line && column ? ` (line ${line}, column ${column})` : "";
 
-  return `${UNREADABLE_SDL_ISSUE}: ${reason} (line ${line}, column ${column})`;
+  return `${UNREADABLE_SDL_ISSUE}: ${reason}${position}`;
 }
 
 @singleton()

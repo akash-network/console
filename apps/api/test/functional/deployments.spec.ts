@@ -1605,6 +1605,19 @@ describe("Deployments API", () => {
       expect(result.message).toContain("Invalid SDL");
     });
 
+    it("returns 400 for an SDL holding more than one YAML document", async () => {
+      const { userApiKeySecret } = await mockUser();
+
+      const response = await app.request("/v1/deployments", {
+        method: "POST",
+        body: JSON.stringify({ data: { sdl: `${HELLO_WORLD_SDL}\n---\n${HELLO_WORLD_SDL}`, deposit: 5.5 } }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ message: "SDL is not valid YAML" });
+    });
+
     it("returns 400 naming the value when the SDL gives a memory size without a unit", async () => {
       const { userApiKeySecret } = await mockUser();
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8").replace("size: 512Mi", 'size: "1073741824"');

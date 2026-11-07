@@ -199,6 +199,11 @@ describe(TemplateWriterService.name, () => {
         "services: [web",
         ["The SDL could not be read: unexpected end of the stream within a flow collection (line 2, column 1)"]
       ],
+      [
+        "a document followed by another",
+        "services: {}\n---\nservices: {}",
+        ["The SDL could not be read: expected a single document in the stream, but found more"]
+      ],
       ["a scalar document", "just text", ["The SDL could not be read"]],
       ["a list document", "- web", ["The SDL could not be read"]],
       ["an empty document", "", ["The SDL could not be read"]],
