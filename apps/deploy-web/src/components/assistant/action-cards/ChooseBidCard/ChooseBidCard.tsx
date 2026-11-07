@@ -30,6 +30,7 @@ export const DEPENDENCIES = {
 };
 
 const UNKNOWN_PROVIDER_LABEL = "Unknown provider";
+const LOOKING_UP_PROVIDER_LABEL = "Looking up provider…";
 
 type BidEntry = NonNullable<ReturnType<typeof useListBids>["data"]>["data"][number];
 
@@ -46,7 +47,7 @@ export const ChooseBidCard: FC<ActionCardProps<"choose_bid"> & { dependencies?: 
   const deploymentName = d.useDeploymentName(action.dseq);
   const bidsQuery = d.useListBids(action.dseq);
   const openBids = (bidsQuery.data?.data ?? []).filter(({ bid }) => bid.state === "open");
-  const { data: providers } = d.useProvidersByAddresses(openBids.map(({ bid }) => bid.id.provider));
+  const { data: providers, isLoading: isLookingUpProviders } = d.useProvidersByAddresses(openBids.map(({ bid }) => bid.id.provider));
   const recommendedBidIds = new Set(action.choices.map(choice => formatBidId({ dseq: action.dseq, ...choice })));
   const [selections, setSelections] = useState<Record<number, string>>(() =>
     Object.fromEntries(action.choices.map(choice => [choice.gseq, formatBidId({ dseq: action.dseq, ...choice })]))
@@ -104,6 +105,7 @@ export const ChooseBidCard: FC<ActionCardProps<"choose_bid"> & { dependencies?: 
                       bidId={bidId}
                       bid={bid}
                       provider={providers.find(({ owner }) => owner === bid.id.provider)}
+                      isLookingUpProvider={isLookingUpProviders}
                       isRecommended={recommendedBidIds.has(bidId)}
                       PricePerTimeUnit={d.PricePerTimeUnit}
                     />
@@ -120,9 +122,10 @@ const BidOption: FC<{
   bidId: string;
   bid: BidEntry["bid"];
   provider: ApiProviderList | undefined;
+  isLookingUpProvider: boolean;
   isRecommended: boolean;
   PricePerTimeUnit: typeof PricePerTimeUnit;
-}> = ({ bidId, bid, provider, isRecommended, PricePerTimeUnit: Price }) => {
+}> = ({ bidId, bid, provider, isLookingUpProvider, isRecommended, PricePerTimeUnit: Price }) => {
   const details = [provider?.ipRegion, provider ? `${formatUptime(provider.uptime7d)} uptime` : undefined].filter(Boolean).join(" · ");
 
   return (
@@ -130,7 +133,7 @@ const BidOption: FC<{
       <RadioGroupItem id={bidId} value={bidId} />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="flex items-center gap-2 font-medium [overflow-wrap:anywhere]">
-          {provider ? getProviderName(provider) : UNKNOWN_PROVIDER_LABEL}
+          {labelProvider(provider, isLookingUpProvider)}
           {isRecommended && <Badge variant="secondary">Recommended</Badge>}
         </span>
         {details && <span className="text-xs text-muted-foreground">{details}</span>}
@@ -139,3 +142,8 @@ const BidOption: FC<{
     </Label>
   );
 };
+
+function labelProvider(provider: ApiProviderList | undefined, isLookingUpProvider: boolean) {
+  if (provider) return getProviderName(provider);
+  return isLookingUpProvider ? LOOKING_UP_PROVIDER_LABEL : UNKNOWN_PROVIDER_LABEL;
+}

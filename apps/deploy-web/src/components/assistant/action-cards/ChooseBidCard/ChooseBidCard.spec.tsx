@@ -21,8 +21,9 @@ type BidEntry = NonNullable<BidsQuery["data"]>["data"][number];
 
 describe("ChooseBidCard", () => {
   it("lists the open bids with provider, region, uptime and hourly price, and preselects the recommendation", () => {
-    const { chromeProps } = setup();
+    const { chromeProps, useProvidersByAddresses } = setup();
 
+    expect(useProvidersByAddresses).toHaveBeenLastCalledWith(["akash1fast", "akash1other"]);
     const group = screen.getByRole("radiogroup", { name: "Bids for group 1" });
     const recommended = within(group).getByRole("radio", { name: /Fast GPUs/ });
     expect(recommended).toBeChecked();
@@ -101,6 +102,14 @@ describe("ChooseBidCard", () => {
     expect(screen.queryByText(/akash1unlisted/)).not.toBeInTheDocument();
   });
 
+  it("shows a provider as being looked up rather than unknown while its lookup is in flight", () => {
+    setup({ bids: [bidEntry({ provider: "akash1fast" }), bidEntry({ provider: "akash1unlisted" })], isLookingUpProviders: true });
+
+    expect(screen.getByRole("radio", { name: /Looking up provider…/ })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Fast GPUs/ })).toBeInTheDocument();
+    expect(screen.queryByText(/Unknown provider/)).not.toBeInTheDocument();
+  });
+
   it("can't start a lease on a recommendation that is no longer open", () => {
     const { chromeProps } = setup({ bids: [bidEntry({ provider: "akash1other" })] });
 
@@ -139,6 +148,7 @@ describe("ChooseBidCard", () => {
       bids?: BidEntry[];
       choices?: AssistantActionOf<"choose_bid">["choices"];
       isLoading?: boolean;
+      isLookingUpProviders?: boolean;
       decisionStatus?: ActionCardDecision["status"];
     } = {}
   ) {
@@ -163,6 +173,11 @@ describe("ChooseBidCard", () => {
       mock<ApiProviderList>({ owner: "akash1fast", name: "Fast GPUs", ipRegion: "us-west", uptime7d: 0.995 }),
       mock<ApiProviderList>({ owner: "akash1other", name: null, hostUri: "https://provider.other.example:8443", ipRegion: "eu-west", uptime7d: 0.9 })
     ];
+    const useProvidersByAddresses = vi.fn((_addresses: readonly string[]) => ({
+      data: providers,
+      isLoading: !!input.isLookingUpProviders,
+      isFetching: !!input.isLookingUpProviders
+    }));
     const ActionCardChrome = vi.fn((props: ActionCardChromeProps) => <>{props.children}</>);
     const decision = mock<ActionCardDecision>({ status: input.decisionStatus ?? "pending" });
 
@@ -176,7 +191,7 @@ describe("ChooseBidCard", () => {
             useServices: () => Object.assign(mock<Container>(), { api }),
             useQueryClient: () => queryClient,
             useListBids: () => ({ data: input.isLoading ? undefined : { data: bids }, isLoading: !!input.isLoading }) as unknown as BidsQuery,
-            useProvidersByAddresses: () => ({ data: providers, isLoading: false, isFetching: false }),
+            useProvidersByAddresses,
             useMarkActivityOutcomes: () => mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>({ forgetEarlierOutcomes, markOutcomeHandled }),
             ActionCardChrome: ActionCardChrome as unknown as typeof DEPENDENCIES.ActionCardChrome,
             PricePerTimeUnit: ({ perBlockValue }) => <span>{perBlockValue}/hr</span>
@@ -185,6 +200,6 @@ describe("ChooseBidCard", () => {
       </TestContainerProvider>
     );
 
-    return { useDeploymentName, chromeProps: () => ActionCardChrome.mock.lastCall![0], createLease, forgetEarlierOutcomes, markOutcomeHandled, queryClient, unmount };
+    return { useDeploymentName, useProvidersByAddresses, chromeProps: () => ActionCardChrome.mock.lastCall![0], createLease, forgetEarlierOutcomes, markOutcomeHandled, queryClient, unmount };
   }
 });
