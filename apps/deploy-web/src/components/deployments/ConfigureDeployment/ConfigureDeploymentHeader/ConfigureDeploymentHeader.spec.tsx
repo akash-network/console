@@ -3,6 +3,7 @@ import { FormProvider, useForm } from "react-hook-form";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { AccountStatus } from "@src/types/user";
 import { getAvgCostPerMonth } from "@src/utils/priceUtils";
 import type { DeploymentCost } from "../useDeploymentCost/useDeploymentCost";
 import type { DeploymentFlow, DeploymentFlowActions } from "../useDeploymentFlow/useDeploymentFlow";
@@ -12,6 +13,7 @@ import { ConfigureDeploymentHeader } from "./ConfigureDeploymentHeader";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { accountActionGatesFor } from "@tests/unit/accountActionGates";
 
 describe(ConfigureDeploymentHeader.name, () => {
   it("requests quotes through the shared request quotes action", async () => {
@@ -187,6 +189,34 @@ describe(ConfigureDeploymentHeader.name, () => {
     expect(cancelAndEdit).toHaveBeenCalled();
   });
 
+  it("keeps a suspended user from requesting quotes", async () => {
+    const { requestQuotes } = setup({ phase: "configuring", accountStatus: "suspended" });
+
+    await userEvent.click(screen.getByRole("button", { name: /request quotes/i }));
+
+    expect(screen.getByRole("button", { name: /request quotes/i })).toBeDisabled();
+    expect(requestQuotes).not.toHaveBeenCalled();
+  });
+
+  it("keeps a suspended user from deploying", () => {
+    setup({ phase: "quoting", allPlacementsHaveBids: true, placements: [{ id: "p1" }], selections: { p1: "akash1a/1/1/1" }, accountStatus: "suspended" });
+
+    expect(screen.getByRole("button", { name: "Deploy" })).toBeDisabled();
+  });
+
+  it("keeps a suspended user from retrying a failed deploy", () => {
+    setup({
+      phase: "quoting",
+      allPlacementsHaveBids: true,
+      placements: [{ id: "p1" }],
+      selections: { p1: "akash1a/1/1/1" },
+      deployError: { message: "boom" },
+      accountStatus: "suspended"
+    });
+
+    expect(screen.getByRole("button", { name: "Retry" })).toBeDisabled();
+  });
+
   function setup(input: {
     phase: DeploymentFlow["phase"];
     placements?: { id: string }[];
@@ -201,6 +231,7 @@ describe(ConfigureDeploymentHeader.name, () => {
     cancelAndEdit?: () => void;
     deploymentName?: string;
     noBidsReceived?: boolean;
+    accountStatus?: AccountStatus;
   }) {
     const flow = mock<DeploymentFlow>({
       phase: input.phase,
@@ -222,7 +253,8 @@ describe(ConfigureDeploymentHeader.name, () => {
       useDeploymentCost: useDeploymentCost as typeof DEPENDENCIES.useDeploymentCost,
       PriceValue: ({ value }) => <span data-testid="price">{String(value)}</span>,
       useQuoteExpiry: () => input.expiry ?? null,
-      CustomTooltip: ({ children }) => <>{children}</>
+      CustomTooltip: ({ children }) => <>{children}</>,
+      AccountSpendGate: accountActionGatesFor(input.accountStatus ?? "active").AccountSpendGate
     };
     render(
       <Wrapper placements={input.placements}>

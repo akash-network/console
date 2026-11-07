@@ -4,9 +4,11 @@ import { mock } from "vitest-mock-extended";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { ITemplate } from "@src/types";
+import type { AccountStatus } from "@src/types/user";
 import { DEPENDENCIES, UserTemplate } from "./UserTemplate";
 
 import { createEvent, fireEvent, render, screen } from "@testing-library/react";
+import { accountActionGatesFor } from "@tests/unit/accountActionGates";
 import { MockComponents } from "@tests/unit/mocks";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
@@ -54,7 +56,13 @@ describe(UserTemplate.name, () => {
     expect(CustomNextSeo.mock.lastCall?.[0]).toMatchObject({ description: "" });
   });
 
-  function setup(input: { id?: string; template?: Partial<ITemplate> }) {
+  it("keeps a suspended user from deploying the template", () => {
+    setup({ accountStatus: "suspended" });
+
+    expect(screen.getByRole("button", { name: "Deploy" })).toBeDisabled();
+  });
+
+  function setup(input: { id?: string; template?: Partial<ITemplate>; accountStatus?: AccountStatus }) {
     const id = input.id ?? "template-id";
     const template: ITemplate = {
       id,
@@ -77,7 +85,8 @@ describe(UserTemplate.name, () => {
       CustomNextSeo,
       useCustomUser: () => mock<ReturnType<typeof DEPENDENCIES.useCustomUser>>({ user: undefined }),
       useDeleteTemplate: () => mock<ReturnType<typeof DEPENDENCIES.useDeleteTemplate>>({ isPending: false }),
-      useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>()
+      useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>(),
+      AccountSpendGate: accountActionGatesFor(input.accountStatus ?? "active").AccountSpendGate
     });
 
     render(

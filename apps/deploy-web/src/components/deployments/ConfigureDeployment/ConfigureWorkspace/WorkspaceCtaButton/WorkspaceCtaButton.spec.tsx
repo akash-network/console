@@ -1,10 +1,14 @@
+import { CustomTooltip, TooltipProvider } from "@akashnetwork/ui/components";
 import { describe, expect, it, vi } from "vitest";
 
-import type { WorkspaceCtaState } from "./WorkspaceCtaButton";
+import { AccountSpendGate as RealAccountSpendGate } from "@src/components/user/AccountActionGate/AccountActionGate";
+import type { AccountStatus } from "@src/types/user";
+import type { DEPENDENCIES, WorkspaceCtaState } from "./WorkspaceCtaButton";
 import { WorkspaceCtaButton } from "./WorkspaceCtaButton";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { buildAccountStatus } from "@tests/seeders/accountStatus";
 
 describe(WorkspaceCtaButton.name, () => {
   it.each<[WorkspaceCtaState, string]>([
@@ -29,9 +33,28 @@ describe(WorkspaceCtaButton.name, () => {
     expect(handlers[handler]).toHaveBeenCalled();
   });
 
-  function setup(input: { state: WorkspaceCtaState }) {
+  it.each<[WorkspaceCtaState, string]>([
+    ["deploy", "Deploy"],
+    ["retry", "Retry"]
+  ])("is disabled with an explanation for a suspended user on the %s action", async (state, name) => {
+    setup({ state, accountStatus: "suspended" });
+
+    expect(screen.getByRole("button", { name })).toBeDisabled();
+    await userEvent.tab();
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Your account is suspended, so you can't deploy or add funds.");
+  });
+
+  function setup(input: { state: WorkspaceCtaState; accountStatus?: AccountStatus }) {
     const handlers = { onDeploy: vi.fn(), onRetry: vi.fn(), onCloseAndEdit: vi.fn() };
-    render(<WorkspaceCtaButton state={input.state} {...handlers} />);
+    const useAccountStatus = () => buildAccountStatus(input.accountStatus ?? "active");
+    const AccountSpendGate: typeof DEPENDENCIES.AccountSpendGate = ({ children }) => (
+      <RealAccountSpendGate dependencies={{ useAccountStatus, CustomTooltip }}>{children}</RealAccountSpendGate>
+    );
+    render(
+      <TooltipProvider>
+        <WorkspaceCtaButton state={input.state} {...handlers} dependencies={{ AccountSpendGate }} />
+      </TooltipProvider>
+    );
     return handlers;
   }
 });

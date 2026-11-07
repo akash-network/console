@@ -12,6 +12,7 @@ export const DEPENDENCIES = { useWallet, useUser, useLeaseExistenceQuery, useAct
  * request on every mount while the answer is `false` (a `false` answer is kept permanently stale by design).
  * While the query is unresolved or errored this returns `false`, unlike the gate's fail-open: consumers hide
  * affordances such as links into gated routes, where wrongly hiding is harmless but wrongly showing dead-ends.
+ * A suspended or terminated account counts as onboarded, because the funnel only leads to a trial, a purchase or a deploy it may no longer make.
  */
 export function useIsOnboarded(d: typeof DEPENDENCIES = DEPENDENCIES): boolean {
   const { address, hasWallet } = d.useWallet();
@@ -22,6 +23,7 @@ export function useIsOnboarded(d: typeof DEPENDENCIES = DEPENDENCIES): boolean {
   const leaseExistenceQuery = d.useLeaseExistenceQuery(address, { enabled: hasWalletAddress, refetchOnMount: false });
   const isOnboarded = hasWalletAddress && !!leaseExistenceQuery.data;
   const hasSkippedOnboarding = !!user?.onboardingSkippedAt;
+  const isAccountRestricted = user?.accountStatus === "suspended" || user?.accountStatus === "terminated";
 
-  return isOnboarded || hasSkippedOnboarding || activeOrganization?.type === "team";
+  return isOnboarded || hasSkippedOnboarding || isAccountRestricted || activeOrganization?.type === "team";
 }

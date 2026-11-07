@@ -11,6 +11,7 @@ import { CreateApiKeyDialog } from "@src/components/api-keys/CreateApiKeyDialog/
 import { RevokeApiKeyDialog } from "@src/components/api-keys/RevokeApiKeyDialog/RevokeApiKeyDialog";
 import Layout from "@src/components/layout/Layout";
 import { SettingsLayout } from "@src/components/layout/SettingsLayout/SettingsLayout";
+import { AccountMutationGate } from "@src/components/user/AccountActionGate/AccountActionGate";
 import { API_REFERENCE_URL } from "@src/config/agent-setup.config";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useServices } from "@src/context/ServicesProvider";
@@ -35,7 +36,8 @@ export const DEPENDENCIES = {
   useFlag,
   useActiveOrganization,
   useProjectsUi,
-  useProjectsQuery
+  useProjectsQuery,
+  AccountMutationGate
 };
 
 interface Props {
@@ -91,10 +93,12 @@ export function ApiKeysPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
                 API reference
               </a>
             </Button>
-            <Button size="sm" className="gap-2" onClick={() => setIsCreatingKey(true)}>
-              <PlusIcon className="h-3.5 w-3.5" aria-hidden />
-              Create new key
-            </Button>
+            <d.AccountMutationGate>
+              <Button size="sm" className="gap-2" onClick={() => setIsCreatingKey(true)}>
+                <PlusIcon className="h-3.5 w-3.5" aria-hidden />
+                Create new key
+              </Button>
+            </d.AccountMutationGate>
           </div>
         }
       >

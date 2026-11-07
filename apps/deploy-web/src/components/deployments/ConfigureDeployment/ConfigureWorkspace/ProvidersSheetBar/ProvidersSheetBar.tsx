@@ -2,9 +2,10 @@ import type { FC, ReactNode } from "react";
 import { Button, Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@akashnetwork/ui/components";
 import { ChevronUpIcon, PanelsTopLeftIcon } from "lucide-react";
 
+import { AccountSpendGate } from "@src/components/user/AccountActionGate/AccountActionGate";
 import { useDeploymentResourceSummary } from "../../DeploymentResourceSummary/useDeploymentResourceSummary";
 
-export const DEPENDENCIES = { useDeploymentResourceSummary };
+export const DEPENDENCIES = { useDeploymentResourceSummary, AccountSpendGate };
 
 type Props = {
   isSheetOpen: boolean;
@@ -41,10 +42,12 @@ export const ProvidersSheetBar: FC<Props> = ({
             <ChevronUpIcon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           </button>
         </SheetTrigger>
-        <Button type="button" disabled={isChooseProviderDisabled} onClick={onChooseProvider} className="h-10 shrink-0 gap-2 px-4">
-          <PanelsTopLeftIcon className="h-4 w-4" aria-hidden="true" />
-          Choose a provider
-        </Button>
+        <d.AccountSpendGate>
+          <Button type="button" disabled={isChooseProviderDisabled} onClick={onChooseProvider} className="h-10 shrink-0 gap-2 px-4">
+            <PanelsTopLeftIcon className="h-4 w-4" aria-hidden="true" />
+            Choose a provider
+          </Button>
+        </d.AccountSpendGate>
       </div>
       <SheetContent
         side="bottom"

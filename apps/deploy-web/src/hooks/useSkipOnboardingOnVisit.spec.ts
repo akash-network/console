@@ -6,6 +6,8 @@ import type { DEPENDENCIES } from "@src/hooks/useSkipOnboardingOnVisit";
 import { useSkipOnboardingOnVisit } from "@src/hooks/useSkipOnboardingOnVisit";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { ErrorHandlerService } from "@src/services/error-handler/error-handler.service";
+import type { AccountStatus } from "@src/types/user";
+import { buildAccountStatus } from "../../tests/seeders/accountStatus";
 import { setupQuery } from "../../tests/unit/query-client";
 
 describe(useSkipOnboardingOnVisit.name, () => {
@@ -19,6 +21,15 @@ describe(useSkipOnboardingOnVisit.name, () => {
 
   it("leaves an onboarded or still loading user alone", async () => {
     const { consoleApiHttpClient, analyticsService } = setup({ isKnownNotOnboarded: false });
+
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(consoleApiHttpClient.post).not.toHaveBeenCalled();
+    expect(analyticsService.track).not.toHaveBeenCalled();
+  });
+
+  it("never sends the skip for a terminated account, whose writes the API refuses", async () => {
+    const { consoleApiHttpClient, analyticsService } = setup({ isKnownNotOnboarded: true, accountStatus: "terminated" });
 
     await new Promise(resolve => setTimeout(resolve, 0));
 
@@ -55,7 +66,7 @@ describe(useSkipOnboardingOnVisit.name, () => {
     expect(checkSession).not.toHaveBeenCalled();
   });
 
-  function setup(input: { isKnownNotOnboarded: boolean; postRejects?: boolean }) {
+  function setup(input: { isKnownNotOnboarded: boolean; postRejects?: boolean; accountStatus?: AccountStatus }) {
     const consoleApiHttpClient = mock<AxiosInstance>();
     if (input.postRejects) consoleApiHttpClient.post.mockRejectedValue(new Error("network error"));
     else consoleApiHttpClient.post.mockResolvedValue({ status: 204 } as never);
@@ -68,7 +79,9 @@ describe(useSkipOnboardingOnVisit.name, () => {
     const useUser: typeof DEPENDENCIES.useUser = () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ checkSession });
     const useIsKnownNotOnboarded: typeof DEPENDENCIES.useIsKnownNotOnboarded = () => isKnownNotOnboarded;
 
-    const { rerender } = setupQuery(() => useSkipOnboardingOnVisit("billing", { useUser, useIsKnownNotOnboarded }), {
+    const useAccountStatus = () => buildAccountStatus(input.accountStatus ?? "active");
+
+    const { rerender } = setupQuery(() => useSkipOnboardingOnVisit("billing", { useUser, useIsKnownNotOnboarded, useAccountStatus }), {
       services: {
         consoleApiHttpClient: () => consoleApiHttpClient,
         analyticsService: () => analyticsService,

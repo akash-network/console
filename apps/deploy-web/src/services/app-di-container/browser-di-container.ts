@@ -1,6 +1,7 @@
 import { createProxy } from "@akashnetwork/react-query-proxy";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
+import { createAccountStatusRefusalFetch } from "@src/services/account-status-refusal/account-status-refusal";
 import { createApiSdk } from "@src/services/api-sdk/createApiSdk";
 import { ApiUrlService } from "@src/services/api-url/api-url.service";
 import { AssistantConversationClient } from "@src/services/assistant-conversation/assistant-conversation-client";
@@ -24,18 +25,19 @@ const rootContainer = createAppRootContainer({
 });
 
 export const services = createChildContainer(rootContainer, {
+  proxiedApiFetch: (): typeof fetch =>
+    createTabOrganizationFetch(
+      services.tabOrganization,
+      createSessionExpiryFetch(services.sessionExpiryNotifier, createAccountStatusRefusalFetch(services.accountStatusRefusalNotifier))
+    ),
   api: () =>
     createProxy(
       createApiSdk({
         baseUrl: PROXY_API_BASE_URL,
-        fetch: createTabOrganizationFetch(services.tabOrganization, createSessionExpiryFetch(services.sessionExpiryNotifier))
+        fetch: services.proxiedApiFetch
       })
     ),
-  assistantConversation: () =>
-    new AssistantConversationClient(
-      createTabOrganizationFetch(services.tabOrganization, createSessionExpiryFetch(services.sessionExpiryNotifier)),
-      PROXY_API_BASE_URL
-    ),
+  assistantConversation: () => new AssistantConversationClient(services.proxiedApiFetch, PROXY_API_BASE_URL),
   internalApiHttpClient: () => services.createAxios(),
   consoleApiHttpClient: () =>
     services.applyAxiosInterceptors(services.createAxios({ baseURL: services.publicConfig.NEXT_PUBLIC_BASE_API_MAINNET_URL }), {

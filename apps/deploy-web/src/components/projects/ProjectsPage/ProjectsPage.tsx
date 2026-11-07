@@ -11,6 +11,7 @@ import Layout from "@src/components/layout/Layout";
 import { canManageProjects } from "@src/components/organizations/organizationAccess";
 import { GetStartedChecklist } from "@src/components/projects/GetStartedChecklist/GetStartedChecklist";
 import { NotFoundPage } from "@src/components/shared/NotFoundPage/NotFoundPage";
+import { AccountSpendGate } from "@src/components/user/AccountActionGate/AccountActionGate";
 import { TOUR_TARGET } from "@src/components/whats-new/tourTargets";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useFlag } from "@src/hooks/useFlag";
@@ -40,7 +41,8 @@ export const DEPENDENCIES = {
   ProjectFolderMenu,
   RecentActivityFeed,
   NewProjectModal,
-  GetStartedChecklist
+  GetStartedChecklist,
+  AccountSpendGate
 };
 
 interface Props {
@@ -97,17 +99,19 @@ function ProjectsPageContent({ dependencies: d }: Required<Props>) {
               )}
 
               {hasProjects && canDeployAnywhere && (
-                <Link
-                  href={newDeploymentUrl()}
-                  className={cn(
-                    buttonVariants({ variant: "default" }),
-                    "h-auto gap-2 rounded-[10px] px-[18px] py-2.5 text-[13px] font-semibold",
-                    styles.primaryPill
-                  )}
-                >
-                  New deployment
-                  <ArrowRight className="h-[15px] w-[15px]" />
-                </Link>
+                <d.AccountSpendGate>
+                  <Link
+                    href={newDeploymentUrl()}
+                    className={cn(
+                      buttonVariants({ variant: "default" }),
+                      "h-auto gap-2 rounded-[10px] px-[18px] py-2.5 text-[13px] font-semibold",
+                      styles.primaryPill
+                    )}
+                  >
+                    New deployment
+                    <ArrowRight className="h-[15px] w-[15px]" />
+                  </Link>
+                </d.AccountSpendGate>
               )}
             </div>
           </div>

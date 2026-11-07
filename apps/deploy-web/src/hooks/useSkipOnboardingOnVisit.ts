@@ -2,18 +2,20 @@ import { useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
+import { useAccountStatus } from "@src/hooks/useAccountStatus/useAccountStatus";
 import { useIsKnownNotOnboarded } from "@src/hooks/useIsKnownNotOnboarded";
 import type { SkipOnboardingSource } from "@src/hooks/useSkipOnboarding";
 import { useUser } from "@src/hooks/useUser";
 import { SKIP_REPORTING_HANDLED_BY_CALLER } from "@src/services/query-error-policy/query-error-policy";
 
-export const DEPENDENCIES = { useUser, useIsKnownNotOnboarded };
+export const DEPENDENCIES = { useUser, useIsKnownNotOnboarded, useAccountStatus };
 
 /** Skips onboarding in place on a page the user chose over the funnel, tried once per mount so a failed skip never loops. */
 export function useSkipOnboardingOnVisit(source: SkipOnboardingSource, d: typeof DEPENDENCIES = DEPENDENCIES): void {
   const { consoleApiHttpClient, analyticsService, errorHandler } = useServices();
   const { checkSession } = d.useUser();
   const isKnownNotOnboarded = d.useIsKnownNotOnboarded();
+  const { canMutate } = d.useAccountStatus();
 
   const { mutate, isIdle } = useMutation({
     mutationFn: async () => {
@@ -27,8 +29,8 @@ export function useSkipOnboardingOnVisit(source: SkipOnboardingSource, d: typeof
 
   useEffect(
     function skipOnceKnownNotOnboarded() {
-      if (isKnownNotOnboarded && isIdle) mutate();
+      if (isKnownNotOnboarded && canMutate && isIdle) mutate();
     },
-    [isKnownNotOnboarded, isIdle, mutate]
+    [isKnownNotOnboarded, canMutate, isIdle, mutate]
   );
 }

@@ -23,6 +23,7 @@ import { ProjectScopeProvider } from "@src/components/projects/ProjectScope/Proj
 import { SectionLabel } from "@src/components/projects/SectionLabel/SectionLabel";
 import { ViewOnlyNotice } from "@src/components/projects/ViewOnlyNotice/ViewOnlyNotice";
 import { LinkTo } from "@src/components/shared/LinkTo";
+import { AccountSpendGate } from "@src/components/user/AccountActionGate/AccountActionGate";
 import { useBlockchainStatus } from "@src/context/BlockchainStatusProvider";
 import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
 import { useProjectAccess } from "@src/hooks/useProjectAccess/useProjectAccess";
@@ -48,7 +49,8 @@ export const DEPENDENCIES = {
   DeploymentArchive,
   RecentActivity,
   useProjectsUi,
-  NextSeo
+  NextSeo,
+  AccountSpendGate
 };
 
 /** Narrows the list to one project, with the project page's own title and side column. */
@@ -226,15 +228,17 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ project, depen
               )}
 
               {model.showNewDeploymentLink && canDeploy && (
-                <Link
-                  href={newDeploymentUrl({ projectId: project?.id })}
-                  className={cn("space-x-2", buttonVariants({ variant: "default" }), isBlockchainDown && "pointer-events-none opacity-50")}
-                  aria-disabled={isBlockchainDown}
-                  onClick={startNewDeploymentUnlessChainIsDown}
-                >
-                  <span className="whitespace-nowrap">New deployment</span>
-                  <ChevronRight className="h-4 w-4" />
-                </Link>
+                <d.AccountSpendGate>
+                  <Link
+                    href={newDeploymentUrl({ projectId: project?.id })}
+                    className={cn("space-x-2", buttonVariants({ variant: "default" }), isBlockchainDown && "pointer-events-none opacity-50")}
+                    aria-disabled={isBlockchainDown}
+                    onClick={startNewDeploymentUnlessChainIsDown}
+                  >
+                    <span className="whitespace-nowrap">New deployment</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </Link>
+                </d.AccountSpendGate>
               )}
             </div>
           </div>

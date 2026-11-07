@@ -154,6 +154,14 @@ describe("query-error-policy", () => {
     it.each([400, 403])("reports a %s an axios client raised", status => {
       expect(shouldReportError(httpError(status), undefined)).toBe(true);
     });
+
+    it("stays quiet for the Console API's refusal naming the account's suspension", () => {
+      expect(shouldReportError(consoleApiError(403, { code: "account_suspended", data: { reason: "Unpaid invoice" } }), undefined)).toBe(false);
+    });
+
+    it("reports a refusal-shaped 403 that did not come from the Console API", () => {
+      expect(shouldReportError(httpError(403, { code: "account_suspended", data: { reason: "Unpaid invoice" } }), undefined)).toBe(true);
+    });
   });
 
   describe("SKIP_REPORTING_PROVIDER_POLL_FAILURE", () => {
@@ -227,6 +235,10 @@ describe("query-error-policy", () => {
 
   function apiError(status: number) {
     return new ApiError(status, {}, `PATCH /v1/deployments/{dseq} \u2192 ${status}`);
+  }
+
+  function consoleApiError(status: number, data: unknown) {
+    return new AxiosError("Request failed", String(status), { baseURL: "/api/proxy" } as never, undefined, { status, data } as never);
   }
 
   function httpError(status: number, data?: unknown) {

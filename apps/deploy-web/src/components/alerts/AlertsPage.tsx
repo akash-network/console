@@ -10,6 +10,7 @@ import { NotificationChannelsListContainer } from "@src/components/alerts/Notifi
 import { NotificationChannelsListView } from "@src/components/alerts/NotificationChannelsListView/NotificationChannelsListView";
 import Layout from "@src/components/layout/Layout";
 import { SettingsLayout } from "@src/components/layout/SettingsLayout/SettingsLayout";
+import { AccountMutationGate } from "@src/components/user/AccountActionGate/AccountActionGate";
 
 export const DEPENDENCIES = {
   Layout,
@@ -18,7 +19,8 @@ export const DEPENDENCIES = {
   AlertsListView,
   NotificationChannelsListContainer,
   NotificationChannelsListView,
-  NotificationChannelDialog
+  NotificationChannelDialog,
+  AccountMutationGate
 };
 
 type AlertsTab = "alerts" | "channels";
@@ -37,10 +39,12 @@ export const AlertsPage: FC<{ dependencies?: typeof DEPENDENCIES }> = ({ depende
         description="Get notified about your deployments and manage where alerts are sent."
         headerActions={
           tab === "channels" && (
-            <Button size="sm" className="gap-1.5" onClick={() => setIsAddingChannel(true)}>
-              <Plus className="h-3.5 w-3.5" aria-hidden />
-              Add channel
-            </Button>
+            <d.AccountMutationGate>
+              <Button size="sm" className="gap-1.5" onClick={() => setIsAddingChannel(true)}>
+                <Plus className="h-3.5 w-3.5" aria-hidden />
+                Add channel
+              </Button>
+            </d.AccountMutationGate>
           )
         }
       >
