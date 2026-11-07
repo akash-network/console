@@ -66,6 +66,9 @@ const PAYMENT_IN_PROGRESS_CODE = "payment_in_progress";
 
 const PAYMENT_FORM_LOAD_TIMEOUT_MS = 10_000;
 
+/** A card form that fails to load again after a Retry is most likely blocked by the browser, so Retry is no longer offered. */
+const PAYMENT_FORM_LOAD_FAILURES_BEFORE_BLOCKED = 2;
+
 export const DEPENDENCIES = {
   AddCreditsAmountFields,
   AddCreditsNewPaymentMethodFields,
@@ -123,6 +126,8 @@ type PaymentFormLoadFailure = PaymentFormLoadError | "timeout";
 interface PaymentFormLoad {
   attempt: number;
   status: "loading" | "slow" | "ready" | "failed";
+  failure?: PaymentFormLoadError;
+  failedLoads: number;
 }
 
 interface PaymentFailureDetails extends PaymentMethodSetupFailure {
@@ -183,7 +188,8 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
   const [isProcessing, setIsProcessing] = useState(false);
   const [isWalletOpen, setIsWalletOpen] = useState(false);
   const [walletMethod, setWalletMethod] = useState<{ paymentMethodId: string; type: string } | null>(null);
-  const [paymentFormLoad, setPaymentFormLoad] = useState<PaymentFormLoad>({ attempt: 0, status: "loading" });
+  const [paymentFormLoad, setPaymentFormLoad] = useState<PaymentFormLoad>({ attempt: 0, status: "loading", failedLoads: 0 });
+  const [isWalletAvailable, setIsWalletAvailable] = useState(false);
   const submittingRef = useRef(false);
 
   const paymentMethodRef = useRef<PaymentMethodSourceHandle>(null);
@@ -208,6 +214,8 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
   const isPaymentFormLoading = isNewCard && setupIntentStatus !== "error" && paymentFormLoad.status === "loading";
   const isPaymentFormSlow = isNewCard && setupIntentStatus !== "error" && paymentFormLoad.status === "slow";
   const hasPaymentFormFailed = isNewCard && paymentFormLoad.status === "failed";
+  const isPaymentFormBlocked =
+    hasPaymentFormFailed && (paymentFormLoad.failure === "script_blocked" || paymentFormLoad.failedLoads >= PAYMENT_FORM_LOAD_FAILURES_BEFORE_BLOCKED);
   const isBusy = isProcessing || isWalletOpen;
   const isPaused = refusals.pausedUntil !== null;
   const pendingWallet = user?.id ? attempt.getWalletAttempt({ userId: user.id, amount }) : null;
@@ -596,7 +604,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
 
   const markPaymentFormReady = useCallback(() => {
     clearTimeout(paymentFormLoadTimeoutRef.current);
-    setPaymentFormLoad(load => ({ ...load, status: "ready" }));
+    setPaymentFormLoad(load => ({ ...load, status: "ready", failedLoads: 0 }));
     if (paymentFormReadyTrackedRef.current) return;
     paymentFormReadyTrackedRef.current = true;
     analyticsService.track("add_credits_payment_form_ready", {
@@ -609,7 +617,9 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
 
   const failPaymentFormLoad = useCallback(
     (reason: PaymentFormLoadFailure) => {
-      setPaymentFormLoad(load => ({ ...load, status: reason === "timeout" ? "slow" : "failed" }));
+      setPaymentFormLoad(load =>
+        reason === "timeout" ? { ...load, status: "slow" } : { ...load, status: "failed", failure: reason, failedLoads: load.failedLoads + 1 }
+      );
       analyticsService.track("add_credits_payment_form_load_failed", {
         category: "billing",
         reason,
@@ -632,7 +642,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
 
   useEffect(
     function reloadACardFormThatFailedBeforeItsSetupIntentArrived() {
-      setPaymentFormLoad(load => (load.status === "failed" ? restartPaymentFormLoad(load) : load));
+      setPaymentFormLoad(load => (load.status === "failed" && load.failure !== "script_blocked" ? restartPaymentFormLoad(load) : load));
     },
     [setupIntent?.clientSecret]
   );
@@ -669,6 +679,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
             disabled={isBusy || isPaused || amount < topUpMinAmountUsd || isLoadingMethods || !!pendingWallet}
             onSubmit={purchase}
             onOpenChange={setIsWalletOpen}
+            onAvailabilityChange={setIsWalletAvailable}
           />
 
           {pendingWallet && !isBusy && (
@@ -720,7 +731,15 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
             </Alert>
           )}
 
-          {hasPaymentFormFailed && (
+          {isPaymentFormBlocked && (
+            <Alert variant="destructive">
+              <AlertDescription>
+                Your browser or an extension is blocking the card form. Allow Stripe on this site and reload the page, or try another browser.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {hasPaymentFormFailed && !isPaymentFormBlocked && (
             <Alert variant="destructive">
               <AlertDescription>The card form didn&apos;t load</AlertDescription>
               <Button type="button" variant="outline" onClick={leadWithNewPaymentMethod} className="mt-2">
@@ -731,7 +750,11 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
 
           {isPaymentFormSlow && (
             <Alert variant="warning">
-              <AlertDescription>The card form is taking longer than usual. You can keep waiting for it below, or retry.</AlertDescription>
+              <AlertDescription>
+                {isWalletAvailable
+                  ? "The card form is taking longer than usual. You can pay with express checkout above, keep waiting for it below, or retry."
+                  : "The card form is taking longer than usual. You can keep waiting for it below, or retry."}
+              </AlertDescription>
               <Button type="button" variant="outline" onClick={leadWithNewPaymentMethod} className="mt-2">
                 Retry
               </Button>
@@ -806,8 +829,8 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
   );
 }
 
-function restartPaymentFormLoad({ attempt }: PaymentFormLoad): PaymentFormLoad {
-  return { attempt: attempt + 1, status: "loading" };
+function restartPaymentFormLoad({ attempt, failedLoads }: PaymentFormLoad): PaymentFormLoad {
+  return { attempt: attempt + 1, status: "loading", failedLoads };
 }
 
 function isBankRefusal(failure: PaymentMethodSetupFailure): boolean {

@@ -1995,7 +1995,12 @@ describe(AddCreditsForm.name, () => {
 
     it("preselects a declined method again once a payment goes through", async () => {
       const confirmPayment = vi.fn().mockRejectedValueOnce(LINK_DECLINE).mockResolvedValue({ success: true });
-      const input: SetupInput = { status: "idle", onDone: vi.fn(), confirmPayment, paymentMethods: [paymentMethod({ id: "pm_card", isDefault: true }), LINK_METHOD] };
+      const input: SetupInput = {
+        status: "idle",
+        onDone: vi.fn(),
+        confirmPayment,
+        paymentMethods: [paymentMethod({ id: "pm_card", isDefault: true }), LINK_METHOD]
+      };
       const { rerender, unmount } = setup(input);
       await submitWithAmount("100");
       await submitWithAmount("100");
@@ -2098,6 +2103,8 @@ describe(AddCreditsForm.name, () => {
   });
 
   describe("payment form loading", () => {
+    const BLOCKED_MESSAGE = "Your browser or an extension is blocking the card form. Allow Stripe on this site and reload the page, or try another browser.";
+
     it("keeps Purchase disabled as 'Loading card form…' until the card form is ready", () => {
       const { Mock: AddCreditsNewPaymentMethodFields, lastProps } = makePaymentMethodFieldsMock(undefined, { reportsReady: false });
       setup({ status: "success", clientSecret: "seti_secret", dependencies: { AddCreditsNewPaymentMethodFields } });
@@ -2353,6 +2360,86 @@ describe(AddCreditsForm.name, () => {
       fireEvent.click(screen.getByRole("button", { name: /add new payment method/i }));
 
       expect(screen.getByRole("button", { name: "Loading card form…" })).toBeDisabled();
+    });
+
+    it("tells the user their browser is blocking the card form, without a Retry, when Stripe's script could not load", () => {
+      const analyticsService = mock<AnalyticsService>();
+      const { Mock: AddCreditsNewPaymentMethodFields, lastProps } = makePaymentMethodFieldsMock(undefined, { reportsReady: false });
+      setup({ status: "success", clientSecret: "seti_secret", analyticsService, dependencies: { AddCreditsNewPaymentMethodFields } });
+
+      act(() => lastProps()!.onLoadFailed("script_blocked"));
+
+      expect(screen.getByRole("alert")).toHaveTextContent(BLOCKED_MESSAGE);
+      expect(screen.queryByText("The card form didn't load")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+      expect(screen.queryByTestId("new-payment-method-fields")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Purchase Credits" })).toBeDisabled();
+      expect(loadFailedEvents(analyticsService)).toEqual([["add_credits_payment_form_load_failed", expect.objectContaining({ reason: "script_blocked" })]]);
+    });
+
+    it("keeps a card form blocked by the browser when its setup intent arrives", () => {
+      const { Mock: AddCreditsNewPaymentMethodFields, lastProps } = makePaymentMethodFieldsMock(undefined, { reportsReady: false });
+      const { rerender } = setup({ status: "pending", dependencies: { AddCreditsNewPaymentMethodFields } });
+      act(() => lastProps()!.onLoadFailed("script_blocked"));
+
+      rerender({ status: "success", clientSecret: "seti_secret" });
+
+      expect(screen.getByRole("alert")).toHaveTextContent(BLOCKED_MESSAGE);
+      expect(screen.queryByTestId("new-payment-method-fields")).not.toBeInTheDocument();
+    });
+
+    it("stops offering Retry and points to the browser once a retried card form fails to load again", () => {
+      const { Mock: AddCreditsNewPaymentMethodFields, lastProps } = makePaymentMethodFieldsMock(undefined, { reportsReady: false });
+      setup({ status: "success", clientSecret: "seti_secret", dependencies: { AddCreditsNewPaymentMethodFields } });
+      act(() => lastProps()!.onLoadFailed("load_error"));
+      expect(screen.queryByText(BLOCKED_MESSAGE)).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+      act(() => lastProps()!.onLoadFailed("load_error"));
+
+      expect(screen.getByRole("alert")).toHaveTextContent(BLOCKED_MESSAGE);
+      expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+    });
+
+    it("offers Retry again for a load failure after a retried card form did load", () => {
+      const { Mock: AddCreditsNewPaymentMethodFields, lastProps } = makePaymentMethodFieldsMock(undefined, { reportsReady: false });
+      setup({ status: "success", clientSecret: "seti_secret", dependencies: { AddCreditsNewPaymentMethodFields } });
+      act(() => lastProps()!.onLoadFailed("load_error"));
+      fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+      act(() => lastProps()!.onReady?.());
+
+      act(() => lastProps()!.onLoadFailed("load_error"));
+
+      expect(screen.getByRole("alert")).toHaveTextContent("The card form didn't load");
+      expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+      expect(screen.queryByText(BLOCKED_MESSAGE)).not.toBeInTheDocument();
+    });
+
+    it("points a slow card form to express checkout when a wallet is available", () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(undefined, { reportsReady: false });
+      const AddCreditsWalletButton: typeof DEPENDENCIES.AddCreditsWalletButton = ({ onAvailabilityChange }) => {
+        useEffect(() => onAvailabilityChange?.(true), [onAvailabilityChange]);
+        return null;
+      };
+      setup({ status: "success", clientSecret: "seti_secret", dependencies: { AddCreditsNewPaymentMethodFields, AddCreditsWalletButton } });
+
+      act(() => vi.advanceTimersByTime(10_000));
+
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "The card form is taking longer than usual. You can pay with express checkout above, keep waiting for it below, or retry."
+      );
+      expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+    });
+
+    it("does not point a slow card form to express checkout when no wallet is available", () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(undefined, { reportsReady: false });
+      setup({ status: "success", clientSecret: "seti_secret", dependencies: { AddCreditsNewPaymentMethodFields } });
+
+      act(() => vi.advanceTimersByTime(10_000));
+
+      expect(screen.getByRole("alert")).toHaveTextContent("The card form is taking longer than usual. You can keep waiting for it below, or retry.");
     });
 
     function loadFailedEvents(analyticsService: AnalyticsService) {
