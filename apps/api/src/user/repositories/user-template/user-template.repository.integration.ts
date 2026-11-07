@@ -402,6 +402,35 @@ describe(UserTemplateRepository.name, () => {
       expect(template?.isPublic).toBe(true);
     });
 
+    it("attributes the template to its author and files a public one as public but not listed", async () => {
+      const { userTemplateRepository } = setup();
+      const user = await createTestUser();
+
+      const templateId = await userTemplateRepository.createTemplate(user.userId!, { ...buildTemplateInput(), isPublic: true });
+      createdTemplateIds.push(templateId);
+
+      expect(await findStoredTemplate(templateId)).toMatchObject({ authorId: user.id, visibility: "public", isListed: false });
+    });
+
+    it("files a template saved without isPublic as private and listed", async () => {
+      const { userTemplateRepository } = setup();
+      const user = await createTestUser();
+
+      const templateId = await userTemplateRepository.createTemplate(user.userId!, buildTemplateInput());
+      createdTemplateIds.push(templateId);
+
+      expect(await findStoredTemplate(templateId)).toMatchObject({ visibility: "private", isListed: true });
+    });
+
+    it("leaves the author empty when no account matches the user", async () => {
+      const { userTemplateRepository } = setup();
+
+      const templateId = await userTemplateRepository.createTemplate(faker.string.uuid(), buildTemplateInput());
+      createdTemplateIds.push(templateId);
+
+      expect(await findStoredTemplate(templateId)).toMatchObject({ authorId: null });
+    });
+
     it("records the template a copy was made from", async () => {
       const { userTemplateRepository } = setup();
       const user1 = await createTestUser();
@@ -499,6 +528,25 @@ describe(UserTemplateRepository.name, () => {
     });
   });
 
+  describe("findVersionState", () => {
+    it("returns the stored sdl and the current version of the author's template", async () => {
+      const { userTemplateRepository } = setup();
+      const user = await createTestUser();
+      const template = await createTestTemplate({ userId: user.userId! });
+
+      expect(await userTemplateRepository.findVersionState(template.id, user.userId!)).toEqual({ sdl: template.sdl, currentVersionId: null });
+    });
+
+    it("returns nothing for a template another user wrote", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const other = await createTestUser();
+      const template = await createTestTemplate({ userId: author.userId! });
+
+      expect(await userTemplateRepository.findVersionState(template.id, other.userId!)).toBeUndefined();
+    });
+  });
+
   describe("updateTemplate", () => {
     it("updates template fields", async () => {
       const { userTemplateRepository } = setup();
@@ -515,6 +563,40 @@ describe(UserTemplateRepository.name, () => {
       const updatedTemplate = await findStoredTemplate(template.id);
       expect(updatedTemplate?.title).toBe(newTitle);
       expect(updatedTemplate?.description).toBe(newDescription);
+    });
+
+    it("moves visibility and listing with isPublic", async () => {
+      const { userTemplateRepository } = setup();
+      const user = await createTestUser();
+      const template = await createTestTemplate({ userId: user.userId!, isPublic: false });
+
+      await userTemplateRepository.updateTemplate(template.id, user.userId!, { isPublic: true });
+      expect(await findStoredTemplate(template.id)).toMatchObject({ isPublic: true, visibility: "public", isListed: false });
+
+      await userTemplateRepository.updateTemplate(template.id, user.userId!, { isPublic: false });
+      expect(await findStoredTemplate(template.id)).toMatchObject({ isPublic: false, visibility: "private", isListed: true });
+    });
+
+    it("leaves visibility and listing alone when isPublic is not changed", async () => {
+      const { userTemplateRepository } = setup();
+      const user = await createTestUser();
+      const template = await createTestTemplate({ userId: user.userId!, isPublic: true });
+      await setStoredVisibility(template.id, "organization");
+
+      await userTemplateRepository.updateTemplate(template.id, user.userId!, { title: faker.lorem.words(3) });
+
+      expect(await findStoredTemplate(template.id)).toMatchObject({ visibility: "organization", isListed: false });
+    });
+
+    it("refreshes updatedAt", async () => {
+      const { userTemplateRepository } = setup();
+      const user = await createTestUser();
+      const template = await createTestTemplate({ userId: user.userId! });
+
+      await userTemplateRepository.updateTemplate(template.id, user.userId!, { title: faker.lorem.words(3) });
+
+      const updated = await findStoredTemplate(template.id);
+      expect(updated!.updatedAt.getTime()).toBeGreaterThan(template.updatedAt.getTime());
     });
 
     it("refuses a change outside the rules attached and leaves the template unchanged", async () => {
@@ -714,6 +796,11 @@ describe(UserTemplateRepository.name, () => {
     const templates = resolveTable("Templates");
 
     return await container.resolve<ApiPgDatabase>(POSTGRES_DB).select().from(templates).where(eq(templates.title, title));
+  }
+
+  async function setStoredVisibility(id: string, visibility: "private" | "organization" | "public") {
+    const templates = resolveTable("Templates");
+    await container.resolve<ApiPgDatabase>(POSTGRES_DB).update(templates).set({ visibility }).where(eq(templates.id, id));
   }
 
   async function findStoredTemplate(id: string) {

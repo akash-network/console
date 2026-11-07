@@ -7,6 +7,7 @@ import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repositor
 import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { writtenForTeamBy } from "@src/organization/lib/team-records/team-records";
+import type { TemplateVisibility } from "@src/user/model-schemas/template/template.schema";
 import { Users } from "@src/user/model-schemas/user/user.schema";
 
 export interface TemplateOutput {
@@ -33,12 +34,29 @@ export interface TemplateInput {
   description?: string;
 }
 
-type TemplateRecordInput = TemplateInput & { id?: string; userId?: string; copiedFromId?: string; projectId?: string };
+type TemplateRecordInput = TemplateInput & {
+  id?: string;
+  userId?: string;
+  copiedFromId?: string;
+  projectId?: string;
+  authorId?: string | null;
+  visibility?: TemplateVisibility;
+  isListed?: boolean;
+};
 type TemplateRow = ApiPgTables["Templates"]["$inferSelect"];
+
+export interface TemplateVersionState {
+  sdl: string;
+  currentVersionId: string | null;
+}
 
 interface TemplateFiling {
   projectId?: string;
   copiedFromId?: string | null;
+}
+
+function visibilityOf(isPublic: boolean): { visibility: TemplateVisibility; isListed: boolean } {
+  return { visibility: isPublic ? "public" : "private", isListed: !isPublic };
 }
 
 @singleton()
@@ -142,14 +160,35 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
     return !!template;
   }
 
+  /** Locks the row, so two saves of one template compare their sdl against it one after another. */
+  async findVersionState(id: string, userId: string): Promise<TemplateVersionState | undefined> {
+    const [state] = await this.cursor
+      .select({ sdl: this.table.sdl, currentVersionId: this.table.currentVersionId })
+      .from(this.table)
+      .where(this.#authoredBy(id, userId))
+      .limit(1)
+      .for("update");
+
+    return state;
+  }
+
   async createTemplate(userId: string, data: TemplateInput, { projectId, copiedFromId }: TemplateFiling = {}): Promise<string> {
-    const created = await this.create({ ...data, id: randomUUID(), userId, projectId, copiedFromId: copiedFromId || undefined });
+    const isPublic = !!data.isPublic;
+    const created = await this.create({
+      ...data,
+      id: randomUUID(),
+      userId,
+      projectId,
+      copiedFromId: copiedFromId || undefined,
+      authorId: await this.#findAuthorId(userId),
+      ...visibilityOf(isPublic)
+    });
 
     return created.id;
   }
 
   async updateTemplate(id: string, userId: string, data: Partial<TemplateInput>): Promise<void> {
-    await this.updateWhere(this.#authoredBy(id, userId), data);
+    await this.updateWhere(this.#authoredBy(id, userId), data.isPublic === undefined ? data : { ...data, ...visibilityOf(data.isPublic) });
   }
 
   async detachFromTeams(userId: string): Promise<void> {
@@ -174,6 +213,12 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
 
   protected toOutput(payload: Partial<TemplateRow>): TemplateOutput {
     return this.#toFullOutput(payload as TemplateRow, "");
+  }
+
+  async #findAuthorId(userId: string): Promise<string | null> {
+    const [author] = await this.cursor.select({ id: Users.id }).from(Users).where(eq(Users.userId, userId)).limit(1);
+
+    return author?.id ?? null;
   }
 
   async #findOne(where: SQL | undefined): Promise<TemplateOutput | undefined> {

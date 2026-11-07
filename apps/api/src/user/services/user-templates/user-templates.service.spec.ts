@@ -5,9 +5,41 @@ import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
+import type { TxService } from "@src/core/services";
 import type { DeploymentProjectService } from "@src/deployment/services/deployment-project/deployment-project.service";
+import { summarizeTemplateHardware } from "@src/template/utils/template-hardware/template-hardware";
+import type { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
+import type { UserOutput } from "@src/user/repositories";
 import type { TemplateInput, TemplateOutput, UserTemplateRepository } from "../../repositories/user-template/user-template.repository";
 import { UserTemplatesService } from "./user-templates.service";
+
+const VALID_SDL = `
+version: "2.0"
+services:
+  web:
+    image: nginx
+profiles:
+  compute:
+    web:
+      resources:
+        cpu:
+          units: 1
+        memory:
+          size: 512Mi
+        storage:
+          size: 1Gi
+  placement:
+    dcloud:
+      pricing:
+        web:
+          denom: uakt
+          amount: 100
+deployment:
+  web:
+    dcloud:
+      profile: web
+      count: 1
+`;
 
 describe(UserTemplatesService.name, () => {
   describe("getTemplateById", () => {
@@ -186,6 +218,106 @@ describe(UserTemplatesService.name, () => {
       expect(userTemplateRepository.createTemplate).toHaveBeenCalledWith(userId, data, { projectId: undefined, copiedFromId: id });
     });
 
+    it("records version 1 when it saves a new template", async () => {
+      const { service, userTemplateRepository, templateVersionRepository, user } = setup();
+      const templateId = faker.string.uuid();
+      const data = { ...createTemplateInput(), sdl: VALID_SDL };
+
+      userTemplateRepository.createTemplate.mockResolvedValue(templateId);
+
+      await service.saveTemplate(undefined, user.userId!, data);
+
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith({
+        templateId,
+        sdl: data.sdl,
+        resources: summarizeTemplateHardware(data.sdl),
+        createdById: user.id
+      });
+    });
+
+    it("records a new version when an update changes the sdl", async () => {
+      const { service, userTemplateRepository, templateVersionRepository, user } = setup();
+      const id = faker.string.uuid();
+      const data = { ...createTemplateInput(), sdl: VALID_SDL };
+
+      userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+      userTemplateRepository.findVersionState.mockResolvedValue({ sdl: "version: '2.0'", currentVersionId: faker.string.uuid() });
+
+      await service.saveTemplate(id, user.userId!, data);
+
+      expect(userTemplateRepository.findVersionState).toHaveBeenCalledWith(id, user.userId);
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith({
+        templateId: id,
+        sdl: data.sdl,
+        resources: summarizeTemplateHardware(data.sdl),
+        createdById: user.id
+      });
+    });
+
+    it("records no version when an update keeps the sdl", async () => {
+      const { service, userTemplateRepository, templateVersionRepository, user } = setup();
+      const data = createTemplateInput();
+
+      userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+      userTemplateRepository.findVersionState.mockResolvedValue({ sdl: data.sdl, currentVersionId: faker.string.uuid() });
+
+      await service.saveTemplate(faker.string.uuid(), user.userId!, data);
+
+      expect(userTemplateRepository.updateTemplate).toHaveBeenCalled();
+      expect(templateVersionRepository.appendVersion).not.toHaveBeenCalled();
+    });
+
+    it("records version 1 when it updates a template that has none", async () => {
+      const { service, userTemplateRepository, templateVersionRepository, user } = setup();
+      const id = faker.string.uuid();
+      const data = createTemplateInput();
+
+      userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+      userTemplateRepository.findVersionState.mockResolvedValue({ sdl: data.sdl, currentVersionId: null });
+
+      await service.saveTemplate(id, user.userId!, data);
+
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith({
+        templateId: id,
+        sdl: data.sdl,
+        resources: summarizeTemplateHardware(data.sdl),
+        createdById: user.id
+      });
+    });
+
+    it("records no version when saving the template fails", async () => {
+      const { service, userTemplateRepository, templateVersionRepository, user } = setup();
+
+      userTemplateRepository.createTemplate.mockRejectedValue(new Error("insert failed"));
+
+      await expect(service.saveTemplate(undefined, user.userId!, createTemplateInput())).rejects.toThrow("insert failed");
+      expect(templateVersionRepository.appendVersion).not.toHaveBeenCalled();
+    });
+
+    it("saves the template and its version in one transaction", async () => {
+      const { service, userTemplateRepository, templateVersionRepository, txService, user } = setup();
+      const order: string[] = [];
+
+      txService.transaction.mockImplementation(async cb => {
+        order.push("begin");
+        const result = await cb();
+        order.push("commit");
+        return result;
+      });
+      userTemplateRepository.createTemplate.mockImplementation(async () => {
+        order.push("createTemplate");
+        return faker.string.uuid();
+      });
+      templateVersionRepository.appendVersion.mockImplementation(async () => {
+        order.push("appendVersion");
+        return mock();
+      });
+
+      await service.saveTemplate(undefined, user.userId!, createTemplateInput());
+
+      expect(order).toEqual(["begin", "createTemplate", "appendVersion", "commit"]);
+    });
+
     it("refuses a caller who may create no template before resolving a project", async () => {
       const { service, userTemplateRepository, deploymentProjectService } = setup();
 
@@ -321,9 +453,14 @@ describe(UserTemplatesService.name, () => {
     const authService = mock<AuthService>();
     authService.ability = ability;
     const deploymentProjectService = mock<DeploymentProjectService>();
-    const service = new UserTemplatesService(userTemplateRepository, authService, deploymentProjectService);
+    const user = mock<UserOutput>({ id: faker.string.uuid(), userId: faker.string.uuid() });
+    authService.currentUser = user;
+    const templateVersionRepository = mock<TemplateVersionRepository>();
+    const txService = mock<TxService>();
+    txService.transaction.mockImplementation(async cb => await cb());
+    const service = new UserTemplatesService(userTemplateRepository, authService, deploymentProjectService, templateVersionRepository, txService);
 
-    return { service, userTemplateRepository, deploymentProjectService, ability };
+    return { service, userTemplateRepository, deploymentProjectService, templateVersionRepository, txService, user, ability };
   }
 
   function createTemplateInput(): TemplateInput {
