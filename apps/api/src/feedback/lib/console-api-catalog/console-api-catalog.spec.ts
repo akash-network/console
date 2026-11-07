@@ -17,13 +17,14 @@ import {
 
 const BEARER = [{ BearerAuth: [] }];
 const PROJECTS_SCHEMA = { type: "object", properties: { data: { type: "array" } } } as const;
+const JSON_OK = { 200: { description: "ok", content: { "application/json": { schema: PROJECTS_SCHEMA } } } };
 
 function documentOf(paths: OpenAPIObject["paths"]): OpenAPIObject {
   return { openapi: "3.0.0", info: { title: "Console API", version: "v1" }, paths };
 }
 
 function route(overrides: Partial<ConsoleApiRoute> & { path: string }): ConsoleApiRoute {
-  return { tag: "Projects", summary: "", queryParameters: [], forSignedInUser: true, ...overrides };
+  return { tag: "Projects", summary: "", queryParameters: [], forSignedInUser: true, responseSchema: PROJECTS_SCHEMA, ...overrides };
 }
 
 const COMMITTED_DOCUMENT: OpenAPIObject = JSON.parse(readFileSync(resolve(__dirname, "../../../../swagger/openapi.json"), "utf8"));
@@ -65,8 +66,10 @@ const SENSITIVE_ROUTES = [
 
 describe("console-api-catalog", () => {
   describe("ASSISTANT_READABLE_ROUTES", () => {
-    it("lists only routes the committed OpenAPI document publishes as GET", () => {
-      const publishedGetPaths = publishedGetRoutesOf(COMMITTED_DOCUMENT).map(({ path }) => path);
+    it("lists only routes the committed OpenAPI document publishes as GET with a JSON response schema", () => {
+      const publishedGetPaths = publishedGetRoutesOf(COMMITTED_DOCUMENT)
+        .filter(({ responseSchema }) => responseSchema)
+        .map(({ path }) => path);
 
       expect([...ASSISTANT_READABLE_ROUTES].filter(path => !publishedGetPaths.includes(path))).toEqual([]);
     });
@@ -150,18 +153,24 @@ describe("console-api-catalog", () => {
   describe(consoleApiRoutesOf.name, () => {
     it("keeps only the published GET routes on the list, leaving out any other GET route", () => {
       const document = documentOf({
-        "/v1/api-keys": { get: { responses: {} } },
-        "/v1/user/me": { get: { responses: {} } },
-        "/v1/some-future-route": { get: { responses: {} } },
-        "/v1/projects": { get: { responses: {} } },
-        "/v1/providers/{address}": { get: { responses: {} } }
+        "/v1/api-keys": { get: { responses: JSON_OK } },
+        "/v1/user/me": { get: { responses: JSON_OK } },
+        "/v1/some-future-route": { get: { responses: JSON_OK } },
+        "/v1/projects": { get: { responses: JSON_OK } },
+        "/v1/providers/{address}": { get: { responses: JSON_OK } }
       });
 
       expect(consoleApiRoutesOf(document).map(({ path }) => path)).toEqual(["/v1/projects", "/v1/providers/{address}"]);
     });
 
     it("leaves out a listed route the document does not publish", () => {
-      expect(consoleApiRoutesOf(documentOf({ "/v1/gpu": { get: { responses: {} } } })).map(({ path }) => path)).toEqual(["/v1/gpu"]);
+      expect(consoleApiRoutesOf(documentOf({ "/v1/gpu": { get: { responses: JSON_OK } } })).map(({ path }) => path)).toEqual(["/v1/gpu"]);
+    });
+
+    it("leaves out a listed route without a JSON response schema, since nothing would keep its undocumented fields from the model", () => {
+      const document = documentOf({ "/v1/gpu": { get: { responses: { 200: { description: "ok" } } } }, "/v1/projects": { get: { responses: JSON_OK } } });
+
+      expect(consoleApiRoutesOf(document).map(({ path }) => path)).toEqual(["/v1/projects"]);
     });
   });
 
@@ -228,6 +237,10 @@ describe("console-api-catalog", () => {
 
       expect(readableConsoleApiRouteOf(routes, "/v1/providers/private-contacts")).toBeNull();
       expect(readableConsoleApiRouteOf(routes, "/v1/providers/akash1abc")?.path).toBe("/v1/providers/{address}");
+    });
+
+    it("refuses a listed route without a response schema", () => {
+      expect(readableConsoleApiRouteOf([route({ path: "/v1/projects", responseSchema: undefined })], "/v1/projects")).toBeNull();
     });
   });
 

@@ -34,7 +34,6 @@ export const ASSISTANT_READABLE_ROUTES: ReadonlySet<string> = new Set([
   "/v1/project-spend",
   "/v1/deployment-spend",
   "/v1/favorite-providers",
-  "/v1/user/favoriteTemplates",
   "/v1/wallet-balances",
   "/v1/deployment-alerts/{dseq}",
   "/v1/stripe/first-purchase-bonus",
@@ -119,7 +118,7 @@ function queryParametersOf(operation: OperationObject): string[] {
 /** Matches every published GET route first, so a parameter of a listed route cannot stand in for a static route that is not listed. */
 export function readableConsoleApiRouteOf(publishedRoutes: ConsoleApiRoute[], path: string): ConsoleApiRoute | null {
   const route = matchConsoleApiRoute(publishedRoutes, path);
-  return route && ASSISTANT_READABLE_ROUTES.has(route.path) ? route : null;
+  return route?.responseSchema && ASSISTANT_READABLE_ROUTES.has(route.path) ? route : null;
 }
 
 /** Every GET route of the published document, which already leaves out hidden and unpublished feature-flagged routes. */
@@ -141,8 +140,9 @@ export function publishedGetRoutesOf(document: OpenAPIObject): ConsoleApiRoute[]
   });
 }
 
+/** Listed routes with a published JSON response schema only, since projecting to that schema is what keeps undocumented fields from the model. */
 export function consoleApiRoutesOf(document: OpenAPIObject): ConsoleApiRoute[] {
-  return publishedGetRoutesOf(document).filter(({ path }) => ASSISTANT_READABLE_ROUTES.has(path));
+  return publishedGetRoutesOf(document).filter(({ path, responseSchema }) => ASSISTANT_READABLE_ROUTES.has(path) && !!responseSchema);
 }
 
 function catalogEntryOf({ path, queryParameters, summary }: ConsoleApiRoute): string {
