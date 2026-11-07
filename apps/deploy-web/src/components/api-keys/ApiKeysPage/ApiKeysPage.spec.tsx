@@ -7,11 +7,13 @@ import { API_REFERENCE_URL } from "@src/config/agent-setup.config";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { OrganizationOutput, OrganizationRole, OrganizationType } from "@src/types/organization";
 import type { ProjectOutput } from "@src/types/project";
+import type { AccountStatus } from "@src/types/user";
 import { ApiKeysPage, DEPENDENCIES } from "./ApiKeysPage";
 
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiKey, buildProject } from "@tests/seeders";
+import { accountActionGatesFor } from "@tests/unit/accountActionGates";
 import { MockComponents } from "@tests/unit/mocks";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
@@ -296,6 +298,15 @@ describe(ApiKeysPage.name, () => {
     });
   });
 
+  it("keeps a terminated user from creating a key", async () => {
+    const { user, CreateApiKeyDialog } = setup({ accountStatus: "terminated" });
+
+    await user.click(screen.getByRole("button", { name: /create new key/i }));
+
+    expect(screen.getByRole("button", { name: /create new key/i })).toBeDisabled();
+    expect(CreateApiKeyDialog).not.toHaveBeenCalled();
+  });
+
   function setup(
     input: {
       apiKeys?: ApiKeyResponse[];
@@ -309,6 +320,7 @@ describe(ApiKeysPage.name, () => {
       role?: OrganizationRole;
       organizationType?: OrganizationType;
       organizationName?: string;
+      accountStatus?: AccountStatus;
     } = {}
   ) {
     const user = userEvent.setup();
@@ -374,7 +386,8 @@ describe(ApiKeysPage.name, () => {
             useFlag,
             useActiveOrganization,
             useProjectsUi,
-            useProjectsQuery
+            useProjectsQuery,
+            AccountMutationGate: accountActionGatesFor(input.accountStatus ?? "active").AccountMutationGate
           }}
         />
       </TestContainerProvider>

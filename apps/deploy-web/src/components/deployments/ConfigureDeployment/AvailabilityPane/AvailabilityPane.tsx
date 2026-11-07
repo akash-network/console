@@ -4,6 +4,7 @@ import { Button, CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { ArrowRightIcon, CalendarClockIcon, GpuIcon, InfoIcon, LoaderCircleIcon, MessageSquareIcon, PanelsTopLeftIcon } from "lucide-react";
 
+import { AccountSpendGate } from "@src/components/user/AccountActionGate/AccountActionGate";
 import { useFlag } from "@src/hooks/useFlag";
 import { useNetworkProviderCount } from "@src/queries/useNetworkProviderCount";
 import { countNotBiddingProviders, sumAvailableGpus, useScreenedProviders } from "@src/queries/useScreenedProviders";
@@ -29,7 +30,8 @@ export const DEPENDENCIES = {
   CustomTooltip,
   InvalidSpecReasons,
   NotBiddingNotice,
-  useFlag
+  useFlag,
+  AccountSpendGate
 };
 
 type Props = {
@@ -133,14 +135,16 @@ export const AvailabilityPane: FC<Props> = ({
                 onClick={onRequestCompute}
               />
             )}
-            <FooterAction
-              variant="default"
-              icon={<PanelsTopLeftIcon className="h-5 w-5" />}
-              title="Choose a provider"
-              subtitle="Compare live bids yourself"
-              disabled={isSubmitting || hasPlacementWithoutProviders}
-              onClick={onChooseProvider}
-            />
+            <d.AccountSpendGate>
+              <FooterAction
+                variant="default"
+                icon={<PanelsTopLeftIcon className="h-5 w-5" />}
+                title="Choose a provider"
+                subtitle="Compare live bids yourself"
+                disabled={isSubmitting || hasPlacementWithoutProviders}
+                onClick={onChooseProvider}
+              />
+            </d.AccountSpendGate>
           </div>
         </div>
       </footer>

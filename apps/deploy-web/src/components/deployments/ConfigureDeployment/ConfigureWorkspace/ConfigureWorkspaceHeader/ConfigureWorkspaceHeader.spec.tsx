@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { DeployCtaState } from "../../deployCtaState/deployCtaState";
+import { WorkspaceCtaButton } from "../WorkspaceCtaButton/WorkspaceCtaButton";
 import { ConfigureWorkspaceHeader } from "./ConfigureWorkspaceHeader";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { accountActionGatesFor } from "@tests/unit/accountActionGates";
 
 describe(ConfigureWorkspaceHeader.name, () => {
   it("titles the page under the back control and summarizes the deployment's resources", () => {
@@ -47,7 +49,10 @@ describe(ConfigureWorkspaceHeader.name, () => {
         backButton={<span>back control</span>}
         ctaState={input.ctaState}
         {...handlers}
-        dependencies={{ DeploymentResourceSummary: () => <span>resource summary</span> }}
+        dependencies={{
+          DeploymentResourceSummary: () => <span>resource summary</span>,
+          WorkspaceCtaButton: props => <WorkspaceCtaButton {...props} dependencies={accountActionGatesFor("active")} />
+        }}
       />
     );
     return handlers;

@@ -3,6 +3,7 @@ import { useIntl } from "react-intl";
 import { Banner } from "@akashnetwork/ui/components";
 
 import { useChainMaintenanceDetails, useGenericBannerDetails, useTopBanner } from "@src/hooks/useTopBanner";
+import { AccountStatusBanner } from "./AccountStatusBanner/AccountStatusBanner";
 import { FundingBanner } from "./FundingBanner/FundingBanner";
 import { TeamPaymentMethodBanner } from "./TeamPaymentMethodBanner/TeamPaymentMethodBanner";
 
@@ -88,7 +89,15 @@ export function GenericBanner({ onClose, dependencies = DEPENDENCIES }: { onClos
   );
 }
 
-export const TOP_BANNER_DEPENDENCIES = { useTopBanner, NetworkDownBanner, MaintenanceBanner, GenericBanner, TeamPaymentMethodBanner, FundingBanner };
+export const TOP_BANNER_DEPENDENCIES = {
+  useTopBanner,
+  AccountStatusBanner,
+  NetworkDownBanner,
+  MaintenanceBanner,
+  GenericBanner,
+  TeamPaymentMethodBanner,
+  FundingBanner
+};
 
 /**
  * The single top banner, rendered inside the (fixed) app header above the nav row — so the nav can never
@@ -102,8 +111,13 @@ export function TopBanner({ dependencies: d = TOP_BANNER_DEPENDENCIES }: { depen
     setIsGenericBannerOpen,
     isBlockchainDown,
     hasTeamPaymentMethodBanner,
-    hasFundingBanner
+    hasFundingBanner,
+    hasAccountStatusBanner
   } = d.useTopBanner();
+
+  if (hasAccountStatusBanner) {
+    return <d.AccountStatusBanner />;
+  }
 
   if (isBlockchainDown) {
     return <d.NetworkDownBanner />;

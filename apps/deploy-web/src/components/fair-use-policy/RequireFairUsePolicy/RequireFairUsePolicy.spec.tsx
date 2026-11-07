@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { CustomUserProfile } from "@src/types/user";
+import type { AccountStatus, CustomUserProfile } from "@src/types/user";
 import type { DEPENDENCIES } from "./RequireFairUsePolicy";
 import { RequireFairUsePolicy } from "./RequireFairUsePolicy";
 
@@ -101,7 +101,21 @@ describe(RequireFairUsePolicy.name, () => {
     expect(accept).toHaveBeenCalledTimes(1);
   });
 
+  it("lets a terminated user who never accepted see the app read-only", () => {
+    setup({ userId: "u1", fairUsePolicyAcceptedAt: null, accountStatus: "terminated" });
+
+    expect(screen.getByText("child")).toBeInTheDocument();
+    expect(screen.queryByTestId("fair-use-policy-modal")).not.toBeInTheDocument();
+  });
+
+  it("still asks a suspended user who never accepted", () => {
+    setup({ userId: "u1", fairUsePolicyAcceptedAt: null, accountStatus: "suspended" });
+
+    expect(screen.getByTestId("fair-use-policy-modal")).toBeInTheDocument();
+  });
+
   function setup(input: {
+    accountStatus?: AccountStatus;
     userId?: string;
     fairUsePolicyAcceptedAt?: string | null;
     pathname?: string;
@@ -119,7 +133,11 @@ describe(RequireFairUsePolicy.name, () => {
         mock<ReturnType<typeof DEPENDENCIES.useUser>>({
           user: input.loggedOut
             ? undefined
-            : mock<CustomUserProfile>({ userId: input.userId ?? "u1", fairUsePolicyAcceptedAt: input.fairUsePolicyAcceptedAt ?? null }),
+            : mock<CustomUserProfile>({
+                userId: input.userId ?? "u1",
+                fairUsePolicyAcceptedAt: input.fairUsePolicyAcceptedAt ?? null,
+                accountStatus: input.accountStatus ?? "active"
+              }),
           isLoading: false
         })) as typeof DEPENDENCIES.useUser,
       useWallet: () =>

@@ -4,7 +4,7 @@ import type { DeployCtaState } from "../../deployCtaState/deployCtaState";
 import { DeploymentResourceSummary } from "../../DeploymentResourceSummary/DeploymentResourceSummary";
 import { WorkspaceCtaButton } from "../WorkspaceCtaButton/WorkspaceCtaButton";
 
-export const DEPENDENCIES = { DeploymentResourceSummary };
+export const DEPENDENCIES = { DeploymentResourceSummary, WorkspaceCtaButton };
 
 type Props = {
   backButton: ReactNode;
@@ -26,7 +26,7 @@ export const ConfigureWorkspaceHeader: FC<Props> = ({ backButton, ctaState, onDe
       </div>
       <div className="hidden flex-wrap items-center gap-x-6 gap-y-3 lg:flex">
         <d.DeploymentResourceSummary className="gap-x-5 text-lg font-medium [&_svg]:h-5 [&_svg]:w-5" />
-        {ctaState !== "request-quotes" && <WorkspaceCtaButton state={ctaState} onDeploy={onDeploy} onRetry={onRetry} onCloseAndEdit={onCloseAndEdit} />}
+        {ctaState !== "request-quotes" && <d.WorkspaceCtaButton state={ctaState} onDeploy={onDeploy} onRetry={onRetry} onCloseAndEdit={onCloseAndEdit} />}
       </div>
     </div>
   </header>

@@ -4,10 +4,12 @@ import { mock } from "vitest-mock-extended";
 
 import type { ChildrenProps as AlertsListChildrenProps } from "@src/components/alerts/AlertsListContainer/AlertsListContainer";
 import type { ChildrenProps as NotificationChannelsListChildrenProps } from "@src/components/alerts/NotificationChannelsListContainer/NotificationChannelsListContainer";
+import type { AccountStatus } from "@src/types/user";
 import { AlertsPage, DEPENDENCIES } from "./AlertsPage";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { accountActionGatesFor } from "@tests/unit/accountActionGates";
 
 describe(AlertsPage.name, () => {
   it("opens on the alerts tab without the add channel action", () => {
@@ -44,7 +46,17 @@ describe(AlertsPage.name, () => {
     expect(screen.queryByTestId("notification-channel-dialog")).not.toBeInTheDocument();
   });
 
-  function setup() {
+  it("keeps a terminated user from adding a channel", async () => {
+    const { NotificationChannelDialog } = setup({ accountStatus: "terminated" });
+
+    await userEvent.click(screen.getByRole("tab", { name: "Notification Channels" }));
+    await userEvent.click(screen.getByRole("button", { name: "Add channel" }));
+
+    expect(screen.getByRole("button", { name: "Add channel" })).toBeDisabled();
+    expect(NotificationChannelDialog).not.toHaveBeenCalled();
+  });
+
+  function setup(input: { accountStatus?: AccountStatus } = {}) {
     const NotificationChannelDialog = vi.fn<typeof DEPENDENCIES.NotificationChannelDialog>(({ onClose }) => (
       <div data-testid="notification-channel-dialog">
         <button onClick={onClose}>Close channel dialog</button>
@@ -63,7 +75,8 @@ describe(AlertsPage.name, () => {
       AlertsListView: () => <p>alerts list</p>,
       NotificationChannelsListContainer: ({ children }) => <>{children(mock<NotificationChannelsListChildrenProps>())}</>,
       NotificationChannelsListView: () => <p>channels list</p>,
-      NotificationChannelDialog
+      NotificationChannelDialog,
+      AccountMutationGate: accountActionGatesFor(input.accountStatus ?? "active").AccountMutationGate
     };
 
     render(<AlertsPage dependencies={dependencies} />);

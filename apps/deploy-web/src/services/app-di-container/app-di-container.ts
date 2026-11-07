@@ -17,6 +17,7 @@ import type { Axios, AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } 
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { UrlReturnToStack } from "@src/hooks/useReturnTo/UrlReturnToStack";
+import { AccountStatusRefusalNotifier, createAccountStatusRefusalInterceptor } from "@src/services/account-status-refusal/account-status-refusal";
 import { AnalyticsService } from "@src/services/analytics/analytics.service";
 import { retryOnServerError, shouldReportError } from "@src/services/query-error-policy/query-error-policy";
 import { StaleOrganizationRecovery } from "@src/services/stale-organization-recovery/stale-organization-recovery";
@@ -50,6 +51,7 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       };
       return (axiosInstance, interceptors?) => {
         axiosInstance.interceptors.response.use(undefined, createSessionExpiryResponseInterceptor(container.sessionExpiryNotifier));
+        axiosInstance.interceptors.response.use(undefined, createAccountStatusRefusalInterceptor(container.accountStatusRefusalNotifier));
         return withInterceptors(axiosInstance, {
           request: [
             config.globalRequestMiddleware,
@@ -62,6 +64,7 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       };
     },
     sessionExpiryNotifier: () => new SessionExpiryNotifier(),
+    accountStatusRefusalNotifier: () => new AccountStatusRefusalNotifier(),
     tabOrganization: () => new TabOrganization(),
     staleOrganizationRecovery: () => new StaleOrganizationRecovery(container.tabOrganization),
     stripe: () =>

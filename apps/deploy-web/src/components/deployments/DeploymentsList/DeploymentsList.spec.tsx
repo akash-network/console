@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { ListedDeploymentDto } from "@src/types/deployment";
+import type { AccountStatus } from "@src/types/user";
 import type { DeploymentsCollectionProps } from "./DeploymentsCollection";
 import type { DeploymentsEmptyStateProps } from "./DeploymentsEmptyState";
 import type { DeploymentsListProject } from "./DeploymentsList";
@@ -10,6 +11,7 @@ import type { useDeploymentsListModel } from "./useDeploymentsListModel";
 
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { accountActionGatesFor } from "@tests/unit/accountActionGates";
 import { MockComponents } from "@tests/unit/mocks";
 
 type Model = ReturnType<typeof useDeploymentsListModel>;
@@ -84,6 +86,12 @@ describe("DeploymentsList", () => {
 
       expect(screen.getByText("view only")).toBeInTheDocument();
       expect(DeploymentsEmptyState).not.toHaveBeenCalled();
+    });
+
+    it("keeps a suspended user from starting a new deployment", () => {
+      setup({}, { project, accountStatus: "suspended" });
+
+      expect(screen.getByRole("link", { name: /New deployment/ })).toHaveAttribute("aria-disabled", "true");
     });
 
     it("deploys into the project even when the caller may deploy nowhere else", () => {
@@ -543,6 +551,7 @@ describe("DeploymentsList", () => {
       project?: DeploymentsListProject;
       canChangeDeployments?: boolean;
       access?: Partial<ReturnType<typeof DEPENDENCIES.useProjectAccess>>;
+      accountStatus?: AccountStatus;
     } = {}
   ) {
     const changeSearch = vi.fn();
@@ -650,7 +659,8 @@ describe("DeploymentsList", () => {
           DeploymentArchive,
           RecentActivity,
           NextSeo,
-          useProjectsUi
+          useProjectsUi,
+          AccountSpendGate: accountActionGatesFor(options.accountStatus ?? "active").AccountSpendGate
         })}
       />
     );

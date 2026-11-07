@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
+import { Alert, AlertDescription, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 
 import { AddCreditsForm } from "@src/components/billing-usage/AddCreditsForm/AddCreditsForm";
 import { RedeemCouponForm } from "@src/components/billing-usage/RedeemCouponForm/RedeemCouponForm";
+import { SUPPORT_EMAIL } from "@src/config/ui.config";
+import { useAccountStatus } from "@src/hooks/useAccountStatus/useAccountStatus";
 
 export type AddCreditsTab = "purchase" | "coupon";
 
@@ -14,8 +16,12 @@ export const DEPENDENCIES = {
   TabsTrigger,
   TabsContent,
   AddCreditsForm,
-  RedeemCouponForm
+  RedeemCouponForm,
+  useAccountStatus
 };
+
+const SUSPENDED_NOTICE = "Your account is suspended, so you can't buy credits or redeem coupons.";
+const TERMINATED_NOTICE = "Your account has been terminated, so you can't buy credits or redeem coupons.";
 
 interface AddCreditsTabsProps {
   initialTab?: AddCreditsTab;
@@ -49,6 +55,7 @@ export function AddCreditsTabs({
   // Only the active tab is mounted (Radix unmounts inactive content), so a
   // single flag tracks whichever child is currently reporting.
   const [isProcessing, setIsProcessing] = useState(false);
+  const { canSpend, isTerminated } = d.useAccountStatus();
 
   useEffect(
     function reportProcessing() {
@@ -63,6 +70,19 @@ export function AddCreditsTabs({
     setIsProcessing(false);
     setActiveTab(next as AddCreditsTab);
   };
+
+  if (!canSpend) {
+    return (
+      <Alert variant="warning">
+        <AlertDescription>
+          {isTerminated ? TERMINATED_NOTICE : SUSPENDED_NOTICE}{" "}
+          <a href={`mailto:${SUPPORT_EMAIL}`} className="font-semibold underline">
+            Contact support
+          </a>
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   return (
     <d.Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">

@@ -3,10 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 import type { DeploymentCost } from "../../useDeploymentCost/useDeploymentCost";
 import type { QuoteExpiry } from "../../useQuoteExpiry/useQuoteExpiry";
 import type { WorkspaceCtaState } from "../WorkspaceCtaButton/WorkspaceCtaButton";
+import { WorkspaceCtaButton } from "../WorkspaceCtaButton/WorkspaceCtaButton";
 import { DeploymentCostBar } from "./DeploymentCostBar";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { accountActionGatesFor } from "@tests/unit/accountActionGates";
 
 describe(DeploymentCostBar.name, () => {
   it("shows the hourly price of a GPU deployment once its bids agree on one", () => {
@@ -75,7 +77,8 @@ describe(DeploymentCostBar.name, () => {
         {...handlers}
         dependencies={{
           PriceValue: ({ denom, value }) => <span>{`${Number(value).toFixed(2)} ${denom}`}</span>,
-          useDeploymentHasGpu: () => input.hasGpu ?? false
+          useDeploymentHasGpu: () => input.hasGpu ?? false,
+          WorkspaceCtaButton: props => <WorkspaceCtaButton {...props} dependencies={accountActionGatesFor("active")} />
         }}
       />
     );
