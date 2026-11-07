@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { extractApiErrorCode, extractApiErrorMessage, isApiError } from "@akashnetwork/openapi-sdk";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
+import yaml from "js-yaml";
 import { useRouter } from "next/router";
 
 import { useConfigureDeployTarget } from "@src/components/projects/DeployTargetGate/DeployTargetGate";
@@ -183,6 +184,8 @@ const LIVE_BID_STATES = new Set(["open", "active"]);
 
 /** Surfaced when the SDL on screen can't be turned into a provider manifest at deploy time. */
 const MANIFEST_BUILD_MESSAGE = "We couldn't prepare this deployment's manifest. Check your SDL and try again.";
+
+const MISSING_SDL_MESSAGE = "This page lost the deployment's configuration, so there's nothing to send. Open the deployment again and retry.";
 
 /** Surfaced when deploy is reached with nothing selected — the manual CTA is disabled for that, an autopilot is not. */
 const NO_SELECTION_MESSAGE = "No provider is selected for this deployment.";
@@ -970,6 +973,15 @@ export function useDeploymentFlow({ intent, pendingCreate }: UseDeploymentFlowIn
         return;
       }
       const activeDseq = dseq;
+      if (!sdl.trim()) {
+        refuseDeploy("missing_sdl", MISSING_SDL_MESSAGE);
+        return;
+      }
+      const imagelessServices = servicesWithoutImageIn(sdl);
+      if (imagelessServices.length > 0) {
+        refuseDeploy("missing_image", missingImageMessage(imagelessServices));
+        return;
+      }
       const nextManifest = dependencies.manifestFromSdl(sdl);
       const leases = Object.values(selections).map(parseBidId);
       if (!nextManifest) {
@@ -1284,6 +1296,23 @@ function manifestFromSdl(sdl: string): string | null {
   }
 }
 
+/** No provider manifest can be built for a service without an image, which is what a form that never received the deployment's definition holds. */
+function servicesWithoutImageIn(sdl: string): string[] {
+  try {
+    const services = (yaml.load(sdl) as { services?: Record<string, { image?: unknown } | null> }).services ?? {};
+    return Object.entries(services)
+      .filter(([, service]) => typeof service?.image !== "string" || !service.image.trim())
+      .map(([name]) => name);
+  } catch {
+    return [];
+  }
+}
+
+function missingImageMessage(services: string[]): string {
+  const subject = services.length === 1 ? `Service ${services[0]} has` : `Services ${services.join(", ")} have`;
+  return `${subject} no image, so there's nothing to deploy. Set the image and try again.`;
+}
+
 function deployEventsOf(dseq: string, resources: ReturnType<typeof deploymentResourcesFromSdl>): HeldActivityEvent[] {
   const leaseProperties = { category: "deployments" as const, label: "Create lease", dseq, ...resources };
 
@@ -1296,6 +1325,8 @@ function deployEventsOf(dseq: string, resources: ReturnType<typeof deploymentRes
 
 type DeployFailureStage =
   | "not_started"
+  | "missing_sdl"
+  | "missing_image"
   | "manifest_build"
   | "no_selection"
   | "unresolved_secret"
