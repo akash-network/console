@@ -235,6 +235,17 @@ describe("Memoize Function", () => {
         await expect(cacheResponse(120, "test-key", refreshRequest)).rejects.toThrow("Refresh failed");
       });
 
+      it("starts a new refresh on the next call after one fails", async () => {
+        setup({ cachedAgeInSeconds: 240 });
+        const refreshRequest = vi.fn().mockRejectedValueOnce(new Error("Refresh failed")).mockResolvedValue({ fresh: "data" });
+
+        await expect(cacheResponse(120, "test-key", refreshRequest)).rejects.toThrow("Refresh failed");
+        const result = await cacheResponse(120, "test-key", refreshRequest);
+
+        expect(result).toEqual({ fresh: "data" });
+        expect(refreshRequest).toHaveBeenCalledTimes(2);
+      });
+
       it("joins a background refresh that is still running", async () => {
         const { cachedData } = setup({ cachedAgeInSeconds: 130 });
         let resolveRefresh!: (value: unknown) => void;
