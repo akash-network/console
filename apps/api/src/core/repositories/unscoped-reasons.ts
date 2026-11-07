@@ -26,6 +26,7 @@ export const UNSCOPED_REASONS = [
   "platform-statistics",
   "public-templates",
   "template-readers",
+  "template-writers",
   "wallet-provisioning"
 ] as const;
 

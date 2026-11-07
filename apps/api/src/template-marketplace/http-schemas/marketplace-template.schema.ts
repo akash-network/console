@@ -8,7 +8,7 @@ import { templateVersionStatusEnum } from "@src/template-marketplace/model-schem
 import { templateModerationStatusEnum, templateVisibilityEnum } from "@src/user/model-schemas/template/template.schema";
 
 /** The `version` column is a Postgres integer, which refuses anything larger with a 500. */
-const MAX_VERSION_NUMBER = 2_147_483_647;
+export const MAX_VERSION_NUMBER = 2_147_483_647;
 
 export const UserTemplateParamsSchema = z.object({
   id: z.string().uuid()

@@ -54,7 +54,7 @@ export class MarketplaceTemplateService {
   ) {}
 
   async getTemplate(id: string): Promise<MarketplaceTemplateOutput> {
-    const template = await this.#findReadable(id);
+    const template = await this.findReadable(id);
     const currentVersion = await this.templateVersionRepository.findCurrent(id);
 
     return {
@@ -79,14 +79,14 @@ export class MarketplaceTemplateService {
 
   /** Earlier versions may hold what the template no longer publishes, such as a removed key, so only editors see past the current one. */
   async listVersions(id: string): Promise<TemplateVersionSummary[]> {
-    const template = await this.#findReadable(id);
+    const template = await this.findReadable(id);
     const versions = await this.templateVersionRepository.listByTemplate(id);
 
     return this.#canEdit(template) ? versions : versions.filter(version => version.id === template.currentVersionId);
   }
 
   async getVersion(id: string, version: number): Promise<PublishedTemplateVersion> {
-    const template = await this.#findReadable(id);
+    const template = await this.findReadable(id);
     const found = await this.templateVersionRepository.findByTemplateAndVersion(id, version);
     assert(found, 404, VERSION_NOT_FOUND);
     assert(found.id === template.currentVersionId || this.#canEdit(template), 404, VERSION_NOT_FOUND);
@@ -95,7 +95,7 @@ export class MarketplaceTemplateService {
   }
 
   /** Answers 404 rather than 403 for a template the caller may not read, so its existence does not leak. */
-  async #findReadable(id: string): Promise<MarketplaceTemplateRow> {
+  async findReadable(id: string): Promise<MarketplaceTemplateRow> {
     const ability = this.authService.ability;
     const repository = ability.can("read", "Template") ? this.marketplaceTemplateRepository.accessibleBy(ability, "read") : this.marketplaceTemplateRepository;
     const template = await repository.findReadable(id);

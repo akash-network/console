@@ -16,6 +16,22 @@ export type MarketplaceTemplateRow = Row & {
   publisher: { name: string; slug: string; type: OrganizationType } | null;
 };
 
+export type NewTemplateInput = {
+  title: string;
+  summary: string | null;
+  userId: string;
+  authorId: string;
+  projectId?: string;
+  copiedFromId?: string;
+  sdl: string;
+  description: string | null;
+  cpu: number;
+  ram: number;
+  storage: number;
+};
+
+export type TemplateVersionMirror = Pick<Row, "sdl" | "description" | "cpu" | "ram" | "storage">;
+
 @singleton()
 export class MarketplaceTemplateRepository extends OrgScopedRepository<Table, Partial<Row>, Row> {
   constructor(
@@ -31,6 +47,21 @@ export class MarketplaceTemplateRepository extends OrgScopedRepository<Table, Pa
 
   protected newInstance() {
     return new MarketplaceTemplateRepository(this.pg, this.table, this.users, this.organizations, this.txManager, this.executionContextService) as this;
+  }
+
+  protected get filesIntoProjects() {
+    return true;
+  }
+
+  async createTemplate(input: NewTemplateInput): Promise<string> {
+    const created = await this.create({ ...input, visibility: "private", isPublic: false, isListed: true });
+
+    return created.id;
+  }
+
+  /** Unscoped, so it must run only after the writer has authorized the change to this template. */
+  async mirrorVersion(id: string, mirror: TemplateVersionMirror): Promise<void> {
+    await this.unscoped("template-writers").updateById(id, mirror);
   }
 
   async findReadable(id: string): Promise<MarketplaceTemplateRow | undefined> {

@@ -33248,6 +33248,65 @@
         }
       }
     },
+    "/v1/user-templates": {
+      "post": {
+        "operationId": "createUserTemplate",
+        "summary": "Create a private template with its first version",
+        "tags": [
+          "Templates"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserTemplateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The template created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateUserTemplateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is invalid, or the SDL or its asked values are refused (`template_invalid`, with the `issues` found), or a project must be named (`project_required`)"
+          },
+          "401": {
+            "description": "The caller is not signed in"
+          },
+          "403": {
+            "description": "The caller may not create templates"
+          },
+          "404": {
+            "description": "The project or the template copied from does not exist or the caller may not read it"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      }
+    },
     "/v1/user-templates/{id}": {
       "get": {
         "operationId": "getUserTemplate",
@@ -33322,6 +33381,75 @@
           },
           "404": {
             "description": "The template does not exist or the caller may not read it"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createUserTemplateVersion",
+        "summary": "Save a new version of a template the caller may change",
+        "tags": [
+          "Templates"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserTemplateVersionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The version saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateUserTemplateVersionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is invalid, or the SDL or its asked values are refused (`template_invalid`, with the `issues` found)"
+          },
+          "401": {
+            "description": "The caller is not signed in"
+          },
+          "403": {
+            "description": "The caller may read the template but not change it"
+          },
+          "404": {
+            "description": "The template does not exist or the caller may not read it"
+          },
+          "409": {
+            "description": "Another version was saved after the base version (`template_version_conflict`)"
           }
         }
       }
@@ -44027,6 +44155,41 @@
               "failed_checks"
             ]
           },
+          "changes": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "first_version",
+                "service_added",
+                "service_removed",
+                "image_changed",
+                "image_tag_changed",
+                "env_changed",
+                "ports_changed",
+                "resources_changed",
+                "asked_value_added",
+                "asked_value_removed",
+                "asked_value_changed",
+                "readme_changed"
+              ]
+            },
+            "description": "What this version changed from the one before it, null for a version saved before changes were recorded"
+          },
+          "createdBy": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "username": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "username"
+            ],
+            "description": "Null when the creator deleted their account or has no username"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -44038,6 +44201,8 @@
           "version",
           "resources",
           "status",
+          "changes",
+          "createdBy",
           "createdAt"
         ]
       },
@@ -44225,6 +44390,159 @@
         ]
       },
       "GetUserTemplateVersionResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TemplateVersion"
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/TemplateVersionSummary"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "sdl": {
+                        "type": "string"
+                      },
+                      "readme": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "askedValues": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/components/schemas/TemplateAskedValue"
+                        }
+                      }
+                    },
+                    "required": [
+                      "sdl",
+                      "readme",
+                      "askedValues"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "CreateUserTemplateRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "summary": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "sdl": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 131072
+              },
+              "readme": {
+                "type": "string",
+                "maxLength": 50000
+              },
+              "askedValues": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TemplateAskedValue"
+                },
+                "maxItems": 50,
+                "default": [],
+                "description": "The values the deployer fills in, bound to the SDL's env vars"
+              },
+              "projectId": {
+                "type": "string",
+                "format": "uuid",
+                "description": "The project to file the template in, required when the caller may write to several"
+              },
+              "copiedFromId": {
+                "type": "string",
+                "format": "uuid",
+                "description": "The template this one was copied from, which the caller must be able to read"
+              }
+            },
+            "required": [
+              "title",
+              "sdl"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "CreateUserTemplateResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MarketplaceTemplate"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "CreateUserTemplateVersionRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "sdl": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 131072
+              },
+              "readme": {
+                "type": "string",
+                "nullable": true,
+                "maxLength": 50000,
+                "description": "Omitted keeps the current version's readme, null clears it"
+              },
+              "askedValues": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TemplateAskedValue"
+                },
+                "maxItems": 50
+              },
+              "baseVersion": {
+                "type": "integer",
+                "minimum": 0,
+                "exclusiveMinimum": true,
+                "maximum": 2147483647,
+                "description": "The version this one was edited from, refused with 409 once another version has been saved after it"
+              }
+            },
+            "required": [
+              "sdl",
+              "askedValues",
+              "baseVersion"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "CreateUserTemplateVersionResponse": {
         "type": "object",
         "properties": {
           "data": {

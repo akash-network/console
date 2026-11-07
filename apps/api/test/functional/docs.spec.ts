@@ -45,7 +45,9 @@ const UNRELEASED_FEEDBACK_ROUTES = [
 const UNRELEASED_TEMPLATE_MARKETPLACE_ROUTES = [
   "GET /v1/user-templates/{id}",
   "GET /v1/user-templates/{id}/versions",
-  "GET /v1/user-templates/{id}/versions/{version}"
+  "GET /v1/user-templates/{id}/versions/{version}",
+  "POST /v1/user-templates",
+  "POST /v1/user-templates/{id}/versions"
 ];
 
 describe("API Docs", () => {
