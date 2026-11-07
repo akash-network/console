@@ -88,9 +88,9 @@ export class OpenApiDocsService {
 
           // The committed openapi.json (SDK input) is generated with includeHidden:true so internal
           // routes (e.g. Stripe) are typed and addressable via api.v1.*; the served /v1/doc keeps
-          // stripping them so the public Swagger surface stays clean.
-          const paths = options.includeHidden ? handlerDocs.paths : stripHiddenOperations(handlerDocs.paths);
-          this.#mergePaths(docs.paths, this.#documentOrganizationContextHeaders(this.#stripUndocumentedRequestFields(paths), authenticatesCaller));
+          // stripping them, and undocumented request fields, so the public Swagger surface stays clean.
+          const paths = options.includeHidden ? handlerDocs.paths : this.#stripUndocumentedRequestFields(stripHiddenOperations(handlerDocs.paths));
+          this.#mergePaths(docs.paths, this.#documentOrganizationContextHeaders(paths, authenticatesCaller));
           docs.components.schemas = { ...docs.components.schemas, ...this.#filterSchemasByReferences(handlerDocs.components?.schemas, paths) };
         } catch (error) {
           logger.error({
