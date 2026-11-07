@@ -19,7 +19,7 @@ import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
 /** Leaves the chain index time to store the write's block before its check first looks for it. */
 export const ALLOWANCE_CHECK_DELAY_IN_SECONDS = 60;
 
-export type AllowanceAdjustment = { previousLimit: number; nextLimit: number };
+export type AllowanceAdjustment = { previousLimit: number; nextLimit: number; txHash?: string };
 
 /** Changes a wallet's deployment allowance and has every grant checked for what it overwrote, since the chain only lets a grant set an absolute value. */
 @singleton()
@@ -60,12 +60,12 @@ export class DeploymentAllowanceService {
 
       if (tx && tx.code !== COSMOS_TX_CODE_OK) throw createError(502, "The chain refused the deployment allowance grant", { txHash: tx.hash });
       if (tx) await watchFor(tx.hash);
+
+      return { previousLimit: read.limit, nextLimit, txHash: tx?.hash };
     } catch (error) {
       if (isUnknownTxOutcome(error) && error.txHash) await watchFor(error.txHash);
       throw error;
     }
-
-    return { previousLimit: read.limit, nextLimit };
   }
 
   /** For a grant its caller made itself; a failure to watch it is logged rather than thrown, since the grant has already landed. */

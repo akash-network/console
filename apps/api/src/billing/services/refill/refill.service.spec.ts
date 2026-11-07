@@ -5,9 +5,9 @@ import type { BillingConfig } from "@src/billing/providers";
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { ManagedSignerService, ManagedUserWalletService } from "@src/billing/services";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
-import type { DeploymentAllowanceService } from "@src/billing/services/deployment-allowance/deployment-allowance.service";
 import type { PaymentCreditService } from "@src/billing/services/payment-credit/payment-credit.service";
 import { CREDIT_IN_FLIGHT_ERROR_CODE, RefillService } from "@src/billing/services/refill/refill.service";
+import type { RefundDebitService } from "@src/billing/services/refund-debit/refund-debit.service";
 import type { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
@@ -370,7 +370,7 @@ describe(RefillService.name, () => {
         managedSignerService,
         balancesService,
         paymentCreditService,
-        mock<DeploymentAllowanceService>(),
+        mock<RefundDebitService>(),
         walletInitializerService,
         analyticsService,
         organizationRepository,
@@ -395,60 +395,59 @@ describe(RefillService.name, () => {
 
   describe("reduceWalletBalance", () => {
     const userId = "test-user-id";
+    const refund = { currency: "usd", transactionId: "tx-456", refundedBefore: 0, refundedAfter: 100 };
 
     it("debits the team organization's wallet the transaction names as payer", async () => {
-      const { service, userWalletRepository, deploymentAllowanceService, analyticsService } = setup();
+      const { service, userWalletRepository, refundDebitService, analyticsService } = setup();
       const team = createOrganization({ type: "team" });
       const teamWallet = createUserWallet({ organizationId: team.id, address: "akash1team..." });
       userWalletRepository.findOneByOrganizationId.mockResolvedValue(teamWallet);
 
-      await service.reduceWalletBalance(100, { userId, organizationId: team.id, team });
+      await service.reduceWalletBalance(100, { userId, organizationId: team.id, team }, refund);
 
       expect(userWalletRepository.findOneByOrganizationId).toHaveBeenCalledWith(team.id);
       expect(userWalletRepository.findOneBy).not.toHaveBeenCalled();
-      expect(deploymentAllowanceService.adjust).toHaveBeenCalledWith({ id: teamWallet.id, address: "akash1team..." }, -1_000_000);
+      expect(refundDebitService.debitOnce).toHaveBeenCalledWith(expect.objectContaining({ wallet: { id: teamWallet.id, address: "akash1team..." } }));
       expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_refund", expect.objectContaining({ amount_cents: 100 }));
     });
 
     it("debits the team for a refund whose member has deleted their account, tracking no one", async () => {
-      const { service, userWalletRepository, deploymentAllowanceService, analyticsService } = setup();
+      const { service, userWalletRepository, refundDebitService, analyticsService } = setup();
       const team = createOrganization({ type: "team" });
       userWalletRepository.findOneByOrganizationId.mockResolvedValue(createUserWallet({ organizationId: team.id, address: "akash1team..." }));
 
-      await service.reduceWalletBalance(100, { userId: null, organizationId: team.id, team });
+      await service.reduceWalletBalance(100, { userId: null, organizationId: team.id, team }, refund);
 
-      expect(deploymentAllowanceService.adjust).toHaveBeenCalledWith(expect.objectContaining({ address: "akash1team..." }), -1_000_000);
+      expect(refundDebitService.debitOnce).toHaveBeenCalledWith(expect.objectContaining({ wallet: expect.objectContaining({ address: "akash1team..." }) }));
       expect(analyticsService.track).not.toHaveBeenCalled();
     });
 
     it("never looks for a user's own wallet to debit for a refund no member made", async () => {
-      const { service, userWalletRepository, deploymentAllowanceService } = setup();
+      const { service, userWalletRepository, refundDebitService } = setup();
 
-      await expect(service.reduceWalletBalance(100, { userId: null, organizationId: null })).rejects.toMatchObject({ status: 500 });
+      await expect(service.reduceWalletBalance(100, { userId: null, organizationId: null }, refund)).rejects.toMatchObject({ status: 500 });
 
       expect(userWalletRepository.findOneBy).not.toHaveBeenCalled();
-      expect(deploymentAllowanceService.adjust).not.toHaveBeenCalled();
+      expect(refundDebitService.debitOnce).not.toHaveBeenCalled();
     });
 
-    it("debits the deployment allowance by the refunded amount and refills the fee allowance", async () => {
-      const {
-        service,
-        userWalletRepository,
-        managedUserWalletService,
-        managedSignerService,
-        deploymentAllowanceService,
-        balancesService,
-        analyticsService,
-        logger
-      } = setup();
+    it("debits the deployment allowance by the refund once and refills the fee allowance", async () => {
+      const { service, userWalletRepository, managedUserWalletService, managedSignerService, refundDebitService, balancesService, analyticsService, logger } =
+        setup();
       const existingWallet = createUserWallet({ userId, address: "akash1test..." });
       userWalletRepository.findOneBy.mockResolvedValue(existingWallet);
-      deploymentAllowanceService.adjust.mockResolvedValue({ previousLimit: 5_000_000, nextLimit: 4_000_000 });
+      refundDebitService.debitOnce.mockResolvedValue({ previousLimit: 5_000_000, nextLimit: 4_000_000 });
 
-      await service.reduceWalletBalance(100, { userId });
+      await service.reduceWalletBalance(100, { userId }, refund);
 
       expect(userWalletRepository.findOneBy).toHaveBeenCalledWith({ userId });
-      expect(deploymentAllowanceService.adjust).toHaveBeenCalledWith({ id: existingWallet.id, address: existingWallet.address }, -1_000_000);
+      expect(refundDebitService.debitOnce).toHaveBeenCalledWith({
+        transactionId: "tx-456",
+        wallet: { id: existingWallet.id, address: existingWallet.address },
+        refundedBefore: 0,
+        refundedAfter: 100,
+        amountCents: 100
+      });
       expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(managedSignerService, {
         address: existingWallet.address,
         derivationIndex: existingWallet.id,
@@ -459,11 +458,25 @@ describe(RefillService.name, () => {
       expect(logger.info).toHaveBeenCalledWith({ event: "WALLET_BALANCE_REDUCED", userId, amountUsd: 100, previousLimit: 5_000_000, nextLimit: 4_000_000 });
     });
 
+    it("refills the fee allowance and finishes the refund when an earlier delivery already landed its debit", async () => {
+      const { service, userWalletRepository, managedUserWalletService, refundDebitService, balancesService, analyticsService, logger } = setup();
+      const existingWallet = createUserWallet({ userId, address: "akash1test..." });
+      userWalletRepository.findOneBy.mockResolvedValue(existingWallet);
+      refundDebitService.debitOnce.mockResolvedValue(undefined);
+
+      await service.reduceWalletBalance(100, { userId }, refund);
+
+      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ limits: { fees: 1000 } }));
+      expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(existingWallet);
+      expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_refund", expect.objectContaining({ amount_cents: 100 }));
+      expect(logger.info).toHaveBeenCalledWith({ event: "WALLET_BALANCE_REDUCED", userId, amountUsd: 100, previousLimit: undefined, nextLimit: undefined });
+    });
+
     it("attaches payment context to the balance_refund analytics event", async () => {
       const { service, userWalletRepository, analyticsService } = setup();
       userWalletRepository.findOneBy.mockResolvedValue(createUserWallet({ userId, address: "akash1test..." }));
 
-      await service.reduceWalletBalance(100, { userId }, { currency: "usd", transactionId: "tx-456" });
+      await service.reduceWalletBalance(100, { userId }, refund);
 
       expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_refund", {
         amount_cents: 100,
@@ -474,25 +487,25 @@ describe(RefillService.name, () => {
     });
 
     it("refuses the debit while a credit to the same wallet is still landing", async () => {
-      const { service, userWalletRepository, paymentCreditService, deploymentAllowanceService, managedUserWalletService, analyticsService, logger } = setup();
+      const { service, userWalletRepository, paymentCreditService, refundDebitService, managedUserWalletService, analyticsService, logger } = setup();
       userWalletRepository.findOneBy.mockResolvedValue(createUserWallet({ userId, address: "akash1test..." }));
       paymentCreditService.isCreditInFlight.mockResolvedValue(true);
 
-      await expect(service.reduceWalletBalance(100, { userId })).rejects.toMatchObject({
+      await expect(service.reduceWalletBalance(100, { userId }, refund)).rejects.toMatchObject({
         status: 409,
         errorCode: CREDIT_IN_FLIGHT_ERROR_CODE,
         message: "A credit to this wallet is still landing, so the refund is applied once it has"
       });
 
       expect(paymentCreditService.isCreditInFlight).toHaveBeenCalledWith("akash1test...");
-      expect(deploymentAllowanceService.adjust).not.toHaveBeenCalled();
+      expect(refundDebitService.debitOnce).not.toHaveBeenCalled();
       expect(managedUserWalletService.authorizeSpending).not.toHaveBeenCalled();
       expect(analyticsService.track).not.toHaveBeenCalled();
       expect(logger.warn).toHaveBeenCalledWith({ event: "WALLET_REDUCE_CREDIT_IN_FLIGHT", address: "akash1test..." });
     });
 
     it.each([
-      { failing: "debit", fail: ({ deploymentAllowanceService }: Mocks, error: Error) => deploymentAllowanceService.adjust.mockRejectedValue(error) },
+      { failing: "debit", fail: ({ refundDebitService }: Mocks, error: Error) => refundDebitService.debitOnce.mockRejectedValue(error) },
       {
         failing: "fee refill",
         fail: ({ managedUserWalletService }: Mocks, error: Error) => managedUserWalletService.authorizeSpending.mockRejectedValue(error)
@@ -503,33 +516,33 @@ describe(RefillService.name, () => {
       mocks.userWalletRepository.findOneBy.mockResolvedValue(createUserWallet({ userId, address: "akash1test..." }));
       fail(mocks, error);
 
-      await expect(mocks.service.reduceWalletBalance(100, { userId })).rejects.toBe(error);
+      await expect(mocks.service.reduceWalletBalance(100, { userId }, refund)).rejects.toBe(error);
 
-      expect(mocks.deploymentAllowanceService.adjust).toHaveBeenCalled();
+      expect(mocks.refundDebitService.debitOnce).toHaveBeenCalled();
       expect(mocks.managedUserWalletService.authorizeSpending).toHaveBeenCalled();
       expect(mocks.balancesService.refreshUserWalletLimits).not.toHaveBeenCalled();
     });
 
     it("does nothing when wallet does not exist", async () => {
-      const { service, userWalletRepository, deploymentAllowanceService, analyticsService } = setup();
+      const { service, userWalletRepository, refundDebitService, analyticsService } = setup();
 
       userWalletRepository.findOneBy.mockResolvedValue(undefined);
 
-      await service.reduceWalletBalance(100, { userId });
+      await service.reduceWalletBalance(100, { userId }, refund);
 
-      expect(deploymentAllowanceService.adjust).not.toHaveBeenCalled();
+      expect(refundDebitService.debitOnce).not.toHaveBeenCalled();
       expect(analyticsService.track).not.toHaveBeenCalled();
     });
 
     it("does nothing when wallet has no address", async () => {
-      const { service, userWalletRepository, deploymentAllowanceService, analyticsService } = setup();
+      const { service, userWalletRepository, refundDebitService, analyticsService } = setup();
       const walletWithoutAddress = createUserWallet({ userId, address: null });
 
       userWalletRepository.findOneBy.mockResolvedValue(walletWithoutAddress);
 
-      await service.reduceWalletBalance(100, { userId });
+      await service.reduceWalletBalance(100, { userId }, refund);
 
-      expect(deploymentAllowanceService.adjust).not.toHaveBeenCalled();
+      expect(refundDebitService.debitOnce).not.toHaveBeenCalled();
       expect(analyticsService.track).not.toHaveBeenCalled();
     });
 
@@ -542,7 +555,7 @@ describe(RefillService.name, () => {
       const managedSignerService = mock<ManagedSignerService>();
       const balancesService = mock<BalancesService>();
       const paymentCreditService = mock<PaymentCreditService>();
-      const deploymentAllowanceService = mock<DeploymentAllowanceService>();
+      const refundDebitService = mock<RefundDebitService>();
       const walletInitializerService = mock<WalletInitializerService>();
       const analyticsService = mock<AnalyticsService>();
       const organizationRepository = mock<OrganizationRepository>();
@@ -551,7 +564,7 @@ describe(RefillService.name, () => {
 
       billingConfig.FEE_ALLOWANCE_REFILL_AMOUNT = 1000;
       paymentCreditService.isCreditInFlight.mockResolvedValue(false);
-      deploymentAllowanceService.adjust.mockResolvedValue({ previousLimit: 5_000_000, nextLimit: 4_000_000 });
+      refundDebitService.debitOnce.mockResolvedValue({ previousLimit: 5_000_000, nextLimit: 4_000_000 });
 
       const service = new RefillService(
         billingConfig,
@@ -560,7 +573,7 @@ describe(RefillService.name, () => {
         managedSignerService,
         balancesService,
         paymentCreditService,
-        deploymentAllowanceService,
+        refundDebitService,
         walletInitializerService,
         analyticsService,
         organizationRepository,
@@ -575,7 +588,7 @@ describe(RefillService.name, () => {
         managedSignerService,
         balancesService,
         paymentCreditService,
-        deploymentAllowanceService,
+        refundDebitService,
         walletInitializerService,
         analyticsService,
         organizationRepository,
