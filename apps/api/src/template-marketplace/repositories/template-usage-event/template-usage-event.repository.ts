@@ -33,7 +33,7 @@ export class TemplateUsageEventRepository {
     return this.txManager.getPgTx() || this.pg;
   }
 
-  /** Answers whether the event was new, since a deployment records each action once, and a user each favorite and unfavorite of a template once. */
+  /** Answers whether the event was new, since a deployment records each action once however often its create or lease settles. */
   async record(event: TemplateUsageEventInput): Promise<boolean> {
     const recorded = await this.#cursor.insert(this.table).values(event).onConflictDoNothing().returning({ id: this.table.id });
 

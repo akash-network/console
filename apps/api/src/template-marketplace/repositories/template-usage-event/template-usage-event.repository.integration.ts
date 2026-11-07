@@ -39,25 +39,16 @@ describe(TemplateUsageEventRepository.name, () => {
       expect(await findEventsByRef(templateRef)).toHaveLength(2);
     });
 
-    it("records one favorite and one unfavorite per user and template however often they are recorded", async () => {
+    it("records every favorite and unfavorite of a user who changes their mind", async () => {
       const { repository } = setup();
-      const [user, otherUser] = await Promise.all([seedUser(), seedUser()]);
+      const user = await seedUser();
       const templateRef = faker.string.uuid();
       const favorite = buildEvent({ templateRef, action: "favorite", userId: user.id, deploymentSettingId: null, dseq: null });
 
-      const first = await repository.record(favorite);
-      const concurrent = await Promise.all([repository.record(favorite), repository.record(favorite)]);
-      const unfavorite = [await repository.record({ ...favorite, action: "unfavorite" }), await repository.record({ ...favorite, action: "unfavorite" })];
-      const byOtherUser = await repository.record({ ...favorite, userId: otherUser.id });
+      const recorded = [await repository.record(favorite), await repository.record({ ...favorite, action: "unfavorite" }), await repository.record(favorite)];
 
-      expect([first, ...concurrent, ...unfavorite, byOtherUser]).toEqual([true, false, false, true, false, true]);
-      expect((await findEventsByRef(templateRef)).map(({ action, userId }) => [action, userId]).sort()).toEqual(
-        [
-          ["favorite", user.id],
-          ["favorite", otherUser.id],
-          ["unfavorite", user.id]
-        ].sort()
-      );
+      expect(recorded).toEqual([true, true, true]);
+      expect((await findEventsByRef(templateRef)).map(({ action }) => action).sort()).toEqual(["favorite", "favorite", "unfavorite"]);
     });
 
     it("stores what the event was given and defaults the rest", async () => {
