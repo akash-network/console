@@ -726,6 +726,22 @@ describe(SdlService.name, () => {
       });
     });
 
+    it("reports the reason alone for a YAML error that names no position, such as a second document", async () => {
+      const { result } = await setup({ sdl: "version: '2.0'\n---\nservices: {}" });
+
+      expect(result).toMatchObject({
+        ok: false,
+        value: [
+          {
+            keyword: "yaml",
+            params: { reason: "expected a single document in the stream, but found more" },
+            message: "expected a single document in the stream, but found more"
+          }
+        ]
+      });
+      expect((result as { value: { params: object }[] }).value[0].params).toEqual({ reason: "expected a single document in the stream, but found more" });
+    });
+
     it("returns error result with message for malformed YAML", async () => {
       const { result } = await setup({ sdl: "key: value\n  bad_indent: true" });
 

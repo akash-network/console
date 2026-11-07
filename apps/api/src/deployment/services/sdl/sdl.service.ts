@@ -41,7 +41,7 @@ function canTakeAuditors(profile: SdlPlacementProfile): boolean {
 }
 
 /** The message quotes the SDL around the error, so a caller that must not echo it reports these instead. */
-export type YamlErrorParams = { reason: string; line: number; column: number };
+export type YamlErrorParams = { reason: string; line?: number; column?: number };
 
 @singleton()
 export class SdlService {
@@ -111,7 +111,8 @@ export class SdlService {
       return { ok: true, value };
     } catch (error) {
       if (error instanceof YAMLException) {
-        const params: YamlErrorParams = { reason: error.reason, line: error.mark.line + 1, column: error.mark.column + 1 };
+        const mark: YAMLException["mark"] | undefined = error.mark;
+        const params: YamlErrorParams = { reason: error.reason, ...(mark && { line: mark.line + 1, column: mark.column + 1 }) };
 
         return { ok: false, value: [{ schemaPath: "", instancePath: "", keyword: "yaml", params, message: error.message }] };
       }
