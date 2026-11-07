@@ -11,6 +11,8 @@ import { ApplyAccountTerminationHandler } from "@src/user/services/apply-account
 import { ApplyAccountTermination, applyAccountTerminationKeyFor } from "@src/user/services/apply-account-termination/apply-account-termination.job";
 import { CloseAccountDeploymentsHandler } from "@src/user/services/close-account-deployments/close-account-deployments.handler";
 import { CloseAccountDeployments, closeAccountDeploymentsKeyFor } from "@src/user/services/close-account-deployments/close-account-deployments.job";
+import { NotifyAccountStatusChangeHandler } from "@src/user/services/notify-account-status-change/notify-account-status-change.handler";
+import { NotifyAccountStatusChange, notifyAccountStatusChangeKeyFor } from "@src/user/services/notify-account-status-change/notify-account-status-change.job";
 import { AccountStatusService } from "./account-status.service";
 
 import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
@@ -20,7 +22,8 @@ import { findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 const jobWorkers = useJobWorkers(() => [
   container.resolve(CloseAccountDeploymentsHandler),
   container.resolve(ApplyAccountTerminationHandler),
-  container.resolve(WalletBalanceReloadCheckHandler)
+  container.resolve(WalletBalanceReloadCheckHandler),
+  container.resolve(NotifyAccountStatusChangeHandler)
 ]);
 
 describe(AccountStatusService.name, () => {
@@ -163,6 +166,22 @@ describe(AccountStatusService.name, () => {
     expect(await findJobRows(ApplyAccountTermination[JOB_NAME], { singletonKey: applyAccountTerminationKeyFor(user.id) })).toEqual([
       expect.objectContaining({ state: "created", data: { userId: user.id, forfeitCredits: true, version: 1 } })
     ]);
+  });
+
+  it("queues one email for each change an admin makes, keyed on its event", async () => {
+    const { service, actor } = await setup();
+    const user = await seedUser({ email: faker.internet.email() });
+
+    const events = [
+      await service.suspend(user.id, { actor, userReason: "Unpaid invoices", closeDeployments: false }),
+      await service.reinstate(user.id, { actor }),
+      await service.terminate(user.id, { actor, userReason: "Fraud", forfeitCredits: false })
+    ];
+
+    const jobRows = await Promise.all(
+      events.map(event => findJobRows(NotifyAccountStatusChange[JOB_NAME], { singletonKey: notifyAccountStatusChangeKeyFor(event.id) }))
+    );
+    expect(jobRows).toEqual(events.map(event => [expect.objectContaining({ state: "created", data: { eventId: event.id, version: 1 }, retry_limit: 10 })]));
   });
 
   it("rejects terminating a terminated user with 409 and queues nothing", async () => {

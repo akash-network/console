@@ -9,6 +9,7 @@ import type { AccountStatusEventOutput, AccountStatusEventRepository } from "@sr
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
 import { ApplyAccountTermination } from "@src/user/services/apply-account-termination/apply-account-termination.job";
 import { CloseAccountDeployments } from "@src/user/services/close-account-deployments/close-account-deployments.job";
+import { NotifyAccountStatusChange } from "@src/user/services/notify-account-status-change/notify-account-status-change.job";
 import { AccountStatusService } from "./account-status.service";
 
 import { createUser } from "@test/seeders/user.seeder";
@@ -20,7 +21,7 @@ describe(AccountStatusService.name, () => {
 
       const event = await service.suspend(user.id, { actor, userReason: "Unpaid invoices", internalNote: "Chargeback on card", closeDeployments: false });
 
-      expect(calls).toEqual(["tx:begin", "lock", "update", "event", "tx:commit"]);
+      expect(calls).toEqual(["tx:begin", "lock", "update", "event", "enqueue:NotifyAccountStatusChange", "tx:commit"]);
       expect(userRepository.findOneByAndLock).toHaveBeenCalledWith({ id: user.id });
       expect(userRepository.updateById).toHaveBeenCalledWith(user.id, { accountStatus: "suspended" });
       expect(accountStatusEventRepository.create).toHaveBeenCalledWith({
@@ -42,7 +43,7 @@ describe(AccountStatusService.name, () => {
 
       await service.suspend(user.id, { actor, userReason: "Abuse", closeDeployments: true });
 
-      expect(calls).toEqual(["tx:begin", "lock", "update", "event", "enqueue", "tx:commit"]);
+      expect(calls).toEqual(["tx:begin", "lock", "update", "event", "enqueue:CloseAccountDeployments", "enqueue:NotifyAccountStatusChange", "tx:commit"]);
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(
         new CloseAccountDeployments({ userId: user.id }),
         expect.objectContaining({ singletonKey: `closeAccountDeployments.${user.id}`, retryLimit: 8 })
@@ -53,6 +54,28 @@ describe(AccountStatusService.name, () => {
       const { service, user, actor, jobQueueService } = setup({ accountStatus: "active" });
 
       await service.suspend(user.id, { actor, userReason: "Abuse", closeDeployments: false });
+
+      expect(jobQueueService.enqueue).not.toHaveBeenCalledWith(expect.any(CloseAccountDeployments), expect.anything());
+    });
+
+    it("queues the email about the suspension in the same transaction, once per event", async () => {
+      const { service, user, actor, jobQueueService } = setup({ accountStatus: "active" });
+
+      const event = await service.suspend(user.id, { actor, userReason: "Abuse", closeDeployments: false });
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new NotifyAccountStatusChange({ eventId: event.id }), {
+        singletonKey: `notifyAccountStatusChange.${event.id}`,
+        retryLimit: 10,
+        retryBackoff: true,
+        retryDelay: 30,
+        retryDelayMax: 1800
+      });
+    });
+
+    it("queues no email when the suspension is refused", async () => {
+      const { service, user, actor, jobQueueService } = setup({ accountStatus: "terminated" });
+
+      await expect(service.suspend(user.id, { actor, userReason: "Abuse", closeDeployments: false })).rejects.toMatchObject({ status: 409 });
 
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
@@ -109,17 +132,21 @@ describe(AccountStatusService.name, () => {
   });
 
   describe("reinstate", () => {
-    it("reactivates a suspended account and keeps the note as the internal note", async () => {
+    it("reactivates a suspended account, keeps the note as the internal note and queues the email in the same transaction", async () => {
       const { service, user, actor, userRepository, accountStatusEventRepository, jobQueueService, calls } = setup({ accountStatus: "suspended" });
 
-      await service.reinstate(user.id, { actor, note: "Paid in full" });
+      const event = await service.reinstate(user.id, { actor, note: "Paid in full" });
 
-      expect(calls).toEqual(["tx:begin", "lock", "update", "event", "scheduleReload", "tx:commit"]);
+      expect(calls).toEqual(["tx:begin", "lock", "update", "event", "scheduleReload", "enqueue:NotifyAccountStatusChange", "tx:commit"]);
       expect(userRepository.updateById).toHaveBeenCalledWith(user.id, { accountStatus: "active" });
       expect(accountStatusEventRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({ action: "reinstate", userReason: null, internalNote: "Paid in full", options: {} })
       );
-      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        new NotifyAccountStatusChange({ eventId: event.id }),
+        expect.objectContaining({ singletonKey: `notifyAccountStatusChange.${event.id}` })
+      );
     });
 
     it("queues the next auto-recharge check of the user's own wallet, which stopped rescheduling itself while suspended", async () => {
@@ -161,7 +188,7 @@ describe(AccountStatusService.name, () => {
 
         await service.terminate(user.id, { actor, userReason: "Fraud", internalNote: "Stolen cards", forfeitCredits: true });
 
-        expect(calls).toEqual(["tx:begin", "lock", "update", "event", "enqueue", "tx:commit"]);
+        expect(calls).toEqual(["tx:begin", "lock", "update", "event", "enqueue:ApplyAccountTermination", "enqueue:NotifyAccountStatusChange", "tx:commit"]);
         expect(userRepository.updateById).toHaveBeenCalledWith(user.id, { accountStatus: "terminated" });
         expect(accountStatusEventRepository.create).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -180,6 +207,17 @@ describe(AccountStatusService.name, () => {
         });
       }
     );
+
+    it("queues the email about the termination with the event it is about", async () => {
+      const { service, user, actor, jobQueueService } = setup({ accountStatus: "active" });
+
+      const event = await service.terminate(user.id, { actor, userReason: "Fraud", forfeitCredits: false });
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        new NotifyAccountStatusChange({ eventId: event.id }),
+        expect.objectContaining({ singletonKey: `notifyAccountStatusChange.${event.id}` })
+      );
+    });
 
     it("records an empty internal note as null and keeps the credits when asked to", async () => {
       const { service, user, actor, accountStatusEventRepository, jobQueueService } = setup({ accountStatus: "active" });
@@ -214,7 +252,7 @@ describe(AccountStatusService.name, () => {
   });
 
   describe("terminateIfVerifiedEmailWasTerminated", () => {
-    it("terminates an account whose verified address a verified termination used, as the system, with that termination's reason, and queues its effects in the same transaction", async () => {
+    it("terminates an account whose verified address a verified termination used, as the system, with that termination's reason, and queues its effects but no email in the same transaction", async () => {
       const { service, user, userRepository, accountStatusEventRepository, jobQueueService, calls } = setup({ accountStatus: "active" });
       const matchedUserId = faker.string.uuid();
       accountStatusEventRepository.findLatestVerifiedTerminationOf.mockResolvedValue({ userId: matchedUserId, userReason: "Fraud" });
@@ -222,7 +260,7 @@ describe(AccountStatusService.name, () => {
       const result = await service.terminateIfVerifiedEmailWasTerminated(user);
 
       expect(result).toEqual({ ...user, accountStatus: "terminated" });
-      expect(calls).toEqual(["tx:begin", "lock", "update", "event", "enqueue", "tx:commit"]);
+      expect(calls).toEqual(["tx:begin", "lock", "update", "event", "enqueue:ApplyAccountTermination", "tx:commit"]);
       expect(accountStatusEventRepository.findLatestVerifiedTerminationOf).toHaveBeenCalledWith(user.email);
       expect(userRepository.updateById).toHaveBeenCalledWith(user.id, { accountStatus: "terminated" });
       expect(accountStatusEventRepository.create).toHaveBeenCalledWith({
@@ -338,8 +376,8 @@ describe(AccountStatusService.name, () => {
       return mock<AccountStatusEventOutput>({ ...event, id: faker.string.uuid() });
     });
     const jobQueueService = mock<JobQueueService>();
-    jobQueueService.enqueue.mockImplementation(async () => {
-      calls.push("enqueue");
+    jobQueueService.enqueue.mockImplementation(async job => {
+      calls.push(`enqueue:${job.name}`);
       return faker.string.uuid();
     });
     const walletReloadJobService = mock<WalletReloadJobService>();
