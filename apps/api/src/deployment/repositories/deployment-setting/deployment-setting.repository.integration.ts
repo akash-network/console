@@ -641,6 +641,34 @@ describe(DeploymentSettingRepository.name, () => {
       expect(claimed).toBe(false);
       expect(await deploymentSettingRepository.findById(teamDeployment.id)).toMatchObject({ providerUnreachableNotifiedFor: null });
     });
+
+    it("claims an outage once on the row a team kept after its filer deleted their account", async () => {
+      const { deploymentSettingRepository, teamDeployment, orphan } = await setupOrphanedTeamDeployment();
+
+      const first = await deploymentSettingRepository.claimProviderUnreachableNotification({ ...orphan, downSinceMarker: OUTAGE_STARTED_AT });
+      const second = await deploymentSettingRepository.claimProviderUnreachableNotification({ ...orphan, downSinceMarker: OUTAGE_STARTED_AT });
+
+      expect([first, second]).toEqual([true, false]);
+      expect((await deploymentSettingRepository.findById(teamDeployment.id))?.providerUnreachableNotifiedFor?.toISOString()).toBe(OUTAGE_STARTED_AT);
+    });
+
+    it("awards the claim on a team's kept row to exactly one caller across concurrent attempts", async () => {
+      const { deploymentSettingRepository, orphan } = await setupOrphanedTeamDeployment();
+      const claim = { ...orphan, downSinceMarker: OUTAGE_STARTED_AT };
+
+      const results = await Promise.all(Array.from({ length: 5 }, () => deploymentSettingRepository.claimProviderUnreachableNotification(claim)));
+
+      expect(results.filter(Boolean)).toHaveLength(1);
+    });
+
+    it("claims again on a team's kept row once the provider goes dark a second time", async () => {
+      const { deploymentSettingRepository, orphan } = await setupOrphanedTeamDeployment();
+      await deploymentSettingRepository.claimProviderUnreachableNotification({ ...orphan, downSinceMarker: OUTAGE_STARTED_AT });
+
+      const claimed = await deploymentSettingRepository.claimProviderUnreachableNotification({ ...orphan, downSinceMarker: LATER_OUTAGE_STARTED_AT });
+
+      expect(claimed).toBe(true);
+    });
   });
 
   describe("releaseProviderUnreachableClaim", () => {
@@ -678,6 +706,25 @@ describe(DeploymentSettingRepository.name, () => {
       await deploymentSettingRepository.releaseProviderUnreachableClaim({ ...claim, organizationId: personalWallet.organizationId });
 
       expect((await deploymentSettingRepository.findById(teamDeployment.id))?.providerUnreachableNotifiedFor?.toISOString()).toBe(OUTAGE_STARTED_AT);
+    });
+
+    it("lets the next sweep report the same outage again on a team's kept row", async () => {
+      const { deploymentSettingRepository, orphan } = await setupOrphanedTeamDeployment();
+      const claim = { ...orphan, downSinceMarker: OUTAGE_STARTED_AT };
+      await deploymentSettingRepository.claimProviderUnreachableNotification(claim);
+
+      await deploymentSettingRepository.releaseProviderUnreachableClaim(claim);
+
+      expect(await deploymentSettingRepository.claimProviderUnreachableNotification(claim)).toBe(true);
+    });
+
+    it("leaves a stamp written for a later outage on a team's kept row untouched", async () => {
+      const { deploymentSettingRepository, teamDeployment, orphan } = await setupOrphanedTeamDeployment();
+      await deploymentSettingRepository.claimProviderUnreachableNotification({ ...orphan, downSinceMarker: LATER_OUTAGE_STARTED_AT });
+
+      await deploymentSettingRepository.releaseProviderUnreachableClaim({ ...orphan, downSinceMarker: OUTAGE_STARTED_AT });
+
+      expect((await deploymentSettingRepository.findById(teamDeployment.id))?.providerUnreachableNotifiedFor?.toISOString()).toBe(LATER_OUTAGE_STARTED_AT);
     });
   });
 
@@ -764,6 +811,35 @@ describe(DeploymentSettingRepository.name, () => {
       await deploymentSettingRepository.markClosed({ userId: user.id, dseq: teamSetting.dseq, organizationId: personal.id });
 
       expect(await deploymentSettingRepository.findOneBy({ id: teamSetting.id })).toMatchObject({ closed: false });
+    });
+
+    it("closes the row a team kept after its filer deleted their account, with why Console closed it", async () => {
+      const { deploymentSettingRepository, teamDeployment, orphan } = await setupOrphanedTeamDeployment();
+
+      await deploymentSettingRepository.markClosed({ ...orphan, consoleCloseReason: "provider_unreachable" });
+
+      expect(await deploymentSettingRepository.findById(teamDeployment.id)).toMatchObject({
+        userId: null,
+        closed: true,
+        consoleCloseReason: "provider_unreachable"
+      });
+    });
+
+    it("keeps the first reason Console recorded for closing a team's kept row", async () => {
+      const { deploymentSettingRepository, teamDeployment, orphan } = await setupOrphanedTeamDeployment();
+      await deploymentSettingRepository.updateBy({ id: teamDeployment.id }, { consoleCloseReason: "runtime_limit_reached" });
+
+      await deploymentSettingRepository.markClosed({ ...orphan, consoleCloseReason: "provider_unreachable" });
+
+      expect(await deploymentSettingRepository.findById(teamDeployment.id)).toMatchObject({ closed: true, consoleCloseReason: "runtime_limit_reached" });
+    });
+
+    it("closes a team's kept row without naming a reason when the close names none", async () => {
+      const { deploymentSettingRepository, teamDeployment, orphan } = await setupOrphanedTeamDeployment();
+
+      await deploymentSettingRepository.markClosed(orphan);
+
+      expect(await deploymentSettingRepository.findById(teamDeployment.id)).toMatchObject({ closed: true, consoleCloseReason: null });
     });
   });
 
@@ -3539,6 +3615,13 @@ describe(DeploymentSettingRepository.name, () => {
       teamWallet: { userId: null, organizationId: team.id },
       runInPersonalOrganization
     };
+  }
+
+  async function setupOrphanedTeamDeployment() {
+    const { deploymentSettingRepository, member, teamDeployment } = await setupMemberOfTeam();
+    await deploymentSettingRepository.detachFromTeams(member.id);
+
+    return { deploymentSettingRepository, teamDeployment, orphan: { orphanId: teamDeployment.id } };
   }
 
   async function setupOrganizations() {
