@@ -1,5 +1,6 @@
 import { yaml } from "@akashnetwork/chain-sdk";
 
+import { exceedsSubmittableLength } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import type { AskedValue } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
 
 export const TEMPLATE_VERSION_CHANGES = [
@@ -102,7 +103,7 @@ function parseSdl(sdl: string): ParsedSdl | undefined {
     return undefined;
   }
 
-  if (!isMapping(document)) return undefined;
+  if (!isMapping(document) || exceedsSubmittableLength(sdl, document)) return undefined;
 
   const profiles = asMapping(document.profiles);
 

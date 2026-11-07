@@ -127,6 +127,20 @@ describe(summarizeVersionChanges.name, () => {
     expect(summarizeVersionChanges(unreadable, readable)).toEqual(["readme_changed"]);
   });
 
+  it("reports no SDL change for an SDL whose anchors expand past the largest submittable document", () => {
+    const readable = content({ sdl: sdlOf({ web: { image: "a:1" } }), readme: "a" });
+    const bomb = content({ sdl: aliasBombSdl(), readme: "b" });
+
+    expect(summarizeVersionChanges(readable, bomb)).toEqual(["readme_changed"]);
+    expect(summarizeVersionChanges(bomb, readable)).toEqual(["readme_changed"]);
+  });
+
+  it("still reads an SDL that shares a small anchor", () => {
+    const shared = (image: string) => `x-env: &env [A=1]\nservices:\n  web:\n    image: ${image}\n    env: *env`;
+
+    expect(summarizeVersionChanges(content({ sdl: shared("a:1") }), content({ sdl: shared("a:2") }))).toEqual(["image_tag_changed"]);
+  });
+
   it("reports no SDL change when an SDL is not a mapping", () => {
     const readable = content({ sdl: sdlOf({ web: { image: "a:1" } }) });
 
@@ -153,6 +167,14 @@ describe(summarizeVersionChanges.name, () => {
     expect(summarizeVersionChanges(previous, content({ sdl: sdlOf({ web: { image: "a:1", env: ["A=1"] } }) }))).toEqual(["env_changed"]);
     expect(summarizeVersionChanges(previous, content({ sdl: sdlOf({ web: { image: "a:1", env: [] } }) }))).toEqual([]);
   });
+
+  function aliasBombSdl() {
+    const levels = Array.from({ length: 10 }, (_, level) =>
+      level === 0 ? "  l0: &l0 [x, x, x, x, x, x, x, x, x, x]" : `  l${level}: &l${level} [${Array.from({ length: 10 }, () => `*l${level - 1}`).join(", ")}]`
+    );
+
+    return `x-defs:\n${levels.join("\n")}\nservices:\n  web:\n    image: a:1\nprofiles:\n  compute: *l9`;
+  }
 
   function content(input: { sdl: string; readme?: string | null; askedValues?: AskedValue[] }) {
     return { sdl: input.sdl, readme: input.readme ?? null, askedValues: input.askedValues ?? [] };
