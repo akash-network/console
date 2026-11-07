@@ -226,6 +226,22 @@ describe(scoreAssistantEval.name, () => {
     ]);
   });
 
+  it.each(["[deployment 1794...](/deployments/1794010767535) is up.", "[deployment 179401…](/deployments/1794010767535) is up."])(
+    "reports a dseq shortened in a link label: %j",
+    answer => {
+      expect(scoreAssistantEval("unnamed", { linksDeployments: ["1794010767535"] }, { toolCalls: [], answer }).failures).toEqual([
+        "answer writes a shortened dseq 1794010767535"
+      ]);
+    }
+  );
+
+  it.each(["[web (nginx)](/deployments/1794010767535) logged 2048... lines.", "[web (nginx)](/deployments/1794010767535) is at step 179..."])(
+    "passes a trailing number that is not a shortened dseq: %j",
+    answer => {
+      expect(scoreAssistantEval("unnamed", { linksDeployments: ["1794010767535"] }, { toolCalls: [], answer }).failures).toEqual([]);
+    }
+  );
+
   it("fails an answer the model left to the fallback", () => {
     expect(scoreAssistantEval("silent", {}, { toolCalls: [], answer: "I read your deployments.", fellBack: true }).failures).toEqual([
       "answered only with the fallback"

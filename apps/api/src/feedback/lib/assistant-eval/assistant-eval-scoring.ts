@@ -25,6 +25,8 @@ const REPRICING_ADVICE = [
 
 const ADVICE_AGAINST = /n't\b|\b(?:not|never|no need|instead of|rather than|without)\b/i;
 
+const SHORTENED_NUMBER = /(\d{4,})(?:\.{3}|…)/g;
+
 export interface AssistantEvalToolCall {
   name: string;
   arguments: Record<string, unknown>;
@@ -115,8 +117,15 @@ function deploymentLinkFailures(expected: AssistantEvalExpectation, answer: stri
     const link = deploymentLinkOf(dseq);
     if (!answer.includes(link)) return [`answer does not link deployment ${dseq}`];
 
-    return answer.split(link).join("").includes(dseq) ? [`answer writes a bare dseq ${dseq}`] : [];
+    const answerOutsideLinks = answer.split(link).join("");
+    if (answerOutsideLinks.includes(dseq)) return [`answer writes a bare dseq ${dseq}`];
+
+    return writesShortenedDseq(answerOutsideLinks, dseq) ? [`answer writes a shortened dseq ${dseq}`] : [];
   });
+}
+
+function writesShortenedDseq(text: string, dseq: string): boolean {
+  return Array.from(text.matchAll(SHORTENED_NUMBER)).some(([, digits]) => dseq.startsWith(digits));
 }
 
 function repricingFailures(expected: AssistantEvalExpectation, answer: string): string[] {
