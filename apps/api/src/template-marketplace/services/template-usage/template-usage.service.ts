@@ -69,17 +69,14 @@ export class TemplateUsageService {
   }
 
   async recordFavorite(templateId: string, action: "favorite" | "unfavorite"): Promise<void> {
-    const userId = this.executionContextService.get("CURRENT_USER")?.id ?? null;
-    const organizationId = this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId ?? null;
-
     await this.#recordSafely({ action, templateId }, async () => {
       await this.templateUsageEventRepository.record({
         source: "console",
         templateRef: templateId,
         templateVersionId: await this.templateUsageEventRepository.findCurrentVersionIdOfTemplate(templateId),
         action,
-        userId,
-        organizationId,
+        userId: this.executionContextService.get("CURRENT_USER")?.id ?? null,
+        organizationId: this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId ?? null,
         network: this.coreConfig.get("NETWORK")
       });
     });
