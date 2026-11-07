@@ -5,6 +5,7 @@ const MAX_BINDINGS = 20;
 const MAX_CHOICES = 50;
 const MAX_CHOICE_LENGTH = 200;
 const MAX_DEFAULT_LENGTH = 4096;
+const KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
 const ENV_NAME_PATTERN = /^[-._a-zA-Z][-._a-zA-Z0-9]*$/;
 
 const BindingSchema = z.object({
@@ -13,7 +14,7 @@ const BindingSchema = z.object({
 });
 
 const commonFields = {
-  key: z.string().regex(ENV_NAME_PATTERN),
+  key: z.string().regex(KEY_PATTERN),
   label: z.string().min(1).max(80),
   help: z.string().max(500).optional(),
   required: z.boolean(),
@@ -37,8 +38,8 @@ const NumberAskedValueSchema = z
     ...commonFields,
     type: z.literal("number"),
     default: defaultField,
-    min: z.number().optional(),
-    max: z.number().optional(),
+    min: z.number().finite().optional(),
+    max: z.number().finite().optional(),
     integer: z.boolean().optional()
   })
   .strict();

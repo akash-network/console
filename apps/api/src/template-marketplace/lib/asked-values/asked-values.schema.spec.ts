@@ -23,7 +23,25 @@ describe("AskedValuesSchema", () => {
     expect(AskedValueSchema.safeParse(askedValue({ key: "1ST" })).success).toBe(false);
     expect(AskedValueSchema.safeParse(askedValue({ key: "has space" })).success).toBe(false);
     expect(AskedValueSchema.safeParse(askedValue({ key: "" })).success).toBe(false);
-    expect(AskedValueSchema.safeParse(askedValue({ key: "-._ok.1" })).success).toBe(true);
+    expect(AskedValueSchema.safeParse(askedValue({ key: ".x" })).success).toBe(false);
+    expect(AskedValueSchema.safeParse(askedValue({ key: "a-b" })).success).toBe(false);
+    expect(AskedValueSchema.safeParse(askedValue({ key: "-._ok.1" })).success).toBe(false);
+    expect(AskedValueSchema.safeParse(askedValue({ key: "_ok_1" })).success).toBe(true);
+  });
+
+  it("limits a key to 64 characters", () => {
+    expect(AskedValueSchema.safeParse(askedValue({ key: "A".repeat(64) })).success).toBe(true);
+    expect(AskedValueSchema.safeParse(askedValue({ key: "A".repeat(65) })).success).toBe(false);
+  });
+
+  it("accepts a binding env with dots and dashes", () => {
+    expect(AskedValueSchema.safeParse(askedValue({ bindings: [{ service: "web", env: "-._ok.1" }] })).success).toBe(true);
+  });
+
+  it("refuses a number limit that is not finite", () => {
+    expect(AskedValueSchema.safeParse(askedValue({ type: "number", min: Infinity })).success).toBe(false);
+    expect(AskedValueSchema.safeParse(askedValue({ type: "number", max: -Infinity })).success).toBe(false);
+    expect(AskedValueSchema.safeParse(askedValue({ type: "number", min: 1, max: 2 })).success).toBe(true);
   });
 
   it("refuses a binding whose env is not an environment variable name", () => {
