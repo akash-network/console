@@ -56,17 +56,19 @@ describe(useRequestQuotes.name, () => {
     expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { screening: { placementCount: 0 }, name: "my-app", secrets: {} });
   });
 
-  it("blocks a trial deployment whose GPU resolves to a blocked selection and explains why", async () => {
+  it("blocks a trial deployment whose GPU resolves to a blocked selection and names the GPU choice to change", async () => {
     const { requestQuotes, submit, enqueueSnackbar } = setup({
       isRestricted: true,
-      services: [{ profile: { hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "" }] } }]
+      services: [{ title: "llm", profile: { hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "" }] } }]
     });
 
     await submit();
 
     expect(requestQuotes).not.toHaveBeenCalled();
     render(enqueueSnackbar.mock.calls[0][0] as ReactNode);
-    expect(screen.getByText(/GPU access is not available on a free trial/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(`Service "llm" asks for any NVIDIA GPU, which the free trial doesn't allow. Choose a GPU model your trial allows, or add credits.`)
+    ).toBeInTheDocument();
   });
 
   it("lets a trial deployment on an allowed GPU model request quotes", async () => {
@@ -287,6 +289,116 @@ describe(useRequestQuotes.name, () => {
     });
   });
 
+  describe("when the trial blocks both the deployment's size and its GPU", () => {
+    const LIMIT = { maxCpu: 4, maxMemoryGi: 16 };
+
+    it("fits the size and keeps only the GPU models the trial allows, so the next click requests quotes", async () => {
+      const { submit, enqueueSnackbar, requestQuotes, formValues } = setup({
+        isRestricted: true,
+        trialResourceLimit: LIMIT,
+        services: [
+          {
+            title: "llm",
+            profile: {
+              hasGpu: true,
+              gpuModels: [
+                { vendor: "nvidia", name: "h100" },
+                { vendor: "nvidia", name: "t4" },
+                { vendor: "nvidia", name: "" }
+              ],
+              cpu: 8,
+              ram: 8,
+              ramUnit: "Gi"
+            }
+          },
+          { title: "web", profile: { cpu: 0.1, ram: 512, ramUnit: "Mi" } }
+        ]
+      });
+      await submit();
+      render(enqueueSnackbar.mock.calls[0][0] as ReactNode);
+      expect(
+        screen.getByText(`Service "llm" also accepts NVIDIA H100 and any NVIDIA GPU, which the free trial doesn't allow. Remove them from its GPU models.`)
+      ).toBeInTheDocument();
+
+      act(() => fireEvent.click(screen.getByRole("button", { name: "Fit to free trial" })));
+
+      expect(formValues().services[0].profile).toEqual(
+        expect.objectContaining({ cpu: 3.9, ram: 8, ramUnit: "Gi", gpuModels: [{ vendor: "nvidia", name: "t4" }] })
+      );
+      render(enqueueSnackbar.mock.calls[1][0] as ReactNode);
+      expect(screen.getByText("This deployment now requests 4 vCPU and 8.5 GiB of memory. It now uses only GPU models your trial allows.")).toBeInTheDocument();
+
+      await submit();
+
+      expect(requestQuotes).toHaveBeenCalledOnce();
+    });
+
+    it("offers only Add credits and names the GPU to change when no GPU model the service accepts is allowed", async () => {
+      const { submit, enqueueSnackbar } = setup({
+        isRestricted: true,
+        trialResourceLimit: LIMIT,
+        services: [
+          {
+            title: "llm",
+            profile: {
+              hasGpu: true,
+              gpuModels: [
+                { vendor: "nvidia", name: "h100" },
+                { vendor: "nvidia", name: "a100" }
+              ],
+              cpu: 8,
+              ram: 8,
+              ramUnit: "Gi"
+            }
+          }
+        ]
+      });
+      await submit();
+
+      render(enqueueSnackbar.mock.calls[0][0] as ReactNode);
+
+      expect(
+        screen.getByText(
+          `Service "llm" asks for NVIDIA H100 and NVIDIA A100, which the free trial doesn't allow. Choose a GPU model your trial allows, or add credits.`
+        )
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Fit to free trial" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Add credits" })).toBeInTheDocument();
+    });
+
+    it("keeps the GPU models of a user who is not on a trial when fitting the size", async () => {
+      const { submit, enqueueSnackbar, formValues } = setup({
+        trialResourceLimit: LIMIT,
+        services: [
+          {
+            title: "llm",
+            profile: {
+              hasGpu: true,
+              gpuModels: [
+                { vendor: "nvidia", name: "h100" },
+                { vendor: "nvidia", name: "t4" }
+              ],
+              cpu: 8,
+              ram: 8,
+              ramUnit: "Gi"
+            }
+          }
+        ]
+      });
+      await submit();
+      render(enqueueSnackbar.mock.calls[0][0] as ReactNode);
+
+      act(() => fireEvent.click(screen.getByRole("button", { name: "Fit to free trial" })));
+
+      expect(formValues().services[0].profile.gpuModels).toEqual([
+        { vendor: "nvidia", name: "h100" },
+        { vendor: "nvidia", name: "t4" }
+      ]);
+      render(enqueueSnackbar.mock.calls[1][0] as ReactNode);
+      expect(screen.getByText("This deployment now requests 4 vCPU and 8 GiB of memory.")).toBeInTheDocument();
+    });
+  });
+
   it("lets a block that offers no way past it hide on its own", async () => {
     const { submit, enqueueSnackbar } = setup({ validationErrors: ["/services/web: invalid"] });
 
@@ -379,7 +491,7 @@ describe(useRequestQuotes.name, () => {
         isRestricted: true,
         trialResourceLimit: { maxCpu: 4, maxMemoryGi: 16 },
         validationErrors: ["/services/web: invalid"],
-        services: [{ count: 1, profile: { hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "h100" }], cpu: 16, ram: 64, ramUnit: "Gi" } }]
+        services: [{ title: "web", count: 1, profile: { hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "h100" }], cpu: 16, ram: 64, ramUnit: "Gi" } }]
       });
 
       await submit();
@@ -391,7 +503,7 @@ describe(useRequestQuotes.name, () => {
       render(enqueueSnackbar.mock.calls[0][0] as ReactNode);
       expect(screen.getAllByRole("listitem").map(item => item.textContent)).toEqual([
         "/services/web: invalid",
-        "GPU access is not available on a free trial. Add funds to unlock GPU access.",
+        `Service "web" asks for NVIDIA H100, which the free trial doesn't allow. Choose a GPU model your trial allows, or add credits.`,
         "This deployment requests 16 vCPU and 64 GiB of memory. Free trial deployments are limited to 4 vCPU and 16 GiB of memory."
       ]);
     });

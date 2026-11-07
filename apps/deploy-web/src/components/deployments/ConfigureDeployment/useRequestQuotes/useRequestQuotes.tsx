@@ -9,7 +9,6 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useAddCredits } from "@src/hooks/useAddCredits";
 import { useCachedNotBiddingProviderCount, useCachedScreenedProviderCount } from "@src/queries/useScreenedProviders";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { hasTrialBlockedGpu } from "@src/utils/deploymentData/v1beta3";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { resolveSdlSecrets, unresolvedSecretMessage } from "@src/utils/sdl/sdlSecrets";
 import { validateGeneratedSdl } from "@src/utils/sdl/validateGeneratedSdl";
@@ -26,6 +25,7 @@ import { useTrialResourceLimit } from "../ConfigurationPane/HardwareSection/useT
 import { useInheritedSecrets } from "../InheritedSecretsProvider/InheritedSecretsProvider";
 import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 import { listInvalidFieldMessages, listInvalidFieldPaths } from "./invalidFieldMessages";
+import { describeTrialGpuBlocks, dropTrialBlockedGpuModels } from "./trialGpuFit";
 
 export const DEPENDENCIES = {
   useSnackbar,
@@ -108,20 +108,32 @@ export function useRequestQuotes({ flow, deploymentName, onInvalid }: Input, dep
     explainWhySubmitIsBlocked(messages, renderActions);
   }
 
+  /** Undefined unless both the size and the GPU rules of the trial can be met without the user picking anything. */
+  function fitServicesToTrial(services: ServiceType[], limit: TrialResourceLimit) {
+    const servicesOnTrialGpus = isRestricted ? dropTrialBlockedGpuModels(services) : services;
+    return servicesOnTrialGpus && fitServicesToTrialResourceLimit(servicesOnTrialGpus, limit);
+  }
+
   /** Fits the services as they are at the click, since the user can edit them while the block stays on screen. */
   function fitCurrentServicesToTrial(limit: TrialResourceLimit) {
-    const fittedServices = fitServicesToTrialResourceLimit(getValues().services, limit);
+    const currentServices = getValues().services;
+    const fittedServices = fitServicesToTrial(currentServices, limit);
     if (!fittedServices) return;
+    const hasDroppedGpuModels = (service: ServiceType, index: number) => service.profile.gpuModels !== currentServices[index].profile.gpuModels;
     fittedServices.forEach((service, index) => {
       setValue(`services.${index}.profile.cpu`, service.profile.cpu, FITTED_FIELD_OPTIONS);
       setValue(`services.${index}.profile.ram`, service.profile.ram, FITTED_FIELD_OPTIONS);
       setValue(`services.${index}.profile.ramUnit`, service.profile.ramUnit, FITTED_FIELD_OPTIONS);
+      if (hasDroppedGpuModels(service, index)) {
+        setValue(`services.${index}.profile.gpuModels`, service.profile.gpuModels, FITTED_FIELD_OPTIONS);
+      }
     });
     analyticsService.track("configure_trial_size_fitted", { category: "deployments" });
+    const gpuNote = fittedServices.some(hasDroppedGpuModels) ? " It now uses only GPU models your trial allows." : "";
     enqueueSnackbar(
       <d.Snackbar
         title="Resized to fit your free trial"
-        subTitle={`This deployment now requests ${describeDeploymentSize(measureDeploymentSize(fittedServices))}.`}
+        subTitle={`This deployment now requests ${describeDeploymentSize(measureDeploymentSize(fittedServices))}.${gpuNote}`}
         iconVariant="success"
       />,
       { variant: "success" }
@@ -133,7 +145,7 @@ export function useRequestQuotes({ flow, deploymentName, onInvalid }: Input, dep
   }
 
   function offerWaysPastTrialSizeLimit(services: ServiceType[], limit: TrialResourceLimit): RenderBlockActions {
-    const canFit = !!fitServicesToTrialResourceLimit(services, limit);
+    const canFit = !!fitServicesToTrial(services, limit);
     return dismiss => (
       <>
         {canFit && (
@@ -164,10 +176,7 @@ export function useRequestQuotes({ flow, deploymentName, onInvalid }: Input, dep
   }
 
   function findTrialBlocks(values: SdlBuilderFormValuesType): SubmitBlock[] {
-    const blocks: SubmitBlock[] = [];
-    if (isRestricted && hasTrialBlockedGpu(values)) {
-      blocks.push({ reason: "trial_gpu", message: "GPU access is not available on a free trial. Add funds to unlock GPU access." });
-    }
+    const blocks: SubmitBlock[] = isRestricted ? describeTrialGpuBlocks(values.services).map(message => ({ reason: "trial_gpu" as const, message })) : [];
     const size = measureDeploymentSize(values.services);
     if (trialResourceLimit && exceedsTrialResourceLimit(size, trialResourceLimit)) {
       blocks.push({
