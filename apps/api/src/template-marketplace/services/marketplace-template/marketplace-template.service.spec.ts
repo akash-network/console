@@ -100,6 +100,15 @@ describe(MarketplaceTemplateService.name, () => {
       expect(result.currentVersion).toMatchObject({ readme: null, resources: null });
     });
 
+    it("reads an empty legacy description as no readme", async () => {
+      const template = createTemplateRow({ description: "" });
+      const { service } = setup({ template, currentVersion: createVersion({ templateId: template.id, readme: null }) });
+
+      const result = await service.getTemplate(template.id);
+
+      expect(result.currentVersion).toMatchObject({ readme: null });
+    });
+
     it("reads the version the readable template pointed at", async () => {
       const template = createTemplateRow();
       const { service, templateVersionRepository } = setup({ template });

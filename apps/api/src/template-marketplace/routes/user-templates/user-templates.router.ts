@@ -104,6 +104,9 @@ marketplaceTemplatesRouter.openapi(getUserTemplateVersionRoute, async function r
   return c.json(await container.resolve(MarketplaceTemplateController).getVersion(id, version), 200);
 });
 
+/** Field caps bound characters, not bytes, so a body with every field at its cap can exceed the default limit once JSON-escaped. */
+const MAX_TEMPLATE_WRITE_BODY_BYTES = 1024 * 1024;
+
 const TEMPLATE_INVALID_DESCRIPTION = "The body is invalid, or the SDL or its asked values are refused (`template_invalid`, with the `issues` found)";
 
 const createUserTemplateRoute = createRoute({
@@ -114,6 +117,7 @@ const createUserTemplateRoute = createRoute({
   tags: ["Templates"],
   security: SECURITY_BEARER_OR_API_KEY,
   featureFlag: FeatureFlags.TEMPLATE_MARKETPLACE,
+  bodyLimit: { maxSize: MAX_TEMPLATE_WRITE_BODY_BYTES },
   request: {
     body: { content: { "application/json": { schema: CreateUserTemplateRequestSchema } }, required: true }
   },
@@ -141,6 +145,7 @@ const createUserTemplateVersionRoute = createRoute({
   tags: ["Templates"],
   security: SECURITY_BEARER_OR_API_KEY,
   featureFlag: FeatureFlags.TEMPLATE_MARKETPLACE,
+  bodyLimit: { maxSize: MAX_TEMPLATE_WRITE_BODY_BYTES },
   request: {
     params: UserTemplateParamsSchema,
     body: { content: { "application/json": { schema: CreateUserTemplateVersionRequestSchema } }, required: true }

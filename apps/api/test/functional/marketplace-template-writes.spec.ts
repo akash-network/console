@@ -125,7 +125,7 @@ describe("Marketplace template writes", () => {
 
       expect(response.status).toBe(201);
       const { data } = (await response.json()) as { data: { id: string } };
-      expect(await storedTemplate(data.id)).toMatchObject({ projectId: otherProject.id, summary: null, description: null });
+      expect(await storedTemplate(data.id)).toMatchObject({ projectId: otherProject.id, summary: null, description: "" });
       expect(await versionsOf(data.id)).toEqual([expect.objectContaining({ version: 1, askedValues, readme: null })]);
     });
 
@@ -226,6 +226,33 @@ describe("Marketplace template writes", () => {
       });
     });
 
+    it("ignores the visibility, organization and official flag a caller sends", async () => {
+      const { team, owner, actAs } = await setup();
+      const { organization: otherTeam } = await seedOrganizationWithOwner({ user: createSignedUpUserInput() });
+
+      const response = await actAs(owner)("/v1/user-templates", {
+        method: "POST",
+        body: { data: { title: "Web", sdl: buildSdl(), visibility: "public", organizationId: otherTeam.id, isOfficial: true } }
+      });
+
+      expect(response.status).toBe(201);
+      const { data } = (await response.json()) as { data: { id: string } };
+      expect(await storedTemplate(data.id)).toMatchObject({ visibility: "private", isPublic: false, organizationId: team.id, isOfficial: false });
+    });
+
+    it("accepts a body with every field at its cap", async () => {
+      const { owner, actAs } = await setup();
+      const sdl = `${buildSdl()}\n#${"é".repeat(128 * 1024 - buildSdl().length - 2)}`;
+      const readme = "\u0001".repeat(50_000);
+      const askedValues = Array.from({ length: 50 }, (_, index) => ({ ...textAskedValue(`VALUE_${index}`), help: "\u0001".repeat(500) }));
+      const body = { data: { title: "a".repeat(80), summary: "a".repeat(200), sdl, readme, askedValues } };
+
+      const response = await actAs(owner)("/v1/user-templates", { method: "POST", body });
+
+      expect(Buffer.byteLength(JSON.stringify(body))).toBeGreaterThan(512 * 1024);
+      expect(response.status).toBe(201);
+    });
+
     it("records the template a copy was made from when the caller can read it", async () => {
       const { owner, actAs } = await setup();
       const original = await seedTemplate({ author: null, visibility: "public" });
@@ -316,6 +343,30 @@ describe("Marketplace template writes", () => {
       expect(await carried.json()).toMatchObject({ data: { version: 2, readme: "# First" } });
       expect(await cleared.json()).toMatchObject({ data: { version: 3, readme: null } });
       expect((await versionsOf(template.id)).map(({ readme }) => readme)).toEqual(["# First", "# First", null]);
+      expect(await storedTemplate(template.id)).toMatchObject({ description: "" });
+      const described = await asOwner(`/v1/user-templates/${template.id}`);
+      expect(await described.json()).toMatchObject({ data: { currentVersion: { version: 3, readme: null } } });
+    });
+
+    it("saves version 1 on a legacy template that has none yet, carrying its description forward", async () => {
+      const { team, project, owner, actAs } = await setup();
+      const template = await seedTemplate({
+        author: owner,
+        organizationId: team.id,
+        projectId: project.id,
+        description: "Legacy description",
+        withoutVersion: true
+      });
+
+      const response = await actAs(owner)(`/v1/user-templates/${template.id}/versions`, {
+        method: "POST",
+        body: { data: { sdl: buildSdl({ count: 3 }), askedValues: [], baseVersion: 1 } }
+      });
+
+      expect(response.status).toBe(201);
+      const { data } = (await response.json()) as { data: { id: string } };
+      expect(data).toMatchObject({ version: 1, readme: "Legacy description" });
+      expect(await storedTemplate(template.id)).toMatchObject({ currentVersionId: data.id, description: "Legacy description", sdl: buildSdl({ count: 3 }) });
     });
 
     it("refuses a new version from a stale base with 409 and saves nothing", async () => {
@@ -457,8 +508,10 @@ describe("Marketplace template writes", () => {
     projectId?: string;
     visibility?: TemplateVisibility;
     readme?: string;
+    description?: string;
+    withoutVersion?: boolean;
   }) {
-    const { author, readme, visibility = "private", ...template } = input;
+    const { author, readme, description = readme, withoutVersion = false, visibility = "private", ...template } = input;
     const sdl = buildSdl();
     const [row] = await container
       .resolve<ApiPgDatabase>(POSTGRES_DB)
@@ -471,13 +524,15 @@ describe("Marketplace template writes", () => {
         userId: author?.userId ?? null,
         authorId: author?.id ?? null,
         title: faker.lorem.words(3),
-        description: readme,
+        description,
         cpu: 1000,
         ram: 1024 * MEBIBYTE,
         storage: 2 * GIBIBYTE
       })
       .returning();
-    await container.resolve(TemplateVersionRepository).appendVersion({ templateId: row.id, sdl, readme, createdById: author?.id });
+    if (!withoutVersion) {
+      await container.resolve(TemplateVersionRepository).appendVersion({ templateId: row.id, sdl, readme, createdById: author?.id });
+    }
 
     return row;
   }

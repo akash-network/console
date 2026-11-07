@@ -24,13 +24,13 @@ export type NewTemplateInput = {
   projectId?: string;
   copiedFromId?: string;
   sdl: string;
-  description: string | null;
+  description: string;
   cpu: number;
   ram: number;
   storage: number;
 };
 
-export type TemplateVersionMirror = Pick<Row, "sdl" | "description" | "cpu" | "ram" | "storage">;
+export type TemplateVersionMirror = Pick<Row, "sdl" | "cpu" | "ram" | "storage"> & { description: string };
 
 @singleton()
 export class MarketplaceTemplateRepository extends OrgScopedRepository<Table, Partial<Row>, Row> {
