@@ -17,4 +17,5 @@ export type FeatureFlag =
   | "onboarding_intent_first"
   | "gpu_quote_requests"
   | "user_feedback_loop"
-  | "affiliate_program";
+  | "affiliate_program"
+  | "template_marketplace";
