@@ -20,6 +20,7 @@ const listMarketPricesRoute = createRoute({
   request: { query: GpuMarketQuerySchema },
   responses: {
     200: { description: "The stored ranges matching the filters", content: { "application/json": { schema: GpuMarketPricesResponseSchema } } },
+    400: { description: "Invalid filters" },
     401: { description: "Missing or wrong internal token" }
   }
 });
@@ -39,6 +40,7 @@ const listSupplyRoute = createRoute({
   request: { query: GpuMarketQuerySchema },
   responses: {
     200: { description: "The gpu variants matching the filters", content: { "application/json": { schema: GpuSupplyResponseSchema } } },
+    400: { description: "Invalid filters" },
     401: { description: "Missing or wrong internal token" }
   }
 });

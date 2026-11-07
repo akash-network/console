@@ -63,6 +63,12 @@ describe("Internal gpu market routes", () => {
       const body = (await response.json()) as GpuMarketPricesResponse;
       expect(body.data.map(row => row.model)).toEqual(["a100"]);
     });
+
+    it("rejects an empty filter", async () => {
+      const response = await get("/internal/gpu-market-prices?model=");
+
+      expect(response.status).toBe(400);
+    });
   });
 
   describe("GET /internal/gpu-supply", () => {
@@ -76,6 +82,12 @@ describe("Internal gpu market routes", () => {
       const response = await get("/internal/gpu-supply", { token: faker.string.alphanumeric(32) });
 
       expect(response.status).toBe(401);
+    });
+
+    it("rejects an empty filter", async () => {
+      const response = await get("/internal/gpu-supply?vendor=");
+
+      expect(response.status).toBe(400);
     });
   });
 
