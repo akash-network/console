@@ -1,5 +1,3 @@
-import { MsgCreateBid as MsgCreateBidV4 } from "@akashnetwork/akash-api/akash/market/v1beta4";
-import { MsgCreateBid as MsgCreateBidV5 } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import { Day } from "@akashnetwork/database/dbSchemas/base";
 import { addDays, minutesToSeconds } from "date-fns";
 import { inject, injectable } from "tsyringe";
@@ -10,22 +8,15 @@ import { AkashBlockRepository } from "@src/block/repositories/akash-block/akash-
 import { Memoize } from "@src/caching/helpers";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
+import { blockPriceToUakt, blockPriceToUsd } from "@src/gpu/lib/block-price/block-price";
+import { decodeGpuBid } from "@src/gpu/lib/gpu-bid-decoder/gpu-bid-decoder";
 import { GpuRepository } from "@src/gpu/repositories/gpu.repository";
 import type { GpuBidType, GpuPriceModel, GpuProviderType, GpuWithPricesType, ProviderWithBestBid } from "@src/gpu/types/gpu.type";
 import { forEachInChunks } from "@src/utils/array/array";
-import { averageBlockCountInAMonth, averageBlockCountInAnHour } from "@src/utils/constants";
 import { average, median, round, weightedAverage } from "@src/utils/math";
-import { uint8arrayToString } from "@src/utils/protobuf";
 import type { GpuConfig } from "../../config/env.config";
 import { GPU_CONFIG } from "../../providers/config.provider";
 import { DayRepository } from "../../repositories/day.repository";
-
-/** Resource quantities decode as bigint from chain-sdk (v1beta5) bids but as Uint8Array from akash-api (v1beta4). */
-function resourceValToInt(val: Uint8Array | bigint | undefined): number {
-  if (typeof val === "bigint") return Number(val);
-  if (!val || val.length === 0) return 0;
-  return parseInt(uint8arrayToString(val), 10);
-}
 
 /** The cpu of the pricing bot's tiny pricing order; its other check orders carry cpu, memory and storage that would skew their gpu's price. */
 const PRICING_BOT_CPU_UNITS = 100;
@@ -84,61 +75,36 @@ export class GpuPriceService {
       d.relatedMessages.forEach(x => {
         const day = daysById.get(x.block.dayId);
 
-        // Determine the message version and decode accordingly
-        let decodedBid: MsgCreateBidV4 | MsgCreateBidV5;
-        let decodedBidJson: unknown;
-        let provider: string;
-
-        if (x.type.includes("v1beta5")) {
-          decodedBid = this.#typeRegistry.decode({ typeUrl: `/${MsgCreateBidV5.$type}`, value: x.data }) as MsgCreateBidV5;
-          decodedBidJson = MsgCreateBidV5.toJSON(decodedBid);
-          provider = decodedBid.id?.provider || "";
-        } else {
-          decodedBid = this.#typeRegistry.decode({ typeUrl: `/${MsgCreateBidV4.$type}`, value: x.data }) as MsgCreateBidV4;
-          decodedBidJson = MsgCreateBidV4.toJSON(decodedBid);
-          provider = decodedBid.provider || "";
-        }
-
-        const denom = decodedBid?.price?.denom;
-        const isUakt = denom === "uakt";
-        const isUact = denom === "uact";
+        const decodedBid = decodeGpuBid(this.#typeRegistry, x);
+        const isUakt = decodedBid.denom === "uakt";
+        const isUact = decodedBid.denom === "uact";
 
         if (!isUakt && !isUact) return; // Only accept uakt and uact bids
         if (isUakt && (!day || !day.aktPrice)) return; // uakt bids need AKT price for USD conversion
 
-        const bidGpus = decodedBid.resourcesOffer
-          .filter((x: any) => resourceValToInt(x.resources?.gpu?.units?.val) > 0)
-          .flatMap((r: any) => (r.resources?.gpu?.attributes ? this.getGpusFromAttributes(r.resources.gpu.attributes) : []));
-
         // Ignore bids for deployments with more than 1 GPU
-        if (bidGpus.length !== 1) return;
+        if (decodedBid.gpus.length !== 1) return;
 
-        const priceAmount = parseFloat(decodedBid.price!.amount);
         const aktPrice = day?.aktPrice ?? 0;
 
         const bid = {
           height: x.height,
           txHash: x.transaction.hash,
           datetime: x.block.datetime,
-          provider: provider,
+          provider: decodedBid.provider,
           aktTokenPrice: aktPrice,
-          hourlyPrice: isUact ? this.blockPriceToHourlyUsd(priceAmount) : this.blockPriceToHourlyPrice(priceAmount, aktPrice),
-          monthlyPrice: isUact ? this.blockPriceToMonthlyUsd(priceAmount) : this.blockPriceToMonthlyPrice(priceAmount, aktPrice),
-          hourlyPriceUakt: isUakt ? this.blockPriceToHourlyUakt(priceAmount) : aktPrice ? this.blockPriceToHourlyUakt(priceAmount / aktPrice) : null,
-          monthlyPriceUakt: isUakt ? this.blockPriceToMonthlyUakt(priceAmount) : aktPrice ? this.blockPriceToMonthlyUakt(priceAmount / aktPrice) : null,
+          hourlyPrice: blockPriceToUsd(decodedBid, aktPrice, "hour"),
+          monthlyPrice: blockPriceToUsd(decodedBid, aktPrice, "month"),
+          hourlyPriceUakt: blockPriceToUakt(decodedBid, aktPrice, "hour"),
+          monthlyPriceUakt: blockPriceToUakt(decodedBid, aktPrice, "month"),
           deployment: {
             owner: d.owner,
-            cpuUnits: decodedBid.resourcesOffer.flatMap((r: any) => resourceValToInt(r.resources?.cpu?.units?.val)).reduce((a: number, b: number) => a + b, 0),
-            memoryUnits: decodedBid.resourcesOffer
-              .flatMap((r: any) => resourceValToInt(r.resources?.memory?.quantity?.val))
-              .reduce((a: number, b: number) => a + b, 0),
-            storageUnits: decodedBid.resourcesOffer
-              .flatMap((r: any) => r.resources?.storage)
-              .map((s: any) => resourceValToInt(s?.quantity?.val))
-              .reduce((a: number, b: number) => a + b, 0),
-            gpus: bidGpus
+            cpuUnits: decodedBid.cpuUnits,
+            memoryUnits: decodedBid.memoryUnits,
+            storageUnits: decodedBid.storageUnits,
+            gpus: decodedBid.gpus
           },
-          data: decodedBidJson
+          data: decodedBid.json
         } as GpuBidType;
 
         if (bid.deployment.owner === pricingBotAddress && bid.deployment.cpuUnits !== PRICING_BOT_CPU_UNITS) return;
@@ -300,43 +266,5 @@ export class GpuPriceService {
       bidInterface &&
       (gpuInterface.toLowerCase() === bidInterface.toLowerCase() || (gpuInterface.toLowerCase().startsWith("sxm") && bidInterface.toLowerCase() === "sxm"))
     );
-  }
-
-  private getGpusFromAttributes(attributes: { key: string; value: string }[]) {
-    return attributes
-      .filter(attr => attr.key.startsWith("vendor/") && attr.value === "true")
-      .map(attr => {
-        const vendor = /vendor\/([^/]+)/.exec(attr.key)?.[1];
-        const model = /model\/([^/]+)/.exec(attr.key)?.[1];
-        const ram = /ram\/([^/]+)/.exec(attr.key)?.[1];
-        const int = /interface\/([^/]+)/.exec(attr.key)?.[1];
-
-        // vendor/nvidia/model/h100/ram/80Gi/interface/pcie -> nvidia,h100,80Gi,pcie
-        return { vendor: vendor, model: model, ram: ram, interface: int };
-      });
-  }
-
-  private blockPriceToMonthlyUsd(uactPerBlock: number) {
-    return round((averageBlockCountInAMonth * uactPerBlock) / 1_000_000, 2);
-  }
-
-  private blockPriceToHourlyUsd(uactPerBlock: number) {
-    return round((averageBlockCountInAnHour * uactPerBlock) / 1_000_000, 2);
-  }
-
-  private blockPriceToMonthlyPrice(uaktPerBlock: number, aktPrice: number) {
-    return round((averageBlockCountInAMonth * uaktPerBlock * aktPrice) / 1_000_000, 2);
-  }
-
-  private blockPriceToHourlyPrice(uaktPerBlock: number, aktPrice: number) {
-    return round((averageBlockCountInAnHour * uaktPerBlock * aktPrice) / 1_000_000, 2);
-  }
-
-  private blockPriceToMonthlyUakt(uaktPerBlock: number) {
-    return round(averageBlockCountInAMonth * uaktPerBlock, 2);
-  }
-
-  private blockPriceToHourlyUakt(uaktPerBlock: number) {
-    return round(averageBlockCountInAnHour * uaktPerBlock, 2);
   }
 }
