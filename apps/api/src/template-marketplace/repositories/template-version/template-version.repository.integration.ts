@@ -122,6 +122,22 @@ describe(TemplateVersionRepository.name, () => {
       expect((await repository.findCurrent(template.id))?.version).toBe(2);
     });
 
+    it("lets exactly one of two appends from the same expected version through", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+      const first = await repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("nginx:1") });
+
+      const results = await Promise.allSettled(
+        ["nginx:2", "nginx:3"].map(image => repository.appendVersion({ templateId: template.id, sdl: sdlWithImage(image), expectedCurrentVersionId: first.id }))
+      );
+
+      const rejected = results.filter((result): result is PromiseRejectedResult => result.status === "rejected");
+      expect(results.filter(({ status }) => status === "fulfilled")).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+      expect(rejected[0].reason).toMatchObject({ status: 409, errorCode: "template_version_conflict" });
+      expect(await repository.listByTemplate(template.id)).toHaveLength(2);
+    });
+
     it("refuses an append expecting a current version on a template that has none", async () => {
       const { repository } = setup();
       const template = await seedTemplate();
