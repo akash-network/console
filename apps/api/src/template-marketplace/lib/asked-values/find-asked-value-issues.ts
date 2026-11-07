@@ -2,9 +2,12 @@ import { yaml } from "@akashnetwork/chain-sdk";
 
 import type { AskedValue } from "./asked-values.schema";
 
+const PLAIN_DECIMAL_PATTERN = /^-?\d+(\.\d+)?$/;
 const UNREADABLE_SDL_ISSUE = "The SDL could not be read";
 
 export function findAskedValueIssues(sdl: string, askedValues: AskedValue[]): string[] {
+  if (askedValues.length === 0) return [];
+
   const services = readServiceNames(sdl);
   if (!services) return [UNREADABLE_SDL_ISSUE];
 
@@ -77,9 +80,9 @@ function findInvertedRangeIssues(key: string, minimum: number | undefined, maxim
 function findNumberDefaultIssues({ key, default: value, min, max, integer }: Extract<AskedValue, { type: "number" }>): string[] {
   if (value === undefined) return [];
 
-  const number = Number(value);
-  if (value.trim() === "" || Number.isNaN(number)) return [defaultIssue(key, "is not a number")];
+  if (!PLAIN_DECIMAL_PATTERN.test(value)) return [defaultIssue(key, "is not a number")];
 
+  const number = Number(value);
   const issues: string[] = [];
   if (integer && !Number.isInteger(number)) issues.push(defaultIssue(key, "is not a whole number"));
   if (min !== undefined && number < min) issues.push(defaultIssue(key, `is below ${min}`));
