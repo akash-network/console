@@ -241,7 +241,7 @@ describe(UserTemplatesService.name, () => {
       const data = { ...createTemplateInput(), sdl: VALID_SDL };
 
       userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
-      userTemplateRepository.findVersionState.mockResolvedValue({ sdl: "version: '2.0'", currentVersionId: faker.string.uuid() });
+      userTemplateRepository.findVersionState.mockResolvedValue({ isPublic: false, sdl: "version: '2.0'", currentVersionId: faker.string.uuid() });
 
       await service.saveTemplate(id, user.userId!, data);
 
@@ -259,7 +259,7 @@ describe(UserTemplatesService.name, () => {
       const data = createTemplateInput();
 
       userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
-      userTemplateRepository.findVersionState.mockResolvedValue({ sdl: data.sdl, currentVersionId: faker.string.uuid() });
+      userTemplateRepository.findVersionState.mockResolvedValue({ isPublic: false, sdl: data.sdl, currentVersionId: faker.string.uuid() });
 
       await service.saveTemplate(faker.string.uuid(), user.userId!, data);
 
@@ -273,7 +273,7 @@ describe(UserTemplatesService.name, () => {
       const data = createTemplateInput();
 
       userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
-      userTemplateRepository.findVersionState.mockResolvedValue({ sdl: data.sdl, currentVersionId: null });
+      userTemplateRepository.findVersionState.mockResolvedValue({ isPublic: false, sdl: data.sdl, currentVersionId: null });
 
       await service.saveTemplate(id, user.userId!, data);
 
@@ -283,6 +283,43 @@ describe(UserTemplatesService.name, () => {
         resources: summarizeTemplateHardware(data.sdl),
         createdById: user.id
       });
+    });
+
+    it("sends isPublic along when an update changes it", async () => {
+      const { service, userTemplateRepository, user } = setup();
+      const id = faker.string.uuid();
+      const data = { ...createTemplateInput(), isPublic: true };
+
+      userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+      userTemplateRepository.findVersionState.mockResolvedValue({ isPublic: false, sdl: data.sdl, currentVersionId: faker.string.uuid() });
+
+      await service.saveTemplate(id, user.userId!, data);
+
+      expect(userTemplateRepository.updateTemplate).toHaveBeenCalledWith(id, user.userId, data);
+    });
+
+    it("leaves isPublic out of an update that keeps it", async () => {
+      const { service, userTemplateRepository, user } = setup();
+      const id = faker.string.uuid();
+      const { isPublic, ...rest } = { ...createTemplateInput(), isPublic: true };
+
+      userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+      userTemplateRepository.findVersionState.mockResolvedValue({ isPublic, sdl: rest.sdl, currentVersionId: faker.string.uuid() });
+
+      await service.saveTemplate(id, user.userId!, { ...rest, isPublic });
+
+      expect(userTemplateRepository.updateTemplate).toHaveBeenCalledWith(id, user.userId, rest);
+    });
+
+    it("answers 404 and records nothing when the template disappears before the update", async () => {
+      const { service, userTemplateRepository, templateVersionRepository, user } = setup();
+
+      userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+      userTemplateRepository.findVersionState.mockResolvedValue(undefined);
+
+      await expect(service.saveTemplate(faker.string.uuid(), user.userId!, createTemplateInput())).rejects.toMatchObject({ status: 404 });
+      expect(userTemplateRepository.updateTemplate).not.toHaveBeenCalled();
+      expect(templateVersionRepository.appendVersion).not.toHaveBeenCalled();
     });
 
     it("records no version when saving the template fails", async () => {
@@ -456,6 +493,7 @@ describe(UserTemplatesService.name, () => {
     const user = mock<UserOutput>({ id: faker.string.uuid(), userId: faker.string.uuid() });
     authService.currentUser = user;
     const templateVersionRepository = mock<TemplateVersionRepository>();
+    userTemplateRepository.findVersionState.mockResolvedValue({ isPublic: false, sdl: "", currentVersionId: faker.string.uuid() });
     const txService = mock<TxService>();
     txService.transaction.mockImplementation(async cb => await cb());
     const service = new UserTemplatesService(userTemplateRepository, authService, deploymentProjectService, templateVersionRepository, txService);
