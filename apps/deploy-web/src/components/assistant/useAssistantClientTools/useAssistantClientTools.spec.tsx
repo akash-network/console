@@ -145,6 +145,16 @@ describe(useAssistantClientTools.name, () => {
       expect(JSON.parse(result.content)).toEqual(formRead({ screeningSdl: null }));
     });
 
+    it("cuts a read still too long without its screening SDL to the length the api accepts, keeping its start", async () => {
+      const { runClientTool, registry } = setup({});
+      const read = formRead({ invalidSettings: ["x".repeat(20_000)], screeningSdl: "version: 2.0" });
+      registry.publish(mock<ConfigureFormHandle>({ read: () => read }));
+
+      const result = await runClientTool(request({ name: "read_configure_form", arguments: {}, maxLength: 16_000 }));
+
+      expect(result).toEqual({ toolCallId: "t-1", ok: true, content: JSON.stringify({ ...read, screeningSdl: null }).slice(0, 16_000) });
+    });
+
     it("keeps the screening SDL of a read exactly at the length the api keeps", async () => {
       const { runClientTool, registry } = setup({});
       const emptyRead = JSON.stringify(formRead({ screeningSdl: "" }));

@@ -66,6 +66,17 @@ describe(applyConfigureFormEdit.name, () => {
       expect(web.profile).toEqual(expect.objectContaining({ hasGpu: true, gpu: 2, gpuModels: [{ vendor: "nvidia", name: "rtx4090" }, { vendor: "amd" }] }));
     });
 
+    it("keeps the memory and interface of a model the edit repeats", () => {
+      const h100 = { vendor: "nvidia", name: "h100", memory: "80Gi", interface: "sxm" };
+      const anyAmd = { vendor: "amd", name: "", interface: "pcie" };
+      const [web] = applyConfigureFormEdit(
+        formValues({ gpuModels: [h100, anyAmd, { vendor: "nvidia", name: "a100", memory: "40Gi" }] }),
+        editOf({ gpu: { units: 2, models: ["nvidia/h100", "amd", "nvidia/a10", "intel"] } })
+      ).services;
+
+      expect(web.profile.gpuModels).toEqual([h100, anyAmd, { vendor: "nvidia", name: "a10" }, { vendor: "intel" }]);
+    });
+
     it("keeps the current models when only the count changes", () => {
       const [web] = applyConfigureFormEdit(formValues({ gpuModels: [{ vendor: "nvidia", name: "h100" }] }), editOf({ gpu: { units: 4 } })).services;
 

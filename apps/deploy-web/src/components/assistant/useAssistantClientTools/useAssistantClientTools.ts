@@ -101,7 +101,10 @@ function readConfigureForm(configureForms: ConfigureFormRegistry, request: Assis
     const maxLength = Math.min(request.maxLength, MAX_CONFIGURE_FORM_READ_LENGTH);
     const read = form.read();
     const content = JSON.stringify(read);
-    return { toolCallId: request.toolCallId, ok: true, content: content.length <= maxLength ? content : JSON.stringify({ ...read, screeningSdl: null }) };
+    if (content.length <= maxLength) return { toolCallId: request.toolCallId, ok: true, content };
+
+    const withoutScreeningSdl = JSON.stringify({ ...read, screeningSdl: null });
+    return { toolCallId: request.toolCallId, ok: true, content: withoutScreeningSdl.slice(0, request.maxLength) };
   } catch {
     return { toolCallId: request.toolCallId, ok: false, content: CONFIGURE_FORM_UNREADABLE };
   }

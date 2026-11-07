@@ -8,6 +8,7 @@ type ServiceChanges = ConfigureFormEdit["services"][number]["changes"];
 type PlacementChanges = ConfigureFormEdit["placements"][number]["changes"];
 type PersistentStorageChange = NonNullable<ServiceChanges["persistentStorage"]>;
 type StorageVolume = ServiceType["profile"]["storage"][number];
+type GpuModel = NonNullable<ServiceType["profile"]["gpuModels"]>[number];
 
 /** The API takes Kubernetes style sizes, while the form spells decimal units out. */
 const FORM_UNIT_OF_SUFFIX: Record<string, string> = { M: "MB", G: "GB", T: "TB" };
@@ -54,11 +55,15 @@ function editedService(service: ServiceType, changes: ServiceChanges): ServiceTy
 function gpuProfileOf(gpu: NonNullable<ServiceChanges["gpu"]>, currentModels: ServiceType["profile"]["gpuModels"]): Partial<ServiceType["profile"]> {
   if (gpu.units === 0) return { hasGpu: false };
 
-  const models = gpu.models?.map(model => {
-    const [vendor, name] = model.split("/");
-    return name ? { vendor, name } : { vendor };
-  });
+  const models = gpu.models?.map(model => requestedGpuModelOf(model, currentModels ?? []));
   return { hasGpu: true, gpu: gpu.units, gpuModels: models ?? currentModels };
+}
+
+/** The read reports models as vendor/name only, so a model the edit repeats keeps the memory and interface the form already asks for. */
+function requestedGpuModelOf(model: string, currentModels: GpuModel[]): GpuModel {
+  const [vendor, name] = model.split("/");
+  const current = currentModels.find(currentModel => currentModel.vendor === vendor && (currentModel.name || undefined) === name);
+  return current ?? (name ? { vendor, name } : { vendor });
 }
 
 function editedStorage(storage: StorageVolume[], change: PersistentStorageChange): StorageVolume[] {
