@@ -67,7 +67,7 @@ export class ClosedDeploymentsReconcilerService {
       description: "Deployment records left open because the chain did not confirm the close the indexer holds"
     });
     this.#rowsConfirmedOpen = metricsService.createCounter(meter, "closed_deployments_reconcile_rows_confirmed_open_total", {
-      description: "Deployment records left open because the chain still holds their deployment open"
+      description: "Deployment records left open because the indexer still holds their deployment open"
     });
     this.#rowsWithoutChainState = metricsService.createCounter(meter, "closed_deployments_reconcile_rows_without_chain_state_total", {
       description: "Deployment records left alone because the indexer holds no deployment for them yet"
