@@ -717,6 +717,15 @@ describe(SdlService.name, () => {
       expect(result.ok).toBeFalsy();
     });
 
+    it("reports the reason and position of a YAML error apart from its message", async () => {
+      const { result } = await setup({ sdl: "key: value\n  bad_indent: true" });
+
+      expect(result).toMatchObject({
+        ok: false,
+        value: [expect.objectContaining({ keyword: "yaml", params: { reason: "bad indentation of a mapping entry", line: 2, column: 13 } })]
+      });
+    });
+
     it("returns error result with message for malformed YAML", async () => {
       const { result } = await setup({ sdl: "key: value\n  bad_indent: true" });
 
