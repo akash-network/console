@@ -27,6 +27,9 @@ describe(buildAssistantSystemPrompt.name, () => {
     expect(prompt).toContain("End every turn with an answer, never with tool calls alone.");
     expect(prompt).toContain("propose its card in the same turn instead of asking whether to");
     expect(prompt).toContain("at most twice per request");
+    expect(prompt).toContain("storage under profiles.compute.<profile>.resources is a list: the root disk first (- size: 1Gi)");
+    expect(prompt).toContain("attributes {persistent: true, class: beta1, beta2 or beta3}, mounted by services.<service>.params.storage.<volume name>.mount");
+    expect(prompt).toContain("Every deployment.<service>.<placement> needs a profile and a count.");
     expect(prompt).toContain("a deployment's Shell tab opens a terminal in its running container");
     expect(prompt).toContain("API keys for scripts and CI are created under Settings, then API Keys");
     expect(prompt).toContain("an account is deleted with Delete account in the Danger zone of the Profile page");
