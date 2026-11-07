@@ -2,7 +2,7 @@ import { MsgCreateBid as MsgCreateBidV4 } from "@akashnetwork/akash-api/akash/ma
 import { MsgCreateBid as MsgCreateBidV5 } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 
 import type { Registry } from "@src/billing/providers/type-registry.provider";
-import { uint8arrayToString } from "@src/utils/protobuf";
+import { resourceValToNumber } from "@src/deployment/utils/group-resources/group-resources";
 
 export interface GpuBidMessage {
   type: string;
@@ -32,13 +32,6 @@ export interface DecodedGpuBid {
 
 type ResourceOffer = MsgCreateBidV4["resourcesOffer"][number] | MsgCreateBidV5["resourcesOffer"][number];
 
-/** Resource quantities decode as bigint from chain-sdk (v1beta5) bids but as Uint8Array from akash-api (v1beta4). */
-function resourceValToInt(val: Uint8Array | bigint | undefined): number {
-  if (typeof val === "bigint") return Number(val);
-  if (!val || val.length === 0) return 0;
-  return parseInt(uint8arrayToString(val), 10);
-}
-
 export function decodeGpuBid(typeRegistry: Registry, message: GpuBidMessage): DecodedGpuBid {
   if (message.type.includes("v1beta5")) {
     const bid = typeRegistry.decode({ typeUrl: `/${MsgCreateBidV5.$type}`, value: message.data }) as MsgCreateBidV5;
@@ -67,11 +60,11 @@ function toDecodedGpuBid(bid: MsgCreateBidV4 | MsgCreateBidV5, identity: Pick<De
     denom: bid.price?.denom,
     amountPerBlock: parseFloat(bid.price?.amount ?? ""),
     gpus: offers
-      .filter(offer => resourceValToInt(offer.resources?.gpu?.units?.val) > 0)
+      .filter(offer => resourceValToNumber(offer.resources?.gpu?.units?.val) > 0)
       .flatMap(offer => (offer.resources?.gpu?.attributes ? getGpusFromAttributes(offer.resources.gpu.attributes) : [])),
-    cpuUnits: sum(offers.map(offer => resourceValToInt(offer.resources?.cpu?.units?.val))),
-    memoryUnits: sum(offers.map(offer => resourceValToInt(offer.resources?.memory?.quantity?.val))),
-    storageUnits: sum(offers.flatMap(offer => [...(offer.resources?.storage ?? [])]).map(storage => resourceValToInt(storage.quantity?.val)))
+    cpuUnits: sum(offers.map(offer => resourceValToNumber(offer.resources?.cpu?.units?.val))),
+    memoryUnits: sum(offers.map(offer => resourceValToNumber(offer.resources?.memory?.quantity?.val))),
+    storageUnits: sum(offers.flatMap(offer => [...(offer.resources?.storage ?? [])]).map(storage => resourceValToNumber(storage.quantity?.val)))
   };
 }
 
