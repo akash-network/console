@@ -177,6 +177,7 @@ const postRoute = createRoute({
   security: SECURITY_BEARER_OR_API_KEY,
   /** The only route that can carry a seal, sized so the stated secret limits are reachable rather than shadowed by the default allowance. */
   bodyLimit: { maxSize: CREATE_DEPLOYMENT_BODY_LIMIT_BYTES },
+  undocumentedRequestFields: ["templateVersionId"],
   request: {
     query: CreateDeploymentQuerySchema,
     body: {

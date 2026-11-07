@@ -239,6 +239,10 @@ export const CreateDeploymentRequestSchema = z.object({
     templateId: TemplateIdSchema.max(MAX_TEMPLATE_ID_LENGTH).optional().openapi({
       description:
         "ID of the gallery template the SDL came from, as listed by GET /v1/templates. Console links the deployment to that template's guide. Not checked against the gallery."
+    }),
+    templateVersionId: z.string().uuid().optional().openapi({
+      description:
+        "ID of the template version the SDL came from. Readers of the template may name its current version and its editors any version. Cannot be combined with `templateId`."
     })
   })
 });
