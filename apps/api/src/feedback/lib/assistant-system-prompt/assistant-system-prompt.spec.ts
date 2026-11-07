@@ -15,7 +15,7 @@ describe(buildAssistantSystemPrompt.name, () => {
     expect(prompt).toContain("Never mention uact, ACT, AKT, denoms, blocks or per-block prices in an answer unless the user asks what they are");
     expect(prompt).toContain("linked to its page as [name](/deployments/<dseq>)");
     expect(prompt).toContain(
-      "For one without a name, link its service and image when you read them, such as [web (nginx)](/deployments/<dseq>), else [your deployment](/deployments/<dseq>)."
+      "For one without a name, link its service and image when you read them, such as [web (nginx)](/deployments/<dseq>), else [your deployment](/deployments/<dseq>), even when you only propose a card for it."
     );
     expect(prompt).toContain("Never write a dseq in an answer, whole or shortened, not even in a link label.");
     expect(prompt).toContain("never tell the user to raise the price, bid or pay more, or switch the denom");
