@@ -12,12 +12,12 @@ import {
   type PublishedTemplateVersion
 } from "@src/template-marketplace/services/marketplace-template/marketplace-template.service";
 
-function toVersionSummaryResponse(version: TemplateVersionSummary): TemplateVersionSummaryResponse {
-  return { ...version, createdAt: version.createdAt.toISOString() };
+function toVersionSummaryResponse({ createdById: _createdById, createdAt, ...version }: TemplateVersionSummary): TemplateVersionSummaryResponse {
+  return { ...version, createdAt: createdAt.toISOString() };
 }
 
-function toVersionResponse(version: PublishedTemplateVersion): GetUserTemplateVersionResponse["data"] {
-  return { ...version, createdAt: version.createdAt.toISOString() };
+function toVersionResponse({ createdById: _createdById, createdAt, ...version }: PublishedTemplateVersion): GetUserTemplateVersionResponse["data"] {
+  return { ...version, createdAt: createdAt.toISOString() };
 }
 
 @singleton()

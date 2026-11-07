@@ -514,6 +514,33 @@ describe("ability rules", () => {
       expect(allowedActions(ability, template)).toEqual(NONE);
     });
 
+    it.each(ROLES)("lets every member read the organization's public templates outside their projects when template_marketplace is on (%s)", role => {
+      const { ability, organizationId } = setup({ role });
+
+      const template = organizationTemplate({ organizationId, visibility: "public" });
+
+      expect(allowedActions(ability, template)).toEqual(role === "owner" || role === "admin" ? MANAGE : READ);
+    });
+
+    it.each(ROLES)("grants the %s role nothing on another organization's public templates", role => {
+      const { ability } = setup({ role });
+
+      const template = organizationTemplate({ organizationId: faker.string.uuid(), visibility: "public" });
+
+      expect(allowedActions(ability, template)).toEqual(NONE);
+    });
+
+    it.each(["member", "viewer", "billing"] as const)("drops the public template read of the %s role when template_marketplace is off", role => {
+      const { user, context } = setup({ role });
+      const featureFlags = mock<FeatureFlagsService>();
+      featureFlags.isEnabled.mockReturnValue(false);
+      const ability = createMongoAbility(enabledRules(organizationRules(user, context), featureFlags));
+
+      const template = organizationTemplate({ organizationId: context.organizationId, visibility: "public" });
+
+      expect(allowedActions(ability, template)).toEqual(NONE);
+    });
+
     it.each(["member", "viewer", "billing"] as const)("keeps private templates of projects outside the scope unreadable for the %s role", role => {
       const { ability, organizationId } = setup({ role });
 
@@ -915,11 +942,15 @@ describe("ability rules", () => {
   });
 
   function organizationWideTemplate(input: { organizationId: string }) {
+    return organizationTemplate({ ...input, visibility: "organization" });
+  }
+
+  function organizationTemplate(input: { organizationId: string; visibility: "organization" | "public" }) {
     return subject("Template", {
       organizationId: input.organizationId,
       projectId: faker.string.uuid(),
       userId: faker.string.uuid(),
-      visibility: "organization"
+      visibility: input.visibility
     });
   }
 

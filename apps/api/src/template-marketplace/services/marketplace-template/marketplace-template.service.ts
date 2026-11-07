@@ -105,7 +105,7 @@ export class MarketplaceTemplateService {
     };
   }
 
-  #canEdit({ organizationId, projectId, userId, visibility }: MarketplaceTemplateRow): boolean {
-    return this.authService.ability.can("update", subject("Template", { organizationId, projectId, userId, visibility }));
+  #canEdit(template: MarketplaceTemplateRow): boolean {
+    return this.authService.ability.can("update", subject("Template", { ...template }));
   }
 }

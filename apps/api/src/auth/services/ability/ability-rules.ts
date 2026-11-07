@@ -256,6 +256,7 @@ function projectAdministrationRules({
 function everyMemberRules({ organization, inOrg, inScope, ownInOrg }: TenantConditions): AbilityRule[] {
   return [
     { action: "read", subject: "Template", conditions: { ...inOrg, visibility: "organization" }, enabledIf: FeatureFlags.TEMPLATE_MARKETPLACE },
+    { action: "read", subject: "Template", conditions: { ...inOrg, visibility: "public" }, enabledIf: FeatureFlags.TEMPLATE_MARKETPLACE },
     { action: "read", subject: "Organization", conditions: organization },
     { action: "read", subject: ["OrganizationMember", "UserWallet"], conditions: inOrg },
     { action: "read", subject: "OrganizationActivity", conditions: inScope },
