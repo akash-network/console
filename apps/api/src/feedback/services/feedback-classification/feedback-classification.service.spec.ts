@@ -15,8 +15,10 @@ import type { AssistantMessageOutput, AssistantMessageRepository } from "@src/fe
 import type { FeedbackSubmissionRepository } from "@src/feedback/repositories/feedback-submission/feedback-submission.repository";
 import type { FeedbackThemeRepository } from "@src/feedback/repositories/feedback-theme/feedback-theme.repository";
 import { type AkashMlClient, AkashMlOutputError } from "@src/feedback/services/akashml-client/akashml.client";
+import type { FeedbackJevClassifierService } from "@src/feedback/services/feedback-jev-classifier/feedback-jev-classifier.service";
 import type { FeedbackThemeAssignmentService } from "@src/feedback/services/feedback-theme-assignment/feedback-theme-assignment.service";
 import type { FeedbackThemeScoreService } from "@src/feedback/services/feedback-theme-score/feedback-theme-score.service";
+import { TypeSafeOutputError } from "@src/feedback/services/typesafe-client/typesafe.client";
 import { FeedbackClassificationService, MAX_CLASSIFICATION_ATTEMPTS } from "./feedback-classification.service";
 
 import { createAssistantConversation } from "@test/seeders/assistant-conversation.seeder";
@@ -195,6 +197,69 @@ describe(FeedbackClassificationService.name, () => {
       });
     });
 
+    describe("when Jev is the configured engine", () => {
+      it("classifies with Jev and stores its result under the matched theme", async () => {
+        const submission = createFeedbackSubmission({ message: "logs never load", rating: 2 });
+        const match = { item: { type: "bug" as const, summary: "Logs page stays empty" }, theme: { themeId: "theme-1" } };
+        const { service, akashMlClient, feedbackJevClassifierService, feedbackThemeAssignmentService, feedbackSubmissionRepository } = setup({
+          submission,
+          engine: "jev"
+        });
+        feedbackJevClassifierService.classify.mockResolvedValue({ classification: CLASSIFICATION, match });
+        feedbackThemeAssignmentService.themeIdFor.mockResolvedValue("theme-1");
+
+        await service.classifySubmission(submission.id);
+
+        expect(feedbackJevClassifierService.classify).toHaveBeenCalledWith({ submission }, { feedbackSubmissionId: submission.id });
+        expect(akashMlClient.completeJson).not.toHaveBeenCalled();
+        expect(feedbackThemeAssignmentService.findMatch).not.toHaveBeenCalled();
+        expect(feedbackThemeAssignmentService.themeIdFor).toHaveBeenCalledWith(match.theme, match.item);
+        expect(feedbackSubmissionRepository.updateById).toHaveBeenCalledWith(
+          submission.id,
+          expect.objectContaining({ classificationType: "bug", themeId: "theme-1" })
+        );
+      });
+
+      it("falls back to AkashML and warns when no TypeSafe key is configured", async () => {
+        const submission = createFeedbackSubmission({ message: "logs never load" });
+        const { service, akashMlClient, feedbackJevClassifierService, logger } = setup({ submission, engine: "jev", isJevAvailable: false });
+
+        await service.classifySubmission(submission.id);
+
+        expect(feedbackJevClassifierService.classify).not.toHaveBeenCalled();
+        expect(akashMlClient.completeJson).toHaveBeenCalledWith(expect.objectContaining({ messages: buildSubmissionClassificationMessages(submission) }));
+        expect(logger.warn).toHaveBeenCalledWith({
+          event: "FEEDBACK_CLASSIFIER_ENGINE_FALLBACK",
+          engine: "jev",
+          fallback: "akashml",
+          reason: "typesafe_unavailable",
+          feedbackSubmissionId: submission.id
+        });
+      });
+
+      it("counts an unusable Jev answer against the submission", async () => {
+        const submission = createFeedbackSubmission({ message: "logs never load" });
+        const { service, feedbackJevClassifierService, feedbackSubmissionRepository } = setup({ submission, engine: "jev" });
+        const unusable = new TypeSafeOutputError("TypeSafe left questions unanswered: sentiment");
+        feedbackJevClassifierService.classify.mockRejectedValue(unusable);
+        feedbackSubmissionRepository.recordFailedClassification.mockResolvedValue({ attempts: 1, abandoned: false });
+
+        await expect(service.classifySubmission(submission.id)).rejects.toBe(unusable);
+        expect(feedbackSubmissionRepository.recordFailedClassification).toHaveBeenCalledWith(submission.id, MAX_CLASSIFICATION_ATTEMPTS);
+      });
+    });
+
+    it("uses AkashML by default even when Jev is available", async () => {
+      const submission = createFeedbackSubmission({ message: "logs never load" });
+      const { service, akashMlClient, feedbackJevClassifierService, logger } = setup({ submission });
+
+      await service.classifySubmission(submission.id);
+
+      expect(akashMlClient.completeJson).toHaveBeenCalled();
+      expect(feedbackJevClassifierService.classify).not.toHaveBeenCalled();
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
     it("stops quietly when the submission was deleted while the model answered", async () => {
       const submission = createFeedbackSubmission({ message: "logs never load" });
       const { service, akashMlClient, feedbackSubmissionRepository, logger } = setup({ submission });
@@ -235,6 +300,16 @@ describe(FeedbackClassificationService.name, () => {
         classifiedAt: expect.any(Date),
         themeId: "theme-1"
       });
+    });
+
+    it("classifies a conversation with Jev from its messages when Jev is the configured engine", async () => {
+      const conversation = createAssistantConversation({ status: "unresolved" });
+      const messages = [message("user", "why no bids"), message("assistant", "check the price")];
+      const { service, feedbackJevClassifierService } = setup({ conversation, messages, engine: "jev" });
+
+      await service.classifyConversation(conversation.id);
+
+      expect(feedbackJevClassifierService.classify).toHaveBeenCalledWith({ conversation: { ...conversation, messages } }, { conversationId: conversation.id });
     });
 
     it("settles a conversation where the user never wrote without asking the model", async () => {
@@ -304,6 +379,8 @@ describe(FeedbackClassificationService.name, () => {
     conversation?: ReturnType<typeof createAssistantConversation>;
     messages?: AssistantMessageOutput[];
     isAvailable?: boolean;
+    engine?: "akashml" | "jev";
+    isJevAvailable?: boolean;
   }) {
     const feedbackSubmissionRepository = mock<FeedbackSubmissionRepository>();
     feedbackSubmissionRepository.findById.mockResolvedValue(input.submission);
@@ -314,12 +391,15 @@ describe(FeedbackClassificationService.name, () => {
     const feedbackThemeRepository = mock<FeedbackThemeRepository>();
     const feedbackThemeAssignmentService = mock<FeedbackThemeAssignmentService>();
     const feedbackThemeScoreService = mock<FeedbackThemeScoreService>();
+    const feedbackJevClassifierService = mock<FeedbackJevClassifierService>();
+    feedbackJevClassifierService.isAvailable.mockReturnValue(input.isJevAvailable ?? true);
+    feedbackJevClassifierService.classify.mockResolvedValue({ classification: CLASSIFICATION, match: null });
     const akashMlClient = mock<AkashMlClient>();
     akashMlClient.isAvailable.mockReturnValue(input.isAvailable ?? true);
     akashMlClient.completeJson.mockResolvedValue(CLASSIFICATION);
     const txService = mock<TxService>();
     txService.transaction.mockImplementation(async cb => await cb());
-    const config = envSchema.parse({ FEEDBACK_CLASSIFIER_MODEL: "classifier-model" });
+    const config = envSchema.parse({ FEEDBACK_CLASSIFIER_MODEL: "classifier-model", FEEDBACK_CLASSIFIER_ENGINE: input.engine });
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
@@ -330,6 +410,7 @@ describe(FeedbackClassificationService.name, () => {
       feedbackThemeRepository,
       feedbackThemeAssignmentService,
       feedbackThemeScoreService,
+      feedbackJevClassifierService,
       akashMlClient,
       txService,
       config,
@@ -344,6 +425,7 @@ describe(FeedbackClassificationService.name, () => {
       feedbackThemeRepository,
       feedbackThemeAssignmentService,
       feedbackThemeScoreService,
+      feedbackJevClassifierService,
       akashMlClient,
       txService,
       logger
