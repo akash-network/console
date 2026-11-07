@@ -164,22 +164,18 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
     return !!template;
   }
 
-  /** Locks the template row without blocking foreign key checks on it, so two saves of one template compare against it one after another. */
+  /** Locks the template row without blocking foreign key checks on it, then reads its current version in a second statement that sees whatever a competing save committed meanwhile. */
   async findVersionState(id: string, userId: string): Promise<TemplateVersionState | undefined> {
     const [state] = await this.cursor
-      .select({
-        isPublic: this.table.isPublic,
-        visibility: this.table.visibility,
-        currentVersionId: this.table.currentVersionId,
-        currentVersionSdl: TemplateVersions.sdl
-      })
+      .select({ isPublic: this.table.isPublic, visibility: this.table.visibility, currentVersionId: this.table.currentVersionId })
       .from(this.table)
-      .leftJoin(TemplateVersions, eq(TemplateVersions.id, this.table.currentVersionId))
       .where(this.#authoredBy(id, userId))
       .limit(1)
-      .for("no key update", { of: this.table });
+      .for("no key update");
 
-    return state;
+    if (!state) return undefined;
+
+    return { ...state, currentVersionSdl: state.currentVersionId ? await this.#findVersionSdl(state.currentVersionId) : null };
   }
 
   async createTemplate(userId: string, data: TemplateInput, { projectId, copiedFromId, authorId }: TemplateFiling = {}): Promise<string> {
@@ -222,6 +218,12 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
 
   protected toOutput(payload: Partial<TemplateRow>): TemplateOutput {
     return this.#toFullOutput(payload as TemplateRow, "");
+  }
+
+  async #findVersionSdl(versionId: string): Promise<string | null> {
+    const [version] = await this.cursor.select({ sdl: TemplateVersions.sdl }).from(TemplateVersions).where(eq(TemplateVersions.id, versionId));
+
+    return version?.sdl ?? null;
   }
 
   async #findOne(where: SQL | undefined): Promise<TemplateOutput | undefined> {

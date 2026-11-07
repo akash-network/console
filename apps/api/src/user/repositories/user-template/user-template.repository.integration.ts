@@ -5,6 +5,7 @@ import { container } from "tsyringe";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
+import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
@@ -554,6 +555,31 @@ describe(UserTemplateRepository.name, () => {
         currentVersionId: version.id,
         currentVersionSdl: "version: '2.1'"
       });
+    });
+
+    it("reads the current version a concurrent save committed while it waited for the lock", async () => {
+      const { userTemplateRepository } = setup();
+      const txService = container.resolve(TxService);
+      const versionRepository = container.resolve(TemplateVersionRepository);
+      const user = await createTestUser();
+      const template = await createTestTemplate({ userId: user.userId! });
+      const committedSdl = "version: '2.4'";
+      const lockHeld = Promise.withResolvers<void>();
+      const release = Promise.withResolvers<void>();
+
+      const holder = txService.transaction(async () => {
+        await userTemplateRepository.findVersionState(template.id, user.userId!);
+        lockHeld.resolve();
+        await release.promise;
+        await versionRepository.appendVersion({ templateId: template.id, sdl: committedSdl });
+      });
+      await lockHeld.promise;
+      const waiter = txService.transaction(() => userTemplateRepository.findVersionState(template.id, user.userId!));
+      await new Promise(resolve => setTimeout(resolve, 300));
+      release.resolve();
+      await holder;
+
+      expect(await waiter).toMatchObject({ currentVersionSdl: committedSdl });
     });
 
     it("returns nothing for a template another user wrote", async () => {
