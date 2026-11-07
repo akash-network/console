@@ -25,6 +25,11 @@ import {
   CloseAccountDeployments,
   closeAccountDeploymentsKeyFor
 } from "@src/user/services/close-account-deployments/close-account-deployments.job";
+import {
+  NOTIFY_ACCOUNT_STATUS_CHANGE_RETRY_OPTIONS,
+  NotifyAccountStatusChange,
+  notifyAccountStatusChangeKeyFor
+} from "@src/user/services/notify-account-status-change/notify-account-status-change.job";
 
 export type SuspendAccountInput = { actor: AccountStatusActor; userReason: string; internalNote?: string; closeDeployments: boolean };
 
@@ -63,6 +68,8 @@ export class AccountStatusService {
         });
       }
 
+      await this.#enqueueNotification(event);
+
       return event;
     });
   }
@@ -72,6 +79,7 @@ export class AccountStatusService {
     return await this.txService.transaction(async () => {
       const event = await this.#transition(userId, "reinstate", actor, { userReason: null, internalNote: note || null, options: {} });
       await this.walletReloadJobService.scheduleImmediate({ userId });
+      await this.#enqueueNotification(event);
 
       return event;
     });
@@ -82,6 +90,7 @@ export class AccountStatusService {
       const event = await this.#transition(userId, "terminate", actor, { userReason, internalNote: internalNote || null, options: { forfeitCredits } });
 
       await this.#enqueueTerminationEffects(userId, forfeitCredits);
+      await this.#enqueueNotification(event);
 
       return event;
     });
@@ -111,6 +120,13 @@ export class AccountStatusService {
     await this.jobQueueService.enqueue(new ApplyAccountTermination({ userId, forfeitCredits }), {
       singletonKey: applyAccountTerminationKeyFor(userId),
       ...APPLY_ACCOUNT_TERMINATION_RETRY_OPTIONS
+    });
+  }
+
+  async #enqueueNotification(event: AccountStatusEventOutput): Promise<void> {
+    await this.jobQueueService.enqueue(new NotifyAccountStatusChange({ eventId: event.id }), {
+      singletonKey: notifyAccountStatusChangeKeyFor(event.id),
+      ...NOTIFY_ACCOUNT_STATUS_CHANGE_RETRY_OPTIONS
     });
   }
 
