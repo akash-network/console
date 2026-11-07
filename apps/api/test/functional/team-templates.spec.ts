@@ -83,6 +83,18 @@ describe("Templates in organizations", () => {
       expect([saved.status, described.status, deleted.status]).toEqual([saveStatus, status, status]);
       expect(await templatesOf(member)).toEqual(status === 204 ? [] : [expect.objectContaining({ id: template.id, title: template.title, description: null })]);
     });
+
+    it("leaves no version behind when a viewer's save is refused", async () => {
+      const { team, project, actAs, addMember } = await setup();
+      const viewer = await addMember("member", "viewer");
+      const template = await seedTemplate({ userId: viewer.userId!, organizationId: team.id, projectId: project.id });
+
+      const response = await actAs(viewer)("/v1/user/saveTemplate", { method: "POST", body: { ...buildTemplate(), id: template.id, sdl: "version: '2.7'" } });
+
+      expect(response.status).toBe(403);
+      expect(await versionsOf(template.id)).toEqual([]);
+      expect(await templateRow(template.id)).toMatchObject({ currentVersionId: null });
+    });
   });
 
   describe("reading templates", () => {
@@ -169,6 +181,12 @@ describe("Templates in organizations", () => {
     const templates = resolveTable("Templates");
 
     return await container.resolve<ApiPgDatabase>(POSTGRES_DB).select().from(templates).where(eq(templates.userId, user.userId!));
+  }
+
+  async function versionsOf(templateId: string) {
+    const versions = resolveTable("TemplateVersions");
+
+    return await container.resolve<ApiPgDatabase>(POSTGRES_DB).select().from(versions).where(eq(versions.templateId, templateId));
   }
 
   async function templateRow(id: string) {

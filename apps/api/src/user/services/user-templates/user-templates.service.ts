@@ -10,8 +10,11 @@ import { TemplateInput, type TemplateOutput, type TemplateVersionState, UserTemp
 
 type TemplateWriteAction = "create" | "update" | "delete";
 
-function withoutUnchangedIsPublic({ isPublic, ...rest }: TemplateInput, stored: TemplateVersionState): Partial<TemplateInput> {
-  return isPublic === undefined || isPublic === stored.isPublic ? rest : { ...rest, isPublic };
+function visibilityPatch({ isPublic, ...rest }: TemplateInput, stored: TemplateVersionState): Partial<TemplateInput> {
+  const isChanged = isPublic !== undefined && isPublic !== stored.isPublic;
+  const isDrifted = stored.isPublic !== (stored.visibility === "public");
+
+  return isChanged || isDrifted ? { ...rest, isPublic: isPublic ?? stored.isPublic } : rest;
 }
 
 @singleton()
@@ -68,9 +71,12 @@ export class UserTemplatesService {
     const repository = this.#writableBy("create");
     const filingProjectId = await this.#deploymentProjectService.resolveFilingProject(projectId, "Template");
 
+    const resources = summarizeTemplateHardware(template.sdl);
+    const authorId = this.#authService.currentUser.id;
+
     return await this.#txService.transaction(async () => {
-      const templateId = await repository.createTemplate(userId, template, { projectId: filingProjectId, copiedFromId: id });
-      await this.#recordVersion(templateId, template.sdl);
+      const templateId = await repository.createTemplate(userId, template, { projectId: filingProjectId, copiedFromId: id, authorId });
+      await this.#templateVersionRepository.appendVersion({ templateId, sdl: template.sdl, resources, createdById: authorId });
 
       return templateId;
     });
@@ -106,25 +112,18 @@ export class UserTemplatesService {
 
   async #updateAndVersion(id: string, userId: string, template: TemplateInput): Promise<void> {
     const repository = this.#writableBy("update");
+    const resources = summarizeTemplateHardware(template.sdl);
+    const createdById = this.#authService.currentUser.id;
 
     await this.#txService.transaction(async () => {
       const stored = await this.#userTemplateRepository.findVersionState(id, userId);
       assert(stored, 404, "Template not found");
 
-      await repository.updateTemplate(id, userId, withoutUnchangedIsPublic(template, stored));
+      await repository.updateTemplate(id, userId, visibilityPatch(template, stored));
 
-      if (!stored.currentVersionId || stored.sdl !== template.sdl) {
-        await this.#recordVersion(id, template.sdl);
+      if (!stored.currentVersionId || stored.currentVersionSdl !== template.sdl) {
+        await this.#templateVersionRepository.appendVersion({ templateId: id, sdl: template.sdl, resources, createdById });
       }
-    });
-  }
-
-  async #recordVersion(templateId: string, sdl: string): Promise<void> {
-    await this.#templateVersionRepository.appendVersion({
-      templateId,
-      sdl,
-      resources: summarizeTemplateHardware(sdl),
-      createdById: this.#authService.currentUser.id
     });
   }
 

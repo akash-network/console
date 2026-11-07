@@ -7,6 +7,7 @@ import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repositor
 import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { writtenForTeamBy } from "@src/organization/lib/team-records/team-records";
+import { TemplateVersions } from "@src/template-marketplace/model-schemas/template-version/template-version.schema";
 import type { TemplateVisibility } from "@src/user/model-schemas/template/template.schema";
 import { Users } from "@src/user/model-schemas/user/user.schema";
 
@@ -46,12 +47,14 @@ type TemplateRecordInput = TemplateInput & {
 type TemplateRow = ApiPgTables["Templates"]["$inferSelect"];
 
 export interface TemplateVersionState {
-  sdl: string;
   isPublic: boolean;
+  visibility: TemplateVisibility;
   currentVersionId: string | null;
+  currentVersionSdl: string | null;
 }
 
 interface TemplateFiling {
+  authorId?: string | null;
   projectId?: string;
   copiedFromId?: string | null;
 }
@@ -161,28 +164,33 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
     return !!template;
   }
 
-  /** Locks the row, so two saves of one template compare their sdl and isPublic against it one after another. */
+  /** Locks the template row without blocking foreign key checks on it, so two saves of one template compare against it one after another. */
   async findVersionState(id: string, userId: string): Promise<TemplateVersionState | undefined> {
     const [state] = await this.cursor
-      .select({ sdl: this.table.sdl, isPublic: this.table.isPublic, currentVersionId: this.table.currentVersionId })
+      .select({
+        isPublic: this.table.isPublic,
+        visibility: this.table.visibility,
+        currentVersionId: this.table.currentVersionId,
+        currentVersionSdl: TemplateVersions.sdl
+      })
       .from(this.table)
+      .leftJoin(TemplateVersions, eq(TemplateVersions.id, this.table.currentVersionId))
       .where(this.#authoredBy(id, userId))
       .limit(1)
-      .for("update");
+      .for("no key update", { of: this.table });
 
     return state;
   }
 
-  async createTemplate(userId: string, data: TemplateInput, { projectId, copiedFromId }: TemplateFiling = {}): Promise<string> {
-    const isPublic = !!data.isPublic;
+  async createTemplate(userId: string, data: TemplateInput, { projectId, copiedFromId, authorId }: TemplateFiling = {}): Promise<string> {
     const created = await this.create({
       ...data,
       id: randomUUID(),
       userId,
       projectId,
       copiedFromId: copiedFromId || undefined,
-      authorId: await this.#findAuthorId(userId),
-      ...visibilityOf(isPublic)
+      authorId,
+      ...visibilityOf(!!data.isPublic)
     });
 
     return created.id;
@@ -214,12 +222,6 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
 
   protected toOutput(payload: Partial<TemplateRow>): TemplateOutput {
     return this.#toFullOutput(payload as TemplateRow, "");
-  }
-
-  async #findAuthorId(userId: string): Promise<string | null> {
-    const [author] = await this.cursor.select({ id: Users.id }).from(Users).where(eq(Users.userId, userId)).limit(1);
-
-    return author?.id ?? null;
   }
 
   async #findOne(where: SQL | undefined): Promise<TemplateOutput | undefined> {
