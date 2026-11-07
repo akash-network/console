@@ -15,6 +15,7 @@ import { MarketplaceTemplateRepository } from "./marketplace-template.repository
 
 import { seedOrganization, seedProject } from "@test/seeders/db/organization.seeder";
 import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
+import { holdTransaction, waitForLockWait } from "@test/services/lock-wait";
 
 describe(MarketplaceTemplateRepository.name, () => {
   describe("findReadable", () => {
@@ -314,34 +315,22 @@ describe(MarketplaceTemplateRepository.name, () => {
     it("holds the row until the transaction ends, so a concurrent change waits for it", async () => {
       const { repository, organization, project } = await setup();
       const template = await seedTemplate({ organizationId: organization.id, projectId: project.id, visibility: "private" });
-      const txService = container.resolve(TxService);
       const events: string[] = [];
-      let releaseLock!: () => void;
-      const lockHeld = new Promise<void>(resolve => {
-        releaseLock = resolve;
-      });
-      let signalLocked!: () => void;
-      const locked = new Promise<void>(resolve => {
-        signalLocked = resolve;
-      });
-
-      const holder = txService.transaction(async () => {
+      const holder = holdTransaction(async () => {
         await repository.findAndLockForWrite(template.id);
-        signalLocked();
-        await lockHeld;
-        events.push("holder done");
       });
-      await locked;
-      const competitor = txService.transaction(async () => {
+      await holder.held;
+
+      const competitor = container.resolve(TxService).transaction(async () => {
         await repository.findAndLockForWrite(template.id);
         events.push("competitor locked");
       });
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await waitForLockWait("%for no key update%");
       events.push("released");
-      releaseLock();
-      await Promise.all([holder, competitor]);
+      holder.release();
+      await Promise.all([holder.committed, competitor]);
 
-      expect(events).toEqual(["released", "holder done", "competitor locked"]);
+      expect(events).toEqual(["released", "competitor locked"]);
     });
   });
 

@@ -251,6 +251,21 @@ describe("Marketplace template writes", () => {
       expect(await storedTemplate(template.id)).toEqual(template);
     });
 
+    it("ignores the project, organization and listing a caller sends", async () => {
+      const { team, project, owner, actAs } = await setup();
+      const otherProject = await seedProject({ organizationId: team.id });
+      const { organization: otherTeam } = await seedOrganizationWithOwner({ user: createSignedUpUserInput() });
+      const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id });
+
+      const response = await actAs(owner)(`/v1/user-templates/${template.id}`, {
+        method: "PATCH",
+        body: { data: { title: "Renamed", projectId: otherProject.id, organizationId: otherTeam.id, isListed: false } }
+      });
+
+      expect(response.status).toBe(200);
+      expect(await storedTemplate(template.id)).toMatchObject({ title: "Renamed", projectId: project.id, organizationId: team.id, isListed: true });
+    });
+
     it("takes a legacy public template back to organization visibility", async () => {
       const { team, project, owner, actAs } = await setup();
       const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id, visibility: "public", isListed: false });
@@ -351,6 +366,32 @@ describe("Marketplace template writes", () => {
       expect(statuses).toEqual([allowedStatus, 403, 404]);
       expect(await Promise.all(teamTemplates.map(({ id }) => storedTemplate(id)))).toEqual(teamTemplates);
       expect(await Promise.all(teamTemplates.map(async ({ id }) => (await versionsOf(id)).length))).toEqual([1, 1]);
+    });
+
+    it("offers an edit in legacy mode on the caller's personal template only, not their team template", async () => {
+      const { team, project, actAs } = await setup({ isOrganizationsOn: false });
+      const {
+        user: author,
+        organization: personal,
+        project: personalProject
+      } = await seedOrganizationWithOwner({
+        type: "personal",
+        user: createSignedUpUserInput()
+      });
+      await seedOrganizationMember({ organizationId: team.id, userId: author.id, role: "member" });
+      const templates = [
+        await seedTemplate({ author, organizationId: personal.id, projectId: personalProject.id }),
+        await seedTemplate({ author, organizationId: team.id, projectId: project.id })
+      ];
+      const asAuthor = actAs(author);
+
+      const responses = await Promise.all(templates.map(({ id }) => asAuthor(`/v1/user-templates/${id}`)));
+
+      expect(responses.map(({ status }) => status)).toEqual([200, 200]);
+      expect(await Promise.all(responses.map(response => response.json()))).toEqual([
+        { data: expect.objectContaining({ id: templates[0].id, canEdit: true }) },
+        { data: expect.objectContaining({ id: templates[1].id, canEdit: false }) }
+      ]);
     });
 
     it("tells the author to switch to the template's organization", async () => {
