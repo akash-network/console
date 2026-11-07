@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { accountStatusEnum } from "@src/user/model-schemas/user/user.schema";
+
 export const UserSchema = z.object({
   id: z.string(),
   userId: z.string(),
@@ -24,7 +26,9 @@ export const UserSchema = z.object({
 export type UserSchema = z.infer<typeof UserSchema>;
 
 export const CurrentUserSchema = UserSchema.extend({
-  createdAt: z.string().datetime().nullable()
+  createdAt: z.string().datetime().nullable(),
+  accountStatus: z.enum(accountStatusEnum.enumValues),
+  accountStatusReason: z.string().nullable().openapi({ description: "Why the account is suspended or terminated, as written for the user; null while active" })
 });
 
 export type CurrentUserSchema = z.infer<typeof CurrentUserSchema>;
