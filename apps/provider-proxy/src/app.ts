@@ -30,7 +30,7 @@ export function createApp(container: Container): Hono<AppEnv> {
     "https://console-beta.akash.network"
   ];
 
-  app.use("*", otel({ captureRequestHeaders: ["baggage"] }));
+  app.use("*", otel());
   app.use(dropCallerLogIdentity);
   app.use((c, next) => {
     c.set("container", container);
