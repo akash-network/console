@@ -31,7 +31,7 @@ export function useMyTemplates() {
   return api.v1.listUserTemplates.useQuery(undefined, { select: response => response.data });
 }
 
-/** The list is keyed by the active organization, so switching never shows the previous organization's templates. */
+/** Keyed by the active organization, so a switch never shows the previous one's templates, and idle without one because the key needs its id. */
 export function useOrganizationTemplates({ enabled }: { enabled: boolean }) {
   const { api } = useServices();
   const { activeOrganization } = useActiveOrganization();
@@ -52,13 +52,13 @@ export function useCreateTemplateMutation() {
   });
 }
 
-export function useCreateTemplateVersionMutation(id: string) {
+export function useCreateTemplateVersionMutation() {
   const { api } = useServices();
   const queryClient = useQueryClient();
 
   return api.v1.createUserTemplateVersion.useMutation({
     meta: SKIP_REPORTING_REFUSED_INPUT,
-    onSuccess: () =>
+    onSuccess: (_, { id }) =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: api.v1.getUserTemplate.getKey({ id }) }),
         queryClient.invalidateQueries({ queryKey: api.v1.listUserTemplateVersions.getKey({ id }) }),
@@ -67,28 +67,25 @@ export function useCreateTemplateVersionMutation(id: string) {
   });
 }
 
-export function useUpdateTemplateSettingsMutation(id: string) {
+export function useUpdateTemplateSettingsMutation() {
   const { api } = useServices();
   const queryClient = useQueryClient();
 
   return api.v1.updateUserTemplate.useMutation({
     meta: SKIP_REPORTING_REFUSED_INPUT,
-    onSuccess: response => {
+    onSuccess: (response, { id }) => {
       queryClient.setQueryData(api.v1.getUserTemplate.getKey({ id }), response);
       return queryClient.invalidateQueries({ queryKey: api.v1.listUserTemplates.getKey() });
     }
   });
 }
 
-export function useDeleteMarketplaceTemplateMutation(id: string) {
+export function useDeleteMarketplaceTemplateMutation() {
   const { api } = useServices();
   const queryClient = useQueryClient();
 
   return api.v1.deleteUserTemplate.useMutation({
     meta: SKIP_REPORTING_REFUSED_INPUT,
-    onSuccess: () => {
-      queryClient.removeQueries({ queryKey: api.v1.getUserTemplate.getKey({ id }) });
-      return queryClient.invalidateQueries({ queryKey: api.v1.listUserTemplates.getKey() });
-    }
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: api.v1.listUserTemplates.getKey() })
   });
 }

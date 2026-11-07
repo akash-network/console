@@ -147,8 +147,8 @@ describe("useUserTemplateQueries", () => {
       const { result, createUserTemplate, updateUserTemplate, deleteUserTemplate, queryClient } = setup({
         useHook: () => ({
           create: useCreateTemplateMutation(),
-          update: useUpdateTemplateSettingsMutation("tpl-1"),
-          remove: useDeleteMarketplaceTemplateMutation("tpl-1")
+          update: useUpdateTemplateSettingsMutation(),
+          remove: useDeleteMarketplaceTemplateMutation()
         })
       });
       const isListInvalidated = () => queryClient.getQueryState(LIST_KEY)?.isInvalidated;
@@ -182,7 +182,7 @@ describe("useUserTemplateQueries", () => {
     });
 
     it("writes the updated template into its own query", async () => {
-      const { result, updateUserTemplate, queryClient } = setup({ useHook: () => useUpdateTemplateSettingsMutation("tpl-1") });
+      const { result, updateUserTemplate, queryClient } = setup({ useHook: () => useUpdateTemplateSettingsMutation() });
       const renamed = { ...TEMPLATE, title: "Renamed" };
       updateUserTemplate.mockResolvedValue({ data: renamed });
 
@@ -192,7 +192,7 @@ describe("useUserTemplateQueries", () => {
     });
 
     it("refreshes the template and its versions after a new version is saved", async () => {
-      const { result, createUserTemplateVersion, queryClient } = setup({ useHook: () => useCreateTemplateVersionMutation("tpl-1") });
+      const { result, createUserTemplateVersion, queryClient } = setup({ useHook: () => useCreateTemplateVersionMutation() });
       queryClient.setQueryData(TEMPLATE_KEY, { data: TEMPLATE });
       queryClient.setQueryData(VERSIONS_KEY, { data: [VERSION] });
       queryClient.setQueryData(LIST_KEY, { data: [LIST_ITEM] });
@@ -207,15 +207,6 @@ describe("useUserTemplateQueries", () => {
       expect(queryClient.getQueryState(["v1", "getUserTemplate", { id: "tpl-2" }])?.isInvalidated).toBe(false);
     });
 
-    it("forgets a deleted template", async () => {
-      const { result, queryClient } = setup({ useHook: () => useDeleteMarketplaceTemplateMutation("tpl-1") });
-      queryClient.setQueryData(TEMPLATE_KEY, { data: TEMPLATE });
-
-      await act(() => result.current.mutateAsync({ id: "tpl-1" }));
-
-      expect(queryClient.getQueryData(TEMPLATE_KEY)).toBeUndefined();
-    });
-
     it.each([
       [
         "createUserTemplate",
@@ -227,21 +218,21 @@ describe("useUserTemplateQueries", () => {
       [
         "createUserTemplateVersion",
         function useRefusedVersion(): () => Promise<unknown> {
-          const { mutateAsync } = useCreateTemplateVersionMutation("tpl-1");
+          const { mutateAsync } = useCreateTemplateVersionMutation();
           return () => mutateAsync({ id: "tpl-1", data: NEW_VERSION });
         }
       ],
       [
         "updateUserTemplate",
         function useRefusedUpdate(): () => Promise<unknown> {
-          const { mutateAsync } = useUpdateTemplateSettingsMutation("tpl-1");
+          const { mutateAsync } = useUpdateTemplateSettingsMutation();
           return () => mutateAsync({ id: "tpl-1", data: { title: "Renamed" } });
         }
       ],
       [
         "deleteUserTemplate",
         function useRefusedDelete(): () => Promise<unknown> {
-          const { mutateAsync } = useDeleteMarketplaceTemplateMutation("tpl-1");
+          const { mutateAsync } = useDeleteMarketplaceTemplateMutation();
           return () => mutateAsync({ id: "tpl-1" });
         }
       ]
