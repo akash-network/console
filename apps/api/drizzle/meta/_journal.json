@@ -862,6 +862,13 @@
       "when": 1794070439139,
       "tag": "0122_template_versions_catch_up",
       "breakpoints": true
+    },
+    {
+      "idx": 123,
+      "version": "7",
+      "when": 1794073647942,
+      "tag": "0123_template_version_changes",
+      "breakpoints": true
     }
   ]
 }

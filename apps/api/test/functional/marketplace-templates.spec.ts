@@ -127,6 +127,8 @@ describe("Marketplace templates", () => {
             askedValues: [],
             resources: { cpu: 1, memoryBytes: 2, storageBytes: 3 },
             status: "live",
+            changes: ["first_version"],
+            createdBy: { username: author.username },
             createdAt: version.createdAt.toISOString()
           },
           canEdit: true
@@ -288,6 +290,8 @@ describe("Marketplace templates", () => {
           askedValues: [],
           resources: null,
           status: "live",
+          changes: ["first_version"],
+          createdBy: null,
           createdAt: first.createdAt.toISOString()
         }
       });
@@ -369,8 +373,8 @@ describe("Marketplace templates", () => {
     return [first, second] as const;
   }
 
-  function summaryOf(templateId: string, { id, version, createdAt }: { id: string; version: number; createdAt: Date }) {
-    return { id, templateId, version, resources: null, status: "live", createdAt: createdAt.toISOString() };
+  function summaryOf(templateId: string, { id, version, changes, createdAt }: { id: string; version: number; changes: string[] | null; createdAt: Date }) {
+    return { id, templateId, version, resources: null, status: "live", changes, createdBy: null, createdAt: createdAt.toISOString() };
   }
 
   async function seedTemplate(input: {

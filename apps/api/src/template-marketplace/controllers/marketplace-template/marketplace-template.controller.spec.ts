@@ -86,7 +86,9 @@ describe(MarketplaceTemplateController.name, () => {
       askedValues: [],
       resources: { cpu: 1, memoryBytes: 1024, storageBytes: 1024 },
       status: "live",
+      changes: ["image_changed"],
       createdById: faker.string.uuid(),
+      createdBy: { username: faker.internet.userName() },
       createdAt: faker.date.recent(),
       ...overrides
     };
