@@ -654,6 +654,7 @@ export const operations = {
       queryParams: [],
       hasBody: false
     },
+    createUserTemplate: { path: "/v1/user-templates", method: "post", operationId: "createUserTemplate", pathParams: [], queryParams: [], hasBody: true },
     getUserTemplate: { path: "/v1/user-templates/{id}", method: "get", operationId: "getUserTemplate", pathParams: ["id"], queryParams: [], hasBody: false },
     listUserTemplateVersions: {
       path: "/v1/user-templates/{id}/versions",
@@ -662,6 +663,14 @@ export const operations = {
       pathParams: ["id"],
       queryParams: [],
       hasBody: false
+    },
+    createUserTemplateVersion: {
+      path: "/v1/user-templates/{id}/versions",
+      method: "post",
+      operationId: "createUserTemplateVersion",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: true
     },
     getUserTemplateVersion: {
       path: "/v1/user-templates/{id}/versions/{version}",

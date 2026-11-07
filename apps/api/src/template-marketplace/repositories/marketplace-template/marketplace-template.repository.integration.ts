@@ -1,5 +1,6 @@
 import { createMongoAbility, type MongoAbility, type RawRuleOf } from "@casl/ability";
 import { faker } from "@faker-js/faker";
+import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
@@ -96,6 +97,54 @@ describe(MarketplaceTemplateRepository.name, () => {
     });
   });
 
+  describe("createTemplate", () => {
+    it("creates a private, listed template in the active organization's default project", async () => {
+      const { repository, organization, author } = await setup();
+      const defaultProject = await seedProject({ organizationId: organization.id, isDefault: true });
+      const input = createTemplateInput({ authorId: author.id });
+
+      const id = await runInOrganization(organization.id, () => repository.createTemplate(input));
+
+      expect(await storedTemplate(id)).toMatchObject({
+        ...input,
+        organizationId: organization.id,
+        projectId: defaultProject.id,
+        visibility: "private",
+        isPublic: false,
+        isListed: true,
+        copiedFromId: null,
+        currentVersionId: null
+      });
+    });
+
+    it("files the template in the project it names and records the template it was copied from", async () => {
+      const { repository, organization, project, author } = await setup();
+      const original = await seedTemplate({ visibility: "public" });
+      const input = createTemplateInput({ authorId: author.id, projectId: project.id, copiedFromId: original.id });
+
+      const id = await runInOrganization(organization.id, () => repository.createTemplate(input));
+
+      expect(await storedTemplate(id)).toMatchObject({ organizationId: organization.id, projectId: project.id, copiedFromId: original.id });
+    });
+  });
+
+  describe("mirrorVersion", () => {
+    it("writes a version's content to the legacy columns of that template alone, whichever organization is active", async () => {
+      const { repository, organization, project } = await setup();
+      const other = await seedOrganization();
+      const [template, untouched] = await Promise.all([
+        seedTemplate({ organizationId: organization.id, projectId: project.id, visibility: "private" }),
+        seedTemplate({ organizationId: organization.id, projectId: project.id, visibility: "private" })
+      ]);
+      const mirror = { sdl: "version: '2.1'", description: "# Readme", cpu: 1500, ram: 2048, storage: 4096 };
+
+      await runInOrganization(other.id, () => repository.mirrorVersion(template.id, mirror));
+
+      expect(await storedTemplate(template.id)).toMatchObject({ ...mirror, title: template.title, visibility: "private", isPublic: false });
+      expect(await storedTemplate(untouched.id)).toEqual(untouched);
+    });
+  });
+
   async function seedTemplate(input: {
     organizationId?: string;
     projectId?: string;
@@ -110,6 +159,27 @@ describe(MarketplaceTemplateRepository.name, () => {
       .returning();
 
     return template;
+  }
+
+  function createTemplateInput(overrides: { authorId: string; projectId?: string; copiedFromId?: string }) {
+    return {
+      title: faker.lorem.words(3),
+      summary: faker.lorem.sentence(),
+      userId: `auth0|${faker.string.alphanumeric(24)}`,
+      sdl: "version: '2.0'",
+      description: "# Readme",
+      cpu: 500,
+      ram: 1024,
+      storage: 2048,
+      ...overrides
+    };
+  }
+
+  async function storedTemplate(id: string) {
+    const templates = resolveTable("Templates");
+    const [row] = await container.resolve<ApiPgDatabase>(POSTGRES_DB).select().from(templates).where(eq(templates.id, id));
+
+    return row;
   }
 
   function abilityOf(rules: RawRuleOf<MongoAbility>[]) {

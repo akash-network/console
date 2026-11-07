@@ -6,11 +6,19 @@ import type {
   ListUserTemplateVersionsResponse,
   TemplateVersionSummaryResponse
 } from "@src/template-marketplace/http-schemas/marketplace-template.schema";
+import type {
+  CreateUserTemplateRequest,
+  CreateUserTemplateResponse,
+  CreateUserTemplateVersionRequest,
+  CreateUserTemplateVersionResponse
+} from "@src/template-marketplace/http-schemas/template-writes.schema";
 import type { TemplateVersionSummary } from "@src/template-marketplace/repositories/template-version/template-version.repository";
 import {
+  type MarketplaceTemplateOutput,
   MarketplaceTemplateService,
   type PublishedTemplateVersion
 } from "@src/template-marketplace/services/marketplace-template/marketplace-template.service";
+import { TemplateWriterService } from "@src/template-marketplace/services/template-writer/template-writer.service";
 
 function toVersionSummaryResponse({ createdById: _createdById, createdAt, ...version }: TemplateVersionSummary): TemplateVersionSummaryResponse {
   return { ...version, createdAt: createdAt.toISOString() };
@@ -20,21 +28,32 @@ function toVersionResponse({ createdById: _createdById, createdAt, ...version }:
   return { ...version, createdAt: createdAt.toISOString() };
 }
 
+function toTemplateResponse({ createdAt, updatedAt, currentVersion, ...template }: MarketplaceTemplateOutput): GetUserTemplateResponse["data"] {
+  return {
+    ...template,
+    createdAt: createdAt.toISOString(),
+    updatedAt: updatedAt.toISOString(),
+    currentVersion: currentVersion && toVersionResponse(currentVersion)
+  };
+}
+
 @singleton()
 export class MarketplaceTemplateController {
-  constructor(private readonly marketplaceTemplateService: MarketplaceTemplateService) {}
+  constructor(
+    private readonly marketplaceTemplateService: MarketplaceTemplateService,
+    private readonly templateWriterService: TemplateWriterService
+  ) {}
 
   async getTemplate(id: string): Promise<GetUserTemplateResponse> {
-    const { createdAt, updatedAt, currentVersion, ...template } = await this.marketplaceTemplateService.getTemplate(id);
+    return { data: toTemplateResponse(await this.marketplaceTemplateService.getTemplate(id)) };
+  }
 
-    return {
-      data: {
-        ...template,
-        createdAt: createdAt.toISOString(),
-        updatedAt: updatedAt.toISOString(),
-        currentVersion: currentVersion && toVersionResponse(currentVersion)
-      }
-    };
+  async createTemplate({ data }: CreateUserTemplateRequest): Promise<CreateUserTemplateResponse> {
+    return { data: toTemplateResponse(await this.templateWriterService.create(data)) };
+  }
+
+  async createVersion(id: string, { data }: CreateUserTemplateVersionRequest): Promise<CreateUserTemplateVersionResponse> {
+    return { data: toVersionResponse(await this.templateWriterService.appendVersion(id, data)) };
   }
 
   async listVersions(id: string): Promise<ListUserTemplateVersionsResponse> {
