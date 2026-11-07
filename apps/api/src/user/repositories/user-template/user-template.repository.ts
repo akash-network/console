@@ -129,14 +129,27 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
     return !!result;
   }
 
-  async addFavorite(userId: string, templateId: string, readerUserId = userId): Promise<void> {
-    if (!(await this.findById(templateId, readerUserId))) return;
+  /** Answers whether the favorite was added, so a repeat or an unreadable template records no usage. */
+  async addFavorite(userId: string, templateId: string, readerUserId = userId): Promise<boolean> {
+    if (!(await this.findById(templateId, readerUserId))) return false;
 
-    await this.cursor.insert(this.favoriteTable).values({ id: randomUUID(), userId, templateId, addedDate: new Date() }).onConflictDoNothing();
+    const added = await this.cursor
+      .insert(this.favoriteTable)
+      .values({ id: randomUUID(), userId, templateId, addedDate: new Date() })
+      .onConflictDoNothing()
+      .returning({ id: this.favoriteTable.id });
+
+    return added.length > 0;
   }
 
-  async removeFavorite(userId: string, templateId: string): Promise<void> {
-    await this.cursor.delete(this.favoriteTable).where(and(eq(this.favoriteTable.userId, userId), eq(this.favoriteTable.templateId, templateId)));
+  /** Answers whether a favorite was removed, so a repeat records no usage. */
+  async removeFavorite(userId: string, templateId: string): Promise<boolean> {
+    const removed = await this.cursor
+      .delete(this.favoriteTable)
+      .where(and(eq(this.favoriteTable.userId, userId), eq(this.favoriteTable.templateId, templateId)))
+      .returning({ id: this.favoriteTable.id });
+
+    return removed.length > 0;
   }
 
   async getFavoriteTemplates(userId: string, readerUserId = userId): Promise<TemplateOutput[]> {

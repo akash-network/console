@@ -24,6 +24,7 @@ import type { WalletReaderService } from "@src/billing/services/wallet-reader/wa
 import type { CreateLogger, JobQueueService, TxService } from "@src/core";
 import { JOB_NAME } from "@src/core";
 import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
+import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { MAX_SUBMITTED_SDL_LENGTH, SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
@@ -5515,6 +5516,7 @@ describe(DeploymentWriterService.name, () => {
       mock<JobQueueService>(),
       mockConfigService<CoreConfigService>({ NETWORK: "mainnet" }),
       txService,
+      mock<ExecutionContextService>(),
       createLogger
     );
     vi.spyOn(templateUsageService, "recordDeployed");

@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import { subHours } from "date-fns";
 import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
@@ -26,15 +27,37 @@ describe(TemplateUsageEventRepository.name, () => {
       expect((await findEventsOf(event.deploymentSettingId!)).map(({ action }) => action).sort()).toEqual(["deploy", "lease_created"]);
     });
 
-    it("records every event that names no deployment", async () => {
+    it("records every fork, which names no deployment", async () => {
       const { repository } = setup();
+      const user = await seedUser();
       const templateRef = faker.string.uuid();
-      const event = buildEvent({ templateRef, action: "favorite", deploymentSettingId: null, dseq: null });
+      const event = buildEvent({ templateRef, action: "fork", userId: user.id, deploymentSettingId: null, dseq: null });
 
       const recorded = [await repository.record(event), await repository.record(event)];
 
       expect(recorded).toEqual([true, true]);
       expect(await findEventsByRef(templateRef)).toHaveLength(2);
+    });
+
+    it("records one favorite and one unfavorite per user and template however often they are recorded", async () => {
+      const { repository } = setup();
+      const [user, otherUser] = await Promise.all([seedUser(), seedUser()]);
+      const templateRef = faker.string.uuid();
+      const favorite = buildEvent({ templateRef, action: "favorite", userId: user.id, deploymentSettingId: null, dseq: null });
+
+      const first = await repository.record(favorite);
+      const concurrent = await Promise.all([repository.record(favorite), repository.record(favorite)]);
+      const unfavorite = [await repository.record({ ...favorite, action: "unfavorite" }), await repository.record({ ...favorite, action: "unfavorite" })];
+      const byOtherUser = await repository.record({ ...favorite, userId: otherUser.id });
+
+      expect([first, ...concurrent, ...unfavorite, byOtherUser]).toEqual([true, false, false, true, false, true]);
+      expect((await findEventsByRef(templateRef)).map(({ action, userId }) => [action, userId]).sort()).toEqual(
+        [
+          ["favorite", user.id],
+          ["favorite", otherUser.id],
+          ["unfavorite", user.id]
+        ].sort()
+      );
     });
 
     it("stores what the event was given and defaults the rest", async () => {
@@ -81,6 +104,108 @@ describe(TemplateUsageEventRepository.name, () => {
     });
   });
 
+  describe("findCurrentVersionIdOfTemplate", () => {
+    it("finds the template's current version, and nothing for a template without one", async () => {
+      const { repository } = setup();
+      const { template, version } = await seedTemplateWithVersion();
+      const versionless = await seedTemplate();
+
+      expect(await repository.findCurrentVersionIdOfTemplate(template.id)).toBe(version.id);
+      expect(await repository.findCurrentVersionIdOfTemplate(versionless.id)).toBeNull();
+      expect(await repository.findCurrentVersionIdOfTemplate(faker.string.uuid())).toBeNull();
+    });
+  });
+
+  describe("summarize", () => {
+    it("summarizes mainnet deploys only", async () => {
+      const { repository } = setup();
+      const [template, quiet] = [faker.string.uuid(), faker.string.uuid()];
+      const lastDeployedAt = subHours(new Date(), 1);
+      await seedEvents([
+        { templateRef: template, action: "deploy", createdAt: subHours(new Date(), 30) },
+        { templateRef: template, action: "deploy", createdAt: lastDeployedAt },
+        { templateRef: template, action: "deploy", network: "sandbox", createdAt: new Date() },
+        { templateRef: template, action: "deploy", network: "testnet", createdAt: new Date() },
+        { templateRef: template, action: "deploy", source: "awesome_akash", createdAt: new Date() },
+        { templateRef: template, action: "lease_created", createdAt: new Date() },
+        { templateRef: faker.string.uuid(), action: "deploy", createdAt: new Date() }
+      ]);
+
+      const summaries = await repository.summarize([template, quiet]);
+
+      expect(summaries).toEqual(
+        new Map([
+          [template, { deploys: 2, lastDeployedAt, stillUpAfter24h: null }],
+          [quiet, { deploys: 0, lastDeployedAt: null, stillUpAfter24h: null }]
+        ])
+      );
+    });
+
+    it("reports no still-up share below five day-old leases", async () => {
+      const { repository } = setup();
+      const template = faker.string.uuid();
+      const dayOld = subHours(new Date(), 25);
+      await seedEvents([
+        ...times(4, () => ({ templateRef: template, action: "lease_created" as const, createdAt: dayOld })),
+        ...times(3, () => ({ templateRef: template, action: "still_running_24h" as const, createdAt: new Date() })),
+        ...times(3, () => ({ templateRef: template, action: "lease_created" as const, createdAt: subHours(new Date(), 23) })),
+        ...times(2, () => ({ templateRef: template, action: "lease_created" as const, network: "sandbox", createdAt: dayOld }))
+      ]);
+
+      const belowThreshold = await repository.summarize([template]);
+      await seedEvents([{ templateRef: template, action: "lease_created", createdAt: dayOld }]);
+      const atThreshold = await repository.summarize([template]);
+
+      expect(belowThreshold.get(template)?.stillUpAfter24h).toBeNull();
+      expect(atThreshold.get(template)?.stillUpAfter24h).toBe(0.6);
+    });
+
+    it("never reports more than every day-old lease still up", async () => {
+      const { repository } = setup();
+      const template = faker.string.uuid();
+      await seedEvents([
+        ...times(5, () => ({ templateRef: template, action: "lease_created" as const, createdAt: subHours(new Date(), 25) })),
+        ...times(6, () => ({ templateRef: template, action: "still_running_24h" as const, createdAt: new Date() }))
+      ]);
+
+      const summaries = await repository.summarize([template]);
+
+      expect(summaries.get(template)?.stillUpAfter24h).toBe(1);
+    });
+
+    it("summarizes no template as an empty map", async () => {
+      const { repository } = setup();
+
+      expect(await repository.summarize([])).toEqual(new Map());
+    });
+  });
+
+  describe("countDeploysByVersion", () => {
+    it("counts the template's mainnet deploys per version", async () => {
+      const { repository } = setup();
+      const template = faker.string.uuid();
+      const [first, second, unused] = [faker.string.uuid(), faker.string.uuid(), faker.string.uuid()];
+      await seedEvents([
+        { templateRef: template, templateVersionId: first, action: "deploy" },
+        { templateRef: template, templateVersionId: second, action: "deploy" },
+        { templateRef: template, templateVersionId: second, action: "deploy" },
+        { templateRef: template, templateVersionId: second, action: "deploy", network: "sandbox" },
+        { templateRef: template, templateVersionId: second, action: "lease_created" },
+        { templateRef: template, templateVersionId: second, action: "deploy", source: "awesome_akash" },
+        { templateRef: faker.string.uuid(), templateVersionId: unused, action: "deploy" }
+      ]);
+
+      const counts = await repository.countDeploysByVersion(template);
+
+      expect(counts).toEqual(
+        new Map([
+          [first, 1],
+          [second, 2]
+        ])
+      );
+    });
+  });
+
   function buildEvent(overrides: Partial<TemplateUsageEventInput> = {}): TemplateUsageEventInput {
     return {
       source: "console",
@@ -96,7 +221,24 @@ describe(TemplateUsageEventRepository.name, () => {
     };
   }
 
+  async function seedEvents(events: (Partial<TemplateUsageEventInput> & { createdAt?: Date })[]) {
+    await db()
+      .insert(resolveTable("TemplateUsageEvents"))
+      .values(events.map(event => ({ ...buildEvent({ templateVersionId: null }), ...event })));
+  }
+
+  function times<T>(count: number, build: () => T): T[] {
+    return Array.from({ length: count }, build);
+  }
+
   async function seedTemplateWithVersion() {
+    const template = await seedTemplate();
+    const version = await container.resolve(TemplateVersionRepository).appendVersion({ templateId: template.id, sdl: "version: '2.0'" });
+
+    return { template, version };
+  }
+
+  async function seedTemplate() {
     const organization = await seedOrganization();
     const project = await seedProject({ organizationId: organization.id, isDefault: true });
     const [template] = await db()
@@ -111,9 +253,8 @@ describe(TemplateUsageEventRepository.name, () => {
         storage: 1000000
       })
       .returning();
-    const version = await container.resolve(TemplateVersionRepository).appendVersion({ templateId: template.id, sdl: "version: '2.0'" });
 
-    return { template, version };
+    return template;
   }
 
   async function deleteTemplate(id: string) {

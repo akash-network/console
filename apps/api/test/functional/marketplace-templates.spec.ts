@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import { subHours } from "date-fns";
 import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
@@ -9,6 +10,7 @@ import { POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { app } from "@src/rest-app";
+import type { TemplateUsageEventInput } from "@src/template-marketplace/repositories/template-usage-event/template-usage-event.repository";
 import { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
 import type { TemplateModerationStatus, TemplateVisibility } from "@src/user/model-schemas/template/template.schema";
 import type { UserOutput } from "@src/user/repositories";
@@ -133,9 +135,55 @@ describe("Marketplace templates", () => {
             createdAt: version.createdAt.toISOString()
           },
           canEdit: true,
-          isFavorite: false
+          isFavorite: false,
+          usage: { deploys: 0, lastDeployedAt: null, stillUpAfter24h: null }
         }
       });
+    });
+
+    it("shows deploys, last deployed and the still-up share on the template", async () => {
+      const { team, project, owner, actAs } = await setup();
+      const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id, visibility: "organization" });
+      const lastDeployedAt = subHours(new Date(), 2);
+      const dayOld = subHours(new Date(), 30);
+      await seedUsageEvents(template.id, [
+        { action: "deploy", createdAt: dayOld },
+        { action: "deploy", createdAt: lastDeployedAt },
+        { action: "deploy", network: "sandbox", createdAt: new Date() },
+        ...Array.from({ length: 6 }, () => ({ action: "lease_created" as const, createdAt: dayOld })),
+        ...Array.from({ length: 3 }, () => ({ action: "still_running_24h" as const, createdAt: new Date() })),
+        { action: "lease_created", createdAt: new Date() }
+      ]);
+      const asOwner = actAs(owner);
+
+      const [described, listed] = await Promise.all([asOwner(`/v1/user-templates/${template.id}`), asOwner("/v1/user-templates")]);
+
+      expect([described.status, listed.status]).toEqual([200, 200]);
+      expect(await described.json()).toMatchObject({ data: { usage: { deploys: 2, lastDeployedAt: lastDeployedAt.toISOString(), stillUpAfter24h: 0.5 } } });
+      expect(await listed.json()).toMatchObject({ data: [{ id: template.id, usage: { deploys: 2, lastDeployedAt: lastDeployedAt.toISOString() } }] });
+    });
+
+    it("records a favorite and an unfavorite once each when the favorite routes change the favorite", async () => {
+      const { team, project, owner, actAs } = await setup();
+      const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id, visibility: "organization" });
+      const version = await container.resolve(TemplateVersionRepository).appendVersion({ templateId: template.id, sdl: SDL });
+      const asOwner = actAs(owner);
+
+      const statuses = [];
+      for (const [method, path] of [
+        ["POST", "addFavoriteTemplate"],
+        ["POST", "addFavoriteTemplate"],
+        ["DELETE", "removeFavoriteTemplate"],
+        ["DELETE", "removeFavoriteTemplate"]
+      ]) {
+        statuses.push((await asOwner(`/v1/user/${path}/${template.id}`, { method })).status);
+      }
+
+      expect(statuses).toEqual([204, 204, 204, 204]);
+      expect(await storedUsageEvents(template.id)).toEqual([
+        expect.objectContaining({ action: "favorite", templateVersionId: version.id, userId: owner.id, organizationId: team.id, deploymentSettingId: null }),
+        expect.objectContaining({ action: "unfavorite", templateVersionId: version.id, userId: owner.id, organizationId: team.id, deploymentSettingId: null })
+      ]);
     });
 
     it("tells a viewer of the project it cannot edit the template", async () => {
@@ -339,6 +387,23 @@ describe("Marketplace templates", () => {
       expect(JSON.stringify(bodies)).not.toContain(owner.id);
     });
 
+    it("counts deploys per version", async () => {
+      const { team, project, owner, actAs } = await setup();
+      const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id, visibility: "organization" });
+      const [first, second] = await seedVersions(template.id);
+      await seedUsageEvents(template.id, [
+        { action: "deploy", templateVersionId: first.id },
+        { action: "deploy", templateVersionId: first.id },
+        { action: "deploy", templateVersionId: first.id, network: "sandbox" },
+        { action: "lease_created", templateVersionId: first.id }
+      ]);
+
+      const response = await actAs(owner)(`/v1/user-templates/${template.id}/versions`);
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ data: [summaryOf(template.id, second), { ...summaryOf(template.id, first), deploys: 2 }] });
+    });
+
     it("answers 404 for a version number the template does not have and 400 for one out of range", async () => {
       const { read } = await setup();
       const template = await seedTemplate({ author: null, visibility: "public" });
@@ -367,6 +432,31 @@ describe("Marketplace templates", () => {
     return row;
   }
 
+  async function storedUsageEvents(templateId: string) {
+    const events = resolveTable("TemplateUsageEvents");
+
+    return await container.resolve<ApiPgDatabase>(POSTGRES_DB).select().from(events).where(eq(events.templateRef, templateId)).orderBy(events.createdAt);
+  }
+
+  async function seedUsageEvents(
+    templateId: string,
+    events: (Partial<TemplateUsageEventInput> & Pick<TemplateUsageEventInput, "action"> & { createdAt?: Date })[]
+  ) {
+    await container
+      .resolve<ApiPgDatabase>(POSTGRES_DB)
+      .insert(resolveTable("TemplateUsageEvents"))
+      .values(
+        events.map(event => ({
+          source: "console" as const,
+          templateRef: templateId,
+          deploymentSettingId: faker.string.uuid(),
+          dseq: faker.string.numeric(10),
+          network: "mainnet",
+          ...event
+        }))
+      );
+  }
+
   async function seedVersions(templateId: string) {
     const versions = container.resolve(TemplateVersionRepository);
     const first = await versions.appendVersion({ templateId, sdl: "version: '2.0'", readme: "first" });
@@ -376,7 +466,7 @@ describe("Marketplace templates", () => {
   }
 
   function summaryOf(templateId: string, { id, version, changes, createdAt }: { id: string; version: number; changes: string[] | null; createdAt: Date }) {
-    return { id, templateId, version, resources: null, status: "live", changes, createdBy: null, createdAt: createdAt.toISOString() };
+    return { id, templateId, version, resources: null, status: "live", changes, createdBy: null, createdAt: createdAt.toISOString(), deploys: 0 };
   }
 
   async function seedTemplate(input: {

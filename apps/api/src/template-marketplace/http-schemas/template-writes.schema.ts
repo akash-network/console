@@ -12,7 +12,7 @@ import {
 } from "@src/template-marketplace/lib/template-catalog/template-catalog";
 import { templateVersionStatusEnum } from "@src/template-marketplace/model-schemas/template-version/template-version.schema";
 import { templateModerationStatusEnum, templateVisibilityEnum } from "@src/user/model-schemas/template/template.schema";
-import { MarketplaceTemplateSchema, MAX_VERSION_NUMBER, TemplateVersionSchema } from "./marketplace-template.schema";
+import { DeploysSchema, LastDeployedAtSchema, MarketplaceTemplateSchema, MAX_VERSION_NUMBER, TemplateVersionSchema } from "./marketplace-template.schema";
 
 const TemplateSdlSchema = z.string().min(1).max(SDL_MAX_LENGTH);
 
@@ -96,7 +96,8 @@ export const UserTemplateListItemSchema = z
       .nullable()
       .openapi({ description: "Null on a template an older API pod saved without a version" }),
     lastEditedBy: z.object({ username: z.string() }).nullable().openapi({ description: "Who saved the current version, null when unknown or gone" }),
-    canEdit: z.boolean().openapi({ description: "Whether the caller may change the template" })
+    canEdit: z.boolean().openapi({ description: "Whether the caller may change the template" }),
+    usage: z.object({ deploys: DeploysSchema, lastDeployedAt: LastDeployedAtSchema })
   })
   .openapi("UserTemplateListItem");
 
