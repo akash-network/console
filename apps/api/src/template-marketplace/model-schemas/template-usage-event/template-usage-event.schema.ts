@@ -34,7 +34,14 @@ export const TemplateUsageEvents = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
   },
   table => ({
-    refActionCreatedIdx: index("template_usage_events_ref_action_created_idx").on(table.source, table.templateRef, table.action, table.createdAt),
+    /** Ends with `network` as a key column, standing in for an `INCLUDE (network)` drizzle cannot express, so usage summaries scan the index only. */
+    refActionCreatedIdx: index("template_usage_events_ref_action_created_idx").on(
+      table.source,
+      table.templateRef,
+      table.action,
+      table.createdAt,
+      table.network
+    ),
     userIdIdx: index("template_usage_events_user_id_idx").on(table.userId),
     organizationIdIdx: index("template_usage_events_organization_id_idx").on(table.organizationId),
     deploymentActionUnique: uniqueIndex("template_usage_events_deployment_action_unique")
