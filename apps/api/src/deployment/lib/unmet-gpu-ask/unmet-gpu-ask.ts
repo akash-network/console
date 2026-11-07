@@ -62,7 +62,11 @@ export function findGpuAsks(source: GpuAskSource): GpuAsk[] {
     }
   }
 
-  return [...asksByModel.values()].filter(ask => ask.gpuCount <= MAX_ASKED_GPUS);
+  return [...asksByModel.values()].filter(isStorableAsk);
+}
+
+export function isStorableAsk(ask: GpuAsk): boolean {
+  return Number.isSafeInteger(ask.gpuCount) && ask.gpuCount > 0 && ask.gpuCount <= MAX_ASKED_GPUS && fitsStoredColumns(ask);
 }
 
 export function countGpus({ resources }: GpuAskSource): number {

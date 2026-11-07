@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
 
 import type { ChainSDK } from "@src/chain/providers/chain-sdk.provider";
+import { MAX_ASKED_GPUS } from "@src/deployment/lib/unmet-gpu-ask/unmet-gpu-ask";
 import type { GpuBidCheckRepository } from "@src/deployment/repositories/gpu-bid-check/gpu-bid-check.repository";
 import type { UnmetGpuDemandService } from "@src/deployment/services/unmet-gpu-demand/unmet-gpu-demand.service";
 import { RecordUserGpuBidsHandler, type ScreenedGpuGroup } from "./record-user-gpu-bids.handler";
@@ -100,6 +101,28 @@ describe(RecordUserGpuBidsHandler.name, () => {
     await handler.handle({ owner: "akash1owner", dseq: "123", groups: [aGroup({ gseq: 1 })], version: 1 });
 
     expect(unmetGpuDemandService.recordZeroBids).toHaveBeenCalledWith(expect.objectContaining({ asks: [] }));
+  });
+
+  it("records no zero bid for an ask beyond real demand or the stored columns", async () => {
+    const { handler, unmetGpuDemandService } = setup({ bids: [] });
+
+    await handler.handle({
+      owner: "akash1owner",
+      dseq: "123",
+      groups: [
+        aGroup({ gseq: 1, model: "h100", gpuCount: MAX_ASKED_GPUS }),
+        aGroup({ gseq: 2, model: "a100", gpuCount: MAX_ASKED_GPUS + 1 }),
+        aGroup({ gseq: 3, model: "h200", gpuCount: 2 ** 53 }),
+        aGroup({ gseq: 4, model: "b200", gpuCount: 0 }),
+        aGroup({ gseq: 5, model: "m".repeat(256), gpuCount: 1 }),
+        aGroup({ gseq: 6, vendor: "v".repeat(65), gpuCount: 1 })
+      ],
+      version: 1
+    });
+
+    expect(unmetGpuDemandService.recordZeroBids).toHaveBeenCalledWith(
+      expect.objectContaining({ asks: [{ vendor: "nvidia", model: "h100", gpuCount: MAX_ASKED_GPUS, regionArea: null }] })
+    );
   });
 
   it("declares no permissions, because a worker carries no user", () => {
