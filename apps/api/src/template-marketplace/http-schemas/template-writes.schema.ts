@@ -22,11 +22,20 @@ const TitleSchema = z.string().trim().min(1).max(MAX_TEMPLATE_TITLE_LENGTH);
 
 const SummarySchema = z.string().trim().max(MAX_TEMPLATE_SUMMARY_LENGTH);
 
+const IconSchema = z.enum(TEMPLATE_ICONS);
+
+const CategoriesSchema = z
+  .array(z.enum(TEMPLATE_CATEGORIES))
+  .max(MAX_TEMPLATE_CATEGORIES)
+  .refine(categories => new Set(categories).size === categories.length, { message: "Categories must be unique" });
+
 export const CreateUserTemplateRequestSchema = z
   .object({
     data: z.object({
       title: TitleSchema,
       summary: SummarySchema.optional(),
+      icon: IconSchema.optional(),
+      categories: CategoriesSchema.optional(),
       sdl: TemplateSdlSchema,
       readme: ReadmeSchema.optional(),
       askedValues: AskedValuesSchema.default([]).openapi({ description: "The values the deployer fills in, bound to the SDL's env vars" }),
@@ -42,12 +51,10 @@ export const CreateUserTemplateVersionRequestSchema = z
       sdl: TemplateSdlSchema,
       readme: ReadmeSchema.nullable().optional().openapi({ description: "Omitted keeps the current version's readme, null clears it" }),
       askedValues: AskedValuesSchema,
-      baseVersion: z
-        .number()
-        .int()
-        .positive()
-        .max(MAX_VERSION_NUMBER)
-        .openapi({ description: "The version this one was edited from, refused with 409 once another version has been saved after it" })
+      baseVersion: z.number().int().positive().max(MAX_VERSION_NUMBER).optional().openapi({
+        description:
+          "The version this one was edited from, refused with 409 once another version has been saved after it; required once the template has a version"
+      })
     })
   })
   .openapi("CreateUserTemplateVersionRequest");
@@ -58,12 +65,8 @@ export const UpdateUserTemplateRequestSchema = z
       .object({
         title: TitleSchema.optional(),
         summary: SummarySchema.nullable().optional().openapi({ description: "Null or blank clears it" }),
-        icon: z.enum(TEMPLATE_ICONS).nullable().optional().openapi({ description: "Null shows the default icon" }),
-        categories: z
-          .array(z.enum(TEMPLATE_CATEGORIES))
-          .max(MAX_TEMPLATE_CATEGORIES)
-          .refine(categories => new Set(categories).size === categories.length, { message: "Categories must be unique" })
-          .optional(),
+        icon: IconSchema.nullable().optional().openapi({ description: "Null shows the default icon" }),
+        categories: CategoriesSchema.optional(),
         visibility: z.enum(["private", "organization"]).optional().openapi({ description: "Moving a public template to either clears its public flag" })
       })
       .refine(settings => Object.values(settings).some(value => value !== undefined), { message: "Change at least one setting" })

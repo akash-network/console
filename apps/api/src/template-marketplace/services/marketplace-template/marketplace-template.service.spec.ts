@@ -45,7 +45,7 @@ describe(MarketplaceTemplateService.name, () => {
     it("describes a readable template with its author, publisher and current version without image digests", async () => {
       const template = createTemplateRow({ authorUsername: "alice", publisher: { name: "Team", slug: "team", type: "team" } });
       const version = createVersion({ templateId: template.id, readme: "# Readme", resources: { cpu: 1, memoryBytes: 2, storageBytes: 3 } });
-      const { service } = setup({ template, currentVersion: version });
+      const { service } = setup({ template, currentVersion: version, activeOrganizationId: template.organizationId });
 
       const result = await service.getTemplate(template.id);
 
@@ -70,6 +70,51 @@ describe(MarketplaceTemplateService.name, () => {
         canEdit: false,
         isFavorite: false
       });
+    });
+
+    it.each<[string, string | null, string | null]>([
+      ["another organization is active", faker.string.uuid(), faker.string.uuid()],
+      ["no organization is active", faker.string.uuid(), null],
+      ["the template is filed in no organization", null, faker.string.uuid()]
+    ])("withholds the project when %s", async (_case, organizationId, activeOrganizationId) => {
+      const template = createTemplateRow({ organizationId });
+      const { service } = setup({ template, activeOrganizationId });
+
+      const result = await service.getTemplate(template.id);
+
+      expect(result.projectId).toBeNull();
+    });
+
+    it("names the template it was copied from when the caller may read that one", async () => {
+      const source = createTemplateRow();
+      const template = createTemplateRow({ copiedFromId: source.id });
+      const { service, repository } = setup({ template });
+      repository.findReadable.mockImplementation(async id => ({ [template.id]: template, [source.id]: source })[id]);
+
+      const result = await service.getTemplate(template.id);
+
+      expect(result.copiedFromId).toBe(source.id);
+      expect(repository.findReadable).toHaveBeenCalledWith(source.id);
+    });
+
+    it("withholds the template it was copied from when the caller may not read that one", async () => {
+      const template = createTemplateRow({ copiedFromId: faker.string.uuid() });
+      const { service, repository } = setup({ template });
+      repository.findReadable.mockImplementation(async id => (id === template.id ? template : undefined));
+
+      const result = await service.getTemplate(template.id);
+
+      expect(result.copiedFromId).toBeNull();
+    });
+
+    it("looks up no source for a template that was not copied", async () => {
+      const template = createTemplateRow({ copiedFromId: null });
+      const { service, repository } = setup({ template });
+
+      const result = await service.getTemplate(template.id);
+
+      expect(result.copiedFromId).toBeNull();
+      expect(repository.findReadable).toHaveBeenCalledTimes(1);
     });
 
     it("reports whether the caller has made the template a favorite", async () => {

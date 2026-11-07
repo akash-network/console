@@ -8936,10 +8936,13 @@ export interface components {
       moderationStatus: "active" | "hidden" | "removed";
       /**
        * Format: uuid
-       * @description The project the template is filed in, null for a template filed in none
+       * @description The project the template is filed in, null for one filed in none or outside the active organization
        */
       projectId: string | null;
-      /** Format: uuid */
+      /**
+       * Format: uuid
+       * @description The template this one was copied from, null unless the caller may read it
+       */
       copiedFromId: string | null;
       /** Format: date-time */
       createdAt: string;
@@ -8981,6 +8984,64 @@ export interface components {
       data: {
         title: string;
         summary?: string;
+        /** @enum {string} */
+        icon?:
+          | "box"
+          | "bot"
+          | "brain"
+          | "message-square"
+          | "image"
+          | "video"
+          | "music"
+          | "database"
+          | "server"
+          | "globe"
+          | "code"
+          | "terminal"
+          | "gamepad"
+          | "chart"
+          | "shield"
+          | "workflow"
+          | "cpu"
+          | "layers"
+          | "file-text"
+          | "search"
+          | "mail"
+          | "cloud"
+          | "wallet"
+          | "rocket";
+        categories?: (
+          | "AI - CPU"
+          | "AI - GPU"
+          | "Benchmarking"
+          | "Blockchain"
+          | "Blogging"
+          | "Built with Cosmos-SDK"
+          | "Business"
+          | "CI/CD, DevOps"
+          | "Chat"
+          | "Data Visualization"
+          | "Databases and Administration"
+          | "DeFi"
+          | "Decentralized Storage"
+          | "Game Servers"
+          | "Games"
+          | "Hosting"
+          | "Machine Learning"
+          | "Mining - CPU"
+          | "Mining - GPU"
+          | "Mining Pools"
+          | "Network"
+          | "Official"
+          | "Peer-to-peer File Sharing"
+          | "Project Management"
+          | "Search Engines"
+          | "Social"
+          | "Tools"
+          | "Video Conferencing"
+          | "Wallet"
+          | "Web Frameworks"
+        )[];
         sdl: string;
         readme?: string;
         /**
@@ -9009,8 +9070,8 @@ export interface components {
         /** @description Omitted keeps the current version's readme, null clears it */
         readme?: string | null;
         askedValues: components["schemas"]["TemplateAskedValue"][];
-        /** @description The version this one was edited from, refused with 409 once another version has been saved after it */
-        baseVersion: number;
+        /** @description The version this one was edited from, refused with 409 once another version has been saved after it; required once the template has a version */
+        baseVersion?: number;
       };
     };
     UserTemplateListItem: {

@@ -3,12 +3,15 @@ import { asc, eq } from "drizzle-orm";
 import { container } from "tsyringe";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
+import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
+import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { app } from "@src/rest-app";
+import type { AskedValue } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
 import { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
 import type { TemplateModerationStatus, TemplateVisibility } from "@src/user/model-schemas/template/template.schema";
 import type { UserOutput } from "@src/user/repositories";
@@ -159,16 +162,48 @@ describe("Marketplace template writes", () => {
   });
 
   describe("GET /v1/user-templates/{id}", () => {
-    it("reports isFavorite and projectId on the template", async () => {
+    it("reports isFavorite and projectId on the template, withholding the project outside its organization", async () => {
       const { team, project, owner, actAs, read } = await setup();
       const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id, visibility: "public" });
-      await seedFavorite(owner, template.id);
+      const { user: outsider, organization: otherTeam } = await seedOrganizationWithOwner({ user: createSignedUpUserInput() });
+      await Promise.all([seedFavorite(owner, template.id), seedFavorite(outsider, template.id)]);
 
-      const responses = await Promise.all([actAs(owner)(`/v1/user-templates/${template.id}`), read(`/v1/user-templates/${template.id}`)]);
+      const responses = await Promise.all([
+        actAs(owner)(`/v1/user-templates/${template.id}`),
+        actAs(outsider, { organizationId: otherTeam.id })(`/v1/user-templates/${template.id}`),
+        read(`/v1/user-templates/${template.id}`)
+      ]);
 
       expect(await Promise.all(responses.map(response => response.json()))).toEqual([
         { data: expect.objectContaining({ id: template.id, projectId: project.id, isFavorite: true }) },
-        { data: expect.objectContaining({ id: template.id, projectId: project.id, isFavorite: false }) }
+        { data: expect.objectContaining({ id: template.id, projectId: null, isFavorite: true }) },
+        { data: expect.objectContaining({ id: template.id, projectId: null, isFavorite: false }) }
+      ]);
+    });
+
+    it("names the template a copy was made from only to a caller who may read that one", async () => {
+      const { team, project, owner, actAs, read } = await setup();
+      const { user: stranger, organization: otherTeam, project: otherTeamProject } = await seedOrganizationWithOwner({ user: createSignedUpUserInput() });
+      const hiddenSource = await seedTemplate({ author: stranger, organizationId: otherTeam.id, projectId: otherTeamProject.id });
+      const publicSource = await seedTemplate({ author: stranger, organizationId: otherTeam.id, projectId: otherTeamProject.id, visibility: "public" });
+      const [copyOfHidden, copyOfPublic] = await Promise.all(
+        [hiddenSource, publicSource].map(source =>
+          seedTemplate({ author: owner, organizationId: team.id, projectId: project.id, visibility: "public", copiedFromId: source.id })
+        )
+      );
+
+      const responses = await Promise.all([
+        actAs(owner)(`/v1/user-templates/${copyOfHidden.id}`),
+        read(`/v1/user-templates/${copyOfHidden.id}`),
+        actAs(stranger, { organizationId: otherTeam.id })(`/v1/user-templates/${copyOfHidden.id}`),
+        read(`/v1/user-templates/${copyOfPublic.id}`)
+      ]);
+
+      expect((await Promise.all(responses.map(response => response.json()))).map(({ data }) => data.copiedFromId)).toEqual([
+        null,
+        null,
+        hiddenSource.id,
+        publicSource.id
       ]);
     });
   });
@@ -266,6 +301,23 @@ describe("Marketplace template writes", () => {
       expect(await storedTemplate(template.id)).toMatchObject({ title: "Renamed", projectId: project.id, organizationId: team.id, isListed: true });
     });
 
+    it("refuses opening a legacy-saved template to the organization while it holds a plaintext registry password", async () => {
+      const { team, project, owner, actAs } = await setup();
+      const template = await seedTemplate({
+        author: owner,
+        organizationId: team.id,
+        projectId: project.id,
+        sdl: buildSdl({ credentials: ["host: docker.io", "username: me", "password: hunter2"] })
+      });
+      const issue = 'Service "web" carries a registry password; save it as a secret instead';
+
+      const response = await actAs(owner)(`/v1/user-templates/${template.id}`, { method: "PATCH", body: { data: { visibility: "organization" } } });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ code: "template_invalid", data: { issues: [issue] } });
+      expect(await storedTemplate(template.id)).toEqual(template);
+    });
+
     it("takes a legacy public template back to organization visibility", async () => {
       const { team, project, owner, actAs } = await setup();
       const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id, visibility: "public", isListed: false });
@@ -326,6 +378,112 @@ describe("Marketplace template writes", () => {
       expect(responses.map(({ status }) => status)).toEqual([403, 404]);
       expect(await storedTemplate(template.id)).toEqual(template);
       expect(await versionsOf(template.id)).toHaveLength(1);
+    });
+  });
+
+  describe("POST /v1/user/saveTemplate on a template saved with asked values or a readme", () => {
+    it("carries the readme and asked values into the version a legacy save adds", async () => {
+      const { team, project, owner, actAs } = await setup();
+      const askedValues = [secretAskedValue("API_KEY")];
+      const template = await seedTemplate({
+        author: owner,
+        organizationId: team.id,
+        projectId: project.id,
+        sdl: buildSdl({ env: ["API_KEY"] }),
+        readme: "# Readme",
+        askedValues
+      });
+      const sdl = buildSdl({ env: ["API_KEY"], count: 3 });
+
+      const response = await actAs(owner)("/v1/user/saveTemplate", { method: "POST", body: legacySaveOf(template, sdl) });
+
+      expect(response.status).toBe(200);
+      expect((await versionsOf(template.id)).map(({ version, sdl, readme, askedValues }) => ({ version, sdl, readme, askedValues }))).toEqual([
+        { version: 1, sdl: buildSdl({ env: ["API_KEY"] }), readme: "# Readme", askedValues },
+        { version: 2, sdl, readme: "# Readme", askedValues }
+      ]);
+    });
+
+    it("refuses a legacy save that puts a plaintext value in a secret the template asks for, saving nothing", async () => {
+      const { team, project, owner, actAs } = await setup();
+      const template = await seedTemplate({
+        author: owner,
+        organizationId: team.id,
+        projectId: project.id,
+        sdl: buildSdl({ env: ["API_KEY"] }),
+        askedValues: [secretAskedValue("API_KEY")]
+      });
+      const issue = 'Variable "API_KEY" is a secret, so web.env.API_KEY must not carry a value';
+
+      const response = await actAs(owner)("/v1/user/saveTemplate", {
+        method: "POST",
+        body: { ...legacySaveOf(template, buildSdl({ env: ["API_KEY=hunter2"] })), title: "Renamed" }
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ code: "template_invalid", message: issue, data: { issues: [issue] } });
+      expect(await versionsOf(template.id)).toHaveLength(1);
+      expect(await storedTemplate(template.id)).toEqual(template);
+    });
+
+    it("keeps the legacy save of a template without asked values or a readme unchecked", async () => {
+      const { team, project, owner, actAs } = await setup();
+      const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id });
+      const sdl = buildSdl({ credentials: ["host: docker.io", "username: me", "password: hunter2"] });
+
+      const response = await actAs(owner)("/v1/user/saveTemplate", { method: "POST", body: legacySaveOf(template, sdl) });
+
+      expect(response.status).toBe(200);
+      expect((await versionsOf(template.id)).map(({ sdl, readme, askedValues }) => ({ sdl, readme, askedValues }))).toEqual([
+        { sdl: buildSdl(), readme: null, askedValues: [] },
+        { sdl, readme: null, askedValues: [] }
+      ]);
+    });
+  });
+
+  describe("with an API key bound to a project", () => {
+    it("refuses filing a template in another project", async () => {
+      const { team, project, owner } = await setup();
+      const otherProject = await seedProject({ organizationId: team.id });
+      const apiKey = await seedApiKey({ userId: owner.id, organizationId: team.id, projectId: project.id });
+
+      const response = await requestWithKey(apiKey, "/v1/user-templates", {
+        method: "POST",
+        body: { data: { title: "Web", sdl: buildSdl(), projectId: otherProject.id } }
+      });
+
+      expect(response.status).toBe(404);
+      expect(await templatesAuthoredBy(owner)).toEqual([]);
+    });
+
+    it("refuses changing templates of another project, by 403 when it may read them and 404 when not", async () => {
+      const { team, project, owner } = await setup();
+      const otherProject = await seedProject({ organizationId: team.id });
+      const apiKey = await seedApiKey({ userId: owner.id, organizationId: team.id, projectId: project.id });
+      const [readable, unreadable] = await Promise.all([
+        seedTemplate({ author: owner, organizationId: team.id, projectId: otherProject.id, visibility: "organization" }),
+        seedTemplate({ author: owner, organizationId: team.id, projectId: otherProject.id })
+      ]);
+      const statuses: number[][] = [];
+
+      for (const { id } of [readable, unreadable]) {
+        statuses.push([
+          (
+            await requestWithKey(apiKey, `/v1/user-templates/${id}/versions`, {
+              method: "POST",
+              body: { data: { sdl: buildSdl({ count: 3 }), askedValues: [], baseVersion: 1 } }
+            })
+          ).status,
+          (await requestWithKey(apiKey, `/v1/user-templates/${id}`, { method: "PATCH", body: { data: { title: "Renamed" } } })).status,
+          (await requestWithKey(apiKey, `/v1/user-templates/${id}`, { method: "DELETE" })).status
+        ]);
+      }
+
+      expect(statuses).toEqual([
+        [403, 403, 403],
+        [404, 404, 404]
+      ]);
+      expect(await Promise.all([readable, unreadable].map(({ id }) => storedTemplate(id)))).toEqual([readable, unreadable]);
     });
   });
 
@@ -630,6 +788,64 @@ describe("Marketplace template writes", () => {
       expect(response.status).toBe(201);
     });
 
+    it("stores the icon and categories sent", async () => {
+      const { owner, actAs } = await setup();
+
+      const response = await actAs(owner)("/v1/user-templates", {
+        method: "POST",
+        body: { data: { title: "Web", sdl: buildSdl(), icon: "rocket", categories: ["Tools", "AI - GPU"] } }
+      });
+
+      expect(response.status).toBe(201);
+      const { data } = (await response.json()) as { data: { id: string; icon: string; categories: string[] } };
+      expect(data).toMatchObject({ icon: "rocket", categories: ["Tools", "AI - GPU"] });
+      expect(await storedTemplate(data.id)).toMatchObject({ icon: "rocket", categories: ["Tools", "AI - GPU"] });
+    });
+
+    it.each<[string, Record<string, unknown>]>([
+      ["an icon outside the catalog", { icon: "unicorn" }],
+      ["a category outside the catalog", { categories: ["Gaming"] }],
+      ["four categories", { categories: ["AI - CPU", "AI - GPU", "Blockchain", "Tools"] }],
+      ["a category twice", { categories: ["Tools", "Tools"] }]
+    ])("refuses creating with %s", async (_case, fields) => {
+      const { owner, actAs } = await setup();
+
+      const response = await actAs(owner)("/v1/user-templates", { method: "POST", body: { data: { title: "Web", sdl: buildSdl(), ...fields } } });
+
+      expect(response.status).toBe(400);
+      expect(await templatesAuthoredBy(owner)).toEqual([]);
+    });
+
+    it("reports where a YAML error is without echoing the SDL around it", async () => {
+      const { owner, actAs } = await setup();
+      const sdl = ["services:", "  web:", "    env:", "      - API_KEY=hunter2-secret", "    image: [nginx"].join("\n");
+
+      const response = await actAs(owner)("/v1/user-templates", { method: "POST", body: { data: { title: "Web", sdl } } });
+
+      expect(response.status).toBe(400);
+      const body = await response.text();
+      expect(JSON.parse(body)).toMatchObject({
+        code: "template_invalid",
+        data: { issues: ["The SDL could not be read: unexpected end of the stream within a flow collection (line 6, column 1)"] }
+      });
+      expect(body).not.toContain("hunter2");
+    });
+
+    it("refuses a viewer's template, finding no project it may file in, without storing it", async () => {
+      const { project, actAs, addMember } = await setup();
+      const viewer = await addMember("member", "viewer");
+      const asViewer = actAs(viewer);
+
+      const responses = [
+        await asViewer("/v1/user-templates", { method: "POST", body: { data: { title: "Web", sdl: buildSdl() } } }),
+        await asViewer("/v1/user-templates", { method: "POST", body: { data: { title: "Web", sdl: buildSdl(), projectId: project.id } } })
+      ];
+
+      expect(responses.map(({ status }) => status)).toEqual([400, 404]);
+      expect(await responses[0].json()).toMatchObject({ code: "project_required" });
+      expect(await templatesAuthoredBy(viewer)).toEqual([]);
+    });
+
     it("records the template a copy was made from when the caller can read it", async () => {
       const { owner, actAs } = await setup();
       const original = await seedTemplate({ author: null, visibility: "public" });
@@ -744,6 +960,33 @@ describe("Marketplace template writes", () => {
       const { data } = (await response.json()) as { data: { id: string } };
       expect(data).toMatchObject({ version: 1, readme: "Legacy description" });
       expect(await storedTemplate(template.id)).toMatchObject({ currentVersionId: data.id, description: "Legacy description", sdl: buildSdl({ count: 3 }) });
+    });
+
+    it("asks for the base version once the template has one", async () => {
+      const { team, project, owner, actAs } = await setup();
+      const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id });
+
+      const response = await actAs(owner)(`/v1/user-templates/${template.id}/versions`, {
+        method: "POST",
+        body: { data: { sdl: buildSdl({ count: 3 }), askedValues: [] } }
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ code: "template_base_version_required" });
+      expect(await versionsOf(template.id)).toHaveLength(1);
+    });
+
+    it("saves version 1 on a legacy template without a base version", async () => {
+      const { team, project, owner, actAs } = await setup();
+      const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id, withoutVersion: true });
+
+      const response = await actAs(owner)(`/v1/user-templates/${template.id}/versions`, {
+        method: "POST",
+        body: { data: { sdl: buildSdl({ count: 3 }), askedValues: [] } }
+      });
+
+      expect(response.status).toBe(201);
+      expect(await response.json()).toMatchObject({ data: { version: 1 } });
     });
 
     it("refuses a new version from a stale base with 409 and saves nothing", async () => {
@@ -887,6 +1130,9 @@ describe("Marketplace template writes", () => {
     readme?: string;
     description?: string;
     withoutVersion?: boolean;
+    sdl?: string;
+    askedValues?: AskedValue[];
+    copiedFromId?: string;
     moderationStatus?: TemplateModerationStatus;
     isListed?: boolean;
     summary?: string;
@@ -894,8 +1140,17 @@ describe("Marketplace template writes", () => {
     categories?: string[];
     updatedAt?: Date;
   }) {
-    const { author, readme, description = readme, withoutVersion = false, visibility = "private", updatedAt, ...template } = input;
-    const sdl = buildSdl();
+    const {
+      author,
+      readme,
+      description = readme,
+      withoutVersion = false,
+      visibility = "private",
+      updatedAt,
+      sdl = buildSdl(),
+      askedValues,
+      ...template
+    } = input;
     const templates = resolveTable("Templates");
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
     const [row] = await db
@@ -915,13 +1170,38 @@ describe("Marketplace template writes", () => {
       })
       .returning();
     if (!withoutVersion) {
-      await container.resolve(TemplateVersionRepository).appendVersion({ templateId: row.id, sdl, readme, createdById: author?.id });
+      await container.resolve(TemplateVersionRepository).appendVersion({ templateId: row.id, sdl, readme, askedValues, createdById: author?.id });
     }
     if (updatedAt) {
       await db.update(templates).set({ updatedAt }).where(eq(templates.id, row.id));
     }
 
     return await storedTemplate(row.id);
+  }
+
+  function legacySaveOf(template: { id: string; title: string }, sdl: string) {
+    return { id: template.id, sdl, title: template.title, cpu: 1000, ram: 1024 * MEBIBYTE, storage: 2 * GIBIBYTE, isPublic: false };
+  }
+
+  async function seedApiKey(input: { userId: string; organizationId: string; projectId: string }) {
+    const apiKeyGenerator = container.resolve(ApiKeyGeneratorService);
+    const apiKey = apiKeyGenerator.generateApiKey();
+    await container.resolve(ApiKeyRepository).create({
+      ...input,
+      hashedKey: apiKeyGenerator.hashApiKeySha256(apiKey),
+      keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey),
+      name: "ci"
+    });
+
+    return apiKey;
+  }
+
+  function requestWithKey(apiKey: string, path: string, init: { method?: string; body?: unknown } = {}) {
+    return app.request(path, {
+      method: init.method ?? "GET",
+      headers: { "x-api-key": apiKey, "content-type": "application/json" },
+      body: init.body === undefined ? undefined : JSON.stringify(init.body)
+    });
   }
 
   async function seedFavorite(user: UserOutput, templateId: string) {

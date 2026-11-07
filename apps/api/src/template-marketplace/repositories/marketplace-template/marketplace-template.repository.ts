@@ -21,6 +21,8 @@ export type MarketplaceTemplateRow = Row & {
 export type NewTemplateInput = {
   title: string;
   summary: string | null;
+  icon?: string;
+  categories?: string[];
   userId: string;
   authorId: string;
   projectId?: string;
