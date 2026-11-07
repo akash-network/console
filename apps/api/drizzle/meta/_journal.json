@@ -876,6 +876,13 @@
       "when": 1794080926049,
       "tag": "0124_deployment_template_version",
       "breakpoints": true
+    },
+    {
+      "idx": 125,
+      "version": "7",
+      "when": 1794082055072,
+      "tag": "0125_template_usage_events",
+      "breakpoints": true
     }
   ]
 }

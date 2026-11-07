@@ -102,6 +102,7 @@ import { findMissingGlobalExposure } from "@src/deployment/utils/sdl-manifest/sd
 import { failedUpdateActivityOf, pendingUpdateActivityOf, renamedActivityOf, updatedActivityOf } from "@src/deployment/utils/update-activity/update-activity";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { MarketplaceTemplateService } from "@src/template-marketplace/services/marketplace-template/marketplace-template.service";
+import { TemplateUsageService } from "@src/template-marketplace/services/template-usage/template-usage.service";
 import { UserRepository } from "@src/user/repositories";
 import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
 import { denomToUdenom } from "@src/utils/math";
@@ -285,7 +286,8 @@ export class DeploymentWriterService {
     private readonly userGpuBidCheckService: UserGpuBidCheckService,
     private readonly userRepository: UserRepository,
     private readonly featureFlagsService: FeatureFlagsService,
-    private readonly marketplaceTemplateService: MarketplaceTemplateService
+    private readonly marketplaceTemplateService: MarketplaceTemplateService,
+    private readonly templateUsageService: TemplateUsageService
   ) {
     this.logger = createLogger({ context: DeploymentWriterService.name });
   }
@@ -467,14 +469,15 @@ export class DeploymentWriterService {
       throw error;
     }
 
-    await this.#settleCreated(accepted, wallet);
+    await this.#settleCreated(accepted, wallet, definition);
 
     return tx;
   }
 
-  async #settleCreated(accepted: AcceptedDeploymentCreate, wallet: WalletInitialized): Promise<void> {
+  async #settleCreated(accepted: AcceptedDeploymentCreate, wallet: WalletInitialized, definition: DeploymentSettingsOutput): Promise<void> {
     await this.retireCompensation({ userId: accepted.userId, dseq: accepted.dseq });
     await this.deploymentOrganizationActivityService.recordCreated({ wallet, dseq: accepted.dseq }, accepted.userId);
+    await this.templateUsageService.recordDeployed(definition, wallet);
   }
 
   /** Answers only once the chain can, for a create nothing is still sending: a deployment at the recorded version is adopted, an absence is believed only past the last create sent, and anything between throws for a retry. */
@@ -557,7 +560,7 @@ export class DeploymentWriterService {
     this.logger.info({ event: "DEPLOYMENT_CREATE_ADOPTED", userId: accepted.userId, walletId: wallet.id, dseq: accepted.dseq });
 
     await this.signerService.followUpLandedTx(wallet, [message], filingOf(accepted, definition));
-    await this.#settleCreated(accepted, wallet);
+    await this.#settleCreated(accepted, wallet, definition);
 
     return { code: COSMOS_TX_CODE_OK, hash: "", transactionHash: "", rawLog: "" };
   }
