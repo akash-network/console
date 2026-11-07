@@ -36,6 +36,7 @@ import type { MarketplaceTemplate, TemplateVersionDetail, TemplateVersionSummary
 import { getBaseUrl, UrlService } from "@src/utils/urlUtils";
 import { TemplateConfigurationTab } from "./TemplateConfigurationTab/TemplateConfigurationTab";
 import { TemplateReadmeTab } from "./TemplateReadmeTab/TemplateReadmeTab";
+import { TemplateVersionsTab } from "./TemplateVersionsTab/TemplateVersionsTab";
 
 export const DEPENDENCIES = {
   Layout,
@@ -44,6 +45,7 @@ export const DEPENDENCIES = {
   TemplateIcon,
   TemplateReadmeTab,
   TemplateConfigurationTab,
+  TemplateVersionsTab,
   useMarketplaceTemplate,
   useTemplateVersions,
   useTemplateVersion,
@@ -259,6 +261,24 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
             {renderShownVersion(version => (
               <d.TemplateConfigurationTab version={version} />
             ))}
+          </TabsContent>
+          <TabsContent value="versions" className="mt-5">
+            {versionsQuery.data ? (
+              <d.TemplateVersionsTab
+                templateId={id}
+                versions={versionsQuery.data}
+                currentVersion={currentVersion?.version}
+                shownVersion={shownVersionNumber}
+                canEdit={template.canEdit}
+                onView={selectVersion}
+              />
+            ) : versionsQuery.isError ? (
+              <TabNotice>Couldn&apos;t load the versions.</TabNotice>
+            ) : (
+              <div role="status" aria-label="Loading versions" className="flex justify-center py-14">
+                <Spinner size="medium" />
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>

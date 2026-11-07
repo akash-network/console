@@ -214,6 +214,65 @@ describe(TemplatePage.name, () => {
     expect(useTemplateVersions).toHaveBeenCalledWith(TEMPLATE_ID, { enabled: true });
   });
 
+  it("lists the versions on the Versions tab for the page's selection", () => {
+    const { TemplateVersionsTab } = setup({ tab: "versions", template: { ...TEMPLATE, canEdit: true } });
+
+    expect(TemplateVersionsTab).toHaveBeenCalledWith(
+      {
+        templateId: TEMPLATE_ID,
+        versions: expect.arrayContaining([expect.objectContaining({ version: 3 }), expect.objectContaining({ version: 2 })]),
+        currentVersion: 3,
+        shownVersion: 3,
+        canEdit: true,
+        onView: expect.any(Function)
+      },
+      expect.anything()
+    );
+  });
+
+  it("selects a version when View is clicked on the Versions tab", async () => {
+    const { useTemplateVersion, TemplateVersionsTab } = setup({ tab: "versions", template: { ...TEMPLATE, canEdit: true } });
+
+    await userEvent.click(screen.getByRole("button", { name: "View v2" }));
+
+    expect(useTemplateVersion).toHaveBeenLastCalledWith(TEMPLATE_ID, 2);
+    expect(screen.getByRole("link", { name: "Deploy" })).toHaveAttribute(
+      "href",
+      UrlService.configureDeployment({ userTemplateId: TEMPLATE_ID, templateVersion: 2 })
+    );
+    expect(TemplateVersionsTab).toHaveBeenLastCalledWith(expect.objectContaining({ shownVersion: 2 }), expect.anything());
+  });
+
+  it("follows a new current version after View picks the current one again", async () => {
+    const { receiveFromServer } = setup({ tab: "versions", template: { ...TEMPLATE, canEdit: true } });
+    await userEvent.click(screen.getByRole("button", { name: "View v2" }));
+    await userEvent.click(screen.getByRole("button", { name: "View v3" }));
+
+    receiveFromServer({
+      template: { ...TEMPLATE, canEdit: true, currentVersion: buildTemplateVersion({ templateId: TEMPLATE_ID, version: 4 }) },
+      versions: [buildTemplateVersionSummary({ templateId: TEMPLATE_ID, version: 4 }), ...VERSIONS]
+    });
+
+    expect(screen.getByRole("link", { name: "Deploy" })).toHaveAttribute(
+      "href",
+      UrlService.configureDeployment({ userTemplateId: TEMPLATE_ID, templateVersion: 4 })
+    );
+  });
+
+  it("waits for the versions to load on the Versions tab", () => {
+    const { TemplateVersionsTab } = setup({ tab: "versions", isLoadingVersions: true });
+
+    expect(screen.getByRole("status", { name: "Loading versions" })).toBeInTheDocument();
+    expect(TemplateVersionsTab).not.toHaveBeenCalled();
+  });
+
+  it("explains versions that could not be loaded", () => {
+    setup({ tab: "versions", isFailingVersions: true });
+
+    expect(screen.getByText("Couldn't load the versions.")).toBeInTheDocument();
+    expect(screen.queryByRole("status", { name: "Loading versions" })).not.toBeInTheDocument();
+  });
+
   it("keeps the selected tab in the URL", async () => {
     const { router } = setup({});
 
@@ -385,6 +444,8 @@ describe(TemplatePage.name, () => {
     isLoading?: boolean;
     isPreviousVersionLoading?: boolean;
     isPreviousVersionFailing?: boolean;
+    isLoadingVersions?: boolean;
+    isFailingVersions?: boolean;
     isSignedIn?: boolean;
     isFavoriteFailing?: boolean;
     isFavoriteChangeHeld?: boolean;
@@ -410,7 +471,11 @@ describe(TemplatePage.name, () => {
       : input.error
         ? mock<TemplateQuery>({ data: undefined, isLoading: false, isError: true, error: input.error, refetch })
         : mock<TemplateQuery>({ data: structuredClone(input.template ?? TEMPLATE), isLoading: false, isError: false, error: null, refetch });
-    let versionsQuery = mock<VersionsQuery>({ data: structuredClone(input.versions ?? VERSIONS) });
+    let versionsQuery = input.isLoadingVersions
+      ? mock<VersionsQuery>({ data: undefined, isError: false })
+      : input.isFailingVersions
+        ? mock<VersionsQuery>({ data: undefined, isError: true })
+        : mock<VersionsQuery>({ data: structuredClone(input.versions ?? VERSIONS), isError: false });
     const idleVersionQuery = mock<VersionQuery>({ data: undefined, isLoading: false });
     const previousVersionQuery = input.isPreviousVersionLoading
       ? mock<VersionQuery>({ data: undefined, isLoading: true })
@@ -433,6 +498,15 @@ describe(TemplatePage.name, () => {
     const NotFoundPage = vi.fn<typeof DEPENDENCIES.NotFoundPage>(() => <p>Page not found.</p>);
     const TemplateReadmeTab = vi.fn<typeof DEPENDENCIES.TemplateReadmeTab>(input.TemplateReadmeTab ?? (() => null));
     const TemplateConfigurationTab = vi.fn<typeof DEPENDENCIES.TemplateConfigurationTab>(() => null);
+    const TemplateVersionsTab = vi.fn<typeof DEPENDENCIES.TemplateVersionsTab>(({ versions, onView }) => (
+      <>
+        {versions.map(({ version }) => (
+          <button key={version} onClick={() => onView(version)}>
+            View v{version}
+          </button>
+        ))}
+      </>
+    ));
     const TemplateIcon = vi.fn<typeof DEPENDENCIES.TemplateIcon>(() => null);
     const NextSeo = vi.fn<typeof DEPENDENCIES.NextSeo>(() => <></>);
 
@@ -441,6 +515,7 @@ describe(TemplatePage.name, () => {
       NotFoundPage,
       TemplateReadmeTab,
       TemplateConfigurationTab,
+      TemplateVersionsTab,
       TemplateIcon,
       NextSeo,
       useMarketplaceTemplate,
@@ -457,7 +532,7 @@ describe(TemplatePage.name, () => {
 
     const receiveFromServer = (next: { template: MarketplaceTemplate; versions?: TemplateVersionSummary[] }) => {
       templateQuery = mock<TemplateQuery>({ data: structuredClone(next.template), isLoading: false, isError: false, error: null, refetch });
-      versionsQuery = mock<VersionsQuery>({ data: structuredClone(next.versions ?? VERSIONS) });
+      versionsQuery = mock<VersionsQuery>({ data: structuredClone(next.versions ?? VERSIONS), isError: false });
       rerender(<TemplatePage id={TEMPLATE_ID} dependencies={dependencies} />);
     };
 
@@ -478,6 +553,7 @@ describe(TemplatePage.name, () => {
       NotFoundPage,
       TemplateReadmeTab,
       TemplateConfigurationTab,
+      TemplateVersionsTab,
       TemplateIcon,
       NextSeo
     };
