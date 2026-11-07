@@ -166,6 +166,20 @@ describe(summarizeTemplateHardware.name, () => {
     expect(summarizeTemplateHardware(sdl)).toBeUndefined();
   });
 
+  it("returns undefined for an SDL whose anchors expand past the largest submittable document", () => {
+    const placements = Array.from({ length: 1500 }, (_, index) => `    d${index}: {profile: web, count: 1}`).join("\n");
+    const services = Array.from({ length: 1500 }, (_, index) => `  s${index + 1}: *placements`).join("\n");
+    const bomb = `profiles:\n  compute:\n    web: {resources: {cpu: {units: 1}, memory: {size: 1Gi}, storage: {size: 1Gi}}}\ndeployment:\n  s0: &placements\n${placements}\n${services}\n`;
+
+    expect(summarizeTemplateHardware(bomb)).toBeUndefined();
+  });
+
+  it("totals an SDL that shares a small anchor", () => {
+    const shared = `x-placement: &placement {profile: web, count: 2}\nprofiles:\n  compute:\n    web: {resources: {cpu: {units: 1}, memory: {size: 1Gi}, storage: {size: 1Gi}}}\ndeployment:\n  web:\n    akash: *placement\n`;
+
+    expect(summarizeTemplateHardware(shared)).toEqual({ cpu: 2, memoryBytes: 2 * GiB, storageBytes: 2 * GiB });
+  });
+
   function sdl(input: { compute: Record<string, unknown>; deployment: Record<string, unknown> }) {
     return dump({ version: "2.0", profiles: { compute: input.compute }, deployment: input.deployment });
   }
