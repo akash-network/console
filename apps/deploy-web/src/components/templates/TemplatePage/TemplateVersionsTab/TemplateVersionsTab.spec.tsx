@@ -115,7 +115,7 @@ describe(TemplateVersionsTab.name, () => {
   it("says when a version changed nothing", () => {
     setup({ versions: [buildTemplateVersionSummary({ version: 2, changes: [] })], currentVersion: 2, canEdit: false });
 
-    expect(screen.getByText("No changes")).toBeInTheDocument();
+    expect(screen.getByText("No changes recorded")).toBeInTheDocument();
   });
 
   it("labels versions held for review or that failed checks, and marks only the current one", () => {
@@ -221,21 +221,78 @@ describe(TemplateVersionsTab.name, () => {
     const same = buildTemplateVersion({ version: 2, sdl: VERSION_DETAILS[1].sdl });
     setup({ versions: [V2, V1], currentVersion: 2, shownVersion: 2, canEdit: true, details: { 1: VERSION_DETAILS[1], 2: same } });
 
-    expect(screen.getByText("No image or env changes.")).toBeInTheDocument();
+    expect(screen.getByText("No image or env changes")).toBeInTheDocument();
   });
 
   it("waits while the versions load", () => {
-    setup({ versions: [V3, V2, V1], currentVersion: 3, shownVersion: 3, canEdit: true, isLoadingDetails: true });
+    setup({ versions: [V3, V2, V1], currentVersion: 3, shownVersion: 3, canEdit: true, states: { 3: "loading", 2: "loading" } });
 
     expect(screen.getByRole("status", { name: "Loading v3" })).toBeInTheDocument();
     expect(screen.queryByText("Couldn't load what changed.")).not.toBeInTheDocument();
   });
 
+  it("waits for the previous version while the shown one is loaded", () => {
+    setup({ versions: [V3, V2, V1], currentVersion: 3, shownVersion: 3, canEdit: true, states: { 2: "loading" } });
+
+    expect(screen.getByRole("status", { name: "Loading v3" })).toBeInTheDocument();
+    expect(screen.queryByText("Couldn't load what changed.")).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "web image" })).not.toBeInTheDocument();
+  });
+
   it("says when the versions could not be loaded", () => {
-    setup({ versions: [V3, V2, V1], currentVersion: 3, shownVersion: 3, canEdit: true, isFailingDetails: true });
+    setup({ versions: [V3, V2, V1], currentVersion: 3, shownVersion: 3, canEdit: true, states: { 3: "failed", 2: "failed" } });
 
     expect(screen.getByText("Couldn't load what changed.")).toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("says when the previous version failed while the shown one is loaded", () => {
+    setup({ versions: [V3, V2, V1], currentVersion: 3, shownVersion: 3, canEdit: true, states: { 2: "failed" } });
+
+    expect(screen.getByText("Couldn't load what changed.")).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("says when the shown version failed while the previous one is loading", () => {
+    setup({ versions: [V3, V2, V1], currentVersion: 3, shownVersion: 3, canEdit: true, states: { 3: "failed", 2: "loading" } });
+
+    expect(screen.getByText("Couldn't load what changed.")).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("caps the lines of a block and counts the rest", () => {
+    const lines = (from: number, to: number) => Array.from({ length: to - from }, (_, index) => `K${from + index}=v`);
+    const many = buildTemplateVersion({ version: 1, sdl: sdlOf("nginx:1.27", lines(0, 53)) });
+    setup({ versions: [V1], currentVersion: 1, shownVersion: 1, canEdit: true, details: { 1: many } });
+
+    const env = screen.getByRole("region", { name: "web env" });
+    const items = within(env).getAllByRole("listitem");
+    expect(items).toHaveLength(51);
+    expect(items[0]).toHaveTextContent("+K0=v");
+    expect(items[49]).toHaveTextContent("+K49=v");
+    expect(items[50]).toHaveTextContent("+3 more");
+  });
+
+  it("does not cap a block that fits", () => {
+    const lines = Array.from({ length: 50 }, (_, index) => `K${index}=v`);
+    const exact = buildTemplateVersion({ version: 1, sdl: sdlOf("nginx:1.27", lines) });
+    setup({ versions: [V1], currentVersion: 1, shownVersion: 1, canEdit: true, details: { 1: exact } });
+
+    const env = screen.getByRole("region", { name: "web env" });
+    expect(within(env).getAllByRole("listitem")).toHaveLength(50);
+    expect(screen.queryByText(/more$/)).not.toBeInTheDocument();
+  });
+
+  it("lists a repeated env line once", () => {
+    const repeated = buildTemplateVersion({ version: 1, sdl: sdlOf("nginx:1.27", ["A=1", "A=1"]) });
+    setup({ versions: [V1], currentVersion: 1, shownVersion: 1, canEdit: true, details: { 1: repeated } });
+
+    const env = screen.getByRole("region", { name: "web env" });
+    expect(
+      within(env)
+        .getAllByRole("listitem")
+        .map(line => line.textContent)
+    ).toEqual(["+A=1"]);
   });
 
   it("shows no panel for an editor when no version is shown", () => {
@@ -250,7 +307,7 @@ describe(TemplateVersionsTab.name, () => {
     const cells = within(screen.getAllByRole("row")[1]).getAllByRole("cell");
     expect(cells[2]).toHaveTextContent("–");
     expect(cells[4]).toHaveTextContent("–");
-    expect(screen.queryByText("No changes")).not.toBeInTheDocument();
+    expect(screen.queryByText("No changes recorded")).not.toBeInTheDocument();
   });
 
   function setup(input: {
@@ -259,8 +316,7 @@ describe(TemplateVersionsTab.name, () => {
     shownVersion?: number;
     canEdit: boolean;
     details?: Record<number, TemplateVersionDetail>;
-    isLoadingDetails?: boolean;
-    isFailingDetails?: boolean;
+    states?: Partial<Record<number, "loading" | "failed">>;
   }) {
     const onView = vi.fn();
     const details = structuredClone(input.details ?? VERSION_DETAILS);
@@ -272,8 +328,9 @@ describe(TemplateVersionsTab.name, () => {
     const idleQuery = mock<VersionQuery>({ data: undefined, isLoading: false });
     const useTemplateVersion = vi.fn<typeof DEPENDENCIES.useTemplateVersion>((_id, version) => {
       if (version === undefined) return idleQuery;
-      if (input.isLoadingDetails) return loadingQuery;
-      if (input.isFailingDetails) return failedQuery;
+      const state = input.states?.[version];
+      if (state === "loading") return loadingQuery;
+      if (state === "failed") return failedQuery;
       return queries.get(version) ?? failedQuery;
     });
     const dependencies = MockComponents(DEPENDENCIES, { useTemplateVersion });

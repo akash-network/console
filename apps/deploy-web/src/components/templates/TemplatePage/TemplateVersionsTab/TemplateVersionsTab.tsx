@@ -1,5 +1,6 @@
 "use client";
 import type { FC, ReactNode } from "react";
+import { useMemo } from "react";
 import { Button, Spinner, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { format } from "date-fns";
@@ -35,6 +36,8 @@ const STATUS_LABELS: Record<TemplateVersionSummary["status"], string> = {
   held: "Held for staff review",
   failed_checks: "Failed checks"
 };
+
+const MAX_LINES_PER_BLOCK = 50;
 
 const EMPTY_CELL = "–";
 
@@ -131,7 +134,7 @@ const VersionRow: FC<{ version: TemplateVersionSummary; isCurrent: boolean; isSh
 
 const ChangeChips: FC<{ changes: TemplateVersionSummary["changes"] }> = ({ changes }) => {
   if (changes === null) return <span className="text-muted-foreground">{EMPTY_CELL}</span>;
-  if (changes.length === 0) return <span className="text-[13px] text-muted-foreground">No changes</span>;
+  if (changes.length === 0) return <span className="text-[13px] text-muted-foreground">No changes recorded</span>;
 
   return (
     <ul className="flex flex-wrap gap-1.5">
@@ -148,24 +151,27 @@ const WhatChangedPanel: FC<{ templateId: string; version: number; dependencies: 
   const previousNumber = version > 1 ? version - 1 : undefined;
   const nextQuery = d.useTemplateVersion(templateId, version);
   const previousQuery = d.useTemplateVersion(templateId, previousNumber);
-  const next = nextQuery.data;
-  const previous = previousQuery.data;
-  const isLoading = nextQuery.isLoading || previousQuery.isLoading;
-  const diff = next && (previousNumber === undefined || previous) ? describeVersionDiff(previous?.sdl, next.sdl) : undefined;
+  const nextSdl = nextQuery.data?.sdl;
+  const previousSdl = previousQuery.data?.sdl;
+  const hasFailed = (nextSdl === undefined && !nextQuery.isLoading) || (previousNumber !== undefined && previousSdl === undefined && !previousQuery.isLoading);
+  const diff = useMemo(
+    () => (nextSdl !== undefined && (previousNumber === undefined || previousSdl !== undefined) ? describeVersionDiff(previousSdl, nextSdl) : undefined),
+    [nextSdl, previousSdl, previousNumber]
+  );
 
   return (
     <aside aria-label={`What changed in v${version}`} className="rounded-xl border border-border bg-card p-4">
       <h3 className="text-sm font-semibold">What changed in v{version}</h3>
       <p className="mt-0.5 font-mono text-xs text-muted-foreground">{previousNumber === undefined ? `v${version}` : `v${previousNumber} → v${version}`}</p>
       <div className="mt-3">
-        {isLoading ? (
+        {hasFailed ? (
+          <PanelNotice>Couldn&apos;t load what changed.</PanelNotice>
+        ) : !diff ? (
           <div role="status" aria-label={`Loading v${version}`} className="flex justify-center py-6">
             <Spinner size="small" />
           </div>
-        ) : !diff ? (
-          <PanelNotice>Couldn&apos;t load what changed.</PanelNotice>
         ) : diff.length === 0 ? (
-          <PanelNotice>No image or env changes.</PanelNotice>
+          <PanelNotice>No image or env changes</PanelNotice>
         ) : (
           <div className="flex flex-col gap-3">
             {diff.map(entry => (
@@ -178,21 +184,24 @@ const WhatChangedPanel: FC<{ templateId: string; version: number; dependencies: 
   );
 };
 
-const DiffBlock: FC<{ entry: VersionDiffEntry }> = ({ entry }) => (
-  <section aria-label={`${entry.service} ${entry.field}`}>
-    <h4 className="font-mono text-xs text-muted-foreground">
-      {entry.service} · {entry.field}
-    </h4>
-    <ul className="mt-1 overflow-hidden rounded-md border border-border font-mono text-xs">
-      {entry.removed.map(line => (
-        <DiffLine key={`-${line}`} sign="-" line={line} />
-      ))}
-      {entry.added.map(line => (
-        <DiffLine key={`+${line}`} sign="+" line={line} />
-      ))}
-    </ul>
-  </section>
-);
+const DiffBlock: FC<{ entry: VersionDiffEntry }> = ({ entry }) => {
+  const lines = [...entry.removed.map(line => ({ sign: "-" as const, line })), ...entry.added.map(line => ({ sign: "+" as const, line }))];
+  const hiddenCount = lines.length - MAX_LINES_PER_BLOCK;
+
+  return (
+    <section aria-label={`${entry.service} ${entry.field}`}>
+      <h4 className="font-mono text-xs text-muted-foreground">
+        {entry.service} · {entry.field}
+      </h4>
+      <ul className="mt-1 overflow-hidden rounded-md border border-border font-mono text-xs">
+        {lines.slice(0, MAX_LINES_PER_BLOCK).map(({ sign, line }) => (
+          <DiffLine key={`${sign}${line}`} sign={sign} line={line} />
+        ))}
+        {hiddenCount > 0 && <li className="px-2 py-1 text-muted-foreground">+{hiddenCount} more</li>}
+      </ul>
+    </section>
+  );
+};
 
 const DiffLine: FC<{ sign: "-" | "+"; line: string }> = ({ sign, line }) => (
   <li className={cn("flex gap-2 break-all px-2 py-1", sign === "-" ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-foreground")}>

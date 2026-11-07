@@ -58,9 +58,63 @@ describe(describeVersionDiff.name, () => {
     ]);
   });
 
-  it("does not execute YAML tags", () => {
-    const hostile = 'services:\n  web:\n    image: !!js/function "function(){ throw new Error(1) }"\n';
+  it("refuses the function tag that only an unsafe load would resolve", () => {
+    const hostile = 'services:\n  web:\n    image: nginx:1.27\n  evil:\n    image: !!js/function "function(){ return 1 }"\n';
 
     expect(describeVersionDiff(undefined, hostile)).toEqual([]);
+  });
+
+  it("returns nothing when services is not a mapping", () => {
+    expect(describeVersionDiff(undefined, "services: nginx")).toEqual([]);
+    expect(describeVersionDiff(undefined, "services:\n  - web")).toEqual([]);
+    expect(describeVersionDiff(undefined, "services:")).toEqual([]);
+  });
+
+  it("treats a service that is a scalar or null as having no lines", () => {
+    const previous = sdlOf({ web: { image: "nginx:1.26" } });
+
+    expect(describeVersionDiff(undefined, "services:\n  web: nginx\n  db:\n")).toEqual([]);
+    expect(describeVersionDiff(previous, "services:\n  web:\n")).toEqual([{ service: "web", field: "image", removed: ["nginx:1.26"], added: [] }]);
+  });
+
+  it("ignores an env that is a map or a string and an image that is not text", () => {
+    expect(describeVersionDiff(undefined, "services:\n  web:\n    image: [a, b]\n    env:\n      MODE: prod\n")).toEqual([]);
+    expect(describeVersionDiff(undefined, "services:\n  web:\n    image: 12\n    env: MODE=prod\n")).toEqual([]);
+  });
+
+  it("keeps only the env entries that are text", () => {
+    const sdl = "services:\n  web:\n    image: nginx:1.27\n    env:\n      - MODE=prod\n      - 1\n      - null\n      - [A=1]\n      - {B: 2}\n";
+
+    expect(describeVersionDiff(undefined, sdl)).toEqual([
+      { service: "web", field: "image", removed: [], added: ["nginx:1.27"] },
+      { service: "web", field: "env", removed: [], added: ["MODE=prod"] }
+    ]);
+  });
+
+  it("lists a repeated env line once", () => {
+    const next = sdlOf({ web: { image: "nginx:1.27", env: ["A=1", "A=1", "B=2"] } });
+
+    expect(describeVersionDiff(undefined, next)).toContainEqual({ service: "web", field: "env", removed: [], added: ["A=1", "B=2"] });
+  });
+
+  it("answers at once for an alias chain that expands exponentially", () => {
+    const levels = Array.from({ length: 40 }, (_, level) => (level === 0 ? "l0: &l0 [a, a]" : `l${level}: &l${level} [*l${level - 1}, *l${level - 1}]`));
+    const hostile = `${levels.join("\n")}\nservices:\n  web:\n    image: nginx:1.27\n    env: *l39\n`;
+
+    expect(describeVersionDiff(undefined, hostile)).toEqual([{ service: "web", field: "image", removed: [], added: ["nginx:1.27"] }]);
+  });
+
+  it("compares large env lists by content", () => {
+    const lines = (from: number, to: number) => Array.from({ length: to - from }, (_, index) => `K${from + index}=v`);
+    const previous = sdlOf({ web: { image: "nginx:1.27", env: lines(0, 60000) } });
+    const next = sdlOf({ web: { image: "nginx:1.27", env: lines(30000, 90000) } });
+
+    const [entry] = describeVersionDiff(previous, next);
+
+    expect(entry.field).toBe("env");
+    expect(entry.removed).toHaveLength(30000);
+    expect(entry.added).toHaveLength(30000);
+    expect(entry.removed[0]).toBe("K0=v");
+    expect(entry.added[29999]).toBe("K89999=v");
   });
 });
