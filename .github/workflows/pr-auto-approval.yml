@@ -91,6 +91,11 @@ jobs:
               return;
             }
 
+            if (filenames.some(f => f.startsWith(".github/"))) {
+              core.info("Skipping: PR changes GitHub workflows or repository configuration");
+              return;
+            }
+
             if (isTest) {
               const testFilePattern = /(\.(spec|integration)\.(ts|tsx)$|\/tests?\/)|(jest|vitest)\.config\.[tj]s$/;
               const onlyTestFiles = filenames.every(f => testFilePattern.test(f));
