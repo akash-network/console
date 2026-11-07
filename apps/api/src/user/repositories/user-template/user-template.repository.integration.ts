@@ -557,6 +557,19 @@ describe(UserTemplateRepository.name, () => {
       });
     });
 
+    it("returns the readme and asked values of the current version", async () => {
+      const { userTemplateRepository } = setup();
+      const user = await createTestUser();
+      const template = await createTestTemplate({ userId: user.userId! });
+      const askedValues = [{ key: "API_KEY", label: "API key", type: "secret" as const, required: true, bindings: [{ service: "web", env: "API_KEY" }] }];
+      await container.resolve(TemplateVersionRepository).appendVersion({ templateId: template.id, sdl: "version: '2.1'", readme: "# Readme", askedValues });
+
+      expect(await userTemplateRepository.findVersionState(template.id, user.userId!)).toMatchObject({
+        currentVersionReadme: "# Readme",
+        currentVersionAskedValues: askedValues
+      });
+    });
+
     it("reads the current version a concurrent save committed while it waited for the lock", async () => {
       const { userTemplateRepository } = setup();
       const txService = container.resolve(TxService);

@@ -7,6 +7,7 @@ import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repositor
 import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { writtenForTeamBy } from "@src/organization/lib/team-records/team-records";
+import type { AskedValue } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
 import { TemplateVersions } from "@src/template-marketplace/model-schemas/template-version/template-version.schema";
 import type { TemplateVisibility } from "@src/user/model-schemas/template/template.schema";
 import { Users } from "@src/user/model-schemas/user/user.schema";
@@ -51,6 +52,8 @@ export interface TemplateVersionState {
   visibility: TemplateVisibility;
   currentVersionId: string | null;
   currentVersionSdl: string | null;
+  currentVersionReadme?: string | null;
+  currentVersionAskedValues?: AskedValue[];
 }
 
 interface TemplateFiling {
@@ -175,7 +178,11 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
 
     if (!state) return undefined;
 
-    return { ...state, currentVersionSdl: state.currentVersionId ? await this.#findVersionSdl(state.currentVersionId) : null };
+    const content = state.currentVersionId ? await this.#findVersionContent(state.currentVersionId) : undefined;
+
+    if (!content) return { ...state, currentVersionSdl: null };
+
+    return { ...state, currentVersionSdl: content.sdl, currentVersionReadme: content.readme, currentVersionAskedValues: content.askedValues };
   }
 
   async createTemplate(userId: string, data: TemplateInput, { projectId, copiedFromId, authorId }: TemplateFiling = {}): Promise<string> {
@@ -220,10 +227,13 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
     return this.#toFullOutput(payload as TemplateRow, "");
   }
 
-  async #findVersionSdl(versionId: string): Promise<string | null> {
-    const [version] = await this.cursor.select({ sdl: TemplateVersions.sdl }).from(TemplateVersions).where(eq(TemplateVersions.id, versionId));
+  async #findVersionContent(versionId: string) {
+    const [version] = await this.cursor
+      .select({ sdl: TemplateVersions.sdl, readme: TemplateVersions.readme, askedValues: TemplateVersions.askedValues })
+      .from(TemplateVersions)
+      .where(eq(TemplateVersions.id, versionId));
 
-    return version?.sdl ?? null;
+    return version;
   }
 
   async #findOne(where: SQL | undefined): Promise<TemplateOutput | undefined> {

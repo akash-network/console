@@ -5,6 +5,7 @@ import { AuthService } from "@src/auth/services/auth.service";
 import { TxService } from "@src/core/services";
 import { DeploymentProjectService } from "@src/deployment/services/deployment-project/deployment-project.service";
 import { summarizeTemplateHardware } from "@src/template/utils/template-hardware/template-hardware";
+import { contentCarriedByLegacySave } from "@src/template-marketplace/lib/legacy-save/content-carried-by-legacy-save";
 import { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
 import {
   TemplateInput,
@@ -123,11 +124,15 @@ export class UserTemplatesService {
     await this.#txService.transaction(async () => {
       const stored = await this.#userTemplateRepository.findVersionState(id, userId);
       assert(stored, 404, "Template not found");
+      const isNewVersion = !stored.currentVersionId || stored.currentVersionSdl !== template.sdl;
+      const carried = isNewVersion
+        ? contentCarriedByLegacySave(template.sdl, { readme: stored.currentVersionReadme, askedValues: stored.currentVersionAskedValues })
+        : {};
 
       await repository.updateTemplate(id, userId, visibilityPatch(template, stored));
 
-      if (!stored.currentVersionId || stored.currentVersionSdl !== template.sdl) {
-        await this.#templateVersionRepository.appendVersion({ templateId: id, sdl: template.sdl, resources, createdById });
+      if (isNewVersion) {
+        await this.#templateVersionRepository.appendVersion({ templateId: id, sdl: template.sdl, resources, createdById, ...carried });
       }
     });
   }
