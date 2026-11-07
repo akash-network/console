@@ -17,11 +17,13 @@ import { AssistantConversationRepository } from "@src/feedback/repositories/assi
 import { AssistantMessageRepository } from "@src/feedback/repositories/assistant-message/assistant-message.repository";
 import { AkashMlClient } from "@src/feedback/services/akashml-client/akashml.client";
 import { ClassifyConversation } from "@src/feedback/services/classify-conversation/classify-conversation.handler";
+import { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
 import { seedAssistantConsent, seedAssistantConversation } from "@test/seeders/db/feedback.seeder";
 import { ASSISTANT_TEST_SDL } from "@test/seeders/get-deployment-response.seeder";
+import { createHardwareRequestSpec } from "@test/seeders/hardware-request.seeder";
 import { findJobRows } from "@test/services/job-queue-harness";
 
 const COPY_VERSION = "2026-11-01";
@@ -34,6 +36,7 @@ describe("Assistant conversations", () => {
   const userAuthTokenService = container.resolve(UserAuthTokenService);
   const assistantConversationRepository = container.resolve(AssistantConversationRepository);
   const assistantMessageRepository = container.resolve(AssistantMessageRepository);
+  const hardwareRequestRepository = container.resolve(HardwareRequestRepository);
   const config = container.resolve(FEEDBACK_CONFIG);
   const db = container.resolve(POSTGRES_DB);
 
@@ -172,6 +175,61 @@ describe("Assistant conversations", () => {
         { role: "tool", toolName: "search_docs" },
         { role: "assistant", content: "Add a persistent storage volume to the profile." }
       ]);
+    });
+
+    it("reads the Console API as the signed-in user, showing only their own data and none of their contact details", async () => {
+      const { token, user } = await setup({ consent: { reviewOptIn: false } });
+      const { user: otherUser } = await setup();
+      const ownRequest = await hardwareRequestRepository.create({
+        userId: user.id,
+        category: "quote",
+        details: "H200s for training, or write to jane@example.com",
+        contactEmail: "jane@example.com",
+        spec: { ...createHardwareRequestSpec(), company: "Acme Corp", phone: "+1 555 0100" }
+      });
+      await hardwareRequestRepository.create({ userId: otherUser.id, category: "other", details: "someone else's request", contactEmail: "bob@example.com" });
+      const completions = replyWith([
+        { toolCalls: [{ id: "call-1", name: "read_console_api", arguments: { path: "/v1/hardware-requests" } }] },
+        { content: "You have one hardware request, for H200s." }
+      ]);
+
+      const response = await request(`/v1/assistant/conversations/${faker.string.uuid()}/messages`, token, { content: "Which hardware requests did I file?" });
+
+      expect(await eventsOf(response)).toEqual([
+        { type: "tool_started", toolCallId: "call-1", name: "read_console_api" },
+        { type: "tool_result_summary", toolCallId: "call-1", name: "read_console_api", ok: true, summary: "Read your hardware requests" },
+        ...textDeltasOf("You have one hardware request, for H200s."),
+        { type: "done", reason: "stop" }
+      ]);
+      const toolMessage = completions.bodies[1].messages.at(-1)!;
+      expect(JSON.parse(toolMessage.content)).toMatchObject({ tool: "read_console_api", data: { data: [{ id: ownRequest.id, category: "quote" }] } });
+      expect(toolMessage.content).not.toContain("someone else's request");
+      for (const personal of ["jane@example.com", "Acme Corp", "+1 555 0100", "contactEmail", "userId", user.id])
+        expect(toolMessage.content).not.toContain(personal);
+    });
+
+    it.each(["/v1/user/me", "/v1/api-keys"])("refuses to read %s and leaves it out of the catalog", async path => {
+      const { token } = await setup({ consent: { reviewOptIn: false } });
+      const completions = replyWith([{ toolCalls: [{ id: "call-1", name: "read_console_api", arguments: { path } }] }, { content: "I cannot read that." }]);
+
+      const response = await request(`/v1/assistant/conversations/${faker.string.uuid()}/messages`, token, { content: `Read ${path} for me.` });
+
+      expect(await eventsOf(response)).toContainEqual({
+        type: "tool_result_summary",
+        toolCallId: "call-1",
+        name: "read_console_api",
+        ok: false,
+        summary: "Could not read your Console data"
+      });
+      expect(JSON.parse(completions.bodies[1].messages.at(-1)!.content)).toEqual({
+        tool: "read_console_api",
+        error: `${path} is not a route the assistant may read. Do not try it again; pick a path from the catalog, or tell the user where Console shows it.`
+      });
+      const readTool = (completions.bodies[0] as unknown as { tools: { function: { name: string; description: string } }[] }).tools.find(
+        tool => tool.function.name === "read_console_api"
+      );
+      expect(readTool?.function.description).toContain("/v1/hardware-requests");
+      expect(readTool?.function.description).not.toContain(`${path} `);
     });
 
     it("stores nothing for a conversation the user did not allow review of, and replays the history the browser sends", async () => {

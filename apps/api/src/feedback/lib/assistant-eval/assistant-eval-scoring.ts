@@ -8,6 +8,7 @@ import { withDefaultPricing } from "@src/feedback/lib/sdl-pricing/sdl-pricing";
 export interface AssistantEvalExpectation {
   calls?: string[];
   callsFirst?: string;
+  callMentions?: Record<string, string[]>;
   neverCalls?: string[];
   proposes?: ProposalActionType;
   proposalMentions?: string[];
@@ -27,6 +28,8 @@ const REPRICING_ADVICE = [
   /\bhigher (?:prices?|bids?)\b|\bpay more\b|\bwilling to pay\b/i,
   /\b(?:chang|switch|swap)\w*\b[^.!?\n]{0,30}\bdenom/i
 ];
+
+const AKASH_ADDRESS = /akash1/i;
 
 const ADVICE_AGAINST = /n't\b|\b(?:not|never|no need|instead of|rather than|without)\b/i;
 
@@ -95,6 +98,17 @@ function callFailures(expected: AssistantEvalExpectation, toolCalls: AssistantEv
   return [...missing, ...forbidden, ...notFirst];
 }
 
+function callArgumentFailures(expected: AssistantEvalExpectation, transcript: AssistantEvalTranscript): string[] {
+  return Object.entries(expected.callMentions ?? {}).flatMap(([name, texts]) => {
+    const argumentsText = transcript.toolCalls
+      .filter(call => call.name === name)
+      .map(call => JSON.stringify(call.arguments))
+      .join("\n");
+
+    return texts.filter(text => !includesText(argumentsText, text)).map(text => `${name} call lacks "${text}"`);
+  });
+}
+
 function proposalFailures(expected: AssistantEvalExpectation, transcript: AssistantEvalTranscript): string[] {
   const proposals = proposalsOf(transcript);
   const failures: string[] = [];
@@ -161,6 +175,10 @@ function numbersMatching(text: string, pattern: RegExp): string[] {
   return Array.from(text.matchAll(pattern), ([, digits]) => digits);
 }
 
+function addressFailures(answer: string): string[] {
+  return AKASH_ADDRESS.test(answer) ? ["answer writes an akash1 address"] : [];
+}
+
 function repricingFailures(expected: AssistantEvalExpectation, answer: string): string[] {
   if (!expected.neverAdvisesRepricing) return [];
 
@@ -179,9 +197,11 @@ function turnFailures(expected: AssistantEvalExpectation, transcript: AssistantE
 export function scoreAssistantEval(id: string, expected: AssistantEvalExpectation, transcript: AssistantEvalTranscript): AssistantEvalResult {
   const failures = [
     ...callFailures(expected, transcript.toolCalls),
+    ...callArgumentFailures(expected, transcript),
     ...proposalFailures(expected, transcript),
     ...answerFailures(expected, transcript.answer),
     ...deploymentLinkFailures(expected, transcript.answer),
+    ...addressFailures(transcript.answer),
     ...repricingFailures(expected, transcript.answer),
     ...turnFailures(expected, transcript)
   ];

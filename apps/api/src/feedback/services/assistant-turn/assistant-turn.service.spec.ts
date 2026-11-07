@@ -81,7 +81,7 @@ describe(AssistantTurnService.name, () => {
       {
         model: "assistant-model",
         messages: [{ role: "user", content: "hi" }],
-        tools: assistantChatToolsFor({ configureFormOpen: false }),
+        tools: assistantChatToolsFor({ configureFormOpen: false, consoleApiCatalog: "Projects: /v1/projects" }),
         tool_choice: "auto",
         max_completion_tokens: MAX_COMPLETION_TOKENS,
         reasoning_effort: "medium"
@@ -95,12 +95,13 @@ describe(AssistantTurnService.name, () => {
   });
 
   it("offers the configure form tools only while the browser has the form open", async () => {
-    const { akashMlClient, run } = setup();
+    const { akashMlClient, toolRunner, run } = setup();
     akashMlClient.streamChatCompletion.mockImplementation(streamed({ content: "Done." }));
 
     await run({ configureFormOpen: true });
     await run({ configureFormOpen: false });
 
+    expect(toolRunner.chatTools.mock.calls).toEqual([[{ configureFormOpen: true }], [{ configureFormOpen: false }]]);
     const offered = akashMlClient.streamChatCompletion.mock.calls.map(([request]) => request.tools?.map(tool => tool.function.name));
     expect(offered[0]).toEqual(expect.arrayContaining(["read_configure_form", "propose_edit_configure_form"]));
     expect(offered[1]).not.toContain("read_configure_form");
@@ -745,6 +746,9 @@ describe(AssistantTurnService.name, () => {
     const akashMlClient = mock<AkashMlClient>();
     const akashMlHttpClient = mock<HttpClient>();
     const toolRunner = mock<AssistantToolRunnerService>();
+    toolRunner.chatTools.mockImplementation(async ({ configureFormOpen }) =>
+      assistantChatToolsFor({ configureFormOpen, consoleApiCatalog: "Projects: /v1/projects" })
+    );
     const limitsService = mock<AssistantLimitsService>();
     const transcriptService = mock<AssistantTranscriptService>();
     const pendingTurnRepository = mock<AssistantPendingTurnRepository>();

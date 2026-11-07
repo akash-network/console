@@ -9,6 +9,7 @@ import type { DeploymentResponse, GetDeploymentResponse } from "@src/deployment/
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import type { ReadToolArguments } from "@src/feedback/lib/assistant-tools/assistant-tool-arguments";
 import { type SdlServiceSummary, summarizeSdl } from "@src/feedback/lib/sdl-summary/sdl-summary";
+import { AssistantAddressNamesService } from "@src/feedback/services/assistant-address-names/assistant-address-names.service";
 import { AssistantUsdService } from "@src/feedback/services/assistant-usd/assistant-usd.service";
 
 const LISTED_DEPLOYMENTS_LIMIT = 20;
@@ -17,11 +18,12 @@ const RECENT_ACTIVITY_LIMIT = 10;
 type Lease = Omit<DeploymentResponse["leases"][number], "status">;
 type LeaseStatus = GetDeploymentResponse["data"]["leases"][number]["status"];
 
-function leaseOf(lease: Lease, usdPerMonth: number | null) {
+function leaseOf(lease: Lease, usdPerMonth: number | null, providerNames: Map<string, string>) {
   return {
     gseq: lease.id.gseq,
     oseq: lease.id.oseq,
-    provider: lease.id.provider,
+    providerName: providerNames.get(lease.id.provider) ?? null,
+    providerAddress: lease.id.provider,
     state: lease.state,
     usdPerMonth,
     closedReason: lease.reason ?? null,
@@ -29,9 +31,9 @@ function leaseOf(lease: Lease, usdPerMonth: number | null) {
   };
 }
 
-function leaseWithStatusOf(lease: Lease & { status?: LeaseStatus }, usdPerMonth: number | null) {
+function leaseWithStatusOf(lease: Lease & { status?: LeaseStatus }, usdPerMonth: number | null, providerNames: Map<string, string>) {
   return {
-    ...leaseOf(lease, usdPerMonth),
+    ...leaseOf(lease, usdPerMonth, providerNames),
     services: lease.status
       ? Object.values(lease.status.services ?? {}).map(({ name, available, total, ready_replicas, uris }) => ({
           name,
@@ -57,11 +59,13 @@ export class AssistantDeploymentToolsService {
     private readonly deploymentSettingController: DeploymentSettingController,
     private readonly activityController: ActivityController,
     private readonly sdlService: SdlService,
-    private readonly usdService: AssistantUsdService
+    private readonly usdService: AssistantUsdService,
+    private readonly addressNamesService: AssistantAddressNamesService
   ) {}
 
   async listDeployments({ state, search }: ReadToolArguments<"list_deployments">) {
     const { data } = await this.deploymentController.list({ state: state ?? "active", reverse: true, skip: 0, limit: LISTED_DEPLOYMENTS_LIMIT, search });
+    const providerNames = await this.#providerNamesOf(data.deployments.flatMap(({ leases }) => leases));
 
     return {
       total: data.pagination.total,
@@ -75,7 +79,7 @@ export class AssistantDeploymentToolsService {
             name: deployment.name,
             state: deployment.deployment.state,
             runtimeEndsAt: deployment.settings?.runtimeEndsAt ?? null,
-            leases: deployment.leases.map((lease, index) => leaseOf(lease, usdPerMonth[index]))
+            leases: deployment.leases.map((lease, index) => leaseOf(lease, usdPerMonth[index], providerNames))
           };
         })
       )
@@ -84,7 +88,11 @@ export class AssistantDeploymentToolsService {
 
   async getDeployment({ dseq }: ReadToolArguments<"get_deployment">) {
     const { data } = await this.deploymentController.findByDseq(dseq);
-    const [usdPerMonth, escrowBalanceUsd] = await Promise.all([this.#usdPerMonthOfLeases(data.leases), this.usdService.usdOf(data.escrow_account.state.funds)]);
+    const [usdPerMonth, escrowBalanceUsd, providerNames] = await Promise.all([
+      this.#usdPerMonthOfLeases(data.leases),
+      this.usdService.usdOf(data.escrow_account.state.funds),
+      this.#providerNamesOf(data.leases)
+    ]);
 
     return {
       dseq: data.deployment.id.dseq,
@@ -92,7 +100,7 @@ export class AssistantDeploymentToolsService {
       state: data.deployment.state,
       templateId: data.consoleSettings?.templateId ?? null,
       escrowBalanceUsd,
-      leases: data.leases.map((lease, index) => leaseWithStatusOf(lease, usdPerMonth[index])),
+      leases: data.leases.map((lease, index) => leaseWithStatusOf(lease, usdPerMonth[index], providerNames)),
       services: this.servicesOf(data.consoleSettings?.sdl)
     };
   }
@@ -103,13 +111,13 @@ export class AssistantDeploymentToolsService {
       this.#findSetting(dseq),
       this.activityController.list({ limit: MAX_ACTIVITY_PAGE_LIMIT })
     ]);
-    const usdPerMonth = await this.#usdPerMonthOfLeases(data.leases);
+    const [usdPerMonth, providerNames] = await Promise.all([this.#usdPerMonthOfLeases(data.leases), this.#providerNamesOf(data.leases)]);
 
     return {
       dseq,
       name: data.name,
       state: data.deployment.state,
-      leases: data.leases.map((lease, index) => ({ ...leaseOf(lease, usdPerMonth[index]), closedOn: lease.closed_on })),
+      leases: data.leases.map((lease, index) => ({ ...leaseOf(lease, usdPerMonth[index], providerNames), closedOn: lease.closed_on })),
       consoleCloseReason: setting?.consoleCloseReason ?? null,
       runtimeLimitHours: setting?.runtimeLimitHours ?? null,
       runtimeEndsAt: setting?.runtimeEndsAt ?? null,
@@ -137,6 +145,10 @@ export class AssistantDeploymentToolsService {
 
   async #usdPerMonthOfLeases(leases: Lease[]): Promise<(number | null)[]> {
     return await Promise.all(leases.map(({ price }) => this.usdService.usdPerMonthOf([price])));
+  }
+
+  async #providerNamesOf(leases: Lease[]): Promise<Map<string, string>> {
+    return await this.addressNamesService.providerNamesOf(leases.map(({ id }) => id.provider));
   }
 
   async #findSetting(dseq: string) {

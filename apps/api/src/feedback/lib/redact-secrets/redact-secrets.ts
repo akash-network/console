@@ -22,6 +22,14 @@ export function redactSecrets(text: string): string {
   return SECRET_REPLACEMENTS.reduce((redacted, [pattern, replacement]) => redacted.replace(pattern, replacement), text);
 }
 
+/** Bounded like an address can be, so a long run of word characters without an @ cannot backtrack quadratically. */
+const EMAIL_ADDRESS = /\b[\w.%+-]{1,64}@(?:[A-Za-z0-9-]{1,63}\.){1,8}[A-Za-z]{2,24}\b/g;
+
+/** Kept apart from `redactSecrets`, which counts what it takes out of the user's own message and tells them a secret was removed. */
+export function redactEmailAddresses(text: string): string {
+  return text.replace(EMAIL_ADDRESS, REDACTED);
+}
+
 /** How many secrets `redactSecrets` took out of a text, from its output, so a caller can tell the user without the value or its kind leaving the API. */
 export function countRedactions(original: string, redacted: string): number {
   return occurrencesOfRedacted(redacted) - occurrencesOfRedacted(original);

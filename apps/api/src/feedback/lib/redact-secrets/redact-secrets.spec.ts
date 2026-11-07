@@ -1,7 +1,7 @@
 import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 
-import { countRedactions, REDACTED, redactSecrets } from "./redact-secrets";
+import { countRedactions, REDACTED, redactEmailAddresses, redactSecrets } from "./redact-secrets";
 
 describe(redactSecrets.name, () => {
   it.each([
@@ -146,5 +146,33 @@ describe(countRedactions.name, () => {
     const original = `I already replaced it with ${REDACTED}`;
 
     expect(countRedactions(original, redactSecrets(original))).toBe(0);
+  });
+});
+
+describe(redactEmailAddresses.name, () => {
+  it.each(["jane@example.com", "jane.doe+gpu@mail.example.co.uk", "ops_team-1@acme-corp.io", "JANE@EXAMPLE.COM"])("replaces %s inside a free text", address => {
+    expect(redactEmailAddresses(`Reach me at ${address}, thanks`)).toBe(`Reach me at ${REDACTED}, thanks`);
+  });
+
+  it("replaces every address and keeps the text around them", () => {
+    expect(redactEmailAddresses("mailto:jane@example.com or bob@example.org")).toBe(`mailto:${REDACTED} or ${REDACTED}`);
+  });
+
+  it.each([
+    "nginx@sha256:4c0fdaa8b6341bfdeca5f18f7837462c80cff90527ee35ef185571e1c327beac",
+    "@handle on discord",
+    "user@localhost",
+    "provider.europlots.com",
+    "https://console.akash.network/deployments/123"
+  ])("keeps %s, which is not an email address", text => {
+    expect(redactEmailAddresses(text)).toBe(text);
+  });
+
+  it("stays fast on a long run of address characters without an @", () => {
+    const text = "a.".repeat(50_000);
+    const startedAt = performance.now();
+
+    expect(redactEmailAddresses(text)).toBe(text);
+    expect(performance.now() - startedAt).toBeLessThan(1_000);
   });
 });

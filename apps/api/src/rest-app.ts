@@ -16,6 +16,7 @@ import { RefusalBackoffInterceptor } from "./core/services/refusal-backoff-inter
 import { RequestContextInterceptor } from "./core/services/request-context-interceptor/request-context.interceptor";
 import { startServer } from "./core/services/start-server/start-server";
 import type { AppEnv } from "./core/types/app-context";
+import { CONSOLE_API } from "./feedback/providers/console-api.provider";
 import { healthzRouter } from "./healthz/routes/healthz.router";
 import { clientInfoMiddleware } from "./middlewares/clientInfoMiddleware";
 import { requirePrivateToken } from "./middlewares/privateMiddleware";
@@ -103,6 +104,13 @@ appHono.get("/v1/doc", async c => {
 appHono.get("/v1/swagger", swaggerUI({ url: "/v1/doc" }));
 
 appHono.onError(container.resolve(HonoErrorHandlerService).handle);
+
+container.register(CONSOLE_API, {
+  useValue: {
+    fetch: async request => await appHono.fetch(request),
+    publishedDocument: async () => await container.resolve(OpenApiDocsService).generateDocs(openApiHonoHandlers, { scope: "full", source: "http" })
+  }
+});
 
 export { appHono as app, connectUsingSequelize as initDb };
 
