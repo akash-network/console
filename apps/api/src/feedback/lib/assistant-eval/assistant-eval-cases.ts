@@ -1,5 +1,5 @@
 import type { ChatMessage } from "@src/feedback/services/akashml-client/akashml.client";
-import type { AssistantEvalExpectation } from "./assistant-eval-scoring";
+import { type AssistantEvalExpectation, sdlValidationErrorsOf } from "./assistant-eval-scoring";
 
 export interface AssistantEvalCase {
   id: string;
@@ -273,6 +273,11 @@ function configureFormRead({ persistentStorageClass, gpuModel }: { persistentSto
 
 function screenedSdlOf(args: Record<string, unknown>): string {
   return typeof args.sdl === "string" ? args.sdl : "";
+}
+
+function availabilityOfValidSdl(args: Record<string, unknown>) {
+  const errors = sdlValidationErrorsOf(screenedSdlOf(args));
+  return errors.length > 0 ? { error: `The SDL is not valid: ${errors.join("; ")}` } : PLENTY_OF_BIDDERS;
 }
 
 function availabilityWithoutPersistentStorage(args: Record<string, unknown>) {
@@ -591,6 +596,12 @@ export const ASSISTANT_EVAL_CASES: AssistantEvalCase[] = [
     question: "Deploy a Postgres database for me.",
     toolResults: { list_templates: { templates: [{ id: "akash-network-awesome-akash-postgres", name: "Postgres", summary: "PostgreSQL database" }] } },
     expect: { calls: ["list_templates"], proposes: "create_deployment", proposalMentions: ["postgres"] }
+  },
+  {
+    id: "write-persistent-postgres",
+    question: "Deploy a Postgres database that keeps its data if the container restarts",
+    toolResults: { list_templates: { templates: [] }, check_availability: availabilityOfValidSdl },
+    expect: { proposes: "create_deployment", proposalMentions: ["persistent: true"], proposesValidSdl: true }
   },
   {
     id: "deploy-hello-world",

@@ -1,5 +1,9 @@
+import { type SDLInput, yaml } from "@akashnetwork/chain-sdk";
+
+import { findMissingGlobalExposure, generateManifestReportingBuildFailures } from "@src/deployment/utils/sdl-manifest/sdl-manifest";
 import type { ProposalActionType } from "@src/feedback/lib/assistant-tools/assistant-tool-arguments";
 import { proposalActionTypeOf } from "@src/feedback/lib/assistant-tools/assistant-tools";
+import { withDefaultPricing } from "@src/feedback/lib/sdl-pricing/sdl-pricing";
 
 export interface AssistantEvalExpectation {
   calls?: string[];
@@ -15,6 +19,7 @@ export interface AssistantEvalExpectation {
   linksDeployments?: string[];
   neverRepeatsCalls?: boolean;
   neverAdvisesRepricing?: boolean;
+  proposesValidSdl?: boolean;
 }
 
 const REPRICING_ADVICE = [
@@ -59,6 +64,19 @@ function proposalsOf(transcript: AssistantEvalTranscript): { type: ProposalActio
   });
 }
 
+/** Checks an SDL the way a create does, default pricing included, so a case can tell a valid SDL from one the model only thinks is valid. */
+export function sdlValidationErrorsOf(sdl: unknown): string[] {
+  if (typeof sdl !== "string") return ["there is no SDL"];
+
+  try {
+    const result = generateManifestReportingBuildFailures(yaml.raw<SDLInput>(withDefaultPricing(sdl)));
+    const errors = result.ok ? [findMissingGlobalExposure(result.value.groups)].filter(error => error !== undefined) : result.value;
+    return errors.map(({ instancePath, message }) => `${instancePath} ${message}`.trim());
+  } catch (error) {
+    return [`the YAML does not parse: ${error instanceof Error ? error.message.split("\n", 1)[0] : String(error)}`];
+  }
+}
+
 function firstRoundFailures(callsFirst: string, toolCalls: AssistantEvalToolCall[]): string[] {
   if (toolCalls.length === 0) return [`called nothing before ${callsFirst}`];
 
@@ -94,6 +112,11 @@ function proposalFailures(expected: AssistantEvalExpectation, transcript: Assist
     const argumentsText = matching.map(proposal => JSON.stringify(proposal.arguments)).join("\n");
     for (const text of expected.proposalMentions ?? []) {
       if (!includesText(argumentsText, text)) failures.push(`${expected.proposes} proposal lacks "${text}"`);
+    }
+
+    if (expected.proposesValidSdl) {
+      const errors = matching.flatMap(proposal => sdlValidationErrorsOf(proposal.arguments.sdl));
+      if (errors.length > 0) failures.push(`${expected.proposes} proposal has an SDL that is not valid: ${errors.join("; ")}`);
     }
   }
 
