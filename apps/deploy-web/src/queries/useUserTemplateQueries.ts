@@ -3,11 +3,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { SKIP_REPORTING_REFUSED_INPUT } from "@src/services/query-error-policy/query-error-policy";
+import type { MarketplaceTemplate } from "@src/types/marketplace-template";
 
 export function useMarketplaceTemplate(id: string | undefined) {
   const { api } = useServices();
 
-  return api.v1.getUserTemplate.useQuery({ id: id ?? "" }, { enabled: !!id, select: response => response.data });
+  return api.v1.getUserTemplate.useQuery({ id: id ?? "" }, { enabled: !!id, select: (response): MarketplaceTemplate => response.data });
 }
 
 export function useTemplateVersions(id: string | undefined, { enabled }: { enabled: boolean }) {
