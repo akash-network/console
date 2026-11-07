@@ -50,7 +50,17 @@ const STORAGE_AS_MAP_SDL = PERSISTENT_POSTGRES_SDL.replace(
   "          data:\n            size: 10Gi"
 );
 
-const PRICELESS_POSTGRES_SDL = PERSISTENT_POSTGRES_SDL.replace("    dcloud:\n      pricing:\n        postgres:\n          denom: uact\n          amount: 10000\n", "    dcloud: {}\n");
+const PRICELESS_POSTGRES_SDL = PERSISTENT_POSTGRES_SDL.replace(
+  "    dcloud:\n      pricing:\n        postgres:\n          denom: uact\n          amount: 10000\n",
+  "    dcloud: {}\n"
+);
+
+const INTERNAL_ONLY_POSTGRES_SDL = PERSISTENT_POSTGRES_SDL.replace("          - global: true", "          - global: false");
+
+const EPHEMERAL_POSTGRES_SDL = PERSISTENT_POSTGRES_SDL.replace(
+  "          - name: data\n            size: 10Gi\n            attributes:\n              persistent: true\n              class: beta3\n",
+  ""
+).replace("    params:\n      storage:\n        data:\n          mount: /var/lib/postgresql/data\n", "");
 
 describe(scoreAssistantEval.name, () => {
   it("passes a transcript that meets every expectation", () => {
@@ -339,6 +349,12 @@ describe(scoreAssistantEval.name, () => {
       expect(sdlValidationErrorsOf(PRICELESS_POSTGRES_SDL)).toEqual([]);
     });
 
+    it("refuses an SDL that exposes no service globally, as a create does", () => {
+      expect(sdlValidationErrorsOf(INTERNAL_ONLY_POSTGRES_SDL)).toEqual([
+        expect.stringMatching(/^\/services at least one service must expose a port with `global: true`/)
+      ]);
+    });
+
     it("names where a storage map should have been a list", () => {
       expect(sdlValidationErrorsOf(STORAGE_AS_MAP_SDL)).toContain(
         '/profiles/compute/postgres/resources/storage "storage" at "/profiles/compute/postgres/resources" should be array.'
@@ -359,6 +375,19 @@ describe(scoreAssistantEval.name, () => {
     expect(checkAvailability({ sdl: PRICELESS_POSTGRES_SDL })).toMatchObject({ providersAbleToBid: 14 });
     expect(checkAvailability({ sdl: STORAGE_AS_MAP_SDL })).toEqual({ error: expect.stringMatching(/^The SDL is not valid: \/profiles\/compute\/postgres/) });
     expect(checkAvailability({ templateId: "postgres" })).toEqual({ error: expect.stringMatching(/^The SDL is not valid: \S/) });
+  });
+
+  it("fails the persistent postgres case when the proposed SDL mounts no persistent volume, whatever its reason says", () => {
+    const writePostgres = ASSISTANT_EVAL_CASES.find(({ id }) => id === "write-persistent-postgres");
+    const propose = (sdl: string) => ({
+      toolCalls: [{ name: "propose_create_deployment", arguments: { sdl, reason: "Postgres with persistent storage" } }],
+      answer: ""
+    });
+
+    expect(scoreAssistantEval("write-persistent-postgres", writePostgres!.expect, propose(PERSISTENT_POSTGRES_SDL)).failures).toEqual([]);
+    expect(scoreAssistantEval("write-persistent-postgres", writePostgres!.expect, propose(EPHEMERAL_POSTGRES_SDL)).failures).toEqual([
+      'create_deployment proposal lacks "persistent: true"'
+    ]);
   });
 
   describe(formatAssistantEvalTable.name, () => {

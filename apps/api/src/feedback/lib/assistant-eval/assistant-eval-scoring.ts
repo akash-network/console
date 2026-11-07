@@ -1,6 +1,6 @@
 import { type SDLInput, yaml } from "@akashnetwork/chain-sdk";
 
-import { generateManifestReportingBuildFailures } from "@src/deployment/utils/sdl-manifest/sdl-manifest";
+import { findMissingGlobalExposure, generateManifestReportingBuildFailures } from "@src/deployment/utils/sdl-manifest/sdl-manifest";
 import type { ProposalActionType } from "@src/feedback/lib/assistant-tools/assistant-tool-arguments";
 import { proposalActionTypeOf } from "@src/feedback/lib/assistant-tools/assistant-tools";
 import { withDefaultPricing } from "@src/feedback/lib/sdl-pricing/sdl-pricing";
@@ -66,7 +66,8 @@ export function sdlValidationErrorsOf(sdl: unknown): string[] {
 
   try {
     const result = generateManifestReportingBuildFailures(yaml.raw<SDLInput>(withDefaultPricing(sdl)));
-    return result.ok ? [] : result.value.map(({ instancePath, message }) => `${instancePath} ${message}`.trim());
+    const errors = result.ok ? [findMissingGlobalExposure(result.value.groups)].filter(error => error !== undefined) : result.value;
+    return errors.map(({ instancePath, message }) => `${instancePath} ${message}`.trim());
   } catch (error) {
     return [`the YAML does not parse: ${error instanceof Error ? error.message.split("\n", 1)[0] : String(error)}`];
   }

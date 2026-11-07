@@ -587,7 +587,7 @@ export const ASSISTANT_EVAL_CASES: AssistantEvalCase[] = [
     id: "write-persistent-postgres",
     question: "Deploy a Postgres database that keeps its data if the container restarts",
     toolResults: { list_templates: { templates: [] }, check_availability: availabilityOfValidSdl },
-    expect: { proposes: "create_deployment", proposalMentions: ["persistent"], proposesValidSdl: true }
+    expect: { proposes: "create_deployment", proposalMentions: ["persistent: true"], proposesValidSdl: true }
   },
   {
     id: "deploy-hello-world",
