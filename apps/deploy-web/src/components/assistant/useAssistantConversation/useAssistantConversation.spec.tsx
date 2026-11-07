@@ -46,7 +46,14 @@ describe(useAssistantConversation.name, () => {
   it("knows no deployment outside a deployment page", () => {
     const { result } = setup({ context: { page: "/templates" } });
 
+    expect(result.current.page).toBe("/templates");
     expect(result.current.deploymentDseq).toBeNull();
+  });
+
+  it("knows no page when the context has none", () => {
+    const { result } = setup({ context: {} });
+
+    expect(result.current.page).toBeNull();
   });
 
   it("resends the earlier messages of a conversation the api does not store and reuses the conversation", async () => {

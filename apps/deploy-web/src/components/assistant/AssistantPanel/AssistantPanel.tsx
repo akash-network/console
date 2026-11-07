@@ -8,6 +8,7 @@ import { useAssistantPrivacyQuery, useUpdateAssistantConsentMutation } from "@sr
 import { AssistantComposer } from "../AssistantComposer/AssistantComposer";
 import { AssistantConsentCard } from "../AssistantConsentCard/AssistantConsentCard";
 import { ASSISTANT_CONSENT_COPY_VERSION } from "../assistantConsentCopy";
+import { AssistantExamplePrompts } from "../AssistantExamplePrompts/AssistantExamplePrompts";
 import { AssistantTranscript } from "../AssistantTranscript/AssistantTranscript";
 import { DiscordHelpCard } from "../DiscordHelpCard/DiscordHelpCard";
 import type { AssistantConversation } from "../useAssistantConversation/useAssistantConversation";
@@ -16,6 +17,7 @@ export const DEPENDENCIES = {
   useAssistantPrivacyQuery,
   useUpdateAssistantConsentMutation,
   AssistantConsentCard,
+  AssistantExamplePrompts,
   AssistantTranscript,
   AssistantComposer,
   DiscordHelpCard
@@ -182,7 +184,10 @@ export const AssistantPanel: FC<Props> = ({ isOpen, onOpenChange, conversation, 
         )}
 
         {isReady && conversation.messages.length === 0 && !conversation.problem && (
-          <p className="text-sm text-muted-foreground">Ask about your deployments, bids, logs, or billing. The assistant reads your account to answer.</p>
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-muted-foreground">Ask about your deployments, bids, logs, or billing. The assistant reads your account to answer.</p>
+            <d.AssistantExamplePrompts page={conversation.page} deploymentDseq={conversation.deploymentDseq} onSend={conversation.send} />
+          </div>
         )}
 
         {isReady && <d.AssistantTranscript conversation={conversation} />}

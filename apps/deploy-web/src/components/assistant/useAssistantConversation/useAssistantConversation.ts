@@ -152,6 +152,7 @@ export function useAssistantConversation({ context }: { context: AssistantContex
     endedAs,
     conversationId: conversation?.id ?? null,
     isStored: !!conversation?.stored,
+    page: context.page ?? null,
     deploymentDseq: context.dseq ?? null,
     send,
     end,
