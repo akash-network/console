@@ -45,6 +45,14 @@ describe(AssistantHost.name, () => {
     expect(dependencies.useAssistantConversation).toHaveBeenCalledWith({ context: { page: "/deployments/42", dseq: "42" } });
   });
 
+  it("tells the conversation when the configure form is open for the assistant to read and edit", () => {
+    const { dependencies } = setup({ pathname: "/new-deployment/configure", isConfigureFormOpen: true });
+
+    expect(dependencies.useAssistantConversation).toHaveBeenCalledWith({
+      context: { page: "/new-deployment/configure", dseq: undefined, configureFormOpen: true }
+    });
+  });
+
   it("closes the panel when it is dismissed but not when asked to open", () => {
     const { panelProps, close } = setup({ isOpen: true });
 
@@ -71,6 +79,7 @@ describe(AssistantHost.name, () => {
     isOpen?: boolean;
     openedAt?: number;
     request?: ReturnType<typeof DEPENDENCIES.useAssistantPanel>["request"];
+    isConfigureFormOpen?: boolean;
   }) {
     let pathname = input.pathname ?? "/deployments";
     const close = vi.fn();
@@ -87,7 +96,8 @@ describe(AssistantHost.name, () => {
         open: vi.fn(),
         close
       })),
-      useAssistantConversation: vi.fn(() => conversation)
+      useAssistantConversation: vi.fn(() => conversation),
+      useIsConfigureFormOpen: vi.fn(() => input.isConfigureFormOpen ?? false)
     });
 
     const view = render(<AssistantHost dependencies={dependencies} />);

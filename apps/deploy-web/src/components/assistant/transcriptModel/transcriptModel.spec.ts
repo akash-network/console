@@ -52,6 +52,7 @@ describe("transcriptModel", () => {
       ["check_availability", "Could not check which providers could bid"],
       ["read_logs", "Could not read the logs"],
       ["read_events", "Could not read the events"],
+      ["read_configure_form", "Could not read the configure form"],
       ["open_shell", "Could not finish a check"],
       ["toString", "Could not finish a check"]
     ])("words a failed %s for the user instead of naming the tool", (name, label) => {
@@ -194,6 +195,10 @@ describe("transcriptModel", () => {
   describe(readLabelOfClientTool.name, () => {
     it("names events and the default tail when no service is asked for", () => {
       expect(readLabelOfClientTool({ name: "read_events", arguments: { dseq: "1" } })).toBe("Read events (last 200 lines)");
+    });
+
+    it("names the configure form read without a line count", () => {
+      expect(readLabelOfClientTool({ name: "read_configure_form", arguments: {} })).toBe("Read the configure form");
     });
   });
 

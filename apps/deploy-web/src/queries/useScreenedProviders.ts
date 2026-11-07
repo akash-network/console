@@ -4,6 +4,7 @@ import { generateManifest, type SDLInput, yaml } from "@akashnetwork/chain-sdk/w
 import type { paths } from "@akashnetwork/console-api-types";
 import { keepPreviousData, useQueries, useQueryClient } from "@tanstack/react-query";
 
+import type { ConfigureFormPlacementScreening } from "@src/components/assistant/configureFormRegistry/configureFormRegistry";
 import { useServices } from "@src/context/ServicesProvider";
 import { usePacedValue } from "@src/hooks/usePacedValue/usePacedValue";
 import { getBrowserTimezoneOrUtc } from "@src/lib/browser-timezone/browser-timezone";
@@ -175,6 +176,43 @@ function useCachedScreenedProviderTotal(countProviders: (providers: ScreenedProv
     },
     [api, queryClient, countProviders]
   );
+}
+
+/** Reads what screening already answered for each placement of the current spec, and why one cannot be screened, without screening again. */
+export function useCachedPlacementScreening() {
+  const { api } = useServices();
+  const queryClient = useQueryClient();
+
+  return useCallback(
+    function readPlacementScreening(sdl: string, placements: ReadonlyArray<{ name: string; regions?: readonly string[] }>): ConfigureFormPlacementScreening[] {
+      return placements.map(({ name, regions }) => {
+        const request = toScreeningRequest(sdl, name);
+        if (!request) return { placement: name, status: "not_screenable", reasons: unscreenableReasonsOf(sdl, name) };
+
+        const key = api.v1.screenProviders.getKey(request);
+        const screened = queryClient.getQueryData<ScreenedProvidersResponse>(key);
+        if (!screened) return { placement: name, status: queryClient.getQueryState(key)?.status === "error" ? "failed" : "screening" };
+
+        const providers = inPickedRegions(screened.providers, regions);
+        return { placement: name, status: "screened", providersAbleToBid: providers.length, notBidding: countNotBiddingProviders(providers) };
+      });
+    },
+    [api, queryClient]
+  );
+}
+
+/** Names what keeps a placement from being screened, which the panes only summarize as settings that are not valid yet. */
+export function unscreenableReasonsOf(rawSdl: string, placementName: string): string[] {
+  try {
+    const parsedSdl = yaml.raw(rawSdl) as SDLInput;
+    fillPlaceholderImages(parsedSdl);
+    const manifestResult = generateManifest(parsedSdl);
+    if (!manifestResult.ok) return manifestResult.value.map(({ instancePath, message }) => [instancePath, message].filter(Boolean).join(" "));
+
+    return manifestResult.value.groupSpecs.some(group => group.name === placementName) ? [] : [`The SDL has no placement named ${placementName}.`];
+  } catch {
+    return ["The SDL could not be read."];
+  }
 }
 
 /** Reads only what screening already answered for the current spec, so a placement still being screened, failing, or invalid never counts as unhostable. */

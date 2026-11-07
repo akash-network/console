@@ -19244,6 +19244,8 @@ export interface operations {
               page?: string;
               /** @description The deployment the user was looking at */
               dseq?: string;
+              /** @description True while the configure page's form is open and the browser can read it and apply an edit to it */
+              configureFormOpen?: boolean;
             };
           };
         };
@@ -19355,6 +19357,8 @@ export interface operations {
               page?: string;
               /** @description The deployment the user was looking at */
               dseq?: string;
+              /** @description True while the configure page's form is open and the browser can read it and apply an edit to it */
+              configureFormOpen?: boolean;
             };
           };
         };
@@ -19393,9 +19397,10 @@ export interface operations {
                 type: "client_tool_request";
                 toolCallId: string;
                 /** @enum {string} */
-                name: "read_logs" | "read_events";
+                name: "read_logs" | "read_events" | "read_configure_form";
                 arguments: {
-                  dseq: string;
+                  /** @description Set for read_logs and read_events */
+                  dseq?: string;
                   service?: string;
                   tailLines?: number;
                 };
@@ -19407,7 +19412,7 @@ export interface operations {
                 type: "action_proposal";
                 /** Format: uuid */
                 proposalId: string;
-                /** @description An action the assistant proposes. The API never executes it: the card shows it and, on Confirm, runs the same request the regular UI makes (`confirm`, `destructive`) or opens the existing page prefilled (`deep_link`). */
+                /** @description An action the assistant proposes. The API never executes it: the card shows it and, on Confirm, runs the same request the regular UI makes (`confirm`, `destructive`) or opens the existing page prefilled (`deep_link`). `edit_configure_form` patches the open configure form in the browser and never touches pricing. */
                 action:
                   | {
                       /** @enum {string} */
@@ -19713,6 +19718,59 @@ export interface operations {
                       dseq: string | null;
                       templateId: string | null;
                       sdl: string | null;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "edit_configure_form";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      reason: string;
+                      services: {
+                        service: string;
+                        changes: {
+                          image?: string;
+                          /** @description vCPU units */
+                          cpu?: number;
+                          /** @description Such as 512Mi */
+                          memory?: string;
+                          /** @description Such as 1Gi */
+                          ephemeralStorage?: string;
+                          /** @description Replicas */
+                          count?: number;
+                          gpu?: {
+                            /** @description 0 turns the GPU off */
+                            units: number;
+                            /** @description vendor/model pairs such as nvidia/rtx4090 */
+                            models?: string[];
+                          };
+                          persistentStorage?: {
+                            /** @description The volume to change. Defaults to the first one, or adds one when there is none. */
+                            name?: string;
+                            /** @description true removes that volume, or every persistent volume when no name is given */
+                            remove?: boolean;
+                            /**
+                             * @description beta1 HDD, beta2 SSD, beta3 NVMe
+                             * @enum {string}
+                             */
+                            class?: "beta1" | "beta2" | "beta3";
+                            size?: string;
+                            mount?: string;
+                            readOnly?: boolean;
+                          };
+                        };
+                      }[];
+                      placements: {
+                        placement: string;
+                        changes: {
+                          /** @description Replaces the placement's attributes; an empty list drops them all */
+                          attributes?: {
+                            key: string;
+                            value: string;
+                          }[];
+                          /** @description Replaces the picked regions; an empty list means any region */
+                          regions?: string[];
+                        };
+                      }[];
                     };
                 /** @description Why the assistant proposes this action, when it answers a problem it diagnosed */
                 diagnosis?: {
@@ -19854,9 +19912,10 @@ export interface operations {
                 type: "client_tool_request";
                 toolCallId: string;
                 /** @enum {string} */
-                name: "read_logs" | "read_events";
+                name: "read_logs" | "read_events" | "read_configure_form";
                 arguments: {
-                  dseq: string;
+                  /** @description Set for read_logs and read_events */
+                  dseq?: string;
                   service?: string;
                   tailLines?: number;
                 };
@@ -19868,7 +19927,7 @@ export interface operations {
                 type: "action_proposal";
                 /** Format: uuid */
                 proposalId: string;
-                /** @description An action the assistant proposes. The API never executes it: the card shows it and, on Confirm, runs the same request the regular UI makes (`confirm`, `destructive`) or opens the existing page prefilled (`deep_link`). */
+                /** @description An action the assistant proposes. The API never executes it: the card shows it and, on Confirm, runs the same request the regular UI makes (`confirm`, `destructive`) or opens the existing page prefilled (`deep_link`). `edit_configure_form` patches the open configure form in the browser and never touches pricing. */
                 action:
                   | {
                       /** @enum {string} */
@@ -20174,6 +20233,59 @@ export interface operations {
                       dseq: string | null;
                       templateId: string | null;
                       sdl: string | null;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "edit_configure_form";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      reason: string;
+                      services: {
+                        service: string;
+                        changes: {
+                          image?: string;
+                          /** @description vCPU units */
+                          cpu?: number;
+                          /** @description Such as 512Mi */
+                          memory?: string;
+                          /** @description Such as 1Gi */
+                          ephemeralStorage?: string;
+                          /** @description Replicas */
+                          count?: number;
+                          gpu?: {
+                            /** @description 0 turns the GPU off */
+                            units: number;
+                            /** @description vendor/model pairs such as nvidia/rtx4090 */
+                            models?: string[];
+                          };
+                          persistentStorage?: {
+                            /** @description The volume to change. Defaults to the first one, or adds one when there is none. */
+                            name?: string;
+                            /** @description true removes that volume, or every persistent volume when no name is given */
+                            remove?: boolean;
+                            /**
+                             * @description beta1 HDD, beta2 SSD, beta3 NVMe
+                             * @enum {string}
+                             */
+                            class?: "beta1" | "beta2" | "beta3";
+                            size?: string;
+                            mount?: string;
+                            readOnly?: boolean;
+                          };
+                        };
+                      }[];
+                      placements: {
+                        placement: string;
+                        changes: {
+                          /** @description Replaces the placement's attributes; an empty list drops them all */
+                          attributes?: {
+                            key: string;
+                            value: string;
+                          }[];
+                          /** @description Replaces the picked regions; an empty list means any region */
+                          regions?: string[];
+                        };
+                      }[];
                     };
                 /** @description Why the assistant proposes this action, when it answers a problem it diagnosed */
                 diagnosis?: {
@@ -20343,7 +20455,8 @@ export interface operations {
               | "request_hardware"
               | "buy_credits"
               | "configure_auto_recharge"
-              | "open_in_editor";
+              | "open_in_editor"
+              | "edit_configure_form";
             /** @enum {string} */
             decision: "confirmed" | "cancelled";
             /**
