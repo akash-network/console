@@ -1,6 +1,7 @@
 import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
+import { TxService } from "@src/core/services";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import type { DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { TemplateSource } from "@src/template-marketplace/model-schemas/template-usage-event/template-usage-event.schema";
@@ -17,26 +18,29 @@ export class TemplateUsageService {
   constructor(
     private readonly templateUsageEventRepository: TemplateUsageEventRepository,
     private readonly coreConfig: CoreConfigService,
+    private readonly txService: TxService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: TemplateUsageService.name });
   }
 
-  /** Recording is invisible to the deployer, so a failure is only logged and never costs them the deploy. */
+  /** Recording is invisible to the deployer, so it runs on its own connection and a failure is only logged, never aborting the caller's transaction or costing them the deploy. */
   async recordDeployed(definition: DeployedDefinition, wallet: { isTrialing?: boolean | null }): Promise<void> {
     try {
-      const ref = await this.templateRefOf(definition);
-      if (!ref) return;
+      await this.txService.outsideTransaction(async () => {
+        const ref = await this.templateRefOf(definition);
+        if (!ref) return;
 
-      await this.templateUsageEventRepository.record({
-        ...ref,
-        action: "deploy",
-        userId: definition.userId,
-        organizationId: definition.organizationId,
-        deploymentSettingId: definition.id,
-        dseq: definition.dseq,
-        network: this.coreConfig.get("NETWORK"),
-        isTrial: !!wallet.isTrialing
+        await this.templateUsageEventRepository.record({
+          ...ref,
+          action: "deploy",
+          userId: definition.userId,
+          organizationId: definition.organizationId,
+          deploymentSettingId: definition.id,
+          dseq: definition.dseq,
+          network: this.coreConfig.get("NETWORK"),
+          isTrial: !!wallet.isTrialing
+        });
       });
     } catch (error) {
       this.logger.error({ event: "TEMPLATE_USAGE_RECORD_FAILED", action: "deploy", deploymentSettingId: definition.id, dseq: definition.dseq, error });

@@ -2,7 +2,7 @@ import { faker } from "@faker-js/faker";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { CreateLogger } from "@src/core";
+import type { CreateLogger, TxService } from "@src/core";
 import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import type { TemplateUsageEventRepository } from "@src/template-marketplace/repositories/template-usage-event/template-usage-event.repository";
 import { TemplateUsageService } from "./template-usage.service";
@@ -136,10 +136,12 @@ describe(TemplateUsageService.name, () => {
     templateUsageEventRepository.findTemplateIdOfVersion.mockResolvedValue("templateIdOfVersion" in input ? input.templateIdOfVersion : faker.string.uuid());
     templateUsageEventRepository.record.mockResolvedValue(true);
     const coreConfig = mockConfigService<CoreConfigService>({ NETWORK: input.network ?? "mainnet" });
+    const txService = mock<TxService>();
+    txService.outsideTransaction.mockImplementation(async cb => await cb());
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
-    const service = new TemplateUsageService(templateUsageEventRepository, coreConfig, createLogger);
+    const service = new TemplateUsageService(templateUsageEventRepository, coreConfig, txService, createLogger);
 
-    return { service, templateUsageEventRepository, coreConfig, logger };
+    return { service, templateUsageEventRepository, coreConfig, txService, logger };
   }
 });

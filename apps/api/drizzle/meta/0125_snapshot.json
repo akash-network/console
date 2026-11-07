@@ -1,5 +1,5 @@
 {
-  "id": "adebc32d-36ac-490c-a978-1106e51f83cf",
+  "id": "ae822df6-5464-4fea-a565-0980aca76acd",
   "prevId": "70117b34-3002-4a5b-bce1-651ab0f969c6",
   "version": "7",
   "dialect": "postgresql",
@@ -6565,6 +6565,36 @@
             },
             {
               "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "template_usage_events_user_id_idx": {
+          "name": "template_usage_events_user_id_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "template_usage_events_organization_id_idx": {
+          "name": "template_usage_events_organization_id_idx",
+          "columns": [
+            {
+              "expression": "organization_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

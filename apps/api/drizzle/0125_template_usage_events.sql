@@ -19,5 +19,7 @@ CREATE TABLE "template_usage_events" (
 ALTER TABLE "template_usage_events" ADD CONSTRAINT "template_usage_events_user_id_userSetting_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."userSetting"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "template_usage_events" ADD CONSTRAINT "template_usage_events_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "template_usage_events_ref_action_created_idx" ON "template_usage_events" USING btree ("source","template_ref","action","created_at");--> statement-breakpoint
+CREATE INDEX "template_usage_events_user_id_idx" ON "template_usage_events" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "template_usage_events_organization_id_idx" ON "template_usage_events" USING btree ("organization_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "template_usage_events_deployment_action_unique" ON "template_usage_events" USING btree ("deployment_setting_id","action") WHERE "template_usage_events"."deployment_setting_id" IS NOT NULL;--> statement-breakpoint
 RESET lock_timeout;
