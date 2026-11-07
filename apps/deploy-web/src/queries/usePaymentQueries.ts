@@ -13,7 +13,11 @@ import type { UseQueryOptions, UseQueryResult } from "@tanstack/react-query";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { SKIP_REPORTING_HANDLED_BY_CALLER, SKIP_REPORTING_REFUSED_INPUT } from "@src/services/query-error-policy/query-error-policy";
+import {
+  SKIP_REPORTING_BELOW_SERVER_ERROR,
+  SKIP_REPORTING_HANDLED_BY_CALLER,
+  SKIP_REPORTING_REFUSED_INPUT
+} from "@src/services/query-error-policy/query-error-policy";
 import { walletProvisioningRetry } from "@src/utils/walletProvisioning";
 import { QueryKeys } from "./queryKeys";
 
@@ -72,6 +76,12 @@ export const usePaymentTransactionsQuery = ({ limit, offset, startDate, endDate 
 export const useFirstPurchaseBonusQuery = () => {
   const { api } = useServices();
   return api.v1.getFirstPurchaseBonus.useQuery(undefined, { select: response => response.data, meta: SKIP_REPORTING_REFUSED_INPUT });
+};
+
+/** Refusals seen by other tabs and devices only narrow what Add credits offers; the API still refuses those payments if this read fails. */
+export const useRecentPaymentRefusalsQuery = () => {
+  const { api } = useServices();
+  return api.v1.listPaymentMethodRefusals.useQuery(undefined, { select: response => response.data, meta: SKIP_REPORTING_BELOW_SERVER_ERROR });
 };
 
 export const useSetupIntentMutation = () => {

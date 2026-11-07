@@ -11,7 +11,8 @@ import type { AnalyticsService } from "@src/services/analytics/analytics.service
 import { handleStripeError } from "@src/utils/stripeErrorHandler";
 import { AddCreditsAmountFields } from "../AddCreditsAmountFields/AddCreditsAmountFields";
 import type { PaymentFormLoadError, PaymentMethodSourceHandle } from "../AddCreditsNewPaymentMethodFields/AddCreditsNewPaymentMethodFields";
-import { usePaymentRefusals } from "./usePaymentRefusals/usePaymentRefusals";
+import type { RecentPaymentRefusals } from "./usePaymentRefusals/usePaymentRefusals";
+import { MAX_REFUSALS_PER_WINDOW, usePaymentRefusals } from "./usePaymentRefusals/usePaymentRefusals";
 import { useTopUpAttemptKey } from "./useTopUpAttemptKey/useTopUpAttemptKey";
 import { waitForSettledTransaction } from "./waitForSettledTransaction/waitForSettledTransaction";
 import type { DEPENDENCIES } from "./AddCreditsForm";
@@ -1826,6 +1827,58 @@ describe(AddCreditsForm.name, () => {
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
 
+    it.each([
+      ["its decline code", { errorType: "card_error", errorCode: "card_declined", declineCode: "generic_decline" }, "generic_decline"],
+      ["its error code", { errorType: "card_error", errorCode: "card_declined" }, "card_declined"]
+    ])("counts the card form repeating a new card's refusal by %s as another bank refusal", async (_, refusal, repeatedCode) => {
+      const reset = vi.fn();
+      const addPaymentMethod = vi
+        .fn()
+        .mockResolvedValueOnce({ failure: refusal })
+        .mockResolvedValueOnce({ failure: { errorType: "validation_error", errorCode: repeatedCode } });
+      const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
+      setup({ status: "success", clientSecret: "seti_secret", reset, dependencies: { AddCreditsNewPaymentMethodFields } });
+
+      await submitWithAmount("100");
+      await submitWithAmount("100");
+
+      expect(reset).toHaveBeenCalledOnce();
+      expect(screen.getByRole("alert")).toHaveTextContent(BANK_REFUSED_MESSAGE);
+    });
+
+    it("does not treat a form error after a fresh card form as a repeated refusal", async () => {
+      const reset = vi.fn();
+      const addPaymentMethod = vi
+        .fn()
+        .mockResolvedValueOnce(BANK_REFUSAL)
+        .mockResolvedValue({ failure: { errorType: "validation_error", errorCode: "generic_decline" } });
+      const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
+      setup({ status: "success", clientSecret: "seti_secret", reset, dependencies: { AddCreditsNewPaymentMethodFields } });
+
+      for (let attempt = 0; attempt < 4; attempt++) {
+        await submitWithAmount("100");
+      }
+
+      expect(addPaymentMethod).toHaveBeenCalledTimes(4);
+      expect(reset).toHaveBeenCalledOnce();
+    });
+
+    it("does not treat a form error without a code as a repeated refusal", async () => {
+      const reset = vi.fn();
+      const addPaymentMethod = vi
+        .fn()
+        .mockResolvedValueOnce({ failure: { errorType: "card_error" } })
+        .mockResolvedValue({ failure: { errorType: "validation_error" } });
+      const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
+      setup({ status: "success", clientSecret: "seti_secret", reset, dependencies: { AddCreditsNewPaymentMethodFields } });
+
+      for (let attempt = 0; attempt < 6; attempt++) {
+        await submitWithAmount("100");
+      }
+
+      expect(screen.queryByText(/Too many payments were refused/)).not.toBeInTheDocument();
+    });
+
     it("leaves the selected method alone when the bank refuses a wallet", async () => {
       const reset = vi.fn();
       const addPaymentMethod = vi.fn().mockResolvedValue(BANK_REFUSAL);
@@ -1995,7 +2048,12 @@ describe(AddCreditsForm.name, () => {
 
     it("preselects a declined method again once a payment goes through", async () => {
       const confirmPayment = vi.fn().mockRejectedValueOnce(LINK_DECLINE).mockResolvedValue({ success: true });
-      const input: SetupInput = { status: "idle", onDone: vi.fn(), confirmPayment, paymentMethods: [paymentMethod({ id: "pm_card", isDefault: true }), LINK_METHOD] };
+      const input: SetupInput = {
+        status: "idle",
+        onDone: vi.fn(),
+        confirmPayment,
+        paymentMethods: [paymentMethod({ id: "pm_card", isDefault: true }), LINK_METHOD]
+      };
       const { rerender, unmount } = setup(input);
       await submitWithAmount("100");
       await submitWithAmount("100");
@@ -2039,6 +2097,25 @@ describe(AddCreditsForm.name, () => {
       expect(addPaymentMethod).toHaveBeenCalledTimes(5);
     });
 
+    it("counts every refusal of the same new card toward the pause, including the ones the card form repeats", async () => {
+      const repeatedRefusal = { failure: { errorType: "validation_error", errorCode: "generic_decline" } };
+      const addPaymentMethod = vi
+        .fn()
+        .mockResolvedValueOnce(BANK_REFUSAL)
+        .mockResolvedValueOnce(repeatedRefusal)
+        .mockResolvedValueOnce(BANK_REFUSAL)
+        .mockResolvedValueOnce(repeatedRefusal)
+        .mockResolvedValueOnce(BANK_REFUSAL);
+      const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
+      setup({ status: "success", clientSecret: "seti_secret", dependencies: { AddCreditsNewPaymentMethodFields } });
+
+      for (let attempt = 0; attempt < MAX_REFUSALS_PER_WINDOW; attempt++) {
+        await submitWithAmount("100");
+      }
+
+      expect(screen.getByText(PAUSE_MESSAGE)).toBeInTheDocument();
+    });
+
     it("counts a card whose 3D Secure check failed during setup as a refusal", async () => {
       const addPaymentMethod = vi.fn().mockResolvedValue({ failure: { errorType: "invalid_request_error", errorCode: "setup_intent_authentication_failure" } });
       const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
@@ -2066,6 +2143,158 @@ describe(AddCreditsForm.name, () => {
 
       expect(addPaymentMethod).toHaveBeenCalledTimes(6);
       expect(screen.queryByText(PAUSE_MESSAGE)).not.toBeInTheDocument();
+    });
+  });
+
+  describe("when payments were refused in another tab or browser", () => {
+    const BANK_REFUSED_MESSAGE = "Your bank refused this card. Try a different card or payment method.";
+    const SECOND_CARD = { brand: "visa", last4: "1881", funding: "credit" as const, exp_month: 12, exp_year: 2030 };
+
+    it("does not offer or preselect a saved card the API reports as refused", () => {
+      setup({
+        status: "idle",
+        recentRefusals: { refusedPaymentMethodIds: ["pm_refused"], pausedUntil: null },
+        paymentMethods: [paymentMethod({ id: "pm_refused", isDefault: true }), paymentMethod({ id: "pm_other", card: SECOND_CARD })]
+      });
+
+      expect(screen.getByRole("button", { name: /4242/ })).toBeDisabled();
+      expect(screen.getByRole("button", { name: /4242/ })).toHaveTextContent("refused by your bank");
+      expect(screen.getByRole("button", { name: /1881/ })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("button", { name: /1881/ })).toBeEnabled();
+    });
+
+    it("waits for the API's refusals before preselecting a payment method", () => {
+      const input: SetupInput = {
+        status: "idle",
+        isLoadingRecentRefusals: true,
+        paymentMethods: [paymentMethod({ id: "pm_refused", isDefault: true }), paymentMethod({ id: "pm_other", card: SECOND_CARD })]
+      };
+      const { rerender } = setup(input);
+      fireEvent.click(screen.getByRole("radio", { name: "100" }));
+
+      expect(screen.getByRole("button", { name: /4242/ })).toHaveAttribute("aria-pressed", "false");
+      expect(screen.getByRole("button", { name: /1881/ })).toHaveAttribute("aria-pressed", "false");
+      expect(screen.getByRole("button", { name: "Purchase Credits" })).toBeDisabled();
+
+      rerender({ ...input, isLoadingRecentRefusals: false, recentRefusals: { refusedPaymentMethodIds: ["pm_refused"], pausedUntil: null } });
+
+      expect(screen.getByRole("button", { name: /1881/ })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("button", { name: "Purchase Credits" })).toBeEnabled();
+    });
+
+    it("stops offering a saved card once this tab saw it declined repeatedly", async () => {
+      setup({
+        status: "idle",
+        confirmPayment: vi.fn().mockRejectedValue({ response: { status: 402, data: { code: "insufficient_funds" } } }),
+        handleStripeError: () => ({ message: "Your card has insufficient funds.", userAction: undefined }),
+        paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })]
+      });
+
+      await submitWithAmount("100");
+
+      expect(screen.getByRole("button", { name: /4242/ })).toBeEnabled();
+
+      await submitWithAmount("100");
+
+      expect(screen.getByRole("button", { name: /4242/ })).toBeDisabled();
+    });
+
+    it("pauses payments while the API reports a pause", () => {
+      setup({
+        status: "idle",
+        recentRefusals: { refusedPaymentMethodIds: [], pausedUntil: new Date(Date.now() + 10 * 60_000).toISOString() },
+        paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })]
+      });
+
+      expect(screen.getByText(/Too many payments were refused in a short time/)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /purchase credits/i })).toBeDisabled();
+    });
+
+    it("moves off a saved card the API refuses and reloads the recent refusals", async () => {
+      const invalidateQueries = vi.fn();
+      const reset = vi.fn();
+      setup({
+        status: "idle",
+        reset,
+        invalidateQueries,
+        confirmPayment: vi.fn().mockRejectedValue({ response: { status: 402, data: { code: "payment_method_refused" } } }),
+        paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })]
+      });
+
+      await submitWithAmount("100");
+
+      expect(screen.getByRole("button", { name: /add new payment method/i })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("alert")).toHaveTextContent(BANK_REFUSED_MESSAGE);
+      expect(reset).toHaveBeenCalledOnce();
+      expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["v1", "listPaymentMethodRefusals"] });
+      expect(screen.getByRole("button", { name: /4242/ })).toBeEnabled();
+    });
+
+    it("releases the form without an error and reloads the recent refusals when the API pauses payments", async () => {
+      const invalidateQueries = vi.fn();
+      const handleStripeError = vi.fn(() => ({ message: "fallback", userAction: undefined }));
+      setup({
+        status: "idle",
+        invalidateQueries,
+        handleStripeError,
+        confirmPayment: vi.fn().mockRejectedValue({ response: { status: 429, data: { code: "payments_paused" } } }),
+        paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })]
+      });
+
+      await submitWithAmount("100");
+
+      expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["v1", "listPaymentMethodRefusals"] });
+      expect(handleStripeError).not.toHaveBeenCalled();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /4242/ })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("button", { name: /purchase credits/i })).toBeEnabled();
+    });
+
+    it("reloads the recent refusals after the bank declines a saved card", async () => {
+      const invalidateQueries = vi.fn();
+      setup({
+        status: "idle",
+        invalidateQueries,
+        confirmPayment: vi.fn().mockRejectedValue({ response: { status: 402, data: { code: "card_declined" } } }),
+        paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })]
+      });
+
+      await submitWithAmount("100");
+
+      expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["v1", "listPaymentMethodRefusals"] });
+    });
+
+    it("reloads the recent refusals after a charge fails with a decline", async () => {
+      const invalidateQueries = vi.fn();
+      setup({
+        status: "idle",
+        invalidateQueries,
+        confirmPayment: vi.fn().mockRejectedValue({ response: { status: 402, data: { code: "insufficient_funds" } } }),
+        paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })]
+      });
+
+      await submitWithAmount("100");
+
+      expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["v1", "listPaymentMethodRefusals"] });
+    });
+
+    it("reloads the recent refusals once a payment goes through", async () => {
+      const invalidateQueries = vi.fn();
+      const input: SetupInput = {
+        status: "idle",
+        invalidateQueries,
+        onDone: vi.fn(),
+        confirmPayment: vi.fn().mockResolvedValue({ success: true }),
+        paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })]
+      };
+      const { rerender } = setup(input);
+      await submitWithAmount("100");
+
+      rerender({ ...input, isPolling: true });
+      rerender({ ...input, isPolling: false });
+
+      await waitFor(() => expect(input.onDone).toHaveBeenCalled());
+      expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["v1", "listPaymentMethodRefusals"] });
     });
   });
 
@@ -2463,10 +2692,14 @@ describe(AddCreditsForm.name, () => {
   const MockSelectContent = React.forwardRef<HTMLDivElement, { children?: React.ReactNode }>(function MockSelectContent({ children }) {
     return <div>{children}</div>;
   });
-  const MockSelectItem = React.forwardRef<HTMLDivElement, { children?: React.ReactNode; value: string }>(function MockSelectItem({ children, value }) {
+  const MockSelectItem = React.forwardRef<HTMLDivElement, { children?: React.ReactNode; value: string; disabled?: boolean }>(function MockSelectItem({
+    children,
+    value,
+    disabled
+  }) {
     const { value: selected, onValueChange } = useContext(MockSelectContext);
     return (
-      <button type="button" aria-pressed={selected === value} onClick={() => onValueChange?.(value)}>
+      <button type="button" aria-pressed={selected === value} disabled={disabled} onClick={() => onValueChange?.(value)}>
         {children}
       </button>
     );
@@ -2521,6 +2754,8 @@ describe(AddCreditsForm.name, () => {
     paymentMethods?: PaymentMethod[];
     isLoadingMethods?: boolean;
     isMethodsError?: boolean;
+    recentRefusals?: RecentPaymentRefusals;
+    isLoadingRecentRefusals?: boolean;
     analyticsService?: AnalyticsService;
     dependencies?: Partial<typeof DEPENDENCIES>;
   };
@@ -2565,9 +2800,9 @@ describe(AddCreditsForm.name, () => {
     const refreshPaymentMethods = input.refreshPaymentMethods ?? vi.fn().mockResolvedValue(undefined);
     const useRefreshPaymentMethods: typeof DEPENDENCIES.useRefreshPaymentMethods = () => refreshPaymentMethods;
 
-    const api = createProxy({ v1: { getFirstPurchaseBonus: vi.fn(), listStripeTransactions: vi.fn() } }) as unknown as ReturnType<
-      typeof DEPENDENCIES.useServices
-    >["api"];
+    const api = createProxy({
+      v1: { getFirstPurchaseBonus: vi.fn(), listStripeTransactions: vi.fn(), listPaymentMethodRefusals: vi.fn() }
+    }) as unknown as ReturnType<typeof DEPENDENCIES.useServices>["api"];
     const services = mock<ReturnType<typeof DEPENDENCIES.useServices>>({
       stripe: mock<ReturnType<typeof DEPENDENCIES.useServices>["stripe"]>({
         getCustomerTransactions: input.getCustomerTransactions ?? vi.fn().mockResolvedValue({ transactions: [] })
@@ -2584,6 +2819,11 @@ describe(AddCreditsForm.name, () => {
       isLoading: input.isLoadingMethods ?? false,
       isError: input.isMethodsError ?? false
     })) as unknown as typeof DEPENDENCIES.usePaymentMethodsQuery;
+
+    const useRecentPaymentRefusalsQuery = (() => ({
+      data: input.recentRefusals,
+      isLoading: input.isLoadingRecentRefusals ?? false
+    })) as unknown as typeof DEPENDENCIES.useRecentPaymentRefusalsQuery;
 
     const use3DSecure: typeof DEPENDENCIES.use3DSecure = () =>
       mock<ReturnType<typeof DEPENDENCIES.use3DSecure>>({
@@ -2618,6 +2858,7 @@ describe(AddCreditsForm.name, () => {
           useSetupIntentMutation,
           useUser,
           usePaymentMethodsQuery,
+          useRecentPaymentRefusalsQuery,
           usePaymentMutations,
           usePaymentPolling,
           useRefreshPaymentMethods,

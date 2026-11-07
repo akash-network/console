@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { MAX_REFUSALS_PER_WINDOW, REFUSAL_WINDOW_MS, usePaymentRefusals } from "./usePaymentRefusals";
+import type { RecentPaymentRefusals } from "./usePaymentRefusals";
+import { MAX_REFUSALS_PER_WINDOW, REFUSAL_WINDOW_MS, REFUSALS_PER_PAYMENT_METHOD, usePaymentRefusals } from "./usePaymentRefusals";
 
 import { act, renderHook } from "@testing-library/react";
 
@@ -99,7 +100,13 @@ describe(usePaymentRefusals.name, () => {
     const refusedAtMinutes = [15, 16, 17, 18, 5];
     window.sessionStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify(refusedAtMinutes.map(minute => ({ userId: "user_1", paymentMethodId: "pm_link", refusedAt: Date.parse(`2026-11-02T10:${String(minute).padStart(2, "0")}:00Z`) })))
+      JSON.stringify(
+        refusedAtMinutes.map(minute => ({
+          userId: "user_1",
+          paymentMethodId: "pm_link",
+          refusedAt: Date.parse(`2026-11-02T10:${String(minute).padStart(2, "0")}:00Z`)
+        }))
+      )
     );
 
     const { result } = setup();
@@ -175,6 +182,64 @@ describe(usePaymentRefusals.name, () => {
     expect(setup({ userId: "user_other" }).result.current.countFor("pm_link")).toBe(1);
   });
 
+  it("treats a payment method as refused repeatedly once this tab saw it refused often enough", () => {
+    const { result } = setup();
+
+    for (let refusal = 1; refusal < REFUSALS_PER_PAYMENT_METHOD; refusal++) {
+      act(() => {
+        result.current.record("pm_card");
+      });
+    }
+    expect(result.current.isRefusedRepeatedly("pm_card")).toBe(false);
+
+    act(() => {
+      result.current.record("pm_card");
+    });
+    expect(result.current.isRefusedRepeatedly("pm_card")).toBe(true);
+    expect(result.current.isRefusedRepeatedly("pm_other")).toBe(false);
+  });
+
+  it("treats a payment method the API reports as refused as refused repeatedly", () => {
+    const { result } = setup({ userId: "user_1", recentRefusals: { refusedPaymentMethodIds: ["pm_card"], pausedUntil: null } });
+
+    expect(result.current.isRefusedRepeatedly("pm_card")).toBe(true);
+    expect(result.current.countFor("pm_card")).toBe(0);
+    expect(result.current.isRefusedRepeatedly("pm_other")).toBe(false);
+  });
+
+  it("pauses payments while the API reports a pause, until it ends", () => {
+    vi.useFakeTimers({ now: new Date("2026-11-02T10:00:00Z") });
+    const { result } = setup({ userId: "user_1", recentRefusals: { refusedPaymentMethodIds: [], pausedUntil: "2026-11-02T10:10:00.000Z" } });
+
+    expect(result.current.pausedUntil).toBe(Date.parse("2026-11-02T10:10:00Z"));
+
+    act(() => vi.advanceTimersByTime(10 * MINUTE_MS));
+    expect(result.current.pausedUntil).toBeNull();
+  });
+
+  it("ignores a pause the API reports that already ended", () => {
+    vi.useFakeTimers({ now: new Date("2026-11-02T10:00:00Z") });
+    const { result } = setup({ userId: "user_1", recentRefusals: { refusedPaymentMethodIds: [], pausedUntil: "2026-11-02T09:59:00.000Z" } });
+
+    expect(result.current.pausedUntil).toBeNull();
+  });
+
+  it.each([
+    ["the API's pause ends later", "2026-11-02T10:40:00.000Z", Date.parse("2026-11-02T10:40:00Z")],
+    ["this tab's pause ends later", "2026-11-02T10:05:00.000Z", Date.parse("2026-11-02T10:30:00Z")]
+  ])("keeps the later pause when %s", (_, recentPauseEnd, expectedPauseEnd) => {
+    vi.useFakeTimers({ now: new Date("2026-11-02T10:00:00Z") });
+    const { result } = setup({ userId: "user_1", recentRefusals: { refusedPaymentMethodIds: [], pausedUntil: recentPauseEnd } });
+
+    for (let refusal = 0; refusal < MAX_REFUSALS_PER_WINDOW; refusal++) {
+      act(() => {
+        result.current.record("pm_link");
+      });
+    }
+
+    expect(result.current.pausedUntil).toBe(expectedPauseEnd);
+  });
+
   it.each([
     ["is not JSON", "not json"],
     ["is not a list", JSON.stringify({ userId: "user_1" })]
@@ -202,7 +267,7 @@ describe(usePaymentRefusals.name, () => {
     expect(result.current.countFor("pm_link")).toBe(1);
   });
 
-  function setup(input: { userId?: string } = { userId: "user_1" }) {
-    return renderHook(() => usePaymentRefusals(input.userId));
+  function setup(input: { userId?: string; recentRefusals?: RecentPaymentRefusals } = { userId: "user_1" }) {
+    return renderHook(() => usePaymentRefusals(input.userId, input.recentRefusals));
   }
 });
