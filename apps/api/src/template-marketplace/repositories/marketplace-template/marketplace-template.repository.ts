@@ -67,6 +67,6 @@ export class MarketplaceTemplateRepository extends OrgScopedRepository<Table, Pa
   #readableThroughRules(): SQL | undefined {
     if (!this.ability) return undefined;
 
-    return this.unscoped("public-templates").whereAccessibleBy(undefined) ?? sql`true`;
+    return this.unscoped("template-readers").whereAccessibleBy(undefined) ?? sql`true`;
   }
 }

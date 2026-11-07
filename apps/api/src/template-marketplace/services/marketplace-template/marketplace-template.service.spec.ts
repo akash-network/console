@@ -73,6 +73,15 @@ describe(MarketplaceTemplateService.name, () => {
       expect(result).toMatchObject({ author: null, publisher: null });
     });
 
+    it("withholds the slug of a personal organization publisher", async () => {
+      const template = createTemplateRow({ publisher: { name: "Alice", slug: "personal-slug", type: "personal" } });
+      const { service } = setup({ template });
+
+      const result = await service.getTemplate(template.id);
+
+      expect(result.publisher).toEqual({ name: "Alice", slug: null, type: "personal" });
+    });
+
     it("falls back to the legacy description and the SDL's hardware for a version that recorded neither", async () => {
       const template = createTemplateRow({ description: "Legacy description" });
       const { service } = setup({ template, currentVersion: createVersion({ templateId: template.id, sdl: SDL, readme: null, resources: null }) });
@@ -167,17 +176,29 @@ describe(MarketplaceTemplateService.name, () => {
     });
   });
 
+
   describe("listVersions", () => {
-    it("lists the versions of a readable template", async () => {
+    it("lists every version of the template to a caller who may edit it", async () => {
       const template = createTemplateRow();
-      const summaries: TemplateVersionSummary[] = [createSummary({ templateId: template.id, version: 2 }), createSummary({ templateId: template.id, version: 1 })];
-      const { service, templateVersionRepository } = setup({ template });
+      const summaries = [createSummary({ templateId: template.id, version: 2 }), createSummary({ templateId: template.id, version: 1 })];
+      const { service, templateVersionRepository } = setup({ template, rules: [{ action: "update", subject: "Template" }] });
       templateVersionRepository.listByTemplate.mockResolvedValue(summaries);
 
       const result = await service.listVersions(template.id);
 
       expect(result).toEqual(summaries);
       expect(templateVersionRepository.listByTemplate).toHaveBeenCalledWith(template.id);
+    });
+
+    it("lists only the current version to a caller who may not edit the template", async () => {
+      const current = createSummary({ version: 2 });
+      const template = createTemplateRow({ currentVersionId: current.id });
+      const { service, templateVersionRepository } = setup({ template });
+      templateVersionRepository.listByTemplate.mockResolvedValue([current, createSummary({ templateId: template.id, version: 1 })]);
+
+      const result = await service.listVersions(template.id);
+
+      expect(result).toEqual([current]);
     });
 
     it("refuses an unreadable template with 404", async () => {
@@ -189,9 +210,9 @@ describe(MarketplaceTemplateService.name, () => {
   });
 
   describe("getVersion", () => {
-    it("reads one version of a readable template without its image digests", async () => {
-      const template = createTemplateRow();
-      const version = createVersion({ templateId: template.id, version: 3, imageDigests: { "nginx:latest": "sha256:abc" } });
+    it("reads the current version without its image digests", async () => {
+      const version = createVersion({ version: 3, imageDigests: { "nginx:latest": "sha256:abc" } });
+      const template = createTemplateRow({ currentVersionId: version.id });
       const { service, templateVersionRepository } = setup({ template });
       templateVersionRepository.findByTemplateAndVersion.mockResolvedValue(version);
 
@@ -202,9 +223,39 @@ describe(MarketplaceTemplateService.name, () => {
       expect(templateVersionRepository.findByTemplateAndVersion).toHaveBeenCalledWith(template.id, 3);
     });
 
+    it("reads an earlier version to a caller who may edit the template", async () => {
+      const template = createTemplateRow();
+      const earlier = createVersion({ templateId: template.id, version: 1 });
+      const { service, templateVersionRepository } = setup({ template, rules: [{ action: "update", subject: "Template" }] });
+      templateVersionRepository.findByTemplateAndVersion.mockResolvedValue(earlier);
+
+      const result = await service.getVersion(template.id, 1);
+
+      expect(result).toMatchObject({ id: earlier.id, version: 1, sdl: earlier.sdl });
+    });
+
+    it("refuses an earlier version to a caller who may not edit the template with 404", async () => {
+      const template = createTemplateRow();
+      const { service, templateVersionRepository } = setup({ template, rules: [{ action: "read", subject: "Template" }] });
+      templateVersionRepository.findByTemplateAndVersion.mockResolvedValue(createVersion({ templateId: template.id, version: 1 }));
+
+      await expect(service.getVersion(template.id, 1)).rejects.toMatchObject({ status: 404, message: "Template version not found" });
+    });
+
+    it("falls back to the legacy description and the SDL's hardware for a version that recorded neither", async () => {
+      const version = createVersion({ sdl: SDL, readme: null, resources: null });
+      const template = createTemplateRow({ currentVersionId: version.id, description: "Legacy description" });
+      const { service, templateVersionRepository } = setup({ template });
+      templateVersionRepository.findByTemplateAndVersion.mockResolvedValue(version);
+
+      const result = await service.getVersion(template.id, 1);
+
+      expect(result).toMatchObject({ readme: "Legacy description", resources: { cpu: 2, memoryBytes: 1024 ** 3, storageBytes: 2 * 1024 ** 3 } });
+    });
+
     it("refuses a version number the template does not have with 404", async () => {
       const template = createTemplateRow();
-      const { service, templateVersionRepository } = setup({ template });
+      const { service, templateVersionRepository } = setup({ template, rules: [{ action: "update", subject: "Template" }] });
       templateVersionRepository.findByTemplateAndVersion.mockResolvedValue(undefined);
 
       await expect(service.getVersion(template.id, 9)).rejects.toMatchObject({ status: 404, message: "Template version not found" });
@@ -217,6 +268,7 @@ describe(MarketplaceTemplateService.name, () => {
       expect(templateVersionRepository.findByTemplateAndVersion).not.toHaveBeenCalled();
     });
   });
+
 
   function createTemplateRow(overrides: Partial<MarketplaceTemplateRow> = {}): MarketplaceTemplateRow {
     return {

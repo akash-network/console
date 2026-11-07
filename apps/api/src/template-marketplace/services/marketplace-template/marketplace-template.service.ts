@@ -7,7 +7,8 @@ import type { OrganizationType } from "@src/organization/model-schemas/organizat
 import { summarizeTemplateHardware } from "@src/template/utils/template-hardware/template-hardware";
 import {
   MarketplaceTemplateRepository,
-  type MarketplaceTemplateRow } from "@src/template-marketplace/repositories/marketplace-template/marketplace-template.repository";
+  type MarketplaceTemplateRow
+} from "@src/template-marketplace/repositories/marketplace-template/marketplace-template.repository";
 import {
   type TemplateVersionOutput,
   TemplateVersionRepository,
@@ -31,11 +32,14 @@ export interface MarketplaceTemplateOutput {
   createdAt: Date;
   updatedAt: Date;
   author: { username: string } | null;
-  publisher: { name: string; slug: string; type: OrganizationType } | null;
+  /** A personal organization's slug is derived from its owner's internal id, so it is withheld. */
+  publisher: { name: string; slug: string | null; type: OrganizationType } | null;
   /** Null only on a template an older API pod saved without a version, until it is saved again or healed. */
   currentVersion: PublishedTemplateVersion | null;
   canEdit: boolean;
 }
+
+const VERSION_NOT_FOUND = "Template version not found";
 
 function withoutImageDigests({ imageDigests: _imageDigests, ...version }: TemplateVersionOutput): PublishedTemplateVersion {
   return version;
@@ -67,24 +71,27 @@ export class MarketplaceTemplateService {
       createdAt: template.createdAt,
       updatedAt: template.updatedAt,
       author: template.authorUsername ? { username: template.authorUsername } : null,
-      publisher: template.publisher,
+      publisher: template.publisher && { ...template.publisher, slug: template.publisher.type === "team" ? template.publisher.slug : null },
       currentVersion: currentVersion ? this.#withLegacyFallbacks(currentVersion, template) : null,
       canEdit: this.#canEdit(template)
     };
   }
 
+  /** Earlier versions may hold what the template no longer publishes, such as a removed key, so only editors see past the current one. */
   async listVersions(id: string): Promise<TemplateVersionSummary[]> {
-    await this.#findReadable(id);
+    const template = await this.#findReadable(id);
+    const versions = await this.templateVersionRepository.listByTemplate(id);
 
-    return await this.templateVersionRepository.listByTemplate(id);
+    return this.#canEdit(template) ? versions : versions.filter(version => version.id === template.currentVersionId);
   }
 
   async getVersion(id: string, version: number): Promise<PublishedTemplateVersion> {
-    await this.#findReadable(id);
+    const template = await this.#findReadable(id);
     const found = await this.templateVersionRepository.findByTemplateAndVersion(id, version);
-    assert(found, 404, "Template version not found");
+    assert(found, 404, VERSION_NOT_FOUND);
+    assert(found.id === template.currentVersionId || this.#canEdit(template), 404, VERSION_NOT_FOUND);
 
-    return withoutImageDigests(found);
+    return this.#withLegacyFallbacks(found, template);
   }
 
   /** Answers 404 rather than 403 for a template the caller may not read, so its existence does not leak. */

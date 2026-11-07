@@ -6,12 +6,15 @@ import { AskedValueSchema } from "@src/template-marketplace/lib/asked-values/ask
 import { templateVersionStatusEnum } from "@src/template-marketplace/model-schemas/template-version/template-version.schema";
 import { templateModerationStatusEnum, templateVisibilityEnum } from "@src/user/model-schemas/template/template.schema";
 
+/** The `version` column is a Postgres integer, which refuses anything larger with a 500. */
+const MAX_VERSION_NUMBER = 2_147_483_647;
+
 export const UserTemplateParamsSchema = z.object({
   id: z.string().uuid()
 });
 
 export const UserTemplateVersionParamsSchema = UserTemplateParamsSchema.extend({
-  version: z.coerce.number().int().positive().openapi({ type: "integer", description: "The version number, counted from 1" })
+  version: z.coerce.number().int().positive().max(MAX_VERSION_NUMBER).openapi({ type: "integer", minimum: 1, maximum: MAX_VERSION_NUMBER, description: "The version number, counted from 1" })
 });
 
 export const TemplateVersionSummarySchema = z
@@ -50,7 +53,11 @@ export const MarketplaceTemplateSchema = z
       .nullable()
       .openapi({ description: "Null when the author deleted their account" }),
     publisher: z
-      .object({ name: z.string(), slug: z.string(), type: z.enum(organizationTypeEnum.enumValues) })
+      .object({
+        name: z.string(),
+        slug: z.string().nullable().openapi({ description: "Null for a personal organization" }),
+        type: z.enum(organizationTypeEnum.enumValues)
+      })
       .nullable()
       .openapi({ description: "The organization the template belongs to, null for a template filed in none" }),
     currentVersion: TemplateVersionSchema.nullable().openapi({
