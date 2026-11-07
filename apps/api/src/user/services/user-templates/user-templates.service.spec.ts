@@ -201,7 +201,11 @@ describe(UserTemplatesService.name, () => {
       expect(userTemplateRepository.isAuthoredBy).not.toHaveBeenCalled();
       expect(userTemplateRepository.accessibleBy).toHaveBeenCalledWith(ability, "create");
       expect(deploymentProjectService.resolveFilingProject).toHaveBeenCalledWith(requestedProjectId, "Template");
-      expect(userTemplateRepository.createTemplate).toHaveBeenCalledWith(userId, data, { projectId: filingProjectId, copiedFromId: undefined, authorId: user.id });
+      expect(userTemplateRepository.createTemplate).toHaveBeenCalledWith(userId, data, {
+        projectId: filingProjectId,
+        copiedFromId: undefined,
+        authorId: user.id
+      });
     });
 
     it("saves a template the caller did not author as a copy of it", async () => {
