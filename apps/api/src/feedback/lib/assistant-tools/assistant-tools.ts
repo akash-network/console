@@ -31,7 +31,7 @@ const READ_TOOL_DESCRIPTIONS: Record<ReadToolName, string> = {
   check_availability:
     "Screens how many providers could bid now on a template or an SDL, per group, and why none can when that is the case. Use it to try an adjusted SDL before proposing it.",
   read_console_api:
-    "Reads a GET route of the Console API as the user, with only the access they have. Use it for the user's own data no other read tool covers, such as projects, organizations, members, alerts, usage, payments, API key names and notifications. Amounts come back in USD and addresses as names. Routes by tag, query parameters after ?:"
+    "Reads one of the Console API routes listed below as the user, with only the access they have. Use it for the user's own data no other read tool covers, such as projects, organizations, activity, spending, budgets, hardware requests and deployment alerts. It never returns personal or contact details, API keys, payment details, notification channels or team members. Amounts come back in USD and addresses as names. Routes by tag, query parameters after ?:"
 };
 
 const CLIENT_TOOL_DESCRIPTIONS: Record<ClientToolName, string> = {

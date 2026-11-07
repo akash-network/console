@@ -1,14 +1,18 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import type { OpenAPIObject } from "openapi3-ts/oas30";
 import { describe, expect, it } from "vitest";
 
 import {
+  ASSISTANT_READABLE_ROUTES,
   consoleApiCatalogOf,
   type ConsoleApiRoute,
   consoleApiRoutesOf,
-  DENIED_CONSOLE_API_ROUTES,
-  isDeniedConsoleApiPath,
+  isAssistantReadablePath,
   matchConsoleApiRoute,
-  matchesRouteTemplate
+  matchesRouteTemplate,
+  publishedGetRoutesOf,
+  readableConsoleApiRouteOf
 } from "./console-api-catalog";
 
 const BEARER = [{ BearerAuth: [] }];
@@ -22,8 +26,57 @@ function route(overrides: Partial<ConsoleApiRoute> & { path: string }): ConsoleA
   return { tag: "Projects", summary: "", queryParameters: [], forSignedInUser: true, ...overrides };
 }
 
+const COMMITTED_DOCUMENT: OpenAPIObject = JSON.parse(readFileSync(resolve(__dirname, "../../../../swagger/openapi.json"), "utf8"));
+
+const SENSITIVE_ROUTES = [
+  "/v1/api-keys",
+  "/v1/api-keys/{id}",
+  "/v1/user/me",
+  "/v1/user/byUsername/{username}",
+  "/v1/user/checkUsernameAvailability/{username}",
+  "/v1/user/me/deletion-eligibility",
+  "/v1/organization-members",
+  "/v1/organization-members/{id}/project-grants",
+  "/v1/organization-invitations",
+  "/v1/received-invitations",
+  "/v1/organization-activities",
+  "/v1/projects/{id}/members",
+  "/v1/notification-channels",
+  "/v1/notification-channels/{id}",
+  "/v1/alerts",
+  "/v1/alerts/{id}",
+  "/v1/stripe/transactions",
+  "/v1/stripe/transactions/export",
+  "/v1/stripe/payment-methods",
+  "/v1/stripe/payment-methods/default",
+  "/v1/billing-details",
+  "/v1/wallets",
+  "/v1/wallet-settings",
+  "/v1/fee-allowances",
+  "/v1/sdl-secrets-context",
+  "/v1/deployments/{dseq}",
+  "/v1/deployment-settings/{userId}/{dseq}",
+  "/v2/deployment-settings/{dseq}",
+  "/v1/configure-drafts/{draftId}",
+  "/v1/user/template/{id}",
+  "/v1/user/templates/{username}",
+  "/v1/assistant/consent"
+];
+
 describe("console-api-catalog", () => {
-  describe(consoleApiRoutesOf.name, () => {
+  describe("ASSISTANT_READABLE_ROUTES", () => {
+    it("lists only routes the committed OpenAPI document publishes as GET", () => {
+      const publishedGetPaths = publishedGetRoutesOf(COMMITTED_DOCUMENT).map(({ path }) => path);
+
+      expect([...ASSISTANT_READABLE_ROUTES].filter(path => !publishedGetPaths.includes(path))).toEqual([]);
+    });
+
+    it("lists none of the routes that answer with credentials, personal, contact, payment or teammate data", () => {
+      expect(SENSITIVE_ROUTES.filter(path => ASSISTANT_READABLE_ROUTES.has(path))).toEqual([]);
+    });
+  });
+
+  describe(publishedGetRoutesOf.name, () => {
     it("lists every published GET route with its tag, summary, query parameters, caller and response schema", () => {
       const document = documentOf({
         "/v1/projects": {
@@ -40,7 +93,7 @@ describe("console-api-catalog", () => {
         "/v1/network-capacity": { get: { responses: {} } }
       });
 
-      expect(consoleApiRoutesOf(document)).toEqual([
+      expect(publishedGetRoutesOf(document)).toEqual([
         {
           path: "/v1/projects",
           tag: "Projects",
@@ -61,19 +114,14 @@ describe("console-api-catalog", () => {
       ]);
     });
 
-    it("leaves out every denied route and routes with no GET", () => {
-      const document = documentOf({
-        "/v1/sdl-secrets-context": { get: { responses: {} } },
-        "/v1/deployments/{dseq}": { get: { responses: {} } },
-        "/v1/assistant/conversations": { post: { responses: {} } },
-        "/v1/projects": { get: { responses: {} } }
-      });
+    it("leaves out routes with no GET", () => {
+      const document = documentOf({ "/v1/assistant/conversations": { post: { responses: {} } }, "/v1/api-keys": { get: { responses: {} } } });
 
-      expect(consoleApiRoutesOf(document).map(({ path }) => path)).toEqual(["/v1/projects"]);
+      expect(publishedGetRoutesOf(document).map(({ path }) => path)).toEqual(["/v1/api-keys"]);
     });
 
     it("lists nothing for a document without paths", () => {
-      expect(consoleApiRoutesOf({ openapi: "3.0.0", info: { title: "Console API", version: "v1" } } as OpenAPIObject)).toEqual([]);
+      expect(publishedGetRoutesOf({ openapi: "3.0.0", info: { title: "Console API", version: "v1" } } as OpenAPIObject)).toEqual([]);
     });
 
     it("shortens a long summary to its first clause, or to whole words when the clause is long too", () => {
@@ -92,10 +140,28 @@ describe("console-api-catalog", () => {
         }
       });
 
-      expect(consoleApiRoutesOf(document).map(({ summary }) => summary)).toEqual([
+      expect(publishedGetRoutesOf(document).map(({ summary }) => summary)).toEqual([
         "List the organizations the caller belongs to",
         "Get the gpu models a free trial deployment may request and"
       ]);
+    });
+  });
+
+  describe(consoleApiRoutesOf.name, () => {
+    it("keeps only the published GET routes on the list, leaving out any other GET route", () => {
+      const document = documentOf({
+        "/v1/api-keys": { get: { responses: {} } },
+        "/v1/user/me": { get: { responses: {} } },
+        "/v1/some-future-route": { get: { responses: {} } },
+        "/v1/projects": { get: { responses: {} } },
+        "/v1/providers/{address}": { get: { responses: {} } }
+      });
+
+      expect(consoleApiRoutesOf(document).map(({ path }) => path)).toEqual(["/v1/projects", "/v1/providers/{address}"]);
+    });
+
+    it("leaves out a listed route the document does not publish", () => {
+      expect(consoleApiRoutesOf(documentOf({ "/v1/gpu": { get: { responses: {} } } })).map(({ path }) => path)).toEqual(["/v1/gpu"]);
     });
   });
 
@@ -132,18 +198,36 @@ describe("console-api-catalog", () => {
     });
   });
 
-  describe(isDeniedConsoleApiPath.name, () => {
-    it("denies a filled path of any denied route", () => {
-      expect(isDeniedConsoleApiPath("/v1/sdl-secrets-context")).toBe(true);
-      expect(isDeniedConsoleApiPath("/v1/deployments/42")).toBe(true);
-      expect(isDeniedConsoleApiPath("/akash/deployment/v1beta4/deployments/list")).toBe(true);
-      expect(isDeniedConsoleApiPath("/v1/configure-drafts/draft_1")).toBe(true);
-      expect(isDeniedConsoleApiPath("/v1/deployments")).toBe(false);
-      expect(isDeniedConsoleApiPath("/v1/deployments/42/info")).toBe(false);
+  describe(isAssistantReadablePath.name, () => {
+    it.each([
+      ["/v1/deployments", true],
+      ["/v1/deployments/42/info", true],
+      ["/v1/providers/akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh", true],
+      ["/v1/deployments/42", false],
+      ["/v1/api-keys", false],
+      ["/v1/user/me", false],
+      ["/v1/projects/6f1c2a3e/members", false],
+      ["/v1/organization-members", false],
+      ["/v1/sdl-secrets-context", false]
+    ])("reads %s: %s", (path, readable) => {
+      expect(isAssistantReadablePath(path)).toBe(readable);
+    });
+  });
+
+  describe(readableConsoleApiRouteOf.name, () => {
+    it("matches a filled path of a listed route", () => {
+      const routes = [route({ path: "/v1/projects/{id}" }), route({ path: "/v1/projects/{id}/members" })];
+
+      expect(readableConsoleApiRouteOf(routes, "/v1/projects/p1")?.path).toBe("/v1/projects/{id}");
+      expect(readableConsoleApiRouteOf(routes, "/v1/projects/p1/members")).toBeNull();
+      expect(readableConsoleApiRouteOf(routes, "/v1/organizations")).toBeNull();
     });
 
-    it("gives a reason for every denied route", () => {
-      expect(Object.values(DENIED_CONSOLE_API_ROUTES).every(reason => reason.length > 0)).toBe(true);
+    it("refuses a path a listed parameter would match when a static route that is not listed answers it", () => {
+      const routes = [route({ path: "/v1/providers/{address}" }), route({ path: "/v1/providers/private-contacts" })];
+
+      expect(readableConsoleApiRouteOf(routes, "/v1/providers/private-contacts")).toBeNull();
+      expect(readableConsoleApiRouteOf(routes, "/v1/providers/akash1abc")?.path).toBe("/v1/providers/{address}");
     });
   });
 

@@ -8,11 +8,13 @@ import {
   consoleApiCatalogOf,
   type ConsoleApiRoute,
   consoleApiRoutesOf,
-  isDeniedConsoleApiPath,
-  matchConsoleApiRoute
+  isAssistantReadablePath,
+  publishedGetRoutesOf,
+  readableConsoleApiRouteOf
 } from "@src/feedback/lib/console-api-catalog/console-api-catalog";
 import { projectedToSchema } from "@src/feedback/lib/openapi-projection/openapi-projection";
-import { REDACTED, redactSecrets } from "@src/feedback/lib/redact-secrets/redact-secrets";
+import { withoutPersonalData } from "@src/feedback/lib/personal-data/personal-data";
+import { REDACTED, redactEmailAddresses, redactSecrets } from "@src/feedback/lib/redact-secrets/redact-secrets";
 import { CONSOLE_API, type ConsoleApi } from "@src/feedback/providers/console-api.provider";
 import { AssistantAddressNamesService } from "@src/feedback/services/assistant-address-names/assistant-address-names.service";
 import { AssistantUsdService, type Coin } from "@src/feedback/services/assistant-usd/assistant-usd.service";
@@ -75,13 +77,24 @@ function humanTagOf(tag: string): string {
     .join(" ");
 }
 
+function unreadableRouteError(path: string): AssistantToolError {
+  return new AssistantToolError(
+    `${path} is not a route the assistant may read. Do not try it again; pick a path from the catalog, or tell the user where Console shows it.`
+  );
+}
+
 export function readSummaryOf(route: ConsoleApiRoute): string {
   return route.forSignedInUser ? `Read your ${humanTagOf(route.tag)}` : `Read ${humanTagOf(route.tag)}`;
 }
 
+function shortenedOf(text: string): string {
+  const redacted = redactEmailAddresses(text);
+  return redacted.length > MAX_STRING_LENGTH ? `${redacted.slice(0, MAX_STRING_LENGTH)}...[truncated]` : redacted;
+}
+
 function withoutSecrets(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(withoutSecrets);
-  if (!isRecord(value)) return typeof value === "string" && value.length > MAX_STRING_LENGTH ? `${value.slice(0, MAX_STRING_LENGTH)}...[truncated]` : value;
+  if (!isRecord(value)) return typeof value === "string" ? shortenedOf(value) : value;
 
   return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, SECRET_PROPERTY.test(key) ? REDACTED : withoutSecrets(entry)]));
 }
@@ -110,10 +123,10 @@ export function fittedReadOf(data: unknown): unknown {
   return { note: "The response is too large to read. Narrow it with query parameters or read a single item." };
 }
 
-/** Reads any published GET route of the Console API as the signed-in user, through the full app, so its own auth and ability checks decide what they see. */
+/** Reads the listed GET routes of the Console API as the signed-in user, through the full app, so its own auth and ability checks decide what they see. */
 @singleton()
 export class AssistantConsoleApiService {
-  #routes?: { document: OpenAPIObject; routes: ConsoleApiRoute[] };
+  #routes?: { document: OpenAPIObject; published: ConsoleApiRoute[]; readable: ConsoleApiRoute[] };
 
   constructor(
     @inject(CONSOLE_API) private readonly consoleApi: ConsoleApi,
@@ -123,7 +136,7 @@ export class AssistantConsoleApiService {
   ) {}
 
   async catalog(): Promise<string> {
-    return consoleApiCatalogOf(await this.#allowedRoutes());
+    return consoleApiCatalogOf((await this.#loadedRoutes()).readable);
   }
 
   async read({ path, query }: ReadToolArguments<"read_console_api">): Promise<ReadResult> {
@@ -137,22 +150,21 @@ export class AssistantConsoleApiService {
     return { summary: readSummaryOf(route), data: fittedReadOf(await this.#shaped(route, await response.json())) };
   }
 
-  async #allowedRoutes(): Promise<ConsoleApiRoute[]> {
+  async #loadedRoutes(): Promise<{ published: ConsoleApiRoute[]; readable: ConsoleApiRoute[] }> {
     const document = await this.consoleApi.publishedDocument();
-    if (this.#routes?.document !== document) this.#routes = { document, routes: consoleApiRoutesOf(document) };
+    if (this.#routes?.document !== document) this.#routes = { document, published: publishedGetRoutesOf(document), readable: consoleApiRoutesOf(document) };
 
-    return this.#routes.routes;
+    return this.#routes;
   }
 
   async #routeOf(path: string): Promise<ConsoleApiRoute> {
-    if (isDeniedConsoleApiPath(path))
-      throw new AssistantToolError(`${path} is not available to the assistant. Do not try it again; tell the user where Console shows it instead.`);
+    if (!isAssistantReadablePath(path)) throw unreadableRouteError(path);
 
-    const routes = await this.#allowedRoutes().catch(() => {
+    const { published } = await this.#loadedRoutes().catch(() => {
       throw new Error(CATALOG_UNAVAILABLE);
     });
-    const route = matchConsoleApiRoute(routes, path);
-    if (!route) throw new AssistantToolError(`${path} is not a GET route in the catalog. Pick a path from the catalog and fill its {parameters}.`);
+    const route = readableConsoleApiRouteOf(published, path);
+    if (!route) throw unreadableRouteError(path);
 
     return route;
   }
@@ -191,12 +203,12 @@ export class AssistantConsoleApiService {
     if (response.status === 404) return new AssistantToolError(`Nothing was found at ${path}.`);
     if (response.status >= 500) return new Error(`The Console API answered ${response.status}`);
 
-    const message = redactSecrets(errorMessageOf(await response.text())).slice(0, MAX_ERROR_MESSAGE_LENGTH);
+    const message = redactEmailAddresses(redactSecrets(errorMessageOf(await response.text()))).slice(0, MAX_ERROR_MESSAGE_LENGTH);
     return new AssistantToolError(`The Console API refused ${path} with ${response.status}: ${message}`);
   }
 
   async #shaped(route: ConsoleApiRoute, body: unknown): Promise<unknown> {
-    const published = projectedToSchema(body, route.responseSchema, this.#routes?.document.components?.schemas);
+    const published = withoutPersonalData(projectedToSchema(body, route.responseSchema, this.#routes?.document.components?.schemas));
     const named = await this.addressNamesService.withAddressesNamed(JSON.stringify(withoutSecrets(await this.#inUsd(published))));
     return JSON.parse(named);
   }

@@ -6,7 +6,6 @@ import { container } from "tsyringe";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { startJobQueues } from "@src/app/providers/jobs.provider";
-import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
@@ -18,12 +17,13 @@ import { AssistantConversationRepository } from "@src/feedback/repositories/assi
 import { AssistantMessageRepository } from "@src/feedback/repositories/assistant-message/assistant-message.repository";
 import { AkashMlClient } from "@src/feedback/services/akashml-client/akashml.client";
 import { ClassifyConversation } from "@src/feedback/services/classify-conversation/classify-conversation.handler";
+import { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
-import { createApiKey } from "@test/seeders/api-key.seeder";
 import { seedAssistantConsent, seedAssistantConversation } from "@test/seeders/db/feedback.seeder";
 import { ASSISTANT_TEST_SDL } from "@test/seeders/get-deployment-response.seeder";
+import { createHardwareRequestSpec } from "@test/seeders/hardware-request.seeder";
 import { findJobRows } from "@test/services/job-queue-harness";
 
 const COPY_VERSION = "2026-11-01";
@@ -36,7 +36,7 @@ describe("Assistant conversations", () => {
   const userAuthTokenService = container.resolve(UserAuthTokenService);
   const assistantConversationRepository = container.resolve(AssistantConversationRepository);
   const assistantMessageRepository = container.resolve(AssistantMessageRepository);
-  const apiKeyRepository = container.resolve(ApiKeyRepository);
+  const hardwareRequestRepository = container.resolve(HardwareRequestRepository);
   const config = container.resolve(FEEDBACK_CONFIG);
   const db = container.resolve(POSTGRES_DB);
 
@@ -177,49 +177,42 @@ describe("Assistant conversations", () => {
       ]);
     });
 
-    it("reads the Console API as the signed-in user, showing only their own data and none of its key material", async () => {
+    it("reads the Console API as the signed-in user, showing only their own data and none of their contact details", async () => {
       const { token, user } = await setup({ consent: { reviewOptIn: false } });
       const { user: otherUser } = await setup();
-      const ownKey = await seedApiKey({ userId: user.id, name: "ci deploy key" });
-      await seedApiKey({ userId: otherUser.id, name: "someone else's key" });
+      const ownRequest = await hardwareRequestRepository.create({
+        userId: user.id,
+        category: "quote",
+        details: "H200s for training, or write to jane@example.com",
+        contactEmail: "jane@example.com",
+        spec: { ...createHardwareRequestSpec(), company: "Acme Corp", phone: "+1 555 0100" }
+      });
+      await hardwareRequestRepository.create({ userId: otherUser.id, category: "other", details: "someone else's request", contactEmail: "bob@example.com" });
       const completions = replyWith([
-        { toolCalls: [{ id: "call-1", name: "read_console_api", arguments: { path: "/v1/api-keys" } }] },
-        { content: "You have one API key, ci deploy key." }
+        { toolCalls: [{ id: "call-1", name: "read_console_api", arguments: { path: "/v1/hardware-requests" } }] },
+        { content: "You have one hardware request, for H200s." }
       ]);
 
-      const response = await request(`/v1/assistant/conversations/${faker.string.uuid()}/messages`, token, { content: "Which API keys do I have?" });
+      const response = await request(`/v1/assistant/conversations/${faker.string.uuid()}/messages`, token, { content: "Which hardware requests did I file?" });
 
       expect(await eventsOf(response)).toEqual([
         { type: "tool_started", toolCallId: "call-1", name: "read_console_api" },
-        { type: "tool_result_summary", toolCallId: "call-1", name: "read_console_api", ok: true, summary: "Read your API keys" },
-        ...textDeltasOf("You have one API key, ci deploy key."),
+        { type: "tool_result_summary", toolCallId: "call-1", name: "read_console_api", ok: true, summary: "Read your hardware requests" },
+        ...textDeltasOf("You have one hardware request, for H200s."),
         { type: "done", reason: "stop" }
       ]);
       const toolMessage = completions.bodies[1].messages.at(-1)!;
-      expect(toolMessage).toMatchObject({ role: "tool", tool_call_id: "call-1" });
-      expect(JSON.parse(toolMessage.content)).toMatchObject({
-        tool: "read_console_api",
-        data: { data: [{ id: ownKey.id, name: "ci deploy key", keyFormat: REDACTED }] }
-      });
-      expect(toolMessage.content).not.toContain("someone else's key");
-      expect(toolMessage.content).not.toContain(ownKey.keyFormat);
-      expect(toolMessage.content).not.toContain(ownKey.hashedKey);
-      expect(toolMessage.content).not.toContain("hashedKey");
-      const readTool = (completions.bodies[0] as unknown as { tools: { function: { name: string; description: string } }[] }).tools.find(
-        tool => tool.function.name === "read_console_api"
-      );
-      expect(readTool?.function.description).toContain("/v1/api-keys");
-      expect(readTool?.function.description).not.toContain("/v1/sdl-secrets-context");
+      expect(JSON.parse(toolMessage.content)).toMatchObject({ tool: "read_console_api", data: { data: [{ id: ownRequest.id, category: "quote" }] } });
+      expect(toolMessage.content).not.toContain("someone else's request");
+      for (const personal of ["jane@example.com", "Acme Corp", "+1 555 0100", "contactEmail", "userId", user.id])
+        expect(toolMessage.content).not.toContain(personal);
     });
 
-    it("refuses a denied Console API route without reading it", async () => {
+    it.each(["/v1/user/me", "/v1/api-keys"])("refuses to read %s and leaves it out of the catalog", async path => {
       const { token } = await setup({ consent: { reviewOptIn: false } });
-      const completions = replyWith([
-        { toolCalls: [{ id: "call-1", name: "read_console_api", arguments: { path: "/v1/sdl-secrets-context" } }] },
-        { content: "I cannot read that." }
-      ]);
+      const completions = replyWith([{ toolCalls: [{ id: "call-1", name: "read_console_api", arguments: { path } }] }, { content: "I cannot read that." }]);
 
-      const response = await request(`/v1/assistant/conversations/${faker.string.uuid()}/messages`, token, { content: "Show me my SDL secrets context." });
+      const response = await request(`/v1/assistant/conversations/${faker.string.uuid()}/messages`, token, { content: `Read ${path} for me.` });
 
       expect(await eventsOf(response)).toContainEqual({
         type: "tool_result_summary",
@@ -230,8 +223,13 @@ describe("Assistant conversations", () => {
       });
       expect(JSON.parse(completions.bodies[1].messages.at(-1)!.content)).toEqual({
         tool: "read_console_api",
-        error: "/v1/sdl-secrets-context is not available to the assistant. Do not try it again; tell the user where Console shows it instead."
+        error: `${path} is not a route the assistant may read. Do not try it again; pick a path from the catalog, or tell the user where Console shows it.`
       });
+      const readTool = (completions.bodies[0] as unknown as { tools: { function: { name: string; description: string } }[] }).tools.find(
+        tool => tool.function.name === "read_console_api"
+      );
+      expect(readTool?.function.description).toContain("/v1/hardware-requests");
+      expect(readTool?.function.description).not.toContain(`${path} `);
     });
 
     it("stores nothing for a conversation the user did not allow review of, and replays the history the browser sends", async () => {
@@ -549,19 +547,6 @@ describe("Assistant conversations", () => {
       choice({}, reply.toolCalls ? "tool_calls" : "stop"),
       { choices: [], usage: { prompt_tokens: 100, completion_tokens: 10 } }
     ];
-  }
-
-  async function seedApiKey(input: { userId: string; name: string }) {
-    const apiKey = createApiKey(input);
-    await apiKeyRepository.create({
-      ...apiKey,
-      createdAt: new Date(apiKey.createdAt),
-      updatedAt: new Date(apiKey.updatedAt),
-      expiresAt: null,
-      lastUsedAt: null
-    });
-
-    return apiKey;
   }
 
   async function countsToday() {

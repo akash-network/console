@@ -34,7 +34,12 @@ const DOCUMENT: OpenAPIObject = {
     "/v1/api-keys": { get: { tags: ["API Keys"], security: BEARER, responses: {} } },
     "/v1/leases": { get: { tags: ["Leases"], security: BEARER, responses: {} } },
     "/v1/wallets": { get: { tags: ["Wallet"], security: BEARER, responses: {} } },
+    "/v1/activities": { get: { tags: ["Activity"], security: BEARER, responses: {} } },
+    "/v1/hardware-requests": {
+      get: { tags: ["Hardware Requests"], security: BEARER, responses: { 200: jsonOf({ $ref: "#/components/schemas/HardwareRequests" }) } }
+    },
     "/v1/providers/{address}": { get: { tags: ["Providers"], summary: "Get a provider", responses: {} } },
+    "/v1/providers/private-contacts": { get: { tags: ["Providers"], security: BEARER, responses: {} } },
     "/v1/deployments/{dseq}": { get: { tags: ["Deployments"], security: BEARER, responses: {} } }
   },
   components: {
@@ -42,6 +47,24 @@ const DOCUMENT: OpenAPIObject = {
       Projects: {
         type: "object",
         properties: { data: { type: "array", items: { type: "object", properties: { id: { type: "string" }, name: { type: "string" } } } } }
+      },
+      HardwareRequests: {
+        type: "object",
+        properties: {
+          data: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                userId: { type: "string" },
+                details: { type: "string" },
+                contactEmail: { type: "string" },
+                spec: { type: "object", properties: { gpu: { type: "object" }, company: { type: "string" }, phone: { type: "string" } } }
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -49,15 +72,15 @@ const DOCUMENT: OpenAPIObject = {
 
 describe(AssistantConsoleApiService.name, () => {
   describe("catalog", () => {
-    it("lists the allowed GET routes of the published document", async () => {
+    it("lists only the published GET routes on the list", async () => {
       const { service } = setup();
 
       expect(await service.catalog()).toBe(
         [
           "Projects: /v1/projects?limit List the projects",
-          "API Keys: /v1/api-keys",
           "Leases: /v1/leases",
-          "Wallet: /v1/wallets",
+          "Activity: /v1/activities",
+          "Hardware Requests: /v1/hardware-requests",
           "Providers: /v1/providers/{address} Get a provider"
         ].join("\n")
       );
@@ -95,10 +118,44 @@ describe(AssistantConsoleApiService.name, () => {
         body: { data: [{ name: "ci", keyFormat: "ac.sk.prod.abc***xyz", receiptUrl: "https://pay.stripe.com/r/1", nested: { provider: PROVIDER } }] }
       });
 
-      const { data } = await service.read({ path: "/v1/api-keys" });
+      const { data } = await service.read({ path: "/v1/activities" });
 
       expect(data).toEqual({ data: [{ name: "ci", keyFormat: REDACTED, receiptUrl: REDACTED, nested: { provider: "provider provider.europlots.com" } }] });
       expect(addressNamesService.withAddressesNamed).toHaveBeenCalledTimes(1);
+    });
+
+    it("drops personal and contact fields the route schema declares", async () => {
+      const { service } = setup({
+        body: {
+          data: [
+            {
+              id: "hr-1",
+              userId: "u-teammate",
+              details: "H200s for training",
+              contactEmail: "jane@example.com",
+              spec: { gpu: { model: "H200" }, company: "Acme Corp", phone: "+1 555 0100" }
+            }
+          ]
+        }
+      });
+
+      const { data } = await service.read({ path: "/v1/hardware-requests" });
+
+      expect(data).toEqual({ data: [{ id: "hr-1", details: "H200s for training", spec: { gpu: { model: "H200" } } }] });
+    });
+
+    it("drops personal fields on a route without a schema", async () => {
+      const { service } = setup({ body: { data: [{ id: "a1", type: "deployment_create", createdBy: { username: "jane" }, email: "jane@example.com" }] } });
+
+      expect((await service.read({ path: "/v1/activities" })).data).toEqual({ data: [{ id: "a1", type: "deployment_create" }] });
+    });
+
+    it("redacts an email address inside a free-text value", async () => {
+      const { service } = setup({ body: { data: [{ id: "a1", meta: { error: { message: "Invite to jane@example.com failed" } } }] } });
+
+      expect((await service.read({ path: "/v1/activities" })).data).toEqual({
+        data: [{ id: "a1", meta: { error: { message: `Invite to ${REDACTED} failed` } } }]
+      });
     });
 
     it("keeps the attribute names a provider read returns", async () => {
@@ -152,21 +209,39 @@ describe(AssistantConsoleApiService.name, () => {
       expect((await service.read({ path: `/v1/providers/${PROVIDER}` })).summary).toBe("Read providers");
     });
 
-    it("refuses a denied route before looking anything up", async () => {
+    it.each(["/v1/api-keys", "/v1/wallets", "/v1/deployments/42", "/internal/financial"])(
+      "refuses %s, which is not on the list, before looking anything up",
+      async path => {
+        const { service, consoleApi } = setup();
+
+        await expect(service.read({ path })).rejects.toThrow(
+          new AssistantToolError(
+            `${path} is not a route the assistant may read. Do not try it again; pick a path from the catalog, or tell the user where Console shows it.`
+          )
+        );
+        expect(consoleApi.publishedDocument).not.toHaveBeenCalled();
+        expect(consoleApi.fetch).not.toHaveBeenCalled();
+      }
+    );
+
+    it("refuses a listed route the published document leaves out", async () => {
       const { service, consoleApi } = setup();
 
-      await expect(service.read({ path: "/v1/deployments/42" })).rejects.toThrow(
-        new AssistantToolError("/v1/deployments/42 is not available to the assistant. Do not try it again; tell the user where Console shows it instead.")
+      await expect(service.read({ path: "/v1/gpu" })).rejects.toThrow(
+        new AssistantToolError(
+          "/v1/gpu is not a route the assistant may read. Do not try it again; pick a path from the catalog, or tell the user where Console shows it."
+        )
       );
-      expect(consoleApi.publishedDocument).not.toHaveBeenCalled();
       expect(consoleApi.fetch).not.toHaveBeenCalled();
     });
 
-    it("refuses a path that matches no route in the catalog", async () => {
+    it("refuses a path a listed parameter would match when an unlisted static route answers it", async () => {
       const { service, consoleApi } = setup();
 
-      await expect(service.read({ path: "/internal/financial" })).rejects.toThrow(
-        new AssistantToolError("/internal/financial is not a GET route in the catalog. Pick a path from the catalog and fill its {parameters}.")
+      await expect(service.read({ path: "/v1/providers/private-contacts" })).rejects.toThrow(
+        new AssistantToolError(
+          "/v1/providers/private-contacts is not a route the assistant may read. Do not try it again; pick a path from the catalog, or tell the user where Console shows it."
+        )
       );
       expect(consoleApi.fetch).not.toHaveBeenCalled();
     });
@@ -217,10 +292,12 @@ describe(AssistantConsoleApiService.name, () => {
     });
 
     it("hands another client error back with only its message, redacted", async () => {
-      const { service } = setup({ response: Response.json({ message: "bad limit, password=hunter2", data: { owner: "u1" } }, { status: 400 }) });
+      const { service } = setup({
+        response: Response.json({ message: "bad limit for jane@example.com, password=hunter2", data: { owner: "u1" } }, { status: 400 })
+      });
 
       await expect(service.read({ path: "/v1/projects" })).rejects.toThrow(
-        new AssistantToolError(`The Console API refused /v1/projects with 400: bad limit, password=${REDACTED}`)
+        new AssistantToolError(`The Console API refused /v1/projects with 400: bad limit for ${REDACTED}, password=${REDACTED}`)
       );
     });
 

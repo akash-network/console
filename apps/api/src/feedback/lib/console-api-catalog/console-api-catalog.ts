@@ -12,64 +12,53 @@ export interface ConsoleApiRoute {
   responseSchema?: ResponseSchema;
 }
 
-const SEALING_CONTEXT = "returns the key context that seals SDL secrets";
-const TEMPLATE_ENV = "returns saved template SDLs that can hold plaintext env values; list_templates covers templates";
-const PLAINTEXT_ENV = "returns the stored SDL with its plaintext env values; get_deployment reads it without them";
-const STRIPE_ON_READ = "calls Stripe on every read and returns raw payment details";
-const NOT_JSON = "streams a CSV export instead of JSON";
-const AUTH0_ON_READ = "calls the rate-limited Auth0 Management API on every read";
-const ASSISTANT_PLUMBING = "belongs to the assistant and feedback prompts, not to the user's account";
-const CHAIN_NODE_FALLBACK = "chain node fallback plumbing that duplicates the deployment and lease routes";
-const CHAIN_DENOMINATED = "network explorer data in chain denoms and blocks, which the assistant never states";
-
-/** GET routes the assistant never reads, whoever asks, each with the reason a reviewer can check. */
-export const DENIED_CONSOLE_API_ROUTES: Readonly<Record<string, string>> = {
-  "/v1/sdl-secrets-context": SEALING_CONTEXT,
-  "/v1/deployments/{dseq}": PLAINTEXT_ENV,
-  "/v1/deployment-settings/{userId}/{dseq}": PLAINTEXT_ENV,
-  "/v2/deployment-settings/{dseq}": PLAINTEXT_ENV,
-  "/v1/configure-drafts/{draftId}": "returns the draft SDL exactly as the client saved it, which can hold plaintext env values",
-  "/v1/user/template/{id}": TEMPLATE_ENV,
-  "/v1/user/templates/{username}": TEMPLATE_ENV,
-  "/v1/stripe/payment-methods": "syncs the payment method rows with Stripe on every read",
-  "/v1/stripe/payment-methods/default": STRIPE_ON_READ,
-  "/v1/billing-details": STRIPE_ON_READ,
-  "/v1/stripe/prices": STRIPE_ON_READ,
-  "/v1/stripe/transactions/export": NOT_JSON,
-  "/v1/received-invitations": AUTH0_ON_READ,
-  "/v1/assistant/consent": ASSISTANT_PLUMBING,
-  "/v1/feedback/outcome-prompts/{dseq}": ASSISTANT_PLUMBING,
-  "/akash/deployment/{version}/deployments/info": CHAIN_NODE_FALLBACK,
-  "/akash/deployment/{version}/deployments/list": CHAIN_NODE_FALLBACK,
-  "/akash/market/{version}/leases/list": CHAIN_NODE_FALLBACK,
-  "/v1/balances": CHAIN_DENOMINATED,
-  "/v1/addresses/{address}": CHAIN_DENOMINATED,
-  "/v1/addresses/{address}/deployments/{skip}/{limit}": CHAIN_DENOMINATED,
-  "/v1/addresses/{address}/transactions/{skip}/{limit}": CHAIN_DENOMINATED,
-  "/v1/deployment/{owner}/{dseq}": CHAIN_DENOMINATED,
-  "/v1/providers/{provider}/deployments/{skip}/{limit}": CHAIN_DENOMINATED,
-  "/v1/provider-dashboard/{owner}": CHAIN_DENOMINATED,
-  "/v1/provider-earnings/{owner}": CHAIN_DENOMINATED,
-  "/v1/leases-duration/{owner}": CHAIN_DENOMINATED,
-  "/v1/usage/history": CHAIN_DENOMINATED,
-  "/v1/usage/history/stats": CHAIN_DENOMINATED,
-  "/v1/dashboard-data": CHAIN_DENOMINATED,
-  "/v1/bme/dashboard-data": CHAIN_DENOMINATED,
-  "/v1/bme/status-history": CHAIN_DENOMINATED,
-  "/v1/graph-data/{dataName}": CHAIN_DENOMINATED,
-  "/v1/provider-graph-data/{dataName}": CHAIN_DENOMINATED,
-  "/v1/market-data/{coin?}": CHAIN_DENOMINATED,
-  "/v1/transactions": CHAIN_DENOMINATED,
-  "/v1/transactions/{hash}": CHAIN_DENOMINATED,
-  "/v1/blocks": CHAIN_DENOMINATED,
-  "/v1/blocks/{height}": CHAIN_DENOMINATED,
-  "/v1/predicted-block-date/{height}": CHAIN_DENOMINATED,
-  "/v1/predicted-date-height/{timestamp}": CHAIN_DENOMINATED,
-  "/v1/proposals": CHAIN_DENOMINATED,
-  "/v1/proposals/{id}": CHAIN_DENOMINATED,
-  "/v1/validators": CHAIN_DENOMINATED,
-  "/v1/validators/{address}": CHAIN_DENOMINATED
-};
+/** The only GET routes the assistant reads, so a route added to the API stays unreadable until it is reviewed and listed here. */
+export const ASSISTANT_READABLE_ROUTES: ReadonlySet<string> = new Set([
+  "/v1/deployments",
+  "/v1/deployments/{dseq}/info",
+  "/v1/deployment-names",
+  "/v1/deployment-locations/{dseq}",
+  "/v1/spend-rate",
+  "/v1/weekly-cost",
+  "/v1/leases",
+  "/v1/bids",
+  "/v1/bids/{dseq}",
+  "/v1/activities",
+  "/v1/activities/{id}",
+  "/v1/hardware-requests",
+  "/v1/hardware-requests/{id}/offers",
+  "/v1/organizations",
+  "/v1/projects",
+  "/v1/projects/{id}",
+  "/v1/project-budgets",
+  "/v1/project-spend",
+  "/v1/deployment-spend",
+  "/v1/favorite-providers",
+  "/v1/user/favoriteTemplates",
+  "/v1/wallet-balances",
+  "/v1/deployment-alerts/{dseq}",
+  "/v1/stripe/first-purchase-bonus",
+  "/v1/gpu",
+  "/v1/gpu-breakdown",
+  "/v1/gpu-models",
+  "/v1/gpu-prices",
+  "/v1/trial-gpu-availability",
+  "/v1/network-capacity",
+  "/v1/providers",
+  "/v1/providers/{address}",
+  "/v1/provider-search",
+  "/v1/provider-regions",
+  "/v1/provider-locations",
+  "/v1/provider-versions",
+  "/v1/provider-attributes-schema",
+  "/v1/auditors",
+  "/v1/providers/{providerAddress}/active-leases-graph-data",
+  "/v1/placement-options",
+  "/v1/templates-list",
+  "/v1/templates/{id}",
+  "/v1/blockchain-status",
+  "/v1/deployment-funding-config"
+]);
 
 const MAX_SUMMARY_LENGTH = 60;
 const PATH_SEGMENT = "[A-Za-z0-9_~:@-][A-Za-z0-9._~:@-]*";
@@ -96,8 +85,8 @@ export function matchesRouteTemplate(template: string, path: string): boolean {
   return patternOf(template).test(path);
 }
 
-export function isDeniedConsoleApiPath(path: string): boolean {
-  return Object.keys(DENIED_CONSOLE_API_ROUTES).some(template => matchesRouteTemplate(template, path));
+export function isAssistantReadablePath(path: string): boolean {
+  return [...ASSISTANT_READABLE_ROUTES].some(template => matchesRouteTemplate(template, path));
 }
 
 function parameterCountOf(template: string): number {
@@ -127,11 +116,17 @@ function queryParametersOf(operation: OperationObject): string[] {
     .map(({ name }) => name);
 }
 
-/** The GET routes of the published document, which already leaves out hidden and unpublished feature-flagged routes, minus the denied ones. */
-export function consoleApiRoutesOf(document: OpenAPIObject): ConsoleApiRoute[] {
+/** Matches every published GET route first, so a parameter of a listed route cannot stand in for a static route that is not listed. */
+export function readableConsoleApiRouteOf(publishedRoutes: ConsoleApiRoute[], path: string): ConsoleApiRoute | null {
+  const route = matchConsoleApiRoute(publishedRoutes, path);
+  return route && ASSISTANT_READABLE_ROUTES.has(route.path) ? route : null;
+}
+
+/** Every GET route of the published document, which already leaves out hidden and unpublished feature-flagged routes. */
+export function publishedGetRoutesOf(document: OpenAPIObject): ConsoleApiRoute[] {
   return Object.entries(document.paths ?? {}).flatMap(([path, pathItem]) => {
     const operation: OperationObject | undefined = pathItem?.get;
-    if (!operation || Object.hasOwn(DENIED_CONSOLE_API_ROUTES, path)) return [];
+    if (!operation) return [];
 
     return [
       {
@@ -144,6 +139,10 @@ export function consoleApiRoutesOf(document: OpenAPIObject): ConsoleApiRoute[] {
       }
     ];
   });
+}
+
+export function consoleApiRoutesOf(document: OpenAPIObject): ConsoleApiRoute[] {
+  return publishedGetRoutesOf(document).filter(({ path }) => ASSISTANT_READABLE_ROUTES.has(path));
 }
 
 function catalogEntryOf({ path, queryParameters, summary }: ConsoleApiRoute): string {
