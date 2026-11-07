@@ -230,7 +230,8 @@ describe(scoreAssistantEval.name, () => {
     "[deployment 1794...](/deployments/1794010767535) is up.",
     "[deployment 179401…](/deployments/1794010767535) is up.",
     "[my-db](/deployments/42) and [deployment 179401](/deployments/1794010767535) are up.",
-    "Deployment 1794... is [up](/deployments/1794010767535)."
+    "Deployment 1794... is [up](/deployments/1794010767535).",
+    "[web (nginx)](/deployments/1794010767535) is up, see [deployment 179401](/deployments/1794010767535)."
   ])(
     "reports a shortened dseq: %j",
     answer => {
