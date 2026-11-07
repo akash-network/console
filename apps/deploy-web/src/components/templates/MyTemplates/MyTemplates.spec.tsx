@@ -231,9 +231,25 @@ describe(MyTemplates.name, () => {
     await userEvent.click(screen.getByRole("menuitem", { name: "Delete template" }));
 
     expect(rowOf(BATCH)).toBeInTheDocument();
-    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Couldn't delete the template" }) }), {
-      variant: "error"
-    });
+    expect(enqueueSnackbar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        props: expect.objectContaining({ title: "Couldn't delete the template", subTitle: "You can no longer delete this template." })
+      }),
+      { variant: "error" }
+    );
+  });
+
+  it("asks to retry when the delete fails for another reason", async () => {
+    const { enqueueSnackbar } = setup({ deleteError: new ApiError(503, { message: "Unavailable" }, "unavailable") });
+
+    await openMenuOf(BATCH);
+    await userEvent.click(screen.getByRole("menuitem", { name: "Delete template" }));
+
+    expect(rowOf(BATCH)).toBeInTheDocument();
+    expect(enqueueSnackbar).toHaveBeenCalledWith(
+      expect.objectContaining({ props: expect.objectContaining({ title: "Couldn't delete the template", subTitle: "Try again in a moment." }) }),
+      { variant: "error" }
+    );
   });
 
   it("copies the template link", async () => {

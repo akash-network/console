@@ -1,6 +1,7 @@
 "use client";
 import type { ChangeEvent, ReactNode } from "react";
 import { useId, useMemo, useState } from "react";
+import { ApiError } from "@akashnetwork/openapi-sdk";
 import {
   Button,
   buttonVariants,
@@ -115,8 +116,8 @@ export function MyTemplates({ dependencies: d = DEPENDENCIES }: Props) {
       await deleteTemplate({ id: template.id });
       setDeletedIds(ids => [...ids, template.id]);
       enqueueSnackbar(<Snackbar title={`Deleted ${template.title}`} iconVariant="success" />, { variant: "success" });
-    } catch {
-      enqueueSnackbar(<Snackbar title="Couldn't delete the template" subTitle="Try again in a moment." iconVariant="error" />, { variant: "error" });
+    } catch (error) {
+      enqueueSnackbar(<Snackbar title="Couldn't delete the template" subTitle={describeDeleteFailure(error)} iconVariant="error" />, { variant: "error" });
     }
   };
 
@@ -468,4 +469,9 @@ function TemplateActionsMenu({ template, onCopyLink, onDelete }: { template: Use
 
 function Notice({ children }: { children: ReactNode }) {
   return <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-card px-6 py-14 text-center">{children}</div>;
+}
+
+function describeDeleteFailure(error: unknown) {
+  if (error instanceof ApiError && (error.status === 403 || error.status === 404)) return "You can no longer delete this template.";
+  return "Try again in a moment.";
 }
