@@ -86,8 +86,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_CHANGELOG: ${{ steps.bumps.outputs.changelog }}
           RELEASE_VERSION: ${{ steps.bumps.outputs.git_tag }}
+          RELEASE_FROM_SHA: ${{ inputs.sha || github.sha }}
         run: |
           gh release create "$RELEASE_VERSION" \
             --repo "$GITHUB_REPOSITORY" \
+            --target "$(git rev-parse "$RELEASE_FROM_SHA^{commit}")" \
             --title "$RELEASE_VERSION" \
             --notes "$RELEASE_CHANGELOG"
