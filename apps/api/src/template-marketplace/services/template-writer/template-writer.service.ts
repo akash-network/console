@@ -1,5 +1,4 @@
 import type { ValidationError } from "@akashnetwork/chain-sdk";
-import { subject } from "@casl/ability";
 import assert from "http-assert";
 import createError from "http-errors";
 import { singleton } from "tsyringe";
@@ -18,6 +17,7 @@ import type { AskedValue } from "@src/template-marketplace/lib/asked-values/aske
 import { findAskedValueIssues } from "@src/template-marketplace/lib/asked-values/find-asked-value-issues";
 import { findSecretValueIssues } from "@src/template-marketplace/lib/asked-values/find-secret-value-issues";
 import type { TemplateCategory, TemplateIcon } from "@src/template-marketplace/lib/template-catalog/template-catalog";
+import { findTemplateWriteRefusal, type TemplateWriteAction } from "@src/template-marketplace/lib/template-write-access/template-write-access";
 import {
   MarketplaceTemplateRepository,
   type MarketplaceTemplateRow,
@@ -58,8 +58,6 @@ export type TemplateSettingsPatch = {
   categories?: TemplateCategory[];
   visibility?: "private" | "organization";
 };
-
-type TemplateWriteAction = "update" | "delete";
 
 type StoredTemplate = Omit<MarketplaceTemplateRow, "authorUsername" | "publisher">;
 
@@ -233,13 +231,15 @@ export class TemplateWriterService {
     return template;
   }
 
-  /** A write acts only on a template of the active organization, which keeps the legacy author rule from reaching a team template from outside it. */
   #assertWritable(template: StoredTemplate, action: TemplateWriteAction): void {
-    if (template.organizationId !== this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId) {
+    const activeOrganizationId = this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId;
+    const refusal = findTemplateWriteRefusal(template, action, { ability: this.authService.ability, activeOrganizationId });
+
+    if (refusal === "outside_active_organization") {
       throw createError(403, "Switch to the template's organization to change it", { errorCode: ORGANIZATION_FORBIDDEN_ERROR_CODE });
     }
 
-    assert(this.authService.ability.can(action, subject("Template", { ...template })), 403, "You cannot change this template");
+    assert(!refusal, 403, "You cannot change this template");
   }
 
   #assertValid(sdl: string, askedValues: AskedValue[]): void {

@@ -169,7 +169,7 @@ describe(MarketplaceTemplateService.name, () => {
         { action: "read", subject: "Template", conditions: { organizationId } },
         { action: "update", subject: "Template", conditions: { organizationId, projectId } }
       ];
-      const { service, repository } = setup({ rules });
+      const { service, repository } = setup({ rules, activeOrganizationId: organizationId });
 
       repository.findReadable.mockResolvedValueOnce(editable).mockResolvedValueOnce(elsewhere);
       const results = [await service.getTemplate(editable.id), await service.getTemplate(elsewhere.id)];
@@ -179,8 +179,12 @@ describe(MarketplaceTemplateService.name, () => {
 
     it("checks the update rule against the template's owner and visibility", async () => {
       const userId = faker.string.uuid();
-      const owned = createTemplateRow({ organizationId: null, projectId: null, userId, visibility: "organization" });
-      const { service } = setup({ template: owned, rules: [{ action: "update", subject: "Template", conditions: { userId, visibility: "organization" } }] });
+      const owned = createTemplateRow({ projectId: null, userId, visibility: "organization" });
+      const { service } = setup({
+        template: owned,
+        rules: [{ action: "update", subject: "Template", conditions: { userId, visibility: "organization" } }],
+        activeOrganizationId: owned.organizationId
+      });
 
       const result = await service.getTemplate(owned.id);
 
@@ -188,14 +192,32 @@ describe(MarketplaceTemplateService.name, () => {
     });
 
     it("checks the update rule against every field of the template", async () => {
-      const active = createTemplateRow({ moderationStatus: "active" });
-      const hidden = createTemplateRow({ moderationStatus: "hidden" });
-      const { service, repository } = setup({ rules: [{ action: "update", subject: "Template", conditions: { moderationStatus: "active" } }] });
+      const organizationId = faker.string.uuid();
+      const active = createTemplateRow({ organizationId, moderationStatus: "active" });
+      const hidden = createTemplateRow({ organizationId, moderationStatus: "hidden" });
+      const { service, repository } = setup({
+        rules: [{ action: "update", subject: "Template", conditions: { moderationStatus: "active" } }],
+        activeOrganizationId: organizationId
+      });
 
       repository.findReadable.mockResolvedValueOnce(active).mockResolvedValueOnce(hidden);
       const results = [await service.getTemplate(active.id), await service.getTemplate(hidden.id)];
 
       expect(results.map(({ canEdit }) => canEdit)).toEqual([true, false]);
+    });
+
+    it.each<[string, string | null, string | null]>([
+      ["a template of another organization", faker.string.uuid(), faker.string.uuid()],
+      ["a template filed in no organization", null, faker.string.uuid()],
+      ["a request without an active organization", faker.string.uuid(), null]
+    ])("offers no edit on %s even when the author's rule allows it", async (_case, organizationId, activeOrganizationId) => {
+      const userId = faker.string.uuid();
+      const template = createTemplateRow({ organizationId, userId });
+      const { service } = setup({ template, rules: [{ action: "manage", subject: "Template", conditions: { userId } }], activeOrganizationId });
+
+      const result = await service.getTemplate(template.id);
+
+      expect(result.canEdit).toBe(false);
     });
 
     it("reads through the caller's read rules when it has any", async () => {

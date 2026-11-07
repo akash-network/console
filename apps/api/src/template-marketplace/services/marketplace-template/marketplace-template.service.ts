@@ -6,6 +6,7 @@ import { AuthService } from "@src/auth/services/auth.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { OrganizationType } from "@src/organization/model-schemas/organization/organization.schema";
 import { summarizeTemplateHardware } from "@src/template/utils/template-hardware/template-hardware";
+import { findTemplateWriteRefusal } from "@src/template-marketplace/lib/template-write-access/template-write-access";
 import {
   MarketplaceTemplateRepository,
   type MarketplaceTemplateRow,
@@ -107,7 +108,7 @@ export class MarketplaceTemplateService {
       author: template.authorUsername ? { username: template.authorUsername } : null,
       publisher: template.publisher && { ...template.publisher, slug: template.publisher.type === "team" ? template.publisher.slug : null },
       currentVersion: currentVersion ? this.#withLegacyFallbacks(currentVersion, template) : null,
-      canEdit: this.#canEdit(template),
+      canEdit: this.#canEditInActiveOrganization(template),
       isFavorite: favoritingUserId ? await this.userTemplateRepository.isFavorite(id, favoritingUserId) : false
     };
   }
@@ -136,7 +137,7 @@ export class MarketplaceTemplateService {
       updatedAt: row.updatedAt,
       currentVersion: row.currentVersion,
       lastEditedBy: row.lastEditedByUsername ? { username: row.lastEditedByUsername } : null,
-      canEdit: this.#canEdit(row)
+      canEdit: this.#canEditInActiveOrganization(row)
     }));
   }
 
@@ -145,14 +146,14 @@ export class MarketplaceTemplateService {
     const template = await this.findReadable(id);
     const versions = await this.templateVersionRepository.listByTemplate(id);
 
-    return this.#canEdit(template) ? versions : versions.filter(version => version.id === template.currentVersionId);
+    return this.#hasUpdateRule(template) ? versions : versions.filter(version => version.id === template.currentVersionId);
   }
 
   async getVersion(id: string, version: number): Promise<PublishedTemplateVersion> {
     const template = await this.findReadable(id);
     const found = await this.templateVersionRepository.findByTemplateAndVersion(id, version);
     assert(found, 404, VERSION_NOT_FOUND);
-    assert(found.id === template.currentVersionId || this.#canEdit(template), 404, VERSION_NOT_FOUND);
+    assert(found.id === template.currentVersionId || this.#hasUpdateRule(template), 404, VERSION_NOT_FOUND);
 
     return this.#withLegacyFallbacks(found, template);
   }
@@ -175,7 +176,14 @@ export class MarketplaceTemplateService {
     };
   }
 
-  #canEdit(template: MarketplaceTemplateRow | UserTemplateListRow): boolean {
+  /** Uses the writer's own predicate, so the UI never offers an edit that the write would refuse. */
+  #canEditInActiveOrganization(template: MarketplaceTemplateRow | UserTemplateListRow): boolean {
+    const activeOrganizationId = this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId;
+
+    return !findTemplateWriteRefusal(template, "update", { ability: this.authService.ability, activeOrganizationId });
+  }
+
+  #hasUpdateRule(template: MarketplaceTemplateRow): boolean {
     return this.authService.ability.can("update", subject("Template", { ...template }));
   }
 }
