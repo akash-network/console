@@ -48,6 +48,7 @@ export class AssistantBidToolsService {
 
     return {
       dseq,
+      name: deployment.name,
       deploymentState: deployment.deployment.state,
       leaseCount: deployment.leases.length,
       bids: await Promise.all(

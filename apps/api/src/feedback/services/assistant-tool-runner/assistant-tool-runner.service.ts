@@ -75,13 +75,19 @@ function withheldContentOf(tool: string, { templateSdl, ...feedback }: Record<st
   return toolContentOf(tool, { data: { shownToUser: false, ...feedback, note: `${WITHHELD_PROPOSAL_NOTE} ${TEMPLATE_SDL_LEFT_OUT_NOTE}` } });
 }
 
-function summaryOf(name: ReadToolName, args: Record<string, unknown>): string {
+function deploymentLabelOf(data: unknown): string {
+  const name = (data as { name?: unknown } | null)?.name;
+  return typeof name === "string" && name ? `deployment ${name}` : "your deployment";
+}
+
+function summaryOf(name: ReadToolName, data: unknown): string {
+  const deployment = deploymentLabelOf(data);
   const summaries: Record<ReadToolName, string> = {
     list_deployments: "Read your deployments",
-    get_deployment: `Read deployment ${args.dseq}`,
-    get_bids: `Read the bids on deployment ${args.dseq}`,
+    get_deployment: `Read ${deployment}`,
+    get_bids: `Read the bids on ${deployment}`,
     get_balance_and_spend: "Read your balance and spend",
-    get_lease_close_reason: `Read why deployment ${args.dseq} closed`,
+    get_lease_close_reason: `Read why ${deployment} closed`,
     list_templates: "Searched the template gallery",
     search_docs: "Searched the Console docs",
     check_availability: "Checked which providers could bid"
@@ -209,8 +215,8 @@ export class AssistantToolRunnerService {
     if (isConfigureFormToolName(name) && !context.configureFormOpen) throw new AssistantToolError(CONFIGURE_FORM_CLOSED_MESSAGE);
 
     if (isReadToolName(name)) {
-      const parsed = validArguments(() => READ_TOOL_ARGUMENTS[name].parse(args));
-      return { kind: "result", content: toolContentOf(name, { data: await this.#read(name, parsed, context) }), summary: summaryOf(name, parsed), ok: true };
+      const data = await this.#read(name, validArguments(() => READ_TOOL_ARGUMENTS[name].parse(args)), context);
+      return { kind: "result", content: toolContentOf(name, { data }), summary: summaryOf(name, data), ok: true };
     }
 
     if (isClientToolName(name)) {
