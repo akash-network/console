@@ -33,16 +33,16 @@ const DOCUMENT: OpenAPIObject = {
         responses: { 200: jsonOf({ $ref: "#/components/schemas/Projects" }) }
       }
     },
-    "/v1/api-keys": { get: { tags: ["API Keys"], security: BEARER, responses: {} } },
-    "/v1/leases": { get: { tags: ["Leases"], security: BEARER, responses: {} } },
-    "/v1/wallets": { get: { tags: ["Wallet"], security: BEARER, responses: {} } },
-    "/v1/activities": { get: { tags: ["Activity"], security: BEARER, responses: {} } },
+    "/v1/api-keys": { get: { tags: ["API Keys"], security: BEARER, responses: { 200: jsonOf({ type: "object" }) } } },
+    "/v1/leases": { get: { tags: ["Leases"], security: BEARER, responses: { 200: jsonOf({ type: "object" }) } } },
+    "/v1/wallets": { get: { tags: ["Wallet"], security: BEARER, responses: { 200: jsonOf({ type: "object" }) } } },
+    "/v1/activities": { get: { tags: ["Activity"], security: BEARER, responses: { 200: jsonOf({ type: "object" }) } } },
     "/v1/hardware-requests": {
       get: { tags: ["Hardware Requests"], security: BEARER, responses: { 200: jsonOf({ $ref: "#/components/schemas/HardwareRequests" }) } }
     },
-    "/v1/providers/{address}": { get: { tags: ["Providers"], summary: "Get a provider", responses: {} } },
-    "/v1/providers/private-contacts": { get: { tags: ["Providers"], security: BEARER, responses: {} } },
-    "/v1/deployments/{dseq}": { get: { tags: ["Deployments"], security: BEARER, responses: {} } }
+    "/v1/providers/{address}": { get: { tags: ["Providers"], summary: "Get a provider", responses: { 200: jsonOf({ type: "object" }) } } },
+    "/v1/providers/private-contacts": { get: { tags: ["Providers"], security: BEARER, responses: { 200: jsonOf({ type: "object" }) } } },
+    "/v1/deployments/{dseq}": { get: { tags: ["Deployments"], security: BEARER, responses: { 200: jsonOf({ type: "object" }) } } }
   },
   components: {
     schemas: {
@@ -410,7 +410,7 @@ describe(AssistantConsoleApiService.name, () => {
     const executionContextService = mock<ExecutionContextService>({ get: getFromContext as ExecutionContextService["get"] });
 
     const addressNamesService = mock<AssistantAddressNamesService>();
-    addressNamesService.withAddressesNamed.mockImplementation(async text => text.replaceAll(PROVIDER, "provider provider.europlots.com"));
+    addressNamesService.withAddressesNamed.mockImplementation(async value => JSON.parse(JSON.stringify(value).replaceAll(PROVIDER, "provider provider.europlots.com")));
 
     const denomExchangeService = mock<DenomExchangeService>();
     denomExchangeService.getExchangeRateToUSD.mockResolvedValue(

@@ -64,13 +64,14 @@ describe(AssistantAddressNamesService.name, () => {
     it("names providers, the user's own wallet and every other account without their addresses", async () => {
       const { service, userWalletRepository } = setup({ providers: { [PROVIDER]: "https://provider.europlots.com:8443" }, ownWallet: OWN_WALLET });
 
-      const named = await service.withAddressesNamed(JSON.stringify({ provider: PROVIDER, owner: OWN_WALLET, granter: GRANTER, note: `Lease on ${PROVIDER}` }));
+      const named = await service.withAddressesNamed({ provider: PROVIDER, owner: OWN_WALLET, granter: GRANTER, note: `Lease on ${PROVIDER}`, byProvider: { [PROVIDER]: 1 } });
 
-      expect(JSON.parse(named)).toEqual({
+      expect(named).toEqual({
         provider: "provider provider.europlots.com",
         owner: "your Console wallet",
         granter: "another Akash account",
-        note: "Lease on provider provider.europlots.com"
+        note: "Lease on provider provider.europlots.com",
+        byProvider: { "provider provider.europlots.com": 1 }
       });
       expect(userWalletRepository.findOneUsedBy).toHaveBeenCalledWith("user-1");
     });
@@ -78,13 +79,13 @@ describe(AssistantAddressNamesService.name, () => {
     it("names the user's address as another account when they have no wallet", async () => {
       const { service } = setup();
 
-      expect(await service.withAddressesNamed(OWN_WALLET)).toBe("another Akash account");
+      expect(await service.withAddressesNamed([OWN_WALLET, 42, null])).toEqual(["another Akash account", 42, null]);
     });
 
     it("leaves a text without addresses untouched and looks nothing up", async () => {
       const { service, providerRepository, userWalletRepository } = setup();
 
-      expect(await service.withAddressesNamed('{"name":"web"}')).toBe('{"name":"web"}');
+      expect(await service.withAddressesNamed({ name: "web" })).toEqual({ name: "web" });
       expect(providerRepository.getProvidersByAddressesWithAttributes).not.toHaveBeenCalled();
       expect(userWalletRepository.findOneUsedBy).not.toHaveBeenCalled();
     });
@@ -94,6 +95,12 @@ describe(AssistantAddressNamesService.name, () => {
       providerRepository.getProvidersByAddressesWithAttributes.mockRejectedValue(new Error("connection refused"));
 
       await expect(service.withAddressesNamed(PROVIDER)).rejects.toThrow("connection refused");
+    });
+
+    it("keeps a provider name holding a quote inside its string", async () => {
+      const { service } = setup({ providers: { [PROVIDER]: 'not a "uri"' } });
+
+      expect(await service.withAddressesNamed({ provider: PROVIDER })).toEqual({ provider: 'provider not a "uri"' });
     });
   });
 

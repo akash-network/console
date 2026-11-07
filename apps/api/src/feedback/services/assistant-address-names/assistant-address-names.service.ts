@@ -24,6 +24,14 @@ export function akashAddressesIn(text: string): string[] {
   return uniq(text.match(AKASH_ADDRESS_PATTERN) ?? []);
 }
 
+function withStringsMapped(value: unknown, map: (text: string) => string): unknown {
+  if (typeof value === "string") return map(value);
+  if (Array.isArray(value)) return value.map(item => withStringsMapped(item, map));
+  if (typeof value !== "object" || value === null) return value;
+
+  return Object.fromEntries(Object.entries(value).map(([key, entry]) => [map(key), withStringsMapped(entry, map)]));
+}
+
 /** Names the akash1 addresses a tool read, so the model can tell who a provider or account is without an address to repeat. */
 @singleton()
 export class AssistantAddressNamesService {
@@ -48,22 +56,24 @@ export class AssistantAddressNamesService {
     }
   }
 
-  /** Replaces every akash1 address in a text with the provider's name, the user's own wallet or a neutral label. */
-  async withAddressesNamed(text: string): Promise<string> {
-    const addresses = akashAddressesIn(text);
-    if (addresses.length === 0) return text;
+  /** Replaces every akash1 address in a read's strings and keys, rather than in its JSON text, so a name holding a quote cannot break the JSON. */
+  async withAddressesNamed(value: unknown): Promise<unknown> {
+    const addresses = akashAddressesIn(JSON.stringify(value) ?? "");
+    if (addresses.length === 0) return value;
 
     const [providerNames, ownWallet] = await Promise.all([
       this.#providerNamesOf(addresses),
       this.userWalletRepository.findOneUsedBy(this.authService.currentUser.id)
     ]);
 
-    return text.replace(AKASH_ADDRESS_PATTERN, address => {
+    const nameOf = (address: string) => {
       if (address === ownWallet?.address) return OWN_WALLET_LABEL;
 
       const providerName = providerNames.get(address);
       return providerName ? `provider ${providerName}` : OTHER_ACCOUNT_LABEL;
-    });
+    };
+
+    return withStringsMapped(value, text => text.replace(AKASH_ADDRESS_PATTERN, nameOf));
   }
 
   async #providerNamesOf(addresses: string[]): Promise<Map<string, string>> {

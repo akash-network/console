@@ -212,8 +212,7 @@ export class AssistantConsoleApiService {
   async #shaped(route: ConsoleApiRoute, body: unknown): Promise<unknown> {
     const projected = projectedToSchema(body, route.responseSchema, this.#routes?.document.components?.schemas);
     const published = withoutPersonalData(withoutTeammatesPrivateFields(route.path, projected, this.authService.currentUser.id));
-    const named = await this.addressNamesService.withAddressesNamed(JSON.stringify(withoutSecrets(await this.#inUsd(published))));
-    return JSON.parse(named);
+    return await this.addressNamesService.withAddressesNamed(withoutSecrets(await this.#inUsd(published)));
   }
 
   /** Swaps every chain amount for dollars, so no denom or micro amount reaches the model to repeat. */
