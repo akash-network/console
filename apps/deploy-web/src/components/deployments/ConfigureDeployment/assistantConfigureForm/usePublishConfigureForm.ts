@@ -40,9 +40,18 @@ export function usePublishConfigureForm({ form, phase, sdl }: Input, d: typeof D
           const edited = applyConfigureFormEdit(form.getValues(), edit);
           form.setValue("services", edited.services, EDITED_FIELD_OPTIONS);
           form.setValue("placements", edited.placements, EDITED_FIELD_OPTIONS);
+          refreshEditableFieldArrays(form, edited.services);
         }
       });
     },
     [registry, form, readPlacementScreening]
   );
+}
+
+/** A parent path setValue never notifies a nested useFieldArray, so the storage and GPU cards would keep showing their pre-edit rows. */
+function refreshEditableFieldArrays(form: UseFormReturn<SdlBuilderFormValuesType>, services: SdlBuilderFormValuesType["services"]) {
+  services.forEach((service, index) => {
+    form.setValue(`services.${index}.profile.storage`, service.profile.storage, EDITED_FIELD_OPTIONS);
+    form.setValue(`services.${index}.profile.gpuModels`, service.profile.gpuModels, EDITED_FIELD_OPTIONS);
+  });
 }
