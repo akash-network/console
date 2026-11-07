@@ -1,6 +1,7 @@
 import type { OpenAPIObject } from "openapi3-ts/oas30";
 import { inject, singleton } from "tsyringe";
 
+import { AuthService } from "@src/auth/services/auth.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
 import type { ReadToolArguments } from "@src/feedback/lib/assistant-tools/assistant-tool-arguments";
@@ -13,7 +14,7 @@ import {
   readableConsoleApiRouteOf
 } from "@src/feedback/lib/console-api-catalog/console-api-catalog";
 import { projectedToSchema } from "@src/feedback/lib/openapi-projection/openapi-projection";
-import { withoutPersonalData } from "@src/feedback/lib/personal-data/personal-data";
+import { withoutPersonalData, withoutTeammatesPrivateFields } from "@src/feedback/lib/personal-data/personal-data";
 import { REDACTED, redactEmailAddresses, redactSecrets } from "@src/feedback/lib/redact-secrets/redact-secrets";
 import { CONSOLE_API, type ConsoleApi } from "@src/feedback/providers/console-api.provider";
 import { AssistantAddressNamesService } from "@src/feedback/services/assistant-address-names/assistant-address-names.service";
@@ -132,7 +133,8 @@ export class AssistantConsoleApiService {
     @inject(CONSOLE_API) private readonly consoleApi: ConsoleApi,
     private readonly executionContextService: ExecutionContextService,
     private readonly addressNamesService: AssistantAddressNamesService,
-    private readonly usdService: AssistantUsdService
+    private readonly usdService: AssistantUsdService,
+    private readonly authService: AuthService
   ) {}
 
   async catalog(): Promise<string> {
@@ -208,7 +210,8 @@ export class AssistantConsoleApiService {
   }
 
   async #shaped(route: ConsoleApiRoute, body: unknown): Promise<unknown> {
-    const published = withoutPersonalData(projectedToSchema(body, route.responseSchema, this.#routes?.document.components?.schemas));
+    const projected = projectedToSchema(body, route.responseSchema, this.#routes?.document.components?.schemas);
+    const published = withoutPersonalData(withoutTeammatesPrivateFields(route.path, projected, this.authService.currentUser.id));
     const named = await this.addressNamesService.withAddressesNamed(JSON.stringify(withoutSecrets(await this.#inUsd(published))));
     return JSON.parse(named);
   }

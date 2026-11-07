@@ -65,3 +65,32 @@ export function withoutPersonalData(value: unknown): unknown {
       .map(([property, entry]) => [property, withoutPersonalData(entry)])
   );
 }
+
+interface AuthorOnlyFields {
+  authorProperty: string;
+  fields: readonly string[];
+}
+
+/** Free text a teammate wrote into a shared record stays theirs, so these fields survive only on records the reader authored. */
+export const AUTHOR_ONLY_FIELDS: Readonly<Record<string, AuthorOnlyFields>> = {
+  "/v1/hardware-requests": { authorProperty: "userId", fields: ["details"] }
+};
+
+function withoutFieldsOthersAuthored(value: unknown, rule: AuthorOnlyFields, readerId: string): unknown {
+  if (Array.isArray(value)) return value.map(item => withoutFieldsOthersAuthored(item, rule, readerId));
+  if (!isRecord(value)) return value;
+
+  const isReadersOwn = value[rule.authorProperty] === readerId;
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([property]) => isReadersOwn || !rule.fields.includes(property))
+      .map(([property, entry]) => [property, withoutFieldsOthersAuthored(entry, rule, readerId)])
+  );
+}
+
+/** Must run before withoutPersonalData, which drops the author property this compares against. */
+export function withoutTeammatesPrivateFields(routePath: string, value: unknown, readerId: string): unknown {
+  const rule = AUTHOR_ONLY_FIELDS[routePath];
+  return rule ? withoutFieldsOthersAuthored(value, rule, readerId) : value;
+}

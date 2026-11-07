@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isPersonalDataProperty, withoutPersonalData } from "./personal-data";
+import { isPersonalDataProperty, withoutPersonalData, withoutTeammatesPrivateFields } from "./personal-data";
 
 describe(withoutPersonalData.name, () => {
   it("drops the contact details of a hardware request even though its schema declares them", () => {
@@ -121,5 +121,35 @@ describe(isPersonalDataProperty.name, () => {
     "notificationChannelId"
   ])("keeps %s, which names a deployment, provider or template rather than a person", property => {
     expect(isPersonalDataProperty(property)).toBe(false);
+  });
+});
+
+describe(withoutTeammatesPrivateFields.name, () => {
+  it("keeps the details of the reader's own hardware request and drops a teammate's", () => {
+    const hardwareRequests = {
+      data: [
+        { id: "hr-own", userId: "u-reader", details: "Need it by Monday", gpuModel: "H200" },
+        { id: "hr-teammate", userId: "u-teammate", details: "Budget for the unannounced launch", gpuModel: "B200" }
+      ]
+    };
+
+    expect(withoutTeammatesPrivateFields("/v1/hardware-requests", hardwareRequests, "u-reader")).toEqual({
+      data: [
+        { id: "hr-own", userId: "u-reader", details: "Need it by Monday", gpuModel: "H200" },
+        { id: "hr-teammate", userId: "u-teammate", gpuModel: "B200" }
+      ]
+    });
+  });
+
+  it("drops the details of a hardware request with no author", () => {
+    expect(withoutTeammatesPrivateFields("/v1/hardware-requests", { data: [{ id: "hr-1", details: "Need it by Monday" }] }, "u-reader")).toEqual({
+      data: [{ id: "hr-1" }]
+    });
+  });
+
+  it("leaves routes without author-only fields untouched", () => {
+    const activities = { data: [{ id: "a1", userId: "u-teammate", details: "Deployment closed" }] };
+
+    expect(withoutTeammatesPrivateFields("/v1/activities", activities, "u-reader")).toEqual(activities);
   });
 });

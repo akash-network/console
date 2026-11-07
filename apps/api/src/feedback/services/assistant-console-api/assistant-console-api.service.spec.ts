@@ -2,6 +2,7 @@ import type { OpenAPIObject } from "openapi3-ts/oas30";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { AuthService } from "@src/auth/services/auth.service";
 import type { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
@@ -9,6 +10,7 @@ import { REDACTED } from "@src/feedback/lib/redact-secrets/redact-secrets";
 import type { ConsoleApi } from "@src/feedback/providers/console-api.provider";
 import type { AssistantAddressNamesService } from "@src/feedback/services/assistant-address-names/assistant-address-names.service";
 import { AssistantUsdService } from "@src/feedback/services/assistant-usd/assistant-usd.service";
+import type { UserOutput } from "@src/user/repositories";
 import { AssistantConsoleApiService, fittedReadOf, MAX_READ_RESULT_LENGTH, readSummaryOf } from "./assistant-console-api.service";
 
 const BEARER = [{ BearerAuth: [] }];
@@ -130,7 +132,7 @@ describe(AssistantConsoleApiService.name, () => {
           data: [
             {
               id: "hr-1",
-              userId: "u-teammate",
+              userId: "u-reader",
               details: "H200s for training",
               contactEmail: "jane@example.com",
               spec: { gpu: { model: "H200" }, company: "Acme Corp", phone: "+1 555 0100" }
@@ -142,6 +144,21 @@ describe(AssistantConsoleApiService.name, () => {
       const { data } = await service.read({ path: "/v1/hardware-requests" });
 
       expect(data).toEqual({ data: [{ id: "hr-1", details: "H200s for training", spec: { gpu: { model: "H200" } } }] });
+    });
+
+    it("keeps the free-text details only on the reader's own hardware requests", async () => {
+      const { service } = setup({
+        body: {
+          data: [
+            { id: "hr-own", userId: "u-reader", details: "H200s for training" },
+            { id: "hr-teammate", userId: "u-teammate", details: "Budget for the unannounced launch" }
+          ]
+        }
+      });
+
+      const { data } = await service.read({ path: "/v1/hardware-requests" });
+
+      expect(data).toEqual({ data: [{ id: "hr-own", details: "H200s for training" }, { id: "hr-teammate" }] });
     });
 
     it("drops personal fields on a route without a schema", async () => {
@@ -400,7 +417,9 @@ describe(AssistantConsoleApiService.name, () => {
       mock<Awaited<ReturnType<DenomExchangeService["getExchangeRateToUSD"]>>>({ price: input.aktPrice ?? 1 })
     );
 
-    const service = new AssistantConsoleApiService(consoleApi, executionContextService, addressNamesService, new AssistantUsdService(denomExchangeService));
+    const service = new AssistantConsoleApiService(consoleApi, executionContextService, addressNamesService, new AssistantUsdService(denomExchangeService),
+      mock<AuthService>({ currentUser: mock<UserOutput>({ id: "u-reader" }) })
+    );
 
     return { service, consoleApi, addressNamesService };
   }
