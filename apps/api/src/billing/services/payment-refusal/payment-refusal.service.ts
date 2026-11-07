@@ -18,6 +18,8 @@ export const PAYMENTS_PAUSED_ERROR_CODE = "payments_paused";
 
 const MAX_LISTED_PAYMENT_INTENTS = 100;
 
+const PAYMENT_AUTHENTICATION_FAILURE_CODE = "payment_intent_authentication_failure";
+
 const MS_PER_SECOND = 1000;
 
 export interface PaymentRefusals {
@@ -74,9 +76,17 @@ export class PaymentRefusalService {
     const lastPaidAt = Math.max(0, ...paymentIntents.filter(paymentIntent => paymentIntent.status === "succeeded").map(paymentIntent => paymentIntent.created));
 
     return paymentIntents
-      .filter(paymentIntent => paymentIntent.status !== "succeeded" && paymentIntent.last_payment_error && paymentIntent.created > lastPaidAt)
+      .filter(
+        paymentIntent =>
+          paymentIntent.status !== "succeeded" && isRefusedByPaymentMethod(paymentIntent.last_payment_error) && paymentIntent.created > lastPaidAt
+      )
       .map(paymentIntent => ({ paymentMethodId: refusedPaymentMethodIdOf(paymentIntent), refusedAt: paymentIntent.created * MS_PER_SECOND }));
   }
+}
+
+/** Matches the Add credits form: only the card or its 3D Secure check refusing counts, not a processing or request error. */
+function isRefusedByPaymentMethod(error: Stripe.PaymentIntent.LastPaymentError | null): boolean {
+  return error?.type === "card_error" || error?.code === PAYMENT_AUTHENTICATION_FAILURE_CODE;
 }
 
 function refusedPaymentMethodIdOf(paymentIntent: Stripe.PaymentIntent): string | undefined {

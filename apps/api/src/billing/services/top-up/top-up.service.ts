@@ -53,7 +53,10 @@ export class TopUpService {
     this.trialValidationService.validateTopUpAmount(userWallet, params.amount);
 
     assert(await this.paymentMethodService.hasPaymentMethod(params.paymentMethodId, payer), 403, "Payment method does not belong to the user");
-    await this.paymentRefusalService.assertMayCharge(payer.stripeCustomerId, params.paymentMethodId);
+    const idempotencyKey = params.idempotencyKey && this.#idempotencyKeyOf(payer, params.idempotencyKey);
+    if (!idempotencyKey || !(await this.stripeTransactionService.hasRecordedPayment(payer.user.id, idempotencyKey))) {
+      await this.paymentRefusalService.assertMayCharge(payer.stripeCustomerId, params.paymentMethodId);
+    }
 
     const result = await this.stripeTransactionService.createPaymentIntent({
       userId: payer.user.id,
@@ -62,7 +65,7 @@ export class TopUpService {
       payment_method: params.paymentMethodId,
       amount: params.amount,
       confirm: true,
-      idempotencyKey: params.idempotencyKey && this.#idempotencyKeyOf(payer, params.idempotencyKey),
+      idempotencyKey,
       onAmountMismatch: "reject"
     });
 

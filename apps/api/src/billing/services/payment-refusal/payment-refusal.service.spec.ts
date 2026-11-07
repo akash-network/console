@@ -68,6 +68,40 @@ describe(PaymentRefusalService.name, () => {
       expect(refusedPaymentMethodIds).toEqual([paymentMethodId]);
     });
 
+    it("ignores payment errors the payment method did not cause", async () => {
+      const paymentMethodId = `pm_${faker.string.alphanumeric(10)}`;
+      const { service, customerId } = setup({
+        paymentIntents: Array.from({ length: MAX_REFUSALS_PER_WINDOW }, (_, index) =>
+          createTestPaymentIntent({
+            status: "requires_payment_method",
+            created: secondsAgo(60 + index),
+            payment_method: paymentMethodId,
+            last_payment_error: { type: "api_error", code: "processing_error" }
+          })
+        )
+      });
+
+      expect(await service.findRecentRefusals(customerId)).toEqual({ refusedPaymentMethodIds: [], pausedUntil: null });
+    });
+
+    it("counts a failed 3D Secure check as a refusal of the payment method", async () => {
+      const paymentMethodId = `pm_${faker.string.alphanumeric(10)}`;
+      const { service, customerId } = setup({
+        paymentIntents: Array.from({ length: REFUSALS_PER_PAYMENT_METHOD }, (_, index) =>
+          createTestPaymentIntent({
+            status: "requires_payment_method",
+            created: secondsAgo(60 + index),
+            payment_method: paymentMethodId,
+            last_payment_error: { type: "invalid_request_error", code: "payment_intent_authentication_failure" }
+          })
+        )
+      });
+
+      const { refusedPaymentMethodIds } = await service.findRecentRefusals(customerId);
+
+      expect(refusedPaymentMethodIds).toEqual([paymentMethodId]);
+    });
+
     it("ignores refusals of automatic recharges", async () => {
       const paymentMethodId = `pm_${faker.string.alphanumeric(10)}`;
       const { service, customerId } = setup({

@@ -91,6 +91,48 @@ describe(TopUpService.name, () => {
       expect(stripeTransactionService.createPaymentIntent).not.toHaveBeenCalled();
     });
 
+    it("checks refusals before charging a new attempt key", async () => {
+      const { service, stripeTransactionService, paymentMethodService, paymentRefusalService, payingUser } = setup();
+      const paymentMethodId = faker.string.uuid();
+      const attemptKey = faker.string.uuid();
+      paymentMethodService.hasPaymentMethod.mockResolvedValue(true);
+      stripeTransactionService.hasRecordedPayment.mockResolvedValue(false);
+      stripeTransactionService.createPaymentIntent.mockResolvedValue({
+        success: true,
+        paymentIntentId: faker.string.uuid(),
+        transactionId: faker.string.uuid(),
+        transactionStatus: "pending"
+      });
+
+      await service.topUp(payingUser, { paymentMethodId, amount: 100, idempotencyKey: attemptKey });
+
+      expect(stripeTransactionService.hasRecordedPayment).toHaveBeenCalledWith(payingUser.user.id, `topup_${payingUser.user.id}_${attemptKey}`);
+      expect(paymentRefusalService.assertMayCharge).toHaveBeenCalledWith(payingUser.stripeCustomerId, paymentMethodId);
+    });
+
+    it("returns the recorded payment of a replayed attempt key without checking refusals", async () => {
+      const { service, stripeTransactionService, paymentMethodService, paymentRefusalService, payingUser } = setup();
+      const attemptKey = faker.string.uuid();
+      const transactionId = faker.string.uuid();
+      paymentMethodService.hasPaymentMethod.mockResolvedValue(true);
+      stripeTransactionService.hasRecordedPayment.mockResolvedValue(true);
+      paymentRefusalService.assertMayCharge.mockRejectedValue(createError(429, "paused", { errorCode: "payments_paused" }));
+      stripeTransactionService.createPaymentIntent.mockResolvedValue({
+        success: true,
+        paymentIntentId: faker.string.uuid(),
+        transactionId,
+        transactionStatus: "succeeded"
+      });
+
+      const result = await service.topUp(payingUser, { paymentMethodId: faker.string.uuid(), amount: 100, idempotencyKey: attemptKey });
+
+      expect(paymentRefusalService.assertMayCharge).not.toHaveBeenCalled();
+      expect(stripeTransactionService.createPaymentIntent).toHaveBeenCalledWith(
+        expect.objectContaining({ idempotencyKey: `topup_${payingUser.user.id}_${attemptKey}` })
+      );
+      expect(result).toEqual({ success: true, transactionId, transactionStatus: "succeeded" });
+    });
+
     it("validates the top-up amount against the wallet before contacting Stripe", async () => {
       const { service, stripeTransactionService, userWalletRepository, trialValidationService, paymentMethodService, payingUser } = setup();
       const wallet = mock<UserWalletOutput>({ isTrialing: true });

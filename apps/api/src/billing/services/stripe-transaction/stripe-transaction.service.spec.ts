@@ -471,6 +471,53 @@ describe(StripeTransactionService.name, () => {
     });
   });
 
+  describe("hasRecordedPayment", () => {
+    const idempotencyKey = `topup_${TEST_CONSTANTS.USER_ID}_11111111-2222-4333-8444-555555555555`;
+
+    it("looks the attempt up by its key and user", async () => {
+      const { service, stripeTransactionRepository } = setup();
+      stripeTransactionRepository.findOneBy.mockResolvedValue(undefined);
+
+      await service.hasRecordedPayment(TEST_CONSTANTS.USER_ID, idempotencyKey);
+
+      expect(stripeTransactionRepository.findOneBy).toHaveBeenCalledWith({ stripeIdempotencyKey: idempotencyKey, userId: TEST_CONSTANTS.USER_ID });
+    });
+
+    it("returns false for an attempt key that was never used", async () => {
+      const { service, stripeTransactionRepository } = setup();
+      stripeTransactionRepository.findOneBy.mockResolvedValue(undefined);
+
+      expect(await service.hasRecordedPayment(TEST_CONSTANTS.USER_ID, idempotencyKey)).toBe(false);
+    });
+
+    it("returns true when the attempt already reached Stripe", async () => {
+      const { service, stripeTransactionRepository } = setup();
+      stripeTransactionRepository.findOneBy.mockResolvedValue(
+        generateDatabaseStripeTransaction({ status: "pending", stripePaymentIntentId: "pi_recorded", stripeIdempotencyKey: idempotencyKey })
+      );
+
+      expect(await service.hasRecordedPayment(TEST_CONSTANTS.USER_ID, idempotencyKey)).toBe(true);
+    });
+
+    it("returns true when the attempt already settled", async () => {
+      const { service, stripeTransactionRepository } = setup();
+      stripeTransactionRepository.findOneBy.mockResolvedValue(
+        generateDatabaseStripeTransaction({ status: "succeeded", stripePaymentIntentId: null, stripeIdempotencyKey: idempotencyKey })
+      );
+
+      expect(await service.hasRecordedPayment(TEST_CONSTANTS.USER_ID, idempotencyKey)).toBe(true);
+    });
+
+    it("returns false when the attempt was recorded but never reached Stripe", async () => {
+      const { service, stripeTransactionRepository } = setup();
+      stripeTransactionRepository.findOneBy.mockResolvedValue(
+        generateDatabaseStripeTransaction({ status: "created", stripePaymentIntentId: null, stripeIdempotencyKey: idempotencyKey })
+      );
+
+      expect(await service.hasRecordedPayment(TEST_CONSTANTS.USER_ID, idempotencyKey)).toBe(false);
+    });
+  });
+
   describe("cancelUnauthenticatedPaymentIntent", () => {
     it("cancels the intent at Stripe and records the row as canceled", async () => {
       const { service, stripe, stripeTransactionRepository } = setup();
