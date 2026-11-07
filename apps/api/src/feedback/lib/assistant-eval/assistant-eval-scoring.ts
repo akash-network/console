@@ -27,6 +27,8 @@ const ADVICE_AGAINST = /n't\b|\b(?:not|never|no need|instead of|rather than|with
 
 const SHORTENED_NUMBER = /(\d{4,})(?:\.{3}|…)/g;
 
+const LONG_NUMBER = /\d{4,}/g;
+
 export interface AssistantEvalToolCall {
   name: string;
   arguments: Record<string, unknown>;
@@ -117,15 +119,20 @@ function deploymentLinkFailures(expected: AssistantEvalExpectation, answer: stri
     const link = deploymentLinkOf(dseq);
     if (!answer.includes(link)) return [`answer does not link deployment ${dseq}`];
 
-    const answerOutsideLinks = answer.split(link).join("");
+    const answerAroundLinks = answer.split(link);
+    const answerOutsideLinks = answerAroundLinks.join("");
     if (answerOutsideLinks.includes(dseq)) return [`answer writes a bare dseq ${dseq}`];
 
-    return writesShortenedDseq(answerOutsideLinks, dseq) ? [`answer writes a shortened dseq ${dseq}`] : [];
+    const ellipsizedNumbers = Array.from(answerOutsideLinks.matchAll(SHORTENED_NUMBER), ([, digits]) => digits);
+    const labelNumbers = linkLabelsOf(answerAroundLinks).flatMap(label => label.match(LONG_NUMBER) ?? []);
+    const writesShortenedDseq = [...ellipsizedNumbers, ...labelNumbers].some(digits => dseq.startsWith(digits));
+
+    return writesShortenedDseq ? [`answer writes a shortened dseq ${dseq}`] : [];
   });
 }
 
-function writesShortenedDseq(text: string, dseq: string): boolean {
-  return Array.from(text.matchAll(SHORTENED_NUMBER)).some(([, digits]) => dseq.startsWith(digits));
+function linkLabelsOf(answerAroundLinks: string[]): string[] {
+  return answerAroundLinks.slice(0, -1).map(textBeforeLink => textBeforeLink.slice(textBeforeLink.lastIndexOf("[") + 1));
 }
 
 function repricingFailures(expected: AssistantEvalExpectation, answer: string): string[] {

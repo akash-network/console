@@ -226,8 +226,13 @@ describe(scoreAssistantEval.name, () => {
     ]);
   });
 
-  it.each(["[deployment 1794...](/deployments/1794010767535) is up.", "[deployment 179401…](/deployments/1794010767535) is up."])(
-    "reports a dseq shortened in a link label: %j",
+  it.each([
+    "[deployment 1794...](/deployments/1794010767535) is up.",
+    "[deployment 179401…](/deployments/1794010767535) is up.",
+    "[my-db](/deployments/42) and [deployment 179401](/deployments/1794010767535) are up.",
+    "Deployment 1794... is [up](/deployments/1794010767535)."
+  ])(
+    "reports a shortened dseq: %j",
     answer => {
       expect(scoreAssistantEval("unnamed", { linksDeployments: ["1794010767535"] }, { toolCalls: [], answer }).failures).toEqual([
         "answer writes a shortened dseq 1794010767535"
@@ -235,8 +240,13 @@ describe(scoreAssistantEval.name, () => {
     }
   );
 
-  it.each(["[web (nginx)](/deployments/1794010767535) logged 2048... lines.", "[web (nginx)](/deployments/1794010767535) is at step 179..."])(
-    "passes a trailing number that is not a shortened dseq: %j",
+  it.each([
+    "[web (nginx)](/deployments/1794010767535) logged 2048... lines.",
+    "[web (nginx)](/deployments/1794010767535) is at step 179...",
+    "[web (nginx)](/deployments/1794010767535) logged 1794 lines.",
+    "[web 2048](/deployments/1794010767535) is up."
+  ])(
+    "passes a number that is not a shortened dseq: %j",
     answer => {
       expect(scoreAssistantEval("unnamed", { linksDeployments: ["1794010767535"] }, { toolCalls: [], answer }).failures).toEqual([]);
     }

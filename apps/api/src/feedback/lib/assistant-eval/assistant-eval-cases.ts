@@ -538,7 +538,7 @@ export const ASSISTANT_EVAL_CASES: AssistantEvalCase[] = [
     question: "Is my deployment healthy?",
     context: { dseq: DSEQ },
     toolResults: { get_deployment: { ...ACTIVE_WEB_DEPLOYMENT, name: null } },
-    expect: { calls: ["get_deployment"], linksDeployments: [DSEQ] }
+    expect: { calls: ["get_deployment"], linksDeployments: [DSEQ], mentionsAnyOf: ["[web", "[nginx"] }
   },
   {
     id: "unnamed-deployment-card",
