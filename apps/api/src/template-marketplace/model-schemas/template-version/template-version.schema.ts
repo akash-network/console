@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { integer, jsonb, pgEnum, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 
 import type { TemplateHardware } from "@src/template/types/template";
+import type { AskedValue } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
 import { Templates } from "@src/user/model-schemas/template/template.schema";
 import { Users } from "@src/user/model-schemas/user/user.schema";
 
@@ -23,7 +24,7 @@ export const TemplateVersions = pgTable(
     sdl: text("sdl").notNull(),
     readme: text("readme"),
     askedValues: jsonb("asked_values")
-      .$type<unknown[]>()
+      .$type<AskedValue[]>()
       .notNull()
       .default(sql`'[]'::jsonb`),
     resources: jsonb("resources").$type<TemplateHardware>(),
