@@ -5,6 +5,7 @@ import { GpuWinBackService } from "@src/billing/services/gpu-win-back/gpu-win-ba
 import { type CreateLogger, DOMAIN_EVENT_NAME, EventPayload, JobHandler, type JobPermissions, LOGGER_FACTORY } from "@src/core";
 import { LeaseGpuDetectionJobService } from "@src/deployment/services/lease-gpu-detection-job/lease-gpu-detection-job.service";
 import { LeaseGpuOfferJobService } from "@src/deployment/services/lease-gpu-offer-job/lease-gpu-offer-job.service";
+import { TemplateUsageService } from "@src/template-marketplace/services/template-usage/template-usage.service";
 
 @singleton()
 export class ManagedDeploymentLeaseCreatedHandler implements JobHandler<ManagedDeploymentLeaseCreated> {
@@ -21,6 +22,7 @@ export class ManagedDeploymentLeaseCreatedHandler implements JobHandler<ManagedD
     private readonly gpuDetectionJobService: LeaseGpuDetectionJobService,
     private readonly gpuOfferJobService: LeaseGpuOfferJobService,
     private readonly gpuWinBackService: GpuWinBackService,
+    private readonly templateUsageService: TemplateUsageService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: ManagedDeploymentLeaseCreatedHandler.name });
@@ -30,11 +32,26 @@ export class ManagedDeploymentLeaseCreatedHandler implements JobHandler<ManagedD
     return [];
   }
 
-  /** Reading a lease's gpus and the win-back check are extras the deployment does not depend on, so a failure to schedule any of them is logged rather than retried. */
+  /** Reading a lease's gpus, the win-back check and template usage are extras the deployment does not depend on, so a failure in any of them is logged rather than retried. */
   async handle(payload: EventPayload<ManagedDeploymentLeaseCreated>): Promise<void> {
     await this.#scheduleOfferRecord(payload);
     await this.#scheduleDetection(payload);
     await this.#scheduleWinBackCheck(payload);
+    await this.#recordTemplateLease(payload);
+  }
+
+  async #recordTemplateLease(payload: EventPayload<ManagedDeploymentLeaseCreated>): Promise<void> {
+    try {
+      await this.templateUsageService.recordLeaseCreated({ walletId: payload.walletId, dseq: payload.dseq, leaseCreatedAt: new Date(payload.createdAt) });
+    } catch (error) {
+      this.logger.error({
+        event: "TEMPLATE_USAGE_LEASE_RECORD_FAILED",
+        domainEvent: ManagedDeploymentLeaseCreated[DOMAIN_EVENT_NAME],
+        walletId: payload.walletId,
+        dseq: payload.dseq,
+        error
+      });
+    }
   }
 
   async #scheduleWinBackCheck(payload: EventPayload<ManagedDeploymentLeaseCreated>): Promise<void> {

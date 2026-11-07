@@ -12,7 +12,7 @@ import { mock, type MockProxy } from "vitest-mock-extended";
 
 import { ACTIVITIES_DEDUPE_KEY_INDEX } from "@src/activity/model-schemas";
 import type { ActivityService } from "@src/activity/services/activity/activity.service";
-import type { WalletInitialized } from "@src/billing/repositories";
+import type { UserWalletRepository, WalletInitialized } from "@src/billing/repositories";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import type { DeploymentDepositLedgerService } from "@src/billing/services/deployment-deposit-ledger/deployment-deposit-ledger.service";
@@ -5510,6 +5510,9 @@ describe(DeploymentWriterService.name, () => {
     templateUsageEventRepository.record.mockResolvedValue(true);
     const templateUsageService = new TemplateUsageService(
       templateUsageEventRepository,
+      mock<UserWalletRepository>(),
+      mock<DeploymentSettingRepository>(),
+      mock<JobQueueService>(),
       mockConfigService<CoreConfigService>({ NETWORK: "mainnet" }),
       txService,
       createLogger
