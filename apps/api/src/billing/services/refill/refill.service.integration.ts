@@ -157,7 +157,13 @@ describe(RefillService.name, () => {
       return { transactionId: payment.id };
     };
 
-    const refund = () => container.resolve(RefillService).reduceWalletBalance(refundCents, { userId: user.id });
+    const refundedPayment = await container
+      .resolve(StripeTransactionRepository)
+      .create({ userId: user.id, type: "payment_intent", status: "succeeded", amount: 50_00, currency: "usd" });
+    const refund = () =>
+      container
+        .resolve(RefillService)
+        .reduceWalletBalance(refundCents, { userId: user.id }, { transactionId: refundedPayment.id, refundedBefore: 0, refundedAfter: refundCents });
     const findChecks = () => findJobRows(CHECK, { singletonKeyLike: `${CHECK}.%`, data: {}, state: "created" });
 
     return { chain, wallet, refund, creditInFlight, findChecks };

@@ -1193,7 +1193,7 @@ describe(StripeTransactionService.name, () => {
       expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(
         5000,
         { userId: buyerId, organizationId: team.id, team },
-        { currency: transaction.currency, transactionId: transaction.id }
+        { currency: transaction.currency, transactionId: transaction.id, refundedBefore: 0, refundedAfter: 5000 }
       );
     });
 
@@ -1271,7 +1271,7 @@ describe(StripeTransactionService.name, () => {
       expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(
         5000,
         { userId: null, organizationId: team.id, team },
-        { currency: transaction.currency, transactionId: transaction.id }
+        { currency: transaction.currency, transactionId: transaction.id, refundedBefore: 0, refundedAfter: 5000 }
       );
     });
 
@@ -1590,9 +1590,13 @@ describe(StripeTransactionService.name, () => {
       await service.refundCharge(createChargeRefundedEvent({ id: chargeId, customer: mockUser.stripeCustomerId!, amount_refunded: 5000, refunded: true }));
 
       expect(userRepository.findOneBy).toHaveBeenCalledWith({ stripeCustomerId: mockUser.stripeCustomerId });
-      expect(stripeTransactionRepository.findOneByAndLock).toHaveBeenCalledWith({ stripeChargeId: chargeId });
+      expect(stripeTransactionRepository.findOneByAndLock).toHaveBeenCalledWith({ stripeChargeId: chargeId }, { strength: "no key update" });
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(transactionId, { amountRefunded: 5000, status: "refunded" });
-      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(5000, { userId: mockUser.id, organizationId: null }, { currency: "usd", transactionId });
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(
+        5000,
+        { userId: mockUser.id, organizationId: null },
+        { currency: "usd", transactionId, refundedBefore: 0, refundedAfter: 5000 }
+      );
     });
 
     it("calculates refund delta correctly for partial refunds", async () => {
@@ -1608,7 +1612,11 @@ describe(StripeTransactionService.name, () => {
 
       await service.refundCharge(createChargeRefundedEvent({ id: "ch_123", customer: mockUser.stripeCustomerId!, amount_refunded: 8000, refunded: false }));
 
-      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(5000, { userId: mockUser.id, organizationId: null }, { currency: "usd", transactionId });
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(
+        5000,
+        { userId: mockUser.id, organizationId: null },
+        { currency: "usd", transactionId, refundedBefore: 3000, refundedAfter: 8000 }
+      );
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(transactionId, { amountRefunded: 8000 });
     });
 
@@ -1720,7 +1728,9 @@ describe(StripeTransactionService.name, () => {
 
       expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(2000, expect.objectContaining({ userId: person.id }), {
         currency: "usd",
-        transactionId: purchase.id
+        transactionId: purchase.id,
+        refundedBefore: 0,
+        refundedAfter: 2000
       });
       expect(await persistedTransactions.findById(purchase.id)).toMatchObject({ status: "refunded", amountRefunded: 2000 });
     });
@@ -1750,7 +1760,11 @@ describe(StripeTransactionService.name, () => {
 
       await service.refundCharge(createChargeRefundedEvent({ id: "ch_123", customer: mockUser.stripeCustomerId!, amount_refunded: 10000, refunded: true }));
 
-      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(11000, { userId: mockUser.id, organizationId: null }, { currency: "usd", transactionId });
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(
+        11000,
+        { userId: mockUser.id, organizationId: null },
+        { currency: "usd", transactionId, refundedBefore: 0, refundedAfter: 10000 }
+      );
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(transactionId, { amountRefunded: 10000, status: "refunded" });
     });
 
@@ -1766,7 +1780,11 @@ describe(StripeTransactionService.name, () => {
 
       await service.refundCharge(createChargeRefundedEvent({ id: "ch_123", customer: mockUser.stripeCustomerId!, amount_refunded: 10000, refunded: true }));
 
-      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(1000, { userId: mockUser.id, organizationId: null }, { currency: "usd", transactionId });
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(
+        1000,
+        { userId: mockUser.id, organizationId: null },
+        { currency: "usd", transactionId, refundedBefore: 9000, refundedAfter: 10000 }
+      );
     });
 
     it("leaves the bonus untouched on partial refunds", async () => {
@@ -1781,7 +1799,11 @@ describe(StripeTransactionService.name, () => {
 
       await service.refundCharge(createChargeRefundedEvent({ id: "ch_123", customer: mockUser.stripeCustomerId!, amount_refunded: 4000, refunded: false }));
 
-      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(4000, { userId: mockUser.id, organizationId: null }, { currency: "usd", transactionId });
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(
+        4000,
+        { userId: mockUser.id, organizationId: null },
+        { currency: "usd", transactionId, refundedBefore: 0, refundedAfter: 4000 }
+      );
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(transactionId, { amountRefunded: 4000 });
     });
   });
@@ -1835,7 +1857,9 @@ describe(StripeTransactionService.name, () => {
 
       expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(purchase.amount, expect.objectContaining({ userId: person.id }), {
         currency: "usd",
-        transactionId: purchase.id
+        transactionId: purchase.id,
+        refundedBefore: 0,
+        refundedAfter: purchase.amount
       });
       expect(await persistedTransactions.findById(purchase.id)).toMatchObject({ status: "refunded", amountRefunded: purchase.amount });
     });
