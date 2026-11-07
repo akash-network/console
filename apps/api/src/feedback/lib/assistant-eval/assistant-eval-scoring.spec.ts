@@ -50,6 +50,8 @@ const STORAGE_AS_MAP_SDL = PERSISTENT_POSTGRES_SDL.replace(
   "          data:\n            size: 10Gi"
 );
 
+const PRICELESS_POSTGRES_SDL = PERSISTENT_POSTGRES_SDL.replace("    dcloud:\n      pricing:\n        postgres:\n          denom: uact\n          amount: 10000\n", "    dcloud: {}\n");
+
 describe(scoreAssistantEval.name, () => {
   it("passes a transcript that meets every expectation", () => {
     const result = scoreAssistantEval(
@@ -321,6 +323,7 @@ describe(scoreAssistantEval.name, () => {
     const proposeSdl = (sdl: string) => ({ toolCalls: [{ name: "propose_create_deployment", arguments: { sdl } }], answer: "" });
 
     expect(scoreAssistantEval("sdl", { proposes: "create_deployment", proposesValidSdl: true }, proposeSdl(PERSISTENT_POSTGRES_SDL)).failures).toEqual([]);
+    expect(scoreAssistantEval("sdl", { proposes: "create_deployment", proposesValidSdl: true }, proposeSdl(PRICELESS_POSTGRES_SDL)).failures).toEqual([]);
     expect(scoreAssistantEval("sdl", { proposes: "create_deployment", proposesValidSdl: true }, proposeSdl(STORAGE_AS_MAP_SDL)).failures).toEqual([
       expect.stringMatching(/^create_deployment proposal has an SDL that is not valid: \/profiles\/compute\/postgres\/resources\/storage /)
     ]);
@@ -330,6 +333,10 @@ describe(scoreAssistantEval.name, () => {
   describe(sdlValidationErrorsOf.name, () => {
     it("finds nothing wrong with a valid SDL", () => {
       expect(sdlValidationErrorsOf(PERSISTENT_POSTGRES_SDL)).toEqual([]);
+    });
+
+    it("accepts an SDL without pricing, since a create prices it at the default ceiling", () => {
+      expect(sdlValidationErrorsOf(PRICELESS_POSTGRES_SDL)).toEqual([]);
     });
 
     it("names where a storage map should have been a list", () => {
@@ -349,6 +356,7 @@ describe(scoreAssistantEval.name, () => {
     const checkAvailability = writePostgres?.toolResults?.check_availability as (args: Record<string, unknown>) => unknown;
 
     expect(checkAvailability({ sdl: PERSISTENT_POSTGRES_SDL })).toMatchObject({ providersAbleToBid: 14 });
+    expect(checkAvailability({ sdl: PRICELESS_POSTGRES_SDL })).toMatchObject({ providersAbleToBid: 14 });
     expect(checkAvailability({ sdl: STORAGE_AS_MAP_SDL })).toEqual({ error: expect.stringMatching(/^The SDL is not valid: \/profiles\/compute\/postgres/) });
     expect(checkAvailability({ templateId: "postgres" })).toEqual({ error: expect.stringMatching(/^The SDL is not valid: \S/) });
   });

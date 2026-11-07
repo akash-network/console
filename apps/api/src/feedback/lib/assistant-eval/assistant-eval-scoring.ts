@@ -1,9 +1,9 @@
-import type { SDLInput } from "@akashnetwork/chain-sdk";
-import { load } from "js-yaml";
+import { type SDLInput, yaml } from "@akashnetwork/chain-sdk";
 
 import { generateManifestReportingBuildFailures } from "@src/deployment/utils/sdl-manifest/sdl-manifest";
 import type { ProposalActionType } from "@src/feedback/lib/assistant-tools/assistant-tool-arguments";
 import { proposalActionTypeOf } from "@src/feedback/lib/assistant-tools/assistant-tools";
+import { withDefaultPricing } from "@src/feedback/lib/sdl-pricing/sdl-pricing";
 
 export interface AssistantEvalExpectation {
   calls?: string[];
@@ -60,12 +60,12 @@ function proposalsOf(transcript: AssistantEvalTranscript): { type: ProposalActio
   });
 }
 
-/** Checks an SDL the way a create does before it reaches the chain, so a case can tell a valid SDL from one the model only thinks is valid. */
+/** Checks an SDL the way a create does, default pricing included, so a case can tell a valid SDL from one the model only thinks is valid. */
 export function sdlValidationErrorsOf(sdl: unknown): string[] {
   if (typeof sdl !== "string") return ["there is no SDL"];
 
   try {
-    const result = generateManifestReportingBuildFailures(load(sdl) as SDLInput);
+    const result = generateManifestReportingBuildFailures(yaml.raw<SDLInput>(withDefaultPricing(sdl)));
     return result.ok ? [] : result.value.map(({ instancePath, message }) => `${instancePath} ${message}`.trim());
   } catch (error) {
     return [`the YAML does not parse: ${error instanceof Error ? error.message.split("\n", 1)[0] : String(error)}`];
