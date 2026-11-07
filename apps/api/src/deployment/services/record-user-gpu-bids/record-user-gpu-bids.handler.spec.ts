@@ -3,7 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
 
 import type { ChainSDK } from "@src/chain/providers/chain-sdk.provider";
+import { MAX_ASKED_GPUS } from "@src/deployment/lib/unmet-gpu-ask/unmet-gpu-ask";
 import type { GpuBidCheckRepository } from "@src/deployment/repositories/gpu-bid-check/gpu-bid-check.repository";
+import type { UnmetGpuDemandService } from "@src/deployment/services/unmet-gpu-demand/unmet-gpu-demand.service";
 import { RecordUserGpuBidsHandler, type ScreenedGpuGroup } from "./record-user-gpu-bids.handler";
 
 const CHECKED_AT = new Date("2026-10-19T12:05:00Z");
@@ -63,6 +65,66 @@ describe(RecordUserGpuBidsHandler.name, () => {
     expect(gpuBidCheckRepository.insertMany).toHaveBeenCalledWith([]);
   });
 
+  it("records a zero bid, as the owner's, for each group that stayed open through the wait and drew no bid", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: CHECKED_AT });
+    try {
+      const { handler, unmetGpuDemandService } = setup({ bids: [aBid(2, "akash1bidder")] });
+
+      await handler.handle({
+        owner: "akash1owner",
+        dseq: "123",
+        groups: [
+          aGroup({ gseq: 1, model: "h100", gpuCount: 8, regionArea: "eu", screened: ["akash1silent"] }),
+          aGroup({ gseq: 2, model: "a100", gpuCount: 1 }),
+          aGroup({ gseq: 3, model: "h200", gpuCount: 4, wasOpenThroughWait: false }),
+          aGroup({ gseq: 4, model: "b200", gpuCount: 2 })
+        ],
+        version: 1
+      });
+
+      expect(unmetGpuDemandService.recordZeroBids).toHaveBeenCalledWith({
+        asks: [
+          { vendor: "nvidia", model: "h100", gpuCount: 8, regionArea: "eu" },
+          { vendor: "nvidia", model: "b200", gpuCount: 2, regionArea: null }
+        ],
+        actorId: "akash1owner",
+        occurredAt: CHECKED_AT
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("records no zero bid for a group queued before its gpu count was carried", async () => {
+    const { handler, unmetGpuDemandService } = setup({ bids: [] });
+
+    await handler.handle({ owner: "akash1owner", dseq: "123", groups: [aGroup({ gseq: 1 })], version: 1 });
+
+    expect(unmetGpuDemandService.recordZeroBids).toHaveBeenCalledWith(expect.objectContaining({ asks: [] }));
+  });
+
+  it("records no zero bid for an ask beyond real demand or the stored columns", async () => {
+    const { handler, unmetGpuDemandService } = setup({ bids: [] });
+
+    await handler.handle({
+      owner: "akash1owner",
+      dseq: "123",
+      groups: [
+        aGroup({ gseq: 1, model: "h100", gpuCount: MAX_ASKED_GPUS }),
+        aGroup({ gseq: 2, model: "a100", gpuCount: MAX_ASKED_GPUS + 1 }),
+        aGroup({ gseq: 3, model: "h200", gpuCount: 2 ** 53 }),
+        aGroup({ gseq: 4, model: "b200", gpuCount: 0 }),
+        aGroup({ gseq: 5, model: "m".repeat(256), gpuCount: 1 }),
+        aGroup({ gseq: 6, vendor: "v".repeat(65), gpuCount: 1 })
+      ],
+      version: 1
+    });
+
+    expect(unmetGpuDemandService.recordZeroBids).toHaveBeenCalledWith(
+      expect.objectContaining({ asks: [{ vendor: "nvidia", model: "h100", gpuCount: MAX_ASKED_GPUS, regionArea: null }] })
+    );
+  });
+
   it("declares no permissions, because a worker carries no user", () => {
     const { handler } = setup({ bids: [] });
 
@@ -82,7 +144,13 @@ describe(RecordUserGpuBidsHandler.name, () => {
     const response: QueryBidsResponse = { bids: input.bids.map(bid => ({ bid, escrowAccount: undefined })), pagination: undefined };
     chainSdk.akash.market.v1beta5.getBids.mockResolvedValue(response);
     const gpuBidCheckRepository = mock<GpuBidCheckRepository>();
+    const unmetGpuDemandService = mock<UnmetGpuDemandService>();
 
-    return { handler: new RecordUserGpuBidsHandler(chainSdk, gpuBidCheckRepository), chainSdk, gpuBidCheckRepository };
+    return {
+      handler: new RecordUserGpuBidsHandler(chainSdk, gpuBidCheckRepository, unmetGpuDemandService),
+      chainSdk,
+      gpuBidCheckRepository,
+      unmetGpuDemandService
+    };
   }
 });

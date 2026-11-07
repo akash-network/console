@@ -46,6 +46,55 @@ describe(GpuService.name, () => {
     }
   });
 
+  describe("findOfferedGpuModels", () => {
+    it("lists each model an online provider has once, in lower case, busy or not, across every provider", async () => {
+      const { service, gpuRepository } = setup();
+      gpuRepository.getGpuList.mockResolvedValue([
+        aGpuNode({ vendor: "NVIDIA", modelName: "H100", allocated: 8 }),
+        aGpuNode({ vendor: "nvidia", modelName: "h100" }),
+        aGpuNode({ vendor: "amd", modelName: "mi300x" })
+      ]);
+
+      expect(await service.findOfferedGpuModels()).toEqual([
+        { vendor: "nvidia", model: "h100" },
+        { vendor: "amd", model: "mi300x" }
+      ]);
+      expect(gpuRepository.getGpuList).toHaveBeenCalledWith({});
+    });
+
+    it("skips a node whose gpu has no vendor or model", async () => {
+      const { service, gpuRepository } = setup();
+      gpuRepository.getGpuList.mockResolvedValue([aGpuNode({ vendor: "" }), aGpuNode({ modelName: "" })]);
+
+      expect(await service.findOfferedGpuModels()).toEqual([]);
+    });
+
+    it("serves a repeated lookup from cache", async () => {
+      const { service, gpuRepository } = setup();
+      gpuRepository.getGpuList.mockResolvedValue([aGpuNode({})]);
+
+      await service.findOfferedGpuModels();
+      await service.findOfferedGpuModels();
+
+      expect(gpuRepository.getGpuList).toHaveBeenCalledTimes(1);
+    });
+
+    function aGpuNode(overrides: Partial<GpuNode>): GpuNode {
+      return {
+        hostUri: "https://provider.example.com:8443",
+        name: "node-1",
+        allocatable: 8,
+        allocated: 2,
+        modelId: "2330",
+        vendor: "nvidia",
+        modelName: "h100",
+        interface: "PCIe",
+        memorySize: "80Gi",
+        ...overrides
+      };
+    }
+  });
+
   describe("getGpuModels", () => {
     it("fetches the provider-config catalog and returns the formatted vendor list", async () => {
       const { service, httpClient } = setup({
