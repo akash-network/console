@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { cacheRegistry, NOMINAL_ENTRY_BYTES } from "./cache-registry";
 import { cacheEngine, cacheResponse, Memoize, memoizeAsync } from "./helpers";
@@ -178,6 +178,90 @@ describe("Memoize Function", () => {
       // Only one request should have been made
       expect(requestCount).toBe(1);
       expect(refreshRequest).toHaveBeenCalledTimes(1);
+    });
+
+    describe("when the cached entry is expired but within its stale window", () => {
+      it.each([
+        { ttlInSeconds: 6, ageInSeconds: 6 },
+        { ttlInSeconds: 6, ageInSeconds: 11 },
+        { ttlInSeconds: 120, ageInSeconds: 239 },
+        { ttlInSeconds: 3600, ageInSeconds: 3600 + 299 }
+      ])("serves a $ageInSeconds s old entry with a $ttlInSeconds s ttl and refreshes it in the background", async ({ ttlInSeconds, ageInSeconds }) => {
+        const { cachedData } = setup({ cachedAgeInSeconds: ageInSeconds });
+        const refreshRequest = vi.fn().mockResolvedValue({ fresh: "data" });
+
+        const result = await cacheResponse(ttlInSeconds, "test-key", refreshRequest);
+
+        expect(result).toEqual(cachedData);
+        expect(refreshRequest).toHaveBeenCalledTimes(1);
+        await vi.waitFor(() => expect(cacheEngine.getFromCache("test-key")).toEqual({ date: expect.any(Date), data: { fresh: "data" } }));
+      });
+    });
+
+    describe("when the cached entry is past its max age", () => {
+      it.each([
+        { ttlInSeconds: 6, ageInSeconds: 12 },
+        { ttlInSeconds: 120, ageInSeconds: 240 },
+        { ttlInSeconds: 3600, ageInSeconds: 3600 + 300 }
+      ])("waits for a fresh value for a $ageInSeconds s old entry with a $ttlInSeconds s ttl", async ({ ttlInSeconds, ageInSeconds }) => {
+        setup({ cachedAgeInSeconds: ageInSeconds });
+        const refreshRequest = vi.fn().mockResolvedValue({ fresh: "data" });
+
+        const result = await cacheResponse(ttlInSeconds, "test-key", refreshRequest);
+
+        expect(result).toEqual({ fresh: "data" });
+        expect(refreshRequest).toHaveBeenCalledTimes(1);
+        expect(cacheEngine.getFromCache("test-key")).toEqual({ date: new Date(), data: { fresh: "data" } });
+      });
+
+      it("shares one refresh between concurrent callers", async () => {
+        setup({ cachedAgeInSeconds: 240 });
+        const refreshRequest = vi.fn().mockResolvedValue({ fresh: "data" });
+
+        const results = await Promise.all([
+          cacheResponse(120, "test-key", refreshRequest),
+          cacheResponse(120, "test-key", refreshRequest),
+          cacheResponse(120, "test-key", refreshRequest)
+        ]);
+
+        expect(results).toEqual([{ fresh: "data" }, { fresh: "data" }, { fresh: "data" }]);
+        expect(refreshRequest).toHaveBeenCalledTimes(1);
+      });
+
+      it("rejects with the refresh error instead of serving the old entry", async () => {
+        setup({ cachedAgeInSeconds: 240 });
+        const refreshRequest = vi.fn().mockRejectedValue(new Error("Refresh failed"));
+
+        await expect(cacheResponse(120, "test-key", refreshRequest)).rejects.toThrow("Refresh failed");
+      });
+
+      it("joins a background refresh that is still running", async () => {
+        const { cachedData } = setup({ cachedAgeInSeconds: 130 });
+        let resolveRefresh!: (value: unknown) => void;
+        const refreshRequest = vi.fn(() => new Promise(resolve => (resolveRefresh = resolve)));
+
+        const staleResult = await cacheResponse(120, "test-key", refreshRequest);
+        vi.setSystemTime(Date.now() + 120 * 1000);
+        const pastMaxAgeResult = cacheResponse(120, "test-key", refreshRequest);
+        resolveRefresh({ fresh: "data" });
+
+        expect(staleResult).toEqual(cachedData);
+        expect(await pastMaxAgeResult).toEqual({ fresh: "data" });
+        expect(refreshRequest).toHaveBeenCalledTimes(1);
+      });
+
+      it("rejects when the background refresh it joined fails", async () => {
+        setup({ cachedAgeInSeconds: 130 });
+        let rejectRefresh!: (error: Error) => void;
+        const refreshRequest = vi.fn(() => new Promise((_, reject) => (rejectRefresh = reject)));
+
+        await cacheResponse(120, "test-key", refreshRequest);
+        vi.setSystemTime(Date.now() + 120 * 1000);
+        const pastMaxAgeResult = cacheResponse(120, "test-key", refreshRequest);
+        rejectRefresh(new Error("Refresh failed"));
+
+        await expect(pastMaxAgeResult).rejects.toThrow("Refresh failed");
+      });
     });
 
     describe("when the payload has a known byte size", () => {
@@ -485,8 +569,19 @@ describe("Memoize Function", () => {
     });
   });
 
-  function setup() {
+  function setup(input?: { cachedAgeInSeconds?: number }) {
     vi.clearAllMocks();
+    vi.useFakeTimers({ now: new Date("2026-11-07T12:00:00.000Z"), toFake: ["Date"] });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
     cacheEngine.clearAllKeyInCache();
+
+    const cachedData = { cached: "data" };
+    if (input?.cachedAgeInSeconds !== undefined) {
+      cacheEngine.storeInCache("test-key", { date: new Date(Date.now() - input.cachedAgeInSeconds * 1000), data: cachedData });
+    }
+
+    return { cachedData };
   }
 });
