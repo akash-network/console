@@ -3,7 +3,7 @@ import { addMinutes } from "date-fns";
 import { millisecondsInMinute } from "date-fns/constants";
 import minBy from "lodash/minBy";
 import { Err, Ok, Result } from "ts-results";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { walletBillingTargetOf } from "@src/billing/lib/wallet-billing-target/wallet-billing-target";
 import { DepositDeploymentMsgOptions, RpcMessageService } from "@src/billing/services";
@@ -15,12 +15,14 @@ import { ManagedSignerService } from "@src/billing/services/managed-signer/manag
 import { needsCreditsLowTransition } from "@src/billing/services/wallet-credits-low-check/credits-low-transition";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import type { DryRunOptions } from "@src/core/types/console";
 import { DeploymentSettingRepository, type FundingClaim } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { AutoTopUpOwnerDeployments, DrainingDeployment } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { ReconcileManagedTxJobService } from "@src/deployment/services/reconcile-managed-tx/reconcile-managed-tx-job.service";
 import { isProjectBudgetExceeded } from "@src/organization/services/project-budget-enforcement/project-budget-enforcement.service";
+import { AccountStatusGuard } from "@src/user/services/account-status-guard/account-status-guard.service";
 import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
 import { CachedBalance, CachedBalanceService, InsufficientBalanceError } from "../cached-balance/cached-balance.service";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
@@ -49,6 +51,8 @@ type CollectedMessage = {
 
 @singleton()
 export class TopUpManagedDeploymentsService {
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly managedSignerService: ManagedSignerService,
     private readonly reconcileManagedTxJobService: ReconcileManagedTxJobService,
@@ -63,8 +67,12 @@ export class TopUpManagedDeploymentsService {
     private readonly walletReloadService: WalletReloadJobService,
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly deploymentConfig: DeploymentConfigService,
-    private readonly balancesService: BalancesService
-  ) {}
+    private readonly balancesService: BalancesService,
+    private readonly accountStatusGuard: AccountStatusGuard,
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
+  ) {
+    this.logger = createLogger({ context: TopUpManagedDeploymentsService.name });
+  }
 
   /**
    * The whole sweep is sized from a single block height: refetching per owner would make a deployment's
@@ -145,6 +153,11 @@ export class TopUpManagedDeploymentsService {
     instrumentation: DeploymentTopUpInstrumentation,
     currentHeight: number
   ): Promise<void> {
+    if (!(await this.#mayFundFor(walletId, deployments))) {
+      instrumentation.recordSkipped({ owner: address, deploymentCount: deployments.length });
+      return;
+    }
+
     if (balance.spendable <= 0) {
       const unfundable = this.#skipOwnerWithoutSpendableBalance({ address, deployments }, balance, instrumentation, currentHeight);
       await this.#warnOfClosureForLackOfCredits(unfundable, options, currentHeight);
@@ -206,6 +219,17 @@ export class TopUpManagedDeploymentsService {
     }
 
     await this.walletReloadService.scheduleImmediate({ walletId });
+  }
+
+  /** Only a personal wallet answers to its user's account status; a team wallet is funded whatever its members' status. */
+  async #mayFundFor(walletId: number, deployments: DrainingDeployment[]): Promise<boolean> {
+    const userId = deployments[0].walletUserId;
+
+    if (!userId || (await this.accountStatusGuard.maySpend(userId))) return true;
+
+    this.logger.info({ event: "TOP_UP_SKIPPED_ACCOUNT_NOT_ACTIVE", walletId, userId, deploymentCount: deployments.length });
+
+    return false;
   }
 
   /** Runs after the funding attempt whatever its outcome, since an owner whose funding just failed is among the likeliest to be low. */

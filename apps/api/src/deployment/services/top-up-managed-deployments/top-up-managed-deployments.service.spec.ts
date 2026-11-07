@@ -26,6 +26,10 @@ import type {
 } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import type { ReconcileManagedTxJobService } from "@src/deployment/services/reconcile-managed-tx/reconcile-managed-tx-job.service";
 import { ProjectBudgetExceededError } from "@src/organization/services/project-budget-enforcement/project-budget-enforcement.service";
+import type { AccountStatus } from "@src/user/lib/account-status/account-status";
+import type { UserRepository } from "@src/user/repositories";
+import type { AccountStatusService } from "@src/user/services/account-status/account-status.service";
+import { AccountStatusGuard } from "@src/user/services/account-status-guard/account-status-guard.service";
 import { mockConfigService } from "../../../../test/mocks/config-service.mock";
 import { CachedBalance, type CachedBalanceService, InsufficientBalanceError } from "../cached-balance/cached-balance.service";
 import type { FundDrainingDeploymentsInstrumentationService } from "./fund-draining-deployments-instrumentation.service";
@@ -35,6 +39,7 @@ import type { TopUpManagedDeploymentsInstrumentationService } from "./top-up-man
 import { createAkashAddress } from "@test/seeders";
 import { createAutoTopUpDeployment, createManyAutoTopUpDeployments } from "@test/seeders/auto-top-up-deployment.seeder";
 import { createDrainingDeployment } from "@test/seeders/draining-deployment.seeder";
+import { createUser } from "@test/seeders/user.seeder";
 
 describe(TopUpManagedDeploymentsService.name, () => {
   const DEPLOYMENT_GRANT_DENOM = "ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1";
@@ -1784,6 +1789,63 @@ describe(TopUpManagedDeploymentsService.name, () => {
     }
   });
 
+  describe("when the wallet owner's account is not active", () => {
+    it.each(["suspended", "terminated"] as const)("skips a personal wallet whose user is %s", async accountStatus => {
+      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, userRepository, instrumentation, walletReloadService, logger } =
+        setup({ accountStatus });
+      const deployments = createDrainingDeployments(createAkashAddress(), 42, 2);
+      const owner = createOwnerYield(deployments);
+      mockOwnerYields(drainingDeploymentService, owner);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1_000_000);
+      cachedBalanceService.get.mockResolvedValue(createMockCachedBalance(desiredAmount => desiredAmount));
+
+      await service.topUpDeployments({ dryRun: false });
+
+      expect(userRepository.findOneBy).toHaveBeenCalledWith({ id: deployments[0].walletUserId });
+      expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+      expect(walletReloadService.scheduleCreditsExhaustedCheck).not.toHaveBeenCalled();
+      expect(instrumentation.recordSkipped).toHaveBeenCalledWith({ owner: owner.address, deploymentCount: 2 });
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "TOP_UP_SKIPPED_ACCOUNT_NOT_ACTIVE",
+        walletId: 42,
+        userId: deployments[0].walletUserId,
+        deploymentCount: 2
+      });
+    });
+
+    it("logs under the service's own context", () => {
+      const { createLogger } = setup();
+
+      expect(createLogger).toHaveBeenCalledWith({ context: TopUpManagedDeploymentsService.name });
+    });
+
+    it("still tops up a team wallet", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, userRepository } = setup({ accountStatus: "suspended" });
+      const deployments = createDrainingDeployments(createAkashAddress(), 42, 1).map(deployment => ({ ...deployment, walletUserId: null }));
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue(deployments);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1_000_000);
+      cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(desiredAmount => desiredAmount));
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId: 42, address: deployments[0].address });
+
+      expect(userRepository.findOneBy).not.toHaveBeenCalled();
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(1);
+    });
+
+    it("tops up a personal wallet whose user is active", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, logger } = setup({ accountStatus: "active" });
+      const deployments = createDrainingDeployments(createAkashAddress(), 42, 1);
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue(deployments);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1_000_000);
+      cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(desiredAmount => desiredAmount));
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId: 42, address: deployments[0].address });
+
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(1);
+      expect(logger.info).not.toHaveBeenCalled();
+    });
+  });
+
   describe("when a project budget stops the top-ups of some deployments", () => {
     it("skips those deployments and funds the rest of the batch in the same pass", async () => {
       const { service, managedSignerService, instrumentation, owner, walletId, deployments } = setupDrainingOwner({ deploymentCount: 3 });
@@ -2088,7 +2150,11 @@ describe(TopUpManagedDeploymentsService.name, () => {
     };
   }
 
-  function setup(input?: { currentBlockHeight?: number; feeAllowance?: number; walletReloadService?: WalletReloadJobService }) {
+  function setup(input?: { currentBlockHeight?: number; feeAllowance?: number; walletReloadService?: WalletReloadJobService; accountStatus?: AccountStatus }) {
+    const userRepository = mock<UserRepository>({ findOneBy: vi.fn().mockResolvedValue(createUser({ accountStatus: input?.accountStatus ?? "active" })) });
+    const accountStatusGuard = new AccountStatusGuard(userRepository, mock<AccountStatusService>());
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
     const currentBlockHeight = input?.currentBlockHeight ?? CURRENT_BLOCK_HEIGHT;
     const feeAllowance = input?.feeAllowance ?? SUFFICIENT_FEE_ALLOWANCE;
 
@@ -2136,7 +2202,9 @@ describe(TopUpManagedDeploymentsService.name, () => {
       walletReloadService,
       deploymentSettingRepository,
       deploymentConfig,
-      balancesService
+      balancesService,
+      accountStatusGuard,
+      createLogger
     );
 
     return {
@@ -2154,7 +2222,10 @@ describe(TopUpManagedDeploymentsService.name, () => {
       walletReloadService,
       deploymentSettingRepository,
       deploymentConfig,
-      balancesService
+      balancesService,
+      userRepository,
+      logger,
+      createLogger
     };
   }
 });

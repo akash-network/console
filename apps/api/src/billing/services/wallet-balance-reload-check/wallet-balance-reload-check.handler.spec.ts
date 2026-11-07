@@ -17,6 +17,10 @@ import type { DeploymentRepository } from "@src/deployment/repositories/deployme
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import type { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import type { OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
+import type { AccountStatus } from "@src/user/lib/account-status/account-status";
+import type { UserRepository } from "@src/user/repositories";
+import type { AccountStatusService } from "@src/user/services/account-status/account-status.service";
+import { AccountStatusGuard } from "@src/user/services/account-status-guard/account-status-guard.service";
 import type { JobPayload } from "../../../core";
 import { WalletBalanceReloadCheckHandler } from "./wallet-balance-reload-check.handler";
 import type { WalletBalanceReloadCheckInstrumentationService } from "./wallet-balance-reload-check-instrumentation.service";
@@ -926,6 +930,63 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     });
   });
 
+  describe("when the wallet owner's account is not active", () => {
+    it.each(["suspended", "terminated"] as const)("does not charge a personal wallet whose user is %s", async accountStatus => {
+      const { handler, userRepository, stripeTransactionService, instrumentationService, wallet, job, jobMeta } = setup({
+        balance: 10.0,
+        accountStatuses: [accountStatus]
+      });
+
+      await handler.handle(job, jobMeta);
+
+      expect(userRepository.findOneBy).toHaveBeenCalledWith({ id: wallet.userId });
+      expect(instrumentationService.recordValidationError).toHaveBeenCalledWith(
+        "ACCOUNT_NOT_ACTIVE",
+        { event: "ACCOUNT_NOT_ACTIVE", message: "Account suspended or terminated. Skipping wallet balance reload check." },
+        { userId: job.userId }
+      );
+      expect(stripeTransactionService.createPaymentIntent).not.toHaveBeenCalled();
+    });
+
+    it("re-check before charging stops when the user became suspended", async () => {
+      const { handler, userRepository, stripeTransactionService, instrumentationService, job, jobMeta } = setup({
+        balance: 10.0,
+        accountStatuses: ["active", "suspended"]
+      });
+
+      await handler.handle(job, jobMeta);
+
+      expect(userRepository.findOneBy).toHaveBeenCalledTimes(2);
+      expect(stripeTransactionService.createPaymentIntent).not.toHaveBeenCalled();
+      expect(instrumentationService.recordReloadSkipped).toHaveBeenCalledWith(expect.objectContaining({ reason: "no_longer_chargeable" }));
+    });
+
+    it("charges a personal wallet whose user stays active", async () => {
+      const { handler, userRepository, stripeTransactionService, job, jobMeta } = setup({ balance: 10.0, accountStatuses: ["active", "active"] });
+
+      await handler.handle(job, jobMeta);
+
+      expect(userRepository.findOneBy).toHaveBeenCalledTimes(2);
+      expect(stripeTransactionService.createPaymentIntent).toHaveBeenCalled();
+    });
+
+    it("charges a team wallet whatever the status of the member who saved its auto reload", async () => {
+      const team = createOrganization({ type: "team", stripeCustomerId: "cus_team" });
+      const wallet = createOrganizationWallet({ organizationId: team.id });
+      const { handler, userRepository, stripeTransactionService, jobMeta } = setup({
+        balance: 10.0,
+        wallet,
+        team,
+        accountStatuses: ["suspended", "suspended"]
+      });
+
+      await handler.handle({ walletId: wallet.id, version: 1 }, jobMeta);
+
+      expect(userRepository.findOneBy).not.toHaveBeenCalled();
+      expect(stripeTransactionService.createPaymentIntent).toHaveBeenCalled();
+    });
+  });
+
   describe("when auto reload is turned off or the team deleted after the check read them", () => {
     it("charges nothing once auto reload was turned off", async () => {
       const { handler, walletSettingRepository, walletSetting, stripeTransactionService, instrumentationService, job, jobMeta } = setup({ balance: 10.0 });
@@ -1053,6 +1114,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     team?: OrganizationOutput;
     wallet?: UserWalletOutput;
     settingMemberDeleted?: boolean;
+    accountStatuses?: AccountStatus[];
   }) {
     const user = input?.user ?? createUser();
     const userWithStripe =
@@ -1150,6 +1212,12 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
 
     walletReloadJobService.scheduleForWalletSetting.mockResolvedValue(jobId);
 
+    const userRepository = mock<UserRepository>();
+    userRepository.findOneBy.mockResolvedValue(createUser({ id: wallet.userId ?? undefined, accountStatus: "active" }));
+    for (const accountStatus of input?.accountStatuses ?? []) {
+      userRepository.findOneBy.mockResolvedValueOnce(createUser({ id: wallet.userId ?? undefined, accountStatus }));
+    }
+
     const handler = new WalletBalanceReloadCheckHandler(
       walletSettingRepository,
       balancesService,
@@ -1161,7 +1229,8 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       instrumentationService,
       autoReloadPauseService,
       deploymentConfig,
-      organizationRepository
+      organizationRepository,
+      new AccountStatusGuard(userRepository, mock<AccountStatusService>())
     );
 
     return {
@@ -1177,6 +1246,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       instrumentationService,
       autoReloadPauseService,
       organizationRepository,
+      userRepository,
       claim,
       walletSetting,
       walletSettingWithWallet,
