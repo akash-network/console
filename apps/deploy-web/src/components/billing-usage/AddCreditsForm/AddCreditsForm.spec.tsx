@@ -2170,13 +2170,16 @@ describe(AddCreditsForm.name, () => {
         paymentMethods: [paymentMethod({ id: "pm_refused", isDefault: true }), paymentMethod({ id: "pm_other", card: SECOND_CARD })]
       };
       const { rerender } = setup(input);
+      fireEvent.click(screen.getByRole("radio", { name: "100" }));
 
       expect(screen.getByRole("button", { name: /4242/ })).toHaveAttribute("aria-pressed", "false");
       expect(screen.getByRole("button", { name: /1881/ })).toHaveAttribute("aria-pressed", "false");
+      expect(screen.getByRole("button", { name: "Purchase Credits" })).toBeDisabled();
 
       rerender({ ...input, isLoadingRecentRefusals: false, recentRefusals: { refusedPaymentMethodIds: ["pm_refused"], pausedUntil: null } });
 
       expect(screen.getByRole("button", { name: /1881/ })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("button", { name: "Purchase Credits" })).toBeEnabled();
     });
 
     it("stops offering a saved card once this tab saw it declined repeatedly", async () => {
