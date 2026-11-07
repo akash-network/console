@@ -7656,6 +7656,57 @@ export interface paths {
     patch: operations["updateProjectBudget"];
     trace?: never;
   };
+  "/v1/user-templates/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get a template the caller may read, with its current version */
+    get: operations["getUserTemplate"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/user-templates/{id}/versions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List the versions of a template the caller may read, newest first */
+    get: operations["listUserTemplateVersions"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/user-templates/{id}/versions/{version}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get one version of a template the caller may read */
+    get: operations["getUserTemplateVersion"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/alerts": {
     parameters: {
       query?: never;
@@ -8724,6 +8775,159 @@ export interface components {
           };
         };
       };
+    };
+    TemplateAskedValue:
+      | {
+          key: string;
+          label: string;
+          help?: string;
+          required: boolean;
+          bindings: {
+            service: string;
+            env: string;
+          }[];
+          /** @enum {string} */
+          type: "text";
+          default?: string;
+          minLength?: number;
+          maxLength?: number;
+        }
+      | {
+          key: string;
+          label: string;
+          help?: string;
+          required: boolean;
+          bindings: {
+            service: string;
+            env: string;
+          }[];
+          /** @enum {string} */
+          type: "number";
+          default?: string;
+          min?: number;
+          max?: number;
+          integer?: boolean;
+        }
+      | {
+          key: string;
+          label: string;
+          help?: string;
+          required: boolean;
+          bindings: {
+            service: string;
+            env: string;
+          }[];
+          /** @enum {string} */
+          type: "boolean";
+          /** @enum {string} */
+          default?: "true" | "false";
+        }
+      | {
+          key: string;
+          label: string;
+          help?: string;
+          required: boolean;
+          bindings: {
+            service: string;
+            env: string;
+          }[];
+          /** @enum {string} */
+          type: "choice";
+          choices: string[];
+          default?: string;
+        }
+      | {
+          key: string;
+          label: string;
+          help?: string;
+          required: boolean;
+          bindings: {
+            service: string;
+            env: string;
+          }[];
+          /** @enum {string} */
+          type: "secret";
+        };
+    TemplateVersionSummary: {
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      templateId: string;
+      version: number;
+      /** @description Null when the version recorded none */
+      resources: {
+        /** @description vCPUs across every service and replica */
+        cpu: number;
+        memoryBytes: number;
+        /** @description Ephemeral and persistent storage combined */
+        storageBytes: number;
+        gpu?: {
+          units: number;
+          /** @description Model names, or a vendor name when any of its models will do; empty when any GPU will do */
+          models: string[];
+        };
+      } | null;
+      /** @enum {string} */
+      status: "live" | "held" | "failed_checks";
+      /** Format: uuid */
+      createdById: string | null;
+      /** Format: date-time */
+      createdAt: string;
+    };
+    /** @description Its readme falls back to the template's description and its resources to the SDL's, for versions saved before they were recorded */
+    TemplateVersion: components["schemas"]["TemplateVersionSummary"] &
+      ({
+        sdl: string;
+        readme: string | null;
+        askedValues: components["schemas"]["TemplateAskedValue"][];
+      } | null);
+    MarketplaceTemplate: {
+      /** Format: uuid */
+      id: string;
+      title: string;
+      summary: string | null;
+      icon: string | null;
+      categories: string[];
+      /** @enum {string} */
+      visibility: "private" | "organization" | "public";
+      isListed: boolean;
+      isOfficial: boolean;
+      /** @enum {string} */
+      moderationStatus: "active" | "hidden" | "removed";
+      /** Format: uuid */
+      copiedFromId: string | null;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      updatedAt: string;
+      /** @description Null when the author deleted their account */
+      author: {
+        username: string;
+      } | null;
+      /** @description The organization the template belongs to, null for a template filed in none */
+      publisher: {
+        name: string;
+        slug: string;
+        /** @enum {string} */
+        type: "personal" | "team";
+      } | null;
+      currentVersion: components["schemas"]["TemplateVersion"];
+      /** @description Whether the caller may change the template */
+      canEdit: boolean;
+    };
+    GetUserTemplateResponse: {
+      data: components["schemas"]["MarketplaceTemplate"];
+    };
+    ListUserTemplateVersionsResponse: {
+      data: components["schemas"]["TemplateVersionSummary"][];
+    };
+    GetUserTemplateVersionResponse: {
+      data: components["schemas"]["TemplateVersion"] &
+        (components["schemas"]["TemplateVersionSummary"] & {
+          sdl: string;
+          readme: string | null;
+          askedValues: components["schemas"]["TemplateAskedValue"][];
+        });
     };
   };
   responses: never;
@@ -17984,6 +18188,115 @@ export interface operations {
         content?: never;
       };
       /** @description No budget with this id in the caller's reach */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  getUserTemplate: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The template */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GetUserTemplateResponse"];
+        };
+      };
+      /** @description The id is not a uuid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The template does not exist or the caller may not read it */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  listUserTemplateVersions: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The template's versions */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ListUserTemplateVersionsResponse"];
+        };
+      };
+      /** @description The id is not a uuid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The template does not exist or the caller may not read it */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  getUserTemplateVersion: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        version: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The version */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GetUserTemplateVersionResponse"];
+        };
+      };
+      /** @description The id is not a uuid or the version is not a positive integer */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The template or the version does not exist, or the caller may not read the template */
       404: {
         headers: {
           [name: string]: unknown;

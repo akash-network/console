@@ -644,6 +644,23 @@ export const operations = {
       queryParams: [],
       hasBody: false
     },
+    getUserTemplate: { path: "/v1/user-templates/{id}", method: "get", operationId: "getUserTemplate", pathParams: ["id"], queryParams: [], hasBody: false },
+    listUserTemplateVersions: {
+      path: "/v1/user-templates/{id}/versions",
+      method: "get",
+      operationId: "listUserTemplateVersions",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: false
+    },
+    getUserTemplateVersion: {
+      path: "/v1/user-templates/{id}/versions/{version}",
+      method: "get",
+      operationId: "getUserTemplateVersion",
+      pathParams: ["id", "version"],
+      queryParams: [],
+      hasBody: false
+    },
     createAlert: { path: "/v1/alerts", method: "post", operationId: "createAlert", pathParams: [], queryParams: [], hasBody: true },
     listAlerts: {
       path: "/v1/alerts",
