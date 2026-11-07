@@ -14,7 +14,12 @@ export const UserTemplateParamsSchema = z.object({
 });
 
 export const UserTemplateVersionParamsSchema = UserTemplateParamsSchema.extend({
-  version: z.coerce.number().int().positive().max(MAX_VERSION_NUMBER).openapi({ type: "integer", minimum: 1, maximum: MAX_VERSION_NUMBER, description: "The version number, counted from 1" })
+  version: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(MAX_VERSION_NUMBER)
+    .openapi({ type: "integer", minimum: 1, maximum: MAX_VERSION_NUMBER, description: "The version number, counted from 1" })
 });
 
 export const TemplateVersionSummarySchema = z
@@ -48,10 +53,7 @@ export const MarketplaceTemplateSchema = z
     copiedFromId: z.string().uuid().nullable(),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
-    author: z
-      .object({ username: z.string() })
-      .nullable()
-      .openapi({ description: "Null when the author deleted their account" }),
+    author: z.object({ username: z.string() }).nullable().openapi({ description: "Null when the author deleted their account" }),
     publisher: z
       .object({
         name: z.string(),

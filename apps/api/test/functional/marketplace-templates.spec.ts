@@ -221,7 +221,10 @@ describe("Marketplace templates", () => {
       await container.resolve(TemplateVersionRepository).appendVersion({ templateId: template.id, sdl: SDL });
 
       const responses = await Promise.all(
-        ["", "/versions", "/versions/1"].flatMap(path => [read(`/v1/user-templates/${template.id}${path}`), actAs(owner)(`/v1/user-templates/${template.id}${path}`)])
+        ["", "/versions", "/versions/1"].flatMap(path => [
+          read(`/v1/user-templates/${template.id}${path}`),
+          actAs(owner)(`/v1/user-templates/${template.id}${path}`)
+        ])
       );
 
       expect(responses.map(response => [response.status, response.headers.get("cache-control")])).toEqual([
@@ -307,7 +310,6 @@ describe("Marketplace templates", () => {
       }
     });
 
-
     it("keeps the internal id of a version's creator out of every response", async () => {
       const { owner, read } = await setup();
       const template = await seedTemplate({ author: owner, visibility: "public" });
@@ -336,9 +338,7 @@ describe("Marketplace templates", () => {
       const template = await seedTemplate({ author: null, visibility: "public" });
       await container.resolve(TemplateVersionRepository).appendVersion({ templateId: template.id, sdl: SDL });
 
-      const responses = await Promise.all(
-        ["2", "0", "1e21", "2147483648"].map(version => read(`/v1/user-templates/${template.id}/versions/${version}`))
-      );
+      const responses = await Promise.all(["2", "0", "1e21", "2147483648"].map(version => read(`/v1/user-templates/${template.id}/versions/${version}`)));
 
       expect(responses.map(({ status }) => status)).toEqual([404, 400, 400, 400]);
     });
