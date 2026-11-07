@@ -534,7 +534,7 @@ describe(UserTemplateRepository.name, () => {
       const user = await createTestUser();
       const template = await createTestTemplate({ userId: user.userId! });
 
-      expect(await userTemplateRepository.findVersionState(template.id, user.userId!)).toEqual({ sdl: template.sdl, currentVersionId: null });
+      expect(await userTemplateRepository.findVersionState(template.id, user.userId!)).toEqual({ sdl: template.sdl, isPublic: template.isPublic, currentVersionId: null });
     });
 
     it("returns nothing for a template another user wrote", async () => {

@@ -1,3 +1,4 @@
+import assert from "http-assert";
 import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
@@ -5,9 +6,13 @@ import { TxService } from "@src/core/services";
 import { DeploymentProjectService } from "@src/deployment/services/deployment-project/deployment-project.service";
 import { summarizeTemplateHardware } from "@src/template/utils/template-hardware/template-hardware";
 import { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
-import { TemplateInput, type TemplateOutput, UserTemplateRepository } from "../../repositories/user-template/user-template.repository";
+import { TemplateInput, type TemplateOutput, type TemplateVersionState, UserTemplateRepository } from "../../repositories/user-template/user-template.repository";
 
 type TemplateWriteAction = "create" | "update" | "delete";
+
+function withoutUnchangedIsPublic({ isPublic, ...rest }: TemplateInput, stored: TemplateVersionState): Partial<TemplateInput> {
+  return isPublic === undefined || isPublic === stored.isPublic ? rest : { ...rest, isPublic };
+}
 
 @singleton()
 export class UserTemplatesService {
@@ -104,9 +109,11 @@ export class UserTemplatesService {
 
     await this.#txService.transaction(async () => {
       const stored = await this.#userTemplateRepository.findVersionState(id, userId);
-      await repository.updateTemplate(id, userId, template);
+      assert(stored, 404, "Template not found");
 
-      if (!stored?.currentVersionId || stored.sdl !== template.sdl) {
+      await repository.updateTemplate(id, userId, withoutUnchangedIsPublic(template, stored));
+
+      if (!stored.currentVersionId || stored.sdl !== template.sdl) {
         await this.#recordVersion(id, template.sdl);
       }
     });

@@ -84,6 +84,28 @@ describe("User templates", () => {
       expect(await findStoredTemplate(id)).toMatchObject({ visibility: "private", isListed: true });
     });
 
+    it("keeps an organization template organization-visible when it is re-saved private", async () => {
+      const { token } = await setup();
+      const template = buildTemplate();
+      const id = await (await saveTemplate(token, template)).text();
+      await setStoredState(id, { visibility: "organization", isListed: true });
+
+      await saveTemplate(token, { ...template, id, isPublic: false });
+
+      expect(await findStoredTemplate(id)).toMatchObject({ isPublic: false, visibility: "organization", isListed: true });
+    });
+
+    it("keeps a listed public template listed when it is re-saved public", async () => {
+      const { token } = await setup();
+      const template = { ...buildTemplate(), isPublic: true };
+      const id = await (await saveTemplate(token, template)).text();
+      await setStoredState(id, { isListed: true });
+
+      await saveTemplate(token, { ...template, id });
+
+      expect(await findStoredTemplate(id)).toMatchObject({ isPublic: true, visibility: "public", isListed: true });
+    });
+
     it.each([
       { field: "cpu", value: 0.1 },
       { field: "ram", value: -1 },
@@ -118,6 +140,11 @@ describe("User templates", () => {
       isPublic: false,
       ...overrides
     };
+  }
+
+  async function setStoredState(id: string, state: { visibility?: "private" | "organization" | "public"; isListed?: boolean }) {
+    const templates = resolveTable("Templates");
+    await container.resolve<ApiPgDatabase>(POSTGRES_DB).update(templates).set(state).where(eq(templates.id, id));
   }
 
   async function findStoredTemplate(id: string) {
