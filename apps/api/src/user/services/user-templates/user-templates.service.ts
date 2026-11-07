@@ -6,7 +6,12 @@ import { TxService } from "@src/core/services";
 import { DeploymentProjectService } from "@src/deployment/services/deployment-project/deployment-project.service";
 import { summarizeTemplateHardware } from "@src/template/utils/template-hardware/template-hardware";
 import { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
-import { TemplateInput, type TemplateOutput, type TemplateVersionState, UserTemplateRepository } from "../../repositories/user-template/user-template.repository";
+import {
+  TemplateInput,
+  type TemplateOutput,
+  type TemplateVersionState,
+  UserTemplateRepository
+} from "../../repositories/user-template/user-template.repository";
 
 type TemplateWriteAction = "create" | "update" | "delete";
 
