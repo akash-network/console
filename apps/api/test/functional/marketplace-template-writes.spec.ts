@@ -107,7 +107,8 @@ describe("Marketplace template writes", () => {
         updatedAt: "2026-11-01T00:00:00.000Z",
         currentVersion: { version: 1, status: "live", createdAt: organizationWideVersion.createdAt.toISOString() },
         lastEditedBy: { username: owner.username },
-        canEdit: false
+        canEdit: false,
+        usage: { deploys: 0, lastDeployedAt: null }
       });
     });
 
@@ -627,7 +628,8 @@ describe("Marketplace template writes", () => {
           createdAt: expect.any(String)
         },
         canEdit: true,
-        isFavorite: false
+        isFavorite: false,
+        usage: { deploys: 0, lastDeployedAt: null, stillUpAfter24h: null }
       });
       expect(await storedTemplate(data.id)).toMatchObject({
         visibility: "private",

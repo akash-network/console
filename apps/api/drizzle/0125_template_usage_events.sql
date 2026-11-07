@@ -22,4 +22,5 @@ CREATE INDEX "template_usage_events_ref_action_created_idx" ON "template_usage_e
 CREATE INDEX "template_usage_events_user_id_idx" ON "template_usage_events" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "template_usage_events_organization_id_idx" ON "template_usage_events" USING btree ("organization_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "template_usage_events_deployment_action_unique" ON "template_usage_events" USING btree ("deployment_setting_id","action") WHERE "template_usage_events"."deployment_setting_id" IS NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "template_usage_events_user_favorite_unique" ON "template_usage_events" USING btree ("source","template_ref","user_id","action") WHERE "template_usage_events"."action" IN ('favorite', 'unfavorite');--> statement-breakpoint
 RESET lock_timeout;

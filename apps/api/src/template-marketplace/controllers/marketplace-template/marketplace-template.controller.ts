@@ -16,8 +16,8 @@ import type {
   UpdateUserTemplateRequest,
   UpdateUserTemplateResponse
 } from "@src/template-marketplace/http-schemas/template-writes.schema";
-import type { TemplateVersionSummary } from "@src/template-marketplace/repositories/template-version/template-version.repository";
 import {
+  type ListedTemplateVersion,
   type MarketplaceTemplateOutput,
   MarketplaceTemplateService,
   type PublishedTemplateVersion,
@@ -25,7 +25,7 @@ import {
 } from "@src/template-marketplace/services/marketplace-template/marketplace-template.service";
 import { TemplateWriterService } from "@src/template-marketplace/services/template-writer/template-writer.service";
 
-function toVersionSummaryResponse({ createdById: _createdById, createdAt, ...version }: TemplateVersionSummary): TemplateVersionSummaryResponse {
+function toVersionSummaryResponse({ createdById: _createdById, createdAt, ...version }: ListedTemplateVersion): TemplateVersionSummaryResponse {
   return { ...version, createdAt: createdAt.toISOString() };
 }
 
@@ -33,20 +33,22 @@ function toVersionResponse({ createdById: _createdById, createdAt, ...version }:
   return { ...version, createdAt: createdAt.toISOString() };
 }
 
-function toTemplateResponse({ createdAt, updatedAt, currentVersion, ...template }: MarketplaceTemplateOutput): GetUserTemplateResponse["data"] {
+function toTemplateResponse({ createdAt, updatedAt, currentVersion, usage, ...template }: MarketplaceTemplateOutput): GetUserTemplateResponse["data"] {
   return {
     ...template,
     createdAt: createdAt.toISOString(),
     updatedAt: updatedAt.toISOString(),
-    currentVersion: currentVersion && toVersionResponse(currentVersion)
+    currentVersion: currentVersion && toVersionResponse(currentVersion),
+    usage: { ...usage, lastDeployedAt: usage.lastDeployedAt?.toISOString() ?? null }
   };
 }
 
-function toListItemResponse({ updatedAt, currentVersion, ...item }: UserTemplateListItem): ListUserTemplatesResponse["data"][number] {
+function toListItemResponse({ updatedAt, currentVersion, usage, ...item }: UserTemplateListItem): ListUserTemplatesResponse["data"][number] {
   return {
     ...item,
     updatedAt: updatedAt.toISOString(),
-    currentVersion: currentVersion && { ...currentVersion, createdAt: currentVersion.createdAt.toISOString() }
+    currentVersion: currentVersion && { ...currentVersion, createdAt: currentVersion.createdAt.toISOString() },
+    usage: { ...usage, lastDeployedAt: usage.lastDeployedAt?.toISOString() ?? null }
   };
 }
 

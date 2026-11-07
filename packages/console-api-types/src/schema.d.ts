@@ -8869,7 +8869,11 @@ export interface components {
           /** @enum {string} */
           type: "secret";
         };
-    TemplateVersionSummary: {
+    TemplateVersionSummary: components["schemas"]["TemplateVersionFields"] & {
+      /** @description Deploys made from Console on mainnet */
+      deploys: number;
+    };
+    TemplateVersionFields: {
       /** Format: uuid */
       id: string;
       /** Format: uuid */
@@ -8915,7 +8919,7 @@ export interface components {
       createdAt: string;
     };
     /** @description Its readme falls back to the template's description and its resources to the SDL's, for versions saved before they were recorded */
-    TemplateVersion: components["schemas"]["TemplateVersionSummary"] &
+    TemplateVersion: components["schemas"]["TemplateVersionFields"] &
       ({
         sdl: string;
         readme: string | null;
@@ -8965,6 +8969,17 @@ export interface components {
       canEdit: boolean;
       /** @description Whether the caller made the template a favorite, false without a session */
       isFavorite: boolean;
+      usage: {
+        /** @description Deploys made from Console on mainnet */
+        deploys: number;
+        /**
+         * Format: date-time
+         * @description The latest mainnet deploy made from Console, null before the first
+         */
+        lastDeployedAt: string | null;
+        /** @description The share of mainnet leases older than a day whose deployment was still running a day later, null below five such leases */
+        stillUpAfter24h: number | null;
+      };
     };
     GetUserTemplateResponse: {
       data: components["schemas"]["MarketplaceTemplate"];
@@ -8974,7 +8989,7 @@ export interface components {
     };
     GetUserTemplateVersionResponse: {
       data: components["schemas"]["TemplateVersion"] &
-        (components["schemas"]["TemplateVersionSummary"] & {
+        (components["schemas"]["TemplateVersionFields"] & {
           sdl: string;
           readme: string | null;
           askedValues: components["schemas"]["TemplateAskedValue"][];
@@ -9106,6 +9121,15 @@ export interface components {
       } | null;
       /** @description Whether the caller may change the template */
       canEdit: boolean;
+      usage: {
+        /** @description Deploys made from Console on mainnet */
+        deploys: number;
+        /**
+         * Format: date-time
+         * @description The latest mainnet deploy made from Console, null before the first
+         */
+        lastDeployedAt: string | null;
+      };
     };
     ListUserTemplatesResponse: {
       data: components["schemas"]["UserTemplateListItem"][];
@@ -9189,7 +9213,7 @@ export interface components {
     };
     CreateUserTemplateVersionResponse: {
       data: components["schemas"]["TemplateVersion"] &
-        (components["schemas"]["TemplateVersionSummary"] & {
+        (components["schemas"]["TemplateVersionFields"] & {
           sdl: string;
           readme: string | null;
           askedValues: components["schemas"]["TemplateAskedValue"][];

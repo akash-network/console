@@ -44273,6 +44273,26 @@
         ]
       },
       "TemplateVersionSummary": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/TemplateVersionFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "deploys": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Deploys made from Console on mainnet"
+              }
+            },
+            "required": [
+              "deploys"
+            ]
+          }
+        ]
+      },
+      "TemplateVersionFields": {
         "type": "object",
         "properties": {
           "id": {
@@ -44392,7 +44412,7 @@
       "TemplateVersion": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/TemplateVersionSummary"
+            "$ref": "#/components/schemas/TemplateVersionFields"
           },
           {
             "type": "object",
@@ -44537,6 +44557,34 @@
           "isFavorite": {
             "type": "boolean",
             "description": "Whether the caller made the template a favorite, false without a session"
+          },
+          "usage": {
+            "type": "object",
+            "properties": {
+              "deploys": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Deploys made from Console on mainnet"
+              },
+              "lastDeployedAt": {
+                "type": "string",
+                "nullable": true,
+                "format": "date-time",
+                "description": "The latest mainnet deploy made from Console, null before the first"
+              },
+              "stillUpAfter24h": {
+                "type": "number",
+                "nullable": true,
+                "minimum": 0,
+                "maximum": 1,
+                "description": "The share of mainnet leases older than a day whose deployment was still running a day later, null below five such leases"
+              }
+            },
+            "required": [
+              "deploys",
+              "lastDeployedAt",
+              "stillUpAfter24h"
+            ]
           }
         },
         "required": [
@@ -44557,7 +44605,8 @@
           "publisher",
           "currentVersion",
           "canEdit",
-          "isFavorite"
+          "isFavorite",
+          "usage"
         ]
       },
       "GetUserTemplateResponse": {
@@ -44596,7 +44645,7 @@
               {
                 "allOf": [
                   {
-                    "$ref": "#/components/schemas/TemplateVersionSummary"
+                    "$ref": "#/components/schemas/TemplateVersionFields"
                   },
                   {
                     "type": "object",
@@ -44907,6 +44956,26 @@
           "canEdit": {
             "type": "boolean",
             "description": "Whether the caller may change the template"
+          },
+          "usage": {
+            "type": "object",
+            "properties": {
+              "deploys": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Deploys made from Console on mainnet"
+              },
+              "lastDeployedAt": {
+                "type": "string",
+                "nullable": true,
+                "format": "date-time",
+                "description": "The latest mainnet deploy made from Console, null before the first"
+              }
+            },
+            "required": [
+              "deploys",
+              "lastDeployedAt"
+            ]
           }
         },
         "required": [
@@ -44923,7 +44992,8 @@
           "updatedAt",
           "currentVersion",
           "lastEditedBy",
-          "canEdit"
+          "canEdit",
+          "usage"
         ]
       },
       "ListUserTemplatesResponse": {
@@ -45064,7 +45134,7 @@
               {
                 "allOf": [
                   {
-                    "$ref": "#/components/schemas/TemplateVersionSummary"
+                    "$ref": "#/components/schemas/TemplateVersionFields"
                   },
                   {
                     "type": "object",

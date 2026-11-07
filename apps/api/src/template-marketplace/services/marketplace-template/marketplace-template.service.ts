@@ -13,6 +13,11 @@ import {
   type UserTemplateListRow
 } from "@src/template-marketplace/repositories/marketplace-template/marketplace-template.repository";
 import {
+  NO_TEMPLATE_USAGE,
+  TemplateUsageEventRepository,
+  type TemplateUsageSummary
+} from "@src/template-marketplace/repositories/template-usage-event/template-usage-event.repository";
+import {
   type TemplateVersionOutput,
   TemplateVersionRepository,
   type TemplateVersionSummary
@@ -45,6 +50,7 @@ export interface MarketplaceTemplateOutput {
   currentVersion: PublishedTemplateVersion | null;
   canEdit: boolean;
   isFavorite: boolean;
+  usage: TemplateUsageSummary;
 }
 
 export interface UserTemplateListItem
@@ -65,13 +71,20 @@ export interface UserTemplateListItem
   > {
   lastEditedBy: { username: string } | null;
   canEdit: boolean;
+  usage: Pick<TemplateUsageSummary, "deploys" | "lastDeployedAt">;
 }
+
+export type ListedTemplateVersion = TemplateVersionSummary & { deploys: number };
 
 export type UserTemplateListQuery = { visibility?: TemplateVisibility; projectId?: string };
 
 export const MAX_LISTED_USER_TEMPLATES = 200;
 
 const VERSION_NOT_FOUND = "Template version not found";
+
+function pickListedUsage({ deploys, lastDeployedAt }: TemplateUsageSummary): UserTemplateListItem["usage"] {
+  return { deploys, lastDeployedAt };
+}
 
 function withoutImageDigests({ imageDigests: _imageDigests, ...version }: TemplateVersionOutput): PublishedTemplateVersion {
   return version;
@@ -84,7 +97,8 @@ export class MarketplaceTemplateService {
     private readonly templateVersionRepository: TemplateVersionRepository,
     private readonly userTemplateRepository: UserTemplateRepository,
     private readonly authService: AuthService,
-    private readonly executionContextService: ExecutionContextService
+    private readonly executionContextService: ExecutionContextService,
+    private readonly templateUsageEventRepository: TemplateUsageEventRepository
   ) {}
 
   async getTemplate(id: string): Promise<MarketplaceTemplateOutput> {
@@ -92,6 +106,7 @@ export class MarketplaceTemplateService {
     const currentVersion = await this.templateVersionRepository.findCurrent(id);
     const favoritingUserId = this.authService.safeCurrentUser?.userId;
     const isCopiedFromReadable = !!template.copiedFromId && !!(await this.#findReadableOrNone(template.copiedFromId));
+    const usages = await this.templateUsageEventRepository.summarize([id]);
 
     return {
       id: template.id,
@@ -111,7 +126,8 @@ export class MarketplaceTemplateService {
       publisher: template.publisher && { ...template.publisher, slug: template.publisher.type === "team" ? template.publisher.slug : null },
       currentVersion: currentVersion ? this.#withLegacyFallbacks(currentVersion, template) : null,
       canEdit: this.#canEditInActiveOrganization(template),
-      isFavorite: favoritingUserId ? await this.userTemplateRepository.isFavorite(id, favoritingUserId) : false
+      isFavorite: favoritingUserId ? await this.userTemplateRepository.isFavorite(id, favoritingUserId) : false,
+      usage: usages.get(id) ?? NO_TEMPLATE_USAGE
     };
   }
 
@@ -124,6 +140,7 @@ export class MarketplaceTemplateService {
     const rows = await this.marketplaceTemplateRepository
       .accessibleBy(ability, "read")
       .listInOrganization({ ...query, organizationId, limit: MAX_LISTED_USER_TEMPLATES });
+    const usages = await this.templateUsageEventRepository.summarize(rows.map(row => row.id));
 
     return rows.map(row => ({
       id: row.id,
@@ -139,16 +156,19 @@ export class MarketplaceTemplateService {
       updatedAt: row.updatedAt,
       currentVersion: row.currentVersion,
       lastEditedBy: row.lastEditedByUsername ? { username: row.lastEditedByUsername } : null,
-      canEdit: this.#canEditInActiveOrganization(row)
+      canEdit: this.#canEditInActiveOrganization(row),
+      usage: pickListedUsage(usages.get(row.id) ?? NO_TEMPLATE_USAGE)
     }));
   }
 
   /** Earlier versions may hold what the template no longer publishes, such as a removed key, so only editors see past the current one. */
-  async listVersions(id: string): Promise<TemplateVersionSummary[]> {
+  async listVersions(id: string): Promise<ListedTemplateVersion[]> {
     const template = await this.findReadable(id);
     const versions = await this.templateVersionRepository.listByTemplate(id);
+    const deploysByVersion = await this.templateUsageEventRepository.countDeploysByVersion(id);
+    const readableVersions = this.#hasUpdateRule(template) ? versions : versions.filter(version => version.id === template.currentVersionId);
 
-    return this.#hasUpdateRule(template) ? versions : versions.filter(version => version.id === template.currentVersionId);
+    return readableVersions.map(version => ({ ...version, deploys: deploysByVersion.get(version.id) ?? 0 }));
   }
 
   async getVersion(id: string, version: number): Promise<PublishedTemplateVersion> {

@@ -5,6 +5,7 @@ import { UserWalletRepository } from "@src/billing/repositories";
 import { type CreateLogger, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { TxService } from "@src/core/services";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { DeploymentSettingRepository, type DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { TemplateSource, TemplateUsageAction } from "@src/template-marketplace/model-schemas/template-usage-event/template-usage-event.schema";
 import { TemplateUsageEventRepository } from "@src/template-marketplace/repositories/template-usage-event/template-usage-event.repository";
@@ -30,6 +31,7 @@ export class TemplateUsageService {
     private readonly jobQueueService: JobQueueService,
     private readonly coreConfig: CoreConfigService,
     private readonly txService: TxService,
+    private readonly executionContextService: ExecutionContextService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: TemplateUsageService.name });
@@ -66,8 +68,25 @@ export class TemplateUsageService {
     });
   }
 
-  /** Recording is invisible to the deployer, so it runs on its own connection and a failure is only warned about, never aborting the caller's transaction or costing them the deploy or lease. */
-  async #recordSafely(context: { action: TemplateUsageAction; dseq: string } & Record<string, unknown>, record: () => Promise<void>): Promise<void> {
+  async recordFavorite(templateId: string, action: "favorite" | "unfavorite"): Promise<void> {
+    const userId = this.executionContextService.get("CURRENT_USER")?.id ?? null;
+    const organizationId = this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId ?? null;
+
+    await this.#recordSafely({ action, templateId }, async () => {
+      await this.templateUsageEventRepository.record({
+        source: "console",
+        templateRef: templateId,
+        templateVersionId: await this.templateUsageEventRepository.findCurrentVersionIdOfTemplate(templateId),
+        action,
+        userId,
+        organizationId,
+        network: this.coreConfig.get("NETWORK")
+      });
+    });
+  }
+
+  /** Recording is invisible to the caller, so it runs on its own connection and a failure is only warned about, never aborting the caller's transaction or costing them the deploy, lease or favorite. */
+  async #recordSafely(context: { action: TemplateUsageAction } & Record<string, unknown>, record: () => Promise<void>): Promise<void> {
     try {
       await this.txService.outsideTransaction(record);
     } catch (error) {

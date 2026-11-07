@@ -6,12 +6,15 @@ import { mock } from "vitest-mock-extended";
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { CreateLogger, JobQueueService, TxService } from "@src/core";
 import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
+import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { TemplateUsageEventRepository } from "@src/template-marketplace/repositories/template-usage-event/template-usage-event.repository";
 import { CheckTemplateDeploymentStillRunning } from "@src/template-marketplace/services/check-template-deployment-still-running/check-template-deployment-still-running.job";
+import type { UserOutput } from "@src/user/repositories";
 import { TemplateUsageService } from "./template-usage.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
+import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(TemplateUsageService.name, () => {
@@ -277,6 +280,58 @@ describe(TemplateUsageService.name, () => {
     });
   });
 
+  describe("recordFavorite", () => {
+    it.each(["favorite", "unfavorite"] as const)("records a %s of the template's current version by the caller in their active organization", async action => {
+      const templateId = faker.string.uuid();
+      const currentVersionId = faker.string.uuid();
+      const { service, templateUsageEventRepository, txService, user, activeOrganizationId } = setup({ currentVersionId, network: "sandbox" });
+
+      await service.recordFavorite(templateId, action);
+
+      expect(templateUsageEventRepository.findCurrentVersionIdOfTemplate).toHaveBeenCalledWith(templateId);
+      expect(templateUsageEventRepository.record).toHaveBeenCalledWith({
+        source: "console",
+        templateRef: templateId,
+        templateVersionId: currentVersionId,
+        action,
+        userId: user!.id,
+        organizationId: activeOrganizationId,
+        network: "sandbox"
+      });
+      expect(txService.outsideTransaction).toHaveBeenCalledTimes(1);
+    });
+
+    it("records a favorite of a template without a version, by a caller outside any organization", async () => {
+      const templateId = faker.string.uuid();
+      const { service, templateUsageEventRepository, user } = setup({ currentVersionId: null, activeOrganizationId: null });
+
+      await service.recordFavorite(templateId, "favorite");
+
+      expect(templateUsageEventRepository.record).toHaveBeenCalledWith(
+        expect.objectContaining({ templateRef: templateId, templateVersionId: null, userId: user!.id, organizationId: null })
+      );
+    });
+
+    it("records a favorite with no user when the caller is unknown", async () => {
+      const { service, templateUsageEventRepository } = setup({ user: null });
+
+      await service.recordFavorite(faker.string.uuid(), "favorite");
+
+      expect(templateUsageEventRepository.record).toHaveBeenCalledWith(expect.objectContaining({ userId: null }));
+    });
+
+    it("logs a failed favorite instead of throwing", async () => {
+      const templateId = faker.string.uuid();
+      const error = new Error("insert failed");
+      const { service, templateUsageEventRepository, logger } = setup();
+      templateUsageEventRepository.record.mockRejectedValue(error);
+
+      await expect(service.recordFavorite(templateId, "unfavorite")).resolves.toBeUndefined();
+
+      expect(logger.warn).toHaveBeenCalledWith({ event: "TEMPLATE_USAGE_RECORD_FAILED", action: "unfavorite", templateId, error });
+    });
+  });
+
   describe("templateRefOf", () => {
     it("prefers the version over a gallery id", async () => {
       const templateId = faker.string.uuid();
@@ -313,6 +368,9 @@ describe(TemplateUsageService.name, () => {
       network?: "mainnet" | "sandbox";
       wallet?: ReturnType<typeof createUserWallet>;
       setting?: DeploymentSettingsOutput;
+      currentVersionId?: string | null;
+      user?: null;
+      activeOrganizationId?: string | null;
     } = {}
   ) {
     const templateUsageEventRepository = mock<TemplateUsageEventRepository>();
@@ -328,6 +386,14 @@ describe(TemplateUsageService.name, () => {
     const coreConfig = mockConfigService<CoreConfigService>({ NETWORK: input.network ?? "mainnet" });
     const txService = mock<TxService>();
     txService.outsideTransaction.mockImplementation(async cb => await cb());
+    templateUsageEventRepository.findCurrentVersionIdOfTemplate.mockResolvedValue("currentVersionId" in input ? input.currentVersionId! : faker.string.uuid());
+    const user = input.user === null ? undefined : mock<UserOutput>({ id: faker.string.uuid() });
+    const activeOrganizationId = input.activeOrganizationId === undefined ? faker.string.uuid() : input.activeOrganizationId;
+    const executionContextService = mock<ExecutionContextService>();
+    executionContextService.get.calledWith("CURRENT_USER").mockReturnValue(user);
+    executionContextService.get
+      .calledWith("ORGANIZATION_CONTEXT")
+      .mockReturnValue(activeOrganizationId ? createOrganizationContext({ organizationId: activeOrganizationId }) : undefined);
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
     const service = new TemplateUsageService(
@@ -337,9 +403,21 @@ describe(TemplateUsageService.name, () => {
       jobQueueService,
       coreConfig,
       txService,
+      executionContextService,
       createLogger
     );
 
-    return { service, templateUsageEventRepository, userWalletRepository, deploymentSettingRepository, jobQueueService, coreConfig, txService, logger };
+    return {
+      service,
+      templateUsageEventRepository,
+      userWalletRepository,
+      deploymentSettingRepository,
+      jobQueueService,
+      coreConfig,
+      txService,
+      logger,
+      user,
+      activeOrganizationId
+    };
   }
 });

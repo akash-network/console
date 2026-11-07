@@ -39,6 +39,9 @@ export const TemplateUsageEvents = pgTable(
     organizationIdIdx: index("template_usage_events_organization_id_idx").on(table.organizationId),
     deploymentActionUnique: uniqueIndex("template_usage_events_deployment_action_unique")
       .on(table.deploymentSettingId, table.action)
-      .where(sql`${table.deploymentSettingId} IS NOT NULL`)
+      .where(sql`${table.deploymentSettingId} IS NOT NULL`),
+    userFavoriteUnique: uniqueIndex("template_usage_events_user_favorite_unique")
+      .on(table.source, table.templateRef, table.userId, table.action)
+      .where(sql`${table.action} IN ('favorite', 'unfavorite')`)
   })
 );
