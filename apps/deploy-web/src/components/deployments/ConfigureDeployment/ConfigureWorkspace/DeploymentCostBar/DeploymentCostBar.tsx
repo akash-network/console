@@ -9,7 +9,7 @@ import type { QuoteExpiry } from "../../useQuoteExpiry/useQuoteExpiry";
 import type { WorkspaceCtaState } from "../WorkspaceCtaButton/WorkspaceCtaButton";
 import { WorkspaceCtaButton } from "../WorkspaceCtaButton/WorkspaceCtaButton";
 
-export const DEPENDENCIES = { PriceValue, useDeploymentHasGpu };
+export const DEPENDENCIES = { PriceValue, useDeploymentHasGpu, WorkspaceCtaButton };
 
 type Props = {
   ctaState: WorkspaceCtaState;
@@ -36,7 +36,7 @@ export const DeploymentCostBar: FC<Props> = ({ ctaState, cost, expiry, onDeploy,
         )}
       </div>
       <div className="grid sm:block">
-        <WorkspaceCtaButton state={ctaState} onDeploy={onDeploy} onRetry={onRetry} onCloseAndEdit={onCloseAndEdit} />
+        <d.WorkspaceCtaButton state={ctaState} onDeploy={onDeploy} onRetry={onRetry} onCloseAndEdit={onCloseAndEdit} />
       </div>
     </div>
   );

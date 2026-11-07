@@ -5,10 +5,12 @@ import type { DeploymentCloseReasonInput } from "@src/components/deployments/Clo
 import type { CloseOutcome } from "@src/hooks/useCloseDeployment/useCloseDeployment";
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
+import type { AccountStatus } from "@src/types/user";
 import { DEPENDENCIES, DeploymentActionsMenu } from "./DeploymentActionsMenu";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { accountActionGatesFor } from "@tests/unit/accountActionGates";
 import { MockComponents } from "@tests/unit/mocks";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
@@ -227,6 +229,24 @@ describe("DeploymentActionsMenu", () => {
     expect(onDeploymentClosed).not.toHaveBeenCalled();
   });
 
+  it("keeps close available to a suspended user", async () => {
+    setup({ accountStatus: "suspended" });
+
+    await openMenu();
+
+    expect(screen.getByRole("menuitem", { name: /Close/ })).not.toHaveAttribute("aria-disabled");
+  });
+
+  it("disables close for a terminated user", async () => {
+    const { confirmCloseDeployment } = setup({ accountStatus: "terminated" });
+
+    await openMenu();
+    await userEvent.click(screen.getByRole("menuitem", { name: /Close/ }), { pointerEventsCheck: 0 });
+
+    expect(screen.getByRole("menuitem", { name: /Close/ })).toHaveAttribute("aria-disabled", "true");
+    expect(confirmCloseDeployment).not.toHaveBeenCalled();
+  });
+
   async function openMenu() {
     await userEvent.click(screen.getByRole("button", { name: "Actions for deployment 100" }));
   }
@@ -242,6 +262,7 @@ describe("DeploymentActionsMenu", () => {
     canManageProjects?: boolean;
     canChangeDeployments?: boolean;
     canManage?: boolean;
+    accountStatus?: AccountStatus;
   }) {
     const changeDeploymentName = vi.fn();
     const closeDeployment = vi.fn(async () => input.outcome ?? ("closing" as const));
@@ -283,7 +304,8 @@ describe("DeploymentActionsMenu", () => {
             useRedeploy,
             useCloseDeployment,
             useProjectsUi,
-            MoveDeploymentDialog
+            MoveDeploymentDialog,
+            AccountMutationGate: accountActionGatesFor(input.accountStatus ?? "active").AccountMutationGate
           })}
         />
       </TestContainerProvider>

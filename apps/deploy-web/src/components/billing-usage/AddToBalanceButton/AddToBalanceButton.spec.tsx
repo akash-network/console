@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
+import type { AccountStatus } from "@src/types/user";
 import { AddToBalanceButton, DEPENDENCIES } from "./AddToBalanceButton";
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import { accountActionGatesFor } from "@tests/unit/accountActionGates";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(AddToBalanceButton.name, () => {
@@ -44,6 +46,15 @@ describe(AddToBalanceButton.name, () => {
     expect(screen.getByTestId("add-credits-sheet")).toBeInTheDocument();
   });
 
+  it("is disabled for a suspended account", () => {
+    setup({ searchParamsGet: () => null, accountStatus: "suspended" });
+
+    fireEvent.click(screen.getByRole("button", { name: /add to balance/i }));
+
+    expect(screen.getByRole("button", { name: /add to balance/i })).toBeDisabled();
+    expect(screen.queryByTestId("add-credits-sheet")).not.toBeInTheDocument();
+  });
+
   it("renders nothing for a member who cannot manage billing, even when openPayment is true", () => {
     setup({ searchParamsGet: key => (key === "openPayment" ? "true" : null), canManageBilling: false });
 
@@ -73,6 +84,7 @@ describe(AddToBalanceButton.name, () => {
     isLoadingDefaultPaymentMethod?: boolean;
     isWalletBalanceLoading?: boolean;
     canManageBilling?: boolean;
+    accountStatus?: AccountStatus;
   }) {
     const mockReplace = input.routerReplace ?? vi.fn();
     const mockSearchParams = { get: vi.fn(input.searchParamsGet ?? (() => null)) };
@@ -92,7 +104,8 @@ describe(AddToBalanceButton.name, () => {
       useServices: vi.fn(() => ({ urlService: { billing: () => "/billing" } })),
       useCanManageBilling: () => input.canManageBilling ?? true,
       Button: MockButton,
-      AddCreditsSheet: MockAddCreditsSheet
+      AddCreditsSheet: MockAddCreditsSheet,
+      AccountSpendGate: accountActionGatesFor(input.accountStatus ?? "active").AccountSpendGate
     } as unknown as typeof DEPENDENCIES;
 
     render(<AddToBalanceButton dependencies={dependencies} />);

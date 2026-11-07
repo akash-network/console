@@ -8,6 +8,7 @@ import { useSnackbar } from "notistack";
 import { z } from "zod";
 
 import { SettingsRow } from "@src/components/layout/SettingsCard/SettingsCard";
+import { AccountMutationGate } from "@src/components/user/AccountActionGate/AccountActionGate";
 import { useServices } from "@src/context/ServicesProvider";
 import { useSaveSettings } from "@src/queries/useSaveSettings";
 import { useUsernameAvailability } from "./useUsernameAvailability";
@@ -18,7 +19,7 @@ const usernameSchema = z
   .max(40, "Username must be at most 40 characters long")
   .regex(/^[a-zA-Z0-9_-]*$/, "Username can only contain letters, numbers, dashes and underscores");
 
-export const DEPENDENCIES = { useSaveSettings, useUsernameAvailability, useSnackbar };
+export const DEPENDENCIES = { useSaveSettings, useUsernameAvailability, useSnackbar, AccountMutationGate };
 
 type Props = {
   username: string | undefined;
@@ -67,9 +68,11 @@ export const UsernameSetting: FC<Props> = ({ username: savedUsername = "", depen
             className="min-w-0 flex-1 sm:w-[220px] sm:flex-none"
             inputClassName="h-9 font-mono text-[13px]"
           />
-          <LoadingButton type="submit" size="md" loading={isSaving} disabled={!canSave}>
-            Save
-          </LoadingButton>
+          <d.AccountMutationGate>
+            <LoadingButton type="submit" size="md" loading={isSaving} disabled={!canSave}>
+              Save
+            </LoadingButton>
+          </d.AccountMutationGate>
         </div>
         <p id={statusId} aria-live="polite" className="pt-1.5 text-xs empty:pt-0">
           <UsernameStatus validationError={validationError} isChecking={isChecking} isAvailable={isAvailable} />

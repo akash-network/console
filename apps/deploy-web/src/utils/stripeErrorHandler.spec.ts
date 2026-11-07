@@ -139,6 +139,18 @@ describe("StripeErrorHandler", () => {
       expect(result.userAction).toBe("Check your balance, then start a new payment.");
     });
 
+    it.each([
+      ["account_suspended", "Your account is suspended, so you can't add funds."],
+      ["account_terminated", "Your account has been terminated, so you can't add funds."]
+    ])("names the account state for the %s code instead of a generic refusal", (code, message) => {
+      const error = { response: { status: 403, data: { message: "Your account is suspended", code, data: { reason: "Unpaid invoice" } } } };
+
+      const result = handleStripeError(error);
+
+      expect(result.message).toBe(message);
+      expect(result.userAction).toBe("Contact support to find out more.");
+    });
+
     it("should handle insufficient funds error codes", () => {
       const error = {
         response: {

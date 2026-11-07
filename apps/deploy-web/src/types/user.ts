@@ -2,6 +2,8 @@ import type { UserProfile } from "@auth0/nextjs-auth0/client";
 
 import type { IPlan, PlanCode } from "@src/utils/plans";
 
+export type AccountStatus = "active" | "suspended" | "terminated";
+
 export interface UserSettings {
   id?: string;
   userId?: string;
@@ -22,6 +24,8 @@ export interface UserSettings {
   githubStarPromptedAt?: string | null;
   timezone?: string | null;
   createdAt?: string | null;
+  accountStatus?: AccountStatus;
+  accountStatusReason?: string | null;
 }
 
 export type CustomUserProfile = UserProfile & UserSettings;

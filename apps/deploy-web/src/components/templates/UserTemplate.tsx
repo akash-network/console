@@ -21,6 +21,7 @@ import { bytesToShrink } from "@src/utils/unitUtils";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
+import { AccountSpendGate } from "../user/AccountActionGate/AccountActionGate";
 
 export const DEPENDENCIES = {
   Layout,
@@ -28,7 +29,8 @@ export const DEPENDENCIES = {
   UserFavoriteButton,
   useCustomUser,
   useDeleteTemplate,
-  useRouter
+  useRouter,
+  AccountSpendGate
 };
 
 type Props = {
@@ -136,21 +138,23 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template, dep
       </div>
 
       <div className="flex items-center space-x-6">
-        <Button
-          onClick={() => {
-            analyticsService.track("deploy_sdl", {
-              category: "sdl_builder",
-              label: "Deploy SDL from template detail"
-            });
+        <d.AccountSpendGate>
+          <Button
+            onClick={() => {
+              analyticsService.track("deploy_sdl", {
+                category: "sdl_builder",
+                label: "Deploy SDL from template detail"
+              });
 
-            router.push(UrlService.configureDeployment({ userTemplateId: template.id }));
-          }}
-          size="sm"
-          className="space-x-2"
-        >
-          <Rocket className="h-5 w-5 rotate-45" />
-          <span className="whitespace-nowrap">Deploy</span>
-        </Button>
+              router.push(UrlService.configureDeployment({ userTemplateId: template.id }));
+            }}
+            size="sm"
+            className="space-x-2"
+          >
+            <Rocket className="h-5 w-5 rotate-45" />
+            <span className="whitespace-nowrap">Deploy</span>
+          </Button>
+        </d.AccountSpendGate>
 
         <Link
           href={UrlService.configureDeployment({ userTemplateId: template.id })}

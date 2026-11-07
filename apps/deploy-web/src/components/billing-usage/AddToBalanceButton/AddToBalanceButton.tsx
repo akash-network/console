@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { AddCreditsSheet } from "@src/components/auth/AddCreditsSheet/AddCreditsSheet";
+import { AccountSpendGate } from "@src/components/user/AccountActionGate/AccountActionGate";
 import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
 import { useCanManageBilling } from "@src/hooks/useCanManageBilling";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
@@ -18,7 +19,8 @@ export const DEPENDENCIES = {
   useServices,
   useCanManageBilling,
   AddCreditsSheet,
-  Button
+  Button,
+  AccountSpendGate
 };
 
 export const AddToBalanceButton: React.FunctionComponent<{ dependencies?: typeof DEPENDENCIES }> = ({ dependencies: d = DEPENDENCIES }) => {
@@ -41,10 +43,12 @@ export const AddToBalanceButton: React.FunctionComponent<{ dependencies?: typeof
 
   return (
     <>
-      <d.Button onClick={() => setShowAddCredits(true)} disabled={isWalletBalanceLoading} size="sm">
-        <Plus className="h-4 w-4" />
-        Add to Balance
-      </d.Button>
+      <d.AccountSpendGate>
+        <d.Button onClick={() => setShowAddCredits(true)} disabled={isWalletBalanceLoading} size="sm">
+          <Plus className="h-4 w-4" />
+          Add to Balance
+        </d.Button>
+      </d.AccountSpendGate>
 
       <d.AddCreditsSheet
         open={showAddCredits}

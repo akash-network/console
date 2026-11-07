@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
+import type { AccountStatus } from "@src/types/user";
 import type { DeploymentResourceSegment } from "../../DeploymentResourceSummary/deploymentResources";
 import { ProvidersSheetBar } from "./ProvidersSheetBar";
 
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { accountActionGatesFor } from "@tests/unit/accountActionGates";
 
 describe(ProvidersSheetBar.name, () => {
   it("summarizes the deployment's resources on the button that shows the providers", () => {
@@ -62,7 +64,16 @@ describe(ProvidersSheetBar.name, () => {
     expect(screen.getByRole("button", { name: "Choose a provider" })).toBeDisabled();
   });
 
-  function setup(input: { segments?: DeploymentResourceSegment[]; isSheetOpen?: boolean; isChooseProviderDisabled?: boolean }) {
+  it("keeps a suspended user from choosing a provider", async () => {
+    const { onChooseProvider } = setup({ accountStatus: "suspended" });
+
+    await userEvent.click(screen.getByRole("button", { name: /choose a provider/i }));
+
+    expect(screen.getByRole("button", { name: /choose a provider/i })).toBeDisabled();
+    expect(onChooseProvider).not.toHaveBeenCalled();
+  });
+
+  function setup(input: { segments?: DeploymentResourceSegment[]; isSheetOpen?: boolean; isChooseProviderDisabled?: boolean; accountStatus?: AccountStatus }) {
     const onSheetOpenChange = vi.fn();
     const onChooseProvider = vi.fn();
     render(
@@ -72,7 +83,10 @@ describe(ProvidersSheetBar.name, () => {
         sheet={<p>providers pane</p>}
         isChooseProviderDisabled={input.isChooseProviderDisabled ?? false}
         onChooseProvider={onChooseProvider}
-        dependencies={{ useDeploymentResourceSummary: () => input.segments ?? [{ kind: "cpu", label: "1 vCPU" }] }}
+        dependencies={{
+          useDeploymentResourceSummary: () => input.segments ?? [{ kind: "cpu", label: "1 vCPU" }],
+          AccountSpendGate: accountActionGatesFor(input.accountStatus ?? "active").AccountSpendGate
+        }}
       />
     );
     return { onSheetOpenChange, onChooseProvider };

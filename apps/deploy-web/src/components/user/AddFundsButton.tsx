@@ -2,12 +2,13 @@ import React from "react";
 import type { ButtonProps } from "@akashnetwork/ui/components";
 import { Button } from "@akashnetwork/ui/components";
 
+import { AccountSpendGate } from "@src/components/user/AccountActionGate/AccountActionGate";
 import { useServices } from "@src/context/ServicesProvider";
 import { useAddCredits } from "@src/hooks/useAddCredits";
 import { useAddFundsVerifiedLoginRequiredEventHandler } from "@src/hooks/useAddFundsVerifiedLoginRequiredEventHandler";
 import type { AddCreditsRequest } from "@src/store/addCreditsStore";
 
-export const DEPENDENCIES = { useServices, useAddCredits, useAddFundsVerifiedLoginRequiredEventHandler, Button };
+export const DEPENDENCIES = { useServices, useAddCredits, useAddFundsVerifiedLoginRequiredEventHandler, Button, AccountSpendGate };
 
 type Props = Omit<ButtonProps, "onClick"> & {
   request?: AddCreditsRequest;
@@ -24,12 +25,14 @@ export const AddFundsButton: React.FC<Props> = ({ request, dependencies: d = DEP
   const whenLoggedInAndVerified = d.useAddFundsVerifiedLoginRequiredEventHandler();
 
   return (
-    <d.Button
-      {...props}
-      onClick={event => {
-        analyticsService.track("add_funds_btn_clk");
-        whenLoggedInAndVerified(() => openAddCredits(request))(event);
-      }}
-    />
+    <d.AccountSpendGate>
+      <d.Button
+        {...props}
+        onClick={event => {
+          analyticsService.track("add_funds_btn_clk");
+          whenLoggedInAndVerified(() => openAddCredits(request))(event);
+        }}
+      />
+    </d.AccountSpendGate>
   );
 };
