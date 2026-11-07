@@ -1,6 +1,7 @@
 import { yaml } from "@akashnetwork/chain-sdk";
 import { z } from "zod";
 
+import { exceedsSubmittableLength } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import type { TemplateHardware } from "@src/template/types/template";
 
 const SIZE_PREFIXES = "kmgtpe";
@@ -34,7 +35,8 @@ type ComputeResources = z.infer<typeof computeProfileSchema>["resources"];
 /** Reads only the resource fields, so a template that fails strict SDL validation still gets a hardware summary. */
 export function summarizeTemplateHardware(sdl: string): TemplateHardware | undefined {
   try {
-    return totalHardware(sdlSchema.parse(yaml.raw(sdl)));
+    const document = yaml.raw(sdl);
+    return exceedsSubmittableLength(sdl, document) ? undefined : totalHardware(sdlSchema.parse(document));
   } catch {
     return undefined;
   }
