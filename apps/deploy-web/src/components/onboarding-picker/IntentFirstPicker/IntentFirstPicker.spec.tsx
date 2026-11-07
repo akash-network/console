@@ -22,7 +22,7 @@ describe(IntentFirstPicker.name, () => {
     setup({});
 
     expect(screen.getByRole("heading", { name: "What do you want to do first?" })).toBeInTheDocument();
-    expect(screen.getByText("Pick one. The others stay one click away.")).toBeInTheDocument();
+    expect(screen.getByText("Deploy your first app in one click, or pick where to start.")).toBeInTheDocument();
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
   });
 
@@ -38,13 +38,44 @@ describe(IntentFirstPicker.name, () => {
     setup({ searchParams: "intent=unknown" });
 
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
-    expect(screen.getByText("Pick one. The others stay one click away.")).toBeInTheDocument();
+    expect(screen.getByText("Deploy your first app in one click, or pick where to start.")).toBeInTheDocument();
   });
 
   it("asks the question while the search params aren't ready yet", () => {
     setup({ searchParams: null });
 
-    expect(screen.getByText("Pick one. The others stay one click away.")).toBeInTheDocument();
+    expect(screen.getByText("Deploy your first app in one click, or pick where to start.")).toBeInTheDocument();
+  });
+
+  it("deploys hello world from the question in one click, reporting it as a deploy from the question", () => {
+    const { onDeployTemplate, push } = setup({});
+
+    fireEvent.click(screen.getByRole("button", { name: "Deploy Hello world" }));
+
+    expect(onDeployTemplate).toHaveBeenCalledWith("hello-world", "question");
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("describes the one click deploy as hello world", () => {
+    setup({});
+
+    expect(screen.getByRole("heading", { name: "Hello world" })).toBeInTheDocument();
+    expect(screen.getByText("A web page live in about a minute.")).toBeInTheDocument();
+  });
+
+  it("labels the one click deploy with the add credits action once the user has no credit left", () => {
+    const { onDeployTemplate } = setup({ isOutOfCredit: true });
+
+    fireEvent.click(screen.getByRole("button", { name: "Add credits to deploy" }));
+
+    expect(screen.queryByRole("button", { name: "Deploy Hello world" })).not.toBeInTheDocument();
+    expect(onDeployTemplate).toHaveBeenCalledWith("hello-world", "question");
+  });
+
+  it("leaves the one click deploy off once an intent is picked", () => {
+    setup({ searchParams: "intent=tools" });
+
+    expect(screen.queryByRole("button", { name: "Deploy Hello world" })).not.toBeInTheDocument();
   });
 
   it("puts the picked intent in the url and tracks it as answered from the question", () => {

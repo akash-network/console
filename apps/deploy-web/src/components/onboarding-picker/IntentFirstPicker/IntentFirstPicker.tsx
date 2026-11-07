@@ -3,7 +3,7 @@
 import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import type { LucideIcon } from "lucide-react";
-import { ArrowRight, Container, LayoutTemplate, Sparkles, Terminal } from "lucide-react";
+import { ArrowRight, Container, LayoutTemplate, Lock, Rocket, Sparkles, Terminal } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -12,6 +12,7 @@ import { ApiKeySetup } from "@src/components/onboarding-picker/ApiKeySetup/ApiKe
 import { useOnboardingApiKey } from "@src/components/onboarding-picker/ApiKeySetup/useOnboardingApiKey";
 import {
   describeTemplateSize,
+  HELLO_WORLD,
   ONBOARDING_SLOTS,
   pickOnboardingCards,
   trialLimitsFrom
@@ -21,6 +22,8 @@ import { SkipOnboardingButton } from "@src/components/onboarding-picker/SkipOnbo
 import { useServices } from "@src/context/ServicesProvider";
 
 export type OnboardingIntentId = "app" | "tools" | "model";
+
+export type DeployClickVia = "question";
 
 type OnboardingIntent = {
   id: OnboardingIntentId;
@@ -51,7 +54,7 @@ export const DEPENDENCIES = {
 
 type IntentFirstPickerProps = {
   isOutOfCredit: boolean;
-  onDeployTemplate: (templateId: string) => void;
+  onDeployTemplate: (templateId: string, via?: DeployClickVia) => void;
   onDeployImage: () => void;
   onRedeemCoupon?: () => void;
   dependencies?: typeof DEPENDENCIES;
@@ -77,8 +80,9 @@ export function IntentFirstPicker({ isOutOfCredit, onDeployTemplate, onDeployIma
       <div className="flex flex-1 items-center justify-center px-5 py-12">
         <div className="w-full max-w-[980px]">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">{QUESTION}</h1>
-          <p className="mt-2 text-[15px] leading-6 text-muted-foreground">Pick one. The others stay one click away.</p>
-          <div className="mt-8 grid grid-cols-1 gap-4 min-[820px]:auto-cols-fr min-[820px]:grid-flow-col min-[820px]:grid-cols-none">
+          <p className="mt-2 text-[15px] leading-6 text-muted-foreground">Deploy your first app in one click, or pick where to start.</p>
+          <QuickStartDeploy isOutOfCredit={isOutOfCredit} onDeploy={() => onDeployTemplate(HELLO_WORLD.templateId, "question")} />
+          <div className="mt-4 grid grid-cols-1 gap-4 min-[820px]:auto-cols-fr min-[820px]:grid-flow-col min-[820px]:grid-cols-none">
             {intents.map(intent => (
               <IntentChoice key={intent.id} intent={intent} onSelect={() => selectIntent(intent.id, "question")} />
             ))}
@@ -141,6 +145,24 @@ function IntentChoice({ intent, onSelect }: { intent: OnboardingIntent; onSelect
       </span>
       <span className="text-[13.5px] leading-5 text-muted-foreground">{intent.description}</span>
     </button>
+  );
+}
+
+function QuickStartDeploy({ isOutOfCredit, onDeploy }: { isOutOfCredit: boolean; onDeploy: () => void }) {
+  const CtaIcon = isOutOfCredit ? Lock : ArrowRight;
+
+  return (
+    <div className="mt-8 flex flex-col gap-4 rounded-[14px] border border-primary bg-card p-[22px] sm:flex-row sm:items-center">
+      <IntentTile Icon={Rocket} />
+      <div className="flex flex-1 flex-col gap-1.5">
+        <h2 className="text-[17px] font-semibold leading-6 tracking-tight text-foreground">{HELLO_WORLD.name}</h2>
+        <p className="text-[13.5px] leading-5 text-muted-foreground">{HELLO_WORLD.description}</p>
+      </div>
+      <Button className="w-full gap-2 sm:w-auto" onClick={onDeploy}>
+        {isOutOfCredit ? "Add credits to deploy" : "Deploy Hello world"}
+        <CtaIcon className="h-4 w-4" />
+      </Button>
+    </div>
   );
 }
 
