@@ -93,12 +93,12 @@ describe(TemplateWriterService.name, () => {
       expect(marketplaceTemplateService.findReadable).not.toHaveBeenCalled();
     });
 
-    it("stores no summary, description or readme when none is given", async () => {
+    it("stores no summary or readme and an empty description when none is given", async () => {
       const { service, writableRepository, templateVersionRepository } = setup();
 
       await service.create({ title: "Web", summary: "", sdl: buildSdl(), askedValues: [] });
 
-      expect(writableRepository.createTemplate).toHaveBeenCalledWith(expect.objectContaining({ summary: null, description: null }));
+      expect(writableRepository.createTemplate).toHaveBeenCalledWith(expect.objectContaining({ summary: null, description: "" }));
       expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ readme: null, askedValues: [] }));
     });
 
@@ -264,14 +264,46 @@ describe(TemplateWriterService.name, () => {
       expect(repository.mirrorVersion).toHaveBeenCalledWith(template.id, expect.objectContaining({ description: "# Before" }));
     });
 
-    it("clears the readme with null and keeps the legacy description", async () => {
+    it("clears the readme with null and empties the legacy description", async () => {
       const template = createTemplateRow({ description: "Legacy description" });
       const { service, repository, templateVersionRepository } = setup({ template, base: createVersion({ templateId: template.id, readme: "# Before" }) });
 
       await service.appendVersion(template.id, { sdl: buildSdl(), readme: null, askedValues: [], baseVersion: 1 });
 
       expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ readme: null }));
+      expect(repository.mirrorVersion).toHaveBeenCalledWith(template.id, expect.objectContaining({ description: "" }));
+    });
+
+    it("carries the legacy description forward as the readme of a version saved without one", async () => {
+      const template = createTemplateRow({ description: "Legacy description" });
+      const { service, repository, templateVersionRepository } = setup({ template, base: createVersion({ templateId: template.id, readme: null }) });
+
+      await service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [], baseVersion: 1 });
+
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ readme: "Legacy description" }));
       expect(repository.mirrorVersion).toHaveBeenCalledWith(template.id, expect.objectContaining({ description: "Legacy description" }));
+    });
+
+    it("carries no readme forward when neither the version nor the legacy description holds one", async () => {
+      const template = createTemplateRow({ description: "" });
+      const { service, repository, templateVersionRepository } = setup({ template, base: createVersion({ templateId: template.id, readme: null }) });
+
+      await service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [], baseVersion: 1 });
+
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ readme: null }));
+      expect(repository.mirrorVersion).toHaveBeenCalledWith(template.id, expect.objectContaining({ description: "" }));
+    });
+
+    it("saves a first version without a base check on a template that has none yet", async () => {
+      const template = createTemplateRow({ currentVersionId: null, description: "Legacy description" });
+      const { service, templateVersionRepository } = setup({ template, base: null });
+
+      await service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [], baseVersion: 3 });
+
+      expect(templateVersionRepository.findByTemplateAndVersion).not.toHaveBeenCalled();
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(
+        expect.objectContaining({ templateId: template.id, readme: "Legacy description", expectedCurrentVersionId: undefined })
+      );
     });
 
     it("answers 409 when the base version does not exist", async () => {

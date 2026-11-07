@@ -107,7 +107,7 @@ export class MarketplaceTemplateService {
   #withLegacyFallbacks(version: TemplateVersionOutput, template: MarketplaceTemplateRow): PublishedTemplateVersion {
     return {
       ...withoutImageDigests(version),
-      readme: version.readme ?? template.description,
+      readme: version.readme ?? (template.description || null),
       resources: version.resources ?? summarizeTemplateHardware(version.sdl) ?? null
     };
   }

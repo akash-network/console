@@ -21,6 +21,7 @@ import {
 } from "@src/template-marketplace/repositories/marketplace-template/marketplace-template.repository";
 import {
   TEMPLATE_VERSION_CONFLICT_ERROR_CODE,
+  type TemplateVersionOutput,
   TemplateVersionRepository
 } from "@src/template-marketplace/repositories/template-version/template-version.repository";
 import {
@@ -60,6 +61,11 @@ function legacyHardwareOf(hardware: TemplateHardware | undefined): LegacyHardwar
     ram: hardware?.memoryBytes ?? 0,
     storage: hardware?.storageBytes ?? 0
   };
+}
+
+/** A version saved before readmes were recorded shows the legacy description instead, so that is what an omitted readme carries forward. */
+function readmeShownFor(base: TemplateVersionOutput | undefined, template: MarketplaceTemplateRow): string | null {
+  return base?.readme ?? (template.description || null);
 }
 
 function isMapping(value: unknown): value is Record<string, unknown> {
@@ -106,7 +112,7 @@ export class TemplateWriterService {
         projectId,
         copiedFromId: input.copiedFromId,
         sdl: input.sdl,
-        description: input.readme ?? null,
+        description: input.readme ?? "",
         ...legacyHardwareOf(hardware)
       });
       await this.templateVersionRepository.appendVersion({
@@ -132,13 +138,8 @@ export class TemplateWriterService {
     const createdById = this.authService.currentUser.id;
 
     const { imageDigests: _imageDigests, ...version } = await this.txService.transaction(async () => {
-      const base = await this.templateVersionRepository.findByTemplateAndVersion(id, input.baseVersion);
-
-      if (!base) {
-        throw createError(409, "The template has a newer version", { errorCode: TEMPLATE_VERSION_CONFLICT_ERROR_CODE });
-      }
-
-      const readme = input.readme === undefined ? base.readme : input.readme;
+      const base = template.currentVersionId ? await this.#findBaseVersion(id, input.baseVersion) : undefined;
+      const readme = input.readme === undefined ? readmeShownFor(base, template) : input.readme;
       const appended = await this.templateVersionRepository.appendVersion({
         templateId: id,
         sdl: input.sdl,
@@ -146,11 +147,11 @@ export class TemplateWriterService {
         askedValues: input.askedValues,
         resources: hardware ?? null,
         createdById,
-        expectedCurrentVersionId: base.id
+        expectedCurrentVersionId: base?.id
       });
       await this.marketplaceTemplateRepository.mirrorVersion(id, {
         sdl: input.sdl,
-        description: readme ?? template.description,
+        description: readme ?? "",
         ...legacyHardwareOf(hardware)
       });
 
@@ -158,6 +159,16 @@ export class TemplateWriterService {
     });
 
     return version;
+  }
+
+  async #findBaseVersion(id: string, baseVersion: number): Promise<TemplateVersionOutput> {
+    const base = await this.templateVersionRepository.findByTemplateAndVersion(id, baseVersion);
+
+    if (!base) {
+      throw createError(409, "The template has a newer version", { errorCode: TEMPLATE_VERSION_CONFLICT_ERROR_CODE });
+    }
+
+    return base;
   }
 
   async #findWritable(id: string, action: "update"): Promise<MarketplaceTemplateRow> {
