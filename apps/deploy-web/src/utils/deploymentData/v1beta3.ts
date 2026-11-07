@@ -65,10 +65,9 @@ export function isTrialGpuRestrictionActive(blockedModels: readonly string[] = b
 }
 
 /**
- * Whether a form's GPU selection would be blocked for a trial on the configure screen — the submit guard in
- * `ConfigureDeploymentHeader` uses this because enabling the GPU card leaves the model at the empty default
- * *without ever opening the (locked) picker*, so the presentational lock alone cannot stop an empty-model
- * submission. Scans only GPU-enabled services via {@link isTrialBlockedGpuSelection} (UI-only and stricter than
+ * Whether a form's GPU selection would be blocked for a trial. Enabling the GPU card leaves the model at the empty
+ * default *without ever opening the (locked) picker*, so the presentational lock alone cannot catch an empty-model
+ * selection. Scans only GPU-enabled services via {@link isTrialBlockedGpuSelection} (UI-only and stricter than
  * the backend, see there).
  */
 export function hasTrialBlockedGpu(
