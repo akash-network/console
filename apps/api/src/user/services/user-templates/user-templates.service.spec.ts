@@ -1,26 +1,18 @@
 import { createMongoAbility, ForbiddenError, type MongoAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
-import type { UserWalletRepository } from "@src/billing/repositories";
-import type { CreateLogger, JobQueueService } from "@src/core";
 import type { TxService } from "@src/core/services";
-import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
-import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
-import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { DeploymentProjectService } from "@src/deployment/services/deployment-project/deployment-project.service";
 import { summarizeTemplateHardware } from "@src/template/utils/template-hardware/template-hardware";
-import type { TemplateUsageEventRepository } from "@src/template-marketplace/repositories/template-usage-event/template-usage-event.repository";
 import type { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
-import { TemplateUsageService } from "@src/template-marketplace/services/template-usage/template-usage.service";
+import type { TemplateUsageService } from "@src/template-marketplace/services/template-usage/template-usage.service";
 import type { UserOutput } from "@src/user/repositories";
 import type { TemplateInput, TemplateOutput, TemplateVersionState, UserTemplateRepository } from "../../repositories/user-template/user-template.repository";
 import { UserTemplatesService } from "./user-templates.service";
-
-import { mockConfigService } from "@test/mocks/config-service.mock";
 
 const VALID_SDL = `
 version: "2.0"
@@ -601,21 +593,18 @@ describe(UserTemplatesService.name, () => {
     });
 
     it("answers the favorite routes as before when recording fails", async () => {
-      const { service, userTemplateRepository, templateUsageEventRepository, logger } = setup();
+      const { service, userTemplateRepository, templateUsageService } = setup();
+      const userId = faker.string.uuid();
       const templateId = faker.string.uuid();
-      const error = new Error("usage table unavailable");
-      templateUsageEventRepository.record.mockRejectedValue(error);
       userTemplateRepository.addFavorite.mockResolvedValue(true);
       userTemplateRepository.removeFavorite.mockResolvedValue(true);
+      templateUsageService.recordFavorite.mockResolvedValue();
 
-      const answers = [
-        await service.addFavoriteTemplate(faker.string.uuid(), templateId),
-        await service.removeFavoriteTemplate(faker.string.uuid(), templateId)
-      ];
+      const answers = [await service.addFavoriteTemplate(userId, templateId), await service.removeFavoriteTemplate(userId, templateId)];
 
       expect(answers).toEqual([undefined, undefined]);
-      expect(logger.warn).toHaveBeenCalledWith({ event: "TEMPLATE_USAGE_RECORD_FAILED", action: "favorite", templateId, error });
-      expect(logger.warn).toHaveBeenCalledWith({ event: "TEMPLATE_USAGE_RECORD_FAILED", action: "unfavorite", templateId, error });
+      expect(userTemplateRepository.addFavorite).toHaveBeenCalledWith(userId, templateId, userId);
+      expect(userTemplateRepository.removeFavorite).toHaveBeenCalledWith(userId, templateId);
     });
   });
 
@@ -632,22 +621,7 @@ describe(UserTemplatesService.name, () => {
     userTemplateRepository.findVersionState.mockResolvedValue(createVersionState());
     const txService = mock<TxService>();
     txService.transaction.mockImplementation(async cb => await cb());
-    txService.outsideTransaction.mockImplementation(async cb => await cb());
-    const templateUsageEventRepository = mock<TemplateUsageEventRepository>();
-    templateUsageEventRepository.record.mockResolvedValue(true);
-    templateUsageEventRepository.findCurrentVersionIdOfTemplate.mockResolvedValue(null);
-    const logger = mock<ReturnType<CreateLogger>>();
-    const templateUsageService = new TemplateUsageService(
-      templateUsageEventRepository,
-      mock<UserWalletRepository>(),
-      mock<DeploymentSettingRepository>(),
-      mock<JobQueueService>(),
-      mockConfigService<CoreConfigService>({ NETWORK: "mainnet" }),
-      txService,
-      mock<ExecutionContextService>(),
-      vi.fn<CreateLogger>(() => logger)
-    );
-    vi.spyOn(templateUsageService, "recordFavorite");
+    const templateUsageService = mock<TemplateUsageService>();
     const service = new UserTemplatesService(
       userTemplateRepository,
       authService,
@@ -665,9 +639,7 @@ describe(UserTemplatesService.name, () => {
       txService,
       user,
       ability,
-      templateUsageService,
-      templateUsageEventRepository,
-      logger
+      templateUsageService
     };
   }
 
