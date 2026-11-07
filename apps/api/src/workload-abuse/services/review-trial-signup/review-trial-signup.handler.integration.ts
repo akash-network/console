@@ -8,7 +8,7 @@ import { BillingConfigService } from "@src/billing/services/billing-config/billi
 import { JOB_NAME } from "@src/core";
 import type { UserOutput } from "@src/user/repositories";
 import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
-import { ReviewTrialSignup, ReviewTrialSignupHandler } from "./review-trial-signup.handler";
+import { ReviewTrialSignup, ReviewTrialSignupHandler, reviewTrialSignupKeyFor } from "./review-trial-signup.handler";
 
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { expectJobCompleted, useJobWorkers } from "@test/services/job-queue-harness";
@@ -75,6 +75,18 @@ describe(ReviewTrialSignupHandler.name, () => {
     expect(slackPosts).toEqual([]);
   });
 
+  it("refuses a second review of a sign-up while the first is still queued", async () => {
+    const { seedAccount, enqueue } = await setup();
+    const signup = await seedAccount({ email: "queued@example.com" });
+    const options = { singletonKey: reviewTrialSignupKeyFor(signup.id) };
+
+    const firstJobId = await enqueue(new ReviewTrialSignup({ userId: signup.id }), options);
+    const secondJobId = await enqueue(new ReviewTrialSignup({ userId: signup.id }), options);
+
+    expect(firstJobId).toEqual(expect.any(String));
+    expect(secondJobId).toBeNull();
+  });
+
   async function setup(input: { windowMinutes?: number } = {}) {
     const { enqueue, startWorkers } = await jobWorkers();
     const fingerprint = faker.string.hexadecimal({ length: 64 });
@@ -103,6 +115,7 @@ describe(ReviewTrialSignupHandler.name, () => {
       .persist();
 
     return {
+      enqueue,
       slackPosts,
       seedAccount: (overrides: { email: string; lastActiveAt?: Date }) => seedUser({ lastFingerprint: fingerprint, lastActiveAt: new Date(), ...overrides }),
       review: async (user: UserOutput) => {

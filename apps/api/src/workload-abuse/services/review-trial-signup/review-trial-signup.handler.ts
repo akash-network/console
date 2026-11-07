@@ -30,6 +30,8 @@ export class ReviewTrialSignupHandler implements JobHandler<ReviewTrialSignup> {
 
   public readonly concurrency = 2;
 
+  public readonly policy = "stately";
+
   private readonly logger: ReturnType<CreateLogger>;
 
   constructor(
