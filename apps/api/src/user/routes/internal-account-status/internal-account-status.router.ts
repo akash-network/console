@@ -10,7 +10,8 @@ import {
   AccountStatusEventResponseSchema,
   AccountStatusUserParamsSchema,
   ReinstateAccountRequestSchema,
-  SuspendAccountRequestSchema
+  SuspendAccountRequestSchema,
+  TerminateAccountRequestSchema
 } from "@src/user/http-schemas/account-status.schema";
 
 export const internalAccountStatusRouter = new OpenApiHonoHandler();
@@ -59,6 +60,25 @@ const reinstateRoute = createRoute({
 
 internalAccountStatusRouter.openapi(reinstateRoute, async function routeReinstateUserAccount(c) {
   return c.json(await container.resolve(AccountStatusController).reinstate(c.req.valid("param").userId, c.req.valid("json")), 200);
+});
+
+const terminateRoute = createRoute({
+  method: "post",
+  path: "/v1/users/{userId}/terminate",
+  operationId: "terminateUserAccount",
+  summary: "Terminate an active or suspended account for good, closing its deployments and optionally forfeiting its credits",
+  security: SECURITY_NONE,
+  hiddenInOpenApiDocs: true,
+  middleware: [requireInternalToken],
+  request: {
+    params: AccountStatusUserParamsSchema,
+    body: { required: true, content: { "application/json": { schema: TerminateAccountRequestSchema } } }
+  },
+  responses: TRANSITION_RESPONSES
+});
+
+internalAccountStatusRouter.openapi(terminateRoute, async function routeTerminateUserAccount(c) {
+  return c.json(await container.resolve(AccountStatusController).terminate(c.req.valid("param").userId, c.req.valid("json")), 200);
 });
 
 const listEventsRoute = createRoute({

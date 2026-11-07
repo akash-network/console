@@ -6,10 +6,12 @@ import { EmailVerificationCodeRepository } from "@src/auth/repositories/email-ve
 import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
+import { TxService } from "@src/core/services/tx/tx.service";
 import { HardwareRequestClaimService } from "@src/hardware-request/services/hardware-request-claim/hardware-request-claim.service";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { emailVerificationCodeNotification } from "@src/notifications/services/notification-templates/email-verification-code-notification";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
+import { AccountStatusService } from "@src/user/services/account-status/account-status.service";
 
 const CODE_EXPIRY_MS = 10 * 60 * 1000;
 const COOLDOWN_MS = 60 * 1000;
@@ -35,7 +37,9 @@ export class EmailVerificationCodeService {
     private readonly userRepository: UserRepository,
     private readonly trialActivationJobService: TrialActivationJobService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger,
-    private readonly hardwareRequestClaimService: HardwareRequestClaimService
+    private readonly hardwareRequestClaimService: HardwareRequestClaimService,
+    private readonly accountStatusService: AccountStatusService,
+    private readonly txService: TxService
   ) {
     this.logger = createLogger({ context: EmailVerificationCodeService.name });
   }
@@ -85,7 +89,10 @@ export class EmailVerificationCodeService {
     assert(attempt, 429, "Too many attempts. Please request a new code.");
     assert(attempt.code === hashCode(code), 400, "Invalid verification code");
 
-    await this.userRepository.updateById(userInternalId, { emailVerified: true });
+    await this.txService.transaction(async () => {
+      const verified = await this.userRepository.updateById(userInternalId, { emailVerified: true }, { returning: true });
+      await this.accountStatusService.terminateIfVerifiedEmailWasTerminated(verified);
+    });
     await this.trialActivationJobService.schedule(userInternalId).catch(error => {
       this.logger.error({ event: "FAILED_TO_SCHEDULE_TRIAL_ACTIVATION", userId: userInternalId, error });
     });

@@ -12,6 +12,7 @@ import { ORGANIZATION_FORBIDDEN_ERROR_CODE } from "@src/core/repositories/org-sc
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { OrganizationContextResolver } from "@src/organization/services/organization-context/organization-context.resolver";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
+import { ACCOUNT_TERMINATED_ERROR_CODE } from "@src/user/lib/account-status/account-status";
 import type { UserOutput, UserRepository } from "@src/user/repositories";
 import { ACCESS_REVOKED_ERROR_CODE, isAccessRevoked, MemberDeploymentAccessService } from "./member-deployment-access.service";
 
@@ -96,6 +97,15 @@ describe(MemberDeploymentAccessService.name, () => {
 
       await expect(service.assertMayStillSign({ userId: member.id, walletId: 7, dseq: "100" })).rejects.toMatchObject(REVOKED);
       expect(abilityService.getAbilityFor).not.toHaveBeenCalled();
+    });
+
+    it("refuses a member whose account is terminated", async () => {
+      const { service, organizationContextResolver, member } = setup();
+      organizationContextResolver.resolveBoundTo.mockRejectedValue(
+        createError(403, "Your account has been terminated", { errorCode: ACCOUNT_TERMINATED_ERROR_CODE })
+      );
+
+      await expect(service.assertMayStillSign({ userId: member.id, walletId: 7, dseq: "100" })).rejects.toMatchObject(REVOKED);
     });
 
     it("refuses a member for whom no context resolves", async () => {
