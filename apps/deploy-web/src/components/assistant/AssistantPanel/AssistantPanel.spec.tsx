@@ -271,6 +271,28 @@ describe("AssistantPanel", () => {
     );
   });
 
+  it("never shows example prompts while a button's question is about to be asked", () => {
+    const { dependencies, conversation } = setup({ consent: CURRENT_CONSENT, question: "Why no bids?", sendsQuestion: true });
+
+    expect(conversation.send).toHaveBeenCalledWith("Why no bids?");
+    expect(dependencies.AssistantExamplePrompts).not.toHaveBeenCalled();
+  });
+
+  it("offers example prompts again once the conversation empties after the button's question was asked", () => {
+    const { dependencies, conversation, rerenderOpen } = setup({ consent: CURRENT_CONSENT, question: "Why no bids?", sendsQuestion: true });
+
+    rerenderOpen(true);
+
+    expect(conversation.send).toHaveBeenCalledTimes(1);
+    expect(dependencies.AssistantExamplePrompts).toHaveBeenCalled();
+  });
+
+  it("offers example prompts when the button only prefills its question", () => {
+    const { dependencies } = setup({ consent: CURRENT_CONSENT, question: "Why no bids?", sendsQuestion: false });
+
+    expect(dependencies.AssistantExamplePrompts).toHaveBeenCalled();
+  });
+
   it("drops the intro and example prompts once the conversation has messages", () => {
     const { dependencies } = setup({ consent: CURRENT_CONSENT, hasMessages: true });
 
