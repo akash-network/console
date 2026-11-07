@@ -56,6 +56,14 @@ describe(CheckTemplateDeploymentStillRunningHandler.name, () => {
     expect(templateUsageService.recordStillRunning).not.toHaveBeenCalled();
   });
 
+  it("rejects when the still-running insert fails so the job retries", async () => {
+    const { handler, payload, templateUsageService } = setup({ activeLeaseCount: 1 });
+    const failure = new Error("usage insert failed");
+    templateUsageService.recordStillRunning.mockRejectedValue(failure);
+
+    await expect(handler.handle(payload)).rejects.toBe(failure);
+  });
+
   it("records nothing for a wallet that is gone", async () => {
     const { handler, payload, leaseRepository, templateUsageService } = setup({ activeLeaseCount: 1, walletFound: false });
 

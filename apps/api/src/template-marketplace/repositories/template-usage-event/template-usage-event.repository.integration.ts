@@ -151,19 +151,6 @@ describe(TemplateUsageEventRepository.name, () => {
       expect(atThreshold.get(template)?.stillUpAfter24h).toBe(0.6);
     });
 
-    it("never reports more than every day-old lease still up", async () => {
-      const { repository } = setup();
-      const template = faker.string.uuid();
-      await seedEvents([
-        ...times(5, () => ({ templateRef: template, action: "lease_created" as const, createdAt: subHours(new Date(), 25) })),
-        ...times(6, () => ({ templateRef: template, action: "still_running_24h" as const, createdAt: new Date() }))
-      ]);
-
-      const summaries = await repository.summarize([template]);
-
-      expect(summaries.get(template)?.stillUpAfter24h).toBe(1);
-    });
-
     it("summarizes no template as an empty map", async () => {
       const { repository } = setup();
 

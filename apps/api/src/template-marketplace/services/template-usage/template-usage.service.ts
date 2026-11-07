@@ -39,7 +39,7 @@ export class TemplateUsageService {
 
   async recordDeployed(definition: DeployedDefinition, wallet: { isTrialing?: boolean | null }): Promise<void> {
     await this.#recordSafely({ action: "deploy", deploymentSettingId: definition.id, dseq: definition.dseq }, async () => {
-      await this.#recordFromTemplate("deploy", definition, !!wallet.isTrialing);
+      await this.#recordFromTemplate("deploy", definition, { isTrial: !!wallet.isTrialing });
     });
   }
 
@@ -50,7 +50,7 @@ export class TemplateUsageService {
 
       const setting = await this.deploymentSettingRepository.findOneOfWallet(wallet, dseq);
       const isTrial = !!wallet.isTrialing;
-      if (!setting || !(await this.#recordFromTemplate("lease_created", setting, isTrial))) return;
+      if (!setting || !(await this.#recordFromTemplate("lease_created", setting, { isTrial, createdAt: leaseCreatedAt }))) return;
 
       await this.jobQueueService.enqueue(new CheckTemplateDeploymentStillRunning({ deploymentSettingId: setting.id, walletId, dseq, isTrial }), {
         singletonKey: checkTemplateDeploymentStillRunningKeyFor(setting.id),
@@ -59,12 +59,13 @@ export class TemplateUsageService {
     });
   }
 
-  async recordStillRunning({ deploymentSettingId, dseq, isTrial }: { deploymentSettingId: string; dseq: string; isTrial: boolean }): Promise<void> {
-    await this.#recordSafely({ action: "still_running_24h", deploymentSettingId, dseq }, async () => {
+  /** Throws, unlike the other recorders, so its job retries a failed insert; the deployment's unique index keeps a retry to one event. */
+  async recordStillRunning({ deploymentSettingId, isTrial }: { deploymentSettingId: string; dseq: string; isTrial: boolean }): Promise<void> {
+    await this.txService.outsideTransaction(async () => {
       const setting = await this.deploymentSettingRepository.findById(deploymentSettingId);
       if (!setting) return;
 
-      await this.#recordFromTemplate("still_running_24h", setting, isTrial);
+      await this.#recordFromTemplate("still_running_24h", setting, { isTrial });
     });
   }
 
@@ -92,7 +93,11 @@ export class TemplateUsageService {
   }
 
   /** Answers whether the deployment came from a template, since an event already recorded still counts as one. */
-  async #recordFromTemplate(action: TemplateUsageAction, definition: DeployedDefinition, isTrial: boolean): Promise<boolean> {
+  async #recordFromTemplate(
+    action: TemplateUsageAction,
+    definition: DeployedDefinition,
+    { isTrial, createdAt }: { isTrial: boolean; createdAt?: Date }
+  ): Promise<boolean> {
     const ref = await this.templateRefOf(definition);
     if (!ref) return false;
 
@@ -104,7 +109,8 @@ export class TemplateUsageService {
       deploymentSettingId: definition.id,
       dseq: definition.dseq,
       network: this.coreConfig.get("NETWORK"),
-      isTrial
+      isTrial,
+      ...(createdAt && { createdAt })
     });
 
     return true;
