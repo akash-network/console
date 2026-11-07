@@ -127,6 +127,17 @@ describe(MarketplaceTemplateService.name, () => {
       expect(result.canEdit).toBe(true);
     });
 
+    it("checks the update rule against every field of the template", async () => {
+      const active = createTemplateRow({ moderationStatus: "active" });
+      const hidden = createTemplateRow({ moderationStatus: "hidden" });
+      const { service, repository } = setup({ rules: [{ action: "update", subject: "Template", conditions: { moderationStatus: "active" } }] });
+
+      repository.findReadable.mockResolvedValueOnce(active).mockResolvedValueOnce(hidden);
+      const results = [await service.getTemplate(active.id), await service.getTemplate(hidden.id)];
+
+      expect(results.map(({ canEdit }) => canEdit)).toEqual([true, false]);
+    });
+
     it("reads through the caller's read rules when it has any", async () => {
       const template = createTemplateRow();
       const { service, repository, readableRepository, ability } = setup({ template, rules: [{ action: "read", subject: "Template" }] });

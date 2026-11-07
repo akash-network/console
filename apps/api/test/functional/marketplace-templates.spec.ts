@@ -125,7 +125,6 @@ describe("Marketplace templates", () => {
             askedValues: [],
             resources: { cpu: 1, memoryBytes: 2, storageBytes: 3 },
             status: "live",
-            createdById: author.id,
             createdAt: version.createdAt.toISOString()
           },
           canEdit: true
@@ -155,17 +154,20 @@ describe("Marketplace templates", () => {
     });
 
     it("hides a hidden public template from outsiders but not from its organization", async () => {
-      const { team, project, owner, actAs, readAs } = await setup();
+      const { team, project, owner, actAs, addMember, readAs } = await setup();
       const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id, visibility: "public", moderationStatus: "hidden" });
+      const billing = await addMember("billing", null);
 
-      const [outsider, visitor, member] = await Promise.all([
+      const [outsider, visitor, owning, memberOutsideTheProject, billingMember] = await Promise.all([
         (await readAs("member of another organization"))(`/v1/user-templates/${template.id}`),
         (await readAs("visitor without a session"))(`/v1/user-templates/${template.id}`),
-        actAs(owner)(`/v1/user-templates/${template.id}`)
+        actAs(owner)(`/v1/user-templates/${template.id}`),
+        (await readAs("organization member outside the project"))(`/v1/user-templates/${template.id}`),
+        actAs(billing)(`/v1/user-templates/${template.id}`)
       ]);
 
-      expect([outsider.status, visitor.status, member.status]).toEqual([404, 404, 200]);
-      expect(await member.json()).toMatchObject({ data: { moderationStatus: "hidden" } });
+      expect([outsider, visitor, owning, memberOutsideTheProject, billingMember].map(({ status }) => status)).toEqual([404, 404, 200, 200, 200]);
+      expect(await owning.json()).toMatchObject({ data: { moderationStatus: "hidden" } });
     });
 
     it("hides a removed template from everyone", async () => {
@@ -237,7 +239,6 @@ describe("Marketplace templates", () => {
           version,
           resources: null,
           status: "live",
-          createdById: null,
           createdAt: createdAt.toISOString()
         }))
       });
@@ -252,10 +253,32 @@ describe("Marketplace templates", () => {
           askedValues: [],
           resources: null,
           status: "live",
-          createdById: null,
           createdAt: first.createdAt.toISOString()
         }
       });
+    });
+
+    it("keeps the internal id of a version's creator out of every response", async () => {
+      const { owner, read } = await setup();
+      const template = await seedTemplate({ author: owner, visibility: "public" });
+      await container.resolve(TemplateVersionRepository).appendVersion({ templateId: template.id, sdl: SDL, createdById: owner.id });
+
+      const [described, listed, one] = await Promise.all(
+        [`/v1/user-templates/${template.id}`, `/v1/user-templates/${template.id}/versions`, `/v1/user-templates/${template.id}/versions/1`].map(read)
+      );
+      const bodies = (await Promise.all([described, listed, one].map(response => response.json()))) as [
+        { data: { currentVersion: object } },
+        { data: object[] },
+        { data: object }
+      ];
+
+      expect([described.status, listed.status, one.status]).toEqual([200, 200, 200]);
+      expect([bodies[0].data.currentVersion, ...bodies[1].data, bodies[2].data]).toEqual([
+        expect.not.objectContaining({ createdById: expect.anything() }),
+        expect.not.objectContaining({ createdById: expect.anything() }),
+        expect.not.objectContaining({ createdById: expect.anything() })
+      ]);
+      expect(JSON.stringify(bodies)).not.toContain(owner.id);
     });
 
     it("answers 404 for a version number the template does not have", async () => {
@@ -334,7 +357,7 @@ describe("Marketplace templates", () => {
         app.request(path, { method: init.method ?? "GET", headers: { authorization: `Bearer ${token}`, ...organizationHeader } });
     };
 
-    const addMember = async (role: "member" | "admin", projectRole: "member" | "viewer" | null = "member") => {
+    const addMember = async (role: "member" | "admin" | "billing", projectRole: "member" | "viewer" | null = "member") => {
       const user = await seedUser(createSignedUpUserInput());
       await seedOrganizationMember({ organizationId: team.id, userId: user.id, role });
 

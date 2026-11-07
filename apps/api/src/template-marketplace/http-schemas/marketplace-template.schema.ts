@@ -21,7 +21,6 @@ export const TemplateVersionSummarySchema = z
     version: z.number().int().positive(),
     resources: TemplateHardwareSchema.nullable().openapi({ description: "Null when the version recorded none" }),
     status: z.enum(templateVersionStatusEnum.enumValues),
-    createdById: z.string().uuid().nullable(),
     createdAt: z.string().datetime()
   })
   .openapi("TemplateVersionSummary");

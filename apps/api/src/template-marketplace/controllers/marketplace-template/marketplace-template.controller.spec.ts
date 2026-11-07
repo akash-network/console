@@ -12,7 +12,7 @@ import { MarketplaceTemplateController } from "./marketplace-template.controller
 
 describe(MarketplaceTemplateController.name, () => {
   describe("getTemplate", () => {
-    it("answers the template with its dates and its current version's date as ISO strings", async () => {
+    it("answers the template with ISO dates and a current version without its creator's internal id", async () => {
       const version = createVersion();
       const template = createTemplate({ currentVersion: version });
       const { controller, service } = setup();
@@ -25,7 +25,7 @@ describe(MarketplaceTemplateController.name, () => {
           ...template,
           createdAt: template.createdAt.toISOString(),
           updatedAt: template.updatedAt.toISOString(),
-          currentVersion: { ...version, createdAt: version.createdAt.toISOString() }
+          currentVersion: publishedVersionOf(version)
         }
       });
       expect(service.getTemplate).toHaveBeenCalledWith(template.id);
@@ -43,7 +43,7 @@ describe(MarketplaceTemplateController.name, () => {
   });
 
   describe("listVersions", () => {
-    it("answers the version summaries with ISO dates", async () => {
+    it("answers the version summaries with ISO dates and without their creators' internal ids", async () => {
       const templateId = faker.string.uuid();
       const summaries: TemplateVersionSummary[] = [2, 1].map(version => {
         const { sdl: _sdl, readme: _readme, askedValues: _askedValues, ...summary } = createVersion({ templateId, version });
@@ -54,23 +54,27 @@ describe(MarketplaceTemplateController.name, () => {
 
       const result = await controller.listVersions(templateId);
 
-      expect(result).toEqual({ data: summaries.map(summary => ({ ...summary, createdAt: summary.createdAt.toISOString() })) });
+      expect(result).toEqual({ data: summaries.map(publishedVersionOf) });
       expect(service.listVersions).toHaveBeenCalledWith(templateId);
     });
   });
 
   describe("getVersion", () => {
-    it("answers the version with an ISO date", async () => {
+    it("answers the version with an ISO date and without its creator's internal id", async () => {
       const version = createVersion({ version: 4 });
       const { controller, service } = setup();
       service.getVersion.mockResolvedValue(version);
 
       const result = await controller.getVersion(version.templateId, 4);
 
-      expect(result).toEqual({ data: { ...version, createdAt: version.createdAt.toISOString() } });
+      expect(result).toEqual({ data: publishedVersionOf(version) });
       expect(service.getVersion).toHaveBeenCalledWith(version.templateId, 4);
     });
   });
+
+  function publishedVersionOf<V extends { createdById: string | null; createdAt: Date }>({ createdById: _createdById, createdAt, ...version }: V) {
+    return { ...version, createdAt: createdAt.toISOString() };
+  }
 
   function createVersion(overrides: Partial<PublishedTemplateVersion> = {}): PublishedTemplateVersion {
     return {

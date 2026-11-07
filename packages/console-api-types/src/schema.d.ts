@@ -8869,8 +8869,6 @@ export interface components {
       } | null;
       /** @enum {string} */
       status: "live" | "held" | "failed_checks";
-      /** Format: uuid */
-      createdById: string | null;
       /** Format: date-time */
       createdAt: string;
     };

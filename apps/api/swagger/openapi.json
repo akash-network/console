@@ -44025,11 +44025,6 @@
               "failed_checks"
             ]
           },
-          "createdById": {
-            "type": "string",
-            "nullable": true,
-            "format": "uuid"
-          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -44041,7 +44036,6 @@
           "version",
           "resources",
           "status",
-          "createdById",
           "createdAt"
         ]
       },
