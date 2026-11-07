@@ -25,6 +25,10 @@ const REPRICING_ADVICE = [
 
 const ADVICE_AGAINST = /n't\b|\b(?:not|never|no need|instead of|rather than|without)\b/i;
 
+const SHORTENED_NUMBER = /(\d{4,})(?:\.{3}|…)/g;
+
+const LONG_NUMBER = /(\d{4,})/g;
+
 export interface AssistantEvalToolCall {
   name: string;
   arguments: Record<string, unknown>;
@@ -115,8 +119,23 @@ function deploymentLinkFailures(expected: AssistantEvalExpectation, answer: stri
     const link = deploymentLinkOf(dseq);
     if (!answer.includes(link)) return [`answer does not link deployment ${dseq}`];
 
-    return answer.split(link).join("").includes(dseq) ? [`answer writes a bare dseq ${dseq}`] : [];
+    const answerAroundLinks = answer.split(link);
+    if (answerAroundLinks.some(text => text.includes(dseq))) return [`answer writes a bare dseq ${dseq}`];
+
+    const ellipsizedNumbers = answerAroundLinks.flatMap(text => numbersMatching(text, SHORTENED_NUMBER));
+    const labelNumbers = linkLabelsOf(answerAroundLinks).flatMap(label => numbersMatching(label, LONG_NUMBER));
+    const writesShortenedDseq = [...ellipsizedNumbers, ...labelNumbers].some(digits => dseq.startsWith(digits));
+
+    return writesShortenedDseq ? [`answer writes a shortened dseq ${dseq}`] : [];
   });
+}
+
+function linkLabelsOf(answerAroundLinks: string[]): string[] {
+  return answerAroundLinks.slice(0, -1).flatMap(textBeforeLink => textBeforeLink.split("[").slice(-1));
+}
+
+function numbersMatching(text: string, pattern: RegExp): string[] {
+  return Array.from(text.matchAll(pattern), ([, digits]) => digits);
 }
 
 function repricingFailures(expected: AssistantEvalExpectation, answer: string): string[] {

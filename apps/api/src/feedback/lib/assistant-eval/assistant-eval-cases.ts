@@ -534,6 +534,20 @@ export const ASSISTANT_EVAL_CASES: AssistantEvalCase[] = [
     }
   },
   {
+    id: "unnamed-deployment-health",
+    question: "Is my deployment healthy?",
+    context: { dseq: DSEQ },
+    toolResults: { get_deployment: { ...ACTIVE_WEB_DEPLOYMENT, name: null } },
+    expect: { calls: ["get_deployment"], linksDeployments: [DSEQ], mentionsAnyOf: ["[web", "[nginx"] }
+  },
+  {
+    id: "unnamed-deployment-card",
+    question: "Email me if this deployment ever closes.",
+    context: { dseq: DSEQ },
+    toolResults: { get_deployment: { ...ACTIVE_WEB_DEPLOYMENT, name: null } },
+    expect: { proposes: "create_alert", linksDeployments: [DSEQ] }
+  },
+  {
     id: "buy-credits",
     question: "I want to add $50 of credits.",
     toolResults: { get_balance_and_spend: LOW_BALANCE },
