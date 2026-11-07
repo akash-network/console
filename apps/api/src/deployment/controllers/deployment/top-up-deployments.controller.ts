@@ -22,7 +22,7 @@ export class TopUpDeploymentsController {
     private readonly closedDeploymentsReconcilerService: ClosedDeploymentsReconcilerService
   ) {}
 
-  /** The reconciles go first because they only need the databases, so a chain-RPC failure in the sweep cannot skip them for the hour. */
+  /** The reconciles go first because a chain outage only defers the rows they cannot confirm, so a chain-RPC failure in the sweep cannot skip them for the hour. */
   async topUpDeployments(options: DryRunOptions) {
     await this.deploymentCloseJobService.reconcileExpired(options);
     await this.closedDeploymentsReconcilerService.reconcileClosedDeployments(options);
