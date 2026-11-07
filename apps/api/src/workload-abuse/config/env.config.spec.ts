@@ -129,6 +129,31 @@ describe("workload abuse env config", () => {
     expect(config.WORKLOAD_ABUSE_SIGNAL_ARTIFACT_MIN_MB).toBe(512);
   });
 
+  it("leaves the sign-up review off when its variables are unset or blank", () => {
+    const unset = setup();
+    const blank = setup({ WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES: " ", WORKLOAD_ABUSE_SIGNUP_REVIEW_SLACK_WEBHOOK_URL: "" });
+
+    expect(unset.WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES).toBeUndefined();
+    expect(unset.WORKLOAD_ABUSE_SIGNUP_REVIEW_SLACK_WEBHOOK_URL).toBeUndefined();
+    expect(blank.WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES).toBeUndefined();
+    expect(blank.WORKLOAD_ABUSE_SIGNUP_REVIEW_SLACK_WEBHOOK_URL).toBeUndefined();
+  });
+
+  it("reads the sign-up review variables when they carry a value", () => {
+    const config = setup({
+      WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES: "7",
+      WORKLOAD_ABUSE_SIGNUP_REVIEW_SLACK_WEBHOOK_URL: "https://hooks.slack.test/review"
+    });
+
+    expect(config.WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES).toBe(7);
+    expect(config.WORKLOAD_ABUSE_SIGNUP_REVIEW_SLACK_WEBHOOK_URL).toBe("https://hooks.slack.test/review");
+  });
+
+  it("rejects a sign-up review window that is not a positive integer", () => {
+    expect(() => setup({ WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES: "0" })).toThrow(/WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES/);
+    expect(() => setup({ WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES: "1.5" })).toThrow(/WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES/);
+  });
+
   it("requires an account hash secret of at least 32 characters", () => {
     const secret = "s".repeat(32);
 
