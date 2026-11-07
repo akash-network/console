@@ -5,6 +5,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import type { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
+import type { PaymentRefusalService } from "@src/billing/services/payment-refusal/payment-refusal.service";
 import type { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import type { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import type { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
@@ -62,6 +63,32 @@ describe(TopUpService.name, () => {
 
       expect(stripeTransactionService.resolveTransaction).toHaveBeenCalledWith(transactionId);
       expect(result).toEqual({ success: true, transactionId, transactionStatus: "succeeded" });
+    });
+
+    it("checks the payer's recent refusals of the payment method before charging it", async () => {
+      const { service, stripeTransactionService, paymentMethodService, paymentRefusalService, payingUser } = setup();
+      const paymentMethodId = faker.string.uuid();
+      paymentMethodService.hasPaymentMethod.mockResolvedValue(true);
+      stripeTransactionService.createPaymentIntent.mockResolvedValue({
+        success: true,
+        paymentIntentId: faker.string.uuid(),
+        transactionId: faker.string.uuid(),
+        transactionStatus: "pending"
+      });
+
+      await service.topUp(payingUser, { paymentMethodId, amount: 100 });
+
+      expect(paymentRefusalService.assertMayCharge).toHaveBeenCalledWith(payingUser.stripeCustomerId, paymentMethodId);
+    });
+
+    it("refuses without charging when the payment method was refused recently", async () => {
+      const { service, stripeTransactionService, paymentMethodService, paymentRefusalService, payingUser } = setup();
+      const refusal = createError(402, "refused", { errorCode: "payment_method_refused" });
+      paymentMethodService.hasPaymentMethod.mockResolvedValue(true);
+      paymentRefusalService.assertMayCharge.mockRejectedValue(refusal);
+
+      await expect(service.topUp(payingUser, { paymentMethodId: faker.string.uuid(), amount: 100 })).rejects.toBe(refusal);
+      expect(stripeTransactionService.createPaymentIntent).not.toHaveBeenCalled();
     });
 
     it("validates the top-up amount against the wallet before contacting Stripe", async () => {
@@ -247,8 +274,25 @@ describe(TopUpService.name, () => {
     const trialValidationService = mock<TrialValidationService>();
     const paymentMethodService = mock<PaymentMethodService>();
     const stripeTransactionService = mock<StripeTransactionService>();
-    const service = new TopUpService(userWalletRepository, trialActivationJobService, trialValidationService, paymentMethodService, stripeTransactionService);
+    const paymentRefusalService = mock<PaymentRefusalService>();
+    const service = new TopUpService(
+      userWalletRepository,
+      trialActivationJobService,
+      trialValidationService,
+      paymentMethodService,
+      stripeTransactionService,
+      paymentRefusalService
+    );
 
-    return { service, userWalletRepository, trialActivationJobService, trialValidationService, paymentMethodService, stripeTransactionService, payingUser };
+    return {
+      service,
+      userWalletRepository,
+      trialActivationJobService,
+      trialValidationService,
+      paymentMethodService,
+      stripeTransactionService,
+      paymentRefusalService,
+      payingUser
+    };
   }
 });

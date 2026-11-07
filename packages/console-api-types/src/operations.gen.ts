@@ -48,6 +48,14 @@ export const operations = {
       queryParams: [],
       hasBody: false
     },
+    listPaymentMethodRefusals: {
+      path: "/v1/stripe/payment-methods/refusals",
+      method: "get",
+      operationId: "listPaymentMethodRefusals",
+      pathParams: [],
+      queryParams: [],
+      hasBody: false
+    },
     deletePaymentMethod: {
       path: "/v1/stripe/payment-methods/{paymentMethodId}",
       method: "delete",
