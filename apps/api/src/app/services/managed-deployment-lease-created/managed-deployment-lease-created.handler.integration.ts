@@ -1,7 +1,7 @@
 import "@src/app/providers/jobs.provider";
 
 import { faker } from "@faker-js/faker";
-import { addDays, addHours } from "date-fns";
+import { addDays, addHours, subHours } from "date-fns";
 import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
 import { describe, expect, it, vi } from "vitest";
@@ -71,11 +71,13 @@ describe(ManagedDeploymentLeaseCreatedHandler.name, () => {
     const { followUpLease } = await setup();
     const { user, wallet } = await seedUserWithWallet();
     const setting = await seedDeploymentSetting({ userId: user.id, templateId: "hello-world" });
-    const leaseCreatedAt = new Date();
+    const leaseCreatedAt = subHours(new Date(), 3);
 
     await followUpLease({ walletId: wallet.id, dseq: setting.dseq, createdAt: leaseCreatedAt, times: 2 });
 
-    expect(await findTemplateEventsOf(setting.id)).toEqual([expect.objectContaining({ action: "lease_created", templateRef: "hello-world" })]);
+    expect(await findTemplateEventsOf(setting.id)).toEqual([
+      expect.objectContaining({ action: "lease_created", templateRef: "hello-world", createdAt: leaseCreatedAt })
+    ]);
     const checks = await findJobRows(STILL_RUNNING_CHECK_JOB, { singletonKey: checkTemplateDeploymentStillRunningKeyFor(setting.id) });
     expect(checks.map(({ state, start_after }) => ({ state, startAfter: new Date(start_after) }))).toEqual([
       { state: "created", startAfter: addHours(leaseCreatedAt, 24) }

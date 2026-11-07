@@ -138,7 +138,8 @@ describe(TemplateUsageService.name, () => {
         deploymentSettingId: setting.id,
         dseq: setting.dseq,
         network: "mainnet",
-        isTrial: true
+        isTrial: true,
+        createdAt: leaseCreatedAt
       });
       expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(
@@ -261,22 +262,16 @@ describe(TemplateUsageService.name, () => {
       expect(logger.warn).not.toHaveBeenCalled();
     });
 
-    it("logs a failed insert as a warning instead of throwing", async () => {
+    it("throws a failed insert so the job retries it", async () => {
       const setting = buildSetting({ templateId: "hello-world" });
-      const { service, templateUsageEventRepository, logger } = setup({ setting });
+      const { service, templateUsageEventRepository, txService, logger } = setup({ setting });
       const failure = new Error("connection reset");
       templateUsageEventRepository.record.mockRejectedValue(failure);
 
-      await expect(service.recordStillRunning({ deploymentSettingId: setting.id, dseq: setting.dseq, isTrial: true })).resolves.toBeUndefined();
+      await expect(service.recordStillRunning({ deploymentSettingId: setting.id, dseq: setting.dseq, isTrial: true })).rejects.toBe(failure);
 
-      expect(logger.error).not.toHaveBeenCalled();
-      expect(logger.warn).toHaveBeenCalledWith({
-        event: "TEMPLATE_USAGE_RECORD_FAILED",
-        action: "still_running_24h",
-        deploymentSettingId: setting.id,
-        dseq: setting.dseq,
-        error: failure
-      });
+      expect(txService.outsideTransaction).toHaveBeenCalledTimes(1);
+      expect(logger.warn).not.toHaveBeenCalled();
     });
   });
 

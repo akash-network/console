@@ -8,7 +8,7 @@ type Table = ApiPgTables["TemplateUsageEvents"];
 type TemplateVersionsTable = ApiPgTables["TemplateVersions"];
 type TemplatesTable = ApiPgTables["Templates"];
 
-export type TemplateUsageEventInput = Omit<Table["$inferInsert"], "id" | "createdAt">;
+export type TemplateUsageEventInput = Omit<Table["$inferInsert"], "id">;
 
 export type TemplateUsageSummary = { deploys: number; lastDeployedAt: Date | null; stillUpAfter24h: number | null };
 
@@ -104,7 +104,6 @@ export class TemplateUsageEventRepository {
   }
 }
 
-/** A still-running event can land before its lease event is a day old, so the share is capped at one. */
 function stillUpShare(stillRunning: number, dayOldLeases: number): number | null {
-  return dayOldLeases < MIN_DAY_OLD_LEASES_FOR_STILL_UP_SHARE ? null : Math.min(1, stillRunning / dayOldLeases);
+  return dayOldLeases < MIN_DAY_OLD_LEASES_FOR_STILL_UP_SHARE ? null : stillRunning / dayOldLeases;
 }
