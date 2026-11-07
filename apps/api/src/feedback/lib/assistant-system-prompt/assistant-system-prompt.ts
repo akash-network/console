@@ -3,6 +3,7 @@ export interface AssistantPromptContext {
   isTrialing: boolean | null;
   page?: string;
   dseq?: string;
+  configureFormOpen?: boolean;
   recentActions?: string[];
 }
 
@@ -29,6 +30,13 @@ const RULES = [
   "Keep answers short and concrete. Write only the answer, never a running commentary of what you are about to read or propose, and never name your tools: the user sees your reads as chips and your proposals as cards. Use plain words, and name the exact Console page or field when you explain how to do something."
 ];
 
+const CONFIGURE_FORM_RULES = [
+  "The user has the Configure your deployment page open, with a form that is not deployed yet. For any question about it, such as no providers, settings that are not valid or what to change, call read_configure_form first, before any other tool. Never guess what is in the form, and do not list deployments or search the docs before reading it.",
+  "To get providers for the form, change one setting at a time in its screeningSdl and screen that SDL with check_availability, at most twice per request. Try, in order: drop placement attributes no audited provider signed, switch or turn off persistent storage, lower the GPU count, then another GPU model, then lower CPU, memory or storage. Then propose the change that found providers with propose_edit_configure_form, naming only the fields to change and saying in its reason how many providers can bid. Never change price or denom.",
+  "When no screened change finds providers, say plainly that no provider on this network offers that right now, such as persistent storage on sandbox, and offer the alternative: turning that setting off with propose_edit_configure_form, a smaller setup, or request_hardware for GPUs.",
+  "After the user applies a form edit, read the form again before saying whether providers can bid."
+];
+
 /** Kept in one place so a reviewer can read every rule the assistant runs under. */
 export function buildAssistantSystemPrompt(context: AssistantPromptContext): string {
   const facts = [
@@ -40,5 +48,7 @@ export function buildAssistantSystemPrompt(context: AssistantPromptContext): str
       : null
   ].filter((fact): fact is string => fact !== null);
 
-  return [...RULES.map(rule => rule.replace("{supportUrl}", context.supportUrl)), ...facts].join("\n");
+  const rules = [...RULES, ...(context.configureFormOpen ? CONFIGURE_FORM_RULES : [])];
+
+  return [...rules.map(rule => rule.replace("{supportUrl}", context.supportUrl)), ...facts].join("\n");
 }

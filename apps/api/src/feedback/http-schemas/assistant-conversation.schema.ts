@@ -14,7 +14,11 @@ const MAX_ACTION_ERROR_LENGTH = 500;
 
 const ConversationContextSchema = z.object({
   page: z.string().max(MAX_PAGE_LENGTH).optional().openapi({ description: "The Console path the assistant was opened on" }),
-  dseq: AssistantDseqSchema.optional().openapi({ description: "The deployment the user was looking at" })
+  dseq: AssistantDseqSchema.optional().openapi({ description: "The deployment the user was looking at" }),
+  configureFormOpen: z
+    .boolean()
+    .optional()
+    .openapi({ description: "True while the configure page's form is open and the browser can read it and apply an edit to it" })
 });
 
 export const ConversationIdParamsSchema = z.object({ id: z.string().uuid() });
@@ -103,8 +107,12 @@ export const AssistantStreamEventSchema = z
     z.object({
       type: z.literal("client_tool_request"),
       toolCallId: z.string(),
-      name: z.enum(["read_logs", "read_events"]),
-      arguments: z.object({ dseq: z.string(), service: z.string().optional(), tailLines: z.number().int().optional() }),
+      name: z.enum(["read_logs", "read_events", "read_configure_form"]),
+      arguments: z.object({
+        dseq: z.string().optional().openapi({ description: "Set for read_logs and read_events" }),
+        service: z.string().optional(),
+        tailLines: z.number().int().optional()
+      }),
       maxLength: z.number().int().openapi({ description: "The longest `content` the API accepts for this result" })
     }),
     z.object({

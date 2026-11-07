@@ -3,6 +3,7 @@ import { proposalActionTypeOf } from "@src/feedback/lib/assistant-tools/assistan
 
 export interface AssistantEvalExpectation {
   calls?: string[];
+  callsFirst?: string;
   neverCalls?: string[];
   proposes?: ProposalActionType;
   proposalMentions?: string[];
@@ -28,6 +29,7 @@ export interface AssistantEvalToolCall {
   name: string;
   arguments: Record<string, unknown>;
   repeated?: boolean;
+  round?: number;
 }
 
 export interface AssistantEvalTranscript {
@@ -53,11 +55,22 @@ function proposalsOf(transcript: AssistantEvalTranscript): { type: ProposalActio
   });
 }
 
-function callFailures(expected: AssistantEvalExpectation, calledNames: Set<string>): string[] {
+function firstRoundFailures(callsFirst: string, toolCalls: AssistantEvalToolCall[]): string[] {
+  if (toolCalls.length === 0) return [`called nothing before ${callsFirst}`];
+
+  const firstRoundNames = new Set(toolCalls.filter(({ round }) => round === toolCalls[0].round).map(({ name }) => name));
+  const order = firstRoundNames.has(callsFirst) ? "alongside" : "before";
+
+  return [...firstRoundNames].filter(name => name !== callsFirst).map(name => `called ${name} ${order} ${callsFirst}`);
+}
+
+function callFailures(expected: AssistantEvalExpectation, toolCalls: AssistantEvalToolCall[]): string[] {
+  const calledNames = new Set(toolCalls.map(({ name }) => name));
   const missing = (expected.calls ?? []).filter(name => !calledNames.has(name)).map(name => `did not call ${name}`);
   const forbidden = (expected.neverCalls ?? []).filter(name => calledNames.has(name)).map(name => `called ${name}`);
+  const notFirst = expected.callsFirst ? firstRoundFailures(expected.callsFirst, toolCalls) : [];
 
-  return [...missing, ...forbidden];
+  return [...missing, ...forbidden, ...notFirst];
 }
 
 function proposalFailures(expected: AssistantEvalExpectation, transcript: AssistantEvalTranscript): string[] {
@@ -122,9 +135,8 @@ function turnFailures(expected: AssistantEvalExpectation, transcript: AssistantE
 }
 
 export function scoreAssistantEval(id: string, expected: AssistantEvalExpectation, transcript: AssistantEvalTranscript): AssistantEvalResult {
-  const calledNames = new Set(transcript.toolCalls.map(({ name }) => name));
   const failures = [
-    ...callFailures(expected, calledNames),
+    ...callFailures(expected, transcript.toolCalls),
     ...proposalFailures(expected, transcript),
     ...answerFailures(expected, transcript.answer),
     ...deploymentLinkFailures(expected, transcript.answer),

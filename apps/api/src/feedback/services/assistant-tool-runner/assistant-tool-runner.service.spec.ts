@@ -94,6 +94,35 @@ describe(AssistantToolRunnerService.name, () => {
         call: { id: "call-1", name: "read_events", arguments: { dseq: "42" } }
       });
     });
+
+    it("hands the configure form read to the browser while the form is open", async () => {
+      const { runner } = setup();
+
+      expect(await runner.run(call("read_configure_form", {}), { isTrialing: false, configureFormOpen: true, withheldTemplateSdls: [] })).toEqual({
+        kind: "client",
+        call: { id: "call-1", name: "read_configure_form", arguments: {} }
+      });
+    });
+
+    it.each(["read_configure_form", "propose_edit_configure_form"])("refuses %s while the configure form is not open", async name => {
+      const { runner, proposalService } = setup();
+
+      const outcome = await runner.run(call(name, { reason: "ssd", services: { web: { memory: "1Gi" } } }), { isTrialing: false, withheldTemplateSdls: [] });
+
+      expect(outcome).toMatchObject({ kind: "result", ok: false });
+      expect(JSON.parse((outcome as Extract<typeof outcome, { kind: "result" }>).content).error).toBe(
+        "The configure page is not open in the user's browser, so its form cannot be read or edited. Answer without it, or ask the user to open the configure page."
+      );
+      expect(proposalService.propose).not.toHaveBeenCalled();
+    });
+
+    it("summarizes a failed configure form read", async () => {
+      const { runner } = setup();
+
+      expect(await runner.run(call("read_configure_form", "{"), { isTrialing: false, configureFormOpen: true, withheldTemplateSdls: [] })).toMatchObject({
+        summary: "Could not read the configure form"
+      });
+    });
   });
 
   describe("proposals", () => {

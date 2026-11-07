@@ -3,7 +3,13 @@ import { z } from "@hono/zod-openapi";
 import { MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "@src/deployment/http-schemas/runtime-limit";
 import { deploymentCloseReasonEnum, MAX_CLOSE_REASON_DETAILS_LENGTH } from "@src/deployment/model-schemas";
 import { MAX_DEPLOYMENT_NAME_LENGTH } from "@src/deployment/utils/deployment-name/deployment-name";
-import { ASSISTANT_HARDWARE_INTERCONNECTS, AssistantDseqSchema, AssistantServicePatchSchema } from "@src/feedback/http-schemas/assistant-action.schema";
+import {
+  ASSISTANT_HARDWARE_INTERCONNECTS,
+  AssistantDseqSchema,
+  AssistantServicePatchSchema,
+  ConfigurePlacementEditSchema,
+  ConfigureServiceEditSchema
+} from "@src/feedback/http-schemas/assistant-action.schema";
 import { ASSISTANT_LIVE_HELP_REASONS } from "@src/feedback/http-schemas/assistant-conversation.schema";
 import { TemplateIdSchema } from "@src/template/http-schemas/template.schema";
 import { AkashAddressSchema } from "@src/utils/schema";
@@ -52,8 +58,16 @@ export const CLIENT_TOOL_ARGUMENTS = {
     service: ServiceName.optional(),
     tailLines: z.number().int().min(1).max(MAX_LOG_TAIL_LINES).default(100)
   }),
-  read_events: z.object({ dseq: Dseq })
+  read_events: z.object({ dseq: Dseq }),
+  read_configure_form: z.object({})
 };
+
+export const CONFIGURE_FORM_TOOL_NAMES = ["read_configure_form", "propose_edit_configure_form"] as const;
+
+function changesSomething({ services, placements }: { services?: Record<string, object>; placements?: Record<string, object> }): boolean {
+  const edits = [...Object.values(services ?? {}), ...Object.values(placements ?? {})];
+  return edits.length > 0 && edits.every(changes => Object.keys(changes).length > 0);
+}
 
 const ResourceChangeSchema = z
   .object({
@@ -136,7 +150,16 @@ export const PROPOSAL_TOOL_ARGUMENTS = {
     dseq: Dseq.optional(),
     templateId: TemplateIdSchema.max(MAX_TEMPLATE_ID_LENGTH).optional(),
     sdl: z.string().max(MAX_GENERATED_SDL_LENGTH).optional()
-  })
+  }),
+  edit_configure_form: z
+    .object({
+      reason: ShortText.openapi({ description: "Why this edit, such as how many providers check_availability found with it" }),
+      services: z.record(ServiceName, ConfigureServiceEditSchema).optional(),
+      placements: z
+        .record(z.string().min(1).max(MAX_NAME_LENGTH).openapi({ description: "A placement name read_configure_form returned" }), ConfigurePlacementEditSchema)
+        .optional()
+    })
+    .refine(changesSomething, { message: "Change at least one field of each service or placement you name" })
 };
 
 export const LIVE_HELP_TOOL_NAME = "suggest_live_help";

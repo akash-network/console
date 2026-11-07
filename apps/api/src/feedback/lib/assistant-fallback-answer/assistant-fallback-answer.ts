@@ -9,7 +9,8 @@ const ACCOUNT_READS: Record<string, string> = {
   list_deployments: "your deployments",
   get_balance_and_spend: "your balance and spend",
   list_templates: "the template gallery",
-  search_docs: "the Console docs"
+  search_docs: "the Console docs",
+  read_configure_form: "the configure form"
 };
 
 const DEPLOYMENT_READS: Record<string, (dseq: string) => string> = {
@@ -57,7 +58,18 @@ function dseqOf(call: ChatToolCall): string | undefined {
   }
 }
 
+function isFailedRead(result: string | undefined): boolean {
+  try {
+    const { error, data } = JSON.parse(result ?? "{}");
+    return error !== undefined || data?.earlierResult?.error !== undefined;
+  } catch {
+    return false;
+  }
+}
+
 function readOf({ call, result }: TurnToolCall): Read | undefined {
+  if (isFailedRead(result)) return undefined;
+
   const name = call.function.name;
   if (Object.hasOwn(ACCOUNT_READS, name)) return { phrase: ACCOUNT_READS[name], showsNoBids: false };
 
@@ -83,6 +95,9 @@ function nextStepOf(reads: Read[], question: string): string {
   const withoutBids = reads.findLast(read => read.showsNoBids);
   if (withoutBids)
     return `Next step: ask "Why no bids on deployment ${withoutBids.dseq}?", or redeploy it from the deployment editor with changed requirements.`;
+
+  if (reads.some(read => read.phrase === ACCOUNT_READS.read_configure_form))
+    return "Next step: ask me again which setting to change in the form, or ask on Discord for live help.";
 
   const deployment = reads.findLast(read => read.dseq);
   if (deployment) return `Next step: tell me what you expected deployment ${deployment.dseq} to do, or ask on Discord for live help.`;

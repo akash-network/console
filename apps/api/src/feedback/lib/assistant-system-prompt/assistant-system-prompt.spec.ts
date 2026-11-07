@@ -49,6 +49,24 @@ describe(buildAssistantSystemPrompt.name, () => {
     ]);
   });
 
+  it("adds the configure form rules only while the configure form is open", () => {
+    const closed = buildAssistantSystemPrompt({ supportUrl: "https://discord.example", isTrialing: null, page: "/new-deployment/configure" });
+    const open = buildAssistantSystemPrompt({
+      supportUrl: "https://discord.example",
+      isTrialing: null,
+      page: "/new-deployment/configure",
+      configureFormOpen: true
+    });
+
+    expect(closed).not.toContain("read_configure_form");
+    expect(open).toContain("call read_configure_form first, before any other tool");
+    expect(open).toContain("screen that SDL with check_availability");
+    expect(open).toContain("propose_edit_configure_form");
+    expect(open).toContain("Never change price or denom.");
+    expect(open.split("\n").at(-1)).toBe('The user opened the assistant on the Console page "/new-deployment/configure".');
+    expect(open).not.toContain("\u2014");
+  });
+
   it("lists the latest cards the user acted on, so a vague reference resolves to them", () => {
     const prompt = buildAssistantSystemPrompt({
       supportUrl: "https://discord.example",

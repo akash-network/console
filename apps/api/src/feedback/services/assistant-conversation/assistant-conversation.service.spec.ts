@@ -107,13 +107,30 @@ describe(AssistantConversationService.name, () => {
       expect(result).toEqual({ id: CONVERSATION_ID, stored: true });
     });
 
+    it("keeps whether the configure form is open out of the stored context", async () => {
+      const { service, conversationRepository } = setup({ wallet: createUserWallet({ isTrialing: false }) });
+      conversationRepository.create.mockResolvedValue(conversation());
+
+      await service.start({ copyVersion: "v1", context: { page: "/new-deployment/configure", configureFormOpen: true } });
+
+      expect(conversationRepository.create).toHaveBeenCalledWith({
+        userId: "user-1",
+        organizationId: null,
+        context: { page: "/new-deployment/configure", dseq: undefined, isTrialing: false }
+      });
+    });
+
     it("files a conversation outside an organization with no organization and an unknown trial status", async () => {
       const { service, conversationRepository } = setup({ wallet: undefined });
       conversationRepository.create.mockResolvedValue(conversation());
 
       await service.start({ copyVersion: "v1" });
 
-      expect(conversationRepository.create).toHaveBeenCalledWith({ userId: "user-1", organizationId: null, context: { isTrialing: null } });
+      expect(conversationRepository.create).toHaveBeenCalledWith({
+        userId: "user-1",
+        organizationId: null,
+        context: { page: undefined, dseq: undefined, isTrialing: null }
+      });
     });
   });
 
@@ -171,7 +188,14 @@ describe(AssistantConversationService.name, () => {
       const [turn, passedEmit, passedSignal] = turnService.run.mock.calls[0];
       expect(passedEmit).toBe(emit);
       expect(passedSignal).toBe(signal);
-      expect(turn).toMatchObject({ conversationId: CONVERSATION_ID, userId: "user-1", stored: true, isTrialing: true, roundsUsed: 0 });
+      expect(turn).toMatchObject({
+        conversationId: CONVERSATION_ID,
+        userId: "user-1",
+        stored: true,
+        isTrialing: true,
+        configureFormOpen: false,
+        roundsUsed: 0
+      });
       expect(turn.messages.slice(1)).toEqual([
         { role: "user", content: "earlier" },
         { role: "assistant", content: "answer" },
@@ -181,6 +205,20 @@ describe(AssistantConversationService.name, () => {
       expect(turn.messages[0].content).toContain('deployment "42"');
       expect(turn.messages[0].content).toContain("https://discord.example");
       expect(turn.messages[0].content).toContain("free trial");
+    });
+
+    it("offers the configure form tools and rules while the browser has the form open", async () => {
+      const { service, turnService } = setup();
+
+      const run = await service.prepareMessage(CONVERSATION_ID, {
+        content: "no providers",
+        context: { page: "/new-deployment/configure", configureFormOpen: true }
+      });
+      await run(vi.fn(), new AbortController().signal);
+
+      const [turn] = turnService.run.mock.calls[0];
+      expect(turn.configureFormOpen).toBe(true);
+      expect(turn.messages[0].content).toContain("call read_configure_form first");
     });
 
     it("tells the model what the user did with the latest cards of a stored conversation", async () => {
@@ -305,6 +343,42 @@ describe(AssistantConversationService.name, () => {
           { role: "tool", content: "Could not read events in the browser", toolName: "read_events", toolPayload: { toolCallId: "c2", ok: false } }
         ]
       ]);
+    });
+
+    it("keeps the start of a long configure form read, labels it and resumes with the form still open", async () => {
+      const { service, pendingTurnRepository, transcriptService, turnService } = setup();
+      const form = toolCall("c1", "read_configure_form");
+      pendingTurnRepository.take.mockResolvedValue(pendingTurn({ clientToolCalls: [form], stored: true, configureFormOpen: true }));
+      const longForm = `{"services":[${"x".repeat(7000)}]}`;
+
+      const run = await service.prepareClientToolResults(CONVERSATION_ID, { results: [{ toolCallId: "c1", content: longForm, ok: true }] });
+      await run(vi.fn(), new AbortController().signal);
+
+      const [turn] = turnService.run.mock.calls[0];
+      expect(turn.configureFormOpen).toBe(true);
+      expect(turn.messages).toEqual([
+        {
+          role: "tool",
+          tool_call_id: "c1",
+          content: toolContentOf("read_configure_form", { data: { untrustedExcerpt: `{"services":[${"x".repeat(5973)}...[truncated]` } })
+        }
+      ]);
+      expect(transcriptService.record).toHaveBeenCalledWith(CONVERSATION_ID, {
+        role: "tool",
+        content: "Read the configure form in the browser",
+        toolName: "read_configure_form",
+        toolPayload: { toolCallId: "c1", ok: true }
+      });
+    });
+
+    it("resumes a turn held before the configure form tools existed with the form closed", async () => {
+      const { service, pendingTurnRepository, turnService } = setup();
+      pendingTurnRepository.take.mockResolvedValue(pendingTurn({ clientToolCalls: [toolCall("c1", "read_events")] }));
+
+      const run = await service.prepareClientToolResults(CONVERSATION_ID, { results: [{ toolCallId: "c1", content: "OOMKilled", ok: true }] });
+      await run(vi.fn(), new AbortController().signal);
+
+      expect(turnService.run.mock.calls[0][0].configureFormOpen).toBe(false);
     });
 
     it("keeps a short excerpt whole and stores nothing for an unstored conversation", async () => {

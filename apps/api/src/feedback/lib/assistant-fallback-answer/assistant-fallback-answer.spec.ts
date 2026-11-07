@@ -50,6 +50,12 @@ describe(fallbackAnswerOf.name, () => {
     );
   });
 
+  it("names the configure form it read", () => {
+    expect(fallbackAnswerOf(turnOf(toolCall("c1", "read_configure_form")))).toBe(
+      "I read the configure form, but could not finish my answer. Next step: ask me again which setting to change in the form, or ask on Discord for live help."
+    );
+  });
+
   it("points at the latest deployment without bids", () => {
     const answer = fallbackAnswerOf(
       turnWithResultsOf(
@@ -155,5 +161,23 @@ describe(fallbackAnswerOf.name, () => {
         )
       )
     ).toBe("I could not finish my answer this time. Next step: tell me which deployment you mean, or ask on Discord for live help.");
+  });
+
+  it("leaves out reads that failed, also when they were asked for again", () => {
+    const failed = toolContentOf("list_deployments", { error: "Could not list deployments" });
+
+    expect(
+      fallbackAnswerOf(
+        askedTurnOf(
+          "what is wrong",
+          { call: toolCall("c1", "list_deployments"), result: failed },
+          { call: toolCall("c2", "list_deployments"), result: toolContentOf("list_deployments", { data: { earlierResult: JSON.parse(failed) } }) },
+          { call: toolCall("c3", "get_balance_and_spend"), result: toolContentOf("get_balance_and_spend", { data: { balanceUsd: 5 } }) },
+          { call: toolCall("c4", "search_docs"), result: "null" }
+        )
+      )
+    ).toBe(
+      "I read your balance and spend and the Console docs, but could not finish my answer. Next step: ask again in a shorter question, or ask on Discord for live help."
+    );
   });
 });
