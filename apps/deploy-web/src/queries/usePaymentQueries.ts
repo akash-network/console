@@ -74,6 +74,12 @@ export const useFirstPurchaseBonusQuery = () => {
   return api.v1.getFirstPurchaseBonus.useQuery(undefined, { select: response => response.data, meta: SKIP_REPORTING_REFUSED_INPUT });
 };
 
+/** Refusals seen by other tabs and devices only narrow what Add credits offers; the API still refuses those payments if this read fails. */
+export const useRecentPaymentRefusalsQuery = () => {
+  const { api } = useServices();
+  return api.v1.listPaymentMethodRefusals.useQuery(undefined, { select: response => response.data, meta: SKIP_REPORTING_HANDLED_BY_CALLER });
+};
+
 export const useSetupIntentMutation = () => {
   const { stripe, errorHandler } = useServices();
   return useMutation<SetupIntentResponse, Error>({
