@@ -1,6 +1,6 @@
 "use client";
 import type { FC, ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ApiError } from "@akashnetwork/openapi-sdk";
 import {
   Button,
@@ -85,6 +85,14 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
   const { mutateAsync: addFavorite } = d.useAddFavoriteTemplate(id);
   const { mutateAsync: removeFavorite } = d.useRemoveFavoriteTemplate(id);
   const [favoriteOverride, setFavoriteOverride] = useState<boolean>();
+  const [isChangingFavorite, setIsChangingFavorite] = useState(false);
+
+  useEffect(
+    function followFavoriteFromServer() {
+      setFavoriteOverride(undefined);
+    },
+    [template?.isFavorite]
+  );
 
   if (templateQuery.error instanceof ApiError && templateQuery.error.status === 404) return <d.NotFoundPage />;
 
@@ -115,13 +123,19 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
   };
 
   const toggleFavorite = async () => {
+    if (isChangingFavorite) return;
+    setIsChangingFavorite(true);
     try {
       await (isFavorite ? removeFavorite() : addFavorite());
       setFavoriteOverride(!isFavorite);
     } catch {
       enqueueSnackbar(<Snackbar title="Couldn't update your favorites" iconVariant="error" />, { variant: "error" });
+    } finally {
+      setIsChangingFavorite(false);
     }
   };
+
+  const selectVersion = (version: number) => setSelectedVersion(version === currentVersion?.version ? undefined : version);
 
   const copyLink = async () => {
     const isCopied = await copyTextToClipboard(`${getBaseUrl()}${UrlService.template(id)}`);
@@ -182,15 +196,10 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
 
           <div className="flex flex-wrap items-center gap-2">
             {template.canEdit && versionsQuery.data && shownVersionNumber !== undefined && (
-              <VersionPicker
-                versions={versionsQuery.data}
-                selected={shownVersionNumber}
-                currentVersion={currentVersion?.version}
-                onSelect={setSelectedVersion}
-              />
+              <VersionPicker versions={versionsQuery.data} selected={shownVersionNumber} currentVersion={currentVersion?.version} onSelect={selectVersion} />
             )}
             {user && (
-              <Button variant="outline" size="icon" aria-label="Favorite" aria-pressed={isFavorite} onClick={toggleFavorite}>
+              <Button variant="outline" size="icon" aria-label="Favorite" aria-pressed={isFavorite} aria-busy={isChangingFavorite} onClick={toggleFavorite}>
                 <Star className={cn("h-4 w-4", isFavorite && "fill-current text-primary")} aria-hidden="true" />
               </Button>
             )}

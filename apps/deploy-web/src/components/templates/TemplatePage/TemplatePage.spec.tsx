@@ -7,7 +7,7 @@ import type { MarketplaceTemplate, TemplateVersionSummary } from "@src/types/mar
 import { getBaseUrl, UrlService } from "@src/utils/urlUtils";
 import { DEPENDENCIES, TemplatePage } from "./TemplatePage";
 
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildMarketplaceTemplate, buildTemplateVersion, buildTemplateVersionSummary } from "@tests/seeders/userTemplate";
 import { MockComponents } from "@tests/unit/mocks";
@@ -148,6 +148,29 @@ describe(TemplatePage.name, () => {
     expect(mountReadme.mock.calls).toEqual([[3], [2]]);
   });
 
+  it("follows a new current version once the current one is picked again", async () => {
+    const { receiveFromServer, TemplateReadmeTab } = setup({ template: { ...TEMPLATE, canEdit: true } });
+    await userEvent.click(screen.getByRole("combobox", { name: "Version" }));
+    await userEvent.click(screen.getByRole("option", { name: "v2" }));
+    await userEvent.click(screen.getByRole("combobox", { name: "Version" }));
+    await userEvent.click(screen.getByRole("option", { name: "v3 Current" }));
+
+    const nextVersion = buildTemplateVersion({ templateId: TEMPLATE_ID, version: 4, readme: "# Open WebUI (v4)" });
+    receiveFromServer({
+      template: { ...TEMPLATE, canEdit: true, currentVersion: nextVersion },
+      versions: [buildTemplateVersionSummary({ templateId: TEMPLATE_ID, version: 4 }), ...VERSIONS]
+    });
+
+    expect(screen.getByRole("link", { name: "Deploy" })).toHaveAttribute(
+      "href",
+      UrlService.configureDeployment({ userTemplateId: TEMPLATE_ID, templateVersion: 4 })
+    );
+    expect(TemplateReadmeTab).toHaveBeenLastCalledWith(
+      { templateId: TEMPLATE_ID, version: expect.objectContaining({ version: 4 }), canEdit: true },
+      expect.anything()
+    );
+  });
+
   it("waits for a selected version to load before showing it", async () => {
     const { TemplateReadmeTab } = setup({ template: { ...TEMPLATE, canEdit: true }, isPreviousVersionLoading: true });
     TemplateReadmeTab.mockClear();
@@ -283,6 +306,38 @@ describe(TemplatePage.name, () => {
     expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), { variant: "error" });
   });
 
+  it("sends one favorite change for a double click", async () => {
+    const { addFavorite, releaseFavoriteChange } = setup({ isFavoriteChangeHeld: true });
+
+    await userEvent.dblClick(screen.getByRole("button", { name: "Favorite" }));
+    await releaseFavoriteChange();
+
+    expect(addFavorite).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Favorite" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("takes the next favorite change once the previous one settles", async () => {
+    const { addFavorite, removeFavorite } = setup({});
+
+    await userEvent.click(screen.getByRole("button", { name: "Favorite" }));
+    await userEvent.click(screen.getByRole("button", { name: "Favorite" }));
+
+    expect(addFavorite).toHaveBeenCalledTimes(1);
+    expect(removeFavorite).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Favorite" })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("follows the favorite the server reports after a change", async () => {
+    const { receiveFromServer } = setup({});
+    await userEvent.click(screen.getByRole("button", { name: "Favorite" }));
+
+    receiveFromServer({ template: { ...TEMPLATE, isFavorite: true } });
+    expect(screen.getByRole("button", { name: "Favorite" })).toHaveAttribute("aria-pressed", "true");
+
+    receiveFromServer({ template: { ...TEMPLATE, isFavorite: false } });
+    expect(screen.getByRole("button", { name: "Favorite" })).toHaveAttribute("aria-pressed", "false");
+  });
+
   it("offers no favorite without a session", () => {
     setup({ isSignedIn: false });
 
@@ -332,6 +387,7 @@ describe(TemplatePage.name, () => {
     isPreviousVersionFailing?: boolean;
     isSignedIn?: boolean;
     isFavoriteFailing?: boolean;
+    isFavoriteChangeHeld?: boolean;
     isCopyFailing?: boolean;
     TemplateReadmeTab?: typeof DEPENDENCIES.TemplateReadmeTab;
   }) {
@@ -339,19 +395,22 @@ describe(TemplatePage.name, () => {
     const enqueueSnackbar = vi.fn();
     const writeText = input.isCopyFailing ? vi.fn().mockRejectedValue(new Error("denied")) : vi.fn().mockResolvedValue(undefined);
     stubClipboard({ writeText });
+    const favoriteChangeRelease = Promise.withResolvers<void>();
+    if (!input.isFavoriteChangeHeld) favoriteChangeRelease.resolve();
     const changeFavorite = async () => {
+      await favoriteChangeRelease.promise;
       if (input.isFavoriteFailing) throw new Error("refused");
       return mock<Awaited<ReturnType<FavoriteMutation["mutateAsync"]>>>();
     };
     const addFavorite = vi.fn<FavoriteMutation["mutateAsync"]>(changeFavorite);
     const removeFavorite = vi.fn<FavoriteMutation["mutateAsync"]>(changeFavorite);
 
-    const templateQuery: TemplateQuery = input.isLoading
+    let templateQuery: TemplateQuery = input.isLoading
       ? mock<TemplateQuery>({ data: undefined, isLoading: true, isError: false, error: null, refetch })
       : input.error
         ? mock<TemplateQuery>({ data: undefined, isLoading: false, isError: true, error: input.error, refetch })
         : mock<TemplateQuery>({ data: structuredClone(input.template ?? TEMPLATE), isLoading: false, isError: false, error: null, refetch });
-    const versionsQuery = mock<VersionsQuery>({ data: structuredClone(input.versions ?? VERSIONS) });
+    let versionsQuery = mock<VersionsQuery>({ data: structuredClone(input.versions ?? VERSIONS) });
     const idleVersionQuery = mock<VersionQuery>({ data: undefined, isLoading: false });
     const previousVersionQuery = input.isPreviousVersionLoading
       ? mock<VersionQuery>({ data: undefined, isLoading: true })
@@ -394,10 +453,18 @@ describe(TemplatePage.name, () => {
       useRouter: () => router
     });
 
-    const { unmount } = render(<TemplatePage id={TEMPLATE_ID} dependencies={dependencies} />);
+    const { unmount, rerender } = render(<TemplatePage id={TEMPLATE_ID} dependencies={dependencies} />);
+
+    const receiveFromServer = (next: { template: MarketplaceTemplate; versions?: TemplateVersionSummary[] }) => {
+      templateQuery = mock<TemplateQuery>({ data: structuredClone(next.template), isLoading: false, isError: false, error: null, refetch });
+      versionsQuery = mock<VersionsQuery>({ data: structuredClone(next.versions ?? VERSIONS) });
+      rerender(<TemplatePage id={TEMPLATE_ID} dependencies={dependencies} />);
+    };
 
     return {
       unmount,
+      receiveFromServer,
+      releaseFavoriteChange: () => act(async () => favoriteChangeRelease.resolve()),
       router,
       refetch,
       enqueueSnackbar,

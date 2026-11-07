@@ -13,4 +13,4 @@ export const DEPENDENCIES = {
 export type TemplateRouteProps = { id: string; isMarketplace: true } | { id: string; template: ITemplate; isMarketplace?: never };
 
 export const TemplateRoute: FC<TemplateRouteProps & { dependencies?: typeof DEPENDENCIES }> = ({ dependencies: d = DEPENDENCIES, ...props }) =>
-  props.isMarketplace ? <d.TemplatePage id={props.id} /> : <d.UserTemplate id={props.id} template={props.template} />;
+  props.isMarketplace ? <d.TemplatePage key={props.id} id={props.id} /> : <d.UserTemplate id={props.id} template={props.template} />;

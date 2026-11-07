@@ -32,6 +32,12 @@ describe(TemplateReadmeTab.name, () => {
     expect(Markdown).toHaveBeenCalledWith(expect.not.objectContaining({ hasHtml: expect.anything() }), expect.anything());
   });
 
+  it("never links a README to a script", () => {
+    setup({ readme: "[x](javascript:alert(1))" });
+
+    expect(screen.getByRole("link", { name: "x" })).toHaveAttribute("href", "javascript:void(0)");
+  });
+
   it("shows a placeholder when the version has no README", () => {
     setup({ readme: null });
 
