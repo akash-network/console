@@ -244,7 +244,8 @@ describe(scoreAssistantEval.name, () => {
     "[web (nginx)](/deployments/1794010767535) logged 2048... lines.",
     "[web (nginx)](/deployments/1794010767535) is at step 179...",
     "[web (nginx)](/deployments/1794010767535) logged 1794 lines.",
-    "[web 2048](/deployments/1794010767535) is up."
+    "[web 2048](/deployments/1794010767535) is up.",
+    "See [step 1794](/docs/steps) for [web (nginx)](/deployments/1794010767535)."
   ])(
     "passes a number that is not a shortened dseq: %j",
     answer => {

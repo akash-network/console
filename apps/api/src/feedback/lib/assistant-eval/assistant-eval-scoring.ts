@@ -27,7 +27,7 @@ const ADVICE_AGAINST = /n't\b|\b(?:not|never|no need|instead of|rather than|with
 
 const SHORTENED_NUMBER = /(\d{4,})(?:\.{3}|…)/g;
 
-const LONG_NUMBER = /\d{4,}/g;
+const LONG_NUMBER = /(\d{4,})/g;
 
 export interface AssistantEvalToolCall {
   name: string;
@@ -120,11 +120,10 @@ function deploymentLinkFailures(expected: AssistantEvalExpectation, answer: stri
     if (!answer.includes(link)) return [`answer does not link deployment ${dseq}`];
 
     const answerAroundLinks = answer.split(link);
-    const answerOutsideLinks = answerAroundLinks.join("");
-    if (answerOutsideLinks.includes(dseq)) return [`answer writes a bare dseq ${dseq}`];
+    if (answerAroundLinks.some(text => text.includes(dseq))) return [`answer writes a bare dseq ${dseq}`];
 
-    const ellipsizedNumbers = Array.from(answerOutsideLinks.matchAll(SHORTENED_NUMBER), ([, digits]) => digits);
-    const labelNumbers = linkLabelsOf(answerAroundLinks).flatMap(label => label.match(LONG_NUMBER) ?? []);
+    const ellipsizedNumbers = answerAroundLinks.flatMap(text => numbersMatching(text, SHORTENED_NUMBER));
+    const labelNumbers = linkLabelsOf(answerAroundLinks).flatMap(label => numbersMatching(label, LONG_NUMBER));
     const writesShortenedDseq = [...ellipsizedNumbers, ...labelNumbers].some(digits => dseq.startsWith(digits));
 
     return writesShortenedDseq ? [`answer writes a shortened dseq ${dseq}`] : [];
@@ -132,7 +131,11 @@ function deploymentLinkFailures(expected: AssistantEvalExpectation, answer: stri
 }
 
 function linkLabelsOf(answerAroundLinks: string[]): string[] {
-  return answerAroundLinks.slice(0, -1).map(textBeforeLink => textBeforeLink.slice(textBeforeLink.lastIndexOf("[") + 1));
+  return answerAroundLinks.slice(0, -1).flatMap(textBeforeLink => textBeforeLink.split("[").slice(-1));
+}
+
+function numbersMatching(text: string, pattern: RegExp): string[] {
+  return Array.from(text.matchAll(pattern), ([, digits]) => digits);
 }
 
 function repricingFailures(expected: AssistantEvalExpectation, answer: string): string[] {
