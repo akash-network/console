@@ -9,6 +9,7 @@ import type {
   PaymentMethodMarkAsDefaultInput,
   PaymentMethodResponse,
   PaymentMethodsResponse,
+  PaymentRefusalsResponse,
   SetupIntentQuery,
   SetupIntentResponse
 } from "@src/billing/http-schemas/stripe.schema";
@@ -27,6 +28,7 @@ import { CustomerService } from "@src/billing/services/customer/customer.service
 import { billingOwnerOf, isPayingPayer, type Payer } from "@src/billing/services/payer/payer";
 import { PayerService } from "@src/billing/services/payer/payer.service";
 import { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
+import { PaymentRefusalService } from "@src/billing/services/payment-refusal/payment-refusal.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
 import { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
@@ -55,6 +57,7 @@ export class StripeController {
     private readonly walletSettingService: WalletSettingService,
     private readonly autoReloadPauseService: AutoReloadPauseService,
     private readonly payerService: PayerService,
+    private readonly paymentRefusalService: PaymentRefusalService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: StripeController.name });
@@ -127,6 +130,18 @@ export class StripeController {
     }
 
     return { data: [] };
+  }
+
+  @Protected([{ action: "read", subject: "PaymentMethod" }])
+  async getPaymentRefusals(): Promise<PaymentRefusalsResponse> {
+    const payer = await this.payerService.getCurrentPayer();
+
+    if (!isPayingPayer(payer)) {
+      return { data: { refusedPaymentMethodIds: [], pausedUntil: null } };
+    }
+
+    const { refusedPaymentMethodIds, pausedUntil } = await this.paymentRefusalService.findRecentRefusals(payer.stripeCustomerId);
+    return { data: { refusedPaymentMethodIds, pausedUntil: pausedUntil?.toISOString() ?? null } };
   }
 
   @Protected([{ action: "create", subject: "StripePayment" }])

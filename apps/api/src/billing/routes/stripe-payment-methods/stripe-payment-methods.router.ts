@@ -5,6 +5,7 @@ import {
   PaymentMethodMarkAsDefaultInputSchema,
   PaymentMethodResponseSchema,
   PaymentMethodsResponseSchema,
+  PaymentRefusalsResponseSchema,
   RemovePaymentMethodParamsSchema,
   SetupIntentQuerySchema,
   SetupIntentResponseSchema,
@@ -138,6 +139,32 @@ const paymentMethodsRoute = createRoute({
 stripePaymentMethodsRouter.openapi(paymentMethodsRoute, async function getPaymentMethods(c) {
   const response = await container.resolve(StripeController).getPaymentMethods();
   return c.json(response, 200);
+});
+
+const paymentRefusalsRoute = createRoute({
+  method: "get",
+  operationId: "listPaymentMethodRefusals",
+  path: "/v1/stripe/payment-methods/refusals",
+  summary: "Get the recent payment refusals for the current payer",
+  description: "Lists the saved payment methods that recent payments were refused on, and when payments may resume if they are paused.",
+  tags: ["Payment"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  hiddenInOpenApiDocs: true,
+  request: {},
+  responses: {
+    200: {
+      description: "Recent payment refusals retrieved successfully",
+      content: {
+        "application/json": {
+          schema: PaymentRefusalsResponseSchema
+        }
+      }
+    }
+  }
+});
+
+stripePaymentMethodsRouter.openapi(paymentRefusalsRoute, async function getPaymentRefusals(c) {
+  return c.json(await container.resolve(StripeController).getPaymentRefusals(), 200);
 });
 
 const removePaymentMethodRoute = createRoute({

@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import type { ConfirmPaymentResponse } from "@src/billing/http-schemas/stripe.schema";
 import { StripeTransactionRepository, UserWalletRepository } from "@src/billing/repositories";
+import { PAYMENT_METHOD_REFUSED_ERROR_CODE, REFUSALS_PER_PAYMENT_METHOD } from "@src/billing/services/payment-refusal/payment-refusal.service";
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
@@ -32,6 +33,10 @@ describe("Stripe transactions confirm", () => {
       nock("https://api.stripe.com")
         .get(`/v1/payment_methods/${paymentMethodId}`)
         .reply(200, { id: paymentMethodId, object: "payment_method", customer: stripeCustomerId });
+      nock("https://api.stripe.com")
+        .get("/v1/payment_intents")
+        .query(true)
+        .reply(200, { object: "list", data: [], has_more: false, url: "/v1/payment_intents" });
       nock("https://api.stripe.com")
         .post("/v1/payment_intents")
         .matchHeader("idempotency-key", namespacedKey)
@@ -69,6 +74,10 @@ describe("Stripe transactions confirm", () => {
       nock("https://api.stripe.com")
         .get(`/v1/payment_methods/${paymentMethodId}`)
         .reply(200, { id: paymentMethodId, object: "payment_method", customer: stripeCustomerId });
+      nock("https://api.stripe.com")
+        .get("/v1/payment_intents")
+        .query(true)
+        .reply(200, { object: "list", data: [], has_more: false, url: "/v1/payment_intents" });
       const paymentIntentCreateScope = nock("https://api.stripe.com").post("/v1/payment_intents").reply(500);
 
       const response = await confirmPayment(token, { userId: user.userId!, paymentMethodId, amount: 20, idempotencyKey: clientKey });
@@ -101,11 +110,45 @@ describe("Stripe transactions confirm", () => {
       nock("https://api.stripe.com")
         .get(`/v1/payment_methods/${paymentMethodId}`)
         .reply(200, { id: paymentMethodId, object: "payment_method", customer: stripeCustomerId });
+      nock("https://api.stripe.com")
+        .get("/v1/payment_intents")
+        .query(true)
+        .reply(200, { object: "list", data: [], has_more: false, url: "/v1/payment_intents" });
 
       const response = await confirmPayment(token, { userId: user.userId!, paymentMethodId, amount: 25, idempotencyKey: clientKey });
 
       expect(response.status).toBe(409);
       expect(await response.json()).toEqual(expect.objectContaining({ code: "idempotency_key_mismatch" }));
+    });
+
+    it("refuses a payment method the bank refused repeatedly without charging it again", async () => {
+      const { user, token, stripeCustomerId, paymentMethodId } = await setup();
+      const refusedAt = Math.floor(Date.now() / 1000) - 60;
+      const refusedPaymentIntents = Array.from({ length: REFUSALS_PER_PAYMENT_METHOD }, (_, index) => ({
+        id: `pi_${faker.string.alphanumeric(24)}`,
+        object: "payment_intent",
+        status: "requires_payment_method",
+        created: refusedAt - index,
+        customer: stripeCustomerId,
+        payment_method: null,
+        metadata: {},
+        last_payment_error: { type: "card_error", code: "card_declined", payment_method: { id: paymentMethodId, object: "payment_method" } }
+      }));
+      nock("https://api.stripe.com")
+        .get(`/v1/payment_methods/${paymentMethodId}`)
+        .reply(200, { id: paymentMethodId, object: "payment_method", customer: stripeCustomerId });
+      nock("https://api.stripe.com")
+        .get("/v1/payment_intents")
+        .query(query => query.customer === stripeCustomerId)
+        .reply(200, { object: "list", data: refusedPaymentIntents, has_more: false, url: "/v1/payment_intents" });
+      const paymentIntentCreateScope = nock("https://api.stripe.com").post("/v1/payment_intents").reply(200, {});
+
+      const response = await confirmPayment(token, { userId: user.userId!, paymentMethodId, amount: 20, idempotencyKey: faker.string.uuid() });
+
+      expect(response.status).toBe(402);
+      expect(await response.json()).toMatchObject({ code: PAYMENT_METHOD_REFUSED_ERROR_CODE });
+      expect(paymentIntentCreateScope.isDone()).toBe(false);
+      expect(await stripeTransactionRepository.find({ userId: user.id })).toEqual([]);
     });
 
     it("answers 402 without charging a user who has not set up payments", async () => {

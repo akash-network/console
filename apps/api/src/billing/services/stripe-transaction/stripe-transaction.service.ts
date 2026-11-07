@@ -146,6 +146,12 @@ export class StripeTransactionService {
     this.loggerService = createLogger({ context: StripeTransactionService.name });
   }
 
+  /** A replay of this attempt key resolves to the payment already recorded for it rather than starting a new charge. */
+  async hasRecordedPayment(userId: string, idempotencyKey: string): Promise<boolean> {
+    const transaction = await this.stripeTransactionRepository.findOneBy({ stripeIdempotencyKey: idempotencyKey, userId });
+    return !!transaction && (!!transaction.stripePaymentIntentId || SETTLED_TRANSACTION_STATUSES.has(transaction.status));
+  }
+
   async createPaymentIntent(params: {
     userId: string | null;
     organizationId?: string;

@@ -681,6 +681,9 @@ describe("Cross-team access", () => {
   function answerNewPaymentIntents() {
     nock(STRIPE_API)
       .persist()
+      .get("/v1/payment_intents")
+      .query(true)
+      .reply(200, { object: "list", data: [], has_more: false, url: "/v1/payment_intents" })
       .post("/v1/payment_intents")
       .reply(200, () => ({ id: `pi_${faker.string.alphanumeric(14)}`, object: "payment_intent", status: "requires_action", client_secret: "secret" }));
   }

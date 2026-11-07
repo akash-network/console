@@ -247,6 +247,7 @@ describe("Organization billing", () => {
       const teamCustomerId = await setTeamCustomer(team.id);
       const clientKey = faker.string.uuid();
       nock(STRIPE_API).get("/v1/payment_methods/pm_team").reply(200, { id: "pm_team", object: "payment_method", customer: teamCustomerId });
+      nock(STRIPE_API).get("/v1/payment_intents").query(true).reply(200, { object: "list", data: [], has_more: false, url: "/v1/payment_intents" });
       const charge = nock(STRIPE_API)
         .post("/v1/payment_intents", body => body.customer === teamCustomerId)
         .matchHeader("idempotency-key", `org_topup_${team.id}_${billingMember.id}_${clientKey}`)
