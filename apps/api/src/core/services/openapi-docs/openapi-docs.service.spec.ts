@@ -1,3 +1,4 @@
+import { z as openApiZ } from "@hono/zod-openapi";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -182,6 +183,35 @@ describe("OpenApiDocsService", () => {
     const docs = await service.generateDocs(buildSharedPathHandlers(), { scope: "console" });
 
     expect(Object.keys(docs.paths["/v1/test-shared-path"]).sort()).toEqual(["get", "post"]);
+  });
+
+  describe("named schemas", () => {
+    it("publishes the named schemas a served route refers to, nested ones included", async () => {
+      const { service } = setup({});
+
+      const docs = await service.generateDocs([buildNamedSchemaHandler()], { scope: "console" });
+
+      expect(docs.components?.schemas).toEqual({
+        TestVisibleResponse: expect.objectContaining({ type: "object" }),
+        TestItem: expect.objectContaining({ type: "object" })
+      });
+    });
+
+    it("leaves out the named schemas only a hidden route refers to", async () => {
+      const { service } = setup({});
+
+      const docs = await service.generateDocs([buildNamedSchemaHandler()], { scope: "console" });
+
+      expect(docs.components?.schemas).not.toHaveProperty("TestHiddenResponse");
+    });
+
+    it("keeps the named schemas of hidden routes in the sdk document", async () => {
+      const { service } = setup({});
+
+      const docs = await service.generateDocs([buildNamedSchemaHandler()], { scope: "console", includeHidden: true });
+
+      expect(Object.keys(docs.components?.schemas ?? {}).sort()).toEqual(["TestHiddenResponse", "TestItem", "TestVisibleResponse"]);
+    });
   });
 
   describe("organization context headers", () => {
@@ -411,6 +441,42 @@ describe("OpenApiDocsService", () => {
     createHandler.openapi(createTestRoute, c => c.body(null, 200));
 
     return [listHandler, createHandler];
+  }
+
+  function buildNamedSchemaHandler() {
+    const TestItemSchema = openApiZ.object({ name: openApiZ.string() }).openapi("TestItem");
+    const visibleRoute = createRoute({
+      method: "get",
+      path: "/v1/test-named-visible",
+      operationId: "listTestNamedVisible",
+      summary: "Visible route answering a named schema",
+      tags: ["Test"],
+      security: SECURITY_NONE,
+      responses: {
+        200: {
+          description: "OK",
+          content: { "application/json": { schema: openApiZ.object({ data: openApiZ.array(TestItemSchema) }).openapi("TestVisibleResponse") } }
+        }
+      }
+    });
+    const hiddenRoute = createRoute({
+      method: "get",
+      path: "/v1/test-named-hidden",
+      operationId: "listTestNamedHidden",
+      summary: "Hidden route answering a named schema",
+      tags: ["Test"],
+      security: SECURITY_NONE,
+      hiddenInOpenApiDocs: true,
+      responses: {
+        200: { description: "OK", content: { "application/json": { schema: openApiZ.object({ count: openApiZ.number() }).openapi("TestHiddenResponse") } } }
+      }
+    });
+
+    const handler = new OpenApiHonoHandler();
+    handler.openapi(visibleRoute, c => c.json({ data: [] }, 200));
+    handler.openapi(hiddenRoute, c => c.json({ count: 0 }, 200));
+
+    return handler;
   }
 
   function buildHandler() {

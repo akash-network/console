@@ -91,6 +91,7 @@ export class OpenApiDocsService {
           // stripping them so the public Swagger surface stays clean.
           const paths = options.includeHidden ? handlerDocs.paths : stripHiddenOperations(handlerDocs.paths);
           this.#mergePaths(docs.paths, this.#documentOrganizationContextHeaders(this.#stripUndocumentedRequestFields(paths), authenticatesCaller));
+          docs.components.schemas = { ...docs.components.schemas, ...this.#filterSchemasByReferences(handlerDocs.components?.schemas, paths) };
         } catch (error) {
           logger.error({
             name: `Error generating OpenAPI docs for handler, example path: ${handler.routes[0]?.path || "unknown"}`,
@@ -240,7 +241,7 @@ export class OpenApiDocsService {
    * referenced schema's body to pull in nested refs (if SchemaA references SchemaB, includes
    * SchemaB).
    *
-   * @param schemas - All available schemas from external OpenAPI spec
+   * @param schemas - All available schemas, from a handler or the external OpenAPI spec
    * @param seed - Object to scan for the initial set of `$ref`s (typically the filtered paths)
    * @returns Filtered schemas object containing only referenced schemas
    */
