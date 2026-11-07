@@ -23,10 +23,18 @@ interface AddCreditsWalletButtonProps {
   disabled: boolean;
   onSubmit: (source: WalletPaymentSource) => Promise<void>;
   onOpenChange: (open: boolean) => void;
+  onAvailabilityChange?: (isAvailable: boolean) => void;
   dependencies?: typeof DEPENDENCIES;
 }
 
-export function AddCreditsWalletButton({ amount, disabled, onSubmit, onOpenChange, dependencies: d = DEPENDENCIES }: AddCreditsWalletButtonProps) {
+export function AddCreditsWalletButton({
+  amount,
+  disabled,
+  onSubmit,
+  onOpenChange,
+  onAvailabilityChange,
+  dependencies: d = DEPENDENCIES
+}: AddCreditsWalletButtonProps) {
   const { stripeService, stripe: stripeApi } = d.useServices();
   const stripePromise = useMemo(() => stripeService.getStripe(), [stripeService]);
   const [paymentRequest, setPaymentRequest] = useState<PaymentRequest | null>(null);
@@ -116,6 +124,13 @@ export function AddCreditsWalletButton({ amount, disabled, onSubmit, onOpenChang
       };
     },
     [stripePromise, stripeApi]
+  );
+
+  useEffect(
+    function reportAvailability() {
+      onAvailabilityChange?.(!!paymentRequest);
+    },
+    [paymentRequest, onAvailabilityChange]
   );
 
   if (!paymentRequest) return null;
