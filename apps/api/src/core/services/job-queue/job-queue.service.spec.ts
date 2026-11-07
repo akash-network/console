@@ -289,6 +289,29 @@ describe(JobQueueService.name, () => {
       expect(result).toBe("job-id-456");
     });
 
+    it("sends a job that names a group under that group, so its handler's group concurrency counts it", async () => {
+      const job = new GroupedTestJob({ message: "Hello World", userId: "user-123" });
+      const { service, pgBoss, logger } = setup();
+
+      await service.enqueue(job, { singletonKey: "close.user-123.1" });
+
+      expect(pgBoss.send).toHaveBeenCalledWith({
+        name: job.name,
+        data: { ...job.data, version: job.version },
+        options: { singletonKey: "close.user-123.1", group: { id: "user-123" }, db: undefined }
+      });
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "JOB_ENQUEUED",
+        job,
+        jobId: "job-id",
+        options: { singletonKey: "close.user-123.1", group: { id: "user-123" } }
+      });
+    });
+
+    it("takes a job's group only from the job", () => {
+      expectTypeOf<EnqueueOptions>().not.toHaveProperty("group");
+    });
+
     it("enqueues the job on the ambient transaction connection when one is active", async () => {
       const job = new TestJob({ message: "Hello World", userId: "user-123" });
       const unsafe = vi.fn().mockResolvedValue([{ id: "job-1" }]);
@@ -640,6 +663,16 @@ describe(JobQueueService.name, () => {
         event: "JOB_DONE",
         jobId: job.id
       });
+    });
+
+    it("starts each queue's workers with the group concurrency its handler declares", async () => {
+      const { service, pgBoss } = setup();
+      await service.registerHandlers([new GroupLimitedTestHandler(vi.fn()), new AnotherTestHandler(vi.fn())]);
+
+      await service.startWorkers({ concurrency: 2 });
+
+      expect(pgBoss.work).toHaveBeenCalledWith("test", { batchSize: 1, includeMetadata: true, groupConcurrency: 1 }, expect.any(Function));
+      expect(pgBoss.work).toHaveBeenCalledWith("another", { batchSize: 1, includeMetadata: true, groupConcurrency: undefined }, expect.any(Function));
     });
 
     it("handles job failures and logs errors", async () => {
@@ -1164,6 +1197,12 @@ describe(JobQueueService.name, () => {
     ) {}
   }
 
+  class GroupedTestJob extends TestJob {
+    get group(): string {
+      return this.data.userId;
+    }
+  }
+
   class TestHandler implements JobHandler<TestJob> {
     readonly accepts = TestJob;
     constructor(public readonly handle: JobHandler<TestJob>["handle"]) {}
@@ -1171,6 +1210,10 @@ describe(JobQueueService.name, () => {
     requiresPermission(): JobPermissions {
       return [];
     }
+  }
+
+  class GroupLimitedTestHandler extends TestHandler {
+    readonly groupConcurrency = 1;
   }
 
   class SingletonTestHandler implements JobHandler<TestJob> {

@@ -18,6 +18,9 @@ export class CreateDeploymentHandler implements JobHandler<CreateDeployment> {
   /** One create per deployment across queued, retrying and running, so no two attempts ever send it at once. */
   public readonly policy = "exclusive";
 
+  /** Under the two workers a pod runs per queue, so one user's backlog always leaves a worker to everyone else. */
+  public readonly groupConcurrency = 1;
+
   private readonly logger: ReturnType<CreateLogger>;
 
   constructor(

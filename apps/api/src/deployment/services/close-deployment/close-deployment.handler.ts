@@ -15,6 +15,9 @@ export class CloseDeploymentHandler implements JobHandler<CloseDeployment> {
   /** One close per deployment across queued, retrying and running, so a second request joins the first instead of racing it. */
   public readonly policy = "exclusive";
 
+  /** Under the two workers a pod runs per queue, so one user's backlog always leaves a worker to everyone else. */
+  public readonly groupConcurrency = 1;
+
   constructor(
     private readonly walletReaderService: WalletReaderService,
     private readonly deploymentWriterService: DeploymentWriterService,
