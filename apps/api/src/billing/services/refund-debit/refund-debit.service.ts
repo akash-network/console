@@ -55,12 +55,16 @@ export class RefundDebitService {
     const key = { transactionId, amountRefunded: refundedAfter };
     const amount = amountCents - (debitedThrough - refundedBefore);
     await this.refundDebitRepository.createPending({ ...key, address: wallet.address, amount });
+    const adjustment = await this.#adjust(key, wallet, amount);
+    await this.refundDebitRepository.markLanded(key, adjustment.txHash);
 
+    return adjustment;
+  }
+
+  /** Only a failure that proves nothing landed releases the debit for another delivery; one the signer could not decide keeps it pending. */
+  async #adjust(key: Pick<RefundDebitOutput, "transactionId" | "amountRefunded">, wallet: RefundDebit["wallet"], amount: number): Promise<AllowanceAdjustment> {
     try {
-      const adjustment = await this.deploymentAllowanceService.adjust(wallet, -amount * 10000);
-      await this.refundDebitRepository.markLanded(key, adjustment.txHash);
-
-      return adjustment;
+      return await this.deploymentAllowanceService.adjust(wallet, -amount * 10000);
     } catch (error) {
       if (!isUnknownTxOutcome(error)) {
         await this.refundDebitRepository.deletePending(key);

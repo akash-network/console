@@ -207,6 +207,16 @@ describe(RefundDebitService.name, () => {
         expect(refundDebitRepository.attachTxHash).not.toHaveBeenCalled();
         expect(refundDebitRepository.markLanded).not.toHaveBeenCalled();
       });
+
+      it("keeps the debit pending when recording it as landed fails after the grant landed", async () => {
+        const { service, debit, refundDebitRepository } = setup();
+        const error = new Error("connection reset");
+        refundDebitRepository.markLanded.mockRejectedValue(error);
+
+        await expect(service.debitOnce(debit)).rejects.toBe(error);
+
+        expect(refundDebitRepository.deletePending).not.toHaveBeenCalled();
+      });
     });
   });
 
