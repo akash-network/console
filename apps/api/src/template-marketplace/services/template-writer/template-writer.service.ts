@@ -8,7 +8,7 @@ import { ORGANIZATION_FORBIDDEN_ERROR_CODE } from "@src/core/repositories/org-sc
 import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { DeploymentProjectService } from "@src/deployment/services/deployment-project/deployment-project.service";
-import { SdlService } from "@src/deployment/services/sdl/sdl.service";
+import { SdlService, type YamlErrorParams } from "@src/deployment/services/sdl/sdl.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { generateManifestReportingBuildFailures } from "@src/deployment/utils/sdl-manifest/sdl-manifest";
 import type { TemplateHardware } from "@src/template/types/template";
@@ -17,6 +17,7 @@ import type { AskedValue } from "@src/template-marketplace/lib/asked-values/aske
 import { findAskedValueIssues } from "@src/template-marketplace/lib/asked-values/find-asked-value-issues";
 import { findSecretValueIssues } from "@src/template-marketplace/lib/asked-values/find-secret-value-issues";
 import type { TemplateCategory, TemplateIcon } from "@src/template-marketplace/lib/template-catalog/template-catalog";
+import { createTemplateInvalidError } from "@src/template-marketplace/lib/template-invalid/template-invalid-error";
 import { findTemplateWriteRefusal, type TemplateWriteAction } from "@src/template-marketplace/lib/template-write-access/template-write-access";
 import {
   MarketplaceTemplateRepository,
@@ -37,6 +38,8 @@ import {
 export type CreateUserTemplateInput = {
   title: string;
   summary?: string;
+  icon?: TemplateIcon;
+  categories?: TemplateCategory[];
   sdl: string;
   readme?: string;
   askedValues: AskedValue[];
@@ -48,7 +51,7 @@ export type AppendUserTemplateVersionInput = {
   sdl: string;
   readme?: string | null;
   askedValues: AskedValue[];
-  baseVersion: number;
+  baseVersion?: number;
 };
 
 export type TemplateSettingsPatch = {
@@ -61,7 +64,7 @@ export type TemplateSettingsPatch = {
 
 type StoredTemplate = Omit<MarketplaceTemplateRow, "authorUsername" | "publisher">;
 
-const TEMPLATE_INVALID_ERROR_CODE = "template_invalid";
+const BASE_VERSION_REQUIRED_ERROR_CODE = "template_base_version_required";
 const TEMPLATE_NOT_FOUND = "Template not found";
 
 const UNREADABLE_SDL_ISSUE = "The SDL could not be read";
@@ -96,8 +99,12 @@ function isMapping(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function toIssue({ keyword, message }: ValidationError): string {
-  return keyword === "yaml" ? `${UNREADABLE_SDL_ISSUE}: ${message}` : message;
+function toIssue({ keyword, message, params }: ValidationError): string {
+  if (keyword !== "yaml") return message;
+
+  const { reason, line, column } = params as YamlErrorParams;
+
+  return `${UNREADABLE_SDL_ISSUE}: ${reason} (line ${line}, column ${column})`;
 }
 
 @singleton()
@@ -132,6 +139,8 @@ export class TemplateWriterService {
       const id = await repository.createTemplate({
         title: input.title,
         summary: input.summary || null,
+        icon: input.icon,
+        categories: input.categories,
         userId,
         authorId,
         projectId,
@@ -191,7 +200,12 @@ export class TemplateWriterService {
     await this.#findWritable(id, "update");
 
     await this.txService.transaction(async () => {
-      await this.#lockWritable(id, "update");
+      const template = await this.#lockWritable(id, "update");
+
+      if (template.visibility === "private" && patch.visibility === "organization") {
+        await this.#assertNoSecretValueSaved(template);
+      }
+
       await this.marketplaceTemplateRepository.updateSettings(id, settingsUpdateOf(patch));
     });
 
@@ -207,7 +221,19 @@ export class TemplateWriterService {
     });
   }
 
-  async #findBaseVersion(id: string, baseVersion: number): Promise<TemplateVersionOutput> {
+  /** A version saved through the legacy route was never checked for secret values, so they are looked for before more members can read it. */
+  async #assertNoSecretValueSaved(template: StoredTemplate): Promise<void> {
+    const current = await this.templateVersionRepository.findCurrent(template.id);
+    const issues = findSecretValueIssues(current?.sdl ?? template.sdl, current?.askedValues ?? []);
+
+    if (issues.length > 0) throw createTemplateInvalidError(issues);
+  }
+
+  async #findBaseVersion(id: string, baseVersion: number | undefined): Promise<TemplateVersionOutput> {
+    if (baseVersion === undefined) {
+      throw createError(400, "Name the version this one was edited from", { errorCode: BASE_VERSION_REQUIRED_ERROR_CODE });
+    }
+
     const base = await this.templateVersionRepository.findByTemplateAndVersion(id, baseVersion);
 
     if (!base) {
@@ -247,7 +273,7 @@ export class TemplateWriterService {
     const issues = sdlIssues.length > 0 ? sdlIssues : [...findAskedValueIssues(sdl, askedValues), ...findSecretValueIssues(sdl, askedValues)];
 
     if (issues.length > 0) {
-      throw createError(400, issues.join("; "), { errorCode: TEMPLATE_INVALID_ERROR_CODE, data: { issues } });
+      throw createTemplateInvalidError(issues);
     }
   }
 

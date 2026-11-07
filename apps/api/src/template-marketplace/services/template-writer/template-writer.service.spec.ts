@@ -107,6 +107,24 @@ describe(TemplateWriterService.name, () => {
       expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ readme: null, askedValues: [] }));
     });
 
+    it("stores the icon and categories given", async () => {
+      const { service, writableRepository } = setup();
+
+      await service.create({ title: "Web", sdl: buildSdl(), askedValues: [], icon: "rocket", categories: ["Tools", "AI - GPU"] });
+
+      expect(writableRepository.createTemplate).toHaveBeenCalledWith(expect.objectContaining({ icon: "rocket", categories: ["Tools", "AI - GPU"] }));
+    });
+
+    it("reports where a YAML error is without quoting the SDL around it", async () => {
+      const { service } = setup();
+      const sdl = ["services:", "  web:", "    env:", "      - API_KEY=hunter2-secret", "    image: [nginx"].join("\n");
+
+      const error = await service.create({ title: "Web", sdl, askedValues: [] }).catch(caught => caught);
+
+      expect(error.data.issues).toEqual(["The SDL could not be read: unexpected end of the stream within a flow collection (line 6, column 1)"]);
+      expect(JSON.stringify({ message: error.message, data: error.data })).not.toContain("hunter2");
+    });
+
     it("stores no resources when the SDL's hardware cannot be totalled", async () => {
       const { service, writableRepository, templateVersionRepository } = setup();
 
@@ -176,7 +194,11 @@ describe(TemplateWriterService.name, () => {
     });
 
     it.each<[string, string, string[]]>([
-      ["a document that is not YAML", "services: [web", [expect.stringMatching(/^The SDL could not be read: .+/)]],
+      [
+        "a document that is not YAML",
+        "services: [web",
+        ["The SDL could not be read: unexpected end of the stream within a flow collection (line 2, column 1)"]
+      ],
       ["a scalar document", "just text", ["The SDL could not be read"]],
       ["a list document", "- web", ["The SDL could not be read"]],
       ["an empty document", "", ["The SDL could not be read"]],
@@ -319,6 +341,29 @@ describe(TemplateWriterService.name, () => {
       expect(templateVersionRepository.appendVersion).not.toHaveBeenCalled();
     });
 
+    it("asks for the base version of a template that has one", async () => {
+      const template = createTemplateRow();
+      const { service, repository, templateVersionRepository } = setup({ template });
+
+      await expect(service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [] })).rejects.toMatchObject({
+        status: 400,
+        message: "Name the version this one was edited from",
+        errorCode: "template_base_version_required"
+      });
+      expect(templateVersionRepository.findByTemplateAndVersion).not.toHaveBeenCalled();
+      expect(templateVersionRepository.appendVersion).not.toHaveBeenCalled();
+      expect(repository.mirrorVersion).not.toHaveBeenCalled();
+    });
+
+    it("saves the first version of a template that has none without a base version", async () => {
+      const template = createTemplateRow({ currentVersionId: null });
+      const { service, templateVersionRepository } = setup({ template, base: null });
+
+      await service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [] });
+
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ expectedCurrentVersionId: undefined }));
+    });
+
     it("saves a first version without a base check on a template that has none yet", async () => {
       const template = createTemplateRow({ currentVersionId: null, description: "Legacy description" });
       const { service, templateVersionRepository } = setup({ template, base: null });
@@ -412,6 +457,62 @@ describe(TemplateWriterService.name, () => {
         isPublic: false
       });
       expect(marketplaceTemplateService.getTemplate).toHaveBeenCalledWith(template.id);
+    });
+
+    it("refuses opening a private template to its organization while its current version holds a secret value", async () => {
+      const template = createTemplateRow({ visibility: "private" });
+      const { service, repository, templateVersionRepository } = setup({ template });
+      const current = createVersion({
+        templateId: template.id,
+        sdl: buildSdl({ credentials: ["host: docker.io", "username: me", "password: hunter2"] }),
+        askedValues: []
+      });
+      templateVersionRepository.findCurrent.mockResolvedValue(current);
+      const issue = 'Service "web" carries a registry password; save it as a secret instead';
+
+      await expect(service.updateSettings(template.id, { visibility: "organization" })).rejects.toMatchObject({
+        status: 400,
+        errorCode: "template_invalid",
+        data: { issues: [issue] }
+      });
+      expect(templateVersionRepository.findCurrent).toHaveBeenCalledWith(template.id);
+      expect(repository.updateSettings).not.toHaveBeenCalled();
+    });
+
+    it("checks the current version's asked values when opening a template to its organization", async () => {
+      const template = createTemplateRow({ visibility: "private" });
+      const { service, repository, templateVersionRepository } = setup({ template });
+      templateVersionRepository.findCurrent.mockResolvedValue(
+        createVersion({ templateId: template.id, sdl: buildSdl({ env: ["API_KEY"] }), askedValues: [secretAskedValue("API_KEY")] })
+      );
+
+      await service.updateSettings(template.id, { visibility: "organization" });
+
+      expect(repository.updateSettings).toHaveBeenCalledWith(template.id, { visibility: "organization", isPublic: false });
+    });
+
+    it("checks the legacy SDL of a template saved without a version when opening it to its organization", async () => {
+      const template = createTemplateRow({ visibility: "private", currentVersionId: null, sdl: buildSdl({ env: ["TOKEN=ac-secret://TOKEN"] }) });
+      const { service, repository, templateVersionRepository } = setup({ template });
+      templateVersionRepository.findCurrent.mockResolvedValue(undefined);
+
+      await expect(service.updateSettings(template.id, { visibility: "organization" })).rejects.toMatchObject({ status: 400 });
+      expect(repository.updateSettings).not.toHaveBeenCalled();
+    });
+
+    it.each<[string, "private" | "organization" | "public", "private" | "organization" | undefined]>([
+      ["keeping a private template private", "private", "private"],
+      ["narrowing an organization template", "organization", "private"],
+      ["bringing a public template to its organization", "public", "organization"],
+      ["leaving the visibility alone", "private", undefined]
+    ])("checks no secret value when %s", async (_case, visibility, nextVisibility) => {
+      const template = createTemplateRow({ visibility });
+      const { service, repository, templateVersionRepository } = setup({ template });
+
+      await service.updateSettings(template.id, { title: "Renamed", visibility: nextVisibility });
+
+      expect(templateVersionRepository.findCurrent).not.toHaveBeenCalled();
+      expect(repository.updateSettings).toHaveBeenCalled();
     });
 
     it("writes only the settings sent, leaving isPublic alone without a visibility", async () => {

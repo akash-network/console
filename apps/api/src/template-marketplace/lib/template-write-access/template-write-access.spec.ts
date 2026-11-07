@@ -2,7 +2,7 @@ import { createMongoAbility, type MongoAbility, type RawRuleOf } from "@casl/abi
 import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 
-import { findTemplateWriteRefusal } from "./template-write-access";
+import { findTemplateWriteRefusal, isInActiveOrganization } from "./template-write-access";
 
 describe(findTemplateWriteRefusal.name, () => {
   it("allows a write the rules allow on a template of the active organization", () => {
@@ -27,6 +27,12 @@ describe(findTemplateWriteRefusal.name, () => {
     expect(findTemplateWriteRefusal({ organizationId }, "update", access)).toBe("outside_active_organization");
   });
 
+  it("refuses a template that names no organization when the request has no active organization either", () => {
+    const access = accessOf(undefined, [{ action: "manage", subject: "Template" }]);
+
+    expect(findTemplateWriteRefusal({}, "update", access)).toBe("outside_active_organization");
+  });
+
   it("checks the action against every field of the template", () => {
     const organizationId = faker.string.uuid();
     const projectId = faker.string.uuid();
@@ -42,4 +48,17 @@ describe(findTemplateWriteRefusal.name, () => {
   function accessOf(activeOrganizationId: string | undefined, rules: RawRuleOf<MongoAbility>[]) {
     return { ability: createMongoAbility<MongoAbility>(rules), activeOrganizationId };
   }
+});
+
+describe(isInActiveOrganization.name, () => {
+  it.each<[string, { organizationId?: string | null }, string | undefined, boolean]>([
+    ["a template of the active organization", { organizationId: "org-1" }, "org-1", true],
+    ["a template of another organization", { organizationId: "org-2" }, "org-1", false],
+    ["a template filed in no organization", { organizationId: null }, "org-1", false],
+    ["a request without an active organization", { organizationId: "org-1" }, undefined, false],
+    ["a template naming no organization outside any organization", {}, undefined, false],
+    ["an empty active organization", { organizationId: "" }, "", false]
+  ])("answers for %s", (_case, template, activeOrganizationId, expected) => {
+    expect(isInActiveOrganization(template, activeOrganizationId)).toBe(expected);
+  });
 });

@@ -6,7 +6,7 @@ import { AuthService } from "@src/auth/services/auth.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { OrganizationType } from "@src/organization/model-schemas/organization/organization.schema";
 import { summarizeTemplateHardware } from "@src/template/utils/template-hardware/template-hardware";
-import { findTemplateWriteRefusal } from "@src/template-marketplace/lib/template-write-access/template-write-access";
+import { findTemplateWriteRefusal, isInActiveOrganization } from "@src/template-marketplace/lib/template-write-access/template-write-access";
 import {
   MarketplaceTemplateRepository,
   type MarketplaceTemplateRow,
@@ -32,7 +32,9 @@ export interface MarketplaceTemplateOutput {
   isListed: boolean;
   isOfficial: boolean;
   moderationStatus: TemplateModerationStatus;
+  /** Withheld outside the template's organization, whose project layout is its own. */
   projectId: string | null;
+  /** Withheld unless the caller may read the template it was copied from. */
   copiedFromId: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -90,6 +92,7 @@ export class MarketplaceTemplateService {
     const template = await this.findReadable(id);
     const currentVersion = template.currentVersionId ? await this.templateVersionRepository.findById(template.currentVersionId) : undefined;
     const favoritingUserId = this.authService.safeCurrentUser?.userId;
+    const isCopiedFromReadable = !!template.copiedFromId && !!(await this.#findReadableOrNone(template.copiedFromId));
 
     return {
       id: template.id,
@@ -101,8 +104,8 @@ export class MarketplaceTemplateService {
       isListed: template.isListed,
       isOfficial: template.isOfficial,
       moderationStatus: template.moderationStatus,
-      projectId: template.projectId,
-      copiedFromId: template.copiedFromId,
+      projectId: isInActiveOrganization(template, this.#activeOrganizationId) ? template.projectId : null,
+      copiedFromId: isCopiedFromReadable ? template.copiedFromId : null,
       createdAt: template.createdAt,
       updatedAt: template.updatedAt,
       author: template.authorUsername ? { username: template.authorUsername } : null,
@@ -115,7 +118,7 @@ export class MarketplaceTemplateService {
 
   async listInOrganization(query: UserTemplateListQuery): Promise<UserTemplateListItem[]> {
     const ability = this.authService.ability;
-    const organizationId = this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId;
+    const organizationId = this.#activeOrganizationId;
 
     if (!organizationId || !ability.can("read", "Template")) return [];
 
@@ -160,12 +163,21 @@ export class MarketplaceTemplateService {
 
   /** Answers 404 rather than 403 for a template the caller may not read, so its existence does not leak. */
   async findReadable(id: string): Promise<MarketplaceTemplateRow> {
-    const ability = this.authService.ability;
-    const repository = ability.can("read", "Template") ? this.marketplaceTemplateRepository.accessibleBy(ability, "read") : this.marketplaceTemplateRepository;
-    const template = await repository.findReadable(id);
+    const template = await this.#findReadableOrNone(id);
     assert(template, 404, "Template not found");
 
     return template;
+  }
+
+  async #findReadableOrNone(id: string): Promise<MarketplaceTemplateRow | undefined> {
+    const ability = this.authService.ability;
+    const repository = ability.can("read", "Template") ? this.marketplaceTemplateRepository.accessibleBy(ability, "read") : this.marketplaceTemplateRepository;
+
+    return await repository.findReadable(id);
+  }
+
+  get #activeOrganizationId(): string | undefined {
+    return this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId;
   }
 
   #withLegacyFallbacks(version: TemplateVersionOutput, template: MarketplaceTemplateRow): PublishedTemplateVersion {
@@ -178,9 +190,7 @@ export class MarketplaceTemplateService {
 
   /** Uses the writer's own predicate, so the UI never offers an edit that the write would refuse. */
   #canEditInActiveOrganization(template: MarketplaceTemplateRow | UserTemplateListRow): boolean {
-    const activeOrganizationId = this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId;
-
-    return !findTemplateWriteRefusal(template, "update", { ability: this.authService.ability, activeOrganizationId });
+    return !findTemplateWriteRefusal(template, "update", { ability: this.authService.ability, activeOrganizationId: this.#activeOrganizationId });
   }
 
   #hasUpdateRule(template: MarketplaceTemplateRow): boolean {

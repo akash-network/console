@@ -59,8 +59,12 @@ export const MarketplaceTemplateSchema = z
     isListed: z.boolean(),
     isOfficial: z.boolean(),
     moderationStatus: z.enum(templateModerationStatusEnum.enumValues),
-    projectId: z.string().uuid().nullable().openapi({ description: "The project the template is filed in, null for a template filed in none" }),
-    copiedFromId: z.string().uuid().nullable(),
+    projectId: z
+      .string()
+      .uuid()
+      .nullable()
+      .openapi({ description: "The project the template is filed in, null for one filed in none or outside the active organization" }),
+    copiedFromId: z.string().uuid().nullable().openapi({ description: "The template this one was copied from, null unless the caller may read it" }),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
     author: z.object({ username: z.string() }).nullable().openapi({ description: "Null when the author deleted their account" }),
