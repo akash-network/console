@@ -2166,6 +2166,21 @@ describe(DeploymentWriterService.name, () => {
       expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
     });
 
+    it("records the deploy when the reconcile adopts the create", async () => {
+      const { service, templateUsageService, templateUsageEventRepository, definition, accepted } = setup({
+        onChainVersion: RECORDED_VERSION,
+        definitionTemplateId: "hello-world"
+      });
+
+      await expect(service.reconcileCreate(accepted)).resolves.toBe(true);
+
+      expect(templateUsageService.recordDeployed).toHaveBeenCalledTimes(1);
+      expect(templateUsageService.recordDeployed).toHaveBeenCalledWith(definition, wallet);
+      expect(templateUsageEventRepository.record).toHaveBeenCalledWith(
+        expect.objectContaining({ action: "deploy", deploymentSettingId: DEPLOYMENT_SETTING_ID })
+      );
+    });
+
     it("adopts a team wallet's deployment with the wallet the request resolved, for the member who asked and into the project it was filed in", async () => {
       const teamWallet = createOrganizationWallet({ id: 7, address: wallet.address });
       const { service, signerService, walletReaderService, deploymentSettingRepository, deploymentOrganizationActivityService, accepted } = setup({
@@ -5473,6 +5488,7 @@ describe(DeploymentWriterService.name, () => {
     deploymentSettingRepository.accessibleBy.mockReturnValue(scopedSettingRepository);
     const txService = mock<TxService>();
     txService.transaction.mockImplementation(async cb => (input?.transactionRuns === false ? (undefined as never) : await cb()));
+    txService.outsideTransaction.mockImplementation(async cb => await cb());
     const jobQueueService = mock<JobQueueService>();
     jobQueueService.enqueue.mockResolvedValue(input?.compensationEnqueued === false ? null : COMPENSATION_JOB_ID);
     jobQueueService.hasWaitingSingleton.mockResolvedValue(input?.compensationWaiting ?? input?.compensationEnqueued !== false);
@@ -5495,6 +5511,7 @@ describe(DeploymentWriterService.name, () => {
     const templateUsageService = new TemplateUsageService(
       templateUsageEventRepository,
       mockConfigService<CoreConfigService>({ NETWORK: "mainnet" }),
+      txService,
       createLogger
     );
     vi.spyOn(templateUsageService, "recordDeployed");

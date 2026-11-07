@@ -35,6 +35,8 @@ export const TemplateUsageEvents = pgTable(
   },
   table => ({
     refActionCreatedIdx: index("template_usage_events_ref_action_created_idx").on(table.source, table.templateRef, table.action, table.createdAt),
+    userIdIdx: index("template_usage_events_user_id_idx").on(table.userId),
+    organizationIdIdx: index("template_usage_events_organization_id_idx").on(table.organizationId),
     deploymentActionUnique: uniqueIndex("template_usage_events_deployment_action_unique")
       .on(table.deploymentSettingId, table.action)
       .where(sql`${table.deploymentSettingId} IS NOT NULL`)
