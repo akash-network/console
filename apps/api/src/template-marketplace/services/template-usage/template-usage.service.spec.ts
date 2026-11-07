@@ -320,6 +320,20 @@ describe(TemplateUsageService.name, () => {
       expect(templateUsageEventRepository.record).toHaveBeenCalledWith(expect.objectContaining({ userId: null }));
     });
 
+    it("logs instead of throwing when there is no request context to read the caller from", async () => {
+      const templateId = faker.string.uuid();
+      const error = new Error("No context available");
+      const { service, templateUsageEventRepository, executionContextService, logger } = setup();
+      executionContextService.get.mockImplementation(() => {
+        throw error;
+      });
+
+      await expect(service.recordFavorite(templateId, "favorite")).resolves.toBeUndefined();
+
+      expect(templateUsageEventRepository.record).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith({ event: "TEMPLATE_USAGE_RECORD_FAILED", action: "favorite", templateId, error });
+    });
+
     it("logs a failed favorite instead of throwing", async () => {
       const templateId = faker.string.uuid();
       const error = new Error("insert failed");
@@ -386,7 +400,9 @@ describe(TemplateUsageService.name, () => {
     const coreConfig = mockConfigService<CoreConfigService>({ NETWORK: input.network ?? "mainnet" });
     const txService = mock<TxService>();
     txService.outsideTransaction.mockImplementation(async cb => await cb());
-    templateUsageEventRepository.findCurrentVersionIdOfTemplate.mockResolvedValue("currentVersionId" in input ? input.currentVersionId! : faker.string.uuid());
+    templateUsageEventRepository.findCurrentVersionIdOfTemplate.mockResolvedValue(
+      input.currentVersionId === undefined ? faker.string.uuid() : input.currentVersionId
+    );
     const user = input.user === null ? undefined : mock<UserOutput>({ id: faker.string.uuid() });
     const activeOrganizationId = input.activeOrganizationId === undefined ? faker.string.uuid() : input.activeOrganizationId;
     const executionContextService = mock<ExecutionContextService>();
@@ -417,7 +433,8 @@ describe(TemplateUsageService.name, () => {
       txService,
       logger,
       user,
-      activeOrganizationId
+      activeOrganizationId,
+      executionContextService
     };
   }
 });
