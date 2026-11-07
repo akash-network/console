@@ -12,6 +12,7 @@ import { useTemplates } from "@src/queries/useTemplateQuery";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
+import { OrganizationTemplatesSection } from "./OrganizationTemplatesSection/OrganizationTemplatesSection";
 import { TemplateCard } from "./TemplateCard/TemplateCard";
 import { TemplateUseCaseNav } from "./TemplateUseCaseNav/TemplateUseCaseNav";
 import { useTemplateGalleryUrlState } from "./useTemplateGalleryUrlState/useTemplateGalleryUrlState";
@@ -24,6 +25,7 @@ export const DEPENDENCIES = {
   useTemplates,
   Layout,
   CustomNextSeo,
+  OrganizationTemplatesSection,
   TemplateCard,
   TemplateUseCaseNav
 };
@@ -107,6 +109,8 @@ export const TemplateGallery: FC<{ dependencies?: typeof DEPENDENCIES }> = ({ de
                   </Button>
                 )}
               </div>
+
+              <d.OrganizationTemplatesSection />
 
               {isLoading && categories.length === 0 && (
                 <div className="flex justify-center py-12">

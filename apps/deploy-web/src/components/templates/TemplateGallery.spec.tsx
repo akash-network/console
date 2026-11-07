@@ -229,6 +229,16 @@ describe(TemplateGallery.name, () => {
     expect(screen.queryByRole("link", { name: "My templates" })).not.toBeInTheDocument();
   });
 
+  it("puts the organization section above the category sections and keeps it while searching", () => {
+    const OrganizationTemplatesSection = vi.fn(() => <section aria-label="Your organization" />);
+    setup({ categories: [makeCategory("Games", ["Minecraft", "Tetris"])], url: { search: "tetris" }, dependencies: { OrganizationTemplatesSection } });
+
+    const organization = screen.getByRole("region", { name: "Your organization" });
+    const games = screen.getByRole("region", { name: "Games" });
+    expect(organization.compareDocumentPosition(games) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(OrganizationTemplatesSection).toHaveBeenCalledWith({}, {});
+  });
+
   function makeCategory(title: string, names: string[]): EnhancedTemplateCategory {
     return { title, templates: names.map(name => makeTemplate({ name, category: title })) };
   }
