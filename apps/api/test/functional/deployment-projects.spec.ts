@@ -39,6 +39,8 @@ import { createInvitationToken, hashInvitationToken } from "@src/organization/li
 import type { OrganizationRole, ProjectAccess } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { app } from "@src/rest-app";
+import { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
+import type { UserOutput } from "@src/user/repositories";
 import { deploymentVersion, marketVersion } from "@src/utils/constants";
 
 import { registerFakeSdlSecretsKms, warmSealingKeyAsBootWould } from "@test/mocks/sdl-secrets-kms.mock";
@@ -409,6 +411,82 @@ describe("Deployment projects", () => {
       const response = await request("/v1/deployments", { method: "POST", body: { data: { sdl: SDL, projectId: "web" } } });
 
       expect(response.status).toBe(400);
+    });
+
+    it("stores the template version on the deployment's settings", async () => {
+      const { request, team, otherProject, caller } = await setupCaller({ role: "member", grants: ["other"] });
+      const [version] = await seedTemplateVersions({ author: caller, organizationId: team.id, projectId: otherProject.id });
+
+      const response = await request("/v1/deployments", {
+        method: "POST",
+        body: { data: { sdl: SDL, projectId: otherProject.id, templateVersionId: version.id } }
+      });
+      const { data } = (await response.json()) as { data: { dseq: string } };
+
+      expect(response.status).toBe(201);
+      expect(await deploymentRow(caller.id, data.dseq)).toMatchObject({ templateVersionId: version.id, templateId: null });
+    });
+
+    it.each([
+      { refused: "a version of a template the caller may not read", projectRole: null, deployedVersion: 1 },
+      { refused: "an earlier version to a project viewer", projectRole: "viewer" as const, deployedVersion: 0 }
+    ])("answers 404 to $refused, recording and broadcasting nothing", async ({ projectRole, deployedVersion }) => {
+      const { request, team, defaultProject, otherProject, owner, caller, signer } = await setupCaller({ role: "member", grants: ["other"] });
+      if (projectRole) await seedProjectMember({ organizationId: team.id, projectId: defaultProject.id, userId: caller.id, role: projectRole });
+      const versions = await seedTemplateVersions({ author: owner, organizationId: team.id, projectId: defaultProject.id, count: 2 });
+
+      const response = await request("/v1/deployments", {
+        method: "POST",
+        body: { data: { sdl: SDL, projectId: otherProject.id, templateVersionId: versions[deployedVersion].id } }
+      });
+
+      expect(response.status).toBe(404);
+      expect(await response.json()).toMatchObject({ message: "Template version not found" });
+      expect(await deploymentRowsOf(caller.id)).toEqual([]);
+      expect(signer.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+    });
+
+    it("lets a project viewer deploy a template's current version", async () => {
+      const { request, team, defaultProject, otherProject, owner, caller } = await setupCaller({ role: "member", grants: ["other"] });
+      await seedProjectMember({ organizationId: team.id, projectId: defaultProject.id, userId: caller.id, role: "viewer" });
+      const [, current] = await seedTemplateVersions({ author: owner, organizationId: team.id, projectId: defaultProject.id, count: 2 });
+
+      const response = await request("/v1/deployments", {
+        method: "POST",
+        body: { data: { sdl: SDL, projectId: otherProject.id, templateVersionId: current.id } }
+      });
+      const { data } = (await response.json()) as { data: { dseq: string } };
+
+      expect(response.status).toBe(201);
+      expect(await deploymentRow(caller.id, data.dseq)).toMatchObject({ templateVersionId: current.id });
+    });
+
+    it("answers 400 to a template version named alongside a gallery template, recording nothing", async () => {
+      const { request, team, otherProject, caller } = await setupCaller({ role: "member", grants: ["other"] });
+      const [version] = await seedTemplateVersions({ author: caller, organizationId: team.id, projectId: otherProject.id });
+
+      const response = await request("/v1/deployments", {
+        method: "POST",
+        body: { data: { sdl: SDL, projectId: otherProject.id, templateId: "akash-network-awesome-akash-sdxl", templateVersionId: version.id } }
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ message: "Name either templateId or templateVersionId, not both" });
+      expect(await deploymentRowsOf(caller.id)).toEqual([]);
+    });
+
+    it("ignores the template version while template_marketplace is off", async () => {
+      const { request, team, defaultProject, otherProject, owner, caller } = await setupCaller({ role: "member", grants: ["other"], isMarketplaceOn: false });
+      const [version] = await seedTemplateVersions({ author: owner, organizationId: team.id, projectId: defaultProject.id });
+
+      const response = await request("/v1/deployments", {
+        method: "POST",
+        body: { data: { sdl: SDL, projectId: otherProject.id, templateVersionId: version.id } }
+      });
+      const { data } = (await response.json()) as { data: { dseq: string } };
+
+      expect(response.status).toBe(201);
+      expect(await deploymentRow(caller.id, data.dseq)).toMatchObject({ templateVersionId: null });
     });
   });
 
@@ -910,9 +988,10 @@ describe("Deployment projects", () => {
     return `Bearer ${token}`;
   }
 
-  function enableOrganizationsFor(userIds: string[]) {
+  function enableOrganizationsFor(userIds: string[], { isMarketplaceOn = true }: { isMarketplaceOn?: boolean } = {}) {
     vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation((flag, context) => {
       if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
+      if (flag === FeatureFlags.TEMPLATE_MARKETPLACE) return isMarketplaceOn;
       if (flag !== FeatureFlags.ORGANIZATIONS) return true;
 
       return userIds.includes(context?.userId ?? container.resolve(AuthService).safeCurrentUser?.id ?? "");
@@ -982,7 +1061,40 @@ describe("Deployment projects", () => {
     return { userId: `auth0|${faker.string.alphanumeric(24)}`, username: `user-${faker.string.alphanumeric(12)}` };
   }
 
-  async function setupCaller(input: { role: OrganizationRole; organizationsOn?: boolean; grants?: Array<"default" | "other">; invitedWith?: ProjectAccess }) {
+  async function seedTemplateVersions(input: { author: UserOutput; organizationId: string; projectId: string; count?: number }) {
+    const [template] = await container
+      .resolve<ApiPgDatabase>(POSTGRES_DB)
+      .insert(resolveTable("Templates"))
+      .values({
+        userId: input.author.userId,
+        authorId: input.author.id,
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        title: faker.lorem.words(3),
+        sdl: SDL,
+        visibility: "private",
+        isPublic: false,
+        cpu: 500,
+        ram: 512 * 1024 ** 2,
+        storage: 512 * 1024 ** 2
+      })
+      .returning();
+    const versions = [];
+
+    for (let index = 0; index < (input.count ?? 1); index++) {
+      versions.push(await container.resolve(TemplateVersionRepository).appendVersion({ templateId: template.id, sdl: SDL, createdById: input.author.id }));
+    }
+
+    return versions;
+  }
+
+  async function setupCaller(input: {
+    role: OrganizationRole;
+    organizationsOn?: boolean;
+    grants?: Array<"default" | "other">;
+    invitedWith?: ProjectAccess;
+    isMarketplaceOn?: boolean;
+  }) {
     const { user: owner, organization: team, project: defaultProject } = await seedOrganizationWithOwner({ user: createSignedUpUserInput() });
     const otherProject = await seedProject({ organizationId: team.id });
     const caller =
@@ -1007,7 +1119,7 @@ describe("Deployment projects", () => {
     }
     const teamWallet = await seedWallets({ userId: caller.id, organizationId: team.id });
     const authorization = signIn(caller.userId!);
-    enableOrganizationsFor(input.organizationsOn === false ? [] : [caller.id]);
+    enableOrganizationsFor(input.organizationsOn === false ? [] : [caller.id], { isMarketplaceOn: input.isMarketplaceOn });
     const { signer, signedIndexes, reloadTargets } = stubSigner();
 
     const request = (requestPath: string, init: { method?: string; body?: unknown; organizationHeader?: boolean; headers?: Record<string, string> } = {}) =>

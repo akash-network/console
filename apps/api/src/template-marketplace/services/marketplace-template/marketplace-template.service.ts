@@ -161,6 +161,16 @@ export class MarketplaceTemplateService {
     return this.#withLegacyFallbacks(found, template);
   }
 
+  /** Mirrors `getVersion`, so a deployment can only name a version its caller could read. */
+  async findDeployableVersion(versionId: string): Promise<{ templateId: string; versionId: string }> {
+    const version = await this.templateVersionRepository.findById(versionId);
+    assert(version, 404, VERSION_NOT_FOUND);
+    const template = await this.#findReadableOrNone(version.templateId);
+    assert(template && (template.currentVersionId === version.id || this.#hasUpdateRule(template)), 404, VERSION_NOT_FOUND);
+
+    return { templateId: template.id, versionId: version.id };
+  }
+
   /** Answers 404 rather than 403 for a template the caller may not read, so its existence does not leak. */
   async findReadable(id: string): Promise<MarketplaceTemplateRow> {
     const template = await this.#findReadableOrNone(id);

@@ -386,6 +386,51 @@ describe(MarketplaceTemplateService.name, () => {
     });
   });
 
+  describe("findDeployableVersion", () => {
+    it("lets an editor deploy an earlier version", async () => {
+      const template = createTemplateRow();
+      const earlier = createVersion({ templateId: template.id, version: 1 });
+      const { service, repository, templateVersionRepository } = setup({ template, rules: [{ action: "update", subject: "Template" }] });
+      templateVersionRepository.findById.mockResolvedValue(earlier);
+
+      const result = await service.findDeployableVersion(earlier.id);
+
+      expect(result).toEqual({ templateId: template.id, versionId: earlier.id });
+      expect(templateVersionRepository.findById).toHaveBeenCalledWith(earlier.id);
+      expect(repository.findReadable).toHaveBeenCalledWith(template.id);
+    });
+
+    it("lets a reader deploy only the current version", async () => {
+      const current = createVersion({ version: 2 });
+      const template = createTemplateRow({ currentVersionId: current.id });
+      const earlier = createVersion({ templateId: template.id, version: 1 });
+      const { service, templateVersionRepository } = setup({ template, rules: [{ action: "read", subject: "Template" }] });
+      templateVersionRepository.findById.mockImplementation(async id => [current, earlier].find(version => version.id === id));
+
+      const results = await Promise.allSettled([service.findDeployableVersion(current.id), service.findDeployableVersion(earlier.id)]);
+
+      expect(results).toEqual([
+        { status: "fulfilled", value: { templateId: template.id, versionId: current.id } },
+        { status: "rejected", reason: expect.objectContaining({ status: 404, message: "Template version not found" }) }
+      ]);
+    });
+
+    it("refuses a version of a template the caller may not read with 404 naming the version", async () => {
+      const { service, templateVersionRepository } = setup({ template: undefined });
+      templateVersionRepository.findById.mockResolvedValue(createVersion());
+
+      await expect(service.findDeployableVersion(faker.string.uuid())).rejects.toMatchObject({ status: 404, message: "Template version not found" });
+    });
+
+    it("refuses an unknown version with 404 before looking for a template", async () => {
+      const { service, repository, templateVersionRepository } = setup();
+      templateVersionRepository.findById.mockResolvedValue(undefined);
+
+      await expect(service.findDeployableVersion(faker.string.uuid())).rejects.toMatchObject({ status: 404, message: "Template version not found" });
+      expect(repository.findReadable).not.toHaveBeenCalled();
+    });
+  });
+
   describe("listInOrganization", () => {
     it("lists the active organization's templates within the caller's read rules, at most 200", async () => {
       const organizationId = faker.string.uuid();

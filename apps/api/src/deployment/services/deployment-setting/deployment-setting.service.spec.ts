@@ -49,7 +49,8 @@ describe(DeploymentSettingService.name, () => {
           detectedGpus: [createLeaseGpuReading()],
           offeredGpus: [createLeaseGpuOffer()],
           closeReason: "other",
-          closeReasonDetails: "Moved to a bigger box"
+          closeReasonDetails: "Moved to a bigger box",
+          templateVersionId: faker.string.uuid()
         })
       );
 
@@ -62,6 +63,7 @@ describe(DeploymentSettingService.name, () => {
       expect(result).not.toHaveProperty("offeredGpus");
       expect(result).not.toHaveProperty("closeReason");
       expect(result).not.toHaveProperty("closeReasonDetails");
+      expect(result).not.toHaveProperty("templateVersionId");
     });
 
     it("serves why Console closed the deployment, unlike the reason its user gave", async () => {
@@ -782,6 +784,7 @@ describe(DeploymentSettingService.name, () => {
       sealedSecrets: null,
       manifestVersion: null,
       templateId: null,
+      templateVersionId: null,
       runtimeEndsAt: null,
       runtimeEndingNotifiedFor: null,
       providerUnreachableNotifiedFor: null,

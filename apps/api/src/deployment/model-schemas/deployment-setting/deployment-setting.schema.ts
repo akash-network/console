@@ -89,6 +89,8 @@ export const DeploymentSettings = pgTable(
     manifestVersion: varchar("manifest_version", { length: 64 }),
     /** Null for a deployment not created from a gallery template, including every one created before the console recorded it. */
     templateId: text("template_id"),
+    /** No foreign key, so deleting a template never touches or locks the deployments created from it. */
+    templateVersionId: uuid("template_version_id"),
     runtimeEndsAt: timestamp("runtime_ends_at", { withTimezone: true }),
     runtimeEndingNotifiedFor: timestamp("runtime_ending_notified_for", { withTimezone: true }),
     providerUnreachableNotifiedFor: timestamp("provider_unreachable_notified_for", { withTimezone: true }),
