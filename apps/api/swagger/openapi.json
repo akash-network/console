@@ -33347,7 +33347,9 @@
           {
             "schema": {
               "type": "integer",
-              "description": "The version number, counted from 1"
+              "description": "The version number, counted from 1",
+              "minimum": 1,
+              "maximum": 2147483647
             },
             "required": true,
             "name": "version",
@@ -44151,7 +44153,9 @@
                 "type": "string"
               },
               "slug": {
-                "type": "string"
+                "type": "string",
+                "nullable": true,
+                "description": "Null for a personal organization"
               },
               "type": {
                 "type": "string",

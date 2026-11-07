@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
@@ -98,6 +99,7 @@ describe("Marketplace templates", () => {
       });
 
       const response = await actAs(author)(`/v1/user-templates/${template.id}`);
+      const stored = await storedTemplate(template.id);
 
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({
@@ -113,7 +115,7 @@ describe("Marketplace templates", () => {
           moderationStatus: "active",
           copiedFromId: null,
           createdAt: template.createdAt.toISOString(),
-          updatedAt: template.updatedAt.toISOString(),
+          updatedAt: stored.updatedAt.toISOString(),
           author: { username: author.username },
           publisher: { name: team.name, slug: team.slug, type: "team" },
           currentVersion: {
@@ -192,16 +194,57 @@ describe("Marketplace templates", () => {
       expect(response.status).toBe(404);
     });
 
+    it("reports the template as updated when a new version is saved", async () => {
+      const { read } = await setup();
+      const template = await seedTemplate({ author: null, visibility: "public" });
+      await container.resolve(TemplateVersionRepository).appendVersion({ templateId: template.id, sdl: SDL });
+
+      const response = await read(`/v1/user-templates/${template.id}`);
+
+      const { data } = (await response.json()) as { data: { updatedAt: string } };
+      expect(new Date(data.updatedAt).getTime()).toBeGreaterThan(template.updatedAt.getTime());
+    });
+
+    it("names a personal organization publisher without its slug", async () => {
+      const { read } = await setup();
+      const { user, organization, project } = await seedOrganizationWithOwner({ type: "personal", user: createSignedUpUserInput() });
+      const template = await seedTemplate({ author: user, organizationId: organization.id, projectId: project.id, visibility: "public" });
+
+      const response = await read(`/v1/user-templates/${template.id}`);
+
+      expect(await response.json()).toMatchObject({ data: { publisher: { name: organization.name, slug: null, type: "personal" } } });
+    });
+
+    it("answers without letting any cache store the template", async () => {
+      const { team, project, owner, actAs, read } = await setup();
+      const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id, visibility: "public" });
+      await container.resolve(TemplateVersionRepository).appendVersion({ templateId: template.id, sdl: SDL });
+
+      const responses = await Promise.all(
+        ["", "/versions", "/versions/1"].flatMap(path => [read(`/v1/user-templates/${template.id}${path}`), actAs(owner)(`/v1/user-templates/${template.id}${path}`)])
+      );
+
+      expect(responses.map(response => [response.status, response.headers.get("cache-control")])).toEqual([
+        [200, "public, no-store"],
+        [200, "private, no-store"],
+        [200, "public, no-store"],
+        [200, "private, no-store"],
+        [200, "public, no-store"],
+        [200, "private, no-store"]
+      ]);
+    });
+
     it("falls back to the legacy description and the SDL's hardware for a migrated version", async () => {
       const { read } = await setup();
       const template = await seedTemplate({ author: null, visibility: "public", description: "Legacy description", sdl: SDL });
       await container.resolve(TemplateVersionRepository).appendVersion({ templateId: template.id, sdl: SDL });
 
-      const response = await read(`/v1/user-templates/${template.id}`);
+      const described = await read(`/v1/user-templates/${template.id}`);
+      const version = await read(`/v1/user-templates/${template.id}/versions/1`);
 
-      expect(await response.json()).toMatchObject({
-        data: { currentVersion: { readme: "Legacy description", resources: { cpu: 1, memoryBytes: 2 * 512 * 1024 ** 2, storageBytes: 2 * 1024 ** 3 } } }
-      });
+      const fallbacks = { readme: "Legacy description", resources: { cpu: 1, memoryBytes: 2 * 512 * 1024 ** 2, storageBytes: 2 * 1024 ** 3 } };
+      expect(await described.json()).toMatchObject({ data: { currentVersion: fallbacks } });
+      expect(await version.json()).toMatchObject({ data: fallbacks });
     });
 
     it("keeps a template in its organization, crediting its author, after the author leaves the organization", async () => {
@@ -221,28 +264,17 @@ describe("Marketplace templates", () => {
   });
 
   describe("GET /v1/user-templates/{id}/versions", () => {
-    it("lists versions newest first and reads one by number", async () => {
-      const { read } = await setup();
-      const template = await seedTemplate({ author: null, visibility: "public" });
-      const versions = container.resolve(TemplateVersionRepository);
-      const first = await versions.appendVersion({ templateId: template.id, sdl: "version: '2.0'", readme: "first" });
-      const second = await versions.appendVersion({ templateId: template.id, sdl: "version: '2.1'", readme: "second" });
+    it("lists every version newest first and reads an earlier one for a caller who may edit the template", async () => {
+      const { team, project, owner, actAs } = await setup();
+      const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id, visibility: "public" });
+      const [first, second] = await seedVersions(template.id);
+      const asOwner = actAs(owner);
 
-      const listed = await read(`/v1/user-templates/${template.id}/versions`);
-      const one = await read(`/v1/user-templates/${template.id}/versions/1`);
+      const listed = await asOwner(`/v1/user-templates/${template.id}/versions`);
+      const one = await asOwner(`/v1/user-templates/${template.id}/versions/1`);
 
-      expect(listed.status).toBe(200);
-      expect(await listed.json()).toEqual({
-        data: [second, first].map(({ id, version, createdAt }) => ({
-          id,
-          templateId: template.id,
-          version,
-          resources: null,
-          status: "live",
-          createdAt: createdAt.toISOString()
-        }))
-      });
-      expect(one.status).toBe(200);
+      expect([listed.status, one.status]).toEqual([200, 200]);
+      expect(await listed.json()).toEqual({ data: [second, first].map(version => summaryOf(template.id, version)) });
       expect(await one.json()).toEqual({
         data: {
           id: first.id,
@@ -257,6 +289,24 @@ describe("Marketplace templates", () => {
         }
       });
     });
+
+    it("shows only the current version of a public template to readers who may not edit it", async () => {
+      const { team, project, owner, read, readAs } = await setup();
+      const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id, visibility: "public" });
+      const [, second] = await seedVersions(template.id);
+      const outsider = await readAs("member of another organization");
+
+      for (const reader of [read, outsider]) {
+        const [listed, earlier, current] = await Promise.all(
+          ["versions", "versions/1", "versions/2"].map(path => reader(`/v1/user-templates/${template.id}/${path}`))
+        );
+
+        expect([listed.status, earlier.status, current.status]).toEqual([200, 404, 200]);
+        expect(await listed.json()).toEqual({ data: [summaryOf(template.id, second)] });
+        expect(await current.json()).toMatchObject({ data: { id: second.id, version: 2, sdl: "version: '2.1'" } });
+      }
+    });
+
 
     it("keeps the internal id of a version's creator out of every response", async () => {
       const { owner, read } = await setup();
@@ -281,14 +331,16 @@ describe("Marketplace templates", () => {
       expect(JSON.stringify(bodies)).not.toContain(owner.id);
     });
 
-    it("answers 404 for a version number the template does not have", async () => {
+    it("answers 404 for a version number the template does not have and 400 for one out of range", async () => {
       const { read } = await setup();
       const template = await seedTemplate({ author: null, visibility: "public" });
       await container.resolve(TemplateVersionRepository).appendVersion({ templateId: template.id, sdl: SDL });
 
-      const [missing, invalid] = await Promise.all([read(`/v1/user-templates/${template.id}/versions/2`), read(`/v1/user-templates/${template.id}/versions/0`)]);
+      const responses = await Promise.all(
+        ["2", "0", "1e21", "2147483648"].map(version => read(`/v1/user-templates/${template.id}/versions/${version}`))
+      );
 
-      expect([missing.status, invalid.status]).toEqual([404, 400]);
+      expect(responses.map(({ status }) => status)).toEqual([404, 400, 400, 400]);
     });
 
     it("answers 404 for the versions of a template the reader cannot see", async () => {
@@ -301,6 +353,25 @@ describe("Marketplace templates", () => {
       expect(responses.map(({ status }) => status)).toEqual([404, 404]);
     });
   });
+
+  async function storedTemplate(id: string) {
+    const templates = resolveTable("Templates");
+    const [row] = await container.resolve<ApiPgDatabase>(POSTGRES_DB).select().from(templates).where(eq(templates.id, id));
+
+    return row;
+  }
+
+  async function seedVersions(templateId: string) {
+    const versions = container.resolve(TemplateVersionRepository);
+    const first = await versions.appendVersion({ templateId, sdl: "version: '2.0'", readme: "first" });
+    const second = await versions.appendVersion({ templateId, sdl: "version: '2.1'", readme: "second" });
+
+    return [first, second] as const;
+  }
+
+  function summaryOf(templateId: string, { id, version, createdAt }: { id: string; version: number; createdAt: Date }) {
+    return { id, templateId, version, resources: null, status: "live", createdAt: createdAt.toISOString() };
+  }
 
   async function seedTemplate(input: {
     author: UserOutput | null;

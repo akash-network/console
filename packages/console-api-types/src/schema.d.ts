@@ -8905,7 +8905,8 @@ export interface components {
       /** @description The organization the template belongs to, null for a template filed in none */
       publisher: {
         name: string;
-        slug: string;
+        /** @description Null for a personal organization */
+        slug: string | null;
         /** @enum {string} */
         type: "personal" | "team";
       } | null;
