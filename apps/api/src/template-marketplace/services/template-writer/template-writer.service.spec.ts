@@ -9,6 +9,7 @@ import type { BillingConfig } from "@src/billing/providers";
 import type { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import type { CreateLogger } from "@src/core";
 import type { TxService } from "@src/core/services";
+import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
 import type { DeploymentProjectService } from "@src/deployment/services/deployment-project/deployment-project.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
@@ -27,10 +28,14 @@ import type {
 import type { UserOutput } from "@src/user/repositories";
 import { TemplateWriterService } from "./template-writer.service";
 
+import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
+
 const MEBIBYTE = 1024 ** 2;
 const GIBIBYTE = 1024 ** 3;
 const CREATE_RULE = { action: "create", subject: "Template" };
 const UPDATE_RULE = { action: "update", subject: "Template" };
+const DELETE_RULE = { action: "delete", subject: "Template" };
+const SWITCH_ORGANIZATION_MESSAGE = "Switch to the template's organization to change it";
 
 describe(TemplateWriterService.name, () => {
   describe("create", () => {
@@ -234,7 +239,8 @@ describe(TemplateWriterService.name, () => {
 
       const { imageDigests: _imageDigests, ...published } = appended;
       expect(result).toEqual(published);
-      expect(transactionSteps).toEqual(["begin", "appendVersion", "mirrorVersion", "end"]);
+      expect(transactionSteps).toEqual(["begin", "findAndLockForWrite", "appendVersion", "mirrorVersion", "end"]);
+      expect(repository.findAndLockForWrite).toHaveBeenCalledWith(template.id);
       expect(templateVersionRepository.findByTemplateAndVersion).toHaveBeenCalledWith(template.id, 3);
       expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith({
         templateId: template.id,
@@ -294,6 +300,25 @@ describe(TemplateWriterService.name, () => {
       expect(repository.mirrorVersion).toHaveBeenCalledWith(template.id, expect.objectContaining({ description: "" }));
     });
 
+    it("carries forward the readme the locked template shows rather than the one read before the lock", async () => {
+      const template = createTemplateRow({ description: "Read before the lock" });
+      const locked = { ...template, description: "Saved meanwhile" };
+      const { service, templateVersionRepository } = setup({ template, locked, base: createVersion({ templateId: template.id, readme: null }) });
+
+      await service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [], baseVersion: 1 });
+
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ readme: "Saved meanwhile" }));
+    });
+
+    it("checks the base version against the locked template rather than the one read before the lock", async () => {
+      const template = createTemplateRow({ currentVersionId: null });
+      const locked = { ...template, currentVersionId: faker.string.uuid() };
+      const { service, templateVersionRepository } = setup({ template, locked, base: null });
+
+      await expect(service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [], baseVersion: 1 })).rejects.toMatchObject({ status: 409 });
+      expect(templateVersionRepository.appendVersion).not.toHaveBeenCalled();
+    });
+
     it("saves a first version without a base check on a template that has none yet", async () => {
       const template = createTemplateRow({ currentVersionId: null, description: "Legacy description" });
       const { service, templateVersionRepository } = setup({ template, base: null });
@@ -317,16 +342,6 @@ describe(TemplateWriterService.name, () => {
       });
       expect(templateVersionRepository.appendVersion).not.toHaveBeenCalled();
       expect(repository.mirrorVersion).not.toHaveBeenCalled();
-    });
-
-    it("answers 404 rather than 403 for a template the caller cannot read", async () => {
-      const { service, marketplaceTemplateService, templateVersionRepository } = setup();
-      const id = faker.string.uuid();
-      marketplaceTemplateService.findReadable.mockRejectedValue(createError(404, "Template not found"));
-
-      await expect(service.appendVersion(id, { sdl: buildSdl(), askedValues: [], baseVersion: 1 })).rejects.toMatchObject({ status: 404 });
-      expect(marketplaceTemplateService.findReadable).toHaveBeenCalledWith(id);
-      expect(templateVersionRepository.findByTemplateAndVersion).not.toHaveBeenCalled();
     });
 
     it("refuses a caller who may read the template but not change it", async () => {
@@ -362,6 +377,186 @@ describe(TemplateWriterService.name, () => {
       expect(templateVersionRepository.findByTemplateAndVersion).not.toHaveBeenCalled();
     });
   });
+
+  describe("updateSettings", () => {
+    it("re-checks the locked template, then updates its settings in one transaction and answers the template", async () => {
+      const template = createTemplateRow();
+      const { service, repository, marketplaceTemplateService, transactionSteps } = setup({ template });
+      const output = mock<MarketplaceTemplateOutput>({ id: template.id });
+      repository.updateSettings.mockImplementation(async () => {
+        transactionSteps.push("updateSettings");
+      });
+      marketplaceTemplateService.getTemplate.mockImplementation(async () => {
+        transactionSteps.push("getTemplate");
+        return output;
+      });
+
+      const result = await service.updateSettings(template.id, {
+        title: "Renamed",
+        summary: "Serves the web",
+        icon: "rocket",
+        categories: ["Tools"],
+        visibility: "organization"
+      });
+
+      expect(result).toBe(output);
+      expect(transactionSteps).toEqual(["begin", "findAndLockForWrite", "updateSettings", "end", "getTemplate"]);
+      expect(marketplaceTemplateService.findReadable).toHaveBeenCalledWith(template.id);
+      expect(repository.findAndLockForWrite).toHaveBeenCalledWith(template.id);
+      expect(repository.updateSettings).toHaveBeenCalledWith(template.id, {
+        title: "Renamed",
+        summary: "Serves the web",
+        icon: "rocket",
+        categories: ["Tools"],
+        visibility: "organization",
+        isPublic: false
+      });
+      expect(marketplaceTemplateService.getTemplate).toHaveBeenCalledWith(template.id);
+    });
+
+    it("writes only the settings sent, leaving isPublic alone without a visibility", async () => {
+      const template = createTemplateRow();
+      const { service, repository } = setup({ template });
+
+      await service.updateSettings(template.id, { title: "Renamed" });
+
+      expect(repository.updateSettings).toHaveBeenCalledWith(template.id, { title: "Renamed" });
+    });
+
+    it.each<[string, string | null]>([
+      ["an empty summary", ""],
+      ["a null summary", null]
+    ])("stores %s as no summary", async (_case, summary) => {
+      const template = createTemplateRow({ summary: "Before" });
+      const { service, repository } = setup({ template });
+
+      await service.updateSettings(template.id, { summary, icon: null });
+
+      expect(repository.updateSettings).toHaveBeenCalledWith(template.id, { summary: null, icon: null });
+    });
+  });
+
+  describe("delete", () => {
+    it("re-checks the locked template, then deletes it in one transaction", async () => {
+      const template = createTemplateRow();
+      const { service, repository, transactionSteps } = setup({ template });
+      repository.deleteTemplate.mockImplementation(async () => {
+        transactionSteps.push("deleteTemplate");
+      });
+
+      await service.delete(template.id);
+
+      expect(transactionSteps).toEqual(["begin", "findAndLockForWrite", "deleteTemplate", "end"]);
+      expect(repository.deleteTemplate).toHaveBeenCalledWith(template.id);
+    });
+
+    it("refuses a caller who may change the template but not delete it", async () => {
+      const template = createTemplateRow();
+      const { service, repository } = setup({ template, rules: [UPDATE_RULE] });
+
+      await expect(service.delete(template.id)).rejects.toMatchObject({ status: 403, message: "You cannot change this template" });
+      expect(repository.deleteTemplate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe.each<[string, (service: TemplateWriterService, id: string) => Promise<unknown>]>([
+    ["appendVersion", (service, id) => service.appendVersion(id, { sdl: buildSdl(), askedValues: [], baseVersion: 1 })],
+    ["updateSettings", (service, id) => service.updateSettings(id, { title: "Renamed" })],
+    ["delete", (service, id) => service.delete(id)]
+  ])("%s authorization", (_method, write) => {
+    it("answers 404 rather than 403 for a template the caller cannot read", async () => {
+      const { service, marketplaceTemplateService, repository, txService } = setup({ activeOrganizationId: faker.string.uuid(), rules: [] });
+      const id = faker.string.uuid();
+      marketplaceTemplateService.findReadable.mockRejectedValue(createError(404, "Template not found"));
+
+      await expect(write(service, id)).rejects.toMatchObject({ status: 404 });
+      expect(marketplaceTemplateService.findReadable).toHaveBeenCalledWith(id);
+      expect(txService.transaction).not.toHaveBeenCalled();
+      expectNothingWritten(repository);
+    });
+
+    it("refuses a writer whose active organization is not the template's, before checking rules", async () => {
+      const template = createTemplateRow();
+      const { service, repository, txService } = setup({ template, activeOrganizationId: faker.string.uuid(), rules: [] });
+
+      await expect(write(service, template.id)).rejects.toMatchObject({
+        status: 403,
+        message: SWITCH_ORGANIZATION_MESSAGE,
+        errorCode: "organization_forbidden"
+      });
+      expect(txService.transaction).not.toHaveBeenCalled();
+      expectNothingWritten(repository);
+    });
+
+    it("refuses a writer without an active organization", async () => {
+      const template = createTemplateRow();
+      const { service, repository } = setup({ template, activeOrganizationId: null });
+
+      await expect(write(service, template.id)).rejects.toMatchObject({ status: 403, message: SWITCH_ORGANIZATION_MESSAGE });
+      expectNothingWritten(repository);
+    });
+
+    it("refuses a template filed in no organization", async () => {
+      const template = createTemplateRow({ organizationId: null });
+      const { service, repository } = setup({ template, activeOrganizationId: null });
+
+      await expect(write(service, template.id)).rejects.toMatchObject({ status: 403, message: SWITCH_ORGANIZATION_MESSAGE });
+      expectNothingWritten(repository);
+    });
+
+    it("refuses a caller whose rules do not reach the template", async () => {
+      const template = createTemplateRow();
+      const { service, repository, txService } = setup({
+        template,
+        rules: [{ action: ["update", "delete"], subject: "Template", conditions: { projectId: faker.string.uuid() } }]
+      });
+
+      await expect(write(service, template.id)).rejects.toMatchObject({ status: 403, message: "You cannot change this template" });
+      expect(txService.transaction).not.toHaveBeenCalled();
+      expectNothingWritten(repository);
+    });
+
+    it("refuses the write when the template left the active organization after it was read", async () => {
+      const template = createTemplateRow();
+      const { service, repository, templateVersionRepository } = setup({ template, locked: { ...template, organizationId: faker.string.uuid() } });
+
+      await expect(write(service, template.id)).rejects.toMatchObject({ status: 403, message: SWITCH_ORGANIZATION_MESSAGE });
+      expect(repository.findAndLockForWrite).toHaveBeenCalledWith(template.id);
+      expect(templateVersionRepository.appendVersion).not.toHaveBeenCalled();
+      expectNothingWritten(repository);
+    });
+
+    it("refuses the write when the template moved outside the caller's rules after it was read", async () => {
+      const template = createTemplateRow();
+      const { service, repository, templateVersionRepository } = setup({
+        template,
+        locked: { ...template, projectId: faker.string.uuid() },
+        rules: [{ action: ["update", "delete"], subject: "Template", conditions: { projectId: template.projectId } }]
+      });
+
+      await expect(write(service, template.id)).rejects.toMatchObject({ status: 403, message: "You cannot change this template" });
+      expect(templateVersionRepository.appendVersion).not.toHaveBeenCalled();
+      expectNothingWritten(repository);
+    });
+
+    it.each<[string, (template: MarketplaceTemplateRow) => MarketplaceTemplateRow | null]>([
+      ["deleted", () => null],
+      ["removed by moderation", template => ({ ...template, moderationStatus: "removed" })]
+    ])("answers 404 when the template was %s after it was read", async (_case, lockedOf) => {
+      const template = createTemplateRow();
+      const { service, repository, templateVersionRepository } = setup({ template, locked: lockedOf(template) });
+
+      await expect(write(service, template.id)).rejects.toMatchObject({ status: 404, message: "Template not found" });
+      expect(templateVersionRepository.appendVersion).not.toHaveBeenCalled();
+      expectNothingWritten(repository);
+    });
+  });
+
+  function expectNothingWritten(repository: MarketplaceTemplateRepository) {
+    expect(repository.mirrorVersion).not.toHaveBeenCalled();
+    expect(repository.updateSettings).not.toHaveBeenCalled();
+    expect(repository.deleteTemplate).not.toHaveBeenCalled();
+  }
 
   function buildSdl({
     env,
@@ -478,8 +673,16 @@ describe(TemplateWriterService.name, () => {
     };
   }
 
-  function setup(input: { rules?: RawRuleOf<MongoAbility>[]; template?: MarketplaceTemplateRow; base?: TemplateVersionOutput | null } = {}) {
-    const ability = createMongoAbility<MongoAbility>(input.rules ?? [CREATE_RULE, UPDATE_RULE]);
+  function setup(
+    input: {
+      rules?: RawRuleOf<MongoAbility>[];
+      template?: MarketplaceTemplateRow;
+      base?: TemplateVersionOutput | null;
+      locked?: MarketplaceTemplateRow | null;
+      activeOrganizationId?: string | null;
+    } = {}
+  ) {
+    const ability = createMongoAbility<MongoAbility>(input.rules ?? [CREATE_RULE, UPDATE_RULE, DELETE_RULE]);
     const user = mock<UserOutput>({ id: faker.string.uuid(), userId: `auth0|${faker.string.alphanumeric(24)}` });
     const authService = mock<AuthService>();
     authService.ability = ability;
@@ -496,11 +699,20 @@ describe(TemplateWriterService.name, () => {
     templateVersionRepository.findByTemplateAndVersion.mockResolvedValue(
       input.base === null ? undefined : input.base ?? createVersion({ templateId: template.id })
     );
+    const transactionSteps: string[] = [];
+    repository.findAndLockForWrite.mockImplementation(async () => {
+      transactionSteps.push("findAndLockForWrite");
+      return input.locked === null ? undefined : input.locked ?? template;
+    });
+    const activeOrganizationId = input.activeOrganizationId === undefined ? template.organizationId : input.activeOrganizationId;
+    const executionContextService = mock<ExecutionContextService>();
+    executionContextService.get
+      .calledWith("ORGANIZATION_CONTEXT")
+      .mockReturnValue(activeOrganizationId ? createOrganizationContext({ organizationId: activeOrganizationId }) : undefined);
     const deploymentProjectService = mock<DeploymentProjectService>();
     const sdlReferenceService = new SdlReferenceService();
     const createLogger: CreateLogger = () => mock<ReturnType<CreateLogger>>();
     const sdlService = new SdlService(mock<BillingConfig>(), mock<BlockedGpuService>(), sdlReferenceService, mock<DenomExchangeService>(), createLogger);
-    const transactionSteps: string[] = [];
     const txService = mock<TxService>({
       transaction: vi.fn(async callback => {
         transactionSteps.push("begin");
@@ -517,7 +729,8 @@ describe(TemplateWriterService.name, () => {
       sdlService,
       sdlReferenceService,
       authService,
-      txService
+      txService,
+      executionContextService
     );
 
     return {
@@ -528,6 +741,7 @@ describe(TemplateWriterService.name, () => {
       marketplaceTemplateService,
       deploymentProjectService,
       authService,
+      txService,
       user,
       transactionSteps
     };

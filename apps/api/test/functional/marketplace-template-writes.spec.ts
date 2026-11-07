@@ -10,7 +10,7 @@ import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { app } from "@src/rest-app";
 import { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
-import type { TemplateVisibility } from "@src/user/model-schemas/template/template.schema";
+import type { TemplateModerationStatus, TemplateVisibility } from "@src/user/model-schemas/template/template.schema";
 import type { UserOutput } from "@src/user/repositories";
 
 import { seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
@@ -35,20 +35,354 @@ describe("Marketplace template writes", () => {
 
     const responses = await Promise.all([
       asOwner("/v1/user-templates", { method: "POST", body: { data: { title: "Web", sdl: buildSdl() } } }),
-      asOwner(`/v1/user-templates/${template.id}/versions`, { method: "POST", body: { data: { sdl: buildSdl(), askedValues: [], baseVersion: 1 } } })
+      asOwner(`/v1/user-templates/${template.id}/versions`, { method: "POST", body: { data: { sdl: buildSdl(), askedValues: [], baseVersion: 1 } } }),
+      asOwner("/v1/user-templates"),
+      asOwner(`/v1/user-templates/${template.id}`, { method: "PATCH", body: { data: { title: "Renamed" } } }),
+      asOwner(`/v1/user-templates/${template.id}`, { method: "DELETE" })
     ]);
 
-    expect(responses.map(({ status }) => status)).toEqual([404, 404]);
-    expect(await templatesAuthoredBy(owner)).toEqual([expect.objectContaining({ id: template.id })]);
+    expect(responses.map(({ status }) => status)).toEqual([404, 404, 404, 404, 404]);
+    expect(await templatesAuthoredBy(owner)).toEqual([expect.objectContaining({ id: template.id, title: template.title })]);
     expect(await versionsOf(template.id)).toHaveLength(1);
   });
 
   it("answers 401 to a caller without a session", async () => {
-    const { read } = await setup();
+    const { team, project, owner, read } = await setup();
+    const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id });
 
-    const response = await read("/v1/user-templates", { method: "POST", body: { data: { title: "Web", sdl: buildSdl() } } });
+    const responses = await Promise.all([
+      read("/v1/user-templates", { method: "POST", body: { data: { title: "Web", sdl: buildSdl() } } }),
+      read("/v1/user-templates"),
+      read(`/v1/user-templates/${template.id}`, { method: "PATCH", body: { data: { title: "Renamed" } } }),
+      read(`/v1/user-templates/${template.id}`, { method: "DELETE" })
+    ]);
 
-    expect(response.status).toBe(401);
+    expect(responses.map(({ status }) => status)).toEqual([401, 401, 401, 401]);
+    expect(await storedTemplate(template.id)).toMatchObject({ title: template.title });
+  });
+
+  describe("GET /v1/user-templates", () => {
+    it("lists the active organization's templates the caller can read, newest update first", async () => {
+      const { team, project, owner, actAs, addMember } = await setup();
+      const member = await addMember("member", "member");
+      const otherProject = await seedProject({ organizationId: team.id });
+      const { user: stranger, organization: otherTeam, project: otherTeamProject } = await seedOrganizationWithOwner({ user: createSignedUpUserInput() });
+      const organizationWide = await seedTemplate({
+        author: owner,
+        organizationId: team.id,
+        projectId: otherProject.id,
+        visibility: "organization",
+        updatedAt: new Date("2026-11-01T00:00:00Z")
+      });
+      const own = await seedTemplate({ author: member, organizationId: team.id, projectId: project.id, updatedAt: new Date("2026-11-03T00:00:00Z") });
+      await Promise.all([
+        seedTemplate({ author: owner, organizationId: team.id, projectId: otherProject.id, updatedAt: new Date("2026-11-04T00:00:00Z") }),
+        seedTemplate({ author: stranger, organizationId: otherTeam.id, projectId: otherTeamProject.id, visibility: "organization" }),
+        seedTemplate({ author: member, organizationId: team.id, projectId: project.id, moderationStatus: "removed" })
+      ]);
+      const [organizationWideVersion] = await versionsOf(organizationWide.id);
+
+      const response = await actAs(member)("/v1/user-templates");
+
+      expect(response.status).toBe(200);
+      const { data } = (await response.json()) as { data: { id: string; canEdit: boolean }[] };
+      expect(data.map(({ id, canEdit }) => ({ id, canEdit }))).toEqual([
+        { id: own.id, canEdit: true },
+        { id: organizationWide.id, canEdit: false }
+      ]);
+      expect(data[1]).toEqual({
+        id: organizationWide.id,
+        title: organizationWide.title,
+        summary: null,
+        icon: null,
+        categories: [],
+        visibility: "organization",
+        isListed: true,
+        moderationStatus: "active",
+        projectId: otherProject.id,
+        copiedFromId: null,
+        updatedAt: "2026-11-01T00:00:00.000Z",
+        currentVersion: { version: 1, status: "live", createdAt: organizationWideVersion.createdAt.toISOString() },
+        lastEditedBy: { username: owner.username },
+        canEdit: false
+      });
+    });
+
+    it("lists only organization-wide templates when asked for that visibility", async () => {
+      const { team, project, owner, actAs } = await setup();
+      const [organizationWide] = await Promise.all([
+        seedTemplate({ author: owner, organizationId: team.id, projectId: project.id, visibility: "organization" }),
+        seedTemplate({ author: owner, organizationId: team.id, projectId: project.id })
+      ]);
+
+      const response = await actAs(owner)("/v1/user-templates?visibility=organization");
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ data: [expect.objectContaining({ id: organizationWide.id, visibility: "organization" })] });
+    });
+
+    it("lists only the templates of the project asked for", async () => {
+      const { team, project, owner, actAs } = await setup();
+      const otherProject = await seedProject({ organizationId: team.id });
+      const [inProject] = await Promise.all([
+        seedTemplate({ author: owner, organizationId: team.id, projectId: project.id }),
+        seedTemplate({ author: owner, organizationId: team.id, projectId: otherProject.id })
+      ]);
+
+      const response = await actAs(owner)(`/v1/user-templates?projectId=${project.id}`);
+
+      expect(await response.json()).toEqual({ data: [expect.objectContaining({ id: inProject.id, projectId: project.id })] });
+    });
+
+    it("names no version or editor for a legacy template saved without a version", async () => {
+      const { team, project, owner, actAs } = await setup();
+      const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id, withoutVersion: true });
+
+      const response = await actAs(owner)("/v1/user-templates");
+
+      expect(await response.json()).toEqual({ data: [expect.objectContaining({ id: template.id, currentVersion: null, lastEditedBy: null, canEdit: true })] });
+    });
+
+    it("lists only organization-wide templates to a billing member, read-only", async () => {
+      const { team, project, owner, actAs, addMember } = await setup();
+      const billing = await addMember("billing", null);
+      const [organizationWide] = await Promise.all([
+        seedTemplate({ author: owner, organizationId: team.id, projectId: project.id, visibility: "organization" }),
+        seedTemplate({ author: owner, organizationId: team.id, projectId: project.id })
+      ]);
+
+      const response = await actAs(billing)("/v1/user-templates");
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ data: [expect.objectContaining({ id: organizationWide.id, canEdit: false })] });
+    });
+  });
+
+  describe("GET /v1/user-templates/{id}", () => {
+    it("reports isFavorite and projectId on the template", async () => {
+      const { team, project, owner, actAs, read } = await setup();
+      const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id, visibility: "public" });
+      await seedFavorite(owner, template.id);
+
+      const responses = await Promise.all([actAs(owner)(`/v1/user-templates/${template.id}`), read(`/v1/user-templates/${template.id}`)]);
+
+      expect(await Promise.all(responses.map(response => response.json()))).toEqual([
+        { data: expect.objectContaining({ id: template.id, projectId: project.id, isFavorite: true }) },
+        { data: expect.objectContaining({ id: template.id, projectId: project.id, isFavorite: false }) }
+      ]);
+    });
+  });
+
+  describe("PATCH /v1/user-templates/{id}", () => {
+    it("updates title, summary, icon, categories and visibility, keeping isPublic false", async () => {
+      const { team, project, owner, actAs } = await setup();
+      const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id });
+      const asOwner = actAs(owner);
+      const settings = { title: "  Renamed  ", summary: "  Serves the web  ", icon: "rocket", categories: ["AI - GPU", "Tools"], visibility: "organization" };
+
+      const response = await asOwner(`/v1/user-templates/${template.id}`, { method: "PATCH", body: { data: settings } });
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({
+        data: expect.objectContaining({
+          id: template.id,
+          title: "Renamed",
+          summary: "Serves the web",
+          icon: "rocket",
+          categories: ["AI - GPU", "Tools"],
+          visibility: "organization",
+          isListed: true,
+          projectId: project.id,
+          canEdit: true
+        })
+      });
+      expect(await storedTemplate(template.id)).toMatchObject({
+        title: "Renamed",
+        summary: "Serves the web",
+        icon: "rocket",
+        categories: ["AI - GPU", "Tools"],
+        visibility: "organization",
+        isPublic: false,
+        isListed: true,
+        sdl: template.sdl
+      });
+      const legacy = await asOwner(`/v1/user/template/${template.id}`);
+      expect(await legacy.json()).toMatchObject({ id: template.id, title: "Renamed", isPublic: false });
+    });
+
+    it("changes only the settings sent and clears the summary and icon with null or an empty summary", async () => {
+      const { team, project, owner, actAs } = await setup();
+      const template = await seedTemplate({
+        author: owner,
+        organizationId: team.id,
+        projectId: project.id,
+        summary: "Serves the web",
+        icon: "rocket",
+        categories: ["Tools"]
+      });
+      const asOwner = actAs(owner);
+
+      const cleared = await asOwner(`/v1/user-templates/${template.id}`, { method: "PATCH", body: { data: { summary: "  ", icon: null } } });
+      const afterClear = await storedTemplate(template.id);
+      const nulled = await asOwner(`/v1/user-templates/${template.id}`, { method: "PATCH", body: { data: { summary: null, categories: [] } } });
+
+      expect([cleared.status, nulled.status]).toEqual([200, 200]);
+      expect(afterClear).toMatchObject({ title: template.title, summary: null, icon: null, categories: ["Tools"], visibility: "private" });
+      expect(await storedTemplate(template.id)).toMatchObject({ title: template.title, summary: null, icon: null, categories: [], visibility: "private" });
+    });
+
+    it.each<[string, Record<string, unknown>]>([
+      ["public visibility", { visibility: "public" }],
+      ["an icon outside the catalog", { icon: "unicorn" }],
+      ["a category outside the catalog", { categories: ["Gaming"] }],
+      ["four categories", { categories: ["AI - CPU", "AI - GPU", "Blockchain", "Tools"] }],
+      ["a category twice", { categories: ["Tools", "Tools"] }],
+      ["a blank title", { title: "   " }],
+      ["a title of 81 characters", { title: "a".repeat(81) }],
+      ["a summary of 201 characters", { summary: "a".repeat(201) }],
+      ["no setting at all", {}]
+    ])("refuses %s", async (_case, settings) => {
+      const { team, project, owner, actAs } = await setup();
+      const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id });
+
+      const response = await actAs(owner)(`/v1/user-templates/${template.id}`, { method: "PATCH", body: { data: settings } });
+
+      expect(response.status).toBe(400);
+      expect(await storedTemplate(template.id)).toEqual(template);
+    });
+
+    it("takes a legacy public template back to organization visibility", async () => {
+      const { team, project, owner, actAs } = await setup();
+      const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id, visibility: "public", isListed: false });
+
+      const response = await actAs(owner)(`/v1/user-templates/${template.id}`, { method: "PATCH", body: { data: { visibility: "organization" } } });
+
+      expect(response.status).toBe(200);
+      expect(await storedTemplate(template.id)).toMatchObject({ visibility: "organization", isPublic: false, isListed: false });
+    });
+
+    it("refuses a viewer's change with 403 and an outsider's with 404", async () => {
+      const { team, project, owner, actAs, addMember } = await setup();
+      const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id, visibility: "organization" });
+      const viewer = await addMember("member", "viewer");
+      const { user: outsider, organization: otherTeam } = await seedOrganizationWithOwner({ user: createSignedUpUserInput() });
+      const body = { data: { title: "Renamed" } };
+
+      const responses = await Promise.all([
+        actAs(viewer)(`/v1/user-templates/${template.id}`, { method: "PATCH", body }),
+        actAs(outsider, { organizationId: otherTeam.id })(`/v1/user-templates/${template.id}`, { method: "PATCH", body })
+      ]);
+
+      expect(responses.map(({ status }) => status)).toEqual([403, 404]);
+      expect(await responses[0].json()).toMatchObject({ message: "You cannot change this template" });
+      expect(await storedTemplate(template.id)).toEqual(template);
+    });
+  });
+
+  describe("DELETE /v1/user-templates/{id}", () => {
+    it("deletes a template with its versions and favorites", async () => {
+      const { team, project, owner, actAs, addMember } = await setup();
+      const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id, visibility: "organization" });
+      const kept = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id });
+      const member = await addMember("member", "member");
+      await Promise.all([seedFavorite(owner, template.id), seedFavorite(member, template.id), seedFavorite(owner, kept.id)]);
+
+      const response = await actAs(owner)(`/v1/user-templates/${template.id}`, { method: "DELETE" });
+
+      expect(response.status).toBe(204);
+      expect(await storedTemplate(template.id)).toBeUndefined();
+      expect(await versionsOf(template.id)).toEqual([]);
+      expect(await favoritesOf(template.id)).toEqual([]);
+      expect(await storedTemplate(kept.id)).toEqual(kept);
+      expect(await favoritesOf(kept.id)).toHaveLength(1);
+    });
+
+    it("refuses a viewer's delete with 403 and an outsider's with 404", async () => {
+      const { team, project, owner, actAs, addMember } = await setup();
+      const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id });
+      const viewer = await addMember("member", "viewer");
+      const { user: outsider, organization: otherTeam } = await seedOrganizationWithOwner({ user: createSignedUpUserInput() });
+
+      const responses = await Promise.all([
+        actAs(viewer)(`/v1/user-templates/${template.id}`, { method: "DELETE" }),
+        actAs(outsider, { organizationId: otherTeam.id })(`/v1/user-templates/${template.id}`, { method: "DELETE" })
+      ]);
+
+      expect(responses.map(({ status }) => status)).toEqual([403, 404]);
+      expect(await storedTemplate(template.id)).toEqual(template);
+      expect(await versionsOf(template.id)).toHaveLength(1);
+    });
+  });
+
+  describe("outside the active organization", () => {
+    it.each<[string, (id: string) => { path: string; method: string; body?: unknown }, number]>([
+      ["a settings change", id => ({ path: `/v1/user-templates/${id}`, method: "PATCH", body: { data: { title: "Renamed" } } }), 200],
+      ["a delete", id => ({ path: `/v1/user-templates/${id}`, method: "DELETE" }), 204],
+      [
+        "a new version",
+        id => ({ path: `/v1/user-templates/${id}/versions`, method: "POST", body: { data: { sdl: buildSdl({ count: 3 }), askedValues: [], baseVersion: 1 } } }),
+        201
+      ]
+    ])("allows %s in legacy mode on the caller's personal template only", async (_case, requestFor, allowedStatus) => {
+      const { team, project, owner, actAs } = await setup({ isOrganizationsOn: false });
+      const {
+        user: author,
+        organization: personal,
+        project: personalProject
+      } = await seedOrganizationWithOwner({
+        type: "personal",
+        user: createSignedUpUserInput()
+      });
+      await seedOrganizationMember({ organizationId: team.id, userId: author.id, role: "member" });
+      await seedProjectMember({ organizationId: team.id, projectId: project.id, userId: author.id, role: "member" });
+      const personalTemplate = await seedTemplate({ author, organizationId: personal.id, projectId: personalProject.id });
+      const teamTemplates = await Promise.all([
+        seedTemplate({ author, organizationId: team.id, projectId: project.id }),
+        seedTemplate({ author: owner, organizationId: team.id, projectId: project.id })
+      ]);
+      const asAuthor = actAs(author);
+      const statuses: number[] = [];
+
+      for (const { id } of [personalTemplate, ...teamTemplates]) {
+        const { path, ...init } = requestFor(id);
+        statuses.push((await asAuthor(path, init)).status);
+      }
+
+      expect(statuses).toEqual([allowedStatus, 403, 404]);
+      expect(await Promise.all(teamTemplates.map(({ id }) => storedTemplate(id)))).toEqual(teamTemplates);
+      expect(await Promise.all(teamTemplates.map(async ({ id }) => (await versionsOf(id)).length))).toEqual([1, 1]);
+    });
+
+    it("tells the author to switch to the template's organization", async () => {
+      const { team, project, actAs } = await setup({ isOrganizationsOn: false });
+      const { user: author } = await seedOrganizationWithOwner({ type: "personal", user: createSignedUpUserInput() });
+      const template = await seedTemplate({ author, organizationId: team.id, projectId: project.id });
+
+      const response = await actAs(author)(`/v1/user-templates/${template.id}`, { method: "DELETE" });
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ code: "organization_forbidden", message: "Switch to the template's organization to change it" });
+    });
+
+    it("refuses changing a template filed in no organization", async () => {
+      const { actAs } = await setup({ isOrganizationsOn: false });
+      const { user: author } = await seedOrganizationWithOwner({ type: "personal", user: createSignedUpUserInput() });
+      const template = await seedTemplate({ author });
+      const asAuthor = actAs(author);
+
+      const responses = await Promise.all([
+        asAuthor(`/v1/user-templates/${template.id}`, { method: "PATCH", body: { data: { title: "Renamed" } } }),
+        asAuthor(`/v1/user-templates/${template.id}`, { method: "DELETE" }),
+        asAuthor(`/v1/user-templates/${template.id}/versions`, {
+          method: "POST",
+          body: { data: { sdl: buildSdl({ count: 3 }), askedValues: [], baseVersion: 1 } }
+        })
+      ]);
+
+      expect(responses.map(({ status }) => status)).toEqual([403, 403, 403]);
+      expect(await storedTemplate(template.id)).toEqual(template);
+      expect(await versionsOf(template.id)).toHaveLength(1);
+    });
   });
 
   describe("POST /v1/user-templates", () => {
@@ -74,6 +408,7 @@ describe("Marketplace template writes", () => {
         isListed: true,
         isOfficial: false,
         moderationStatus: "active",
+        projectId: project.id,
         copiedFromId: null,
         createdAt: expect.any(String),
         updatedAt: expect.any(String),
@@ -92,7 +427,8 @@ describe("Marketplace template writes", () => {
           createdBy: { username: member.username },
           createdAt: expect.any(String)
         },
-        canEdit: true
+        canEdit: true,
+        isFavorite: false
       });
       expect(await storedTemplate(data.id)).toMatchObject({
         visibility: "private",
@@ -510,12 +846,19 @@ describe("Marketplace template writes", () => {
     readme?: string;
     description?: string;
     withoutVersion?: boolean;
+    moderationStatus?: TemplateModerationStatus;
+    isListed?: boolean;
+    summary?: string;
+    icon?: string;
+    categories?: string[];
+    updatedAt?: Date;
   }) {
-    const { author, readme, description = readme, withoutVersion = false, visibility = "private", ...template } = input;
+    const { author, readme, description = readme, withoutVersion = false, visibility = "private", updatedAt, ...template } = input;
     const sdl = buildSdl();
-    const [row] = await container
-      .resolve<ApiPgDatabase>(POSTGRES_DB)
-      .insert(resolveTable("Templates"))
+    const templates = resolveTable("Templates");
+    const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
+    const [row] = await db
+      .insert(templates)
       .values({
         ...template,
         sdl,
@@ -533,8 +876,24 @@ describe("Marketplace template writes", () => {
     if (!withoutVersion) {
       await container.resolve(TemplateVersionRepository).appendVersion({ templateId: row.id, sdl, readme, createdById: author?.id });
     }
+    if (updatedAt) {
+      await db.update(templates).set({ updatedAt }).where(eq(templates.id, row.id));
+    }
 
-    return row;
+    return await storedTemplate(row.id);
+  }
+
+  async function seedFavorite(user: UserOutput, templateId: string) {
+    await container
+      .resolve<ApiPgDatabase>(POSTGRES_DB)
+      .insert(resolveTable("TemplateFavorites"))
+      .values({ userId: user.userId!, templateId, addedDate: new Date() });
+  }
+
+  async function favoritesOf(templateId: string) {
+    const favorites = resolveTable("TemplateFavorites");
+
+    return await container.resolve<ApiPgDatabase>(POSTGRES_DB).select().from(favorites).where(eq(favorites.templateId, templateId));
   }
 
   async function storedTemplate(id: string) {
@@ -565,11 +924,15 @@ describe("Marketplace template writes", () => {
     return { userId: `auth0|${faker.string.alphanumeric(24)}`, username: `user-${faker.string.alphanumeric(12)}` };
   }
 
-  async function setup({ isMarketplaceOn = true }: { isMarketplaceOn?: boolean } = {}) {
+  async function setup({ isMarketplaceOn = true, isOrganizationsOn = true }: { isMarketplaceOn?: boolean; isOrganizationsOn?: boolean } = {}) {
     const { user: owner, organization: team } = await seedOrganizationWithOwner({ user: createSignedUpUserInput() });
     const project = await seedProject({ organizationId: team.id });
     const tokens = new Map<string, string>();
-    const disabledFlags: string[] = [FeatureFlags.ORGANIZATIONS_ENFORCE, ...(isMarketplaceOn ? [] : [FeatureFlags.TEMPLATE_MARKETPLACE])];
+    const disabledFlags: string[] = [
+      FeatureFlags.ORGANIZATIONS_ENFORCE,
+      ...(isMarketplaceOn ? [] : [FeatureFlags.TEMPLATE_MARKETPLACE]),
+      ...(isOrganizationsOn ? [] : [FeatureFlags.ORGANIZATIONS])
+    ];
 
     vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(
       async header => tokens.get(header.replace(/^Bearer +/i, "")) ?? null
@@ -593,10 +956,13 @@ describe("Marketplace template writes", () => {
         request(path, { authorization: `Bearer ${token}`, "x-organization-id": organizationId }, init);
     };
 
-    const addMember = async (role: "member" | "admin", projectRole: "member" | "viewer") => {
+    const addMember = async (role: "member" | "admin" | "billing", projectRole: "member" | "viewer" | null) => {
       const user = await seedUser(createSignedUpUserInput());
       await seedOrganizationMember({ organizationId: team.id, userId: user.id, role });
-      await seedProjectMember({ organizationId: team.id, projectId: project.id, userId: user.id, role: projectRole });
+
+      if (projectRole) {
+        await seedProjectMember({ organizationId: team.id, projectId: project.id, userId: user.id, role: projectRole });
+      }
 
       return user;
     };

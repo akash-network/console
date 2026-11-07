@@ -7663,7 +7663,8 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get?: never;
+    /** List the active organization's templates the caller may read, most recently updated first */
+    get: operations["listUserTemplates"];
     put?: never;
     /** Create a private template with its first version */
     post: operations["createUserTemplate"];
@@ -7684,10 +7685,12 @@ export interface paths {
     get: operations["getUserTemplate"];
     put?: never;
     post?: never;
-    delete?: never;
+    /** Delete a template the caller may delete, with its versions and favorites */
+    delete: operations["deleteUserTemplate"];
     options?: never;
     head?: never;
-    patch?: never;
+    /** Change the title, summary, icon, categories or visibility of a template the caller may change */
+    patch: operations["updateUserTemplate"];
     trace?: never;
   };
   "/v1/user-templates/{id}/versions": {
@@ -8931,6 +8934,11 @@ export interface components {
       isOfficial: boolean;
       /** @enum {string} */
       moderationStatus: "active" | "hidden" | "removed";
+      /**
+       * Format: uuid
+       * @description The project the template is filed in, null for a template filed in none
+       */
+      projectId: string | null;
       /** Format: uuid */
       copiedFromId: string | null;
       /** Format: date-time */
@@ -8952,6 +8960,8 @@ export interface components {
       currentVersion: components["schemas"]["TemplateVersion"];
       /** @description Whether the caller may change the template */
       canEdit: boolean;
+      /** @description Whether the caller made the template a favorite, false without a session */
+      isFavorite: boolean;
     };
     GetUserTemplateResponse: {
       data: components["schemas"]["MarketplaceTemplate"];
@@ -9001,6 +9011,119 @@ export interface components {
         askedValues: components["schemas"]["TemplateAskedValue"][];
         /** @description The version this one was edited from, refused with 409 once another version has been saved after it */
         baseVersion: number;
+      };
+    };
+    UserTemplateListItem: {
+      /** Format: uuid */
+      id: string;
+      title: string;
+      summary: string | null;
+      icon: string | null;
+      categories: string[];
+      /** @enum {string} */
+      visibility: "private" | "organization" | "public";
+      isListed: boolean;
+      /** @enum {string} */
+      moderationStatus: "active" | "hidden" | "removed";
+      /** Format: uuid */
+      projectId: string | null;
+      /** Format: uuid */
+      copiedFromId: string | null;
+      /** Format: date-time */
+      updatedAt: string;
+      /** @description Null on a template an older API pod saved without a version */
+      currentVersion: {
+        version: number;
+        /** @enum {string} */
+        status: "live" | "held" | "failed_checks";
+        /** Format: date-time */
+        createdAt: string;
+      } | null;
+      /** @description Who saved the current version, null when unknown or gone */
+      lastEditedBy: {
+        username: string;
+      } | null;
+      /** @description Whether the caller may change the template */
+      canEdit: boolean;
+    };
+    ListUserTemplatesResponse: {
+      data: components["schemas"]["UserTemplateListItem"][];
+    };
+    UpdateUserTemplateResponse: {
+      data: components["schemas"]["MarketplaceTemplate"];
+    };
+    UpdateUserTemplateRequest: {
+      data: {
+        title?: string;
+        /** @description Null or blank clears it */
+        summary?: string | null;
+        /**
+         * @description Null shows the default icon
+         * @enum {string|null}
+         */
+        icon?:
+          | "box"
+          | "bot"
+          | "brain"
+          | "message-square"
+          | "image"
+          | "video"
+          | "music"
+          | "database"
+          | "server"
+          | "globe"
+          | "code"
+          | "terminal"
+          | "gamepad"
+          | "chart"
+          | "shield"
+          | "workflow"
+          | "cpu"
+          | "layers"
+          | "file-text"
+          | "search"
+          | "mail"
+          | "cloud"
+          | "wallet"
+          | "rocket"
+          | null;
+        categories?: (
+          | "AI - CPU"
+          | "AI - GPU"
+          | "Benchmarking"
+          | "Blockchain"
+          | "Blogging"
+          | "Built with Cosmos-SDK"
+          | "Business"
+          | "CI/CD, DevOps"
+          | "Chat"
+          | "Data Visualization"
+          | "Databases and Administration"
+          | "DeFi"
+          | "Decentralized Storage"
+          | "Game Servers"
+          | "Games"
+          | "Hosting"
+          | "Machine Learning"
+          | "Mining - CPU"
+          | "Mining - GPU"
+          | "Mining Pools"
+          | "Network"
+          | "Official"
+          | "Peer-to-peer File Sharing"
+          | "Project Management"
+          | "Search Engines"
+          | "Social"
+          | "Tools"
+          | "Video Conferencing"
+          | "Wallet"
+          | "Web Frameworks"
+        )[];
+        /**
+         * @description Moving a public template to either clears its public flag
+         * @enum {string}
+         */
+        visibility?: "private" | "organization";
       };
     };
     CreateUserTemplateVersionResponse: {
@@ -18278,6 +18401,48 @@ export interface operations {
       };
     };
   };
+  listUserTemplates: {
+    parameters: {
+      query?: {
+        visibility?: "private" | "organization" | "public";
+        projectId?: string;
+      };
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description At most 200 templates */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ListUserTemplatesResponse"];
+        };
+      };
+      /** @description The visibility or the project id is invalid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller is not signed in */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   createUserTemplate: {
     parameters: {
       query?: never;
@@ -18357,6 +18522,118 @@ export interface operations {
       };
       /** @description The id is not a uuid */
       400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The template does not exist or the caller may not read it */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  deleteUserTemplate: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The template deleted */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The id is not a uuid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller is not signed in */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The template belongs to another organization than the active one (`organization_forbidden`), or the caller may not change it */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The template does not exist or the caller may not read it */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  updateUserTemplate: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateUserTemplateRequest"];
+      };
+    };
+    responses: {
+      /** @description The template changed */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UpdateUserTemplateResponse"];
+        };
+      };
+      /** @description The body changes no setting, or a setting is outside the catalog or its limits */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller is not signed in */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The template belongs to another organization than the active one (`organization_forbidden`), or the caller may not change it */
+      403: {
         headers: {
           [name: string]: unknown;
         };

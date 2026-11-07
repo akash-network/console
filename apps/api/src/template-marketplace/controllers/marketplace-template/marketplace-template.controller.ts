@@ -10,13 +10,18 @@ import type {
   CreateUserTemplateRequest,
   CreateUserTemplateResponse,
   CreateUserTemplateVersionRequest,
-  CreateUserTemplateVersionResponse
+  CreateUserTemplateVersionResponse,
+  ListUserTemplatesQuery,
+  ListUserTemplatesResponse,
+  UpdateUserTemplateRequest,
+  UpdateUserTemplateResponse
 } from "@src/template-marketplace/http-schemas/template-writes.schema";
 import type { TemplateVersionSummary } from "@src/template-marketplace/repositories/template-version/template-version.repository";
 import {
   type MarketplaceTemplateOutput,
   MarketplaceTemplateService,
-  type PublishedTemplateVersion
+  type PublishedTemplateVersion,
+  type UserTemplateListItem
 } from "@src/template-marketplace/services/marketplace-template/marketplace-template.service";
 import { TemplateWriterService } from "@src/template-marketplace/services/template-writer/template-writer.service";
 
@@ -37,6 +42,14 @@ function toTemplateResponse({ createdAt, updatedAt, currentVersion, ...template 
   };
 }
 
+function toListItemResponse({ updatedAt, currentVersion, ...item }: UserTemplateListItem): ListUserTemplatesResponse["data"][number] {
+  return {
+    ...item,
+    updatedAt: updatedAt.toISOString(),
+    currentVersion: currentVersion && { ...currentVersion, createdAt: currentVersion.createdAt.toISOString() }
+  };
+}
+
 @singleton()
 export class MarketplaceTemplateController {
   constructor(
@@ -50,6 +63,20 @@ export class MarketplaceTemplateController {
 
   async createTemplate({ data }: CreateUserTemplateRequest): Promise<CreateUserTemplateResponse> {
     return { data: toTemplateResponse(await this.templateWriterService.create(data)) };
+  }
+
+  async listTemplates(query: ListUserTemplatesQuery): Promise<ListUserTemplatesResponse> {
+    const items = await this.marketplaceTemplateService.listInOrganization(query);
+
+    return { data: items.map(toListItemResponse) };
+  }
+
+  async updateTemplate(id: string, { data }: UpdateUserTemplateRequest): Promise<UpdateUserTemplateResponse> {
+    return { data: toTemplateResponse(await this.templateWriterService.updateSettings(id, data)) };
+  }
+
+  async deleteTemplate(id: string): Promise<void> {
+    await this.templateWriterService.delete(id);
   }
 
   async createVersion(id: string, { data }: CreateUserTemplateVersionRequest): Promise<CreateUserTemplateVersionResponse> {

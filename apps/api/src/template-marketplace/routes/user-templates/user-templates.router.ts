@@ -16,8 +16,13 @@ import {
   CreateUserTemplateRequestSchema,
   CreateUserTemplateResponseSchema,
   CreateUserTemplateVersionRequestSchema,
-  CreateUserTemplateVersionResponseSchema
+  CreateUserTemplateVersionResponseSchema,
+  ListUserTemplatesQuerySchema,
+  ListUserTemplatesResponseSchema,
+  UpdateUserTemplateRequestSchema,
+  UpdateUserTemplateResponseSchema
 } from "@src/template-marketplace/http-schemas/template-writes.schema";
+import { MAX_LISTED_USER_TEMPLATES } from "@src/template-marketplace/services/marketplace-template/marketplace-template.service";
 
 export const marketplaceTemplatesRouter = new OpenApiHonoHandler();
 
@@ -163,4 +168,87 @@ const createUserTemplateVersionRoute = createRoute({
 marketplaceTemplatesRouter.openapi(createUserTemplateVersionRoute, async function routeCreateUserTemplateVersion(c) {
   const { id } = c.req.valid("param");
   return c.json(await container.resolve(MarketplaceTemplateController).createVersion(id, c.req.valid("json")), 201);
+});
+
+const listUserTemplatesRoute = createRoute({
+  method: "get",
+  operationId: "listUserTemplates",
+  path: "/v1/user-templates",
+  summary: "List the active organization's templates the caller may read, most recently updated first",
+  tags: ["Templates"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  featureFlag: FeatureFlags.TEMPLATE_MARKETPLACE,
+  request: {
+    query: ListUserTemplatesQuerySchema
+  },
+  responses: {
+    200: {
+      description: `At most ${MAX_LISTED_USER_TEMPLATES} templates`,
+      content: { "application/json": { schema: ListUserTemplatesResponseSchema } }
+    },
+    400: { description: "The visibility or the project id is invalid" },
+    401: { description: "The caller is not signed in" }
+  }
+});
+
+marketplaceTemplatesRouter.openapi(listUserTemplatesRoute, async function routeListUserTemplates(c) {
+  return c.json(await container.resolve(MarketplaceTemplateController).listTemplates(c.req.valid("query")), 200);
+});
+
+const OUTSIDE_ORGANIZATION_DESCRIPTION =
+  "The template belongs to another organization than the active one (`organization_forbidden`), or the caller may not change it";
+
+const updateUserTemplateRoute = createRoute({
+  method: "patch",
+  operationId: "updateUserTemplate",
+  path: "/v1/user-templates/{id}",
+  summary: "Change the title, summary, icon, categories or visibility of a template the caller may change",
+  tags: ["Templates"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  featureFlag: FeatureFlags.TEMPLATE_MARKETPLACE,
+  request: {
+    params: UserTemplateParamsSchema,
+    body: { content: { "application/json": { schema: UpdateUserTemplateRequestSchema } }, required: true }
+  },
+  responses: {
+    200: {
+      description: "The template changed",
+      content: { "application/json": { schema: UpdateUserTemplateResponseSchema } }
+    },
+    400: { description: "The body changes no setting, or a setting is outside the catalog or its limits" },
+    401: { description: "The caller is not signed in" },
+    403: { description: OUTSIDE_ORGANIZATION_DESCRIPTION },
+    404: { description: NOT_FOUND_DESCRIPTION }
+  }
+});
+
+marketplaceTemplatesRouter.openapi(updateUserTemplateRoute, async function routeUpdateUserTemplate(c) {
+  const { id } = c.req.valid("param");
+  return c.json(await container.resolve(MarketplaceTemplateController).updateTemplate(id, c.req.valid("json")), 200);
+});
+
+const deleteUserTemplateRoute = createRoute({
+  method: "delete",
+  operationId: "deleteUserTemplate",
+  path: "/v1/user-templates/{id}",
+  summary: "Delete a template the caller may delete, with its versions and favorites",
+  tags: ["Templates"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  featureFlag: FeatureFlags.TEMPLATE_MARKETPLACE,
+  request: {
+    params: UserTemplateParamsSchema
+  },
+  responses: {
+    204: { description: "The template deleted" },
+    400: { description: "The id is not a uuid" },
+    401: { description: "The caller is not signed in" },
+    403: { description: OUTSIDE_ORGANIZATION_DESCRIPTION },
+    404: { description: NOT_FOUND_DESCRIPTION }
+  }
+});
+
+marketplaceTemplatesRouter.openapi(deleteUserTemplateRoute, async function routeDeleteUserTemplate(c) {
+  const { id } = c.req.valid("param");
+  await container.resolve(MarketplaceTemplateController).deleteTemplate(id);
+  return c.body(null, 204);
 });
