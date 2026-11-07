@@ -15,6 +15,7 @@ import { TxService } from "@src/core/services/tx/tx.service";
 import { ProviderJwtTokenService } from "@src/provider/services/provider-jwt-token/provider-jwt-token.service";
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
+import { AccountStatusService } from "@src/user/services/account-status/account-status.service";
 import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 import { DeletedAccountAbuseLockService } from "@src/workload-abuse/services/deleted-account-abuse-lock/deleted-account-abuse-lock.service";
 import { UserWalletRepository } from "../../repositories/user-wallet/user-wallet.repository";
@@ -83,6 +84,34 @@ describe(WalletInitializerService.name, () => {
       const user = createUser({ emailVerified: true });
       const activatedWallet = createUserWallet({ userId: user.id, activatedAt: new Date() });
       const di = setup({ user, isBlockedEmailDomain: true, getOrCreateWallet: vi.fn().mockResolvedValue({ wallet: activatedWallet, isNew: false }) });
+
+      const result = await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id);
+
+      expect(result.address).toBe(activatedWallet.address);
+    });
+
+    it("does not activate a trial for a suspended user", async () => {
+      const user = createUser({ emailVerified: true, accountStatus: "suspended" });
+      const updateWalletById = vi.fn();
+      const di = setup({
+        user,
+        updateWalletById,
+        getOrCreateWallet: vi.fn().mockResolvedValue({ wallet: createUserWallet({ userId: user.id, activatedAt: null }) })
+      });
+
+      await expect(di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id)).rejects.toMatchObject({
+        status: 403,
+        errorCode: "account_suspended"
+      });
+      expect(di.resolve(ManagedUserWalletService).createAndAuthorizeTrialSpending).not.toHaveBeenCalled();
+      expect(updateWalletById).not.toHaveBeenCalled();
+      expect(di.resolve(DomainEventsService).publish).not.toHaveBeenCalled();
+    });
+
+    it("returns an already-activated wallet of a suspended user without refusing", async () => {
+      const user = createUser({ emailVerified: true, accountStatus: "suspended" });
+      const activatedWallet = createUserWallet({ userId: user.id, activatedAt: new Date() });
+      const di = setup({ user, getOrCreateWallet: vi.fn().mockResolvedValue({ wallet: activatedWallet, isNew: false }) });
 
       const result = await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id);
 
@@ -485,6 +514,7 @@ describe(WalletInitializerService.name, () => {
       })
     );
     di.registerInstance(TrialActivationInstrumentationService, mock<TrialActivationInstrumentationService>());
+    di.registerInstance(AccountStatusService, mock<AccountStatusService>({ findUserReasonOf: vi.fn().mockResolvedValue(null) }));
     di.registerInstance(TrialValidationService, mock<TrialValidationService>());
     di.registerInstance(
       BlockedEmailDomainService,

@@ -26,6 +26,8 @@ import type {
   AccountDeletionEligibility,
   AccountDeletionEligibilityService
 } from "@src/user/services/account-deletion-eligibility/account-deletion-eligibility.service";
+import type { AccountStatusService } from "@src/user/services/account-status/account-status.service";
+import { AccountStatusGuard } from "@src/user/services/account-status-guard/account-status-guard.service";
 import { PURGE_DELETED_ACCOUNT_RETRY_OPTIONS, PurgeDeletedAccount } from "@src/user/services/purge-deleted-account/purge-deleted-account.handler";
 import type { TeamRecordRetentionService } from "@src/user/services/team-record-retention/team-record-retention.service";
 import type { WorkloadProbeEvidenceRepository } from "@src/workload-abuse/repositories/workload-probe-evidence/workload-probe-evidence.repository";
@@ -62,6 +64,17 @@ describe(AccountDeletionService.name, () => {
   });
 
   describe("initiate", () => {
+    it.each([
+      { accountStatus: "suspended", errorCode: "account_suspended" },
+      { accountStatus: "terminated", errorCode: "account_terminated" }
+    ] as const)("rejects a $accountStatus user with $errorCode and sends no link", async ({ accountStatus, errorCode }) => {
+      const { service, user, tokenRepository, notificationService } = setup({ user: { accountStatus } });
+
+      await expect(service.initiate(user, { forfeitAcknowledged: true })).rejects.toMatchObject({ status: 403, errorCode });
+      expect(tokenRepository.replaceForUser).not.toHaveBeenCalled();
+      expect(notificationService.createNotification).not.toHaveBeenCalled();
+    });
+
     it("stores a hash of the link token and emails the link", async () => {
       const { service, user, tokenRepository, notificationService } = setup();
 
@@ -266,6 +279,17 @@ describe(AccountDeletionService.name, () => {
   });
 
   describe("confirm", () => {
+    it.each([
+      { accountStatus: "suspended", errorCode: "account_suspended" },
+      { accountStatus: "terminated", errorCode: "account_terminated" }
+    ] as const)("rejects a $accountStatus user with $errorCode and deletes nothing", async ({ accountStatus, errorCode }) => {
+      const { service, userRepository, jobQueueService } = setup({ user: { accountStatus }, storedToken: {} });
+
+      await expect(service.confirm({ token: "link-token" })).rejects.toMatchObject({ status: 403, errorCode });
+      expect(userRepository.deleteById).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
     it("deletes the account the link was sent for and queues the cleanup outside the database", async () => {
       const wallet = createUserWallet();
       const {
@@ -737,6 +761,7 @@ describe(AccountDeletionService.name, () => {
       deploymentConfig,
       accountTeamsService,
       deletedAccountAbuseLockService,
+      new AccountStatusGuard(userRepository, mock<AccountStatusService>({ findUserReasonOf: vi.fn().mockResolvedValue(null) })),
       createLogger
     );
 

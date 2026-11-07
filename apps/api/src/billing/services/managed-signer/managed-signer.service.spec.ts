@@ -34,6 +34,8 @@ import type { DeploymentOrganizationActivityService } from "@src/deployment/serv
 import { RecordDeploymentSetting } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import type { UserOutput, UserRepository } from "@src/user/repositories";
+import type { AccountStatusService } from "@src/user/services/account-status/account-status.service";
+import { AccountStatusGuard } from "@src/user/services/account-status-guard/account-status-guard.service";
 import { createAkashAddress } from "../../../../test/seeders";
 import type { TxManagerService } from "../tx-manager/tx-manager.service";
 import { ManagedSignerService } from "./managed-signer.service";
@@ -2145,6 +2147,143 @@ describe(ManagedSignerService.name, () => {
     });
   });
 
+  describe("when the acting user's account is not active", () => {
+    it("rejects a create-deployment tx from a suspended user with account_suspended and the reason", async () => {
+      const { service, txManagerService, trialActivationJobService } = setupForCreate({
+        deploymentLimit: 500000,
+        inRequest: true,
+        currentUser: createUser({ id: "user-123", accountStatus: "suspended" }),
+        userReason: "Unpaid invoices"
+      });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toMatchObject({
+        status: 403,
+        errorCode: "account_suspended",
+        data: { reason: "Unpaid invoices" }
+      });
+      expect(trialActivationJobService.assertActivated).not.toHaveBeenCalled();
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
+    });
+
+    it("rejects a create-lease tx from a suspended user", async () => {
+      const { service, txManagerService } = setupForCreate({
+        deploymentLimit: 500000,
+        inRequest: true,
+        currentUser: createUser({ id: "user-123", accountStatus: "suspended" })
+      });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [leaseMessageFor(123)])).rejects.toMatchObject({
+        status: 403,
+        errorCode: "account_suspended"
+      });
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
+    });
+
+    it("rejects a deposit from a terminated user with account_terminated", async () => {
+      const { service } = setupForCreate({
+        deploymentLimit: 500000,
+        inRequest: true,
+        currentUser: createUser({ id: "user-123", accountStatus: "terminated" })
+      });
+      const deposit = {
+        typeUrl: `/${MsgAccountDeposit.$type}`,
+        value: MsgAccountDeposit.fromPartial({ signer: "akash1test", id: { scope: Scope.deployment, xid: "akash1test/456" } })
+      };
+
+      await expect(service.assertCanBroadcast("user-123", [deposit])).rejects.toMatchObject({ status: 403, errorCode: "account_terminated" });
+    });
+
+    it("rejects a batch that closes one deployment and creates another for a suspended user", async () => {
+      const { service, txManagerService } = setupForCreate({
+        deploymentLimit: 500000,
+        inRequest: true,
+        currentUser: createUser({ id: "user-123", accountStatus: "suspended" })
+      });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [closeMessageFor(1), createDeploymentMessage(500000)])).rejects.toMatchObject({
+        status: 403,
+        errorCode: "account_suspended"
+      });
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
+    });
+
+    it("allows a close-deployment tx from a suspended user", async () => {
+      const { service, txManagerService } = setupForClose({
+        inRequest: true,
+        currentUser: createUser({ id: "user-123", accountStatus: "suspended" })
+      });
+
+      await service.executeDerivedDecodedTxByUserId("user-123", [closeMessageFor(123), certificateMessage()]);
+
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalled();
+    });
+
+    it("rejects a suspended member spending from a team wallet while an active member passes", async () => {
+      const suspended = setupForTeam({ inRequest: true, currentUser: createUser({ id: "member-1", accountStatus: "suspended" }), userReason: "Abuse" });
+      const active = setupForTeam({ inRequest: true, currentUser: createUser({ id: "member-2", accountStatus: "active" }) });
+
+      await expect(suspended.service.executeDerivedDecodedTxByUserId("member-1", [createDeploymentMessageFor(123)])).rejects.toMatchObject({
+        status: 403,
+        errorCode: "account_suspended",
+        data: { reason: "Abuse" }
+      });
+      await active.service.executeDerivedDecodedTxByUserId("member-2", [createDeploymentMessageFor(124)]);
+
+      expect(suspended.txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
+      expect(active.txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalled();
+    });
+
+    it("judges a request by its own user rather than reading the stored one", async () => {
+      const { service, userRepository, txManagerService } = setupForTeam({
+        inRequest: true,
+        currentUser: createUser({ id: "member-1", accountStatus: "active" }),
+        storedUser: createUser({ id: "member-1", accountStatus: "suspended" })
+      });
+
+      await service.executeDerivedDecodedTxByUserId("member-1", [createDeploymentMessageFor(123)]);
+
+      expect(userRepository.findOneBy).not.toHaveBeenCalled();
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalled();
+    });
+
+    it("checks the member a job signs for, not the placeholder user the job runs as", async () => {
+      const { service, userRepository, txManagerService, wallet } = setupForTeam({
+        organizationContext: createOrganizationContext(),
+        currentUser: createUser({ id: "bg-job-user", accountStatus: "active" }),
+        storedUser: createUser({ id: "member-1", accountStatus: "suspended" })
+      });
+
+      await expect(service.executeDecodedTxByUserWallet(wallet, [leaseMessageFor(123)], { actingUserId: "member-1" })).rejects.toMatchObject({
+        status: 403,
+        errorCode: "account_suspended"
+      });
+      expect(userRepository.findOneBy).toHaveBeenCalledWith({ id: "member-1" });
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
+    });
+
+    it("checks the owner of a personal wallet when nobody is acting in a request", async () => {
+      const wallet = createUserWallet({ userId: "owner-1", feeAllowance: 100, deploymentAllowance: 500000, activatedAt: new Date() });
+      const { service, userRepository } = setupForCreate({
+        deploymentLimit: 500000,
+        storedUser: createUser({ id: "owner-1", accountStatus: "suspended" })
+      });
+
+      await expect(service.assertCanBroadcastByUserWallet(wallet, [createDeploymentMessage(500000)])).rejects.toMatchObject({
+        status: 403,
+        errorCode: "account_suspended"
+      });
+      expect(userRepository.findOneBy).toHaveBeenCalledWith({ id: "owner-1" });
+    });
+
+    it("leaves a team wallet alone when a job spends with no member acting", async () => {
+      const { service, userRepository, wallet } = setupForTeam({ storedUser: createUser({ accountStatus: "suspended" }) });
+
+      await service.assertCanBroadcastByUserWallet(wallet, [createDeploymentMessageFor(123)]);
+
+      expect(userRepository.findOneBy).not.toHaveBeenCalled();
+    });
+  });
+
   describe("ensureFeeGrants", () => {
     it("returns the fee allowance without a refill while it has reached the refill threshold", async () => {
       const wallet = createUserWallet();
@@ -2411,7 +2550,14 @@ describe(ManagedSignerService.name, () => {
     filedIds?: string[];
     reachableIds?: string[];
     organizationContext?: OrganizationContext;
+    inRequest?: boolean;
+    storedUser?: UserOutput;
+    userReason?: string;
   }) {
+    const executionStorage: Record<string, unknown> = {
+      ORGANIZATION_CONTEXT: input?.organizationContext,
+      HTTP_CONTEXT: input?.inRequest ? { request: "in flight" } : undefined
+    };
     const mocks = {
       userWalletRepository: mock<UserWalletRepository>({
         accessibleBy: vi.fn().mockReturnThis(),
@@ -2419,7 +2565,11 @@ describe(ManagedSignerService.name, () => {
         isEligibleForFeeRefill: input?.isEligibleForFeeRefill ?? vi.fn().mockResolvedValue(true)
       }),
       userRepository: mock<UserRepository>({
-        findById: input?.findById ?? vi.fn()
+        findById: input?.findById ?? vi.fn(),
+        findOneBy: vi.fn().mockResolvedValue(input?.storedUser)
+      }),
+      accountStatusService: mock<AccountStatusService>({
+        findUserReasonOf: vi.fn().mockResolvedValue(input?.userReason ?? null)
       }),
       balancesService: mock<BalancesService>({
         refreshUserWalletLimits: input?.refreshUserWalletLimits ?? vi.fn(),
@@ -2429,6 +2579,7 @@ describe(ManagedSignerService.name, () => {
       }),
       authService: mock<AuthService>({
         currentUser: input?.currentUser ?? createUser({ userId: "current-user" }),
+        safeCurrentUser: input?.currentUser ?? createUser({ userId: "current-user" }),
         ability: createMongoAbility<MongoAbility>()
       }),
       chainErrorService: mock<ChainErrorService>({
@@ -2479,8 +2630,8 @@ describe(ManagedSignerService.name, () => {
           )
       }),
       executionContextService: mock<ExecutionContextService>({
-        hasContext: vi.fn().mockReturnValue(!!input?.organizationContext),
-        get: vi.fn().mockReturnValue(input?.organizationContext)
+        hasContext: vi.fn().mockReturnValue(!!input?.organizationContext || !!input?.inRequest),
+        get: vi.fn((key: string) => executionStorage[key]) as ExecutionContextService["get"]
       }),
       depositLedger: mock<DeploymentDepositLedgerService>({
         recordPending: vi.fn().mockResolvedValue({ recorded: [], awaitingPrice: [] })
@@ -2517,6 +2668,7 @@ describe(ManagedSignerService.name, () => {
       mocks.executionContextService,
       mocks.deploymentOrganizationActivityService,
       mocks.depositLedger,
+      new AccountStatusGuard(mocks.userRepository, mocks.accountStatusService),
       createLogger
     );
 

@@ -14,7 +14,8 @@ export type FundingSkipReason =
   | "wallet_not_found"
   | "runtime_limit_reached"
   | "recently_funded"
-  | "project_budget_reached";
+  | "project_budget_reached"
+  | "account_not_active";
 
 const SKIP_LOG_LEVEL: Record<FundingSkipReason, "info" | "warn" | "error"> = {
   sufficient_runway: "info",
@@ -24,7 +25,8 @@ const SKIP_LOG_LEVEL: Record<FundingSkipReason, "info" | "warn" | "error"> = {
   wallet_not_found: "error",
   runtime_limit_reached: "info",
   recently_funded: "info",
-  project_budget_reached: "info"
+  project_budget_reached: "info",
+  account_not_active: "info"
 };
 
 export function classifyFailure(error: unknown): FundingFailureReason {

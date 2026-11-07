@@ -24,6 +24,7 @@ import { DeploymentConfigService } from "@src/deployment/services/deployment-con
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import type { UserOutput } from "@src/user/repositories";
+import { AccountStatusGuard } from "@src/user/services/account-status-guard/account-status-guard.service";
 import { type ChargedPayer, isPayingPayer } from "../payer/payer";
 import { WalletBalanceReloadCheckInstrumentationService } from "./wallet-balance-reload-check-instrumentation.service";
 
@@ -32,7 +33,7 @@ type ValidationError = {
   message: string;
 };
 
-type InitializedWallet = Require<Pick<UserWalletOutput, "address">, "address">;
+type InitializedWallet = Require<Pick<UserWalletOutput, "address" | "userId">, "address">;
 type ActionableWalletSetting = Pick<
   WalletSettingOutput,
   "id" | "userId" | "walletId" | "autoReloadMode" | "autoReloadThreshold" | "autoReloadAmount" | "autoReloadFailureCount"
@@ -84,7 +85,8 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     private readonly instrumentationService: WalletBalanceReloadCheckInstrumentationService,
     private readonly autoReloadPauseService: AutoReloadPauseService,
     private readonly deploymentConfig: DeploymentConfigService,
-    private readonly organizationRepository: OrganizationRepository
+    private readonly organizationRepository: OrganizationRepository,
+    private readonly accountStatusGuard: AccountStatusGuard
   ) {}
 
   requiresPermission(): JobPermissions {
@@ -156,6 +158,13 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
       return Err({
         event: "AUTO_RELOAD_PAUSED",
         message: "Auto reload paused after repeated card declines. Skipping wallet balance reload check."
+      });
+    }
+
+    if (!(await this.#mayChargeFor(wallet))) {
+      return Err({
+        event: "ACCOUNT_NOT_ACTIVE",
+        message: "Account suspended or terminated. Skipping wallet balance reload check."
       });
     }
 
@@ -413,16 +422,21 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     }
   }
 
-  /** Read again right before charging, since auto reload may have been turned off or the team deleted after this check first read them. */
-  async #isStillChargeable({ walletSetting, payer }: ReloadContext): Promise<boolean> {
+  /** Read again right before charging, since auto reload may have been turned off, the team deleted or the account suspended after this check first read them. */
+  async #isStillChargeable({ walletSetting, wallet, payer }: ReloadContext): Promise<boolean> {
     const currentSetting = await this.walletSettingRepository.findById(walletSetting.id);
 
     if (!currentSetting?.autoReloadEnabled) return false;
-    if (!payer.team) return true;
+    if (!payer.team) return await this.#mayChargeFor(wallet);
 
     const currentTeam = await this.organizationRepository.findById(payer.team.id);
 
     return !!currentTeam && !currentTeam.deletedAt;
+  }
+
+  /** Only a personal wallet answers to its user's account status, since a team's wallet is charged to the team. */
+  async #mayChargeFor(wallet: Pick<UserWalletOutput, "userId">): Promise<boolean> {
+    return !wallet.userId || (await this.accountStatusGuard.maySpend(wallet.userId));
   }
 
   /** Stripe is asked to decline these outright, so one that still stalls on authentication is cancelled and reported as the decline it amounts to. */

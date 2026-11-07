@@ -8,6 +8,7 @@ import { CustomerService } from "@src/billing/services/customer/customer.service
 import type { Payer } from "@src/billing/services/payer/payer";
 import { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import { type CreateLogger, LOGGER_FACTORY, TxService } from "@src/core";
+import { AccountStatusGuard } from "@src/user/services/account-status-guard/account-status-guard.service";
 
 interface CouponRedemption {
   amountAdded: number;
@@ -25,6 +26,7 @@ export class CouponRedemptionService {
     private readonly stripeTransactionService: StripeTransactionService,
     private readonly stripeTransactionRepository: StripeTransactionRepository,
     private readonly txService: TxService,
+    private readonly accountStatusGuard: AccountStatusGuard,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.loggerService = createLogger({ context: CouponRedemptionService.name });
@@ -40,6 +42,8 @@ export class CouponRedemptionService {
   }
 
   async redeemCoupon(payer: Payer, code: string): Promise<CouponRedemption> {
+    await this.accountStatusGuard.assertMaySpend(payer.user);
+
     const promotionCode = await this.findPromotionCodeByCode(code);
 
     if (!promotionCode) {

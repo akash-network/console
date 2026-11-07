@@ -22,6 +22,7 @@ import { DrainingDeploymentService } from "@src/deployment/services/draining-dep
 import { InitialDeploymentFundingInstrumentationService } from "@src/deployment/services/initial-deployment-funding/initial-deployment-funding-instrumentation.service";
 import { ReconcileManagedTxJobService } from "@src/deployment/services/reconcile-managed-tx/reconcile-managed-tx-job.service";
 import { isProjectBudgetExceeded } from "@src/organization/services/project-budget-enforcement/project-budget-enforcement.service";
+import { AccountStatusGuard } from "@src/user/services/account-status-guard/account-status-guard.service";
 import { averageBlockCountInAnHour, COSMOS_TX_CODE_OK } from "@src/utils/constants";
 
 export interface FundOnLeaseStartedInput {
@@ -59,6 +60,7 @@ export class InitialDeploymentFundingService {
     private readonly reconcileManagedTxJobService: ReconcileManagedTxJobService,
     private readonly chainErrorService: ChainErrorService,
     private readonly instrumentation: InitialDeploymentFundingInstrumentationService,
+    private readonly accountStatusGuard: AccountStatusGuard,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: InitialDeploymentFundingService.name });
@@ -127,6 +129,11 @@ export class InitialDeploymentFundingService {
 
     if (deploymentSetting && !deploymentSetting.autoTopUpEnabled) {
       this.logger.info({ event: "INITIAL_FUNDING_SKIPPED", reason: "AUTO_TOP_UP_DISABLED", dseq, address });
+      return;
+    }
+
+    if (userWallet.userId && !(await this.accountStatusGuard.maySpend(userWallet.userId))) {
+      this.instrumentation.recordSkipped("account_not_active", { dseq, address, userId: userWallet.userId });
       return;
     }
 
