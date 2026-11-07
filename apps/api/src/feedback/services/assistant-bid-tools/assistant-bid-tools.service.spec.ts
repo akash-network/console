@@ -27,16 +27,18 @@ function placedGroupSpec(name: string, attributes: { key: string; value: string 
 
 describe(AssistantBidToolsService.name, () => {
   it("lists the bids and skips screening when an open bid exists", async () => {
-    const { service, bidController, sdlService } = setup();
+    const { service, bidController, deploymentController, sdlService } = setup();
     const bid = createBid({ dseq: "42", gseq: 1, oseq: 1 });
     bid.bid.price = { denom: "uact", amount: "2.93" };
     bidController.list.mockResolvedValue({ data: [bid] });
+    deploymentController.findByDseq.mockResolvedValue({ data: createGetDeploymentResponseData({ dseq: "42", name: "llama-chat" }) });
 
     const result = await service.getBids({ dseq: "42" });
 
     expect(bidController.list).toHaveBeenCalledWith("42");
     expect(result).toEqual({
       dseq: "42",
+      name: "llama-chat",
       deploymentState: "active",
       leaseCount: 0,
       bids: [{ gseq: 1, oseq: 1, provider: bid.bid.id.provider, state: "open", usdPerMonth: 1.28, reclamationWindow: null }],

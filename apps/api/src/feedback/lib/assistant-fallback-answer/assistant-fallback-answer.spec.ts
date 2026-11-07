@@ -41,12 +41,12 @@ describe(fallbackAnswerOf.name, () => {
         turnWithResultsOf(
           { call: toolCall("c1", "list_deployments", { state: "closed" }) },
           { call: toolCall("c2", "list_deployments") },
-          readOf("c3", "get_lease_close_reason", "1793943682195", NEVER_LEASED),
+          readOf("c3", "get_lease_close_reason", "1793943682195", { ...NEVER_LEASED, dseq: "1793943682195", name: "llama-chat" }),
           { call: toolCall("c4", "read_logs", { dseq: "1793943682195" }) }
         )
       )
     ).toBe(
-      'I read your deployments, why deployment 1793943682195 closed and the logs of deployment 1793943682195, but could not finish my answer. Next step: ask "Why no bids on deployment 1793943682195?", or redeploy it from the deployment editor with changed requirements.'
+      'I read your deployments, why deployment llama-chat closed and the logs of deployment llama-chat, but could not finish my answer. Next step: ask "Why no bids on deployment llama-chat?", or redeploy it from the deployment editor with changed requirements.'
     );
   });
 
@@ -65,7 +65,8 @@ describe(fallbackAnswerOf.name, () => {
       )
     );
 
-    expect(answer).toContain('"Why no bids on deployment 2?"');
+    expect(answer).toContain('"Why no bids on my deployment?"');
+    expect(answer).not.toMatch(/\d/);
   });
 
   it.each([
@@ -78,14 +79,14 @@ describe(fallbackAnswerOf.name, () => {
     { case: "data that is not an object", name: "get_bids", data: "no bids" },
     { case: "no data", name: "get_bids", data: null }
   ])("does not suggest asking about missing bids after $case", ({ name, data }) => {
-    expect(fallbackAnswerOf(turnWithResultsOf(readOf("c1", name, "1", data)))).toContain("Next step: tell me what you expected deployment 1 to do");
+    expect(fallbackAnswerOf(turnWithResultsOf(readOf("c1", name, "1", data)))).toContain("Next step: tell me what you expected your deployment to do");
   });
 
   it("does not suggest asking about missing bids when the bid read has no parseable result", () => {
     const truncated = { call: toolCall("c1", "get_bids", { dseq: "1" }), result: '{"tool":"get_bids","data":{"bids":[...[truncated]' };
 
     expect(fallbackAnswerOf(turnWithResultsOf(truncated, { call: toolCall("c2", "get_bids", { dseq: "2" }) }))).toContain(
-      "Next step: tell me what you expected deployment 2 to do"
+      "Next step: tell me what you expected your deployment to do"
     );
   });
 
@@ -95,7 +96,27 @@ describe(fallbackAnswerOf.name, () => {
         turnOf(toolCall("c1", "get_deployment", { dseq: "1" }), toolCall("c2", "read_events", { dseq: "2" }), toolCall("c3", "get_balance_and_spend"))
       )
     ).toBe(
-      "I read deployment 1, the events of deployment 2 and your balance and spend, but could not finish my answer. Next step: tell me what you expected deployment 2 to do, or ask on Discord for live help."
+      "I read your deployment, the events of your deployment and your balance and spend, but could not finish my answer. Next step: tell me what you expected your deployment to do, or ask on Discord for live help."
+    );
+  });
+
+  it("names deployments after any read in the conversation that returned their name", () => {
+    const listed = { deployments: [{ dseq: "1", name: "web" }, { dseq: "2", name: "" }, { dseq: 3, name: "db" }] };
+    const reads = [
+      { call: toolCall("c1", "list_deployments"), result: toolContentOf("list_deployments", { data: listed }) },
+      readOf("c2", "get_deployment", "1", { dseq: "1", name: null, leases: [{ name: "not a deployment" }] }),
+      { call: toolCall("c3", "read_events", { dseq: "2" }) },
+      { call: toolCall("c4", "read_logs", { dseq: "3" }) }
+    ];
+    const messages: ChatMessage[] = [
+      { role: "user", content: "why no bids?" },
+      { role: "assistant", content: null, tool_calls: [toolCall("old", "get_bids", { dseq: "3" })] },
+      { role: "tool", tool_call_id: "old", content: toolContentOf("get_bids", { data: { dseq: "3", name: "worker", bids: [], leaseCount: 1 } }) },
+      ...askedTurnOf("what happened?", ...reads).slice(3)
+    ];
+
+    expect(fallbackAnswerOf(messages)).toBe(
+      "I read your deployments, deployment web, the events of your deployment and the logs of deployment worker, but could not finish my answer. Next step: tell me what you expected deployment worker to do, or ask on Discord for live help."
     );
   });
 
