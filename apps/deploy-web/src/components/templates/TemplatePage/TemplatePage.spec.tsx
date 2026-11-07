@@ -303,6 +303,22 @@ describe(TemplatePage.name, () => {
     expect(screen.getByRole("tab", { name: "Settings" })).toHaveAttribute("aria-selected", "true");
   });
 
+  it("shows an editor the template's settings on the Settings tab", () => {
+    const { TemplateSettingsTab } = setup({ template: { ...TEMPLATE, canEdit: true }, tab: "settings" });
+
+    expect(TemplateSettingsTab).toHaveBeenCalledWith({ template: expect.objectContaining({ id: TEMPLATE_ID, title: "Open WebUI + vLLM" }) }, expect.anything());
+  });
+
+  it("keeps the settings out of other tabs and out of a viewer's page", () => {
+    const { TemplateSettingsTab, unmount } = setup({ template: { ...TEMPLATE, canEdit: true } });
+    expect(TemplateSettingsTab).not.toHaveBeenCalled();
+
+    unmount();
+    const viewer = setup({ template: { ...TEMPLATE, canEdit: false }, tab: "settings" });
+
+    expect(viewer.TemplateSettingsTab).not.toHaveBeenCalled();
+  });
+
   it("explains a template saved without a version", () => {
     const { TemplateReadmeTab } = setup({ template: { ...TEMPLATE, currentVersion: null } });
 
@@ -507,6 +523,7 @@ describe(TemplatePage.name, () => {
         ))}
       </>
     ));
+    const TemplateSettingsTab = vi.fn<typeof DEPENDENCIES.TemplateSettingsTab>(() => null);
     const TemplateIcon = vi.fn<typeof DEPENDENCIES.TemplateIcon>(() => null);
     const NextSeo = vi.fn<typeof DEPENDENCIES.NextSeo>(() => <></>);
 
@@ -516,6 +533,7 @@ describe(TemplatePage.name, () => {
       TemplateReadmeTab,
       TemplateConfigurationTab,
       TemplateVersionsTab,
+      TemplateSettingsTab,
       TemplateIcon,
       NextSeo,
       useMarketplaceTemplate,
@@ -554,6 +572,7 @@ describe(TemplatePage.name, () => {
       TemplateReadmeTab,
       TemplateConfigurationTab,
       TemplateVersionsTab,
+      TemplateSettingsTab,
       TemplateIcon,
       NextSeo
     };

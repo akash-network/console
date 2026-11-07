@@ -14,3 +14,5 @@ export type MarketplaceTemplate = Omit<components["schemas"]["MarketplaceTemplat
 export type TemplateVersionSummary = components["schemas"]["TemplateVersionSummary"];
 
 export type TemplateAskedValue = components["schemas"]["TemplateAskedValue"];
+
+export type TemplateCategory = NonNullable<components["schemas"]["UpdateUserTemplateRequest"]["data"]["categories"]>[number];

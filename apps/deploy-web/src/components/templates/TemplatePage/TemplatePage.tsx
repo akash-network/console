@@ -36,6 +36,7 @@ import type { MarketplaceTemplate, TemplateVersionDetail, TemplateVersionSummary
 import { getBaseUrl, UrlService } from "@src/utils/urlUtils";
 import { TemplateConfigurationTab } from "./TemplateConfigurationTab/TemplateConfigurationTab";
 import { TemplateReadmeTab } from "./TemplateReadmeTab/TemplateReadmeTab";
+import { TemplateSettingsTab } from "./TemplateSettingsTab/TemplateSettingsTab";
 import { TemplateVersionsTab } from "./TemplateVersionsTab/TemplateVersionsTab";
 
 export const DEPENDENCIES = {
@@ -46,6 +47,7 @@ export const DEPENDENCIES = {
   TemplateReadmeTab,
   TemplateConfigurationTab,
   TemplateVersionsTab,
+  TemplateSettingsTab,
   useMarketplaceTemplate,
   useTemplateVersions,
   useTemplateVersion,
@@ -280,6 +282,11 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
               </div>
             )}
           </TabsContent>
+          {template.canEdit && (
+            <TabsContent value="settings" className="mt-5">
+              <d.TemplateSettingsTab template={template} />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </d.Layout>
