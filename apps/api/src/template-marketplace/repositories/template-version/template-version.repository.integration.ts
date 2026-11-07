@@ -80,6 +80,37 @@ describe(TemplateVersionRepository.name, () => {
     });
   });
 
+  describe("immutability", () => {
+    it("refuses to change a saved version", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+      const saved = await repository.appendVersion({ templateId: template.id, sdl: "a" });
+
+      await expect(repository.updateById()).rejects.toThrow("Template versions are immutable");
+      await expect(repository.updateBy()).rejects.toThrow("Template versions are immutable");
+      await expect(repository.updateManyById()).rejects.toThrow("Template versions are immutable");
+      expect(await repository.findByTemplateAndVersion(template.id, 1)).toEqual(saved);
+    });
+
+    it("refuses to delete a saved version", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+      const saved = await repository.appendVersion({ templateId: template.id, sdl: "a" });
+
+      await expect(repository.deleteById()).rejects.toThrow("Template versions are immutable");
+      await expect(repository.deleteBy()).rejects.toThrow("Template versions are immutable");
+      expect(await repository.findByTemplateAndVersion(template.id, 1)).toEqual(saved);
+    });
+
+    it("refuses to create a version outside appendVersion", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+
+      await expect(repository.create()).rejects.toThrow("Template versions are immutable");
+      expect(await repository.listByTemplate(template.id)).toEqual([]);
+    });
+  });
+
   describe("findByTemplateAndVersion", () => {
     it("returns the version asked for and nothing for a version that does not exist", async () => {
       const { repository } = setup();

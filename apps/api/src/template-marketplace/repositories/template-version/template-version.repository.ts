@@ -38,6 +38,8 @@ export type AppendTemplateVersionInput = {
   createdById?: string | null;
 };
 
+const IMMUTABLE_MESSAGE = "Template versions are immutable";
+
 @singleton()
 export class TemplateVersionRepository extends BaseRepository<Table, TemplateVersionInput, TemplateVersionOutput> {
   constructor(
@@ -115,6 +117,30 @@ export class TemplateVersionRepository extends BaseRepository<Table, TemplateVer
       .from(this.table)
       .where(eq(this.table.templateId, templateId))
       .orderBy(desc(this.table.version));
+  }
+
+  async create(): Promise<never> {
+    throw new Error(IMMUTABLE_MESSAGE);
+  }
+
+  async updateById(): Promise<never> {
+    throw new Error(IMMUTABLE_MESSAGE);
+  }
+
+  async updateManyById(): Promise<never> {
+    throw new Error(IMMUTABLE_MESSAGE);
+  }
+
+  async updateBy(): Promise<never> {
+    throw new Error(IMMUTABLE_MESSAGE);
+  }
+
+  async deleteById(): Promise<never> {
+    throw new Error(IMMUTABLE_MESSAGE);
+  }
+
+  async deleteBy(): Promise<never> {
+    throw new Error(IMMUTABLE_MESSAGE);
   }
 
   protected toOutput(row: Partial<Row>): TemplateVersionOutput {
