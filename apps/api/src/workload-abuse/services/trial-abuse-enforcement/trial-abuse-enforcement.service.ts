@@ -1,15 +1,14 @@
-import { AuthzHttpService, DeploymentHttpService } from "@akashnetwork/http-sdk";
+import { AuthzHttpService } from "@akashnetwork/http-sdk";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { inject, singleton } from "tsyringe";
 
 import { type PersonalWallet, UserWalletRepository, type WalletInitialized } from "@src/billing/repositories";
-import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { type CreateLogger, LOGGER_FACTORY, TxService } from "@src/core";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
-import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
+import { CloseWalletDeploymentsService } from "@src/deployment/services/close-wallet-deployments/close-wallet-deployments.service";
 import { ABUSE_LOCK_REASON, type AbuseLockReason } from "@src/workload-abuse/lib/abuse-lock-reason/abuse-lock-reason";
 import { sanitizeEvidenceText } from "@src/workload-abuse/lib/evidence-scanner/evidence-scanner";
 import { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
@@ -39,9 +38,7 @@ export class TrialAbuseEnforcementService {
     private readonly authzHttpService: AuthzHttpService,
     private readonly rpcMessageService: RpcMessageService,
     private readonly signerService: ManagedSignerService,
-    private readonly deploymentHttpService: DeploymentHttpService,
-    private readonly deploymentWriterService: DeploymentWriterService,
-    private readonly chainErrorService: ChainErrorService,
+    private readonly closeWalletDeploymentsService: CloseWalletDeploymentsService,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly detectionRepository: WorkloadAbuseDetectionRepository,
     private readonly probeJobService: TrialWorkloadProbeJobService,
@@ -133,7 +130,7 @@ export class TrialAbuseEnforcementService {
   async #wipe(wallet: WalletInitialized, reason: AbuseLockReason): Promise<EnforcementOutcome> {
     const granter = await this.txManagerService.getFundingWalletAddress();
     const depositGrantRevoked = await this.#revokeDepositGrant(granter, wallet.address);
-    const closedDseqs = await this.#closeOpenDeployments(wallet);
+    const closedDseqs = await this.closeWalletDeploymentsService.closeAllOf(wallet);
     const feeGrantRevoked = await this.#revokeFeeGrant(granter, wallet.address);
     await this.userWalletRepository.lockForAbuse(wallet.id, reason);
     await this.probeJobService.cancelForWallet(wallet.id);
@@ -162,39 +159,6 @@ export class TrialAbuseEnforcementService {
       if (isGrantMissingError(error)) return;
       throw error;
     }
-  }
-
-  /** An unsettleable escrow is skipped for this pass and fails the run at the end, so the queue retries the close later without blocking the other deployments. */
-  async #closeOpenDeployments(wallet: WalletInitialized): Promise<string[]> {
-    const dseqs = await this.#findOpenDseqs(wallet.address);
-    const closed: string[] = [];
-    const unsettleable: string[] = [];
-
-    for (const dseq of dseqs) {
-      try {
-        await this.deploymentWriterService.close(wallet, dseq, { reason: null });
-        closed.push(dseq);
-      } catch (error) {
-        if (error instanceof Error && this.chainErrorService.isUnsettleableDeploymentError(error)) {
-          unsettleable.push(dseq);
-          continue;
-        }
-        throw error;
-      }
-    }
-
-    if (unsettleable.length > 0) {
-      throw new Error(`Deployments ${unsettleable.join(", ")} cannot be closed until their escrow settles`);
-    }
-
-    return closed;
-  }
-
-  /** Listed by deployment rather than by lease: a deployment whose bids never became a lease still holds escrow and would outlive the fee grant that pays for its close. */
-  async #findOpenDseqs(owner: string): Promise<string[]> {
-    const { deployments } = await this.deploymentHttpService.findAll({ owner, state: "active" });
-
-    return deployments.map(deployment => deployment.deployment.id.dseq);
   }
 }
 

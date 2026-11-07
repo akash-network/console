@@ -9,6 +9,7 @@ import type { RpcMessageService } from "@src/billing/services/rpc-message-servic
 import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import type { CreateLogger, TxService } from "@src/core";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
+import { CloseWalletDeploymentsService } from "@src/deployment/services/close-wallet-deployments/close-wallet-deployments.service";
 import type { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import { ABUSE_LOCK_REASON, BLOCKED_DOMAIN_LOCK_REASON } from "@src/workload-abuse/lib/abuse-lock-reason/abuse-lock-reason";
 import type { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
@@ -243,9 +244,7 @@ describe(TrialAbuseEnforcementService.name, () => {
       authzHttpService,
       rpcMessageService,
       signerService,
-      deploymentHttpService,
-      deploymentWriterService,
-      chainErrorService,
+      new CloseWalletDeploymentsService(deploymentHttpService, deploymentWriterService, chainErrorService),
       userWalletRepository,
       detectionRepository,
       probeJobService,

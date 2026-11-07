@@ -2723,6 +2723,19 @@
                           "type": "string",
                           "nullable": true,
                           "format": "date-time"
+                        },
+                        "accountStatus": {
+                          "type": "string",
+                          "enum": [
+                            "active",
+                            "suspended",
+                            "terminated"
+                          ]
+                        },
+                        "accountStatusReason": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "Why the account is suspended or terminated, as written for the user; null while active"
                         }
                       },
                       "required": [
@@ -2732,7 +2745,9 @@
                         "email",
                         "emailVerified",
                         "subscribedToNewsletter",
-                        "createdAt"
+                        "createdAt",
+                        "accountStatus",
+                        "accountStatusReason"
                       ]
                     }
                   },

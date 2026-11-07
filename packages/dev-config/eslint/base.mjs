@@ -90,7 +90,10 @@ export default [
                 "withdraw",
                 "request",
                 "approve",
-                "revoke"
+                "revoke",
+                "suspend",
+                "reinstate",
+                "terminate"
               ]
             },
             patch: { single: ["patch"] },

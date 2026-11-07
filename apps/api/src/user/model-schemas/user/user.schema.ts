@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { type AnyPgColumn, boolean, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { type AnyPgColumn, boolean, index, pgEnum, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
 // eslint-disable-next-line import-x/no-cycle
 import { UserWallets } from "@src/billing/model-schemas/user-wallet/user-wallet.schema";
@@ -10,37 +10,46 @@ import { Templates } from "@src/user/model-schemas/template/template.schema";
 
 export const userAgentMaxLength = 500;
 
-export const Users = pgTable("userSetting", {
-  id: uuid("id")
-    .primaryKey()
-    .notNull()
-    .default(sql`uuid_generate_v4()`),
-  userId: varchar("userId", { length: 255 }).unique(),
-  username: varchar("username", { length: 255 }).unique(),
-  email: varchar("email", { length: 255 }),
-  emailVerified: boolean("emailVerified").default(false).notNull(),
-  stripeCustomerId: varchar("stripeCustomerId", { length: 255 }),
-  bio: text("bio"),
-  subscribedToNewsletter: boolean("subscribedToNewsletter").default(false).notNull(),
-  youtubeUsername: varchar("youtubeUsername", { length: 255 }),
-  twitterUsername: varchar("twitterUsername", { length: 255 }),
-  githubUsername: varchar("githubUsername", { length: 255 }),
-  lastActiveAt: timestamp("last_active_at").defaultNow(),
-  lastIp: varchar("last_ip", { length: 255 }),
-  lastUserAgent: varchar("last_user_agent", { length: userAgentMaxLength }),
-  lastFingerprint: varchar("last_fingerprint", { length: 255 }),
-  onboardingSkippedAt: timestamp("onboardingSkippedAt"),
-  fairUsePolicyAcceptedAt: timestamp("fair_use_policy_accepted_at", { withTimezone: true }),
-  productUpdatesUnsubscribedAt: timestamp("product_updates_unsubscribed_at", { withTimezone: true }),
-  getStartedDismissedAt: timestamp("get_started_dismissed_at", { withTimezone: true }),
-  agentSetupCopiedAt: timestamp("agent_setup_copied_at", { withTimezone: true }),
-  githubStarPromptedAt: timestamp("github_star_prompted_at", { withTimezone: true }),
-  timezone: varchar("timezone", { length: 64 }),
-  /** Set once the user picks a timezone in their profile, after which sign-in detection leaves it alone. */
-  timezonePickedAt: timestamp("timezone_picked_at", { withTimezone: true }),
-  lastUsedOrganizationId: uuid("last_used_organization_id").references((): AnyPgColumn => Organizations.id, { onDelete: "set null" }),
-  createdAt: timestamp("created_at").defaultNow()
-});
+export const accountStatusEnum = pgEnum("account_status", ["active", "suspended", "terminated"]);
+
+export const Users = pgTable(
+  "userSetting",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .notNull()
+      .default(sql`uuid_generate_v4()`),
+    userId: varchar("userId", { length: 255 }).unique(),
+    username: varchar("username", { length: 255 }).unique(),
+    email: varchar("email", { length: 255 }),
+    emailVerified: boolean("emailVerified").default(false).notNull(),
+    stripeCustomerId: varchar("stripeCustomerId", { length: 255 }),
+    bio: text("bio"),
+    subscribedToNewsletter: boolean("subscribedToNewsletter").default(false).notNull(),
+    youtubeUsername: varchar("youtubeUsername", { length: 255 }),
+    twitterUsername: varchar("twitterUsername", { length: 255 }),
+    githubUsername: varchar("githubUsername", { length: 255 }),
+    lastActiveAt: timestamp("last_active_at").defaultNow(),
+    lastIp: varchar("last_ip", { length: 255 }),
+    lastUserAgent: varchar("last_user_agent", { length: userAgentMaxLength }),
+    lastFingerprint: varchar("last_fingerprint", { length: 255 }),
+    onboardingSkippedAt: timestamp("onboardingSkippedAt"),
+    fairUsePolicyAcceptedAt: timestamp("fair_use_policy_accepted_at", { withTimezone: true }),
+    productUpdatesUnsubscribedAt: timestamp("product_updates_unsubscribed_at", { withTimezone: true }),
+    getStartedDismissedAt: timestamp("get_started_dismissed_at", { withTimezone: true }),
+    agentSetupCopiedAt: timestamp("agent_setup_copied_at", { withTimezone: true }),
+    githubStarPromptedAt: timestamp("github_star_prompted_at", { withTimezone: true }),
+    timezone: varchar("timezone", { length: 64 }),
+    /** Set once the user picks a timezone in their profile, after which sign-in detection leaves it alone. */
+    timezonePickedAt: timestamp("timezone_picked_at", { withTimezone: true }),
+    lastUsedOrganizationId: uuid("last_used_organization_id").references((): AnyPgColumn => Organizations.id, { onDelete: "set null" }),
+    accountStatus: accountStatusEnum("account_status").default("active").notNull(),
+    createdAt: timestamp("created_at").defaultNow()
+  },
+  table => ({
+    accountStatusIdx: index("userSetting_account_status_idx").on(table.accountStatus)
+  })
+);
 
 export const UsersRelations = relations(Users, ({ one, many }) => ({
   userWallets: one(UserWallets, {

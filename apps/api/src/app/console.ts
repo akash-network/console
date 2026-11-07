@@ -256,6 +256,7 @@ async function executeCliHandler(name: string, handler: () => Promise<unknown>, 
           timezone: null,
           timezonePickedAt: null,
           lastUsedOrganizationId: null,
+          accountStatus: "active",
           userId: "system:cli-user",
           username: "___cli_user___",
           trial: false
