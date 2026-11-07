@@ -13,12 +13,11 @@ import type { TxService } from "@src/core/services/tx/tx.service";
 import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
 import type { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
 import { CloseTrialDeployment } from "../close-trial-deployment/close-trial-deployment.handler";
+import { WarnTrialDeploymentClosing } from "../warn-trial-deployment-closing/warn-trial-deployment-closing.handler";
 import { TrialDeploymentLeaseCreatedHandler } from "./trial-deployment-lease-created.handler";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
-
-const PAYMENT_LINK = "https://console.akash.network/billing?payment=true";
 
 describe(TrialDeploymentLeaseCreatedHandler.name, () => {
   it("logs a warning when wallet is not found", async () => {
@@ -80,7 +79,7 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
     });
   });
 
-  it("enqueues notification and close job when wallet is in trial", async () => {
+  it("enqueues the closing warning and close job when wallet is in trial", async () => {
     const wallet = createUserWallet({
       id: 123,
       userId: "user-123",
@@ -108,21 +107,14 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
     expect(userWalletRepository.findById).toHaveBeenCalledWith(payload.walletId);
     expect(billingConfig.get).toHaveBeenCalledWith("TRIAL_DEPLOYMENT_CLEANUP_HOURS");
     expect(jobQueueService.enqueue).toHaveBeenCalledWith(
-      new NotificationJob({
-        template: "beforeCloseTrialDeployment",
-        userId: wallet.userId!,
-        conditions: { trial: true },
-        vars: {
-          deploymentClosedAt: addHours(deploymentCreatedAt, trialDeploymentLifetimeInHours).toISOString(),
-          dseq: payload.dseq,
-          owner: wallet.address!,
-          paymentLink: PAYMENT_LINK,
-          firstPurchaseBonus: "$resolved"
-        }
+      new WarnTrialDeploymentClosing({
+        walletId: wallet.id,
+        dseq: payload.dseq,
+        closesAt: addHours(deploymentCreatedAt, trialDeploymentLifetimeInHours).toISOString()
       }),
       {
         startAfter: addHours(deploymentCreatedAt, trialDeploymentLifetimeInHours - 1).toISOString(),
-        singletonKey: `notification.beforeCloseTrialDeployment.${payload.dseq}.${wallet.id}`
+        singletonKey: `warnTrialDeploymentClosing.${payload.dseq}.${wallet.id}`
       }
     );
     expect(jobQueueService.enqueue).toHaveBeenCalledWith(
@@ -308,8 +300,7 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
         enqueue: input?.enqueueJob ?? vi.fn().mockResolvedValue("job-id")
       }),
       billingConfig: mockConfigService<BillingConfigService>({
-        TRIAL_DEPLOYMENT_CLEANUP_HOURS: input?.trialDeploymentLifetimeInHours ?? 24,
-        CONSOLE_WEB_PAYMENT_LINK: PAYMENT_LINK
+        TRIAL_DEPLOYMENT_CLEANUP_HOURS: input?.trialDeploymentLifetimeInHours ?? 24
       }),
       probeJobService: mock<TrialWorkloadProbeJobService>(),
       txService: mock<TxService>({
