@@ -6,8 +6,10 @@ import type { TemplateVersionSummary } from "@src/template-marketplace/repositor
 import type {
   MarketplaceTemplateOutput,
   MarketplaceTemplateService,
-  PublishedTemplateVersion
+  PublishedTemplateVersion,
+  UserTemplateListItem
 } from "@src/template-marketplace/services/marketplace-template/marketplace-template.service";
+import type { TemplateWriterService } from "@src/template-marketplace/services/template-writer/template-writer.service";
 import { MarketplaceTemplateController } from "./marketplace-template.controller";
 
 describe(MarketplaceTemplateController.name, () => {
@@ -72,6 +74,117 @@ describe(MarketplaceTemplateController.name, () => {
     });
   });
 
+  describe("createTemplate", () => {
+    it("creates the template and answers it with ISO dates", async () => {
+      const template = createTemplate({ visibility: "private" });
+      const { controller, writer } = setup();
+      writer.create.mockResolvedValue(template);
+      const data = { title: "Web", sdl: "version: '2.0'", askedValues: [], projectId: faker.string.uuid() };
+
+      const result = await controller.createTemplate({ data });
+
+      expect(result).toEqual({
+        data: {
+          ...template,
+          createdAt: template.createdAt.toISOString(),
+          updatedAt: template.updatedAt.toISOString(),
+          currentVersion: publishedVersionOf(template.currentVersion!)
+        }
+      });
+      expect(writer.create).toHaveBeenCalledWith(data);
+    });
+  });
+
+  describe("createVersion", () => {
+    it("saves the version and answers it without its creator's internal id", async () => {
+      const version = createVersion({ version: 2 });
+      const { controller, writer } = setup();
+      writer.appendVersion.mockResolvedValue(version);
+      const data = { sdl: "version: '2.0'", readme: null, askedValues: [], baseVersion: 1 };
+
+      const result = await controller.createVersion(version.templateId, { data });
+
+      expect(result).toEqual({ data: publishedVersionOf(version) });
+      expect(writer.appendVersion).toHaveBeenCalledWith(version.templateId, data);
+    });
+  });
+
+  describe("listTemplates", () => {
+    it("answers the organization's templates with ISO dates", async () => {
+      const item = createListItem();
+      const unversioned = createListItem({ currentVersion: null, lastEditedBy: null });
+      const { controller, service } = setup();
+      service.listInOrganization.mockResolvedValue([item, unversioned]);
+      const query = { visibility: "organization" as const, projectId: faker.string.uuid() };
+
+      const result = await controller.listTemplates(query);
+
+      expect(result).toEqual({
+        data: [
+          {
+            ...item,
+            updatedAt: item.updatedAt.toISOString(),
+            currentVersion: { ...item.currentVersion, createdAt: item.currentVersion!.createdAt.toISOString() }
+          },
+          { ...unversioned, updatedAt: unversioned.updatedAt.toISOString() }
+        ]
+      });
+      expect(service.listInOrganization).toHaveBeenCalledWith(query);
+    });
+  });
+
+  describe("updateTemplate", () => {
+    it("updates the settings and answers the template with ISO dates", async () => {
+      const template = createTemplate({ visibility: "organization" });
+      const { controller, writer } = setup();
+      writer.updateSettings.mockResolvedValue(template);
+      const data = { title: "Renamed", visibility: "organization" as const };
+
+      const result = await controller.updateTemplate(template.id, { data });
+
+      expect(result).toEqual({
+        data: {
+          ...template,
+          createdAt: template.createdAt.toISOString(),
+          updatedAt: template.updatedAt.toISOString(),
+          currentVersion: publishedVersionOf(template.currentVersion!)
+        }
+      });
+      expect(writer.updateSettings).toHaveBeenCalledWith(template.id, data);
+    });
+  });
+
+  describe("deleteTemplate", () => {
+    it("deletes the template", async () => {
+      const id = faker.string.uuid();
+      const { controller, writer } = setup();
+
+      await controller.deleteTemplate(id);
+
+      expect(writer.delete).toHaveBeenCalledWith(id);
+    });
+  });
+
+  function createListItem(overrides: Partial<UserTemplateListItem> = {}): UserTemplateListItem {
+    return {
+      id: faker.string.uuid(),
+      title: faker.lorem.words(3),
+      summary: null,
+      icon: "rocket",
+      categories: ["Tools"],
+      visibility: "organization",
+      isListed: true,
+      moderationStatus: "active",
+      projectId: faker.string.uuid(),
+      copiedFromId: null,
+      updatedAt: faker.date.recent(),
+      currentVersion: { version: 3, status: "live", createdAt: faker.date.recent() },
+      lastEditedBy: { username: faker.internet.userName() },
+      canEdit: true,
+      ...overrides
+    };
+  }
+
   function publishedVersionOf<V extends { createdById: string | null; createdAt: Date }>({ createdById: _createdById, createdAt, ...version }: V) {
     return { ...version, createdAt: createdAt.toISOString() };
   }
@@ -86,7 +199,9 @@ describe(MarketplaceTemplateController.name, () => {
       askedValues: [],
       resources: { cpu: 1, memoryBytes: 1024, storageBytes: 1024 },
       status: "live",
+      changes: ["image_changed"],
       createdById: faker.string.uuid(),
+      createdBy: { username: faker.internet.userName() },
       createdAt: faker.date.recent(),
       ...overrides
     };
@@ -103,6 +218,7 @@ describe(MarketplaceTemplateController.name, () => {
       isListed: false,
       isOfficial: false,
       moderationStatus: "active",
+      projectId: faker.string.uuid(),
       copiedFromId: null,
       createdAt: faker.date.past(),
       updatedAt: faker.date.recent(),
@@ -110,14 +226,16 @@ describe(MarketplaceTemplateController.name, () => {
       publisher: null,
       currentVersion: createVersion(),
       canEdit: false,
+      isFavorite: false,
       ...overrides
     };
   }
 
   function setup() {
     const service = mock<MarketplaceTemplateService>();
-    const controller = new MarketplaceTemplateController(service);
+    const writer = mock<TemplateWriterService>();
+    const controller = new MarketplaceTemplateController(service, writer);
 
-    return { controller, service };
+    return { controller, service, writer };
   }
 });

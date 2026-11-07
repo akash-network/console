@@ -40,6 +40,9 @@ function canTakeAuditors(profile: SdlPlacementProfile): boolean {
   return typeof signedBy === "object" && Array.isArray(signedBy.anyOf ?? []);
 }
 
+/** The message quotes the SDL around the error, so a caller that must not echo it reports these instead. */
+export type YamlErrorParams = { reason: string; line?: number; column?: number };
+
 @singleton()
 export class SdlService {
   readonly #config: BillingConfig;
@@ -108,7 +111,10 @@ export class SdlService {
       return { ok: true, value };
     } catch (error) {
       if (error instanceof YAMLException) {
-        return { ok: false, value: [{ schemaPath: "", instancePath: "", keyword: "yaml", params: {}, message: error.message }] };
+        const mark: YAMLException["mark"] | undefined = error.mark;
+        const params: YamlErrorParams = { reason: error.reason, ...(mark && { line: mark.line + 1, column: mark.column + 1 }) };
+
+        return { ok: false, value: [{ schemaPath: "", instancePath: "", keyword: "yaml", params, message: error.message }] };
       }
       throw error;
     }

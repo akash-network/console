@@ -7656,6 +7656,24 @@ export interface paths {
     patch: operations["updateProjectBudget"];
     trace?: never;
   };
+  "/v1/user-templates": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List the active organization's templates the caller may read, most recently updated first */
+    get: operations["listUserTemplates"];
+    put?: never;
+    /** Create a private template with its first version */
+    post: operations["createUserTemplate"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/user-templates/{id}": {
     parameters: {
       query?: never;
@@ -7667,10 +7685,12 @@ export interface paths {
     get: operations["getUserTemplate"];
     put?: never;
     post?: never;
-    delete?: never;
+    /** Delete a template the caller may delete, with its versions and favorites */
+    delete: operations["deleteUserTemplate"];
     options?: never;
     head?: never;
-    patch?: never;
+    /** Change the title, summary, icon, categories or visibility of a template the caller may change */
+    patch: operations["updateUserTemplate"];
     trace?: never;
   };
   "/v1/user-templates/{id}/versions": {
@@ -7683,7 +7703,8 @@ export interface paths {
     /** List the versions of a template the caller may read, newest first */
     get: operations["listUserTemplateVersions"];
     put?: never;
-    post?: never;
+    /** Save a new version of a template the caller may change */
+    post: operations["createUserTemplateVersion"];
     delete?: never;
     options?: never;
     head?: never;
@@ -8869,6 +8890,27 @@ export interface components {
       } | null;
       /** @enum {string} */
       status: "live" | "held" | "failed_checks";
+      /** @description What this version changed from the one before it, null for a version saved before changes were recorded */
+      changes:
+        | (
+            | "first_version"
+            | "service_added"
+            | "service_removed"
+            | "image_changed"
+            | "image_tag_changed"
+            | "env_changed"
+            | "ports_changed"
+            | "resources_changed"
+            | "asked_value_added"
+            | "asked_value_removed"
+            | "asked_value_changed"
+            | "readme_changed"
+          )[]
+        | null;
+      /** @description Null when the creator deleted their account or has no username */
+      createdBy: {
+        username: string;
+      } | null;
       /** Format: date-time */
       createdAt: string;
     };
@@ -8892,7 +8934,15 @@ export interface components {
       isOfficial: boolean;
       /** @enum {string} */
       moderationStatus: "active" | "hidden" | "removed";
-      /** Format: uuid */
+      /**
+       * Format: uuid
+       * @description The project the template is filed in, null for one filed in none or outside the active organization
+       */
+      projectId: string | null;
+      /**
+       * Format: uuid
+       * @description The template this one was copied from, null unless the caller may read it
+       */
       copiedFromId: string | null;
       /** Format: date-time */
       createdAt: string;
@@ -8913,6 +8963,8 @@ export interface components {
       currentVersion: components["schemas"]["TemplateVersion"];
       /** @description Whether the caller may change the template */
       canEdit: boolean;
+      /** @description Whether the caller made the template a favorite, false without a session */
+      isFavorite: boolean;
     };
     GetUserTemplateResponse: {
       data: components["schemas"]["MarketplaceTemplate"];
@@ -8921,6 +8973,221 @@ export interface components {
       data: components["schemas"]["TemplateVersionSummary"][];
     };
     GetUserTemplateVersionResponse: {
+      data: components["schemas"]["TemplateVersion"] &
+        (components["schemas"]["TemplateVersionSummary"] & {
+          sdl: string;
+          readme: string | null;
+          askedValues: components["schemas"]["TemplateAskedValue"][];
+        });
+    };
+    CreateUserTemplateRequest: {
+      data: {
+        title: string;
+        summary?: string;
+        /** @enum {string} */
+        icon?:
+          | "box"
+          | "bot"
+          | "brain"
+          | "message-square"
+          | "image"
+          | "video"
+          | "music"
+          | "database"
+          | "server"
+          | "globe"
+          | "code"
+          | "terminal"
+          | "gamepad"
+          | "chart"
+          | "shield"
+          | "workflow"
+          | "cpu"
+          | "layers"
+          | "file-text"
+          | "search"
+          | "mail"
+          | "cloud"
+          | "wallet"
+          | "rocket";
+        categories?: (
+          | "AI - CPU"
+          | "AI - GPU"
+          | "Benchmarking"
+          | "Blockchain"
+          | "Blogging"
+          | "Built with Cosmos-SDK"
+          | "Business"
+          | "CI/CD, DevOps"
+          | "Chat"
+          | "Data Visualization"
+          | "Databases and Administration"
+          | "DeFi"
+          | "Decentralized Storage"
+          | "Game Servers"
+          | "Games"
+          | "Hosting"
+          | "Machine Learning"
+          | "Mining - CPU"
+          | "Mining - GPU"
+          | "Mining Pools"
+          | "Network"
+          | "Official"
+          | "Peer-to-peer File Sharing"
+          | "Project Management"
+          | "Search Engines"
+          | "Social"
+          | "Tools"
+          | "Video Conferencing"
+          | "Wallet"
+          | "Web Frameworks"
+        )[];
+        sdl: string;
+        readme?: string;
+        /**
+         * @description The values the deployer fills in, bound to the SDL's env vars
+         * @default []
+         */
+        askedValues: components["schemas"]["TemplateAskedValue"][];
+        /**
+         * Format: uuid
+         * @description The project to file the template in, required when the caller may write to several
+         */
+        projectId?: string;
+        /**
+         * Format: uuid
+         * @description The template this one was copied from, which the caller must be able to read
+         */
+        copiedFromId?: string;
+      };
+    };
+    CreateUserTemplateResponse: {
+      data: components["schemas"]["MarketplaceTemplate"];
+    };
+    CreateUserTemplateVersionRequest: {
+      data: {
+        sdl: string;
+        /** @description Omitted keeps the current version's readme, null clears it */
+        readme?: string | null;
+        askedValues: components["schemas"]["TemplateAskedValue"][];
+        /** @description The version this one was edited from, refused with 409 once another version has been saved after it; required once the template has a version */
+        baseVersion?: number;
+      };
+    };
+    UserTemplateListItem: {
+      /** Format: uuid */
+      id: string;
+      title: string;
+      summary: string | null;
+      icon: string | null;
+      categories: string[];
+      /** @enum {string} */
+      visibility: "private" | "organization" | "public";
+      isListed: boolean;
+      /** @enum {string} */
+      moderationStatus: "active" | "hidden" | "removed";
+      /** Format: uuid */
+      projectId: string | null;
+      /** Format: uuid */
+      copiedFromId: string | null;
+      /** Format: date-time */
+      updatedAt: string;
+      /** @description Null on a template an older API pod saved without a version */
+      currentVersion: {
+        version: number;
+        /** @enum {string} */
+        status: "live" | "held" | "failed_checks";
+        /** Format: date-time */
+        createdAt: string;
+      } | null;
+      /** @description Who saved the current version, null when unknown or gone */
+      lastEditedBy: {
+        username: string;
+      } | null;
+      /** @description Whether the caller may change the template */
+      canEdit: boolean;
+    };
+    ListUserTemplatesResponse: {
+      data: components["schemas"]["UserTemplateListItem"][];
+    };
+    UpdateUserTemplateResponse: {
+      data: components["schemas"]["MarketplaceTemplate"];
+    };
+    UpdateUserTemplateRequest: {
+      data: {
+        title?: string;
+        /** @description Null or blank clears it */
+        summary?: string | null;
+        /**
+         * @description Null shows the default icon
+         * @enum {string|null}
+         */
+        icon?:
+          | "box"
+          | "bot"
+          | "brain"
+          | "message-square"
+          | "image"
+          | "video"
+          | "music"
+          | "database"
+          | "server"
+          | "globe"
+          | "code"
+          | "terminal"
+          | "gamepad"
+          | "chart"
+          | "shield"
+          | "workflow"
+          | "cpu"
+          | "layers"
+          | "file-text"
+          | "search"
+          | "mail"
+          | "cloud"
+          | "wallet"
+          | "rocket"
+          | null;
+        categories?: (
+          | "AI - CPU"
+          | "AI - GPU"
+          | "Benchmarking"
+          | "Blockchain"
+          | "Blogging"
+          | "Built with Cosmos-SDK"
+          | "Business"
+          | "CI/CD, DevOps"
+          | "Chat"
+          | "Data Visualization"
+          | "Databases and Administration"
+          | "DeFi"
+          | "Decentralized Storage"
+          | "Game Servers"
+          | "Games"
+          | "Hosting"
+          | "Machine Learning"
+          | "Mining - CPU"
+          | "Mining - GPU"
+          | "Mining Pools"
+          | "Network"
+          | "Official"
+          | "Peer-to-peer File Sharing"
+          | "Project Management"
+          | "Search Engines"
+          | "Social"
+          | "Tools"
+          | "Video Conferencing"
+          | "Wallet"
+          | "Web Frameworks"
+        )[];
+        /**
+         * @description Moving a public template to either clears its public flag
+         * @enum {string}
+         */
+        visibility?: "private" | "organization";
+      };
+    };
+    CreateUserTemplateVersionResponse: {
       data: components["schemas"]["TemplateVersion"] &
         (components["schemas"]["TemplateVersionSummary"] & {
           sdl: string;
@@ -18195,6 +18462,105 @@ export interface operations {
       };
     };
   };
+  listUserTemplates: {
+    parameters: {
+      query?: {
+        visibility?: "private" | "organization" | "public";
+        projectId?: string;
+      };
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description At most 200 templates */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ListUserTemplatesResponse"];
+        };
+      };
+      /** @description The visibility or the project id is invalid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller is not signed in */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  createUserTemplate: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateUserTemplateRequest"];
+      };
+    };
+    responses: {
+      /** @description The template created */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CreateUserTemplateResponse"];
+        };
+      };
+      /** @description The body is invalid, or the SDL or its asked values are refused (`template_invalid`, with the `issues` found), or a project must be named (`project_required`) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller is not signed in */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller may not create templates */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The project or the template copied from does not exist or the caller may not read it */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   getUserTemplate: {
     parameters: {
       query?: never;
@@ -18217,6 +18583,118 @@ export interface operations {
       };
       /** @description The id is not a uuid */
       400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The template does not exist or the caller may not read it */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  deleteUserTemplate: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The template deleted */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The id is not a uuid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller is not signed in */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The template belongs to another organization than the active one (`organization_forbidden`), or the caller may not change it */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The template does not exist or the caller may not read it */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  updateUserTemplate: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateUserTemplateRequest"];
+      };
+    };
+    responses: {
+      /** @description The template changed */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UpdateUserTemplateResponse"];
+        };
+      };
+      /** @description The body changes no setting, or a setting is outside the catalog or its limits */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller is not signed in */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The template belongs to another organization than the active one (`organization_forbidden`), or the caller may not change it */
+      403: {
         headers: {
           [name: string]: unknown;
         };
@@ -18260,6 +18738,72 @@ export interface operations {
       };
       /** @description The template does not exist or the caller may not read it */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  createUserTemplateVersion: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateUserTemplateVersionRequest"];
+      };
+    };
+    responses: {
+      /** @description The version saved */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CreateUserTemplateVersionResponse"];
+        };
+      };
+      /** @description The body is invalid, or the SDL or its asked values are refused (`template_invalid`, with the `issues` found) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller is not signed in */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller may read the template but not change it */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The template does not exist or the caller may not read it */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Another version was saved after the base version (`template_version_conflict`) */
+      409: {
         headers: {
           [name: string]: unknown;
         };
