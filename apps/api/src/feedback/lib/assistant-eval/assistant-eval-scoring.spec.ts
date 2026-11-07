@@ -2,7 +2,65 @@ import { describe, expect, it } from "vitest";
 
 import { assistantChatTools } from "@src/feedback/lib/assistant-tools/assistant-tools";
 import { ASSISTANT_EVAL_CASES } from "./assistant-eval-cases";
-import { formatAssistantEvalTable, scoreAssistantEval } from "./assistant-eval-scoring";
+import { formatAssistantEvalTable, scoreAssistantEval, sdlValidationErrorsOf } from "./assistant-eval-scoring";
+
+const PERSISTENT_POSTGRES_SDL = `
+version: "2.0"
+services:
+  postgres:
+    image: postgres:16
+    expose:
+      - port: 5432
+        to:
+          - global: true
+    params:
+      storage:
+        data:
+          mount: /var/lib/postgresql/data
+profiles:
+  compute:
+    postgres:
+      resources:
+        cpu:
+          units: 1
+        memory:
+          size: 1Gi
+        storage:
+          - size: 1Gi
+          - name: data
+            size: 10Gi
+            attributes:
+              persistent: true
+              class: beta3
+  placement:
+    dcloud:
+      pricing:
+        postgres:
+          denom: uact
+          amount: 10000
+deployment:
+  postgres:
+    dcloud:
+      profile: postgres
+      count: 1
+`;
+
+const STORAGE_AS_MAP_SDL = PERSISTENT_POSTGRES_SDL.replace(
+  "          - size: 1Gi\n          - name: data\n            size: 10Gi",
+  "          data:\n            size: 10Gi"
+);
+
+const PRICELESS_POSTGRES_SDL = PERSISTENT_POSTGRES_SDL.replace(
+  "    dcloud:\n      pricing:\n        postgres:\n          denom: uact\n          amount: 10000\n",
+  "    dcloud: {}\n"
+);
+
+const INTERNAL_ONLY_POSTGRES_SDL = PERSISTENT_POSTGRES_SDL.replace("          - global: true", "          - global: false");
+
+const EPHEMERAL_POSTGRES_SDL = PERSISTENT_POSTGRES_SDL.replace(
+  "          - name: data\n            size: 10Gi\n            attributes:\n              persistent: true\n              class: beta3\n",
+  ""
+).replace("    params:\n      storage:\n        data:\n          mount: /var/lib/postgresql/data\n", "");
 
 describe(scoreAssistantEval.name, () => {
   it("passes a transcript that meets every expectation", () => {
@@ -51,6 +109,42 @@ describe(scoreAssistantEval.name, () => {
     );
 
     expect(result).toEqual({ id: "calls", passed: false, failures: ["did not call get_bids", "called get_deployment"] });
+  });
+
+  it("reports a first round that does not call only the expected tool", () => {
+    const expectation = { callsFirst: "read_configure_form" };
+    const readForm = { name: "read_configure_form", arguments: {} };
+    const searchDocs = { name: "search_docs", arguments: {} };
+
+    expect(
+      scoreAssistantEval("first", expectation, {
+        toolCalls: [
+          { ...readForm, round: 0 },
+          { ...searchDocs, round: 1 }
+        ],
+        answer: ""
+      }).failures
+    ).toEqual([]);
+    expect(
+      scoreAssistantEval("first", expectation, {
+        toolCalls: [
+          { ...searchDocs, round: 0 },
+          { ...readForm, round: 1 }
+        ],
+        answer: ""
+      }).failures
+    ).toEqual(["called search_docs before read_configure_form"]);
+    expect(
+      scoreAssistantEval("first", expectation, {
+        toolCalls: [
+          { ...readForm, round: 0 },
+          { ...searchDocs, round: 0 },
+          { ...searchDocs, round: 0 }
+        ],
+        answer: ""
+      }).failures
+    ).toEqual(["called search_docs alongside read_configure_form"]);
+    expect(scoreAssistantEval("first", expectation, { toolCalls: [], answer: "" }).failures).toEqual(["called nothing before read_configure_form"]);
   });
 
   it("reports a missing proposal", () => {
@@ -204,6 +298,28 @@ describe(scoreAssistantEval.name, () => {
     ]);
   });
 
+  it.each([
+    "[deployment 1794...](/deployments/1794010767535) is up.",
+    "[deployment 179401…](/deployments/1794010767535) is up.",
+    "[my-db](/deployments/42) and [deployment 179401](/deployments/1794010767535) are up.",
+    "Deployment 1794... is [up](/deployments/1794010767535).",
+    "[web (nginx)](/deployments/1794010767535) is up, see [deployment 179401](/deployments/1794010767535)."
+  ])("reports a shortened dseq: %j", answer => {
+    expect(scoreAssistantEval("unnamed", { linksDeployments: ["1794010767535"] }, { toolCalls: [], answer }).failures).toEqual([
+      "answer writes a shortened dseq 1794010767535"
+    ]);
+  });
+
+  it.each([
+    "[web (nginx)](/deployments/1794010767535) logged 2048... lines.",
+    "[web (nginx)](/deployments/1794010767535) is at step 179...",
+    "[web (nginx)](/deployments/1794010767535) logged 1794 lines.",
+    "[web 2048](/deployments/1794010767535) is up.",
+    "See [step 1794](/docs/steps) for [web (nginx)](/deployments/1794010767535)."
+  ])("passes a number that is not a shortened dseq: %j", answer => {
+    expect(scoreAssistantEval("unnamed", { linksDeployments: ["1794010767535"] }, { toolCalls: [], answer }).failures).toEqual([]);
+  });
+
   it("fails an answer the model left to the fallback", () => {
     expect(scoreAssistantEval("silent", {}, { toolCalls: [], answer: "I read your deployments.", fellBack: true }).failures).toEqual([
       "answered only with the fallback"
@@ -251,6 +367,7 @@ describe(scoreAssistantEval.name, () => {
     const named = ASSISTANT_EVAL_CASES.flatMap(evalCase => [
       ...(evalCase.expect.calls ?? []),
       ...(evalCase.expect.neverCalls ?? []),
+      ...(evalCase.expect.callsFirst ? [evalCase.expect.callsFirst] : []),
       ...Object.keys(evalCase.expect.callMentions ?? {}),
       ...Object.keys(evalCase.toolResults ?? {}),
       ...Object.keys(evalCase.toolErrors ?? {})
@@ -258,6 +375,67 @@ describe(scoreAssistantEval.name, () => {
 
     expect(named.filter(name => !toolNames.has(name))).toEqual([]);
     expect(new Set(ASSISTANT_EVAL_CASES.map(({ id }) => id)).size).toBe(ASSISTANT_EVAL_CASES.length);
+  });
+
+  it("reports a proposed SDL that is not valid when the case expects a valid one", () => {
+    const proposeSdl = (sdl: string) => ({ toolCalls: [{ name: "propose_create_deployment", arguments: { sdl } }], answer: "" });
+
+    expect(scoreAssistantEval("sdl", { proposes: "create_deployment", proposesValidSdl: true }, proposeSdl(PERSISTENT_POSTGRES_SDL)).failures).toEqual([]);
+    expect(scoreAssistantEval("sdl", { proposes: "create_deployment", proposesValidSdl: true }, proposeSdl(PRICELESS_POSTGRES_SDL)).failures).toEqual([]);
+    expect(scoreAssistantEval("sdl", { proposes: "create_deployment", proposesValidSdl: true }, proposeSdl(STORAGE_AS_MAP_SDL)).failures).toEqual([
+      expect.stringMatching(/^create_deployment proposal has an SDL that is not valid: \/profiles\/compute\/postgres\/resources\/storage /)
+    ]);
+    expect(scoreAssistantEval("sdl", { proposes: "create_deployment" }, proposeSdl(STORAGE_AS_MAP_SDL)).failures).toEqual([]);
+  });
+
+  describe(sdlValidationErrorsOf.name, () => {
+    it("finds nothing wrong with a valid SDL", () => {
+      expect(sdlValidationErrorsOf(PERSISTENT_POSTGRES_SDL)).toEqual([]);
+    });
+
+    it("accepts an SDL without pricing, since a create prices it at the default ceiling", () => {
+      expect(sdlValidationErrorsOf(PRICELESS_POSTGRES_SDL)).toEqual([]);
+    });
+
+    it("refuses an SDL that exposes no service globally, as a create does", () => {
+      expect(sdlValidationErrorsOf(INTERNAL_ONLY_POSTGRES_SDL)).toEqual([
+        expect.stringMatching(/^\/services at least one service must expose a port with `global: true`/)
+      ]);
+    });
+
+    it("names where a storage map should have been a list", () => {
+      expect(sdlValidationErrorsOf(STORAGE_AS_MAP_SDL)).toContain(
+        '/profiles/compute/postgres/resources/storage "storage" at "/profiles/compute/postgres/resources" should be array.'
+      );
+    });
+
+    it("reports YAML that does not parse and a missing SDL", () => {
+      expect(sdlValidationErrorsOf("services: [")).toEqual([expect.stringMatching(/^the YAML does not parse: \S/)]);
+      expect(sdlValidationErrorsOf(undefined)).toEqual(["there is no SDL"]);
+    });
+  });
+
+  it("answers the persistent postgres case's availability checks by whether the screened SDL is valid", () => {
+    const writePostgres = ASSISTANT_EVAL_CASES.find(({ id }) => id === "write-persistent-postgres");
+    const checkAvailability = writePostgres?.toolResults?.check_availability as (args: Record<string, unknown>) => unknown;
+
+    expect(checkAvailability({ sdl: PERSISTENT_POSTGRES_SDL })).toMatchObject({ providersAbleToBid: 14 });
+    expect(checkAvailability({ sdl: PRICELESS_POSTGRES_SDL })).toMatchObject({ providersAbleToBid: 14 });
+    expect(checkAvailability({ sdl: STORAGE_AS_MAP_SDL })).toEqual({ error: expect.stringMatching(/^The SDL is not valid: \/profiles\/compute\/postgres/) });
+    expect(checkAvailability({ templateId: "postgres" })).toEqual({ error: expect.stringMatching(/^The SDL is not valid: \S/) });
+  });
+
+  it("fails the persistent postgres case when the proposed SDL mounts no persistent volume, whatever its reason says", () => {
+    const writePostgres = ASSISTANT_EVAL_CASES.find(({ id }) => id === "write-persistent-postgres");
+    const propose = (sdl: string) => ({
+      toolCalls: [{ name: "propose_create_deployment", arguments: { sdl, reason: "Postgres with persistent storage" } }],
+      answer: ""
+    });
+
+    expect(scoreAssistantEval("write-persistent-postgres", writePostgres!.expect, propose(PERSISTENT_POSTGRES_SDL)).failures).toEqual([]);
+    expect(scoreAssistantEval("write-persistent-postgres", writePostgres!.expect, propose(EPHEMERAL_POSTGRES_SDL)).failures).toEqual([
+      'create_deployment proposal lacks "persistent: true"'
+    ]);
   });
 
   describe(formatAssistantEvalTable.name, () => {

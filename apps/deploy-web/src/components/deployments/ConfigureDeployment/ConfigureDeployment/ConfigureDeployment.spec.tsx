@@ -1,21 +1,28 @@
-import type { PropsWithChildren } from "react";
-import { useState } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
+import { useEffect, useState } from "react";
 import type { TemplateOutput } from "@akashnetwork/http-sdk";
+import { ApiError } from "@akashnetwork/openapi-sdk";
 import { createStore, Provider as JotaiStoreProvider } from "jotai";
 import type { ReadonlyURLSearchParams } from "next/navigation";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { useMarkAutoDeployStart, useTakeAutoDeployStart } from "@src/hooks/useAutoDeployStart/useAutoDeployStart";
+import type { Activity } from "@src/queries/useLatestActivitiesQuery";
 import sdlStore from "@src/store/sdlStore";
 import type { ITemplate, TemplateCreation } from "@src/types";
 import { helloWorldTemplate } from "@src/utils/templates";
-import type { ResumeResolution } from "../ResumeDeploymentGuard/ResumeDeploymentGuard";
+import type { DEPENDENCIES as GUARD_DEPENDENCIES, ResumeResolution } from "../ResumeDeploymentGuard/ResumeDeploymentGuard";
+import { ResumeDeploymentGuard as RealResumeDeploymentGuard } from "../ResumeDeploymentGuard/ResumeDeploymentGuard";
+import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 import type { DEPENDENCIES } from "./ConfigureDeployment";
 import { ConfigureDeployment } from "./ConfigureDeployment";
 
 import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
+import { buildActivity } from "@tests/seeders/activity";
+
+const ASSISTANT_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx:alpine\n';
 
 const SECRET_REFERENCE_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "API_KEY=ac-secret://API_KEY"\n';
 
@@ -582,6 +589,169 @@ describe(ConfigureDeployment.name, () => {
     expect(DeploymentFlowProvider).toHaveBeenCalledWith(expect.objectContaining({ pendingCreate: { activityId: "activity-1" } }), expect.anything());
   });
 
+  describe("when a deployment is opened onto the screen already showing", () => {
+    it("starts the form from the handed-over draft and follows the deployment's create", () => {
+      const create = buildActivity({ type: "deployment_create", status: "pending", meta: { dseq: "123" } });
+      const { ConfigureDeploymentForm, DeploymentFlowProvider, openUrl } = setup({
+        templateId: null,
+        draftId: "open-draft",
+        drafts: { "open-draft": { sdl: "open: sdl" }, "assistant-draft": { sdl: ASSISTANT_SDL, name: "web" } },
+        chain: { deployments: { "123": deploymentNotFound() }, activities: [create] }
+      });
+
+      openUrl({ dseq: "123", draftId: "assistant-draft" });
+
+      expect(ConfigureDeploymentForm).toHaveBeenLastCalledWith(expect.objectContaining({ initialSdl: ASSISTANT_SDL, initialName: "web" }), expect.anything());
+      expect(DeploymentFlowProvider).toHaveBeenLastCalledWith(expect.objectContaining({ pendingCreate: { activityId: create.id } }), expect.anything());
+    });
+
+    it("starts the form from the definition the console recorded when the link carries no draft", () => {
+      const { ConfigureDeploymentForm, openUrl } = setup({
+        templateId: null,
+        draftId: "open-draft",
+        drafts: { "open-draft": { sdl: "open: sdl" } },
+        chain: { deployments: { "123": deploymentRecordedWith(ASSISTANT_SDL) }, activities: [] }
+      });
+
+      openUrl({ dseq: "123" });
+
+      expect(ConfigureDeploymentForm).toHaveBeenLastCalledWith(expect.objectContaining({ initialSdl: ASSISTANT_SDL }), expect.anything());
+    });
+
+    it("keeps the screen when the URL takes the draft id the screen minted", () => {
+      const { countGuardMounts, openUrl } = setup({ templateId: null, drafts: {}, chain: { deployments: {}, activities: [] } });
+
+      openUrl({ draftId: "minted-id" });
+
+      expect(countGuardMounts()).toBe(1);
+    });
+
+    it("keeps the screen when an unreadable draft continues under a minted id", () => {
+      const { countGuardMounts, failDraftRead, openUrl } = setup({
+        templateId: null,
+        draftId: "unreadable-draft",
+        drafts: {},
+        chain: { deployments: {}, activities: [] }
+      });
+
+      failDraftRead();
+      openUrl({ draftId: "minted-id" });
+
+      expect(countGuardMounts()).toBe(1);
+    });
+
+    it("starts the screen over when a link without a draft opens a fresh deployment", () => {
+      const { countGuardMounts, openUrl } = setup({
+        templateId: null,
+        draftId: "open-draft",
+        drafts: { "open-draft": { sdl: "open: sdl" } },
+        chain: { deployments: {}, activities: [] }
+      });
+
+      openUrl({});
+
+      expect(countGuardMounts()).toBe(2);
+    });
+
+    it("keeps the screen when the flow writes the deployment it created into the URL", () => {
+      const { countGuardMounts, openUrl } = setup({
+        templateId: null,
+        draftId: "open-draft",
+        drafts: { "open-draft": { sdl: "open: sdl" } },
+        chain: { deployments: {}, activities: [] }
+      });
+
+      openUrl({ dseq: "123", draftId: "open-draft" });
+
+      expect(countGuardMounts()).toBe(1);
+    });
+
+    it("keeps a fresh template session while it writes its minted draft id and then its deployment into the URL", () => {
+      const { ConfigureDeploymentForm, countGuardMounts, writeOwnDseq } = setup({
+        templateId: helloWorldTemplate.code,
+        drafts: {},
+        writesMintedDraftIdToUrl: true,
+        chain: { deployments: {}, activities: [] }
+      });
+
+      writeOwnDseq("123");
+
+      expect(countGuardMounts()).toBe(1);
+      expect(ConfigureDeploymentForm).toHaveBeenLastCalledWith(
+        expect.objectContaining({ initialSdl: helloWorldTemplate.content, intent: expect.objectContaining({ draftId: "minted-id", dseq: "123" }) }),
+        expect.anything()
+      );
+    });
+
+    it("keeps a fresh session started from scratch while it writes its minted draft id and then its deployment into the URL", () => {
+      const { countGuardMounts, writeOwnDseq, currentUrl } = setup({
+        templateId: null,
+        drafts: {},
+        writesMintedDraftIdToUrl: true,
+        chain: { deployments: {}, activities: [] }
+      });
+
+      writeOwnDseq("123");
+
+      expect(currentUrl()).toEqual({ dseq: "123", draftId: "minted-id" });
+      expect(countGuardMounts()).toBe(1);
+    });
+
+    it("resumes the draft and deployment a reloaded URL names without starting over", () => {
+      const { ConfigureDeploymentForm, countGuardMounts } = setup({
+        templateId: null,
+        dseq: "123",
+        draftId: "open-draft",
+        drafts: { "open-draft": { sdl: "open: sdl" } },
+        writesMintedDraftIdToUrl: true,
+        chain: { deployments: { "123": deploymentRecordedWith(ASSISTANT_SDL) }, activities: [] }
+      });
+
+      expect(countGuardMounts()).toBe(1);
+      expect(ConfigureDeploymentForm).toHaveBeenLastCalledWith(
+        expect.objectContaining({ initialSdl: "open: sdl", intent: expect.objectContaining({ draftId: "open-draft", dseq: "123" }) }),
+        expect.anything()
+      );
+    });
+
+    it("starts over once from the recorded definition when a link without a draft opens the deployment on screen", () => {
+      const { ConfigureDeploymentForm, countGuardMounts, openUrl, currentUrl } = setup({
+        templateId: null,
+        dseq: "123",
+        draftId: "open-draft",
+        drafts: { "open-draft": { sdl: "open: sdl" } },
+        writesMintedDraftIdToUrl: true,
+        chain: { deployments: { "123": deploymentRecordedWith(ASSISTANT_SDL) }, activities: [] }
+      });
+
+      openUrl({ dseq: "123" });
+
+      expect(currentUrl()).toEqual({ dseq: "123", draftId: "minted-id" });
+      expect(countGuardMounts()).toBe(2);
+      expect(ConfigureDeploymentForm).toHaveBeenLastCalledWith(expect.objectContaining({ initialSdl: ASSISTANT_SDL }), expect.anything());
+    });
+
+    it("starts the screen over for each draft when navigating back and forth between two", () => {
+      const { ConfigureDeploymentForm, countGuardMounts, openUrl } = setup({
+        templateId: null,
+        draftId: "first-draft",
+        drafts: { "first-draft": { sdl: "first: sdl" }, "second-draft": { sdl: "second: sdl" } },
+        chain: { deployments: {}, activities: [] }
+      });
+
+      openUrl({ draftId: "second-draft" });
+      expect(ConfigureDeploymentForm).toHaveBeenLastCalledWith(expect.objectContaining({ initialSdl: "second: sdl" }), expect.anything());
+
+      openUrl({ draftId: "first-draft" });
+
+      expect(countGuardMounts()).toBe(3);
+      expect(ConfigureDeploymentForm).toHaveBeenLastCalledWith(
+        expect.objectContaining({ initialSdl: "first: sdl", intent: expect.objectContaining({ draftId: "first-draft" }) }),
+        expect.anything()
+      );
+    });
+  });
+
   it("prefers the persisted draft over the recorded definition", () => {
     const { ConfigureDeploymentForm } = setup({
       templateId: null,
@@ -615,6 +785,9 @@ describe(ConfigureDeployment.name, () => {
     autoDeployStart?: string;
     deployButtonInForm?: string;
     flow?: Partial<DeploymentFlow>;
+    drafts?: Record<string, { sdl: string; name?: string }>;
+    chain?: { deployments: Record<string, ChainDeploymentRead>; activities: Activity[] };
+    writesMintedDraftIdToUrl?: boolean;
   }) {
     const store = createStore();
     store.set(sdlStore.deploySdl, input.deploySdl ?? null);
@@ -646,16 +819,26 @@ describe(ConfigureDeployment.name, () => {
     const save = vi.fn();
     const clear = vi.fn();
     let draft = { draftId: input.draftId ?? "minted-id", sdl: input.persistedSdl, name: input.persistedName };
-    const useConfigureDraft = vi.fn(() =>
-      mock<ReturnType<typeof DEPENDENCIES.useConfigureDraft>>({
-        draftId: draft.draftId,
+    let isDraftReadFailed = false;
+    let writeUrl = (_next: { params: URLSearchParams; dseq?: string }) => {};
+    const useConfigureDraft = vi.fn(function useConfigureDraftFake(intent: DeploymentIntent) {
+      const current = input.drafts ? draftFollowingTheUrl(input.drafts, intent, isDraftReadFailed) : draft;
+      useEffect(
+        function writeMintedDraftIdIntoUrl() {
+          if (!input.writesMintedDraftIdToUrl || intent.draftId === current.draftId) return;
+          writeUrl({ params: new URLSearchParams({ ...Object.fromEntries(params), draftId: current.draftId }), dseq: intent.dseq });
+        },
+        [intent.draftId, intent.dseq, current.draftId]
+      );
+      return mock<ReturnType<typeof DEPENDENCIES.useConfigureDraft>>({
+        draftId: current.draftId,
         isLoading: !!input.isDraftLoading,
-        persistedSdl: draft.sdl,
-        persistedName: draft.name,
+        persistedSdl: current.sdl,
+        persistedName: current.name,
         save,
         clear
-      })
-    );
+      });
+    });
 
     const query: Record<string, string> = {};
     if (input.templateId) query.templateId = input.templateId;
@@ -664,11 +847,31 @@ describe(ConfigureDeployment.name, () => {
     if (input.bidStrategy) query["bid-strategy"] = input.bidStrategy;
     if (input.vm) query.vm = "true";
     if (input.exampleImage) query.exampleImage = "true";
+    if (input.drafts && input.draftId) query.draftId = input.draftId;
     let params = new URLSearchParams(query);
     let dseq = input.dseq;
 
     const DeployTargetGate = vi.fn<typeof DEPENDENCIES.DeployTargetGate>(({ children }) => <>{children}</>);
-    const ResumeDeploymentGuard = vi.fn(({ children }) => <>{children(input.resume ?? { activeLeases: [] })}</>);
+    let guardMounts = 0;
+    const GuardMountCounter = () => {
+      useEffect(function countMount() {
+        guardMounts++;
+      }, []);
+      return null;
+    };
+    const chain = input.chain;
+    const ResumeDeploymentGuard = vi.fn(({ children, ...props }) =>
+      chain ? (
+        <>
+          <GuardMountCounter />
+          <RealResumeDeploymentGuard {...props} dependencies={guardDependenciesReading(chain)}>
+            {children}
+          </RealResumeDeploymentGuard>
+        </>
+      ) : (
+        <>{children(input.resume ?? { activeLeases: [] })}</>
+      )
+    );
     const dependencies: typeof DEPENDENCIES = {
       Layout: vi.fn(({ children }) => <div data-testid="layout-mock">{children}</div>) as never,
       NextSeo: vi.fn(() => null) as never,
@@ -687,9 +890,18 @@ describe(ConfigureDeployment.name, () => {
       Snackbar: vi.fn(() => null) as never
     };
 
+    const UrlHost = () => {
+      const [, setUrlVersion] = useState(0);
+      writeUrl = next => {
+        params = next.params;
+        dseq = next.dseq;
+        setUrlVersion(version => version + 1);
+      };
+      return <ConfigureDeployment dependencies={dependencies} />;
+    };
     const renderScreen = () => (
       <JotaiStoreProvider store={store}>
-        <ConfigureDeployment dependencies={dependencies} />
+        <UrlHost />
       </JotaiStoreProvider>
     );
     const { rerender } = render(renderScreen());
@@ -704,6 +916,22 @@ describe(ConfigureDeployment.name, () => {
         ...(next.bidStrategy ? { "bid-strategy": next.bidStrategy } : {})
       });
       dseq = next.dseq;
+      rerender(renderScreen());
+    };
+
+    const failDraftRead = () => {
+      isDraftReadFailed = true;
+      rerender(renderScreen());
+    };
+
+    const openUrl = (next: { dseq?: string; draftId?: string }) => {
+      params = new URLSearchParams(next.draftId ? { draftId: next.draftId } : {});
+      dseq = next.dseq;
+      rerender(renderScreen());
+    };
+
+    const writeOwnDseq = (createdDseq: string) => {
+      dseq = createdDseq;
       rerender(renderScreen());
     };
 
@@ -726,7 +954,46 @@ describe(ConfigureDeployment.name, () => {
       rerenderWithTemplate,
       markAutoDeployStart,
       navigate,
-      handOverDraft
+      openUrl,
+      writeOwnDseq,
+      currentUrl: () => ({ dseq, ...Object.fromEntries(params) }),
+      failDraftRead,
+      handOverDraft,
+      countGuardMounts: () => guardMounts
+    };
+  }
+
+  function draftFollowingTheUrl(drafts: Record<string, { sdl: string; name?: string }>, intent: DeploymentIntent, isDraftReadFailed: boolean) {
+    const draftId = intent.draftId && !isDraftReadFailed ? intent.draftId : "minted-id";
+    return { draftId, sdl: drafts[draftId]?.sdl, name: drafts[draftId]?.name };
+  }
+
+  function guardDependenciesReading(chain: NonNullable<Parameters<typeof setup>[0]["chain"]>): typeof GUARD_DEPENDENCIES {
+    return {
+      Layout: vi.fn(({ children }: { children: ReactNode }) => <div data-testid="layout-mock">{children}</div>) as never,
+      useRouter: (() => mock<ReturnType<typeof GUARD_DEPENDENCIES.useRouter>>()) as never,
+      useSnackbar: () => mock<ReturnType<typeof GUARD_DEPENDENCIES.useSnackbar>>(),
+      Snackbar: vi.fn(() => null) as never,
+      useGetDeployment: ((dseq: string | undefined) => (dseq ? chain.deployments[dseq] : undefined) ?? { isLoading: false, isError: false }) as never,
+      useActivityFeedQuery: () =>
+        Object.assign(mock<ReturnType<typeof GUARD_DEPENDENCIES.useActivityFeedQuery>>(), {
+          data: { activities: chain.activities, unseenCount: 0, newestCreatedAt: chain.activities[0]?.createdAt },
+          isError: false
+        })
+    };
+  }
+
+  function deploymentNotFound(): ChainDeploymentRead {
+    return { isLoading: false, isError: true, error: new ApiError(404, { message: "Deployment not found" }, "GET → 404") };
+  }
+
+  function deploymentRecordedWith(sdl: string): ChainDeploymentRead {
+    return {
+      isLoading: false,
+      isError: false,
+      data: { data: { deployment: { state: "active", hash: "v1" }, leases: [], name: null, consoleSettings: { sdl, manifestVersion: "v1" } } }
     };
   }
 });
+
+type ChainDeploymentRead = { isLoading: boolean; isError: boolean; error?: unknown; data?: unknown };

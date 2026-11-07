@@ -16,7 +16,7 @@ import {
 import { fallbackAnswerOf } from "@src/feedback/lib/assistant-fallback-answer/assistant-fallback-answer";
 import { assistantKnowledge } from "@src/feedback/lib/assistant-knowledge/assistant-knowledge";
 import { buildAssistantSystemPrompt } from "@src/feedback/lib/assistant-system-prompt/assistant-system-prompt";
-import { assistantChatTools, isLiveHelpToolName, proposalActionTypeOf } from "@src/feedback/lib/assistant-tools/assistant-tools";
+import { assistantChatToolsFor, isLiveHelpToolName, proposalActionTypeOf } from "@src/feedback/lib/assistant-tools/assistant-tools";
 import { earlierResultOf } from "@src/feedback/lib/assistant-turn-tool-calls/assistant-turn-tool-calls";
 import { consoleApiCatalogOf, consoleApiRoutesOf } from "@src/feedback/lib/console-api-catalog/console-api-catalog";
 import { FEEDBACK_CONFIG } from "@src/feedback/providers/config.provider";
@@ -82,7 +82,10 @@ const SHOWN_CARD = { shown: true, note: "The user sees a card and decides; nothi
 
 function toolMessageOf(evalCase: AssistantEvalCase, call: ChatToolCall, proposalResults: Map<string, unknown[]>): ChatMessage {
   const name = call.function.name;
-  const fixture = evalCase.toolResults?.[name] ?? (name === "search_docs" ? assistantKnowledge.search(String(argumentsOf(call).query ?? "")) : undefined);
+  const result = evalCase.toolResults?.[name];
+  const fixture =
+    (typeof result === "function" ? result(argumentsOf(call)) : result) ??
+    (name === "search_docs" ? assistantKnowledge.search(String(argumentsOf(call).query ?? "")) : undefined);
   const toolError = evalCase.toolErrors?.[name];
   const payload =
     proposalActionTypeOf(name) || isLiveHelpToolName(name)
@@ -96,12 +99,17 @@ function toolMessageOf(evalCase: AssistantEvalCase, call: ChatToolCall, proposal
   return { role: "tool", tool_call_id: call.id, content: toolContentOf(name, payload) };
 }
 
-async function complete(messages: ChatMessage[], isFinalRound: boolean, metrics: CaseMetrics, startedAt: number) {
+interface CaseRequest {
+  isFinalRound: boolean;
+  configureFormOpen: boolean;
+}
+
+async function complete(messages: ChatMessage[], { isFinalRound, configureFormOpen }: CaseRequest, metrics: CaseMetrics, startedAt: number) {
   const completion = await akashMlClient.streamChatCompletion(
     {
       model: config.ASSISTANT_MODEL,
       messages,
-      tools: assistantChatTools(consoleApiCatalog),
+      tools: assistantChatToolsFor({ configureFormOpen, consoleApiCatalog }),
       tool_choice: isFinalRound ? "none" : "auto",
       max_completion_tokens: maxCompletionTokens,
       reasoning_effort: config.ASSISTANT_REASONING_EFFORT
@@ -121,14 +129,20 @@ async function complete(messages: ChatMessage[], isFinalRound: boolean, metrics:
   return completion;
 }
 
-async function answerNow(messages: ChatMessage[], metrics: CaseMetrics, startedAt: number): Promise<{ text: string; fellBack: boolean }> {
-  const { content } = await complete([...messages, ANSWER_NOW_NOTE], true, metrics, startedAt);
+async function answerNow(
+  messages: ChatMessage[],
+  configureFormOpen: boolean,
+  metrics: CaseMetrics,
+  startedAt: number
+): Promise<{ text: string; fellBack: boolean }> {
+  const { content } = await complete([...messages, ANSWER_NOW_NOTE], { isFinalRound: true, configureFormOpen }, metrics, startedAt);
   return content?.trim() ? { text: content, fellBack: false } : { text: fallbackAnswerOf(messages), fellBack: true };
 }
 
 async function runCase(evalCase: AssistantEvalCase): Promise<CaseRun> {
   const metrics = newMetrics();
   const startedAt = Date.now();
+  const configureFormOpen = evalCase.context?.configureFormOpen === true;
   const messages: ChatMessage[] = [
     {
       role: "system",
@@ -137,6 +151,7 @@ async function runCase(evalCase: AssistantEvalCase): Promise<CaseRun> {
         isTrialing: evalCase.context?.isTrialing ?? false,
         page: evalCase.context?.page,
         dseq: evalCase.context?.dseq,
+        configureFormOpen,
         recentActions: evalCase.context?.recentActions
       })
     },
@@ -150,11 +165,11 @@ async function runCase(evalCase: AssistantEvalCase): Promise<CaseRun> {
 
   for (let round = 0; ; round++) {
     const isFinalRound = round >= MAX_TOOL_ROUNDS;
-    const completion = await complete(requestMessagesFor(messages, round), isFinalRound, metrics, startedAt);
+    const completion = await complete(requestMessagesFor(messages, round), { isFinalRound, configureFormOpen }, metrics, startedAt);
     if (completion.content) answer.push(completion.content);
     if (isFinalRound || completion.toolCalls.length === 0) {
       if (!completion.content?.trim()) {
-        const recovered = await answerNow(messages, metrics, startedAt);
+        const recovered = await answerNow(messages, configureFormOpen, metrics, startedAt);
         answer.push(recovered.text);
         fellBack = recovered.fellBack;
       }
@@ -164,7 +179,7 @@ async function runCase(evalCase: AssistantEvalCase): Promise<CaseRun> {
     messages.push({ role: "assistant", content: completion.content, tool_calls: completion.toolCalls });
     for (const call of completion.toolCalls) {
       const earlierResult = earlierResultOf(call, messages);
-      toolCalls.push({ name: call.function.name, arguments: argumentsOf(call), ...(earlierResult !== undefined && { repeated: true }) });
+      toolCalls.push({ name: call.function.name, arguments: argumentsOf(call), round, ...(earlierResult !== undefined && { repeated: true }) });
       metrics.toolCalls.push(call.function.name);
       messages.push(
         earlierResult !== undefined

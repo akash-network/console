@@ -262,10 +262,51 @@ describe("AssistantPanel", () => {
     expect(conversation.send).not.toHaveBeenCalled();
   });
 
-  it("drops the intro once the conversation has messages", () => {
-    setup({ consent: CURRENT_CONSENT, hasMessages: true });
+  it("offers example prompts about the page and deployment in view, sending the one the user picks", () => {
+    const { dependencies, conversation } = setup({ consent: CURRENT_CONSENT, page: "/deployments/42", deploymentDseq: "42" });
+
+    expect(dependencies.AssistantExamplePrompts).toHaveBeenCalledWith(
+      expect.objectContaining({ page: "/deployments/42", deploymentDseq: "42", onSend: conversation.send }),
+      expect.anything()
+    );
+  });
+
+  it("never shows example prompts while a button's question is about to be asked", () => {
+    const { dependencies, conversation } = setup({ consent: CURRENT_CONSENT, question: "Why no bids?", sendsQuestion: true });
+
+    expect(conversation.send).toHaveBeenCalledWith("Why no bids?");
+    expect(dependencies.AssistantExamplePrompts).not.toHaveBeenCalled();
+  });
+
+  it("offers example prompts again once the conversation empties after the button's question was asked", () => {
+    const { dependencies, conversation, rerenderOpen } = setup({ consent: CURRENT_CONSENT, question: "Why no bids?", sendsQuestion: true });
+
+    rerenderOpen(true);
+
+    expect(conversation.send).toHaveBeenCalledTimes(1);
+    expect(dependencies.AssistantExamplePrompts).toHaveBeenCalled();
+  });
+
+  it("offers example prompts when the button only prefills its question", () => {
+    const { dependencies } = setup({ consent: CURRENT_CONSENT, question: "Why no bids?", sendsQuestion: false });
+
+    expect(dependencies.AssistantExamplePrompts).toHaveBeenCalled();
+  });
+
+  it("drops the intro and example prompts once the conversation has messages", () => {
+    const { dependencies } = setup({ consent: CURRENT_CONSENT, hasMessages: true });
 
     expect(screen.queryByText(/Ask about your deployments/)).not.toBeInTheDocument();
+    expect(dependencies.AssistantExamplePrompts).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { case: "the user has not agreed yet", consent: null, problem: undefined },
+    { case: "the conversation hit a problem", consent: CURRENT_CONSENT, problem: "unavailable" as const }
+  ])("offers no example prompts while $case", ({ consent, problem }) => {
+    const { dependencies } = setup({ consent, problem });
+
+    expect(dependencies.AssistantExamplePrompts).not.toHaveBeenCalled();
   });
 
   it("loads consent only while open", () => {
@@ -307,6 +348,8 @@ describe("AssistantPanel", () => {
     sendsQuestion?: boolean;
     isAnswering?: boolean;
     hasMessages?: boolean;
+    page?: string;
+    deploymentDseq?: string;
   }) {
     const updateConsent = vi.fn(async (_input: unknown) => ({ data: { consent: CURRENT_CONSENT, storedConversationCount: 0 } }));
     const data = input.isLoading || input.isError ? undefined : { consent: input.consent ?? null, storedConversationCount: 0 };
@@ -326,6 +369,8 @@ describe("AssistantPanel", () => {
       problem: input.problem ?? null,
       endedAs: null,
       isAnswering: !!input.isAnswering,
+      page: input.page ?? null,
+      deploymentDseq: input.deploymentDseq ?? null,
       send: vi.fn(),
       clearProblem: vi.fn()
     });

@@ -48,8 +48,15 @@ function dayOf(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-function excerptOf(content: string): string {
-  return content.length <= MAX_CLIENT_EXCERPT_LENGTH ? content : `...[earlier lines dropped]${content.slice(-MAX_CLIENT_EXCERPT_LENGTH)}`;
+const CLIENT_READ_SUBJECTS: Record<string, string> = { read_logs: "logs", read_events: "events", read_configure_form: "the configure form" };
+
+/** Logs and events matter most at their end, while a form read is one JSON document that only reads whole from its start. */
+function excerptOf(tool: string, content: string): string {
+  if (content.length <= MAX_CLIENT_EXCERPT_LENGTH) return content;
+
+  return tool === "read_configure_form"
+    ? truncated(content, MAX_CLIENT_EXCERPT_LENGTH)
+    : `...[earlier lines dropped]${content.slice(-MAX_CLIENT_EXCERPT_LENGTH)}`;
 }
 
 /** Stores a conversation only when the user allowed review; otherwise the client holds the history and the API keeps a daily count when it ends. */
@@ -84,7 +91,7 @@ export class AssistantConversationService {
     const conversation = await this.assistantConversationRepository.accessibleBy(this.authService.ability, "create").create({
       userId: this.authService.currentUser.id,
       organizationId: this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId ?? null,
-      context: { ...context, isTrialing: await this.#isTrialing() }
+      context: { page: context?.page, dseq: context?.dseq, isTrialing: await this.#isTrialing() }
     });
 
     return { id: conversation.id, stored: true };
@@ -102,8 +109,9 @@ export class AssistantConversationService {
 
     if (stored) await this.transcriptService.record(conversationId, { role: "user", content: userMessage });
 
+    const configureFormOpen = context?.configureFormOpen === true;
     const messages: ChatMessage[] = [
-      { role: "system", content: this.#systemPromptFor(context ?? conversation?.context, isTrialing, recentActionsOf(storedMessages)) },
+      { role: "system", content: this.#systemPromptFor(context ?? conversation?.context, { isTrialing, configureFormOpen }, recentActionsOf(storedMessages)) },
       ...earlier,
       { role: "user", content: userMessage }
     ];
@@ -112,7 +120,11 @@ export class AssistantConversationService {
 
     return async (emit, signal) => {
       if (redactedSecretCount > 0) await emit({ type: "secret_redacted", count: redactedSecretCount });
-      await this.turnService.run({ conversationId, userId: this.authService.currentUser.id, stored, isTrialing, messages, roundsUsed: 0 }, emit, signal);
+      await this.turnService.run(
+        { conversationId, userId: this.authService.currentUser.id, stored, isTrialing, configureFormOpen, messages, roundsUsed: 0 },
+        emit,
+        signal
+      );
     };
   }
 
@@ -140,7 +152,7 @@ export class AssistantConversationService {
     const stored = state.stored && consent.reviewOptIn;
     const toolMessages: ChatMessage[] = state.clientToolCalls.map(call => {
       const result = results.find(({ toolCallId }) => toolCallId === call.id)!;
-      const excerpt = redactSecrets(excerptOf(result.content));
+      const excerpt = redactSecrets(excerptOf(call.function.name, result.content));
       const payload = result.ok ? { data: { untrustedExcerpt: excerpt } } : { error: truncated(excerpt, MAX_CLIENT_EXCERPT_LENGTH) };
 
       return { role: "tool", tool_call_id: call.id, content: toolContentOf(call.function.name, payload) };
@@ -151,7 +163,7 @@ export class AssistantConversationService {
         const ok = results.find(({ toolCallId }) => toolCallId === call.id)!.ok;
         await this.transcriptService.record(conversationId, {
           role: "tool",
-          content: `${ok ? "Read" : "Could not read"} ${call.function.name === "read_logs" ? "logs" : "events"} in the browser`,
+          content: `${ok ? "Read" : "Could not read"} ${CLIENT_READ_SUBJECTS[call.function.name] ?? "events"} in the browser`,
           toolName: call.function.name,
           toolPayload: { toolCallId: call.id, ok }
         });
@@ -165,6 +177,7 @@ export class AssistantConversationService {
           userId,
           stored,
           isTrialing: state.isTrialing,
+          configureFormOpen: state.configureFormOpen === true,
           messages: [...state.messages, ...toolMessages],
           roundsUsed: state.roundsUsed
         },
@@ -258,7 +271,18 @@ export class AssistantConversationService {
     return wallet?.isTrialing ?? null;
   }
 
-  #systemPromptFor(context: ConversationContextInput | AssistantConversationContext | undefined, isTrialing: boolean | null, recentActions: string[]): string {
-    return buildAssistantSystemPrompt({ supportUrl: this.config.ASSISTANT_SUPPORT_URL, isTrialing, page: context?.page, dseq: context?.dseq, recentActions });
+  #systemPromptFor(
+    context: ConversationContextInput | AssistantConversationContext | undefined,
+    { isTrialing, configureFormOpen }: { isTrialing: boolean | null; configureFormOpen: boolean },
+    recentActions: string[]
+  ): string {
+    return buildAssistantSystemPrompt({
+      supportUrl: this.config.ASSISTANT_SUPPORT_URL,
+      isTrialing,
+      page: context?.page,
+      dseq: context?.dseq,
+      configureFormOpen,
+      recentActions
+    });
   }
 }

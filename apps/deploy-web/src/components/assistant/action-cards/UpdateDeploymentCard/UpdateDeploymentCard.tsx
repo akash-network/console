@@ -9,9 +9,10 @@ import type { ActionCardRow } from "../ActionCardChrome/ActionCardChrome";
 import { ActionCardChrome } from "../ActionCardChrome/ActionCardChrome";
 import type { ActionCardProps } from "../actionCardTypes";
 import { isResourcesChanged, useAssistantDeploymentPatch } from "../useAssistantDeploymentPatch/useAssistantDeploymentPatch";
+import { deploymentLabelOf, useDeploymentName } from "../useDeploymentName/useDeploymentName";
 import { updateDeploymentDiff } from "./updateDeploymentDiff";
 
-export const DEPENDENCIES = { useAssistantDeploymentPatch, useDeploymentDefinition, useRedeploy, ActionCardChrome };
+export const DEPENDENCIES = { useAssistantDeploymentPatch, useDeploymentDefinition, useRedeploy, useDeploymentName, ActionCardChrome };
 
 const NEEDS_REDEPLOY_MESSAGE = "This change needs a new deployment. Redeploy in the editor to apply it.";
 
@@ -21,6 +22,7 @@ export const UpdateDeploymentCard: FC<ActionCardProps<"update_deployment"> & { d
   dependencies: d = DEPENDENCIES
 }) => {
   const patch = d.useAssistantDeploymentPatch();
+  const deploymentName = d.useDeploymentName(action.dseq, action.name);
   const [needsRedeploy, setNeedsRedeploy] = useState(false);
   const definition = d.useDeploymentDefinition(needsRedeploy ? action.dseq : null, { acceptReferences: true });
   const redeploy = d.useRedeploy();
@@ -48,7 +50,7 @@ export const UpdateDeploymentCard: FC<ActionCardProps<"update_deployment"> & { d
 
   return (
     <d.ActionCardChrome
-      title={`Update ${action.name ?? `deployment ${action.dseq}`}`}
+      title={`Update ${deploymentLabelOf(deploymentName)}`}
       scope={scopeOf(action.services.map(({ service }) => service))}
       tier={action.tier}
       decision={decision}

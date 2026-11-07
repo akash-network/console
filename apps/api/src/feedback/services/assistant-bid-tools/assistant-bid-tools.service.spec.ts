@@ -31,9 +31,12 @@ describe(AssistantBidToolsService.name, () => {
     const bid = createBid({ dseq: "42", gseq: 1, oseq: 1 });
     const unnamedBid = createBid({ dseq: "42", gseq: 1, oseq: 1 });
     unnamedBid.bid.price = { denom: "uact", amount: "2.93" };
-    const { service, bidController, sdlService, addressNamesService } = setup({ providerNames: { [bid.bid.id.provider]: "provider.europlots.com" } });
+    const { service, bidController, deploymentController, sdlService, addressNamesService } = setup({
+      providerNames: { [bid.bid.id.provider]: "provider.europlots.com" }
+    });
     bid.bid.price = { denom: "uact", amount: "2.93" };
     bidController.list.mockResolvedValue({ data: [bid, unnamedBid] });
+    deploymentController.findByDseq.mockResolvedValue({ data: createGetDeploymentResponseData({ dseq: "42", name: "llama-chat" }) });
 
     const result = await service.getBids({ dseq: "42" });
 
@@ -41,6 +44,7 @@ describe(AssistantBidToolsService.name, () => {
     expect(addressNamesService.providerNamesOf).toHaveBeenCalledWith([bid.bid.id.provider, unnamedBid.bid.id.provider]);
     expect(result).toEqual({
       dseq: "42",
+      name: "llama-chat",
       deploymentState: "active",
       leaseCount: 0,
       bids: [

@@ -21,8 +21,10 @@ import {
 } from "@src/feedback/lib/assistant-tools/assistant-tool-arguments";
 import {
   assistantChatTools,
+  assistantChatToolsFor,
   CONSOLE_API_READ_TOOL_NAME,
   isClientToolName,
+  isConfigureFormToolName,
   isLiveHelpToolName,
   isReadToolName,
   proposalActionTypeOf,
@@ -44,6 +46,8 @@ const WITHHELD_PROPOSAL_NOTE =
   "No provider can bid on this, so the user did not see a card. Propose an adjusted SDL that has bidders, keeping its price and denom: drop placement attributes no audited provider signed, change resources the user did not ask for, or pick another template, after at most two availability checks. If nothing fits, say which requirement no provider meets right now, and offer request_hardware or a smaller alternative.";
 const TEMPLATE_SDL_LEFT_OUT_NOTE = "The template's SDL is too long to include here, so pick another template or explain why nothing fits.";
 const RETRY_ONCE_HINT = "Call it once more with corrected arguments, or answer without it.";
+const CONFIGURE_FORM_CLOSED_MESSAGE =
+  "The configure page is not open in the user's browser, so its form cannot be read or edited. Answer without it, or ask the user to open the configure page.";
 
 export type ClientToolCall = { [K in ClientToolName]: { id: string; name: K; arguments: ClientToolArguments<K> } }[ClientToolName];
 
@@ -76,13 +80,19 @@ function withheldContentOf(tool: string, { templateSdl, ...feedback }: Record<st
 
 type DedicatedReadToolName = Exclude<ReadToolName, typeof CONSOLE_API_READ_TOOL_NAME>;
 
-function summaryOf(name: DedicatedReadToolName, args: Record<string, unknown>): string {
+function deploymentLabelOf(data: unknown): string {
+  const name = (data as { name?: unknown } | null)?.name;
+  return typeof name === "string" && name ? `deployment ${name}` : "your deployment";
+}
+
+function summaryOf(name: DedicatedReadToolName, data: unknown): string {
+  const deployment = deploymentLabelOf(data);
   const summaries: Record<DedicatedReadToolName, string> = {
     list_deployments: "Read your deployments",
-    get_deployment: `Read deployment ${args.dseq}`,
-    get_bids: `Read the bids on deployment ${args.dseq}`,
+    get_deployment: `Read ${deployment}`,
+    get_bids: `Read the bids on ${deployment}`,
     get_balance_and_spend: "Read your balance and spend",
-    get_lease_close_reason: `Read why deployment ${args.dseq} closed`,
+    get_lease_close_reason: `Read why ${deployment} closed`,
     list_templates: "Searched the template gallery",
     search_docs: "Searched the Console docs",
     check_availability: "Checked which providers could bid"
@@ -103,6 +113,7 @@ const FAILED_SUMMARIES: Record<ReadToolName | ClientToolName | typeof LIVE_HELP_
   read_console_api: "Could not read your Console data",
   read_logs: "Could not read the logs",
   read_events: "Could not read the events",
+  read_configure_form: "Could not read the configure form",
   suggest_live_help: "Could not suggest live help"
 };
 
@@ -187,12 +198,12 @@ export class AssistantToolRunnerService {
   }
 
   /** Falls back to the tools without the route catalog, so a docs outage costs the assistant one tool's catalog rather than the turn. */
-  async chatTools(): Promise<ChatTool[]> {
+  async chatTools({ configureFormOpen }: { configureFormOpen: boolean }): Promise<ChatTool[]> {
     try {
-      return assistantChatTools(await this.consoleApi.catalog());
+      return assistantChatToolsFor({ configureFormOpen, consoleApiCatalog: await this.consoleApi.catalog() });
     } catch (error) {
       this.#logger.warn({ event: "ASSISTANT_CONSOLE_API_CATALOG_FAILED", error });
-      return assistantChatTools();
+      return assistantChatToolsFor({ configureFormOpen });
     }
   }
 
@@ -218,13 +229,14 @@ export class AssistantToolRunnerService {
   async #run(call: ChatToolCall, context: ProposalContext): Promise<ToolOutcome> {
     const name = call.function.name;
     const args = parsedArguments(call);
+    if (isConfigureFormToolName(name) && !context.configureFormOpen) throw new AssistantToolError(CONFIGURE_FORM_CLOSED_MESSAGE);
 
     if (isReadToolName(name)) {
       const parsed = validArguments(() => READ_TOOL_ARGUMENTS[name].parse(args));
       const { data, summary } =
         name === CONSOLE_API_READ_TOOL_NAME
           ? await this.consoleApi.read(parsed as ReadToolArguments<typeof CONSOLE_API_READ_TOOL_NAME>)
-          : { data: await this.#read(name, parsed, context), summary: summaryOf(name, parsed) };
+          : await this.#summarizedRead(name, parsed, context);
 
       return { kind: "result", content: toolContentOf(name, { data }), summary, ok: true };
     }
@@ -265,6 +277,11 @@ export class AssistantToolRunnerService {
       action,
       ...(redactedDiagnosis && { diagnosis: redactedDiagnosis })
     };
+  }
+
+  async #summarizedRead(name: DedicatedReadToolName, args: unknown, context: ProposalContext): Promise<{ data: unknown; summary: string }> {
+    const data = await this.#read(name, args, context);
+    return { data, summary: summaryOf(name, data) };
   }
 
   async #read(name: DedicatedReadToolName, args: unknown, context: ProposalContext): Promise<unknown> {

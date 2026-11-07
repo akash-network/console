@@ -6,6 +6,7 @@ import { mock } from "vitest-mock-extended";
 import type { AssistantActionOf } from "@src/types/assistant";
 import type { ApiProviderList } from "@src/types/provider";
 import type { ActionCardChromeProps } from "../ActionCardChrome/ActionCardChrome";
+import { DeploymentLink } from "../DeploymentLink/DeploymentLink";
 import type { ActionCardDecision } from "../useActionCardDecision/useActionCardDecision";
 import type { DEPENDENCIES } from "./ChooseBidCard";
 import { ChooseBidCard } from "./ChooseBidCard";
@@ -20,19 +21,21 @@ type BidEntry = NonNullable<BidsQuery["data"]>["data"][number];
 
 describe("ChooseBidCard", () => {
   it("lists the open bids with provider, region, uptime and hourly price, and preselects the recommendation", () => {
-    const { chromeProps } = setup();
+    const { chromeProps, useProvidersByAddresses } = setup();
 
+    expect(useProvidersByAddresses).toHaveBeenLastCalledWith(["akash1fast", "akash1other"]);
     const group = screen.getByRole("radiogroup", { name: "Bids for group 1" });
     const recommended = within(group).getByRole("radio", { name: /Fast GPUs/ });
     expect(recommended).toBeChecked();
     expect(within(group).getByText("Recommended")).toBeInTheDocument();
     expect(within(group).getByText("us-west · 99.5% uptime")).toBeInTheDocument();
-    expect(within(group).getByRole("radio", { name: /akash1other/ })).not.toBeChecked();
+    expect(within(group).getByRole("radio", { name: /provider\.other\.example/ })).not.toBeChecked();
     expect(within(group).queryByRole("radio", { name: /akash1closed/ })).not.toBeInTheDocument();
     expect(screen.getAllByText(/\/hr/)).toHaveLength(2);
     expect(chromeProps()).toEqual(
       expect.objectContaining({
-        title: "Choose a provider for deployment 42",
+        title: "Choose a provider for blog",
+        scope: expect.objectContaining({ type: DeploymentLink, props: { dseq: "42", name: "blog" } }),
         costNote: "Billing starts when the lease starts.",
         confirmLabel: "Start lease",
         isConfirmDisabled: false
@@ -42,7 +45,7 @@ describe("ChooseBidCard", () => {
 
   it("starts the lease on the chosen bid the way the deploy flow does", async () => {
     const { chromeProps, createLease, forgetEarlierOutcomes, markOutcomeHandled, queryClient } = setup();
-    await userEvent.click(screen.getByRole("radio", { name: /akash1other/ }));
+    await userEvent.click(screen.getByRole("radio", { name: /provider\.other\.example/ }));
 
     await act(() => chromeProps().onConfirm!(""));
 
@@ -92,10 +95,25 @@ describe("ChooseBidCard", () => {
     });
   });
 
+  it("names a provider the lookup does not know without showing its address", () => {
+    setup({ bids: [bidEntry({ provider: "akash1unlisted" })] });
+
+    expect(screen.getByRole("radio", { name: /Unknown provider/ })).toBeInTheDocument();
+    expect(screen.queryByText(/akash1unlisted/)).not.toBeInTheDocument();
+  });
+
+  it("shows a provider as being looked up rather than unknown while its lookup is in flight", () => {
+    setup({ bids: [bidEntry({ provider: "akash1fast" }), bidEntry({ provider: "akash1unlisted" })], isLookingUpProviders: true });
+
+    expect(screen.getByRole("radio", { name: /Looking up provider…/ })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Fast GPUs/ })).toBeInTheDocument();
+    expect(screen.queryByText(/Unknown provider/)).not.toBeInTheDocument();
+  });
+
   it("can't start a lease on a recommendation that is no longer open", () => {
     const { chromeProps } = setup({ bids: [bidEntry({ provider: "akash1other" })] });
 
-    expect(screen.getByRole("radio", { name: /akash1other/ })).not.toBeChecked();
+    expect(screen.getByRole("radio", { name: /provider\.other\.example/ })).not.toBeChecked();
     expect(chromeProps().isConfirmDisabled).toBe(true);
   });
 
@@ -130,9 +148,11 @@ describe("ChooseBidCard", () => {
       bids?: BidEntry[];
       choices?: AssistantActionOf<"choose_bid">["choices"];
       isLoading?: boolean;
+      isLookingUpProviders?: boolean;
       decisionStatus?: ActionCardDecision["status"];
     } = {}
   ) {
+    const useDeploymentName = vi.fn((_dseq: string | null | undefined, _knownName?: string | null): string | null => "blog");
     const action: AssistantActionOf<"choose_bid"> = {
       type: "choose_bid",
       tier: "confirm",
@@ -149,7 +169,15 @@ describe("ChooseBidCard", () => {
     const queryClient = mock<QueryClient>({ invalidateQueries: vi.fn(async () => undefined) });
     const forgetEarlierOutcomes = vi.fn();
     const markOutcomeHandled = vi.fn();
-    const providers = [mock<ApiProviderList>({ owner: "akash1fast", name: "Fast GPUs", ipRegion: "us-west", uptime7d: 0.995 })];
+    const providers = [
+      mock<ApiProviderList>({ owner: "akash1fast", name: "Fast GPUs", ipRegion: "us-west", uptime7d: 0.995 }),
+      mock<ApiProviderList>({ owner: "akash1other", name: null, hostUri: "https://provider.other.example:8443", ipRegion: "eu-west", uptime7d: 0.9 })
+    ];
+    const useProvidersByAddresses = vi.fn((_addresses: readonly string[]) => ({
+      data: providers,
+      isLoading: !!input.isLookingUpProviders,
+      isFetching: !!input.isLookingUpProviders
+    }));
     const ActionCardChrome = vi.fn((props: ActionCardChromeProps) => <>{props.children}</>);
     const decision = mock<ActionCardDecision>({ status: input.decisionStatus ?? "pending" });
 
@@ -159,10 +187,11 @@ describe("ChooseBidCard", () => {
           action={action}
           decision={decision}
           dependencies={{
+            useDeploymentName,
             useServices: () => Object.assign(mock<Container>(), { api }),
             useQueryClient: () => queryClient,
             useListBids: () => ({ data: input.isLoading ? undefined : { data: bids }, isLoading: !!input.isLoading }) as unknown as BidsQuery,
-            useProvidersByAddresses: () => ({ data: providers, isLoading: false, isFetching: false }),
+            useProvidersByAddresses,
             useMarkActivityOutcomes: () => mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>({ forgetEarlierOutcomes, markOutcomeHandled }),
             ActionCardChrome: ActionCardChrome as unknown as typeof DEPENDENCIES.ActionCardChrome,
             PricePerTimeUnit: ({ perBlockValue }) => <span>{perBlockValue}/hr</span>
@@ -171,6 +200,6 @@ describe("ChooseBidCard", () => {
       </TestContainerProvider>
     );
 
-    return { chromeProps: () => ActionCardChrome.mock.lastCall![0], createLease, forgetEarlierOutcomes, markOutcomeHandled, queryClient, unmount };
+    return { useDeploymentName, useProvidersByAddresses, chromeProps: () => ActionCardChrome.mock.lastCall![0], createLease, forgetEarlierOutcomes, markOutcomeHandled, queryClient, unmount };
   }
 });

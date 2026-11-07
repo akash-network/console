@@ -24,8 +24,14 @@ describe("createPgBoss", () => {
     const pgBoss = await createPgBossFactory(MockPgBoss as unknown as typeof PgBoss)(new ConfigService(config), pool);
 
     expect(MockPgBoss).toHaveBeenCalledTimes(2);
-    expect(MockPgBoss).toHaveBeenNthCalledWith(1, config["broker.EVENT_BROKER_POSTGRES_URI"]);
+    expect(MockPgBoss).toHaveBeenNthCalledWith(1, {
+      connectionString: config["broker.EVENT_BROKER_POSTGRES_URI"],
+      reindex: false,
+      openTelemetry: { enabled: false }
+    });
     expect(MockPgBoss).toHaveBeenNthCalledWith(2, {
+      reindex: false,
+      openTelemetry: { enabled: false },
       db: {
         executeSql: expect.any(Function)
       }

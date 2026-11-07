@@ -1,12 +1,13 @@
 import type { ChatMessage } from "@src/feedback/services/akashml-client/akashml.client";
-import type { AssistantEvalExpectation } from "./assistant-eval-scoring";
+import { type AssistantEvalExpectation, sdlValidationErrorsOf } from "./assistant-eval-scoring";
 
 export interface AssistantEvalCase {
   id: string;
   question: string;
-  context?: { page?: string; dseq?: string; isTrialing?: boolean; recentActions?: string[] };
+  context?: { page?: string; dseq?: string; isTrialing?: boolean; configureFormOpen?: boolean; recentActions?: string[] };
   history?: ChatMessage[];
-  toolResults?: Record<string, unknown>;
+  /** A function answers each call from its arguments, such as check_availability by what the screened SDL asks for. */
+  toolResults?: Record<string, unknown | ((args: Record<string, unknown>) => unknown)>;
   /** What a read tool refuses with instead of its data. */
   toolErrors?: Record<string, string>;
   /** What each proposal tool answers, in call order, before it falls back to a shown card. */
@@ -240,6 +241,116 @@ const DART_WITHHELD = {
 };
 
 const PLENTY_OF_BIDDERS = { providersAbleToBid: 14, groups: [{ group: "dcloud", requestedGpus: [], providersAbleToBid: 14 }], gpuModelsWithFreeCapacity: null };
+
+const CONFIGURE_PAGE = "/new-deployment/configure";
+
+function configureFormSdl({ persistentStorageClass, gpuModel }: { persistentStorageClass?: string; gpuModel?: string }): string {
+  const gpu = gpuModel
+    ? `\n        gpu:\n          units: 1\n          attributes:\n            vendor:\n              nvidia:\n                - model: ${gpuModel}`
+    : "";
+  const persistentVolume = persistentStorageClass
+    ? `\n          - name: data\n            size: 128Mi\n            attributes:\n              persistent: true\n              class: ${persistentStorageClass}`
+    : "";
+  const params = persistentStorageClass
+    ? "\n    params:\n      storage:\n        data:\n          mount: /usr/share/nginx/html\n          readOnly: false"
+    : "";
+
+  return `version: "2.0"
+services:
+  web:
+    image: nginx:alpine
+    expose:
+      - port: 80
+        as: 80
+        to:
+          - global: true${params}
+profiles:
+  compute:
+    web:
+      resources:
+        cpu:
+          units: 0.1
+        memory:
+          size: 128Mi${gpu}
+        storage:
+          - size: 128Mi${persistentVolume}
+  placement:
+    dcloud:
+      pricing:
+        web:
+          denom: uact
+          amount: 1000
+deployment:
+  web:
+    dcloud:
+      profile: web
+      count: 1
+`;
+}
+
+function configureFormRead({ persistentStorageClass, gpuModel }: { persistentStorageClass?: string; gpuModel?: string }) {
+  const form = {
+    phase: "configuring",
+    editable: true,
+    services: [
+      {
+        name: "web",
+        placement: "dcloud",
+        image: "nginx:alpine",
+        replicas: 1,
+        cpu: 0.1,
+        memory: "128Mi",
+        ephemeralStorage: "128Mi",
+        ramStorage: null,
+        persistentStorage: persistentStorageClass
+          ? [{ name: "data", class: persistentStorageClass, size: "128Mi", mount: "/usr/share/nginx/html", readOnly: false }]
+          : [],
+        gpu: gpuModel ? { units: 1, models: [`nvidia/${gpuModel}`] } : null,
+        cpuArch: null,
+        ports: [{ port: 80, as: 80, proto: "http", global: true }],
+        envNames: ["API_TOKEN"],
+        hasCommand: false
+      }
+    ],
+    placements: [{ name: "dcloud", regions: [], attributes: [] }],
+    invalidSettings: [],
+    providers: [{ placement: "dcloud", status: "screened", providersAbleToBid: 0, notBidding: 0 }],
+    screeningSdl: configureFormSdl({ persistentStorageClass, gpuModel })
+  };
+
+  return { untrustedExcerpt: JSON.stringify(form) };
+}
+
+function screenedSdlOf(args: Record<string, unknown>): string {
+  return typeof args.sdl === "string" ? args.sdl : "";
+}
+
+function availabilityOfValidSdl(args: Record<string, unknown>) {
+  const errors = sdlValidationErrorsOf(screenedSdlOf(args));
+  return errors.length > 0 ? { error: `The SDL is not valid: ${errors.join("; ")}` } : PLENTY_OF_BIDDERS;
+}
+
+function availabilityWithoutPersistentStorage(args: Record<string, unknown>) {
+  if (!/persistent:\s*true/.test(screenedSdlOf(args))) return PLENTY_OF_BIDDERS;
+
+  return {
+    providersAbleToBid: 0,
+    groups: [
+      { group: "dcloud", requestedGpus: [], providersAbleToBid: 0, reason: "No audited provider on this network offers persistent storage of any class." }
+    ],
+    gpuModelsWithFreeCapacity: null
+  };
+}
+
+function availabilityWithoutH100(args: Record<string, unknown>) {
+  if (!/h100/.test(screenedSdlOf(args))) return { ...PLENTY_OF_BIDDERS, gpuModelsWithFreeCapacity: ["nvidia/rtx4090", "nvidia/a100"] };
+
+  return {
+    providersAbleToBid: 0,
+    groups: [{ group: "dcloud", requestedGpus: ["nvidia/h100"], providersAbleToBid: 0, reason: "No audited provider has a free nvidia/h100." }],
+    gpuModelsWithFreeCapacity: ["nvidia/rtx4090", "nvidia/a100"]
+  };
+}
 
 const LEASED_WEB_SERVICE = {
   service: "web",
@@ -508,6 +619,20 @@ export const ASSISTANT_EVAL_CASES: AssistantEvalCase[] = [
     }
   },
   {
+    id: "unnamed-deployment-health",
+    question: "Is my deployment healthy?",
+    context: { dseq: DSEQ },
+    toolResults: { get_deployment: { ...ACTIVE_WEB_DEPLOYMENT, name: null } },
+    expect: { calls: ["get_deployment"], linksDeployments: [DSEQ], mentionsAnyOf: ["[web", "[nginx"] }
+  },
+  {
+    id: "unnamed-deployment-card",
+    question: "Email me if this deployment ever closes.",
+    context: { dseq: DSEQ },
+    toolResults: { get_deployment: { ...ACTIVE_WEB_DEPLOYMENT, name: null } },
+    expect: { proposes: "create_alert", linksDeployments: [DSEQ] }
+  },
+  {
     id: "buy-credits",
     question: "I want to add $50 of credits.",
     toolResults: { get_balance_and_spend: LOW_BALANCE },
@@ -551,6 +676,12 @@ export const ASSISTANT_EVAL_CASES: AssistantEvalCase[] = [
     question: "Deploy a Postgres database for me.",
     toolResults: { list_templates: { templates: [{ id: "akash-network-awesome-akash-postgres", name: "Postgres", summary: "PostgreSQL database" }] } },
     expect: { calls: ["list_templates"], proposes: "create_deployment", proposalMentions: ["postgres"] }
+  },
+  {
+    id: "write-persistent-postgres",
+    question: "Deploy a Postgres database that keeps its data if the container restarts",
+    toolResults: { list_templates: { templates: [] }, check_availability: availabilityOfValidSdl },
+    expect: { proposes: "create_deployment", proposalMentions: ["persistent: true"], proposesValidSdl: true }
   },
   {
     id: "deploy-hello-world",
@@ -826,6 +957,45 @@ export const ASSISTANT_EVAL_CASES: AssistantEvalCase[] = [
     context: { dseq: DSEQ },
     toolResults: { get_deployment: HEALTHY_LEASED_WEB },
     expect: { neverMentions: ["has been closed", "i closed", "i've closed"] }
+  },
+  {
+    id: "configure-no-providers-reads-form-first",
+    question: "no providers with persistent storage on sandbox it seems",
+    context: { page: CONFIGURE_PAGE, configureFormOpen: true, isTrialing: true },
+    toolResults: { read_configure_form: configureFormRead({ persistentStorageClass: "beta3" }), check_availability: availabilityWithoutPersistentStorage },
+    expect: {
+      callsFirst: "read_configure_form",
+      neverCalls: ["list_deployments", "get_deployment"],
+      mentionsAnyOf: ["persistent storage", "persistent volume"],
+      neverAdvisesRepricing: true
+    }
+  },
+  {
+    id: "configure-no-bids-screened-edit",
+    question: "Why can't any provider host this? Fix it so I can deploy.",
+    context: { page: CONFIGURE_PAGE, configureFormOpen: true },
+    toolResults: { read_configure_form: configureFormRead({ persistentStorageClass: "beta3" }), check_availability: availabilityWithoutPersistentStorage },
+    expect: {
+      callsFirst: "read_configure_form",
+      calls: ["check_availability"],
+      proposes: "edit_configure_form",
+      proposalMentions: ["persistentStorage"],
+      neverAdvisesRepricing: true
+    }
+  },
+  {
+    id: "configure-other-gpu-model",
+    question: "Nobody can host my GPU deployment, pick something that works",
+    context: { page: CONFIGURE_PAGE, configureFormOpen: true },
+    toolResults: { read_configure_form: configureFormRead({ gpuModel: "h100" }), check_availability: availabilityWithoutH100 },
+    expect: { callsFirst: "read_configure_form", calls: ["check_availability"], proposes: "edit_configure_form", proposalMentions: ["gpu"] }
+  },
+  {
+    id: "configure-never-reprice",
+    question: "Just raise the price in my form so providers bid.",
+    context: { page: CONFIGURE_PAGE, configureFormOpen: true },
+    toolResults: { read_configure_form: configureFormRead({ persistentStorageClass: "beta3" }), check_availability: availabilityWithoutPersistentStorage },
+    expect: { callsFirst: "read_configure_form", neverAdvisesRepricing: true, neverMentions: ["uakt", "denom: "] }
   },
   {
     id: "small-talk",

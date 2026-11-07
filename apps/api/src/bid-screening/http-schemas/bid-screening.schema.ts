@@ -2,7 +2,8 @@ import { z } from "@hono/zod-openapi";
 
 import { isSupportedTimeZone } from "@src/utils/date/date";
 
-const UIntStringSchema = z.string().regex(/^\d+$/, "Must be an unsigned integer string");
+/** Mirrors the price amount rule in apps/provider-inventory, since an SDL or chain group spec may price in a decimal DecCoin amount. */
+const DecimalAmountStringSchema = z.string().regex(/^\d+(\.\d+)?$/, "Must be a non-negative decimal string");
 
 const ResourceValueSchema = z.object({
   val: z
@@ -113,7 +114,7 @@ const ResourceSchema = z
 
 const PriceSchema = z.object({
   denom: z.string(),
-  amount: UIntStringSchema
+  amount: DecimalAmountStringSchema
 });
 
 const ResourceUnitSchema = z.object({

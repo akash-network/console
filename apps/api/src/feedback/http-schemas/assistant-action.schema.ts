@@ -38,6 +38,58 @@ export const ServiceResourcesSchema = z.object({
 /** What PATCH /v1/deployments/{dseq} accepts for one service, minus registry credentials, which only the secure input of their own card may carry. */
 export const AssistantServicePatchSchema = PatchServiceSchema.omit({ credentials: true }).strict();
 
+const MAX_EDIT_NAME_LENGTH = 100;
+const MAX_EDIT_TEXT_LENGTH = 300;
+
+const Size = z.string().regex(/^\d+(\.\d+)?(Ki|Mi|Gi|Ti|K|M|G|T)$/);
+
+export const ConfigureServiceEditSchema = z
+  .object({
+    image: z.string().trim().min(1).max(MAX_EDIT_TEXT_LENGTH).optional(),
+    cpu: z.number().min(0.1).max(512).optional().openapi({ description: "vCPU units" }),
+    memory: Size.optional().openapi({ description: "Such as 512Mi" }),
+    ephemeralStorage: Size.optional().openapi({ description: "Such as 1Gi" }),
+    count: z.number().int().min(1).max(100).optional().openapi({ description: "Replicas" }),
+    gpu: z
+      .object({
+        units: z.number().int().min(0).max(64).openapi({ description: "0 turns the GPU off" }),
+        models: z.array(z.string().max(MAX_EDIT_NAME_LENGTH)).max(10).optional().openapi({ description: "vendor/model pairs such as nvidia/rtx4090" })
+      })
+      .strict()
+      .optional(),
+    persistentStorage: z
+      .object({
+        name: z
+          .string()
+          .max(MAX_EDIT_NAME_LENGTH)
+          .optional()
+          .openapi({ description: "The volume to change. Defaults to the first one, or adds one when there is none." }),
+        remove: z.boolean().optional().openapi({ description: "true removes that volume, or every persistent volume when no name is given" }),
+        class: z.enum(["beta1", "beta2", "beta3"]).optional().openapi({ description: "beta1 HDD, beta2 SSD, beta3 NVMe" }),
+        size: Size.optional(),
+        mount: z.string().regex(/^\//).max(MAX_EDIT_TEXT_LENGTH).optional(),
+        readOnly: z.boolean().optional()
+      })
+      .strict()
+      .optional()
+  })
+  .strict();
+
+export const ConfigurePlacementEditSchema = z
+  .object({
+    attributes: z
+      .array(z.object({ key: z.string().min(1).max(MAX_EDIT_NAME_LENGTH), value: z.string().min(1).max(MAX_EDIT_NAME_LENGTH) }).strict())
+      .max(20)
+      .optional()
+      .openapi({ description: "Replaces the placement's attributes; an empty list drops them all" }),
+    regions: z
+      .array(z.string().min(1).max(MAX_EDIT_NAME_LENGTH))
+      .max(20)
+      .optional()
+      .openapi({ description: "Replaces the picked regions; an empty list means any region" })
+  })
+  .strict();
+
 const CONFIRM = z.literal("confirm");
 const DESTRUCTIVE = z.literal("destructive");
 const DEEP_LINK = z.literal("deep_link");
@@ -166,11 +218,18 @@ export const AssistantActionSchema = z
       dseq: AssistantDseqSchema.nullable(),
       templateId: z.string().nullable(),
       sdl: z.string().nullable()
+    }),
+    z.object({
+      type: z.literal("edit_configure_form"),
+      tier: CONFIRM,
+      reason: z.string(),
+      services: z.array(z.object({ service: z.string(), changes: ConfigureServiceEditSchema })),
+      placements: z.array(z.object({ placement: z.string(), changes: ConfigurePlacementEditSchema }))
     })
   ])
   .openapi({
     description:
-      "An action the assistant proposes. The API never executes it: the card shows it and, on Confirm, runs the same request the regular UI makes (`confirm`, `destructive`) or opens the existing page prefilled (`deep_link`)."
+      "An action the assistant proposes. The API never executes it: the card shows it and, on Confirm, runs the same request the regular UI makes (`confirm`, `destructive`) or opens the existing page prefilled (`deep_link`). `edit_configure_form` patches the open configure form in the browser and never touches pricing."
   });
 
 export const MAX_DIAGNOSIS_SUMMARY_LENGTH = 300;

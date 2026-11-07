@@ -28,7 +28,7 @@ describe("SetSecretCard", () => {
   it("asks for the value in a secure input and keeps Save off until one is typed", async () => {
     setup();
 
-    expect(screen.getByRole("region", { name: "Add a secret to deployment 42" })).toHaveTextContent("HF_TOKEN");
+    expect(screen.getByRole("region", { name: "Add a secret to blog" })).toHaveTextContent("HF_TOKEN");
     expect(screen.getByLabelText("Value")).toHaveAttribute("type", "password");
     expect(screen.getByRole("button", { name: "Save secret" })).toBeDisabled();
 
@@ -40,7 +40,7 @@ describe("SetSecretCard", () => {
   it("says when it replaces a secret the service already has", () => {
     setup({ replacesExisting: true });
 
-    expect(screen.getByRole("region", { name: "Replace a secret in deployment 42" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Replace a secret in blog" })).toBeInTheDocument();
   });
 
   it("seals the value under a name the deployment doesn't use yet and references it from the variable", async () => {
@@ -106,6 +106,7 @@ describe("SetSecretCard", () => {
   }
 
   function setup(input: { replacesExisting?: boolean } = {}) {
+    const useDeploymentName = vi.fn((_dseq: string | null | undefined, _knownName?: string | null): string | null => "blog");
     const action: AssistantActionOf<"set_secret"> = {
       type: "set_secret",
       tier: "confirm",
@@ -138,6 +139,7 @@ describe("SetSecretCard", () => {
           action={action}
           decision={decision}
           dependencies={{
+            useDeploymentName,
             useServices: () => services,
             useSecureSecretInput: () => useSecureSecretInput({ useServices: () => services, sealSdlSecrets }),
             useAssistantDeploymentPatch: () => patch,
@@ -154,6 +156,6 @@ describe("SetSecretCard", () => {
       </TestContainerProvider>
     );
 
-    return { patch, sealSdlSecrets, recordResult, assistantConversation, analyticsService, getDeployment };
+    return { useDeploymentName, patch, sealSdlSecrets, recordResult, assistantConversation, analyticsService, getDeployment };
   }
 });

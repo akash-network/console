@@ -6,7 +6,7 @@ import { ZodError } from "zod";
 import type { CreateLogger } from "@src/core";
 import type { AssistantAction } from "@src/feedback/http-schemas/assistant-action.schema";
 import { AssistantProposalWithheldError, AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
-import { assistantChatTools } from "@src/feedback/lib/assistant-tools/assistant-tools";
+import { assistantChatTools, assistantChatToolsFor } from "@src/feedback/lib/assistant-tools/assistant-tools";
 import { REDACTED } from "@src/feedback/lib/redact-secrets/redact-secrets";
 import type { ChatToolCall } from "@src/feedback/services/akashml-client/akashml.client";
 import type { AssistantAccountToolsService } from "@src/feedback/services/assistant-account-tools/assistant-account-tools.service";
@@ -42,9 +42,9 @@ describe(AssistantToolRunnerService.name, () => {
   describe("read tools", () => {
     it.each([
       ["list_deployments", { state: "closed" }, "Read your deployments", "deploymentTools", "listDeployments"],
-      ["get_deployment", { dseq: "42" }, "Read deployment 42", "deploymentTools", "getDeployment"],
-      ["get_lease_close_reason", { dseq: "42" }, "Read why deployment 42 closed", "deploymentTools", "getLeaseCloseReason"],
-      ["get_bids", { dseq: "42" }, "Read the bids on deployment 42", "bidTools", "getBids"],
+      ["get_deployment", { dseq: "42" }, "Read your deployment", "deploymentTools", "getDeployment"],
+      ["get_lease_close_reason", { dseq: "42" }, "Read why your deployment closed", "deploymentTools", "getLeaseCloseReason"],
+      ["get_bids", { dseq: "42" }, "Read the bids on your deployment", "bidTools", "getBids"],
       ["get_balance_and_spend", {}, "Read your balance and spend", "accountTools", "getBalanceAndSpend"],
       ["list_templates", { query: "llama" }, "Searched the template gallery", "accountTools", "listTemplates"]
     ] as const)("runs %s with validated arguments and summarizes what it read", async (name, args, summary, tools, method) => {
@@ -100,6 +100,33 @@ describe(AssistantToolRunnerService.name, () => {
       expect(consoleApi.read).not.toHaveBeenCalled();
     });
 
+    it.each([
+      ["get_deployment", "Read deployment llama-chat", "deploymentTools", "getDeployment"],
+      ["get_lease_close_reason", "Read why deployment llama-chat closed", "deploymentTools", "getLeaseCloseReason"],
+      ["get_bids", "Read the bids on deployment llama-chat", "bidTools", "getBids"]
+    ] as const)("names the deployment %s read instead of its dseq", async (name, summary, tools, method) => {
+      const mocks = setup();
+      vi.mocked((mocks[tools] as unknown as Record<string, (...args: unknown[]) => Promise<unknown>>)[method]).mockResolvedValue({
+        dseq: "42",
+        name: "llama-chat"
+      });
+
+      const outcome = await mocks.runner.run(call(name, { dseq: "42" }), { isTrialing: false, withheldTemplateSdls: [] });
+
+      expect(outcome).toMatchObject({ kind: "result", summary, ok: true });
+    });
+
+    it.each([null, "", 42])("falls back to your deployment when the read returns the name %j", async deploymentName => {
+      const { runner, deploymentTools } = setup();
+      deploymentTools.getDeployment.mockResolvedValue(
+        mock<Awaited<ReturnType<AssistantDeploymentToolsService["getDeployment"]>>>({ name: deploymentName as string })
+      );
+
+      const outcome = await runner.run(call("get_deployment", { dseq: "42" }), { isTrialing: false, withheldTemplateSdls: [] });
+
+      expect(outcome).toMatchObject({ summary: "Read your deployment" });
+    });
+
     it("passes the parsed arguments to the read", async () => {
       const { runner, deploymentTools } = setup();
       deploymentTools.listDeployments.mockResolvedValue({ total: 0, hasMore: false, deployments: [] });
@@ -136,6 +163,35 @@ describe(AssistantToolRunnerService.name, () => {
       expect(await runner.run(call("read_events", { dseq: "42", extra: 1 }), { isTrialing: false, withheldTemplateSdls: [] })).toEqual({
         kind: "client",
         call: { id: "call-1", name: "read_events", arguments: { dseq: "42" } }
+      });
+    });
+
+    it("hands the configure form read to the browser while the form is open", async () => {
+      const { runner } = setup();
+
+      expect(await runner.run(call("read_configure_form", {}), { isTrialing: false, configureFormOpen: true, withheldTemplateSdls: [] })).toEqual({
+        kind: "client",
+        call: { id: "call-1", name: "read_configure_form", arguments: {} }
+      });
+    });
+
+    it.each(["read_configure_form", "propose_edit_configure_form"])("refuses %s while the configure form is not open", async name => {
+      const { runner, proposalService } = setup();
+
+      const outcome = await runner.run(call(name, { reason: "ssd", services: { web: { memory: "1Gi" } } }), { isTrialing: false, withheldTemplateSdls: [] });
+
+      expect(outcome).toMatchObject({ kind: "result", ok: false });
+      expect(JSON.parse((outcome as Extract<typeof outcome, { kind: "result" }>).content).error).toBe(
+        "The configure page is not open in the user's browser, so its form cannot be read or edited. Answer without it, or ask the user to open the configure page."
+      );
+      expect(proposalService.propose).not.toHaveBeenCalled();
+    });
+
+    it("summarizes a failed configure form read", async () => {
+      const { runner } = setup();
+
+      expect(await runner.run(call("read_configure_form", "{"), { isTrialing: false, configureFormOpen: true, withheldTemplateSdls: [] })).toMatchObject({
+        summary: "Could not read the configure form"
       });
     });
   });
@@ -548,9 +604,20 @@ describe(AssistantToolRunnerService.name, () => {
       const { runner, consoleApi } = setup();
       consoleApi.catalog.mockResolvedValue("Projects: /v1/projects List the projects");
 
-      const tools = await runner.chatTools();
+      const tools = await runner.chatTools({ configureFormOpen: true });
 
       expect(tools).toEqual(assistantChatTools("Projects: /v1/projects List the projects"));
+      expect(tools.find(tool => tool.function.name === "read_console_api")?.function.description).toMatch(/\nProjects: \/v1\/projects List the projects$/);
+    });
+
+    it("leaves out the configure form tools while the form is closed and still adds the catalog", async () => {
+      const { runner, consoleApi } = setup();
+      consoleApi.catalog.mockResolvedValue("Projects: /v1/projects List the projects");
+
+      const tools = await runner.chatTools({ configureFormOpen: false });
+
+      expect(tools).toEqual(assistantChatToolsFor({ configureFormOpen: false, consoleApiCatalog: "Projects: /v1/projects List the projects" }));
+      expect(tools.map(tool => tool.function.name)).not.toContain("read_configure_form");
       expect(tools.find(tool => tool.function.name === "read_console_api")?.function.description).toMatch(/\nProjects: \/v1\/projects List the projects$/);
     });
 
@@ -559,7 +626,8 @@ describe(AssistantToolRunnerService.name, () => {
       const error = new Error("docs unavailable");
       consoleApi.catalog.mockRejectedValue(error);
 
-      expect(await runner.chatTools()).toBe(assistantChatTools());
+      expect(await runner.chatTools({ configureFormOpen: true })).toBe(assistantChatTools());
+      expect(await runner.chatTools({ configureFormOpen: false })).toBe(assistantChatToolsFor({ configureFormOpen: false }));
       expect(logger.warn).toHaveBeenCalledWith({ event: "ASSISTANT_CONSOLE_API_CATALOG_FAILED", error });
     });
   });

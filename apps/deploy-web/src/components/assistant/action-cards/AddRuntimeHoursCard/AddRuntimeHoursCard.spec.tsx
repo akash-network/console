@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { ActionCardChromeProps } from "../ActionCardChrome/ActionCardChrome";
+import { DeploymentLink } from "../DeploymentLink/DeploymentLink";
 import type { ActionCardDecision } from "../useActionCardDecision/useActionCardDecision";
 import type { DEPENDENCIES } from "./AddRuntimeHoursCard";
 import { AddRuntimeHoursCard } from "./AddRuntimeHoursCard";
@@ -18,12 +19,12 @@ function lease(state: string, amount: string) {
 
 describe(AddRuntimeHoursCard.name, () => {
   it("shows the limit before and after and the 48 hour cap per request", () => {
-    const { chromeProps, decision } = setup({ leases: [] });
+    const { chromeProps, useDeploymentName, decision } = setup({ leases: [] });
 
     expect(chromeProps()).toEqual(
       expect.objectContaining({
         title: "Add runtime hours",
-        scope: "dseq 42",
+        scope: expect.objectContaining({ type: DeploymentLink, props: { dseq: "42", name: "blog" } }),
         tier: "confirm",
         decision,
         rows: [
@@ -35,6 +36,7 @@ describe(AddRuntimeHoursCard.name, () => {
         successMessage: "The deployment now closes after 36h."
       })
     );
+    expect(useDeploymentName).toHaveBeenCalledWith("42");
     expect(chromeProps().costNote).toMatch(/One request adds at most 48 hours\.$/);
   });
 
@@ -62,6 +64,7 @@ describe(AddRuntimeHoursCard.name, () => {
   });
 
   function setup(input: { leases: ReturnType<typeof lease>[] }) {
+    const useDeploymentName = vi.fn((_dseq: string | null | undefined, _knownName?: string | null): string | null => "blog");
     const listLeases = vi.fn(async (_input: unknown) => ({ data: input.leases }));
     const api = createProxy({ v1: { listLeases } }) as unknown as Container["api"];
     const udenomToUsd = vi.fn((amount: string | number) => Number(amount) / 1000);
@@ -75,6 +78,7 @@ describe(AddRuntimeHoursCard.name, () => {
           action={{ type: "add_runtime_hours", tier: "confirm", dseq: "42", hours: 24, currentLimitHours: 12, newLimitHours: 36, runtimeEndsAt: null }}
           decision={decision}
           dependencies={{
+            useDeploymentName,
             useServices: () => Object.assign(mock<Container>(), { api }),
             usePricing: () => mock<ReturnType<typeof DEPENDENCIES.usePricing>>({ udenomToUsd }),
             useUpdateDeploymentSettingMutation: () =>
@@ -87,6 +91,6 @@ describe(AddRuntimeHoursCard.name, () => {
       </TestContainerProvider>
     );
 
-    return { chromeProps: () => ActionCardChrome.mock.lastCall![0], udenomToUsd, updateSetting, listLeases, decision };
+    return { chromeProps: () => ActionCardChrome.mock.lastCall![0], useDeploymentName, udenomToUsd, updateSetting, listLeases, decision };
   }
 });

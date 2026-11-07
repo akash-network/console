@@ -14,7 +14,10 @@ describe(buildAssistantSystemPrompt.name, () => {
     expect(prompt).toContain("State every amount in US dollars");
     expect(prompt).toContain("Never mention uact, ACT, AKT, denoms, blocks or per-block prices in an answer unless the user asks what they are");
     expect(prompt).toContain("linked to its page as [name](/deployments/<dseq>)");
-    expect(prompt).toContain("Never write a bare dseq in an answer.");
+    expect(prompt).toContain(
+      "For one without a name, link its service and image when you read them, such as [web (nginx)](/deployments/<dseq>), else [your deployment](/deployments/<dseq>), even when you only propose a card for it."
+    );
+    expect(prompt).toContain("Never write a dseq in an answer, whole or shortened, not even in a link label.");
     expect(prompt).toContain("using read_console_api when no other read tool covers it");
     expect(prompt).toContain("Search the docs only for how-to and product questions, never to look up the user's own data.");
     expect(prompt).toContain("Never write an akash1 address in an answer; name providers by name.");
@@ -31,6 +34,9 @@ describe(buildAssistantSystemPrompt.name, () => {
     expect(prompt).toContain("End every turn with an answer, never with tool calls alone.");
     expect(prompt).toContain("propose its card in the same turn instead of asking whether to");
     expect(prompt).toContain("at most twice per request");
+    expect(prompt).toContain("storage under profiles.compute.<profile>.resources is a list: the root disk first (- size: 1Gi)");
+    expect(prompt).toContain("attributes {persistent: true, class: beta1, beta2 or beta3}, mounted by services.<service>.params.storage.<volume name>.mount");
+    expect(prompt).toContain("Every deployment.<service>.<placement> needs a profile and a count.");
     expect(prompt).toContain("a deployment's Shell tab opens a terminal in its running container");
     expect(prompt).toContain("API keys for scripts and CI are created under Settings, then API Keys");
     expect(prompt).toContain("an account is deleted with Delete account in the Danger zone of the Profile page");
@@ -51,6 +57,24 @@ describe(buildAssistantSystemPrompt.name, () => {
       'The user opened the assistant on the Console page "/deployments/42".',
       'The user is looking at deployment "42".'
     ]);
+  });
+
+  it("adds the configure form rules only while the configure form is open", () => {
+    const closed = buildAssistantSystemPrompt({ supportUrl: "https://discord.example", isTrialing: null, page: "/new-deployment/configure" });
+    const open = buildAssistantSystemPrompt({
+      supportUrl: "https://discord.example",
+      isTrialing: null,
+      page: "/new-deployment/configure",
+      configureFormOpen: true
+    });
+
+    expect(closed).not.toContain("read_configure_form");
+    expect(open).toContain("call read_configure_form first, before any other tool");
+    expect(open).toContain("screen that SDL with check_availability");
+    expect(open).toContain("propose_edit_configure_form");
+    expect(open).toContain("Never change price or denom.");
+    expect(open.split("\n").at(-1)).toBe('The user opened the assistant on the Console page "/new-deployment/configure".');
+    expect(open).not.toContain("\u2014");
   });
 
   it("lists the latest cards the user acted on, so a vague reference resolves to them", () => {

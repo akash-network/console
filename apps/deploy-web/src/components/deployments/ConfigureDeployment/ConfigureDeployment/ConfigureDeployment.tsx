@@ -66,29 +66,52 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
   const intent = parseDeploymentIntent({ dseqSegment, searchParams: new URLSearchParams(searchParams?.toString() ?? "") });
   const [hasStartedDeploying, setHasStartedDeploying] = useState(false);
   const autoDeployStart = d.useTakeAutoDeployStart(intent, { hasStartedDeploying });
+  const session = useConfigureSession(intent.draftId);
 
   return (
     <ConfigureDeploymentScreen
-      key={autoDeployStart.key}
+      key={`${autoDeployStart.key}:${session.key}`}
       intent={intent}
       isStartedByConsole={autoDeployStart.templateId !== null}
       onDeployStartedChange={setHasStartedDeploying}
+      onDraftIdChange={session.reportScreenDraftId}
       dependencies={d}
     />
   );
 };
+
+/** A link elsewhere in the console can open a deployment onto this page while it stays mounted, so a URL naming another draft than the screen's starts the screen over for it. */
+function useConfigureSession(urlDraftId: string | undefined) {
+  const [screenDraftId, setScreenDraftId] = useState<string>();
+  const [session, setSession] = useState({ urlDraftId, key: 0 });
+
+  if (session.urlDraftId !== urlDraftId) {
+    setSession({ urlDraftId, key: urlDraftId === screenDraftId ? session.key : session.key + 1 });
+  }
+
+  return { key: session.key, reportScreenDraftId: setScreenDraftId };
+}
 
 type ScreenProps = {
   intent: DeploymentIntent;
   /** The URL alone never deploys: any arrival other than a console deploy button for this template, a reload included, opens the form. */
   isStartedByConsole: boolean;
   onDeployStartedChange: (hasStartedDeploying: boolean) => void;
+  onDraftIdChange: (draftId: string) => void;
   dependencies: typeof DEPENDENCIES;
 };
 
 /** Remounted for each console start, so its draft, resume guard and flow begin afresh for the template that start deploys. */
-const ConfigureDeploymentScreen: FC<ScreenProps> = ({ intent, isStartedByConsole, onDeployStartedChange, dependencies: d }) => {
+const ConfigureDeploymentScreen: FC<ScreenProps> = ({ intent, isStartedByConsole, onDeployStartedChange, onDraftIdChange, dependencies: d }) => {
   const draft = d.useConfigureDraft(intent);
+
+  useEffect(
+    function reportTheDraftOnScreen() {
+      onDraftIdChange(draft.draftId);
+    },
+    [draft.draftId, onDraftIdChange]
+  );
+
   const templateId = intent.templateId;
   const deploySdl = useAtomValue(sdlStore.deploySdl);
   const hardcodedTemplate: TemplateCreation | undefined = templateId ? hardcodedTemplates.find(template => template.code === templateId) : undefined;

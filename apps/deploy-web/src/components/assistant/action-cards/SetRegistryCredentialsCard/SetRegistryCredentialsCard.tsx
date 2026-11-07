@@ -11,8 +11,9 @@ import { ActionCardChrome } from "../ActionCardChrome/ActionCardChrome";
 import type { ActionCardProps } from "../actionCardTypes";
 import { mintFreshSecretNames } from "../mintFreshSecretName/mintFreshSecretName";
 import { useAssistantDeploymentPatch } from "../useAssistantDeploymentPatch/useAssistantDeploymentPatch";
+import { deploymentLabelOf, useDeploymentName } from "../useDeploymentName/useDeploymentName";
 
-export const DEPENDENCIES = { useServices, useSecureSecretInput, useAssistantDeploymentPatch, ActionCardChrome, SecureSecretInput };
+export const DEPENDENCIES = { useServices, useSecureSecretInput, useAssistantDeploymentPatch, useDeploymentName, ActionCardChrome, SecureSecretInput };
 
 /** Seals the username and password together under fresh names, as the update tab does; the password lives only in the secure input. */
 export const SetRegistryCredentialsCard: FC<ActionCardProps<"set_registry_credentials"> & { dependencies?: typeof DEPENDENCIES }> = ({
@@ -23,6 +24,7 @@ export const SetRegistryCredentialsCard: FC<ActionCardProps<"set_registry_creden
   const { api } = d.useServices();
   const password = d.useSecureSecretInput();
   const patch = d.useAssistantDeploymentPatch();
+  const deploymentName = d.useDeploymentName(action.dseq);
   const [username, setUsername] = useState(action.usernameHint ?? "");
   const isSettled = decision.status === "succeeded" || decision.status === "cancelled";
   const forgetPassword = password.clear;
@@ -45,7 +47,7 @@ export const SetRegistryCredentialsCard: FC<ActionCardProps<"set_registry_creden
 
   return (
     <d.ActionCardChrome
-      title={`Add registry credentials to deployment ${action.dseq}`}
+      title={`Add registry credentials to ${deploymentLabelOf(deploymentName)}`}
       scope={`service: ${action.service}`}
       tier={action.tier}
       decision={decision}

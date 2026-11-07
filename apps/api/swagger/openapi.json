@@ -24251,7 +24251,7 @@
                             },
                             "amount": {
                               "type": "string",
-                              "pattern": "^\\d+$"
+                              "pattern": "^\\d+(\\.\\d+)?$"
                             }
                           },
                           "required": [
@@ -35084,6 +35084,10 @@
                             "type": "string",
                             "pattern": "^[1-9]\\d{0,19}$",
                             "description": "The deployment the user was looking at"
+                          },
+                          "configureFormOpen": {
+                            "type": "boolean",
+                            "description": "True while the configure page's form is open and the browser can read it and apply an edit to it"
                           }
                         }
                       }
@@ -35234,6 +35238,10 @@
                             "type": "string",
                             "pattern": "^[1-9]\\d{0,19}$",
                             "description": "The deployment the user was looking at"
+                          },
+                          "configureFormOpen": {
+                            "type": "boolean",
+                            "description": "True while the configure page's form is open and the browser can read it and apply an edit to it"
                           }
                         }
                       }
@@ -35344,14 +35352,16 @@
                           "type": "string",
                           "enum": [
                             "read_logs",
-                            "read_events"
+                            "read_events",
+                            "read_configure_form"
                           ]
                         },
                         "arguments": {
                           "type": "object",
                           "properties": {
                             "dseq": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "Set for read_logs and read_events"
                             },
                             "service": {
                               "type": "string"
@@ -35359,10 +35369,7 @@
                             "tailLines": {
                               "type": "integer"
                             }
-                          },
-                          "required": [
-                            "dseq"
-                          ]
+                          }
                         },
                         "maxLength": {
                           "type": "integer",
@@ -36573,9 +36580,200 @@
                                 "templateId",
                                 "sdl"
                               ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "edit_configure_form"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "reason": {
+                                  "type": "string"
+                                },
+                                "services": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "service": {
+                                        "type": "string"
+                                      },
+                                      "changes": {
+                                        "type": "object",
+                                        "properties": {
+                                          "image": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "maxLength": 300
+                                          },
+                                          "cpu": {
+                                            "type": "number",
+                                            "minimum": 0.1,
+                                            "maximum": 512,
+                                            "description": "vCPU units"
+                                          },
+                                          "memory": {
+                                            "type": "string",
+                                            "pattern": "^\\d+(\\.\\d+)?(Ki|Mi|Gi|Ti|K|M|G|T)$",
+                                            "description": "Such as 512Mi"
+                                          },
+                                          "ephemeralStorage": {
+                                            "type": "string",
+                                            "pattern": "^\\d+(\\.\\d+)?(Ki|Mi|Gi|Ti|K|M|G|T)$",
+                                            "description": "Such as 1Gi"
+                                          },
+                                          "count": {
+                                            "type": "integer",
+                                            "minimum": 1,
+                                            "maximum": 100,
+                                            "description": "Replicas"
+                                          },
+                                          "gpu": {
+                                            "type": "object",
+                                            "properties": {
+                                              "units": {
+                                                "type": "integer",
+                                                "minimum": 0,
+                                                "maximum": 64,
+                                                "description": "0 turns the GPU off"
+                                              },
+                                              "models": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "string",
+                                                  "maxLength": 100
+                                                },
+                                                "maxItems": 10,
+                                                "description": "vendor/model pairs such as nvidia/rtx4090"
+                                              }
+                                            },
+                                            "required": [
+                                              "units"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          "persistentStorage": {
+                                            "type": "object",
+                                            "properties": {
+                                              "name": {
+                                                "type": "string",
+                                                "maxLength": 100,
+                                                "description": "The volume to change. Defaults to the first one, or adds one when there is none."
+                                              },
+                                              "remove": {
+                                                "type": "boolean",
+                                                "description": "true removes that volume, or every persistent volume when no name is given"
+                                              },
+                                              "class": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "beta1",
+                                                  "beta2",
+                                                  "beta3"
+                                                ],
+                                                "description": "beta1 HDD, beta2 SSD, beta3 NVMe"
+                                              },
+                                              "size": {
+                                                "type": "string",
+                                                "pattern": "^\\d+(\\.\\d+)?(Ki|Mi|Gi|Ti|K|M|G|T)$"
+                                              },
+                                              "mount": {
+                                                "type": "string",
+                                                "maxLength": 300,
+                                                "pattern": "^\\/"
+                                              },
+                                              "readOnly": {
+                                                "type": "boolean"
+                                              }
+                                            },
+                                            "additionalProperties": false
+                                          }
+                                        },
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "required": [
+                                      "service",
+                                      "changes"
+                                    ]
+                                  }
+                                },
+                                "placements": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "placement": {
+                                        "type": "string"
+                                      },
+                                      "changes": {
+                                        "type": "object",
+                                        "properties": {
+                                          "attributes": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "key": {
+                                                  "type": "string",
+                                                  "minLength": 1,
+                                                  "maxLength": 100
+                                                },
+                                                "value": {
+                                                  "type": "string",
+                                                  "minLength": 1,
+                                                  "maxLength": 100
+                                                }
+                                              },
+                                              "required": [
+                                                "key",
+                                                "value"
+                                              ],
+                                              "additionalProperties": false
+                                            },
+                                            "maxItems": 20,
+                                            "description": "Replaces the placement's attributes; an empty list drops them all"
+                                          },
+                                          "regions": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 100
+                                            },
+                                            "maxItems": 20,
+                                            "description": "Replaces the picked regions; an empty list means any region"
+                                          }
+                                        },
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "required": [
+                                      "placement",
+                                      "changes"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "reason",
+                                "services",
+                                "placements"
+                              ]
                             }
                           ],
-                          "description": "An action the assistant proposes. The API never executes it: the card shows it and, on Confirm, runs the same request the regular UI makes (`confirm`, `destructive`) or opens the existing page prefilled (`deep_link`)."
+                          "description": "An action the assistant proposes. The API never executes it: the card shows it and, on Confirm, runs the same request the regular UI makes (`confirm`, `destructive`) or opens the existing page prefilled (`deep_link`). `edit_configure_form` patches the open configure form in the browser and never touches pricing."
                         },
                         "diagnosis": {
                           "type": "object",
@@ -36904,14 +37102,16 @@
                           "type": "string",
                           "enum": [
                             "read_logs",
-                            "read_events"
+                            "read_events",
+                            "read_configure_form"
                           ]
                         },
                         "arguments": {
                           "type": "object",
                           "properties": {
                             "dseq": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "Set for read_logs and read_events"
                             },
                             "service": {
                               "type": "string"
@@ -36919,10 +37119,7 @@
                             "tailLines": {
                               "type": "integer"
                             }
-                          },
-                          "required": [
-                            "dseq"
-                          ]
+                          }
                         },
                         "maxLength": {
                           "type": "integer",
@@ -38133,9 +38330,200 @@
                                 "templateId",
                                 "sdl"
                               ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "edit_configure_form"
+                                  ]
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "confirm"
+                                  ]
+                                },
+                                "reason": {
+                                  "type": "string"
+                                },
+                                "services": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "service": {
+                                        "type": "string"
+                                      },
+                                      "changes": {
+                                        "type": "object",
+                                        "properties": {
+                                          "image": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "maxLength": 300
+                                          },
+                                          "cpu": {
+                                            "type": "number",
+                                            "minimum": 0.1,
+                                            "maximum": 512,
+                                            "description": "vCPU units"
+                                          },
+                                          "memory": {
+                                            "type": "string",
+                                            "pattern": "^\\d+(\\.\\d+)?(Ki|Mi|Gi|Ti|K|M|G|T)$",
+                                            "description": "Such as 512Mi"
+                                          },
+                                          "ephemeralStorage": {
+                                            "type": "string",
+                                            "pattern": "^\\d+(\\.\\d+)?(Ki|Mi|Gi|Ti|K|M|G|T)$",
+                                            "description": "Such as 1Gi"
+                                          },
+                                          "count": {
+                                            "type": "integer",
+                                            "minimum": 1,
+                                            "maximum": 100,
+                                            "description": "Replicas"
+                                          },
+                                          "gpu": {
+                                            "type": "object",
+                                            "properties": {
+                                              "units": {
+                                                "type": "integer",
+                                                "minimum": 0,
+                                                "maximum": 64,
+                                                "description": "0 turns the GPU off"
+                                              },
+                                              "models": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "string",
+                                                  "maxLength": 100
+                                                },
+                                                "maxItems": 10,
+                                                "description": "vendor/model pairs such as nvidia/rtx4090"
+                                              }
+                                            },
+                                            "required": [
+                                              "units"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          "persistentStorage": {
+                                            "type": "object",
+                                            "properties": {
+                                              "name": {
+                                                "type": "string",
+                                                "maxLength": 100,
+                                                "description": "The volume to change. Defaults to the first one, or adds one when there is none."
+                                              },
+                                              "remove": {
+                                                "type": "boolean",
+                                                "description": "true removes that volume, or every persistent volume when no name is given"
+                                              },
+                                              "class": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "beta1",
+                                                  "beta2",
+                                                  "beta3"
+                                                ],
+                                                "description": "beta1 HDD, beta2 SSD, beta3 NVMe"
+                                              },
+                                              "size": {
+                                                "type": "string",
+                                                "pattern": "^\\d+(\\.\\d+)?(Ki|Mi|Gi|Ti|K|M|G|T)$"
+                                              },
+                                              "mount": {
+                                                "type": "string",
+                                                "maxLength": 300,
+                                                "pattern": "^\\/"
+                                              },
+                                              "readOnly": {
+                                                "type": "boolean"
+                                              }
+                                            },
+                                            "additionalProperties": false
+                                          }
+                                        },
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "required": [
+                                      "service",
+                                      "changes"
+                                    ]
+                                  }
+                                },
+                                "placements": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "placement": {
+                                        "type": "string"
+                                      },
+                                      "changes": {
+                                        "type": "object",
+                                        "properties": {
+                                          "attributes": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "key": {
+                                                  "type": "string",
+                                                  "minLength": 1,
+                                                  "maxLength": 100
+                                                },
+                                                "value": {
+                                                  "type": "string",
+                                                  "minLength": 1,
+                                                  "maxLength": 100
+                                                }
+                                              },
+                                              "required": [
+                                                "key",
+                                                "value"
+                                              ],
+                                              "additionalProperties": false
+                                            },
+                                            "maxItems": 20,
+                                            "description": "Replaces the placement's attributes; an empty list drops them all"
+                                          },
+                                          "regions": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 100
+                                            },
+                                            "maxItems": 20,
+                                            "description": "Replaces the picked regions; an empty list means any region"
+                                          }
+                                        },
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "required": [
+                                      "placement",
+                                      "changes"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "tier",
+                                "reason",
+                                "services",
+                                "placements"
+                              ]
                             }
                           ],
-                          "description": "An action the assistant proposes. The API never executes it: the card shows it and, on Confirm, runs the same request the regular UI makes (`confirm`, `destructive`) or opens the existing page prefilled (`deep_link`)."
+                          "description": "An action the assistant proposes. The API never executes it: the card shows it and, on Confirm, runs the same request the regular UI makes (`confirm`, `destructive`) or opens the existing page prefilled (`deep_link`). `edit_configure_form` patches the open configure form in the browser and never touches pricing."
                         },
                         "diagnosis": {
                           "type": "object",
@@ -38449,7 +38837,8 @@
                           "request_hardware",
                           "buy_credits",
                           "configure_auto_recharge",
-                          "open_in_editor"
+                          "open_in_editor",
+                          "edit_configure_form"
                         ]
                       },
                       "decision": {

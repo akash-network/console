@@ -10,10 +10,12 @@ import type { ActionCardRow } from "../ActionCardChrome/ActionCardChrome";
 import { ActionCardChrome } from "../ActionCardChrome/ActionCardChrome";
 import type { ActionCardProps } from "../actionCardTypes";
 import { assertOpensInEditor } from "../assertOpensInEditor/assertOpensInEditor";
+import { DeploymentLink } from "../DeploymentLink/DeploymentLink";
 import { keepsPricing, PRICING_CHANGE_MESSAGE } from "../pricingGuard/pricingGuard";
+import { useDeploymentName } from "../useDeploymentName/useDeploymentName";
 import { keepsSecretsWithTheirServices } from "./keepsSecretsWithTheirServices";
 
-export const DEPENDENCIES = { useDeploymentDefinition, useRedeploy, useRouter, ActionCardChrome };
+export const DEPENDENCIES = { useDeploymentDefinition, useRedeploy, useRouter, useDeploymentName, ActionCardChrome };
 
 const DEFINITION_UNAVAILABLE_MESSAGE = "This deployment's configuration isn't available here. Redeploy it from its page instead.";
 
@@ -24,6 +26,7 @@ export const OpenInEditorCard: FC<ActionCardProps<"open_in_editor"> & { dependen
   dependencies: d = DEPENDENCIES
 }) => {
   const definition = d.useDeploymentDefinition(action.dseq, { acceptReferences: true });
+  const deploymentName = d.useDeploymentName(action.dseq, definition.name);
   const redeploy = d.useRedeploy();
   const router = d.useRouter();
   const templateId = action.templateId ?? undefined;
@@ -49,7 +52,7 @@ export const OpenInEditorCard: FC<ActionCardProps<"open_in_editor"> & { dependen
       title="Open in the editor"
       tier={action.tier}
       decision={decision}
-      rows={rowsOf(action, inheritsSecrets)}
+      rows={rowsOf(action, { inheritsSecrets, deploymentName })}
       costNote="Nothing is deployed until you review it and click Deploy in the editor."
       confirmLabel="Open in editor"
       successMessage="Opened in the editor."
@@ -66,9 +69,12 @@ export const OpenInEditorCard: FC<ActionCardProps<"open_in_editor"> & { dependen
   );
 };
 
-function rowsOf(action: AssistantActionOf<"open_in_editor">, inheritsSecrets: boolean): ActionCardRow[] {
+function rowsOf(
+  action: AssistantActionOf<"open_in_editor">,
+  { inheritsSecrets, deploymentName }: { inheritsSecrets: boolean; deploymentName: string | null }
+): ActionCardRow[] {
   return [
-    ...(action.dseq ? [{ label: "Based on deployment", value: action.dseq }] : []),
+    ...(action.dseq ? [{ label: "Based on deployment", value: <DeploymentLink dseq={action.dseq} name={deploymentName} /> }] : []),
     ...(action.templateId ? [{ label: "Template", value: action.templateId }] : []),
     ...(action.dseq ? [{ label: "Secrets", value: inheritsSecrets ? "carried over" : "re-enter them in the editor" }] : [])
   ];
