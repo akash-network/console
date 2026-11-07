@@ -83,7 +83,18 @@ function valuesOf(answers: z.infer<typeof systemOneResponseSchema>["answers"], q
     .map(([id]) => id);
   if (unanswered.length > 0) throw new TypeSafeOutputError(`TypeSafe left questions unanswered: ${unanswered.join(", ")}`);
 
+  const outOfRange = Object.entries(questions)
+    .filter(([id, question]) => !isWithinLevels(answers[id], question))
+    .map(([id]) => id);
+  if (outOfRange.length > 0) throw new TypeSafeOutputError(`TypeSafe answered outside the levels of: ${outOfRange.join(", ")}`);
+
   return Object.fromEntries(Object.keys(questions).map(id => [id, valueOf(answers[id])]));
+}
+
+function isWithinLevels(answer: z.infer<typeof answerSchema>, question: JevQuestion): boolean {
+  if (answer.type !== "score" || question.type !== "score") return true;
+
+  return answer.score >= 0 && answer.score <= question.criteria.length - 1;
 }
 
 function valueOf(answer: z.infer<typeof answerSchema>): number {

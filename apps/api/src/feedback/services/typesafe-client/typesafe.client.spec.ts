@@ -93,6 +93,23 @@ describe(TypeSafeClient.name, () => {
     });
 
     it.each([
+      { name: "below the lowest level", score: -0.01 },
+      { name: "above the highest level", score: 2.01 }
+    ])("rejects a Score $name of its question", async ({ score }) => {
+      const { client, httpClient } = setup();
+      httpClient.post.mockResolvedValue(response(systemOneResponse({ ...ANSWERS, mood: { type: "score", score } })));
+
+      await expect(client.judge(REQUEST)).rejects.toThrow(new TypeSafeOutputError("TypeSafe answered outside the levels of: mood"));
+    });
+
+    it.each([0, 2])("accepts a Score at level %s, the edge of its question's levels", async score => {
+      const { client, httpClient } = setup();
+      httpClient.post.mockResolvedValue(response(systemOneResponse({ ...ANSWERS, mood: { type: "score", score } })));
+
+      await expect(client.judge(REQUEST)).resolves.toMatchObject({ values: { is_bug: 0.91, mood: score } });
+    });
+
+    it.each([
       { name: "a response without usage", data: { model: "jev", answers: ANSWERS } },
       { name: "a Noul outside 0 to 1", data: systemOneResponse({ ...ANSWERS, is_bug: { type: "noul", noul: 1.2 } }) },
       { name: "an unknown answer type", data: systemOneResponse({ ...ANSWERS, is_bug: { type: "box" } }) }
