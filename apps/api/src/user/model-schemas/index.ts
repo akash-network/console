@@ -3,3 +3,4 @@ export * from "./template/template.schema";
 export * from "./template-favorite/template-favorite.schema";
 export * from "./account-deletion-token/account-deletion-token.schema";
 export * from "./favorite-provider/favorite-provider.schema";
+export * from "./account-status-event/account-status-event.schema";

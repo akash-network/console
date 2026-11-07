@@ -707,6 +707,10 @@ export interface paths {
                 timezone?: string | null;
                 /** Format: date-time */
                 createdAt: string | null;
+                /** @enum {string} */
+                accountStatus: "active" | "suspended" | "terminated";
+                /** @description Why the account is suspended or terminated, as written for the user; null while active */
+                accountStatusReason: string | null;
               };
             };
           };

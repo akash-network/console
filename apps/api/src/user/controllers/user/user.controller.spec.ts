@@ -7,6 +7,7 @@ import { AuthService } from "@src/auth/services/auth.service";
 import type { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { UserOutput } from "@src/user/repositories/user/user.repository";
+import type { AccountStatusService } from "@src/user/services/account-status/account-status.service";
 import type { UserService } from "@src/user/services/user/user.service";
 import { UserController } from "./user.controller";
 
@@ -22,7 +23,19 @@ describe(UserController.name, () => {
       const result = await controller.getCurrentUser();
 
       expect(result.data).not.toHaveProperty("lastUsedOrganizationId");
-      expect(result.data).toEqual({ ...user, lastUsedOrganizationId: undefined });
+      expect(result.data).toEqual({ ...user, lastUsedOrganizationId: undefined, accountStatusReason: null });
+    });
+
+    it("returns the account status with the reason written for the user", async () => {
+      const user = createUser({ accountStatus: "suspended" });
+      const { controller, authService, accountStatusService } = setup();
+      authService.currentUser = user;
+      accountStatusService.findUserReasonOf.mockResolvedValue("Unpaid invoices");
+
+      const result = await controller.getCurrentUser();
+
+      expect(accountStatusService.findUserReasonOf).toHaveBeenCalledWith(expect.objectContaining({ id: user.id, accountStatus: "suspended" }));
+      expect(result.data).toMatchObject({ accountStatus: "suspended", accountStatusReason: "Unpaid invoices" });
     });
   });
 
@@ -155,10 +168,12 @@ describe(UserController.name, () => {
     });
     const userService = mock<UserService>();
     const userAuthTokenService = mock<UserAuthTokenService>();
+    const accountStatusService = mock<AccountStatusService>();
+    accountStatusService.findUserReasonOf.mockResolvedValue(null);
     container.register(AuthService, { useValue: authService });
 
-    const controller = new UserController(authService, executionContextService, userService, userAuthTokenService);
+    const controller = new UserController(authService, executionContextService, userService, userAuthTokenService, accountStatusService);
 
-    return { controller, authService, executionContextService, userService, userAuthTokenService };
+    return { controller, authService, executionContextService, userService, userAuthTokenService, accountStatusService };
   }
 });

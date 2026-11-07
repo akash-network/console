@@ -7,6 +7,7 @@ import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-au
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { RegisterUserInput, RegisterUserResponse } from "@src/user/routes/register-user/register-user.router";
 import type { CurrentUserSchema } from "@src/user/schemas/user.schema";
+import { AccountStatusService } from "@src/user/services/account-status/account-status.service";
 import { UserService } from "@src/user/services/user/user.service";
 
 @singleton()
@@ -15,7 +16,8 @@ export class UserController {
     private readonly authService: AuthService,
     private readonly executionContextService: ExecutionContextService,
     private readonly userService: UserService,
-    private readonly userAuthTokenService: UserAuthTokenService
+    private readonly userAuthTokenService: UserAuthTokenService,
+    private readonly accountStatusService: AccountStatusService
   ) {}
 
   get httpContext(): Context {
@@ -42,8 +44,9 @@ export class UserController {
   async getCurrentUser(): Promise<{ data: CurrentUserSchema }> {
     assert(this.authService.currentUser, 401);
     const { lastUsedOrganizationId, ...user } = this.authService.currentUser;
+    const accountStatusReason = await this.accountStatusService.findUserReasonOf(user);
 
-    return { data: user as CurrentUserSchema };
+    return { data: { ...user, accountStatusReason } as CurrentUserSchema };
   }
 
   async getUserByUsername(username: string) {
