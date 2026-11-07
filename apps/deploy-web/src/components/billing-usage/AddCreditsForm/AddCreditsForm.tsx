@@ -850,7 +850,14 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
             type="submit"
             className="w-full"
             loading={isProcessing}
-            disabled={isBusy || isPaused || amount < topUpMinAmountUsd || isLoadingMethods || (isNewCard && paymentFormLoad.status !== "ready")}
+            disabled={
+              isBusy ||
+              isPaused ||
+              amount < topUpMinAmountUsd ||
+              isLoadingMethods ||
+              (!isNewCard && selectedMethodId === undefined) ||
+              (isNewCard && paymentFormLoad.status !== "ready")
+            }
           >
             {isPaymentFormLoading || isPaymentFormSlow ? "Loading card form…" : "Purchase Credits"}
           </LoadingButton>
