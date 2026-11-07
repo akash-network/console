@@ -13,7 +13,7 @@ import type { AppEnv } from "@src/types/app-context";
 
 export async function bootstrap(): Promise<void> {
   const app = new Hono<AppEnv>();
-  app.use("*", otel({ captureRequestHeaders: ["baggage"] }));
+  app.use("*", otel());
   app.use(container.resolve(HttpLoggerInterceptor).intercept());
   app.route("/", healthzRouter);
   app.onError(container.resolve(HonoErrorHandlerService).handle);
