@@ -198,9 +198,7 @@ describe(findAskedValueIssues.name, () => {
   });
 
   it("reports one message for an SDL that cannot be read", () => {
-    expect(setup({ sdl: "services: [unclosed", askedValues: [textValue({ key: "A" })] }).issues).toEqual([
-      "The SDL could not be read"
-    ]);
+    expect(setup({ sdl: "services: [unclosed", askedValues: [textValue({ key: "A" })] }).issues).toEqual(["The SDL could not be read"]);
     expect(setup({ sdl: "just a string", askedValues: [textValue({})] }).issues).toEqual(["The SDL could not be read"]);
     expect(setup({ sdl: "- services\n- web", askedValues: [textValue({})] }).issues).toEqual(["The SDL could not be read"]);
   });
@@ -212,11 +210,11 @@ describe(findAskedValueIssues.name, () => {
   });
 
   it("never changes the SDL text", () => {
-    const sdl = 'services:\n  web:\n    env:\n      - NAME={{ NAME }}\n';
+    const sdl = "services:\n  web:\n    env:\n      - NAME={{ NAME }}\n";
     const { issues } = setup({ sdl, askedValues: [textValue({ key: "NAME" })] });
 
     expect(issues).toEqual([]);
-    expect(sdl).toBe('services:\n  web:\n    env:\n      - NAME={{ NAME }}\n');
+    expect(sdl).toBe("services:\n  web:\n    env:\n      - NAME={{ NAME }}\n");
   });
 
   function setup(input: { sdl?: string; askedValues: AskedValue[] }) {
