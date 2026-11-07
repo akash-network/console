@@ -70,6 +70,7 @@ import {
   providerVersionsRouter
 } from "@src/provider";
 import { templatesRouter } from "@src/template";
+import { marketplaceTemplatesRouter } from "@src/template-marketplace";
 import { transactionsRouter } from "@src/transaction";
 import {
   accountDeletionRouter,
@@ -160,5 +161,6 @@ export const openApiHonoHandlers: OpenApiHonoHandler[] = [
   projectBudgetsRouter,
   feedbackRouter,
   assistantPrivacyRouter,
-  assistantConversationRouter
+  assistantConversationRouter,
+  marketplaceTemplatesRouter
 ];

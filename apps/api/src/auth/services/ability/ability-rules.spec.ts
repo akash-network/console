@@ -2,7 +2,7 @@ import { DrizzleAbility } from "@akashnetwork/drizzle-ability";
 import type { MongoAbility } from "@casl/ability";
 import { createMongoAbility, subject } from "@casl/ability";
 import { faker } from "@faker-js/faker";
-import type { PgTableWithColumns } from "drizzle-orm/pg-core";
+import { PgDialect, type PgTableWithColumns } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -496,7 +496,166 @@ describe("ability rules", () => {
       });
     });
 
+    it.each(ROLES)("lets every member read the organization's organization-wide templates when template_marketplace is on (%s)", role => {
+      const { ability, organizationId } = setup({ role });
+
+      const template = organizationWideTemplate({ organizationId });
+
+      expect(allowedActions(ability, template)).toEqual(role === "owner" || role === "admin" ? MANAGE : READ);
+    });
+
+    it.each(ROLES)("keeps organization-wide templates of another organization unreadable for the %s role", role => {
+      const { ability } = setup({ role });
+
+      const template = organizationWideTemplate({ organizationId: faker.string.uuid() });
+
+      expect(allowedActions(ability, template)).toEqual(NONE);
+    });
+
+    it.each(ROLES)("lets every member read the organization's public templates outside their projects when template_marketplace is on (%s)", role => {
+      const { ability, organizationId } = setup({ role });
+
+      const template = organizationTemplate({ organizationId, visibility: "public" });
+
+      expect(allowedActions(ability, template)).toEqual(role === "owner" || role === "admin" ? MANAGE : READ);
+    });
+
+    it.each(ROLES)("grants the %s role nothing on another organization's public templates", role => {
+      const { ability } = setup({ role });
+
+      const template = organizationTemplate({ organizationId: faker.string.uuid(), visibility: "public" });
+
+      expect(allowedActions(ability, template)).toEqual(NONE);
+    });
+
+    it.each(["member", "viewer", "billing"] as const)("drops the public template read of the %s role when template_marketplace is off", role => {
+      const { user, context } = setup({ role });
+      const featureFlags = mock<FeatureFlagsService>();
+      featureFlags.isEnabled.mockReturnValue(false);
+      const ability = createMongoAbility(enabledRules(organizationRules(user, context), featureFlags));
+
+      const template = organizationTemplate({ organizationId: context.organizationId, visibility: "public" });
+
+      expect(allowedActions(ability, template)).toEqual(NONE);
+    });
+
+    it.each(["member", "viewer", "billing"] as const)("keeps private templates of projects outside the scope unreadable for the %s role", role => {
+      const { ability, organizationId } = setup({ role });
+
+      const template = subject("Template", { organizationId, projectId: faker.string.uuid(), userId: faker.string.uuid(), visibility: "private" });
+
+      expect(allowedActions(ability, template)).toEqual(NONE);
+    });
+
+    it.each(["member", "viewer", "billing"] as const)("drops the organization-wide read of the %s role when template_marketplace is off", role => {
+      const { user, context } = setup({ role });
+      const featureFlags = mock<FeatureFlagsService>();
+      featureFlags.isEnabled.mockReturnValue(false);
+      const ability = createMongoAbility(enabledRules(organizationRules(user, context), featureFlags));
+
+      const template = organizationWideTemplate({ organizationId: context.organizationId });
+
+      expect(allowedActions(ability, template)).toEqual(NONE);
+      expect(featureFlags.isEnabled).toHaveBeenCalledWith(FeatureFlags.TEMPLATE_MARKETPLACE);
+    });
+
+    it.each(["member", "viewer", "billing"] as const)("keeps the organization-wide read of the %s role when template_marketplace is on", role => {
+      const { user, context } = setup({ role });
+      const featureFlags = mock<FeatureFlagsService>();
+      featureFlags.isEnabled.mockReturnValue(true);
+      const ability = createMongoAbility(enabledRules(organizationRules(user, context), featureFlags));
+
+      const template = organizationWideTemplate({ organizationId: context.organizationId });
+
+      expect(allowedActions(ability, template)).toEqual(READ);
+    });
+
+    it.each(["owner", "admin"] as const)("lets a team %s publish templates in scope", role => {
+      const projectId = faker.string.uuid();
+      const { ability, organizationId } = setup({ role, projectScope: createProjectsScope([projectId]) });
+
+      expect(ability.can("publish", subject("Template", { organizationId, projectId }))).toBe(true);
+      expect(ability.can("publish", subject("Template", { organizationId, projectId: faker.string.uuid() }))).toBe(false);
+    });
+
+    it("lets the owner of a personal organization publish templates in scope", () => {
+      const projectId = faker.string.uuid();
+      const { ability, organizationId } = setup({ role: "owner", organizationType: "personal", projectScope: createProjectsScope([projectId]) });
+
+      expect(ability.can("publish", subject("Template", { organizationId, projectId }))).toBe(true);
+    });
+
+    it.each(["member", "viewer", "billing"] as const)("refuses publishing to a %s", role => {
+      const { ability, organizationId, grantedProjectId, user } = setup({ role });
+
+      const ownTemplate = subject("Template", { organizationId, projectId: grantedProjectId, userId: user.id });
+
+      expect(ability.can("publish", ownTemplate)).toBe(false);
+      expect(ability.can("publish", "Template")).toBe(false);
+    });
+
+    it("refuses publishing to a member who administers the template's project", () => {
+      const projectId = faker.string.uuid();
+      const { ability, organizationId } = setup({ role: "member", projectScope: createProjectsScope([projectId], { adminProjectIds: [projectId] }) });
+
+      const template = subject("Template", { organizationId, projectId });
+
+      expect(ability.can("update", template)).toBe(true);
+      expect(ability.can("publish", template)).toBe(false);
+    });
+
+    it("lets a project member update a template in a writable project but not publish it", () => {
+      const projectId = faker.string.uuid();
+      const { ability, organizationId } = setup({ role: "member", projectScope: createProjectsScope([projectId]) });
+
+      const template = subject("Template", { organizationId, projectId });
+
+      expect(allowedActions(ability, template)).toEqual(MANAGE);
+      expect(ability.can("publish", template)).toBe(false);
+    });
+
+    it.each(ROLES)("adds a publishing refusal to the rules of the %s role only when the role may not publish", role => {
+      const { user, context } = setup({ role });
+      const refusal = { action: "publish", subject: "Template", inverted: true };
+
+      const rules = organizationRules(user, context);
+
+      expect(rules.filter(rule => rule.action === "publish")).toEqual(role === "owner" || role === "admin" ? [] : [refusal]);
+    });
+
+    it("keeps the author's legacy rule covering publish", () => {
+      const user = createUser();
+      const ability = createMongoAbility(legacyRules(user));
+
+      expect(ability.can("publish", subject("Template", { userId: user.userId }))).toBe(true);
+    });
+
+    it.each(["member", "viewer", "billing"] as const)("turns the organization-wide read of the %s role into a query on the template table", role => {
+      const { ability, organizationId } = setup({ role, projectScope: createProjectsScope([]) });
+
+      const clause = new DrizzleAbility(Templates, ability, "read", "Template").whereAccessibleBy();
+
+      const { sql, params } = new PgDialect().sqlToQuery(clause!);
+      expect(sql).toContain('"organization_id"');
+      expect(sql).toContain('"visibility"');
+      expect(params).toEqual(expect.arrayContaining([organizationId, "organization"]));
+    });
+
     describe("for a request made with an API key bound to a project", () => {
+      it("lets a member key read organization-wide templates of other projects but not private ones, and never publish", () => {
+        const projectId = faker.string.uuid();
+        const { ability, organizationId } = setup({ role: "member", projectScope: createProjectsScope([projectId]), apiKeyProjectId: projectId });
+        const otherProjectId = faker.string.uuid();
+
+        const organizationWide = subject("Template", { organizationId, projectId: otherProjectId, visibility: "organization" });
+        const privateTemplate = subject("Template", { organizationId, projectId: otherProjectId, visibility: "private" });
+        const ownProjectTemplate = subject("Template", { organizationId, projectId, visibility: "organization" });
+
+        expect(allowedActions(ability, organizationWide)).toEqual(READ);
+        expect(allowedActions(ability, privateTemplate)).toEqual(NONE);
+        expect(ability.can("publish", ownProjectTemplate)).toBe(false);
+      });
+
       it.each(ROLES)("lets a %s key read the organization and its project but reach no other organization-level subject", role => {
         const projectId = faker.string.uuid();
         const { ability, organizationId, user } = setup({ role, projectScope: createProjectsScope([projectId]), apiKeyProjectId: projectId });
@@ -779,6 +938,19 @@ describe("ability rules", () => {
       });
     }
   });
+
+  function organizationWideTemplate(input: { organizationId: string }) {
+    return organizationTemplate({ ...input, visibility: "organization" });
+  }
+
+  function organizationTemplate(input: { organizationId: string; visibility: "organization" | "public" }) {
+    return subject("Template", {
+      organizationId: input.organizationId,
+      projectId: faker.string.uuid(),
+      userId: faker.string.uuid(),
+      visibility: input.visibility
+    });
+  }
 
   function actionsBySubject(ability: MongoAbility, row: { organizationId: string; projectId: string | null; userId: string }) {
     return Object.fromEntries(ORGANIZATION_SUBJECTS.map(subjectType => [subjectType, allowedActions(ability, rowOf(subjectType, row))]));

@@ -42,6 +42,11 @@ const UNRELEASED_FEEDBACK_ROUTES = [
   "POST /v1/assistant/conversations/{id}/end",
   "POST /v1/assistant/conversations/{id}/action-results"
 ];
+const UNRELEASED_TEMPLATE_MARKETPLACE_ROUTES = [
+  "GET /v1/user-templates/{id}",
+  "GET /v1/user-templates/{id}/versions",
+  "GET /v1/user-templates/{id}/versions/{version}"
+];
 
 describe("API Docs", () => {
   afterEach(() => {
@@ -61,14 +66,16 @@ describe("API Docs", () => {
       expect(data).toMatchSnapshot();
     });
 
-    it("publishes every route but the withheld billing ones and the unreleased feedback ones, the team and project routes included", async () => {
+    it("publishes every route but the withheld billing ones and the unreleased feedback and template marketplace ones, the team and project routes included", async () => {
       const response = await app.request(`/v1/doc?scope=console`);
       const publishedRoutes = listRoutes((await response.json()) as OpenAPIObject);
       const everyRoute = listRoutes(
         await container.resolve(OpenApiDocsService).generateDocs(openApiHonoHandlers, { scope: "console", source: "http", includeHidden: true })
       );
 
-      expect(everyRoute.filter(route => !publishedRoutes.includes(route)).sort()).toEqual([...WITHHELD_ROUTES, ...UNRELEASED_FEEDBACK_ROUTES].sort());
+      expect(everyRoute.filter(route => !publishedRoutes.includes(route)).sort()).toEqual(
+        [...WITHHELD_ROUTES, ...UNRELEASED_FEEDBACK_ROUTES, ...UNRELEASED_TEMPLATE_MARKETPLACE_ROUTES].sort()
+      );
     });
 
     it("describes routes without blockchain wording, the merged notifications routes included", async () => {
