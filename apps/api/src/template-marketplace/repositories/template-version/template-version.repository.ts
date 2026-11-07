@@ -5,6 +5,7 @@ import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
 import type { TemplateHardware } from "@src/template/types/template";
+import type { AskedValue } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
 import type { TemplateVersionStatus } from "@src/template-marketplace/model-schemas/template-version/template-version.schema";
 
 type Table = ApiPgTables["TemplateVersions"];
@@ -19,7 +20,7 @@ export type TemplateVersionOutput = {
   version: number;
   sdl: string;
   readme: string | null;
-  askedValues: unknown[];
+  askedValues: AskedValue[];
   resources: TemplateHardware | null;
   imageDigests: Record<string, string>;
   status: TemplateVersionStatus;
@@ -33,7 +34,7 @@ export type AppendTemplateVersionInput = {
   templateId: string;
   sdl: string;
   readme?: string | null;
-  askedValues?: unknown[];
+  askedValues?: AskedValue[];
   resources?: TemplateHardware | null;
   createdById?: string | null;
 };
