@@ -7,12 +7,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { NextSeo } from "next-seo";
 import { useSnackbar } from "notistack";
 
-import { AddCreditsSnackbarContent } from "@src/components/billing-usage/AddCreditsSnackbarContent/AddCreditsSnackbarContent";
 import Layout from "@src/components/layout/Layout";
 import { ConfigureDeployTargetChip } from "@src/components/projects/ConfigureDeployTargetChip/ConfigureDeployTargetChip";
 import { ProjectBudgetRefusal } from "@src/components/projects/ProjectBudgetRefusal/ProjectBudgetRefusal";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useServices } from "@src/context/ServicesProvider";
+import { useAddCredits } from "@src/hooks/useAddCredits";
 import { useFlag } from "@src/hooks/useFlag";
 import { usePlacementsWithBids } from "@src/queries/usePlacementsWithBids";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
@@ -29,11 +29,12 @@ import { ConfigureDeploymentHeader } from "../ConfigureDeploymentHeader/Configur
 import { ConfigureDeploymentPanes } from "../ConfigureDeploymentPanes/ConfigureDeploymentPanes";
 import { ConfigureWorkspace } from "../ConfigureWorkspace/ConfigureWorkspace";
 import { DeployProgressOverlay } from "../DeployProgressOverlay/DeployProgressOverlay";
-import { describeDepositShortfall, TOP_UP_PENDING_MESSAGE } from "../depositShortfall/depositShortfall";
+import { TOP_UP_PENDING_MESSAGE } from "../depositShortfall/depositShortfall";
 import type { ImportedDeploymentState } from "../importDeploymentState/importDeploymentState";
 import { importDeploymentState, isKnownSdlParserError, NoVisibleServiceError, seedSelectedServiceId } from "../importDeploymentState/importDeploymentState";
 import type { InheritedSecrets } from "../InheritedSecretsProvider/InheritedSecretsProvider";
 import { InheritedSecretsProvider } from "../InheritedSecretsProvider/InheritedSecretsProvider";
+import { NeedsFundsAlert } from "../NeedsFundsAlert/NeedsFundsAlert";
 import { PlacementManagerProvider } from "../PlacementManagerProvider/PlacementManagerProvider";
 import { ReviewAndDeployModal } from "../ReviewAndDeployModal/ReviewAndDeployModal";
 import { SdlImportChangesBanner } from "../SdlImportChangesBanner/SdlImportChangesBanner";
@@ -42,7 +43,7 @@ import { firstBidReadyServiceId, nextSelectedServiceId, nextUndoneServiceId, res
 import type { PlacementRegionPicks } from "../useConfigureDraft/useConfigureDraft";
 import { useConfigureDraft } from "../useConfigureDraft/useConfigureDraft";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
-import type { DeploymentFlow, FlowErrorKind } from "../useDeploymentFlow/useDeploymentFlow";
+import type { DeploymentFlow, FlowError, FlowErrorKind } from "../useDeploymentFlow/useDeploymentFlow";
 import { NO_PROVIDERS_MESSAGE } from "../useDeploymentFlow/useDeploymentFlow";
 import { useDeploymentName } from "../useDeploymentName/useDeploymentName";
 import { useForceSshForVmServices } from "../useForceSshForVmServices/useForceSshForVmServices";
@@ -50,7 +51,7 @@ import { useResumeAfterCredits } from "../useResumeAfterCredits/useResumeAfterCr
 import { useSyncLogCollectors } from "../useSyncLogCollectors/useSyncLogCollectors";
 
 export const DEPENDENCIES = {
-  AddCreditsSnackbarContent,
+  NeedsFundsAlert,
   ProjectBudgetRefusal,
   Layout,
   NextSeo,
@@ -70,11 +71,12 @@ export const DEPENDENCIES = {
   useSnackbar,
   useFlag,
   useActiveOrganization,
+  useAddCredits,
   Snackbar
 };
 
-/** Long enough to read the reason and click Add Funds; the default duration dismisses before either. */
-const NEEDS_FUNDS_TOAST_DURATION_MS = 10000;
+/** Long enough to read the reason and act on it; the default duration dismisses before either. */
+const REFUSAL_TOAST_DURATION_MS = 10000;
 
 const NEEDS_FUNDS_CONTEXT = "configure_quotes_needs_funds";
 
@@ -219,36 +221,39 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
     [flow.deployError, enqueueSnackbar, d]
   );
 
+  const isRefusedForFunds = flow.phase === "error" && flow.error?.kind === "needs-funds";
   const requestQuotesAgainAfterCredits = useResumeAfterCredits({
-    isRefusedForFunds: flow.phase === "error" && flow.error?.kind === "needs-funds",
+    isRefusedForFunds,
     snapshotRequest: () => JSON.stringify([typedDeploymentName, form.getValues()]),
     resume: () => {
       analyticsService.track("add_credits_resumed_deploy", { category: "billing", context: NEEDS_FUNDS_CONTEXT });
       flow.actions.requestQuotesAgain();
     }
   });
+  const openAddCredits = d.useAddCredits();
+  const [fundsRefusal, setFundsRefusal] = useState<{ error: FlowError; deploymentName: string }>();
+  const shownFundsRefusal =
+    isRefusedForFunds && fundsRefusal && fundsRefusal.error === flow.error && fundsRefusal.deploymentName === typedDeploymentName
+      ? fundsRefusal.error
+      : undefined;
+
+  useEffect(
+    function dismissFundsRefusalOnEdit() {
+      if (!fundsRefusal) return;
+      const subscription = form.watch(() => setFundsRefusal(undefined));
+      return function teardownFundsRefusalDismissal() {
+        subscription.unsubscribe();
+      };
+    },
+    [form, fundsRefusal]
+  );
 
   useEffect(
     function toastFlowError() {
       if (flow.error && flow.error !== lastToastedFlowError.current) {
         if (flow.error.kind === "needs-funds") {
-          const message = flow.error.shortfall ? describeDepositShortfall(flow.error.shortfall) : flow.error.message;
-          const key = enqueueSnackbar(
-            <d.Snackbar
-              title="Add funds to continue"
-              subTitle={
-                <d.AddCreditsSnackbarContent
-                  message={message}
-                  context={NEEDS_FUNDS_CONTEXT}
-                  nextStepLabel="Continue to deploy"
-                  onCreditsAdded={requestQuotesAgainAfterCredits}
-                  onAction={() => closeSnackbar(key)}
-                />
-              }
-              iconVariant="warning"
-            />,
-            { variant: "warning", autoHideDuration: NEEDS_FUNDS_TOAST_DURATION_MS }
-          );
+          setFundsRefusal({ error: flow.error, deploymentName: typedDeploymentName });
+          analyticsService.track("configure_needs_funds_shown", { category: "deployments", ...shortfallPropertiesOf(flow.error) });
         } else if (flow.error.kind === "budget-exceeded") {
           const key = enqueueSnackbar(
             <d.Snackbar
@@ -263,12 +268,12 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
               }
               iconVariant="warning"
             />,
-            { variant: "warning", autoHideDuration: NEEDS_FUNDS_TOAST_DURATION_MS }
+            { variant: "warning", autoHideDuration: REFUSAL_TOAST_DURATION_MS }
           );
         } else if (flow.error.kind === "top-up-pending") {
           enqueueSnackbar(<d.Snackbar title="Your balance is being topped up" subTitle={TOP_UP_PENDING_MESSAGE} iconVariant="warning" />, {
             variant: "warning",
-            autoHideDuration: NEEDS_FUNDS_TOAST_DURATION_MS
+            autoHideDuration: REFUSAL_TOAST_DURATION_MS
           });
         } else {
           const { title, fallback } = flowErrorToastCopy(flow.error.kind);
@@ -277,8 +282,29 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
       }
       lastToastedFlowError.current = flow.error;
     },
-    [flow.error, enqueueSnackbar, closeSnackbar, requestQuotesAgainAfterCredits, organizationRole, projectsEnabled, d]
+    [flow.error, enqueueSnackbar, closeSnackbar, analyticsService, typedDeploymentName, organizationRole, projectsEnabled, d]
   );
+
+  function addCreditsForRefusedDeploy(refusal: FlowError) {
+    analyticsService.track("configure_needs_funds_add_credits_clicked", {
+      category: "billing",
+      context: NEEDS_FUNDS_CONTEXT,
+      ...shortfallPropertiesOf(refusal)
+    });
+    openAddCredits({
+      initialTab: "purchase",
+      description: "Add credits to your balance to deploy.",
+      context: NEEDS_FUNDS_CONTEXT,
+      nextStepLabel: "Continue to deploy",
+      onCreditsAdded: requestQuotesAgainAfterCredits,
+      suggestFirstDeployment: false
+    });
+  }
+
+  function retryRefusedDeploy() {
+    analyticsService.track("configure_needs_funds_retry_clicked", { category: "deployments" });
+    flow.actions.requestQuotesAgain();
+  }
 
   useEffect(
     /** The two panel workspace explains a request no provider bid on in its marketplace, so only the older layout drops back to editing. */
@@ -417,6 +443,16 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
             <div className="relative flex min-h-0 flex-1 flex-col">
               {importChanges.length > 0 && <d.SdlImportChangesBanner changes={importChanges} onDismiss={() => setImportChanges([])} />}
               <d.ConfigureDeployTargetChip />
+              {shownFundsRefusal && (
+                <div className="px-4 pt-4 sm:px-6">
+                  <d.NeedsFundsAlert
+                    message={shownFundsRefusal.message}
+                    shortfall={shownFundsRefusal.shortfall}
+                    onAddCredits={() => addCreditsForRefusedDeploy(shownFundsRefusal)}
+                    onTryAgain={retryRefusedDeploy}
+                  />
+                </div>
+              )}
               {isTwoPanel ? (
                 <d.ConfigureWorkspace
                   intent={intent}
@@ -603,6 +639,10 @@ function flowErrorToastCopy(kind: FlowErrorKind | undefined): { title: string; f
     };
   }
   return { title: "Couldn't get bids from providers", fallback: "Something went wrong. Please adjust your deployment and try again." };
+}
+
+function shortfallPropertiesOf({ shortfall }: FlowError) {
+  return shortfall ? { requiredAmountUsd: shortfall.requiredAmountUsd, availableAmountUsd: shortfall.availableAmountUsd } : {};
 }
 
 /** A redeploy's draft names the deployment whose stored secrets the create may inherit; the references its SDL carries are the names covered. */

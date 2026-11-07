@@ -21,6 +21,7 @@ import { DEPENDENCIES as DEPLOYMENT_PANE_DEPENDENCIES, DeploymentPane } from "..
 import { DEPENDENCIES as PLACEMENT_CARD_DEPENDENCIES, PlacementCard } from "../DeploymentPane/PlacementCard/PlacementCard";
 import { importDeploymentState } from "../importDeploymentState/importDeploymentState";
 import { useInheritedSecrets } from "../InheritedSecretsProvider/InheritedSecretsProvider";
+import { NeedsFundsAlert } from "../NeedsFundsAlert/NeedsFundsAlert";
 import { usePlacementManagerContext } from "../PlacementManagerProvider/PlacementManagerProvider";
 import { SdlImportChangesBanner } from "../SdlImportChangesBanner/SdlImportChangesBanner";
 import type { DeploymentFlow, FlowError } from "../useDeploymentFlow/useDeploymentFlow";
@@ -616,34 +617,118 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(enqueueSnackbar).not.toHaveBeenCalled();
   });
 
-  it("offers to add credits rather than apologising when the create was refused until the user pays", () => {
-    const message = "Not enough balance to cover the deployment deposit. Add credits or turn on auto recharge to continue.";
-    const { enqueueSnackbar } = setup({ initialSdl: undefined, flowError: { message, kind: "needs-funds" } });
-
-    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "warning" }));
-    const toast = needsFundsToastOf(enqueueSnackbar);
-    expect(toast.props.title).toBe("Add funds to continue");
-    expect(toast.props.subTitle.props).toMatchObject({ message, context: "configure_quotes_needs_funds" });
-  });
-
-  it("titles the toast for the remedy rather than the cause, so a trial gpu refusal reads correctly too", () => {
-    const message = "GPU interconnect not available on free trial: Add funds to unlock GPU interconnect";
-    const { enqueueSnackbar } = setup({ initialSdl: undefined, flowError: { message, kind: "needs-funds" } });
-
-    const toast = needsFundsToastOf(enqueueSnackbar);
-    expect(toast.props.title).toBe("Add funds to continue");
-    expect(toast.props.subTitle.props).toMatchObject({ message });
-  });
-
-  it("says how far the balance falls short when the api reports the amounts", () => {
-    const { enqueueSnackbar } = setup({
+  it("keeps a create refused for funds on the page with how far the balance falls short, rather than in a passing toast", () => {
+    const { enqueueSnackbar, analyticsService } = setup({
       initialSdl: undefined,
+      phase: "error",
       flowError: { message: "Not enough balance", kind: "needs-funds", shortfall: { requiredAmountUsd: 0.5, availableAmountUsd: 0.12 } }
     });
 
-    expect(needsFundsToastOf(enqueueSnackbar).props.subTitle.props).toMatchObject({
-      message: "Starting this deployment takes $0.50 and your balance has $0.12, so you're $0.38 short."
+    expect(screen.getByRole("alert")).toHaveTextContent("Add credits to deploy");
+    expect(screen.getByRole("alert")).toHaveTextContent("Starting this deployment takes $0.50 and your balance has $0.12, so you're $0.38 short.");
+    expect(enqueueSnackbar).not.toHaveBeenCalled();
+    expect(analyticsService.track).toHaveBeenCalledWith("configure_needs_funds_shown", {
+      category: "deployments",
+      requiredAmountUsd: 0.5,
+      availableAmountUsd: 0.12
     });
+  });
+
+  it("explains the refusal with the api's reason when it reports no amounts, so a trial gpu refusal reads correctly too", () => {
+    const message = "GPU interconnect not available on free trial: Add funds to unlock GPU interconnect";
+    const { analyticsService } = setup({ initialSdl: undefined, phase: "error", flowError: { message, kind: "needs-funds" } });
+
+    expect(screen.getByRole("alert")).toHaveTextContent(message);
+    expect(analyticsService.track).toHaveBeenCalledWith("configure_needs_funds_shown", { category: "deployments" });
+  });
+
+  it("keeps the refusal on the page in the two panel layout too", () => {
+    setup({ initialSdl: undefined, twoPanel: true, phase: "error", flowError: { message: "Not enough balance", kind: "needs-funds" } });
+
+    expect(screen.getByRole("button", { name: "Add credits" })).toBeInTheDocument();
+  });
+
+  it("shows no refusal while the create has not been refused for funds", () => {
+    setup({ initialSdl: undefined, phase: "error", flowError: { message: "Invalid SDL", kind: "create" } });
+
+    expect(screen.queryByRole("button", { name: "Add credits" })).not.toBeInTheDocument();
+  });
+
+  it("opens Add credits from the refusal, set to carry on with this deployment", async () => {
+    const { openAddCredits, analyticsService } = setup({
+      initialSdl: undefined,
+      phase: "error",
+      flowError: { message: "Not enough balance", kind: "needs-funds", shortfall: { requiredAmountUsd: 0.5, availableAmountUsd: 0.12 } }
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Add credits" }));
+
+    expect(openAddCredits).toHaveBeenCalledWith(
+      expect.objectContaining({
+        initialTab: "purchase",
+        context: "configure_quotes_needs_funds",
+        nextStepLabel: "Continue to deploy",
+        suggestFirstDeployment: false
+      })
+    );
+    expect(analyticsService.track).toHaveBeenCalledWith("configure_needs_funds_add_credits_clicked", {
+      category: "billing",
+      context: "configure_quotes_needs_funds",
+      requiredAmountUsd: 0.5,
+      availableAmountUsd: 0.12
+    });
+  });
+
+  it("sends the refused request again when the user tries again from the refusal", async () => {
+    const { flow, analyticsService } = setup({ initialSdl: undefined, phase: "error", flowError: { message: "Not enough balance", kind: "needs-funds" } });
+
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+
+    expect(flow.actions.requestQuotesAgain).toHaveBeenCalledTimes(1);
+    expect(analyticsService.track).toHaveBeenCalledWith("configure_needs_funds_retry_clicked", { category: "deployments" });
+  });
+
+  it("takes the refusal down once the user edits the deployment", async () => {
+    setup({ initialSdl: undefined, phase: "error", flowError: { message: "Not enough balance", kind: "needs-funds" }, Panes: SdlProbePanes });
+
+    await userEvent.click(screen.getByRole("button", { name: "change image" }));
+
+    expect(screen.queryByRole("button", { name: "Add credits" })).not.toBeInTheDocument();
+  });
+
+  it("takes the refusal down once the user renames the deployment", () => {
+    const { naming, rerenderWith } = setup({
+      initialSdl: undefined,
+      initialName: "my-app",
+      phase: "error",
+      flowError: { message: "Not enough balance", kind: "needs-funds" }
+    });
+    naming.typedName = "my-other-app";
+    rerenderWith({});
+
+    expect(screen.queryByRole("button", { name: "Add credits" })).not.toBeInTheDocument();
+  });
+
+  it("takes the refusal down once the request is sent again", () => {
+    const { flow, rerenderWith } = setup({ initialSdl: undefined, phase: "error", flowError: { message: "Not enough balance", kind: "needs-funds" } });
+    flow.phase = "creating";
+    flow.error = undefined;
+    rerenderWith({});
+
+    expect(screen.queryByRole("button", { name: "Add credits" })).not.toBeInTheDocument();
+  });
+
+  it("shows the refusal again when the request is refused again", () => {
+    const { flow, rerenderWith, analyticsService } = setup({
+      initialSdl: undefined,
+      phase: "error",
+      flowError: { message: "Not enough balance", kind: "needs-funds" }
+    });
+    flow.error = { message: "Still not enough balance", kind: "needs-funds" };
+    rerenderWith({});
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Still not enough balance");
+    expect(analyticsService.track.mock.calls.filter(([event]) => event === "configure_needs_funds_shown")).toHaveLength(2);
   });
 
   it("asks the user to wait rather than add funds when a top up is already on its way", () => {
@@ -689,81 +774,76 @@ describe(ConfigureDeploymentForm.name, () => {
     }
   );
 
-  it("dismisses the add funds toast once the add credits sheet is open", () => {
-    const { enqueueSnackbar, closeSnackbar } = setup({ initialSdl: undefined, flowError: { message: "Not enough balance", kind: "needs-funds" } });
-
-    needsFundsToastOf(enqueueSnackbar).props.subTitle.props.onAction?.();
-
-    expect(closeSnackbar).toHaveBeenCalled();
-  });
-
-  it("sends the refused request again once credits land, so the user goes on to quotes without another click", () => {
-    const { enqueueSnackbar, flow, analyticsService } = setup({
+  it("sends the refused request again once credits land, so the user goes on to quotes without another click", async () => {
+    const { flow, analyticsService, openAddCredits } = setup({
       initialSdl: undefined,
       phase: "error",
       flowError: { message: "Not enough balance", kind: "needs-funds" }
     });
-    const toastContent = needsFundsToastOf(enqueueSnackbar).props.subTitle.props;
+    await userEvent.click(screen.getByRole("button", { name: "Add credits" }));
 
-    toastContent.onCreditsAdded?.();
+    act(() => creditsAddedCallbackOf(openAddCredits)());
 
-    expect(toastContent.nextStepLabel).toBe("Continue to deploy");
     expect(flow.actions.requestQuotesAgain).toHaveBeenCalledTimes(1);
     expect(analyticsService.track).toHaveBeenCalledWith("add_credits_resumed_deploy", { category: "billing", context: "configure_quotes_needs_funds" });
   });
 
-  it("leaves a request the user already sent again alone when credits land", () => {
-    const { enqueueSnackbar, flow, analyticsService, rerenderWith } = setup({
+  it("leaves a request the user already sent again alone when credits land", async () => {
+    const { flow, analyticsService, rerenderWith, openAddCredits } = setup({
       initialSdl: undefined,
       phase: "error",
       flowError: { message: "Not enough balance", kind: "needs-funds" }
     });
+    await userEvent.click(screen.getByRole("button", { name: "Add credits" }));
     flow.phase = "creating";
     rerenderWith({});
 
-    needsFundsToastOf(enqueueSnackbar).props.subTitle.props.onCreditsAdded?.();
+    act(() => creditsAddedCallbackOf(openAddCredits)());
 
     expect(flow.actions.requestQuotesAgain).not.toHaveBeenCalled();
     expect(analyticsService.track).not.toHaveBeenCalledWith("add_credits_resumed_deploy", expect.anything());
   });
 
   it("leaves the refused request alone when credits land after the user edited the form, so a stale spec is never sent", async () => {
-    const { enqueueSnackbar, flow } = setup({
+    const { flow, openAddCredits } = setup({
       initialSdl: undefined,
       phase: "error",
       flowError: { message: "Not enough balance", kind: "needs-funds" },
       Panes: SdlProbePanes
     });
+    await userEvent.click(screen.getByRole("button", { name: "Add credits" }));
 
     await userEvent.click(screen.getByRole("button", { name: "change image" }));
-    needsFundsToastOf(enqueueSnackbar).props.subTitle.props.onCreditsAdded?.();
+    act(() => creditsAddedCallbackOf(openAddCredits)());
 
     expect(flow.actions.requestQuotesAgain).not.toHaveBeenCalled();
   });
 
   it("leaves the refused request alone when credits land after the user retyped a secret, which the SDL only references", async () => {
-    const { enqueueSnackbar, flow, rerenderWith } = setup({ initialSdl: undefined, Panes: SecretRetypingProbePanes });
+    const { flow, rerenderWith, openAddCredits } = setup({ initialSdl: undefined, Panes: SecretRetypingProbePanes });
     await userEvent.click(screen.getByRole("button", { name: "type a secret" }));
     flow.phase = "error";
     flow.error = { message: "Not enough balance", kind: "needs-funds" };
     rerenderWith({});
+    await userEvent.click(screen.getByRole("button", { name: "Add credits" }));
 
     await userEvent.click(screen.getByRole("button", { name: "retype the secret" }));
-    needsFundsToastOf(enqueueSnackbar).props.subTitle.props.onCreditsAdded?.();
+    act(() => creditsAddedCallbackOf(openAddCredits)());
 
     expect(flow.actions.requestQuotesAgain).not.toHaveBeenCalled();
   });
 
-  it("leaves a different failure alone when credits land", () => {
-    const { enqueueSnackbar, flow, rerenderWith } = setup({
+  it("leaves a different failure alone when credits land", async () => {
+    const { flow, rerenderWith, openAddCredits } = setup({
       initialSdl: undefined,
       phase: "error",
       flowError: { message: "Not enough balance", kind: "needs-funds" }
     });
+    await userEvent.click(screen.getByRole("button", { name: "Add credits" }));
     flow.error = { message: "Invalid SDL", kind: "create" };
     rerenderWith({});
 
-    needsFundsToastOf(enqueueSnackbar).props.subTitle.props.onCreditsAdded?.();
+    act(() => creditsAddedCallbackOf(openAddCredits)());
 
     expect(flow.actions.requestQuotesAgain).not.toHaveBeenCalled();
   });
@@ -1281,7 +1361,8 @@ describe(ConfigureDeploymentForm.name, () => {
     const enqueueSnackbar = vi.fn();
     const closeSnackbar = vi.fn();
     const Snackbar = vi.fn(() => null);
-    const AddCreditsSnackbarContent = vi.fn((_props: { message?: string; context?: string; onAction?: () => void }) => null);
+    const openAddCredits = vi.fn<ReturnType<typeof DEPENDENCIES.useAddCredits>>();
+    const naming = { typedName: input.initialName ?? "" };
     const save = vi.fn<(sdl: string, name?: string, runtimeLimitHours?: number, startingSdl?: string, placementRegions?: Record<string, string[]>) => void>();
     const clear = vi.fn<() => void>();
     const dropInheritance = vi.fn<() => void>();
@@ -1324,7 +1405,7 @@ describe(ConfigureDeploymentForm.name, () => {
     );
     const useDeploymentName = ((args: { initialName?: string }) => ({
       name: input.apiDerivedName ?? args.initialName ?? "",
-      typedName: args.initialName ?? "",
+      typedName: naming.typedName,
       setName: setDeploymentName
     })) as never;
     // The base flow is created upstream by the DeploymentFlowProvider now, so it arrives as a prop rather than a hook.
@@ -1347,7 +1428,7 @@ describe(ConfigureDeploymentForm.name, () => {
     );
     const analyticsService = mock<AnalyticsService>();
     const dependencies: typeof DEPENDENCIES = {
-      AddCreditsSnackbarContent: AddCreditsSnackbarContent as never,
+      NeedsFundsAlert,
       ProjectBudgetRefusal: vi.fn(() => <></>),
       Layout: vi.fn(({ children }) => <div data-testid="layout-mock">{children}</div>) as never,
       NextSeo: vi.fn(() => null) as never,
@@ -1373,7 +1454,8 @@ describe(ConfigureDeploymentForm.name, () => {
       SdlImportExport: SdlImportExport as never,
       SdlImportChangesBanner,
       usePlacementsWithBids: () => new Set<string>(),
-      useFlag: () => false
+      useFlag: () => false,
+      useAddCredits: () => openAddCredits
     };
 
     const formWithFlags = (flags: { twoPanel: boolean }) => (
@@ -1414,7 +1496,9 @@ describe(ConfigureDeploymentForm.name, () => {
       clear,
       dropInheritance,
       requestQuotes,
-      analyticsService
+      analyticsService,
+      openAddCredits,
+      naming
     };
   }
 });
@@ -1423,13 +1507,8 @@ function sealedSdlOf(sdl: string) {
   return generateSdl(importDeploymentState(sdl).values, { sealSecrets: true });
 }
 
-function needsFundsToastOf(enqueueSnackbar: Mock) {
-  return enqueueSnackbar.mock.calls[0][0] as {
-    props: {
-      title: string;
-      subTitle: { props: { message?: string; context?: string; nextStepLabel?: string; onCreditsAdded?: () => void; onAction?: () => void } };
-    };
-  };
+function creditsAddedCallbackOf(openAddCredits: Mock) {
+  return (openAddCredits.mock.calls[0][0] as { onCreditsAdded: () => void }).onCreditsAdded;
 }
 
 interface WorkspaceProbeProps {
