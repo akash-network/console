@@ -1,11 +1,13 @@
 "use client";
 import type { ChangeEvent, FC } from "react";
 import { useId, useMemo, useState } from "react";
-import { Button, Input, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, Spinner } from "@akashnetwork/ui/components";
+import { Button, buttonVariants, Input, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, Spinner } from "@akashnetwork/ui/components";
 import { Search, SlidersHorizontal, X } from "lucide-react";
+import Link from "next/link";
 
 import type { TemplateSection } from "@src/components/templates/templateGalleryModel";
 import { findSelectedCategory, isPopularTemplate, listUseCaseFilters, selectTemplateSections } from "@src/components/templates/templateGalleryModel";
+import { useFlag } from "@src/hooks/useFlag";
 import { useTemplates } from "@src/queries/useTemplateQuery";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
@@ -17,6 +19,7 @@ import { useTemplateGalleryUrlState } from "./useTemplateGalleryUrlState/useTemp
 const OVERLINE_CLASSES = "font-mono text-[11px] font-medium uppercase leading-4 tracking-[0.08em] text-muted-foreground";
 
 export const DEPENDENCIES = {
+  useFlag,
   useTemplateGalleryUrlState,
   useTemplates,
   Layout,
@@ -26,6 +29,7 @@ export const DEPENDENCIES = {
 };
 
 export const TemplateGallery: FC<{ dependencies?: typeof DEPENDENCIES }> = ({ dependencies: d = DEPENDENCIES }) => {
+  const isMarketplaceEnabled = d.useFlag("template_marketplace");
   const urlState = d.useTemplateGalleryUrlState();
   const { isLoading, categories } = d.useTemplates();
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
@@ -55,7 +59,12 @@ export const TemplateGallery: FC<{ dependencies?: typeof DEPENDENCIES }> = ({ de
 
       <div className="flex w-full flex-col md:h-page-viewport">
         <div className="flex min-h-[60px] shrink-0 items-center gap-4 border-b border-border bg-background px-4 py-2.5 sm:px-6">
-          <h1 className="text-xl font-bold tracking-tight">Templates</h1>
+          <h1 className="mr-auto text-xl font-bold tracking-tight">Templates</h1>
+          {isMarketplaceEnabled && (
+            <Link href={UrlService.myTemplates()} className={buttonVariants({ variant: "outline", size: "sm" })}>
+              My templates
+            </Link>
+          )}
         </div>
 
         <div className="flex md:min-h-0 md:flex-1">
