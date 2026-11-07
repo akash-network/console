@@ -51,14 +51,15 @@ export class TemplateVersionRepository extends BaseRepository<Table, TemplateVer
     super(pg, table, txManager, "TemplateVersion", "TemplateVersions");
   }
 
-  accessibleBy(...abilityParams: AbilityParams) {
-    return new TemplateVersionRepository(this.pg, this.table, this.templates, this.txManager).withAbility(...abilityParams) as this;
+  /** Versions carry no ability rules yet, so this returns an unfiltered copy rather than imply that reads are scoped. */
+  accessibleBy(..._abilityParams: AbilityParams) {
+    return new TemplateVersionRepository(this.pg, this.table, this.templates, this.txManager) as this;
   }
 
-  /** Locks the template row first, so concurrent appends take their numbers one after another. */
+  /** Locks the template row first, so concurrent appends take their numbers one after another without blocking foreign key checks on it. */
   async appendVersion(input: AppendTemplateVersionInput): Promise<TemplateVersionOutput> {
     return await this.ensureTransaction(async tx => {
-      await tx.select({ id: this.templates.id }).from(this.templates).where(eq(this.templates.id, input.templateId)).for("update");
+      await tx.select({ id: this.templates.id }).from(this.templates).where(eq(this.templates.id, input.templateId)).for("no key update");
 
       const [{ next }] = await tx
         .select({ next: sql<number>`coalesce(max(${this.table.version}), 0) + 1` })

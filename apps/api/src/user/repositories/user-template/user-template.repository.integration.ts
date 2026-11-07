@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { type TemplateInput, UserTemplateRepository } from "./user-template.repository";
 
@@ -406,7 +407,7 @@ describe(UserTemplateRepository.name, () => {
       const { userTemplateRepository } = setup();
       const user = await createTestUser();
 
-      const templateId = await userTemplateRepository.createTemplate(user.userId!, { ...buildTemplateInput(), isPublic: true });
+      const templateId = await userTemplateRepository.createTemplate(user.userId!, { ...buildTemplateInput(), isPublic: true }, { authorId: user.id });
       createdTemplateIds.push(templateId);
 
       expect(await findStoredTemplate(templateId)).toMatchObject({ authorId: user.id, visibility: "public", isListed: false });
@@ -422,10 +423,11 @@ describe(UserTemplateRepository.name, () => {
       expect(await findStoredTemplate(templateId)).toMatchObject({ visibility: "private", isListed: true });
     });
 
-    it("leaves the author empty when no account matches the user", async () => {
+    it("leaves the author empty when none is named", async () => {
       const { userTemplateRepository } = setup();
+      const user = await createTestUser();
 
-      const templateId = await userTemplateRepository.createTemplate(faker.string.uuid(), buildTemplateInput());
+      const templateId = await userTemplateRepository.createTemplate(user.userId!, buildTemplateInput());
       createdTemplateIds.push(templateId);
 
       expect(await findStoredTemplate(templateId)).toMatchObject({ authorId: null });
@@ -529,12 +531,29 @@ describe(UserTemplateRepository.name, () => {
   });
 
   describe("findVersionState", () => {
-    it("returns the stored sdl and the current version of the author's template", async () => {
+    it("returns the stored visibility and no current version for a template without versions", async () => {
+      const { userTemplateRepository } = setup();
+      const user = await createTestUser();
+      const template = await createTestTemplate({ userId: user.userId!, isPublic: true });
+
+      expect(await userTemplateRepository.findVersionState(template.id, user.userId!)).toEqual({
+        isPublic: true,
+        visibility: "public",
+        currentVersionId: null,
+        currentVersionSdl: null
+      });
+    });
+
+    it("returns the sdl of the current version rather than the one stored on the template", async () => {
       const { userTemplateRepository } = setup();
       const user = await createTestUser();
       const template = await createTestTemplate({ userId: user.userId! });
+      const version = await container.resolve(TemplateVersionRepository).appendVersion({ templateId: template.id, sdl: "version: '2.1'" });
 
-      expect(await userTemplateRepository.findVersionState(template.id, user.userId!)).toEqual({ sdl: template.sdl, isPublic: template.isPublic, currentVersionId: null });
+      expect(await userTemplateRepository.findVersionState(template.id, user.userId!)).toMatchObject({
+        currentVersionId: version.id,
+        currentVersionSdl: "version: '2.1'"
+      });
     });
 
     it("returns nothing for a template another user wrote", async () => {

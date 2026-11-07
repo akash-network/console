@@ -106,6 +106,54 @@ describe("User templates", () => {
       expect(await findStoredTemplate(id)).toMatchObject({ isPublic: true, visibility: "public", isListed: true });
     });
 
+    it("records a version when a template written without one is saved again with the same sdl", async () => {
+      const { user, token } = await setup();
+      const template = buildTemplate();
+      const id = await userTemplateRepository.createTemplate(user.userId!, template);
+      expect(await findStoredTemplate(id)).toMatchObject({ currentVersionId: null });
+
+      const response = await saveTemplate(token, { ...template, id });
+
+      const versions = await templateVersionRepository.listByTemplate(id);
+      expect(response.status).toBe(200);
+      expect(versions.map(({ version }) => version)).toEqual([1]);
+      expect(await findStoredTemplate(id)).toMatchObject({ currentVersionId: versions[0].id });
+    });
+
+    it("records a version when the template's sdl was changed behind its current version", async () => {
+      const { token } = await setup();
+      const template = buildTemplate();
+      const id = await (await saveTemplate(token, template)).text();
+      const driftedSdl = "version: '2.9'";
+      await setStoredState(id, { sdl: driftedSdl });
+
+      await saveTemplate(token, { ...template, id, sdl: driftedSdl });
+
+      expect(await templateVersionRepository.findCurrent(id)).toMatchObject({ version: 2, sdl: driftedSdl });
+    });
+
+    it("repairs a private template stored as public when it is saved private", async () => {
+      const { token } = await setup();
+      const template = buildTemplate();
+      const id = await (await saveTemplate(token, template)).text();
+      await setStoredState(id, { visibility: "public", isListed: false });
+
+      await saveTemplate(token, { ...template, id, isPublic: false });
+
+      expect(await findStoredTemplate(id)).toMatchObject({ isPublic: false, visibility: "private", isListed: true });
+    });
+
+    it("repairs a public template stored as private when it is saved public", async () => {
+      const { token } = await setup();
+      const template = { ...buildTemplate(), isPublic: true };
+      const id = await (await saveTemplate(token, template)).text();
+      await setStoredState(id, { visibility: "private", isListed: true });
+
+      await saveTemplate(token, { ...template, id });
+
+      expect(await findStoredTemplate(id)).toMatchObject({ isPublic: true, visibility: "public", isListed: false });
+    });
+
     it.each([
       { field: "cpu", value: 0.1 },
       { field: "ram", value: -1 },
@@ -142,7 +190,7 @@ describe("User templates", () => {
     };
   }
 
-  async function setStoredState(id: string, state: { visibility?: "private" | "organization" | "public"; isListed?: boolean }) {
+  async function setStoredState(id: string, state: { sdl?: string; visibility?: "private" | "organization" | "public"; isListed?: boolean }) {
     const templates = resolveTable("Templates");
     await container.resolve<ApiPgDatabase>(POSTGRES_DB).update(templates).set(state).where(eq(templates.id, id));
   }

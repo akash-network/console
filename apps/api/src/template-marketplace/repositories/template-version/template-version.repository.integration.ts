@@ -1,3 +1,4 @@
+import { createMongoAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
@@ -108,6 +109,20 @@ describe(TemplateVersionRepository.name, () => {
 
       await expect(repository.create()).rejects.toThrow("Template versions are immutable");
       expect(await repository.listByTemplate(template.id)).toEqual([]);
+    });
+  });
+
+  describe("accessibleBy", () => {
+    it("returns an unfiltered copy that reads every version", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+      await repository.appendVersion({ templateId: template.id, sdl: "version: '2.0'" });
+
+      const copy = repository.accessibleBy(createMongoAbility([]), "read");
+
+      expect(copy).not.toBe(repository);
+      expect(copy).toBeInstanceOf(TemplateVersionRepository);
+      expect(await copy.listByTemplate(template.id)).toHaveLength(1);
     });
   });
 
