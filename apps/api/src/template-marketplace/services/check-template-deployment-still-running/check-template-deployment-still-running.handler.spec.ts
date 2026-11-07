@@ -12,14 +12,30 @@ import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(CheckTemplateDeploymentStillRunningHandler.name, () => {
   it("records a deployment still holding an active lease", async () => {
-    const { handler, wallet, payload, userWalletRepository, leaseRepository, templateUsageService } = setup({ activeLeaseCount: 1 });
+    const { handler, wallet, payload, userWalletRepository, leaseRepository, templateUsageService } = setup({
+      activeLeaseCount: 1,
+      trialAtLease: true,
+      trialNow: false
+    });
 
     await handler.handle(payload);
 
     expect(userWalletRepository.findOneBy).toHaveBeenCalledWith({ id: payload.walletId });
     expect(leaseRepository.findActiveLeasesOfDeployment).toHaveBeenCalledWith(wallet.address, payload.dseq);
     expect(templateUsageService.recordStillRunning).toHaveBeenCalledTimes(1);
-    expect(templateUsageService.recordStillRunning).toHaveBeenCalledWith({ deploymentSettingId: payload.deploymentSettingId, dseq: payload.dseq, wallet });
+    expect(templateUsageService.recordStillRunning).toHaveBeenCalledWith({
+      deploymentSettingId: payload.deploymentSettingId,
+      dseq: payload.dseq,
+      isTrial: true
+    });
+  });
+
+  it("records the trial state of the lease rather than of the wallet now", async () => {
+    const { handler, payload, templateUsageService } = setup({ activeLeaseCount: 1, trialAtLease: false, trialNow: true });
+
+    await handler.handle(payload);
+
+    expect(templateUsageService.recordStillRunning).toHaveBeenCalledWith(expect.objectContaining({ isTrial: false }));
   });
 
   it("records nothing for a deployment whose leases closed", async () => {
@@ -68,9 +84,15 @@ describe(CheckTemplateDeploymentStillRunningHandler.name, () => {
     expect({ policy: handler.policy, concurrency: handler.concurrency }).toEqual({ policy: "exclusive", concurrency: 2 });
   });
 
-  function setup(input: { activeLeaseCount: number; walletFound?: boolean; address?: string | null }) {
-    const wallet = createUserWallet({ address: input.address === undefined ? createAkashAddress() : input.address });
-    const payload = { deploymentSettingId: faker.string.uuid(), walletId: wallet.id, dseq: faker.string.numeric(8), version: 1 as const };
+  function setup(input: { activeLeaseCount: number; walletFound?: boolean; address?: string | null; trialAtLease?: boolean; trialNow?: boolean }) {
+    const wallet = createUserWallet({ address: input.address === undefined ? createAkashAddress() : input.address, isTrialing: input.trialNow ?? false });
+    const payload = {
+      deploymentSettingId: faker.string.uuid(),
+      walletId: wallet.id,
+      dseq: faker.string.numeric(8),
+      isTrial: input.trialAtLease ?? false,
+      version: 1 as const
+    };
     const userWalletRepository = mock<UserWalletRepository>();
     userWalletRepository.findOneBy.mockResolvedValue(input.walletFound === false ? undefined : wallet);
     const leaseRepository = mock<LeaseRepository>();

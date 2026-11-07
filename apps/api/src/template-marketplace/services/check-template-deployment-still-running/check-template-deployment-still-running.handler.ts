@@ -26,13 +26,13 @@ export class CheckTemplateDeploymentStillRunningHandler implements JobHandler<Ch
   }
 
   /** A failed chain read throws so pg-boss retries it, because reading it as no lease would undercount a deployment that is still up. */
-  async handle({ deploymentSettingId, walletId, dseq }: JobPayload<CheckTemplateDeploymentStillRunning>): Promise<void> {
+  async handle({ deploymentSettingId, walletId, dseq, isTrial }: JobPayload<CheckTemplateDeploymentStillRunning>): Promise<void> {
     const wallet = await this.userWalletRepository.findOneBy({ id: walletId });
     if (!wallet?.address) return;
 
     const activeLeases = await this.leaseRepository.findActiveLeasesOfDeployment(wallet.address, dseq);
     if (activeLeases.length === 0) return;
 
-    await this.templateUsageService.recordStillRunning({ deploymentSettingId, dseq, wallet });
+    await this.templateUsageService.recordStillRunning({ deploymentSettingId, dseq, isTrial });
   }
 }

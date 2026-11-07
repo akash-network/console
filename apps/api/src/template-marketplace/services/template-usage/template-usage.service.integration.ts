@@ -92,7 +92,7 @@ describe(TemplateUsageService.name, () => {
       expect(checks.map(({ state, data, start_after }) => ({ state, data, startAfter: new Date(start_after) }))).toEqual([
         {
           state: "created",
-          data: { deploymentSettingId: setting.id, walletId: wallet.id, dseq: setting.dseq, version: 1 },
+          data: { deploymentSettingId: setting.id, walletId: wallet.id, dseq: setting.dseq, isTrial: false, version: 1 },
           startAfter: addHours(leaseCreatedAt, 24)
         }
       ]);
