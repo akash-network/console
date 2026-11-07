@@ -19,6 +19,7 @@ import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-fl
 import { TxService } from "@src/core/services/tx/tx.service";
 import type { OrganizationOutput } from "@src/organization/repositories/organization/organization.repository";
 import { UserOutput, UserRepository } from "@src/user/repositories";
+import { AccountStatusGuard } from "@src/user/services/account-status-guard/account-status-guard.service";
 import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 import { DeletedAccountAbuseLockService } from "@src/workload-abuse/services/deleted-account-abuse-lock/deleted-account-abuse-lock.service";
 import { ManagedUserWalletService } from "../managed-user-wallet/managed-user-wallet.service";
@@ -40,7 +41,8 @@ export class WalletInitializerService {
     private readonly trialValidationService: TrialValidationService,
     private readonly blockedEmailDomainService: BlockedEmailDomainService,
     private readonly deletedAccountAbuseLockService: DeletedAccountAbuseLockService,
-    private readonly txService: TxService
+    private readonly txService: TxService,
+    private readonly accountStatusGuard: AccountStatusGuard
   ) {}
 
   async #assertNoDuplicateFingerprint(user: UserOutput): Promise<void> {
@@ -68,6 +70,7 @@ export class WalletInitializerService {
     if (userWallet.activatedAt) return this.#toPublic({ ...userWallet, userId });
 
     await this.#assertEmailDomainNotBlocked(user);
+    await this.accountStatusGuard.assertMaySpend(user);
 
     const activation = await this.txService.transaction(async () => await this.#grantTrialLimitsOnce(userWallet, user));
     const activatedWallet = this.#toPublic({ ...activation.wallet, userId, address: userWallet.address });

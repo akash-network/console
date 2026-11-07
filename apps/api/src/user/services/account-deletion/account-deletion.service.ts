@@ -30,6 +30,7 @@ import {
   type AccountDeletionEligibility,
   AccountDeletionEligibilityService
 } from "@src/user/services/account-deletion-eligibility/account-deletion-eligibility.service";
+import { AccountStatusGuard } from "@src/user/services/account-status-guard/account-status-guard.service";
 import { PURGE_DELETED_ACCOUNT_RETRY_OPTIONS, PurgeDeletedAccount } from "@src/user/services/purge-deleted-account/purge-deleted-account.handler";
 import { TeamRecordRetentionService } from "@src/user/services/team-record-retention/team-record-retention.service";
 import { WorkloadProbeEvidenceRepository } from "@src/workload-abuse/repositories/workload-probe-evidence/workload-probe-evidence.repository";
@@ -70,6 +71,7 @@ export class AccountDeletionService {
     private readonly deploymentConfig: DeploymentConfigService,
     private readonly accountTeamsService: AccountTeamsService,
     private readonly deletedAccountAbuseLockService: DeletedAccountAbuseLockService,
+    private readonly accountStatusGuard: AccountStatusGuard,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: AccountDeletionService.name });
@@ -80,6 +82,7 @@ export class AccountDeletionService {
   }
 
   async initiate(user: UserOutput, input: { forfeitAcknowledged: boolean; ip?: string; userAgent?: string }): Promise<void> {
+    await this.accountStatusGuard.assertMaySpend(user);
     await this.assertResendCooldownElapsed(user.id);
 
     const eligibility = await this.assess(user.id);
@@ -231,6 +234,8 @@ export class AccountDeletionService {
     return await this.txService.transaction(async () => {
       const lockedUser = await this.userRepository.findOneByAndLock({ id: user.id });
       if (!lockedUser) return undefined;
+
+      await this.accountStatusGuard.assertMaySpend(lockedUser);
 
       const eligibility = await this.lockAndAssess(user.id);
       this.assertNoActiveDeployments(user.id, eligibility);

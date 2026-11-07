@@ -40,7 +40,8 @@ import {
 import { RecordDeploymentSetting, recordDeploymentSettingKeyFor } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import { isLeaseOn, type LeasePlacement } from "@src/deployment/utils/lease-placement/lease-placement";
 import { PROJECT_FORBIDDEN_ERROR_CODE } from "@src/organization/services/organization-context/organization-context.resolver";
-import { UserRepository } from "@src/user/repositories";
+import { type UserOutput, UserRepository } from "@src/user/repositories";
+import { AccountStatusGuard } from "@src/user/services/account-status-guard/account-status-guard.service";
 import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
 import { BalancesService } from "../balances/balances.service";
 import { BillingConfigService } from "../billing-config/billing-config.service";
@@ -107,6 +108,7 @@ export class ManagedSignerService {
     private readonly executionContextService: ExecutionContextService,
     private readonly deploymentOrganizationActivityService: DeploymentOrganizationActivityService,
     private readonly depositLedger: DeploymentDepositLedgerService,
+    private readonly accountStatusGuard: AccountStatusGuard,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: ManagedSignerService.name });
@@ -158,7 +160,7 @@ export class ManagedSignerService {
   /** Every refusal the broadcast would raise before signing, for a caller that must not record anything a refusal would strand. */
   @Trace()
   async assertCanBroadcast(userId: string, messages: EncodeObject[]): Promise<void> {
-    await this.#assertBroadcastable(await this.#findSigningWallet(userId), messages);
+    await this.#assertBroadcastable(await this.#findSigningWallet(userId), messages, userId);
   }
 
   @Trace()
@@ -186,9 +188,10 @@ export class ManagedSignerService {
     transactionHash: string;
     rawLog: string;
   }> {
-    await this.#assertBroadcastable(userWallet, messages);
-
     const actingUserId = userWallet.userId ?? options?.actingUserId;
+
+    await this.#assertBroadcastable(userWallet, messages, actingUserId);
+
     const leasedDseqs = leasedDseqsOf(messages);
     const isFirstLease = !!userWallet.isTrialing && leasedDseqs.length > 0 && !(await this.leaseHttpService.hasLeases(userWallet.address!));
 
@@ -381,8 +384,9 @@ export class ManagedSignerService {
     return messages.some(isSpendingMessage);
   }
 
-  async #assertBroadcastable(userWallet: UserWalletOutput, messages: EncodeObject[]): Promise<void> {
+  async #assertBroadcastable(userWallet: UserWalletOutput, messages: EncodeObject[], actingUserId?: string): Promise<void> {
     await this.assertDeploymentsInProjectScope(userWallet, existingDeploymentDseqsOf(messages));
+    await this.#assertActingUserMaySpend(userWallet, messages, actingUserId);
     await this.#assertActivatedForSpending(userWallet, messages);
     await this.#validateBalances(userWallet, messages);
     await Promise.all([
@@ -393,6 +397,26 @@ export class ManagedSignerService {
       this.anonymousValidateService.validateLeaseGpuModels(messages, userWallet),
       this.anonymousValidateService.validateFairUsePolicyAccepted(messages, userWallet)
     ]);
+  }
+
+  /** Checks whoever is acting rather than the wallet owner, so a suspended member cannot spend from a team wallet the other members still can. */
+  async #assertActingUserMaySpend(userWallet: UserWalletOutput, messages: EncodeObject[], actingUserId: string | undefined): Promise<void> {
+    if (!messages.some(isGuardedSpend)) return;
+
+    const requestUser = this.#requestUser();
+
+    if (requestUser) return await this.accountStatusGuard.assertMaySpend(requestUser);
+
+    const userId = actingUserId ?? userWallet.userId;
+
+    if (userId) await this.accountStatusGuard.assertUserMaySpend(userId);
+  }
+
+  /** Jobs install a placeholder current user, so only a request's user is the person acting. */
+  #requestUser(): UserOutput | undefined {
+    if (!this.executionContextService.hasContext() || !this.executionContextService.get("HTTP_CONTEXT")) return undefined;
+
+    return this.authService.safeCurrentUser;
   }
 
   /** An organization's deployment keeps the row it was first filed under, so the caller's projects are checked before that row is read or written for them. */
@@ -649,6 +673,11 @@ export class ManagedSignerService {
 /** Auto recharge is set up per user on a personal wallet; an organization's wallet is found by its id. */
 function reloadTargetOf(userWallet: UserWalletOutput): WalletReloadImmediateInput {
   return userWallet.userId ? { userId: userWallet.userId } : { walletId: userWallet.id };
+}
+
+/** A lease starts drawing on the deposit, so a suspended account may not create one even though it moves no funds itself. */
+function isGuardedSpend(message: EncodeObject): boolean {
+  return isSpendingMessage(message) || typeOf(message) === MsgCreateLease.$type;
 }
 
 function typeOf({ typeUrl }: EncodeObject): string {

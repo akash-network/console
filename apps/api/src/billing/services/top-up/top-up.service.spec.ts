@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
 import createError from "http-errors";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
@@ -9,6 +9,9 @@ import type { PaymentRefusalService } from "@src/billing/services/payment-refusa
 import type { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import type { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import type { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
+import type { UserRepository } from "@src/user/repositories";
+import type { AccountStatusService } from "@src/user/services/account-status/account-status.service";
+import { AccountStatusGuard } from "@src/user/services/account-status-guard/account-status-guard.service";
 import { TopUpService } from "./top-up.service";
 
 import { generateDatabaseStripeTransaction } from "@test/seeders/database-stripe-transaction.seeder";
@@ -16,6 +19,33 @@ import { createTeamPayer, createUserPayer } from "@test/seeders/payer.seeder";
 
 describe(TopUpService.name, () => {
   describe("topUp", () => {
+    it("rejects a suspended user with account_suspended before asking for activation or charging", async () => {
+      const { service, stripeTransactionService, trialActivationJobService } = setup({ userReason: "Chargeback" });
+      const payer = createUserPayer({ user: { accountStatus: "suspended" } });
+
+      await expect(service.topUp(payer, { paymentMethodId: faker.string.uuid(), amount: 100 })).rejects.toMatchObject({
+        status: 403,
+        errorCode: "account_suspended",
+        data: { reason: "Chargeback" }
+      });
+      expect(trialActivationJobService.assertActivated).not.toHaveBeenCalled();
+      expect(stripeTransactionService.createPaymentIntent).not.toHaveBeenCalled();
+    });
+
+    it("rejects a suspended member buying credits for a team while an active member is charged", async () => {
+      const { service, stripeTransactionService, paymentMethodService } = setup();
+      paymentMethodService.hasPaymentMethod.mockResolvedValue(true);
+      stripeTransactionService.createPaymentIntent.mockResolvedValue({ success: true, transactionId: faker.string.uuid(), transactionStatus: "pending" });
+      const team = { id: faker.string.uuid() };
+
+      await expect(
+        service.topUp(createTeamPayer({ user: { accountStatus: "suspended" }, team }), { paymentMethodId: faker.string.uuid(), amount: 100 })
+      ).rejects.toMatchObject({ status: 403, errorCode: "account_suspended" });
+      await service.topUp(createTeamPayer({ user: { accountStatus: "active" }, team }), { paymentMethodId: faker.string.uuid(), amount: 100 });
+
+      expect(stripeTransactionService.createPaymentIntent).toHaveBeenCalledTimes(1);
+    });
+
     it("throws a retriable 409 without charging when the wallet is still provisioning", async () => {
       const { service, stripeTransactionService, trialActivationJobService, userWalletRepository, payingUser } = setup();
       userWalletRepository.findOneUsedBy.mockResolvedValue(mock<UserWalletOutput>({ activatedAt: null }));
@@ -309,7 +339,7 @@ describe(TopUpService.name, () => {
     });
   });
 
-  function setup() {
+  function setup(input: { userReason?: string } = {}) {
     const payingUser = createUserPayer();
     const userWalletRepository = mock<UserWalletRepository>();
     const trialActivationJobService = mock<TrialActivationJobService>();
@@ -317,13 +347,16 @@ describe(TopUpService.name, () => {
     const paymentMethodService = mock<PaymentMethodService>();
     const stripeTransactionService = mock<StripeTransactionService>();
     const paymentRefusalService = mock<PaymentRefusalService>();
+    const accountStatusService = mock<AccountStatusService>({ findUserReasonOf: vi.fn().mockResolvedValue(input.userReason ?? null) });
+    const accountStatusGuard = new AccountStatusGuard(mock<UserRepository>(), accountStatusService);
     const service = new TopUpService(
       userWalletRepository,
       trialActivationJobService,
       trialValidationService,
       paymentMethodService,
       stripeTransactionService,
-      paymentRefusalService
+      paymentRefusalService,
+      accountStatusGuard
     );
 
     return {
