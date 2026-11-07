@@ -939,6 +939,13 @@
       "when": 1794514603638,
       "tag": "0133_assistant_user_day_tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 134,
+      "version": "7",
+      "when": 1794517324314,
+      "tag": "0134_template_version_changes",
+      "breakpoints": true
     }
   ]
 }

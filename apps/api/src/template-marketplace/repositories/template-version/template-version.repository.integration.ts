@@ -9,6 +9,7 @@ import type { AskedValue } from "@src/template-marketplace/lib/asked-values/aske
 import { TemplateVersionRepository } from "./template-version.repository";
 
 import { seedOrganization, seedProject } from "@test/seeders/db/organization.seeder";
+import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe(TemplateVersionRepository.name, () => {
   const createdTemplateIds: string[] = [];
@@ -55,7 +56,9 @@ describe(TemplateVersionRepository.name, () => {
         resources,
         imageDigests: {},
         status: "live",
+        changes: ["first_version"],
         createdById: null,
+        createdBy: null,
         createdAt: expect.any(Date)
       });
       expect(bare).toMatchObject({ readme: null, askedValues: [], resources: null });
@@ -70,6 +73,87 @@ describe(TemplateVersionRepository.name, () => {
       expect(versions.map(({ version }) => version).sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5]);
       const current = await repository.findCurrent(template.id);
       expect(current?.version).toBe(5);
+    });
+
+    it("stores the changes from the current version under the lock", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+
+      const first = await repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("nginx:1") });
+      const second = await repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("caddy:1") });
+      const third = await repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("caddy:1"), readme: "# New" });
+
+      expect([first.changes, second.changes, third.changes]).toEqual([["first_version"], ["image_changed"], ["readme_changed"]]);
+      expect((await repository.listByTemplate(template.id)).map(({ changes }) => changes)).toEqual([["readme_changed"], ["image_changed"], ["first_version"]]);
+    });
+
+    it("compares each concurrent append with the version it numbers after", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+      await repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("app:0") });
+
+      const versions = await Promise.all(
+        Array.from({ length: 4 }, (_, index) => repository.appendVersion({ templateId: template.id, sdl: sdlWithImage(`app:${index + 1}`) }))
+      );
+
+      expect(versions.map(({ changes }) => changes)).toEqual(Array.from({ length: 4 }, () => ["image_tag_changed"]));
+    });
+
+    it("accepts an append whose expected current version is the current one", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+      const first = await repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("nginx:1") });
+
+      const second = await repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("nginx:2"), expectedCurrentVersionId: first.id });
+
+      expect(second.version).toBe(2);
+    });
+
+    it("refuses an append whose expected current version is stale and records nothing", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+      const first = await repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("nginx:1") });
+      await repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("nginx:2") });
+
+      const refused = repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("nginx:3"), expectedCurrentVersionId: first.id });
+
+      await expect(refused).rejects.toMatchObject({ status: 409, message: "The template has a newer version", errorCode: "template_version_conflict" });
+      expect(await repository.listByTemplate(template.id)).toHaveLength(2);
+      expect((await repository.findCurrent(template.id))?.version).toBe(2);
+    });
+
+    it("refuses an append expecting a current version on a template that has none", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+
+      const refused = repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("nginx:1"), expectedCurrentVersionId: faker.string.uuid() });
+
+      await expect(refused).rejects.toMatchObject({ status: 409, errorCode: "template_version_conflict" });
+      expect(await repository.listByTemplate(template.id)).toEqual([]);
+    });
+
+    it("names the creator by username", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+      const creator = await seedUser({ username: faker.internet.userName() });
+
+      const appended = await repository.appendVersion({ templateId: template.id, sdl: "a", createdById: creator.id });
+
+      expect(appended.createdBy).toEqual({ username: creator.username });
+      expect((await repository.findCurrent(template.id))?.createdBy).toEqual({ username: creator.username });
+      expect((await repository.findByTemplateAndVersion(template.id, 1))?.createdBy).toEqual({ username: creator.username });
+      expect((await repository.listByTemplate(template.id))[0].createdBy).toEqual({ username: creator.username });
+    });
+
+    it("names no creator for a creator without a username", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+      const creator = await seedUser({ username: null });
+
+      const appended = await repository.appendVersion({ templateId: template.id, sdl: "a", createdById: creator.id });
+
+      expect(appended.createdBy).toBeNull();
+      expect((await repository.findCurrent(template.id))?.createdBy).toBeNull();
     });
 
     it("numbers each template's versions on their own", async () => {
@@ -159,8 +243,28 @@ describe(TemplateVersionRepository.name, () => {
       const versions = await repository.listByTemplate(template.id);
 
       expect(versions).toEqual([
-        { id: second.id, templateId: template.id, version: 2, resources: null, status: "live", createdById: null, createdAt: second.createdAt },
-        { id: first.id, templateId: template.id, version: 1, resources: null, status: "live", createdById: null, createdAt: first.createdAt }
+        {
+          id: second.id,
+          templateId: template.id,
+          version: 2,
+          resources: null,
+          status: "live",
+          changes: ["readme_changed"],
+          createdById: null,
+          createdBy: null,
+          createdAt: second.createdAt
+        },
+        {
+          id: first.id,
+          templateId: template.id,
+          version: 1,
+          resources: null,
+          status: "live",
+          changes: ["first_version"],
+          createdById: null,
+          createdBy: null,
+          createdAt: first.createdAt
+        }
       ]);
     });
   });
@@ -183,6 +287,10 @@ describe(TemplateVersionRepository.name, () => {
       .returning();
     createdTemplateIds.push(template.id);
     return template;
+  }
+
+  function sdlWithImage(image: string) {
+    return JSON.stringify({ version: "2.0", services: { web: { image } } });
   }
 
   async function findStoredTemplate(id: string) {

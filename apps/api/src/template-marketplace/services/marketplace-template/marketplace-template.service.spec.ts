@@ -321,7 +321,9 @@ describe(MarketplaceTemplateService.name, () => {
       resources: { cpu: 1, memoryBytes: 1024, storageBytes: 1024 },
       imageDigests: {},
       status: "live",
+      changes: ["first_version"],
       createdById: faker.string.uuid(),
+      createdBy: { username: faker.internet.userName() },
       createdAt: faker.date.recent(),
       ...overrides
     };

@@ -3,6 +3,7 @@ import { integer, jsonb, pgEnum, pgTable, text, timestamp, unique, uuid } from "
 
 import type { TemplateHardware } from "@src/template/types/template";
 import type { AskedValue } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
+import type { TemplateVersionChange } from "@src/template-marketplace/lib/version-changes/summarize-version-changes";
 import { Templates } from "@src/user/model-schemas/template/template.schema";
 import { Users } from "@src/user/model-schemas/user/user.schema";
 
@@ -32,6 +33,7 @@ export const TemplateVersions = pgTable(
       .$type<Record<string, string>>()
       .notNull()
       .default(sql`'{}'::jsonb`),
+    changes: jsonb("changes").$type<TemplateVersionChange[]>(),
     checkResults: jsonb("check_results"),
     status: templateVersionStatusEnum("status").default("live").notNull(),
     createdById: uuid("created_by_id").references(() => Users.id, { onDelete: "set null" }),

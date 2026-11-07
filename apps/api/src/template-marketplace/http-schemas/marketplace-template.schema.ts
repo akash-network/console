@@ -3,6 +3,7 @@ import { z } from "@hono/zod-openapi";
 import { organizationTypeEnum } from "@src/organization/model-schemas/organization/organization.schema";
 import { TemplateHardwareSchema } from "@src/template/http-schemas/template.schema";
 import { AskedValueSchema } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
+import { TEMPLATE_VERSION_CHANGES } from "@src/template-marketplace/lib/version-changes/summarize-version-changes";
 import { templateVersionStatusEnum } from "@src/template-marketplace/model-schemas/template-version/template-version.schema";
 import { templateModerationStatusEnum, templateVisibilityEnum } from "@src/user/model-schemas/template/template.schema";
 
@@ -29,6 +30,11 @@ export const TemplateVersionSummarySchema = z
     version: z.number().int().positive(),
     resources: TemplateHardwareSchema.nullable().openapi({ description: "Null when the version recorded none" }),
     status: z.enum(templateVersionStatusEnum.enumValues),
+    changes: z
+      .array(z.enum(TEMPLATE_VERSION_CHANGES))
+      .nullable()
+      .openapi({ description: "What this version changed from the one before it, null for a version saved before changes were recorded" }),
+    createdBy: z.object({ username: z.string() }).nullable().openapi({ description: "Null when the creator deleted their account or has no username" }),
     createdAt: z.string().datetime()
   })
   .openapi("TemplateVersionSummary");
