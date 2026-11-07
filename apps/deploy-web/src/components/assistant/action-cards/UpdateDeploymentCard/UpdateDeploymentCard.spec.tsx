@@ -54,7 +54,7 @@ describe("UpdateDeploymentCard", () => {
     expect(chromeProps().costNote).toBe("Add a CNAME record for api.example.com that points to this service's current URI.");
   });
 
-  it("names the deployment by dseq and counts services when several change", () => {
+  it("calls a deployment without a name this deployment and counts services when several change", () => {
     const { chromeProps } = setup({
       action: {
         name: null,
@@ -65,7 +65,7 @@ describe("UpdateDeploymentCard", () => {
       }
     });
 
-    expect(chromeProps().title).toBe("Update deployment 42");
+    expect(chromeProps().title).toBe("Update this deployment");
     expect(chromeProps().scope).toBe("2 services");
   });
 
@@ -116,6 +116,7 @@ describe("UpdateDeploymentCard", () => {
   });
 
   function setup(input: { action?: Partial<Action>; definitionSdl?: string } = {}) {
+    const useDeploymentName = vi.fn((_dseq: string | null | undefined, knownName?: string | null): string | null => knownName ?? null);
     const action: Action = {
       type: "update_deployment",
       tier: "confirm",
@@ -141,6 +142,7 @@ describe("UpdateDeploymentCard", () => {
         action={action}
         decision={decision}
         dependencies={{
+          useDeploymentName,
           useAssistantDeploymentPatch: () => patch,
           useDeploymentDefinition,
           useRedeploy: () => redeploy,
@@ -149,6 +151,6 @@ describe("UpdateDeploymentCard", () => {
       />
     );
 
-    return { chromeProps: () => ActionCardChrome.mock.lastCall![0], patch, redeploy, useDeploymentDefinition, decision };
+    return { useDeploymentName, chromeProps: () => ActionCardChrome.mock.lastCall![0], patch, redeploy, useDeploymentDefinition, decision };
   }
 });

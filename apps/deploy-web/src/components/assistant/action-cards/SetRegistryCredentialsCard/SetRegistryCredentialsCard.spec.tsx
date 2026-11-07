@@ -25,7 +25,7 @@ describe("SetRegistryCredentialsCard", () => {
   it("shows the registry and image, prefills the username and keeps Save off until a password is typed", async () => {
     setup();
 
-    const card = screen.getByRole("region", { name: "Add registry credentials to deployment 42" });
+    const card = screen.getByRole("region", { name: "Add registry credentials to blog" });
     expect(card).toHaveTextContent("ghcr.io");
     expect(card).toHaveTextContent("ghcr.io/acme/private:1.0");
     expect(screen.getByLabelText("Username")).toHaveValue("acme-bot");
@@ -78,6 +78,7 @@ describe("SetRegistryCredentialsCard", () => {
   });
 
   function setup(input: { usernameHint?: string | null; image?: string | null } = {}) {
+    const useDeploymentName = vi.fn((_dseq: string | null | undefined, _knownName?: string | null): string | null => "blog");
     const action: AssistantActionOf<"set_registry_credentials"> = {
       type: "set_registry_credentials",
       tier: "confirm",
@@ -111,6 +112,7 @@ describe("SetRegistryCredentialsCard", () => {
           action={action}
           decision={decision}
           dependencies={{
+            useDeploymentName,
             useServices: () => services,
             useSecureSecretInput: () => useSecureSecretInput({ useServices: () => services, sealSdlSecrets }),
             useAssistantDeploymentPatch: () => patch,
@@ -127,6 +129,6 @@ describe("SetRegistryCredentialsCard", () => {
       </TestContainerProvider>
     );
 
-    return { patch, sealSdlSecrets, recordResult };
+    return { useDeploymentName, patch, sealSdlSecrets, recordResult };
   }
 });

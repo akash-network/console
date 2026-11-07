@@ -14,8 +14,10 @@ import { useCloseDeployment } from "@src/hooks/useCloseDeployment/useCloseDeploy
 import { useCloseDeploymentConfirm } from "@src/hooks/useCloseDeploymentConfirm";
 import { ActionCardChrome } from "../ActionCardChrome/ActionCardChrome";
 import type { ActionCardProps } from "../actionCardTypes";
+import { DeploymentLink } from "../DeploymentLink/DeploymentLink";
+import { deploymentLabelOf, useDeploymentName } from "../useDeploymentName/useDeploymentName";
 
-export const DEPENDENCIES = { useServices, useCloseDeployment, useCloseDeploymentConfirm, ActionCardChrome };
+export const DEPENDENCIES = { useServices, useCloseDeployment, useCloseDeploymentConfirm, useDeploymentName, ActionCardChrome };
 
 const SUCCESS_MESSAGES = {
   closed: "Closed. Unspent funds are back in your balance.",
@@ -30,6 +32,7 @@ export const CloseDeploymentCard: FC<ActionCardProps<"close_deployment"> & { dep
   const { analyticsService } = d.useServices();
   const closeDeployment = d.useCloseDeployment();
   const { recordCloseReason } = d.useCloseDeploymentConfirm();
+  const deploymentName = d.useDeploymentName(action.dseq, action.name);
   const [closeReason, setCloseReason] = useState<DeploymentCloseReason>(action.reason);
   const [details, setDetails] = useState(action.reasonDetails ?? "");
   const [outcome, setOutcome] = useState<keyof typeof SUCCESS_MESSAGES>("closed");
@@ -47,8 +50,8 @@ export const CloseDeploymentCard: FC<ActionCardProps<"close_deployment"> & { dep
 
   return (
     <d.ActionCardChrome
-      title={`Close ${action.name || `deployment ${action.dseq}`}`}
-      scope={`dseq ${action.dseq}`}
+      title={`Close ${deploymentLabelOf(deploymentName)}`}
+      scope={<DeploymentLink dseq={action.dseq} name={deploymentName} />}
       tier={action.tier}
       decision={decision}
       costNote="All services stop right away and the deployment URL stops resolving. Unspent funds go back to your balance."

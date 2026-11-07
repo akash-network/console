@@ -9,9 +9,11 @@ import { isLeaseLive } from "@src/utils/leaseUtils";
 import { MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "@src/utils/runtimeLimitUtils";
 import { ActionCardChrome } from "../ActionCardChrome/ActionCardChrome";
 import type { ActionCardProps } from "../actionCardTypes";
+import { DeploymentLink } from "../DeploymentLink/DeploymentLink";
 import { formatUsd } from "../formatUsd";
+import { useDeploymentName } from "../useDeploymentName/useDeploymentName";
 
-export const DEPENDENCIES = { useServices, usePricing, useUpdateDeploymentSettingMutation, ActionCardChrome };
+export const DEPENDENCIES = { useServices, usePricing, useUpdateDeploymentSettingMutation, useDeploymentName, ActionCardChrome };
 
 export const AddRuntimeHoursCard: FC<ActionCardProps<"add_runtime_hours"> & { dependencies?: typeof DEPENDENCIES }> = ({
   action,
@@ -21,6 +23,7 @@ export const AddRuntimeHoursCard: FC<ActionCardProps<"add_runtime_hours"> & { de
   const { api } = d.useServices();
   const { udenomToUsd } = d.usePricing();
   const { mutateAsync: updateSetting } = d.useUpdateDeploymentSettingMutation({ dseq: action.dseq });
+  const deploymentName = d.useDeploymentName(action.dseq);
   const { data: leases } = api.v1.listLeases.useQuery({ dseq: action.dseq }, { select: response => response.data.filter(isLeaseLive) });
 
   const spendUsd = leases?.length
@@ -34,7 +37,7 @@ export const AddRuntimeHoursCard: FC<ActionCardProps<"add_runtime_hours"> & { de
   return (
     <d.ActionCardChrome
       title="Add runtime hours"
-      scope={`dseq ${action.dseq}`}
+      scope={<DeploymentLink dseq={action.dseq} name={deploymentName} />}
       tier={action.tier}
       decision={decision}
       rows={[

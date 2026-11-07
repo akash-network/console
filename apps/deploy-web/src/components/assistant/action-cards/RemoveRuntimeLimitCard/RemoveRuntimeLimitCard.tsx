@@ -4,8 +4,10 @@ import type { FC } from "react";
 import { useUpdateDeploymentSettingMutation } from "@src/queries/deploymentSettingsQuery";
 import { ActionCardChrome } from "../ActionCardChrome/ActionCardChrome";
 import type { ActionCardProps } from "../actionCardTypes";
+import { DeploymentLink } from "../DeploymentLink/DeploymentLink";
+import { useDeploymentName } from "../useDeploymentName/useDeploymentName";
 
-export const DEPENDENCIES = { useUpdateDeploymentSettingMutation, ActionCardChrome };
+export const DEPENDENCIES = { useUpdateDeploymentSettingMutation, useDeploymentName, ActionCardChrome };
 
 export const RemoveRuntimeLimitCard: FC<ActionCardProps<"remove_runtime_limit"> & { dependencies?: typeof DEPENDENCIES }> = ({
   action,
@@ -13,11 +15,12 @@ export const RemoveRuntimeLimitCard: FC<ActionCardProps<"remove_runtime_limit"> 
   dependencies: d = DEPENDENCIES
 }) => {
   const { mutateAsync: updateSetting } = d.useUpdateDeploymentSettingMutation({ dseq: action.dseq });
+  const deploymentName = d.useDeploymentName(action.dseq);
 
   return (
     <d.ActionCardChrome
       title="Switch to always on"
-      scope={`dseq ${action.dseq}`}
+      scope={<DeploymentLink dseq={action.dseq} name={deploymentName} />}
       tier={action.tier}
       decision={decision}
       diff={{ removed: [`Closes after ${action.currentLimitHours}h`], added: ["Runs until you close it"] }}

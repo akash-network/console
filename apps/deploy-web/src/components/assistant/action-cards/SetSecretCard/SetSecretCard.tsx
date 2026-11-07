@@ -9,8 +9,9 @@ import { ActionCardChrome } from "../ActionCardChrome/ActionCardChrome";
 import type { ActionCardProps } from "../actionCardTypes";
 import { mintFreshSecretName } from "../mintFreshSecretName/mintFreshSecretName";
 import { useAssistantDeploymentPatch } from "../useAssistantDeploymentPatch/useAssistantDeploymentPatch";
+import { deploymentLabelOf, useDeploymentName } from "../useDeploymentName/useDeploymentName";
 
-export const DEPENDENCIES = { useServices, useSecureSecretInput, useAssistantDeploymentPatch, ActionCardChrome, SecureSecretInput };
+export const DEPENDENCIES = { useServices, useSecureSecretInput, useAssistantDeploymentPatch, useDeploymentName, ActionCardChrome, SecureSecretInput };
 
 /** The typed value lives only in the secure input and leaves the browser sealed, never through the card's props, state or the decision it records. */
 export const SetSecretCard: FC<ActionCardProps<"set_secret"> & { dependencies?: typeof DEPENDENCIES }> = ({
@@ -21,6 +22,7 @@ export const SetSecretCard: FC<ActionCardProps<"set_secret"> & { dependencies?: 
   const { api } = d.useServices();
   const secret = d.useSecureSecretInput();
   const patch = d.useAssistantDeploymentPatch();
+  const deploymentName = d.useDeploymentName(action.dseq);
   const isSettled = decision.status === "succeeded" || decision.status === "cancelled";
   const forgetSecret = secret.clear;
 
@@ -40,7 +42,7 @@ export const SetSecretCard: FC<ActionCardProps<"set_secret"> & { dependencies?: 
 
   return (
     <d.ActionCardChrome
-      title={`${action.replacesExisting ? "Replace a secret in" : "Add a secret to"} deployment ${action.dseq}`}
+      title={`${action.replacesExisting ? "Replace a secret in" : "Add a secret to"} ${deploymentLabelOf(deploymentName)}`}
       scope={`service: ${action.service}`}
       tier={action.tier}
       decision={decision}
