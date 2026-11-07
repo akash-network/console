@@ -869,6 +869,13 @@
       "when": 1794073647942,
       "tag": "0123_template_version_changes",
       "breakpoints": true
+    },
+    {
+      "idx": 124,
+      "version": "7",
+      "when": 1794080926049,
+      "tag": "0124_deployment_template_version",
+      "breakpoints": true
     }
   ]
 }
