@@ -57,7 +57,8 @@ export function actionTitleOf(type: AssistantActionType): string {
   }
 }
 
-const HIDDEN_FIELDS = new Set(["type", "tier", "sdl"]);
+/** Deployments and providers are reached through the Open in Console link, never shown by their dseq or address. */
+const HIDDEN_FIELDS = new Set(["type", "tier", "sdl", "dseq", "provider"]);
 
 type Props = { action: AssistantAction; decision: ActionCardDecision; dependencies?: typeof DEPENDENCIES };
 

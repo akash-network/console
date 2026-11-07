@@ -96,14 +96,14 @@ export const CreateDeploymentCard: FC<ActionCardProps<"create_deployment"> & { d
 
   return (
     <d.ActionCardChrome
-      title={`Deploy ${action.name ?? action.services.map(({ service }) => service).join(" + ")}`}
+      title={`Deploy ${deploymentNameOf(action)}`}
       scope={templateId ? "from template" : undefined}
       tier={action.tier}
       decision={decision}
       rows={rowsOf(action)}
       costNote={costNoteOf(action)}
       confirmLabel="Deploy"
-      successMessage={successMessageOf(created)}
+      successMessage={successMessageOf(created, deploymentNameOf(action))}
       onConfirm={deploy}
     >
       <details className="text-sm">
@@ -115,7 +115,7 @@ export const CreateDeploymentCard: FC<ActionCardProps<"create_deployment"> & { d
           Open in editor
         </Button>
       )}
-      {created && <d.NoBidsYetNotice dseq={created.dseq} continueConversation={continueConversation} />}
+      {created && <d.NoBidsYetNotice dseq={created.dseq} name={deploymentNameOf(action)} continueConversation={continueConversation} />}
       {created && !created.isAutoLeased && (
         <Link href={created.configureUrl} className={buttonVariants({ variant: "outline", size: "sm", className: "self-start" })}>
           Choose a provider
@@ -129,11 +129,15 @@ function explainBudgetRefusal(cause: unknown): never {
   throw readProjectBudgetRefusal(cause) ? new Error(BUDGET_EXCEEDED_MESSAGE, { cause }) : cause;
 }
 
-function successMessageOf(created: CreatedDeployment | null): string {
+function deploymentNameOf(action: AssistantActionOf<"create_deployment">): string {
+  return action.name ?? action.services.map(({ service }) => service).join(" + ");
+}
+
+function successMessageOf(created: CreatedDeployment | null, name: string): string {
   if (!created) return OPENED_IN_EDITOR_MESSAGE;
   return created.isAutoLeased
-    ? `Deploying ${created.dseq}. Console picks a provider and starts the lease. Follow it in Activities.`
-    : `Created deployment ${created.dseq}. Choose a provider to start it.`;
+    ? `Deploying ${name}. Console picks a provider and starts the lease. Follow it in Activities.`
+    : `Created ${name}. Choose a provider to start it.`;
 }
 
 function rowsOf(action: AssistantActionOf<"create_deployment">): ActionCardRow[] {

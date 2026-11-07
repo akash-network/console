@@ -40,9 +40,9 @@ describe(AssistantToolRunnerService.name, () => {
   describe("read tools", () => {
     it.each([
       ["list_deployments", { state: "closed" }, "Read your deployments", "deploymentTools", "listDeployments"],
-      ["get_deployment", { dseq: "42" }, "Read deployment 42", "deploymentTools", "getDeployment"],
-      ["get_lease_close_reason", { dseq: "42" }, "Read why deployment 42 closed", "deploymentTools", "getLeaseCloseReason"],
-      ["get_bids", { dseq: "42" }, "Read the bids on deployment 42", "bidTools", "getBids"],
+      ["get_deployment", { dseq: "42" }, "Read your deployment", "deploymentTools", "getDeployment"],
+      ["get_lease_close_reason", { dseq: "42" }, "Read why your deployment closed", "deploymentTools", "getLeaseCloseReason"],
+      ["get_bids", { dseq: "42" }, "Read the bids on your deployment", "bidTools", "getBids"],
       ["get_balance_and_spend", {}, "Read your balance and spend", "accountTools", "getBalanceAndSpend"],
       ["list_templates", { query: "llama" }, "Searched the template gallery", "accountTools", "listTemplates"]
     ] as const)("runs %s with validated arguments and summarizes what it read", async (name, args, summary, tools, method) => {
@@ -54,6 +54,31 @@ describe(AssistantToolRunnerService.name, () => {
 
       expect(read).toHaveBeenCalledWith(args);
       expect(outcome).toEqual({ kind: "result", content: toolContentOf(name, { data: { read: name } }), summary, ok: true });
+    });
+
+    it.each([
+      ["get_deployment", "Read deployment llama-chat", "deploymentTools", "getDeployment"],
+      ["get_lease_close_reason", "Read why deployment llama-chat closed", "deploymentTools", "getLeaseCloseReason"],
+      ["get_bids", "Read the bids on deployment llama-chat", "bidTools", "getBids"]
+    ] as const)("names the deployment %s read instead of its dseq", async (name, summary, tools, method) => {
+      const mocks = setup();
+      vi.mocked((mocks[tools] as unknown as Record<string, (...args: unknown[]) => Promise<unknown>>)[method]).mockResolvedValue({
+        dseq: "42",
+        name: "llama-chat"
+      });
+
+      const outcome = await mocks.runner.run(call(name, { dseq: "42" }), { isTrialing: false, withheldTemplateSdls: [] });
+
+      expect(outcome).toMatchObject({ kind: "result", summary, ok: true });
+    });
+
+    it.each([null, "", 42])("falls back to your deployment when the read returns the name %j", async deploymentName => {
+      const { runner, deploymentTools } = setup();
+      deploymentTools.getDeployment.mockResolvedValue(mock<Awaited<ReturnType<AssistantDeploymentToolsService["getDeployment"]>>>({ name: deploymentName as string }));
+
+      const outcome = await runner.run(call("get_deployment", { dseq: "42" }), { isTrialing: false, withheldTemplateSdls: [] });
+
+      expect(outcome).toMatchObject({ summary: "Read your deployment" });
     });
 
     it("passes the parsed arguments to the read", async () => {

@@ -5,8 +5,10 @@ import { isUsableDeploymentDefinition, useDeploymentDefinition } from "@src/hook
 import { useSaveUserTemplate } from "@src/queries/useTemplateQuery";
 import { ActionCardChrome } from "../ActionCardChrome/ActionCardChrome";
 import type { ActionCardProps } from "../actionCardTypes";
+import { DeploymentLink } from "../DeploymentLink/DeploymentLink";
+import { useDeploymentName } from "../useDeploymentName/useDeploymentName";
 
-export const DEPENDENCIES = { useDeploymentDefinition, useSaveUserTemplate, ActionCardChrome };
+export const DEPENDENCIES = { useDeploymentDefinition, useSaveUserTemplate, useDeploymentName, ActionCardChrome };
 
 export const SaveAsTemplateCard: FC<ActionCardProps<"save_as_template"> & { dependencies?: typeof DEPENDENCIES }> = ({
   action,
@@ -14,6 +16,7 @@ export const SaveAsTemplateCard: FC<ActionCardProps<"save_as_template"> & { depe
   dependencies: d = DEPENDENCIES
 }) => {
   const definition = d.useDeploymentDefinition(action.dseq);
+  const deploymentName = d.useDeploymentName(action.dseq, definition.name);
   const { mutateAsync: saveTemplate } = d.useSaveUserTemplate();
   const isUsable = isUsableDeploymentDefinition(definition);
   const isResolving = definition.source === "resolving";
@@ -21,7 +24,7 @@ export const SaveAsTemplateCard: FC<ActionCardProps<"save_as_template"> & { depe
   return (
     <d.ActionCardChrome
       title="Save as a template"
-      scope={`dseq ${action.dseq}`}
+      scope={<DeploymentLink dseq={action.dseq} name={deploymentName} />}
       tier={action.tier}
       decision={decision}
       rows={[

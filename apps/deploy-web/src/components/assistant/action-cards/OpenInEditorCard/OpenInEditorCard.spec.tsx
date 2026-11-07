@@ -4,6 +4,7 @@ import { mock } from "vitest-mock-extended";
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import type { AssistantActionOf } from "@src/types/assistant";
 import type { ActionCardChromeProps } from "../ActionCardChrome/ActionCardChrome";
+import { DeploymentLink } from "../DeploymentLink/DeploymentLink";
 import type { ActionCardDecision } from "../useActionCardDecision/useActionCardDecision";
 import type { DEPENDENCIES } from "./OpenInEditorCard";
 import { OpenInEditorCard } from "./OpenInEditorCard";
@@ -51,7 +52,7 @@ describe("OpenInEditorCard", () => {
         title: "Open in the editor",
         tier: "deep_link",
         rows: [
-          { label: "Based on deployment", value: "42" },
+          { label: "Based on deployment", value: expect.objectContaining({ type: DeploymentLink, props: { dseq: "42", name: "blog" } }) },
           { label: "Template", value: "akash-network-awesome-akash-vllm" },
           { label: "Secrets", value: "carried over" }
         ],
@@ -154,6 +155,7 @@ describe("OpenInEditorCard", () => {
   });
 
   function setup(input: { action?: Partial<Action>; definition?: Partial<DeploymentDefinition> } = {}) {
+    const useDeploymentName = vi.fn((_dseq: string | null | undefined, _knownName?: string | null): string | null => "blog");
     const action: Action = { type: "open_in_editor", tier: "deep_link", dseq: null, templateId: null, sdl: null, ...input.action };
     const definition: DeploymentDefinition = { sdl: STORED_SDL, name: "web-app", source: "api", ...input.definition };
     const useDeploymentDefinition = vi.fn<typeof DEPENDENCIES.useDeploymentDefinition>(() => definition);
@@ -167,6 +169,7 @@ describe("OpenInEditorCard", () => {
         action={action}
         decision={decision}
         dependencies={{
+          useDeploymentName,
           useDeploymentDefinition,
           useRedeploy: () => redeploy,
           useRouter: () => router,
@@ -175,6 +178,6 @@ describe("OpenInEditorCard", () => {
       />
     );
 
-    return { chromeProps: () => ActionCardChrome.mock.lastCall![0], redeploy, router, useDeploymentDefinition };
+    return { useDeploymentName, chromeProps: () => ActionCardChrome.mock.lastCall![0], redeploy, router, useDeploymentDefinition };
   }
 });
