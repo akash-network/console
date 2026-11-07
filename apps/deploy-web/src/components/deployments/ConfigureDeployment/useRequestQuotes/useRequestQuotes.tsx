@@ -119,17 +119,19 @@ export function useRequestQuotes({ flow, deploymentName, onInvalid }: Input, dep
     const currentServices = getValues().services;
     const fittedServices = fitServicesToTrial(currentServices, limit);
     if (!fittedServices) return;
-    const hasDroppedGpuModels = (service: ServiceType, index: number) => service.profile.gpuModels !== currentServices[index].profile.gpuModels;
+    const droppedGpuModels = fittedServices.map(
+      (service, index) => (service.profile.gpuModels?.length ?? 0) !== (currentServices[index].profile.gpuModels?.length ?? 0)
+    );
     fittedServices.forEach((service, index) => {
       setValue(`services.${index}.profile.cpu`, service.profile.cpu, FITTED_FIELD_OPTIONS);
       setValue(`services.${index}.profile.ram`, service.profile.ram, FITTED_FIELD_OPTIONS);
       setValue(`services.${index}.profile.ramUnit`, service.profile.ramUnit, FITTED_FIELD_OPTIONS);
-      if (hasDroppedGpuModels(service, index)) {
+      if (droppedGpuModels[index]) {
         setValue(`services.${index}.profile.gpuModels`, service.profile.gpuModels, FITTED_FIELD_OPTIONS);
       }
     });
     analyticsService.track("configure_trial_size_fitted", { category: "deployments" });
-    const gpuNote = fittedServices.some(hasDroppedGpuModels) ? " It now uses only GPU models your trial allows." : "";
+    const gpuNote = droppedGpuModels.includes(true) ? " It now uses only GPU models your trial allows." : "";
     enqueueSnackbar(
       <d.Snackbar
         title="Resized to fit your free trial"
