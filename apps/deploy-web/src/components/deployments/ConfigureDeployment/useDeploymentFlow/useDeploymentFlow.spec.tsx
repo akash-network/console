@@ -1372,6 +1372,63 @@ describe(useDeploymentFlow.name, () => {
       expect(createLease.mutate).not.toHaveBeenCalled();
     });
 
+    it("names the services left without an image instead of blaming the SDL", () => {
+      const createLease = mockMutation();
+      const manifestFromSdl = vi.fn(() => "M");
+      const { result, analyticsService } = renderFlow({ intent: { dseq: "555" }, manifestFromSdl, createLease });
+
+      act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+      act(() => result.current.actions.deploy('services:\n  web:\n    image: ""\n  api:\n    image: node\n  worker:\n'));
+
+      expect(result.current.deployError?.message).toBe("Services web, worker have no image, so there's nothing to deploy. Set the image and try again.");
+      expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", expect.objectContaining({ stage: "missing_image" }));
+      expect(manifestFromSdl).not.toHaveBeenCalled();
+      expect(createLease.mutate).not.toHaveBeenCalled();
+    });
+
+    it("names the single service left without an image", () => {
+      const { result } = renderFlow({ intent: { dseq: "555" }, manifestFromSdl: () => "M" });
+
+      act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+      act(() => result.current.actions.deploy("services:\n  web:\n    image: '  '\n"));
+
+      expect(result.current.deployError?.message).toBe("Service web has no image, so there's nothing to deploy. Set the image and try again.");
+    });
+
+    it("says the configuration is missing when there is no SDL to send", () => {
+      const createLease = mockMutation();
+      const manifestFromSdl = vi.fn(() => "M");
+      const { result, analyticsService } = renderFlow({ intent: { dseq: "555" }, manifestFromSdl, createLease });
+
+      act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+      act(() => result.current.actions.deploy("  \n"));
+
+      expect(result.current.deployError?.message).toBe(
+        "This page lost the deployment's configuration, so there's nothing to send. Open the deployment again and retry."
+      );
+      expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", expect.objectContaining({ stage: "missing_sdl" }));
+      expect(manifestFromSdl).not.toHaveBeenCalled();
+      expect(createLease.mutate).not.toHaveBeenCalled();
+    });
+
+    it("leaves an SDL without services to the manifest build", () => {
+      const { result } = renderFlow({ intent: { dseq: "555" }, manifestFromSdl: () => null });
+
+      act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+      act(() => result.current.actions.deploy("null\n"));
+
+      expect(result.current.deployError?.message).toBe("We couldn't prepare this deployment's manifest. Check your SDL and try again.");
+    });
+
+    it("leaves an SDL it cannot read to the manifest build", () => {
+      const { result } = renderFlow({ intent: { dseq: "555" }, manifestFromSdl: () => null });
+
+      act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+      act(() => result.current.actions.deploy("services: [unclosed"));
+
+      expect(result.current.deployError?.message).toBe("We couldn't prepare this deployment's manifest. Check your SDL and try again.");
+    });
+
     it("surfaces an error rather than doing nothing when no provider is selected", () => {
       const createLease = mockMutation();
       const { result } = renderFlow({ intent: { dseq: "555" }, createLease });
