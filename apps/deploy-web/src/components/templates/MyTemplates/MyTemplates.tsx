@@ -1,6 +1,6 @@
 "use client";
 import type { ChangeEvent, ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import {
   Button,
   buttonVariants,
@@ -34,6 +34,7 @@ import { useSnackbar } from "notistack";
 import Layout from "@src/components/layout/Layout";
 import { ImportSdlButton } from "@src/components/new-deployment/ImportSdlButton/ImportSdlButton";
 import { TemplateIcon } from "@src/components/templates/TemplateIcon/TemplateIcon";
+import { SUPPORT_EMAIL } from "@src/config/ui.config";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useProjectsQuery } from "@src/queries/useProjectsQuery";
@@ -80,6 +81,9 @@ const STATUS_TONE_CLASSES: Record<TemplateStatus["tone"], { text: string; dot?: 
   warning: { text: "text-amber-700 dark:text-amber-500", dot: "bg-amber-500" },
   danger: { text: "text-red-600 dark:text-red-500", dot: "bg-red-600" }
 };
+
+const VISIBILITY_OPTIONS = Object.entries(VISIBILITY_LABELS).map(([value, label]) => ({ value, label }));
+const STATUS_OPTIONS = TEMPLATE_STATUS_LABELS.map(label => ({ value: label, label }));
 
 const FILTER_TRIGGER_CLASSES = "w-full gap-1 sm:w-[180px]";
 
@@ -184,38 +188,14 @@ export function MyTemplates({ dependencies: d = DEPENDENCIES }: Props) {
                 startIcon={<Search className="ml-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />}
               />
 
-              <Select
-                value={filters.visibility ?? ANY}
-                onValueChange={value => changeFilters({ visibility: value === ANY ? null : (value as TemplateVisibility) })}
-              >
-                <SelectTrigger aria-label="Visibility" className={FILTER_TRIGGER_CLASSES}>
-                  <span className="text-muted-foreground">Visibility:</span>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ANY}>Any</SelectItem>
-                  {Object.entries(VISIBILITY_LABELS).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <FilterSelect
+                label="Visibility"
+                value={filters.visibility}
+                options={VISIBILITY_OPTIONS}
+                onChange={visibility => changeFilters({ visibility: visibility as TemplateVisibility | null })}
+              />
 
-              <Select value={filters.status ?? ANY} onValueChange={value => changeFilters({ status: value === ANY ? null : value })}>
-                <SelectTrigger aria-label="Status" className={FILTER_TRIGGER_CLASSES}>
-                  <span className="text-muted-foreground">Status:</span>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ANY}>Any</SelectItem>
-                  {TEMPLATE_STATUS_LABELS.map(label => (
-                    <SelectItem key={label} value={label}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <FilterSelect label="Status" value={filters.status} options={STATUS_OPTIONS} onChange={status => changeFilters({ status })} />
             </div>
           </div>
 
@@ -272,6 +252,40 @@ export function MyTemplates({ dependencies: d = DEPENDENCIES }: Props) {
         </div>
       </div>
     </d.Layout>
+  );
+}
+
+function FilterSelect({
+  label,
+  value,
+  options,
+  onChange
+}: {
+  label: string;
+  value: string | null;
+  options: { value: string; label: string }[];
+  onChange: (value: string | null) => void;
+}) {
+  const labelId = useId();
+  const valueId = useId();
+
+  return (
+    <Select value={value ?? ANY} onValueChange={selected => onChange(selected === ANY ? null : selected)}>
+      <SelectTrigger aria-labelledby={`${labelId} ${valueId}`} className={FILTER_TRIGGER_CLASSES}>
+        <span id={labelId} className="text-muted-foreground">
+          {label}:
+        </span>
+        <SelectValue id={valueId} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={ANY}>Any</SelectItem>
+        {options.map(option => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -381,7 +395,7 @@ function TemplateRow({
             {status.nextStep === "contact-support" && (
               <>
                 {" "}
-                <a href={supportUrl} target="_blank" rel="noopener noreferrer" className="underline">
+                <a href={supportUrl || `mailto:${SUPPORT_EMAIL}`} target="_blank" rel="noopener noreferrer" className="underline">
                   Contact support
                 </a>
               </>
@@ -399,6 +413,7 @@ function TemplateRow({
           {template.canEdit && (
             <Link
               href={UrlService.configureTemplate({ mode: "edit", userTemplateId: template.id })}
+              aria-label={`Edit ${template.title}`}
               className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
             >
               <Pencil className="h-3.5 w-3.5" aria-hidden="true" />

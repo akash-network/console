@@ -1,5 +1,5 @@
 import { ApiError } from "@akashnetwork/openapi-sdk";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AppDIContainer } from "@src/context/ServicesProvider/ServicesProvider";
@@ -63,6 +63,7 @@ const XMR = buildUserTemplateListItem({
 const TEMPLATES = [COMFY, RAG, BATCH, XMR];
 
 type TemplatesQuery = ReturnType<typeof DEPENDENCIES.useMyTemplates>;
+type DeleteMutation = ReturnType<typeof DEPENDENCIES.useDeleteMarketplaceTemplateMutation>;
 
 describe(MyTemplates.name, () => {
   it("lists the organization's templates with visibility, status, version, deploys and last update", () => {
@@ -111,6 +112,8 @@ describe(MyTemplates.name, () => {
 
     expect(screen.getByRole("button", { name: "All of Northwind Labs 4" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "infra 1" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("combobox", { name: "Visibility: Any" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Status: Any" })).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "ml-research 2" }));
     expect(listedTitles()).toEqual([COMFY.title, RAG.title]);
@@ -126,6 +129,7 @@ describe(MyTemplates.name, () => {
 
     await choose("Visibility", "Any");
     await choose("Status", "Hidden by Akash");
+    expect(screen.getByRole("combobox", { name: "Status: Hidden by Akash" })).toBeInTheDocument();
     expect(listedTitles()).toEqual([XMR.title]);
 
     await choose("Visibility", "Private");
@@ -170,7 +174,7 @@ describe(MyTemplates.name, () => {
     const readOnly = buildUserTemplateListItem({ title: "Postgres with nightly dumps", canEdit: false });
     setup({ templates: [readOnly] });
 
-    expect(within(rowOf(readOnly)).queryByRole("link", { name: "Edit" })).not.toBeInTheDocument();
+    expect(within(rowOf(readOnly)).queryByRole("link", { name: /^Edit/ })).not.toBeInTheDocument();
     await openMenuOf(readOnly);
 
     expect(screen.getByRole("menuitem", { name: "Open" })).toHaveAttribute("href", UrlService.template(readOnly.id));
@@ -187,6 +191,12 @@ describe(MyTemplates.name, () => {
     expect(within(xmr).getByText("Akash hid this template.")).toBeInTheDocument();
     expect(within(xmr).getByRole("link", { name: "Contact support" })).toHaveAttribute("href", SUPPORT_URL);
     expect(within(rowOf(COMFY)).queryByRole("link", { name: "Contact support" })).not.toBeInTheDocument();
+  });
+
+  it("falls back to the support email when no support link is configured", () => {
+    setup({ supportUrl: undefined });
+
+    expect(within(rowOf(XMR)).getByRole("link", { name: "Contact support" })).toHaveAttribute("href", "mailto:support@akash.network");
   });
 
   it("asks before deleting and removes the row once deleted", async () => {
@@ -251,7 +261,7 @@ describe(MyTemplates.name, () => {
     const { ImportSdlButton } = setup({});
 
     expect(screen.getByRole("link", { name: "New template" })).toHaveAttribute("href", UrlService.configureTemplate({ mode: "new" }));
-    expect(within(rowOf(COMFY)).getByRole("link", { name: "Edit" })).toHaveAttribute(
+    expect(within(rowOf(COMFY)).getByRole("link", { name: `Edit ${COMFY.title}` })).toHaveAttribute(
       "href",
       UrlService.configureTemplate({ mode: "edit", userTemplateId: COMFY.id })
     );
@@ -302,7 +312,7 @@ describe(MyTemplates.name, () => {
     return screen
       .queryAllByRole("row")
       .slice(1)
-      .map(row => within(row).getAllByRole("cell")[0].querySelector("a")?.textContent);
+      .map(row => within(within(row).getAllByRole("cell")[0]).getByRole("link").textContent);
   }
 
   async function openMenuOf(template: UserTemplateListItem) {
@@ -310,8 +320,17 @@ describe(MyTemplates.name, () => {
   }
 
   async function choose(filter: string, option: string) {
-    await userEvent.click(screen.getByRole("combobox", { name: filter }));
+    await userEvent.click(screen.getByRole("combobox", { name: new RegExp(`^${filter}: `) }));
     await userEvent.click(screen.getByRole("option", { name: option }));
+  }
+
+  function stubClipboard(clipboard: Pick<Clipboard, "writeText">) {
+    const original = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    Object.defineProperty(navigator, "clipboard", { value: clipboard, configurable: true });
+    onTestFinished(() => {
+      if (original) Object.defineProperty(navigator, "clipboard", original);
+      else Reflect.deleteProperty(navigator, "clipboard");
+    });
   }
 
   function escapeRegExp(text: string) {
@@ -328,15 +347,16 @@ describe(MyTemplates.name, () => {
     isConfirmed?: boolean;
     deleteError?: unknown;
     isCopySuccessful?: boolean;
+    supportUrl?: string;
   }) {
     const confirm = vi.fn(async () => input.isConfirmed ?? true);
     const enqueueSnackbar = vi.fn();
     const refetch = vi.fn();
-    const deleteTemplate = vi.fn(async () => {
+    const deleteTemplate = vi.fn<DeleteMutation["mutateAsync"]>(async () => {
       if (input.deleteError) throw input.deleteError;
     });
     const writeText = input.isCopySuccessful === false ? vi.fn().mockRejectedValue(new Error("denied")) : vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    stubClipboard({ writeText });
     const Layout = vi.fn<typeof DEPENDENCIES.Layout>(({ children }) => <>{children}</>);
     const ImportSdlButton = vi.fn<typeof DEPENDENCIES.ImportSdlButton>(() => <button type="button">Import SDL</button>);
     const organization = input.organization === undefined ? { name: "Northwind Labs" } : input.organization;
@@ -350,11 +370,13 @@ describe(MyTemplates.name, () => {
       activeOrganization: organization ? mock<OrganizationOutput>({ id: "org-1", type: "team", role: "admin", ...organization }) : undefined,
       projectsEnabled: input.projectsEnabled ?? true
     });
-    const deleteMutation = mock<ReturnType<typeof DEPENDENCIES.useDeleteMarketplaceTemplateMutation>>({ mutateAsync: deleteTemplate as never });
+    const deleteMutation = mock<DeleteMutation>({ mutateAsync: deleteTemplate });
     const popup = mock<ReturnType<typeof DEPENDENCIES.usePopup>>({ confirm });
     const snackbar = mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar });
     const useProjectsQuery = vi.fn<typeof DEPENDENCIES.useProjectsQuery>(() => projectsQuery);
-    const publicConfig = mock<AppDIContainer["publicConfig"]>({ NEXT_PUBLIC_CONTACT_SUPPORT_URL: SUPPORT_URL });
+    const publicConfig = mock<AppDIContainer["publicConfig"]>({
+      NEXT_PUBLIC_CONTACT_SUPPORT_URL: "supportUrl" in input ? input.supportUrl : SUPPORT_URL
+    });
 
     const dependencies = MockComponents(DEPENDENCIES, {
       Layout,
