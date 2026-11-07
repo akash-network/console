@@ -113,6 +113,7 @@ describe("Marketplace templates", () => {
           isListed: true,
           isOfficial: false,
           moderationStatus: "active",
+          projectId: project.id,
           copiedFromId: null,
           createdAt: template.createdAt.toISOString(),
           updatedAt: stored.updatedAt.toISOString(),
@@ -131,7 +132,8 @@ describe("Marketplace templates", () => {
             createdBy: { username: author.username },
             createdAt: version.createdAt.toISOString()
           },
-          canEdit: true
+          canEdit: true,
+          isFavorite: false
         }
       });
     });

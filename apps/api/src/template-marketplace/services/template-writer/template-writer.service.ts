@@ -5,7 +5,9 @@ import createError from "http-errors";
 import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
+import { ORGANIZATION_FORBIDDEN_ERROR_CODE } from "@src/core/repositories/org-scoped.repository";
 import { TxService } from "@src/core/services";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { DeploymentProjectService } from "@src/deployment/services/deployment-project/deployment-project.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
@@ -15,9 +17,11 @@ import { summarizeTemplateHardware } from "@src/template/utils/template-hardware
 import type { AskedValue } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
 import { findAskedValueIssues } from "@src/template-marketplace/lib/asked-values/find-asked-value-issues";
 import { findSecretValueIssues } from "@src/template-marketplace/lib/asked-values/find-secret-value-issues";
+import type { TemplateCategory, TemplateIcon } from "@src/template-marketplace/lib/template-catalog/template-catalog";
 import {
   MarketplaceTemplateRepository,
-  type MarketplaceTemplateRow
+  type MarketplaceTemplateRow,
+  type TemplateSettingsUpdate
 } from "@src/template-marketplace/repositories/marketplace-template/marketplace-template.repository";
 import {
   TEMPLATE_VERSION_CONFLICT_ERROR_CODE,
@@ -47,7 +51,20 @@ export type AppendUserTemplateVersionInput = {
   baseVersion: number;
 };
 
+export type TemplateSettingsPatch = {
+  title?: string;
+  summary?: string | null;
+  icon?: TemplateIcon | null;
+  categories?: TemplateCategory[];
+  visibility?: "private" | "organization";
+};
+
+type TemplateWriteAction = "update" | "delete";
+
+type StoredTemplate = Omit<MarketplaceTemplateRow, "authorUsername" | "publisher">;
+
 const TEMPLATE_INVALID_ERROR_CODE = "template_invalid";
+const TEMPLATE_NOT_FOUND = "Template not found";
 
 const UNREADABLE_SDL_ISSUE = "The SDL could not be read";
 const NO_SERVICES_ISSUE = "The SDL defines no services";
@@ -64,8 +81,17 @@ function legacyHardwareOf(hardware: TemplateHardware | undefined): LegacyHardwar
 }
 
 /** A version saved before readmes were recorded shows the legacy description instead, so that is what an omitted readme carries forward. */
-function readmeShownFor(base: TemplateVersionOutput | undefined, template: MarketplaceTemplateRow): string | null {
+function readmeShownFor(base: TemplateVersionOutput | undefined, template: StoredTemplate): string | null {
   return base?.readme ?? (template.description || null);
+}
+
+/** The legacy `isPublic` flag must stay equal to a public visibility, and settings only set private or organization ones. */
+function settingsUpdateOf({ summary, ...patch }: TemplateSettingsPatch): TemplateSettingsUpdate {
+  return {
+    ...patch,
+    ...(summary !== undefined && { summary: summary || null }),
+    ...(patch.visibility && { isPublic: false })
+  };
 }
 
 function isMapping(value: unknown): value is Record<string, unknown> {
@@ -86,7 +112,8 @@ export class TemplateWriterService {
     private readonly sdlService: SdlService,
     private readonly sdlReferenceService: SdlReferenceService,
     private readonly authService: AuthService,
-    private readonly txService: TxService
+    private readonly txService: TxService,
+    private readonly executionContextService: ExecutionContextService
   ) {}
 
   async create(input: CreateUserTemplateInput): Promise<MarketplaceTemplateOutput> {
@@ -132,12 +159,13 @@ export class TemplateWriterService {
 
   /** The base version is checked again under the append lock, so of two editors saving from the same base only the first succeeds. */
   async appendVersion(id: string, input: AppendUserTemplateVersionInput): Promise<PublishedTemplateVersion> {
-    const template = await this.#findWritable(id, "update");
+    await this.#findWritable(id, "update");
     this.#assertValid(input.sdl, input.askedValues);
     const hardware = summarizeTemplateHardware(input.sdl);
     const createdById = this.authService.currentUser.id;
 
     const { imageDigests: _imageDigests, ...version } = await this.txService.transaction(async () => {
+      const template = await this.#lockWritable(id, "update");
       const base = template.currentVersionId ? await this.#findBaseVersion(id, input.baseVersion) : undefined;
       const readme = input.readme === undefined ? readmeShownFor(base, template) : input.readme;
       const appended = await this.templateVersionRepository.appendVersion({
@@ -161,6 +189,26 @@ export class TemplateWriterService {
     return version;
   }
 
+  async updateSettings(id: string, patch: TemplateSettingsPatch): Promise<MarketplaceTemplateOutput> {
+    await this.#findWritable(id, "update");
+
+    await this.txService.transaction(async () => {
+      await this.#lockWritable(id, "update");
+      await this.marketplaceTemplateRepository.updateSettings(id, settingsUpdateOf(patch));
+    });
+
+    return await this.marketplaceTemplateService.getTemplate(id);
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.#findWritable(id, "delete");
+
+    await this.txService.transaction(async () => {
+      await this.#lockWritable(id, "delete");
+      await this.marketplaceTemplateRepository.deleteTemplate(id);
+    });
+  }
+
   async #findBaseVersion(id: string, baseVersion: number): Promise<TemplateVersionOutput> {
     const base = await this.templateVersionRepository.findByTemplateAndVersion(id, baseVersion);
 
@@ -171,11 +219,27 @@ export class TemplateWriterService {
     return base;
   }
 
-  async #findWritable(id: string, action: "update"): Promise<MarketplaceTemplateRow> {
-    const template = await this.marketplaceTemplateService.findReadable(id);
-    assert(this.authService.ability.can(action, subject("Template", { ...template })), 403, "You cannot change this template");
+  /** Answers 404 for a template the caller may not read, before any 403, so its existence does not leak. */
+  async #findWritable(id: string, action: TemplateWriteAction): Promise<void> {
+    this.#assertWritable(await this.marketplaceTemplateService.findReadable(id), action);
+  }
+
+  /** The row read before the transaction may since have moved, been re-scoped or deleted, so the write is authorized again on the row it locks. */
+  async #lockWritable(id: string, action: TemplateWriteAction): Promise<StoredTemplate> {
+    const template = await this.marketplaceTemplateRepository.findAndLockForWrite(id);
+    assert(template && template.moderationStatus !== "removed", 404, TEMPLATE_NOT_FOUND);
+    this.#assertWritable(template, action);
 
     return template;
+  }
+
+  /** A write acts only on a template of the active organization, which keeps the legacy author rule from reaching a team template from outside it. */
+  #assertWritable(template: StoredTemplate, action: TemplateWriteAction): void {
+    if (template.organizationId !== this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId) {
+      throw createError(403, "Switch to the template's organization to change it", { errorCode: ORGANIZATION_FORBIDDEN_ERROR_CODE });
+    }
+
+    assert(this.authService.ability.can(action, subject("Template", { ...template })), 403, "You cannot change this template");
   }
 
   #assertValid(sdl: string, askedValues: AskedValue[]): void {

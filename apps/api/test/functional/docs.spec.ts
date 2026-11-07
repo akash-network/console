@@ -44,9 +44,12 @@ const UNRELEASED_FEEDBACK_ROUTES = [
   "POST /v1/assistant/conversations/{id}/action-results"
 ];
 const UNRELEASED_TEMPLATE_MARKETPLACE_ROUTES = [
+  "DELETE /v1/user-templates/{id}",
+  "GET /v1/user-templates",
   "GET /v1/user-templates/{id}",
   "GET /v1/user-templates/{id}/versions",
   "GET /v1/user-templates/{id}/versions/{version}",
+  "PATCH /v1/user-templates/{id}",
   "POST /v1/user-templates",
   "POST /v1/user-templates/{id}/versions"
 ];

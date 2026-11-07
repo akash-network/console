@@ -3,11 +3,13 @@ import assert from "http-assert";
 import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { OrganizationType } from "@src/organization/model-schemas/organization/organization.schema";
 import { summarizeTemplateHardware } from "@src/template/utils/template-hardware/template-hardware";
 import {
   MarketplaceTemplateRepository,
-  type MarketplaceTemplateRow
+  type MarketplaceTemplateRow,
+  type UserTemplateListRow
 } from "@src/template-marketplace/repositories/marketplace-template/marketplace-template.repository";
 import {
   type TemplateVersionOutput,
@@ -15,6 +17,7 @@ import {
   type TemplateVersionSummary
 } from "@src/template-marketplace/repositories/template-version/template-version.repository";
 import type { TemplateModerationStatus, TemplateVisibility } from "@src/user/model-schemas/template/template.schema";
+import { UserTemplateRepository } from "@src/user/repositories/user-template/user-template.repository";
 
 export type PublishedTemplateVersion = Omit<TemplateVersionOutput, "imageDigests">;
 
@@ -28,6 +31,7 @@ export interface MarketplaceTemplateOutput {
   isListed: boolean;
   isOfficial: boolean;
   moderationStatus: TemplateModerationStatus;
+  projectId: string | null;
   copiedFromId: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -37,7 +41,32 @@ export interface MarketplaceTemplateOutput {
   /** Null only on a template an older API pod saved without a version, until it is saved again or healed. */
   currentVersion: PublishedTemplateVersion | null;
   canEdit: boolean;
+  isFavorite: boolean;
 }
+
+export interface UserTemplateListItem
+  extends Pick<
+    UserTemplateListRow,
+    | "id"
+    | "title"
+    | "summary"
+    | "icon"
+    | "categories"
+    | "visibility"
+    | "isListed"
+    | "moderationStatus"
+    | "projectId"
+    | "copiedFromId"
+    | "updatedAt"
+    | "currentVersion"
+  > {
+  lastEditedBy: { username: string } | null;
+  canEdit: boolean;
+}
+
+export type UserTemplateListQuery = { visibility?: TemplateVisibility; projectId?: string };
+
+export const MAX_LISTED_USER_TEMPLATES = 200;
 
 const VERSION_NOT_FOUND = "Template version not found";
 
@@ -50,13 +79,16 @@ export class MarketplaceTemplateService {
   constructor(
     private readonly marketplaceTemplateRepository: MarketplaceTemplateRepository,
     private readonly templateVersionRepository: TemplateVersionRepository,
-    private readonly authService: AuthService
+    private readonly userTemplateRepository: UserTemplateRepository,
+    private readonly authService: AuthService,
+    private readonly executionContextService: ExecutionContextService
   ) {}
 
   /** Reads the version the readable row pointed at rather than the template's latest pointer, which a save that also hides the template may have moved since. */
   async getTemplate(id: string): Promise<MarketplaceTemplateOutput> {
     const template = await this.findReadable(id);
     const currentVersion = template.currentVersionId ? await this.templateVersionRepository.findById(template.currentVersionId) : undefined;
+    const favoritingUserId = this.authService.safeCurrentUser?.userId;
 
     return {
       id: template.id,
@@ -68,14 +100,44 @@ export class MarketplaceTemplateService {
       isListed: template.isListed,
       isOfficial: template.isOfficial,
       moderationStatus: template.moderationStatus,
+      projectId: template.projectId,
       copiedFromId: template.copiedFromId,
       createdAt: template.createdAt,
       updatedAt: template.updatedAt,
       author: template.authorUsername ? { username: template.authorUsername } : null,
       publisher: template.publisher && { ...template.publisher, slug: template.publisher.type === "team" ? template.publisher.slug : null },
       currentVersion: currentVersion ? this.#withLegacyFallbacks(currentVersion, template) : null,
-      canEdit: this.#canEdit(template)
+      canEdit: this.#canEdit(template),
+      isFavorite: favoritingUserId ? await this.userTemplateRepository.isFavorite(id, favoritingUserId) : false
     };
+  }
+
+  async listInOrganization(query: UserTemplateListQuery): Promise<UserTemplateListItem[]> {
+    const ability = this.authService.ability;
+    const organizationId = this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId;
+
+    if (!organizationId || !ability.can("read", "Template")) return [];
+
+    const rows = await this.marketplaceTemplateRepository
+      .accessibleBy(ability, "read")
+      .listInOrganization({ ...query, organizationId, limit: MAX_LISTED_USER_TEMPLATES });
+
+    return rows.map(row => ({
+      id: row.id,
+      title: row.title,
+      summary: row.summary,
+      icon: row.icon,
+      categories: row.categories,
+      visibility: row.visibility,
+      isListed: row.isListed,
+      moderationStatus: row.moderationStatus,
+      projectId: row.projectId,
+      copiedFromId: row.copiedFromId,
+      updatedAt: row.updatedAt,
+      currentVersion: row.currentVersion,
+      lastEditedBy: row.lastEditedByUsername ? { username: row.lastEditedByUsername } : null,
+      canEdit: this.#canEdit(row)
+    }));
   }
 
   /** Earlier versions may hold what the template no longer publishes, such as a removed key, so only editors see past the current one. */
@@ -113,7 +175,7 @@ export class MarketplaceTemplateService {
     };
   }
 
-  #canEdit(template: MarketplaceTemplateRow): boolean {
+  #canEdit(template: MarketplaceTemplateRow | UserTemplateListRow): boolean {
     return this.authService.ability.can("update", subject("Template", { ...template }));
   }
 }

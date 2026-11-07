@@ -4,16 +4,22 @@ import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
+import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type {
   MarketplaceTemplateRepository,
-  MarketplaceTemplateRow
+  MarketplaceTemplateRow,
+  UserTemplateListRow
 } from "@src/template-marketplace/repositories/marketplace-template/marketplace-template.repository";
 import type {
   TemplateVersionOutput,
   TemplateVersionRepository,
   TemplateVersionSummary
 } from "@src/template-marketplace/repositories/template-version/template-version.repository";
+import type { UserOutput } from "@src/user/repositories";
+import type { UserTemplateRepository } from "@src/user/repositories/user-template/user-template.repository";
 import { MarketplaceTemplateService } from "./marketplace-template.service";
+
+import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 
 const SDL = [
   "version: '2.0'",
@@ -54,14 +60,40 @@ describe(MarketplaceTemplateService.name, () => {
         isListed: template.isListed,
         isOfficial: template.isOfficial,
         moderationStatus: template.moderationStatus,
+        projectId: template.projectId,
         copiedFromId: template.copiedFromId,
         createdAt: template.createdAt,
         updatedAt: template.updatedAt,
         author: { username: "alice" },
         publisher: { name: "Team", slug: "team", type: "team" },
         currentVersion: publishedVersion,
-        canEdit: false
+        canEdit: false,
+        isFavorite: false
       });
+    });
+
+    it("reports whether the caller has made the template a favorite", async () => {
+      const template = createTemplateRow();
+      const { service, userTemplateRepository, user } = setup({ template });
+      userTemplateRepository.isFavorite.mockResolvedValue(true);
+
+      const result = await service.getTemplate(template.id);
+
+      expect(result.isFavorite).toBe(true);
+      expect(userTemplateRepository.isFavorite).toHaveBeenCalledWith(template.id, user!.userId);
+    });
+
+    it.each<[string, Partial<UserOutput> | null]>([
+      ["a caller without a session", null],
+      ["a user without a sign-in subject", { userId: null }]
+    ])("reports no favorite to %s without looking one up", async (_case, user) => {
+      const template = createTemplateRow();
+      const { service, userTemplateRepository } = setup({ template, user });
+
+      const result = await service.getTemplate(template.id);
+
+      expect(result.isFavorite).toBe(false);
+      expect(userTemplateRepository.isFavorite).not.toHaveBeenCalled();
     });
 
     it("names no author when the author's account is gone", async () => {
@@ -287,6 +319,80 @@ describe(MarketplaceTemplateService.name, () => {
     });
   });
 
+  describe("listInOrganization", () => {
+    it("lists the active organization's templates within the caller's read rules, at most 200", async () => {
+      const organizationId = faker.string.uuid();
+      const projectId = faker.string.uuid();
+      const editable = createListRow({ organizationId, projectId, lastEditedByUsername: "alice" });
+      const readOnly = createListRow({ organizationId, projectId: faker.string.uuid(), currentVersion: null, lastEditedByUsername: null });
+      const rules: RawRuleOf<MongoAbility>[] = [
+        { action: "read", subject: "Template", conditions: { organizationId } },
+        { action: "update", subject: "Template", conditions: { organizationId, projectId } }
+      ];
+      const { service, repository, readableRepository, ability } = setup({ rules, activeOrganizationId: organizationId });
+      readableRepository.listInOrganization.mockResolvedValue([editable, readOnly]);
+
+      const result = await service.listInOrganization({ visibility: "organization", projectId });
+
+      expect(repository.accessibleBy).toHaveBeenCalledWith(ability, "read");
+      expect(readableRepository.listInOrganization).toHaveBeenCalledWith({ organizationId, visibility: "organization", projectId, limit: 200 });
+      expect(result).toEqual([
+        {
+          id: editable.id,
+          title: editable.title,
+          summary: editable.summary,
+          icon: editable.icon,
+          categories: editable.categories,
+          visibility: editable.visibility,
+          isListed: editable.isListed,
+          moderationStatus: editable.moderationStatus,
+          projectId,
+          copiedFromId: editable.copiedFromId,
+          updatedAt: editable.updatedAt,
+          currentVersion: editable.currentVersion,
+          lastEditedBy: { username: "alice" },
+          canEdit: true
+        },
+        expect.objectContaining({ id: readOnly.id, currentVersion: null, lastEditedBy: null, canEdit: false })
+      ]);
+    });
+
+    it("lists nothing to a caller whose rules reach no template", async () => {
+      const { service, repository } = setup({ rules: [], activeOrganizationId: faker.string.uuid() });
+
+      expect(await service.listInOrganization({})).toEqual([]);
+      expect(repository.accessibleBy).not.toHaveBeenCalled();
+    });
+
+    it("lists nothing without an active organization", async () => {
+      const { service, repository } = setup({ rules: [{ action: "read", subject: "Template" }], activeOrganizationId: null });
+
+      expect(await service.listInOrganization({})).toEqual([]);
+      expect(repository.accessibleBy).not.toHaveBeenCalled();
+    });
+  });
+
+  function createListRow(overrides: Partial<UserTemplateListRow> = {}): UserTemplateListRow {
+    return {
+      id: faker.string.uuid(),
+      userId: `auth0|${faker.string.alphanumeric(24)}`,
+      organizationId: faker.string.uuid(),
+      projectId: faker.string.uuid(),
+      copiedFromId: null,
+      title: faker.lorem.words(3),
+      summary: faker.lorem.sentence(),
+      icon: "rocket",
+      categories: ["Tools"],
+      visibility: "private",
+      isListed: true,
+      moderationStatus: "active",
+      updatedAt: faker.date.recent(),
+      currentVersion: { version: 2, status: "live", createdAt: faker.date.recent() },
+      lastEditedByUsername: faker.internet.userName(),
+      ...overrides
+    };
+  }
+
   function createTemplateRow(overrides: Partial<MarketplaceTemplateRow> = {}): MarketplaceTemplateRow {
     return {
       id: faker.string.uuid(),
@@ -344,9 +450,19 @@ describe(MarketplaceTemplateService.name, () => {
     return { ...summary, ...overrides };
   }
 
-  function setup(input: { template?: MarketplaceTemplateRow; currentVersion?: TemplateVersionOutput; rules?: RawRuleOf<MongoAbility>[] } = {}) {
+  function setup(
+    input: {
+      template?: MarketplaceTemplateRow;
+      currentVersion?: TemplateVersionOutput;
+      rules?: RawRuleOf<MongoAbility>[];
+      user?: Partial<UserOutput> | null;
+      activeOrganizationId?: string | null;
+    } = {}
+  ) {
     const ability = createMongoAbility<MongoAbility>(input.rules ?? []);
-    const authService = mock<AuthService>();
+    const user =
+      input.user === null ? undefined : mock<UserOutput>({ id: faker.string.uuid(), userId: `auth0|${faker.string.alphanumeric(24)}`, ...input.user });
+    const authService = mock<AuthService>({ safeCurrentUser: user });
     authService.ability = ability;
     const readableRepository = mock<MarketplaceTemplateRepository>();
     const repository = mock<MarketplaceTemplateRepository>();
@@ -356,8 +472,15 @@ describe(MarketplaceTemplateService.name, () => {
     repository.findReadable.mockResolvedValue(template);
     const templateVersionRepository = mock<TemplateVersionRepository>();
     templateVersionRepository.findById.mockResolvedValue("currentVersion" in input ? input.currentVersion : createVersion());
-    const service = new MarketplaceTemplateService(repository, templateVersionRepository, authService);
+    const userTemplateRepository = mock<UserTemplateRepository>();
+    userTemplateRepository.isFavorite.mockResolvedValue(false);
+    const executionContextService = mock<ExecutionContextService>();
+    const activeOrganizationId = input.activeOrganizationId === undefined ? faker.string.uuid() : input.activeOrganizationId;
+    executionContextService.get
+      .calledWith("ORGANIZATION_CONTEXT")
+      .mockReturnValue(activeOrganizationId ? createOrganizationContext({ organizationId: activeOrganizationId }) : undefined);
+    const service = new MarketplaceTemplateService(repository, templateVersionRepository, userTemplateRepository, authService, executionContextService);
 
-    return { service, repository, readableRepository, templateVersionRepository, ability };
+    return { service, repository, readableRepository, templateVersionRepository, userTemplateRepository, ability, user };
   }
 });

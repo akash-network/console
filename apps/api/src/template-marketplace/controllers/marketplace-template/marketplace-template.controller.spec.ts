@@ -6,7 +6,8 @@ import type { TemplateVersionSummary } from "@src/template-marketplace/repositor
 import type {
   MarketplaceTemplateOutput,
   MarketplaceTemplateService,
-  PublishedTemplateVersion
+  PublishedTemplateVersion,
+  UserTemplateListItem
 } from "@src/template-marketplace/services/marketplace-template/marketplace-template.service";
 import type { TemplateWriterService } from "@src/template-marketplace/services/template-writer/template-writer.service";
 import { MarketplaceTemplateController } from "./marketplace-template.controller";
@@ -108,6 +109,82 @@ describe(MarketplaceTemplateController.name, () => {
     });
   });
 
+  describe("listTemplates", () => {
+    it("answers the organization's templates with ISO dates", async () => {
+      const item = createListItem();
+      const unversioned = createListItem({ currentVersion: null, lastEditedBy: null });
+      const { controller, service } = setup();
+      service.listInOrganization.mockResolvedValue([item, unversioned]);
+      const query = { visibility: "organization" as const, projectId: faker.string.uuid() };
+
+      const result = await controller.listTemplates(query);
+
+      expect(result).toEqual({
+        data: [
+          {
+            ...item,
+            updatedAt: item.updatedAt.toISOString(),
+            currentVersion: { ...item.currentVersion, createdAt: item.currentVersion!.createdAt.toISOString() }
+          },
+          { ...unversioned, updatedAt: unversioned.updatedAt.toISOString() }
+        ]
+      });
+      expect(service.listInOrganization).toHaveBeenCalledWith(query);
+    });
+  });
+
+  describe("updateTemplate", () => {
+    it("updates the settings and answers the template with ISO dates", async () => {
+      const template = createTemplate({ visibility: "organization" });
+      const { controller, writer } = setup();
+      writer.updateSettings.mockResolvedValue(template);
+      const data = { title: "Renamed", visibility: "organization" as const };
+
+      const result = await controller.updateTemplate(template.id, { data });
+
+      expect(result).toEqual({
+        data: {
+          ...template,
+          createdAt: template.createdAt.toISOString(),
+          updatedAt: template.updatedAt.toISOString(),
+          currentVersion: publishedVersionOf(template.currentVersion!)
+        }
+      });
+      expect(writer.updateSettings).toHaveBeenCalledWith(template.id, data);
+    });
+  });
+
+  describe("deleteTemplate", () => {
+    it("deletes the template", async () => {
+      const id = faker.string.uuid();
+      const { controller, writer } = setup();
+
+      await controller.deleteTemplate(id);
+
+      expect(writer.delete).toHaveBeenCalledWith(id);
+    });
+  });
+
+  function createListItem(overrides: Partial<UserTemplateListItem> = {}): UserTemplateListItem {
+    return {
+      id: faker.string.uuid(),
+      title: faker.lorem.words(3),
+      summary: null,
+      icon: "rocket",
+      categories: ["Tools"],
+      visibility: "organization",
+      isListed: true,
+      moderationStatus: "active",
+      projectId: faker.string.uuid(),
+      copiedFromId: null,
+      updatedAt: faker.date.recent(),
+      currentVersion: { version: 3, status: "live", createdAt: faker.date.recent() },
+      lastEditedBy: { username: faker.internet.userName() },
+      canEdit: true,
+      ...overrides
+    };
+  }
+
   function publishedVersionOf<V extends { createdById: string | null; createdAt: Date }>({ createdById: _createdById, createdAt, ...version }: V) {
     return { ...version, createdAt: createdAt.toISOString() };
   }
@@ -141,6 +218,7 @@ describe(MarketplaceTemplateController.name, () => {
       isListed: false,
       isOfficial: false,
       moderationStatus: "active",
+      projectId: faker.string.uuid(),
       copiedFromId: null,
       createdAt: faker.date.past(),
       updatedAt: faker.date.recent(),
@@ -148,6 +226,7 @@ describe(MarketplaceTemplateController.name, () => {
       publisher: null,
       currentVersion: createVersion(),
       canEdit: false,
+      isFavorite: false,
       ...overrides
     };
   }

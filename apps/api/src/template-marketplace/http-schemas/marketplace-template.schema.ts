@@ -59,6 +59,7 @@ export const MarketplaceTemplateSchema = z
     isListed: z.boolean(),
     isOfficial: z.boolean(),
     moderationStatus: z.enum(templateModerationStatusEnum.enumValues),
+    projectId: z.string().uuid().nullable().openapi({ description: "The project the template is filed in, null for a template filed in none" }),
     copiedFromId: z.string().uuid().nullable(),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
@@ -74,7 +75,8 @@ export const MarketplaceTemplateSchema = z
     currentVersion: NullableTemplateVersionSchema.openapi({
       description: "Its readme falls back to the template's description and its resources to the SDL's, for versions saved before they were recorded"
     }),
-    canEdit: z.boolean().openapi({ description: "Whether the caller may change the template" })
+    canEdit: z.boolean().openapi({ description: "Whether the caller may change the template" }),
+    isFavorite: z.boolean().openapi({ description: "Whether the caller made the template a favorite, false without a session" })
   })
   .openapi("MarketplaceTemplate");
 

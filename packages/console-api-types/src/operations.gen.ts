@@ -655,7 +655,31 @@ export const operations = {
       hasBody: false
     },
     createUserTemplate: { path: "/v1/user-templates", method: "post", operationId: "createUserTemplate", pathParams: [], queryParams: [], hasBody: true },
+    listUserTemplates: {
+      path: "/v1/user-templates",
+      method: "get",
+      operationId: "listUserTemplates",
+      pathParams: [],
+      queryParams: ["visibility", "projectId"],
+      hasBody: false
+    },
     getUserTemplate: { path: "/v1/user-templates/{id}", method: "get", operationId: "getUserTemplate", pathParams: ["id"], queryParams: [], hasBody: false },
+    updateUserTemplate: {
+      path: "/v1/user-templates/{id}",
+      method: "patch",
+      operationId: "updateUserTemplate",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: true
+    },
+    deleteUserTemplate: {
+      path: "/v1/user-templates/{id}",
+      method: "delete",
+      operationId: "deleteUserTemplate",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: false
+    },
     listUserTemplateVersions: {
       path: "/v1/user-templates/{id}/versions",
       method: "get",
