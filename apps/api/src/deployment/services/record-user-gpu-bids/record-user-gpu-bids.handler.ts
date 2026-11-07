@@ -3,7 +3,7 @@ import { inject, singleton } from "tsyringe";
 
 import { CHAIN_SDK, type ChainSDK } from "@src/chain/providers/chain-sdk.provider";
 import { type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions } from "@src/core";
-import type { GpuAsk } from "@src/deployment/lib/unmet-gpu-ask/unmet-gpu-ask";
+import { type GpuAsk, isStorableAsk } from "@src/deployment/lib/unmet-gpu-ask/unmet-gpu-ask";
 import { type CheckedGpuModel, type GpuBidCheckInsert, GpuBidCheckRepository } from "@src/deployment/repositories/gpu-bid-check/gpu-bid-check.repository";
 import { UnmetGpuDemandService } from "@src/deployment/services/unmet-gpu-demand/unmet-gpu-demand.service";
 import { findDeploymentBids } from "@src/deployment/utils/find-deployment-bids/find-deployment-bids";
@@ -79,7 +79,9 @@ function toCheckRows({ gseq, vendor, model, screened, wasOpenThroughWait }: Scre
 function findZeroBidAsks(groups: ScreenedGpuGroup[], bids: Bid[]): GpuAsk[] {
   const biddedGseqs = new Set(bids.flatMap(({ id }) => (id ? [id.gseq] : [])));
 
-  return groups.flatMap(({ gseq, vendor, model, wasOpenThroughWait, gpuCount, regionArea }) =>
-    wasOpenThroughWait && gpuCount !== undefined && !biddedGseqs.has(gseq) ? [{ vendor, model, gpuCount, regionArea: regionArea ?? null }] : []
-  );
+  return groups
+    .flatMap(({ gseq, vendor, model, wasOpenThroughWait, gpuCount, regionArea }) =>
+      wasOpenThroughWait && gpuCount !== undefined && !biddedGseqs.has(gseq) ? [{ vendor, model, gpuCount, regionArea: regionArea ?? null }] : []
+    )
+    .filter(isStorableAsk);
 }
