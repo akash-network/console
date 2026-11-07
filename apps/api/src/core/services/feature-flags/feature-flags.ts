@@ -12,7 +12,8 @@ export const FeatureFlags = {
   BACKGROUND_AUTO_LEASE: "background_auto_lease",
   TEAM_DATA_KEYS: "team_data_keys",
   GPU_REQUEST_ROUTING: "gpu_request_routing",
-  USER_FEEDBACK_LOOP: "user_feedback_loop"
+  USER_FEEDBACK_LOOP: "user_feedback_loop",
+  TEMPLATE_MARKETPLACE: "template_marketplace"
 } as const;
 
 export type FeatureFlagValue = (typeof FeatureFlags)[keyof typeof FeatureFlags];

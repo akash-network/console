@@ -17,6 +17,7 @@ import * as feedbackSchemas from "@src/feedback/model-schemas";
 import * as hardwareRequestSchemas from "@src/hardware-request/model-schemas";
 import * as organizationSchemas from "@src/organization/model-schemas";
 import * as secretSchemas from "@src/secret/model-schemas";
+import * as templateMarketplaceSchemas from "@src/template-marketplace/model-schemas";
 import * as userSchemas from "@src/user/model-schemas";
 import * as workloadAbuseSchemas from "@src/workload-abuse/model-schemas";
 import type { CoreConfig } from "./config.provider";
@@ -66,7 +67,8 @@ const schema = {
   ...activitySchemas,
   ...organizationSchemas,
   ...feedbackSchemas,
-  ...affiliateSchemas
+  ...affiliateSchemas,
+  ...templateMarketplaceSchemas
 };
 const getDrizzleOptions = (config: Pick<CoreConfig, "SQL_LOG_FORMAT">) => ({
   logger: new PostgresLoggerService(container.resolve(LOGGER_FACTORY), { useFormat: config.SQL_LOG_FORMAT === "pretty" }),

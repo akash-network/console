@@ -5,7 +5,9 @@ import { container } from "tsyringe";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
+import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { type TemplateInput, UserTemplateRepository } from "./user-template.repository";
 
@@ -402,6 +404,36 @@ describe(UserTemplateRepository.name, () => {
       expect(template?.isPublic).toBe(true);
     });
 
+    it("attributes the template to its author and files a public one as public but not listed", async () => {
+      const { userTemplateRepository } = setup();
+      const user = await createTestUser();
+
+      const templateId = await userTemplateRepository.createTemplate(user.userId!, { ...buildTemplateInput(), isPublic: true }, { authorId: user.id });
+      createdTemplateIds.push(templateId);
+
+      expect(await findStoredTemplate(templateId)).toMatchObject({ authorId: user.id, visibility: "public", isListed: false });
+    });
+
+    it("files a template saved without isPublic as private and listed", async () => {
+      const { userTemplateRepository } = setup();
+      const user = await createTestUser();
+
+      const templateId = await userTemplateRepository.createTemplate(user.userId!, buildTemplateInput());
+      createdTemplateIds.push(templateId);
+
+      expect(await findStoredTemplate(templateId)).toMatchObject({ visibility: "private", isListed: true });
+    });
+
+    it("leaves the author empty when none is named", async () => {
+      const { userTemplateRepository } = setup();
+      const user = await createTestUser();
+
+      const templateId = await userTemplateRepository.createTemplate(user.userId!, buildTemplateInput());
+      createdTemplateIds.push(templateId);
+
+      expect(await findStoredTemplate(templateId)).toMatchObject({ authorId: null });
+    });
+
     it("records the template a copy was made from", async () => {
       const { userTemplateRepository } = setup();
       const user1 = await createTestUser();
@@ -499,6 +531,67 @@ describe(UserTemplateRepository.name, () => {
     });
   });
 
+  describe("findVersionState", () => {
+    it("returns the stored visibility and no current version for a template without versions", async () => {
+      const { userTemplateRepository } = setup();
+      const user = await createTestUser();
+      const template = await createTestTemplate({ userId: user.userId!, isPublic: true });
+
+      expect(await userTemplateRepository.findVersionState(template.id, user.userId!)).toEqual({
+        isPublic: true,
+        visibility: "public",
+        currentVersionId: null,
+        currentVersionSdl: null
+      });
+    });
+
+    it("returns the sdl of the current version rather than the one stored on the template", async () => {
+      const { userTemplateRepository } = setup();
+      const user = await createTestUser();
+      const template = await createTestTemplate({ userId: user.userId! });
+      const version = await container.resolve(TemplateVersionRepository).appendVersion({ templateId: template.id, sdl: "version: '2.1'" });
+
+      expect(await userTemplateRepository.findVersionState(template.id, user.userId!)).toMatchObject({
+        currentVersionId: version.id,
+        currentVersionSdl: "version: '2.1'"
+      });
+    });
+
+    it("reads the current version a concurrent save committed while it waited for the lock", async () => {
+      const { userTemplateRepository } = setup();
+      const txService = container.resolve(TxService);
+      const versionRepository = container.resolve(TemplateVersionRepository);
+      const user = await createTestUser();
+      const template = await createTestTemplate({ userId: user.userId! });
+      const committedSdl = "version: '2.4'";
+      const lockHeld = Promise.withResolvers<void>();
+      const release = Promise.withResolvers<void>();
+
+      const holder = txService.transaction(async () => {
+        await userTemplateRepository.findVersionState(template.id, user.userId!);
+        lockHeld.resolve();
+        await release.promise;
+        await versionRepository.appendVersion({ templateId: template.id, sdl: committedSdl });
+      });
+      await lockHeld.promise;
+      const waiter = txService.transaction(() => userTemplateRepository.findVersionState(template.id, user.userId!));
+      await new Promise(resolve => setTimeout(resolve, 300));
+      release.resolve();
+      await holder;
+
+      expect(await waiter).toMatchObject({ currentVersionSdl: committedSdl });
+    });
+
+    it("returns nothing for a template another user wrote", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const other = await createTestUser();
+      const template = await createTestTemplate({ userId: author.userId! });
+
+      expect(await userTemplateRepository.findVersionState(template.id, other.userId!)).toBeUndefined();
+    });
+  });
+
   describe("updateTemplate", () => {
     it("updates template fields", async () => {
       const { userTemplateRepository } = setup();
@@ -515,6 +608,40 @@ describe(UserTemplateRepository.name, () => {
       const updatedTemplate = await findStoredTemplate(template.id);
       expect(updatedTemplate?.title).toBe(newTitle);
       expect(updatedTemplate?.description).toBe(newDescription);
+    });
+
+    it("moves visibility and listing with isPublic", async () => {
+      const { userTemplateRepository } = setup();
+      const user = await createTestUser();
+      const template = await createTestTemplate({ userId: user.userId!, isPublic: false });
+
+      await userTemplateRepository.updateTemplate(template.id, user.userId!, { isPublic: true });
+      expect(await findStoredTemplate(template.id)).toMatchObject({ isPublic: true, visibility: "public", isListed: false });
+
+      await userTemplateRepository.updateTemplate(template.id, user.userId!, { isPublic: false });
+      expect(await findStoredTemplate(template.id)).toMatchObject({ isPublic: false, visibility: "private", isListed: true });
+    });
+
+    it("leaves visibility and listing alone when isPublic is not changed", async () => {
+      const { userTemplateRepository } = setup();
+      const user = await createTestUser();
+      const template = await createTestTemplate({ userId: user.userId!, isPublic: true });
+      await setStoredVisibility(template.id, "organization");
+
+      await userTemplateRepository.updateTemplate(template.id, user.userId!, { title: faker.lorem.words(3) });
+
+      expect(await findStoredTemplate(template.id)).toMatchObject({ visibility: "organization", isListed: false });
+    });
+
+    it("refreshes updatedAt", async () => {
+      const { userTemplateRepository } = setup();
+      const user = await createTestUser();
+      const template = await createTestTemplate({ userId: user.userId! });
+
+      await userTemplateRepository.updateTemplate(template.id, user.userId!, { title: faker.lorem.words(3) });
+
+      const updated = await findStoredTemplate(template.id);
+      expect(updated!.updatedAt.getTime()).toBeGreaterThan(template.updatedAt.getTime());
     });
 
     it("refuses a change outside the rules attached and leaves the template unchanged", async () => {
@@ -714,6 +841,11 @@ describe(UserTemplateRepository.name, () => {
     const templates = resolveTable("Templates");
 
     return await container.resolve<ApiPgDatabase>(POSTGRES_DB).select().from(templates).where(eq(templates.title, title));
+  }
+
+  async function setStoredVisibility(id: string, visibility: "private" | "organization" | "public") {
+    const templates = resolveTable("Templates");
+    await container.resolve<ApiPgDatabase>(POSTGRES_DB).update(templates).set({ visibility }).where(eq(templates.id, id));
   }
 
   async function findStoredTemplate(id: string) {
