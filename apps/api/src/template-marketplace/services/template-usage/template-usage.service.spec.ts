@@ -90,7 +90,7 @@ describe(TemplateUsageService.name, () => {
 
       await expect(service.recordDeployed(definition, { isTrialing: false })).resolves.toBeUndefined();
 
-      expect(logger.error).toHaveBeenCalledWith({
+      expect(logger.warn).toHaveBeenCalledWith({
         event: "TEMPLATE_USAGE_RECORD_FAILED",
         action: "deploy",
         deploymentSettingId: definition.id,
@@ -106,7 +106,7 @@ describe(TemplateUsageService.name, () => {
       await expect(service.recordDeployed(buildDefinition({ templateVersionId: faker.string.uuid() }), { isTrialing: false })).resolves.toBeUndefined();
 
       expect(templateUsageEventRepository.record).not.toHaveBeenCalled();
-      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "TEMPLATE_USAGE_RECORD_FAILED", action: "deploy" }));
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "TEMPLATE_USAGE_RECORD_FAILED", action: "deploy" }));
     });
   });
 
@@ -139,7 +139,7 @@ describe(TemplateUsageService.name, () => {
       });
       expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(
-        new CheckTemplateDeploymentStillRunning({ deploymentSettingId: setting.id, walletId: wallet.id, dseq: setting.dseq }),
+        new CheckTemplateDeploymentStillRunning({ deploymentSettingId: setting.id, walletId: wallet.id, dseq: setting.dseq, isTrial: true }),
         { singletonKey: `checkTemplateDeploymentStillRunning.${setting.id}`, startAfter: addHours(leaseCreatedAt, 24) }
       );
     });
@@ -195,7 +195,7 @@ describe(TemplateUsageService.name, () => {
       await expect(service.recordLeaseCreated({ walletId: wallet.id, dseq: setting.dseq, leaseCreatedAt: new Date() })).resolves.toBeUndefined();
 
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
-      expect(logger.error).toHaveBeenCalledWith({
+      expect(logger.warn).toHaveBeenCalledWith({
         event: "TEMPLATE_USAGE_RECORD_FAILED",
         action: "lease_created",
         walletId: wallet.id,
@@ -212,7 +212,7 @@ describe(TemplateUsageService.name, () => {
 
       await expect(service.recordLeaseCreated({ walletId: wallet.id, dseq: setting.dseq, leaseCreatedAt: new Date() })).resolves.toBeUndefined();
 
-      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "TEMPLATE_USAGE_RECORD_FAILED", action: "lease_created" }));
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "TEMPLATE_USAGE_RECORD_FAILED", action: "lease_created" }));
     });
   });
 
@@ -222,7 +222,7 @@ describe(TemplateUsageService.name, () => {
       const setting = buildSetting({ templateVersionId: faker.string.uuid() });
       const { service, templateUsageEventRepository, deploymentSettingRepository, txService } = setup({ setting, templateIdOfVersion: templateId });
 
-      await service.recordStillRunning({ deploymentSettingId: setting.id, dseq: setting.dseq, wallet: { isTrialing: false } });
+      await service.recordStillRunning({ deploymentSettingId: setting.id, dseq: setting.dseq, isTrial: false });
 
       expect(txService.outsideTransaction).toHaveBeenCalledTimes(1);
       expect(deploymentSettingRepository.findById).toHaveBeenCalledWith(setting.id);
@@ -240,24 +240,34 @@ describe(TemplateUsageService.name, () => {
       });
     });
 
+    it("records the trial state the lease was created with", async () => {
+      const setting = buildSetting({ templateId: "hello-world" });
+      const { service, templateUsageEventRepository } = setup({ setting });
+
+      await service.recordStillRunning({ deploymentSettingId: setting.id, dseq: setting.dseq, isTrial: true });
+
+      expect(templateUsageEventRepository.record).toHaveBeenCalledWith(expect.objectContaining({ action: "still_running_24h", isTrial: true }));
+    });
+
     it("records nothing for a deployment whose record is gone", async () => {
       const { service, templateUsageEventRepository, logger } = setup({ setting: undefined });
 
-      await service.recordStillRunning({ deploymentSettingId: faker.string.uuid(), dseq: "123", wallet: { isTrialing: false } });
+      await service.recordStillRunning({ deploymentSettingId: faker.string.uuid(), dseq: "123", isTrial: false });
 
       expect(templateUsageEventRepository.record).not.toHaveBeenCalled();
-      expect(logger.error).not.toHaveBeenCalled();
+      expect(logger.warn).not.toHaveBeenCalled();
     });
 
-    it("logs a failed insert instead of throwing", async () => {
+    it("logs a failed insert as a warning instead of throwing", async () => {
       const setting = buildSetting({ templateId: "hello-world" });
       const { service, templateUsageEventRepository, logger } = setup({ setting });
       const failure = new Error("connection reset");
       templateUsageEventRepository.record.mockRejectedValue(failure);
 
-      await expect(service.recordStillRunning({ deploymentSettingId: setting.id, dseq: setting.dseq, wallet: { isTrialing: true } })).resolves.toBeUndefined();
+      await expect(service.recordStillRunning({ deploymentSettingId: setting.id, dseq: setting.dseq, isTrial: true })).resolves.toBeUndefined();
 
-      expect(logger.error).toHaveBeenCalledWith({
+      expect(logger.error).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith({
         event: "TEMPLATE_USAGE_RECORD_FAILED",
         action: "still_running_24h",
         deploymentSettingId: setting.id,

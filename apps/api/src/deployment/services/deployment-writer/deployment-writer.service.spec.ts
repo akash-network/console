@@ -1692,7 +1692,7 @@ describe(DeploymentWriterService.name, () => {
 
       await expect(service.createOnChain(accepted)).resolves.toBe(txResult);
 
-      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "TEMPLATE_USAGE_RECORD_FAILED", action: "deploy", error: failure }));
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "TEMPLATE_USAGE_RECORD_FAILED", action: "deploy", error: failure }));
     });
 
     it("refuses without signing when the wallet the request resolved can no longer sign", async () => {
