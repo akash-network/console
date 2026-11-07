@@ -133,7 +133,10 @@ export const envSchema = z.object({
   ),
   WORKLOAD_ABUSE_BEHAVIOURAL_AGREEMENT_PROBES: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().default(3)),
   /** Back-to-back probes can land minutes apart, so a streak also has to span real time before it counts. */
-  WORKLOAD_ABUSE_BEHAVIOURAL_MIN_WINDOW_MINUTES: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().default(120))
+  WORKLOAD_ABUSE_BEHAVIOURAL_MIN_WINDOW_MINUTES: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().default(120)),
+  /** Lives in Doppler only, and trial sign-ups go unreviewed while it is unset. */
+  WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().optional()),
+  WORKLOAD_ABUSE_SIGNUP_REVIEW_SLACK_WEBHOOK_URL: z.preprocess(blankToUndefined, z.string().url().optional())
 });
 
 export type WorkloadAbuseConfig = z.infer<typeof envSchema>;
