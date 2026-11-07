@@ -403,12 +403,13 @@ describe("OpenApiDocsService", () => {
       expect(documentedFieldsOf(docs)).toEqual(["published"]);
     });
 
-    it("omits it from the sdk document too, which hidden operations are kept in", async () => {
+    it("keeps undocumented request fields in the document generated with hidden routes", async () => {
       const { service } = setup({});
 
       const docs = await service.generateDocs([buildUndocumentedFieldHandler()], { scope: "full", source: "file", includeHidden: true });
 
-      expect(documentedFieldsOf(docs)).toEqual(["published"]);
+      expect(documentedFieldsOf(docs)).toEqual(["published", "withheld"]);
+      expect(requiredFieldsOf(docs)).toEqual(["published", "withheld"]);
     });
 
     it("drops it from the required list rather than requiring a field it does not describe", async () => {
