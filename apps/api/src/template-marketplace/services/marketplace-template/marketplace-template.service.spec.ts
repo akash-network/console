@@ -176,7 +176,6 @@ describe(MarketplaceTemplateService.name, () => {
     });
   });
 
-
   describe("listVersions", () => {
     it("lists every version of the template to a caller who may edit it", async () => {
       const template = createTemplateRow();
@@ -268,7 +267,6 @@ describe(MarketplaceTemplateService.name, () => {
       expect(templateVersionRepository.findByTemplateAndVersion).not.toHaveBeenCalled();
     });
   });
-
 
   function createTemplateRow(overrides: Partial<MarketplaceTemplateRow> = {}): MarketplaceTemplateRow {
     return {

@@ -51,7 +51,10 @@ describe(MarketplaceTemplateRepository.name, () => {
       const { repository, organization, project } = await setup();
       const other = await seedOrganization();
       const template = await seedTemplate({ organizationId: organization.id, projectId: project.id, visibility: "organization" });
-      const readable = repository.accessibleBy(abilityOf([{ action: "read", subject: "Template", conditions: { organizationId: organization.id, visibility: "organization" } }]), "read");
+      const readable = repository.accessibleBy(
+        abilityOf([{ action: "read", subject: "Template", conditions: { organizationId: organization.id, visibility: "organization" } }]),
+        "read"
+      );
 
       const found = await runInOrganization(other.id, () => readable.findReadable(template.id));
 
@@ -61,7 +64,10 @@ describe(MarketplaceTemplateRepository.name, () => {
     it("keeps a template outside the rules attached", async () => {
       const { repository, organization, project } = await setup();
       const template = await seedTemplate({ organizationId: organization.id, projectId: project.id, visibility: "private" });
-      const readable = repository.accessibleBy(abilityOf([{ action: "read", subject: "Template", conditions: { organizationId: organization.id, visibility: "organization" } }]), "read");
+      const readable = repository.accessibleBy(
+        abilityOf([{ action: "read", subject: "Template", conditions: { organizationId: organization.id, visibility: "organization" } }]),
+        "read"
+      );
 
       expect(await readable.findReadable(template.id)).toBeUndefined();
     });
