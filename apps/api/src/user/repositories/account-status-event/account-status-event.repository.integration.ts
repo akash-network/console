@@ -47,6 +47,39 @@ describe(AccountStatusEventRepository.name, () => {
     });
   });
 
+  describe("findLatestVerifiedTerminationOf", () => {
+    it("finds the latest termination of an address verified at the time, whatever its case and padding", async () => {
+      const { repository, user } = await setup();
+      const domain = `${faker.string.alphanumeric(12).toLowerCase()}.com`;
+      const terminate = (userReason: string, minutesAgo: number) =>
+        repository.create({
+          userId: user.id,
+          userEmail: `Jane@${domain}`,
+          action: "terminate",
+          actorEmail: faker.internet.email(),
+          actorName: faker.person.fullName(),
+          userReason,
+          options: { forfeitCredits: false, emailVerified: true },
+          createdAt: subMinutes(new Date(), minutesAgo)
+        });
+      await terminate("Older", 10);
+      await terminate("Fraud", 5);
+
+      await expect(repository.findLatestVerifiedTerminationOf(` JANE@${domain.toUpperCase()} `)).resolves.toEqual({ userId: user.id, userReason: "Fraud" });
+    });
+
+    it("ignores a termination of an unverified address and an event that is not a termination", async () => {
+      const { repository, user } = await setup();
+      const email = faker.internet.email();
+      const event = { userId: user.id, userEmail: email, actorEmail: faker.internet.email(), actorName: faker.person.fullName(), userReason: "Fraud" };
+      await repository.create({ ...event, action: "terminate", options: { forfeitCredits: false, emailVerified: false } });
+      await repository.create({ ...event, action: "terminate", options: { forfeitCredits: false } });
+      await repository.create({ ...event, action: "suspend", options: { closeDeployments: false, emailVerified: true } });
+
+      await expect(repository.findLatestVerifiedTerminationOf(email)).resolves.toBeUndefined();
+    });
+  });
+
   describe("findManyByUserId", () => {
     it("lists only the user's events, newest first", async () => {
       const { repository, user, record } = await setup();

@@ -95,7 +95,7 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
     // Existing user: refresh the same mutable fields the previous upsert kept up to date.
     const [updated] = await this.cursor
       .update(this.table)
-      .set(withoutUsername)
+      .set({ ...withoutUsername, ...this.#addressKeptWhileTerminated(withoutUsername) })
       .where(this.whereAccessibleBy(eq(this.table.userId, data.userId!)))
       .returning();
     if (!updated) {
@@ -103,6 +103,16 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
       throw new Error(`Failed to upsert user: no row to update for userId ${data.userId}`);
     }
     return { user: this.toOutput(updated), wasInserted: false };
+  }
+
+  /** A terminated account keeps the address it was terminated under, so signing in with another one cannot free that address for a new account. */
+  #addressKeptWhileTerminated({ email, emailVerified }: UserInput): Pick<PgUpdateSetSource<ApiPgTables["Users"]>, "email" | "emailVerified"> {
+    const isTerminated = sql`${this.table.accountStatus} = 'terminated'`;
+
+    return {
+      ...(email !== undefined && { email: sql`CASE WHEN ${isTerminated} THEN ${this.table.email} ELSE ${email} END` }),
+      ...(emailVerified !== undefined && { emailVerified: sql`CASE WHEN ${isTerminated} THEN ${this.table.emailVerified} ELSE ${emailVerified} END` })
+    };
   }
 
   async hasVerifiedEmail(email: string): Promise<boolean> {

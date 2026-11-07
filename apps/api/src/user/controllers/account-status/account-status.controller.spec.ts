@@ -29,6 +29,17 @@ describe(AccountStatusController.name, () => {
     expect(response.data.id).toBe(event.id);
   });
 
+  it("terminates the user with the request's data and answers with the event", async () => {
+    const { controller, accountStatusService, userId, actor, event } = setup({ notificationSentAt: null });
+    accountStatusService.terminate.mockResolvedValue(event);
+    const data = { actor, userReason: "Fraud", forfeitCredits: true };
+
+    const response = await controller.terminate(userId, { data });
+
+    expect(accountStatusService.terminate).toHaveBeenCalledWith(userId, data);
+    expect(response).toEqual({ data: { ...event, createdAt: event.createdAt.toISOString(), notificationSentAt: null } });
+  });
+
   it("lists the user's events with when their email went out", async () => {
     const notificationSentAt = faker.date.recent();
     const { controller, accountStatusService, userId, event } = setup({ notificationSentAt });

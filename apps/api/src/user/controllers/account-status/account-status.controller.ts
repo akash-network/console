@@ -4,7 +4,8 @@ import type {
   AccountStatusEventListResponse,
   AccountStatusEventResponse,
   ReinstateAccountRequest,
-  SuspendAccountRequest
+  SuspendAccountRequest,
+  TerminateAccountRequest
 } from "@src/user/http-schemas/account-status.schema";
 import type { AccountStatusEventOutput } from "@src/user/repositories/account-status-event/account-status-event.repository";
 import { AccountStatusService } from "@src/user/services/account-status/account-status.service";
@@ -19,6 +20,10 @@ export class AccountStatusController {
 
   async reinstate(userId: string, { data }: ReinstateAccountRequest): Promise<AccountStatusEventResponse> {
     return { data: toEventResponse(await this.accountStatusService.reinstate(userId, data)) };
+  }
+
+  async terminate(userId: string, { data }: TerminateAccountRequest): Promise<AccountStatusEventResponse> {
+    return { data: toEventResponse(await this.accountStatusService.terminate(userId, data)) };
   }
 
   async listEvents(userId: string): Promise<AccountStatusEventListResponse> {

@@ -10,6 +10,7 @@ import { ORGANIZATION_FORBIDDEN_ERROR_CODE } from "@src/core/repositories/org-sc
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { OrganizationContextResolver } from "@src/organization/services/organization-context/organization-context.resolver";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
+import { ACCOUNT_TERMINATED_ERROR_CODE } from "@src/user/lib/account-status/account-status";
 import { type UserOutput, UserRepository } from "@src/user/repositories";
 
 export const ACCESS_REVOKED_ERROR_CODE = "access_revoked";
@@ -73,7 +74,7 @@ export class MemberDeploymentAccessService {
     try {
       return await this.organizationContextResolver.resolveBoundTo(user, organizationId);
     } catch (error) {
-      if (isHttpError(error) && error.errorCode === ORGANIZATION_FORBIDDEN_ERROR_CODE) return undefined;
+      if (isHttpError(error) && [ORGANIZATION_FORBIDDEN_ERROR_CODE, ACCOUNT_TERMINATED_ERROR_CODE].includes(error.errorCode)) return undefined;
 
       throw error;
     }

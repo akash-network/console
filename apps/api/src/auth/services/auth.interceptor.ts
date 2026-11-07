@@ -19,6 +19,7 @@ import {
   PROJECT_ID_HEADER
 } from "@src/organization/services/organization-context/organization-context.resolver";
 import { UserOutput, UserRepository } from "@src/user/repositories";
+import { AccountStatusGuard } from "@src/user/services/account-status-guard/account-status-guard.service";
 import { ApiKeyOutput, ApiKeyRepository } from "../repositories/api-key/api-key.repository";
 import { ApiKeyAuthService } from "./api-key/api-key-auth.service";
 import { UserAuthTokenService } from "./user-auth-token/user-auth-token.service";
@@ -27,6 +28,18 @@ const LAST_USER_ACTIVITY_THROTTLE_TIME_SECONDS = 30 * secondsInMinute;
 const MAX_TRACKED_USERS = 1e5;
 /** A `Date` under a user id, so the registry ranks this cache far below the ones holding response payloads. */
 const LAST_USER_ACTIVITY_ENTRY_BYTES = 128;
+
+const READ_ONLY_METHODS = ["GET", "HEAD"];
+
+/** Registering runs on every web sign-in and is how a terminated user lands back on their own account. */
+export const TERMINATED_ACCOUNT_ALLOWED_WRITES = [{ method: "POST", path: "/v1/register-user" }] as const;
+
+/** A terminated account keeps a read-only web app and loses its API keys altogether. */
+function isAllowedForTerminatedAccount(authMethod: AuthMethod, { method, path }: { method: string; path: string }): boolean {
+  if (authMethod !== "bearer") return false;
+
+  return READ_ONLY_METHODS.includes(method) || TERMINATED_ACCOUNT_ALLOWED_WRITES.some(allowed => allowed.method === method && allowed.path === path);
+}
 
 function authMethodOf(credentials: { bearer?: string; apiKey?: string }): AuthMethod {
   if (credentials.apiKey) return "api_key";
@@ -52,7 +65,8 @@ export class AuthInterceptor implements HonoInterceptor {
     private readonly apiKeyRepository: ApiKeyRepository,
     private readonly apiKeyAuthService: ApiKeyAuthService,
     private readonly executionContextService: ExecutionContextService,
-    private readonly organizationContextResolver: OrganizationContextResolver
+    private readonly organizationContextResolver: OrganizationContextResolver,
+    private readonly accountStatusGuard: AccountStatusGuard
   ) {
     cacheRegistry.register("AuthInterceptor#lastUserActivity", this.lastUserActivityCache);
   }
@@ -83,6 +97,7 @@ export class AuthInterceptor implements HonoInterceptor {
 
         if (userId) {
           const currentUser = await this.userRepository.findByUserId(userId);
+          await this.#refuseTerminatedUnlessAllowed(currentUser, c, "bearer");
           await this.auth(currentUser, c);
           c.set("user", currentUser);
           return await this.#nextWithUserContext(currentUser, next);
@@ -90,6 +105,7 @@ export class AuthInterceptor implements HonoInterceptor {
 
         if (apiKey) {
           const { apiKeyOutput, currentUser } = await this.#authenticateApiKey(apiKey);
+          await this.#refuseTerminatedUnlessAllowed(currentUser, c, "api_key");
 
           await Promise.all([currentUser ? this.markApiKeyAsUsed(apiKeyOutput) : null, this.auth(currentUser, c, apiKeyOutput)]);
           c.set("user", currentUser);
@@ -110,6 +126,12 @@ export class AuthInterceptor implements HonoInterceptor {
   #recordAuthMethod(c: Context, requestSpan: Span | undefined, authMethod: AuthMethod) {
     c.set("authMethod", authMethod);
     requestSpan?.setAttribute("auth.method", authMethod);
+  }
+
+  async #refuseTerminatedUnlessAllowed(user: UserOutput | undefined, c: Context, authMethod: AuthMethod): Promise<void> {
+    if (!user || isAllowedForTerminatedAccount(authMethod, { method: c.req.method, path: c.req.path })) return;
+
+    await this.accountStatusGuard.assertNotTerminated(user);
   }
 
   async #nextWithUserContext(user: UserOutput | undefined, next: Next) {

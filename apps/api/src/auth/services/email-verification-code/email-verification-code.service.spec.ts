@@ -11,9 +11,11 @@ import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
 import type { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
+import type { TxService } from "@src/core/services/tx/tx.service";
 import type { HardwareRequestClaimService } from "@src/hardware-request/services/hardware-request-claim/hardware-request-claim.service";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
+import type { AccountStatusService } from "@src/user/services/account-status/account-status.service";
 
 import { createUser } from "@test/seeders/user.seeder";
 
@@ -121,7 +123,38 @@ describe(EmailVerificationCodeService.name, () => {
 
       expect(emailVerificationCodeRepository.claimAttempt).toHaveBeenCalledWith(record.id, 5);
       expect(auth0Service.markEmailVerified).toHaveBeenCalledWith(user.userId);
-      expect(userRepository.updateById).toHaveBeenCalledWith(user.id, { emailVerified: true });
+      expect(userRepository.updateById).toHaveBeenCalledWith(user.id, { emailVerified: true }, { returning: true });
+    });
+
+    it("checks the newly verified address against terminated accounts in the transaction that verifies it, before scheduling the trial", async () => {
+      const code = "123456";
+      const user = createUser({ userId: "auth0|123", emailVerified: false });
+      const verified = { ...user, emailVerified: true };
+      const record = createVerificationCodeOutput({ userId: user.id, code: hashCode(code), attempts: 0 });
+      const { service, emailVerificationCodeRepository, userRepository, accountStatusService, txService } = setup();
+      const calls: string[] = [];
+      txService.transaction.mockImplementation(async cb => {
+        calls.push("tx:begin");
+        const result = await cb();
+        calls.push("tx:commit");
+        return result;
+      });
+      userRepository.findById.mockResolvedValue(user);
+      userRepository.updateById.mockImplementation(async () => {
+        calls.push("verify");
+        return verified as never;
+      });
+      accountStatusService.terminateIfVerifiedEmailWasTerminated.mockImplementation(async () => {
+        calls.push("inheritTermination");
+        return verified;
+      });
+      emailVerificationCodeRepository.findByUserId.mockResolvedValue(record);
+      emailVerificationCodeRepository.claimAttempt.mockResolvedValue({ ...record, attempts: 1 });
+
+      await service.verifyCode(user.id, code);
+
+      expect(calls).toEqual(["tx:begin", "verify", "inheritTermination", "tx:commit"]);
+      expect(accountStatusService.terminateIfVerifiedEmailWasTerminated).toHaveBeenCalledWith(verified);
     });
 
     it("hands the verified account the GPU requests the team filed for its email", async () => {
@@ -285,7 +318,7 @@ describe(EmailVerificationCodeService.name, () => {
 
       await service.verifyCode(user.id, resentCode);
 
-      expect(userRepository.updateById).toHaveBeenCalledWith(user.id, { emailVerified: true });
+      expect(userRepository.updateById).toHaveBeenCalledWith(user.id, { emailVerified: true }, { returning: true });
     });
 
     it("rejects when code is expired", async () => {
@@ -319,7 +352,7 @@ describe(EmailVerificationCodeService.name, () => {
 
       await expect(service.verifyCode(user.id, code)).rejects.toThrow("Auth0 unavailable");
 
-      expect(userRepository.updateById).toHaveBeenCalledWith(user.id, { emailVerified: true });
+      expect(userRepository.updateById).toHaveBeenCalledWith(user.id, { emailVerified: true }, { returning: true });
     });
 
     it("rejects when no active code exists", async () => {
@@ -365,6 +398,8 @@ describe(EmailVerificationCodeService.name, () => {
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
     const hardwareRequestClaimService = mock<HardwareRequestClaimService>({ claimForVerifiedEmail: vi.fn().mockResolvedValue(undefined) });
+    const accountStatusService = mock<AccountStatusService>({ terminateIfVerifiedEmailWasTerminated: vi.fn(async user => user) });
+    const txService = mock<TxService>({ transaction: vi.fn(async cb => await cb()) });
 
     const service = new EmailVerificationCodeService(
       emailVerificationCodeRepository,
@@ -373,7 +408,9 @@ describe(EmailVerificationCodeService.name, () => {
       userRepository,
       trialActivationJobService,
       createLogger,
-      hardwareRequestClaimService
+      hardwareRequestClaimService,
+      accountStatusService,
+      txService
     );
 
     return {
@@ -384,7 +421,9 @@ describe(EmailVerificationCodeService.name, () => {
       userRepository,
       logger,
       createLogger,
-      hardwareRequestClaimService
+      hardwareRequestClaimService,
+      accountStatusService,
+      txService
     };
   }
 });

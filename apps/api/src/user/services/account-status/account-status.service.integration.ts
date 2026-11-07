@@ -3,8 +3,12 @@ import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
+import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
+import { WalletBalanceReloadCheckHandler } from "@src/billing/services/wallet-balance-reload-check/wallet-balance-reload-check.handler";
 import type { ApiPgDatabase } from "@src/core";
 import { JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
+import { ApplyAccountTerminationHandler } from "@src/user/services/apply-account-termination/apply-account-termination.handler";
+import { ApplyAccountTermination, applyAccountTerminationKeyFor } from "@src/user/services/apply-account-termination/apply-account-termination.job";
 import { CloseAccountDeploymentsHandler } from "@src/user/services/close-account-deployments/close-account-deployments.handler";
 import { CloseAccountDeployments, closeAccountDeploymentsKeyFor } from "@src/user/services/close-account-deployments/close-account-deployments.job";
 import { AccountStatusService } from "./account-status.service";
@@ -13,7 +17,11 @@ import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.
 import { seedWalletSetting } from "@test/seeders/db/wallet-setting.seeder";
 import { findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 
-const jobWorkers = useJobWorkers(() => [container.resolve(CloseAccountDeploymentsHandler)]);
+const jobWorkers = useJobWorkers(() => [
+  container.resolve(CloseAccountDeploymentsHandler),
+  container.resolve(ApplyAccountTerminationHandler),
+  container.resolve(WalletBalanceReloadCheckHandler)
+]);
 
 describe(AccountStatusService.name, () => {
   it("suspends an active user and records the event", async () => {
@@ -110,6 +118,73 @@ describe(AccountStatusService.name, () => {
     const { service, actor } = await setup();
 
     await expect(service.suspend(faker.string.uuid(), { actor, userReason: "Abuse", closeDeployments: true })).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("queues the next auto-recharge check of a reinstated user whose own wallet has auto-recharge on", async () => {
+    const { service, actor } = await setup();
+    const { user, wallet } = await seedUserWithWallet();
+    await seedWalletSetting({ userId: user.id, walletId: wallet.id, autoReloadEnabled: true, autoReloadThreshold: 1500 });
+    await service.suspend(user.id, { actor, userReason: "Unpaid invoices", closeDeployments: false });
+
+    await service.reinstate(user.id, { actor });
+
+    expect(await findJobRows(WalletBalanceReloadCheck[JOB_NAME], { singletonKey: `${WalletBalanceReloadCheck[JOB_NAME]}.${user.id}` })).toEqual([
+      expect.objectContaining({ state: "created", data: { userId: user.id, version: 1 } })
+    ]);
+  });
+
+  it("queues no auto-recharge check for a reinstated user whose auto-recharge is off", async () => {
+    const { service, actor } = await setup();
+    const { user, wallet } = await seedUserWithWallet();
+    await seedWalletSetting({ userId: user.id, walletId: wallet.id, autoReloadEnabled: false });
+    await service.suspend(user.id, { actor, userReason: "Unpaid invoices", closeDeployments: false });
+
+    await service.reinstate(user.id, { actor });
+
+    expect(await findJobRows(WalletBalanceReloadCheck[JOB_NAME], { singletonKey: `${WalletBalanceReloadCheck[JOB_NAME]}.${user.id}` })).toEqual([]);
+  });
+
+  it("terminates a suspended user, records the credit choice and queues the termination effects", async () => {
+    const { service, actor, findUser, findEvents } = await setup();
+    const user = await seedUser({ accountStatus: "suspended", email: faker.internet.email(), emailVerified: true });
+
+    const event = await service.terminate(user.id, { actor, userReason: "Fraud", internalNote: "Stolen cards", forfeitCredits: true });
+
+    expect((await findUser(user.id))?.accountStatus).toBe("terminated");
+    expect(await findEvents(user.id)).toEqual([
+      expect.objectContaining({
+        id: event.id,
+        action: "terminate",
+        userReason: "Fraud",
+        internalNote: "Stolen cards",
+        options: { forfeitCredits: true, emailVerified: true }
+      })
+    ]);
+    expect(await findJobRows(ApplyAccountTermination[JOB_NAME], { singletonKey: applyAccountTerminationKeyFor(user.id) })).toEqual([
+      expect.objectContaining({ state: "created", data: { userId: user.id, forfeitCredits: true, version: 1 } })
+    ]);
+  });
+
+  it("rejects terminating a terminated user with 409 and queues nothing", async () => {
+    const { service, actor, findEvents } = await setup();
+    const user = await seedUser({ accountStatus: "terminated" });
+
+    await expect(service.terminate(user.id, { actor, userReason: "Again", forfeitCredits: false })).rejects.toMatchObject({
+      status: 409,
+      errorCode: "account_status_conflict"
+    });
+
+    expect(await findEvents(user.id)).toEqual([]);
+    expect(await findJobRows(ApplyAccountTermination[JOB_NAME], { singletonKey: applyAccountTerminationKeyFor(user.id) })).toEqual([]);
+  });
+
+  it("rejects reinstating a terminated user with 409", async () => {
+    const { service, actor, findUser } = await setup();
+    const user = await seedUser({ accountStatus: "terminated" });
+
+    await expect(service.reinstate(user.id, { actor })).rejects.toMatchObject({ status: 409, errorCode: "account_status_conflict" });
+
+    expect((await findUser(user.id))?.accountStatus).toBe("terminated");
   });
 
   it("rejects reinstating an active user with 409 account_status_conflict", async () => {

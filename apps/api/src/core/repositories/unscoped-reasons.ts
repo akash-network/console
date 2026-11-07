@@ -1,6 +1,7 @@
 /** Every deliberate exception to organization scoping, so the full set can be listed and reviewed in one place. */
 export const UNSCOPED_REASONS = [
   "account-deletion",
+  "account-termination",
   "active-organization-resolution",
   "api-key-authentication",
   "api-key-expiry-reminders",

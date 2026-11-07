@@ -12,9 +12,11 @@ import { ExecutionContextService } from "@src/core/services/execution-context/ex
 import { OrganizationContextResolver } from "@src/organization/services/organization-context/organization-context.resolver";
 import type { UserOutput } from "@src/user/repositories/user/user.repository";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
+import type { AccountStatusService } from "@src/user/services/account-status/account-status.service";
+import { AccountStatusGuard } from "@src/user/services/account-status-guard/account-status-guard.service";
 import { AbilityService } from "./ability/ability.service";
 import { UserAuthTokenService } from "./user-auth-token/user-auth-token.service";
-import { AuthInterceptor } from "./auth.interceptor";
+import { AuthInterceptor, TERMINATED_ACCOUNT_ALLOWED_WRITES } from "./auth.interceptor";
 import { AuthService } from "./auth.service";
 
 import { createApiKey } from "@test/seeders/api-key.seeder";
@@ -176,6 +178,87 @@ describe(AuthInterceptor.name, () => {
     });
   });
 
+  describe("Terminated account", () => {
+    it.each(["GET", "HEAD", "POST", "DELETE"])("rejects a %s api key request of a terminated user with account_terminated", async method => {
+      const { callInterceptor, organizationContextResolver, di } = setup({
+        apiKey: "123",
+        user: createUser({ accountStatus: "terminated" }),
+        userReason: "Fraud"
+      });
+
+      const response = await callInterceptor({ method });
+
+      expect(response.status).toBe(403);
+      expect(organizationContextResolver.resolve).not.toHaveBeenCalled();
+      expect(di.resolve(ApiKeyRepository).markAsUsed).not.toHaveBeenCalled();
+    });
+
+    it("answers the api key refusal with the account_terminated code and the reason written for the user", async () => {
+      const { callInterceptor } = setup({ apiKey: "123", user: createUser({ accountStatus: "terminated" }), userReason: "Fraud" });
+
+      const response = await callInterceptor();
+
+      expect(await response.json()).toEqual({ error: "Your account has been terminated", code: "account_terminated", data: { reason: "Fraud" } });
+    });
+
+    it("rejects the register call made with a terminated user's api key", async () => {
+      const { callInterceptor } = setup({ apiKey: "123", user: createUser({ accountStatus: "terminated" }) });
+
+      const response = await callInterceptor({ method: "POST", path: "/v1/register-user" });
+
+      expect(response.status).toBe(403);
+    });
+
+    it.each(["GET", "HEAD"])("allows a %s for a terminated bearer user", async method => {
+      const { callInterceptor, organizationContextResolver, accountStatusService } = setup({ user: createUser({ accountStatus: "terminated" }) });
+
+      const response = await callInterceptor({ method });
+
+      expect(response.status).toBe(200);
+      expect(organizationContextResolver.resolve).toHaveBeenCalled();
+      expect(accountStatusService.findUserReasonOf).not.toHaveBeenCalled();
+    });
+
+    it.each(["POST", "PUT", "DELETE"])("rejects a %s for a terminated bearer user with account_terminated", async method => {
+      const { callInterceptor, organizationContextResolver } = setup({ user: createUser({ accountStatus: "terminated" }), userReason: "Fraud" });
+
+      const response = await callInterceptor({ method });
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ code: "account_terminated", data: { reason: "Fraud" } });
+      expect(organizationContextResolver.resolve).not.toHaveBeenCalled();
+    });
+
+    it("lets a terminated bearer user register again, which is how signing in lands on their account", async () => {
+      const { callInterceptor } = setup({ user: createUser({ accountStatus: "terminated" }) });
+
+      const response = await callInterceptor({ method: "POST", path: "/v1/register-user" });
+
+      expect(response.status).toBe(200);
+    });
+
+    it("rejects a terminated bearer user's write to any other path", async () => {
+      const { callInterceptor } = setup({ user: createUser({ accountStatus: "terminated" }) });
+
+      const response = await callInterceptor({ method: "PUT", path: "/v1/register-user" });
+
+      expect(response.status).toBe(403);
+    });
+
+    it("lists only the register call as a write a terminated account may make", () => {
+      expect(TERMINATED_ACCOUNT_ALLOWED_WRITES).toEqual([{ method: "POST", path: "/v1/register-user" }]);
+    });
+
+    it.each(["active", "suspended"] as const)("lets a %s user write, by session and by api key", async accountStatus => {
+      const bySession = setup({ user: createUser({ accountStatus }) });
+      const byApiKey = setup({ apiKey: "123", user: createUser({ accountStatus }) });
+
+      const responses = await Promise.all([bySession.callInterceptor({ method: "POST" }), byApiKey.callInterceptor({ method: "POST" })]);
+
+      expect(responses.map(({ status }) => status)).toEqual([200, 200]);
+    });
+  });
+
   describe("Organization context", () => {
     it("stores the organization context resolved for a signed-in user before building the ability", async () => {
       const user = createUser();
@@ -301,6 +384,8 @@ describe(AuthInterceptor.name, () => {
         })
       })
     );
+    const accountStatusService = mock<AccountStatusService>({ findUserReasonOf: vi.fn().mockResolvedValue(input?.userReason ?? null) });
+    di.registerInstance(AccountStatusGuard, new AccountStatusGuard(mock<UserRepository>(), accountStatusService));
     di.register(AuthInterceptor, { useClass: AuthInterceptor });
     const executionContextService = mock<ExecutionContextService>({
       get: key =>
@@ -322,7 +407,7 @@ describe(AuthInterceptor.name, () => {
     const app = new Hono<{ Variables: { authMethod?: string } }>()
       .onError((error, c) => {
         if (isHttpError(error)) {
-          return c.json({ error: error.message }, { status: error.status });
+          return c.json({ error: error.message, code: error.errorCode, data: error.data }, { status: error.status });
         }
         throw error;
       })
@@ -331,7 +416,9 @@ describe(AuthInterceptor.name, () => {
         observedAuthMethods.push(c.get("authMethod"));
       })
       .use(di.resolve(AuthInterceptor).intercept())
-      .get("/", c => c.text("Ok"));
+      .get("/", c => c.text("Ok"))
+      .on(["HEAD", "POST", "PUT", "DELETE"], "/", c => c.text("Ok"))
+      .post("/v1/register-user", c => c.text("Ok"));
     const headers: Record<string, string> = { ...input?.headers };
 
     if (input?.bearer) {
@@ -352,10 +439,8 @@ describe(AuthInterceptor.name, () => {
       organizationContext,
       requestSpan,
       observedAuthMethods,
-      callInterceptor: () =>
-        app.request("/", {
-          headers
-        })
+      accountStatusService,
+      callInterceptor: (request: { method?: string; path?: string } = {}) => app.request(request.path ?? "/", { method: request.method ?? "GET", headers })
     };
   }
 
@@ -369,5 +454,6 @@ describe(AuthInterceptor.name, () => {
     apiKeyOutput?: ApiKeyOutput;
     headers?: Record<string, string>;
     organizationContextRejection?: Error;
+    userReason?: string;
   }
 });

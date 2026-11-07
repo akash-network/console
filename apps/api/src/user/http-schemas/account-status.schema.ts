@@ -27,6 +27,15 @@ export const SuspendAccountRequestSchema = z.object({
   })
 });
 
+export const TerminateAccountRequestSchema = z.object({
+  data: z.object({
+    actor: AccountStatusActorSchema,
+    userReason: z.string().trim().min(1).max(MAX_USER_REASON_LENGTH).describe("Shown to the user in the app and in the email"),
+    internalNote: InternalNoteSchema,
+    forfeitCredits: z.boolean().describe("Revokes the wallet's grants and zeroes its allowances once its deployments are closed")
+  })
+});
+
 export const ReinstateAccountRequestSchema = z.object({
   data: z.object({
     actor: AccountStatusActorSchema,
@@ -44,7 +53,12 @@ const AccountStatusEventSchema = z.object({
   actorName: z.string(),
   userReason: z.string().nullable(),
   internalNote: z.string().nullable(),
-  options: z.object({ closeDeployments: z.boolean().optional(), forfeitCredits: z.boolean().optional() }),
+  options: z.object({
+    closeDeployments: z.boolean().optional(),
+    forfeitCredits: z.boolean().optional(),
+    emailVerified: z.boolean().optional().describe("Whether the address was verified when the account was terminated"),
+    matchedUserId: z.string().uuid().optional().describe("The terminated account whose email a new account signed up with")
+  }),
   notificationSentAt: z.string().datetime().nullable(),
   createdAt: z.string().datetime()
 });
@@ -54,6 +68,7 @@ export const AccountStatusEventResponseSchema = z.object({ data: AccountStatusEv
 export const AccountStatusEventListResponseSchema = z.object({ data: z.array(AccountStatusEventSchema) });
 
 export type SuspendAccountRequest = z.infer<typeof SuspendAccountRequestSchema>;
+export type TerminateAccountRequest = z.infer<typeof TerminateAccountRequestSchema>;
 export type ReinstateAccountRequest = z.infer<typeof ReinstateAccountRequestSchema>;
 export type AccountStatusEventResponse = z.infer<typeof AccountStatusEventResponseSchema>;
 export type AccountStatusEventListResponse = z.infer<typeof AccountStatusEventListResponseSchema>;

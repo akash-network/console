@@ -16,6 +16,7 @@ import type { NotificationService } from "@src/notifications/services/notificati
 import type { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import type { DataKeyService } from "@src/secret/services/data-key/data-key.service";
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
+import type { AccountStatusService } from "@src/user/services/account-status/account-status.service";
 import type { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 import type { RegisterUserInput } from "./user.service";
 import { UserService } from "./user.service";
@@ -274,6 +275,40 @@ describe(UserService.name, () => {
 
       expect(order).toEqual(["begin", "upsert", "organization", "commit"]);
       expect(personalOrganizationService.ensureForUser).toHaveBeenCalledWith(user);
+    });
+
+    it("lets an account inherit a termination of its verified address inside the transaction that upserts it, and carries on with the inherited status", async () => {
+      const user = createUser({ accountStatus: "active" });
+      const terminated = { ...user, accountStatus: "terminated" as const };
+      const { service, userRepository, personalOrganizationService, accountStatusService, txService } = setup();
+      const order: string[] = [];
+      txService.transaction.mockImplementation(async cb => {
+        order.push("begin");
+        const result = await cb();
+        order.push("commit");
+        return result;
+      });
+      userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
+      accountStatusService.terminateIfVerifiedEmailWasTerminated.mockImplementation(async () => {
+        order.push("inheritTermination");
+        return terminated;
+      });
+
+      await service.registerUser(createRegisterInput());
+
+      expect(order).toEqual(["begin", "inheritTermination", "commit"]);
+      expect(accountStatusService.terminateIfVerifiedEmailWasTerminated).toHaveBeenCalledWith(user);
+      expect(personalOrganizationService.ensureForUser).toHaveBeenCalledWith(terminated);
+    });
+
+    it("checks an account that signs in again too, since Auth0 may only now report its address verified", async () => {
+      const user = createUser({ accountStatus: "active", emailVerified: true });
+      const { service, userRepository, accountStatusService } = setup();
+      userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: false });
+
+      await service.registerUser(createRegisterInput());
+
+      expect(accountStatusService.terminateIfVerifiedEmailWasTerminated).toHaveBeenCalledWith(user);
     });
 
     it("fails the registration when the personal organization cannot be created", async () => {
@@ -661,6 +696,7 @@ describe(UserService.name, () => {
     });
 
     const hardwareRequestClaimService = mock<HardwareRequestClaimService>({ claimForVerifiedEmail: vi.fn().mockResolvedValue(undefined) });
+    const accountStatusService = mock<AccountStatusService>({ terminateIfVerifiedEmailWasTerminated: vi.fn(async user => user) });
     const service = new UserService(
       userRepository,
       analyticsService,
@@ -674,10 +710,12 @@ describe(UserService.name, () => {
       personalOrganizationService,
       txService,
       verifiedEmailService,
-      hardwareRequestClaimService
+      hardwareRequestClaimService,
+      accountStatusService
     );
 
     return {
+      accountStatusService,
       hardwareRequestClaimService,
       blockedEmailDomainService,
       service,

@@ -6,6 +6,7 @@ import type { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.re
 import { AuthService } from "@src/auth/services/auth.service";
 import type { PaymentMethodRepository, UserWalletOutput, UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";
 import type { DeploymentDepositRepository } from "@src/billing/repositories/deployment-deposit/deployment-deposit.repository";
+import { AutoReloadShutoffService } from "@src/billing/services/auto-reload-shutoff/auto-reload-shutoff.service";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
@@ -388,11 +389,10 @@ describe(TeamOrganizationDeletionService.name, () => {
       invitationRepository,
       apiKeyRepository,
       userWalletRepository,
-      walletSettingRepository,
       paymentMethodRepository,
       depositRepository,
       dataKeyRepository,
-      walletReloadJobService,
+      new AutoReloadShutoffService(walletSettingRepository, walletReloadJobService),
       jobQueueService,
       txService,
       createLogger

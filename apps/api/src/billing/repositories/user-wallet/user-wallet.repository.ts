@@ -1,6 +1,6 @@
 import { Trace } from "@akashnetwork/instrumentation";
 import subDays from "date-fns/subDays";
-import { and, asc, count, eq, gt, inArray, isNotNull, isNull, lte, ne, notExists, or, sql } from "drizzle-orm";
+import { and, asc, count, eq, gt, inArray, isNotNull, isNull, lte, ne, notExists, notInArray, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { StripeTransactions } from "@src/billing/model-schemas";
@@ -217,6 +217,7 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
     return !!eligible;
   }
 
+  /** A terminated user's wallet is left out, so the fee grant a termination revoked is not granted back. */
   #whereEligibleForFeeRefill(trialExpirationDays: number) {
     const trialWindowStart = subDays(new Date(), trialExpirationDays);
 
@@ -224,7 +225,11 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
       isNotNull(this.table.activatedAt),
       isNull(this.table.abuseLockedAt),
       or(and(eq(this.table.isTrialing, true), gt(this.table.activatedAt, trialWindowStart)), eq(this.table.isTrialing, false)),
-      or(isNotNull(this.table.userId), isNotNull(this.table.organizationId))
+      or(isNotNull(this.table.userId), isNotNull(this.table.organizationId)),
+      or(
+        isNull(this.table.userId),
+        notInArray(this.table.userId, this.cursor.select({ id: Users.id }).from(Users).where(eq(Users.accountStatus, "terminated")))
+      )
     );
   }
 

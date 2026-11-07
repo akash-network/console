@@ -5,7 +5,7 @@ import { Users } from "@src/user/model-schemas/user/user.schema";
 
 export const accountStatusActionEnum = pgEnum("account_status_action", ["suspend", "reinstate", "terminate"]);
 
-export type AccountStatusEventOptions = { closeDeployments?: boolean; forfeitCredits?: boolean };
+export type AccountStatusEventOptions = { closeDeployments?: boolean; forfeitCredits?: boolean; emailVerified?: boolean; matchedUserId?: string };
 
 export const AccountStatusEvents = pgTable(
   "account_status_events",

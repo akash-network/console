@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -32,6 +32,24 @@ export class AccountStatusEventRepository extends BaseRepository<Table, AccountS
       .limit(1);
 
     return event?.userReason ?? null;
+  }
+
+  /** Matches the address an account had when it was terminated, and only if it was verified then, so nobody can hand a termination to an address they do not own. */
+  async findLatestVerifiedTerminationOf(email: string): Promise<Pick<AccountStatusEventOutput, "userId" | "userReason"> | undefined> {
+    const [termination] = await this.cursor
+      .select({ userId: this.table.userId, userReason: this.table.userReason })
+      .from(this.table)
+      .where(
+        and(
+          eq(this.table.action, "terminate"),
+          sql`${this.table.options}->>'emailVerified' = 'true'`,
+          sql`lower(${this.table.userEmail}) = ${email.trim().toLowerCase()}`
+        )
+      )
+      .orderBy(desc(this.table.createdAt))
+      .limit(1);
+
+    return termination;
   }
 
   async findManyByUserId(userId: string): Promise<AccountStatusEventOutput[]> {
