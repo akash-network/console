@@ -138,11 +138,12 @@ export class UnreachableProviderDeploymentsNotifierService {
       return false;
     }
 
-    const filingUserId = wallet.userId ?? setting?.userId;
-    const contacts = filingUserId ? await this.deploymentContactsService.findFor({ wallet, filingUserId }) : [];
+    const filingUserId = wallet.userId ?? setting?.userId ?? null;
+    const filed = filingUserId ? { userId: filingUserId, dseq: deployment.dseq, organizationId: wallet.organizationId } : setting && { orphanId: setting.id };
+    const contacts = filed ? await this.deploymentContactsService.findFor({ wallet, filingUserId }) : [];
     const recipients = contacts.filter(contact => !!contact.email);
 
-    if (!filingUserId || recipients.length === 0) {
+    if (!filed || recipients.length === 0) {
       this.logger.warn({
         event: "UNREACHABLE_PROVIDER_DEPLOYMENT_SKIPPED",
         reason: "USER_HAS_NO_EMAIL",
@@ -163,7 +164,7 @@ export class UnreachableProviderDeploymentsNotifierService {
       return false;
     }
 
-    const claim = { userId: filingUserId, dseq: deployment.dseq, organizationId: wallet.organizationId, downSinceMarker: deployment.downSince };
+    const claim = { ...filed, downSinceMarker: deployment.downSince };
     const claimed = await this.deploymentSettingRepository.claimProviderUnreachableNotification(claim);
 
     if (!claimed) {

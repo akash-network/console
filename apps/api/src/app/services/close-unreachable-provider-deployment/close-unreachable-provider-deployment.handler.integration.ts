@@ -16,7 +16,8 @@ import { DeploymentWriterService } from "@src/deployment/services/deployment-wri
 import { ProviderOutagesHttpService } from "@src/deployment/services/provider-outages-http/provider-outages-http.service";
 import { UnreachableProviderDeploymentsCloserService } from "@src/deployment/services/unreachable-provider-deployments-closer/unreachable-provider-deployments-closer.service";
 import { NotificationHandler, NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
-import { UserRepository } from "@src/user/repositories";
+import { type UserOutput, UserRepository } from "@src/user/repositories";
+import { TeamRecordRetentionService } from "@src/user/services/team-record-retention/team-record-retention.service";
 import { CloseUnreachableProviderDeploymentHandler } from "./close-unreachable-provider-deployment.handler";
 
 import { createAkashAddress, createDeployment, createDeploymentGroup, createLease, createProvider } from "@test/seeders";
@@ -94,6 +95,26 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
         .sort()
     ).toEqual([...ownerIds].sort());
     expect(await findClosedNotices()).toHaveLength(ownerIds.length);
+  });
+
+  it("records the close on the team's record and tells each of its owners when the filer has deleted their account", async () => {
+    const { closeUnreachable, awaitClosedNotice, findClosedNotices, findTeamSetting, sentNotifications, teamOwners } = await setup({
+      inTeam: true,
+      filerDeletedAccount: true,
+      teamOwnerCount: 2
+    });
+    const ownerIds = teamOwners.map(({ id }) => id);
+
+    await closeUnreachable();
+    for (const ownerId of ownerIds) await awaitClosedNotice(ownerId);
+
+    expect(
+      sentNotifications()
+        .map(({ userId }) => userId)
+        .sort()
+    ).toEqual([...ownerIds].sort());
+    expect(await findClosedNotices()).toHaveLength(ownerIds.length);
+    expect(await findTeamSetting()).toMatchObject({ userId: null, closed: true, consoleCloseReason: "provider_unreachable" });
   });
 
   it("records the close in the owner's feed as Console's, because the provider stopped responding", async () => {
@@ -217,6 +238,7 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
       alreadyClosedOnChain?: boolean;
       inTeam?: boolean;
       filerLeftTeam?: boolean;
+      filerDeletedAccount?: boolean;
       teamOwnerCount?: number;
     } = {}
   ) {
@@ -232,8 +254,10 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
     const darkProvider = await createProvider();
     const deployment = await createDeployment({ owner, dseq: faker.string.numeric(10) });
 
-    if (input.inTeam) {
-      await seedDeploymentSetting({ userId: user.id, organizationId: wallet.organizationId, dseq: deployment.dseq });
+    const teamSetting = input.inTeam && (await seedDeploymentSetting({ userId: user.id, organizationId: wallet.organizationId, dseq: deployment.dseq }));
+
+    if (input.filerDeletedAccount) {
+      await deleteAccount(user);
     }
     await seedLease(deployment, darkProvider.owner, 1, input.leaseAlreadyClosed ? 10_000 : undefined);
 
@@ -259,6 +283,7 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
       close,
       sentNotifications,
       findSetting: () => deploymentSettingRepository.findOneBy({ userId: user.id, dseq: deployment.dseq }),
+      findTeamSetting: async () => teamSetting && (await deploymentSettingRepository.findById(teamSetting.id)),
       findActivities: () => container.resolve(ActivityRepository).find({ userId: user.id }),
       findClosedNotices,
       findClosedNotice: async () => (await findClosedNotices())[0],
@@ -293,6 +318,11 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
     };
   }
 });
+
+async function deleteAccount(user: UserOutput) {
+  await container.resolve(TeamRecordRetentionService).releaseFromTeams(user);
+  await container.resolve(UserRepository).deleteById(user.id);
+}
 
 async function seedPersonalWallet(userId: string, address: string) {
   const userWalletRepository = container.resolve(UserWalletRepository);
