@@ -17,6 +17,9 @@ export class CreateLeaseHandler implements JobHandler<CreateLease> {
   /** One lease creation per deployment across queued, retrying and running, so a second request joins the first instead of racing it for the same bids. */
   public readonly policy = "exclusive";
 
+  /** Under the two workers a pod runs per queue, so one user's backlog always leaves a worker to everyone else. */
+  public readonly groupConcurrency = 1;
+
   readonly #logger: ReturnType<CreateLogger>;
 
   constructor(

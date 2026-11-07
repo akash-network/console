@@ -15,6 +15,10 @@ export class CreateDeployment implements Job {
       autoLease?: boolean;
     }
   ) {}
+
+  get group(): string {
+    return this.data.userId;
+  }
 }
 
 /** Keyed by the wallet rather than the member, because one member creates through a personal and a team wallet whose dseqs can coincide. */

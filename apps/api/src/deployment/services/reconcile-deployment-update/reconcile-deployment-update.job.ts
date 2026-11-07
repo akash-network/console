@@ -21,6 +21,10 @@ export class ReconcileDeploymentUpdate implements Job {
       changes?: DeploymentChanges;
     }
   ) {}
+
+  get group(): string {
+    return this.data.userId;
+  }
 }
 
 /** An order of magnitude past the signer's unordered-tx TTL, so whatever the update job sent has landed or expired by the time the deployment is read. */

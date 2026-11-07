@@ -365,6 +365,34 @@ describe(JobQueueService.name, () => {
     expect(await jobQueue.findJob(jobType, "6f1c2b9e-3d4a-4b5c-8e7f-9a0b1c2d3e4f")).toBeUndefined();
   });
 
+  it("runs another user's job on a free worker while one user's backlog waits behind their running job", async () => {
+    let release!: () => void;
+    const held = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const started: string[] = [];
+    const { jobQueue, handler, enqueue, findJobs } = await setup({
+      queueName: "group-turns",
+      groupConcurrency: 1,
+      handle: async ({ userId, step }) => {
+        started.push(`${userId}:${step}`);
+        if (userId === "busy-user") await held;
+      }
+    });
+    await jobQueue.registerHandlers([handler]);
+    await enqueue(undefined, { userId: "busy-user", step: 1 });
+    await jobQueue.startWorkers({ concurrency: 2, pollingIntervalSeconds: 0.5 });
+    await vi.waitFor(() => expect(started).toEqual(["busy-user:1"]), { timeout: 20_000, interval: 100 });
+
+    for (const step of [2, 3, 4, 5, 6]) await enqueue(undefined, { userId: "busy-user", step });
+    await enqueue(undefined, { userId: "other-user", step: 1 });
+
+    await vi.waitFor(() => expect(started).toContain("other-user:1"), { timeout: 20_000, interval: 100 });
+    expect(started).toEqual(["busy-user:1", "other-user:1"]);
+    release();
+    await vi.waitFor(async () => expect((await findJobs()).map(job => job.state)).toEqual(Array(7).fill("completed")), { timeout: 30_000, interval: 250 });
+  });
+
   it("logs a job failure pg-boss could not write under JOB_QUEUE_WORKER_ERROR and leaves the job active", async () => {
     const failureWithLoneSurrogate = new Error("handler failed with \ud800, which Postgres refuses inside jsonb");
     const { jobQueue, handler, enqueue, findJob } = await setup({ queueName: "unrecordable", handle: vi.fn().mockRejectedValue(failureWithLoneSurrogate) });
@@ -398,9 +426,9 @@ describe(JobQueueService.name, () => {
     return sql.identifier(container.resolve(CoreConfigService).get("POSTGRES_BACKGROUND_JOBS_SCHEMA"));
   }
 
-  async function setup(input: { queueName: string; policy?: PgBossQueue["policy"]; handle?: JobHandler<Job>["handle"] }) {
+  async function setup(input: { queueName: string; policy?: PgBossQueue["policy"]; groupConcurrency?: number; handle?: JobHandler<Job>["handle"] }) {
     const { jobQueue, pgBoss } = await bootstrapJobQueue();
-    const { queueName, policy } = input;
+    const { queueName, policy, groupConcurrency } = input;
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
 
     class ScopedJob implements Job {
@@ -409,6 +437,10 @@ describe(JobQueueService.name, () => {
       readonly version = 1;
 
       constructor(public readonly data: Record<string, unknown> = {}) {}
+
+      get group() {
+        return this.data.userId as string | undefined;
+      }
     }
 
     const findJobs = async () => {
@@ -426,6 +458,7 @@ describe(JobQueueService.name, () => {
       handler: {
         accepts: ScopedJob,
         policy,
+        groupConcurrency,
         requiresPermission: () => [],
         handle: input.handle ?? vi.fn().mockResolvedValue(undefined)
       } satisfies JobHandler<Job>,

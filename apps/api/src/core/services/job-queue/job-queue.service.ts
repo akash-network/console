@@ -247,17 +247,18 @@ export class JobQueueService implements Disposable {
    */
   async enqueue(job: Job, options?: EnqueueOptions): Promise<string | null> {
     const connection = this.txService.getConnection();
+    const groupedOptions = { ...options, ...(job.group && { group: { id: job.group } }) };
     const jobId = await this.pgBoss.send({
       name: job.name,
       data: { ...job.data, version: job.version },
-      options: { ...options, db: connection ? this.#toTransactionDb(connection) : undefined }
+      options: { ...groupedOptions, db: connection ? this.#toTransactionDb(connection) : undefined }
     });
 
     this.logger.info({
       event: "JOB_ENQUEUED",
       job,
       jobId,
-      options
+      options: groupedOptions
     });
 
     return jobId;
@@ -469,8 +470,9 @@ export class JobQueueService implements Disposable {
     };
     const jobs = this.handlers.map(async handler => {
       const queueName = handler.accepts[JOB_NAME];
+      const queueWorkerOptions = { ...workerOptions, groupConcurrency: handler.groupConcurrency };
       const workersPromises = Array.from({ length: handler.concurrency ?? concurrency ?? 2 }).map(() =>
-        this.pgBoss.work<JobPayload<Job>, void, typeof workerOptions>(queueName, workerOptions, async ([job]) => {
+        this.pgBoss.work<JobPayload<Job>, void, typeof queueWorkerOptions>(queueName, queueWorkerOptions, async ([job]) => {
           await this.#executeWithOtelContext(queueName, job.id, async () => {
             await this.executionContextService.runWithContext(async () => {
               this.executionContextService.set("CURRENT_USER", {
@@ -594,6 +596,8 @@ export interface Job {
   version: number;
   name: string;
   data: Record<string, unknown>;
+  /** The jobs sharing a group count together against their handler's `groupConcurrency`. */
+  readonly group?: string;
 }
 
 export type JobPayload<T extends Job> = T["data"] & { version: T["version"] };
@@ -614,13 +618,15 @@ export interface JobHandler<T extends Job> {
   accepts: JobType<T>;
   concurrency?: ProcessOptions["concurrency"];
   policy?: PgBossQueue["policy"];
+  /** How many jobs of one group may run at once across every worker of every pod; a job without a group is never held back. */
+  groupConcurrency?: number;
   /** Declared rules gate rather than filter: `accessibleBy` refuses outright any action its rules omit, so a declaration covers everything the handler's services ask for. */
   requiresPermission(payload: JobPayload<T>): JobPermissions;
   handle(payload: JobPayload<T>, job?: JobMeta): Promise<void>;
 }
 
-export type EnqueueOptions = PgBossSendOptions;
-export interface ProcessOptions extends Omit<PgBossWorkOptions, "batchSize"> {
+export type EnqueueOptions = Omit<PgBossSendOptions, "group">;
+export interface ProcessOptions extends Omit<PgBossWorkOptions, "batchSize" | "groupConcurrency" | "localGroupConcurrency"> {
   /**
    * The number of workers to start. Defaults to 2.
    * Specify higher concurrency to process jobs faster. Specify 1 to process jobs one by one.
