@@ -8,8 +8,17 @@ import { useDeploymentLocationQuery, useUpdateDeploymentProjectMutation } from "
 import { useProjectsQuery } from "@src/queries/useProjectsQuery";
 import { ActionCardChrome } from "../ActionCardChrome/ActionCardChrome";
 import type { ActionCardProps } from "../actionCardTypes";
+import { DeploymentLink } from "../DeploymentLink/DeploymentLink";
+import { useDeploymentName } from "../useDeploymentName/useDeploymentName";
 
-export const DEPENDENCIES = { useProjectsQuery, useDeploymentLocationQuery, useUpdateDeploymentProjectMutation, ProjectPicker, ActionCardChrome };
+export const DEPENDENCIES = {
+  useProjectsQuery,
+  useDeploymentLocationQuery,
+  useUpdateDeploymentProjectMutation,
+  useDeploymentName,
+  ProjectPicker,
+  ActionCardChrome
+};
 
 const UNFILED_LABEL = "No project";
 
@@ -21,6 +30,7 @@ export const MoveDeploymentCard: FC<ActionCardProps<"move_deployment"> & { depen
   const { data: projects = [] } = d.useProjectsQuery();
   const { data: location } = d.useDeploymentLocationQuery(action.dseq);
   const { mutateAsync: updateDeploymentProject } = d.useUpdateDeploymentProjectMutation();
+  const deploymentName = d.useDeploymentName(action.dseq);
   const [projectId, setProjectId] = useState(action.projectId);
 
   const currentProjectId = location?.projectId ?? undefined;
@@ -39,7 +49,7 @@ export const MoveDeploymentCard: FC<ActionCardProps<"move_deployment"> & { depen
   return (
     <d.ActionCardChrome
       title="Move the deployment"
-      scope={`dseq ${action.dseq}`}
+      scope={<DeploymentLink dseq={action.dseq} name={deploymentName} />}
       tier={action.tier}
       decision={decision}
       rows={[

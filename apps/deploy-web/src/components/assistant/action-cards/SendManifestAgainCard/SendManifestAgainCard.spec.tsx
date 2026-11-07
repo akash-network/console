@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { ActionCardChromeProps } from "../ActionCardChrome/ActionCardChrome";
+import { DeploymentLink } from "../DeploymentLink/DeploymentLink";
 import type { ActionCardDecision } from "../useActionCardDecision/useActionCardDecision";
 import type { DEPENDENCIES } from "./SendManifestAgainCard";
 import { SendManifestAgainCard } from "./SendManifestAgainCard";
@@ -20,7 +21,7 @@ describe("SendManifestAgainCard", () => {
         title: "Send the deployment again",
         tier: "confirm",
         decision,
-        rows: [{ label: "Deployment", value: "42" }],
+        rows: [{ label: "Deployment", value: expect.objectContaining({ type: DeploymentLink, props: { dseq: "42", name: "blog" } }) }],
         confirmLabel: "Send again"
       })
     );
@@ -44,6 +45,7 @@ describe("SendManifestAgainCard", () => {
   });
 
   function setup() {
+    const useDeploymentName = vi.fn((_dseq: string | null | undefined, _knownName?: string | null): string | null => "blog");
     const listLeases = vi.fn(async () => ({
       data: [{ id: { owner: "akash1owner", dseq: "42", gseq: 1, oseq: 2, provider: "akash1provider", bseq: 1 }, state: "active" }]
     }));
@@ -57,6 +59,7 @@ describe("SendManifestAgainCard", () => {
         action={{ type: "send_manifest_again", tier: "confirm", dseq: "42" }}
         decision={decision}
         dependencies={{
+          useDeploymentName,
           useServices: () => Object.assign(mock<Container>(), { api }),
           useSendDeploymentAgain: () => mock<ReturnType<typeof DEPENDENCIES.useSendDeploymentAgain>>({ requestAgain }),
           ActionCardChrome: ActionCardChrome as unknown as typeof DEPENDENCIES.ActionCardChrome
@@ -64,6 +67,6 @@ describe("SendManifestAgainCard", () => {
       />
     );
 
-    return { chromeProps: () => ActionCardChrome.mock.lastCall![0], requestAgain, listLeases, decision };
+    return { useDeploymentName, chromeProps: () => ActionCardChrome.mock.lastCall![0], requestAgain, listLeases, decision };
   }
 });

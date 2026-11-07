@@ -3,6 +3,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import type { ActionCardChromeProps } from "../ActionCardChrome/ActionCardChrome";
+import { DeploymentLink } from "../DeploymentLink/DeploymentLink";
 import type { ActionCardDecision } from "../useActionCardDecision/useActionCardDecision";
 import type { DEPENDENCIES } from "./SaveAsTemplateCard";
 import { SaveAsTemplateCard } from "./SaveAsTemplateCard";
@@ -13,12 +14,12 @@ const SDL = "version: '2.0'\nservices:\n  web:\n    image: nginx";
 
 describe(SaveAsTemplateCard.name, () => {
   it("shows the template it saves, private to the user", () => {
-    const { chromeProps, decision } = setup({ description: "nginx site" });
+    const { chromeProps, useDeploymentName, decision } = setup({ description: "nginx site" });
 
     expect(chromeProps()).toEqual(
       expect.objectContaining({
         title: "Save as a template",
-        scope: "dseq 42",
+        scope: expect.objectContaining({ type: DeploymentLink, props: { dseq: "42", name: "blog" } }),
         tier: "confirm",
         decision,
         rows: [
@@ -30,6 +31,7 @@ describe(SaveAsTemplateCard.name, () => {
         isConfirmDisabled: false
       })
     );
+    expect(useDeploymentName).toHaveBeenCalledWith("42", "site");
   });
 
   it("leaves out a description the assistant did not give", () => {
@@ -67,6 +69,7 @@ describe(SaveAsTemplateCard.name, () => {
   });
 
   function setup(input: { description?: string | null; definition?: DeploymentDefinition }) {
+    const useDeploymentName = vi.fn((_dseq: string | null | undefined, _knownName?: string | null): string | null => "blog");
     const saveTemplate = vi.fn(async (_template: unknown): Promise<unknown> => ({ data: "t-1" }));
     const useDeploymentDefinition = vi.fn((_dseq: string) => input.definition ?? { sdl: SDL, name: "site", source: "api" as const });
     const ActionCardChrome = vi.fn((props: ActionCardChromeProps) => <>{props.children}</>);
@@ -77,6 +80,7 @@ describe(SaveAsTemplateCard.name, () => {
         action={{ type: "save_as_template", tier: "confirm", dseq: "42", title: "Site", description: input.description ?? null }}
         decision={decision}
         dependencies={{
+          useDeploymentName,
           useDeploymentDefinition: useDeploymentDefinition as unknown as typeof DEPENDENCIES.useDeploymentDefinition,
           useSaveUserTemplate: () =>
             mock<ReturnType<typeof DEPENDENCIES.useSaveUserTemplate>>({
@@ -87,6 +91,6 @@ describe(SaveAsTemplateCard.name, () => {
       />
     );
 
-    return { chromeProps: () => ActionCardChrome.mock.lastCall![0], saveTemplate, useDeploymentDefinition, decision };
+    return { chromeProps: () => ActionCardChrome.mock.lastCall![0], useDeploymentName, saveTemplate, useDeploymentDefinition, decision };
   }
 });

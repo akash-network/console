@@ -14,9 +14,10 @@ describe(buildAssistantSystemPrompt.name, () => {
     expect(prompt).toContain("State every amount in US dollars");
     expect(prompt).toContain("Never mention uact, ACT, AKT, denoms, blocks or per-block prices in an answer unless the user asks what they are");
     expect(prompt).toContain("linked to its page as [name](/deployments/<dseq>)");
-    expect(prompt).toContain("Never write a bare dseq in an answer.");
-    expect(prompt).toContain("For one without a name, link [this deployment](/deployments/<dseq>), or its service and image when you read them");
-    expect(prompt).toContain("A link label never contains the dseq.");
+    expect(prompt).toContain(
+      "For one without a name, link its service and image when you read them, such as [web (nginx)](/deployments/<dseq>), else [your deployment](/deployments/<dseq>)."
+    );
+    expect(prompt).toContain("Never write a dseq in an answer, whole or shortened, not even in a link label.");
     expect(prompt).toContain("never tell the user to raise the price, bid or pay more, or switch the denom");
     expect(prompt).toContain('try another template, or ask "Why no bids?" on that deployment');
     expect(prompt).toContain("never suggest depositing into a deployment's escrow");

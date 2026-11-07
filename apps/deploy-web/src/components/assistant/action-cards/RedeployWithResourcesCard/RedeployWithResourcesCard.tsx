@@ -12,9 +12,10 @@ import { assertOpensInEditor } from "../assertOpensInEditor/assertOpensInEditor"
 import { keepsPricing, PRICING_CHANGE_MESSAGE } from "../pricingGuard/pricingGuard";
 import type { ServiceResources } from "../serviceResourcesFormat/serviceResourcesFormat";
 import { computeLabelOf, gpuLabelOf } from "../serviceResourcesFormat/serviceResourcesFormat";
+import { deploymentLabelOf, useDeploymentName } from "../useDeploymentName/useDeploymentName";
 import { withServiceResources } from "./withServiceResources";
 
-export const DEPENDENCIES = { useDeploymentDefinition, useRedeploy, ActionCardChrome };
+export const DEPENDENCIES = { useDeploymentDefinition, useRedeploy, useDeploymentName, ActionCardChrome };
 
 const DEFINITION_UNAVAILABLE_MESSAGE = "This deployment's configuration isn't available here. Redeploy it from its page instead.";
 
@@ -25,6 +26,7 @@ export const RedeployWithResourcesCard: FC<ActionCardProps<"redeploy_with_resour
   dependencies: d = DEPENDENCIES
 }) => {
   const definition = d.useDeploymentDefinition(action.dseq, { acceptReferences: true });
+  const deploymentName = d.useDeploymentName(action.dseq, definition.name);
   const redeploy = d.useRedeploy();
 
   const openInEditor = async () => {
@@ -38,7 +40,7 @@ export const RedeployWithResourcesCard: FC<ActionCardProps<"redeploy_with_resour
 
   return (
     <d.ActionCardChrome
-      title={`Redeploy ${definition.name ?? `deployment ${action.dseq}`} with new resources`}
+      title={`Redeploy ${deploymentLabelOf(deploymentName)} with new resources`}
       tier={action.tier}
       decision={decision}
       diff={resourcesDiffOf(action.services)}

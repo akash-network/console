@@ -205,12 +205,12 @@ describe(AssistantTurnService.name, () => {
       .mockImplementation(streamed({}));
     toolRunner.run.mockResolvedValue({
       kind: "result",
-      content: toolContentOf("get_bids", { data: { bids: [], leaseCount: 0 } }),
-      summary: "Read the bids on deployment 42",
+      content: toolContentOf("get_bids", { data: { dseq: "42", name: "web", bids: [], leaseCount: 0 } }),
+      summary: "Read the bids on deployment web",
       ok: true
     });
     const answer =
-      'I read the bids on deployment 42, but could not finish my answer. Next step: ask "Why no bids on deployment 42?", or redeploy it from the deployment editor with changed requirements.';
+      'I read the bids on deployment web, but could not finish my answer. Next step: ask "Why no bids on deployment web?", or redeploy it from the deployment editor with changed requirements.';
 
     const events = await run({ stored: true });
 

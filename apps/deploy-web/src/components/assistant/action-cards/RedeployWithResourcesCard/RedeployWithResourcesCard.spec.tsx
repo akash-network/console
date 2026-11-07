@@ -120,7 +120,7 @@ describe("RedeployWithResourcesCard", () => {
   it("waits for the deployment's configuration and refuses when there is none", async () => {
     const resolving = setup({ definition: { sdl: undefined, name: undefined, source: "resolving" } });
     expect(resolving.chromeProps().isConfirmDisabled).toBe(true);
-    expect(resolving.chromeProps().title).toBe("Redeploy deployment 42 with new resources");
+    expect(resolving.chromeProps().title).toBe("Redeploy this deployment with new resources");
 
     const absent = setup({ definition: { sdl: undefined, name: undefined, source: "absent" } });
     await expect(absent.chromeProps().onConfirm!("")).rejects.toThrow(
@@ -153,6 +153,7 @@ describe("RedeployWithResourcesCard", () => {
   });
 
   function setup(input: { services?: Action["services"]; definition?: Partial<DeploymentDefinition>; providersAbleToBid?: number | null } = {}) {
+    const useDeploymentName = vi.fn((_dseq: string | null | undefined, knownName?: string | null): string | null => knownName ?? null);
     const action: Action = {
       type: "redeploy_with_resources",
       tier: "deep_link",
@@ -172,6 +173,7 @@ describe("RedeployWithResourcesCard", () => {
         action={action}
         decision={decision}
         dependencies={{
+          useDeploymentName,
           useDeploymentDefinition,
           useRedeploy: () => redeploy,
           ActionCardChrome: ActionCardChrome as unknown as typeof DEPENDENCIES.ActionCardChrome
@@ -179,6 +181,6 @@ describe("RedeployWithResourcesCard", () => {
       />
     );
 
-    return { chromeProps: () => ActionCardChrome.mock.lastCall![0], redeploy, useDeploymentDefinition, decision };
+    return { useDeploymentName, chromeProps: () => ActionCardChrome.mock.lastCall![0], redeploy, useDeploymentDefinition, decision };
   }
 });

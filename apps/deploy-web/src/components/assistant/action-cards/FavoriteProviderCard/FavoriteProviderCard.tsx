@@ -2,12 +2,14 @@
 import type { FC } from "react";
 import Link from "next/link";
 
+import { getProviderName } from "@src/components/providers/providerSummary/providerSummary";
 import { useFavoriteProviders } from "@src/hooks/useFavoriteProviders/useFavoriteProviders";
+import { useProvidersByAddresses } from "@src/queries/useProvidersQuery";
 import { UrlService } from "@src/utils/urlUtils";
 import { ActionCardChrome } from "../ActionCardChrome/ActionCardChrome";
 import type { ActionCardProps } from "../actionCardTypes";
 
-export const DEPENDENCIES = { useFavoriteProviders, ActionCardChrome };
+export const DEPENDENCIES = { useFavoriteProviders, useProvidersByAddresses, ActionCardChrome };
 
 export const FavoriteProviderCard: FC<ActionCardProps<"favorite_provider"> & { dependencies?: typeof DEPENDENCIES }> = ({
   action,
@@ -15,6 +17,9 @@ export const FavoriteProviderCard: FC<ActionCardProps<"favorite_provider"> & { d
   dependencies: d = DEPENDENCIES
 }) => {
   const { favoriteProviders, addFavorite } = d.useFavoriteProviders();
+  const {
+    data: [provider]
+  } = d.useProvidersByAddresses([action.provider]);
   const isAlreadyFavorite = decision.status === "pending" && favoriteProviders.includes(action.provider);
 
   return (
@@ -26,8 +31,8 @@ export const FavoriteProviderCard: FC<ActionCardProps<"favorite_provider"> & { d
         {
           label: "Provider",
           value: (
-            <Link href={UrlService.providerDetail(action.provider)} className="font-mono text-xs underline underline-offset-[3px]">
-              {action.provider}
+            <Link href={UrlService.providerDetail(action.provider)} className="underline underline-offset-[3px]">
+              {provider ? getProviderName(provider) : "View provider"}
             </Link>
           )
         }
