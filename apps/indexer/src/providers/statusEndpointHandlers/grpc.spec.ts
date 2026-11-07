@@ -1,7 +1,17 @@
 import type { CPUInfo } from "@akashnetwork/chain-sdk/private-types/provider.akash.v1";
+import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import { describe, expect, it } from "vitest";
+import { mock } from "vitest-mock-extended";
 
-import { mapCpuInfo } from "./grpc";
+import { fetchProviderStatusFromGRPC, mapCpuInfo } from "./grpc";
+
+describe(fetchProviderStatusFromGRPC.name, () => {
+  it("refuses a provider whose host is a private address before dialing it", async () => {
+    const provider = mock<Provider>({ hostUri: "https://127.0.0.1:8443" });
+
+    await expect(fetchProviderStatusFromGRPC(provider, 1_000)).rejects.toMatchObject({ code: "EFORBIDDEN" });
+  });
+});
 
 describe(mapCpuInfo.name, () => {
   it("keeps the architecture a node reports", () => {
