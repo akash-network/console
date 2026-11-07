@@ -155,7 +155,7 @@ describe("CreateDeploymentCard", () => {
     });
     expect(recordOneClickDeploy).toHaveBeenCalledWith("1234", "akash-network-awesome-akash-vllm");
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["v1", "listActivities"] });
-    expect(chromeProps().successMessage).toBe("Deploying 1234. Console picks a provider and starts the lease. Follow it in Activities.");
+    expect(chromeProps().successMessage).toBe("Deploying llama-8b-vllm. Console picks a provider and starts the lease. Follow it in Activities.");
   });
 
   it("reports the new deployment so the assistant can follow it", async () => {
@@ -171,6 +171,7 @@ describe("CreateDeploymentCard", () => {
 
     expect(createDeployment).toHaveBeenCalledWith(expect.objectContaining({ data: { sdl: SDL, sealedSecrets: "empty-seal" } }));
     expect(recordOneClickDeploy).toHaveBeenCalledWith("1234", undefined);
+    expect(chromeProps().successMessage).toBe("Deploying web. Console picks a provider and starts the lease. Follow it in Activities.");
   });
 
   it("points to choosing a provider in the editor, carrying the SDL, when Console doesn't lease it in the background", async () => {
@@ -181,7 +182,7 @@ describe("CreateDeploymentCard", () => {
 
     expect(recordOneClickDeploy).not.toHaveBeenCalled();
     expect(createConfigureDraft).toHaveBeenCalledWith(SDL, { name: "llama-8b-vllm", runtimeLimitHours: 4 });
-    expect(chromeProps().successMessage).toBe("Created deployment 1234. Choose a provider to start it.");
+    expect(chromeProps().successMessage).toBe("Created llama-8b-vllm. Choose a provider to start it.");
     expect(screen.getByRole("link", { name: "Choose a provider" })).toHaveAttribute("href", "/new-deployment/configure/1234?draftId=draft-1");
   });
 
@@ -206,7 +207,7 @@ describe("CreateDeploymentCard", () => {
 
     await act(() => chromeProps().onConfirm!(""));
 
-    expect(NoBidsYetNotice).toHaveBeenLastCalledWith({ dseq: "1234", continueConversation }, expect.anything());
+    expect(NoBidsYetNotice).toHaveBeenLastCalledWith({ dseq: "1234", name: "llama-8b-vllm", continueConversation }, expect.anything());
   });
 
   it("explains a project budget refusal", async () => {

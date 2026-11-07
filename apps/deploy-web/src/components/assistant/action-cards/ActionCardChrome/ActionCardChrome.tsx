@@ -29,7 +29,7 @@ export interface ActionCardDeepLink {
 export interface ActionCardChromeProps {
   title: string;
   /** A short tag at the top right, such as the service the card changes. */
-  scope?: string;
+  scope?: ReactNode;
   tier: AssistantAction["tier"];
   decision: ActionCardDecision;
   rows?: ActionCardRow[];
@@ -80,7 +80,7 @@ export const ActionCardChrome: FC<ActionCardChromeProps> = ({
     >
       <header className="flex items-start justify-between gap-3">
         <h3 className="text-sm font-semibold">{title}</h3>
-        {scope && <span className="shrink-0 font-mono text-xs text-muted-foreground">{scope}</span>}
+        {scope && <span className="max-w-[50%] shrink-0 truncate font-mono text-xs text-muted-foreground">{scope}</span>}
       </header>
 
       {diff && <DiffBlock diff={diff} />}

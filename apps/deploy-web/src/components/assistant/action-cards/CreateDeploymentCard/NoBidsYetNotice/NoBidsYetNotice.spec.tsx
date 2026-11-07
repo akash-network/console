@@ -31,7 +31,7 @@ describe(NoBidsYetNotice.name, () => {
     act(() => vi.advanceTimersByTime(NO_BIDS_TIMEOUT_MS));
 
     expect(screen.getByRole("status")).toHaveTextContent("No bids yet");
-    expect(screen.getByRole("status")).toHaveTextContent("No provider has bid on deployment 1234 in the usual bid window. A late bid still starts it.");
+    expect(screen.getByRole("status")).toHaveTextContent("No provider has bid on llama-chat in the usual bid window. A late bid still starts it.");
     expect(useListBids).toHaveBeenLastCalledWith("1234", { refetchInterval: undefined });
   });
 
@@ -41,8 +41,8 @@ describe(NoBidsYetNotice.name, () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Why no bids?" }));
 
-    expect(continueConversation).toHaveBeenCalledWith("Why isn't deployment 1234 getting any bids?");
-    expect(whyNoBidsQuestionOf("1234")).toBe("Why isn't deployment 1234 getting any bids?");
+    expect(continueConversation).toHaveBeenCalledWith("Why isn't my new deployment llama-chat getting any bids?");
+    expect(whyNoBidsQuestionOf("llama-chat")).toBe("Why isn't my new deployment llama-chat getting any bids?");
   });
 
   it("offers no question without a conversation to continue", () => {
@@ -78,7 +78,7 @@ describe(NoBidsYetNotice.name, () => {
     const continueConversation = vi.fn();
     const useListBids = vi.fn<typeof DEPENDENCIES.useListBids>(() => mock<BidsQuery>({ data: input.bids ? { data: input.bids } : undefined }));
     const { unmount } = render(
-      <NoBidsYetNotice dseq="1234" continueConversation={input.withoutConversation ? undefined : continueConversation} dependencies={{ useListBids }} />
+      <NoBidsYetNotice dseq="1234" name="llama-chat" continueConversation={input.withoutConversation ? undefined : continueConversation} dependencies={{ useListBids }} />
     );
 
     return { continueConversation, useListBids, unmount };

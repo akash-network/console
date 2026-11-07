@@ -8,9 +8,11 @@ import { useFlag } from "@src/hooks/useFlag";
 import { UrlService } from "@src/utils/urlUtils";
 import { ActionCardChrome } from "../ActionCardChrome/ActionCardChrome";
 import type { ActionCardProps } from "../actionCardTypes";
+import { DeploymentLink } from "../DeploymentLink/DeploymentLink";
 import { GenericActionCard } from "../GenericActionCard/GenericActionCard";
+import { useDeploymentName } from "../useDeploymentName/useDeploymentName";
 
-export const DEPENDENCIES = { useServices, useQueryClient, useFlag, ActionCardChrome, GenericActionCard };
+export const DEPENDENCIES = { useServices, useQueryClient, useFlag, useDeploymentName, ActionCardChrome, GenericActionCard };
 
 /** The page the alerts settings list their channels with, so the card reads the same cached answer. */
 const CHANNELS_PAGE = { page: 1, limit: 10 };
@@ -29,6 +31,7 @@ const DeploymentClosedAlertCard: FC<Props & { dependencies: typeof DEPENDENCIES 
   const { api } = d.useServices();
   const queryClient = d.useQueryClient();
   const isAvailable = d.useFlag("ui_deployment_closed_alert");
+  const deploymentName = d.useDeploymentName(action.dseq);
   const { data: channels } = api.v1.listNotificationChannels.useQuery(CHANNELS_PAGE, { select: response => response.data });
   const { data: alerts, isFetched: hasReadAlerts } = api.v1.listDeploymentAlerts.useQuery({ dseq: action.dseq }, { select: response => response.data.alerts });
   const { mutateAsync: upsertDeploymentAlert } = api.v1.upsertDeploymentAlert.useMutation();
@@ -45,7 +48,7 @@ const DeploymentClosedAlertCard: FC<Props & { dependencies: typeof DEPENDENCIES 
   return (
     <d.ActionCardChrome
       title="Email me when this deployment closes"
-      scope={`dseq ${action.dseq}`}
+      scope={<DeploymentLink dseq={action.dseq!} name={deploymentName} />}
       tier={action.tier}
       decision={decision}
       rows={[

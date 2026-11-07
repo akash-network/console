@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Badge, Label, RadioGroup, RadioGroupItem } from "@akashnetwork/ui/components";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { formatUptime } from "@src/components/providers/providerSummary/providerSummary";
+import { formatUptime, getProviderName } from "@src/components/providers/providerSummary/providerSummary";
 import { PricePerTimeUnit } from "@src/components/shared/PricePerTimeUnit";
 import { useServices } from "@src/context/ServicesProvider";
 import { useMarkActivityOutcomes } from "@src/hooks/useHandledActivityOutcomes/useHandledActivityOutcomes";
@@ -15,8 +15,22 @@ import { formatBidId } from "@src/utils/bids/bidId";
 import { PRICE_DISPLAY_PRECISION, udenomToDenom } from "@src/utils/mathHelpers";
 import { ActionCardChrome } from "../ActionCardChrome/ActionCardChrome";
 import type { ActionCardProps } from "../actionCardTypes";
+import { DeploymentLink } from "../DeploymentLink/DeploymentLink";
+import { deploymentLabelOf, useDeploymentName } from "../useDeploymentName/useDeploymentName";
 
-export const DEPENDENCIES = { useServices, useQueryClient, useListBids, useProvidersByAddresses, useMarkActivityOutcomes, ActionCardChrome, PricePerTimeUnit };
+export const DEPENDENCIES = {
+  useServices,
+  useQueryClient,
+  useListBids,
+  useProvidersByAddresses,
+  useMarkActivityOutcomes,
+  useDeploymentName,
+  ActionCardChrome,
+  PricePerTimeUnit
+};
+
+const UNKNOWN_PROVIDER_LABEL = "Unknown provider";
+const LOOKING_UP_PROVIDER_LABEL = "Looking up provider…";
 
 type BidEntry = NonNullable<ReturnType<typeof useListBids>["data"]>["data"][number];
 
@@ -30,9 +44,10 @@ export const ChooseBidCard: FC<ActionCardProps<"choose_bid"> & { dependencies?: 
   const queryClient = d.useQueryClient();
   const { forgetEarlierOutcomes, markOutcomeHandled } = d.useMarkActivityOutcomes();
   const { mutateAsync: createLease } = api.v1.createLease.useMutation();
+  const deploymentName = d.useDeploymentName(action.dseq);
   const bidsQuery = d.useListBids(action.dseq);
   const openBids = (bidsQuery.data?.data ?? []).filter(({ bid }) => bid.state === "open");
-  const { data: providers } = d.useProvidersByAddresses(openBids.map(({ bid }) => bid.id.provider));
+  const { data: providers, isLoading: isLookingUpProviders } = d.useProvidersByAddresses(openBids.map(({ bid }) => bid.id.provider));
   const recommendedBidIds = new Set(action.choices.map(choice => formatBidId({ dseq: action.dseq, ...choice })));
   const [selections, setSelections] = useState<Record<number, string>>(() =>
     Object.fromEntries(action.choices.map(choice => [choice.gseq, formatBidId({ dseq: action.dseq, ...choice })]))
@@ -58,7 +73,8 @@ export const ChooseBidCard: FC<ActionCardProps<"choose_bid"> & { dependencies?: 
 
   return (
     <d.ActionCardChrome
-      title={`Choose a provider for deployment ${action.dseq}`}
+      title={`Choose a provider for ${deploymentLabelOf(deploymentName)}`}
+      scope={<DeploymentLink dseq={action.dseq} name={deploymentName} />}
       tier={action.tier}
       decision={decision}
       costNote="Billing starts when the lease starts."
@@ -89,6 +105,7 @@ export const ChooseBidCard: FC<ActionCardProps<"choose_bid"> & { dependencies?: 
                       bidId={bidId}
                       bid={bid}
                       provider={providers.find(({ owner }) => owner === bid.id.provider)}
+                      isLookingUpProvider={isLookingUpProviders}
                       isRecommended={recommendedBidIds.has(bidId)}
                       PricePerTimeUnit={d.PricePerTimeUnit}
                     />
@@ -105,9 +122,10 @@ const BidOption: FC<{
   bidId: string;
   bid: BidEntry["bid"];
   provider: ApiProviderList | undefined;
+  isLookingUpProvider: boolean;
   isRecommended: boolean;
   PricePerTimeUnit: typeof PricePerTimeUnit;
-}> = ({ bidId, bid, provider, isRecommended, PricePerTimeUnit: Price }) => {
+}> = ({ bidId, bid, provider, isLookingUpProvider, isRecommended, PricePerTimeUnit: Price }) => {
   const details = [provider?.ipRegion, provider ? `${formatUptime(provider.uptime7d)} uptime` : undefined].filter(Boolean).join(" · ");
 
   return (
@@ -115,7 +133,7 @@ const BidOption: FC<{
       <RadioGroupItem id={bidId} value={bidId} />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="flex items-center gap-2 font-medium [overflow-wrap:anywhere]">
-          {provider?.name ?? bid.id.provider}
+          {labelProvider(provider, isLookingUpProvider)}
           {isRecommended && <Badge variant="secondary">Recommended</Badge>}
         </span>
         {details && <span className="text-xs text-muted-foreground">{details}</span>}
@@ -124,3 +142,8 @@ const BidOption: FC<{
     </Label>
   );
 };
+
+function labelProvider(provider: ApiProviderList | undefined, isLookingUpProvider: boolean) {
+  if (provider) return getProviderName(provider);
+  return isLookingUpProvider ? LOOKING_UP_PROVIDER_LABEL : UNKNOWN_PROVIDER_LABEL;
+}

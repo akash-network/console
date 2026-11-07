@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { ActionCardChromeProps } from "../ActionCardChrome/ActionCardChrome";
+import { DeploymentLink } from "../DeploymentLink/DeploymentLink";
 import type { ActionCardDecision } from "../useActionCardDecision/useActionCardDecision";
 import type { DEPENDENCIES } from "./RemoveRuntimeLimitCard";
 import { RemoveRuntimeLimitCard } from "./RemoveRuntimeLimitCard";
@@ -10,12 +11,12 @@ import { render } from "@testing-library/react";
 
 describe(RemoveRuntimeLimitCard.name, () => {
   it("shows the switch to always on, what it spends and that it can't be undone", () => {
-    const { chromeProps, decision } = setup();
+    const { chromeProps, useDeploymentName, decision } = setup();
 
     expect(chromeProps()).toEqual(
       expect.objectContaining({
         title: "Switch to always on",
-        scope: "dseq 42",
+        scope: expect.objectContaining({ type: DeploymentLink, props: { dseq: "42", name: "blog" } }),
         tier: "confirm",
         decision,
         diff: { removed: ["Closes after 12h"], added: ["Runs until you close it"] },
@@ -24,6 +25,7 @@ describe(RemoveRuntimeLimitCard.name, () => {
         confirmLabel: "Switch to always on"
       })
     );
+    expect(useDeploymentName).toHaveBeenCalledWith("42");
   });
 
   it("removes the limit the way the deployment settings do", async () => {
@@ -35,6 +37,7 @@ describe(RemoveRuntimeLimitCard.name, () => {
   });
 
   function setup() {
+    const useDeploymentName = vi.fn((_dseq: string | null | undefined, _knownName?: string | null): string | null => "blog");
     const updateSetting = vi.fn(async (_input: unknown): Promise<unknown> => ({}));
     const ActionCardChrome = vi.fn((_props: ActionCardChromeProps) => null);
     const decision = mock<ActionCardDecision>({ status: "pending" });
@@ -44,6 +47,7 @@ describe(RemoveRuntimeLimitCard.name, () => {
         action={{ type: "remove_runtime_limit", tier: "confirm", dseq: "42", currentLimitHours: 12 }}
         decision={decision}
         dependencies={{
+          useDeploymentName,
           useUpdateDeploymentSettingMutation: () =>
             mock<ReturnType<typeof DEPENDENCIES.useUpdateDeploymentSettingMutation>>({
               mutateAsync: updateSetting as ReturnType<typeof DEPENDENCIES.useUpdateDeploymentSettingMutation>["mutateAsync"]
@@ -53,6 +57,6 @@ describe(RemoveRuntimeLimitCard.name, () => {
       />
     );
 
-    return { chromeProps: () => ActionCardChrome.mock.lastCall![0], updateSetting, decision };
+    return { chromeProps: () => ActionCardChrome.mock.lastCall![0], useDeploymentName, updateSetting, decision };
   }
 });

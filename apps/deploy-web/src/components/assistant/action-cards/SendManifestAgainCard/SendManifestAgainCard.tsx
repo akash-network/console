@@ -5,8 +5,10 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useSendDeploymentAgain } from "@src/hooks/useSendDeploymentAgain/useSendDeploymentAgain";
 import { ActionCardChrome } from "../ActionCardChrome/ActionCardChrome";
 import type { ActionCardProps } from "../actionCardTypes";
+import { DeploymentLink } from "../DeploymentLink/DeploymentLink";
+import { useDeploymentName } from "../useDeploymentName/useDeploymentName";
 
-export const DEPENDENCIES = { useServices, useSendDeploymentAgain, ActionCardChrome };
+export const DEPENDENCIES = { useServices, useSendDeploymentAgain, useDeploymentName, ActionCardChrome };
 
 export const SendManifestAgainCard: FC<ActionCardProps<"send_manifest_again"> & { dependencies?: typeof DEPENDENCIES }> = ({
   action,
@@ -15,6 +17,7 @@ export const SendManifestAgainCard: FC<ActionCardProps<"send_manifest_again"> & 
 }) => {
   const { api } = d.useServices();
   const { requestAgain } = d.useSendDeploymentAgain();
+  const deploymentName = d.useDeploymentName(action.dseq);
 
   const sendAgain = async () => {
     const { data: leases } = await api.v1.listLeases.queryOptions({ dseq: action.dseq }).queryFn();
@@ -26,7 +29,7 @@ export const SendManifestAgainCard: FC<ActionCardProps<"send_manifest_again"> & 
       title="Send the deployment again"
       tier={action.tier}
       decision={decision}
-      rows={[{ label: "Deployment", value: action.dseq }]}
+      rows={[{ label: "Deployment", value: <DeploymentLink dseq={action.dseq} name={deploymentName} /> }]}
       costNote="Sends the deployment to its provider again, which recovers one the provider lost. It doesn't restart containers, and Console has no restart action. It costs nothing."
       confirmLabel="Send again"
       successMessage="Sent. The provider should start it in a minute or two."

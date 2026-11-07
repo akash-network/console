@@ -4,6 +4,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { Project } from "@src/types/project";
 import type { ActionCardChromeProps } from "../ActionCardChrome/ActionCardChrome";
+import { DeploymentLink } from "../DeploymentLink/DeploymentLink";
 import type { ActionCardDecision } from "../useActionCardDecision/useActionCardDecision";
 import type { DEPENDENCIES } from "./MoveDeploymentCard";
 import { MoveDeploymentCard } from "./MoveDeploymentCard";
@@ -15,12 +16,12 @@ const RESEARCH_PROJECT = mock<Project>({ id: "p-research", name: "Research" });
 
 describe(MoveDeploymentCard.name, () => {
   it("shows where the deployment is and the project the assistant suggests", () => {
-    const { chromeProps, decision } = setup({});
+    const { chromeProps, useDeploymentName, decision } = setup({});
 
     expect(chromeProps()).toEqual(
       expect.objectContaining({
         title: "Move the deployment",
-        scope: "dseq 42",
+        scope: expect.objectContaining({ type: DeploymentLink, props: { dseq: "42", name: "blog" } }),
         tier: "confirm",
         decision,
         rows: [
@@ -32,6 +33,7 @@ describe(MoveDeploymentCard.name, () => {
         isConfirmDisabled: false
       })
     );
+    expect(useDeploymentName).toHaveBeenCalledWith("42");
   });
 
   it("lists the projects to pick from with the suggested one picked and the current one unavailable", () => {
@@ -79,6 +81,7 @@ describe(MoveDeploymentCard.name, () => {
   });
 
   function setup(input: { projectId?: string; currentProjectId?: string | null; status?: ActionCardDecision["status"] }) {
+    const useDeploymentName = vi.fn((_dseq: string | null | undefined, _knownName?: string | null): string | null => "blog");
     const updateDeploymentProject = vi.fn(async (_input: unknown): Promise<unknown> => ({}));
     const ActionCardChrome = vi.fn((props: ActionCardChromeProps) => <>{props.children}</>);
     const ProjectPicker = vi.fn((_props: Parameters<typeof DEPENDENCIES.ProjectPicker>[0]) => null);
@@ -91,6 +94,7 @@ describe(MoveDeploymentCard.name, () => {
         action={{ type: "move_deployment", tier: "confirm", dseq: "42", projectId: input.projectId ?? "p-research" }}
         decision={decision}
         dependencies={{
+          useDeploymentName,
           useProjectsQuery: () => mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>({ data: projects }),
           useDeploymentLocationQuery: () =>
             mock<ReturnType<typeof DEPENDENCIES.useDeploymentLocationQuery>>({
@@ -106,6 +110,6 @@ describe(MoveDeploymentCard.name, () => {
       />
     );
 
-    return { chromeProps: () => ActionCardChrome.mock.lastCall![0], ProjectPicker, updateDeploymentProject, decision };
+    return { chromeProps: () => ActionCardChrome.mock.lastCall![0], useDeploymentName, ProjectPicker, updateDeploymentProject, decision };
   }
 });
