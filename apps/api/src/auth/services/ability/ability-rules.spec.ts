@@ -551,6 +551,13 @@ describe("ability rules", () => {
       expect(ability.can("publish", subject("Template", { organizationId, projectId: faker.string.uuid() }))).toBe(false);
     });
 
+    it("lets the owner of a personal organization publish templates in scope", () => {
+      const projectId = faker.string.uuid();
+      const { ability, organizationId } = setup({ role: "owner", organizationType: "personal", projectScope: createProjectsScope([projectId]) });
+
+      expect(ability.can("publish", subject("Template", { organizationId, projectId }))).toBe(true);
+    });
+
     it.each(["member", "viewer", "billing"] as const)("refuses publishing to a %s", role => {
       const { ability, organizationId, grantedProjectId, user } = setup({ role });
 
@@ -608,6 +615,20 @@ describe("ability rules", () => {
     });
 
     describe("for a request made with an API key bound to a project", () => {
+      it("lets a member key read organization-wide templates of other projects but not private ones, and never publish", () => {
+        const projectId = faker.string.uuid();
+        const { ability, organizationId } = setup({ role: "member", projectScope: createProjectsScope([projectId]), apiKeyProjectId: projectId });
+        const otherProjectId = faker.string.uuid();
+
+        const organizationWide = subject("Template", { organizationId, projectId: otherProjectId, visibility: "organization" });
+        const privateTemplate = subject("Template", { organizationId, projectId: otherProjectId, visibility: "private" });
+        const ownProjectTemplate = subject("Template", { organizationId, projectId, visibility: "organization" });
+
+        expect(allowedActions(ability, organizationWide)).toEqual(READ);
+        expect(allowedActions(ability, privateTemplate)).toEqual(NONE);
+        expect(ability.can("publish", ownProjectTemplate)).toBe(false);
+      });
+
       it.each(ROLES)("lets a %s key read the organization and its project but reach no other organization-level subject", role => {
         const projectId = faker.string.uuid();
         const { ability, organizationId, user } = setup({ role, projectScope: createProjectsScope([projectId]), apiKeyProjectId: projectId });
