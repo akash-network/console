@@ -5,6 +5,7 @@ import type { GpuWinBackService } from "@src/billing/services/gpu-win-back/gpu-w
 import type { CreateLogger } from "@src/core";
 import type { LeaseGpuDetectionJobService } from "@src/deployment/services/lease-gpu-detection-job/lease-gpu-detection-job.service";
 import type { LeaseGpuOfferJobService } from "@src/deployment/services/lease-gpu-offer-job/lease-gpu-offer-job.service";
+import type { TemplateUsageService } from "@src/template-marketplace/services/template-usage/template-usage.service";
 import { ManagedDeploymentLeaseCreatedHandler } from "./managed-deployment-lease-created.handler";
 
 const PAYLOAD = { walletId: 7, dseq: "12345", createdAt: "2026-09-21T10:00:00.000Z", version: 1 as const };
@@ -76,6 +77,44 @@ describe(ManagedDeploymentLeaseCreatedHandler.name, () => {
     expect(gpuWinBackService.scheduleCheckAfterLease).toHaveBeenCalled();
   });
 
+  it("asks for the lease of a template deployment to be recorded from the moment it was created", async () => {
+    const { handler, templateUsageService } = setup();
+
+    await handler.handle(PAYLOAD);
+
+    expect(templateUsageService.recordLeaseCreated).toHaveBeenCalledWith({ walletId: 7, dseq: "12345", leaseCreatedAt: new Date("2026-09-21T10:00:00.000Z") });
+  });
+
+  it("still schedules the gpu reads when recording template usage fails", async () => {
+    const { handler, gpuDetectionJobService, gpuOfferJobService, gpuWinBackService, templateUsageService, logger } = setup();
+    const failure = new Error("database down");
+    templateUsageService.recordLeaseCreated.mockRejectedValue(failure);
+
+    await expect(handler.handle(PAYLOAD)).resolves.toBeUndefined();
+
+    expect(gpuOfferJobService.schedule).toHaveBeenCalled();
+    expect(gpuDetectionJobService.scheduleInitial).toHaveBeenCalled();
+    expect(gpuWinBackService.scheduleCheckAfterLease).toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalledWith({
+      event: "TEMPLATE_USAGE_LEASE_RECORD_FAILED",
+      domainEvent: "ManagedDeploymentLeaseCreated",
+      walletId: 7,
+      dseq: "12345",
+      error: failure
+    });
+  });
+
+  it("still records the template lease when the gpu reads and win-back check could not be scheduled", async () => {
+    const { handler, gpuDetectionJobService, gpuOfferJobService, gpuWinBackService, templateUsageService } = setup();
+    gpuOfferJobService.schedule.mockRejectedValue(new Error("queue down"));
+    gpuDetectionJobService.scheduleInitial.mockRejectedValue(new Error("queue down"));
+    gpuWinBackService.scheduleCheckAfterLease.mockRejectedValue(new Error("queue down"));
+
+    await handler.handle(PAYLOAD);
+
+    expect(templateUsageService.recordLeaseCreated).toHaveBeenCalled();
+  });
+
   it("declares no permissions, because a worker carries no user", () => {
     expect(setup().handler.requiresPermission()).toEqual([]);
   });
@@ -88,14 +127,16 @@ describe(ManagedDeploymentLeaseCreatedHandler.name, () => {
     const gpuDetectionJobService = mock<LeaseGpuDetectionJobService>();
     const gpuOfferJobService = mock<LeaseGpuOfferJobService>();
     const gpuWinBackService = mock<GpuWinBackService>();
+    const templateUsageService = mock<TemplateUsageService>();
     const logger = mock<ReturnType<CreateLogger>>();
     const handler = new ManagedDeploymentLeaseCreatedHandler(
       gpuDetectionJobService,
       gpuOfferJobService,
       gpuWinBackService,
+      templateUsageService,
       vi.fn<CreateLogger>(() => logger)
     );
 
-    return { handler, gpuDetectionJobService, gpuOfferJobService, gpuWinBackService, logger };
+    return { handler, gpuDetectionJobService, gpuOfferJobService, gpuWinBackService, templateUsageService, logger };
   }
 });

@@ -1,13 +1,18 @@
 import { faker } from "@faker-js/faker";
+import { addHours } from "date-fns";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { CreateLogger, TxService } from "@src/core";
+import type { UserWalletRepository } from "@src/billing/repositories";
+import type { CreateLogger, JobQueueService, TxService } from "@src/core";
 import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
+import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { TemplateUsageEventRepository } from "@src/template-marketplace/repositories/template-usage-event/template-usage-event.repository";
+import { CheckTemplateDeploymentStillRunning } from "@src/template-marketplace/services/check-template-deployment-still-running/check-template-deployment-still-running.job";
 import { TemplateUsageService } from "./template-usage.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
+import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(TemplateUsageService.name, () => {
   describe("recordDeployed", () => {
@@ -105,6 +110,163 @@ describe(TemplateUsageService.name, () => {
     });
   });
 
+  describe("recordLeaseCreated", () => {
+    it("records the lease and schedules the check a day after it", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const setting = buildSetting({ templateId: "hello-world" });
+      const leaseCreatedAt = new Date("2026-11-07T10:00:00.000Z");
+      const { service, templateUsageEventRepository, userWalletRepository, deploymentSettingRepository, jobQueueService, txService } = setup({
+        wallet,
+        setting
+      });
+
+      await service.recordLeaseCreated({ walletId: wallet.id, dseq: setting.dseq, leaseCreatedAt });
+
+      expect(txService.outsideTransaction).toHaveBeenCalledTimes(1);
+      expect(userWalletRepository.findOneBy).toHaveBeenCalledWith({ id: wallet.id });
+      expect(deploymentSettingRepository.findOneOfWallet).toHaveBeenCalledWith(wallet, setting.dseq);
+      expect(templateUsageEventRepository.record).toHaveBeenCalledWith({
+        source: "awesome_akash",
+        templateRef: "hello-world",
+        templateVersionId: null,
+        action: "lease_created",
+        userId: setting.userId,
+        organizationId: setting.organizationId,
+        deploymentSettingId: setting.id,
+        dseq: setting.dseq,
+        network: "mainnet",
+        isTrial: true
+      });
+      expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        new CheckTemplateDeploymentStillRunning({ deploymentSettingId: setting.id, walletId: wallet.id, dseq: setting.dseq }),
+        { singletonKey: `checkTemplateDeploymentStillRunning.${setting.id}`, startAfter: addHours(leaseCreatedAt, 24) }
+      );
+    });
+
+    it("schedules nothing for a deployment from no template", async () => {
+      const wallet = createUserWallet();
+      const setting = buildSetting();
+      const { service, templateUsageEventRepository, jobQueueService } = setup({ wallet, setting });
+
+      await service.recordLeaseCreated({ walletId: wallet.id, dseq: setting.dseq, leaseCreatedAt: new Date() });
+
+      expect(templateUsageEventRepository.record).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("schedules nothing for a lease of a wallet that is gone", async () => {
+      const { service, deploymentSettingRepository, jobQueueService } = setup({ wallet: undefined, setting: buildSetting({ templateId: "hello-world" }) });
+
+      await service.recordLeaseCreated({ walletId: 1, dseq: "123", leaseCreatedAt: new Date() });
+
+      expect(deploymentSettingRepository.findOneOfWallet).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("schedules nothing for a deployment the console holds no record of", async () => {
+      const wallet = createUserWallet();
+      const { service, templateUsageEventRepository, jobQueueService } = setup({ wallet, setting: undefined });
+
+      await service.recordLeaseCreated({ walletId: wallet.id, dseq: "123", leaseCreatedAt: new Date() });
+
+      expect(templateUsageEventRepository.record).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("still schedules the check when the lease was recorded before", async () => {
+      const wallet = createUserWallet();
+      const setting = buildSetting({ templateId: "hello-world" });
+      const { service, templateUsageEventRepository, jobQueueService } = setup({ wallet, setting });
+      templateUsageEventRepository.record.mockResolvedValue(false);
+
+      await service.recordLeaseCreated({ walletId: wallet.id, dseq: setting.dseq, leaseCreatedAt: new Date() });
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
+    });
+
+    it("logs a failed insert instead of throwing", async () => {
+      const wallet = createUserWallet();
+      const setting = buildSetting({ templateId: "hello-world" });
+      const { service, templateUsageEventRepository, jobQueueService, logger } = setup({ wallet, setting });
+      const failure = new Error("connection reset");
+      templateUsageEventRepository.record.mockRejectedValue(failure);
+
+      await expect(service.recordLeaseCreated({ walletId: wallet.id, dseq: setting.dseq, leaseCreatedAt: new Date() })).resolves.toBeUndefined();
+
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith({
+        event: "TEMPLATE_USAGE_RECORD_FAILED",
+        action: "lease_created",
+        walletId: wallet.id,
+        dseq: setting.dseq,
+        error: failure
+      });
+    });
+
+    it("logs a failed schedule instead of throwing", async () => {
+      const wallet = createUserWallet();
+      const setting = buildSetting({ templateId: "hello-world" });
+      const { service, jobQueueService, logger } = setup({ wallet, setting });
+      jobQueueService.enqueue.mockRejectedValue(new Error("queue down"));
+
+      await expect(service.recordLeaseCreated({ walletId: wallet.id, dseq: setting.dseq, leaseCreatedAt: new Date() })).resolves.toBeUndefined();
+
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "TEMPLATE_USAGE_RECORD_FAILED", action: "lease_created" }));
+    });
+  });
+
+  describe("recordStillRunning", () => {
+    it("records a template deployment still running a day after its lease", async () => {
+      const templateId = faker.string.uuid();
+      const setting = buildSetting({ templateVersionId: faker.string.uuid() });
+      const { service, templateUsageEventRepository, deploymentSettingRepository, txService } = setup({ setting, templateIdOfVersion: templateId });
+
+      await service.recordStillRunning({ deploymentSettingId: setting.id, dseq: setting.dseq, wallet: { isTrialing: false } });
+
+      expect(txService.outsideTransaction).toHaveBeenCalledTimes(1);
+      expect(deploymentSettingRepository.findById).toHaveBeenCalledWith(setting.id);
+      expect(templateUsageEventRepository.record).toHaveBeenCalledWith({
+        source: "console",
+        templateRef: templateId,
+        templateVersionId: setting.templateVersionId,
+        action: "still_running_24h",
+        userId: setting.userId,
+        organizationId: setting.organizationId,
+        deploymentSettingId: setting.id,
+        dseq: setting.dseq,
+        network: "mainnet",
+        isTrial: false
+      });
+    });
+
+    it("records nothing for a deployment whose record is gone", async () => {
+      const { service, templateUsageEventRepository, logger } = setup({ setting: undefined });
+
+      await service.recordStillRunning({ deploymentSettingId: faker.string.uuid(), dseq: "123", wallet: { isTrialing: false } });
+
+      expect(templateUsageEventRepository.record).not.toHaveBeenCalled();
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+
+    it("logs a failed insert instead of throwing", async () => {
+      const setting = buildSetting({ templateId: "hello-world" });
+      const { service, templateUsageEventRepository, logger } = setup({ setting });
+      const failure = new Error("connection reset");
+      templateUsageEventRepository.record.mockRejectedValue(failure);
+
+      await expect(service.recordStillRunning({ deploymentSettingId: setting.id, dseq: setting.dseq, wallet: { isTrialing: true } })).resolves.toBeUndefined();
+
+      expect(logger.error).toHaveBeenCalledWith({
+        event: "TEMPLATE_USAGE_RECORD_FAILED",
+        action: "still_running_24h",
+        deploymentSettingId: setting.id,
+        dseq: setting.dseq,
+        error: failure
+      });
+    });
+  });
+
   describe("templateRefOf", () => {
     it("prefers the version over a gallery id", async () => {
       const templateId = faker.string.uuid();
@@ -131,17 +293,43 @@ describe(TemplateUsageService.name, () => {
     };
   }
 
-  function setup(input: { templateIdOfVersion?: string; network?: "mainnet" | "sandbox" } = {}) {
+  function buildSetting(overrides: { templateId?: string | null; templateVersionId?: string | null } = {}) {
+    return mock<DeploymentSettingsOutput>({ ...buildDefinition(overrides) });
+  }
+
+  function setup(
+    input: {
+      templateIdOfVersion?: string;
+      network?: "mainnet" | "sandbox";
+      wallet?: ReturnType<typeof createUserWallet>;
+      setting?: DeploymentSettingsOutput;
+    } = {}
+  ) {
     const templateUsageEventRepository = mock<TemplateUsageEventRepository>();
     templateUsageEventRepository.findTemplateIdOfVersion.mockResolvedValue("templateIdOfVersion" in input ? input.templateIdOfVersion : faker.string.uuid());
     templateUsageEventRepository.record.mockResolvedValue(true);
+    const userWalletRepository = mock<UserWalletRepository>();
+    userWalletRepository.findOneBy.mockResolvedValue(input.wallet);
+    const deploymentSettingRepository = mock<DeploymentSettingRepository>();
+    deploymentSettingRepository.findOneOfWallet.mockResolvedValue(input.setting);
+    deploymentSettingRepository.findById.mockResolvedValue(input.setting);
+    const jobQueueService = mock<JobQueueService>();
+    jobQueueService.enqueue.mockResolvedValue(faker.string.uuid());
     const coreConfig = mockConfigService<CoreConfigService>({ NETWORK: input.network ?? "mainnet" });
     const txService = mock<TxService>();
     txService.outsideTransaction.mockImplementation(async cb => await cb());
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
-    const service = new TemplateUsageService(templateUsageEventRepository, coreConfig, txService, createLogger);
+    const service = new TemplateUsageService(
+      templateUsageEventRepository,
+      userWalletRepository,
+      deploymentSettingRepository,
+      jobQueueService,
+      coreConfig,
+      txService,
+      createLogger
+    );
 
-    return { service, templateUsageEventRepository, coreConfig, txService, logger };
+    return { service, templateUsageEventRepository, userWalletRepository, deploymentSettingRepository, jobQueueService, coreConfig, txService, logger };
   }
 });
