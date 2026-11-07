@@ -592,7 +592,7 @@ describe(UserTemplatesService.name, () => {
       expect(templateUsageService.recordFavorite).toHaveBeenCalledWith(templateId, "unfavorite");
     });
 
-    it("answers the favorite routes as before when recording fails", async () => {
+    it("answers the favorite routes without a value and with the legacy repository arguments", async () => {
       const { service, userTemplateRepository, templateUsageService } = setup();
       const userId = faker.string.uuid();
       const templateId = faker.string.uuid();
