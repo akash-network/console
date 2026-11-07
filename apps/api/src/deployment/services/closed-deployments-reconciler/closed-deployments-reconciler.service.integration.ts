@@ -1,8 +1,9 @@
+import { DeploymentHttpService } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 import { subMinutes } from "date-fns";
 import { sql } from "drizzle-orm";
 import { container } from "tsyringe";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 
 import { CHAIN_DB } from "@src/chain";
 import type { ApiPgDatabase } from "@src/core";
@@ -21,6 +22,7 @@ import { ClosedDeploymentsReconcilerService } from "./closed-deployments-reconci
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { createDeployment } from "@test/seeders/deployment.seeder";
+import { createDeploymentInfoErrorSeed, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 
 type CompensationJobRow = { state: string; priority: number; data: { deploymentSettingId: string; owner: string; dseq: string } };
 
@@ -111,6 +113,15 @@ describe(ClosedDeploymentsReconcilerService.name, () => {
     expect(await readClosed(running.id)).toBe(false);
   });
 
+  it("leaves a record open when the indexer holds a close the chain does not", async () => {
+    const { service, recordDeployment, readClosed } = await setup();
+    const running = await recordDeployment({ autoTopUpEnabled: true, closedOnChain: true, chainAnswer: "active" });
+
+    await service.reconcileClosedDeployments({ dryRun: false });
+
+    expect(await readClosed(running.id)).toBe(false);
+  });
+
   it("marks nothing closed for a record the indexer holds no deployment for", async () => {
     const { service, recordDeployment, readClosed, graceInMinutes } = await setup();
     const unindexed = await recordDeployment({ autoTopUpEnabled: true, closedOnChain: null, recordedMinutesAgo: graceInMinutes + 1 });
@@ -191,9 +202,16 @@ describe(ClosedDeploymentsReconcilerService.name, () => {
     const teamAddress = createAkashAddress();
     await db.insert(userWalletsTable).values({ userId: null, organizationId: team.id, address: teamAddress, isTrialing: false });
 
+    const chainAnswerByDseq = new Map<string, "active" | "closed">();
+    vi.spyOn(container.resolve(DeploymentHttpService), "findByOwnerAndDseq").mockImplementation(async (owner, dseq) => {
+      const state = chainAnswerByDseq.get(dseq);
+      return state ? createDeploymentInfoSeed({ owner, dseq, state }) : createDeploymentInfoErrorSeed();
+    });
+
     async function recordDeployment(input: {
       autoTopUpEnabled: boolean;
       closedOnChain: boolean | null;
+      chainAnswer?: "active" | "closed";
       padDseq?: boolean;
       recordedMinutesAgo?: number;
       inTeam?: boolean;
@@ -203,6 +221,7 @@ describe(ClosedDeploymentsReconcilerService.name, () => {
 
       if (input.closedOnChain !== null) {
         await createDeployment({ owner, dseq, closedHeight: input.closedOnChain ? 5_000_000 : undefined });
+        chainAnswerByDseq.set(dseq, input.chainAnswer ?? (input.closedOnChain ? "closed" : "active"));
       }
 
       const [setting] = await db
