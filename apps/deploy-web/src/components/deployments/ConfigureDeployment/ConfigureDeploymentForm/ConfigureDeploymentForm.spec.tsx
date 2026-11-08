@@ -184,6 +184,16 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(ConfigureDeploymentPanes).toHaveBeenCalledWith(expect.objectContaining({ sdl: sealedSdlOf(VALID_SDL) }), expect.anything());
   });
 
+  it("publishes its form for the assistant with the flow phase and the live sdl", () => {
+    const { usePublishConfigureForm, flow } = setup({ initialSdl: VALID_SDL });
+
+    expect(usePublishConfigureForm).toHaveBeenCalledWith({
+      form: expect.objectContaining({ getValues: expect.any(Function) }),
+      phase: flow.phase,
+      sdl: sealedSdlOf(VALID_SDL)
+    });
+  });
+
   it("threads both the live sdl and the debounced preview sdl into the panes", () => {
     const { ConfigureDeploymentPanes } = setup({ initialSdl: VALID_SDL });
 
@@ -1427,6 +1437,7 @@ describe(ConfigureDeploymentForm.name, () => {
       { error: input.flowError }
     );
     const analyticsService = mock<AnalyticsService>();
+    const usePublishConfigureForm = vi.fn();
     const dependencies: typeof DEPENDENCIES = {
       NeedsFundsAlert,
       ProjectBudgetRefusal: vi.fn(() => <></>),
@@ -1454,6 +1465,7 @@ describe(ConfigureDeploymentForm.name, () => {
       SdlImportExport: SdlImportExport as never,
       SdlImportChangesBanner,
       usePlacementsWithBids: () => new Set<string>(),
+      usePublishConfigureForm,
       useFlag: () => false,
       useAddCredits: () => openAddCredits
     };
@@ -1497,6 +1509,7 @@ describe(ConfigureDeploymentForm.name, () => {
       dropInheritance,
       requestQuotes,
       analyticsService,
+      usePublishConfigureForm,
       openAddCredits,
       naming
     };

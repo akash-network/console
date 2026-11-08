@@ -4,11 +4,12 @@ import { usePathname } from "next/navigation";
 import { useFlag } from "@src/hooks/useFlag";
 import { useUser } from "@src/hooks/useUser";
 import { AssistantPanel } from "../AssistantPanel/AssistantPanel";
+import { useIsConfigureFormOpen } from "../configureFormRegistry/configureFormRegistry";
 import { dseqOfPath } from "../dseqOfPath/dseqOfPath";
 import { useAssistantConversation } from "../useAssistantConversation/useAssistantConversation";
 import { useAssistantPanel } from "../useAssistantPanel/useAssistantPanel";
 
-export const DEPENDENCIES = { useFlag, useUser, usePathname, useAssistantPanel, useAssistantConversation, AssistantPanel };
+export const DEPENDENCIES = { useFlag, useUser, usePathname, useAssistantPanel, useAssistantConversation, useIsConfigureFormOpen, AssistantPanel };
 
 type Props = { dependencies?: typeof DEPENDENCIES };
 
@@ -23,8 +24,13 @@ export function AssistantHost({ dependencies: d = DEPENDENCIES }: Props) {
 function AssistantPanelHost({ dependencies: d }: { dependencies: typeof DEPENDENCIES }) {
   const pathname = d.usePathname();
   const panel = d.useAssistantPanel();
+  const isConfigureFormOpen = d.useIsConfigureFormOpen();
   const conversation = d.useAssistantConversation({
-    context: { page: pathname ?? undefined, dseq: dseqOfPath(pathname) ?? panel.request.context?.dseq }
+    context: {
+      page: pathname ?? undefined,
+      dseq: dseqOfPath(pathname) ?? panel.request.context?.dseq,
+      ...(isConfigureFormOpen && { configureFormOpen: true })
+    }
   });
   const { close } = panel;
 

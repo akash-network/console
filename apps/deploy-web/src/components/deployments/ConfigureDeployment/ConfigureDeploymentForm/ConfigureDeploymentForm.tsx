@@ -23,6 +23,7 @@ import { getPlacementGseq } from "@src/utils/sdl/placementGseq";
 import { severalRegionPicksOf } from "@src/utils/sdl/placementRegions";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { resolveSdlSecrets, secretReferenceNamesIn, withSecretsMarkedLike } from "@src/utils/sdl/sdlSecrets";
+import { usePublishConfigureForm } from "../assistantConfigureForm/usePublishConfigureForm";
 import { applyPresetToProfile, DEFAULT_HARDWARE_PRESET } from "../ConfigurationPane/PresetsCard/hardwarePresets";
 import { ConfigureDeploymentBackButton } from "../ConfigureDeploymentBackButton/ConfigureDeploymentBackButton";
 import { ConfigureDeploymentHeader } from "../ConfigureDeploymentHeader/ConfigureDeploymentHeader";
@@ -71,6 +72,7 @@ export const DEPENDENCIES = {
   useSnackbar,
   useFlag,
   useActiveOrganization,
+  usePublishConfigureForm,
   useAddCredits,
   Snackbar
 };
@@ -133,6 +135,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   const lastSelectedPlacementId = useRef(selectedPlacement.id);
   useSyncLogCollectors(form);
   useForceSshForVmServices(form);
+  d.usePublishConfigureForm({ form, phase: flow.phase, sdl: liveSdl });
 
   useEffect(
     function trackConfigurePageViewed() {

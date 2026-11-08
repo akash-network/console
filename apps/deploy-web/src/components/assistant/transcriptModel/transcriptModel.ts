@@ -61,7 +61,8 @@ const FAILED_READ_LABELS: Record<string, string> = {
   search_docs: "Could not search the Console docs",
   check_availability: "Could not check which providers could bid",
   read_logs: "Could not read the logs",
-  read_events: "Could not read the events"
+  read_events: "Could not read the events",
+  read_configure_form: "Could not read the configure form"
 };
 
 const UNKNOWN_FAILED_READ_LABEL = "Could not finish a check";
@@ -112,6 +113,8 @@ export function applyAssistantEvent(message: AssistantTranscriptMessage, event: 
 }
 
 export function readLabelOfClientTool(request: Pick<AssistantClientToolRequest, "name" | "arguments">): string {
+  if (request.name === "read_configure_form") return "Read the configure form";
+
   const kind = request.name === "read_logs" ? "logs" : "events";
   const scope = [request.arguments.service, `last ${request.arguments.tailLines ?? DEFAULT_TAIL_LINES} lines`].filter(Boolean).join(", ");
   return `Read ${kind} (${scope})`;
