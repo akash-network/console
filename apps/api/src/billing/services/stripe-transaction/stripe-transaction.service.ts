@@ -1026,7 +1026,7 @@ export class StripeTransactionService {
     // Locked read: concurrent charge.refunded deliveries serialize here, so the loser
     // re-reads the committed amountRefunded/status and bails on the idempotency check
     // instead of double-debiting the wallet.
-    const transaction = await this.stripeTransactionRepository.findOneByAndLock({ stripeChargeId: params.chargeId });
+    const transaction = await this.stripeTransactionRepository.findOneByAndLock({ stripeChargeId: params.chargeId }, { strength: "no key update" });
 
     if (!transaction) {
       await this.#assertRefundedPaymentNotAwaitingCredit(params);
@@ -1087,7 +1087,9 @@ export class StripeTransactionService {
 
     await this.refillService.reduceWalletBalance(refundedAmount + bonusClawback, payer, {
       currency: transaction.currency,
-      transactionId: transaction.id
+      transactionId: transaction.id,
+      refundedBefore: transaction.amountRefunded,
+      refundedAfter: params.amountRefunded
     });
 
     if (bonusClawback > 0) {

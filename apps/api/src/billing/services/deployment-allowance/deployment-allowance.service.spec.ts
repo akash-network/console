@@ -26,7 +26,7 @@ describe(DeploymentAllowanceService.name, () => {
         derivationIndex: wallet.id,
         limit: 300_000
       });
-      expect(result).toEqual({ previousLimit: 500_000, nextLimit: 300_000 });
+      expect(result).toEqual({ previousLimit: 500_000, nextLimit: 300_000, txHash: "GRANT_HASH" });
       expect(scheduledCheck(jobQueueService)).toEqual({
         wallet,
         write: { txHash: "GRANT_HASH", readHeight: 1234, readLimit: 500_000, sentAt: expect.any(String) },
@@ -50,7 +50,7 @@ describe(DeploymentAllowanceService.name, () => {
       const result = await service.adjust(wallet, -200_000);
 
       expect(managedUserWalletService.authorizeDeploymentSpendingOnly).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ limit: 0 }));
-      expect(result).toEqual({ previousLimit: 100_000, nextLimit: 0 });
+      expect(result).toEqual({ previousLimit: 100_000, nextLimit: 0, txHash: "GRANT_HASH" });
     });
 
     it("watches nothing when no grant had to be broadcast", async () => {
