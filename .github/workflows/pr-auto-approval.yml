@@ -118,7 +118,7 @@ jobs:
             } else if (isChore) {
               const sourceCodeFile = /\.(ts|tsx|js|jsx)$/;
               const touchesCode = filenames.some(f => {
-                return sourceCodeFile.test(f) && (f.includes("/packages/") || f.includes("/apps/"));
+                return sourceCodeFile.test(f) && (f.startsWith("packages/") || f.startsWith("apps/"));
               });
               if (touchesCode) {
                 core.info("Skipping chore: PR touches code files in packages/ or apps/");
