@@ -13,6 +13,11 @@ import {
   CloseAccountDeployments,
   closeAccountDeploymentsKeyFor
 } from "@src/user/services/close-account-deployments/close-account-deployments.job";
+import {
+  NOTIFY_ACCOUNT_STATUS_CHANGE_RETRY_OPTIONS,
+  NotifyAccountStatusChange,
+  notifyAccountStatusChangeKeyFor
+} from "@src/user/services/notify-account-status-change/notify-account-status-change.job";
 import { AccountStatusChanged } from "./account-status-changed.job";
 
 type UserAccountStatusEvent = AccountStatusEventOutput & { userId: string };
@@ -54,6 +59,7 @@ export class AccountStatusChangedHandler implements JobHandler<AccountStatusChan
     if (event.action === "suspend" && event.options.closeDeployments) await this.#closeDeploymentsOf(event.userId);
     if (event.action === "reinstate") await this.walletReloadJobService.scheduleImmediate({ userId: event.userId });
     if (event.action === "terminate") await this.#applyTerminationOf(event.userId, event.options.forfeitCredits ?? false);
+    await this.#notifyUserOf(event.id);
   }
 
   async #closeDeploymentsOf(userId: string): Promise<void> {
@@ -67,6 +73,13 @@ export class AccountStatusChangedHandler implements JobHandler<AccountStatusChan
     await this.jobQueueService.enqueue(new ApplyAccountTermination({ userId, forfeitCredits }), {
       singletonKey: applyAccountTerminationKeyFor(userId),
       ...APPLY_ACCOUNT_TERMINATION_RETRY_OPTIONS
+    });
+  }
+
+  async #notifyUserOf(eventId: string): Promise<void> {
+    await this.jobQueueService.enqueue(new NotifyAccountStatusChange({ eventId }), {
+      singletonKey: notifyAccountStatusChangeKeyFor(eventId),
+      ...NOTIFY_ACCOUNT_STATUS_CHANGE_RETRY_OPTIONS
     });
   }
 }

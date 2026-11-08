@@ -52,6 +52,7 @@ import { TeamOrganizationDeletedHandler } from "@src/organization/services/team-
 import { AccountStatusChangedHandler } from "@src/user/services/account-status-changed/account-status-changed.handler";
 import { ApplyAccountTerminationHandler } from "@src/user/services/apply-account-termination/apply-account-termination.handler";
 import { CloseAccountDeploymentsHandler } from "@src/user/services/close-account-deployments/close-account-deployments.handler";
+import { NotifyAccountStatusChangeHandler } from "@src/user/services/notify-account-status-change/notify-account-status-change.handler";
 import { PurgeDeletedAccountHandler } from "@src/user/services/purge-deleted-account/purge-deleted-account.handler";
 import { BlockEmailDomainOfWalletHandler } from "@src/workload-abuse/services/block-email-domain-of-wallet/block-email-domain-of-wallet.handler";
 import { EnforceTrialAbuseHandler } from "@src/workload-abuse/services/enforce-trial-abuse/enforce-trial-abuse.handler";
@@ -135,6 +136,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(AccountStatusChangedHandler),
     container.resolve(CloseAccountDeploymentsHandler),
     container.resolve(ApplyAccountTerminationHandler),
+    container.resolve(NotifyAccountStatusChangeHandler),
     container.resolve(ExpireConfigureDraftHandler),
     container.resolve(OrganizationInvitationEmailHandler),
     container.resolve(AdminAccessRequestEmailHandler),
