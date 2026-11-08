@@ -68,14 +68,19 @@ export const VariablesAndSecretsCard: FC<Props> = ({ serviceIndex, locked = fals
   const secretCount = env.filter(variable => variable.isSecret && !RESERVED_ENV_KEYS.has(variable.key)).length;
   const templateMode = d.useTemplateMode();
   const askedValueSettings = templateMode?.settings;
-  const serviceTitle = useWatch({ control, name: `services.${serviceIndex}.title` });
+  const services = useWatch({ control, name: "services", disabled: !templateMode });
 
-  const askedValuesOfService = useMemo(() => {
+  const askedValuesOfTemplate = useMemo(() => {
     if (!askedValueSettings) return null;
-    const services = [{ ...getValues(`services.${serviceIndex}`), title: serviceTitle, env }];
     const askedValues = buildAskedValues(services, askedValueSettings);
-    return { byKey: new Map(askedValues.map(askedValue => [askedValue.key, askedValue])), summary: summarizeAskedValues(askedValues, services) };
-  }, [askedValueSettings, getValues, serviceIndex, serviceTitle, env]);
+    const service = services[serviceIndex];
+    const keysOfService = new Set((service?.env ?? []).map(variable => variable.key.trim()));
+    const askedValuesOfService = askedValues.filter(askedValue => keysOfService.has(askedValue.key));
+    return {
+      byKey: new Map(askedValues.map(askedValue => [askedValue.key, askedValue])),
+      summaryOfService: summarizeAskedValues(askedValuesOfService, service ? [service] : [])
+    };
+  }, [askedValueSettings, services, serviceIndex]);
 
   const add = useCallback(
     (kind: VariableKind) => {
@@ -144,7 +149,7 @@ export const VariablesAndSecretsCard: FC<Props> = ({ serviceIndex, locked = fals
                   onPasteKey={insertPastedEnvVars}
                   onRemove={() => remove(fields.indexOf(field))}
                   templateMode={templateMode}
-                  askedValues={askedValuesOfService?.byKey}
+                  askedValues={askedValuesOfTemplate?.byKey}
                   dependencies={d}
                 />
               ))}
@@ -175,11 +180,11 @@ export const VariablesAndSecretsCard: FC<Props> = ({ serviceIndex, locked = fals
           </d.DropdownMenuContent>
         </d.DropdownMenu>
 
-        {askedValuesOfService
+        {askedValuesOfTemplate
           ? visibleFields.length > 0 && (
               <p className="flex items-center gap-1 text-xs text-muted-foreground">
                 <LockIcon className="h-3 w-3" aria-hidden="true" />
-                {describeAskedValues(askedValuesOfService.summary)}
+                {describeAskedValues(askedValuesOfTemplate.summaryOfService)}
               </p>
             )
           : secretCount > 0 && (
@@ -242,6 +247,8 @@ const VariableRow: FC<VariableRowProps> = ({ serviceIndex, envIndex, visibleInde
   const plainValue = secret ? "" : value.field.value ?? "";
   const isTemplateMode = templateMode !== null;
   const looksLikeAKey = useMemo(() => isTemplateMode && looksLikeSecret(envKey, plainValue), [isTemplateMode, envKey, plainValue]);
+  const askedValue = askedValues?.get(envKey);
+  const isAskedAsSecret = secret || askedValue?.type === "secret";
 
   return (
     <div className="flex flex-col gap-1">
@@ -315,9 +322,9 @@ const VariableRow: FC<VariableRowProps> = ({ serviceIndex, envIndex, visibleInde
           <d.AskTheDeployerControl
             rowLabel={label}
             envKey={envKey}
-            isSecret={secret}
-            isAsked={secret || !!templateMode.settings[envKey]?.isAsked}
-            askedValue={askedValues?.get(envKey)}
+            isSecret={isAskedAsSecret}
+            isAsked={isAskedAsSecret || !!templateMode.settings[envKey]?.isAsked}
+            askedValue={askedValue}
             customized={templateMode.settings[envKey]?.customized ?? NOT_CUSTOMIZED}
             onAskedChange={isAsked => templateMode.setAsked(envKey, isAsked)}
             onCustomize={patch => templateMode.customize(envKey, patch)}

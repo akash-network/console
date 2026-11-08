@@ -1,5 +1,5 @@
 "use client";
-import { type FC, useId, useState } from "react";
+import { type FC, useCallback, useId, useRef, useState } from "react";
 import { Button, Switch } from "@akashnetwork/ui/components";
 import { LockIcon, TriangleAlertIcon } from "lucide-react";
 
@@ -37,7 +37,14 @@ export const AskTheDeployerControl: FC<Props> = ({
   dependencies: d = DEPENDENCIES
 }) => {
   const switchId = useId();
+  const panelId = useId();
+  const customizeButtonRef = useRef<HTMLButtonElement>(null);
   const [isCustomizing, setCustomizing] = useState(false);
+
+  const finishCustomizing = useCallback(() => {
+    setCustomizing(false);
+    customizeButtonRef.current?.focus();
+  }, []);
 
   if (envKey !== "" && !isAskableKey(envKey)) {
     return (
@@ -51,7 +58,14 @@ export const AskTheDeployerControl: FC<Props> = ({
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center gap-2">
-        <Switch id={switchId} size="sm" aria-label={`Ask the deployer for ${rowLabel}`} checked={isAsked} disabled={isSecret} onCheckedChange={onAskedChange} />
+        <Switch
+          id={switchId}
+          size="sm"
+          aria-label={`Ask the deployer for ${rowLabel}`}
+          checked={isAsked}
+          disabled={isSecret || envKey === ""}
+          onCheckedChange={onAskedChange}
+        />
         <label htmlFor={switchId} className="text-sm font-medium">
           Ask the deployer
         </label>
@@ -70,20 +84,21 @@ export const AskTheDeployerControl: FC<Props> = ({
         <>
           <p className="flex flex-wrap items-center gap-x-1 text-xs text-muted-foreground">
             Asked as <b className="font-medium text-foreground">{askedValue.label}</b> · {describeType(askedValue)} · {describeDefault(askedValue)}
-            {!isCustomizing && (
-              <Button
-                type="button"
-                variant="link"
-                size="sm"
-                className="ml-2 h-auto p-0 text-xs text-muted-foreground underline"
-                onClick={() => setCustomizing(true)}
-              >
-                Customize
-              </Button>
-            )}
+            <Button
+              ref={customizeButtonRef}
+              type="button"
+              variant="link"
+              size="sm"
+              className="ml-2 h-auto p-0 text-xs text-muted-foreground underline"
+              aria-expanded={isCustomizing}
+              aria-controls={panelId}
+              onClick={() => setCustomizing(open => !open)}
+            >
+              Customize
+            </Button>
           </p>
           {isCustomizing && (
-            <d.CustomizeAskedValue askedValue={askedValue} customized={customized} onCustomize={onCustomize} onDone={() => setCustomizing(false)} />
+            <d.CustomizeAskedValue id={panelId} askedValue={askedValue} customized={customized} onCustomize={onCustomize} onDone={finishCustomizing} />
           )}
         </>
       )}

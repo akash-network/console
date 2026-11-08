@@ -2,6 +2,8 @@ import type { PropsWithChildren } from "react";
 import { describe, expect, it } from "vitest";
 
 import type { TemplateAskedValue } from "@src/types/marketplace-template";
+import { defaultService } from "@src/utils/sdl/data";
+import { buildAskedValues } from "../buildAskedValues";
 import { TemplateModeProvider, useTemplateMode } from "./TemplateModeProvider";
 
 import { act, renderHook } from "@testing-library/react";
@@ -61,6 +63,87 @@ describe(TemplateModeProvider.name, () => {
       DEBUG: { key: "DEBUG", isAsked: true, customized: { type: "boolean", required: false } },
       SIZE: { key: "SIZE", isAsked: true, customized: { type: "number", integer: true } }
     });
+  });
+
+  it("rebuilds the template's asked values unchanged from the rows they were saved from", () => {
+    const initialAskedValues: TemplateAskedValue[] = [
+      {
+        key: "API_BASE",
+        label: "API base",
+        type: "text",
+        default: "http://litellm:4000/v1",
+        required: false,
+        bindings: [
+          { service: "webui", env: "API_BASE" },
+          { service: "litellm", env: "API_BASE" }
+        ]
+      },
+      {
+        key: "SITE_NAME",
+        label: "Site name",
+        help: "Shown in the header.",
+        type: "text",
+        maxLength: 40,
+        required: true,
+        bindings: [{ service: "webui", env: "SITE_NAME" }]
+      },
+      { key: "DEBUG", label: "Debug", type: "boolean", default: "false", required: false, bindings: [{ service: "webui", env: "DEBUG" }] },
+      {
+        key: "LITELLM_MODEL",
+        label: "Model",
+        help: "Which model LiteLLM serves.",
+        type: "choice",
+        choices: ["gpt-4o", "gpt-4o-mini", "o3-mini"],
+        default: "gpt-4o-mini",
+        required: true,
+        bindings: [{ service: "litellm", env: "LITELLM_MODEL" }]
+      },
+      {
+        key: "WORKERS",
+        label: "Workers",
+        type: "number",
+        default: "2",
+        min: 1,
+        max: 8,
+        integer: true,
+        required: false,
+        bindings: [{ service: "litellm", env: "WORKERS" }]
+      },
+      {
+        key: "TEMPERATURE",
+        label: "Temperature",
+        type: "number",
+        default: "0.7",
+        integer: false,
+        required: false,
+        bindings: [{ service: "litellm", env: "TEMPERATURE" }]
+      },
+      { key: "HF_TOKEN", label: "Hugging Face token", type: "secret", required: true, bindings: [{ service: "litellm", env: "HF_TOKEN" }] }
+    ];
+    const services = [
+      defaultService("placement", {
+        title: "webui",
+        env: [
+          { id: "1", key: "API_BASE", value: "http://litellm:4000/v1", isSecret: false },
+          { id: "2", key: "SITE_NAME", value: "", isSecret: false },
+          { id: "3", key: "DEBUG", value: "false", isSecret: false },
+          { id: "4", key: "LOG_LEVEL", value: "info", isSecret: false }
+        ]
+      }),
+      defaultService("placement", {
+        title: "litellm",
+        env: [
+          { id: "5", key: "API_BASE", value: "http://litellm:4000/v1", isSecret: false },
+          { id: "6", key: "LITELLM_MODEL", value: "gpt-4o-mini", isSecret: false },
+          { id: "7", key: "WORKERS", value: "2", isSecret: false },
+          { id: "8", key: "TEMPERATURE", value: "0.7", isSecret: false },
+          { id: "9", key: "HF_TOKEN", value: "ac-secret://HF_TOKEN", isSecret: true }
+        ]
+      })
+    ];
+    const { result } = setup({ initialAskedValues });
+
+    expect(buildAskedValues(services, result.current?.settings ?? {})).toEqual(initialAskedValues);
   });
 
   it("asks and stops asking a key, marking the template unsaved until it is saved", () => {

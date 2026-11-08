@@ -303,14 +303,14 @@ describe(VariablesAndSecretsCard.name, () => {
     }
   });
 
+  it("shows no Ask the deployer outside template mode", () => {
+    setup({ env: [{ key: "LOG_LEVEL", value: "info" }] });
+
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+    expect(screen.queryByText(/asked to the deployer/)).not.toBeInTheDocument();
+  });
+
   describe("in template mode", () => {
-    it("shows no Ask the deployer outside template mode", () => {
-      setup({ env: [{ key: "LOG_LEVEL", value: "info" }] });
-
-      expect(screen.queryByRole("switch")).not.toBeInTheDocument();
-      expect(screen.queryByText(/asked to the deployer/)).not.toBeInTheDocument();
-    });
-
     it("turns a row into an asked value with one click, labelled from its key", async () => {
       setup({ env: [{ key: "LOG_LEVEL", value: "info" }], templateMode: {} });
 
@@ -341,6 +341,55 @@ describe(VariablesAndSecretsCard.name, () => {
 
       expect(first).toBeChecked();
       expect(second).toBeChecked();
+    });
+
+    it("shows a plain row as the secret its key is asked as in another service", () => {
+      setup({ env: [{ key: "HF_TOKEN", value: "hf_secret", isSecret: true }], secondServiceEnv: [{ key: "HF_TOKEN", value: "abc" }], templateMode: {} });
+
+      const [, plainRowSwitch] = screen.getAllByRole("switch", { name: "Ask the deployer for Environment variable 1" });
+      expect(plainRowSwitch).toBeChecked();
+      expect(plainRowSwitch).toBeDisabled();
+      expect(screen.getAllByText(/^Asked as/)[1]).toHaveTextContent("Asked as HF token · Secret · Required");
+      expect(screen.getAllByText("The deployer provides this; your value isn't saved.")).toHaveLength(2);
+    });
+
+    it("takes a shared key's default from the first service's row", async () => {
+      setup({ env: [{ key: "MODEL", value: "" }], secondServiceEnv: [{ key: "MODEL", value: "gpt-4o" }], templateMode: {} });
+
+      await userEvent.click(screen.getAllByRole("switch", { name: "Ask the deployer for Environment variable 1" })[1]);
+
+      expect(screen.getAllByText(/^Asked as/).map(summary => summary.textContent)).toEqual([
+        expect.stringContaining("Asked as Model · Text · Required"),
+        expect.stringContaining("Asked as Model · Text · Required")
+      ]);
+    });
+
+    it("counts a key shared across services in each service's footer", async () => {
+      setup({
+        env: [
+          { key: "MODEL", value: "gpt-4o" },
+          { key: "LOG_LEVEL", value: "info" }
+        ],
+        secondServiceEnv: [{ key: "MODEL", value: "gpt-4o" }],
+        templateMode: {}
+      });
+
+      await userEvent.click(screen.getAllByRole("switch", { name: "Ask the deployer for Environment variable 1" })[0]);
+      await userEvent.click(screen.getByRole("switch", { name: "Ask the deployer for Environment variable 2" }));
+
+      expect(screen.getByText("2 values asked to the deployer")).toBeInTheDocument();
+      expect(screen.getByText("1 value asked to the deployer")).toBeInTheDocument();
+    });
+
+    it("keeps the toggle off and disabled until the row has a key", async () => {
+      setup({ env: [{ key: "", value: "info" }], templateMode: {} });
+
+      expect(screen.getByRole("switch", { name: "Ask the deployer for Environment variable 1" })).toBeDisabled();
+
+      await userEvent.type(screen.getByLabelText("Environment variable 1 key"), "LOG_LEVEL");
+
+      expect(screen.getByRole("switch", { name: "Ask the deployer for Environment variable 1" })).toBeEnabled();
+      expect(screen.getByRole("switch", { name: "Ask the deployer for Environment variable 1" })).not.toBeChecked();
     });
 
     it("restores the template's asked values with their customized label", () => {

@@ -5,7 +5,7 @@ import type { TemplateAskedValue } from "@src/types/marketplace-template";
 import type { AskedValueCustomization } from "../../../templateMode/TemplateModeProvider/TemplateModeProvider";
 import { CustomizeAskedValue } from "./CustomizeAskedValue";
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const MODEL: TemplateAskedValue = {
@@ -132,6 +132,90 @@ describe(CustomizeAskedValue.name, () => {
     expect(screen.getByRole("checkbox", { name: "Required" })).toBeChecked();
     expect(screen.getByLabelText("Min length")).toHaveValue(2);
     expect(screen.getByText(/Your value becomes the default\./)).toBeInTheDocument();
+  });
+
+  it("describes the label and help inputs with their counters", () => {
+    setup({ askedValue: { ...MODEL, help: "Pick" } });
+
+    expect(screen.getByLabelText("Label")).toHaveAccessibleDescription("5/80");
+    expect(screen.getByLabelText("Help text")).toHaveAccessibleDescription("4/500");
+  });
+
+  it("does not say a secret's value becomes the default", () => {
+    setup({ askedValue: { key: "HF_TOKEN", label: "HF token", type: "secret", required: true, bindings: [] } });
+
+    expect(screen.queryByText(/Your value becomes the default\./)).not.toBeInTheDocument();
+  });
+
+  it("keeps a length a whole number of 0 or more", () => {
+    const { customizedNow } = setup({ askedValue: MODEL });
+
+    expect(screen.getByLabelText("Min length")).toHaveAttribute("min", "0");
+    expect(screen.getByLabelText("Min length")).toHaveAttribute("step", "1");
+
+    fireEvent.change(screen.getByLabelText("Min length"), { target: { value: "-3" } });
+    fireEvent.change(screen.getByLabelText("Max length"), { target: { value: "7.8" } });
+
+    expect(customizedNow()).toEqual({ minLength: 0, maxLength: 7 });
+  });
+
+  it("keeps a negative or fractional number range as typed", () => {
+    const { customizedNow } = setup({ askedValue: { key: "TEMP", label: "Temp", type: "number", default: "0.5", required: false, bindings: [] } });
+
+    expect(screen.getByLabelText("Min")).not.toHaveAttribute("step");
+    expect(screen.getByLabelText("Min")).not.toHaveAttribute("min");
+
+    fireEvent.change(screen.getByLabelText("Min"), { target: { value: "-1.5" } });
+
+    expect(customizedNow()).toEqual({ min: -1.5 });
+  });
+
+  it.each<[string, TemplateAskedValue, AskedValueCustomization, string]>([
+    [
+      "number",
+      { key: "WORKERS", label: "Workers", type: "number", default: "2", required: false, bindings: [] },
+      { min: 8, max: 2 },
+      "The minimum is above the maximum."
+    ],
+    ["text", MODEL, { minLength: 9, maxLength: 3 }, "The minimum length is above the maximum."]
+  ])("flags a %s range whose minimum is above its maximum", (_, askedValue, customized, message) => {
+    setup({ askedValue, customized });
+
+    expect(screen.getByRole("alert")).toHaveTextContent(message);
+  });
+
+  it.each<[string, TemplateAskedValue, AskedValueCustomization]>([
+    ["an equal number range", { key: "WORKERS", label: "Workers", type: "number", default: "2", required: false, bindings: [] }, { min: 2, max: 2 }],
+    ["a number range missing its maximum", { key: "WORKERS", label: "Workers", type: "number", default: "2", required: false, bindings: [] }, { min: 2 }],
+    ["an equal length range", MODEL, { minLength: 3, maxLength: 3 }],
+    ["a length range missing its minimum", MODEL, { maxLength: 3 }]
+  ])("does not flag %s", (_, askedValue, customized) => {
+    setup({ askedValue, customized });
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("stops adding choices at 50 and caps a choice at 200 characters", () => {
+    const fifty = Array.from({ length: 50 }, (_, index) => `model-${index}`);
+    setup({ askedValue: { ...MODEL, type: "choice", choices: fifty }, customized: { type: "choice", choices: fifty } });
+
+    expect(screen.getByText("50/50")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add choice" })).toBeDisabled();
+    expect(screen.getByLabelText("New choice")).toBeDisabled();
+    expect(screen.getByLabelText("New choice")).toHaveAttribute("maxLength", "200");
+  });
+
+  it("counts the choices and asks for one while there are none", async () => {
+    setup({ askedValue: { ...MODEL, default: undefined, required: true }, customized: { type: "choice", choices: [] } });
+
+    expect(screen.getByText("Add at least one choice")).toBeInTheDocument();
+    expect(screen.getByText("0/50")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add choice" })).toBeEnabled();
+
+    await userEvent.type(screen.getByLabelText("New choice"), "a{Enter}");
+
+    expect(screen.queryByText("Add at least one choice")).not.toBeInTheDocument();
+    expect(screen.getByText("1/50")).toBeInTheDocument();
   });
 
   it("offers every type but Secret on a plain value", async () => {

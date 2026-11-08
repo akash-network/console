@@ -88,6 +88,39 @@ describe(AskTheDeployerControl.name, () => {
     expect(screen.getByRole("button", { name: "Customize" })).toBeInTheDocument();
   });
 
+  it("moves focus into the opened panel and back to Customize on Done", async () => {
+    setup({ envKey: "LOG_LEVEL", isSecret: false, isAsked: true, askedValue: LOG_LEVEL });
+    const customize = screen.getByRole("button", { name: "Customize" });
+
+    expect(customize).toHaveAttribute("aria-expanded", "false");
+
+    await userEvent.click(customize);
+
+    expect(customize).toHaveAttribute("aria-expanded", "true");
+    expect(document.getElementById(customize.getAttribute("aria-controls") ?? "")).toContainElement(screen.getByLabelText("Label"));
+    expect(screen.getByLabelText("Label")).toHaveFocus();
+
+    await userEvent.click(screen.getByRole("button", { name: "Done" }));
+
+    expect(customize).toHaveFocus();
+    expect(customize).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("closes the panel when Customize is pressed again", async () => {
+    setup({ envKey: "LOG_LEVEL", isSecret: false, isAsked: true, askedValue: LOG_LEVEL });
+
+    await userEvent.click(screen.getByRole("button", { name: "Customize" }));
+    await userEvent.click(screen.getByRole("button", { name: "Customize" }));
+
+    expect(screen.queryByLabelText("Label")).not.toBeInTheDocument();
+  });
+
+  it("disables the toggle of a plain row with no key yet", () => {
+    setup({ envKey: "", isSecret: false, isAsked: false });
+
+    expect(screen.getByRole("switch", { name: SWITCH_NAME })).toBeDisabled();
+  });
+
   it("shows no summary while the key is still empty", () => {
     setup({ envKey: "", isSecret: true, isAsked: true });
 

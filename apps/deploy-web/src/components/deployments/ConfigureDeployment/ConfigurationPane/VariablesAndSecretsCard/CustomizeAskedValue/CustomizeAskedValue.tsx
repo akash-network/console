@@ -1,5 +1,5 @@
 "use client";
-import { type ChangeEvent, type FC, type KeyboardEvent, useId, useState } from "react";
+import { type ChangeEvent, type FC, type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
 import { Button, Checkbox, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@akashnetwork/ui/components";
 import { PlusIcon, XIcon } from "lucide-react";
 
@@ -8,6 +8,8 @@ import type { AskedValueCustomization } from "../../../templateMode/TemplateMode
 
 const MAX_LABEL_LENGTH = 80;
 const MAX_HELP_LENGTH = 500;
+const MAX_CHOICES = 50;
+const MAX_CHOICE_LENGTH = 200;
 
 type AskedValueType = TemplateAskedValue["type"];
 
@@ -19,14 +21,16 @@ const PLAIN_TYPE_OPTIONS: Array<{ type: Exclude<AskedValueType, "secret">; title
 ];
 
 type Props = {
+  id?: string;
   askedValue: TemplateAskedValue;
   customized: AskedValueCustomization;
   onCustomize: (patch: AskedValueCustomization) => void;
   onDone: () => void;
 };
 
-export const CustomizeAskedValue: FC<Props> = ({ askedValue, customized, onCustomize, onDone }) => {
+export const CustomizeAskedValue: FC<Props> = ({ id: panelId, askedValue, customized, onCustomize, onDone }) => {
   const id = useId();
+  const labelInputRef = useRef<HTMLInputElement>(null);
   const isSecret = askedValue.type === "secret";
   const selectedType: AskedValueType = isSecret ? "secret" : customized.type ?? askedValue.type;
   const label = customized.label ?? askedValue.label;
@@ -34,6 +38,14 @@ export const CustomizeAskedValue: FC<Props> = ({ askedValue, customized, onCusto
   const defaultValue = isSecret ? undefined : askedValue.default;
   const choices = customized.choices ?? (askedValue.type === "choice" ? askedValue.choices : []);
   const limits = limitsOf(askedValue);
+  const min = customized.min ?? limits.min;
+  const max = customized.max ?? limits.max;
+  const minLength = customized.minLength ?? limits.minLength;
+  const maxLength = customized.maxLength ?? limits.maxLength;
+
+  useEffect(function focusLabelWhenOpened() {
+    labelInputRef.current?.focus();
+  }, []);
 
   const changeType = (type: string) => {
     if (type !== "choice") return onCustomize({ type: type as AskedValueType });
@@ -41,7 +53,7 @@ export const CustomizeAskedValue: FC<Props> = ({ askedValue, customized, onCusto
   };
 
   return (
-    <div className="flex flex-col gap-3 rounded-md border bg-muted/40 p-3">
+    <div id={panelId} className="flex flex-col gap-3 rounded-md border bg-muted/40 p-3">
       <div className="flex items-center justify-between">
         <span className="font-mono text-xs uppercase text-muted-foreground">Customize</span>
         <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={onDone}>
@@ -53,13 +65,15 @@ export const CustomizeAskedValue: FC<Props> = ({ askedValue, customized, onCusto
         <div className="flex flex-col gap-1">
           <Label htmlFor={`${id}-label`}>Label</Label>
           <Input
+            ref={labelInputRef}
             id={`${id}-label`}
             value={label}
             maxLength={MAX_LABEL_LENGTH}
+            aria-describedby={`${id}-label-count`}
             onChange={event => onCustomize({ label: event.target.value })}
             inputClassName="h-9"
           />
-          <span className="text-right text-xs text-muted-foreground">
+          <span id={`${id}-label-count`} className="text-right text-xs text-muted-foreground">
             {label.length}/{MAX_LABEL_LENGTH}
           </span>
         </div>
@@ -91,12 +105,13 @@ export const CustomizeAskedValue: FC<Props> = ({ askedValue, customized, onCusto
         <Input
           id={`${id}-help`}
           aria-label="Help text"
+          aria-describedby={`${id}-help-count`}
           value={help}
           maxLength={MAX_HELP_LENGTH}
           onChange={event => onCustomize({ help: event.target.value })}
           inputClassName="h-9"
         />
-        <span className="text-right text-xs text-muted-foreground">
+        <span id={`${id}-help-count`} className="text-right text-xs text-muted-foreground">
           {help.length}/{MAX_HELP_LENGTH}
         </span>
       </div>
@@ -104,24 +119,30 @@ export const CustomizeAskedValue: FC<Props> = ({ askedValue, customized, onCusto
       {selectedType === "choice" && <ChoicesField choices={choices} defaultValue={defaultValue} onChange={next => onCustomize({ choices: next })} />}
 
       {selectedType === "number" && (
-        <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
-          <NumberField label="Min" value={customized.min ?? limits.min} onChange={min => onCustomize({ min })} />
-          <NumberField label="Max" value={customized.max ?? limits.max} onChange={max => onCustomize({ max })} />
-          <label className="flex h-9 items-center gap-2 text-sm">
-            <Checkbox
-              aria-label="Whole number"
-              checked={customized.integer ?? limits.integer ?? false}
-              onCheckedChange={checked => onCustomize({ integer: checked === true })}
-            />
-            Whole number
-          </label>
+        <div className="flex flex-col gap-1">
+          <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
+            <NumberField label="Min" value={min} onChange={next => onCustomize({ min: next })} />
+            <NumberField label="Max" value={max} onChange={next => onCustomize({ max: next })} />
+            <label className="flex h-9 items-center gap-2 text-sm">
+              <Checkbox
+                aria-label="Whole number"
+                checked={customized.integer ?? limits.integer ?? false}
+                onCheckedChange={checked => onCustomize({ integer: checked === true })}
+              />
+              Whole number
+            </label>
+          </div>
+          {isInverted(min, max) && <LimitsError>The minimum is above the maximum.</LimitsError>}
         </div>
       )}
 
       {selectedType === "text" && (
-        <div className="grid grid-cols-2 gap-2">
-          <NumberField label="Min length" value={customized.minLength ?? limits.minLength} onChange={minLength => onCustomize({ minLength })} />
-          <NumberField label="Max length" value={customized.maxLength ?? limits.maxLength} onChange={maxLength => onCustomize({ maxLength })} />
+        <div className="flex flex-col gap-1">
+          <div className="grid grid-cols-2 gap-2">
+            <NumberField label="Min length" value={minLength} isCount onChange={next => onCustomize({ minLength: next })} />
+            <NumberField label="Max length" value={maxLength} isCount onChange={next => onCustomize({ maxLength: next })} />
+          </div>
+          {isInverted(minLength, maxLength) && <LimitsError>The minimum length is above the maximum.</LimitsError>}
         </div>
       )}
 
@@ -132,7 +153,7 @@ export const CustomizeAskedValue: FC<Props> = ({ askedValue, customized, onCusto
           onCheckedChange={checked => onCustomize({ required: checked === true })}
         />
         Required
-        <span className="text-xs text-muted-foreground">· Your value becomes the default.</span>
+        {!isSecret && <span className="text-xs text-muted-foreground">· Your value becomes the default.</span>}
       </label>
     </div>
   );
@@ -140,6 +161,10 @@ export const CustomizeAskedValue: FC<Props> = ({ askedValue, customized, onCusto
 
 function seedChoices(defaultValue: string | undefined): string[] {
   return defaultValue ? [defaultValue] : [];
+}
+
+function isInverted(lower: number | undefined, upper: number | undefined): boolean {
+  return lower !== undefined && upper !== undefined && lower > upper;
 }
 
 function limitsOf(askedValue: TemplateAskedValue): Pick<AskedValueCustomization, "min" | "max" | "integer" | "minLength" | "maxLength"> {
@@ -153,6 +178,12 @@ function limitsOf(askedValue: TemplateAskedValue): Pick<AskedValueCustomization,
   }
 }
 
+const LimitsError: FC<{ children: string }> = ({ children }) => (
+  <p role="alert" className="text-xs text-destructive">
+    {children}
+  </p>
+);
+
 type ChoicesFieldProps = {
   choices: string[];
   defaultValue: string | undefined;
@@ -161,6 +192,7 @@ type ChoicesFieldProps = {
 
 const ChoicesField: FC<ChoicesFieldProps> = ({ choices, defaultValue, onChange }) => {
   const [newChoice, setNewChoice] = useState("");
+  const isFull = choices.length >= MAX_CHOICES;
 
   const addChoice = () => {
     const choice = newChoice.trim();
@@ -177,7 +209,12 @@ const ChoicesField: FC<ChoicesFieldProps> = ({ choices, defaultValue, onChange }
 
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-xs font-medium">Choices</span>
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium">Choices</span>
+        <span className="text-xs text-muted-foreground">
+          {choices.length}/{MAX_CHOICES}
+        </span>
+      </div>
       <div className="flex flex-wrap items-center gap-1.5">
         {choices.map(choice => (
           <span key={choice} className="flex items-center gap-1 rounded-md border bg-background px-2 py-0.5 font-mono text-xs">
@@ -197,16 +234,19 @@ const ChoicesField: FC<ChoicesFieldProps> = ({ choices, defaultValue, onChange }
           aria-label="New choice"
           placeholder="New choice"
           value={newChoice}
+          maxLength={MAX_CHOICE_LENGTH}
+          disabled={isFull}
           onChange={(event: ChangeEvent<HTMLInputElement>) => setNewChoice(event.target.value)}
           onKeyDown={addOnEnter}
           inputClassName="h-7 text-xs"
           className="w-32"
         />
-        <Button type="button" variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={addChoice}>
+        <Button type="button" variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" disabled={isFull} onClick={addChoice}>
           <PlusIcon className="mr-1 h-3 w-3" aria-hidden="true" />
           Add choice
         </Button>
       </div>
+      {choices.length === 0 && <p className="text-xs text-muted-foreground">Add at least one choice</p>}
     </div>
   );
 };
@@ -214,15 +254,30 @@ const ChoicesField: FC<ChoicesFieldProps> = ({ choices, defaultValue, onChange }
 type NumberFieldProps = {
   label: string;
   value: number | undefined;
+  /** A length is a count, so it is kept a whole number of 0 or more. */
+  isCount?: boolean;
   onChange: (value: number | undefined) => void;
 };
 
-const NumberField: FC<NumberFieldProps> = ({ label, value, onChange }) => {
+const NumberField: FC<NumberFieldProps> = ({ label, value, isCount = false, onChange }) => {
   const id = useId();
+  const readValue = (text: string) => {
+    const parsed = parseOptionalNumber(text);
+    return isCount && parsed !== undefined ? Math.max(0, Math.floor(parsed)) : parsed;
+  };
+
   return (
     <div className="flex flex-col gap-1">
       <Label htmlFor={id}>{label}</Label>
-      <Input id={id} type="number" value={value ?? ""} onChange={event => onChange(parseOptionalNumber(event.target.value))} inputClassName="h-9" />
+      <Input
+        id={id}
+        type="number"
+        min={isCount ? 0 : undefined}
+        step={isCount ? 1 : undefined}
+        value={value ?? ""}
+        onChange={event => onChange(readValue(event.target.value))}
+        inputClassName="h-9"
+      />
     </div>
   );
 };
