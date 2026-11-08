@@ -1,5 +1,6 @@
 import { faker } from "@faker-js/faker";
 import type { GetUsers200ResponseOneOfInner } from "auth0";
+import { eq } from "drizzle-orm";
 import { generateKeyPairSync } from "node:crypto";
 import { container } from "tsyringe";
 import { describe, expect, it, vi } from "vitest";
@@ -10,6 +11,8 @@ import type { EmailVerificationCodeService } from "@src/auth/services/email-veri
 import { VerifiedEmailService } from "@src/auth/services/verified-email/verified-email.service";
 import type { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import type { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
+import type { ApiPgDatabase } from "@src/core";
+import { JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { TxService } from "@src/core/services/tx/tx.service";
@@ -23,7 +26,11 @@ import { ProjectRepository } from "@src/organization/repositories/project/projec
 import { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import { DataKeyRepository } from "@src/secret/repositories/data-key/data-key.repository";
 import { DataKeyService } from "@src/secret/services/data-key/data-key.service";
+import { AccountStatusEventRepository } from "@src/user/repositories/account-status-event/account-status-event.repository";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
+import { AccountStatusService } from "@src/user/services/account-status/account-status.service";
+import { ApplyAccountTerminationHandler } from "@src/user/services/apply-account-termination/apply-account-termination.handler";
+import { ApplyAccountTermination, applyAccountTerminationKeyFor } from "@src/user/services/apply-account-termination/apply-account-termination.job";
 import type { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 import type { RegisterUserInput } from "./user.service";
 import { UserService } from "./user.service";
@@ -31,6 +38,9 @@ import { UserService } from "./user.service";
 import { seedHardwareRequest } from "@test/seeders/db/hardware-request.seeder";
 import { createAdoptedRowCounts } from "@test/seeders/organization.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
+import { findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
+
+const jobWorkers = useJobWorkers(() => [container.resolve(ApplyAccountTerminationHandler)]);
 
 describe(UserService.name, () => {
   describe("registerUser", () => {
@@ -93,6 +103,78 @@ describe(UserService.name, () => {
           email: user.email
         })
       );
+    });
+
+    it("creates a verified account terminated when a termination named its address verified, whatever its case", async () => {
+      const domain = `${faker.string.alphanumeric(12).toLowerCase()}.com`;
+      const terminated = await seedTermination({ email: `Jane@${domain}`, emailVerified: true });
+      const { service, userRepository } = setup({ signInEmail: { email: `jane@${domain.toUpperCase()}`, emailVerified: true } });
+
+      const registered = await service.registerUser(createRegisterInput());
+
+      expect((await userRepository.findById(registered.id))?.accountStatus).toBe("terminated");
+      expect(await findAccountStatusEventsOf(registered.id)).toEqual([
+        expect.objectContaining({
+          action: "terminate",
+          userEmail: registered.email,
+          actorStaffId: null,
+          actorEmail: "system",
+          actorName: "Console",
+          userReason: "Repeated payment fraud",
+          internalNote: null,
+          options: { forfeitCredits: false, matchedUserId: terminated.id, emailVerified: true }
+        })
+      ]);
+    });
+
+    it("creates an unverified account active, then terminates it on the sign-in that finds its address verified, queueing the termination's effects", async () => {
+      const email = faker.internet.email();
+      await seedTermination({ email, emailVerified: true });
+      const userId = faker.string.uuid();
+
+      const registered = await setup({ signInEmail: { email, emailVerified: false } }).service.registerUser(createRegisterInput({ userId }));
+      const { userRepository } = setup({});
+      const statusWhileUnverified = (await userRepository.findById(registered.id))?.accountStatus;
+      await setup({ signInEmail: { email, emailVerified: true } }).service.registerUser(createRegisterInput({ userId }));
+
+      expect(statusWhileUnverified).toBe("active");
+      expect((await userRepository.findById(registered.id))?.accountStatus).toBe("terminated");
+      expect(await findJobRows(ApplyAccountTermination[JOB_NAME], { singletonKey: applyAccountTerminationKeyFor(registered.id) })).toEqual([
+        expect.objectContaining({ state: "created", data: { userId: registered.id, forfeitCredits: false, version: 1 } })
+      ]);
+    });
+
+    it("never carries over a termination of an address that was not verified when it was terminated", async () => {
+      const email = faker.internet.email();
+      await seedTermination({ email, emailVerified: false });
+      const { service, userRepository } = setup({ signInEmail: { email, emailVerified: true } });
+
+      const registered = await service.registerUser(createRegisterInput());
+
+      expect((await userRepository.findById(registered.id))?.accountStatus).toBe("active");
+      expect(await findAccountStatusEventsOf(registered.id)).toEqual([]);
+    });
+
+    it("creates an active account when the accounts with the same email are not terminated", async () => {
+      const email = faker.internet.email();
+      await container.resolve(UserRepository).create({ userId: faker.string.uuid(), email, emailVerified: true, accountStatus: "suspended" });
+      const { service, userRepository } = setup({ signInEmail: { email, emailVerified: true } });
+
+      const registered = await service.registerUser(createRegisterInput());
+
+      expect((await userRepository.findById(registered.id))?.accountStatus).toBe("active");
+      expect(await findAccountStatusEventsOf(registered.id)).toEqual([]);
+    });
+
+    it("signs a terminated account back in to itself, keeping the address it was terminated under", async () => {
+      const terminated = await seedTermination({ email: faker.internet.email(), emailVerified: true });
+      const { service, userRepository } = setup({ signInEmail: { email: faker.internet.email(), emailVerified: false } });
+
+      const registered = await service.registerUser(createRegisterInput({ userId: terminated.userId! }));
+
+      expect(registered).toMatchObject({ id: terminated.id, email: terminated.email, emailVerified: true });
+      expect(await userRepository.findById(terminated.id)).toMatchObject({ accountStatus: "terminated", email: terminated.email, emailVerified: true });
+      expect(await findAccountStatusEventsOf(terminated.id)).toHaveLength(1);
     });
 
     it("hands a verified sign-in the GPU requests the team filed for its email, in its personal organization", async () => {
@@ -560,6 +642,28 @@ describe(UserService.name, () => {
     };
   }
 
+  async function seedTermination(input: { email: string; emailVerified: boolean }) {
+    await jobWorkers();
+    const terminated = await container.resolve(UserRepository).create({
+      userId: faker.string.uuid(),
+      email: input.email,
+      emailVerified: input.emailVerified,
+      accountStatus: "terminated"
+    });
+    await container.resolve(AccountStatusEventRepository).create({
+      userId: terminated.id,
+      userEmail: terminated.email,
+      action: "terminate",
+      actorEmail: faker.internet.email(),
+      actorName: faker.person.fullName(),
+      userReason: "Repeated payment fraud",
+      internalNote: "Chargebacks on three cards",
+      options: { forfeitCredits: false, emailVerified: input.emailVerified }
+    });
+
+    return terminated;
+  }
+
   function setup(input?: {
     createDefaultNotificationChannel?: NotificationService["createDefaultChannel"];
     ensureDataKey?: DataKeyService["ensureDataKey"];
@@ -616,7 +720,8 @@ describe(UserService.name, () => {
       personalOrganizationService,
       container.resolve(TxService),
       new VerifiedEmailService(auth0Service),
-      container.resolve(HardwareRequestClaimService)
+      container.resolve(HardwareRequestClaimService),
+      container.resolve(AccountStatusService)
     );
 
     return {
@@ -632,3 +737,8 @@ describe(UserService.name, () => {
     };
   }
 });
+
+async function findAccountStatusEventsOf(userId: string) {
+  const events = resolveTable("AccountStatusEvents");
+  return await container.resolve<ApiPgDatabase>(POSTGRES_DB).select().from(events).where(eq(events.userId, userId));
+}

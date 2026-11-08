@@ -21,6 +21,7 @@ import { PersonalOrganizationService } from "@src/organization/services/personal
 import type { AuthorizationMode, OrganizationContext, ProjectScope } from "@src/organization/types/organization-context";
 import type { UserOutput } from "@src/user/repositories/user/user.repository";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
+import { AccountStatusGuard } from "@src/user/services/account-status-guard/account-status-guard.service";
 
 export const ORGANIZATION_ID_HEADER = "x-organization-id";
 export const PROJECT_ID_HEADER = "x-project-id";
@@ -44,7 +45,7 @@ function normalizeHeader(value: string | undefined) {
 }
 
 export interface OrganizationContextRequest {
-  user: Pick<UserOutput, "id" | "username" | "lastUsedOrganizationId">;
+  user: Pick<UserOutput, "id" | "username" | "lastUsedOrganizationId" | "accountStatus">;
   apiKey?: Pick<ApiKeyOutput, "organizationId" | "projectId">;
   organizationHeader?: string;
   projectHeader?: string;
@@ -82,6 +83,7 @@ export class OrganizationContextResolver {
     private readonly projectRepository: ProjectRepository,
     private readonly personalOrganizationService: PersonalOrganizationService,
     private readonly userRepository: UserRepository,
+    private readonly accountStatusGuard: AccountStatusGuard,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.#logger = createLogger({ context: OrganizationContextResolver.name });
@@ -103,6 +105,9 @@ export class OrganizationContextResolver {
       await this.#resolveMembership(request.user, request.apiKey, normalizeHeader(request.organizationHeader))
     );
     const { role, organization } = membership;
+
+    if (organization.type !== "personal") await this.accountStatusGuard.assertNotTerminated(request.user);
+
     const roleScope = await this.#projectScopeOf(membership, request.user.id);
     const keyScope = request.apiKey?.projectId ? await this.#narrowToKeyProject(roleScope, organization.id, request.apiKey.projectId) : roleScope;
     const projectHeader = normalizeHeader(request.projectHeader);
@@ -151,6 +156,7 @@ export class OrganizationContextResolver {
     }
   }
 
+  /** A terminated user lands on their personal organization rather than the team they used last, which would refuse every request of theirs. */
   async #resolveMembership(
     user: OrganizationContextRequest["user"],
     apiKey: OrganizationContextRequest["apiKey"],
@@ -178,7 +184,7 @@ export class OrganizationContextResolver {
       return membership;
     }
 
-    if (user.lastUsedOrganizationId) {
+    if (user.lastUsedOrganizationId && user.accountStatus !== "terminated") {
       const lastUsedMembership = await this.organizationMemberRepository.findActiveMembership(user.id, { id: user.lastUsedOrganizationId });
 
       if (lastUsedMembership) return lastUsedMembership;

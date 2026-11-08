@@ -251,6 +251,21 @@ describe(UserWalletRepository.name, () => {
       expect(ids).not.toContain(lockedWallet.id);
     });
 
+    it("leaves a terminated user's wallet out of the fee refill", async () => {
+      const { userWalletRepository, wallet } = await setup();
+      const { userRepository, wallet: terminatedWallet, user: terminatedUser } = await setup();
+      for (const id of [wallet.id, terminatedWallet.id]) {
+        await userWalletRepository.updateById(id, { activatedAt: new Date(), feeAllowance: 0, isTrialing: false });
+      }
+      await userRepository.updateById(terminatedUser.id, { accountStatus: "terminated" });
+
+      const draining = await userWalletRepository.findDrainingWallets({ fee: 1_000, trialExpirationDays: 30 });
+
+      const ids = draining.map(candidate => candidate.id);
+      expect(ids).toContain(wallet.id);
+      expect(ids).not.toContain(terminatedWallet.id);
+    });
+
     it("refills a team organization's wallet but not a wallet left without user or organization", async () => {
       const { userWalletRepository, wallet: ownerless, user: deletedUser } = await setup();
       const { organization, user } = await seedOrganizationWithOwner();
@@ -298,7 +313,11 @@ describe(UserWalletRepository.name, () => {
       await container.resolve(UserRepository).deleteById(deletedUser.id);
       await userWalletRepository.updateById(unfundedTeam.id, { activatedAt: null });
 
-      for (const { id } of [unactivated, locked, pastTrial, ownerless, unfundedTeam]) {
+      const { userRepository, wallet: terminated, user: terminatedUser } = await setup();
+      await userWalletRepository.updateById(terminated.id, { activatedAt: new Date(), isTrialing: false });
+      await userRepository.updateById(terminatedUser.id, { accountStatus: "terminated" });
+
+      for (const { id } of [unactivated, locked, pastTrial, ownerless, unfundedTeam, terminated]) {
         await expect(userWalletRepository.isEligibleForFeeRefill(id, { trialExpirationDays: 30 })).resolves.toBe(false);
       }
     });

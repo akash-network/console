@@ -40,6 +40,28 @@ describe(AccountStatusGuard.name, () => {
     });
   });
 
+  describe("assertNotTerminated", () => {
+    it.each(["active", "suspended"] as const)("lets a %s user through without reading the reason", async accountStatus => {
+      const { guard, accountStatusService } = setup();
+
+      await expect(guard.assertNotTerminated(createUser({ accountStatus }))).resolves.toBeUndefined();
+      expect(accountStatusService.findUserReasonOf).not.toHaveBeenCalled();
+    });
+
+    it("refuses a terminated user with account_terminated and the reason written for them", async () => {
+      const { guard, accountStatusService } = setup({ reason: "Fraud" });
+      const user = createUser({ accountStatus: "terminated" });
+
+      await expect(guard.assertNotTerminated(user)).rejects.toMatchObject({
+        status: 403,
+        errorCode: "account_terminated",
+        message: "Your account has been terminated",
+        data: { reason: "Fraud" }
+      });
+      expect(accountStatusService.findUserReasonOf).toHaveBeenCalledWith(user);
+    });
+  });
+
   describe("assertUserMaySpend", () => {
     it("refuses a suspended user found by id", async () => {
       const { guard, userRepository } = setup({ accountStatus: "suspended", reason: "Chargeback" });

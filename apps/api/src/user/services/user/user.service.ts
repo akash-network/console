@@ -17,6 +17,7 @@ import { NotificationService } from "@src/notifications/services/notification/no
 import type { OrganizationOutput } from "@src/organization/repositories/organization/organization.repository";
 import { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import { DataKeyService } from "@src/secret/services/data-key/data-key.service";
+import { AccountStatusService } from "@src/user/services/account-status/account-status.service";
 import { toIanaTimeZone } from "@src/utils/date/date";
 import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 import { UserInput, type UserOutput, UserRepository } from "../../repositories/user/user.repository";
@@ -38,7 +39,8 @@ export class UserService {
     private readonly personalOrganizationService: PersonalOrganizationService,
     private readonly txService: TxService,
     private readonly verifiedEmailService: VerifiedEmailService,
-    private readonly hardwareRequestClaimService: HardwareRequestClaimService
+    private readonly hardwareRequestClaimService: HardwareRequestClaimService,
+    private readonly accountStatusService: AccountStatusService
   ) {
     this.logger = createLogger({ context: UserService.name });
   }
@@ -183,11 +185,12 @@ export class UserService {
     });
   }
 
-  /** One transaction for the user row and its personal organization, so a user never exists without one. */
+  /** One transaction for the user row, its personal organization and the termination its verified address inherits, which Auth0 may report verified on any sign-in. */
   private async upsertUser(userDetails: UpdateUserInput, attempt = 0): Promise<{ user: UserOutput; wasInserted: boolean; organization: OrganizationOutput }> {
     try {
       return await this.txService.transaction(async () => {
-        const { user, wasInserted } = await this.userRepository.upsertOnExternalIdConflict(userDetails);
+        const { user: upsertedUser, wasInserted } = await this.userRepository.upsertOnExternalIdConflict(userDetails);
+        const user = await this.accountStatusService.terminateIfVerifiedEmailWasTerminated(upsertedUser);
         const organization = await this.personalOrganizationService.ensureForUser(user);
 
         return { user, wasInserted, organization };
