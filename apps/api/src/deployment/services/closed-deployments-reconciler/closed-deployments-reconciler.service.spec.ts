@@ -1,3 +1,4 @@
+import type { DeploymentHttpService } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 import type { Counter } from "@opentelemetry/api";
 import { subMinutes } from "date-fns";
@@ -17,6 +18,7 @@ import { ClosedDeploymentsReconcilerService } from "./closed-deployments-reconci
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createAkashAddress } from "@test/seeders";
+import { createDeploymentInfoErrorSeed, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 
 const GRACE_IN_MIN = 60;
 const RETRY_LIMIT = 47;
@@ -31,6 +33,129 @@ describe(ClosedDeploymentsReconcilerService.name, () => {
     await service.reconcileClosedDeployments({ dryRun: false });
 
     expect(deploymentSettingRepository.markAsClosed).toHaveBeenCalledWith([closed.id]);
+  });
+
+  it("asks the chain itself about a record the indexer reports closed before marking it", async () => {
+    const closed = openDeployment();
+    const { service, deploymentHttpService } = setup({ openDeployments: [closed], closureStates: [closureState(closed, true)] });
+
+    await service.reconcileClosedDeployments({ dryRun: false });
+
+    expect(deploymentHttpService.findByOwnerAndDseq).toHaveBeenCalledWith(closed.address, closed.dseq);
+  });
+
+  it("leaves a record open while the chain still returns its deployment active, whatever the indexer holds", async () => {
+    const running = openDeployment();
+    const { service, deploymentSettingRepository, logger, countersByName } = setup({
+      openDeployments: [running],
+      closureStates: [closureState(running, true)],
+      findByOwnerAndDseq: vi.fn(async (owner: string, dseq: string) => createDeploymentInfoSeed({ owner, dseq, state: "active" }))
+    });
+
+    await service.reconcileClosedDeployments({ dryRun: false });
+
+    expect(deploymentSettingRepository.markAsClosed).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith({
+      event: "CLOSED_DEPLOYMENTS_RECONCILE_CLOSE_UNCONFIRMED",
+      deploymentSettingId: running.id,
+      owner: running.address,
+      dseq: running.dseq,
+      chainAnswer: "active"
+    });
+    expect(countersByName["closed_deployments_reconcile_rows_close_unconfirmed_total"].add).toHaveBeenCalledWith(1);
+    expect(countersByName["closed_deployments_reconcile_rows_closed_total"].add).toHaveBeenCalledWith(0);
+  });
+
+  it("leaves a record open when the chain does not return its deployment at all", async () => {
+    const missing = openDeployment();
+    const { service, deploymentSettingRepository, logger } = setup({
+      openDeployments: [missing],
+      closureStates: [closureState(missing, true)],
+      findByOwnerAndDseq: vi.fn().mockResolvedValue(createDeploymentInfoErrorSeed({ message: "Deployment not found" }))
+    });
+
+    await service.reconcileClosedDeployments({ dryRun: false });
+
+    expect(deploymentSettingRepository.markAsClosed).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "CLOSED_DEPLOYMENTS_RECONCILE_CLOSE_UNCONFIRMED", chainAnswer: "Deployment not found" })
+    );
+  });
+
+  it("leaves a record whose chain read fails for the next run and still closes the rest of its batch", async () => {
+    const unreadable = openDeployment();
+    const closed = openDeployment();
+    const { service, deploymentSettingRepository, logger } = setup({
+      openDeployments: [unreadable, closed],
+      closureStates: [closureState(unreadable, true), closureState(closed, true)],
+      findByOwnerAndDseq: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("node unreachable"))
+        .mockImplementation(async (owner: string, dseq: string) => createDeploymentInfoSeed({ owner, dseq, state: "closed" }))
+    });
+
+    await service.reconcileClosedDeployments({ dryRun: false });
+
+    expect(deploymentSettingRepository.markAsClosed).toHaveBeenCalledWith([closed.id]);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "CLOSED_DEPLOYMENTS_RECONCILE_CHAIN_READ_FAILED", deploymentSettingId: unreadable.id, error: expect.any(Error) })
+    );
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "CLOSED_DEPLOYMENTS_RECONCILE_END", closed: 1, closeUnconfirmed: 1, failedBatches: 0 })
+    );
+  });
+
+  it("reads the chain only for the records the indexer reports closed", async () => {
+    const closed = openDeployment();
+    const running = openDeployment();
+    const unbacked = openDeployment({ createdAt: subMinutes(new Date(), GRACE_IN_MIN + 1) });
+    const { service, deploymentHttpService } = setup({
+      openDeployments: [closed, running, unbacked],
+      closureStates: [closureState(closed, true), closureState(running, false)]
+    });
+
+    await service.reconcileClosedDeployments({ dryRun: false });
+
+    expect(deploymentHttpService.findByOwnerAndDseq).toHaveBeenCalledTimes(1);
+    expect(deploymentHttpService.findByOwnerAndDseq).toHaveBeenCalledWith(closed.address, closed.dseq);
+  });
+
+  it("keeps at most ten chain reads in flight at once", async () => {
+    const closed = Array.from({ length: 25 }, () => openDeployment());
+    let readsInFlight = 0;
+    let mostReadsInFlight = 0;
+    const { service, deploymentSettingRepository } = setup({
+      openDeployments: closed,
+      closureStates: closed.map(deployment => closureState(deployment, true)),
+      findByOwnerAndDseq: vi.fn(async (owner: string, dseq: string) => {
+        readsInFlight++;
+        mostReadsInFlight = Math.max(mostReadsInFlight, readsInFlight);
+        await new Promise(resolve => setImmediate(resolve));
+        readsInFlight--;
+        return createDeploymentInfoSeed({ owner, dseq, state: "closed" });
+      })
+    });
+
+    await service.reconcileClosedDeployments({ dryRun: false });
+
+    expect(mostReadsInFlight).toBe(10);
+    expect(deploymentSettingRepository.markAsClosed).toHaveBeenCalledWith(closed.map(({ id }) => id));
+  });
+
+  it("reports a close the chain did not confirm during a dry run without recording it", async () => {
+    const running = openDeployment();
+    const { service, logger, countersByName } = setup({
+      openDeployments: [running],
+      closureStates: [closureState(running, true)],
+      findByOwnerAndDseq: vi.fn(async (owner: string, dseq: string) => createDeploymentInfoSeed({ owner, dseq, state: "active" }))
+    });
+
+    await service.reconcileClosedDeployments({ dryRun: true });
+
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "CLOSED_DEPLOYMENTS_RECONCILE_END", closed: 0, closeUnconfirmed: 1, dryRun: true })
+    );
+    expect(countersByName["closed_deployments_reconcile_rows_close_unconfirmed_total"].add).not.toHaveBeenCalled();
   });
 
   it("marks a record closed whatever its owner chose about funding, since the query never reads that flag", async () => {
@@ -138,6 +263,18 @@ describe(ClosedDeploymentsReconcilerService.name, () => {
     await service.reconcileClosedDeployments({ dryRun: false });
 
     expect(deploymentRepository.findClosureStates).toHaveBeenCalledWith([{ owner: padded.address, dseq: "123" }]);
+  });
+
+  it("confirms a close with the chain under the dseq without the leading zeros a stored record can carry", async () => {
+    const padded = openDeployment({ dseq: "0000123" });
+    const { service, deploymentHttpService } = setup({
+      openDeployments: [padded],
+      closureStates: [{ owner: padded.address, dseq: "123", isClosed: true }]
+    });
+
+    await service.reconcileClosedDeployments({ dryRun: false });
+
+    expect(deploymentHttpService.findByOwnerAndDseq).toHaveBeenCalledWith(padded.address, "123");
   });
 
   it("matches a dseq the two sources spell differently, so leading zeros do not read as an unknown deployment", async () => {
@@ -377,6 +514,7 @@ describe(ClosedDeploymentsReconcilerService.name, () => {
     closureStates?: DeploymentClosureState[];
     pendingCompensationKeys?: string[];
     findClosureStates?: DeploymentRepository["findClosureStates"];
+    findByOwnerAndDseq?: DeploymentHttpService["findByOwnerAndDseq"];
     markAsClosed?: DeploymentSettingRepository["markAsClosed"];
     enqueue?: JobQueueService["enqueue"];
     findPendingSingletonKeys?: JobQueueService["findPendingSingletonKeys"];
@@ -397,6 +535,10 @@ describe(ClosedDeploymentsReconcilerService.name, () => {
 
     const deploymentRepository = mock<DeploymentRepository>({
       findClosureStates: input?.findClosureStates ?? vi.fn().mockResolvedValue(input?.closureStates ?? [])
+    });
+
+    const deploymentHttpService = mock<DeploymentHttpService>({
+      findByOwnerAndDseq: input?.findByOwnerAndDseq ?? vi.fn(async (owner: string, dseq: string) => createDeploymentInfoSeed({ owner, dseq, state: "closed" }))
     });
 
     const jobQueueService = mock<JobQueueService>({
@@ -426,6 +568,7 @@ describe(ClosedDeploymentsReconcilerService.name, () => {
     const service = new ClosedDeploymentsReconcilerService(
       deploymentSettingRepository,
       deploymentRepository,
+      deploymentHttpService,
       jobQueueService,
       deploymentConfig,
       metricsService,
@@ -436,6 +579,7 @@ describe(ClosedDeploymentsReconcilerService.name, () => {
       service,
       deploymentSettingRepository,
       deploymentRepository,
+      deploymentHttpService,
       jobQueueService,
       deploymentConfig,
       metricsService,
