@@ -1,6 +1,7 @@
 import type { ReactElement, ReactNode } from "react";
 import { useFormContext } from "react-hook-form";
 import { ApiError } from "@akashnetwork/openapi-sdk";
+import yaml from "js-yaml";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -50,6 +51,60 @@ deployment:
   web:
     dcloud:
       profile: web
+      count: 1
+`;
+
+const SHARED_KEY_SDL = `version: "2.0"
+services:
+  web:
+    image: ghcr.io/berriai/litellm:main-v1.52.0
+    env:
+      - API_KEY=ac-secret://API_KEY
+      - LOG_LEVEL=info
+    expose:
+      - port: 4000
+        as: 80
+        to:
+          - global: true
+  worker:
+    image: ghcr.io/berriai/litellm:main-v1.52.0
+    env:
+      - API_KEY=sk-plain-shared-value
+profiles:
+  compute:
+    web:
+      resources:
+        cpu:
+          units: 1
+        memory:
+          size: 2Gi
+        storage:
+          size: 5Gi
+    worker:
+      resources:
+        cpu:
+          units: 1
+        memory:
+          size: 2Gi
+        storage:
+          size: 5Gi
+  placement:
+    dcloud:
+      pricing:
+        web:
+          denom: uakt
+          amount: 1000
+        worker:
+          denom: uakt
+          amount: 1000
+deployment:
+  web:
+    dcloud:
+      profile: web
+      count: 1
+  worker:
+    dcloud:
+      profile: worker
       count: 1
 `;
 
@@ -112,6 +167,31 @@ describe(ConfigureTemplateForm.name, () => {
     expect(input.data.sdl).toContain("API_KEY=ac-secret://API_KEY");
   });
 
+  it("never sends a plain value typed for a key that is a secret in another service", async () => {
+    const { createTemplate, SdlPreviewPane } = setup({ intent: NEW_INTENT, sdl: SHARED_KEY_SDL });
+    expect(SdlPreviewPane.mock.lastCall?.[0].sdl).not.toContain("sk-plain-shared-value");
+
+    fireEvent.change(screen.getByRole("textbox", { name: "worker API_KEY" }), { target: { value: "sk-typed-shared-value" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save template" }));
+    const dialog = within(screen.getByRole("dialog", { name: "Save template" }));
+    fireEvent.change(dialog.getByRole("textbox", { name: "Title" }), { target: { value: "Support chat" } });
+    await act(() => fireEvent.click(dialog.getByRole("button", { name: "Save template" })));
+
+    const input = createTemplate.mock.calls[0][0];
+    expect(JSON.stringify(input)).not.toContain("sk-typed-shared-value");
+    expect(input.data.askedValues).toEqual([
+      expect.objectContaining({
+        key: "API_KEY",
+        type: "secret",
+        bindings: [
+          { service: "web", env: "API_KEY" },
+          { service: "worker", env: "API_KEY" }
+        ]
+      })
+    ]);
+    expect(envValuesOf(input.data.sdl, "API_KEY")).toEqual([expect.stringMatching(/^(ac-secret:\/\/\w+)?$/), expect.stringMatching(/^(ac-secret:\/\/\w+)?$/)]);
+  });
+
   it("saves the values the author asks the deployer for", async () => {
     const { createTemplate } = setup({ intent: NEW_INTENT });
 
@@ -146,6 +226,36 @@ describe(ConfigureTemplateForm.name, () => {
     expect(dialog.getByRole("textbox", { name: "Title" })).toHaveValue("support-bot");
     expect(dialog.getByText("From the deployment name")).toBeInTheDocument();
     expect(dialog.getByText("1 service from support-bot")).toBeInTheDocument();
+  });
+
+  it("starts the dialog from a suggested title and summary while naming the deployment it is saved from", async () => {
+    const { createTemplate, rerenderWithoutSuggestion } = setup({
+      intent: { ...NEW_INTENT, sourceDseq: "1234" },
+      initialName: "support-bot",
+      suggestedTitle: "Support chat",
+      suggestedSummary: "Chat through one key."
+    });
+    rerenderWithoutSuggestion();
+
+    expect(screen.getByText(/as a template\. Bids and pricing are hidden\./)).toHaveTextContent("Saving support-bot as a template.");
+    fireEvent.click(screen.getByRole("button", { name: "Save template" }));
+    const dialog = within(screen.getByRole("dialog", { name: "Save template" }));
+    expect(dialog.getByRole("textbox", { name: "Title" })).toHaveValue("Support chat");
+    expect(dialog.queryByText("From the deployment name")).not.toBeInTheDocument();
+    expect(dialog.getByRole("textbox", { name: /Summary/ })).toHaveValue("Chat through one key.");
+    await act(() => fireEvent.click(dialog.getByRole("button", { name: "Save template" })));
+
+    expect(createTemplate.mock.calls[0][0].data).toMatchObject({ title: "Support chat", summary: "Chat through one key." });
+  });
+
+  it("recaps the plain values that look like keys in the save dialog", () => {
+    setup({ intent: NEW_INTENT, sdl: SDL.replace("LOG_LEVEL=info", "OPENAI_API_KEY=sk-abcdefghijklmnopqrstuvwx") });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save template" }));
+    const dialog = within(screen.getByRole("dialog", { name: "Save template" }));
+
+    expect(dialog.getByText("1 value looks like a key and will be saved as is")).toBeInTheDocument();
+    expect(dialog.getAllByText("OPENAI_API_KEY")).not.toHaveLength(0);
   });
 
   it("files the new template in the chosen project", () => {
@@ -192,7 +302,7 @@ describe(ConfigureTemplateForm.name, () => {
   it("saves a new version from the current one in edit mode", async () => {
     const { createVersion, createTemplate, draft, router, allowLeaving } = setup({ template: { version: 4 } });
 
-    await act(() => fireEvent.click(screen.getByRole("button", { name: "Save new version" })));
+    await saveAChangedVersion();
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(createTemplate).not.toHaveBeenCalled();
@@ -205,11 +315,40 @@ describe(ConfigureTemplateForm.name, () => {
     expect(router.push).toHaveBeenCalledWith("/template/tpl-9?tab=versions");
   });
 
+  it("holds a new version that is the same as the version it started from", () => {
+    setup({ template: { version: 4 } });
+    const saveVersion = screen.getByRole("button", { name: "Save new version" });
+    expect(saveVersion).toBeDisabled();
+
+    changeTheConfiguration();
+    expect(saveVersion).toBeEnabled();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "web LOG_LEVEL" }), { target: { value: "info" } });
+    expect(saveVersion).toBeDisabled();
+  });
+
+  it("lets a new version be saved once only its asked values changed", () => {
+    setup({ template: { version: 4 } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Ask for MODEL" }));
+
+    expect(screen.getByRole("button", { name: "Save new version" })).toBeEnabled();
+  });
+
+  it("compares a restored draft with the version it started from", () => {
+    setup({ template: { version: 4 }, restoredDraft: { sdl: SDL.replace("LOG_LEVEL=info", "LOG_LEVEL=debug"), startingSdl: SDL } });
+    expect(screen.getByRole("button", { name: "Save new version" })).toBeEnabled();
+    cleanup();
+
+    setup({ template: { version: 4 }, restoredDraft: { sdl: SDL, startingSdl: SDL } });
+    expect(screen.getByRole("button", { name: "Save new version" })).toBeDisabled();
+  });
+
   it("restores the template's asked values in edit mode", async () => {
     const { createVersion } = setup({ template: { version: 4, askedValues: [structuredClone(MODEL_ASKED)] } });
 
     expect(screen.getByText("2 values")).toBeInTheDocument();
-    await act(() => fireEvent.click(screen.getByRole("button", { name: "Save new version" })));
+    await saveAChangedVersion();
 
     const { askedValues } = createVersion.mock.calls[0][0].data;
     expect(askedValues).toContainEqual(MODEL_ASKED);
@@ -218,7 +357,7 @@ describe(ConfigureTemplateForm.name, () => {
   it("shows the conflict toast when a newer version exists", async () => {
     const { enqueueSnackbar, router } = setup({ template: { version: 4 }, saveError: new ApiError(409, { message: "Conflict" }, "POST → 409") });
 
-    await act(() => fireEvent.click(screen.getByRole("button", { name: "Save new version" })));
+    await saveAChangedVersion();
 
     expect(router.push).not.toHaveBeenCalled();
     render(enqueueSnackbar.mock.calls[0][0] as ReactElement);
@@ -249,7 +388,7 @@ describe(ConfigureTemplateForm.name, () => {
   it("asks to try again when the save fails for another reason", async () => {
     const { enqueueSnackbar } = setup({ template: { version: 4 }, saveError: new Error("network down") });
 
-    await act(() => fireEvent.click(screen.getByRole("button", { name: "Save new version" })));
+    await saveAChangedVersion();
 
     render(enqueueSnackbar.mock.calls[0][0] as ReactElement);
     expect(screen.getByText("Couldn't save the template")).toBeInTheDocument();
@@ -269,7 +408,7 @@ describe(ConfigureTemplateForm.name, () => {
     expect(SdlPreviewPane.mock.lastCall?.[0]).toMatchObject({
       isOpen: true,
       sdl: expect.stringContaining("image: ghcr.io/berriai/litellm"),
-      footer: "Highlighted values are asked to the deployer. Secret values are never written into a template."
+      footer: "Values asked to the deployer are filled in at deploy. Secret values are never written into a template."
     });
   });
 
@@ -369,7 +508,7 @@ describe(ConfigureTemplateForm.name, () => {
     const { createVersion, showNewerVersion } = setup({ template: { version: 4 } });
 
     showNewerVersion(5);
-    await act(() => fireEvent.click(screen.getByRole("button", { name: "Save new version" })));
+    await saveAChangedVersion();
 
     expect(createVersion.mock.calls[0][0].data.baseVersion).toBe(4);
   });
@@ -382,7 +521,7 @@ describe(ConfigureTemplateForm.name, () => {
     const { draft } = setup({ template: { version: 4 } });
 
     fireEvent.change(screen.getByRole("textbox", { name: "web LOG_LEVEL" }), { target: { value: "debug" } });
-    await act(() => fireEvent.click(screen.getByRole("button", { name: "Save new version" })));
+    await saveAChangedVersion();
     act(() => vi.advanceTimersByTime(2000));
 
     expect(draft.clear).toHaveBeenCalledTimes(1);
@@ -392,7 +531,7 @@ describe(ConfigureTemplateForm.name, () => {
   it("asks before leaving again when the page does not change after a save", async () => {
     const { askBeforeLeaving, allowLeaving } = setup({ template: { version: 4 }, pushFailure: "refused" });
 
-    await act(() => fireEvent.click(screen.getByRole("button", { name: "Save new version" })));
+    await saveAChangedVersion();
 
     expect(allowLeaving).toHaveBeenCalled();
     expect(askBeforeLeaving).toHaveBeenCalled();
@@ -401,7 +540,7 @@ describe(ConfigureTemplateForm.name, () => {
   it("asks before leaving again when the navigation after a save fails", async () => {
     const { askBeforeLeaving } = setup({ template: { version: 4 }, pushFailure: "rejects" });
 
-    await act(() => fireEvent.click(screen.getByRole("button", { name: "Save new version" })));
+    await saveAChangedVersion();
 
     expect(askBeforeLeaving).toHaveBeenCalled();
   });
@@ -409,7 +548,7 @@ describe(ConfigureTemplateForm.name, () => {
   it("keeps asking after a successful navigation", async () => {
     const { askBeforeLeaving } = setup({ template: { version: 4 } });
 
-    await act(() => fireEvent.click(screen.getByRole("button", { name: "Save new version" })));
+    await saveAChangedVersion();
 
     expect(askBeforeLeaving).not.toHaveBeenCalled();
   });
@@ -433,14 +572,19 @@ describe(ConfigureTemplateForm.name, () => {
     const dialog = within(screen.getByRole("dialog", { name: "Save template" }));
     fireEvent.change(dialog.getByRole("textbox", { name: "Title" }), { target: { value: "Support chat" } });
 
-    expect(dialog.getByRole("alert")).toHaveTextContent("Rename api-key in web: a secret's key can only use letters, digits and underscores.");
+    expect(dialog.getByRole("alert")).toHaveTextContent(
+      "Rename api-key in web: a secret's key can only use letters, digits and underscores, can't start with a digit and is at most 64 characters."
+    );
     expect(dialog.getByRole("button", { name: "Save template" })).toBeDisabled();
   });
 
   it("refuses a new version with a secret the deployer cannot be asked for", () => {
     const { createVersion } = setup({ template: { version: 4 }, sdl: SDL.replace("API_KEY=ac-secret://API_KEY", "api-key=ac-secret://API_KEY") });
 
-    expect(screen.getByRole("alert")).toHaveTextContent("Rename api-key in web: a secret's key can only use letters, digits and underscores.");
+    changeTheConfiguration();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Rename api-key in web: a secret's key can only use letters, digits and underscores, can't start with a digit and is at most 64 characters."
+    );
     expect(screen.getByRole("button", { name: "Save new version" })).toBeDisabled();
     expect(createVersion).not.toHaveBeenCalled();
   });
@@ -448,6 +592,7 @@ describe(ConfigureTemplateForm.name, () => {
   it("lets a new version with only askable secrets be saved", () => {
     setup({ template: { version: 4 } });
 
+    changeTheConfiguration();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save new version" })).toBeEnabled();
   });
@@ -477,7 +622,7 @@ describe(ConfigureTemplateForm.name, () => {
   it("saves the first version of a template that has none", async () => {
     const { createVersion } = setup({ template: { version: null } });
 
-    await act(() => fireEvent.click(screen.getByRole("button", { name: "Save new version" })));
+    await saveAChangedVersion();
 
     expect(createVersion.mock.calls[0][0].data.baseVersion).toBeUndefined();
   });
@@ -486,7 +631,7 @@ describe(ConfigureTemplateForm.name, () => {
     const refusal = new ApiError(400, { code: "template_invalid", message: "Invalid", data: { issues: ['Variable "MODEL" is declared twice'] } }, "POST → 400");
     const { enqueueSnackbar } = setup({ template: { version: 4 }, saveError: refusal });
 
-    await act(() => fireEvent.click(screen.getByRole("button", { name: "Save new version" })));
+    await saveAChangedVersion();
 
     expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "error" }));
     render(enqueueSnackbar.mock.calls[0][0] as ReactElement);
@@ -497,7 +642,7 @@ describe(ConfigureTemplateForm.name, () => {
   it("dismisses the conflict toast when its template is opened", async () => {
     const { enqueueSnackbar, closeSnackbar } = setup({ template: { version: 4 }, saveError: new ApiError(409, { message: "Conflict" }, "POST → 409") });
 
-    await act(() => fireEvent.click(screen.getByRole("button", { name: "Save new version" })));
+    await saveAChangedVersion();
 
     expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "warning" }));
     render(enqueueSnackbar.mock.calls[0][0] as ReactElement);
@@ -580,6 +725,8 @@ describe(ConfigureTemplateForm.name, () => {
   function setup(input: {
     intent?: DeploymentIntent;
     initialName?: string;
+    suggestedTitle?: string;
+    suggestedSummary?: string;
     template?: { version: number | null; askedValues?: TemplateAskedValue[] };
     saveError?: unknown;
     hasNoInitialSdl?: boolean;
@@ -675,9 +822,11 @@ describe(ConfigureTemplateForm.name, () => {
       useConfirmLeave
     });
 
-    const renderForm = (shownTemplate: MarketplaceTemplate | undefined) => (
+    const renderForm = (shownTemplate: MarketplaceTemplate | undefined, suggestion = { title: input.suggestedTitle, summary: input.suggestedSummary }) => (
       <ConfigureTemplateForm
         intent={intent}
+        suggestedTitle={suggestion.title}
+        suggestedSummary={suggestion.summary}
         initialSdl={input.restoredDraft?.sdl ?? (input.hasNoInitialSdl ? undefined : template?.currentVersion?.sdl ?? input.sdl ?? SDL)}
         initialName={input.initialName ?? template?.title}
         template={shownTemplate}
@@ -686,6 +835,7 @@ describe(ConfigureTemplateForm.name, () => {
       />
     );
     const view = render(renderForm(template));
+    const rerenderWithoutSuggestion = () => view.rerender(renderForm(template, { title: undefined, summary: undefined }));
     const showNewerVersion = (version: number) =>
       view.rerender(renderForm(template && { ...template, currentVersion: buildTemplateVersion({ templateId: "tpl-9", version, sdl: SDL }) }));
 
@@ -700,6 +850,7 @@ describe(ConfigureTemplateForm.name, () => {
       allowLeaving,
       askBeforeLeaving,
       showNewerVersion,
+      rerenderWithoutSuggestion,
       project,
       useConfirmLeave,
       ConfigureEditor,
@@ -708,6 +859,22 @@ describe(ConfigureTemplateForm.name, () => {
       SdlPreviewPane,
       SdlImportChangesBanner
     };
+  }
+
+  function changeTheConfiguration() {
+    fireEvent.change(screen.getByRole("textbox", { name: "web LOG_LEVEL" }), { target: { value: "debug" } });
+  }
+
+  async function saveAChangedVersion() {
+    changeTheConfiguration();
+    await act(() => fireEvent.click(screen.getByRole("button", { name: "Save new version" })));
+  }
+
+  function envValuesOf(sdl: string, key: string): string[] {
+    const document = yaml.load(sdl) as { services: Record<string, { env?: string[] }> };
+    return Object.values(document.services).flatMap(service =>
+      (service.env ?? []).filter(entry => entry.startsWith(`${key}=`)).map(entry => entry.slice(key.length + 1))
+    );
   }
 
   function EditorMock({ toolbar }: { toolbar: ReactNode }) {

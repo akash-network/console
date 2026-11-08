@@ -138,10 +138,39 @@ describe(SaveTemplateDialog.name, () => {
     expect(screen.queryByText(/saved as is/)).not.toBeInTheDocument();
   });
 
+  it("recaps the values that look like keys and will be saved as they are", () => {
+    setup({ lookalikeKeys: ["OPENAI_API_KEY", "HF_TOKEN"] });
+
+    const recap = within(screen.getByRole("list", { name: "Recap" }));
+    expect(recap.getByText("2 values look like keys and will be saved as is")).toBeInTheDocument();
+    expect(recap.getByText("OPENAI_API_KEY, HF_TOKEN")).toBeInTheDocument();
+  });
+
+  it("recaps a single value that looks like a key in the singular", () => {
+    setup({ lookalikeKeys: ["OPENAI_API_KEY"] });
+
+    expect(screen.getByText("1 value looks like a key and will be saved as is")).toBeInTheDocument();
+  });
+
+  it("starts from a suggested summary and goes back to it on cancel", () => {
+    const { rerender } = setup({ initialTitle: "Support chat", initialSummary: "Chat through one key." });
+    const summary = () => screen.getByRole("textbox", { name: /Summary/ });
+    expect(summary()).toHaveValue("Chat through one key.");
+
+    fireEvent.change(summary(), { target: { value: "Something else" } });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    rerender({ open: false });
+    rerender({ open: true });
+
+    expect(summary()).toHaveValue("Chat through one key.");
+  });
+
   it("refuses to save a secret whose key cannot be asked for", () => {
     const { onSave } = setup({ initialTitle: "support-bot", unaskableSecrets: [{ service: "web", key: "api-key" }] });
 
-    expect(screen.getByRole("alert")).toHaveTextContent("Rename api-key in web: a secret's key can only use letters, digits and underscores.");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Rename api-key in web: a secret's key can only use letters, digits and underscores, can't start with a digit and is at most 64 characters."
+    );
     expect(screen.getByRole("button", { name: "Save template" })).toBeDisabled();
     fireEvent.submit(screen.getByRole("textbox", { name: "Title" }));
     expect(onSave).not.toHaveBeenCalled();
@@ -214,6 +243,8 @@ describe(SaveTemplateDialog.name, () => {
     sourceName?: string;
     askedValues?: TemplateAskedValue[];
     savedAsIs?: string[];
+    lookalikeKeys?: string[];
+    initialSummary?: string;
     unaskableSecrets?: Array<{ service: string; key: string }>;
     services?: string[];
     isSaving?: boolean;
@@ -229,10 +260,12 @@ describe(SaveTemplateDialog.name, () => {
         open={open}
         initialTitle={initialTitle}
         isTitleFromDeployment={input.isTitleFromDeployment}
+        initialSummary={input.initialSummary}
         projectName={input.projectName}
         sourceName={input.sourceName}
         askedValues={input.askedValues ?? []}
         savedAsIs={input.savedAsIs ?? []}
+        lookalikeKeys={input.lookalikeKeys ?? []}
         unaskableSecrets={input.unaskableSecrets ?? []}
         services={services}
         isSaving={input.isSaving ?? false}

@@ -33,7 +33,8 @@ import { useConfigureDraft } from "../../useConfigureDraft/useConfigureDraft";
 import type { DeploymentIntent } from "../../useDeploymentFlow/deploymentIntent";
 import { useForceSshForVmServices } from "../../useForceSshForVmServices/useForceSshForVmServices";
 import { useSyncLogCollectors } from "../../useSyncLogCollectors/useSyncLogCollectors";
-import { buildAskedValues, summarizeAskedValues } from "../buildAskedValues";
+import type { AskedValueSetting } from "../buildAskedValues";
+import { buildAskedValues, sealSharedSecretKeys, summarizeAskedValues } from "../buildAskedValues";
 import { ConfigureTemplateHeader } from "../ConfigureTemplateHeader/ConfigureTemplateHeader";
 import type { TemplateDetails } from "../SaveTemplateDialog/SaveTemplateDialog";
 import { SaveTemplateDialog } from "../SaveTemplateDialog/SaveTemplateDialog";
@@ -73,12 +74,16 @@ const CONFLICT_STATUS = 409;
 
 const LEAVE_MESSAGE = "Leave without saving? Your changes to this template will be lost.";
 
-const PREVIEW_FOOTER = "Highlighted values are asked to the deployer. Secret values are never written into a template.";
+const PREVIEW_FOOTER = "Values asked to the deployer are filled in at deploy. Secret values are never written into a template.";
 
 type Props = {
   intent: DeploymentIntent;
   initialSdl?: string;
   initialName?: string;
+  /** A title suggested for the new template, which the save dialog starts from instead of the name. */
+  suggestedTitle?: string;
+  /** A summary suggested for the new template, which the save dialog starts from. */
+  suggestedSummary?: string;
   /** The template an edit saves a new version of. */
   template?: MarketplaceTemplate;
   askedValues: TemplateAskedValue[];
@@ -92,7 +97,15 @@ export const ConfigureTemplateForm: FC<Props> = ({ askedValues, ...props }) => (
   </TemplateModeProvider>
 );
 
-const TemplateForm: FC<Omit<Props, "askedValues">> = ({ intent, initialSdl, initialName, template, dependencies: d = DEPENDENCIES }) => {
+const TemplateForm: FC<Omit<Props, "askedValues">> = ({
+  intent,
+  initialSdl,
+  initialName,
+  suggestedTitle,
+  suggestedSummary,
+  template,
+  dependencies: d = DEPENDENCIES
+}) => {
   const templateMode = useTemplateMode() as TemplateModeState;
   const isEditing = intent.templateMode === "edit";
   const draft = d.useConfigureDraft(intent);
@@ -103,11 +116,16 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({ intent, initialSdl, init
   const { mutateAsync: createVersion, isPending: isSavingVersion } = d.useCreateTemplateVersionMutation();
   const [initialState] = useState(() => getInitialState(initialSdl, intent, draft.persistedPlacementRegions));
   const [startingSdl] = useState(() => (draft.persistedSdl === undefined ? initialSdl : draft.persistedStartingSdl));
-  const [liveSdl, setLiveSdl] = useState(initialState.sdl);
-  const [previewSdl, setPreviewSdl] = useState(initialState.sdl);
+  const [initialContent] = useState(() => templateContentOf(initialState.values, templateMode.settings, initialState.sdl));
+  const [baseContent] = useState(() =>
+    isEditing && intent.baseVersion ? baseContentOf(startingSdl, initialSdl, initialState, intent, templateMode.settings) : undefined
+  );
+  const [liveSdl, setLiveSdl] = useState(initialContent.sdl);
+  const [previewSdl, setPreviewSdl] = useState(initialContent.sdl);
   const [selectedServiceId, setSelectedServiceId] = useState(initialState.selectedServiceId);
   const [importChanges, setImportChanges] = useState(initialState.changes);
   const [name, setName] = useState(initialName ?? "");
+  const [suggestedDetails] = useState({ title: suggestedTitle, summary: suggestedSummary });
   const [isPreviewOpen, setIsPreviewOpen] = useState(true);
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const lastSelectedServiceId = useRef(selectedServiceId);
@@ -128,19 +146,21 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({ intent, initialSdl, init
   const askedValues = useMemo(() => buildAskedValues(services, templateMode.settings), [services, templateMode.settings]);
   const askedSummary = useMemo(() => summarizeAskedValues(askedValues, services), [askedValues, services]);
   const [hasRestoredEdits] = useState(() => isEditing && draft.persistedSdl !== undefined);
-  const isDirty = hasRestoredEdits || templateMode.isDirty || form.formState.isDirty || liveSdl !== initialState.sdl;
+  const isDirty = hasRestoredEdits || templateMode.isDirty || form.formState.isDirty || liveSdl !== initialContent.sdl;
+  const isBaseVersionUnchanged = !!baseContent && liveSdl === baseContent.sdl && isSameAskedValues(askedValues, baseContent.askedValues);
   const leaveControl = d.useConfirmLeave(isDirty, LEAVE_MESSAGE);
   useSyncLogCollectors(form);
   useForceSshForVmServices(form);
 
+  const { settings } = templateMode;
   useEffect(
     function syncLiveSdl() {
-      const subscription = form.watch(values => setLiveSdl(previous => regenerateSdl(values as SdlBuilderFormValuesType, previous)));
+      const subscription = form.watch(values => setLiveSdl(previous => templateContentOf(values as SdlBuilderFormValuesType, settings, previous).sdl));
       return function teardownLiveSync() {
         subscription.unsubscribe();
       };
     },
-    [form]
+    [form, settings]
   );
 
   useEffect(
@@ -181,18 +201,17 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({ intent, initialSdl, init
   const applyImportedState = useCallback(
     (state: ImportedDeploymentState) => {
       form.reset(state.values);
-      setLiveSdl(sdlOfImportedState(state));
+      setLiveSdl(templateContentOf(state.values, settings, sdlOfImportedState(state)).sdl);
       setSelectedServiceId(state.selectedServiceId);
       setImportChanges(state.changes);
     },
-    [form]
+    [form, settings]
   );
 
   const resetConfiguration = useCallback(() => applyImportedState(getInitialState(startingSdl, intent)), [applyImportedState, startingSdl, intent]);
 
   function templateContent() {
-    const values = form.getValues();
-    return { sdl: regenerateSdl(values, liveSdl), askedValues: buildAskedValues(values.services, templateMode.settings) };
+    return templateContentOf(form.getValues(), settings, liveSdl);
   }
 
   function leaveFor(url: string) {
@@ -288,7 +307,7 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({ intent, initialSdl, init
               services={services}
               askedCount={askedValues.length}
               isSaving={isCreating || isSavingVersion}
-              canSave={!isEditing || canSaveVersion}
+              canSave={!isEditing || (canSaveVersion && !isBaseVersionUnchanged)}
               onSave={save}
             />
             {isEditing && <UnaskableSecretsAlert unaskableSecrets={askedSummary.unaskableSecrets} className="mx-6 mt-4 w-auto" />}
@@ -326,12 +345,14 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({ intent, initialSdl, init
           {!isEditing && (
             <d.SaveTemplateDialog
               open={isSaveDialogOpen}
-              initialTitle={name}
-              isTitleFromDeployment={!!intent.sourceDseq && name === (initialName ?? "")}
+              initialTitle={suggestedDetails.title ?? name}
+              isTitleFromDeployment={!suggestedDetails.title && !!intent.sourceDseq && name === (initialName ?? "")}
+              initialSummary={suggestedDetails.summary}
               projectName={deployTarget.project?.name}
               sourceName={source?.name}
               askedValues={askedValues}
               savedAsIs={askedSummary.savedAsIs}
+              lookalikeKeys={askedSummary.lookalikeKeys}
               unaskableSecrets={askedSummary.unaskableSecrets}
               services={services}
               isSaving={isCreating}
@@ -344,3 +365,26 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({ intent, initialSdl, init
     </d.Layout>
   );
 };
+
+type TemplateContent = { sdl: string; askedValues: TemplateAskedValue[] };
+
+/** Every row of a key asked as a secret is sealed, so a value typed in the clear beside a secret never leaves the browser. */
+function templateContentOf(values: SdlBuilderFormValuesType, settings: Record<string, AskedValueSetting>, previousSdl: string): TemplateContent {
+  const askedValues = buildAskedValues(values.services, settings);
+  return { sdl: regenerateSdl({ ...values, services: sealSharedSecretKeys(values.services, askedValues) }, previousSdl), askedValues };
+}
+
+function baseContentOf(
+  startingSdl: string | undefined,
+  initialSdl: string | undefined,
+  initialState: ReturnType<typeof getInitialState>,
+  intent: DeploymentIntent,
+  settings: Record<string, AskedValueSetting>
+): TemplateContent {
+  const baseState = startingSdl === initialSdl ? initialState : getInitialState(startingSdl, intent);
+  return templateContentOf(baseState.values, settings, baseState.sdl);
+}
+
+function isSameAskedValues(left: TemplateAskedValue[], right: TemplateAskedValue[]): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}

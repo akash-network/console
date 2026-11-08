@@ -9,7 +9,8 @@ import userEvent from "@testing-library/user-event";
 
 const SWITCH_NAME = "Ask the deployer for Environment variable 1";
 const SECRET_NOTE = "The deployer provides this; your value isn't saved.";
-const UNASKABLE_KEY_WARNING = "This key can't be asked to the deployer. Rename it with letters, digits and underscores only.";
+const UNASKABLE_KEY_WARNING =
+  "This key can't be asked to the deployer. Rename it with letters, digits and underscores only, not starting with a digit and at most 64 characters.";
 
 const LOG_LEVEL: TemplateAskedValue = { key: "LOG_LEVEL", label: "Log level", type: "text", default: "info", required: false, bindings: [] };
 const HF_TOKEN: TemplateAskedValue = { key: "HF_TOKEN", label: "HF token", type: "secret", required: true, bindings: [] };

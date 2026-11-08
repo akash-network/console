@@ -246,9 +246,12 @@ const VariableRow: FC<VariableRowProps> = ({ serviceIndex, envIndex, visibleInde
   const envKey = (key.field.value ?? "").trim();
   const plainValue = secret ? "" : value.field.value ?? "";
   const isTemplateMode = templateMode !== null;
-  const looksLikeAKey = useMemo(() => isTemplateMode && looksLikeSecret(envKey, plainValue), [isTemplateMode, envKey, plainValue]);
   const askedValue = askedValues?.get(envKey);
   const isAskedAsSecret = secret || askedValue?.type === "secret";
+  const looksLikeAKey = useMemo(
+    () => isTemplateMode && !isAskedAsSecret && looksLikeSecret(envKey, plainValue),
+    [isTemplateMode, isAskedAsSecret, envKey, plainValue]
+  );
 
   return (
     <div className="flex flex-col gap-1">
@@ -317,8 +320,8 @@ const VariableRow: FC<VariableRowProps> = ({ serviceIndex, envIndex, visibleInde
       {value.fieldState.error && <p className="pl-1 text-xs text-destructive">{value.fieldState.error.message}</p>}
       {isKept && inheritedFrom === null && <p className="pl-1 text-xs text-muted-foreground">The value was not included. Enter it before requesting bids.</p>}
       {templateMode && (
-        <div className="flex flex-col gap-2 pl-11">
-          {looksLikeAKey && <LookalikeSecretWarning onMakeSecret={toggleKind} />}
+        <div className="flex flex-col pl-11">
+          <div role="status">{looksLikeAKey && <LookalikeSecretWarning onMakeSecret={toggleKind} />}</div>
           <d.AskTheDeployerControl
             rowLabel={label}
             envKey={envKey}
@@ -338,7 +341,7 @@ const VariableRow: FC<VariableRowProps> = ({ serviceIndex, envIndex, visibleInde
 const NOT_CUSTOMIZED = {};
 
 const LookalikeSecretWarning: FC<{ onMakeSecret: () => void }> = ({ onMakeSecret }) => (
-  <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+  <div className="mb-2 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
     <TriangleAlertIcon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
     <p className="grow text-xs">
       <b className="font-semibold">This looks like an API key.</b> Saved as a plain value, it would go out with the template to everyone who can see it.

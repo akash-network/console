@@ -12,7 +12,7 @@ import {
   Label,
   LoadingButton
 } from "@akashnetwork/ui/components";
-import { ArrowLeftIcon, BoxIcon, CheckIcon, LockIcon, MessageCircleQuestionIcon } from "lucide-react";
+import { ArrowLeftIcon, BoxIcon, CheckIcon, LockIcon, MessageCircleQuestionIcon, TriangleAlertIcon } from "lucide-react";
 
 import { LengthCounter } from "@src/components/shared/LengthCounter/LengthCounter";
 import type { ServiceType } from "@src/types";
@@ -32,11 +32,15 @@ type Props = {
   initialTitle?: string;
   /** Whether that name is the deployment's the template is saved from. */
   isTitleFromDeployment?: boolean;
+  /** The summary suggested for the template, which the dialog starts from and Cancel goes back to. */
+  initialSummary?: string;
   projectName?: string;
   /** The deployment the template is saved from. */
   sourceName?: string;
   askedValues: TemplateAskedValue[];
   savedAsIs: string[];
+  /** The keys of plain values that look like a key, saved as they are unless made secret. */
+  lookalikeKeys: string[];
   unaskableSecrets: UnaskableSecret[];
   services: ServiceType[];
   isSaving: boolean;
@@ -49,10 +53,12 @@ export const SaveTemplateDialog: FC<Props> = ({
   open,
   initialTitle = "",
   isTitleFromDeployment = false,
+  initialSummary = "",
   projectName,
   sourceName,
   askedValues,
   savedAsIs,
+  lookalikeKeys,
   unaskableSecrets,
   services,
   isSaving,
@@ -64,7 +70,7 @@ export const SaveTemplateDialog: FC<Props> = ({
   const summaryId = useId();
   const summaryCounterId = useId();
   const [title, setTitle] = useState(initialTitle);
-  const [summary, setSummary] = useState("");
+  const [summary, setSummary] = useState(initialSummary);
   const [wasOpen, setWasOpen] = useState(open);
   if (open !== wasOpen) {
     setWasOpen(open);
@@ -73,7 +79,7 @@ export const SaveTemplateDialog: FC<Props> = ({
   const canSave = title.trim() !== "" && unaskableSecrets.length === 0 && !isSaving;
 
   const cancel = () => {
-    setSummary("");
+    setSummary(initialSummary);
     onClose();
   };
 
@@ -132,7 +138,7 @@ export const SaveTemplateDialog: FC<Props> = ({
               {projectName ? `Saved as Private in ${projectName}.` : "Saved as Private."} Make it available to your organization from the template page.
             </p>
             <UnaskableSecretsAlert unaskableSecrets={unaskableSecrets} />
-            <TemplateRecap askedValues={askedValues} savedAsIs={savedAsIs} services={services} sourceName={sourceName} />
+            <TemplateRecap askedValues={askedValues} savedAsIs={savedAsIs} lookalikeKeys={lookalikeKeys} services={services} sourceName={sourceName} />
           </form>
         </DialogV2Body>
         <DialogV2Footer className="flex flex-wrap items-center justify-between gap-2">
@@ -157,9 +163,9 @@ export const SaveTemplateDialog: FC<Props> = ({
 const FIELD_CLASSES =
   "w-full rounded-md border border-input bg-popover px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
-type RecapProps = Pick<Props, "askedValues" | "savedAsIs" | "services" | "sourceName">;
+type RecapProps = Pick<Props, "askedValues" | "savedAsIs" | "lookalikeKeys" | "services" | "sourceName">;
 
-const TemplateRecap: FC<RecapProps> = ({ askedValues, savedAsIs, services, sourceName }) => {
+const TemplateRecap: FC<RecapProps> = ({ askedValues, savedAsIs, lookalikeKeys, services, sourceName }) => {
   const recapId = useId();
   const secretKeys = askedValues.filter(value => value.type === "secret").map(value => value.key);
   const { names, serviceCount, resources } = summarizeTemplateServices(services);
@@ -182,6 +188,17 @@ const TemplateRecap: FC<RecapProps> = ({ askedValues, savedAsIs, services, sourc
             icon={<LockIcon className="h-4 w-4 text-blue-600" />}
             title={countOf(secretKeys.length, "secret", "secrets")}
             detail={secretKeys.length === 1 ? `Your value for ${secretKeys[0]} isn't saved.` : `Your values for ${listInProse(secretKeys)} aren't saved.`}
+          />
+        )}
+        {lookalikeKeys.length > 0 && (
+          <RecapRow
+            icon={<TriangleAlertIcon className="h-4 w-4 text-amber-600" />}
+            title={
+              lookalikeKeys.length === 1
+                ? "1 value looks like a key and will be saved as is"
+                : `${lookalikeKeys.length} values look like keys and will be saved as is`
+            }
+            detail={lookalikeKeys.join(", ")}
           />
         )}
         {savedAsIs.length > 0 && (

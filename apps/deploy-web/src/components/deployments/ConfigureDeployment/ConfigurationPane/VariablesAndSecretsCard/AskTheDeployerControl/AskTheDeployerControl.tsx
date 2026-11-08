@@ -10,7 +10,8 @@ import { CustomizeAskedValue } from "../CustomizeAskedValue/CustomizeAskedValue"
 
 export const DEPENDENCIES = { CustomizeAskedValue };
 
-const UNASKABLE_KEY_WARNING = "This key can't be asked to the deployer. Rename it with letters, digits and underscores only.";
+const UNASKABLE_KEY_WARNING =
+  "This key can't be asked to the deployer. Rename it with letters, digits and underscores only, not starting with a digit and at most 64 characters.";
 
 type Props = {
   rowLabel: string;

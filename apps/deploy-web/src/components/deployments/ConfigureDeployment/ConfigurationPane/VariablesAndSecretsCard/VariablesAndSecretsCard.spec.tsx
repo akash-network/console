@@ -353,6 +353,16 @@ describe(VariablesAndSecretsCard.name, () => {
       expect(screen.getAllByText("The deployer provides this; your value isn't saved.")).toHaveLength(2);
     });
 
+    it("does not warn about a lookalike plain row of a key asked as a secret in another service, since it is sealed", () => {
+      setup({
+        env: [{ key: "OPENAI_API_KEY", value: "ac-secret://OPENAI_API_KEY", isSecret: true }],
+        secondServiceEnv: [{ key: "OPENAI_API_KEY", value: "sk-proj-4fQ1x9a3f9" }],
+        templateMode: {}
+      });
+
+      expect(screen.queryByText(LOOKALIKE_WARNING)).not.toBeInTheDocument();
+    });
+
     it("takes a shared key's default from the first service's row", async () => {
       setup({ env: [{ key: "MODEL", value: "" }], secondServiceEnv: [{ key: "MODEL", value: "gpt-4o" }], templateMode: {} });
 
@@ -430,7 +440,7 @@ describe(VariablesAndSecretsCard.name, () => {
     it("warns about a plain value that looks like a key and makes it a secret in one click", async () => {
       const { getValues } = setup({ env: [{ key: "OPENAI_API_KEY", value: "sk-proj-4fQ1x9a3f9" }], templateMode: {} });
 
-      expect(screen.getByText(LOOKALIKE_WARNING)).toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveTextContent(LOOKALIKE_WARNING);
       expect(screen.getByText("0 values asked to the deployer · 1 needs your attention")).toBeInTheDocument();
 
       await userEvent.click(screen.getByRole("button", { name: "Make it a secret" }));
@@ -457,7 +467,11 @@ describe(VariablesAndSecretsCard.name, () => {
     it("warns instead of toggling a secret whose key the deployer cannot be asked for", () => {
       setup({ env: [{ key: "my-key", value: "x", isSecret: true }], templateMode: {} });
 
-      expect(screen.getByText("This key can't be asked to the deployer. Rename it with letters, digits and underscores only.")).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          "This key can't be asked to the deployer. Rename it with letters, digits and underscores only, not starting with a digit and at most 64 characters."
+        )
+      ).toBeInTheDocument();
       expect(screen.queryByRole("switch")).not.toBeInTheDocument();
     });
 

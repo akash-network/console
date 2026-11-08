@@ -276,7 +276,10 @@ const ConfigureTemplateScreen: FC<TemplateScreenProps> = ({ intent, onDraftIdCha
   const router = d.useRouter();
   const { enqueueSnackbar } = d.useSnackbar();
   const isEditing = intent.templateMode === "edit";
-  const isDraftRestored = draft.persistedSdl !== undefined;
+  /** Read once the draft loads, since the screen's own draft saves and the clear after a template save would otherwise turn a copy back on. */
+  const [restoredOnLoad, setRestoredOnLoad] = useState<boolean | null>(null);
+  if (restoredOnLoad === null && !draft.isLoading) setRestoredOnLoad(draft.persistedSdl !== undefined);
+  const isDraftRestored = restoredOnLoad ?? draft.persistedSdl !== undefined;
   const templateQuery = d.useMarketplaceTemplate(isEditing ? intent.userTemplateId : undefined);
   const isCopying = !isEditing && !!intent.copyFromTemplateId && !draft.isLoading && !isDraftRestored;
   const copyQuery = d.useTemplateVersion(isCopying ? intent.copyFromTemplateId : undefined, isCopying ? intent.copyFromVersion : undefined);
@@ -370,6 +373,8 @@ const ConfigureTemplateScreen: FC<TemplateScreenProps> = ({ intent, onDraftIdCha
       intent={screenIntent}
       initialSdl={draft.persistedSdl ?? startingVersion?.sdl}
       initialName={draft.persistedName ?? template?.title}
+      suggestedTitle={draft.persistedTemplateTitle}
+      suggestedSummary={draft.persistedTemplateSummary}
       template={template}
       askedValues={startingVersion?.askedValues ?? []}
     />

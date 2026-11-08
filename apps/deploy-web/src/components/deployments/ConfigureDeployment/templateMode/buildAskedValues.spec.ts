@@ -4,7 +4,7 @@ import type { ServiceType } from "@src/types";
 import type { TemplateAskedValue } from "@src/types/marketplace-template";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
 import type { AskedValueSetting } from "./buildAskedValues";
-import { buildAskedValues, summarizeAskedValues } from "./buildAskedValues";
+import { buildAskedValues, sealSharedSecretKeys, summarizeAskedValues } from "./buildAskedValues";
 
 type EnvRow = { key: string; value?: string; isSecret?: boolean };
 
@@ -739,6 +739,7 @@ describe(summarizeAskedValues.name, () => {
     });
 
     expect(summary.needsAttention).toBe(2);
+    expect(summary.lookalikeKeys).toEqual(["OPENAI_API_KEY"]);
   });
 
   it("does not count a secret row for attention even when its value looks like a key", () => {
@@ -750,7 +751,7 @@ describe(summarizeAskedValues.name, () => {
   it("summarizes a template with no variables", () => {
     const { summary } = setup({ services: [{ title: "web" }] });
 
-    expect(summary).toStrictEqual({ asked: 0, secrets: 0, needsAttention: 0, savedAsIs: [], unaskableSecrets: [] });
+    expect(summary).toStrictEqual({ asked: 0, secrets: 0, needsAttention: 0, lookalikeKeys: [], savedAsIs: [], unaskableSecrets: [] });
   });
 
   it("names the secret rows whose key the api cannot take as a value", () => {
@@ -781,7 +782,7 @@ describe(summarizeAskedValues.name, () => {
     expect(summary.secrets).toBe(1);
   });
 
-  it("counts a lookalike plain row in one service next to a secret in another", () => {
+  it("leaves a lookalike plain row of a key asked as a secret elsewhere out, since it is sealed", () => {
     const { summary } = setup({
       services: [
         { title: "web", env: [{ key: "TOKEN", value: "ac-secret://TOKEN", isSecret: true }] },
@@ -795,7 +796,14 @@ describe(summarizeAskedValues.name, () => {
       ]
     });
 
-    expect(summary).toStrictEqual({ asked: 1, secrets: 1, needsAttention: 2, savedAsIs: ["OPENAI_API_KEY"], unaskableSecrets: [] });
+    expect(summary).toStrictEqual({
+      asked: 1,
+      secrets: 1,
+      needsAttention: 1,
+      lookalikeKeys: ["OPENAI_API_KEY"],
+      savedAsIs: ["OPENAI_API_KEY"],
+      unaskableSecrets: []
+    });
   });
 
   it("leaves out rows of a service with an empty title", () => {
@@ -811,7 +819,7 @@ describe(summarizeAskedValues.name, () => {
       ]
     });
 
-    expect(summary).toStrictEqual({ asked: 0, secrets: 0, needsAttention: 0, savedAsIs: [], unaskableSecrets: [] });
+    expect(summary).toStrictEqual({ asked: 0, secrets: 0, needsAttention: 0, lookalikeKeys: [], savedAsIs: [], unaskableSecrets: [] });
   });
 
   function setup(input: { services: Array<{ title: string; env?: EnvRow[] }>; asked?: string[] }) {
@@ -819,6 +827,42 @@ describe(summarizeAskedValues.name, () => {
     const settings = Object.fromEntries((input.asked ?? []).map(key => [key, { key, isAsked: true, customized: {} }]));
     const values = buildAskedValues(services, settings);
     return { summary: summarizeAskedValues(values, services) };
+  }
+});
+
+describe(sealSharedSecretKeys.name, () => {
+  it("seals the plain rows of a key asked as a secret in another service", () => {
+    const { sealed } = setup({
+      services: [
+        { title: "web", env: [{ key: "API_KEY", value: "ac-secret://API_KEY", isSecret: true }] },
+        {
+          title: "worker",
+          env: [
+            { key: " API_KEY ", value: "sk-plain-value" },
+            { key: "MODEL", value: "llama" }
+          ]
+        }
+      ]
+    });
+
+    expect(sealed.map(service => service.env?.map(variable => [variable.key, variable.isSecret]))).toEqual([
+      [["API_KEY", true]],
+      [
+        [" API_KEY ", true],
+        ["MODEL", undefined]
+      ]
+    ]);
+  });
+
+  it("leaves rows alone when no key is asked as a secret", () => {
+    const { services, sealed } = setup({ services: [{ title: "web", env: [{ key: "MODEL", value: "llama" }] }, { title: "worker" }] });
+
+    expect(sealed).toEqual(services);
+  });
+
+  function setup(input: { services: Array<{ title: string; env?: EnvRow[] }> }) {
+    const services = input.services.map(entry => buildService(entry));
+    return { services, sealed: sealSharedSecretKeys(services, buildAskedValues(services, {})) };
   }
 });
 

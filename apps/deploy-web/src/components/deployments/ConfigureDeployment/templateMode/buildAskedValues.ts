@@ -62,19 +62,36 @@ function capKeepingSecrets(askedValues: TemplateAskedValue[]): TemplateAskedValu
 export function summarizeAskedValues(
   values: TemplateAskedValue[],
   services: ServiceType[]
-): { asked: number; secrets: number; needsAttention: number; savedAsIs: string[]; unaskableSecrets: UnaskableSecret[] } {
+): { asked: number; secrets: number; needsAttention: number; lookalikeKeys: string[]; savedAsIs: string[]; unaskableSecrets: UnaskableSecret[] } {
   const askedKeys = new Set(values.map(value => value.key));
+  const secretKeys = secretKeysOf(values);
   const rows = listEnvRows(services);
   const plainRows = rows.filter(row => !row.isSecret);
   const unaskedKeys = plainRows.map(row => row.key).filter(key => !askedKeys.has(key));
+  const lookalikeRows = plainRows.filter(row => !secretKeys.has(row.key) && looksLikeSecret(row.key, row.value));
 
   return {
     asked: values.length,
     secrets: values.filter(value => value.type === "secret").length,
-    needsAttention: plainRows.filter(row => looksLikeSecret(row.key, row.value)).length,
+    needsAttention: lookalikeRows.length,
+    lookalikeKeys: [...new Set(lookalikeRows.map(row => row.key))],
     savedAsIs: [...new Set(unaskedKeys)],
     unaskableSecrets: rows.filter(row => row.isSecret && !isAskableKey(row.key)).map(({ service, key }) => ({ service, key }))
   };
+}
+
+/** A key asked as a secret is asked as one in every service, so its plain rows are sealed too rather than sent in the clear. */
+export function sealSharedSecretKeys(services: ServiceType[], askedValues: TemplateAskedValue[]): ServiceType[] {
+  const secretKeys = secretKeysOf(askedValues);
+
+  return services.map(service => ({
+    ...service,
+    env: service.env?.map(variable => (secretKeys.has(variable.key.trim()) ? { ...variable, isSecret: true } : variable))
+  }));
+}
+
+function secretKeysOf(askedValues: TemplateAskedValue[]): Set<string> {
+  return new Set(askedValues.filter(value => value.type === "secret").map(value => value.key));
 }
 
 function listEnvRows(services: ServiceType[]): EnvRow[] {

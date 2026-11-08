@@ -11,7 +11,9 @@ export const UnaskableSecretsAlert: FC<{ unaskableSecrets: UnaskableSecret[]; cl
     <Alert variant="destructive" className={className}>
       <AlertDescription>
         {unaskableSecrets.map(({ service, key }) => (
-          <p key={`${service}:${key}`}>{`Rename ${key} in ${service}: a secret's key can only use letters, digits and underscores.`}</p>
+          <p
+            key={`${service}:${key}`}
+          >{`Rename ${key} in ${service}: a secret's key can only use letters, digits and underscores, can't start with a digit and is at most 64 characters.`}</p>
         ))}
       </AlertDescription>
     </Alert>

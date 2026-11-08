@@ -1104,6 +1104,49 @@ describe(ConfigureDeployment.name, () => {
       expect(props?.intent).toMatchObject({ copyFromTemplateId: "tpl-1", copyFromVersion: 2 });
     });
 
+    it("keeps a copy on the copied version once its draft is saved and then cleared", () => {
+      const { useTemplateVersion, ConfigureTemplateForm, countTemplateFormMounts, changePersistedSdl } = setup({
+        templateMode: "new",
+        copyFromTemplateId: "tpl-1",
+        copyFromVersion: 2,
+        isTemplateMarketplaceEnabled: true,
+        templateVersion: { isSuccess: true, data: buildTemplateVersion({ templateId: "tpl-1", version: 2, sdl: ASSISTANT_SDL, askedValues: [ASKED_MODEL] }) }
+      });
+
+      changePersistedSdl("saved: sdl");
+      changePersistedSdl(undefined);
+
+      expect(useTemplateVersion.mock.calls.filter(call => JSON.stringify(call) !== JSON.stringify(["tpl-1", 2]))).toEqual([]);
+      expect(countTemplateFormMounts()).toBe(1);
+      expect(ConfigureTemplateForm.mock.lastCall?.[0].intent).toMatchObject({ copyFromTemplateId: "tpl-1", copyFromVersion: 2 });
+    });
+
+    it("never reads the copied version for a restored copy once its draft is cleared", () => {
+      const { useTemplateVersion, changePersistedSdl } = setup({
+        templateMode: "new",
+        copyFromTemplateId: "tpl-1",
+        copyFromVersion: 2,
+        persistedSdl: "restored: sdl",
+        isTemplateMarketplaceEnabled: true
+      });
+
+      changePersistedSdl(undefined);
+
+      expect(useTemplateVersion).not.toHaveBeenCalledWith("tpl-1", 2);
+    });
+
+    it("hands the title and summary suggested for the template to the form", () => {
+      const { ConfigureTemplateForm } = setup({
+        templateMode: "new",
+        persistedSdl: "assistant: sdl",
+        persistedTemplateTitle: "Support chat",
+        persistedTemplateSummary: "Chat through one key.",
+        isTemplateMarketplaceEnabled: true
+      });
+
+      expect(ConfigureTemplateForm.mock.lastCall?.[0]).toMatchObject({ suggestedTitle: "Support chat", suggestedSummary: "Chat through one key." });
+    });
+
     it("starts the screen over when the URL names another draft", () => {
       const { ConfigureTemplateForm, openUrl } = setup({
         templateMode: "new",
@@ -1141,6 +1184,8 @@ describe(ConfigureDeployment.name, () => {
     isDraftLoading?: boolean;
     persistedSdl?: string;
     persistedName?: string;
+    persistedTemplateTitle?: string;
+    persistedTemplateSummary?: string;
     template?: { isLoading?: boolean; isError?: boolean; data?: TemplateOutput };
     userTemplateId?: string;
     userTemplate?: { isLoading?: boolean; isError?: boolean; isSuccess?: boolean; data?: ITemplate | null };
@@ -1221,6 +1266,8 @@ describe(ConfigureDeployment.name, () => {
         isLoading: !!input.isDraftLoading,
         persistedSdl: current.sdl,
         persistedName: current.name,
+        persistedTemplateTitle: input.persistedTemplateTitle,
+        persistedTemplateSummary: input.persistedTemplateSummary,
         save,
         clear
       });
@@ -1320,6 +1367,11 @@ describe(ConfigureDeployment.name, () => {
       rerender(renderScreen());
     };
 
+    const changePersistedSdl = (sdl: string | undefined) => {
+      draft = { ...draft, sdl };
+      rerender(renderScreen());
+    };
+
     const failDraftRead = () => {
       isDraftReadFailed = true;
       rerender(renderScreen());
@@ -1365,6 +1417,7 @@ describe(ConfigureDeployment.name, () => {
       writeOwnDseq,
       currentUrl: () => ({ dseq, ...Object.fromEntries(params) }),
       failDraftRead,
+      changePersistedSdl,
       handOverDraft,
       countGuardMounts: () => guardMounts
     };
