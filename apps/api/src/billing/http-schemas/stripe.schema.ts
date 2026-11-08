@@ -89,6 +89,13 @@ export const PaymentMethodResponseSchema = z.object({
   data: PaymentMethodSchema
 });
 
+export const PaymentRefusalsResponseSchema = z.object({
+  data: z.object({
+    refusedPaymentMethodIds: z.array(z.string()),
+    pausedUntil: z.string().datetime().nullable()
+  })
+});
+
 export const ConfirmPaymentRequestSchema = z.object({
   data: z.object({
     userId: z.string(),
@@ -269,6 +276,7 @@ export type PaymentMethodMarkAsDefaultInput = z.infer<typeof PaymentMethodMarkAs
 export type PaymentMethod = z.infer<typeof PaymentMethodSchema>;
 export type PaymentMethodsResponse = z.infer<typeof PaymentMethodsResponseSchema>;
 export type PaymentMethodResponse = z.infer<typeof PaymentMethodResponseSchema>;
+export type PaymentRefusalsResponse = z.infer<typeof PaymentRefusalsResponseSchema>;
 export type ConfirmPaymentRequest = z.infer<typeof ConfirmPaymentRequestSchema>;
 export type PaymentIntentResult = z.infer<typeof PaymentIntentResultSchema>;
 export type ConfirmPaymentResponse = z.infer<typeof ConfirmPaymentResponseSchema>;

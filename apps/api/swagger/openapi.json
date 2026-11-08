@@ -1190,6 +1190,69 @@
         ]
       }
     },
+    "/v1/stripe/payment-methods/refusals": {
+      "get": {
+        "operationId": "listPaymentMethodRefusals",
+        "summary": "Get the recent payment refusals for the current payer",
+        "description": "Lists the saved payment methods that recent payments were refused on, and when payments may resume if they are paused.",
+        "tags": [
+          "Payment"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recent payment refusals retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "refusedPaymentMethodIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "pausedUntil": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "refusedPaymentMethodIds",
+                        "pausedUntil"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      }
+    },
     "/v1/stripe/payment-methods/{paymentMethodId}": {
       "delete": {
         "operationId": "deletePaymentMethod",

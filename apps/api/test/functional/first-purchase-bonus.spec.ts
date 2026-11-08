@@ -298,6 +298,7 @@ describe("First-purchase bonus", () => {
       const chargeId = `ch_${faker.string.alphanumeric(14)}`;
       const amountCents = amountUsd * 100;
       nock(STRIPE_API).get(`/v1/payment_methods/${paymentMethodId}`).reply(200, { id: paymentMethodId, object: "payment_method", customer: payer.customerId });
+      nock(STRIPE_API).get("/v1/payment_intents").query(true).reply(200, { object: "list", data: [], has_more: false, url: "/v1/payment_intents" });
       nock(STRIPE_API)
         .post("/v1/payment_intents", body => body.customer === payer.customerId)
         .reply(200, { id: paymentIntentId, object: "payment_intent", status: "succeeded", amount: amountCents, currency: "usd" });
