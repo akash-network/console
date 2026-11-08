@@ -15,7 +15,7 @@ import { startServer } from "@src/services/start-server/start-server";
 import type { AppEnv } from "@src/types/app-context";
 
 export const app = new Hono<AppEnv>();
-app.use("*", otel({ captureRequestHeaders: ["baggage"] }));
+app.use("*", otel());
 app.use(container.resolve(HttpLoggerInterceptor).intercept());
 app.use("/v1/tx/*", container.resolve(ApiKeyAuthInterceptor).intercept());
 app.route("/", healthzRouter);
