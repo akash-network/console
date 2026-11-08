@@ -48,6 +48,10 @@ export function buildAskedValues(services: ServiceType[], settings: Record<strin
   return capKeepingSecrets(askedValues);
 }
 
+export function isAskableKey(key: string): boolean {
+  return ASKED_VALUE_KEY_PATTERN.test(key);
+}
+
 function capKeepingSecrets(askedValues: TemplateAskedValue[]): TemplateAskedValue[] {
   const secrets = askedValues.filter(value => value.type === "secret");
   const plain = askedValues.filter(value => value.type !== "secret");
@@ -69,7 +73,7 @@ export function summarizeAskedValues(
     secrets: values.filter(value => value.type === "secret").length,
     needsAttention: plainRows.filter(row => looksLikeSecret(row.key, row.value)).length,
     savedAsIs: [...new Set(unaskedKeys)],
-    unaskableSecrets: rows.filter(row => row.isSecret && !ASKED_VALUE_KEY_PATTERN.test(row.key)).map(({ service, key }) => ({ service, key }))
+    unaskableSecrets: rows.filter(row => row.isSecret && !isAskableKey(row.key)).map(({ service, key }) => ({ service, key }))
   };
 }
 
@@ -90,7 +94,7 @@ function groupByKey(services: ServiceType[]): EnvGroup[] {
   const groups = new Map<string, EnvGroup>();
 
   for (const row of listEnvRows(services)) {
-    if (!ASKED_VALUE_KEY_PATTERN.test(row.key)) continue;
+    if (!isAskableKey(row.key)) continue;
 
     const group = groups.get(row.key) ?? { key: row.key, isSecret: false, firstValue: row.value, bindings: [] };
     group.isSecret ||= row.isSecret;

@@ -1,5 +1,5 @@
 "use client";
-import { type ClipboardEvent, type FC, useCallback, useState } from "react";
+import { type ClipboardEvent, type FC, useCallback, useMemo, useState } from "react";
 import { useController, useFieldArray, useFormContext, useWatch } from "react-hook-form";
 import {
   Badge,
@@ -13,13 +13,18 @@ import {
   Input,
   TooltipProvider
 } from "@akashnetwork/ui/components";
-import { ChevronDownIcon, EyeIcon, EyeOffIcon, KeyRoundIcon, LockIcon, PlusIcon, XIcon } from "lucide-react";
+import { ChevronDownIcon, EyeIcon, EyeOffIcon, KeyRoundIcon, LockIcon, PlusIcon, TriangleAlertIcon, XIcon } from "lucide-react";
 import { nanoid } from "nanoid";
 
-import type { SdlBuilderFormValuesType } from "@src/types";
+import type { EnvironmentVariableType, SdlBuilderFormValuesType } from "@src/types";
+import type { TemplateAskedValue } from "@src/types/marketplace-template";
 import { RESERVED_ENV_KEYS as RESERVED_ENV_KEY_LIST } from "@src/types/sdlBuilder/sdlBuilder";
 import { isSdlReference, secretNameOf } from "@src/utils/sdl/sdlSecrets";
 import { useInheritedSecrets } from "../../InheritedSecretsProvider/InheritedSecretsProvider";
+import { looksLikeSecret } from "../../templateMode/askedValueDefaults";
+import { buildAskedValues, summarizeAskedValues } from "../../templateMode/buildAskedValues";
+import { type TemplateModeState, useTemplateMode } from "../../templateMode/TemplateModeProvider/TemplateModeProvider";
+import { AskTheDeployerControl } from "./AskTheDeployerControl/AskTheDeployerControl";
 
 export const DEPENDENCIES = {
   CollapsibleCard,
@@ -28,10 +33,14 @@ export const DEPENDENCIES = {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
-  useInheritedSecrets
+  AskTheDeployerControl,
+  useInheritedSecrets,
+  useTemplateMode
 };
 
 const RESERVED_ENV_KEYS = new Set<string>(RESERVED_ENV_KEY_LIST);
+
+const NO_ENV: EnvironmentVariableType[] = [];
 
 type VariableKind = "variable" | "secret";
 
@@ -53,10 +62,20 @@ type Props = {
 export const VariablesAndSecretsCard: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
   const { control, getValues } = useFormContext<SdlBuilderFormValuesType>();
   const { fields, append, remove, replace } = useFieldArray({ control, name: `services.${serviceIndex}.env`, keyName: "fieldId" });
-  const env = useWatch({ control, name: `services.${serviceIndex}.env` }) ?? [];
+  const env = useWatch({ control, name: `services.${serviceIndex}.env` }) ?? NO_ENV;
   const visibleFields = fields.filter(field => !RESERVED_ENV_KEYS.has(field.key));
   const visibleCount = env.filter(variable => !RESERVED_ENV_KEYS.has(variable.key)).length;
   const secretCount = env.filter(variable => variable.isSecret && !RESERVED_ENV_KEYS.has(variable.key)).length;
+  const templateMode = d.useTemplateMode();
+  const askedValueSettings = templateMode?.settings;
+  const serviceTitle = useWatch({ control, name: `services.${serviceIndex}.title` });
+
+  const askedValuesOfService = useMemo(() => {
+    if (!askedValueSettings) return null;
+    const services = [{ ...getValues(`services.${serviceIndex}`), title: serviceTitle, env }];
+    const askedValues = buildAskedValues(services, askedValueSettings);
+    return { byKey: new Map(askedValues.map(askedValue => [askedValue.key, askedValue])), summary: summarizeAskedValues(askedValues, services) };
+  }, [askedValueSettings, getValues, serviceIndex, serviceTitle, env]);
 
   const add = useCallback(
     (kind: VariableKind) => {
@@ -124,6 +143,8 @@ export const VariablesAndSecretsCard: FC<Props> = ({ serviceIndex, locked = fals
                   visibleIndex={visibleIndex}
                   onPasteKey={insertPastedEnvVars}
                   onRemove={() => remove(fields.indexOf(field))}
+                  templateMode={templateMode}
+                  askedValues={askedValuesOfService?.byKey}
                   dependencies={d}
                 />
               ))}
@@ -154,12 +175,19 @@ export const VariablesAndSecretsCard: FC<Props> = ({ serviceIndex, locked = fals
           </d.DropdownMenuContent>
         </d.DropdownMenu>
 
-        {secretCount > 0 && (
-          <p className="flex items-center gap-1 text-xs text-muted-foreground">
-            <LockIcon className="h-3 w-3" aria-hidden="true" />
-            {secretCount} {secretCount === 1 ? "secret" : "secrets"} encrypted at rest
-          </p>
-        )}
+        {askedValuesOfService
+          ? visibleFields.length > 0 && (
+              <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                <LockIcon className="h-3 w-3" aria-hidden="true" />
+                {describeAskedValues(askedValuesOfService.summary)}
+              </p>
+            )
+          : secretCount > 0 && (
+              <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                <LockIcon className="h-3 w-3" aria-hidden="true" />
+                {secretCount} {secretCount === 1 ? "secret" : "secrets"} encrypted at rest
+              </p>
+            )}
       </fieldset>
     </d.CollapsibleCard>
   );
@@ -172,15 +200,24 @@ type VariableRowProps = {
   onRemove: () => void;
   /** Parses pasted `KEY=value` lines into rows; `envIndex` is the row pasted into so an empty one can be dropped. */
   onPasteKey: (event: ClipboardEvent<HTMLInputElement>, envIndex: number) => void;
+  templateMode: TemplateModeState | null;
+  askedValues: ReadonlyMap<string, TemplateAskedValue> | undefined;
   dependencies: typeof DEPENDENCIES;
 };
+
+function describeAskedValues({ asked, secrets, needsAttention }: { asked: number; secrets: number; needsAttention: number }): string {
+  const parts = [`${asked} ${asked === 1 ? "value" : "values"} asked to the deployer`];
+  if (secrets > 0) parts.push(`${secrets} ${secrets === 1 ? "secret" : "secrets"}`);
+  if (needsAttention > 0) parts.push(`${needsAttention} ${needsAttention === 1 ? "needs" : "need"} your attention`);
+  return parts.join(" · ");
+}
 
 /** A dotenv template lists its keys with no values, so an empty pasted value leaves a kept reference standing rather than unsetting an already sealed secret. */
 function pastedValueOver(existingValue: string | undefined, pasted: string): string {
   return !pasted && isSdlReference(existingValue ?? "") ? (existingValue as string) : pasted;
 }
 
-const VariableRow: FC<VariableRowProps> = ({ serviceIndex, envIndex, visibleIndex, onRemove, onPasteKey, dependencies: d }) => {
+const VariableRow: FC<VariableRowProps> = ({ serviceIndex, envIndex, visibleIndex, onRemove, onPasteKey, templateMode, askedValues, dependencies: d }) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const basePath = `services.${serviceIndex}.env.${envIndex}` as const;
   const key = useController({ control, name: `${basePath}.key` });
@@ -200,6 +237,11 @@ const VariableRow: FC<VariableRowProps> = ({ serviceIndex, envIndex, visibleInde
     isSecret.field.onChange(!secret);
     setRevealed(false);
   }, [isKept, secret, value.field, isSecret.field]);
+
+  const envKey = (key.field.value ?? "").trim();
+  const plainValue = secret ? "" : value.field.value ?? "";
+  const isTemplateMode = templateMode !== null;
+  const looksLikeAKey = useMemo(() => isTemplateMode && looksLikeSecret(envKey, plainValue), [isTemplateMode, envKey, plainValue]);
 
   return (
     <div className="flex flex-col gap-1">
@@ -267,9 +309,39 @@ const VariableRow: FC<VariableRowProps> = ({ serviceIndex, envIndex, visibleInde
       {key.fieldState.error && <p className="pl-1 text-xs text-destructive">{key.fieldState.error.message}</p>}
       {value.fieldState.error && <p className="pl-1 text-xs text-destructive">{value.fieldState.error.message}</p>}
       {isKept && inheritedFrom === null && <p className="pl-1 text-xs text-muted-foreground">The value was not included. Enter it before requesting bids.</p>}
+      {templateMode && (
+        <div className="flex flex-col gap-2 pl-11">
+          {looksLikeAKey && <LookalikeSecretWarning onMakeSecret={toggleKind} />}
+          <d.AskTheDeployerControl
+            rowLabel={label}
+            envKey={envKey}
+            isSecret={secret}
+            isAsked={secret || !!templateMode.settings[envKey]?.isAsked}
+            askedValue={askedValues?.get(envKey)}
+            customized={templateMode.settings[envKey]?.customized ?? NOT_CUSTOMIZED}
+            onAskedChange={isAsked => templateMode.setAsked(envKey, isAsked)}
+            onCustomize={patch => templateMode.customize(envKey, patch)}
+          />
+        </div>
+      )}
     </div>
   );
 };
+
+const NOT_CUSTOMIZED = {};
+
+const LookalikeSecretWarning: FC<{ onMakeSecret: () => void }> = ({ onMakeSecret }) => (
+  <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+    <TriangleAlertIcon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+    <p className="grow text-xs">
+      <b className="font-semibold">This looks like an API key.</b> Saved as a plain value, it would go out with the template to everyone who can see it.
+    </p>
+    <Button type="button" size="sm" variant="outline" className="shrink-0" onClick={onMakeSecret}>
+      <LockIcon className="mr-1 h-3 w-3" aria-hidden="true" />
+      Make it a secret
+    </Button>
+  </div>
+);
 
 function keptPlaceholder(isKept: boolean, inheritedFrom: string | null): string {
   if (!isKept) return "Secret value";

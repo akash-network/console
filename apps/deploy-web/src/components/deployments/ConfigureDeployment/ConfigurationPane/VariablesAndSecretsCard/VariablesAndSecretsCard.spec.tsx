@@ -5,13 +5,17 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { describe, expect, it } from "vitest";
 
 import type { EnvironmentVariableType, SdlBuilderFormValuesType } from "@src/types";
+import type { TemplateAskedValue } from "@src/types/marketplace-template";
 import { RESERVED_ENV_VALUE_MESSAGE, SdlBuilderFormValuesSchema, SECRET_NAME_MESSAGE } from "@src/types/sdlBuilder/sdlBuilder";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
 import type { InheritedSecrets } from "../../InheritedSecretsProvider/InheritedSecretsProvider";
+import { TemplateModeProvider } from "../../templateMode/TemplateModeProvider/TemplateModeProvider";
 import { DEPENDENCIES, VariablesAndSecretsCard } from "./VariablesAndSecretsCard";
 
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+
+const LOOKALIKE_WARNING = "Saved as a plain value, it would go out with the template to everyone who can see it.";
 
 describe(VariablesAndSecretsCard.name, () => {
   it("titles the card Environment Variables & Secrets", () => {
@@ -299,28 +303,179 @@ describe(VariablesAndSecretsCard.name, () => {
     }
   });
 
+  describe("in template mode", () => {
+    it("shows no Ask the deployer outside template mode", () => {
+      setup({ env: [{ key: "LOG_LEVEL", value: "info" }] });
+
+      expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+      expect(screen.queryByText(/asked to the deployer/)).not.toBeInTheDocument();
+    });
+
+    it("turns a row into an asked value with one click, labelled from its key", async () => {
+      setup({ env: [{ key: "LOG_LEVEL", value: "info" }], templateMode: {} });
+
+      expect(screen.getByText("· saved as is")).toBeInTheDocument();
+      expect(screen.getByText("0 values asked to the deployer")).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole("switch", { name: "Ask the deployer for Environment variable 1" }));
+
+      expect(screen.getByText(/^Asked as/)).toHaveTextContent("Asked as Log level · Text · Your value is the default");
+      expect(screen.getByText("1 value asked to the deployer")).toBeInTheDocument();
+    });
+
+    it("keeps a secret row asked and its toggle locked", () => {
+      setup({ env: [{ key: "HF_TOKEN", value: "hf_abc", isSecret: true }], templateMode: {} });
+
+      expect(screen.getByRole("switch", { name: "Ask the deployer for Environment variable 1" })).toBeChecked();
+      expect(screen.getByRole("switch", { name: "Ask the deployer for Environment variable 1" })).toBeDisabled();
+      expect(screen.getByText(/^Asked as/)).toHaveTextContent("Asked as HF token · Secret · Required");
+      expect(screen.getByText("1 value asked to the deployer · 1 secret")).toBeInTheDocument();
+      expect(screen.queryByText("1 secret encrypted at rest")).not.toBeInTheDocument();
+    });
+
+    it("toggles every row sharing a key across services", async () => {
+      setup({ env: [{ key: "MODEL", value: "gpt-4o" }], secondServiceEnv: [{ key: "MODEL", value: "gpt-4o" }], templateMode: {} });
+
+      const [first, second] = screen.getAllByRole("switch", { name: "Ask the deployer for Environment variable 1" });
+      await userEvent.click(first);
+
+      expect(first).toBeChecked();
+      expect(second).toBeChecked();
+    });
+
+    it("restores the template's asked values with their customized label", () => {
+      setup({
+        env: [{ key: "LITELLM_MODEL", value: "gpt-4o-mini" }],
+        templateMode: {
+          initialAskedValues: [
+            {
+              key: "LITELLM_MODEL",
+              label: "Model",
+              type: "text",
+              default: "gpt-4o-mini",
+              required: false,
+              bindings: [{ service: "service-1", env: "LITELLM_MODEL" }]
+            }
+          ]
+        }
+      });
+
+      expect(screen.getByRole("switch", { name: "Ask the deployer for Environment variable 1" })).toBeChecked();
+      expect(screen.getByText(/^Asked as/)).toHaveTextContent("Asked as Model · Text · Your value is the default");
+    });
+
+    it("customizes an asked value from its row", async () => {
+      setup({
+        env: [{ key: "LOG_LEVEL", value: "info" }],
+        templateMode: { initialAskedValues: [{ key: "LOG_LEVEL", label: "Log level", type: "text", default: "info", required: false, bindings: [] }] }
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "Customize" }));
+      await userEvent.clear(screen.getByLabelText("Label"));
+      await userEvent.type(screen.getByLabelText("Label"), "Verbosity");
+      await userEvent.click(screen.getByRole("button", { name: "Done" }));
+
+      expect(screen.getByText(/^Asked as/)).toHaveTextContent("Asked as Verbosity · Text · Your value is the default");
+    });
+
+    it("warns about a plain value that looks like a key and makes it a secret in one click", async () => {
+      const { getValues } = setup({ env: [{ key: "OPENAI_API_KEY", value: "sk-proj-4fQ1x9a3f9" }], templateMode: {} });
+
+      expect(screen.getByText(LOOKALIKE_WARNING)).toBeInTheDocument();
+      expect(screen.getByText("0 values asked to the deployer · 1 needs your attention")).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole("button", { name: "Make it a secret" }));
+
+      expect(getValues().services[0].env?.[0]).toMatchObject({ key: "OPENAI_API_KEY", value: "sk-proj-4fQ1x9a3f9", isSecret: true });
+      expect(screen.queryByText(LOOKALIKE_WARNING)).not.toBeInTheDocument();
+      expect(screen.getByText("1 value asked to the deployer · 1 secret")).toBeInTheDocument();
+    });
+
+    it("counts every value asked, secret and needing attention in the footer", () => {
+      setup({
+        env: [
+          { key: "API_TOKEN", value: "abcdefgh12" },
+          { key: "SECRET_KEY", value: "abcdefgh34" },
+          { key: "HF_TOKEN", value: "x", isSecret: true },
+          { key: "DB_PASSWORD", value: "y", isSecret: true }
+        ],
+        templateMode: {}
+      });
+
+      expect(screen.getByText("2 values asked to the deployer · 2 secrets · 2 need your attention")).toBeInTheDocument();
+    });
+
+    it("warns instead of toggling a secret whose key the deployer cannot be asked for", () => {
+      setup({ env: [{ key: "my-key", value: "x", isSecret: true }], templateMode: {} });
+
+      expect(screen.getByText("This key can't be asked to the deployer. Rename it with letters, digits and underscores only.")).toBeInTheDocument();
+      expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+    });
+
+    it("shows no footer while the service has no variables", () => {
+      setup({ env: [], templateMode: {} });
+
+      expect(screen.queryByText(/asked to the deployer/)).not.toBeInTheDocument();
+    });
+
+    it("reads a key typed with surrounding spaces as the trimmed key", async () => {
+      setup({ env: [{ key: " LOG_LEVEL ", value: "info" }], templateMode: {} });
+
+      await userEvent.click(screen.getByRole("switch", { name: "Ask the deployer for Environment variable 1" }));
+
+      expect(screen.getByText(/^Asked as/)).toHaveTextContent("Asked as Log level · Text · Your value is the default");
+    });
+
+    it("asks for a __proto__ key like any other", async () => {
+      setup({ env: [{ key: "__proto__", value: "x" }], templateMode: {} });
+
+      await userEvent.click(screen.getByRole("switch", { name: "Ask the deployer for Environment variable 1" }));
+
+      expect(screen.getByText(/^Asked as/)).toHaveTextContent("Asked as Proto · Text · Your value is the default");
+    });
+  });
+
   async function addFromMenu(name: RegExp) {
     await userEvent.click(screen.getByRole("button", { name: "Add" }));
     await userEvent.click(await screen.findByRole("menuitem", { name }));
   }
 
-  function setup(input: { env: Array<Partial<EnvironmentVariableType>>; locked?: boolean; inheritedSecrets?: InheritedSecrets }) {
-    const env = input.env.map(variable => ({ id: variable.key || "row", key: "", value: "", isSecret: false, ...variable }));
-    const values = defaultServiceWithPlacement({ env });
+  function setup(input: {
+    env: Array<Partial<EnvironmentVariableType>>;
+    locked?: boolean;
+    inheritedSecrets?: InheritedSecrets;
+    secondServiceEnv?: Array<Partial<EnvironmentVariableType>>;
+    templateMode?: { initialAskedValues?: TemplateAskedValue[] };
+  }) {
+    const toRows = (rows: Array<Partial<EnvironmentVariableType>>) =>
+      rows.map(variable => ({ id: variable.key || "row", key: "", value: "", isSecret: false, ...variable }));
+    const values = defaultServiceWithPlacement({ env: toRows(input.env) });
+    if (input.secondServiceEnv) {
+      values.services.push({ ...structuredClone(values.services[0]), id: "service-2", title: "service-2", env: toRows(input.secondServiceEnv) });
+    }
+    const serviceIndexes = values.services.map((_, index) => index);
 
     let form: UseFormReturn<SdlBuilderFormValuesType> | undefined;
     const Wrapper = ({ children }: PropsWithChildren) => {
       form = useForm<SdlBuilderFormValuesType>({ defaultValues: values, mode: "onChange", resolver: zodResolver(SdlBuilderFormValuesSchema) });
-      return <FormProvider {...form}>{children}</FormProvider>;
+      const content = <FormProvider {...form}>{children}</FormProvider>;
+      return input.templateMode ? (
+        <TemplateModeProvider initialAskedValues={structuredClone(input.templateMode.initialAskedValues ?? [])}>{content}</TemplateModeProvider>
+      ) : (
+        content
+      );
     };
 
     render(
       <Wrapper>
-        <VariablesAndSecretsCard
-          serviceIndex={0}
-          locked={input.locked}
-          dependencies={{ ...DEPENDENCIES, useInheritedSecrets: () => input.inheritedSecrets ?? null }}
-        />
+        {serviceIndexes.map(serviceIndex => (
+          <VariablesAndSecretsCard
+            key={serviceIndex}
+            serviceIndex={serviceIndex}
+            locked={input.locked}
+            dependencies={{ ...DEPENDENCIES, useInheritedSecrets: () => input.inheritedSecrets ?? null }}
+          />
+        ))}
       </Wrapper>
     );
 
