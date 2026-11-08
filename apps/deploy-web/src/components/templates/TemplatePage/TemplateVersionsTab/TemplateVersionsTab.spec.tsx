@@ -210,11 +210,11 @@ describe(TemplateVersionsTab.name, () => {
 
   it("shows SDL text as text, never as markup", () => {
     const hostile = buildTemplateVersion({ version: 1, sdl: sdlOf("<img src=x onerror=alert(1)>:1", ["A=<script>alert(1)</script>"]) });
-    setup({ versions: [V1], currentVersion: 1, shownVersion: 1, canEdit: true, details: { 1: hostile } });
+    const { container } = setup({ versions: [V1], currentVersion: 1, shownVersion: 1, canEdit: true, details: { 1: hostile } });
 
     expect(screen.getByText("<img src=x onerror=alert(1)>:1")).toBeInTheDocument();
     expect(screen.getByText("A=<script>alert(1)</script>")).toBeInTheDocument();
-    expect(document.querySelector("img, script:not([src])")).toBeNull();
+    expect(container.querySelector("img, script:not([src])")).toBeNull();
   });
 
   it("says when a version changed no image or env line", () => {
@@ -335,7 +335,7 @@ describe(TemplateVersionsTab.name, () => {
     });
     const dependencies = MockComponents(DEPENDENCIES, { useTemplateVersion });
 
-    render(
+    const { container } = render(
       <TemplateVersionsTab
         templateId={TEMPLATE_ID}
         versions={structuredClone(input.versions)}
@@ -347,6 +347,6 @@ describe(TemplateVersionsTab.name, () => {
       />
     );
 
-    return { onView, useTemplateVersion };
+    return { container, onView, useTemplateVersion };
   }
 });
