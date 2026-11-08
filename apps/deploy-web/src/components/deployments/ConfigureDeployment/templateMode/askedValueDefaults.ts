@@ -32,6 +32,7 @@ const BOOLEAN_PATTERN = /^(true|false)$/i;
 const NUMBER_PATTERN = /^-?(0|[1-9]\d*)(\.\d+)?$/;
 const WORD_BOUNDARY_PATTERN = /([a-z])([A-Z])/g;
 const WORD_SEPARATOR_PATTERN = /[_.-]/;
+const URL_CREDENTIALS_PATTERN = /:\/\/[^/@\s]+:[^@\s]+@/;
 
 const MAX_LABEL_LENGTH = 80;
 const MIN_PREFIXED_SECRET_LENGTH = 16;
@@ -57,7 +58,7 @@ export function labelFromKey(key: string): string {
       return index === 0 ? lowerCased.charAt(0).toUpperCase() + lowerCased.slice(1) : lowerCased;
     });
 
-  return words.join(" ").slice(0, MAX_LABEL_LENGTH);
+  return words.join(" ").slice(0, MAX_LABEL_LENGTH).trimEnd();
 }
 
 export function guessAskedValue(row: { value: string; isSecret: boolean }): AskedValueGuess {
@@ -76,13 +77,19 @@ export function looksLikeSecret(key: string, value: string): boolean {
   const hasKnownPrefix = SECRET_VALUE_PREFIXES.some(prefix => candidate.startsWith(prefix));
   if (hasKnownPrefix && candidate.length >= MIN_PREFIXED_SECRET_LENGTH) return true;
   if (SECRET_KEY_PATTERN.test(key) && candidate.length >= MIN_KEYED_SECRET_LENGTH) return true;
+  if (URL_CREDENTIALS_PATTERN.test(candidate)) return true;
   return looksRandom(candidate);
 }
 
 function looksRandom(candidate: string): boolean {
   if (candidate.length < MIN_RANDOM_SECRET_LENGTH) return false;
+  if (looksLikePathOrName(candidate)) return false;
   if (!/[A-Z]/.test(candidate) || !/[a-z]/.test(candidate) || !/\d/.test(candidate)) return false;
   return shannonEntropy(candidate) >= MIN_RANDOM_SECRET_ENTROPY;
+}
+
+function looksLikePathOrName(candidate: string): boolean {
+  return candidate.includes("/") && (candidate.includes("-") || candidate.includes("."));
 }
 
 function shannonEntropy(text: string): number {

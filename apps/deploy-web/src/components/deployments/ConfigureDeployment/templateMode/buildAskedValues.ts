@@ -29,6 +29,8 @@ export type AskedValueSetting = {
 
 type Customization = AskedValueSetting["customized"];
 
+export type UnaskableSecret = { service: string; key: string };
+
 type EnvRow = { service: string; key: string; value: string; isSecret: boolean };
 
 type EnvGroup = { key: string; isSecret: boolean; firstValue: string; bindings: Array<{ service: string; env: string }> };
@@ -43,34 +45,45 @@ export function buildAskedValues(services: ServiceType[], settings: Record<strin
     askedValues.push(buildAskedValue(group, setting?.customized ?? {}));
   }
 
-  return askedValues.slice(0, MAX_ASKED_VALUES);
+  return capKeepingSecrets(askedValues);
+}
+
+function capKeepingSecrets(askedValues: TemplateAskedValue[]): TemplateAskedValue[] {
+  const secrets = askedValues.filter(value => value.type === "secret");
+  const plain = askedValues.filter(value => value.type !== "secret");
+  const kept = new Set([...secrets, ...plain].slice(0, MAX_ASKED_VALUES));
+  return askedValues.filter(value => kept.has(value));
 }
 
 export function summarizeAskedValues(
   values: TemplateAskedValue[],
   services: ServiceType[]
-): { asked: number; secrets: number; needsAttention: number; savedAsIs: string[] } {
+): { asked: number; secrets: number; needsAttention: number; savedAsIs: string[]; unaskableSecrets: UnaskableSecret[] } {
   const askedKeys = new Set(values.map(value => value.key));
-  const plainRows = listEnvRows(services).filter(row => !row.isSecret);
+  const rows = listEnvRows(services);
+  const plainRows = rows.filter(row => !row.isSecret);
   const unaskedKeys = plainRows.map(row => row.key).filter(key => !askedKeys.has(key));
 
   return {
     asked: values.length,
     secrets: values.filter(value => value.type === "secret").length,
     needsAttention: plainRows.filter(row => looksLikeSecret(row.key, row.value)).length,
-    savedAsIs: [...new Set(unaskedKeys)]
+    savedAsIs: [...new Set(unaskedKeys)],
+    unaskableSecrets: rows.filter(row => row.isSecret && !ASKED_VALUE_KEY_PATTERN.test(row.key)).map(({ service, key }) => ({ service, key }))
   };
 }
 
 function listEnvRows(services: ServiceType[]): EnvRow[] {
   const reservedKeys: readonly string[] = RESERVED_ENV_KEYS;
 
-  return services.flatMap(service =>
-    (service.env ?? []).flatMap(variable => {
-      const key = variable.key.trim();
-      return key === "" || reservedKeys.includes(key) ? [] : [{ service: service.title, key, value: variable.value ?? "", isSecret: !!variable.isSecret }];
-    })
-  );
+  return services
+    .filter(service => service.title !== "")
+    .flatMap(service =>
+      (service.env ?? []).flatMap(variable => {
+        const key = variable.key.trim();
+        return key === "" || reservedKeys.includes(key) ? [] : [{ service: service.title, key, value: variable.value ?? "", isSecret: !!variable.isSecret }];
+      })
+    );
 }
 
 function groupByKey(services: ServiceType[]): EnvGroup[] {
@@ -81,7 +94,8 @@ function groupByKey(services: ServiceType[]): EnvGroup[] {
 
     const group = groups.get(row.key) ?? { key: row.key, isSecret: false, firstValue: row.value, bindings: [] };
     group.isSecret ||= row.isSecret;
-    group.bindings.push({ service: row.service, env: row.key });
+    const isBound = group.bindings.some(binding => binding.service === row.service);
+    if (!isBound) group.bindings.push({ service: row.service, env: row.key });
     groups.set(row.key, group);
   }
 

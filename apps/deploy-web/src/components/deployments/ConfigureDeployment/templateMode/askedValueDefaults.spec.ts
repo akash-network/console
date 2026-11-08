@@ -55,6 +55,12 @@ describe("labelFromKey", () => {
     expect(label).toHaveLength(80);
   });
 
+  it("does not end the label in a space when the cut lands on one", () => {
+    const key = `${"a".repeat(79)}_bcd`;
+
+    expect(labelFromKey(key)).toBe(`A${"a".repeat(78)}`);
+  });
+
   it("keeps a label of exactly 80 characters whole", () => {
     expect(labelFromKey("A".repeat(80))).toHaveLength(80);
   });
@@ -194,6 +200,26 @@ describe("looksLikeSecret", () => {
 
   it.each(["info", "8192", "http://litellm:4000/v1", "", "   ", "true"])("does not flag %j", value => {
     expect(looksLikeSecret("MODEL", value)).toBe(false);
+  });
+
+  it.each(["meta-llama/Llama-3.1-8B-Instruct", "Qwen/Qwen2.5-7B-Instruct", "ghcr.io/akash-network/Console:v2.1.0", "https://api.Example.com/v1/Models2"])(
+    "does not flag the model, image or url %s",
+    value => {
+      expect(looksLikeSecret("MODEL", value)).toBe(false);
+    }
+  );
+
+  it.each([
+    ["an AWS-style secret with slashes", "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"],
+    ["a JWT-shaped value", "eyJhbGciOi1JIUzI1NiI.eyJzdWIiOiIxMjM0NTY3ODkw.SflKxwRJSMeKKF2QT4fwpMeJf36"],
+    ["a url with credentials", "postgres://user:Pass1@db.Example.com:5432/app"],
+    ["a url with credentials and no password digits", "redis://default:hunter@cache:6379"]
+  ])("flags %s", (_description, value) => {
+    expect(looksLikeSecret("X", value)).toBe(true);
+  });
+
+  it.each(["https://user@host.com/path", "postgres://db:5432/app"])("does not flag the url %s as carrying credentials", value => {
+    expect(looksLikeSecret("DATABASE_URL", value)).toBe(false);
   });
 
   it("does not flag a value with whitespace inside", () => {

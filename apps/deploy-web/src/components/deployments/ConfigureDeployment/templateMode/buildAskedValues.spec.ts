@@ -502,6 +502,80 @@ describe(buildAskedValues.name, () => {
     });
   });
 
+  describe("odd rows", () => {
+    it("asks for keys named like object properties", () => {
+      const { build } = setup({
+        services: [
+          {
+            title: "web",
+            env: [
+              { key: "__proto__", value: "a" },
+              { key: "constructor", value: "b" },
+              { key: "toString", value: "c" }
+            ]
+          }
+        ],
+        asked: ["__proto__", "constructor"]
+      });
+
+      expect(build().map(value => [value.key, "default" in value ? value.default : undefined])).toEqual([
+        ["__proto__", "a"],
+        ["constructor", "b"]
+      ]);
+    });
+
+    it("always asks for a secret named like an object property", () => {
+      const { build } = setup({ services: [{ title: "web", env: [{ key: "constructor", value: "ac-secret://constructor", isSecret: true }] }] });
+
+      expect(build()).toStrictEqual([
+        { key: "constructor", label: "Constructor", type: "secret", required: true, bindings: [{ service: "web", env: "constructor" }] }
+      ]);
+    });
+
+    it("binds a key once per service even when the service repeats it", () => {
+      const { build } = setup({
+        services: [
+          {
+            title: "web",
+            env: [
+              { key: "MODEL", value: "llama" },
+              { key: "MODEL", value: "other" }
+            ]
+          },
+          { title: "worker", env: [{ key: "MODEL", value: "llama" }] }
+        ],
+        asked: ["MODEL"]
+      });
+
+      expect(build()[0]).toMatchObject({
+        default: "llama",
+        bindings: [
+          { service: "web", env: "MODEL" },
+          { service: "worker", env: "MODEL" }
+        ]
+      });
+    });
+
+    it("counts duplicate bindings before the 20 binding cap", () => {
+      const env = Array.from({ length: 25 }, () => ({ key: "MODEL", value: "llama" }));
+      const { build } = setup({ services: [{ title: "web", env }], asked: ["MODEL"] });
+
+      expect(build()[0].bindings).toEqual([{ service: "web", env: "MODEL" }]);
+    });
+
+    it("ignores a service with an empty title, which the api would refuse as a binding", () => {
+      const { build } = setup({
+        services: [
+          { title: "", env: [{ key: "MODEL", value: "llama" }] },
+          { title: "worker", env: [{ key: "MODEL", value: "llama" }] }
+        ],
+        asked: ["MODEL"]
+      });
+
+      expect(build()[0].bindings).toEqual([{ service: "worker", env: "MODEL" }]);
+    });
+  });
+
   describe("limits the api enforces", () => {
     it("drops a default longer than 4096 characters and keeps one of exactly 4096", () => {
       const { build } = setup({
@@ -530,6 +604,31 @@ describe(buildAskedValues.name, () => {
       const [value] = build();
       expect(value.bindings).toHaveLength(20);
       expect(value.bindings[19]).toEqual({ service: "svc-19", env: "MODEL" });
+    });
+
+    it("never cuts a secret to stay within 50 values, and keeps the order of the rest", () => {
+      const plain = Array.from({ length: 50 }, (_, index) => ({ key: `KEY_${index}`, value: "x" }));
+      const secret = { key: "LATE_TOKEN", value: "ac-secret://LATE_TOKEN", isSecret: true };
+      const { build } = setup({ services: [{ title: "web", env: [...plain, secret] }], asked: plain.map(row => row.key) });
+
+      const keys = build().map(value => value.key);
+      expect(keys).toHaveLength(50);
+      expect(keys).toContain("LATE_TOKEN");
+      expect(keys).not.toContain("KEY_49");
+      expect(keys.indexOf("KEY_0")).toBe(0);
+      expect(keys.indexOf("LATE_TOKEN")).toBe(49);
+    });
+
+    it("keeps the first appearance order of secrets and plain values it keeps", () => {
+      const rows = [
+        { key: "A", value: "x" },
+        { key: "S1", value: "ac-secret://S1", isSecret: true },
+        { key: "B", value: "x" },
+        { key: "S2", value: "ac-secret://S2", isSecret: true }
+      ];
+      const { build } = setup({ services: [{ title: "web", env: rows }], asked: ["A", "B"] });
+
+      expect(build().map(value => value.key)).toEqual(["A", "S1", "B", "S2"]);
     });
 
     it("asks at most 50 values", () => {
@@ -651,7 +750,68 @@ describe(summarizeAskedValues.name, () => {
   it("summarizes a template with no variables", () => {
     const { summary } = setup({ services: [{ title: "web" }] });
 
-    expect(summary).toStrictEqual({ asked: 0, secrets: 0, needsAttention: 0, savedAsIs: [] });
+    expect(summary).toStrictEqual({ asked: 0, secrets: 0, needsAttention: 0, savedAsIs: [], unaskableSecrets: [] });
+  });
+
+  it("names the secret rows whose key the api cannot take as a value", () => {
+    const { summary } = setup({
+      services: [
+        {
+          title: "web",
+          env: [
+            { key: "my-key", value: "ac-secret://X", isSecret: true },
+            { key: "GOOD_KEY", value: "ac-secret://GOOD_KEY", isSecret: true }
+          ]
+        },
+        {
+          title: "worker",
+          env: [
+            { key: " my.key ", value: "ac-secret://Y", isSecret: true },
+            { key: "plain-key", value: "x" },
+            { key: "SSH_PUBKEY", value: "k", isSecret: true }
+          ]
+        }
+      ]
+    });
+
+    expect(summary.unaskableSecrets).toEqual([
+      { service: "web", key: "my-key" },
+      { service: "worker", key: "my.key" }
+    ]);
+    expect(summary.secrets).toBe(1);
+  });
+
+  it("counts a lookalike plain row in one service next to a secret in another", () => {
+    const { summary } = setup({
+      services: [
+        { title: "web", env: [{ key: "TOKEN", value: "ac-secret://TOKEN", isSecret: true }] },
+        {
+          title: "worker",
+          env: [
+            { key: "TOKEN", value: "sk-abcdefghijklmnopqrstuvwx" },
+            { key: "OPENAI_API_KEY", value: "sk-abcdefghijklmnopqrstuvwx" }
+          ]
+        }
+      ]
+    });
+
+    expect(summary).toStrictEqual({ asked: 1, secrets: 1, needsAttention: 2, savedAsIs: ["OPENAI_API_KEY"], unaskableSecrets: [] });
+  });
+
+  it("leaves out rows of a service with an empty title", () => {
+    const { summary } = setup({
+      services: [
+        {
+          title: "",
+          env: [
+            { key: "A", value: "sk-abcdefghijklmnopqrstuvwx" },
+            { key: "my-key", value: "x", isSecret: true }
+          ]
+        }
+      ]
+    });
+
+    expect(summary).toStrictEqual({ asked: 0, secrets: 0, needsAttention: 0, savedAsIs: [], unaskableSecrets: [] });
   });
 
   function setup(input: { services: Array<{ title: string; env?: EnvRow[] }>; asked?: string[] }) {
