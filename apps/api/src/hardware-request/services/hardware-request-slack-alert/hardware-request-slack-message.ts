@@ -57,19 +57,21 @@ function describeConfiguration(hardwareRequest: HardwareRequestOutput): string[]
   return summary ? [`Sent while configuring: ${escapeSlackText(summary)}`] : [];
 }
 
-function describeLinks(userId: string | null, links: { amplitudeProjectUrl?: string; adminUrl?: string }): string[] {
-  if (!userId) return [];
+function describeLinks(hardwareRequest: HardwareRequestOutput, links: { amplitudeProjectUrl?: string; adminUrl?: string }): string[] {
+  const { id, userId } = hardwareRequest;
+  const requestLinks: string[] = [];
 
-  const userLinks: string[] = [];
-
-  if (links.amplitudeProjectUrl) {
-    userLinks.push(slackLink(`${links.amplitudeProjectUrl}/search/user_id%3D${encodeURIComponent(userId)}`, "Amplitude sessions"));
-  }
   if (links.adminUrl) {
-    userLinks.push(slackLink(`${links.adminUrl}/users/${encodeURIComponent(userId)}?tab=hardware-requests`, "Admin"));
+    requestLinks.push(slackLink(`${links.adminUrl}/hardware-requests/${encodeURIComponent(id)}`, "Match report"));
+  }
+  if (userId && links.amplitudeProjectUrl) {
+    requestLinks.push(slackLink(`${links.amplitudeProjectUrl}/search/user_id%3D${encodeURIComponent(userId)}`, "Amplitude sessions"));
+  }
+  if (userId && links.adminUrl) {
+    requestLinks.push(slackLink(`${links.adminUrl}/users/${encodeURIComponent(userId)}?tab=hardware-requests`, "User in admin"));
   }
 
-  return userLinks.length ? [userLinks.join(" · ")] : [];
+  return requestLinks.length ? [requestLinks.join(" · ")] : [];
 }
 
 export function buildHardwareRequestSlackMessage(input: {
@@ -88,7 +90,7 @@ export function buildHardwareRequestSlackMessage(input: {
     ...describeSpecLines(hardwareRequest),
     ...quote(hardwareRequest.details),
     ...describeConfiguration(hardwareRequest),
-    ...describeLinks(hardwareRequest.userId, input)
+    ...describeLinks(hardwareRequest, input)
   ];
 
   return { text: messageLines.join("\n") };

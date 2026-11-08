@@ -9,7 +9,9 @@ const USER_ID = "11111111-2222-4333-8444-555555555555";
 const AMPLITUDE_PROJECT_URL = "https://app.amplitude.com/analytics/example-org/project/100001";
 const ADMIN_URL = "https://console-admin.example.com";
 const AMPLITUDE_LINK = `<${AMPLITUDE_PROJECT_URL}/search/user_id%3D${USER_ID}|Amplitude sessions>`;
-const ADMIN_LINK = `<${ADMIN_URL}/users/${USER_ID}?tab=hardware-requests|Admin>`;
+const REQUEST_ID = "99999999-8888-4777-8666-555555555555";
+const MATCH_REPORT_LINK = `<${ADMIN_URL}/hardware-requests/${REQUEST_ID}|Match report>`;
+const ADMIN_USER_LINK = `<${ADMIN_URL}/users/${USER_ID}?tab=hardware-requests|User in admin>`;
 
 describe(buildHardwareRequestSlackMessage.name, () => {
   it("posts the request title, the requester, the details, the configuration and links to the user", () => {
@@ -32,7 +34,7 @@ describe(buildHardwareRequestSlackMessage.name, () => {
       "jane@example.com",
       "> Training run for 3 months",
       "Sent while configuring: 1 vCPU · 2 GB memory · 0 MB storage · Any region",
-      `${AMPLITUDE_LINK} · ${ADMIN_LINK}`
+      `${MATCH_REPORT_LINK} · ${AMPLITUDE_LINK} · ${ADMIN_USER_LINK}`
     ]);
   });
 
@@ -82,7 +84,7 @@ describe(buildHardwareRequestSlackMessage.name, () => {
       expect.any(String),
       expect.any(String),
       "jane@example.com",
-      `${AMPLITUDE_LINK} · ${ADMIN_LINK}`
+      `${MATCH_REPORT_LINK} · ${AMPLITUDE_LINK} · ${ADMIN_USER_LINK}`
     ]);
   });
 
@@ -114,10 +116,10 @@ describe(buildHardwareRequestSlackMessage.name, () => {
     expect(lines(message)[3]).toBe("a&amp;b@example.com · reply to o&lt;p&gt;s@example.com");
   });
 
-  it("names a requester with no account yet by the contact email and links to no user", () => {
+  it("names a requester with no account yet by the contact email and links to the match report alone", () => {
     const message = setup({ hardwareRequest: { userId: null, contactEmail: "j<a>ne@example.com" }, requesterEmail: undefined });
 
-    expect(lines(message).slice(3)).toEqual(["j&lt;a&gt;ne@example.com · no account yet"]);
+    expect(lines(message).slice(3)).toEqual(["j&lt;a&gt;ne@example.com · no account yet", MATCH_REPORT_LINK]);
   });
 
   it("links only to Amplitude when no admin URL is configured", () => {
@@ -126,10 +128,10 @@ describe(buildHardwareRequestSlackMessage.name, () => {
     expect(lines(message).at(-1)).toBe(AMPLITUDE_LINK);
   });
 
-  it("links only to the admin page when no Amplitude URL is configured", () => {
+  it("links to the match report and the user in admin when no Amplitude URL is configured", () => {
     const message = setup({ amplitudeProjectUrl: undefined });
 
-    expect(lines(message).at(-1)).toBe(ADMIN_LINK);
+    expect(lines(message).at(-1)).toBe(`${MATCH_REPORT_LINK} · ${ADMIN_USER_LINK}`);
   });
 
   it("ends on the configuration when no link is configured", () => {
@@ -192,6 +194,7 @@ describe(buildHardwareRequestSlackMessage.name, () => {
   ) {
     return buildHardwareRequestSlackMessage({
       hardwareRequest: createHardwareRequest({
+        id: REQUEST_ID,
         userId: USER_ID,
         category: "gpu_model",
         gpuModel: "B200",
