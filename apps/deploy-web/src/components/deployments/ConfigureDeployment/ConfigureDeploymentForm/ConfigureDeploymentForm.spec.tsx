@@ -85,11 +85,12 @@ const INHERITED_REFERENCE_SDL = VALID_SDL.replace(
   ["    image: nginx:1.0", "    credentials:", "      host: ghcr.io", "      username: alice", "      password: ac-secret://c_password"].join("\n")
 );
 
-/** The valid SDL as a template saves it: a variable the deployer fills in, left empty, and a secret only referenced. */
 const TEMPLATE_SDL = VALID_SDL.replace(
   "    image: nginx:1.0",
   ["    image: nginx:1.0", "    env:", "      - ADMIN_EMAIL=", "      - HF_TOKEN=ac-secret://HF_TOKEN"].join("\n")
 );
+
+const FILLED_TEMPLATE_SDL = TEMPLATE_SDL.replace("ADMIN_EMAIL=", "ADMIN_EMAIL=admin@northwind.dev");
 
 const TEMPLATE_ASKED_VALUES: TemplateAskedValue[] = [
   { key: "ADMIN_EMAIL", label: "Admin email", type: "text", required: true, bindings: [{ service: "web", env: "ADMIN_EMAIL" }] },
@@ -1261,6 +1262,61 @@ describe(ConfigureDeploymentForm.name, () => {
       expect(options).toEqual({ secrets: { HF_TOKEN: "hf_secret" }, unresolvedSecrets: [] });
     });
 
+    it("blocks deploying once a required variable is cleared after bids were requested, with inline errors", async () => {
+      const { ReviewAndDeployModal, flow } = setup({
+        initialSdl: FILLED_TEMPLATE_SDL,
+        templateSource: templateSourceOf(),
+        Panes: TemplateProbePanes,
+        Header: TemplateProbeHeader,
+        phase: "quoting",
+        dseq: "42"
+      });
+      expect(screen.getByTestId("blocked-reason")).toBeEmptyDOMElement();
+
+      await userEvent.clear(screen.getByRole("textbox", { name: "Admin email" }));
+      await userEvent.click(screen.getByRole("button", { name: "open review" }));
+      await userEvent.click(screen.getByRole("button", { name: "select provider" }));
+
+      expect(screen.getByTestId("blocked-reason")).toHaveTextContent("1 required field is empty");
+      expect(ReviewAndDeployModal).toHaveBeenLastCalledWith(expect.objectContaining({ open: false }), expect.anything());
+      expect(screen.getByText("Enter a value for Admin email to continue.")).toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: "Admin email" })).toHaveFocus();
+      expect(flow.actions.deploy).not.toHaveBeenCalled();
+    });
+
+    it.each(["confirm and deploy", "retry"])("blocks a deploy sent from the review with %s once a required variable is cleared", async action => {
+      const { flow } = setup({ initialSdl: FILLED_TEMPLATE_SDL, templateSource: templateSourceOf(), Panes: TemplateProbePanes, phase: "quoting", dseq: "42" });
+      await userEvent.click(screen.getByRole("button", { name: "select provider" }));
+
+      await userEvent.clear(screen.getByRole("textbox", { name: "Admin email" }));
+      await userEvent.click(screen.getByRole("button", { name: action }));
+
+      expect(flow.actions.deploy).not.toHaveBeenCalled();
+      expect(screen.getByText("Enter a value for Admin email to continue.")).toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: "Admin email" })).toHaveFocus();
+    });
+
+    it("deploys a resumed deployment whose secret its create already sealed", async () => {
+      const { flow } = setup({ initialSdl: FILLED_TEMPLATE_SDL, templateSource: templateSourceOf(), Panes: TemplateProbePanes, phase: "quoting", dseq: "42" });
+
+      await userEvent.click(screen.getByRole("button", { name: "select provider" }));
+      await userEvent.click(screen.getByRole("button", { name: "confirm and deploy" }));
+
+      const [sdl, options] = (flow.actions.deploy as Mock).mock.calls[0];
+      expect(sdl).toContain("HF_TOKEN=ac-secret://HF_TOKEN");
+      expect(options).toEqual({
+        secrets: {},
+        unresolvedSecrets: [{ serviceTitle: "web", label: "HF_TOKEN", name: "HF_TOKEN", isKeptReference: true }]
+      });
+      expect(screen.getByLabelText("Hugging Face token")).toHaveAttribute("placeholder", "Sealed with this deployment");
+    });
+
+    it("asks for a secret the template only references before the deployment exists", () => {
+      const { ConfigureDeploymentHeader } = setup({ initialSdl: FILLED_TEMPLATE_SDL, templateSource: templateSourceOf() });
+
+      expect(ConfigureDeploymentHeader).toHaveBeenLastCalledWith(expect.objectContaining({ blockedReason: "1 required field is empty" }), expect.anything());
+    });
+
     it("shows the filled values in the live sdl", async () => {
       const { ConfigureDeploymentPanes } = setup({ initialSdl: TEMPLATE_SDL, templateSource: templateSourceOf(), Panes: TemplateProbePanes });
 
@@ -1616,6 +1672,7 @@ describe(ConfigureDeploymentForm.name, () => {
     reviewFundingState?: FundingImpactState;
     templateSource?: TemplateSource;
     Header?: (props: HeaderProbeProps) => ReactNode;
+    dseq?: string;
   }) {
     const ConfigureDeploymentPanes = vi.fn(
       input.Panes ?? (({ configurationActions }: ProbePanesProps) => <div data-testid="panes-mock">{configurationActions}</div>)
@@ -1683,7 +1740,7 @@ describe(ConfigureDeploymentForm.name, () => {
     const flow = Object.assign(
       mock<DeploymentFlow>({
         phase: input.phase ?? "configuring",
-        dseq: null,
+        dseq: input.dseq ?? null,
         bidStrategy: "select",
         selections: {},
         deploySucceeded: input.deploySucceeded ?? false,
@@ -2175,6 +2232,7 @@ function templateSourceOf(askedValues: TemplateAskedValue[] = TEMPLATE_ASKED_VAL
 interface HeaderProbeProps {
   blockedReason?: string;
   onBlockedAttempt?: () => void;
+  onDeploy?: () => void;
 }
 
 interface TemplateWorkspaceProbeProps extends WorkspaceProbeProps {
@@ -2183,7 +2241,6 @@ interface TemplateWorkspaceProbeProps extends WorkspaceProbeProps {
   onBlockedAttempt?: () => void;
 }
 
-/** Workspace stand-in that shows the editor header and offers the provider choice the way the real one holds it back. */
 function TemplateProbeWorkspace({ editorHeader, blockedReason, onBlockedAttempt }: TemplateWorkspaceProbeProps) {
   return (
     <div>
@@ -2193,9 +2250,15 @@ function TemplateProbeWorkspace({ editorHeader, blockedReason, onBlockedAttempt 
   );
 }
 
-/** Header stand-in that offers Request quotes the way the real one holds it back. */
-function TemplateProbeHeader({ blockedReason, onBlockedAttempt }: HeaderProbeProps) {
-  return <BlockedRequestProbe blockedReason={blockedReason} onBlockedAttempt={onBlockedAttempt} />;
+function TemplateProbeHeader({ blockedReason, onBlockedAttempt, onDeploy }: HeaderProbeProps) {
+  return (
+    <div>
+      <BlockedRequestProbe blockedReason={blockedReason} onBlockedAttempt={onBlockedAttempt} />
+      <button type="button" onClick={onDeploy}>
+        open review
+      </button>
+    </div>
+  );
 }
 
 function BlockedRequestProbe({ blockedReason, onBlockedAttempt }: HeaderProbeProps) {
@@ -2209,7 +2272,6 @@ function BlockedRequestProbe({ blockedReason, onBlockedAttempt }: HeaderProbePro
   );
 }
 
-/** Panes stand-in that shows the configuration header and offers the provider pick. */
 function TemplateProbePanes(props: ProbePanesProps & { configurationHeader?: ReactNode }) {
   return (
     <div>

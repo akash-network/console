@@ -547,6 +547,21 @@ describe(ConfigureWorkspace.name, () => {
     });
   });
 
+  it("holds the deploy and the retry back in the header and the bottom bar while something blocks them", () => {
+    const onBlockedAttempt = vi.fn();
+    const { headerProps, costBarProps } = setup({
+      phase: "quoting",
+      allPlacementsHaveBids: true,
+      selections: { p1: "bid-1", p2: "bid-2" },
+      cost: { minPerBlock: 1, maxPerBlock: 1, denom: "uact" },
+      blockedReason: "1 required field is empty",
+      onBlockedAttempt
+    });
+
+    expect(headerProps()).toMatchObject({ blockedReason: "1 required field is empty", onBlockedAttempt });
+    expect(costBarProps()).toMatchObject({ blockedReason: "1 required field is empty", onBlockedAttempt });
+  });
+
   it("hands the back button the intent, so it returns to where the deployment started", () => {
     const { leaveProps, intent } = setup({});
 

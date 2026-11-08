@@ -44,15 +44,40 @@ describe(WorkspaceCtaButton.name, () => {
     expect(await screen.findByRole("tooltip")).toHaveTextContent("Your account is suspended, so you can't deploy or add funds.");
   });
 
-  function setup(input: { state: WorkspaceCtaState; accountStatus?: AccountStatus }) {
-    const handlers = { onDeploy: vi.fn(), onRetry: vi.fn(), onCloseAndEdit: vi.fn() };
+  it.each<[WorkspaceCtaState, string, "onDeploy" | "onRetry"]>([
+    ["deploy", "Deploy", "onDeploy"],
+    ["retry", "Retry", "onRetry"]
+  ])("holds the %s action back with the reason while something blocks it", async (state, name, handler) => {
+    const handlers = setup({ state, blockedReason: "1 required field is empty" });
+    const button = screen.getByRole("button", { name });
+
+    expect(button).toHaveAttribute("aria-disabled", "true");
+    expect(button).toHaveAccessibleDescription("1 required field is empty");
+
+    await userEvent.click(button);
+
+    expect(handlers.onBlockedAttempt).toHaveBeenCalledTimes(1);
+    expect(handlers[handler]).not.toHaveBeenCalled();
+  });
+
+  it("leaves close and edit open while something blocks the deploy", async () => {
+    const handlers = setup({ state: "close-and-edit", blockedReason: "1 required field is empty" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Close and Edit" }));
+
+    expect(handlers.onCloseAndEdit).toHaveBeenCalled();
+    expect(screen.queryByText("1 required field is empty")).not.toBeInTheDocument();
+  });
+
+  function setup(input: { state: WorkspaceCtaState; blockedReason?: string; accountStatus?: AccountStatus }) {
+    const handlers = { onDeploy: vi.fn(), onRetry: vi.fn(), onCloseAndEdit: vi.fn(), onBlockedAttempt: vi.fn() };
     const useAccountStatus = () => buildAccountStatus(input.accountStatus ?? "active");
     const AccountSpendGate: typeof DEPENDENCIES.AccountSpendGate = ({ children }) => (
       <RealAccountSpendGate dependencies={{ useAccountStatus, CustomTooltip }}>{children}</RealAccountSpendGate>
     );
     render(
       <TooltipProvider>
-        <WorkspaceCtaButton state={input.state} {...handlers} dependencies={{ AccountSpendGate }} />
+        <WorkspaceCtaButton state={input.state} blockedReason={input.blockedReason} {...handlers} dependencies={{ AccountSpendGate }} />
       </TooltipProvider>
     );
     return handlers;

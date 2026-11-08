@@ -130,6 +130,63 @@ describe(ConfigureDeploymentHeader.name, () => {
     expect(retryDeploy).toHaveBeenCalled();
   });
 
+  it("holds Deploy back with the reason while something blocks it, and reports the attempt instead", async () => {
+    const onDeploy = vi.fn();
+    const onBlockedAttempt = vi.fn();
+    setup({
+      phase: "quoting",
+      allPlacementsHaveBids: true,
+      placements: [{ id: "p1" }],
+      selections: { p1: "akash1a/1/1/1" },
+      onDeploy,
+      blockedReason: "1 required field is empty",
+      onBlockedAttempt
+    });
+    const deploy = screen.getByRole("button", { name: "Deploy" });
+
+    expect(deploy).toHaveAttribute("aria-disabled", "true");
+    expect(deploy).toHaveAccessibleDescription("1 required field is empty");
+
+    await userEvent.click(deploy);
+
+    expect(onBlockedAttempt).toHaveBeenCalledTimes(1);
+    expect(onDeploy).not.toHaveBeenCalled();
+  });
+
+  it("holds Retry back with the reason while something blocks it, and reports the attempt instead", async () => {
+    const onBlockedAttempt = vi.fn();
+    const { retryDeploy } = setup({
+      phase: "quoting",
+      allPlacementsHaveBids: true,
+      placements: [{ id: "p1" }],
+      selections: { p1: "akash1a/1/1/1" },
+      deployError: { message: "boom" },
+      blockedReason: "1 required field is empty",
+      onBlockedAttempt
+    });
+    const retry = screen.getByRole("button", { name: "Retry" });
+
+    expect(retry).toHaveAccessibleDescription("1 required field is empty");
+
+    await userEvent.click(retry);
+
+    expect(onBlockedAttempt).toHaveBeenCalledTimes(1);
+    expect(retryDeploy).not.toHaveBeenCalled();
+  });
+
+  it("keeps Deploy disabled without a reason until every placement has a selection, even while blocked", () => {
+    setup({
+      phase: "quoting",
+      allPlacementsHaveBids: true,
+      placements: [{ id: "p1" }, { id: "p2" }],
+      selections: { p1: "akash1a/1/1/1" },
+      blockedReason: "1 required field is empty"
+    });
+
+    expect(screen.getByRole("button", { name: "Deploy" })).toBeDisabled();
+    expect(screen.queryByText("1 required field is empty")).not.toBeInTheDocument();
+  });
+
   it("shows a dash for the cost before any bids arrive", () => {
     setup({ phase: "quoting", cost: null });
     expect(screen.getByText("—")).toBeInTheDocument();

@@ -67,11 +67,22 @@ describe(DeploymentCostBar.name, () => {
     expect(handlers[handler]).toHaveBeenCalled();
   });
 
-  function setup(input: { ctaState?: WorkspaceCtaState; cost?: DeploymentCost | null; expiry?: QuoteExpiry | null; hasGpu?: boolean }) {
-    const handlers = { onDeploy: vi.fn(), onRetry: vi.fn(), onCloseAndEdit: vi.fn() };
+  it("holds the retry back with the reason while something blocks it", async () => {
+    const { handlers } = setup({ ctaState: "retry", blockedReason: "1 required field is empty" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    expect(screen.getByText("1 required field is empty")).toBeInTheDocument();
+    expect(handlers.onBlockedAttempt).toHaveBeenCalled();
+    expect(handlers.onRetry).not.toHaveBeenCalled();
+  });
+
+  function setup(input: { ctaState?: WorkspaceCtaState; cost?: DeploymentCost | null; expiry?: QuoteExpiry | null; hasGpu?: boolean; blockedReason?: string }) {
+    const handlers = { onDeploy: vi.fn(), onRetry: vi.fn(), onCloseAndEdit: vi.fn(), onBlockedAttempt: vi.fn() };
     const { container } = render(
       <DeploymentCostBar
         ctaState={input.ctaState ?? "select-providers"}
+        blockedReason={input.blockedReason}
         cost={input.cost ?? null}
         expiry={input.expiry ?? null}
         {...handlers}

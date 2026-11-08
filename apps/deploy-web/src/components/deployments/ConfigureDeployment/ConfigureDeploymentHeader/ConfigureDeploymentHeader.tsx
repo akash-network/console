@@ -1,14 +1,14 @@
 import type { FC, ReactNode } from "react";
-import { useId } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { Button, CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { CircleAlert, Clock, LoaderCircle } from "lucide-react";
+import { Clock, LoaderCircle } from "lucide-react";
 
 import { PriceValue } from "@src/components/shared/PriceValue";
 import { AccountSpendGate } from "@src/components/user/AccountActionGate/AccountActionGate";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { getAvgCostPerMonth, perBlockToHourly } from "@src/utils/priceUtils";
+import { BlockedActionButton } from "../BlockedActionButton/BlockedActionButton";
 import type { DeployCtaState } from "../deployCtaState/deployCtaState";
 import { deployCtaState } from "../deployCtaState/deployCtaState";
 import { DeploymentResourceSummary } from "../DeploymentResourceSummary/DeploymentResourceSummary";
@@ -40,7 +40,7 @@ type Props = {
   deploymentName: string;
   onDeploy: () => void;
   allPlacementsHaveBids: boolean;
-  /** Holds Request quotes back while set and shows why; a click then reports the attempt instead of requesting. */
+  /** Holds Request quotes, Deploy and Retry back while set and shows why; a click then reports the attempt instead. */
   blockedReason?: string;
   onBlockedAttempt?: () => void;
   dependencies?: typeof DEPENDENCIES;
@@ -124,35 +124,23 @@ type HeaderCtaProps = {
 };
 
 function HeaderCta({ state, blockedReason, onBlockedAttempt, onRequestQuotes, onCloseAndEdit, onDeploy, onRetry, AccountSpendGate }: HeaderCtaProps) {
-  const reasonId = useId();
   const className = "h-9 shrink-0 px-3 md:h-10 md:px-8";
+  const blockedAction = (label: string) =>
+    blockedReason && (
+      <BlockedActionButton reason={blockedReason} onAttempt={onBlockedAttempt} className={className}>
+        {label}
+      </BlockedActionButton>
+    );
   switch (state) {
     case "request-quotes":
-      if (blockedReason) {
-        return (
-          <div className="flex shrink-0 flex-col items-end gap-1">
-            <Button
-              type="button"
-              aria-disabled="true"
-              aria-describedby={reasonId}
-              onClick={onBlockedAttempt}
-              className={cn(className, "cursor-not-allowed opacity-50")}
-            >
+      return (
+        blockedAction("Request quotes") || (
+          <AccountSpendGate>
+            <Button type="button" onClick={onRequestQuotes} className={className}>
               Request quotes
             </Button>
-            <p id={reasonId} className="flex items-center gap-1 text-xs text-destructive">
-              <CircleAlert className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              {blockedReason}
-            </p>
-          </div>
-        );
-      }
-      return (
-        <AccountSpendGate>
-          <Button type="button" onClick={onRequestQuotes} className={className}>
-            Request quotes
-          </Button>
-        </AccountSpendGate>
+          </AccountSpendGate>
+        )
       );
     case "close-and-edit":
       return (
@@ -161,21 +149,32 @@ function HeaderCta({ state, blockedReason, onBlockedAttempt, onRequestQuotes, on
         </Button>
       );
     case "deploy":
+      return (
+        blockedAction("Deploy") || (
+          <AccountSpendGate>
+            <Button type="button" onClick={onDeploy} className={className}>
+              Deploy
+            </Button>
+          </AccountSpendGate>
+        )
+      );
     case "select-providers":
       return (
         <AccountSpendGate>
-          <Button type="button" disabled={state === "select-providers"} onClick={onDeploy} className={className}>
+          <Button type="button" disabled className={className}>
             Deploy
           </Button>
         </AccountSpendGate>
       );
     case "retry":
       return (
-        <AccountSpendGate>
-          <Button type="button" onClick={onRetry} className={className}>
-            Retry
-          </Button>
-        </AccountSpendGate>
+        blockedAction("Retry") || (
+          <AccountSpendGate>
+            <Button type="button" onClick={onRetry} className={className}>
+              Retry
+            </Button>
+          </AccountSpendGate>
+        )
       );
     case "requesting":
       return (

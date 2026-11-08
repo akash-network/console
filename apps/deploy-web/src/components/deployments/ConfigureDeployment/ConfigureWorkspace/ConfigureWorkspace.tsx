@@ -113,7 +113,7 @@ type Props = {
   onReset: () => void;
   onDiscard: () => void;
   editorHeader?: ReactNode;
-  /** Holds the provider choice back while set and shows why; a click then reports the attempt through `onBlockedAttempt` instead of requesting bids. */
+  /** Holds the provider choice, the deploy and the retry back while set and shows why; a click then reports the attempt through `onBlockedAttempt`. */
   blockedReason?: string;
   onBlockedAttempt?: () => void;
   dependencies?: typeof DEPENDENCIES;
@@ -269,6 +269,8 @@ export const ConfigureWorkspace: FC<Props> = ({
           onDeploy={onDeploy}
           onRetry={retryDeploy}
           onCloseAndEdit={flow.actions.cancelAndEdit}
+          blockedReason={blockedReason}
+          onBlockedAttempt={onBlockedAttempt}
         />
       </div>
       {placements.map(placement => (
@@ -395,6 +397,8 @@ export const ConfigureWorkspace: FC<Props> = ({
             onDeploy={onDeploy}
             onRetry={retryDeploy}
             onCloseAndEdit={flow.actions.cancelAndEdit}
+            blockedReason={blockedReason}
+            onBlockedAttempt={onBlockedAttempt}
           />
         )}
       </div>

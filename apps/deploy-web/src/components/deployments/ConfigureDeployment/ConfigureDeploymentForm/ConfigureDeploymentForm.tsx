@@ -145,7 +145,11 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   const selectedPlacement = resolveSelectedPlacement(services, placements, selectedServiceId || lastSelectedServiceId.current);
   const lastSelectedPlacementId = useRef(selectedPlacement.id);
   const askedValues = templateSource?.version.askedValues ?? NO_ASKED_VALUES;
-  const variablesBlockedReason = useMemo(() => blockedReasonOf({ services }, askedValues), [services, askedValues]);
+  const isDeploymentCreated = !!flow.dseq;
+  const variablesBlockedReason = useMemo(
+    () => blockedReasonOf({ services }, askedValues, { isDeploymentCreated }),
+    [services, askedValues, isDeploymentCreated]
+  );
   const [blockedVariableAttempts, setBlockedVariableAttempts] = useState(0);
   const revealVariableIssues = useCallback(() => setBlockedVariableAttempts(attempts => attempts + 1), []);
   useSyncLogCollectors(form);
@@ -424,6 +428,10 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
 
   /** Takes `selections` explicitly: the auto-open path fires in the same tick as the final `selectProvider`, before that selection lands in `flow.selections`, so the closure value would undercount by one. */
   function openReview(selections: Record<string, string>) {
+    if (variablesBlockedReason) {
+      revealVariableIssues();
+      return;
+    }
     analyticsService.track("review_deploy_opened", {
       category: "deployments",
       dseq: flow.dseq,
@@ -448,6 +456,10 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
 
   function deployFormValues() {
     const values = form.getValues();
+    if (blockedReasonOf(values, askedValues, { isDeploymentCreated })) {
+      revealVariableIssues();
+      return;
+    }
     const secrets = resolveSdlSecrets(values, { sealSecrets: true });
     flow.actions.deploy(regenerateSdl(values, liveSdl), { secrets: secrets.values, unresolvedSecrets: secrets.unresolved });
   }
@@ -488,6 +500,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
       template={templateSource.template}
       version={templateSource.version}
       disabled={flow.phase === "creating" || flow.phase === "deploying"}
+      isDeploymentCreated={isDeploymentCreated}
       blockedAttempts={blockedVariableAttempts}
     />
   );
