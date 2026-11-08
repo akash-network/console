@@ -1,5 +1,5 @@
 import { Trace } from "@akashnetwork/instrumentation";
-import { and, eq, isNotNull, isNull, lt, ne, or, SQL, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, isNull, lt, ne, or, SQL, sql } from "drizzle-orm";
 import { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
@@ -13,6 +13,8 @@ export type UserOutput = ApiPgTables["Users"]["$inferSelect"] & {
   trial?: boolean;
 };
 export type UserInput = Partial<UserOutput>;
+
+const MAX_LINKED_ACCOUNTS = 20;
 
 @singleton()
 export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInput, UserOutput> {
@@ -129,6 +131,21 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
       .from(this.table)
       .innerJoin(UserWallets, and(eq(UserWallets.userId, this.table.id), eq(UserWallets.isTrialing, true), isNotNull(UserWallets.activatedAt)))
       .where(and(eq(this.table.lastFingerprint, fingerprint), ne(this.table.id, excludeUserId)));
+  }
+
+  async findRecentlyActiveByFingerprint(fingerprint: string, excludeUserId: string, withinMinutes: number): Promise<Pick<UserOutput, "id" | "email">[]> {
+    return this.pg
+      .select({ id: this.table.id, email: this.table.email })
+      .from(this.table)
+      .where(
+        and(
+          eq(this.table.lastFingerprint, fingerprint),
+          ne(this.table.id, excludeUserId),
+          gte(this.table.lastActiveAt, sql`now() - make_interval(mins => ${withinMinutes})`)
+        )
+      )
+      .orderBy(desc(this.table.lastActiveAt))
+      .limit(MAX_LINKED_ACCOUNTS);
   }
 
   /** The triggering account never counts as evidence that its own domain predates the attack, or aging one signup past the window would put that domain permanently out of reach. */
