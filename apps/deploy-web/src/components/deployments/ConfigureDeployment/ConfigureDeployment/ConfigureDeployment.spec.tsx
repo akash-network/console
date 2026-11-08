@@ -867,7 +867,7 @@ describe(ConfigureDeployment.name, () => {
       expect(ConfigureTemplateForm.mock.lastCall?.[0].intent).toMatchObject({ baseVersion: 4 });
     });
 
-    it("keeps the base version the URL pins over the template's current one", () => {
+    it("re-pins a reload without a draft to the current version it starts from", () => {
       const { ConfigureTemplateForm, router } = setup({
         templateMode: "edit",
         userTemplateId: "tpl-9",
@@ -876,8 +876,54 @@ describe(ConfigureDeployment.name, () => {
         marketplaceTemplate: editableTemplate()
       });
 
+      expect(ConfigureTemplateForm.mock.lastCall?.[0]).toMatchObject({ initialSdl: ASSISTANT_SDL, intent: expect.objectContaining({ baseVersion: 4 }) });
+      expect(router.replace).toHaveBeenCalledWith(
+        "/new-deployment/configure?templateMode=edit&userTemplateId=tpl-9&draftId=minted-id&baseVersion=4",
+        undefined,
+        {
+          shallow: true
+        }
+      );
+    });
+
+    it("keeps the URL's base version for a restored draft built on it", () => {
+      const { ConfigureTemplateForm, router } = setup({
+        templateMode: "edit",
+        userTemplateId: "tpl-9",
+        baseVersion: 3,
+        persistedSdl: "restored: sdl",
+        isTemplateMarketplaceEnabled: true,
+        marketplaceTemplate: editableTemplate()
+      });
+
+      expect(ConfigureTemplateForm.mock.lastCall?.[0]).toMatchObject({ initialSdl: "restored: sdl", intent: expect.objectContaining({ baseVersion: 3 }) });
       expect(router.replace).not.toHaveBeenCalled();
-      expect(ConfigureTemplateForm.mock.lastCall?.[0].intent).toMatchObject({ baseVersion: 3 });
+    });
+
+    it("pins a restored draft from before pinning to the current version", () => {
+      const { ConfigureTemplateForm } = setup({
+        templateMode: "edit",
+        userTemplateId: "tpl-9",
+        persistedSdl: "restored: sdl",
+        isTemplateMarketplaceEnabled: true,
+        marketplaceTemplate: editableTemplate()
+      });
+
+      expect(ConfigureTemplateForm.mock.lastCall?.[0].intent).toMatchObject({ baseVersion: 4 });
+    });
+
+    it("waits for the draft before pinning the base version", () => {
+      const { ConfigureTemplateForm, router } = setup({
+        templateMode: "edit",
+        userTemplateId: "tpl-9",
+        baseVersion: 3,
+        isDraftLoading: true,
+        isTemplateMarketplaceEnabled: true,
+        marketplaceTemplate: editableTemplate()
+      });
+
+      expect(ConfigureTemplateForm).not.toHaveBeenCalled();
+      expect(router.replace).not.toHaveBeenCalled();
     });
 
     it("keeps the pinned base version and the mounted form when a newer version arrives mid-edit", () => {

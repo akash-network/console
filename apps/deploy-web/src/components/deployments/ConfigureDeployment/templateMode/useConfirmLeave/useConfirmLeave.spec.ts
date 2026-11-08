@@ -86,14 +86,14 @@ describe(useConfirmLeave.name, () => {
     expect(confirm).toHaveBeenCalled();
   });
 
-  it("warns before the page unloads only while there are unsaved changes", () => {
-    const { useWarnBeforeUnload, rerender } = setup({ isDirty: true, confirms: false });
+  it("guards an unload only while there are unsaved changes", () => {
+    const { isGuarding, rerender } = setup({ isDirty: true, confirms: false });
 
-    expect(useWarnBeforeUnload).toHaveBeenLastCalledWith(true);
+    expect(isGuarding({ to: "", type: "beforeunload" })).toBe(true);
 
     rerender({ isDirty: false });
 
-    expect(useWarnBeforeUnload).toHaveBeenLastCalledWith(false);
+    expect(isGuarding({ to: "", type: "beforeunload" })).toBe(false);
   });
 
   function setup(input: { isDirty: boolean; confirms: boolean }) {
@@ -104,19 +104,20 @@ describe(useConfirmLeave.name, () => {
       guard = options;
       return { active: false, accept: vi.fn(), reject: vi.fn() };
     };
-    const useWarnBeforeUnload = vi.fn<typeof DEPENDENCIES.useWarnBeforeUnload>();
     const dependencies: typeof DEPENDENCIES = {
-      useNavigationGuard: options => useNavigationGuard({ ...options, dependencies: { useNavigationGuard: guardLibrary, usePopup: () => popup } }),
-      useWarnBeforeUnload
+      useNavigationGuard: options => useNavigationGuard({ ...options, dependencies: { useNavigationGuard: guardLibrary, usePopup: () => popup } })
     };
 
     const hook = renderHook(({ isDirty }) => useConfirmLeave(isDirty, MESSAGE, dependencies), { initialProps: { isDirty: input.isDirty } });
 
-    async function attemptNavigation(params: NavigationGuardParams) {
-      const isEnabled = typeof guard.enabled === "function" ? guard.enabled(params) : guard.enabled !== false;
-      return isEnabled ? await guard.confirm?.(params) : true;
+    function isGuarding(params: NavigationGuardParams) {
+      return typeof guard.enabled === "function" ? guard.enabled(params) : guard.enabled !== false;
     }
 
-    return { ...hook, attemptNavigation, confirm, useWarnBeforeUnload };
+    async function attemptNavigation(params: NavigationGuardParams) {
+      return isGuarding(params) ? await guard.confirm?.(params) : true;
+    }
+
+    return { ...hook, attemptNavigation, isGuarding, confirm };
   }
 });

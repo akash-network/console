@@ -270,7 +270,7 @@ type TemplateScreenProps = {
   dependencies: typeof DEPENDENCIES;
 };
 
-/** Authors a template, so no flow, bid or deployment starts here; an edit's base version is pinned in the URL so a save after a colleague's is refused rather than applied over it. */
+/** Authors a template, so no flow, bid or deployment starts here; an edit is pinned to the version its starting SDL came from, the URL's for a restored draft and the current one otherwise, so a save after a colleague's is refused rather than applied over it. */
 const ConfigureTemplateScreen: FC<TemplateScreenProps> = ({ intent, onDraftIdChange, dependencies: d }) => {
   const draft = d.useConfigureDraft(intent);
   const router = d.useRouter();
@@ -285,8 +285,10 @@ const ConfigureTemplateScreen: FC<TemplateScreenProps> = ({ intent, onDraftIdCha
   const hasTemplateFailed = isEditing && templateQuery.isError;
   const hasCopyFailed = isCopying && copyQuery.isError;
   const copiedVersion = isCopying ? copyQuery.data : undefined;
-  const [pinnedBase, setPinnedBase] = useState<{ version?: number } | null>(() => (intent.baseVersion ? { version: intent.baseVersion } : null));
-  if (!pinnedBase && template?.canEdit) setPinnedBase({ version: template.currentVersion?.version });
+  const [pinnedBase, setPinnedBase] = useState<{ version?: number } | null>(null);
+  if (!pinnedBase && !draft.isLoading && template?.canEdit) {
+    setPinnedBase({ version: isDraftRestored && intent.baseVersion ? intent.baseVersion : template.currentVersion?.version });
+  }
   const pinnedBaseVersion = pinnedBase?.version;
   const pinnedToUrlRef = useRef<string>();
 

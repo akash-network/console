@@ -2,9 +2,8 @@ import { useCallback, useMemo, useRef } from "react";
 import type { NavigationGuard } from "next-navigation-guard";
 
 import { useNavigationGuard } from "@src/hooks/useNavigationGuard/useNavigationGuard";
-import { useWarnBeforeUnload } from "@src/hooks/useWarnBeforeUnload/useWarnBeforeUnload";
 
-export const DEPENDENCIES = { useNavigationGuard, useWarnBeforeUnload };
+export const DEPENDENCIES = { useNavigationGuard };
 
 type NavigationGuardParams = Parameters<NavigationGuard>[0];
 
@@ -20,7 +19,6 @@ export function useConfirmLeave(isDirty: boolean, message: string, dependencies:
   const isLeavingAllowedRef = useRef(false);
   const skipWhen = useCallback((params: NavigationGuardParams) => isLeavingAllowedRef.current || staysOnThisPage(params), []);
   dependencies.useNavigationGuard({ enabled: isDirty, message, skipWhen });
-  dependencies.useWarnBeforeUnload(isDirty);
 
   return useMemo(
     () => ({
