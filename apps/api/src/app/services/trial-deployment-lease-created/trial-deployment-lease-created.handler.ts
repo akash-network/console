@@ -5,10 +5,10 @@ import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deploymen
 import { type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { type CreateLogger, DOMAIN_EVENT_NAME, EventPayload, JobHandler, type JobPermissions, JobQueueService, LOGGER_FACTORY, TxService } from "@src/core";
-import { RESOLVED_MARKER } from "@src/notifications/services/notification-data-resolver/notification-data-resolver.service";
 import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
 import { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
 import { CloseTrialDeployment, closeTrialDeploymentKeyFor } from "../close-trial-deployment/close-trial-deployment.handler";
+import { WarnTrialDeploymentClosing } from "../warn-trial-deployment-closing/warn-trial-deployment-closing.handler";
 
 @singleton()
 export class TrialDeploymentLeaseCreatedHandler implements JobHandler<TrialDeploymentLeaseCreated> {
@@ -105,21 +105,14 @@ export class TrialDeploymentLeaseCreatedHandler implements JobHandler<TrialDeplo
       }
 
       await this.jobQueueService.enqueue(
-        new NotificationJob({
-          template: "beforeCloseTrialDeployment",
-          userId: wallet.userId!,
-          conditions: { trial: true },
-          vars: {
-            deploymentClosedAt: addHours(deploymentCreatedAt, trialDeploymentLifetime).toISOString(),
-            dseq: payload.dseq,
-            owner: wallet.address!,
-            paymentLink: this.billingConfig.get("CONSOLE_WEB_PAYMENT_LINK"),
-            firstPurchaseBonus: RESOLVED_MARKER
-          }
+        new WarnTrialDeploymentClosing({
+          walletId: wallet.id,
+          dseq: payload.dseq,
+          closesAt: addHours(deploymentCreatedAt, trialDeploymentLifetime).toISOString()
         }),
         {
           startAfter: addHours(deploymentCreatedAt, trialDeploymentLifetime - 1).toISOString(),
-          singletonKey: `notification.beforeCloseTrialDeployment.${payload.dseq}.${wallet.id}`
+          singletonKey: `warnTrialDeploymentClosing.${payload.dseq}.${wallet.id}`
         }
       );
 

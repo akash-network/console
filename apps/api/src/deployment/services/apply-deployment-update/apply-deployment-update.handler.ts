@@ -18,6 +18,9 @@ export class ApplyDeploymentUpdateHandler implements JobHandler<ApplyDeploymentU
   /** One running apply per deployment and any number queued behind it, so a version saved while an older one is being applied lands after it rather than racing it. */
   public readonly policy = "singleton";
 
+  /** Under the two workers a pod runs per queue, so one user's backlog always leaves a worker to everyone else. */
+  public readonly groupConcurrency = 1;
+
   constructor(
     private readonly deploymentWriterService: DeploymentWriterService,
     private readonly activityService: ActivityService,

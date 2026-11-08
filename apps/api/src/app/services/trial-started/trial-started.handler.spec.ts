@@ -11,6 +11,7 @@ import type { NotificationService } from "@src/notifications/services/notificati
 import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
 import { startTrialNotification } from "@src/notifications/services/notification-templates/start-trial-notification";
 import type { UserRepository } from "@src/user/repositories";
+import { ReviewTrialSignup } from "@src/workload-abuse/services/review-trial-signup/review-trial-signup.handler";
 import { TrialStartedHandler } from "./trial-started.handler";
 
 import { createUser } from "@test/seeders/user.seeder";
@@ -66,7 +67,7 @@ describe(TrialStartedHandler.name, () => {
       expect(userRepository.findById).toHaveBeenCalledWith(user.id);
       expect(notificationService.createNotification).not.toHaveBeenCalled();
       expect(logger.warn).not.toHaveBeenCalled();
-      expect(jobQueueManager.enqueue).toHaveBeenCalledTimes(4);
+      expect(jobQueueManager.enqueue).toHaveBeenCalledTimes(5);
     });
 
     it("sends start trial notification when user has email and enqueues notification jobs", async () => {
@@ -105,7 +106,19 @@ describe(TrialStartedHandler.name, () => {
         event: "START_TRIAL_NOTIFICATION_SENT",
         userId: user.id
       });
-      expect(jobQueueManager.enqueue).toHaveBeenCalledTimes(4);
+      expect(jobQueueManager.enqueue).toHaveBeenCalledTimes(5);
+    });
+
+    it("queues the trial sign-up for review once per user", async () => {
+      const user = createUser({ email: "user@example.com" });
+      const { handler, jobQueueManager } = setup({
+        findUserById: vi.fn().mockResolvedValue(user),
+        findWalletByUserId: vi.fn().mockResolvedValue(createUserWallet({ userId: user.id, activatedAt: new Date() }))
+      });
+
+      await handler.handle({ userId: user.id, version: 1 });
+
+      expect(jobQueueManager.enqueue).toHaveBeenCalledWith(new ReviewTrialSignup({ userId: user.id }), { singletonKey: `reviewTrialSignup.${user.id}` });
     });
 
     it("enqueues all notification jobs with correct timing and data", async () => {

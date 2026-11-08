@@ -22,6 +22,7 @@ const WITHHELD_ROUTES = [
   "POST /v1/stripe/payment-methods/setup",
   "GET /v1/stripe/payment-methods",
   "GET /v1/stripe/payment-methods/default",
+  "GET /v1/stripe/payment-methods/refusals",
   "POST /v1/stripe/payment-methods/default",
   "POST /v1/stripe/payment-methods/validate",
   "DELETE /v1/stripe/payment-methods/{paymentMethodId}",

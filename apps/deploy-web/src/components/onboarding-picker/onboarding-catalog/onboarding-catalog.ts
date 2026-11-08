@@ -39,7 +39,7 @@ const AGENT_IMAGE_SRC = "/images/onboarding/stable-diffusion.png";
 
 const MODEL_IMAGE_SRC = "/images/onboarding/llm-chatbot.png";
 
-const HELLO_WORLD: OnboardingTemplate = {
+export const HELLO_WORLD: OnboardingTemplate = {
   templateId: "hello-world",
   name: "Hello world",
   description: "A web page live in about a minute.",

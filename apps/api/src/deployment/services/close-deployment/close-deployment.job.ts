@@ -16,6 +16,10 @@ export class CloseDeployment implements Job {
       walletId?: number;
     }
   ) {}
+
+  get group(): string {
+    return this.data.userId;
+  }
 }
 
 /** One key per deployment, so a second request while a close is queued or running joins it rather than queueing another. */

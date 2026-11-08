@@ -6,6 +6,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { AssistantActionOf } from "@src/types/assistant";
 import type { ActionCardChromeProps } from "../ActionCardChrome/ActionCardChrome";
+import { DeploymentLink } from "../DeploymentLink/DeploymentLink";
 import type { ActionCardDecision } from "../useActionCardDecision/useActionCardDecision";
 import type { DEPENDENCIES } from "./CreateAlertCard";
 import { CreateAlertCard } from "./CreateAlertCard";
@@ -27,7 +28,7 @@ describe(CreateAlertCard.name, () => {
     expect(chromeProps()).toEqual(
       expect.objectContaining({
         title: "Email me when this deployment closes",
-        scope: "dseq 42",
+        scope: expect.objectContaining({ type: DeploymentLink, props: { dseq: "42", name: "blog" } }),
         tier: "confirm",
         decision,
         rows: [
@@ -114,6 +115,7 @@ describe(CreateAlertCard.name, () => {
     isAvailable?: boolean;
     action?: CreateAlertAction;
   }) {
+    const useDeploymentName = vi.fn((_dseq: string | null | undefined, _knownName?: string | null): string | null => "blog");
     const listNotificationChannels = vi.fn(async (_input: unknown) => ({
       data: input.channels,
       pagination: { page: 1, limit: 10, total: input.channels.length, totalPages: 1 }
@@ -133,6 +135,7 @@ describe(CreateAlertCard.name, () => {
           action={input.action ?? { type: "create_alert", tier: "confirm", alert: "deployment_closed", dseq: "42", channel: "email" }}
           decision={decision}
           dependencies={{
+            useDeploymentName,
             useServices: () => Object.assign(mock<Container>(), { api }),
             useQueryClient: () => queryClient,
             useFlag: () => input.isAvailable ?? true,

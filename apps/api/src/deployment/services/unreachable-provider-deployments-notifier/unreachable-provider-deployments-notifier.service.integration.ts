@@ -7,7 +7,8 @@ import { CHAIN_DB } from "@src/chain";
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
-import { UserRepository } from "@src/user/repositories";
+import { type UserOutput, UserRepository } from "@src/user/repositories";
+import { TeamRecordRetentionService } from "@src/user/services/team-record-retention/team-record-retention.service";
 import { ProviderOutagesHttpService } from "../provider-outages-http/provider-outages-http.service";
 import { UnreachableProviderDeploymentsNotifierService } from "./unreachable-provider-deployments-notifier.service";
 
@@ -92,6 +93,22 @@ describe(UnreachableProviderDeploymentsNotifierService.name, () => {
     expect(setting?.providerUnreachableNotifiedFor?.toISOString()).toBe(DOWN_SINCE);
   });
 
+  it("warns every owner of a team whose filer deleted their account once, and remembers the outage on the team's record", async () => {
+    const { service, createNotification, findTeamSetting, teamOwners } = await setup({
+      inTeam: true,
+      filerDeletedAccount: true,
+      teamOwnerCount: 2
+    });
+
+    await service.notifyUnreachableProviderDeployments({ dryRun: false });
+    await service.notifyUnreachableProviderDeployments({ dryRun: false });
+
+    expect(createNotification.mock.calls.map(([{ user }]) => user.id).sort()).toEqual(teamOwners.map(({ id }) => id).sort());
+    const setting = await findTeamSetting();
+    expect(setting).toMatchObject({ userId: null });
+    expect(setting?.providerUnreachableNotifiedFor?.toISOString()).toBe(DOWN_SINCE);
+  });
+
   it("leaves a self-custody deployment alone", async () => {
     const { service, createNotification } = await setup({ managed: false });
 
@@ -109,7 +126,7 @@ describe(UnreachableProviderDeploymentsNotifierService.name, () => {
     expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq: deployment.dseq })).toBeUndefined();
   });
 
-  async function setup(input: { managed?: boolean; inTeam?: boolean; filerLeftTeam?: boolean; teamOwnerCount?: number } = {}) {
+  async function setup(input: { managed?: boolean; inTeam?: boolean; filerLeftTeam?: boolean; filerDeletedAccount?: boolean; teamOwnerCount?: number } = {}) {
     const userRepository = container.resolve(UserRepository);
     const userWalletRepository = container.resolve(UserWalletRepository);
     const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
@@ -128,8 +145,10 @@ describe(UnreachableProviderDeploymentsNotifierService.name, () => {
     const provider = await createProvider();
     const deployment = await createDeployment({ owner, dseq: faker.string.numeric(10) });
 
-    if (team) {
-      await seedDeploymentSetting({ userId: user.id, organizationId: team.organizationId, dseq: deployment.dseq });
+    const teamSetting = team && (await seedDeploymentSetting({ userId: user.id, organizationId: team.organizationId, dseq: deployment.dseq }));
+
+    if (input.filerDeletedAccount) {
+      await deleteAccount(user);
     }
     const group = await createDeploymentGroup({ deploymentId: deployment.id, owner, dseq: deployment.dseq, gseq: 1 });
     await createLease({
@@ -157,6 +176,7 @@ describe(UnreachableProviderDeploymentsNotifierService.name, () => {
       createNotification,
       deployment,
       user,
+      findTeamSetting: async () => teamSetting && (await deploymentSettingRepository.findById(teamSetting.id)),
       teamOwners: team?.owners ?? [],
       setOutageStart: (value: string) => {
         startedAt = value;
@@ -164,6 +184,11 @@ describe(UnreachableProviderDeploymentsNotifierService.name, () => {
     };
   }
 });
+
+async function deleteAccount(user: UserOutput) {
+  await container.resolve(TeamRecordRetentionService).releaseFromTeams(user);
+  await container.resolve(UserRepository).deleteById(user.id);
+}
 
 async function seedTeamWallet(address: string, { memberId, ownerCount }: { memberId?: string; ownerCount: number }) {
   const { organization, user: firstOwner } = await seedOrganizationWithOwner({ user: { email: faker.internet.email() } });

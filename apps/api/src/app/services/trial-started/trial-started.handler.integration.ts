@@ -12,6 +12,7 @@ import { JOB_NAME } from "@src/core";
 import { DOMAIN_EVENT_NAME } from "@src/core/services/domain-events/domain-events.service";
 import { NOTIFICATIONS_CONFIG } from "@src/notifications/providers/notifications-config.provider";
 import { NotificationHandler, NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
+import { ReviewTrialSignup, ReviewTrialSignupHandler } from "@src/workload-abuse/services/review-trial-signup/review-trial-signup.handler";
 import { TrialStartedHandler } from "./trial-started.handler";
 
 import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
@@ -20,7 +21,11 @@ import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/j
 const NOTIFICATION_PATH = "/internal/v1/jobs/notification";
 const SIGNED_UP_DAYS_BEFORE_TRIAL = 40;
 
-const jobWorkers = useJobWorkers(() => [container.resolve(TrialStartedHandler), container.resolve(NotificationHandler)]);
+const jobWorkers = useJobWorkers(() => [
+  container.resolve(TrialStartedHandler),
+  container.resolve(NotificationHandler),
+  container.resolve(ReviewTrialSignupHandler)
+]);
 
 describe(TrialStartedHandler.name, () => {
   afterEach(() => {
@@ -39,6 +44,15 @@ describe(TrialStartedHandler.name, () => {
       { singleton_key: `notification.trialEnded.${userId}`, startAfter: trialEndsAt },
       { singleton_key: `notification.afterTrialEnds.${userId}.${expirationDays + 7}`, startAfter: addDays(trialEndsAt, 7) }
     ]);
+  });
+
+  it("queues the new trial for review", async () => {
+    const { userId, handle } = await setup();
+
+    await handle();
+
+    const reviewJobs = await findJobRows(ReviewTrialSignup[JOB_NAME], { data: { userId } });
+    expect(reviewJobs.map(row => row.singleton_key)).toEqual([`reviewTrialSignup.${userId}`]);
   });
 
   it("sends the welcome email straight away", async () => {
@@ -88,7 +102,9 @@ describe(TrialStartedHandler.name, () => {
       createdAt: subDays(trialStartedAt, SIGNED_UP_DAYS_BEFORE_TRIAL)
     };
     const user =
-      input.hasWallet === false ? await seedUser(userInput) : (await seedUserWithWallet({ user: userInput, isTrialing: true, activatedAt: trialStartedAt })).user;
+      input.hasWallet === false
+        ? await seedUser(userInput)
+        : (await seedUserWithWallet({ user: userInput, isTrialing: true, activatedAt: trialStartedAt })).user;
 
     const sent: unknown[] = [];
     nock(notificationsBaseUrl)

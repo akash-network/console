@@ -493,6 +493,18 @@ describe(OnboardingPickerPage.name, () => {
       expect(analyticsService.track).toHaveBeenCalledWith("onboarding_deploy_click", { category: "onboarding", option: SPACE_AGENT_ID });
     });
 
+    it("deploys hello world from the question through the same auto-deploy intent and counts it as a deploy from the question", () => {
+      const push = vi.fn();
+      const IntentFirstPicker = vi.fn(ComponentMock);
+      const { analyticsService, markAutoDeployStart } = setup({ isIntentFirst: true, push, dependencies: { IntentFirstPicker } });
+
+      act(() => getIntentFirstPickerProps(IntentFirstPicker).onDeployTemplate(HELLO_WORLD_ID, "question"));
+
+      expect(markAutoDeployStart).toHaveBeenCalledWith(HELLO_WORLD_ID);
+      expect(push).toHaveBeenCalledWith(UrlService.configureDeployment({ templateId: HELLO_WORLD_ID, sdlStrategy: "default", bidStrategy: "auto" }));
+      expect(analyticsService.track).toHaveBeenCalledWith("onboarding_deploy_click", { category: "onboarding", option: HELLO_WORLD_ID, via: "question" });
+    });
+
     it("redirects a model card deploy to the auto-deploy intent of its gpu-pinned template", () => {
       const push = vi.fn();
       const IntentFirstPicker = vi.fn(ComponentMock);

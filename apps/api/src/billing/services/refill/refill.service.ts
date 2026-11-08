@@ -7,11 +7,12 @@ import { organizationAnalyticsProperties } from "@src/billing/lib/organization-a
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { type StripeTransactionType, type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
-import { type AllowanceAdjustment, DeploymentAllowanceService } from "@src/billing/services/deployment-allowance/deployment-allowance.service";
+import type { AllowanceAdjustment } from "@src/billing/services/deployment-allowance/deployment-allowance.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
 import { type PaymentCredit, PaymentCreditService } from "@src/billing/services/payment-credit/payment-credit.service";
 import type { AllowanceWallet } from "@src/billing/services/reconcile-deployment-allowance/reconcile-deployment-allowance.job";
+import { type RefundDebit, RefundDebitService } from "@src/billing/services/refund-debit/refund-debit.service";
 import { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
@@ -32,6 +33,9 @@ export interface PaymentAnalyticsContext {
 
 /** The payment a top-up credits; its transaction keys the credit, so a retried settlement never grants it twice. */
 export type CreditedPayment = PaymentAnalyticsContext & { transactionId: string };
+
+/** The payment a refund debits; its transaction and refunded totals key the debit, so a retried refund never debits it twice. */
+export type RefundedPayment = Pick<PaymentAnalyticsContext, "currency"> & Pick<RefundDebit, "transactionId" | "refundedBefore" | "refundedAfter">;
 
 /** Who a credit or a debit is for: the member who acted, if their account still exists, and the organization that paid. */
 export interface WalletPayer {
@@ -60,7 +64,7 @@ export class RefillService {
     private readonly managedSignerService: ManagedSignerService,
     private readonly balancesService: BalancesService,
     private readonly paymentCreditService: PaymentCreditService,
-    private readonly deploymentAllowanceService: DeploymentAllowanceService,
+    private readonly refundDebitService: RefundDebitService,
     private readonly walletInitializerService: WalletInitializerService,
     private readonly analyticsService: AnalyticsService,
     private readonly organizationRepository: OrganizationRepository,
@@ -148,9 +152,9 @@ export class RefillService {
    * Reduce the wallet balance (e.g., for refunds)
    * @param amountUsd - The amount in USD *cents* to reduce from the wallet (e.g. 10000 = $100)
    * @param payer - The member who paid and the organization that paid, read off the transaction
-   * @param payment - Payment context attached to the `balance_refund` analytics event
+   * @param refund - The refunded payment, which keys the debit and is attached to the `balance_refund` analytics event
    */
-  async reduceWalletBalance(amountUsd: number, payer: WalletPayer, payment?: Pick<PaymentAnalyticsContext, "currency" | "transactionId">) {
+  async reduceWalletBalance(amountUsd: number, payer: WalletPayer, refund: RefundedPayment) {
     const { userId } = payer;
     const userWallet = payer.team
       ? await this.userWalletRepository.findOneByOrganizationId(payer.team.id)
@@ -162,17 +166,17 @@ export class RefillService {
     }
 
     await this.#assertNoCreditInFlight(userWallet.address);
-    const { previousLimit, nextLimit } = await this.#debitAndRefillFees({ id: userWallet.id, address: userWallet.address }, amountUsd * 10000);
+    const debit = await this.#debitAndRefillFees({ id: userWallet.id, address: userWallet.address }, amountUsd, refund);
 
     await this.balancesService.refreshUserWalletLimits(userWallet);
     this.#trackFor(userId, "balance_refund", {
       amount_cents: amountUsd,
       amount_usd: amountUsd / 100,
-      currency: payment?.currency,
-      transaction_id: payment?.transactionId,
+      currency: refund.currency,
+      transaction_id: refund.transactionId,
       ...this.#organizationPropertiesOf(payer)
     });
-    this.logger.info({ event: "WALLET_BALANCE_REDUCED", userId, amountUsd, previousLimit, nextLimit });
+    this.logger.info({ event: "WALLET_BALANCE_REDUCED", userId, amountUsd, previousLimit: debit?.previousLimit, nextLimit: debit?.nextLimit });
   }
 
   /** A credit still landing read the allowance before this debit could, so whichever grant landed second would overwrite the other; the refund is redelivered once the credit lands. */
@@ -184,9 +188,10 @@ export class RefillService {
   }
 
   /** Waits for both grants before failing, like a credit does, so the refund never rolls back while its debit is still being granted. */
-  async #debitAndRefillFees(wallet: AllowanceWallet, reduction: number): Promise<AllowanceAdjustment> {
+  async #debitAndRefillFees(wallet: AllowanceWallet, amountCents: number, refund: RefundedPayment): Promise<AllowanceAdjustment | undefined> {
+    const { transactionId, refundedBefore, refundedAfter } = refund;
     const [debit, fees] = await Promise.allSettled([
-      this.deploymentAllowanceService.adjust(wallet, -reduction),
+      this.refundDebitService.debitOnce({ transactionId, wallet, refundedBefore, refundedAfter, amountCents }),
       this.managedUserWalletService.authorizeSpending(this.managedSignerService, {
         address: wallet.address,
         derivationIndex: wallet.id,

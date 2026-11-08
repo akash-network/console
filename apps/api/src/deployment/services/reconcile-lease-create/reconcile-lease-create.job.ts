@@ -20,6 +20,10 @@ export class ReconcileLeaseCreate implements Job {
       createLeaseJobId?: string;
     }
   ) {}
+
+  get group(): string {
+    return this.data.userId;
+  }
 }
 
 /** An order of magnitude past the signer's unordered-tx TTL, so whatever the lease job sent has landed or expired by the time the leases are read. */

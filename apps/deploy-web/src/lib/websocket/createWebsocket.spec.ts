@@ -354,6 +354,29 @@ describe(createWebsocket.name, () => {
 
         expect(onError).not.toHaveBeenCalled();
       });
+
+      it("ends waiting for messages when aborting a connecting websocket fails it before it closes", async () => {
+        vi.useFakeTimers();
+        const abortController = new AbortController();
+        const { websocket, websocketFactory } = setup({ readyState: WebSocket.CONNECTING });
+        vi.mocked(websocket.close).mockImplementation(() => undefined);
+        const wsEvents = createWebsocket({ websocketFactory, signal: abortController.signal });
+        const onAttemptError = vi.fn();
+        const onMessage = vi.fn();
+        wsEvents.addEventListener("attempt-error", onAttemptError);
+        wsEvents.addEventListener("message", onMessage);
+        const messagePromise = waitForEvent(wsEvents, "message");
+
+        abortController.abort();
+        await Promise.all([dispatchWsEvent(websocket, new Event("error")), vi.runOnlyPendingTimersAsync()]);
+        await Promise.all([dispatchWsEvent(websocket, new CloseEvent("close", { code: 1006 })), vi.runOnlyPendingTimersAsync()]);
+        await Promise.all([dispatchWsEvent(websocket, new MessageEvent("message", { data: "late" })), vi.runOnlyPendingTimersAsync()]);
+
+        await expect(messagePromise).resolves.toBeUndefined();
+        expect(onAttemptError).not.toHaveBeenCalled();
+        expect(onMessage).not.toHaveBeenCalled();
+        expect(websocketFactory).toHaveBeenCalledTimes(1);
+      });
     });
   });
 

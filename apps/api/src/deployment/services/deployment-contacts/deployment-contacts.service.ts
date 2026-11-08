@@ -11,14 +11,14 @@ export class DeploymentContactsService {
     private readonly organizationMemberRepository: OrganizationMemberRepository
   ) {}
 
-  /** A team deployment's filer hears about it only while still a member of the team, and its owners do once the filer is gone. */
-  async findFor({ wallet, filingUserId }: { wallet: Pick<UserWalletOutput, "userId" | "organizationId">; filingUserId: string }): Promise<UserOutput[]> {
+  /** A team deployment's filer hears about it only while still a member of the team, and its owners do once the filer has left or deleted their account. */
+  async findFor({ wallet, filingUserId }: { wallet: Pick<UserWalletOutput, "userId" | "organizationId">; filingUserId: string | null }): Promise<UserOutput[]> {
     if (wallet.userId || !wallet.organizationId) {
-      const user = await this.userRepository.findById(filingUserId);
+      const user = filingUserId && (await this.userRepository.findById(filingUserId));
       return user ? [user] : [];
     }
 
-    const filer = await this.organizationMemberRepository.findMemberUser(wallet.organizationId, filingUserId);
+    const filer = filingUserId && (await this.organizationMemberRepository.findMemberUser(wallet.organizationId, filingUserId));
 
     return filer ? [filer] : await this.organizationMemberRepository.findOwners(wallet.organizationId);
   }

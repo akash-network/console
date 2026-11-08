@@ -5,6 +5,7 @@ import { minutesToMilliseconds } from "date-fns";
 import memoize from "lodash/memoize";
 
 import { parseDecimalKubernetesString, parseSizeStr } from "@src/shared/utils/files";
+import { assertPublicHost } from "@src/shared/utils/private-network";
 import type { ProviderStatusInfo } from "./types";
 
 export async function fetchProviderStatusFromGRPC(provider: Provider, timeout: number): Promise<ProviderStatusInfo> {
@@ -97,6 +98,8 @@ export function mapCpuInfo(cpuInfo: CPUInfo): ProviderStatusInfo["nodes"][number
 }
 
 async function queryStatus(hostUri: string, timeoutMs: number): Promise<ProviderStatus> {
+  await assertPublicHost(hostUri);
+
   try {
     return await getProviderSDK(hostUri).akash.provider.v1.getStatus({}, { timeoutMs });
   } catch (error) {

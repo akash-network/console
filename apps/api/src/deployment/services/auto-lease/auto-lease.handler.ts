@@ -38,6 +38,9 @@ export class AutoLeaseHandler implements JobHandler<AutoLease> {
   /** One job per state per deployment, so the self re-enqueue is accepted while this run is active. */
   public readonly policy = "stately";
 
+  /** Under the two workers a pod runs per queue, so one user's backlog always leaves a worker to everyone else. */
+  public readonly groupConcurrency = 1;
+
   readonly #logger: ReturnType<CreateLogger>;
 
   constructor(

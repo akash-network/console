@@ -22,6 +22,10 @@ export class CreateLease implements Job {
       activityId: string;
     }
   ) {}
+
+  get group(): string {
+    return this.data.userId;
+  }
 }
 
 export function leaseWalletRefOf(wallet: Pick<UserWalletOutput, "id" | "userId" | "organizationId">): LeaseWalletRef {

@@ -54,6 +54,7 @@ import { BlockEmailDomainOfWalletHandler } from "@src/workload-abuse/services/bl
 import { EnforceTrialAbuseHandler } from "@src/workload-abuse/services/enforce-trial-abuse/enforce-trial-abuse.handler";
 import { LockBlockedDomainWalletHandler } from "@src/workload-abuse/services/lock-blocked-domain-wallet/lock-blocked-domain-wallet.handler";
 import { ProbeTrialDeploymentHandler } from "@src/workload-abuse/services/probe-trial-deployment/probe-trial-deployment.handler";
+import { ReviewTrialSignupHandler } from "@src/workload-abuse/services/review-trial-signup/review-trial-signup.handler";
 import { AutoRechargeSucceededHandler } from "../services/auto-recharge-succeeded/auto-recharge-succeeded.handler";
 import { CloseExpiredDeploymentHandler } from "../services/close-expired-deployment/close-expired-deployment.handler";
 import { CloseTrialDeploymentHandler } from "../services/close-trial-deployment/close-trial-deployment.handler";
@@ -68,6 +69,7 @@ import { FundDrainingDeploymentsHandler } from "../services/fund-draining-deploy
 import { ManagedDeploymentLeaseCreatedHandler } from "../services/managed-deployment-lease-created/managed-deployment-lease-created.handler";
 import { TrialDeploymentLeaseCreatedHandler } from "../services/trial-deployment-lease-created/trial-deployment-lease-created.handler";
 import { TrialStartedHandler } from "../services/trial-started/trial-started.handler";
+import { WarnTrialDeploymentClosingHandler } from "../services/warn-trial-deployment-closing/warn-trial-deployment-closing.handler";
 
 /** Exported because enqueuing needs the queue to exist, and functional tests boot the app without running its initializers. */
 export async function startJobQueues(): Promise<void> {
@@ -77,6 +79,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(TrialStartedHandler),
     container.resolve(NotificationHandler),
     container.resolve(CloseTrialDeploymentHandler),
+    container.resolve(WarnTrialDeploymentClosingHandler),
     container.resolve(CloseExpiredDeploymentHandler),
     container.resolve(CloseUnreachableProviderDeploymentHandler),
     container.resolve(TrialDeploymentLeaseCreatedHandler),
@@ -116,6 +119,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(EnforceTrialAbuseHandler),
     container.resolve(LockBlockedDomainWalletHandler),
     container.resolve(BlockEmailDomainOfWalletHandler),
+    container.resolve(ReviewTrialSignupHandler),
     container.resolve(HardwareRequestEmailHandler),
     container.resolve(HardwareRequestSlackAlertHandler),
     container.resolve(HardwareRequestStatusNotificationHandler),

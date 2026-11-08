@@ -1,5 +1,5 @@
 import type { ChatMessage } from "@src/feedback/services/akashml-client/akashml.client";
-import type { AssistantEvalExpectation } from "./assistant-eval-scoring";
+import { type AssistantEvalExpectation, sdlValidationErrorsOf } from "./assistant-eval-scoring";
 
 export interface AssistantEvalCase {
   id: string;
@@ -275,6 +275,11 @@ function screenedSdlOf(args: Record<string, unknown>): string {
   return typeof args.sdl === "string" ? args.sdl : "";
 }
 
+function availabilityOfValidSdl(args: Record<string, unknown>) {
+  const errors = sdlValidationErrorsOf(screenedSdlOf(args));
+  return errors.length > 0 ? { error: `The SDL is not valid: ${errors.join("; ")}` } : PLENTY_OF_BIDDERS;
+}
+
 function availabilityWithoutPersistentStorage(args: Record<string, unknown>) {
   if (!/persistent:\s*true/.test(screenedSdlOf(args))) return PLENTY_OF_BIDDERS;
 
@@ -534,6 +539,20 @@ export const ASSISTANT_EVAL_CASES: AssistantEvalCase[] = [
     }
   },
   {
+    id: "unnamed-deployment-health",
+    question: "Is my deployment healthy?",
+    context: { dseq: DSEQ },
+    toolResults: { get_deployment: { ...ACTIVE_WEB_DEPLOYMENT, name: null } },
+    expect: { calls: ["get_deployment"], linksDeployments: [DSEQ], mentionsAnyOf: ["[web", "[nginx"] }
+  },
+  {
+    id: "unnamed-deployment-card",
+    question: "Email me if this deployment ever closes.",
+    context: { dseq: DSEQ },
+    toolResults: { get_deployment: { ...ACTIVE_WEB_DEPLOYMENT, name: null } },
+    expect: { proposes: "create_alert", linksDeployments: [DSEQ] }
+  },
+  {
     id: "buy-credits",
     question: "I want to add $50 of credits.",
     toolResults: { get_balance_and_spend: LOW_BALANCE },
@@ -577,6 +596,12 @@ export const ASSISTANT_EVAL_CASES: AssistantEvalCase[] = [
     question: "Deploy a Postgres database for me.",
     toolResults: { list_templates: { templates: [{ id: "akash-network-awesome-akash-postgres", name: "Postgres", summary: "PostgreSQL database" }] } },
     expect: { calls: ["list_templates"], proposes: "create_deployment", proposalMentions: ["postgres"] }
+  },
+  {
+    id: "write-persistent-postgres",
+    question: "Deploy a Postgres database that keeps its data if the container restarts",
+    toolResults: { list_templates: { templates: [] }, check_availability: availabilityOfValidSdl },
+    expect: { proposes: "create_deployment", proposalMentions: ["persistent: true"], proposesValidSdl: true }
   },
   {
     id: "deploy-hello-world",

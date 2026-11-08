@@ -30,6 +30,7 @@ const DAYS_DOWN = 30;
 const WALLET_ID = 7;
 const ORGANIZATION_ID = "0b6f7c2e-3d4a-4e5f-8a9b-1c2d3e4f5a6b";
 const USER_ID = "user-1";
+const ORPHANED_SETTING_ID = "9a1d4b7e-2c5f-4e8a-b3d6-7f0e1c2a5b84";
 
 describe(CloseUnreachableProviderDeploymentHandler.name, () => {
   afterEach(() => {
@@ -169,6 +170,25 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
       consoleCloseReason: "provider_unreachable"
     });
     expect(jobQueueService.enqueue).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ userId: "member-2" }) }), expect.anything());
+  });
+
+  it("records a team deployment's close on the team's record and tells its owners when the filer has deleted their account", async () => {
+    const { handler, deploymentContactsService, deploymentSettingRepository, jobQueueService } = setup({
+      teamWallet: true,
+      setting: mock<DeploymentSettingsOutput>({ id: ORPHANED_SETTING_ID, closed: false, userId: null }),
+      recipients: [createUser({ id: "owner-1" }), createUser({ id: "owner-2" })]
+    });
+
+    await handler.handle(aPayload());
+
+    expect(deploymentContactsService.findFor).toHaveBeenCalledWith({ wallet: expect.objectContaining({ userId: null }), filingUserId: null });
+    expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ orphanId: ORPHANED_SETTING_ID, consoleCloseReason: "provider_unreachable" });
+    expect(jobQueueService.enqueue).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ userId: "owner-1" }) }), {
+      singletonKey: `notification.providerUnreachableClosed.${DSEQ}.${WALLET_ID}.owner-1`
+    });
+    expect(jobQueueService.enqueue).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ userId: "owner-2" }) }), {
+      singletonKey: `notification.providerUnreachableClosed.${DSEQ}.${WALLET_ID}.owner-2`
+    });
   });
 
   it("closes a team deployment nobody filed without telling anyone", async () => {
@@ -317,7 +337,7 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
     const config = mockConfigService<DeploymentConfigService>({ DEPLOY_WEB_BASE_URL });
     const systemCloseActivityService = mock<SystemCloseActivityService>();
     const deploymentContactsService = mock<DeploymentContactsService>();
-    deploymentContactsService.findFor.mockImplementation(async ({ filingUserId }) => input.recipients ?? [createUser({ id: filingUserId })]);
+    deploymentContactsService.findFor.mockImplementation(async ({ filingUserId }) => input.recipients ?? [createUser({ id: filingUserId ?? undefined })]);
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 

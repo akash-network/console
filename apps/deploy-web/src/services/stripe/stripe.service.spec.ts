@@ -67,6 +67,57 @@ describe("StripeService", () => {
     });
   });
 
+  describe("load", () => {
+    it("shares one Stripe load between callers that ask while it is in flight", async () => {
+      const { stripeService, mockLoadStripe, mockStripeInstance } = setup({ publishableKey: "pk_test_mock_key" });
+      mockLoadStripe.mockResolvedValue(mockStripeInstance);
+
+      const [first, second] = await Promise.all([stripeService.load(), stripeService.getStripe()]);
+
+      expect(mockLoadStripe).toHaveBeenCalledTimes(1);
+      expect(first).toEqual({ stripe: mockStripeInstance });
+      expect(second).toBe(mockStripeInstance);
+    });
+
+    it("reports the script as failed when the browser cannot load Stripe.js", async () => {
+      const { stripeService, mockLoadStripe } = setup({ publishableKey: "pk_test_mock_key" });
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      mockLoadStripe.mockRejectedValue(new Error("Failed to load Stripe.js"));
+
+      expect(await stripeService.load()).toEqual({ stripe: null, failure: "script_failed" });
+    });
+
+    it("reports the script as failed when Stripe.js loads as nothing", async () => {
+      const { stripeService, mockLoadStripe } = setup({ publishableKey: "pk_test_mock_key" });
+      mockLoadStripe.mockResolvedValue(null);
+
+      expect(await stripeService.load()).toEqual({ stripe: null, failure: "script_failed" });
+    });
+
+    it("reports Stripe as unconfigured without loading it when there is no publishable key", async () => {
+      const { stripeService, mockLoadStripe } = setup({ publishableKey: "" });
+      vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+      expect(await stripeService.load()).toEqual({ stripe: null, failure: "unconfigured" });
+      expect(mockLoadStripe).not.toHaveBeenCalled();
+    });
+
+    it("keeps a newer load when an older one that was cleared fails", async () => {
+      const { stripeService, mockLoadStripe, mockStripeInstance } = setup({ publishableKey: "pk_test_mock_key" });
+      const firstLoad = Promise.withResolvers<null>();
+      mockLoadStripe.mockReturnValueOnce(firstLoad.promise).mockResolvedValue(mockStripeInstance);
+
+      const first = stripeService.load();
+      stripeService.clearStripeInstance();
+      await stripeService.load();
+      firstLoad.resolve(null);
+      await first;
+      await stripeService.load();
+
+      expect(mockLoadStripe).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe("clearStripeInstance", () => {
     it("should clear the cached Stripe instance", async () => {
       const { stripeService, mockLoadStripe, mockStripeInstance } = setup({

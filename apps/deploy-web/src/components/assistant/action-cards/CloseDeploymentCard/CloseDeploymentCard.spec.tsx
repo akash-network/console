@@ -4,6 +4,7 @@ import { mock } from "vitest-mock-extended";
 import type { CloseOutcome } from "@src/hooks/useCloseDeployment/useCloseDeployment";
 import type { AssistantActionOf } from "@src/types/assistant";
 import type { ActionCardChromeProps } from "../ActionCardChrome/ActionCardChrome";
+import { DeploymentLink } from "../DeploymentLink/DeploymentLink";
 import type { ActionCardDecision } from "../useActionCardDecision/useActionCardDecision";
 import type { DEPENDENCIES } from "./CloseDeploymentCard";
 import { CloseDeploymentCard } from "./CloseDeploymentCard";
@@ -15,12 +16,12 @@ type Container = ReturnType<typeof DEPENDENCIES.useServices>;
 
 describe(CloseDeploymentCard.name, () => {
   it("is a destructive card that names the deployment and spells out what closing does", () => {
-    const { chromeProps, decision } = setup({});
+    const { chromeProps, useDeploymentName, decision } = setup({});
 
     expect(chromeProps()).toEqual(
       expect.objectContaining({
         title: "Close blog",
-        scope: "dseq 42",
+        scope: expect.objectContaining({ type: DeploymentLink, props: { dseq: "42", name: "blog" } }),
         tier: "destructive",
         decision,
         costNote: "All services stop right away and the deployment URL stops resolving. Unspent funds go back to your balance.",
@@ -28,12 +29,13 @@ describe(CloseDeploymentCard.name, () => {
         confirmLabel: "Close deployment"
       })
     );
+    expect(useDeploymentName).toHaveBeenCalledWith("42", "blog");
   });
 
-  it("names a deployment without a name by its dseq", () => {
+  it("calls a deployment without a name this deployment", () => {
     const { chromeProps } = setup({ name: null });
 
-    expect(chromeProps().title).toBe("Close deployment 42");
+    expect(chromeProps().title).toBe("Close this deployment");
   });
 
   it("asks for the reason with the close dialog's options, prefilled with the one the user gave", async () => {
@@ -115,6 +117,7 @@ describe(CloseDeploymentCard.name, () => {
     outcome?: CloseOutcome;
     status?: ActionCardDecision["status"];
   }) {
+    const useDeploymentName = vi.fn((_dseq: string | null | undefined, knownName?: string | null): string | null => knownName ?? null);
     const closeDeployment = vi.fn(async (_dseq: string) => input.outcome ?? ("closed" as CloseOutcome));
     const recordCloseReason = vi.fn();
     const track = vi.fn();
@@ -133,6 +136,7 @@ describe(CloseDeploymentCard.name, () => {
         }}
         decision={decision}
         dependencies={{
+          useDeploymentName,
           useServices: () => Object.assign(mock<Container>(), { analyticsService: mock<Container["analyticsService"]>({ track }) }),
           useCloseDeployment: () => closeDeployment,
           useCloseDeploymentConfirm: () => mock<ReturnType<typeof DEPENDENCIES.useCloseDeploymentConfirm>>({ recordCloseReason }),
@@ -141,6 +145,6 @@ describe(CloseDeploymentCard.name, () => {
       />
     );
 
-    return { chromeProps: () => ActionCardChrome.mock.lastCall![0], closeDeployment, recordCloseReason, track, decision };
+    return { useDeploymentName, chromeProps: () => ActionCardChrome.mock.lastCall![0], closeDeployment, recordCloseReason, track, decision };
   }
 });

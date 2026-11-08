@@ -52,6 +52,22 @@ describe(DeploymentContactsService.name, () => {
       expect(await service.findFor({ wallet: { userId: null, organizationId: TEAM_ID }, filingUserId: "member-gone" })).toEqual(owners);
       expect(organizationMemberRepository.findOwners).toHaveBeenCalledWith(TEAM_ID);
     });
+
+    it("names the team's owners in place of a filer who has deleted their account", async () => {
+      const owners = [createUser(), createUser()];
+      const { service, organizationMemberRepository } = setup({ filer: createUser(), owners });
+
+      expect(await service.findFor({ wallet: { userId: null, organizationId: TEAM_ID }, filingUserId: null })).toEqual(owners);
+      expect(organizationMemberRepository.findMemberUser).not.toHaveBeenCalled();
+      expect(organizationMemberRepository.findOwners).toHaveBeenCalledWith(TEAM_ID);
+    });
+
+    it("names nobody for a deployment outside a team whose filer has deleted their account", async () => {
+      const { service, userRepository } = setup({ user: createUser() });
+
+      expect(await service.findFor({ wallet: { userId: null, organizationId: null }, filingUserId: null })).toEqual([]);
+      expect(userRepository.findById).not.toHaveBeenCalled();
+    });
   });
 
   function setup(input: { user?: UserOutput; filer?: UserOutput; owners?: UserOutput[] } = {}) {

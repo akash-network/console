@@ -603,7 +603,7 @@ test.describe("The personal account and the trial", () => {
         await configure.continueWithOwnContainer();
         await configure.fillImageName("nginx:latest");
         await configure.requestQuotes();
-        await expect(page.getByText("Add funds to continue")).toBeVisible({ timeout: 60_000 });
+        await expect(page.getByText("Add credits to deploy", { exact: true })).toBeVisible({ timeout: 60_000 });
         expect(await listActiveDseqs(page.request, `${PROXY_API_URL}/v1/deployments`)).toEqual([]);
       });
 

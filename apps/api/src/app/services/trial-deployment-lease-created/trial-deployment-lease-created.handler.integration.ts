@@ -12,6 +12,7 @@ import { DOMAIN_EVENT_NAME } from "@src/core/services/domain-events/domain-event
 import { NOTIFICATIONS_CONFIG } from "@src/notifications/providers/notifications-config.provider";
 import { NotificationHandler, NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
 import { CloseTrialDeployment, CloseTrialDeploymentHandler } from "../close-trial-deployment/close-trial-deployment.handler";
+import { WarnTrialDeploymentClosing, WarnTrialDeploymentClosingHandler } from "../warn-trial-deployment-closing/warn-trial-deployment-closing.handler";
 import { TrialDeploymentLeaseCreatedHandler } from "./trial-deployment-lease-created.handler";
 
 import { createDseq } from "@test/seeders/db/deployment-setting.seeder";
@@ -23,7 +24,8 @@ const NOTIFICATION_PATH = "/internal/v1/jobs/notification";
 const jobWorkers = useJobWorkers(() => [
   container.resolve(TrialDeploymentLeaseCreatedHandler),
   container.resolve(NotificationHandler),
-  container.resolve(CloseTrialDeploymentHandler)
+  container.resolve(CloseTrialDeploymentHandler),
+  container.resolve(WarnTrialDeploymentClosingHandler)
 ]);
 
 describe(TrialDeploymentLeaseCreatedHandler.name, () => {
@@ -48,7 +50,7 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
     await leaseCreated();
 
     expect(await findWarningJob()).toMatchObject({
-      singleton_key: `notification.beforeCloseTrialDeployment.${dseq}.${walletId}`,
+      singleton_key: `warnTrialDeploymentClosing.${dseq}.${walletId}`,
       startAfter: addHours(leaseCreatedAt, lifetimeHours - 1)
     });
   });
@@ -136,11 +138,11 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
       lifetimeHours,
       sentNotifications: () => sent,
       findCloseJob: () => findJobBySingletonKey(CloseTrialDeployment[JOB_NAME], `closeTrialDeployment.${dseq}.${wallet.id}`),
-      findWarningJob: () => findJobBySingletonKey(NotificationJob[JOB_NAME], `notification.beforeCloseTrialDeployment.${dseq}.${wallet.id}`),
+      findWarningJob: () => findJobBySingletonKey(WarnTrialDeploymentClosing[JOB_NAME], `warnTrialDeploymentClosing.${dseq}.${wallet.id}`),
       awaitCongratulations: () => expectJobCompleted(NotificationJob[JOB_NAME], { singletonKey: `notification.trialFirstDeploymentLeaseCreated.${wallet.id}` }),
       findCongratulationJobs: () => findJobRows(NotificationJob[JOB_NAME], { singletonKey: `notification.trialFirstDeploymentLeaseCreated.${wallet.id}` }),
       findCloseJobs: () => findJobRows(CloseTrialDeployment[JOB_NAME], { singletonKey: `closeTrialDeployment.${dseq}.${wallet.id}` }),
-      findWarningJobs: () => findJobRows(NotificationJob[JOB_NAME], { singletonKey: `notification.beforeCloseTrialDeployment.${dseq}.${wallet.id}` }),
+      findWarningJobs: () => findJobRows(WarnTrialDeploymentClosing[JOB_NAME], { singletonKey: `warnTrialDeploymentClosing.${dseq}.${wallet.id}` }),
       leaseCreated: async (announcedAt = leaseCreatedAt) => {
         await enqueue(
           new TrialDeploymentLeaseCreated({

@@ -58,20 +58,19 @@ export function createWebsocket(input: CreateWebsocketInput): WsEvents {
           };
           const closeConn = (event: Event) => {
             clearTimeout(forceCleanTimerId);
+            clearInterval(pingPongTimerId);
+
+            if (input.signal?.aborted) {
+              bus.dispatchEvent(new CustomEvent("close"));
+              resolve();
+              return;
+            }
 
             const error = createWsError(event);
             if (!isFailed) {
               bus.dispatchEvent(new CustomEvent("close"));
             } else {
               bus.dispatchEvent(new CustomEvent("attempt-error", { detail: error }));
-            }
-
-            clearInterval(pingPongTimerId);
-
-            // If signal is aborted, resolve silently — the close/error is expected
-            if (input.signal?.aborted) {
-              resolve();
-              return;
             }
 
             if (isFailed || input.shouldRetry?.(error)) {

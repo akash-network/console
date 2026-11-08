@@ -5,6 +5,7 @@ import type { ConfirmPaymentResponse } from "@src/billing/http-schemas/stripe.sc
 import { UserWalletRepository } from "@src/billing/repositories";
 import type { PayingPayer } from "@src/billing/services/payer/payer";
 import { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
+import { PaymentRefusalService } from "@src/billing/services/payment-refusal/payment-refusal.service";
 import { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
@@ -25,12 +26,13 @@ export class TopUpService {
     private readonly trialActivationJobService: TrialActivationJobService,
     private readonly trialValidationService: TrialValidationService,
     private readonly paymentMethodService: PaymentMethodService,
-    private readonly stripeTransactionService: StripeTransactionService
+    private readonly stripeTransactionService: StripeTransactionService,
+    private readonly paymentRefusalService: PaymentRefusalService
   ) {}
 
   /**
    * Runs the user-initiated top-up: trial-activation gating, top-up amount validation, payment-method
-   * ownership, and a confirmed charge through the payment-transaction owner, followed by 3DS/success
+   * ownership, recent refusals, and a confirmed charge through the payment-transaction owner, followed by 3DS/success
    * interpretation and (optionally) settlement resolution.
    *
    * Amount-mismatch policy: `reject`. Reusing an attempt key whose recorded amount differs from the
@@ -51,6 +53,10 @@ export class TopUpService {
     this.trialValidationService.validateTopUpAmount(userWallet, params.amount);
 
     assert(await this.paymentMethodService.hasPaymentMethod(params.paymentMethodId, payer), 403, "Payment method does not belong to the user");
+    const idempotencyKey = params.idempotencyKey && this.#idempotencyKeyOf(payer, params.idempotencyKey);
+    if (!idempotencyKey || !(await this.stripeTransactionService.hasRecordedPayment(payer.user.id, idempotencyKey))) {
+      await this.paymentRefusalService.assertMayCharge(payer.stripeCustomerId, params.paymentMethodId);
+    }
 
     const result = await this.stripeTransactionService.createPaymentIntent({
       userId: payer.user.id,
@@ -59,7 +65,7 @@ export class TopUpService {
       payment_method: params.paymentMethodId,
       amount: params.amount,
       confirm: true,
-      idempotencyKey: params.idempotencyKey && this.#idempotencyKeyOf(payer, params.idempotencyKey),
+      idempotencyKey,
       onAmountMismatch: "reject"
     });
 

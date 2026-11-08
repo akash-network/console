@@ -13,7 +13,7 @@ describe(GenericActionCard.name, () => {
     setup({ action: { type: "rename_deployment", tier: "confirm", dseq: "42", from: null, to: "llama-api" } });
 
     const card = screen.getByRole("region", { name: "Rename the deployment" });
-    expect(card).toHaveTextContent("Dseq42");
+    expect(card).not.toHaveTextContent("42");
     expect(card).toHaveTextContent("Tollama-api");
     expect(card).not.toHaveTextContent("From");
     expect(screen.getByRole("link", { name: "Open in Console" })).toHaveAttribute("href", UrlService.deploymentDetails("42"));
@@ -54,7 +54,7 @@ describe(GenericActionCard.name, () => {
   });
 
   describe(summaryRowsOf.name, () => {
-    it("lists scalar fields with readable labels and leaves out the type, tier, SDL and nested data", () => {
+    it("lists scalar fields with readable labels and leaves out the type, tier, SDL, dseq, provider address and nested data", () => {
       const rows = summaryRowsOf({
         type: "request_hardware",
         tier: "confirm",
@@ -69,6 +69,7 @@ describe(GenericActionCard.name, () => {
         { label: "GPU count", value: "8" },
         { label: "Interconnect", value: "cluster" }
       ]);
+      expect(summaryRowsOf({ type: "favorite_provider", tier: "confirm", provider: "akash1p" })).toEqual([]);
       expect(summaryRowsOf({ type: "open_in_editor", tier: "deep_link", dseq: null, templateId: "t", sdl: "version: 2" })).toEqual([
         { label: "Template ID", value: "t" }
       ]);

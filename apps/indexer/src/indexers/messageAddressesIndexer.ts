@@ -16,6 +16,7 @@ import { decodePubkey } from "@cosmjs/proto-signing";
 import type { Transaction as DbTransaction } from "sequelize";
 
 import { rawSecp256k1PubkeyToRawAddress } from "@src/shared/utils/addresses";
+import { toStorableVarchar } from "@src/shared/utils/chain-string";
 import { getAmountFromCoin, getAmountFromCoinArray } from "@src/shared/utils/coin";
 import * as benchmark from "../shared/utils/benchmark";
 import { Indexer } from "./indexer";
@@ -51,14 +52,14 @@ export class MessageAddressesIndexer extends Indexer {
         {
           messageId: msg.id,
           transactionId: msg.txId,
-          address: decodedMessage.fromAddress,
+          address: toStorableVarchar(decodedMessage.fromAddress),
           type: "Sender",
           height
         },
         {
           messageId: msg.id,
           transactionId: msg.txId,
-          address: decodedMessage.toAddress,
+          address: toStorableVarchar(decodedMessage.toAddress),
           type: "Receiver",
           height
         }
@@ -73,14 +74,14 @@ export class MessageAddressesIndexer extends Indexer {
     const senders = decodedMessage.inputs.map(input => ({
       messageId: msg.id,
       transactionId: msg.txId,
-      address: input.address,
+      address: toStorableVarchar(input.address),
       type: "Sender",
       height
     }));
     const receivers = decodedMessage.outputs.map(output => ({
       messageId: msg.id,
       transactionId: msg.txId,
-      address: output.address,
+      address: toStorableVarchar(output.address),
       type: "Receiver",
       height
     }));

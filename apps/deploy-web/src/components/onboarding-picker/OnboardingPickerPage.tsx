@@ -12,6 +12,7 @@ import { AddCreditsSheet } from "@src/components/auth/AddCreditsSheet/AddCredits
 import { BONUS_PERCENT, MAX_BONUS } from "@src/components/billing-usage/FirstPurchaseBonusAlert/FirstPurchaseBonusAlert";
 import { DeploymentTemplatePickerCard } from "@src/components/deployments/DeploymentTemplatePickerCard/DeploymentTemplatePickerCard";
 import { OnboardingHeader } from "@src/components/layout/OnboardingHeader/OnboardingHeader";
+import type { DeployClickVia } from "@src/components/onboarding-picker/IntentFirstPicker/IntentFirstPicker";
 import { IntentFirstPicker } from "@src/components/onboarding-picker/IntentFirstPicker/IntentFirstPicker";
 import { SkipOnboardingButton } from "@src/components/onboarding-picker/SkipOnboardingButton/SkipOnboardingButton";
 import { useServices } from "@src/context/ServicesProvider";
@@ -99,13 +100,13 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
     router.push(urlService.configureDeployment({ templateId, sdlStrategy: "default", bidStrategy: "auto" }));
   }
 
-  function trackDeployClick(option: string) {
-    analyticsService.track("onboarding_deploy_click", { category: "onboarding", option });
+  function trackDeployClick(option: string, via?: DeployClickVia) {
+    analyticsService.track("onboarding_deploy_click", { category: "onboarding", option, via });
     analyticsService.flush();
   }
 
-  function deployTemplate(templateId: string) {
-    trackDeployClick(templateId);
+  function deployTemplate(templateId: string, via?: DeployClickVia) {
+    trackDeployClick(templateId, via);
     if (isOutOfCredit) {
       setAddCreditsPrompt({ context: "out-of-credit", templateId });
     } else {

@@ -1,5 +1,9 @@
+import { type SDLInput, yaml } from "@akashnetwork/chain-sdk";
+
+import { findMissingGlobalExposure, generateManifestReportingBuildFailures } from "@src/deployment/utils/sdl-manifest/sdl-manifest";
 import type { ProposalActionType } from "@src/feedback/lib/assistant-tools/assistant-tool-arguments";
 import { proposalActionTypeOf } from "@src/feedback/lib/assistant-tools/assistant-tools";
+import { withDefaultPricing } from "@src/feedback/lib/sdl-pricing/sdl-pricing";
 
 export interface AssistantEvalExpectation {
   calls?: string[];
@@ -15,6 +19,7 @@ export interface AssistantEvalExpectation {
   linksDeployments?: string[];
   neverRepeatsCalls?: boolean;
   neverAdvisesRepricing?: boolean;
+  proposesValidSdl?: boolean;
 }
 
 const REPRICING_ADVICE = [
@@ -24,6 +29,10 @@ const REPRICING_ADVICE = [
 ];
 
 const ADVICE_AGAINST = /n't\b|\b(?:not|never|no need|instead of|rather than|without)\b/i;
+
+const SHORTENED_NUMBER = /(\d{4,})(?:\.{3}|…)/g;
+
+const LONG_NUMBER = /(\d{4,})/g;
 
 export interface AssistantEvalToolCall {
   name: string;
@@ -53,6 +62,19 @@ function proposalsOf(transcript: AssistantEvalTranscript): { type: ProposalActio
     const type = proposalActionTypeOf(call.name);
     return type ? [{ type, arguments: call.arguments }] : [];
   });
+}
+
+/** Checks an SDL the way a create does, default pricing included, so a case can tell a valid SDL from one the model only thinks is valid. */
+export function sdlValidationErrorsOf(sdl: unknown): string[] {
+  if (typeof sdl !== "string") return ["there is no SDL"];
+
+  try {
+    const result = generateManifestReportingBuildFailures(yaml.raw<SDLInput>(withDefaultPricing(sdl)));
+    const errors = result.ok ? [findMissingGlobalExposure(result.value.groups)].filter(error => error !== undefined) : result.value;
+    return errors.map(({ instancePath, message }) => `${instancePath} ${message}`.trim());
+  } catch (error) {
+    return [`the YAML does not parse: ${error instanceof Error ? error.message.split("\n", 1)[0] : String(error)}`];
+  }
 }
 
 function firstRoundFailures(callsFirst: string, toolCalls: AssistantEvalToolCall[]): string[] {
@@ -91,6 +113,11 @@ function proposalFailures(expected: AssistantEvalExpectation, transcript: Assist
     for (const text of expected.proposalMentions ?? []) {
       if (!includesText(argumentsText, text)) failures.push(`${expected.proposes} proposal lacks "${text}"`);
     }
+
+    if (expected.proposesValidSdl) {
+      const errors = matching.flatMap(proposal => sdlValidationErrorsOf(proposal.arguments.sdl));
+      if (errors.length > 0) failures.push(`${expected.proposes} proposal has an SDL that is not valid: ${errors.join("; ")}`);
+    }
   }
 
   return failures;
@@ -115,8 +142,23 @@ function deploymentLinkFailures(expected: AssistantEvalExpectation, answer: stri
     const link = deploymentLinkOf(dseq);
     if (!answer.includes(link)) return [`answer does not link deployment ${dseq}`];
 
-    return answer.split(link).join("").includes(dseq) ? [`answer writes a bare dseq ${dseq}`] : [];
+    const answerAroundLinks = answer.split(link);
+    if (answerAroundLinks.some(text => text.includes(dseq))) return [`answer writes a bare dseq ${dseq}`];
+
+    const ellipsizedNumbers = answerAroundLinks.flatMap(text => numbersMatching(text, SHORTENED_NUMBER));
+    const labelNumbers = linkLabelsOf(answerAroundLinks).flatMap(label => numbersMatching(label, LONG_NUMBER));
+    const writesShortenedDseq = [...ellipsizedNumbers, ...labelNumbers].some(digits => dseq.startsWith(digits));
+
+    return writesShortenedDseq ? [`answer writes a shortened dseq ${dseq}`] : [];
   });
+}
+
+function linkLabelsOf(answerAroundLinks: string[]): string[] {
+  return answerAroundLinks.slice(0, -1).flatMap(textBeforeLink => textBeforeLink.split("[").slice(-1));
+}
+
+function numbersMatching(text: string, pattern: RegExp): string[] {
+  return Array.from(text.matchAll(pattern), ([, digits]) => digits);
 }
 
 function repricingFailures(expected: AssistantEvalExpectation, answer: string): string[] {

@@ -9,6 +9,9 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    env: {
+      AKASH_DATABASE_CS: "postgres://localhost:5432/indexer-unit-tests-never-connected"
+    },
     globals: false,
     include: ["src/**/*.spec.ts"]
   }

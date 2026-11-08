@@ -1,5 +1,7 @@
+import { DeploymentHttpService } from "@akashnetwork/http-sdk";
 import type { Counter } from "@opentelemetry/api";
 import { subMinutes } from "date-fns";
+import { chunk } from "lodash";
 import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, JOB_NAME, JobQueueService, LOGGER_FACTORY } from "@src/core";
@@ -16,6 +18,7 @@ import {
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 
 const BATCH_SIZE = 1000;
+const MAX_CONCURRENT_CHAIN_READS = 10;
 /** Bounds what an unreachable chain database can cost the funding sweep that shares this command's hour. */
 const MAX_CONSECUTIVE_BATCH_FAILURES = 3;
 /** Below pg-boss's default of 0, so a backlog of old records never delays the compensation a create just enqueued. */
@@ -23,6 +26,7 @@ const BACKLOG_COMPENSATION_PRIORITY = -1;
 
 type BatchOutcome = {
   closed: number;
+  closeUnconfirmed: number;
   confirmedOpen: number;
   withoutChainState: number;
   compensated: number;
@@ -35,8 +39,10 @@ type ReconcileTally = BatchOutcome & {
 
 @singleton()
 export class ClosedDeploymentsReconcilerService {
+  readonly #deploymentHttpService: DeploymentHttpService;
   readonly #logger: ReturnType<CreateLogger>;
   readonly #rowsClosed: Counter;
+  readonly #rowsCloseUnconfirmed: Counter;
   readonly #rowsConfirmedOpen: Counter;
   readonly #rowsWithoutChainState: Counter;
   readonly #rowsCompensated: Counter;
@@ -44,19 +50,24 @@ export class ClosedDeploymentsReconcilerService {
   constructor(
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly deploymentRepository: DeploymentRepository,
+    deploymentHttpService: DeploymentHttpService,
     private readonly jobQueueService: JobQueueService,
     private readonly deploymentConfig: DeploymentConfigService,
     metricsService: MetricsService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
+    this.#deploymentHttpService = deploymentHttpService;
     this.#logger = createLogger({ context: ClosedDeploymentsReconcilerService.name });
 
     const meter = metricsService.getMeter("closed-deployments-reconcile");
     this.#rowsClosed = metricsService.createCounter(meter, "closed_deployments_reconcile_rows_closed_total", {
       description: "Deployment records marked closed because the chain had already closed their deployment"
     });
+    this.#rowsCloseUnconfirmed = metricsService.createCounter(meter, "closed_deployments_reconcile_rows_close_unconfirmed_total", {
+      description: "Deployment records left open because the chain did not confirm the close the indexer holds"
+    });
     this.#rowsConfirmedOpen = metricsService.createCounter(meter, "closed_deployments_reconcile_rows_confirmed_open_total", {
-      description: "Deployment records left open because the chain still holds their deployment open"
+      description: "Deployment records left open because the indexer still holds their deployment open"
     });
     this.#rowsWithoutChainState = metricsService.createCounter(meter, "closed_deployments_reconcile_rows_without_chain_state_total", {
       description: "Deployment records left alone because the indexer holds no deployment for them yet"
@@ -66,9 +77,9 @@ export class ClosedDeploymentsReconcilerService {
     });
   }
 
-  /** Only safe because the indexer lags in one direction: it can miss a close it has not caught up to, never invent one; a record it never saw is handed to the compensation, which asks the chain itself before deleting. */
+  /** Ends a record's funding only once the chain itself returns its deployment closed, because the indexer is a copy that can disagree with it; a record the indexer never saw is handed to the compensation, which asks the chain itself before deleting. */
   async reconcileClosedDeployments({ dryRun }: DryRunOptions): Promise<void> {
-    const tally: ReconcileTally = { scanned: 0, closed: 0, confirmedOpen: 0, withoutChainState: 0, compensated: 0, failedBatches: 0 };
+    const tally: ReconcileTally = { scanned: 0, closed: 0, closeUnconfirmed: 0, confirmedOpen: 0, withoutChainState: 0, compensated: 0, failedBatches: 0 };
 
     this.#logger.info({ event: "CLOSED_DEPLOYMENTS_RECONCILE_START", batchSize: BATCH_SIZE, dryRun });
 
@@ -85,6 +96,7 @@ export class ClosedDeploymentsReconcilerService {
           const outcome = await this.#reconcileBatch(batch, { dryRun, pendingCompensationKeys, unbackedBefore });
 
           tally.closed += outcome.closed;
+          tally.closeUnconfirmed += outcome.closeUnconfirmed;
           tally.confirmedOpen += outcome.confirmedOpen;
           tally.withoutChainState += outcome.withoutChainState;
           tally.compensated += outcome.compensated;
@@ -120,17 +132,17 @@ export class ClosedDeploymentsReconcilerService {
     const closureStates = await this.deploymentRepository.findClosureStates(batch.map(({ address, dseq }) => ({ owner: address, dseq: normalizeDseq(dseq) })));
     const closedByKey = new Map(closureStates.map(state => [closureKey(state), state.isClosed]));
 
-    const idsToClose: string[] = [];
+    const closedInIndexer: OpenDeployment[] = [];
     const unbacked: OpenDeployment[] = [];
     let confirmedOpen = 0;
     let withoutChainState = 0;
 
     for (const deployment of batch) {
-      const isClosedOnChain = closedByKey.get(closureKey({ owner: deployment.address, dseq: deployment.dseq }));
+      const isClosedInIndexer = closedByKey.get(closureKey({ owner: deployment.address, dseq: deployment.dseq }));
 
-      if (isClosedOnChain === true) {
-        idsToClose.push(deployment.id);
-      } else if (isClosedOnChain === false) {
+      if (isClosedInIndexer === true) {
+        closedInIndexer.push(deployment);
+      } else if (isClosedInIndexer === false) {
         confirmedOpen++;
       } else if (deployment.createdAt < unbackedBefore) {
         unbacked.push(deployment);
@@ -138,6 +150,8 @@ export class ClosedDeploymentsReconcilerService {
         withoutChainState++;
       }
     }
+
+    const idsToClose = await this.#confirmClosedOnChain(closedInIndexer);
 
     if (!dryRun && idsToClose.length) {
       await this.deploymentSettingRepository.markAsClosed(idsToClose);
@@ -147,7 +161,39 @@ export class ClosedDeploymentsReconcilerService {
       ? unbacked.filter(deployment => !pendingCompensationKeys.has(unbackedDeploymentSettingKeyFor(deployment))).length
       : await this.#compensate(unbacked, pendingCompensationKeys);
 
-    return { closed: idsToClose.length, confirmedOpen, withoutChainState, compensated };
+    return { closed: idsToClose.length, closeUnconfirmed: closedInIndexer.length - idsToClose.length, confirmedOpen, withoutChainState, compensated };
+  }
+
+  async #confirmClosedOnChain(deployments: OpenDeployment[]): Promise<string[]> {
+    const confirmedIds: string[] = [];
+
+    for (const group of chunk(deployments, MAX_CONCURRENT_CHAIN_READS)) {
+      const confirmations = await Promise.all(group.map(deployment => this.#isClosedOnChain(deployment)));
+      confirmedIds.push(...group.filter((_, index) => confirmations[index]).map(({ id }) => id));
+    }
+
+    return confirmedIds;
+  }
+
+  /** A deployment the chain does not return stays unconfirmed, since the chain keeps closed deployments and only a node that has not reached its creation answers that way. */
+  async #isClosedOnChain({ id, address, dseq }: OpenDeployment): Promise<boolean> {
+    try {
+      const response = await this.#deploymentHttpService.findByOwnerAndDseq(address, normalizeDseq(dseq));
+
+      if (!("code" in response) && response.deployment.state === "closed") return true;
+
+      this.#logger.warn({
+        event: "CLOSED_DEPLOYMENTS_RECONCILE_CLOSE_UNCONFIRMED",
+        deploymentSettingId: id,
+        owner: address,
+        dseq,
+        chainAnswer: "code" in response ? response.message : response.deployment.state
+      });
+    } catch (error) {
+      this.#logger.warn({ event: "CLOSED_DEPLOYMENTS_RECONCILE_CHAIN_READ_FAILED", deploymentSettingId: id, owner: address, dseq, error });
+    }
+
+    return false;
   }
 
   /** A snapshot only spares the queue inserts its exclusive policy would refuse anyway, so a queue it cannot read must not cost the run its close detection. */
@@ -189,8 +235,9 @@ export class ClosedDeploymentsReconcilerService {
   }
 
   /** Credited per batch and only after its write landed, so a run that dies part way still reports what it converged. */
-  #recordOutcome({ closed, confirmedOpen, withoutChainState, compensated }: BatchOutcome): void {
+  #recordOutcome({ closed, closeUnconfirmed, confirmedOpen, withoutChainState, compensated }: BatchOutcome): void {
     this.#rowsClosed.add(closed);
+    this.#rowsCloseUnconfirmed.add(closeUnconfirmed);
     this.#rowsConfirmedOpen.add(confirmedOpen);
     this.#rowsWithoutChainState.add(withoutChainState);
     this.#rowsCompensated.add(compensated);

@@ -14,6 +14,7 @@ import type { PayingPayer } from "@src/billing/services/payer/payer";
 import type { PayerService } from "@src/billing/services/payer/payer.service";
 import type { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import { type PaymentMethod } from "@src/billing/services/payment-method/payment-method.service";
+import type { PaymentRefusalService } from "@src/billing/services/payment-refusal/payment-refusal.service";
 import type { StripeService } from "@src/billing/services/stripe/stripe.service";
 import type { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
 import type { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
@@ -360,6 +361,38 @@ describe(StripeController.name, () => {
     });
   });
 
+  describe("getPaymentRefusals", () => {
+    it("returns the payer's recent refusals with the pause end as an ISO date", async () => {
+      const { controller, paymentRefusalService, payer } = setup();
+      const pausedUntil = faker.date.soon();
+      paymentRefusalService.findRecentRefusals.mockResolvedValue({ refusedPaymentMethodIds: ["pm_1"], pausedUntil });
+
+      const result = await controller.getPaymentRefusals();
+
+      expect(paymentRefusalService.findRecentRefusals).toHaveBeenCalledWith(payer.stripeCustomerId);
+      expect(result).toEqual({ data: { refusedPaymentMethodIds: ["pm_1"], pausedUntil: pausedUntil.toISOString() } });
+    });
+
+    it("returns no pause while payments are not paused", async () => {
+      const { controller, paymentRefusalService } = setup();
+      paymentRefusalService.findRecentRefusals.mockResolvedValue({ refusedPaymentMethodIds: [], pausedUntil: null });
+
+      const result = await controller.getPaymentRefusals();
+
+      expect(result).toEqual({ data: { refusedPaymentMethodIds: [], pausedUntil: null } });
+    });
+
+    it("returns no refusals without asking Stripe when the payer has no Stripe customer", async () => {
+      const { controller, payerService, payer, paymentRefusalService } = setup();
+      payerService.getCurrentPayer.mockResolvedValue({ ...payer, stripeCustomerId: null });
+
+      const result = await controller.getPaymentRefusals();
+
+      expect(result).toEqual({ data: { refusedPaymentMethodIds: [], pausedUntil: null } });
+      expect(paymentRefusalService.findRecentRefusals).not.toHaveBeenCalled();
+    });
+  });
+
   it("creates the logger with the service context", () => {
     const { createLogger } = setup();
 
@@ -451,6 +484,7 @@ describe(StripeController.name, () => {
     const transactionReporting = mock<TransactionReportingService>();
     const walletSettingService = mock<WalletSettingService>();
     const autoReloadPauseService = mock<AutoReloadPauseService>();
+    const paymentRefusalService = mock<PaymentRefusalService>();
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
     const controller = new StripeController(
@@ -468,6 +502,7 @@ describe(StripeController.name, () => {
       walletSettingService,
       autoReloadPauseService,
       payerService,
+      paymentRefusalService,
       createLogger
     );
     container.register(AuthService, { useValue: authService });
@@ -489,6 +524,7 @@ describe(StripeController.name, () => {
       logger,
       createLogger,
       payerService,
+      paymentRefusalService,
       payer,
       user
     };
