@@ -10,11 +10,13 @@ import { TemplateIcon } from "@src/components/templates/TemplateIcon/TemplateIco
 import type { SdlBuilderFormValuesType } from "@src/types";
 import type { MarketplaceTemplate, TemplateAskedValue, TemplateVersionDetail } from "@src/types/marketplace-template";
 import type { Answer } from "../askedValueAnswers";
-import { answerFields, answerOf, askedValueIssuesOf, boundRowsOf, isAnswerRequired } from "../askedValueAnswers";
+import { answerOf, askedValueIssuesOf, isAnswerRequired, withAnswer } from "../askedValueAnswers";
 
 export const DEPENDENCIES = { TemplateIcon };
 
 const SECRET_NOTE = "Sealed when you deploy. You won't be able to see it again.";
+
+const SEALED_PLACEHOLDER = "Sealed with this deployment";
 
 const ABSENT_NOTE = "Not in this configuration anymore";
 
@@ -26,18 +28,27 @@ type Props = {
   template: MarketplaceTemplate;
   version: TemplateVersionDetail;
   disabled?: boolean;
-  /** Each refused attempt to request bids reveals every field's error and moves the focus to the first field that has one. */
+  isDeploymentCreated?: boolean;
+  /** Each refused attempt to request bids or deploy reveals every field's error and moves the focus to the first field that has one. */
   blockedAttempts?: number;
   dependencies?: typeof DEPENDENCIES;
 };
 
 /** A view over the env rows each variable binds to, so the SDL preview shows the answers and a secret is sealed like any other. */
-export const TemplateVariablesCard: FC<Props> = ({ askedValues, template, version, disabled = false, blockedAttempts = 0, dependencies: d = DEPENDENCIES }) => {
+export const TemplateVariablesCard: FC<Props> = ({
+  askedValues,
+  template,
+  version,
+  disabled = false,
+  isDeploymentCreated = false,
+  blockedAttempts = 0,
+  dependencies: d = DEPENDENCIES
+}) => {
   const titleId = useId();
   const fieldIdPrefix = useId();
   const { control, getValues, setValue } = useFormContext<SdlBuilderFormValuesType>();
   const services = useWatch({ control, name: "services" });
-  const issues = useMemo(() => askedValueIssuesOf({ services }, askedValues), [services, askedValues]);
+  const issues = useMemo(() => askedValueIssuesOf({ services }, askedValues, { isDeploymentCreated }), [services, askedValues, isDeploymentCreated]);
   const [touchedKeys, setTouchedKeys] = useState<ReadonlySet<string>>(() => new Set());
   const fieldIdOf = (key: string) => `${fieldIdPrefix}-${key}`;
   const isCurrent = template.currentVersion?.version === version.version;
@@ -45,18 +56,18 @@ export const TemplateVariablesCard: FC<Props> = ({ askedValues, template, versio
   useEffect(
     function focusFirstFieldWithIssue() {
       if (blockedAttempts === 0) return;
-      const issuesNow = askedValueIssuesOf(getValues(), askedValues);
-      const first = askedValues.find(askedValue => issuesNow[askedValue.key]);
+      const values = getValues();
+      const issuesNow = askedValueIssuesOf(values, askedValues, { isDeploymentCreated });
+      const first = askedValues.find(askedValue => issuesNow[askedValue.key] && answerOf(values, askedValue).isPresent);
       if (first) document.getElementById(`${fieldIdPrefix}-${first.key}`)?.focus();
     },
-    [blockedAttempts, askedValues, fieldIdPrefix, getValues]
+    [blockedAttempts, askedValues, fieldIdPrefix, getValues, isDeploymentCreated]
   );
 
   function writeAnswer(askedValue: TemplateAskedValue, answer: string) {
-    const { value, isSecret } = answerFields(askedValue, answer);
-    boundRowsOf(getValues(), askedValue).forEach(({ serviceIndex, envIndex }) => {
-      setValue(`services.${serviceIndex}.env.${envIndex}.value`, value);
-      if (isSecret) setValue(`services.${serviceIndex}.env.${envIndex}.isSecret`, true);
+    const current = getValues();
+    withAnswer(current, askedValue, answer).services.forEach((service, index) => {
+      if (service !== current.services[index]) setValue(`services.${index}.env`, service.env);
     });
   }
 
@@ -100,18 +111,22 @@ export const TemplateVariablesCard: FC<Props> = ({ askedValues, template, versio
             </Button>
           </div>
           <div className="grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-x-4 gap-y-5 p-4">
-            {askedValues.map(askedValue => (
-              <VariableField
-                key={askedValue.key}
-                id={fieldIdOf(askedValue.key)}
-                askedValue={askedValue}
-                answer={answerOf({ services }, askedValue)}
-                issue={touchedKeys.has(askedValue.key) || blockedAttempts > 0 ? issues[askedValue.key] : undefined}
-                disabled={disabled}
-                onChange={answer => writeAnswer(askedValue, answer)}
-                onTouch={() => touch(askedValue.key)}
-              />
-            ))}
+            {askedValues.map(askedValue => {
+              const answer = answerOf({ services }, askedValue);
+              return (
+                <VariableField
+                  key={askedValue.key}
+                  id={fieldIdOf(askedValue.key)}
+                  askedValue={askedValue}
+                  answer={answer}
+                  isSealed={isSealedSecret(askedValue, answer, issues)}
+                  issue={touchedKeys.has(askedValue.key) || blockedAttempts > 0 ? issues[askedValue.key] : undefined}
+                  disabled={disabled}
+                  onChange={value => writeAnswer(askedValue, value)}
+                  onTouch={() => touch(askedValue.key)}
+                />
+              );
+            })}
           </div>
         </div>
       )}
@@ -119,34 +134,45 @@ export const TemplateVariablesCard: FC<Props> = ({ askedValues, template, versio
   );
 };
 
+/** A yes/no without a default shows No, so resetting writes No rather than leaving a value the switch cannot show. */
 function defaultOf(askedValue: TemplateAskedValue): string {
-  return askedValue.type === "secret" ? "" : askedValue.default ?? "";
+  if (askedValue.type === "secret") return "";
+  return askedValue.default ?? (askedValue.type === "boolean" ? "false" : "");
+}
+
+/** An empty secret that needs nothing has a kept reference the deployment's create already sealed. */
+function isSealedSecret(askedValue: TemplateAskedValue, answer: Answer, issues: Record<string, string>): boolean {
+  return askedValue.type === "secret" && answer.isPresent && answer.value === "" && !issues[askedValue.key];
 }
 
 type VariableFieldProps = {
   id: string;
   askedValue: TemplateAskedValue;
   answer: Answer;
+  isSealed: boolean;
   issue: string | undefined;
   disabled: boolean;
   onChange: (answer: string) => void;
   onTouch: () => void;
 };
 
-function VariableField({ id, askedValue, answer, issue, disabled, onChange, onTouch }: VariableFieldProps) {
+function VariableField({ id, askedValue, answer, isSealed, issue, disabled, onChange, onTouch }: VariableFieldProps) {
   const isRequired = isAnswerRequired(askedValue);
   const isAbsent = !answer.isPresent;
   const keyId = `${id}-key`;
   const noteId = `${id}-note`;
+  const sealedNoteId = `${id}-sealed`;
   const errorId = `${id}-error`;
-  const note = isAbsent ? ABSENT_NOTE : askedValue.type === "secret" ? SECRET_NOTE : askedValue.help;
+  const note = isAbsent ? ABSENT_NOTE : askedValue.help;
+  const showsSealedNote = askedValue.type === "secret" && !isAbsent;
   const control: FieldControlProps = {
     id,
     value: answer.value,
+    placeholder: isSealed ? SEALED_PLACEHOLDER : undefined,
     isInvalid: !!issue,
     isRequired,
     disabled: disabled || isAbsent,
-    describedBy: [keyId, note && noteId, issue && errorId].filter(Boolean).join(" "),
+    describedBy: [keyId, note && noteId, showsSealedNote && sealedNoteId, issue && errorId].filter(Boolean).join(" "),
     onChange,
     onTouch
   };
@@ -172,9 +198,14 @@ function VariableField({ id, askedValue, answer, issue, disabled, onChange, onTo
       </div>
       <FieldControl askedValue={askedValue} label={askedValue.label} {...control} />
       {note && (
-        <p id={noteId} className="flex items-center gap-1 text-xs text-muted-foreground">
-          {askedValue.type === "secret" && !isAbsent && <LockIcon className="h-3 w-3 shrink-0" aria-hidden="true" />}
+        <p id={noteId} className="text-xs text-muted-foreground">
           {note}
+        </p>
+      )}
+      {showsSealedNote && (
+        <p id={sealedNoteId} className="flex items-center gap-1 text-xs text-muted-foreground">
+          <LockIcon className="h-3 w-3 shrink-0" aria-hidden="true" />
+          {SECRET_NOTE}
         </p>
       )}
       {issue && (
@@ -190,6 +221,7 @@ function VariableField({ id, askedValue, answer, issue, disabled, onChange, onTo
 type FieldControlProps = {
   id: string;
   value: string;
+  placeholder?: string;
   isInvalid: boolean;
   isRequired: boolean;
   disabled: boolean;
@@ -208,7 +240,7 @@ type SharedControlProps = {
 };
 
 function FieldControl({ askedValue, label, ...control }: FieldControlProps & { askedValue: TemplateAskedValue; label: string }): ReactNode {
-  const { id, value, isInvalid, isRequired, disabled, describedBy, onChange, onTouch } = control;
+  const { id, value, placeholder, isInvalid, isRequired, disabled, describedBy, onChange, onTouch } = control;
   const shared: SharedControlProps = {
     id,
     disabled,
@@ -230,7 +262,7 @@ function FieldControl({ askedValue, label, ...control }: FieldControlProps & { a
             checked={value === "true"}
             onCheckedChange={checked => onChange(String(checked))}
           />
-          <span className="text-sm text-muted-foreground">{value === "true" ? "On" : "Off"}</span>
+          <span className="text-sm text-muted-foreground">{value === "true" ? "Yes" : "No"}</span>
         </div>
       );
     case "choice":
@@ -263,7 +295,7 @@ function FieldControl({ askedValue, label, ...control }: FieldControlProps & { a
         />
       );
     case "secret":
-      return <SecretInput shared={shared} label={label} value={value} isInvalid={isInvalid} onChange={onChange} />;
+      return <SecretInput shared={shared} label={label} value={value} placeholder={placeholder} isInvalid={isInvalid} onChange={onChange} />;
     default:
       return <Input {...shared} type="text" value={value} error={isInvalid} onChange={event => onChange(event.target.value)} />;
   }
@@ -273,11 +305,12 @@ type SecretInputProps = {
   shared: SharedControlProps;
   label: string;
   value: string;
+  placeholder?: string;
   isInvalid: boolean;
   onChange: (answer: string) => void;
 };
 
-function SecretInput({ shared, label, value, isInvalid, onChange }: SecretInputProps) {
+function SecretInput({ shared, label, value, placeholder, isInvalid, onChange }: SecretInputProps) {
   const [isShown, setIsShown] = useState(false);
 
   return (
@@ -286,6 +319,7 @@ function SecretInput({ shared, label, value, isInvalid, onChange }: SecretInputP
       type={isShown ? "text" : "password"}
       autoComplete="new-password"
       spellCheck={false}
+      placeholder={placeholder}
       value={value}
       error={isInvalid}
       onChange={event => onChange(event.target.value)}

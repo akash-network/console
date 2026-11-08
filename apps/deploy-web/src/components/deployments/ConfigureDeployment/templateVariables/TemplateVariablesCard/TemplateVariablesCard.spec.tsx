@@ -193,7 +193,7 @@ describe(TemplateVariablesCard.name, () => {
     expect(sdl).toContain("ENABLE_SIGNUP=true");
     expect(sdl).toContain("MAX_MODEL_LEN=4096");
     expect(screen.getByRole("switch", { name: "Allow sign-ups" })).toBeChecked();
-    expect(screen.getByText("On")).toBeInTheDocument();
+    expect(screen.getByText("Yes")).toBeInTheDocument();
   });
 
   it("masks a secret and says it is sealed on deploy", async () => {
@@ -261,7 +261,7 @@ describe(TemplateVariablesCard.name, () => {
 
     expect(screen.getByRole("switch", { name: "Allow sign-ups" })).not.toBeChecked();
     expect(screen.getByRole("combobox", { name: "Model" })).not.toBeInvalid();
-    expect(screen.getByText("Off")).toBeInTheDocument();
+    expect(screen.getByText("No")).toBeInTheDocument();
   });
 
   it("shows every error and focuses the first field with one after a blocked deploy", () => {
@@ -283,6 +283,65 @@ describe(TemplateVariablesCard.name, () => {
     rerenderWith({ blockedAttempts: 2 });
 
     expect(screen.getByRole("textbox", { name: "Admin email" })).toHaveFocus();
+  });
+
+  it("shows a secret's help beside the sealed note", () => {
+    setup({ askedValues: [{ ...ASKED_VALUES[1], help: "Read access is enough." }] });
+
+    expect(screen.getByLabelText("Hugging Face token")).toHaveAccessibleDescription(
+      "HF_TOKEN Read access is enough. Sealed when you deploy. You won't be able to see it again."
+    );
+  });
+
+  it("takes a secret the deployment's create already sealed as answered", () => {
+    const { rerenderWith } = setup({ isDeploymentCreated: true });
+
+    rerenderWith({ blockedAttempts: 1 });
+
+    const token = screen.getByLabelText("Hugging Face token");
+    expect(token).toHaveAttribute("placeholder", "Sealed with this deployment");
+    expect(token).not.toBeInvalid();
+    expect(screen.getByRole("textbox", { name: "Admin email" })).toHaveFocus();
+  });
+
+  it("asks for a secret before the deployment exists without claiming it is sealed", () => {
+    setup({});
+
+    expect(screen.getByLabelText("Hugging Face token")).not.toHaveAttribute("placeholder");
+  });
+
+  it("shows a yes/no without a default as No and resets it to No", async () => {
+    const signUps = { ...ASKED_VALUES[5], required: true, default: undefined } as TemplateAskedValue;
+    const { values, rerenderWith } = setup({ askedValues: [signUps], sdl: TEMPLATE_SDL.replace("ENABLE_SIGNUP=false", "ENABLE_SIGNUP=") });
+    expect(screen.getByRole("switch", { name: "Allow sign-ups" })).not.toBeChecked();
+    expect(screen.getByText("No")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("switch", { name: "Allow sign-ups" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Reset to defaults" }));
+    rerenderWith({ blockedAttempts: 1 });
+
+    expect(values().services[1].env?.find(variable => variable.key === "ENABLE_SIGNUP")?.value).toBe("false");
+    expect(screen.getByRole("switch", { name: "Allow sign-ups" })).not.toBeInvalid();
+  });
+
+  it("asks for the row of a required variable that was removed once a deploy is blocked", () => {
+    const { rerenderWith } = setup({ sdl: TEMPLATE_SDL.replace("      - ADMIN_EMAIL=\n", "") });
+
+    rerenderWith({ blockedAttempts: 1 });
+
+    expect(screen.getByRole("textbox", { name: "Admin email" })).toHaveAccessibleDescription(
+      "ADMIN_EMAIL Not in this configuration anymore Admin email isn't in this configuration anymore. Restore its row or reset the configuration."
+    );
+    expect(screen.getByLabelText("Hugging Face token")).toHaveFocus();
+  });
+
+  it("writes an answer into every row it is bound to", async () => {
+    const { values } = setup({});
+
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Model" }), "Qwen/Qwen2.5-7B-Instruct");
+
+    expect(values().services[0].env?.[0]).toMatchObject({ key: "MODEL_ID", value: "Qwen/Qwen2.5-7B-Instruct" });
+    expect(values().services[1].env?.[0]).toMatchObject({ key: "DEFAULT_MODELS", value: "Qwen/Qwen2.5-7B-Instruct" });
   });
 
   it("resets every field to its default", async () => {
@@ -389,6 +448,7 @@ describe(TemplateVariablesCard.name, () => {
     template?: Partial<MarketplaceTemplate>;
     isCurrent?: boolean;
     disabled?: boolean;
+    isDeploymentCreated?: boolean;
     blockedAttempts?: number;
   }) {
     const askedValues = structuredClone(input.askedValues ?? ASKED_VALUES);
@@ -407,6 +467,7 @@ describe(TemplateVariablesCard.name, () => {
         template={template}
         version={version}
         disabled={props.disabled}
+        isDeploymentCreated={input.isDeploymentCreated}
         blockedAttempts={props.blockedAttempts}
         dependencies={dependencies}
       />
