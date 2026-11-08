@@ -67,6 +67,7 @@ export interface DeploymentUpdateProps {
   onRedeploy?: () => void;
   /** A redeploy that starts without the stored secrets, for when the console can no longer read them. */
   onRedeployWithNewSecrets?: () => void;
+  onSaveAsTemplate?: () => void;
   /** The raw editor, still the only way to update a deployment whose configuration the console holds no usable copy of. */
   fallback: ReactNode;
   dependencies?: typeof DEPENDENCIES;
@@ -81,6 +82,7 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
   onUpdated,
   onRedeploy,
   onRedeployWithNewSecrets,
+  onSaveAsTemplate,
   fallback,
   dependencies: d = DEPENDENCIES
 }) => {
@@ -231,6 +233,11 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
             {isClosed ? (
               <>
                 <p className="mr-auto text-sm text-muted-foreground">{CLOSED_NOTICE}</p>
+                {onSaveAsTemplate && (
+                  <Button type="button" variant="outline" size="sm" onClick={onSaveAsTemplate}>
+                    Save as template
+                  </Button>
+                )}
                 {onRedeploy && (
                   <Button type="button" size="sm" onClick={onRedeploy}>
                     Redeploy
@@ -240,6 +247,11 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
             ) : (
               <>
                 {isApplyingInBackground && <p className="mr-auto text-sm text-muted-foreground">{APPLYING_NOTICE}</p>}
+                {onSaveAsTemplate && (
+                  <Button type="button" variant="outline" size="sm" onClick={onSaveAsTemplate}>
+                    Save as template
+                  </Button>
+                )}
                 <Button type="button" variant="outline" size="sm" disabled={!isDirty || isBusy || isReloading} onClick={() => form.reset(baseline.values)}>
                   Discard changes
                 </Button>

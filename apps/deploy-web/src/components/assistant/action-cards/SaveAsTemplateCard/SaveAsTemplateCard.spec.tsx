@@ -52,6 +52,50 @@ describe(SaveAsTemplateCard.name, () => {
     expect(saveTemplate).toHaveBeenCalledWith({ sdl: SDL, title: "Site", description: "nginx site", isPublic: false });
   });
 
+  it("shows the template it opens in template mode, private to the user's project", () => {
+    const { chromeProps } = setup({ description: "nginx site", isTemplateMarketplaceEnabled: true });
+
+    expect(chromeProps()).toEqual(
+      expect.objectContaining({
+        rows: [
+          { label: "Title", value: "Site" },
+          { label: "Description", value: "nginx site" },
+          { label: "Visibility", value: "Private, your project" }
+        ],
+        costNote: "Opens this deployment's SDL as Console holds it in template mode. Nothing is saved until you save it there.",
+        confirmLabel: "Open in template mode",
+        successMessage: "Opened in template mode.",
+        isConfirmDisabled: false
+      })
+    );
+  });
+
+  it("opens template mode from the assistant card with the suggested title", async () => {
+    const { chromeProps, saveAsTemplate, saveTemplate } = setup({ description: "nginx site", isTemplateMarketplaceEnabled: true });
+
+    await chromeProps().onConfirm!("");
+
+    expect(saveAsTemplate).toHaveBeenCalledWith({ sdl: SDL, name: "Site" });
+    expect(saveTemplate).not.toHaveBeenCalled();
+  });
+
+  it("still saves directly from the assistant card without template_marketplace", async () => {
+    const { chromeProps, saveAsTemplate, saveTemplate } = setup({ description: "nginx site" });
+
+    await chromeProps().onConfirm!("");
+
+    expect(saveTemplate).toHaveBeenCalledTimes(1);
+    expect(saveAsTemplate).not.toHaveBeenCalled();
+  });
+
+  it("opens no template mode for a deployment Console holds no usable SDL for", async () => {
+    const { chromeProps, saveAsTemplate } = setup({ isTemplateMarketplaceEnabled: true, definition: { sdl: SDL, name: undefined, source: "absent" } });
+
+    await chromeProps().onConfirm!("");
+
+    expect(saveAsTemplate).not.toHaveBeenCalled();
+  });
+
   it("waits while the deployment's SDL is read", () => {
     const { chromeProps } = setup({ definition: { sdl: undefined, name: undefined, source: "resolving" } });
 
@@ -68,9 +112,10 @@ describe(SaveAsTemplateCard.name, () => {
     expect(saveTemplate).not.toHaveBeenCalled();
   });
 
-  function setup(input: { description?: string | null; definition?: DeploymentDefinition }) {
+  function setup(input: { description?: string | null; definition?: DeploymentDefinition; isTemplateMarketplaceEnabled?: boolean }) {
     const useDeploymentName = vi.fn((_dseq: string | null | undefined, _knownName?: string | null): string | null => "blog");
     const saveTemplate = vi.fn(async (_template: unknown): Promise<unknown> => ({ data: "t-1" }));
+    const saveAsTemplate = vi.fn();
     const useDeploymentDefinition = vi.fn((_dseq: string) => input.definition ?? { sdl: SDL, name: "site", source: "api" as const });
     const ActionCardChrome = vi.fn((props: ActionCardChromeProps) => <>{props.children}</>);
     const decision = mock<ActionCardDecision>({ status: "pending" });
@@ -86,11 +131,13 @@ describe(SaveAsTemplateCard.name, () => {
             mock<ReturnType<typeof DEPENDENCIES.useSaveUserTemplate>>({
               mutateAsync: saveTemplate as ReturnType<typeof DEPENDENCIES.useSaveUserTemplate>["mutateAsync"]
             }),
+          useSaveAsTemplate: () => saveAsTemplate,
+          useFlag: flag => flag === "template_marketplace" && !!input.isTemplateMarketplaceEnabled,
           ActionCardChrome: ActionCardChrome as unknown as typeof DEPENDENCIES.ActionCardChrome
         }}
       />
     );
 
-    return { chromeProps: () => ActionCardChrome.mock.lastCall![0], useDeploymentName, saveTemplate, useDeploymentDefinition, decision };
+    return { chromeProps: () => ActionCardChrome.mock.lastCall![0], useDeploymentName, saveTemplate, saveAsTemplate, useDeploymentDefinition, decision };
   }
 });

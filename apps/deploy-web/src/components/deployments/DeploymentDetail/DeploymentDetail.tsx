@@ -19,10 +19,12 @@ import { isUsableDeploymentDefinition, sdlToRedeploy, useDeploymentDefinition } 
 import { useDeploymentOutcomes } from "@src/hooks/useDeploymentOutcomes/useDeploymentOutcomes";
 import { deploymentLaunchOf, useDeploymentActivity } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
 import { useDeploymentTemplate } from "@src/hooks/useDeploymentTemplate/useDeploymentTemplate";
+import { useFlag } from "@src/hooks/useFlag";
 import { useLeaseGpus, withLeaseGpus } from "@src/hooks/useLeaseGpus/useLeaseGpus";
 import { useOpenDeploymentInItsOrganization } from "@src/hooks/useOpenDeploymentInItsOrganization/useOpenDeploymentInItsOrganization";
 import { useProjectsUi } from "@src/hooks/useProjectsUi/useProjectsUi";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
+import { useSaveAsTemplate } from "@src/hooks/useSaveAsTemplate/useSaveAsTemplate";
 import { useDeploymentLocationQuery } from "@src/queries/useDeploymentProjectQueries";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
@@ -50,6 +52,8 @@ export const DEPENDENCIES = {
   useRouter,
   useSearchParams,
   useRedeploy,
+  useSaveAsTemplate,
+  useFlag,
   useDeploymentDefinition,
   useDeploymentTemplate,
   useDeploymentActivity,
@@ -112,6 +116,8 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   const searchParams = d.useSearchParams();
   const { address } = d.useWallet();
   const redeploy = d.useRedeploy();
+  const saveAsTemplate = d.useSaveAsTemplate();
+  const isTemplateMarketplaceEnabled = d.useFlag("template_marketplace");
 
   const [selectedTab, setSelectedTab] = useState<Tab>("DETAILS");
   const { canManage, isLoading: isLoadingManagement, isError: isManagementUnreadable, retry: retryManagement } = d.useCanManageDeployment(dseq);
@@ -216,6 +222,11 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   function redeployWithNewSecrets() {
     redeploy({ sdl: sdlToRedeploy(definition), name: definition.name, projectId: location?.projectId, templateId });
     analyticsService.track("redeploy_btn_clk", "Amplitude");
+  }
+
+  function saveDeploymentAsTemplate() {
+    if (!isUsableDeploymentDefinition(definition)) return;
+    saveAsTemplate({ sdl: definition.sdl, name: definition.name, projectId: location?.projectId, dseq });
   }
 
   const manifestUpdate = deployment && (
@@ -344,6 +355,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
                     onUpdated={loadDeploymentDetail}
                     onRedeploy={isUsableDeploymentDefinition(definition) ? redeployFromResolvedDefinition : undefined}
                     onRedeployWithNewSecrets={isUsableDeploymentDefinition(definition) ? redeployWithNewSecrets : undefined}
+                    onSaveAsTemplate={isTemplateMarketplaceEnabled && isUsableDeploymentDefinition(definition) ? saveDeploymentAsTemplate : undefined}
                     fallback={manifestUpdate}
                   />
                 )}

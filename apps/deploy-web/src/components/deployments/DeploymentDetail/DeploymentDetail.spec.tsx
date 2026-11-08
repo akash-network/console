@@ -677,6 +677,37 @@ describe("DeploymentDetail", () => {
       expect(analyticsService.track).toHaveBeenCalledWith("redeploy_btn_clk", "Amplitude");
     });
 
+    it("offers the editor Save as template only with template_marketplace on", () => {
+      const withFlag = setup({ tab: "UPDATE", isTemplateMarketplaceEnabled: true, definition: { sdl: "version: '2.0'", source: "api" } });
+
+      expect(withFlag.DeploymentUpdate.mock.calls[0][0].onSaveAsTemplate).toBeInstanceOf(Function);
+    });
+
+    it("offers the editor no Save as template without template_marketplace", () => {
+      const { DeploymentUpdate } = setup({ tab: "UPDATE", definition: { sdl: "version: '2.0'", source: "api" } });
+
+      expect(DeploymentUpdate.mock.calls[0][0].onSaveAsTemplate).toBeUndefined();
+    });
+
+    it("offers the editor no Save as template when neither source holds a definition", () => {
+      const { DeploymentUpdate } = setup({ tab: "UPDATE", isTemplateMarketplaceEnabled: true, definition: { sdl: undefined, source: "absent" } });
+
+      expect(DeploymentUpdate.mock.calls[0][0].onSaveAsTemplate).toBeUndefined();
+    });
+
+    it("opens template mode on the stored SDL, linked back to the deployment and filed in its project", () => {
+      const { DeploymentUpdate, saveAsTemplate } = setup({
+        tab: "UPDATE",
+        isTemplateMarketplaceEnabled: true,
+        filedProjectId: "storefront",
+        definition: { sdl: "version: '2.0' # stored", restoredSdl: "version: '2.0' # restored", name: "My Storefront", source: "api" }
+      });
+
+      DeploymentUpdate.mock.calls[0][0].onSaveAsTemplate?.();
+
+      expect(saveAsTemplate).toHaveBeenCalledWith({ sdl: "version: '2.0' # stored", name: "My Storefront", projectId: "storefront", dseq: "1786440078202" });
+    });
+
     it("hands the editor the providers the page loaded", () => {
       const { DeploymentUpdate } = setup({ tab: "UPDATE" });
 
@@ -808,6 +839,7 @@ describe("DeploymentDetail", () => {
     template?: TemplateOutput;
     templateId?: string;
     recordedOutcome?: RecordedDeploymentOutcome;
+    isTemplateMarketplaceEnabled?: boolean;
   }) {
     const deployment = input && "deployment" in input ? input.deployment : mock<DeploymentDto>({ dseq: "1786440078202", state: "active", groups: [] });
     const leases = input && "leases" in input ? input.leases : [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: input?.leaseState ?? "active" })];
@@ -848,6 +880,9 @@ describe("DeploymentDetail", () => {
     const useProvidersByAddresses = vi.fn(() => ({ data: resolvedProviders, isLoading: false, isFetching: false }));
     const redeploy = vi.fn();
     const useRedeploy: typeof DEPENDENCIES.useRedeploy = () => redeploy;
+    const saveAsTemplate = vi.fn();
+    const useSaveAsTemplate: typeof DEPENDENCIES.useSaveAsTemplate = () => saveAsTemplate;
+    const useFlag: typeof DEPENDENCIES.useFlag = flag => flag === "template_marketplace" && !!input?.isTemplateMarketplaceEnabled;
     const definition: DeploymentDefinition = { sdl: "version: '2.0'", name: undefined, source: "local", ...input?.definition };
     const useDeploymentDefinition: typeof DEPENDENCIES.useDeploymentDefinition = () => definition;
 
@@ -907,6 +942,8 @@ describe("DeploymentDetail", () => {
       useRouter,
       useSearchParams,
       useRedeploy,
+      useSaveAsTemplate,
+      useFlag,
       useDeploymentDefinition,
       useDeploymentTemplate,
       useDeploymentActivity,
@@ -939,6 +976,7 @@ describe("DeploymentDetail", () => {
       router,
       analyticsService,
       redeploy,
+      saveAsTemplate,
       createConfigureDraft,
       useOpenDeploymentInItsOrganization,
       useDeploymentLocationQuery,
