@@ -16,7 +16,7 @@ import { usePublicTemplate, useTemplate } from "@src/queries/useTemplateQuery";
 import { useMarketplaceTemplate, useTemplateVersion } from "@src/queries/useUserTemplateQueries";
 import sdlStore from "@src/store/sdlStore";
 import type { TemplateCreation } from "@src/types";
-import type { TemplateSource } from "@src/types/marketplace-template";
+import type { TemplateSource, TemplateVersionDetail } from "@src/types/marketplace-template";
 import { secretReferenceNamesIn } from "@src/utils/sdl/sdlSecrets";
 import { hardcodedTemplates } from "@src/utils/templates";
 import { UrlService } from "@src/utils/urlUtils";
@@ -156,6 +156,8 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({
   const userTemplateQuery = d.useUserTemplate(fetchedUserTemplateId);
   const templateSource = versionedTemplate?.source;
   const { enqueueSnackbar } = d.useSnackbar();
+  const templateVersion = intent.templateVersion ?? versionedTemplate?.pinnedVersion;
+  usePinTemplateVersionInUrl({ d, intent, draft, versionedTemplate });
 
   const isFetchingTemplate = !!fetchedTemplateId || !!fetchedUserTemplateId || !!versionedTemplate;
   const isTemplateLoading =
@@ -194,7 +196,7 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({
     () => ({
       templateId: intent.templateId,
       userTemplateId: intent.userTemplateId,
-      ...(intent.templateVersion ? { templateVersion: intent.templateVersion } : {}),
+      ...(templateVersion ? { templateVersion } : {}),
       ...(templateSource ? { templateVersionId: templateSource.version.id } : {}),
       sdlStrategy: needsSecretValues || isEditedInForm || !isStartedByConsole ? "edit" : intent.sdlStrategy,
       bidStrategy: intent.bidStrategy,
@@ -206,7 +208,7 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({
     [
       intent.templateId,
       intent.userTemplateId,
-      intent.templateVersion,
+      templateVersion,
       templateSource,
       intent.sdlStrategy,
       needsSecretValues,
@@ -271,7 +273,48 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({
   );
 };
 
-type VersionedTemplate = { source: TemplateSource | undefined; isLoading: boolean; hasFailed: boolean };
+type VersionedTemplate = {
+  source: TemplateSource | undefined;
+  isLoading: boolean;
+  hasFailed: boolean;
+  pinnedVersion: number | undefined;
+  pinVersion: (version: TemplateVersionDetail) => void;
+};
+
+/** A fresh session pins the current version it starts from, so a reload resolves the version its draft was built on; a draft restored without one keeps resolving the current version. */
+function usePinTemplateVersionInUrl({
+  d,
+  intent,
+  draft,
+  versionedTemplate
+}: {
+  d: typeof DEPENDENCIES;
+  intent: DeploymentIntent;
+  draft: ReturnType<typeof DEPENDENCIES.useConfigureDraft>;
+  versionedTemplate: VersionedTemplate | undefined;
+}) {
+  const router = d.useRouter();
+  const [wasDraftRestoredOnLoad, setWasDraftRestoredOnLoad] = useState<boolean | null>(null);
+  if (wasDraftRestoredOnLoad === null && !draft.isLoading) setWasDraftRestoredOnLoad(draft.persistedSdl !== undefined);
+  const canPin = wasDraftRestoredOnLoad === false && !intent.templateVersion && !versionedTemplate?.pinnedVersion;
+  const versionToPin = canPin ? versionedTemplate?.source?.version : undefined;
+  const pinVersion = versionedTemplate?.pinVersion;
+
+  useEffect(
+    function pinTheTemplateVersionInTheUrl() {
+      if (!versionToPin || !pinVersion) return;
+      pinVersion(versionToPin);
+      router.replace(
+        buildConfigureUrl({ ...intent, draftId: draft.draftId, templateVersion: versionToPin.version }, intent.dseq, intent.bidStrategy),
+        undefined,
+        {
+          shallow: true
+        }
+      );
+    },
+    [versionToPin, pinVersion, intent, draft.draftId, router]
+  );
+}
 
 /** Mounted only with the template marketplace on, so the legacy user template path never reads the marketplace. */
 const TemplateVersionDeploymentScreen: FC<ScreenProps & { userTemplateId: string }> = ({ userTemplateId, ...screenProps }) => {
@@ -281,16 +324,18 @@ const TemplateVersionDeploymentScreen: FC<ScreenProps & { userTemplateId: string
 
 /** A named version the caller may not read answers 404, and a template without a current version has nothing to deploy, so both fail like an unreadable template. */
 function useTemplateVersionSource(d: typeof DEPENDENCIES, templateId: string, namedVersion: number | undefined): VersionedTemplate {
+  const [pinned, setPinned] = useState<TemplateVersionDetail>();
+  const queriedVersion = namedVersion && namedVersion !== pinned?.version ? namedVersion : undefined;
   const templateQuery = d.useMarketplaceTemplate(templateId);
-  const namedVersionQuery = d.useTemplateVersion(namedVersion ? templateId : undefined, namedVersion);
+  const namedVersionQuery = d.useTemplateVersion(queriedVersion ? templateId : undefined, queriedVersion);
   const template = templateQuery.data;
-  const version = namedVersion ? namedVersionQuery.data : template?.currentVersion;
+  const version = queriedVersion ? namedVersionQuery.data : pinned ?? template?.currentVersion;
   const source = useMemo(() => (template && version ? { template, version } : undefined), [template, version]);
-  const hasNoVersionToDeploy = namedVersion ? namedVersionQuery.isError : templateQuery.isSuccess;
+  const hasNoVersionToDeploy = queriedVersion ? namedVersionQuery.isError : templateQuery.isSuccess;
   const hasFailed = !source && (templateQuery.isError || hasNoVersionToDeploy);
-  const isLoading = !hasFailed && (templateQuery.isLoading || (!!namedVersion && namedVersionQuery.isLoading));
+  const isLoading = !hasFailed && (templateQuery.isLoading || (!!queriedVersion && namedVersionQuery.isLoading));
 
-  return { source, isLoading, hasFailed };
+  return { source, isLoading, hasFailed, pinnedVersion: pinned?.version, pinVersion: setPinned };
 }
 
 /** A failed attempt that left no deployment is as fresh as the form it returns to, while a cancelled deployment still closing counts, since a fresh start would never close it. */

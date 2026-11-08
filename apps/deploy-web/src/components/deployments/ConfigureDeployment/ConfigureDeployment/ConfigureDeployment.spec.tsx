@@ -679,8 +679,7 @@ describe(ConfigureDeployment.name, () => {
       expect(useTemplateVersion).toHaveBeenLastCalledWith(undefined, undefined);
       const props = ConfigureDeploymentForm.mock.lastCall?.[0];
       expect(props?.initialSdl).toBe(ASSISTANT_SDL);
-      expect(props?.intent).toMatchObject({ templateVersionId: "ver-4" });
-      expect(props?.intent).not.toHaveProperty("templateVersion");
+      expect(props?.intent).toMatchObject({ templateVersion: 4, templateVersionId: "ver-4" });
     });
 
     it("waits for the template before opening the form", () => {
@@ -794,6 +793,93 @@ describe(ConfigureDeployment.name, () => {
       expect(props?.intent).not.toHaveProperty("templateVersion");
       expect(props?.intent).not.toHaveProperty("templateVersionId");
     });
+
+    it("pins the current version it starts from in the URL and keeps it when a newer one arrives", () => {
+      const { ConfigureDeploymentForm, router, rerenderWithMarketplaceTemplate } = setup({
+        userTemplateId: "tpl-9",
+        isTemplateMarketplaceEnabled: true,
+        marketplaceTemplate: { isSuccess: true, data: templateAtVersion(3) }
+      });
+
+      expect(router.replace).toHaveBeenCalledTimes(1);
+      expect(router.replace).toHaveBeenCalledWith(
+        "/new-deployment/configure?userTemplateId=tpl-9&templateVersion=3&bid-strategy=select&draftId=minted-id",
+        undefined,
+        { shallow: true }
+      );
+
+      rerenderWithMarketplaceTemplate({ isSuccess: true, data: templateAtVersion(4) });
+
+      const props = ConfigureDeploymentForm.mock.lastCall?.[0];
+      expect(props?.intent).toMatchObject({ templateVersion: 3, templateVersionId: "ver-3" });
+      expect(props?.templateSource?.version.id).toBe("ver-3");
+      expect(router.replace).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the pinned version without reading it again once the URL names it", () => {
+      const { ConfigureDeploymentForm, useTemplateVersion, currentUrl } = setup({
+        userTemplateId: "tpl-9",
+        isTemplateMarketplaceEnabled: true,
+        marketplaceTemplate: { isSuccess: true, data: templateAtVersion(3) },
+        routerWritesUrl: true
+      });
+
+      expect(currentUrl()).toMatchObject({ templateVersion: "3", draftId: "minted-id" });
+      expect(useTemplateVersion).not.toHaveBeenCalledWith("tpl-9", 3);
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+      expect(ConfigureDeploymentForm.mock.lastCall?.[0].intent).toMatchObject({ templateVersion: 3, templateVersionId: "ver-3" });
+    });
+
+    it("keeps resolving the current version for a draft restored without a version", () => {
+      const { ConfigureDeploymentForm, router, rerenderWithMarketplaceTemplate } = setup({
+        userTemplateId: "tpl-9",
+        persistedSdl: "restored: sdl",
+        isTemplateMarketplaceEnabled: true,
+        marketplaceTemplate: { isSuccess: true, data: templateAtVersion(3) }
+      });
+
+      rerenderWithMarketplaceTemplate({ isSuccess: true, data: templateAtVersion(4) });
+
+      expect(router.replace).not.toHaveBeenCalled();
+      const { intent } = ConfigureDeploymentForm.mock.lastCall?.[0] ?? {};
+      expect(intent).toMatchObject({ templateVersionId: "ver-4" });
+      expect(intent).not.toHaveProperty("templateVersion");
+    });
+
+    it("leaves a URL that names a version alone", () => {
+      const { router } = setup({
+        userTemplateId: "tpl-9",
+        urlTemplateVersion: "2",
+        isTemplateMarketplaceEnabled: true,
+        marketplaceTemplate: { isSuccess: true, data: templateAtVersion(3) },
+        templateVersion: { isSuccess: true, data: buildTemplateVersion({ id: "ver-2", templateId: "tpl-9", version: 2, sdl: OLDER_SDL }) }
+      });
+
+      expect(router.replace).not.toHaveBeenCalled();
+    });
+
+    it("waits for the draft before pinning the version", () => {
+      const { router } = setup({
+        userTemplateId: "tpl-9",
+        isDraftLoading: true,
+        isTemplateMarketplaceEnabled: true,
+        marketplaceTemplate: { isSuccess: true, data: templateAtVersion(3) }
+      });
+
+      expect(router.replace).not.toHaveBeenCalled();
+    });
+
+    it("pins no version for a template that cannot be read", () => {
+      const { router } = setup({ userTemplateId: "tpl-9", isTemplateMarketplaceEnabled: true, marketplaceTemplate: { isError: true } });
+
+      expect(router.replace).not.toHaveBeenCalled();
+    });
+
+    function templateAtVersion(version: number) {
+      return deployableTemplate({
+        currentVersion: buildTemplateVersion({ id: `ver-${version}`, templateId: "tpl-9", version, sdl: ASSISTANT_SDL })
+      });
+    }
 
     function expectTheTemplateFallback({
       ConfigureDeploymentForm,
@@ -1459,6 +1545,7 @@ describe(ConfigureDeployment.name, () => {
     baseVersion?: number;
     sourceDseq?: string;
     urlTemplateVersion?: string;
+    routerWritesUrl?: boolean;
   }) {
     const store = createStore();
     store.set(sdlStore.deploySdl, input.deploySdl ?? null);
@@ -1586,6 +1673,14 @@ describe(ConfigureDeployment.name, () => {
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
       Snackbar: vi.fn(() => null) as never
     };
+
+    if (input.routerWritesUrl) {
+      router.replace.mockImplementation(async url => {
+        const written = new URL(String(url), "http://localhost");
+        writeUrl({ params: written.searchParams, dseq });
+        return true;
+      });
+    }
 
     const UrlHost = () => {
       const [, setUrlVersion] = useState(0);
