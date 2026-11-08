@@ -128,4 +128,79 @@ describe(parseDeploymentIntent.name, () => {
     expect(intent.templateId).toBe("abc");
     expect(intent.userTemplateId).toBeUndefined();
   });
+  it("reads the template mode and drops the deploy-only params", () => {
+    const intent = parseDeploymentIntent({
+      dseqSegment: undefined,
+      searchParams: new URLSearchParams(
+        "templateMode=edit&userTemplateId=tpl-9&draftId=draft-1&templateId=abc&sdl-strategy=default&bid-strategy=auto&vm=true&exampleImage=true"
+      )
+    });
+
+    expect(intent).toEqual({
+      templateMode: "edit",
+      userTemplateId: "tpl-9",
+      draftId: "draft-1",
+      sdlStrategy: "edit",
+      bidStrategy: "select",
+      dseq: undefined,
+      vm: false,
+      exampleImage: false
+    });
+  });
+
+  it("falls back to a new template when edit mode names no template", () => {
+    const intent = parseDeploymentIntent({ dseqSegment: undefined, searchParams: new URLSearchParams("templateMode=edit&userTemplateId=") });
+
+    expect(intent.templateMode).toBe("new");
+    expect(intent.userTemplateId).toBeUndefined();
+  });
+
+  it("reads the template a new template is copied from", () => {
+    const intent = parseDeploymentIntent({
+      dseqSegment: undefined,
+      searchParams: new URLSearchParams("templateMode=new&copyFromTemplateId=tpl-1&copyFromVersion=3")
+    });
+
+    expect(intent).toMatchObject({ templateMode: "new", copyFromTemplateId: "tpl-1", copyFromVersion: 3 });
+  });
+
+  it.each(["", "0", "-1", "1.5", "two", "1e3"])("drops a copy naming the unusable version %j", version => {
+    const intent = parseDeploymentIntent({
+      dseqSegment: undefined,
+      searchParams: new URLSearchParams(`templateMode=new&copyFromTemplateId=tpl-1&copyFromVersion=${version}`)
+    });
+
+    expect(intent.copyFromTemplateId).toBeUndefined();
+    expect(intent.copyFromVersion).toBeUndefined();
+  });
+
+  it("drops a copy that names no template", () => {
+    const intent = parseDeploymentIntent({ dseqSegment: undefined, searchParams: new URLSearchParams("templateMode=new&copyFromVersion=2") });
+
+    expect(intent.copyFromTemplateId).toBeUndefined();
+    expect(intent.copyFromVersion).toBeUndefined();
+  });
+
+  it("ignores a copy outside new template mode", () => {
+    const edit = parseDeploymentIntent({
+      dseqSegment: undefined,
+      searchParams: new URLSearchParams("templateMode=edit&userTemplateId=tpl-9&copyFromTemplateId=tpl-1&copyFromVersion=3")
+    });
+    const deploy = parseDeploymentIntent({ dseqSegment: undefined, searchParams: new URLSearchParams("copyFromTemplateId=tpl-1&copyFromVersion=3") });
+
+    expect(edit.copyFromTemplateId).toBeUndefined();
+    expect(deploy.copyFromTemplateId).toBeUndefined();
+    expect(deploy.copyFromVersion).toBeUndefined();
+  });
+
+  it("opens no template mode for an unknown value", () => {
+    const intent = parseDeploymentIntent({
+      dseqSegment: undefined,
+      searchParams: new URLSearchParams("templateMode=publish&templateId=abc&sdl-strategy=default")
+    });
+
+    expect(intent.templateMode).toBeUndefined();
+    expect(intent.templateId).toBe("abc");
+    expect(intent.sdlStrategy).toBe("default");
+  });
 });

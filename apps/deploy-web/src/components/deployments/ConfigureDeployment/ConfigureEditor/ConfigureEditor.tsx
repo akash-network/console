@@ -28,6 +28,7 @@ type Props = {
   deploymentName: string;
   onDeploymentNameChange: (value: string) => void;
   toolbar: ReactNode;
+  title?: string;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -39,6 +40,7 @@ export const ConfigureEditor: FC<Props> = ({
   deploymentName,
   onDeploymentNameChange,
   toolbar,
+  title = "Deployment",
   dependencies: d = DEPENDENCIES
 }) => {
   const headingId = useId();
@@ -71,7 +73,7 @@ export const ConfigureEditor: FC<Props> = ({
     <section aria-labelledby={headingId} className="flex flex-col lg:h-full lg:min-h-0">
       <header className="flex h-[52px] shrink-0 items-center justify-between gap-2 border-b border-zinc-300 px-4 dark:border-zinc-700">
         <h2 id={headingId} tabIndex={-1} className="font-mono text-sm font-medium uppercase text-muted-foreground outline-none">
-          Deployment
+          {title}
         </h2>
         {toolbar}
       </header>

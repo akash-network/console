@@ -55,7 +55,19 @@ describe("SdlPreviewPane", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  function setup(input: { isOpen: boolean; sdl?: string }) {
+  it("shows a footer below the SDL when given one", () => {
+    setup({ isOpen: true, footer: "Secret values are never written into a template." });
+
+    expect(screen.getByText("Secret values are never written into a template.")).toBeInTheDocument();
+  });
+
+  it("shows no footer by default", () => {
+    const { container } = setup({ isOpen: true });
+
+    expect(container.querySelector("section")?.lastElementChild).toContainElement(screen.getByTestId("sdl-editor-mock"));
+  });
+
+  function setup(input: { isOpen: boolean; sdl?: string; footer?: string }) {
     const onOpen = vi.fn();
     const onClose = vi.fn();
     const SDLEditor = vi.fn(() => <div data-testid="sdl-editor-mock" />);
@@ -63,8 +75,10 @@ describe("SdlPreviewPane", () => {
       SDLEditor: SDLEditor as never
     };
 
-    render(<SdlPreviewPane sdl={input.sdl ?? ""} isOpen={input.isOpen} onOpen={onOpen} onClose={onClose} dependencies={dependencies} />);
+    const { container } = render(
+      <SdlPreviewPane sdl={input.sdl ?? ""} isOpen={input.isOpen} onOpen={onOpen} onClose={onClose} footer={input.footer} dependencies={dependencies} />
+    );
 
-    return { onOpen, onClose, SDLEditor };
+    return { onOpen, onClose, SDLEditor, container };
   }
 });

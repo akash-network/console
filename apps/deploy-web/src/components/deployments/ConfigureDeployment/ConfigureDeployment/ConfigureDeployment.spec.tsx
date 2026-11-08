@@ -11,6 +11,7 @@ import { useMarkAutoDeployStart, useTakeAutoDeployStart } from "@src/hooks/useAu
 import type { Activity } from "@src/queries/useLatestActivitiesQuery";
 import sdlStore from "@src/store/sdlStore";
 import type { ITemplate, TemplateCreation } from "@src/types";
+import type { MarketplaceTemplate, TemplateAskedValue, TemplateVersionDetail } from "@src/types/marketplace-template";
 import { helloWorldTemplate } from "@src/utils/templates";
 import type { DEPENDENCIES as GUARD_DEPENDENCIES, ResumeResolution } from "../ResumeDeploymentGuard/ResumeDeploymentGuard";
 import { ResumeDeploymentGuard as RealResumeDeploymentGuard } from "../ResumeDeploymentGuard/ResumeDeploymentGuard";
@@ -21,8 +22,20 @@ import { ConfigureDeployment } from "./ConfigureDeployment";
 
 import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
 import { buildActivity } from "@tests/seeders/activity";
+import { buildMarketplaceTemplate, buildTemplateVersion } from "@tests/seeders/userTemplate";
 
 const ASSISTANT_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx:alpine\n';
+
+const ASKED_MODEL: TemplateAskedValue = {
+  key: "MODEL",
+  label: "Model",
+  type: "text",
+  default: "gpt-4o-mini",
+  required: false,
+  bindings: [{ service: "web", env: "MODEL" }]
+};
+
+const NO_QUERY = { isLoading: false, isError: false, isSuccess: false, data: undefined };
 
 const SECRET_REFERENCE_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "API_KEY=ac-secret://API_KEY"\n';
 
@@ -766,6 +779,237 @@ describe(ConfigureDeployment.name, () => {
     );
   });
 
+  describe("in template mode", () => {
+    it("opens template mode only with template_marketplace on", () => {
+      const enabled = setup({ templateMode: "new", draftId: "imported", persistedSdl: ASSISTANT_SDL, isTemplateMarketplaceEnabled: true });
+
+      expect(enabled.ConfigureTemplateForm).toHaveBeenCalled();
+      expect(enabled.ConfigureTemplateForm.mock.lastCall?.[0]).toMatchObject({ initialSdl: ASSISTANT_SDL, askedValues: [], template: undefined });
+      expect(enabled.ConfigureTemplateForm.mock.lastCall?.[0].intent).toMatchObject({ templateMode: "new", draftId: "imported" });
+      expect(enabled.ConfigureDeploymentForm).not.toHaveBeenCalled();
+    });
+
+    it("opens the deploy form exactly as before with template_marketplace off", () => {
+      const { ConfigureTemplateForm, ConfigureDeploymentForm, useMarketplaceTemplate, useUserTemplate } = setup({
+        templateMode: "edit",
+        userTemplateId: "tpl-9",
+        userTemplate: { isLoading: false, isError: false, isSuccess: true, data: mock<ITemplate>({ sdl: ASSISTANT_SDL, title: "Mine" }) }
+      });
+
+      expect(ConfigureTemplateForm).not.toHaveBeenCalled();
+      expect(useMarketplaceTemplate).not.toHaveBeenCalled();
+      expect(useUserTemplate).toHaveBeenLastCalledWith("tpl-9");
+      const { intent } = ConfigureDeploymentForm.mock.lastCall?.[0] ?? {};
+      expect(intent?.templateMode).toBeUndefined();
+      expect(intent?.userTemplateId).toBe("tpl-9");
+    });
+
+    it("drops the copy from the deploy form's intent with template_marketplace off", () => {
+      const { useConfigureDraft } = setup({ templateMode: "new", copyFromTemplateId: "tpl-1", copyFromVersion: 2 });
+
+      const [intent] = useConfigureDraft.mock.lastCall ?? [];
+      expect(intent).not.toHaveProperty("templateMode");
+      expect(intent).not.toHaveProperty("copyFromTemplateId");
+      expect(intent).not.toHaveProperty("copyFromVersion");
+    });
+
+    it("never requests bids or creates a deployment in template mode", () => {
+      const editing = setup({ templateMode: "edit", userTemplateId: "tpl-9", isTemplateMarketplaceEnabled: true, marketplaceTemplate: editableTemplate() });
+
+      expect(editing.ConfigureTemplateForm).toHaveBeenCalled();
+      expect(editing.DeploymentFlowProvider).not.toHaveBeenCalled();
+      expect(editing.ResumeDeploymentGuard).not.toHaveBeenCalled();
+      expect(editing.AutoDeployFlow).not.toHaveBeenCalled();
+      expect(editing.ConfigureDeploymentForm).not.toHaveBeenCalled();
+      expect(editing.DeployTargetGate).not.toHaveBeenCalled();
+    });
+
+    it("never requests bids for a new template, holding it behind the project gate", () => {
+      const { ConfigureTemplateForm, DeploymentFlowProvider, ResumeDeploymentGuard, DeployTargetGate } = setup({
+        templateMode: "new",
+        isTemplateMarketplaceEnabled: true
+      });
+
+      expect(DeployTargetGate).toHaveBeenCalled();
+      expect(DeployTargetGate.mock.lastCall?.[0].filedDseq).toBeUndefined();
+      expect(ConfigureTemplateForm).toHaveBeenCalled();
+      expect(DeploymentFlowProvider).not.toHaveBeenCalled();
+      expect(ResumeDeploymentGuard).not.toHaveBeenCalled();
+    });
+
+    it("sends a non-editor from edit mode to the template page", () => {
+      const { ConfigureTemplateForm, router } = setup({
+        templateMode: "edit",
+        userTemplateId: "tpl-9",
+        isTemplateMarketplaceEnabled: true,
+        marketplaceTemplate: { isSuccess: true, data: buildMarketplaceTemplate({ id: "tpl-9", canEdit: false }) }
+      });
+
+      expect(router.replace).toHaveBeenCalledWith("/template/tpl-9");
+      expect(ConfigureTemplateForm).not.toHaveBeenCalled();
+    });
+
+    it("edits the template's current version with its asked values", () => {
+      const { ConfigureTemplateForm, useMarketplaceTemplate, router } = setup({
+        templateMode: "edit",
+        userTemplateId: "tpl-9",
+        isTemplateMarketplaceEnabled: true,
+        marketplaceTemplate: editableTemplate()
+      });
+
+      expect(useMarketplaceTemplate).toHaveBeenLastCalledWith("tpl-9");
+      expect(router.replace).not.toHaveBeenCalled();
+      const props = ConfigureTemplateForm.mock.lastCall?.[0];
+      expect(props).toMatchObject({ initialSdl: ASSISTANT_SDL, initialName: "Support chat", askedValues: [ASKED_MODEL] });
+      expect(props?.template?.id).toBe("tpl-9");
+      expect(props?.intent).toMatchObject({ templateMode: "edit", userTemplateId: "tpl-9", draftId: "minted-id" });
+    });
+
+    it("prefers the draft's SDL and name while keeping the template's asked values", () => {
+      const { ConfigureTemplateForm } = setup({
+        templateMode: "edit",
+        userTemplateId: "tpl-9",
+        persistedSdl: "restored: sdl",
+        persistedName: "draft-name",
+        isTemplateMarketplaceEnabled: true,
+        marketplaceTemplate: editableTemplate()
+      });
+
+      expect(ConfigureTemplateForm.mock.lastCall?.[0]).toMatchObject({ initialSdl: "restored: sdl", initialName: "draft-name", askedValues: [ASKED_MODEL] });
+    });
+
+    it("waits for the template before opening the editor", () => {
+      const { ConfigureTemplateForm } = setup({
+        templateMode: "edit",
+        userTemplateId: "tpl-9",
+        isTemplateMarketplaceEnabled: true,
+        marketplaceTemplate: { isLoading: true }
+      });
+
+      expect(screen.getByRole("status")).toBeInTheDocument();
+      expect(ConfigureTemplateForm).not.toHaveBeenCalled();
+    });
+
+    it("waits for a resumed draft before reading a copy", () => {
+      const { ConfigureTemplateForm, useTemplateVersion } = setup({
+        templateMode: "new",
+        copyFromTemplateId: "tpl-1",
+        copyFromVersion: 2,
+        isDraftLoading: true,
+        isTemplateMarketplaceEnabled: true
+      });
+
+      expect(screen.getByRole("status")).toBeInTheDocument();
+      expect(ConfigureTemplateForm).not.toHaveBeenCalled();
+      expect(useTemplateVersion).toHaveBeenLastCalledWith(undefined, undefined);
+    });
+
+    it("sends an unreadable template back to My templates", () => {
+      const { ConfigureTemplateForm, router, enqueueSnackbar } = setup({
+        templateMode: "edit",
+        userTemplateId: "tpl-9",
+        isTemplateMarketplaceEnabled: true,
+        marketplaceTemplate: { isError: true }
+      });
+
+      expect(router.replace).toHaveBeenCalledWith("/templates/mine");
+      expect(enqueueSnackbar.mock.lastCall?.[0].props).toMatchObject({ title: "Couldn't load the template" });
+      expect(enqueueSnackbar.mock.lastCall?.[1]).toEqual({ variant: "error" });
+      expect(ConfigureTemplateForm).not.toHaveBeenCalled();
+    });
+
+    it("starts a copy from the copied version", () => {
+      const { ConfigureTemplateForm, useTemplateVersion, enqueueSnackbar } = setup({
+        templateMode: "new",
+        copyFromTemplateId: "tpl-1",
+        copyFromVersion: 2,
+        isTemplateMarketplaceEnabled: true,
+        templateVersion: { isSuccess: true, data: buildTemplateVersion({ templateId: "tpl-1", version: 2, sdl: ASSISTANT_SDL, askedValues: [ASKED_MODEL] }) }
+      });
+
+      expect(useTemplateVersion).toHaveBeenLastCalledWith("tpl-1", 2);
+      expect(enqueueSnackbar).not.toHaveBeenCalled();
+      const props = ConfigureTemplateForm.mock.lastCall?.[0];
+      expect(props).toMatchObject({ initialSdl: ASSISTANT_SDL, askedValues: [ASKED_MODEL], template: undefined });
+      expect(props?.intent).toMatchObject({ templateMode: "new", copyFromTemplateId: "tpl-1", copyFromVersion: 2 });
+    });
+
+    it("waits for the copied version before opening the editor", () => {
+      const { ConfigureTemplateForm } = setup({
+        templateMode: "new",
+        copyFromTemplateId: "tpl-1",
+        copyFromVersion: 2,
+        isTemplateMarketplaceEnabled: true,
+        templateVersion: { isLoading: true }
+      });
+
+      expect(screen.getByRole("status")).toBeInTheDocument();
+      expect(ConfigureTemplateForm).not.toHaveBeenCalled();
+    });
+
+    it("starts a new template without the copy when the copied version cannot be read", () => {
+      const { ConfigureTemplateForm, enqueueSnackbar } = setup({
+        templateMode: "new",
+        copyFromTemplateId: "tpl-1",
+        copyFromVersion: 2,
+        isTemplateMarketplaceEnabled: true,
+        templateVersion: { isError: true }
+      });
+
+      expect(enqueueSnackbar.mock.lastCall?.[0].props).toMatchObject({
+        title: "Couldn't load the template",
+        subTitle: "Starting from a new template instead."
+      });
+      expect(enqueueSnackbar.mock.lastCall?.[1]).toEqual({ variant: "error" });
+      const props = ConfigureTemplateForm.mock.lastCall?.[0];
+      expect(props?.initialSdl).toBeUndefined();
+      expect(props?.intent).not.toHaveProperty("copyFromTemplateId");
+    });
+
+    it("keeps a restored copy's origin without reading the copied version again", () => {
+      const { ConfigureTemplateForm, useTemplateVersion } = setup({
+        templateMode: "new",
+        copyFromTemplateId: "tpl-1",
+        copyFromVersion: 2,
+        persistedSdl: "restored: sdl",
+        isTemplateMarketplaceEnabled: true
+      });
+
+      expect(useTemplateVersion).toHaveBeenLastCalledWith(undefined, undefined);
+      const props = ConfigureTemplateForm.mock.lastCall?.[0];
+      expect(props).toMatchObject({ initialSdl: "restored: sdl", askedValues: [] });
+      expect(props?.intent).toMatchObject({ copyFromTemplateId: "tpl-1", copyFromVersion: 2 });
+    });
+
+    it("starts the screen over when the URL names another draft", () => {
+      const { ConfigureTemplateForm, openUrl } = setup({
+        templateMode: "new",
+        draftId: "first-draft",
+        drafts: { "first-draft": { sdl: "first: sdl" }, "second-draft": { sdl: "second: sdl" } },
+        isTemplateMarketplaceEnabled: true
+      });
+
+      openUrl({ draftId: "second-draft", templateMode: "new" });
+
+      expect(ConfigureTemplateForm.mock.lastCall?.[0]).toMatchObject({
+        initialSdl: "second: sdl",
+        intent: expect.objectContaining({ draftId: "second-draft" })
+      });
+    });
+  });
+
+  function editableTemplate() {
+    return {
+      isSuccess: true,
+      data: buildMarketplaceTemplate({
+        id: "tpl-9",
+        title: "Support chat",
+        canEdit: true,
+        currentVersion: buildTemplateVersion({ templateId: "tpl-9", version: 4, sdl: ASSISTANT_SDL, askedValues: [ASKED_MODEL] })
+      })
+    };
+  }
+
   function setup(input: {
     templateId?: string | null;
     sdlStrategy?: string;
@@ -788,6 +1032,12 @@ describe(ConfigureDeployment.name, () => {
     drafts?: Record<string, { sdl: string; name?: string }>;
     chain?: { deployments: Record<string, ChainDeploymentRead>; activities: Activity[] };
     writesMintedDraftIdToUrl?: boolean;
+    templateMode?: "new" | "edit";
+    copyFromTemplateId?: string;
+    copyFromVersion?: number;
+    isTemplateMarketplaceEnabled?: boolean;
+    marketplaceTemplate?: { isLoading?: boolean; isError?: boolean; isSuccess?: boolean; data?: MarketplaceTemplate };
+    templateVersion?: { isLoading?: boolean; isError?: boolean; isSuccess?: boolean; data?: TemplateVersionDetail };
   }) {
     const store = createStore();
     store.set(sdlStore.deploySdl, input.deploySdl ?? null);
@@ -808,6 +1058,10 @@ describe(ConfigureDeployment.name, () => {
       input.deployButtonInForm ? <DeployButtonInForm templateId={input.deployButtonInForm} /> : <div data-testid="form-mock" />
     );
     const AutoDeployFlow = vi.fn<typeof DEPENDENCIES.AutoDeployFlow>(() => <div data-testid="auto-mock" />);
+    const ConfigureTemplateForm = vi.fn<typeof DEPENDENCIES.ConfigureTemplateForm>(() => <div data-testid="template-form-mock" />);
+    const useMarketplaceTemplate = vi.fn(() => ({ ...NO_QUERY, ...input.marketplaceTemplate }) as never);
+    const useTemplateVersion = vi.fn(() => ({ ...NO_QUERY, ...input.templateVersion }) as never);
+    const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>();
     const DeploymentFlowProvider = vi.fn(function FlowProviderMock({ children }) {
       const [flow] = useState(() => mock<DeploymentFlow>({ phase: "configuring", dseq: null, pendingClose: null, ...input.flow }));
       return <>{children({ flow })}</>;
@@ -848,6 +1102,10 @@ describe(ConfigureDeployment.name, () => {
     if (input.vm) query.vm = "true";
     if (input.exampleImage) query.exampleImage = "true";
     if (input.drafts && input.draftId) query.draftId = input.draftId;
+    if (input.templateMode) query.templateMode = input.templateMode;
+    if (input.templateMode && input.draftId) query.draftId = input.draftId;
+    if (input.copyFromTemplateId) query.copyFromTemplateId = input.copyFromTemplateId;
+    if (input.copyFromVersion) query.copyFromVersion = String(input.copyFromVersion);
     let params = new URLSearchParams(query);
     let dseq = input.dseq;
 
@@ -877,11 +1135,16 @@ describe(ConfigureDeployment.name, () => {
       NextSeo: vi.fn(() => null) as never,
       AutoDeployFlow: AutoDeployFlow as never,
       ConfigureDeploymentForm: ConfigureDeploymentForm as never,
+      ConfigureTemplateForm: ConfigureTemplateForm as never,
       DeploymentFlowProvider: DeploymentFlowProvider as never,
       ResumeDeploymentGuard: ResumeDeploymentGuard as never,
       DeployTargetGate,
       usePublicTemplate: usePublicTemplate as never,
       useUserTemplate: useUserTemplate as never,
+      useMarketplaceTemplate: useMarketplaceTemplate as never,
+      useTemplateVersion: useTemplateVersion as never,
+      useFlag: flag => flag === "template_marketplace" && !!input.isTemplateMarketplaceEnabled,
+      useRouter: () => router,
       useConfigureDraft: useConfigureDraft as never,
       useTakeAutoDeployStart,
       useSearchParams: () => params as unknown as ReadonlyURLSearchParams,
@@ -924,8 +1187,8 @@ describe(ConfigureDeployment.name, () => {
       rerender(renderScreen());
     };
 
-    const openUrl = (next: { dseq?: string; draftId?: string }) => {
-      params = new URLSearchParams(next.draftId ? { draftId: next.draftId } : {});
+    const openUrl = (next: { dseq?: string; draftId?: string; templateMode?: string }) => {
+      params = new URLSearchParams({ ...(next.draftId ? { draftId: next.draftId } : {}), ...(next.templateMode ? { templateMode: next.templateMode } : {}) });
       dseq = next.dseq;
       rerender(renderScreen());
     };
@@ -943,6 +1206,10 @@ describe(ConfigureDeployment.name, () => {
 
     return {
       ConfigureDeploymentForm,
+      ConfigureTemplateForm,
+      useMarketplaceTemplate,
+      useTemplateVersion,
+      router,
       AutoDeployFlow,
       DeploymentFlowProvider,
       usePublicTemplate,

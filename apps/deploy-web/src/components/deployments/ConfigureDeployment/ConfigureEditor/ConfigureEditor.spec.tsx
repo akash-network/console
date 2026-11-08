@@ -21,6 +21,13 @@ describe(ConfigureEditor.name, () => {
     expect(screen.getByText("toolbar")).toBeInTheDocument();
   });
 
+  it("names the editor after what it configures", () => {
+    setup({ title: "Template" });
+
+    expect(screen.getByRole("heading", { name: "Template" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Deployment" })).not.toBeInTheDocument();
+  });
+
   it("hands every placement to the tabs with its status and the active one", () => {
     const { tabsProps } = setup({ activePlacementId: "p2" });
 
@@ -108,7 +115,7 @@ describe(ConfigureEditor.name, () => {
     expect(addedServiceId).toBe("worker");
   });
 
-  function setup(input: { selectedServiceId?: string; activePlacementId?: string }) {
+  function setup(input: { selectedServiceId?: string; activePlacementId?: string; title?: string }) {
     const placements = [placement("p1", "placement-1"), placement("p2", "placement-2")];
     const servicesByPlacement: Record<string, IndexedService[]> = {
       p1: [indexed("web", "p1", 0), indexed("api", "p1", 1)],
@@ -147,6 +154,7 @@ describe(ConfigureEditor.name, () => {
           deploymentName="my-app"
           onDeploymentNameChange={vi.fn()}
           toolbar={<span>toolbar</span>}
+          title={input.title}
           dependencies={dependencies}
         />
       </Wrapper>

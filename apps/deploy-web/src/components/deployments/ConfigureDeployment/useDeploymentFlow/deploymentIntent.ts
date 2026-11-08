@@ -1,5 +1,6 @@
 export type SdlStrategy = "default" | "edit";
 export type BidStrategy = "auto" | "select";
+export type TemplateMode = "new" | "edit";
 
 export interface DeploymentIntent {
   templateId?: string;
@@ -14,6 +15,11 @@ export interface DeploymentIntent {
   vm: boolean;
   /** Onboarding's Deploy image entry (`?exampleImage=true`): the form seeds a working example image instead of a blank one. */
   exampleImage?: boolean;
+  /** Authoring a template (`?templateMode=`) rather than deploying: `edit` saves a new version of `userTemplateId`. */
+  templateMode?: TemplateMode;
+  /** A new template copied from this template's `copyFromVersion`. */
+  copyFromTemplateId?: string;
+  copyFromVersion?: number;
 }
 
 interface ParseInput {
@@ -34,6 +40,31 @@ interface ParseInput {
  * only changes the blank default, so a `vm` entry, which seeds its own service, drops it.
  */
 export function parseDeploymentIntent({ dseqSegment, searchParams }: ParseInput): DeploymentIntent {
+  const templateMode = toTemplateMode(searchParams.get("templateMode"));
+  return templateMode ? parseTemplateIntent(templateMode, dseqSegment, searchParams) : parseDeployIntent(dseqSegment, searchParams);
+}
+
+/** Authoring never deploys, so a template intent carries none of the params that choose what or how to deploy. */
+function parseTemplateIntent(requestedMode: TemplateMode, dseqSegment: string | undefined, searchParams: URLSearchParams): DeploymentIntent {
+  const userTemplateId = searchParams.get("userTemplateId") || undefined;
+  const copyFromTemplateId = searchParams.get("copyFromTemplateId") || undefined;
+  const copyFromVersion = toVersion(searchParams.get("copyFromVersion"));
+  const modeFields =
+    requestedMode === "edit" && userTemplateId
+      ? { templateMode: requestedMode, userTemplateId }
+      : { templateMode: "new" as const, ...(copyFromTemplateId && copyFromVersion ? { copyFromTemplateId, copyFromVersion } : {}) };
+  return {
+    ...modeFields,
+    sdlStrategy: "edit",
+    bidStrategy: "select",
+    dseq: dseqSegment || undefined,
+    draftId: searchParams.get("draftId") || undefined,
+    vm: false,
+    exampleImage: false
+  };
+}
+
+function parseDeployIntent(dseqSegment: string | undefined, searchParams: URLSearchParams): DeploymentIntent {
   const vm = searchParams.get("vm") === "true";
   const templateId = vm ? undefined : searchParams.get("templateId") ?? undefined;
   const userTemplateId = vm || templateId ? undefined : searchParams.get("userTemplateId") || undefined;
@@ -42,6 +73,14 @@ export function parseDeploymentIntent({ dseqSegment, searchParams }: ParseInput)
   const draftId = searchParams.get("draftId") || undefined;
   const exampleImage = !vm && searchParams.get("exampleImage") === "true";
   return { templateId, userTemplateId, sdlStrategy, bidStrategy, dseq: dseqSegment || undefined, draftId, vm, exampleImage };
+}
+
+function toTemplateMode(value: string | null): TemplateMode | undefined {
+  return value === "new" || value === "edit" ? value : undefined;
+}
+
+function toVersion(value: string | null): number | undefined {
+  return value && /^[1-9]\d*$/.test(value) ? Number(value) : undefined;
 }
 
 /** Narrows the raw `sdl-strategy` param to the union, defaulting to `edit`. */
