@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
 import Stripe from "stripe";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { AUTO_RECHARGE_METADATA_KEY } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import {
@@ -17,14 +17,14 @@ import { createTestPaymentIntent } from "@test/seeders/stripe-test-data.seeder";
 describe(PaymentRefusalService.name, () => {
   describe("findRecentRefusals", () => {
     it("lists the customer's payments made within the refusal window", async () => {
-      const { service, stripe, customerId } = setup({ paymentIntents: [] });
-      const windowStartsAt = Math.floor((Date.now() - REFUSAL_WINDOW_MS) / 1000);
+      const now = new Date("2026-11-08T12:00:00.500Z");
+      const { service, stripe, customerId } = setup({ paymentIntents: [], now });
 
       await service.findRecentRefusals(customerId);
 
       expect(stripe.paymentIntents.list).toHaveBeenCalledWith({
         customer: customerId,
-        created: { gt: expect.closeTo(windowStartsAt, 0) },
+        created: { gt: Math.floor((now.getTime() - REFUSAL_WINDOW_MS) / 1000) },
         limit: 100
       });
     });
@@ -152,10 +152,9 @@ describe(PaymentRefusalService.name, () => {
 
     it("pauses payments until the earliest of the latest refusals leaves the window", async () => {
       const refusalAges = Array.from({ length: MAX_REFUSALS_PER_WINDOW + 1 }, (_, index) => 60 * (index + 1));
-      const { service, customerId } = setup({
-        paymentIntents: refusalAges.map(age => refused({ paymentMethodId: `pm_${faker.string.alphanumeric(10)}`, secondsAgo: age }))
-      });
-      const earliestCountedRefusalAt = secondsAgo(refusalAges[MAX_REFUSALS_PER_WINDOW - 1]) * 1000;
+      const paymentIntents = refusalAges.map(age => refused({ paymentMethodId: `pm_${faker.string.alphanumeric(10)}`, secondsAgo: age }));
+      const { service, customerId } = setup({ paymentIntents });
+      const earliestCountedRefusalAt = paymentIntents[MAX_REFUSALS_PER_WINDOW - 1].created * 1000;
 
       const { pausedUntil } = await service.findRecentRefusals(customerId);
 
@@ -256,7 +255,13 @@ describe(PaymentRefusalService.name, () => {
     });
   }
 
-  function setup(input: { paymentIntents: Stripe.PaymentIntent[] }) {
+  function setup(input: { paymentIntents: Stripe.PaymentIntent[]; now?: Date }) {
+    if (input.now) {
+      vi.useFakeTimers({ now: input.now, toFake: ["Date"] });
+      onTestFinished(() => {
+        vi.useRealTimers();
+      });
+    }
     const stripe = new Stripe(`sk_test_${faker.string.alphanumeric(32)}`, { apiVersion: "2025-10-29.clover", httpClient: Stripe.createFetchHttpClient() });
     vi.spyOn(stripe.paymentIntents, "list").mockResolvedValue({
       object: "list",

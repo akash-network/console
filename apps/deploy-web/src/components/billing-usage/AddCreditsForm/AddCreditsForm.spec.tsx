@@ -2232,10 +2232,12 @@ describe(AddCreditsForm.name, () => {
 
     it("releases the form without an error and reloads the recent refusals when the API pauses payments", async () => {
       const invalidateQueries = vi.fn();
+      const refreshPaymentMethods = vi.fn().mockResolvedValue(undefined);
       const handleStripeError = vi.fn(() => ({ message: "fallback", userAction: undefined }));
       setup({
         status: "idle",
         invalidateQueries,
+        refreshPaymentMethods,
         handleStripeError,
         confirmPayment: vi.fn().mockRejectedValue({ response: { status: 429, data: { code: "payments_paused" } } }),
         paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })]
@@ -2245,9 +2247,28 @@ describe(AddCreditsForm.name, () => {
 
       expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["v1", "listPaymentMethodRefusals"] });
       expect(handleStripeError).not.toHaveBeenCalled();
+      expect(refreshPaymentMethods).not.toHaveBeenCalled();
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: /4242/ })).toHaveAttribute("aria-pressed", "true");
       expect(screen.getByRole("button", { name: /purchase credits/i })).toBeEnabled();
+    });
+
+    it("refreshes the payment methods when the API pauses payments after a new card was saved", async () => {
+      const refreshPaymentMethods = vi.fn().mockResolvedValue(undefined);
+      const addPaymentMethod = vi.fn().mockResolvedValue({ paymentMethodId: "pm_new" });
+      const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
+      setup({
+        status: "success",
+        clientSecret: "seti_secret",
+        refreshPaymentMethods,
+        confirmPayment: vi.fn().mockRejectedValue({ response: { status: 429, data: { code: "payments_paused" } } }),
+        dependencies: { AddCreditsNewPaymentMethodFields }
+      });
+
+      await submitWithAmount("100");
+
+      expect(refreshPaymentMethods).toHaveBeenCalled();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
 
     it("reloads the recent refusals after the bank declines a saved card", async () => {

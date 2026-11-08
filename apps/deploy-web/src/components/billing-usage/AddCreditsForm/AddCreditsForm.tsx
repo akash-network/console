@@ -412,8 +412,9 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
   const stopForPausedPayments = useCallback(() => {
     setCharge(null);
     setIsProcessing(false);
+    if (confirmedNewCardRef.current) refreshPaymentMethods();
     refreshRecentRefusals();
-  }, [refreshRecentRefusals]);
+  }, [refreshPaymentMethods, refreshRecentRefusals]);
 
   const moveOffRefusedMethod = useCallback(() => {
     finalizeFailure(BANK_REFUSED_MESSAGE);
