@@ -43,6 +43,28 @@ describe(FeedbackThemeAssignmentService.name, () => {
     });
   });
 
+  describe("nameNewTheme", () => {
+    it("asks the model to name a theme for the item with no existing theme to join", async () => {
+      const { service, akashMlClient } = setup();
+      akashMlClient.completeJson.mockResolvedValue({ themeKey: null, title: "Logs missing", summary: "The logs page shows nothing" });
+
+      expect(await service.nameNewTheme(ITEM)).toEqual({ title: "Logs missing", summary: "The logs page shows nothing" });
+      expect(akashMlClient.completeJson).toHaveBeenCalledWith({
+        model: "classifier-model",
+        messages: buildThemeMatchMessages(ITEM, []),
+        schema: THEME_MATCH_SCHEMA,
+        temperature: 0
+      });
+    });
+
+    it("names the theme after the item when the model proposes no title", async () => {
+      const { service, akashMlClient } = setup();
+      akashMlClient.completeJson.mockResolvedValue({ themeKey: null, title: null, summary: null });
+
+      expect(await service.nameNewTheme(ITEM)).toEqual({ title: ITEM.summary, summary: ITEM.summary });
+    });
+  });
+
   describe("themeIdFor", () => {
     it("answers the theme a matched one now resolves to", async () => {
       const { service, feedbackThemeRepository } = setup();

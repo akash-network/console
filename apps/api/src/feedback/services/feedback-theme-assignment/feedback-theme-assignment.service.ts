@@ -3,6 +3,7 @@ import { inject, singleton } from "tsyringe";
 import {
   buildThemeMatchMessages,
   type ItemToMatch,
+  type NewTheme,
   newThemeFrom,
   resolveThemeMatch,
   THEME_MATCH_SCHEMA,
@@ -35,6 +36,18 @@ export class FeedbackThemeAssignmentService {
     });
 
     return resolveThemeMatch(output, item, candidates);
+  }
+
+  /** Asks the model for the title and summary of a theme the item starts, by offering it no existing theme to join. */
+  async nameNewTheme(item: ItemToMatch): Promise<NewTheme> {
+    const output = await this.akashMlClient.completeJson({
+      model: this.config.FEEDBACK_CLASSIFIER_MODEL,
+      messages: buildThemeMatchMessages(item, []),
+      schema: THEME_MATCH_SCHEMA,
+      temperature: 0
+    });
+
+    return newThemeFrom(item, output);
   }
 
   /** Follows merges made since the match, and starts a theme from the item when the matched one no longer leads anywhere. */
