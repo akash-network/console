@@ -50,78 +50,55 @@ export const Memoize = (options?: MemoizeOptions) => (target: object, propertyNa
   };
 };
 
+const MAX_STALE_WINDOW_SECONDS = 5 * 60;
+
+function getMaxAgeInSeconds(ttlInSeconds: number) {
+  return ttlInSeconds + Math.min(ttlInSeconds, MAX_STALE_WINDOW_SECONDS);
+}
+
+/** Past its max age an entry counts as missing: callers wait for the refresh and get its error if it fails, as on an empty cache. */
 export async function cacheResponse<T>(seconds: number, key: string, refreshRequest: () => Promise<T>, store: MemoryCacheEngine = cacheEngine): Promise<T> {
   const cachedObject = store.getFromCache<CachedObject<T>>(key);
   logger.debug(`Request for key: ${key}`);
 
-  const hasCachedData = cachedObject !== undefined;
-
-  // Check if cached data is still valid (only if we have cached data)
-  let isExpired = true;
-  if (hasCachedData) {
-    const timeDiff = differenceInSeconds(new Date(), cachedObject.date);
-    isExpired = timeDiff >= seconds;
+  if (cachedObject === undefined) {
+    logger.debug(`No cached data, making new request for key: ${key}`);
+    return await getOrStartRefresh(key, refreshRequest, store);
   }
 
-  // If we have cached data (valid or expired), return it immediately
-  if (hasCachedData) {
-    logger.debug(`Returning cached object for key: ${key} (expired: ${isExpired})`);
+  const ageInSeconds = differenceInSeconds(new Date(), cachedObject.date);
 
-    // If data is expired and there's no pending request, start background refresh
-    if (isExpired && !pendingRequests.has(key)) {
-      logger.debug(`Starting background refresh for key: ${key}`);
-
-      // Start background refresh
-      const pendingRequest = refreshRequest()
-        .then(data => {
-          logger.debug(`Background refresh completed for key: ${key}`);
-          // Only store in cache if we have valid data
-          if (data !== undefined) {
-            store.storeInCache(key, { date: new Date(), data: data }, undefined, getExplicitSizeBytes(data));
-          }
-          return data;
-        })
-        .catch(err => {
-          logger.error({ message: `Error making background cache refresh`, error: err });
-          // Return the current cached data on error to maintain consistency
-          return cachedObject.data;
-        })
-        .finally(() => {
-          pendingRequests.delete(key);
-          logger.debug(`Removed pending request for key: ${key}`);
-        });
-
-      pendingRequests.set(key, pendingRequest);
-    }
-
-    // Return the cached data immediately (whether valid or expired)
-    return cachedObject.data;
+  if (ageInSeconds >= getMaxAgeInSeconds(seconds)) {
+    logger.debug(`Cached object past its max age, waiting for a refresh for key: ${key}`);
+    return await getOrStartRefresh(key, refreshRequest, store);
   }
 
-  // If no cached data exists, make the request and wait for it
-  logger.debug(`No cached data, making new request for key: ${key}`);
-
-  // Get or create the pending request promise
-  let pendingRequest = pendingRequests.get(key) as Promise<T> | undefined;
-  if (!pendingRequest) {
-    pendingRequest = refreshRequest()
-      .then(data => {
-        logger.debug(`New request completed for key: ${key}`);
-        // Only store in cache if we have valid data
-        if (data !== undefined) {
-          store.storeInCache(key, { date: new Date(), data: data }, undefined, getExplicitSizeBytes(data));
-        }
-        return data;
-      })
-      .finally(() => {
-        pendingRequests.delete(key);
-        logger.debug(`Removed pending request for key: ${key}`);
-      });
-
-    pendingRequests.set(key, pendingRequest);
+  if (ageInSeconds >= seconds && !pendingRequests.has(key)) {
+    logger.debug(`Starting background refresh for key: ${key}`);
+    getOrStartRefresh(key, refreshRequest, store).catch(error => logger.error({ message: `Error making background cache refresh`, error }));
   }
 
-  return await pendingRequest;
+  return cachedObject.data;
+}
+
+function getOrStartRefresh<T>(key: string, refreshRequest: () => Promise<T>, store: MemoryCacheEngine): Promise<T> {
+  const pendingRequest = pendingRequests.get(key) as Promise<T> | undefined;
+  if (pendingRequest) return pendingRequest;
+
+  const request = refreshRequest()
+    .then(data => {
+      logger.debug(`Refresh completed for key: ${key}`);
+      if (data !== undefined) {
+        store.storeInCache(key, { date: new Date(), data }, undefined, getExplicitSizeBytes(data));
+      }
+      return data;
+    })
+    .finally(() => {
+      pendingRequests.delete(key);
+    });
+  pendingRequests.set(key, request);
+
+  return request;
 }
 
 export function memoizeAsync<A extends unknown[], R>(
