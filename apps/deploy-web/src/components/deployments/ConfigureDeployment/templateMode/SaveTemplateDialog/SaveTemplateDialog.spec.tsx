@@ -26,15 +26,22 @@ describe(SaveTemplateDialog.name, () => {
   });
 
   it("prefills the title from the deployment name", () => {
-    setup({ initialTitle: "support-bot" });
+    setup({ initialTitle: "support-bot", isTitleFromDeployment: true });
 
     expect(screen.getByRole("textbox", { name: "Title" })).toHaveValue("support-bot");
     expect(screen.getByText("From the deployment name")).toBeInTheDocument();
     expect(screen.getByText("11 / 80")).toBeInTheDocument();
   });
 
+  it("credits no deployment for a name typed in the editor", () => {
+    setup({ initialTitle: "my-template" });
+
+    expect(screen.getByRole("textbox", { name: "Title" })).toHaveValue("my-template");
+    expect(screen.queryByText("From the deployment name")).not.toBeInTheDocument();
+  });
+
   it("stops crediting the deployment name once the title is changed", () => {
-    setup({ initialTitle: "support-bot" });
+    setup({ initialTitle: "support-bot", isTitleFromDeployment: true });
 
     fireEvent.change(screen.getByRole("textbox", { name: "Title" }), { target: { value: "Support chat" } });
 
@@ -140,15 +147,26 @@ describe(SaveTemplateDialog.name, () => {
     expect(onSave).not.toHaveBeenCalled();
   });
 
-  it("goes back to the configuration keeping what was typed", () => {
-    const { onClose, rerender } = setup({});
+  it("goes back to the configuration keeping the summary and restarts the title from the current name", () => {
+    const { onClose, rerender } = setup({ initialTitle: "support-bot" });
 
     fireEvent.change(screen.getByRole("textbox", { name: "Title" }), { target: { value: "Support chat" } });
+    fireEvent.change(screen.getByRole("textbox", { name: /Summary/ }), { target: { value: "Chat with models" } });
     fireEvent.click(screen.getByRole("button", { name: "Back to configuration" }));
-    rerender({ open: false });
-    rerender({ open: true });
+    rerender({ open: false, initialTitle: "support-bot-v2" });
+    rerender({ open: true, initialTitle: "support-bot-v2" });
 
     expect(onClose).toHaveBeenCalled();
+    expect(screen.getByRole("textbox", { name: "Title" })).toHaveValue("support-bot-v2");
+    expect(screen.getByRole("textbox", { name: /Summary/ })).toHaveValue("Chat with models");
+  });
+
+  it("keeps the title while it stays open", () => {
+    const { rerender } = setup({ initialTitle: "support-bot" });
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Title" }), { target: { value: "Support chat" } });
+    rerender({ open: true, initialTitle: "support-bot-v2" });
+
     expect(screen.getByRole("textbox", { name: "Title" })).toHaveValue("Support chat");
   });
 
@@ -191,6 +209,7 @@ describe(SaveTemplateDialog.name, () => {
   function setup(input: {
     open?: boolean;
     initialTitle?: string;
+    isTitleFromDeployment?: boolean;
     projectName?: string;
     sourceName?: string;
     askedValues?: TemplateAskedValue[];
@@ -205,10 +224,11 @@ describe(SaveTemplateDialog.name, () => {
       const service = defaultServiceWithPlacement().services[0];
       return { ...service, id: title, title, count: 1, profile: { ...service.profile, cpu: 1, ram: 1, ramUnit: "Gi", storage: [] } };
     });
-    const renderDialog = (open: boolean) => (
+    const renderDialog = (open: boolean, initialTitle = input.initialTitle) => (
       <SaveTemplateDialog
         open={open}
-        initialTitle={input.initialTitle}
+        initialTitle={initialTitle}
+        isTitleFromDeployment={input.isTitleFromDeployment}
         projectName={input.projectName}
         sourceName={input.sourceName}
         askedValues={input.askedValues ?? []}
@@ -222,7 +242,7 @@ describe(SaveTemplateDialog.name, () => {
     );
 
     const view = render(renderDialog(input.open ?? true));
-    const rerender = (next: { open: boolean }) => view.rerender(renderDialog(next.open));
+    const rerender = (next: { open: boolean; initialTitle?: string }) => view.rerender(renderDialog(next.open, next.initialTitle ?? input.initialTitle));
 
     return { onSave, onClose, rerender };
   }

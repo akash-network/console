@@ -1,64 +1,89 @@
-import mitt from "next/dist/shared/lib/mitt";
-import type { NextRouter } from "next/router";
-import { describe, expect, it, onTestFinished, vi } from "vitest";
+import type { usePopup } from "@akashnetwork/ui/context";
+import type { NavigationGuard, useNavigationGuard as useNavigationGuardLibrary } from "next-navigation-guard";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { useNavigationGuard } from "@src/hooks/useNavigationGuard/useNavigationGuard";
 import type { DEPENDENCIES } from "./useConfirmLeave";
 import { useConfirmLeave } from "./useConfirmLeave";
 
 import { renderHook } from "@testing-library/react";
 
+type NavigationGuardOptions = Parameters<typeof useNavigationGuardLibrary>[0];
+type NavigationGuardParams = Parameters<NavigationGuard>[0];
+
 const MESSAGE = "Leave without saving? Your changes to this template will be lost.";
 
 describe(useConfirmLeave.name, () => {
-  it("asks before leaving with unsaved changes and stays when refused", () => {
-    const { confirm, events, routeChangeErrors } = setup({ isDirty: true, confirms: false });
+  it("asks before leaving with unsaved changes and stays when refused", async () => {
+    const { attemptNavigation, confirm } = setup({ isDirty: true, confirms: false });
 
-    expect(() => events.emit("routeChangeStart", "/templates/mine", { shallow: false })).toThrow();
+    const isAllowed = await attemptNavigation({ to: "/templates/mine", type: "push" });
+
     expect(confirm).toHaveBeenCalledWith(MESSAGE);
-    expect(routeChangeErrors).toHaveBeenCalledWith(expect.anything(), "/templates/mine", { shallow: false });
+    expect(isAllowed).toBe(false);
   });
 
-  it("leaves when the author confirms", () => {
-    const { confirm, events, routeChangeErrors } = setup({ isDirty: true, confirms: true });
+  it("leaves when the author confirms", async () => {
+    const { attemptNavigation } = setup({ isDirty: true, confirms: true });
 
-    expect(() => events.emit("routeChangeStart", "/templates/mine", { shallow: false })).not.toThrow();
-    expect(confirm).toHaveBeenCalledWith(MESSAGE);
-    expect(routeChangeErrors).not.toHaveBeenCalled();
+    expect(await attemptNavigation({ to: "/templates/mine", type: "push" })).toBe(true);
   });
 
-  it("lets a saved template leave without asking", () => {
-    const { confirm, events, rerender } = setup({ isDirty: true, confirms: false });
+  it("asks before going back", async () => {
+    const { attemptNavigation, confirm } = setup({ isDirty: true, confirms: false });
+
+    expect(await attemptNavigation({ to: "/deployments/12", type: "popstate" })).toBe(false);
+    expect(confirm).toHaveBeenCalledWith(MESSAGE);
+  });
+
+  it("lets a saved template leave without asking", async () => {
+    const { attemptNavigation, confirm, rerender } = setup({ isDirty: true, confirms: false });
 
     rerender({ isDirty: false });
 
-    expect(() => events.emit("routeChangeStart", "/template/tpl-1", { shallow: false })).not.toThrow();
+    expect(await attemptNavigation({ to: "/template/tpl-1", type: "push" })).toBe(true);
     expect(confirm).not.toHaveBeenCalled();
   });
 
-  it("lets the page leave once leaving is allowed, before it rerenders as saved", () => {
-    const { confirm, events, result } = setup({ isDirty: true, confirms: false });
+  it("lets the page leave once leaving is allowed, before it rerenders as saved", async () => {
+    const { attemptNavigation, confirm, result } = setup({ isDirty: true, confirms: false });
 
-    result.current();
+    result.current.allowLeaving();
 
-    expect(() => events.emit("routeChangeStart", "/template/tpl-1", { shallow: false })).not.toThrow();
+    expect(await attemptNavigation({ to: "/template/tpl-1", type: "push" })).toBe(true);
     expect(confirm).not.toHaveBeenCalled();
   });
 
-  it("never asks about a shallow URL rewrite", () => {
-    const { confirm, events } = setup({ isDirty: true, confirms: false });
+  it("asks again once the allowed navigation did not happen", async () => {
+    const { attemptNavigation, confirm, result } = setup({ isDirty: true, confirms: false });
 
-    expect(() => events.emit("routeChangeStart", "/new-deployment/configure?templateMode=new&draftId=d1", { shallow: true })).not.toThrow();
+    result.current.allowLeaving();
+    result.current.askBeforeLeaving();
+
+    expect(await attemptNavigation({ to: "/template/tpl-1", type: "push" })).toBe(false);
+    expect(confirm).toHaveBeenCalledWith(MESSAGE);
+  });
+
+  it("never asks about this page rewriting its own URL", async () => {
+    const { attemptNavigation, confirm } = setup({ isDirty: true, confirms: false });
+
+    expect(await attemptNavigation({ to: `${window.location.pathname}?templateMode=new&draftId=d1`, type: "replace" })).toBe(true);
     expect(confirm).not.toHaveBeenCalled();
   });
 
-  it("stops asking once unmounted", () => {
-    const { confirm, events, unmount } = setup({ isDirty: true, confirms: false });
+  it("asks about a push onto this page, which starts another session", async () => {
+    const { attemptNavigation, confirm } = setup({ isDirty: true, confirms: false });
 
-    unmount();
+    expect(await attemptNavigation({ to: `${window.location.pathname}?templateMode=new`, type: "push" })).toBe(false);
+    expect(confirm).toHaveBeenCalled();
+  });
 
-    expect(() => events.emit("routeChangeStart", "/templates/mine", { shallow: false })).not.toThrow();
-    expect(confirm).not.toHaveBeenCalled();
+  it("asks about replacing this page with another", async () => {
+    const { attemptNavigation, confirm } = setup({ isDirty: true, confirms: false });
+
+    expect(await attemptNavigation({ to: "/templates/mine", type: "replace" })).toBe(false);
+    expect(confirm).toHaveBeenCalled();
   });
 
   it("warns before the page unloads only while there are unsaved changes", () => {
@@ -72,21 +97,26 @@ describe(useConfirmLeave.name, () => {
   });
 
   function setup(input: { isDirty: boolean; confirms: boolean }) {
-    const events = mitt();
-    const routeChangeErrors = vi.fn();
-    events.on("routeChangeError", routeChangeErrors);
-    const router = mock<NextRouter>({ events });
-    const confirm = vi.fn(() => input.confirms);
-    const originalConfirm = window.confirm;
-    window.confirm = confirm;
-    onTestFinished(() => {
-      window.confirm = originalConfirm;
-    });
+    let guard: NavigationGuardOptions = {};
+    const confirm = vi.fn(async () => input.confirms);
+    const popup = mock<ReturnType<typeof usePopup>>({ confirm });
+    const guardLibrary: typeof useNavigationGuardLibrary = options => {
+      guard = options;
+      return { active: false, accept: vi.fn(), reject: vi.fn() };
+    };
     const useWarnBeforeUnload = vi.fn<typeof DEPENDENCIES.useWarnBeforeUnload>();
-    const dependencies: typeof DEPENDENCIES = { useRouter: () => router, useWarnBeforeUnload };
+    const dependencies: typeof DEPENDENCIES = {
+      useNavigationGuard: options => useNavigationGuard({ ...options, dependencies: { useNavigationGuard: guardLibrary, usePopup: () => popup } }),
+      useWarnBeforeUnload
+    };
 
     const hook = renderHook(({ isDirty }) => useConfirmLeave(isDirty, MESSAGE, dependencies), { initialProps: { isDirty: input.isDirty } });
 
-    return { ...hook, events, confirm, routeChangeErrors, useWarnBeforeUnload };
+    async function attemptNavigation(params: NavigationGuardParams) {
+      const isEnabled = typeof guard.enabled === "function" ? guard.enabled(params) : guard.enabled !== false;
+      return isEnabled ? await guard.confirm?.(params) : true;
+    }
+
+    return { ...hook, attemptNavigation, confirm, useWarnBeforeUnload };
   }
 });

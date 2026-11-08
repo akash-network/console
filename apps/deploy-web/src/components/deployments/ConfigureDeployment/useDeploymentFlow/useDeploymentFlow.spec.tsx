@@ -4791,7 +4791,7 @@ describe(buildConfigureUrl.name, () => {
 
   it("keeps the template mode in the URL when the draft id is written back", () => {
     const edit = buildConfigureUrl(
-      { sdlStrategy: "edit", bidStrategy: "select", templateMode: "edit", userTemplateId: "tpl-9", draftId: "draft-1", vm: false },
+      { sdlStrategy: "edit", bidStrategy: "select", templateMode: "edit", userTemplateId: "tpl-9", baseVersion: 4, draftId: "draft-1", vm: false },
       undefined,
       "select"
     );
@@ -4800,9 +4800,15 @@ describe(buildConfigureUrl.name, () => {
       undefined,
       "select"
     );
+    const saved = buildConfigureUrl(
+      { sdlStrategy: "edit", bidStrategy: "select", templateMode: "new", sourceDseq: "1234", draftId: "draft-3", vm: false },
+      undefined,
+      "select"
+    );
 
-    expect(edit).toBe("/new-deployment/configure?templateMode=edit&userTemplateId=tpl-9&draftId=draft-1");
+    expect(edit).toBe("/new-deployment/configure?templateMode=edit&userTemplateId=tpl-9&draftId=draft-1&baseVersion=4");
     expect(copy).toBe("/new-deployment/configure?templateMode=new&draftId=draft-2&copyFromTemplateId=tpl-1&copyFromVersion=3");
+    expect(saved).toBe("/new-deployment/configure?templateMode=new&draftId=draft-3&sourceDseq=1234");
   });
 
   it("preserves the example image entry across rewrites", () => {

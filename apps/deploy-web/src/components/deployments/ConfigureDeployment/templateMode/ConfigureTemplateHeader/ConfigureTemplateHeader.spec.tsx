@@ -62,33 +62,38 @@ describe(ConfigureTemplateHeader.name, () => {
     expect(screen.getByRole("button", { name: /Save template/ })).toBeDisabled();
   });
 
-  it("says which deployment is being saved and goes back to it", () => {
-    const { onBackToDeployment } = setup({ sourceName: "support-bot" });
+  it("says which deployment is being saved and links back to it", () => {
+    setup({ source: { name: "support-bot", href: "/deployments/1234" } });
 
     expect(screen.getByText(/as a template\. Bids and pricing are hidden\./)).toHaveTextContent(
       "Saving support-bot as a template. Bids and pricing are hidden."
     );
-    fireEvent.click(screen.getByRole("button", { name: "Back to deployment" }));
+    expect(screen.getByRole("link", { name: "Back to deployment" })).toHaveAttribute("href", "/deployments/1234");
+  });
 
-    expect(onBackToDeployment).toHaveBeenCalled();
+  it("holds the save while the template cannot be saved", () => {
+    setup({ canSave: false });
+
+    expect(screen.getByRole("button", { name: "Save template" })).toBeDisabled();
   });
 
   it("shows no deployment banner for a template started elsewhere", () => {
     setup({});
 
     expect(screen.queryByText(/Bids and pricing are hidden/)).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Back to deployment" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Back to deployment" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save template" })).toBeEnabled();
   });
 
   function setup(input: {
     mode?: "new" | "edit";
-    sourceName?: string;
+    source?: { name: string; href: string };
+    canSave?: boolean;
     services?: Array<{ cpu: number; ram: number; count: number }>;
     askedCount?: number;
     isSaving?: boolean;
   }) {
     const onSave = vi.fn();
-    const onBackToDeployment = vi.fn();
     const services = (input.services ?? [{ cpu: 1, ram: 1, count: 1 }]).map(({ cpu, ram, count }, index) => {
       const service = defaultServiceWithPlacement().services[0];
       return { ...service, id: `svc-${index}`, title: `svc-${index}`, count, profile: { ...service.profile, cpu, ram, ramUnit: "Gi", storage: [] } };
@@ -97,15 +102,15 @@ describe(ConfigureTemplateHeader.name, () => {
     render(
       <ConfigureTemplateHeader
         mode={input.mode ?? "new"}
-        sourceName={input.sourceName}
+        source={input.source}
         services={services}
         askedCount={input.askedCount ?? 0}
         isSaving={input.isSaving ?? false}
         onSave={onSave}
-        onBackToDeployment={onBackToDeployment}
+        canSave={input.canSave}
       />
     );
 
-    return { onSave, onBackToDeployment };
+    return { onSave };
   }
 });

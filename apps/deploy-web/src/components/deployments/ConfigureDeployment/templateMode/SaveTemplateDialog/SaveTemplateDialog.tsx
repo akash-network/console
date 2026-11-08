@@ -1,8 +1,6 @@
 import type { FC, FormEvent, ReactNode } from "react";
 import { useId, useState } from "react";
 import {
-  Alert,
-  AlertDescription,
   Button,
   DialogV2,
   DialogV2Body,
@@ -21,6 +19,7 @@ import type { ServiceType } from "@src/types";
 import type { TemplateAskedValue } from "@src/types/marketplace-template";
 import type { UnaskableSecret } from "../buildAskedValues";
 import { countOf, summarizeTemplateServices } from "../templateServicesSummary";
+import { UnaskableSecretsAlert } from "../UnaskableSecretsAlert/UnaskableSecretsAlert";
 
 const TITLE_MAX_LENGTH = 80;
 const SUMMARY_MAX_LENGTH = 200;
@@ -29,8 +28,10 @@ export type TemplateDetails = { title: string; summary: string };
 
 type Props = {
   open: boolean;
-  /** The deployment name the title starts from. */
+  /** The name in the editor, which the title restarts from each time the dialog opens. */
   initialTitle?: string;
+  /** Whether that name is the deployment's the template is saved from. */
+  isTitleFromDeployment?: boolean;
   projectName?: string;
   /** The deployment the template is saved from. */
   sourceName?: string;
@@ -43,10 +44,11 @@ type Props = {
   onClose: () => void;
 };
 
-/** Stays mounted while closed, so going back to the configuration keeps what was typed and only Cancel forgets it. */
+/** Stays mounted while closed, so going back to the configuration keeps the summary and only Cancel forgets it. */
 export const SaveTemplateDialog: FC<Props> = ({
   open,
   initialTitle = "",
+  isTitleFromDeployment = false,
   projectName,
   sourceName,
   askedValues,
@@ -63,10 +65,14 @@ export const SaveTemplateDialog: FC<Props> = ({
   const summaryCounterId = useId();
   const [title, setTitle] = useState(initialTitle);
   const [summary, setSummary] = useState("");
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setTitle(initialTitle);
+  }
   const canSave = title.trim() !== "" && unaskableSecrets.length === 0 && !isSaving;
 
   const cancel = () => {
-    setTitle(initialTitle);
     setSummary("");
     onClose();
   };
@@ -88,7 +94,9 @@ export const SaveTemplateDialog: FC<Props> = ({
             <div className="flex flex-col gap-1.5">
               <div className="flex items-baseline gap-2">
                 <Label htmlFor={`${formId}-title`}>Title</Label>
-                {initialTitle && title === initialTitle && <span className="text-xs text-muted-foreground">From the deployment name</span>}
+                {isTitleFromDeployment && initialTitle && title === initialTitle && (
+                  <span className="text-xs text-muted-foreground">From the deployment name</span>
+                )}
               </div>
               <input
                 id={`${formId}-title`}
@@ -123,15 +131,7 @@ export const SaveTemplateDialog: FC<Props> = ({
             <p className="text-sm text-muted-foreground">
               {projectName ? `Saved as Private in ${projectName}.` : "Saved as Private."} Make it available to your organization from the template page.
             </p>
-            {unaskableSecrets.length > 0 && (
-              <Alert variant="destructive">
-                <AlertDescription>
-                  {unaskableSecrets.map(({ service, key }) => (
-                    <p key={`${service}:${key}`}>{`Rename ${key} in ${service}: a secret's key can only use letters, digits and underscores.`}</p>
-                  ))}
-                </AlertDescription>
-              </Alert>
-            )}
+            <UnaskableSecretsAlert unaskableSecrets={unaskableSecrets} />
             <TemplateRecap askedValues={askedValues} savedAsIs={savedAsIs} services={services} sourceName={sourceName} />
           </form>
         </DialogV2Body>

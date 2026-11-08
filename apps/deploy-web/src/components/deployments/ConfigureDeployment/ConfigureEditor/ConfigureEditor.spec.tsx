@@ -10,7 +10,7 @@ import type { PlacementTabs } from "./PlacementTabs/PlacementTabs";
 import type { ServiceStack } from "./ServiceStack/ServiceStack";
 import { ConfigureEditor, DEPENDENCIES } from "./ConfigureEditor";
 
-import { act, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(ConfigureEditor.name, () => {
@@ -26,6 +26,17 @@ describe(ConfigureEditor.name, () => {
 
     expect(screen.getByRole("heading", { name: "Template" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Deployment" })).not.toBeInTheDocument();
+  });
+
+  it("shows the name field unless told otherwise", () => {
+    const shown = setup({});
+    expect(shown.DeploymentNameField).toHaveBeenCalled();
+    cleanup();
+
+    const hidden = setup({ showsNameField: false });
+
+    expect(hidden.DeploymentNameField).not.toHaveBeenCalled();
+    expect(hidden.ReclamationSection).toHaveBeenCalled();
   });
 
   it("hands every placement to the tabs with its status and the active one", () => {
@@ -115,7 +126,7 @@ describe(ConfigureEditor.name, () => {
     expect(addedServiceId).toBe("worker");
   });
 
-  function setup(input: { selectedServiceId?: string; activePlacementId?: string; title?: string }) {
+  function setup(input: { selectedServiceId?: string; activePlacementId?: string; title?: string; showsNameField?: boolean }) {
     const placements = [placement("p1", "placement-1"), placement("p2", "placement-2")];
     const servicesByPlacement: Record<string, IndexedService[]> = {
       p1: [indexed("web", "p1", 0), indexed("api", "p1", 1)],
@@ -155,6 +166,7 @@ describe(ConfigureEditor.name, () => {
           onDeploymentNameChange={vi.fn()}
           toolbar={<span>toolbar</span>}
           title={input.title}
+          showsNameField={input.showsNameField}
           dependencies={dependencies}
         />
       </Wrapper>

@@ -103,9 +103,17 @@ export const UrlService = {
     return `${base}${appendSearchParams({ templateId, userTemplateId, templateVersion, "sdl-strategy": sdlStrategy, "bid-strategy": bidStrategy, draftId, vm, exampleImage })}`;
   },
 
-  configureTemplate: (params: { mode: "new" | "edit"; userTemplateId?: string; draftId?: string; copyFromTemplateId?: string; copyFromVersion?: number }) => {
-    const { mode, userTemplateId, draftId, copyFromTemplateId, copyFromVersion } = params;
-    return `/new-deployment/configure${appendSearchParams({ templateMode: mode, userTemplateId, draftId, copyFromTemplateId, copyFromVersion })}`;
+  configureTemplate: (params: {
+    mode: "new" | "edit";
+    userTemplateId?: string;
+    draftId?: string;
+    copyFromTemplateId?: string;
+    copyFromVersion?: number;
+    baseVersion?: number;
+    sourceDseq?: string;
+  }) => {
+    const { mode, userTemplateId, draftId, copyFromTemplateId, copyFromVersion, baseVersion, sourceDseq } = params;
+    return `/new-deployment/configure${appendSearchParams({ templateMode: mode, userTemplateId, draftId, copyFromTemplateId, copyFromVersion, baseVersion, sourceDseq })}`;
   }
 };
 

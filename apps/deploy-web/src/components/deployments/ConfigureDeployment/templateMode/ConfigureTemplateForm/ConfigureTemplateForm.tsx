@@ -39,6 +39,7 @@ import type { TemplateDetails } from "../SaveTemplateDialog/SaveTemplateDialog";
 import { SaveTemplateDialog } from "../SaveTemplateDialog/SaveTemplateDialog";
 import type { TemplateModeState } from "../TemplateModeProvider/TemplateModeProvider";
 import { TemplateModeProvider, useTemplateMode } from "../TemplateModeProvider/TemplateModeProvider";
+import { UnaskableSecretsAlert } from "../UnaskableSecretsAlert/UnaskableSecretsAlert";
 import { useConfirmLeave } from "../useConfirmLeave/useConfirmLeave";
 
 export const DEPENDENCIES = {
@@ -110,6 +111,8 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({ intent, initialSdl, init
   const [isPreviewOpen, setIsPreviewOpen] = useState(true);
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const lastSelectedServiceId = useRef(selectedServiceId);
+  /** A draft save still pending when the template is saved would otherwise write the cleared draft back. */
+  const isSavedRef = useRef(false);
   const form = useForm<SdlBuilderFormValuesType>({
     defaultValues: initialState.values,
     mode: "onTouched",
@@ -124,8 +127,9 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({ intent, initialSdl, init
   const lastSelectedPlacementId = useRef(selectedPlacement.id);
   const askedValues = useMemo(() => buildAskedValues(services, templateMode.settings), [services, templateMode.settings]);
   const askedSummary = useMemo(() => summarizeAskedValues(askedValues, services), [askedValues, services]);
-  const isDirty = templateMode.isDirty || form.formState.isDirty || liveSdl !== initialState.sdl;
-  const allowLeaving = d.useConfirmLeave(isDirty, LEAVE_MESSAGE);
+  const [hasRestoredEdits] = useState(() => isEditing && draft.persistedSdl !== undefined);
+  const isDirty = hasRestoredEdits || templateMode.isDirty || form.formState.isDirty || liveSdl !== initialState.sdl;
+  const leaveControl = d.useConfirmLeave(isDirty, LEAVE_MESSAGE);
   useSyncLogCollectors(form);
   useForceSshForVmServices(form);
 
@@ -143,7 +147,7 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({ intent, initialSdl, init
     function debouncePreviewSdl() {
       const timeout = setTimeout(function commitDebouncedSdl() {
         setPreviewSdl(liveSdl);
-        draft.save(liveSdl, name, undefined, draftableStartingSdl, placementRegionPicks);
+        if (!isSavedRef.current) draft.save(liveSdl, name, undefined, draftableStartingSdl, placementRegionPicks);
       }, SDL_SYNC_DEBOUNCE_MS);
       return function cancelPreviewDebounce() {
         clearTimeout(timeout);
@@ -192,10 +196,16 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({ intent, initialSdl, init
   }
 
   function leaveFor(url: string) {
+    isSavedRef.current = true;
     draft.clear();
     templateMode.markSaved();
-    allowLeaving();
-    void router.push(url);
+    leaveControl.allowLeaving();
+    router.push(url).then(
+      hasLeft => {
+        if (!hasLeft) leaveControl.askBeforeLeaving();
+      },
+      () => leaveControl.askBeforeLeaving()
+    );
   }
 
   async function saveTemplate({ title, summary }: TemplateDetails) {
@@ -217,7 +227,7 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({ intent, initialSdl, init
 
   async function saveVersion(editedTemplate: MarketplaceTemplate) {
     try {
-      await createVersion({ id: editedTemplate.id, data: { ...templateContent(), baseVersion: editedTemplate.currentVersion?.version } });
+      await createVersion({ id: editedTemplate.id, data: { ...templateContent(), baseVersion: intent.baseVersion } });
       leaveFor(`${UrlService.template(editedTemplate.id)}?tab=versions`);
     } catch (error) {
       if (error instanceof ApiError && error.status === CONFLICT_STATUS) {
@@ -261,7 +271,10 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({ intent, initialSdl, init
     setIsSaveDialogOpen(true);
   }
 
-  const sourceName = isEditing || intent.copyFromTemplateId ? undefined : initialName;
+  const source = intent.sourceDseq
+    ? { name: initialName || `deployment ${intent.sourceDseq}`, href: UrlService.deploymentDetails(intent.sourceDseq) }
+    : undefined;
+  const canSaveVersion = askedSummary.unaskableSecrets.length === 0;
 
   return (
     <d.Layout background="white" disableContainer containerClassName="flex min-h-page-viewport flex-col lg:h-page-viewport">
@@ -271,13 +284,14 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({ intent, initialSdl, init
           <div className="relative flex min-h-0 flex-1 flex-col">
             <d.ConfigureTemplateHeader
               mode={isEditing ? "edit" : "new"}
-              sourceName={sourceName}
+              source={source}
               services={services}
               askedCount={askedValues.length}
               isSaving={isCreating || isSavingVersion}
+              canSave={!isEditing || canSaveVersion}
               onSave={save}
-              onBackToDeployment={() => router.back()}
             />
+            {isEditing && <UnaskableSecretsAlert unaskableSecrets={askedSummary.unaskableSecrets} className="mx-6 mt-4 w-auto" />}
             {importChanges.length > 0 && <d.SdlImportChangesBanner changes={importChanges} onDismiss={() => setImportChanges([])} />}
             {!isEditing && <d.ConfigureDeployTargetChip />}
             <div className="relative mt-6 flex flex-1 flex-col border-t border-zinc-300 lg:min-h-0 lg:flex-row dark:border-zinc-700">
@@ -289,6 +303,7 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({ intent, initialSdl, init
                   onSelectService={setSelectedServiceId}
                   deploymentName={name}
                   onDeploymentNameChange={setName}
+                  showsNameField={!isEditing}
                   toolbar={
                     <div className="flex items-center gap-1">
                       <d.SdlImportExport variant="toolbar" sdl={liveSdl} deploymentName={name} canImport onImport={applyImportedState} />
@@ -311,9 +326,10 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({ intent, initialSdl, init
           {!isEditing && (
             <d.SaveTemplateDialog
               open={isSaveDialogOpen}
-              initialTitle={initialName}
+              initialTitle={name}
+              isTitleFromDeployment={!!intent.sourceDseq && name === (initialName ?? "")}
               projectName={deployTarget.project?.name}
-              sourceName={sourceName}
+              sourceName={source?.name}
               askedValues={askedValues}
               savedAsIs={askedSummary.savedAsIs}
               unaskableSecrets={askedSummary.unaskableSecrets}

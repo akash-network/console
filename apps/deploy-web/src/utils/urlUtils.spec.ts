@@ -97,6 +97,15 @@ describe(UrlService.configureTemplate.name, () => {
       "/new-deployment/configure?templateMode=new&copyFromTemplateId=tpl-1&copyFromVersion=3"
     );
   });
+
+  it("pins an edit's base version and names the deployment a template is saved from", () => {
+    expect(UrlService.configureTemplate({ mode: "edit", userTemplateId: "tpl-1", draftId: "draft-1", baseVersion: 4 })).toBe(
+      "/new-deployment/configure?templateMode=edit&userTemplateId=tpl-1&draftId=draft-1&baseVersion=4"
+    );
+    expect(UrlService.configureTemplate({ mode: "new", draftId: "draft-1", sourceDseq: "1234" })).toBe(
+      "/new-deployment/configure?templateMode=new&draftId=draft-1&sourceDseq=1234"
+    );
+  });
 });
 
 describe(UrlService.myTemplates.name, () => {

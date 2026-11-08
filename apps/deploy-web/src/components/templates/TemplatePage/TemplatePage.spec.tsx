@@ -86,8 +86,9 @@ describe(TemplatePage.name, () => {
 
     expect(screen.getByRole("link", { name: "Edit configuration" })).toHaveAttribute(
       "href",
-      UrlService.configureTemplate({ mode: "edit", userTemplateId: TEMPLATE_ID })
+      UrlService.configureTemplate({ mode: "edit", userTemplateId: TEMPLATE_ID, baseVersion: TEMPLATE.currentVersion?.version })
     );
+    expect(screen.getByRole("link", { name: "Edit configuration" }).getAttribute("href")).toMatch(/[?&]baseVersion=\d+/);
     expect(screen.getByRole("tab", { name: "Settings" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Version" })).toBeInTheDocument();
     expect(screen.getByText("Edit configuration and Settings show only to members of Northwind Labs")).toBeInTheDocument();

@@ -20,12 +20,21 @@ export interface DeploymentIntent {
   /** A new template copied from this template's `copyFromVersion`. */
   copyFromTemplateId?: string;
   copyFromVersion?: number;
+  /** The version an edit started from, pinned for the whole session so a save after a colleague's is refused rather than applied over it. */
+  baseVersion?: number;
+  /** The deployment a new template is saved from. */
+  sourceDseq?: string;
 }
 
 interface ParseInput {
   /** The optional catch-all route segment (`/configure/[[...dseq]]`); the deployment's dseq once it exists. */
   dseqSegment: string | undefined;
   searchParams: URLSearchParams;
+}
+
+interface ParseOptions {
+  /** Without it a template mode URL parses as a deploy URL, exactly as it did before template mode existed. */
+  isTemplateModeEnabled: boolean;
 }
 
 /**
@@ -39,28 +48,41 @@ interface ParseInput {
  * it always opens the manual form rather than the auto-deploy flow. An `exampleImage=true` entry
  * only changes the blank default, so a `vm` entry, which seeds its own service, drops it.
  */
-export function parseDeploymentIntent({ dseqSegment, searchParams }: ParseInput): DeploymentIntent {
-  const templateMode = toTemplateMode(searchParams.get("templateMode"));
-  return templateMode ? parseTemplateIntent(templateMode, dseqSegment, searchParams) : parseDeployIntent(dseqSegment, searchParams);
+export function parseDeploymentIntent(
+  { dseqSegment, searchParams }: ParseInput,
+  { isTemplateModeEnabled }: ParseOptions = { isTemplateModeEnabled: false }
+): DeploymentIntent {
+  const templateMode = isTemplateModeEnabled ? toTemplateMode(searchParams.get("templateMode")) : undefined;
+  return templateMode ? parseTemplateIntent(templateMode, searchParams) : parseDeployIntent(dseqSegment, searchParams);
 }
 
-/** Authoring never deploys, so a template intent carries none of the params that choose what or how to deploy. */
-function parseTemplateIntent(requestedMode: TemplateMode, dseqSegment: string | undefined, searchParams: URLSearchParams): DeploymentIntent {
+/** Authoring never deploys, so a template intent carries none of the params that choose what, where or how to deploy. */
+function parseTemplateIntent(requestedMode: TemplateMode, searchParams: URLSearchParams): DeploymentIntent {
   const userTemplateId = searchParams.get("userTemplateId") || undefined;
-  const copyFromTemplateId = searchParams.get("copyFromTemplateId") || undefined;
-  const copyFromVersion = toVersion(searchParams.get("copyFromVersion"));
-  const modeFields =
-    requestedMode === "edit" && userTemplateId
-      ? { templateMode: requestedMode, userTemplateId }
-      : { templateMode: "new" as const, ...(copyFromTemplateId && copyFromVersion ? { copyFromTemplateId, copyFromVersion } : {}) };
+  const modeFields = requestedMode === "edit" && userTemplateId ? editFieldsOf(userTemplateId, searchParams) : newFieldsOf(searchParams);
   return {
     ...modeFields,
     sdlStrategy: "edit",
     bidStrategy: "select",
-    dseq: dseqSegment || undefined,
     draftId: searchParams.get("draftId") || undefined,
     vm: false,
     exampleImage: false
+  };
+}
+
+function editFieldsOf(userTemplateId: string, searchParams: URLSearchParams): Partial<DeploymentIntent> {
+  const baseVersion = toVersion(searchParams.get("baseVersion"));
+  return { templateMode: "edit", userTemplateId, ...(baseVersion ? { baseVersion } : {}) };
+}
+
+function newFieldsOf(searchParams: URLSearchParams): Partial<DeploymentIntent> {
+  const copyFromTemplateId = searchParams.get("copyFromTemplateId") || undefined;
+  const copyFromVersion = toVersion(searchParams.get("copyFromVersion"));
+  const sourceDseq = searchParams.get("sourceDseq") ?? "";
+  return {
+    templateMode: "new",
+    ...(copyFromTemplateId && copyFromVersion ? { copyFromTemplateId, copyFromVersion } : {}),
+    ...(/^\d+$/.test(sourceDseq) ? { sourceDseq } : {})
   };
 }
 

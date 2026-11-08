@@ -1405,7 +1405,9 @@ export function buildConfigureUrl(intent: DeploymentIntent, dseq: string | undef
       userTemplateId: intent.userTemplateId,
       draftId: intent.draftId,
       copyFromTemplateId: intent.copyFromTemplateId,
-      copyFromVersion: intent.copyFromVersion
+      copyFromVersion: intent.copyFromVersion,
+      baseVersion: intent.baseVersion,
+      sourceDseq: intent.sourceDseq
     });
   }
 

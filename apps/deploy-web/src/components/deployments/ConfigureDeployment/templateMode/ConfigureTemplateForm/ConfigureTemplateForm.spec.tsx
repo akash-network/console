@@ -137,7 +137,7 @@ describe(ConfigureTemplateForm.name, () => {
   });
 
   it("prefills the title from the deployment name", () => {
-    setup({ intent: NEW_INTENT, initialName: "support-bot" });
+    setup({ intent: { ...NEW_INTENT, sourceDseq: "1234" }, initialName: "support-bot" });
 
     expect(screen.getByText(/as a template\. Bids and pricing are hidden\./)).toHaveTextContent("Saving support-bot as a template.");
     fireEvent.click(screen.getByRole("button", { name: "Save template" }));
@@ -156,12 +156,37 @@ describe(ConfigureTemplateForm.name, () => {
     expect(screen.getByText(`Saved as Private in ${project.name}. Make it available to your organization from the template page.`)).toBeInTheDocument();
   });
 
-  it("goes back to the deployment the template is saved from", () => {
-    const { router } = setup({ intent: NEW_INTENT, initialName: "support-bot" });
+  it("links back to the deployment the template is saved from", () => {
+    setup({ intent: { ...NEW_INTENT, sourceDseq: "1234" }, initialName: "support-bot" });
 
-    fireEvent.click(screen.getByRole("button", { name: "Back to deployment" }));
+    expect(screen.getByRole("link", { name: "Back to deployment" })).toHaveAttribute("href", "/deployments/1234");
+  });
 
-    expect(router.back).toHaveBeenCalled();
+  it("names the source deployment by its dseq when the draft has no name", () => {
+    setup({ intent: { ...NEW_INTENT, sourceDseq: "1234" } });
+
+    expect(screen.getByText(/as a template\. Bids and pricing are hidden\./)).toHaveTextContent("Saving deployment 1234 as a template.");
+  });
+
+  it("restarts the dialog's title from the name in the editor", () => {
+    const { ConfigureEditor } = setup({ intent: { ...NEW_INTENT, sourceDseq: "1234" }, initialName: "support-bot" });
+
+    act(() => ConfigureEditor.mock.lastCall?.[0].onDeploymentNameChange("support-chat"));
+    fireEvent.click(screen.getByRole("button", { name: "Save template" }));
+    const dialog = within(screen.getByRole("dialog", { name: "Save template" }));
+
+    expect(dialog.getByRole("textbox", { name: "Title" })).toHaveValue("support-chat");
+    expect(dialog.queryByText("From the deployment name")).not.toBeInTheDocument();
+  });
+
+  it("shows the name field only for a new template", () => {
+    const creating = setup({ intent: NEW_INTENT });
+    expect(creating.ConfigureEditor.mock.lastCall?.[0].showsNameField).toBe(true);
+    cleanup();
+
+    const editing = setup({ template: { version: 4 } });
+
+    expect(editing.ConfigureEditor.mock.lastCall?.[0].showsNameField).toBe(false);
   });
 
   it("saves a new version from the current one in edit mode", async () => {
@@ -329,10 +354,102 @@ describe(ConfigureTemplateForm.name, () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("credits no deployment for a copied template", () => {
-    setup({ intent: { ...NEW_INTENT, copyFromTemplateId: "tpl-source", copyFromVersion: 2 }, initialName: "support-bot" });
+  it("credits no deployment without a source deployment", () => {
+    setup({ intent: NEW_INTENT, initialName: "support-bot" });
 
     expect(screen.queryByText(/Bids and pricing are hidden/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Save template" }));
+    const dialog = within(screen.getByRole("dialog", { name: "Save template" }));
+    expect(dialog.getByRole("textbox", { name: "Title" })).toHaveValue("support-bot");
+    expect(dialog.queryByText("From the deployment name")).not.toBeInTheDocument();
+    expect(dialog.getByText("1 service")).toBeInTheDocument();
+  });
+
+  it("saves against the pinned base version after a newer one arrives mid-edit", async () => {
+    const { createVersion, showNewerVersion } = setup({ template: { version: 4 } });
+
+    showNewerVersion(5);
+    await act(() => fireEvent.click(screen.getByRole("button", { name: "Save new version" })));
+
+    expect(createVersion.mock.calls[0][0].data.baseVersion).toBe(4);
+  });
+
+  it("leaves no draft behind after a successful save", async () => {
+    vi.useFakeTimers();
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const { draft } = setup({ template: { version: 4 } });
+
+    fireEvent.change(screen.getByRole("textbox", { name: "web LOG_LEVEL" }), { target: { value: "debug" } });
+    await act(() => fireEvent.click(screen.getByRole("button", { name: "Save new version" })));
+    act(() => vi.advanceTimersByTime(2000));
+
+    expect(draft.clear).toHaveBeenCalledTimes(1);
+    expect(draft.save).not.toHaveBeenCalled();
+  });
+
+  it("asks before leaving again when the page does not change after a save", async () => {
+    const { askBeforeLeaving, allowLeaving } = setup({ template: { version: 4 }, pushFailure: "refused" });
+
+    await act(() => fireEvent.click(screen.getByRole("button", { name: "Save new version" })));
+
+    expect(allowLeaving).toHaveBeenCalled();
+    expect(askBeforeLeaving).toHaveBeenCalled();
+  });
+
+  it("asks before leaving again when the navigation after a save fails", async () => {
+    const { askBeforeLeaving } = setup({ template: { version: 4 }, pushFailure: "rejects" });
+
+    await act(() => fireEvent.click(screen.getByRole("button", { name: "Save new version" })));
+
+    expect(askBeforeLeaving).toHaveBeenCalled();
+  });
+
+  it("keeps asking after a successful navigation", async () => {
+    const { askBeforeLeaving } = setup({ template: { version: 4 } });
+
+    await act(() => fireEvent.click(screen.getByRole("button", { name: "Save new version" })));
+
+    expect(askBeforeLeaving).not.toHaveBeenCalled();
+  });
+
+  it("counts a restored draft in edit mode as unsaved", () => {
+    const { useConfirmLeave } = setup({ template: { version: 4 }, restoredDraft: { sdl: SDL, startingSdl: SDL } });
+
+    expect(useConfirmLeave).toHaveBeenLastCalledWith(true, expect.any(String));
+  });
+
+  it("does not count an untouched restored draft of a new template as changed", () => {
+    const { useConfirmLeave } = setup({ intent: NEW_INTENT, restoredDraft: { sdl: SDL, startingSdl: SDL } });
+
+    expect(useConfirmLeave).toHaveBeenLastCalledWith(false, expect.any(String));
+  });
+
+  it("refuses a new template with a secret the deployer cannot be asked for", () => {
+    setup({ intent: NEW_INTENT, sdl: SDL.replace("API_KEY=ac-secret://API_KEY", "api-key=ac-secret://API_KEY") });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save template" }));
+    const dialog = within(screen.getByRole("dialog", { name: "Save template" }));
+    fireEvent.change(dialog.getByRole("textbox", { name: "Title" }), { target: { value: "Support chat" } });
+
+    expect(dialog.getByRole("alert")).toHaveTextContent("Rename api-key in web: a secret's key can only use letters, digits and underscores.");
+    expect(dialog.getByRole("button", { name: "Save template" })).toBeDisabled();
+  });
+
+  it("refuses a new version with a secret the deployer cannot be asked for", () => {
+    const { createVersion } = setup({ template: { version: 4 }, sdl: SDL.replace("API_KEY=ac-secret://API_KEY", "api-key=ac-secret://API_KEY") });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Rename api-key in web: a secret's key can only use letters, digits and underscores.");
+    expect(screen.getByRole("button", { name: "Save new version" })).toBeDisabled();
+    expect(createVersion).not.toHaveBeenCalled();
+  });
+
+  it("lets a new version with only askable secrets be saved", () => {
+    setup({ template: { version: 4 } });
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save new version" })).toBeEnabled();
   });
 
   it("shows the project chip only for a new template", () => {
@@ -469,6 +586,8 @@ describe(ConfigureTemplateForm.name, () => {
     restoredDraft?: { sdl: string; startingSdl: string };
     hasNoProject?: boolean;
     pendingSave?: "template" | "version";
+    sdl?: string;
+    pushFailure?: "refused" | "rejects";
   }) {
     const template: MarketplaceTemplate | undefined = input.template
       ? buildMarketplaceTemplate({
@@ -481,12 +600,17 @@ describe(ConfigureTemplateForm.name, () => {
               : buildTemplateVersion({
                   templateId: "tpl-9",
                   version: input.template.version,
-                  sdl: SDL,
+                  sdl: input.sdl ?? SDL,
                   askedValues: input.template.askedValues ?? []
                 })
         })
       : undefined;
-    const intent: DeploymentIntent = input.intent ?? { ...NEW_INTENT, templateMode: "edit", userTemplateId: "tpl-9" };
+    const intent: DeploymentIntent = input.intent ?? {
+      ...NEW_INTENT,
+      templateMode: "edit",
+      userTemplateId: "tpl-9",
+      ...(input.template?.version ? { baseVersion: input.template.version } : {})
+    };
     const project = buildProject({ name: "support-tools" });
     const createTemplate = vi.fn(async (_input: { data: Record<string, any> }) => {
       if (input.saveError) throw input.saveError;
@@ -511,14 +635,20 @@ describe(ConfigureTemplateForm.name, () => {
       persistedStartingSdl: input.restoredDraft?.startingSdl,
       persistedPlacementRegions: undefined
     });
-    const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>();
+    const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>({
+      push: vi.fn(async () => {
+        if (input.pushFailure === "rejects") throw new Error("Route cancelled");
+        return input.pushFailure !== "refused";
+      })
+    });
     const enqueueSnackbar = vi.fn<(message: ReactNode, options?: Record<string, unknown>) => string>(() => "toast-key");
     const closeSnackbar = vi.fn();
     const snackbar = mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar, closeSnackbar });
     const deployTarget = mock<DeployTarget>({ project: input.hasNoProject ? undefined : project });
     const ConfigureDeployTargetChip = vi.fn<typeof DEPENDENCIES.ConfigureDeployTargetChip>(() => null);
     const allowLeaving = vi.fn();
-    const useConfirmLeave = vi.fn<typeof DEPENDENCIES.useConfirmLeave>(() => allowLeaving);
+    const askBeforeLeaving = vi.fn();
+    const useConfirmLeave = vi.fn<typeof DEPENDENCIES.useConfirmLeave>(() => ({ allowLeaving, askBeforeLeaving }));
     const ConfigureEditor = vi.fn<typeof DEPENDENCIES.ConfigureEditor>(EditorMock);
     const SdlImportExport = vi.fn<typeof DEPENDENCIES.SdlImportExport>(() => null);
     const ResetConfigurationButton = vi.fn<typeof DEPENDENCIES.ResetConfigurationButton>(() => null);
@@ -545,16 +675,19 @@ describe(ConfigureTemplateForm.name, () => {
       useConfirmLeave
     });
 
-    render(
+    const renderForm = (shownTemplate: MarketplaceTemplate | undefined) => (
       <ConfigureTemplateForm
         intent={intent}
-        initialSdl={input.restoredDraft?.sdl ?? (input.hasNoInitialSdl ? undefined : template?.currentVersion?.sdl ?? SDL)}
+        initialSdl={input.restoredDraft?.sdl ?? (input.hasNoInitialSdl ? undefined : template?.currentVersion?.sdl ?? input.sdl ?? SDL)}
         initialName={input.initialName ?? template?.title}
-        template={template}
+        template={shownTemplate}
         askedValues={template?.currentVersion?.askedValues ?? []}
         dependencies={dependencies}
       />
     );
+    const view = render(renderForm(template));
+    const showNewerVersion = (version: number) =>
+      view.rerender(renderForm(template && { ...template, currentVersion: buildTemplateVersion({ templateId: "tpl-9", version, sdl: SDL }) }));
 
     return {
       createTemplate,
@@ -565,6 +698,8 @@ describe(ConfigureTemplateForm.name, () => {
       closeSnackbar,
       ConfigureDeployTargetChip,
       allowLeaving,
+      askBeforeLeaving,
+      showNewerVersion,
       project,
       useConfirmLeave,
       ConfigureEditor,

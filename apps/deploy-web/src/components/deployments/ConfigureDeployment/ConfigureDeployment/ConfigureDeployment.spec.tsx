@@ -813,7 +813,7 @@ describe(ConfigureDeployment.name, () => {
       expect(intent).not.toHaveProperty("copyFromVersion");
     });
 
-    it("never requests bids or creates a deployment in template mode", () => {
+    it("mounts no deploy flow, resume guard or deploy form in template mode", () => {
       const editing = setup({ templateMode: "edit", userTemplateId: "tpl-9", isTemplateMarketplaceEnabled: true, marketplaceTemplate: editableTemplate() });
 
       expect(editing.ConfigureTemplateForm).toHaveBeenCalled();
@@ -821,7 +821,84 @@ describe(ConfigureDeployment.name, () => {
       expect(editing.ResumeDeploymentGuard).not.toHaveBeenCalled();
       expect(editing.AutoDeployFlow).not.toHaveBeenCalled();
       expect(editing.ConfigureDeploymentForm).not.toHaveBeenCalled();
-      expect(editing.DeployTargetGate).not.toHaveBeenCalled();
+    });
+
+    it("skips the project gate in edit mode", () => {
+      const { DeployTargetGate } = setup({
+        templateMode: "edit",
+        userTemplateId: "tpl-9",
+        isTemplateMarketplaceEnabled: true,
+        marketplaceTemplate: editableTemplate()
+      });
+
+      expect(DeployTargetGate).not.toHaveBeenCalled();
+    });
+
+    it("parses a template mode URL as before with template_marketplace off", () => {
+      const { ConfigureDeploymentForm, ConfigureTemplateForm, usePublicTemplate } = setup({
+        templateMode: "new",
+        templateId: "abc",
+        sdlStrategy: "default",
+        template: { isLoading: false, isError: false, data: mock<TemplateOutput>({ deploy: ASSISTANT_SDL, name: "abc" }) }
+      });
+
+      expect(ConfigureTemplateForm).not.toHaveBeenCalled();
+      expect(usePublicTemplate).toHaveBeenLastCalledWith("abc");
+      expect(ConfigureDeploymentForm.mock.lastCall?.[0].intent).toMatchObject({ templateId: "abc", draftId: "minted-id" });
+      expect(ConfigureDeploymentForm.mock.lastCall?.[0].intent).not.toHaveProperty("templateMode");
+    });
+
+    it("pins the version an edit starts from in the URL", () => {
+      const { ConfigureTemplateForm, router } = setup({
+        templateMode: "edit",
+        userTemplateId: "tpl-9",
+        isTemplateMarketplaceEnabled: true,
+        marketplaceTemplate: editableTemplate()
+      });
+
+      expect(router.replace).toHaveBeenCalledTimes(1);
+      expect(router.replace).toHaveBeenCalledWith(
+        "/new-deployment/configure?templateMode=edit&userTemplateId=tpl-9&draftId=minted-id&baseVersion=4",
+        undefined,
+        {
+          shallow: true
+        }
+      );
+      expect(ConfigureTemplateForm.mock.lastCall?.[0].intent).toMatchObject({ baseVersion: 4 });
+    });
+
+    it("keeps the base version the URL pins over the template's current one", () => {
+      const { ConfigureTemplateForm, router } = setup({
+        templateMode: "edit",
+        userTemplateId: "tpl-9",
+        baseVersion: 3,
+        isTemplateMarketplaceEnabled: true,
+        marketplaceTemplate: editableTemplate()
+      });
+
+      expect(router.replace).not.toHaveBeenCalled();
+      expect(ConfigureTemplateForm.mock.lastCall?.[0].intent).toMatchObject({ baseVersion: 3 });
+    });
+
+    it("keeps the pinned base version and the mounted form when a newer version arrives mid-edit", () => {
+      const { ConfigureTemplateForm, rerenderWithMarketplaceTemplate, countTemplateFormMounts } = setup({
+        templateMode: "edit",
+        userTemplateId: "tpl-9",
+        isTemplateMarketplaceEnabled: true,
+        marketplaceTemplate: editableTemplate()
+      });
+
+      rerenderWithMarketplaceTemplate(editableTemplate(5));
+
+      expect(ConfigureTemplateForm.mock.lastCall?.[0].template?.currentVersion?.version).toBe(5);
+      expect(ConfigureTemplateForm.mock.lastCall?.[0].intent).toMatchObject({ baseVersion: 4 });
+      expect(countTemplateFormMounts()).toBe(1);
+    });
+
+    it("names the deployment a new template is saved from", () => {
+      const { ConfigureTemplateForm } = setup({ templateMode: "new", sourceDseq: "1234", isTemplateMarketplaceEnabled: true });
+
+      expect(ConfigureTemplateForm.mock.lastCall?.[0].intent).toMatchObject({ sourceDseq: "1234" });
     });
 
     it("never requests bids for a new template, holding it behind the project gate", () => {
@@ -858,7 +935,7 @@ describe(ConfigureDeployment.name, () => {
       });
 
       expect(useMarketplaceTemplate).toHaveBeenLastCalledWith("tpl-9");
-      expect(router.replace).not.toHaveBeenCalled();
+      expect(router.replace).not.toHaveBeenCalledWith("/template/tpl-9");
       const props = ConfigureTemplateForm.mock.lastCall?.[0];
       expect(props).toMatchObject({ initialSdl: ASSISTANT_SDL, initialName: "Support chat", askedValues: [ASKED_MODEL] });
       expect(props?.template?.id).toBe("tpl-9");
@@ -998,14 +1075,14 @@ describe(ConfigureDeployment.name, () => {
     });
   });
 
-  function editableTemplate() {
+  function editableTemplate(version = 4) {
     return {
       isSuccess: true,
       data: buildMarketplaceTemplate({
         id: "tpl-9",
         title: "Support chat",
         canEdit: true,
-        currentVersion: buildTemplateVersion({ templateId: "tpl-9", version: 4, sdl: ASSISTANT_SDL, askedValues: [ASKED_MODEL] })
+        currentVersion: buildTemplateVersion({ templateId: "tpl-9", version, sdl: ASSISTANT_SDL, askedValues: [ASKED_MODEL] })
       })
     };
   }
@@ -1038,6 +1115,8 @@ describe(ConfigureDeployment.name, () => {
     isTemplateMarketplaceEnabled?: boolean;
     marketplaceTemplate?: { isLoading?: boolean; isError?: boolean; isSuccess?: boolean; data?: MarketplaceTemplate };
     templateVersion?: { isLoading?: boolean; isError?: boolean; isSuccess?: boolean; data?: TemplateVersionDetail };
+    baseVersion?: number;
+    sourceDseq?: string;
   }) {
     const store = createStore();
     store.set(sdlStore.deploySdl, input.deploySdl ?? null);
@@ -1058,8 +1137,15 @@ describe(ConfigureDeployment.name, () => {
       input.deployButtonInForm ? <DeployButtonInForm templateId={input.deployButtonInForm} /> : <div data-testid="form-mock" />
     );
     const AutoDeployFlow = vi.fn<typeof DEPENDENCIES.AutoDeployFlow>(() => <div data-testid="auto-mock" />);
-    const ConfigureTemplateForm = vi.fn<typeof DEPENDENCIES.ConfigureTemplateForm>(() => <div data-testid="template-form-mock" />);
-    const useMarketplaceTemplate = vi.fn(() => ({ ...NO_QUERY, ...input.marketplaceTemplate }) as never);
+    let templateFormMounts = 0;
+    const ConfigureTemplateForm = vi.fn<typeof DEPENDENCIES.ConfigureTemplateForm>(function TemplateFormMock() {
+      useEffect(function countMount() {
+        templateFormMounts++;
+      }, []);
+      return <div data-testid="template-form-mock" />;
+    });
+    let marketplaceTemplate = input.marketplaceTemplate;
+    const useMarketplaceTemplate = vi.fn(() => ({ ...NO_QUERY, ...marketplaceTemplate }) as never);
     const useTemplateVersion = vi.fn(() => ({ ...NO_QUERY, ...input.templateVersion }) as never);
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>();
     const DeploymentFlowProvider = vi.fn(function FlowProviderMock({ children }) {
@@ -1106,6 +1192,8 @@ describe(ConfigureDeployment.name, () => {
     if (input.templateMode && input.draftId) query.draftId = input.draftId;
     if (input.copyFromTemplateId) query.copyFromTemplateId = input.copyFromTemplateId;
     if (input.copyFromVersion) query.copyFromVersion = String(input.copyFromVersion);
+    if (input.baseVersion) query.baseVersion = String(input.baseVersion);
+    if (input.sourceDseq) query.sourceDseq = input.sourceDseq;
     let params = new URLSearchParams(query);
     let dseq = input.dseq;
 
@@ -1172,6 +1260,10 @@ describe(ConfigureDeployment.name, () => {
       template = next;
       rerender(renderScreen());
     };
+    const rerenderWithMarketplaceTemplate = (next: NonNullable<typeof input.marketplaceTemplate>) => {
+      marketplaceTemplate = next;
+      rerender(renderScreen());
+    };
     const navigate = (next: { templateId: string; sdlStrategy?: string; bidStrategy?: string; dseq?: string }) => {
       params = new URLSearchParams({
         templateId: next.templateId,
@@ -1219,6 +1311,8 @@ describe(ConfigureDeployment.name, () => {
       DeployTargetGate,
       enqueueSnackbar,
       rerenderWithTemplate,
+      rerenderWithMarketplaceTemplate,
+      countTemplateFormMounts: () => templateFormMounts,
       markAutoDeployStart,
       navigate,
       openUrl,

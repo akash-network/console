@@ -279,7 +279,7 @@ describe(MyTemplates.name, () => {
     expect(screen.getByRole("link", { name: "New template" })).toHaveAttribute("href", UrlService.configureTemplate({ mode: "new" }));
     expect(within(rowOf(COMFY)).getByRole("link", { name: `Edit ${COMFY.title}` })).toHaveAttribute(
       "href",
-      UrlService.configureTemplate({ mode: "edit", userTemplateId: COMFY.id })
+      UrlService.configureTemplate({ mode: "edit", userTemplateId: COMFY.id, baseVersion: 4 })
     );
     expect(ImportSdlButton.mock.lastCall?.[0].configureUrl?.("draft-1")).toBe(UrlService.configureTemplate({ mode: "new", draftId: "draft-1" }));
 

@@ -1,43 +1,40 @@
-import { useCallback, useEffect, useRef } from "react";
-import { useRouter } from "next/router";
+import { useCallback, useMemo, useRef } from "react";
+import type { NavigationGuard } from "next-navigation-guard";
 
+import { useNavigationGuard } from "@src/hooks/useNavigationGuard/useNavigationGuard";
 import { useWarnBeforeUnload } from "@src/hooks/useWarnBeforeUnload/useWarnBeforeUnload";
 
-export const DEPENDENCIES = { useRouter, useWarnBeforeUnload };
+export const DEPENDENCIES = { useNavigationGuard, useWarnBeforeUnload };
 
-/** Next only cancels a route change when a `routeChangeStart` listener throws. */
-const ROUTE_CHANGE_ABORTED = "Route change aborted to keep unsaved template changes.";
+type NavigationGuardParams = Parameters<NavigationGuard>[0];
 
-/**
- * Asks before an in-app navigation or an unload leaves unsaved changes behind. A shallow rewrite of the URL stays on the
- * screen, so it is never asked about. Returns `allowLeaving`, which lets the navigation a save starts through before
- * the saved state has rendered.
- */
-export function useConfirmLeave(isDirty: boolean, message: string, dependencies: typeof DEPENDENCIES = DEPENDENCIES): () => void {
-  const router = dependencies.useRouter();
+export type LeaveControl = {
+  /** Lets the navigation a save starts through before the saved state has rendered. */
+  allowLeaving: () => void;
+  /** Asks again, for when that navigation did not happen. */
+  askBeforeLeaving: () => void;
+};
+
+/** Asks before an in-app navigation, a back or an unload leaves unsaved changes behind; a rewrite of this page's own URL, such as a draft id written back, is never asked about. */
+export function useConfirmLeave(isDirty: boolean, message: string, dependencies: typeof DEPENDENCIES = DEPENDENCIES): LeaveControl {
   const isLeavingAllowedRef = useRef(false);
+  const skipWhen = useCallback((params: NavigationGuardParams) => isLeavingAllowedRef.current || staysOnThisPage(params), []);
+  dependencies.useNavigationGuard({ enabled: isDirty, message, skipWhen });
   dependencies.useWarnBeforeUnload(isDirty);
 
-  useEffect(
-    function confirmInAppLeave() {
-      if (!isDirty) return;
-
-      function askBeforeLeaving(url: string, { shallow }: { shallow: boolean }) {
-        if (shallow || isLeavingAllowedRef.current || window.confirm(message)) return;
-
-        router.events.emit("routeChangeError", new Error(ROUTE_CHANGE_ABORTED), url, { shallow });
-        throw ROUTE_CHANGE_ABORTED;
+  return useMemo(
+    () => ({
+      allowLeaving: () => {
+        isLeavingAllowedRef.current = true;
+      },
+      askBeforeLeaving: () => {
+        isLeavingAllowedRef.current = false;
       }
-
-      router.events.on("routeChangeStart", askBeforeLeaving);
-      return function stopConfirmingLeave() {
-        router.events.off("routeChangeStart", askBeforeLeaving);
-      };
-    },
-    [isDirty, message, router]
+    }),
+    []
   );
+}
 
-  return useCallback(() => {
-    isLeavingAllowedRef.current = true;
-  }, []);
+function staysOnThisPage({ to, type }: NavigationGuardParams): boolean {
+  return type === "replace" && new URL(to, window.location.href).pathname === window.location.pathname;
 }

@@ -1,6 +1,6 @@
 "use client";
 import type { FC } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Snackbar, Spinner } from "@akashnetwork/ui/components";
 import { useAtomValue } from "jotai";
 import { useParams, useSearchParams } from "next/navigation";
@@ -28,6 +28,7 @@ import { useConfigureDraft } from "../useConfigureDraft/useConfigureDraft";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import { parseDeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
+import { buildConfigureUrl } from "../useDeploymentFlow/useDeploymentFlow";
 
 export const DEPENDENCIES = {
   Layout,
@@ -74,8 +75,10 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
   const routeParams = d.useParams();
   const dseqSegment = Array.isArray(routeParams?.dseq) ? routeParams.dseq[0] : (routeParams?.dseq as string | undefined);
   const isTemplateMarketplaceEnabled = d.useFlag("template_marketplace");
-  const parsedIntent = parseDeploymentIntent({ dseqSegment, searchParams: new URLSearchParams(searchParams?.toString() ?? "") });
-  const intent = isTemplateMarketplaceEnabled ? parsedIntent : withoutTemplateMode(parsedIntent);
+  const intent = parseDeploymentIntent(
+    { dseqSegment, searchParams: new URLSearchParams(searchParams?.toString() ?? "") },
+    { isTemplateModeEnabled: isTemplateMarketplaceEnabled }
+  );
   const [hasStartedDeploying, setHasStartedDeploying] = useState(false);
   const autoDeployStart = d.useTakeAutoDeployStart(intent, { hasStartedDeploying });
   const session = useConfigureSession(intent.draftId);
@@ -95,16 +98,6 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
     />
   );
 };
-
-/** Without the marketplace, a template mode URL opens the deploy flow, which knows nothing of authoring. */
-function withoutTemplateMode({
-  templateMode: _templateMode,
-  copyFromTemplateId: _copyFromTemplateId,
-  copyFromVersion: _copyFromVersion,
-  ...intent
-}: DeploymentIntent): DeploymentIntent {
-  return intent;
-}
 
 /** A link elsewhere in the console can open a deployment onto this page while it stays mounted, so a URL naming another draft than the screen's starts the screen over for it. */
 function useConfigureSession(urlDraftId: string | undefined) {
@@ -277,11 +270,7 @@ type TemplateScreenProps = {
   dependencies: typeof DEPENDENCIES;
 };
 
-/**
- * Authors a template instead of deploying, so no flow, bid or deployment ever starts here. An edit saves a new version of
- * the template, which only its editors may do, and restores the template's asked values over any draft. A copy starts from
- * the named version unless a draft was already restored, which starts without the copied asked values.
- */
+/** Authors a template, so no flow, bid or deployment starts here; an edit's base version is pinned in the URL so a save after a colleague's is refused rather than applied over it. */
 const ConfigureTemplateScreen: FC<TemplateScreenProps> = ({ intent, onDraftIdChange, dependencies: d }) => {
   const draft = d.useConfigureDraft(intent);
   const router = d.useRouter();
@@ -296,12 +285,28 @@ const ConfigureTemplateScreen: FC<TemplateScreenProps> = ({ intent, onDraftIdCha
   const hasTemplateFailed = isEditing && templateQuery.isError;
   const hasCopyFailed = isCopying && copyQuery.isError;
   const copiedVersion = isCopying ? copyQuery.data : undefined;
+  const [pinnedBase, setPinnedBase] = useState<{ version?: number } | null>(() => (intent.baseVersion ? { version: intent.baseVersion } : null));
+  if (!pinnedBase && template?.canEdit) setPinnedBase({ version: template.currentVersion?.version });
+  const pinnedBaseVersion = pinnedBase?.version;
+  const pinnedToUrlRef = useRef<string>();
 
   useEffect(
     function reportTheDraftOnScreen() {
       onDraftIdChange(draft.draftId);
     },
     [draft.draftId, onDraftIdChange]
+  );
+
+  useEffect(
+    function pinTheBaseVersionInTheUrl() {
+      const pinnedUrlKey = `${draft.draftId}:${pinnedBaseVersion}`;
+      if (draft.isLoading || !pinnedBaseVersion || intent.baseVersion === pinnedBaseVersion || pinnedToUrlRef.current === pinnedUrlKey) return;
+      pinnedToUrlRef.current = pinnedUrlKey;
+      router.replace(buildConfigureUrl({ ...intent, draftId: draft.draftId, baseVersion: pinnedBaseVersion }, undefined, intent.bidStrategy), undefined, {
+        shallow: true
+      });
+    },
+    [draft.isLoading, draft.draftId, pinnedBaseVersion, intent, router]
   );
 
   useEffect(
@@ -350,11 +355,16 @@ const ConfigureTemplateScreen: FC<TemplateScreenProps> = ({ intent, onDraftIdCha
 
   const { copyFromTemplateId, copyFromVersion, ...intentWithoutCopy } = intent;
   const isCopied = !!copiedVersion || (isDraftRestored && !!copyFromTemplateId);
-  const screenIntent: DeploymentIntent = { ...intentWithoutCopy, ...(isCopied ? { copyFromTemplateId, copyFromVersion } : {}), draftId: draft.draftId };
+  const screenIntent: DeploymentIntent = {
+    ...intentWithoutCopy,
+    ...(isCopied ? { copyFromTemplateId, copyFromVersion } : {}),
+    ...(isEditing ? { baseVersion: pinnedBaseVersion } : {}),
+    draftId: draft.draftId
+  };
   const startingVersion = template?.currentVersion ?? copiedVersion;
   const templateForm = (
     <d.ConfigureTemplateForm
-      key={`${draft.draftId}:${template?.id}:${template?.currentVersion?.version}`}
+      key={`${draft.draftId}:${template?.id}`}
       intent={screenIntent}
       initialSdl={draft.persistedSdl ?? startingVersion?.sdl}
       initialName={draft.persistedName ?? template?.title}

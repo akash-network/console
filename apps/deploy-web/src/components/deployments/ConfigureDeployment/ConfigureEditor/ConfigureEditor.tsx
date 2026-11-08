@@ -29,6 +29,7 @@ type Props = {
   onDeploymentNameChange: (value: string) => void;
   toolbar: ReactNode;
   title?: string;
+  showsNameField?: boolean;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -41,6 +42,7 @@ export const ConfigureEditor: FC<Props> = ({
   onDeploymentNameChange,
   toolbar,
   title = "Deployment",
+  showsNameField = true,
   dependencies: d = DEPENDENCIES
 }) => {
   const headingId = useId();
@@ -80,7 +82,7 @@ export const ConfigureEditor: FC<Props> = ({
       <div className="p-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
         <div className="mx-auto max-w-[720px] space-y-6">
           <div className="grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] items-start gap-4">
-            <d.DeploymentNameField value={deploymentName} onChange={onDeploymentNameChange} />
+            {showsNameField && <d.DeploymentNameField value={deploymentName} onChange={onDeploymentNameChange} />}
             <d.ReclamationSection />
           </div>
           <d.PlacementTabs
