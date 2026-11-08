@@ -27,6 +27,12 @@ describe(unmountableVolumesOf.name, () => {
     expect(unmountableVolumesOf(sdl)).toEqual(["web/data"]);
   });
 
+  it("ignores a service whose deployment names a compute profile the SDL lacks", () => {
+    const sdl = sdlWithVolume([]).replace("      profile: web", "      profile: missing");
+
+    expect(unmountableVolumesOf(sdl)).toEqual([]);
+  });
+
   it("ignores a volume the service does not mount", () => {
     const sdl = sdlWithVolume([]).replace("    params:\n      storage:\n        data:\n          mount: /data\n", "");
 

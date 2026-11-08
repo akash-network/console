@@ -42,11 +42,14 @@ const CRAZY_PRICED_SDL = ASSISTANT_TEST_SDL.replace(
 
 const EPHEMERAL_MOUNT_SDL = ASSISTANT_TEST_SDL.replace(
   "    expose:",
-  "    params:\n      storage:\n        data:\n          mount: /data\n    expose:"
-).replace("        storage:\n          size: 2Gi", "        storage:\n          - size: 2Gi\n          - name: data\n            size: 10Gi");
+  "    params:\n      storage:\n        data:\n          mount: /data\n        cache:\n          mount: /cache\n    expose:"
+).replace(
+  "        storage:\n          size: 2Gi",
+  "        storage:\n          - size: 2Gi\n          - name: data\n            size: 10Gi\n          - name: cache\n            size: 1Gi"
+);
 
 const UNMOUNTABLE_VOLUME_MESSAGE =
-  "This SDL mounts web/data, but providers only mount persistent or RAM volumes. Give each mounted volume persistent: true and a class (beta1 HDD, beta2 SSD, beta3 NVMe), use class: ram with persistent: false for shared memory, or remove the volume.";
+  "This SDL mounts web/data, web/cache, but providers only mount persistent or RAM volumes. Give each mounted volume persistent: true and a class (beta1 HDD, beta2 SSD, beta3 NVMe), use class: ram with persistent: false for shared memory, or remove the volume.";
 
 const DEFAULT_CEILING = { denom: "uact", amount: 100000 };
 
