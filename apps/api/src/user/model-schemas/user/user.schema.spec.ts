@@ -12,4 +12,20 @@ describe("Users schema", () => {
       columns: ["last_fingerprint"]
     });
   });
+
+  it("clears the last used organization when that organization is deleted", () => {
+    const { foreignKeys } = getTableConfig(Users);
+
+    expect(
+      foreignKeys.map(foreignKey => {
+        const { columns, foreignColumns, foreignTable } = foreignKey.reference();
+        return {
+          columns: columns.map(column => column.name),
+          foreignTable: getTableConfig(foreignTable).name,
+          foreignColumns: foreignColumns.map(column => column.name),
+          onDelete: foreignKey.onDelete
+        };
+      })
+    ).toContainEqual({ columns: ["last_used_organization_id"], foreignTable: "organizations", foreignColumns: ["id"], onDelete: "set null" });
+  });
 });
