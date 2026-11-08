@@ -10,8 +10,12 @@ export interface StripeServiceDependencies {
   };
 }
 
+export type StripeLoadFailure = "unconfigured" | "script_failed";
+
+export type StripeLoadResult = { stripe: Stripe; failure?: undefined } | { stripe: null; failure: StripeLoadFailure };
+
 export class StripeService {
-  private stripeInstance: Stripe | null = null;
+  #loading: Promise<StripeLoadResult> | null = null;
   private dependencies: Required<StripeServiceDependencies>;
 
   constructor(dependencies: StripeServiceDependencies) {
@@ -22,26 +26,38 @@ export class StripeService {
   }
 
   async getStripe(): Promise<Stripe | null> {
-    if (this.stripeInstance) {
-      return this.stripeInstance;
-    }
+    return (await this.load()).stripe;
+  }
 
+  /** Every caller shares one in-flight load, so the page creates a single Stripe instance, and a failed load is attempted again on the next call. */
+  load(): Promise<StripeLoadResult> {
+    if (!this.#loading) {
+      const loading = this.#loadStripe();
+      this.#loading = loading;
+      void loading.then(result => {
+        if (result.failure && this.#loading === loading) this.#loading = null;
+      });
+    }
+    return this.#loading;
+  }
+
+  async #loadStripe(): Promise<StripeLoadResult> {
     const publishableKey = this.dependencies.config.publishableKey;
     if (!publishableKey) {
       console.warn("Stripe publishable key is not configured");
-      return null;
+      return { stripe: null, failure: "unconfigured" };
     }
 
     try {
-      this.stripeInstance = await this.dependencies.loadStripe(publishableKey, STRIPE_OPTIONS);
-      return this.stripeInstance;
+      const stripe = await this.dependencies.loadStripe(publishableKey, STRIPE_OPTIONS);
+      if (stripe) return { stripe };
     } catch (error) {
       console.error("Failed to load Stripe:", error);
-      return null;
     }
+    return { stripe: null, failure: "script_failed" };
   }
 
   clearStripeInstance(): void {
-    this.stripeInstance = null;
+    this.#loading = null;
   }
 }

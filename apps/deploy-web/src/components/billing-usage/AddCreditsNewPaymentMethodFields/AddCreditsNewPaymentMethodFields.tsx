@@ -19,7 +19,7 @@ export interface PaymentMethodSetupFailure {
 
 export type PaymentMethodSetupResult = { paymentMethodId: string } | { failure: PaymentMethodSetupFailure };
 
-export type PaymentFormLoadError = "stripe_unavailable" | "load_error";
+export type PaymentFormLoadError = "script_blocked" | "stripe_unavailable" | "load_error";
 
 /**
  * Imperative contract exposed by a payment-method source so an orchestrator
@@ -68,21 +68,22 @@ export const AddCreditsNewPaymentMethodFields = forwardRef<PaymentMethodSourceHa
     const { stripeService } = d.useServices();
     const { resolvedTheme } = d.useTheme();
 
-    const stripePromise = useMemo(() => stripeService.getStripe(), [stripeService]);
+    const stripeLoad = useMemo(() => stripeService.load(), [stripeService]);
+    const stripePromise = useMemo(() => stripeLoad.then(result => result.stripe), [stripeLoad]);
     const isDarkMode = useMemo(() => resolvedTheme === "dark", [resolvedTheme]);
     const stripeAppearance = useMemo(() => buildStripeAppearance(isDarkMode), [isDarkMode]);
 
     useEffect(
       function reportUnavailableStripe() {
         let isCurrentLoad = true;
-        void stripePromise.then(stripe => {
-          if (isCurrentLoad && !stripe) onLoadFailed("stripe_unavailable");
+        void stripeLoad.then(({ failure }) => {
+          if (isCurrentLoad && failure) onLoadFailed(failure === "script_failed" ? "script_blocked" : "stripe_unavailable");
         });
         return () => {
           isCurrentLoad = false;
         };
       },
-      [stripePromise, onLoadFailed]
+      [stripeLoad, onLoadFailed]
     );
 
     if (isLoading) {

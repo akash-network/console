@@ -1,6 +1,8 @@
 import { createStore, Provider as JotaiProvider } from "jotai";
 import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
+import type { StripeService } from "@src/services/stripe/stripe.service";
 import type { AddCreditsRequest } from "@src/store/addCreditsStore";
 import { addCreditsRequestAtom } from "@src/store/addCreditsStore";
 import type { DEPENDENCIES } from "./AddCreditsHost";
@@ -9,6 +11,18 @@ import { AddCreditsHost } from "./AddCreditsHost";
 import { act, render, screen } from "@testing-library/react";
 
 describe("AddCreditsHost", () => {
+  it("loads Stripe ahead of the sheet for a signed-in user, so the card form does not wait for it", () => {
+    const { stripeService } = setup({ isSignedIn: true });
+
+    expect(stripeService.load).toHaveBeenCalledOnce();
+  });
+
+  it("does not load Stripe before anyone is signed in", () => {
+    const { stripeService } = setup({ isSignedIn: false });
+
+    expect(stripeService.load).not.toHaveBeenCalled();
+  });
+
   it("keeps the sheet closed until something requests credits", () => {
     setup();
 
@@ -138,8 +152,12 @@ describe("AddCreditsHost", () => {
     expect(screen.getByTestId("add-credits-sheet")).toHaveAttribute("data-suggest-first-deployment", "false");
   });
 
-  function setup(input?: { AddCreditsSheet?: typeof DEPENDENCIES.AddCreditsSheet }) {
+  function setup(input?: { AddCreditsSheet?: typeof DEPENDENCIES.AddCreditsSheet; isSignedIn?: boolean }) {
     const store = createStore();
+    const stripeService = mock<StripeService>();
+    const useServices: typeof DEPENDENCIES.useServices = () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ stripeService });
+    const useUser: typeof DEPENDENCIES.useUser = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: input?.isSignedIn === false ? undefined : { id: "user-1" } });
     const AddCreditsSheet: typeof DEPENDENCIES.AddCreditsSheet = ({
       open,
       onOpenChange,
@@ -168,10 +186,10 @@ describe("AddCreditsHost", () => {
 
     render(
       <JotaiProvider store={store}>
-        <AddCreditsHost dependencies={{ AddCreditsSheet: input?.AddCreditsSheet ?? AddCreditsSheet }} />
+        <AddCreditsHost dependencies={{ AddCreditsSheet: input?.AddCreditsSheet ?? AddCreditsSheet, useServices, useUser }} />
       </JotaiProvider>
     );
 
-    return { store, open: (request: AddCreditsRequest) => act(() => store.set(addCreditsRequestAtom, request)) };
+    return { store, stripeService, open: (request: AddCreditsRequest) => act(() => store.set(addCreditsRequestAtom, request)) };
   }
 });

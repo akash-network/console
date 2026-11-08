@@ -45,6 +45,24 @@ describe(AddCreditsWalletButton.name, () => {
     expect(screen.queryByRole("button", { name: "Pay with wallet" })).not.toBeInTheDocument();
   });
 
+  it("reports express checkout as available once a wallet is detected", async () => {
+    const { onAvailabilityChange } = setup({});
+
+    await screen.findByRole("button", { name: "Pay with wallet" });
+
+    expect(onAvailabilityChange).toHaveBeenLastCalledWith(true);
+  });
+
+  it("hides express checkout and reports it unavailable when the browser could not load Stripe", async () => {
+    const { onAvailabilityChange, stripe } = setup({ stripePromise: Promise.resolve(null) });
+
+    await act(async () => undefined);
+
+    expect(stripe.paymentRequest).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Pay with wallet" })).not.toBeInTheDocument();
+    expect(onAvailabilityChange.mock.calls).toEqual([[false]]);
+  });
+
   it("prevents opening a wallet while checkout is disabled", async () => {
     const { onOpenChange, preventDefault } = setup({ disabled: true });
 
@@ -293,7 +311,7 @@ describe(AddCreditsWalletButton.name, () => {
       createSetupIntent?: ReturnType<typeof DEPENDENCIES.useServices>["stripe"]["createSetupIntent"];
       walletName?: string;
       paymentMethod?: PaymentRequestPaymentMethodEvent["paymentMethod"];
-      stripePromise?: Promise<Stripe>;
+      stripePromise?: Promise<Stripe | null>;
     } = {}
   ) {
     const listeners = new Map<string, (...args: never[]) => unknown>();
@@ -316,6 +334,7 @@ describe(AddCreditsWalletButton.name, () => {
       })
     });
     const onOpenChange = vi.fn();
+    const onAvailabilityChange = vi.fn();
     const preventDefault = vi.fn();
     let result: PaymentMethodSetupResult | null = null;
     const onSubmit = vi.fn<React.ComponentProps<typeof AddCreditsWalletButton>["onSubmit"]>(async source => {
@@ -337,6 +356,7 @@ describe(AddCreditsWalletButton.name, () => {
         disabled={input.disabled ?? false}
         onSubmit={onSubmit}
         onOpenChange={onOpenChange}
+        onAvailabilityChange={onAvailabilityChange}
         dependencies={{
           useServices: () => services,
           Elements: ({ children }) => <>{children}</>,
@@ -354,6 +374,7 @@ describe(AddCreditsWalletButton.name, () => {
       event,
       onSubmit,
       onOpenChange,
+      onAvailabilityChange,
       preventDefault,
       result: () => result,
       async authorize() {
