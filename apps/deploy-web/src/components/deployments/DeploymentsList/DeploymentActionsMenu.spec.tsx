@@ -90,6 +90,14 @@ describe("DeploymentActionsMenu", () => {
     expect(screen.queryByRole("menuitem", { name: /Close/ })).not.toBeInTheDocument();
   });
 
+  it("offers a member who only reads deployments no Save as template", async () => {
+    setup({ canChangeDeployments: false, isTemplateMarketplaceEnabled: true, definition: { sdl: "version: '2.0'", name: "acme", source: "api" } });
+
+    await openMenu();
+
+    expect(screen.queryByRole("menuitem", { name: /Save as template/ })).not.toBeInTheDocument();
+  });
+
   it("redeploys from the resolved definition", async () => {
     const { redeploy } = setup({ definition: { sdl: "version: '2.0'", name: "acme", source: "api" } });
 

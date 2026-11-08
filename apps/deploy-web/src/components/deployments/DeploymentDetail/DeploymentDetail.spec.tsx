@@ -683,6 +683,17 @@ describe("DeploymentDetail", () => {
       expect(withFlag.DeploymentUpdate.mock.calls[0][0].onSaveAsTemplate).toBeInstanceOf(Function);
     });
 
+    it("offers no Save as template to a member who only reads deployments", () => {
+      const { DeploymentUpdate } = setup({
+        tab: "UPDATE",
+        isTemplateMarketplaceEnabled: true,
+        canChangeDeployments: false,
+        definition: { sdl: "version: '2.0'", source: "api" }
+      });
+
+      expect(DeploymentUpdate.mock.calls[0][0].onSaveAsTemplate).toBeUndefined();
+    });
+
     it("offers the editor no Save as template without template_marketplace", () => {
       const { DeploymentUpdate } = setup({ tab: "UPDATE", definition: { sdl: "version: '2.0'", source: "api" } });
 
@@ -840,6 +851,7 @@ describe("DeploymentDetail", () => {
     templateId?: string;
     recordedOutcome?: RecordedDeploymentOutcome;
     isTemplateMarketplaceEnabled?: boolean;
+    canChangeDeployments?: boolean;
   }) {
     const deployment = input && "deployment" in input ? input.deployment : mock<DeploymentDto>({ dseq: "1786440078202", state: "active", groups: [] });
     const leases = input && "leases" in input ? input.leases : [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: input?.leaseState ?? "active" })];
@@ -964,7 +976,11 @@ describe("DeploymentDetail", () => {
       DeploymentTemplateGuide,
       DeploymentUpdate,
       createConfigureDraft,
-      useProjectsUi: () => mock<ReturnType<typeof DEPENDENCIES.useProjectsUi>>({ isEnabled: input?.isProjectsUiEnabled ?? true }),
+      useProjectsUi: () =>
+        mock<ReturnType<typeof DEPENDENCIES.useProjectsUi>>({
+          isEnabled: input?.isProjectsUiEnabled ?? true,
+          canChangeDeployments: input?.canChangeDeployments ?? true
+        }),
       useDeploymentLocationQuery,
       useOpenDeploymentInItsOrganization,
       useDeploymentOutcomes,

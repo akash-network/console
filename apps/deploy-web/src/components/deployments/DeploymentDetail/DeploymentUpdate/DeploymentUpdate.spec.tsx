@@ -1102,6 +1102,24 @@ describe(DeploymentUpdate.name, () => {
       expect(screen.getByRole("button", { name: "Update deployment" })).toBeInTheDocument();
     });
 
+    it("holds Save as template while there are edits that are not applied", async () => {
+      setup({ offersSaveAsTemplate: true });
+      expect(screen.getByRole("button", { name: "Save as template" })).toBeEnabled();
+
+      await userEvent.type(within(serviceSection("web")).getByLabelText("Image"), "-hotfix");
+
+      expect(screen.getByRole("button", { name: "Save as template" })).toBeDisabled();
+    });
+
+    it.each([
+      { named: "an update is being sent", input: { isUpdating: true } },
+      { named: "an update is applying in the background", input: { updatingDseqs: ["1234"] } }
+    ])("holds Save as template while $named", ({ input }) => {
+      setup({ offersSaveAsTemplate: true, ...input });
+
+      expect(screen.getByRole("button", { name: "Save as template" })).toBeDisabled();
+    });
+
     it("offers no Save as template when the tab is given no way to", () => {
       setup();
 

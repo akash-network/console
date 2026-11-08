@@ -129,7 +129,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
 
   const { data: deployment, isFetching: isLoadingDeployment, refetch: getDeploymentDetail, error: deploymentError } = d.useDeploymentDetail(address, dseq);
   d.useOpenDeploymentInItsOrganization({ dseq, isMissingHere: !!deploymentError, query: searchParams?.toString() ?? "" });
-  const { isEnabled: isProjectsUiEnabled } = d.useProjectsUi();
+  const { isEnabled: isProjectsUiEnabled, canChangeDeployments } = d.useProjectsUi();
   const { data: location } = d.useDeploymentLocationQuery(dseq, { enabled: isProjectsUiEnabled });
   const {
     data: chainLeases,
@@ -355,7 +355,9 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
                     onUpdated={loadDeploymentDetail}
                     onRedeploy={isUsableDeploymentDefinition(definition) ? redeployFromResolvedDefinition : undefined}
                     onRedeployWithNewSecrets={isUsableDeploymentDefinition(definition) ? redeployWithNewSecrets : undefined}
-                    onSaveAsTemplate={isTemplateMarketplaceEnabled && isUsableDeploymentDefinition(definition) ? saveDeploymentAsTemplate : undefined}
+                    onSaveAsTemplate={
+                      isTemplateMarketplaceEnabled && canChangeDeployments && isUsableDeploymentDefinition(definition) ? saveDeploymentAsTemplate : undefined
+                    }
                     fallback={manifestUpdate}
                   />
                 )}

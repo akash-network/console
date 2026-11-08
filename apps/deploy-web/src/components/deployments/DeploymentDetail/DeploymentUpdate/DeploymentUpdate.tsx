@@ -248,7 +248,7 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
               <>
                 {isApplyingInBackground && <p className="mr-auto text-sm text-muted-foreground">{APPLYING_NOTICE}</p>}
                 {onSaveAsTemplate && (
-                  <Button type="button" variant="outline" size="sm" onClick={onSaveAsTemplate}>
+                  <Button type="button" variant="outline" size="sm" disabled={isDirty || isBusy} onClick={onSaveAsTemplate}>
                     Save as template
                   </Button>
                 )}

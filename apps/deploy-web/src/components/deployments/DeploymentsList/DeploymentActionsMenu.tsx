@@ -104,7 +104,7 @@ export const DeploymentActionsMenu: FC<DeploymentActionsMenuProps> = ({
               Redeploy
             </DropdownMenuItem>
           )}
-          {isTemplateMarketplaceEnabled && canRedeploy && (
+          {isTemplateMarketplaceEnabled && canRedeploy && canChangeDeployments && (
             <DropdownMenuItem disabled={isResolvingDefinition} onSelect={saveDefinitionAsTemplate}>
               <BookmarkPlus className="mr-2 h-4 w-4" />
               Save as template
