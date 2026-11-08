@@ -20,6 +20,7 @@ const DEPLOY_WEB_BASE_URL = "https://console.akash.network";
 const OWNER = "akash1owner";
 const DSEQ = "1784768430632";
 const WALLET_ORGANIZATION_ID = "5f0c3e9a-3c1b-4f62-9a57-3f2d8c1e7b40";
+const ORPHANED_SETTING_ID = "9a1d4b7e-2c5f-4e8a-b3d6-7f0e1c2a5b84";
 const DARK_PROVIDER = "akash1dark";
 const HEALTHY_PROVIDER = "akash1healthy";
 const DOWN_SINCE = "2026-07-24T00:00:00.000Z";
@@ -163,6 +164,40 @@ describe(UnreachableProviderDeploymentsNotifierService.name, () => {
     expect(notificationService.createNotification).toHaveBeenCalledTimes(2);
     expect(notificationService.createNotification).toHaveBeenCalledWith(expect.objectContaining({ user: { id: "owner-1", email: "owner-1@example.com" } }));
     expect(notificationService.createNotification).toHaveBeenCalledWith(expect.objectContaining({ user: { id: "owner-2", email: "owner-2@example.com" } }));
+  });
+
+  it("claims the outage on the team's record and emails its owners when the filer has deleted their account", async () => {
+    const { service, deploymentContactsService, deploymentSettingRepository, notificationService } = setup({
+      outages: [anOutage({})],
+      leases: [aLease({})],
+      teamWallet: true,
+      setting: mock<DeploymentSettingsOutput>({ id: ORPHANED_SETTING_ID, userId: null, providerUnreachableNotifiedFor: null }),
+      recipients: [mock<UserOutput>({ id: "owner-1", email: "owner-1@example.com" }), mock<UserOutput>({ id: "owner-2", email: "owner-2@example.com" })]
+    });
+
+    await service.notifyUnreachableProviderDeployments({ dryRun: false });
+
+    expect(deploymentContactsService.findFor).toHaveBeenCalledWith({ wallet: expect.objectContaining({ userId: null }), filingUserId: null });
+    expect(deploymentSettingRepository.claimProviderUnreachableNotification).toHaveBeenCalledWith({
+      orphanId: ORPHANED_SETTING_ID,
+      downSinceMarker: DOWN_SINCE
+    });
+    expect(notificationService.createNotification).toHaveBeenCalledWith(expect.objectContaining({ user: { id: "owner-1", email: "owner-1@example.com" } }));
+    expect(notificationService.createNotification).toHaveBeenCalledWith(expect.objectContaining({ user: { id: "owner-2", email: "owner-2@example.com" } }));
+  });
+
+  it("gives back the claim on the team's record when the email to its owners is rejected", async () => {
+    const { service, deploymentSettingRepository, notificationService } = setup({
+      outages: [anOutage({})],
+      leases: [aLease({})],
+      teamWallet: true,
+      setting: mock<DeploymentSettingsOutput>({ id: ORPHANED_SETTING_ID, userId: null, providerUnreachableNotifiedFor: null })
+    });
+    notificationService.createNotification.mockRejectedValue(new Error("novu is down"));
+
+    await service.notifyUnreachableProviderDeployments({ dryRun: false });
+
+    expect(deploymentSettingRepository.releaseProviderUnreachableClaim).toHaveBeenCalledWith({ orphanId: ORPHANED_SETTING_ID, downSinceMarker: DOWN_SINCE });
   });
 
   it("emails only the people who have an address to send to", async () => {

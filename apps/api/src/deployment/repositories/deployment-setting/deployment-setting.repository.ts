@@ -201,7 +201,12 @@ export type DeploymentSettingOwner = {
   projectId?: string | null;
 };
 
-export type ProviderUnreachableClaim = Pick<DeploymentSettingOwner, "userId" | "dseq"> & { organizationId: string | null; downSinceMarker: string };
+export type FiledDeployment = Pick<DeploymentSettingOwner, "userId" | "dseq"> & { organizationId: string | null };
+
+/** A team deployment whose filer deleted their account keeps its row with no user, so that row is written by its id. */
+export type OrphanedDeployment = { orphanId: DeploymentSettingsOutput["id"] };
+
+export type ProviderUnreachableClaim = (FiledDeployment | OrphanedDeployment) & { downSinceMarker: string };
 
 @singleton()
 export class DeploymentSettingRepository extends OrgScopedRepository<Table, DeploymentSettingsInput, DeploymentSettingsOutput> {
@@ -1474,7 +1479,10 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
   }
 
   /** Claimed before the email goes out, not stamped after, because the sweep runs many times an hour while an outage lasts days. */
-  async claimProviderUnreachableNotification({ userId, dseq, organizationId, downSinceMarker }: ProviderUnreachableClaim): Promise<boolean> {
+  async claimProviderUnreachableNotification(claim: ProviderUnreachableClaim): Promise<boolean> {
+    if ("orphanId" in claim) return await this.#claimProviderUnreachableNotificationOfOrphan(claim);
+
+    const { userId, dseq, organizationId, downSinceMarker } = claim;
     const values = await this.attributeToOrganization({
       userId,
       dseq,
@@ -1488,30 +1496,39 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
       .onConflictDoUpdate({
         target: [this.table.dseq, this.table.userId],
         set: { providerUnreachableNotifiedFor: sql`${downSinceMarker}::timestamptz`, updatedAt: sql`now()` },
-        setWhere: this.whereAccessibleBy(
-          and(sql`${this.table.providerUnreachableNotifiedFor} is distinct from ${downSinceMarker}::timestamptz`, this.#isFiledIn(values))
-        )
+        setWhere: this.whereAccessibleBy(and(this.#isNotNotifiedFor(downSinceMarker), this.#isFiledIn(values)))
       })
       .returning({ id: this.table.id });
 
     return !!claimed;
   }
 
+  async #claimProviderUnreachableNotificationOfOrphan({ orphanId, downSinceMarker }: OrphanedDeployment & { downSinceMarker: string }): Promise<boolean> {
+    const [claimed] = await this.cursor
+      .update(this.table)
+      .set({ providerUnreachableNotifiedFor: sql`${downSinceMarker}::timestamptz`, updatedAt: sql`now()` })
+      .where(this.whereAccessibleBy(and(eq(this.table.id, orphanId), this.#isNotNotifiedFor(downSinceMarker))))
+      .returning({ id: this.table.id });
+
+    return !!claimed;
+  }
+
+  #isNotNotifiedFor(downSinceMarker: string): SQL {
+    return sql`${this.table.providerUnreachableNotifiedFor} is distinct from ${downSinceMarker}::timestamptz`;
+  }
+
   /** Scoped to the exact outage the claim was taken against, so a late release cannot clear the stamp a later pass wrote for a newer outage. */
-  async releaseProviderUnreachableClaim({ userId, dseq, organizationId, downSinceMarker }: ProviderUnreachableClaim): Promise<void> {
+  async releaseProviderUnreachableClaim(claim: ProviderUnreachableClaim): Promise<void> {
     await this.cursor
       .update(this.table)
       .set({ providerUnreachableNotifiedFor: null, updatedAt: sql`now()` })
-      .where(
-        this.whereAccessibleBy(
-          and(
-            eq(this.table.userId, userId),
-            eq(this.table.dseq, dseq),
-            eq(this.table.providerUnreachableNotifiedFor, sql`${downSinceMarker}::timestamptz`),
-            this.#isFiledIn({ userId, organizationId })
-          )
-        )
-      );
+      .where(this.whereAccessibleBy(and(this.#rowOf(claim), eq(this.table.providerUnreachableNotifiedFor, sql`${claim.downSinceMarker}::timestamptz`))));
+  }
+
+  #rowOf(deployment: FiledDeployment | OrphanedDeployment): SQL | undefined {
+    if ("orphanId" in deployment) return eq(this.table.id, deployment.orphanId);
+
+    return and(eq(this.table.userId, deployment.userId), eq(this.table.dseq, deployment.dseq), this.#isFiledIn(deployment));
   }
 
   /**
@@ -1521,12 +1538,10 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
    * closed deployment has nothing to fund.
    */
   /** Leaves open a row the user filed in another organization than the close is filed in, since a dseq can be shared across tenants. */
-  async markClosed({
-    userId,
-    dseq,
-    organizationId,
-    consoleCloseReason
-  }: DeploymentSettingOwner & Pick<DeploymentSettingsInput, "consoleCloseReason">): Promise<void> {
+  async markClosed(close: (DeploymentSettingOwner | OrphanedDeployment) & Pick<DeploymentSettingsInput, "consoleCloseReason">): Promise<void> {
+    if ("orphanId" in close) return await this.#markOrphanClosed(close);
+
+    const { userId, dseq, organizationId, consoleCloseReason } = close;
     const values = await this.attributeToOrganization({ userId, dseq, organizationId, autoTopUpEnabled: false, closed: true, consoleCloseReason });
 
     await this.cursor
@@ -1537,5 +1552,12 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
         set: { closed: true, consoleCloseReason: sql`coalesce(${this.table.consoleCloseReason}, excluded.console_close_reason)`, updatedAt: sql`now()` },
         setWhere: this.whereAccessibleBy(this.#isFiledIn(values))
       });
+  }
+
+  async #markOrphanClosed({ orphanId, consoleCloseReason }: OrphanedDeployment & Pick<DeploymentSettingsInput, "consoleCloseReason">): Promise<void> {
+    await this.cursor
+      .update(this.table)
+      .set({ closed: true, consoleCloseReason: sql`coalesce(${this.table.consoleCloseReason}, ${consoleCloseReason ?? null})`, updatedAt: sql`now()` })
+      .where(this.whereAccessibleBy(eq(this.table.id, orphanId)));
   }
 }
