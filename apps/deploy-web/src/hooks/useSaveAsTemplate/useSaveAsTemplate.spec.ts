@@ -22,6 +22,22 @@ describe(useSaveAsTemplate.name, () => {
     expect(push).toHaveBeenCalledWith("/new-deployment/configure?templateMode=new&draftId=draft-1&sourceDseq=123");
   });
 
+  it("hands the suggested title and summary to the save dialog apart from the deployment's name", () => {
+    const { saveAsTemplate, createConfigureDraft } = setup();
+
+    saveAsTemplate({ sdl: SDL, name: "my-app", suggestedTitle: "Support chat", suggestedSummary: "Chat through one key.", dseq: "123" });
+
+    expect(createConfigureDraft).toHaveBeenCalledWith(SDL, { name: "my-app", templateTitle: "Support chat", templateSummary: "Chat through one key." });
+  });
+
+  it("names the deployment the SDL comes from in the URL", () => {
+    const { saveAsTemplate, push } = setup({ draftId: "draft-1" });
+
+    saveAsTemplate({ sdl: SDL, dseq: "123" });
+
+    expect(push).toHaveBeenCalledWith("/new-deployment/configure?templateMode=new&draftId=draft-1&sourceDseq=123");
+  });
+
   it("keeps secrets as references, naming no deployment to inherit their values from", () => {
     const { saveAsTemplate, createConfigureDraft } = setup();
 
@@ -30,7 +46,7 @@ describe(useSaveAsTemplate.name, () => {
     expect(createConfigureDraft.mock.lastCall?.[1]).not.toHaveProperty("inheritSecretsFrom");
   });
 
-  it("names no source deployment when the SDL comes from the assistant", () => {
+  it("names no source deployment when the SDL has no deployment behind it", () => {
     const { saveAsTemplate, push } = setup({ draftId: "draft-1" });
 
     saveAsTemplate({ sdl: SDL, name: "Site" });

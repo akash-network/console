@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import type { DeploymentLocation } from "@src/types/project";
 import type { ActionCardChromeProps } from "../ActionCardChrome/ActionCardChrome";
 import { DeploymentLink } from "../DeploymentLink/DeploymentLink";
 import type { ActionCardDecision } from "../useActionCardDecision/useActionCardDecision";
@@ -71,12 +72,45 @@ describe(SaveAsTemplateCard.name, () => {
   });
 
   it("opens template mode from the assistant card with the suggested title", async () => {
-    const { chromeProps, saveAsTemplate, saveTemplate } = setup({ description: "nginx site", isTemplateMarketplaceEnabled: true });
+    const { chromeProps, saveAsTemplate, saveTemplate, useDeploymentLocationQuery } = setup({
+      description: "nginx site",
+      isTemplateMarketplaceEnabled: true,
+      filedProjectId: "project-blog"
+    });
 
     await chromeProps().onConfirm!("");
 
-    expect(saveAsTemplate).toHaveBeenCalledWith({ sdl: SDL, name: "Site" });
+    expect(useDeploymentLocationQuery).toHaveBeenCalledWith("42", { enabled: true });
+    expect(saveAsTemplate).toHaveBeenCalledWith({
+      sdl: SDL,
+      name: "blog",
+      suggestedTitle: "Site",
+      suggestedSummary: "nginx site",
+      projectId: "project-blog",
+      dseq: "42"
+    });
     expect(saveTemplate).not.toHaveBeenCalled();
+  });
+
+  it("opens template mode without a summary or project the card cannot give", async () => {
+    const { chromeProps, saveAsTemplate } = setup({ description: null, deploymentName: null, isTemplateMarketplaceEnabled: true });
+
+    await chromeProps().onConfirm!("");
+
+    expect(saveAsTemplate).toHaveBeenCalledWith({
+      sdl: SDL,
+      name: undefined,
+      suggestedTitle: "Site",
+      suggestedSummary: undefined,
+      projectId: undefined,
+      dseq: "42"
+    });
+  });
+
+  it("reads no deployment location without template_marketplace", () => {
+    const { useDeploymentLocationQuery } = setup({ description: "nginx site" });
+
+    expect(useDeploymentLocationQuery).toHaveBeenCalledWith("42", { enabled: false });
   });
 
   it("still saves directly from the assistant card without template_marketplace", async () => {
@@ -112,8 +146,21 @@ describe(SaveAsTemplateCard.name, () => {
     expect(saveTemplate).not.toHaveBeenCalled();
   });
 
-  function setup(input: { description?: string | null; definition?: DeploymentDefinition; isTemplateMarketplaceEnabled?: boolean }) {
-    const useDeploymentName = vi.fn((_dseq: string | null | undefined, _knownName?: string | null): string | null => "blog");
+  function setup(input: {
+    description?: string | null;
+    definition?: DeploymentDefinition;
+    isTemplateMarketplaceEnabled?: boolean;
+    filedProjectId?: string;
+    deploymentName?: string | null;
+  }) {
+    const useDeploymentName = vi.fn((_dseq: string | null | undefined, _knownName?: string | null): string | null =>
+      input.deploymentName === undefined ? "blog" : input.deploymentName
+    );
+    const useDeploymentLocationQuery = vi.fn<typeof DEPENDENCIES.useDeploymentLocationQuery>(() =>
+      mock<ReturnType<typeof DEPENDENCIES.useDeploymentLocationQuery>>({
+        data: input.filedProjectId ? mock<DeploymentLocation>({ projectId: input.filedProjectId }) : null
+      })
+    );
     const saveTemplate = vi.fn(async (_template: unknown): Promise<unknown> => ({ data: "t-1" }));
     const saveAsTemplate = vi.fn();
     const useDeploymentDefinition = vi.fn((_dseq: string) => input.definition ?? { sdl: SDL, name: "site", source: "api" as const });
@@ -133,11 +180,20 @@ describe(SaveAsTemplateCard.name, () => {
             }),
           useSaveAsTemplate: () => saveAsTemplate,
           useFlag: flag => flag === "template_marketplace" && !!input.isTemplateMarketplaceEnabled,
+          useDeploymentLocationQuery,
           ActionCardChrome: ActionCardChrome as unknown as typeof DEPENDENCIES.ActionCardChrome
         }}
       />
     );
 
-    return { chromeProps: () => ActionCardChrome.mock.lastCall![0], useDeploymentName, saveTemplate, saveAsTemplate, useDeploymentDefinition, decision };
+    return {
+      chromeProps: () => ActionCardChrome.mock.lastCall![0],
+      useDeploymentName,
+      saveTemplate,
+      saveAsTemplate,
+      useDeploymentDefinition,
+      useDeploymentLocationQuery,
+      decision
+    };
   }
 });

@@ -4,13 +4,22 @@ import type { FC } from "react";
 import { isUsableDeploymentDefinition, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useFlag } from "@src/hooks/useFlag";
 import { useSaveAsTemplate } from "@src/hooks/useSaveAsTemplate/useSaveAsTemplate";
+import { useDeploymentLocationQuery } from "@src/queries/useDeploymentProjectQueries";
 import { useSaveUserTemplate } from "@src/queries/useTemplateQuery";
 import { ActionCardChrome } from "../ActionCardChrome/ActionCardChrome";
 import type { ActionCardProps } from "../actionCardTypes";
 import { DeploymentLink } from "../DeploymentLink/DeploymentLink";
 import { useDeploymentName } from "../useDeploymentName/useDeploymentName";
 
-export const DEPENDENCIES = { useDeploymentDefinition, useSaveUserTemplate, useSaveAsTemplate, useFlag, useDeploymentName, ActionCardChrome };
+export const DEPENDENCIES = {
+  useDeploymentDefinition,
+  useSaveUserTemplate,
+  useSaveAsTemplate,
+  useFlag,
+  useDeploymentName,
+  useDeploymentLocationQuery,
+  ActionCardChrome
+};
 
 export const SaveAsTemplateCard: FC<ActionCardProps<"save_as_template"> & { dependencies?: typeof DEPENDENCIES }> = ({
   action,
@@ -22,6 +31,7 @@ export const SaveAsTemplateCard: FC<ActionCardProps<"save_as_template"> & { depe
   const { mutateAsync: saveTemplate } = d.useSaveUserTemplate();
   const openInTemplateMode = d.useSaveAsTemplate();
   const isTemplateMarketplaceEnabled = d.useFlag("template_marketplace");
+  const { data: location } = d.useDeploymentLocationQuery(action.dseq, { enabled: isTemplateMarketplaceEnabled });
   const isUsable = isUsableDeploymentDefinition(definition);
   const isResolving = definition.source === "resolving";
 
@@ -47,7 +57,14 @@ export const SaveAsTemplateCard: FC<ActionCardProps<"save_as_template"> & { depe
       onConfirm={async () => {
         if (!isUsable) return;
         if (isTemplateMarketplaceEnabled) {
-          openInTemplateMode({ sdl: definition.sdl, name: action.title });
+          openInTemplateMode({
+            sdl: definition.sdl,
+            name: deploymentName ?? undefined,
+            suggestedTitle: action.title,
+            suggestedSummary: action.description ?? undefined,
+            projectId: location?.projectId,
+            dseq: action.dseq
+          });
           return;
         }
         await saveTemplate({ sdl: definition.sdl, title: action.title, description: action.description ?? undefined, isPublic: false });
