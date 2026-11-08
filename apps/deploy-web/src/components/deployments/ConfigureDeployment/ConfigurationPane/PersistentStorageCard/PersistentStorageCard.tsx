@@ -145,6 +145,12 @@ const PersistentStorageFields: FC<PersistentStorageFieldsProps> = ({ serviceInde
   const name = useController({ control, name: `${basePath}.name` });
   const mount = useController({ control, name: `${basePath}.mount` });
   const isReadOnly = useController({ control, name: `${basePath}.isReadOnly` });
+  const isPersistent = useController({ control, name: `${basePath}.isPersistent` });
+
+  const selectPersistentType = (value: string) => {
+    type.field.onChange(value);
+    isPersistent.field.onChange(true);
+  };
 
   return (
     <div role="group" aria-label={`Persistent Storage ${label}`} className="flex flex-col gap-3 rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
@@ -168,7 +174,7 @@ const PersistentStorageFields: FC<PersistentStorageFieldsProps> = ({ serviceInde
       <Field className="gap-2">
         <FieldLabel>Type</FieldLabel>
         <FieldContent>
-          <Select value={type.field.value ?? ""} onValueChange={type.field.onChange} disabled={disabled}>
+          <Select value={type.field.value ?? ""} onValueChange={selectPersistentType} disabled={disabled}>
             <SelectTrigger aria-label="Storage type" className={`h-9 ${SELECT_TRUNCATE_VALUE}`}>
               <SelectValue placeholder="Select" />
             </SelectTrigger>

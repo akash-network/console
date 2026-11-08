@@ -96,6 +96,18 @@ describe(applyConfigureFormEdit.name, () => {
       expect(editedStorage([EPHEMERAL, DATA, CACHE], { name: "cache", class: "beta1" })).toEqual([EPHEMERAL, DATA, { ...CACHE, type: "beta1" }]);
     });
 
+    it("makes a volume persistent when it gets a class", () => {
+      const scratch: StorageVolume = { size: 1, unit: "Gi", isPersistent: false, name: "scratch", mount: "/scratch", isReadOnly: false };
+
+      expect(editedStorage([EPHEMERAL, scratch], { class: "beta3" })).toEqual([EPHEMERAL, { ...scratch, type: "beta3", isPersistent: true }]);
+    });
+
+    it("keeps a volume without a class ephemeral when the class is not changed", () => {
+      const scratch: StorageVolume = { size: 1, unit: "Gi", isPersistent: false, name: "scratch", mount: "/scratch", isReadOnly: false };
+
+      expect(editedStorage([EPHEMERAL, scratch], { mount: "/tmp/scratch" })).toEqual([EPHEMERAL, { ...scratch, mount: "/tmp/scratch" }]);
+    });
+
     it("removes every persistent volume but keeps the RAM volume", () => {
       expect(editedStorage([EPHEMERAL, RAM, DATA, CACHE], { remove: true })).toEqual([EPHEMERAL, RAM]);
     });

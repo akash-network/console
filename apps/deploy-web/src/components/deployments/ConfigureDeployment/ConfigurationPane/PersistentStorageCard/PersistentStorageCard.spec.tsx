@@ -43,6 +43,15 @@ describe(PersistentStorageCard.name, () => {
     expect(screen.queryByRole("option", { name: "RAM" })).not.toBeInTheDocument();
   });
 
+  it("makes a volume without a class persistent when a type is picked", async () => {
+    const { getValues } = setup({ storage: [EPHEMERAL, { size: 1, unit: "Gi", isPersistent: false, name: "scratch", mount: "/scratch", isReadOnly: false }] });
+
+    await userEvent.click(screen.getByRole("combobox", { name: "Storage type" }));
+    await userEvent.click(screen.getByRole("option", { name: "NVMe" }));
+
+    expect(getValues().services[0].profile.storage[1]).toMatchObject({ type: "beta3", isPersistent: true, name: "scratch" });
+  });
+
   it("removes every persistent storage entry when toggled off", async () => {
     const { getValues } = setup({ count: 2 });
 

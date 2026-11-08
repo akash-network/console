@@ -7,6 +7,7 @@ import { SdlBuilderFormValuesSchema } from "@src/types/sdlBuilder/sdlBuilder";
 import { defaultServiceWithPlacement } from "./data";
 import { buildCommand, generateSdl } from "./sdlGenerator";
 import { importSimpleSdl, parseSvcCommand } from "./sdlImport";
+import { validateGeneratedSdl } from "./validateGeneratedSdl";
 
 describe("sdlImport", () => {
   describe("parseSvcCommand", () => {
@@ -949,6 +950,46 @@ describe("importSimpleSdl storage order", () => {
     ]);
     expect(parsed.services.web.params).toEqual({ storage: { data: { mount: "/data", readOnly: false } } });
   });
+});
+
+describe("importSimpleSdl storage attributes", () => {
+  const mountedVolume = (attributeLines: string[]) =>
+    serviceSdl({
+      serviceLines: ["    params:", "      storage:", "        data:", "          mount: /data"],
+      storageLines: ["          - size: 1Gi", "          - name: data", "            size: 10Gi", ...attributeLines]
+    });
+
+  it("imports a volume without attributes as ephemeral with no class", () => {
+    const imported = importSimpleSdl(mountedVolume([]));
+
+    expect(imported.services[0].profile.storage[1]).toMatchObject({ name: "data", mount: "/data", isPersistent: false, type: undefined });
+  });
+
+  it("regenerates a volume without attributes without inventing any", () => {
+    const sdl = mountedVolume([]);
+    expect(validateGeneratedSdl(sdl)).toEqual([]);
+
+    const regenerated = generateSdl(importSimpleSdl(sdl));
+
+    expect(validateGeneratedSdl(regenerated)).toEqual([]);
+    expect(storagesOf(regenerated)).toEqual([{ size: "1Gi" }, { name: "data", size: "10Gi" }]);
+  });
+
+  it.each([
+    { attributes: { persistent: false, class: "ram" }, lines: ["            attributes:", "              persistent: false", "              class: ram"] },
+    { attributes: { persistent: true, class: "beta2" }, lines: ["            attributes:", "              persistent: true", "              class: beta2"] },
+    { attributes: { persistent: true, class: "beta3" }, lines: ["            attributes:", "              persistent: true"] }
+  ])("regenerates a volume with attributes $attributes as a valid sdl", ({ attributes, lines }) => {
+    const regenerated = generateSdl(importSimpleSdl(mountedVolume(lines)));
+
+    expect(validateGeneratedSdl(regenerated)).toEqual([]);
+    expect(storagesOf(regenerated)).toEqual([{ size: "1Gi" }, { name: "data", size: "10Gi", attributes }]);
+  });
+
+  function storagesOf(sdl: string) {
+    const parsed = yaml.load(sdl) as { profiles: { compute: Record<string, { resources: { storage: unknown[] } }> } };
+    return parsed.profiles.compute.web.resources.storage;
+  }
 });
 
 function serviceSdl(input: { serviceLines?: string[]; storageLines?: string[]; memorySize?: string }): string {

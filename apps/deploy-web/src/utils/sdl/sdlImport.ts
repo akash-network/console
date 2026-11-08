@@ -89,8 +89,8 @@ export const importSimpleSdl = (yamlStr: string, { placementPerService = false }
         ram: getResourceDigit(compute.resources.memory.size),
         ramUnit: getResourceUnit(compute.resources.memory.size),
         storage: storages.map((storage: any) => {
-          const type = storage.attributes?.class || "beta3";
           const isPersistent = storage.attributes?.persistent || false;
+          const type = storage.attributes?.class || (isPersistent ? "beta3" : undefined);
           const isReadOnly = svc.params?.storage?.[storage.name]?.readOnly || false;
 
           if (type === "ram") {
