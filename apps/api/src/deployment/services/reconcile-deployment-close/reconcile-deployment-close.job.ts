@@ -19,6 +19,10 @@ export class ReconcileDeploymentClose implements Job {
       closeJobId?: string;
     }
   ) {}
+
+  get group(): string {
+    return this.data.userId;
+  }
 }
 
 /** An order of magnitude past the signer's unordered-tx TTL, so whatever the close job sent has landed or expired by the time the deployment is read. */

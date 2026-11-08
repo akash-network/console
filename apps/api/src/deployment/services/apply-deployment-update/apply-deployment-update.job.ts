@@ -23,6 +23,10 @@ export class ApplyDeploymentUpdate implements Job {
       changes?: DeploymentChanges;
     }
   ) {}
+
+  get group(): string {
+    return this.data.userId;
+  }
 }
 
 /** One key per deployment of a wallet, so the applies of one deployment run one at a time while those of others, including a same dseq held by another wallet, run beside them. */

@@ -17,6 +17,10 @@ export class ReconcileDeploymentCreate implements Job {
       createJobId?: string;
     }
   ) {}
+
+  get group(): string {
+    return this.data.userId;
+  }
 }
 
 /** The chain only proves a deployment absent once it is this far past the last create sent, so a check due sooner would spend its retries waiting. */

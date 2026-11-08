@@ -15,6 +15,9 @@ export class ReconcileDeploymentUpdateHandler implements JobHandler<ReconcileDep
   /** One waiting check per activity, so a run retried after it already queued the next check queues no second one. */
   public readonly policy = "short";
 
+  /** Under the two workers a pod runs per queue, so one user's backlog always leaves a worker to everyone else. */
+  public readonly groupConcurrency = 1;
+
   constructor(
     private readonly activityService: ActivityService,
     private readonly jobQueueService: JobQueueService,

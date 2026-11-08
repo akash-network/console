@@ -20,6 +20,10 @@ export class AutoLease implements Job {
       firstBidAt?: string;
     }
   ) {}
+
+  get group(): string {
+    return this.data.userId;
+  }
 }
 
 /** Named by the owner's address as the chain names it, the way the lease job and the stale-deployment cleanup key a deployment. */
