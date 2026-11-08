@@ -8,6 +8,7 @@ import { useSnackbar } from "notistack";
 
 import { LengthCounter } from "@src/components/shared/LengthCounter/LengthCounter";
 import Markdown from "@src/components/shared/Markdown";
+import { describeTemplateRefusal } from "@src/components/templates/describeTemplateRefusal";
 import { useCreateTemplateVersionMutation } from "@src/queries/useUserTemplateQueries";
 import type { TemplateVersionDetail } from "@src/types/marketplace-template";
 
@@ -55,7 +56,9 @@ export const TemplateReadmeTab: FC<TemplateReadmeTabProps> = ({ templateId, vers
         setHasNewerVersion(true);
         return;
       }
-      enqueueSnackbar(<Snackbar title="Couldn't save the README" subTitle="Try again in a moment." iconVariant="error" />, { variant: "error" });
+      enqueueSnackbar(<Snackbar title="Couldn't save the README" subTitle={describeTemplateRefusal(error) ?? "Try again in a moment."} iconVariant="error" />, {
+        variant: "error"
+      });
     }
   };
 

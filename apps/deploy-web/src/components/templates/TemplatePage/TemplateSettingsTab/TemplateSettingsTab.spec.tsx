@@ -6,7 +6,7 @@ import type { MarketplaceTemplate } from "@src/types/marketplace-template";
 import { UrlService } from "@src/utils/urlUtils";
 import { DEPENDENCIES, TemplateSettingsTab } from "./TemplateSettingsTab";
 
-import { render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildProject } from "@tests/seeders/project";
 import { buildMarketplaceTemplate } from "@tests/seeders/userTemplate";
@@ -48,15 +48,34 @@ describe(TemplateSettingsTab.name, () => {
     expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), { variant: "success" });
   });
 
-  it("leaves visibility alone when it was not changed", async () => {
+  it("sends only the fields that changed", async () => {
     const { user, updateSettings } = setup({});
 
+    await replaceText(user, screen.getByRole("textbox", { name: "Summary" }), "Chat with any model.");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(updateSettings).toHaveBeenCalledWith({
-      id: "tpl-webui",
-      data: { title: "Open WebUI + vLLM", summary: "Private chat on your own GPU.", icon: "message-square", categories: ["Chat"] }
-    });
+    expect(updateSettings).toHaveBeenCalledWith({ id: "tpl-webui", data: { summary: "Chat with any model." } });
+  });
+
+  it("keeps Save off until something changes and again once the change is undone", async () => {
+    const { user } = setup({});
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+
+    await user.click(screen.getByRole("checkbox", { name: "Tools" }));
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+
+    await user.click(screen.getByRole("checkbox", { name: "Tools" }));
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+  });
+
+  it("does not count a reordered or whitespace-only edit as a change", async () => {
+    const { user } = setup({ template: { ...TEMPLATE, categories: ["Chat", "Games"] } });
+
+    await user.click(screen.getByRole("checkbox", { name: "Chat" }));
+    await user.click(screen.getByRole("checkbox", { name: "Chat" }));
+    await replaceText(user, screen.getByRole("textbox", { name: "Title" }), "  Open WebUI + vLLM  ");
+
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
   it("clears a blank summary and keeps the default icon unset", async () => {
@@ -66,7 +85,68 @@ describe(TemplateSettingsTab.name, () => {
     await replaceText(user, screen.getByRole("textbox", { name: "Summary" }), "   ");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(updateSettings).toHaveBeenCalledWith({ id: "tpl-webui", data: expect.objectContaining({ summary: null, icon: null }) });
+    expect(updateSettings).toHaveBeenCalledWith({ id: "tpl-webui", data: { summary: null } });
+  });
+
+  it("changes the icon of a template whose saved title is over the limit", async () => {
+    const { user, updateSettings } = setup({ template: { ...TEMPLATE, title: "t".repeat(255), summary: "s".repeat(250) } });
+
+    expect(screen.getByText("255 / 80")).toHaveClass("text-destructive");
+    await user.click(screen.getByRole("radio", { name: "server" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(updateSettings).toHaveBeenCalledWith({ id: "tpl-webui", data: { icon: "server" } });
+  });
+
+  it("still blocks a title edited to stay over the limit", async () => {
+    const { user } = setup({ template: { ...TEMPLATE, title: "t".repeat(255) } });
+
+    await replaceText(user, screen.getByRole("textbox", { name: "Title" }), "u".repeat(100));
+
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+  });
+
+  it("counts the title without its surrounding spaces", async () => {
+    const { user, updateSettings } = setup({});
+
+    await replaceText(user, screen.getByRole("textbox", { name: "Title" }), `  ${"x".repeat(80)}  `);
+
+    expect(screen.getByText("80 / 80")).not.toHaveClass("text-destructive");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(updateSettings).toHaveBeenCalledWith({ id: "tpl-webui", data: { title: "x".repeat(80) } });
+  });
+
+  it("follows a refetched template for the fields the user has not touched", async () => {
+    const { user, receiveFromServer } = setup({});
+    await replaceText(user, screen.getByRole("textbox", { name: "Summary" }), "My own summary");
+
+    receiveFromServer({ ...TEMPLATE, title: "Renamed by someone else", summary: "Their summary", icon: "server", categories: ["Games"] });
+
+    expect(screen.getByRole("textbox", { name: "Title" })).toHaveValue("Renamed by someone else");
+    expect(screen.getByRole("textbox", { name: "Summary" })).toHaveValue("My own summary");
+    expect(screen.getByRole("radio", { name: "server" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Games" })).toBeChecked();
+  });
+
+  it("follows the template again after a successful save", async () => {
+    const { user, receiveFromServer } = setup({});
+    await replaceText(user, screen.getByRole("textbox", { name: "Title" }), "Open WebUI");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    receiveFromServer({ ...TEMPLATE, title: "Open WebUI" });
+    receiveFromServer({ ...TEMPLATE, title: "Renamed later by someone else" });
+
+    expect(screen.getByRole("textbox", { name: "Title" })).toHaveValue("Renamed later by someone else");
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+  });
+
+  it("keeps the edits when the save fails", async () => {
+    const { user } = setup({ updateError: new ApiError(503, { message: "Unavailable" }, "unavailable") });
+    await replaceText(user, screen.getByRole("textbox", { name: "Title" }), "Open WebUI");
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(screen.getByRole("textbox", { name: "Title" })).toHaveValue("Open WebUI");
   });
 
   it("offers all 24 icons and marks the template's own", () => {
@@ -145,8 +225,10 @@ describe(TemplateSettingsTab.name, () => {
     expect(screen.getByText("is the current state.", { exact: false })).toHaveTextContent("Public is the current state.");
     expect(screen.getByText(/Making it private or organization-only takes it off its public link\./)).toBeInTheDocument();
 
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    await replaceText(user, screen.getByRole("textbox", { name: "Title" }), "Open WebUI");
     await user.click(screen.getByRole("button", { name: "Save" }));
-    expect(updateSettings).toHaveBeenCalledWith({ id: "tpl-webui", data: expect.not.objectContaining({ visibility: expect.anything() }) });
+    expect(updateSettings).toHaveBeenCalledWith({ id: "tpl-webui", data: { title: "Open WebUI" } });
   });
 
   it("shows no public note for a template that is not public", () => {
@@ -161,12 +243,13 @@ describe(TemplateSettingsTab.name, () => {
     await user.click(screen.getByRole("radio", { name: /Private/ }));
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(updateSettings).toHaveBeenCalledWith({ id: "tpl-webui", data: expect.objectContaining({ visibility: "private" }) });
+    expect(updateSettings).toHaveBeenCalledWith({ id: "tpl-webui", data: { visibility: "private" } });
   });
 
   it("explains a refused save", async () => {
     const { user, enqueueSnackbar } = setup({ updateError: new ApiError(403, { message: "You cannot change this template" }, "forbidden") });
 
+    await replaceText(user, screen.getByRole("textbox", { name: "Title" }), "Open WebUI");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(enqueueSnackbar).toHaveBeenCalledTimes(1);
@@ -179,11 +262,27 @@ describe(TemplateSettingsTab.name, () => {
   it("suggests a retry when the save fails for another reason", async () => {
     const { user, enqueueSnackbar } = setup({ updateError: new ApiError(503, { message: "Unavailable" }, "unavailable") });
 
+    await replaceText(user, screen.getByRole("textbox", { name: "Title" }), "Open WebUI");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ subTitle: "Try again in a moment." }) }), {
       variant: "error"
     });
+  });
+
+  it("shows why the API refused a visibility change instead of suggesting a retry", async () => {
+    const issue = 'Service "web" env API_KEY references ac-secret://api-key but no secret asked value is bound to it';
+    const { user, enqueueSnackbar } = setup({
+      updateError: new ApiError(400, { code: "template_invalid", message: issue, data: { issues: [issue] } }, "bad request")
+    });
+
+    await user.click(screen.getByRole("radio", { name: /Organization/ }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(
+      expect.objectContaining({ props: expect.objectContaining({ title: "Couldn't save the settings", subTitle: issue }) }),
+      { variant: "error" }
+    );
   });
 
   it("deletes after the title is typed and goes to My templates", async () => {
@@ -209,6 +308,35 @@ describe(TemplateSettingsTab.name, () => {
     await user.type(within(dialog).getByRole("textbox"), "Open WebUI");
     await user.click(within(dialog).getByRole("button", { name: "Delete template" }));
     await user.type(within(dialog).getByRole("textbox"), " + vLLM{Enter}");
+
+    expect(deleteTemplate).toHaveBeenCalledTimes(1);
+    expect(router.push).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts the title typed with its inner and trailing spaces normalized", async () => {
+    const { user, deleteTemplate } = setup({ template: { ...TEMPLATE, title: "Open  WebUI + vLLM " } });
+
+    await user.click(screen.getByRole("button", { name: "Delete template" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByRole("textbox"), "Open WebUI + vLLM");
+    expect(within(dialog).getByRole("button", { name: "Delete template" })).toBeEnabled();
+    await user.clear(within(dialog).getByRole("textbox"));
+    await user.type(within(dialog).getByRole("textbox"), "  Open   WebUI +  vLLM  ");
+    await user.click(within(dialog).getByRole("button", { name: "Delete template" }));
+
+    expect(deleteTemplate).toHaveBeenCalledWith({ id: "tpl-webui" });
+  });
+
+  it("sends one delete however often the form is submitted before navigation", async () => {
+    const { user, deleteTemplate, router, finishNavigation } = setup({ isNavigationHeld: true });
+
+    await user.click(screen.getByRole("button", { name: "Delete template" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByRole("textbox"), "Open WebUI + vLLM");
+    await user.click(within(dialog).getByRole("button", { name: "Delete template" }));
+    expect(within(dialog).getByRole("button", { name: "Delete template" })).toBeDisabled();
+    fireEvent.submit(dialog.querySelector("form") as HTMLFormElement);
+    await finishNavigation();
 
     expect(deleteTemplate).toHaveBeenCalledTimes(1);
     expect(router.push).toHaveBeenCalledTimes(1);
@@ -254,7 +382,7 @@ describe(TemplateSettingsTab.name, () => {
     if (text) await user.paste(text);
   }
 
-  function setup(input: { template?: MarketplaceTemplate; updateError?: Error; deleteError?: Error; hasProjects?: boolean }) {
+  function setup(input: { template?: MarketplaceTemplate; updateError?: Error; deleteError?: Error; hasProjects?: boolean; isNavigationHeld?: boolean }) {
     const user = userEvent.setup();
     const enqueueSnackbar = vi.fn();
     const updateSettings = vi.fn<UpdateMutation["mutateAsync"]>(async () => {
@@ -274,7 +402,9 @@ describe(TemplateSettingsTab.name, () => {
       projectsEnabled: hasProjects
     });
     const snackbar = mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar });
-    const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push: vi.fn().mockResolvedValue(true) });
+    const navigation = Promise.withResolvers<boolean>();
+    if (!input.isNavigationHeld) navigation.resolve(true);
+    const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push: vi.fn().mockReturnValue(navigation.promise) });
     const useProjectsQuery = vi.fn<typeof DEPENDENCIES.useProjectsQuery>(() => projectsQuery);
     const dependencies = MockComponents(DEPENDENCIES, {
       useUpdateTemplateSettingsMutation: () => updateMutation,
@@ -285,8 +415,21 @@ describe(TemplateSettingsTab.name, () => {
       useRouter: () => router
     });
 
-    render(<TemplateSettingsTab template={structuredClone(input.template ?? TEMPLATE)} dependencies={dependencies} />);
+    const { rerender } = render(<TemplateSettingsTab template={structuredClone(input.template ?? TEMPLATE)} dependencies={dependencies} />);
 
-    return { user, updateSettings, deleteTemplate, enqueueSnackbar, router, useProjectsQuery };
+    const receiveFromServer = (template: MarketplaceTemplate) => {
+      rerender(<TemplateSettingsTab template={structuredClone(template)} dependencies={dependencies} />);
+    };
+
+    return {
+      user,
+      updateSettings,
+      deleteTemplate,
+      enqueueSnackbar,
+      router,
+      useProjectsQuery,
+      receiveFromServer,
+      finishNavigation: () => act(async () => navigation.resolve(true))
+    };
   }
 });

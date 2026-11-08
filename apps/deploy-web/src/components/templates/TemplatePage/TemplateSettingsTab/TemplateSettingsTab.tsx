@@ -26,6 +26,7 @@ import { useRouter } from "next/router";
 import { useSnackbar } from "notistack";
 
 import { LengthCounter } from "@src/components/shared/LengthCounter/LengthCounter";
+import { describeTemplateRefusal } from "@src/components/templates/describeTemplateRefusal";
 import { MAX_TEMPLATE_CATEGORIES, TEMPLATE_CATEGORY_OPTIONS } from "@src/components/templates/templateCatalog";
 import { TEMPLATE_ICONS, TemplateIcon } from "@src/components/templates/TemplateIcon/TemplateIcon";
 import { VISIBILITY_LABELS } from "@src/components/templates/TemplateVisibilityBadge/TemplateVisibilityBadge";
@@ -52,6 +53,16 @@ const ICON_IDS = Object.keys(TEMPLATE_ICONS) as TemplateIconId[];
 
 type SettableVisibility = "private" | "organization";
 
+type Edits = { title?: string; summary?: string; icon?: TemplateIconId | null; categories?: TemplateCategory[]; visibility?: SettableVisibility };
+
+type Changes = {
+  title?: string;
+  summary?: string | null;
+  icon?: TemplateIconId | null;
+  categories?: TemplateCategory[];
+  visibility?: SettableVisibility;
+};
+
 const SETTABLE_VISIBILITIES: readonly SettableVisibility[] = ["private", "organization"];
 
 const SECTION_CLASSES = "rounded-[14px] border border-border bg-card p-4 shadow-sm sm:p-6";
@@ -66,26 +77,32 @@ export const TemplateSettingsTab: FC<TemplateSettingsTabProps> = ({ template, de
   const { activeOrganization, projectsEnabled } = d.useActiveOrganization();
   const { data: projects } = d.useProjectsQuery({ enabled: projectsEnabled });
   const { enqueueSnackbar } = d.useSnackbar();
-  const [title, setTitle] = useState(template.title);
-  const [summary, setSummary] = useState(template.summary ?? "");
-  const [icon, setIcon] = useState<TemplateIconId | null>(ICON_IDS.find(iconId => iconId === template.icon) ?? null);
-  const [categories, setCategories] = useState(() => TEMPLATE_CATEGORY_OPTIONS.filter(category => template.categories.includes(category)));
-  const [chosenVisibility, setChosenVisibility] = useState<SettableVisibility>();
+  const [edits, setEdits] = useState<Edits>({});
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const titleCounterId = useId();
   const summaryId = useId();
   const summaryCounterId = useId();
   const iconLegendId = useId();
 
+  const title = edits.title ?? template.title;
+  const summary = edits.summary ?? template.summary ?? "";
+  const icon = edits.icon === undefined ? findKnownIcon(template.icon) : edits.icon;
+  const categories = edits.categories ?? findKnownCategories(template.categories);
+  const titleLength = title.trim().length;
+  const summaryLength = summary.trim().length;
   const projectName = projects?.find(project => project.id === template.projectId)?.name ?? "its project";
   const organizationName = template.publisher?.name ?? activeOrganization?.name ?? "your organization";
-  const visibilityValue = chosenVisibility ?? (template.visibility === "public" ? "" : template.visibility);
-  const isTitleValid = title.trim().length > 0 && title.length <= TITLE_MAX_LENGTH;
-  const canSave = isTitleValid && summary.length <= SUMMARY_MAX_LENGTH && !isSaving;
+  const visibilityValue = edits.visibility ?? (template.visibility === "public" ? "" : template.visibility);
+  const changes = findChanges(template, { title, summary, icon, categories, visibility: edits.visibility });
+  const isTitleValid = changes.title === undefined || (titleLength > 0 && titleLength <= TITLE_MAX_LENGTH);
+  const isSummaryValid = changes.summary === undefined || summaryLength <= SUMMARY_MAX_LENGTH;
+  const canSave = Object.keys(changes).length > 0 && isTitleValid && isSummaryValid && !isSaving;
   const isAtCategoryLimit = categories.length >= MAX_TEMPLATE_CATEGORIES;
 
+  const edit = (change: Edits) => setEdits(current => ({ ...current, ...change }));
+
   const toggleCategory = (category: TemplateCategory, isChecked: boolean) => {
-    setCategories(current => (isChecked ? [...current, category] : current.filter(candidate => candidate !== category)));
+    edit({ categories: isChecked ? [...categories, category] : categories.filter(candidate => candidate !== category) });
   };
 
   const saveSettings = async (event: FormEvent) => {
@@ -93,10 +110,8 @@ export const TemplateSettingsTab: FC<TemplateSettingsTabProps> = ({ template, de
     if (!canSave) return;
 
     try {
-      await updateSettings({
-        id: template.id,
-        data: { title: title.trim(), summary: summary.trim() || null, icon, categories, ...(chosenVisibility && { visibility: chosenVisibility }) }
-      });
+      await updateSettings({ id: template.id, data: changes });
+      setEdits({});
       enqueueSnackbar(<Snackbar title="Settings saved" iconVariant="success" />, { variant: "success" });
     } catch (error) {
       enqueueSnackbar(<Snackbar title="Couldn't save the settings" subTitle={describeFailure(error, "change")} iconVariant="error" />, { variant: "error" });
@@ -107,9 +122,16 @@ export const TemplateSettingsTab: FC<TemplateSettingsTabProps> = ({ template, de
     <div className="flex max-w-3xl flex-col gap-6">
       <form className={cn(SECTION_CLASSES, "flex flex-col gap-6")} onSubmit={saveSettings}>
         <div className="flex flex-col gap-1.5">
-          <Input label="Title" autoComplete="off" required aria-describedby={titleCounterId} value={title} onChange={event => setTitle(event.target.value)} />
+          <Input
+            label="Title"
+            autoComplete="off"
+            required
+            aria-describedby={titleCounterId}
+            value={title}
+            onChange={event => edit({ title: event.target.value })}
+          />
           <div className="flex justify-end">
-            <LengthCounter id={titleCounterId} length={title.length} max={TITLE_MAX_LENGTH} />
+            <LengthCounter id={titleCounterId} length={titleLength} max={TITLE_MAX_LENGTH} />
           </div>
         </div>
 
@@ -120,11 +142,11 @@ export const TemplateSettingsTab: FC<TemplateSettingsTabProps> = ({ template, de
             aria-describedby={summaryCounterId}
             rows={3}
             value={summary}
-            onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setSummary(event.target.value)}
+            onChange={(event: ChangeEvent<HTMLTextAreaElement>) => edit({ summary: event.target.value })}
             className="w-full resize-y rounded-md border border-input bg-popover px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
           <div className="flex justify-end">
-            <LengthCounter id={summaryCounterId} length={summary.length} max={SUMMARY_MAX_LENGTH} />
+            <LengthCounter id={summaryCounterId} length={summaryLength} max={SUMMARY_MAX_LENGTH} />
           </div>
         </div>
 
@@ -144,7 +166,7 @@ export const TemplateSettingsTab: FC<TemplateSettingsTabProps> = ({ template, de
                   aria-label={iconId}
                   value={iconId}
                   checked={(icon ?? DEFAULT_ICON) === iconId}
-                  onChange={() => setIcon(iconId)}
+                  onChange={() => edit({ icon: iconId })}
                   className="sr-only"
                 />
                 <d.TemplateIcon icon={iconId} className="h-5 w-5" />
@@ -176,7 +198,7 @@ export const TemplateSettingsTab: FC<TemplateSettingsTabProps> = ({ template, de
 
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-2 text-sm font-medium">Who can use it</legend>
-          <RadioGroup value={visibilityValue} onValueChange={value => setChosenVisibility(value as SettableVisibility)} aria-label="Who can use it">
+          <RadioGroup value={visibilityValue} onValueChange={value => edit({ visibility: value as SettableVisibility })} aria-label="Who can use it">
             {SETTABLE_VISIBILITIES.map(visibility => (
               <div key={visibility} className="flex items-start gap-3">
                 <RadioGroupItem id={`visibility-${visibility}`} value={visibility} className="mt-0.5" />
@@ -255,7 +277,8 @@ const DeleteTemplateDialog: FC<{ template: MarketplaceTemplate; onClose: () => v
   const formId = useId();
   const [typedTitle, setTypedTitle] = useState("");
   const [failure, setFailure] = useState<string>();
-  const canDelete = typedTitle.trim() === template.title && !isDeleting;
+  const [isDeleted, setIsDeleted] = useState(false);
+  const canDelete = normalizeSpaces(typedTitle) === normalizeSpaces(template.title) && !isDeleting && !isDeleted;
 
   const confirmDelete = async (event: FormEvent) => {
     event.preventDefault();
@@ -263,6 +286,7 @@ const DeleteTemplateDialog: FC<{ template: MarketplaceTemplate; onClose: () => v
 
     try {
       await deleteTemplate({ id: template.id });
+      setIsDeleted(true);
     } catch (error) {
       setFailure(describeFailure(error, "delete"));
       return;
@@ -291,7 +315,7 @@ const DeleteTemplateDialog: FC<{ template: MarketplaceTemplate; onClose: () => v
               autoComplete="off"
               value={typedTitle}
               onChange={event => setTypedTitle(event.target.value)}
-              disabled={isDeleting}
+              disabled={isDeleting || isDeleted}
             />
             {failure && (
               <Alert variant="destructive">
@@ -313,7 +337,38 @@ const DeleteTemplateDialog: FC<{ template: MarketplaceTemplate; onClose: () => v
   );
 };
 
+function normalizeSpaces(text: string) {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function findKnownIcon(icon: string | null) {
+  return ICON_IDS.find(iconId => iconId === icon) ?? null;
+}
+
+function findKnownCategories(categories: string[]) {
+  return TEMPLATE_CATEGORY_OPTIONS.filter(category => categories.includes(category));
+}
+
+function findChanges(
+  template: MarketplaceTemplate,
+  form: { title: string; summary: string; icon: TemplateIconId | null; categories: TemplateCategory[]; visibility: SettableVisibility | undefined }
+): Changes {
+  const changes: Changes = {};
+  if (form.title.trim() !== template.title) changes.title = form.title.trim();
+  if (form.summary.trim() !== (template.summary ?? "").trim()) changes.summary = form.summary.trim() || null;
+  if (form.icon !== findKnownIcon(template.icon)) changes.icon = form.icon;
+  if (!isSameSet(form.categories, findKnownCategories(template.categories))) changes.categories = form.categories;
+  if (form.visibility && form.visibility !== template.visibility) changes.visibility = form.visibility;
+  return changes;
+}
+
+function isSameSet(left: string[], right: string[]) {
+  return left.length === right.length && left.every(item => right.includes(item));
+}
+
 function describeFailure(error: unknown, action: "change" | "delete") {
+  const refusal = describeTemplateRefusal(error);
+  if (refusal) return refusal;
   if (error instanceof ApiError && (error.status === 403 || error.status === 404)) return `You can no longer ${action} this template.`;
   return "Try again in a moment.";
 }

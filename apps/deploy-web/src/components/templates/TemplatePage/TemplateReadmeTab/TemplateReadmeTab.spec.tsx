@@ -172,8 +172,27 @@ describe(TemplateReadmeTab.name, () => {
     await userEvent.click(screen.getByRole("button", { name: "Edit README" }));
     await userEvent.click(screen.getByRole("button", { name: "Save README" }));
 
-    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), { variant: "error" });
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ subTitle: "Try again in a moment." }) }), {
+      variant: "error"
+    });
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "README" })).toBeInTheDocument();
+  });
+
+  it("shows why the API refused the README instead of suggesting a retry", async () => {
+    const issue = 'Service "web" env HF_TOKEN is bound to a secret but holds a plaintext value';
+    const { enqueueSnackbar } = setup({
+      canEdit: true,
+      saveError: new ApiError(400, { code: "template_invalid", message: issue, data: { issues: [issue] } }, "bad request")
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Edit README" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save README" }));
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(
+      expect.objectContaining({ props: expect.objectContaining({ title: "Couldn't save the README", subTitle: issue }) }),
+      { variant: "error" }
+    );
     expect(screen.getByRole("textbox", { name: "README" })).toBeInTheDocument();
   });
 
