@@ -43,6 +43,22 @@ describe(PersistentStorageCard.name, () => {
     expect(screen.queryByRole("option", { name: "RAM" })).not.toBeInTheDocument();
   });
 
+  it("shows the type of a volume with a class and none for a volume without one", () => {
+    setup({ storage: [EPHEMERAL, PERSISTENT, { size: 1, unit: "Gi", isPersistent: false, name: "scratch", mount: "/scratch", isReadOnly: false }] });
+
+    expect(within(screen.getByRole("group", { name: "Persistent Storage 1" })).getByRole("combobox", { name: "Storage type" })).toHaveTextContent("NVMe");
+    expect(within(screen.getByRole("group", { name: "Persistent Storage 2" })).getByRole("combobox", { name: "Storage type" })).toHaveTextContent("Select");
+  });
+
+  it("makes a volume without a class persistent when a type is picked", async () => {
+    const { getValues } = setup({ storage: [EPHEMERAL, { size: 1, unit: "Gi", isPersistent: false, name: "scratch", mount: "/scratch", isReadOnly: false }] });
+
+    await userEvent.click(screen.getByRole("combobox", { name: "Storage type" }));
+    await userEvent.click(screen.getByRole("option", { name: "NVMe" }));
+
+    expect(getValues().services[0].profile.storage[1]).toMatchObject({ type: "beta3", isPersistent: true, name: "scratch" });
+  });
+
   it("removes every persistent storage entry when toggled off", async () => {
     const { getValues } = setup({ count: 2 });
 

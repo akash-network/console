@@ -82,7 +82,7 @@ function editedStorage(storage: StorageVolume[], change: PersistentStorageChange
   const edited: StorageVolume = {
     ...volume,
     ...(change.size && formSizeOf(change.size, storageUnits)),
-    ...(change.class && { type: change.class }),
+    ...(change.class && { type: change.class, isPersistent: true }),
     ...(change.mount && { mount: change.mount }),
     ...(change.readOnly !== undefined && { isReadOnly: change.readOnly })
   };

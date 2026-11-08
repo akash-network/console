@@ -233,10 +233,14 @@ export const generateSdl = (formValues: SdlBuilderFormValuesType, options: Gener
         sdl.profiles.compute[service.title].resources.storage.push({
           name: storage.name,
           size: `${storage.size}${storage.unit}`,
-          attributes: {
-            persistent: storage.isPersistent,
-            class: storage.type
-          }
+          ...(storage.isPersistent || storage.type
+            ? {
+                attributes: {
+                  persistent: storage.isPersistent,
+                  class: storage.type
+                }
+              }
+            : {})
         });
       });
     }
