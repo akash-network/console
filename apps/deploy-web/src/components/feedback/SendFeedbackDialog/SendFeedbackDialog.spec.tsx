@@ -14,7 +14,7 @@ describe("SendFeedbackDialog", () => {
 
     expect(screen.getByRole("dialog", { name: "Send feedback" })).toBeInTheDocument();
     expect(screen.getAllByRole("radio").map(radio => radio.textContent)).toEqual(["Bug", "Feature request", "Other"]);
-    expect(screen.getByText(/Sent to the Akash team with the page you're on/)).toBeInTheDocument();
+    expect(screen.getByText(/Sent to the Akash team with the page you're on, and sorted into topics by TypeSafe/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Privacy policy" })).toHaveAttribute("href", "/privacy-policy");
   });
 
