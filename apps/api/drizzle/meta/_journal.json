@@ -855,6 +855,13 @@
       "when": 1794066597154,
       "tag": "0121_refund_debits",
       "breakpoints": true
+    },
+    {
+      "idx": 122,
+      "version": "7",
+      "when": 1794115725411,
+      "tag": "0122_user_setting_last_fingerprint_idx",
+      "breakpoints": true
     }
   ]
 }

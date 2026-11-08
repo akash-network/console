@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS "userSetting_last_fingerprint_idx" ON "userSetting" USING btree ("last_fingerprint");
