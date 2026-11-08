@@ -18,6 +18,11 @@ describe(buildAssistantSystemPrompt.name, () => {
       "For one without a name, link its service and image when you read them, such as [web (nginx)](/deployments/<dseq>), else [your deployment](/deployments/<dseq>), even when you only propose a card for it."
     );
     expect(prompt).toContain("Never write a dseq in an answer, whole or shortened, not even in a link label.");
+    expect(prompt).toContain("using read_console_api when no other read tool covers it");
+    expect(prompt).toContain("The read tools never return personal or contact details, API keys, payment details, notification channels or team members");
+    expect(prompt).toContain("Search the docs only for how-to and product questions, never to look up the user's own data.");
+    expect(prompt).toContain("Never write an akash1 address in an answer; name providers by name.");
+    expect(prompt).toContain("providerAddress fields are only for propose_* arguments");
     expect(prompt).toContain("never tell the user to raise the price, bid or pay more, or switch the denom");
     expect(prompt).toContain('try another template, or ask "Why no bids?" on that deployment');
     expect(prompt).toContain("never suggest depositing into a deployment's escrow");

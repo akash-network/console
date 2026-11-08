@@ -304,14 +304,11 @@ describe(scoreAssistantEval.name, () => {
     "[my-db](/deployments/42) and [deployment 179401](/deployments/1794010767535) are up.",
     "Deployment 1794... is [up](/deployments/1794010767535).",
     "[web (nginx)](/deployments/1794010767535) is up, see [deployment 179401](/deployments/1794010767535)."
-  ])(
-    "reports a shortened dseq: %j",
-    answer => {
-      expect(scoreAssistantEval("unnamed", { linksDeployments: ["1794010767535"] }, { toolCalls: [], answer }).failures).toEqual([
-        "answer writes a shortened dseq 1794010767535"
-      ]);
-    }
-  );
+  ])("reports a shortened dseq: %j", answer => {
+    expect(scoreAssistantEval("unnamed", { linksDeployments: ["1794010767535"] }, { toolCalls: [], answer }).failures).toEqual([
+      "answer writes a shortened dseq 1794010767535"
+    ]);
+  });
 
   it.each([
     "[web (nginx)](/deployments/1794010767535) logged 2048... lines.",
@@ -319,17 +316,38 @@ describe(scoreAssistantEval.name, () => {
     "[web (nginx)](/deployments/1794010767535) logged 1794 lines.",
     "[web 2048](/deployments/1794010767535) is up.",
     "See [step 1794](/docs/steps) for [web (nginx)](/deployments/1794010767535)."
-  ])(
-    "passes a number that is not a shortened dseq: %j",
-    answer => {
-      expect(scoreAssistantEval("unnamed", { linksDeployments: ["1794010767535"] }, { toolCalls: [], answer }).failures).toEqual([]);
-    }
-  );
+  ])("passes a number that is not a shortened dseq: %j", answer => {
+    expect(scoreAssistantEval("unnamed", { linksDeployments: ["1794010767535"] }, { toolCalls: [], answer }).failures).toEqual([]);
+  });
 
   it("fails an answer the model left to the fallback", () => {
     expect(scoreAssistantEval("silent", {}, { toolCalls: [], answer: "I read your deployments.", fellBack: true }).failures).toEqual([
       "answered only with the fallback"
     ]);
+  });
+
+  it("fails an answer that writes an akash1 address, whatever the case expects", () => {
+    expect(scoreAssistantEval("address", {}, { toolCalls: [], answer: "It runs on AKASH1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh." }).failures).toEqual([
+      "answer writes an akash1 address"
+    ]);
+    expect(scoreAssistantEval("address", {}, { toolCalls: [], answer: "It runs on provider.europlots.com." }).failures).toEqual([]);
+  });
+
+  it("reports each text a tool's arguments lack, across every call of that tool", () => {
+    const result = scoreAssistantEval(
+      "call-arguments",
+      { callMentions: { read_console_api: ["/V1/PROJECTS", "limit"], get_bids: ["42"] } },
+      {
+        toolCalls: [
+          { name: "read_console_api", arguments: { path: "/v1/organizations" } },
+          { name: "read_console_api", arguments: { path: "/v1/projects" } },
+          { name: "get_deployment", arguments: { dseq: "42" } }
+        ],
+        answer: ""
+      }
+    );
+
+    expect(result.failures).toEqual(['read_console_api call lacks "limit"', 'get_bids call lacks "42"']);
   });
 
   it("passes when the answer says any one of the alternatives, ignoring case", () => {
@@ -350,7 +368,9 @@ describe(scoreAssistantEval.name, () => {
       ...(evalCase.expect.calls ?? []),
       ...(evalCase.expect.neverCalls ?? []),
       ...(evalCase.expect.callsFirst ? [evalCase.expect.callsFirst] : []),
-      ...Object.keys(evalCase.toolResults ?? {})
+      ...Object.keys(evalCase.expect.callMentions ?? {}),
+      ...Object.keys(evalCase.toolResults ?? {}),
+      ...Object.keys(evalCase.toolErrors ?? {})
     ]);
 
     expect(named.filter(name => !toolNames.has(name))).toEqual([]);
