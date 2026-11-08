@@ -37,6 +37,15 @@ export function withAnswer<T extends ServicesOf>(values: T, askedValue: Template
   };
 }
 
+/** The switch shows an unset yes/no as No, so the SDL is given that No too rather than an empty value the deployed app would read differently. */
+export function withUnsetYesNoAsNo<T extends ServicesOf>(values: T, askedValues: TemplateAskedValue[]): T {
+  return askedValues.reduce((answered, askedValue) => {
+    const boundValues = boundValuesOf(answered, askedValue);
+    const isUnsetYesNo = askedValue.type === "boolean" && boundValues.length > 0 && boundValues.every(value => value === "");
+    return isUnsetYesNo ? withAnswer(answered, askedValue, "false") : answered;
+  }, values);
+}
+
 export function askedValueIssuesOf(values: ServicesOf, askedValues: TemplateAskedValue[], options: AnswerOptions = {}): Record<string, string> {
   return Object.fromEntries(issueEntriesOf(values, askedValues, options).map(([key, issue]) => [key, issue.message]));
 }

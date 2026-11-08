@@ -29,6 +29,7 @@ import { usePublishConfigureForm } from "../assistantConfigureForm/usePublishCon
 import { ConfigureDeploymentBackButton } from "../ConfigureDeploymentBackButton/ConfigureDeploymentBackButton";
 import { ConfigureDeploymentHeader } from "../ConfigureDeploymentHeader/ConfigureDeploymentHeader";
 import { ConfigureDeploymentPanes } from "../ConfigureDeploymentPanes/ConfigureDeploymentPanes";
+import type { InitialState } from "../configureFormState/configureFormState";
 import { draftableSdlOf, getInitialState, regenerateSdl, sdlOfImportedState } from "../configureFormState/configureFormState";
 import { ConfigureWorkspace } from "../ConfigureWorkspace/ConfigureWorkspace";
 import { DeployProgressOverlay } from "../DeployProgressOverlay/DeployProgressOverlay";
@@ -45,7 +46,7 @@ import type { FundingImpactState } from "../ReviewAndDeployModal/useFundingImpac
 import { SdlImportChangesBanner } from "../SdlImportChangesBanner/SdlImportChangesBanner";
 import { SdlImportExport } from "../SdlImportExport/SdlImportExport";
 import { firstBidReadyServiceId, nextSelectedServiceId, nextUndoneServiceId, resolveSelectedPlacement } from "../serviceSelection/serviceSelection";
-import { blockedReasonOf } from "../templateVariables/askedValueAnswers";
+import { blockedReasonOf, withUnsetYesNoAsNo } from "../templateVariables/askedValueAnswers";
 import { TemplateVariablesCard } from "../templateVariables/TemplateVariablesCard/TemplateVariablesCard";
 import { useConfigureDraft } from "../useConfigureDraft/useConfigureDraft";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
@@ -110,7 +111,8 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   /** Unleash can flip a flag mid-session, and swapping the layout under someone configuring would lose their place. */
   const [isTwoPanel] = useState(isTwoPanelEnabled);
   const draft = d.useConfigureDraft(intent);
-  const [initialState] = useState(() => getInitialState(initialSdl, intent, draft.persistedPlacementRegions));
+  const askedValues = templateSource?.version.askedValues ?? NO_ASKED_VALUES;
+  const [initialState] = useState(() => withUnsetYesNoAnswered(getInitialState(initialSdl, intent, draft.persistedPlacementRegions), askedValues));
   const [liveSdl, setLiveSdl] = useState(initialState.sdl);
   const [previewSdl, setPreviewSdl] = useState(initialState.sdl);
   const [selectedServiceId, setSelectedServiceId] = useState<string>(initialState.selectedServiceId);
@@ -144,7 +146,6 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   const draftableStartingSdl = useMemo(() => startingSdl && draftableSdlOf(startingSdl, services), [startingSdl, services]);
   const selectedPlacement = resolveSelectedPlacement(services, placements, selectedServiceId || lastSelectedServiceId.current);
   const lastSelectedPlacementId = useRef(selectedPlacement.id);
-  const askedValues = templateSource?.version.askedValues ?? NO_ASKED_VALUES;
   const isDeploymentCreated = !!flow.dseq;
   const variablesBlockedReason = useMemo(
     () => blockedReasonOf({ services }, askedValues, { isDeploymentCreated }),
@@ -488,8 +489,8 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
 
   const resetConfiguration = useCallback(() => {
     analyticsService.track("configure_reset_confirmed", { category: "deployments" });
-    applyImportedState(getInitialState(startingSdl, intent));
-  }, [analyticsService, applyImportedState, startingSdl, intent]);
+    applyImportedState(withUnsetYesNoAnswered(getInitialState(startingSdl, intent), askedValues));
+  }, [analyticsService, applyImportedState, startingSdl, intent, askedValues]);
   /** Import is only meaningful while the deployment is still editable; export stays available in every phase. */
   const isEditable = flow.phase === "configuring" || flow.phase === "error";
   /** The review stays up, its deploy pending, until the api has the deploy, and comes back once that takes too long, which also keeps Edit and Leave out of reach. */
@@ -658,6 +659,12 @@ function needsFundsVariantOfRefusal({ shortfall }: FlowError, { isTrialing, depl
 
 function shortfallPropertiesOf({ shortfall }: FlowError) {
   return shortfall ? { requiredAmountUsd: shortfall.requiredAmountUsd, availableAmountUsd: shortfall.availableAmountUsd } : {};
+}
+
+/** The variables card shows an unset yes/no as No, so the form starts from that No and the SDL carries what the deployer saw. */
+function withUnsetYesNoAnswered(state: InitialState, askedValues: TemplateAskedValue[]): InitialState {
+  const values = withUnsetYesNoAsNo(state.values, askedValues);
+  return values === state.values ? state : { ...state, values, sdl: regenerateSdl(values, state.sdl) };
 }
 
 /** A redeploy's draft names the deployment whose stored secrets the create may inherit; the references its SDL carries are the names covered. */

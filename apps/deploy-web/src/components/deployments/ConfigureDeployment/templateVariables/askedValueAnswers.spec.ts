@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { EnvironmentVariableType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import type { TemplateAskedValue } from "@src/types/marketplace-template";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
-import { answerOf, askedValueIssuesOf, blockedReasonOf, withAnswer } from "./askedValueAnswers";
+import { answerOf, askedValueIssuesOf, blockedReasonOf, withAnswer, withUnsetYesNoAsNo } from "./askedValueAnswers";
 
 type ServiceInput = { title: string; env: EnvironmentVariableType[] };
 
@@ -153,6 +153,54 @@ describe("askedValueAnswers", () => {
       const values = setup([{ title: "api", env: [{ key: "MODEL_ID", value: "llama" }] }]);
 
       expect(withAnswer(values, MODEL, "qwen")).toEqual(values);
+    });
+  });
+
+  describe(withUnsetYesNoAsNo.name, () => {
+    it("writes No into a yes/no whose bound rows are all empty", () => {
+      const values = setup([
+        { title: "vllm", env: [{ key: "ENABLE_SIGNUP", value: "" }] },
+        { title: "webui", env: [{ key: "ENABLE_SIGNUP" }] }
+      ]);
+
+      const answered = withUnsetYesNoAsNo(values, [
+        boolean({
+          bindings: [
+            { service: "vllm", env: "ENABLE_SIGNUP" },
+            { service: "webui", env: "ENABLE_SIGNUP" }
+          ]
+        })
+      ]);
+
+      expect(envOf(answered)).toEqual([[{ key: "ENABLE_SIGNUP", value: "false" }], [{ key: "ENABLE_SIGNUP", value: "false" }]]);
+    });
+
+    it.each([
+      { name: "a yes/no with a set row", askedValue: boolean(), env: [{ key: "ENABLE_SIGNUP", value: "true" }] },
+      { name: "a yes/no whose rows were removed", askedValue: boolean(), env: [] },
+      { name: "an empty value of another type", askedValue: text(), env: [{ key: "ADMIN_EMAIL", value: "" }] }
+    ])("leaves $name as it is", ({ askedValue, env }) => {
+      const values = setup([{ title: "vllm", env }]);
+
+      expect(withUnsetYesNoAsNo(values, [askedValue])).toEqual(values);
+    });
+
+    it("leaves a yes/no with one set row as it is", () => {
+      const values = setup([
+        { title: "vllm", env: [{ key: "ENABLE_SIGNUP", value: "" }] },
+        { title: "webui", env: [{ key: "ENABLE_SIGNUP", value: "true" }] }
+      ]);
+
+      expect(
+        withUnsetYesNoAsNo(values, [
+          boolean({
+            bindings: [
+              { service: "vllm", env: "ENABLE_SIGNUP" },
+              { service: "webui", env: "ENABLE_SIGNUP" }
+            ]
+          })
+        ])
+      ).toEqual(values);
     });
   });
 

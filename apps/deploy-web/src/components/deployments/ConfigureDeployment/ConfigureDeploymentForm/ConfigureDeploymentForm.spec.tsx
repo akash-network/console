@@ -1317,6 +1317,55 @@ describe(ConfigureDeploymentForm.name, () => {
       expect(ConfigureDeploymentHeader).toHaveBeenLastCalledWith(expect.objectContaining({ blockedReason: "1 required field is empty" }), expect.anything());
     });
 
+    it("deploys an untouched yes/no without a default as No", async () => {
+      const signUps: TemplateAskedValue = {
+        key: "ENABLE_SIGNUP",
+        label: "Allow sign-ups",
+        type: "boolean",
+        required: true,
+        bindings: [{ service: "web", env: "ENABLE_SIGNUP" }]
+      };
+      const { flow, ConfigureDeploymentPanes } = setup({
+        initialSdl: FILLED_TEMPLATE_SDL.replace("      - ADMIN_EMAIL=", "      - ENABLE_SIGNUP=\n      - ADMIN_EMAIL="),
+        templateSource: templateSourceOf([...TEMPLATE_ASKED_VALUES, signUps]),
+        Panes: TemplateProbePanes,
+        phase: "quoting",
+        dseq: "42"
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "select provider" }));
+      await userEvent.click(screen.getByRole("button", { name: "confirm and deploy" }));
+
+      expect(lastPanesProps(ConfigureDeploymentPanes).sdl).toContain("ENABLE_SIGNUP=false");
+      expect((flow.actions.deploy as Mock).mock.calls[0][0]).toContain("ENABLE_SIGNUP=false");
+    });
+
+    it("starts over with an untouched yes/no as No when the configuration is reset", async () => {
+      const signUps: TemplateAskedValue = {
+        key: "ENABLE_SIGNUP",
+        label: "Allow sign-ups",
+        type: "boolean",
+        required: true,
+        bindings: [{ service: "web", env: "ENABLE_SIGNUP" }]
+      };
+      setup({
+        initialSdl: FILLED_TEMPLATE_SDL.replace("      - ADMIN_EMAIL=", "      - ENABLE_SIGNUP=\n      - ADMIN_EMAIL="),
+        templateSource: templateSourceOf([...TEMPLATE_ASKED_VALUES, signUps]),
+        twoPanel: true,
+        Workspace: ResetProbeWorkspace
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "reset" }));
+
+      expect(screen.getByTestId("sdl")).toHaveTextContent("ENABLE_SIGNUP=false");
+    });
+
+    it("leaves an sdl without an unset yes/no as it was", () => {
+      const { ConfigureDeploymentPanes } = setup({ initialSdl: FILLED_TEMPLATE_SDL, templateSource: templateSourceOf() });
+
+      expect(lastPanesProps(ConfigureDeploymentPanes).sdl).toBe(sealedSdlOf(FILLED_TEMPLATE_SDL));
+    });
+
     it("shows the filled values in the live sdl", async () => {
       const { ConfigureDeploymentPanes } = setup({ initialSdl: TEMPLATE_SDL, templateSource: templateSourceOf(), Panes: TemplateProbePanes });
 
