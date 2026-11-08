@@ -46,7 +46,8 @@ describe(AssistantToolRunnerService.name, () => {
       ["get_lease_close_reason", { dseq: "42" }, "Read why your deployment closed", "deploymentTools", "getLeaseCloseReason"],
       ["get_bids", { dseq: "42" }, "Read the bids on your deployment", "bidTools", "getBids"],
       ["get_balance_and_spend", {}, "Read your balance and spend", "accountTools", "getBalanceAndSpend"],
-      ["list_templates", { query: "llama" }, "Searched the template gallery", "accountTools", "listTemplates"]
+      ["list_templates", { query: "llama" }, 'Searched the template gallery for "llama"', "accountTools", "listTemplates"],
+      ["list_templates", {}, "Searched the template gallery", "accountTools", "listTemplates"]
     ] as const)("runs %s with validated arguments and summarizes what it read", async (name, args, summary, tools, method) => {
       const mocks = setup();
       const read = vi.mocked((mocks[tools] as unknown as Record<string, (...args: unknown[]) => Promise<unknown>>)[method]);
@@ -141,8 +142,29 @@ describe(AssistantToolRunnerService.name, () => {
 
       const outcome = await runner.run(call("search_docs", { query: "OOMKilled memory" }), { isTrialing: false, withheldTemplateSdls: [] });
 
-      expect(outcome).toMatchObject({ kind: "result", ok: true, summary: "Searched the Console docs" });
+      expect(outcome).toMatchObject({ kind: "result", ok: true, summary: 'Searched the Console docs for "OOMKilled memory"' });
       expect((outcome as Extract<typeof outcome, { kind: "result" }>).content).toContain("troubleshooting-runtime#out-memory");
+    });
+
+    it("shows a long search query shortened and on one line", async () => {
+      const { runner, accountTools } = setup();
+      accountTools.listTemplates.mockResolvedValue({ templates: [] });
+
+      const outcome = await runner.run(call("list_templates", { query: `  web   app\nwith a postgres database and a redis cache  ` }), {
+        isTrialing: false,
+        withheldTemplateSdls: []
+      });
+
+      expect(outcome).toMatchObject({ summary: 'Searched the template gallery for "web app with a postgres database and..."' });
+    });
+
+    it("keeps secrets out of the search query it shows", async () => {
+      const { runner, accountTools } = setup();
+      accountTools.listTemplates.mockResolvedValue({ templates: [] });
+
+      const outcome = await runner.run(call("list_templates", { query: "password=hunter2" }), { isTrialing: false, withheldTemplateSdls: [] });
+
+      expect(outcome).toMatchObject({ summary: `Searched the template gallery for "password=${REDACTED}"` });
     });
 
     it("treats empty arguments as an empty object", async () => {
