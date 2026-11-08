@@ -47,36 +47,22 @@ describe(AccountStatusEventRepository.name, () => {
     });
   });
 
-  describe("findManyByUserId", () => {
-    it("lists only the user's events, newest first", async () => {
-      const { repository, user, record } = await setup();
-      const oldest = await record({ action: "suspend", userReason: "Abuse", minutesAgo: 30 });
-      const newest = await record({ action: "suspend", userReason: "Abuse again", minutesAgo: 5 });
-      const middle = await record({ action: "reinstate", userReason: null, minutesAgo: 20 });
-      await (await setup()).record({ action: "suspend", userReason: "Someone else", minutesAgo: 1 });
-
-      const events = await repository.findManyByUserId(user.id);
-
-      expect(events.map(({ id }) => id)).toEqual([newest.id, middle.id, oldest.id]);
-    });
-  });
-
   describe("markNotificationSent", () => {
     it("stamps when the event's email went out, leaving other events alone", async () => {
-      const { repository, user, record } = await setup();
+      const { repository, user, record, findEventsOf } = await setup();
       const notified = await record({ action: "suspend", userReason: "Abuse", minutesAgo: 10 });
       const other = await record({ action: "reinstate", userReason: null, minutesAgo: 5 });
 
       await repository.markNotificationSent(notified.id);
 
-      const events = await repository.findManyByUserId(user.id);
+      const events = await findEventsOf(user.id);
       expect(events.find(({ id }) => id === notified.id)?.notificationSentAt).toBeInstanceOf(Date);
       expect(events.find(({ id }) => id === other.id)?.notificationSentAt).toBeNull();
     });
   });
 
   it("keeps the history of a user whose account is deleted, without the user", async () => {
-    const { db, repository, user, record } = await setup();
+    const { db, user, record, findEventsOf } = await setup();
     const event = await record({ action: "suspend", userReason: "Abuse", minutesAgo: 5 });
 
     await db.delete(resolveTable("Users")).where(eq(resolveTable("Users").id, user.id));
@@ -86,7 +72,7 @@ describe(AccountStatusEventRepository.name, () => {
       .from(resolveTable("AccountStatusEvents"))
       .where(eq(resolveTable("AccountStatusEvents").id, event.id));
     expect(kept).toMatchObject({ userId: null, userEmail: user.email, userReason: "Abuse" });
-    expect(await repository.findManyByUserId(user.id)).toEqual([]);
+    expect(await findEventsOf(user.id)).toEqual([]);
   });
 
   async function setup() {
@@ -106,6 +92,11 @@ describe(AccountStatusEventRepository.name, () => {
       });
     }
 
-    return { db, repository, user, record };
+    async function findEventsOf(userId: string) {
+      const events = resolveTable("AccountStatusEvents");
+      return await db.select().from(events).where(eq(events.userId, userId));
+    }
+
+    return { db, repository, user, record, findEventsOf };
   }
 });

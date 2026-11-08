@@ -34,10 +34,6 @@ export class AccountStatusEventRepository extends BaseRepository<Table, AccountS
     return event?.userReason ?? null;
   }
 
-  async findManyByUserId(userId: string): Promise<AccountStatusEventOutput[]> {
-    return await this.cursor.select().from(this.table).where(eq(this.table.userId, userId)).orderBy(desc(this.table.createdAt));
-  }
-
   async markNotificationSent(id: string): Promise<void> {
     await this.cursor.update(this.table).set({ notificationSentAt: new Date() }).where(eq(this.table.id, id));
   }
