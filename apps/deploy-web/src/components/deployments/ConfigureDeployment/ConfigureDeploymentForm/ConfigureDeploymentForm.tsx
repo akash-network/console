@@ -20,6 +20,7 @@ import { useDeploymentFundingConfigQuery } from "@src/queries/useDeploymentFundi
 import { usePlacementsWithBids } from "@src/queries/usePlacementsWithBids";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
+import type { TemplateSource } from "@src/types/marketplace-template";
 import { parseBidId } from "@src/utils/bids/bidId";
 import { getPlacementGseq } from "@src/utils/sdl/placementGseq";
 import { severalRegionPicksOf } from "@src/utils/sdl/placementRegions";
@@ -94,6 +95,7 @@ type Props = {
   initialSdl?: string;
   initialName?: string;
   intent: DeploymentIntent;
+  templateSource?: TemplateSource;
   /** The shared base flow, created once by the `DeploymentFlowProvider`; this form drives it via the header/panes. */
   flow: DeploymentFlow;
   dependencies?: typeof DEPENDENCIES;

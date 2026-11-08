@@ -16,6 +16,7 @@ import { usePublicTemplate, useTemplate } from "@src/queries/useTemplateQuery";
 import { useMarketplaceTemplate, useTemplateVersion } from "@src/queries/useUserTemplateQueries";
 import sdlStore from "@src/store/sdlStore";
 import type { TemplateCreation } from "@src/types";
+import type { TemplateSource } from "@src/types/marketplace-template";
 import { secretReferenceNamesIn } from "@src/utils/sdl/sdlSecrets";
 import { hardcodedTemplates } from "@src/utils/templates";
 import { UrlService } from "@src/utils/urlUtils";
@@ -87,16 +88,20 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
     return <ConfigureTemplateScreen key={session.key} intent={intent} onDraftIdChange={session.reportScreenDraftId} dependencies={d} />;
   }
 
-  return (
-    <ConfigureDeploymentScreen
-      key={`${autoDeployStart.key}:${session.key}`}
-      intent={intent}
-      isStartedByConsole={autoDeployStart.templateId !== null}
-      onDeployStartedChange={setHasStartedDeploying}
-      onDraftIdChange={session.reportScreenDraftId}
-      dependencies={d}
-    />
-  );
+  const screenProps: ScreenProps = {
+    intent,
+    isStartedByConsole: autoDeployStart.templateId !== null,
+    onDeployStartedChange: setHasStartedDeploying,
+    onDraftIdChange: session.reportScreenDraftId,
+    dependencies: d
+  };
+  const screenKey = `${autoDeployStart.key}:${session.key}`;
+
+  if (isTemplateMarketplaceEnabled && intent.userTemplateId) {
+    return <TemplateVersionDeploymentScreen key={screenKey} userTemplateId={intent.userTemplateId} {...screenProps} />;
+  }
+
+  return <ConfigureDeploymentScreen key={screenKey} {...screenProps} />;
 };
 
 /** A link elsewhere in the console can open a deployment onto this page while it stays mounted, so a URL naming another draft than the screen's starts the screen over for it. */
@@ -115,13 +120,22 @@ type ScreenProps = {
   intent: DeploymentIntent;
   /** The URL alone never deploys: any arrival other than a console deploy button for this template, a reload included, opens the form. */
   isStartedByConsole: boolean;
+  /** Set when a user template deploys one of its marketplace versions rather than the legacy saved SDL. */
+  versionedTemplate?: VersionedTemplate;
   onDeployStartedChange: (hasStartedDeploying: boolean) => void;
   onDraftIdChange: (draftId: string) => void;
   dependencies: typeof DEPENDENCIES;
 };
 
 /** Remounted for each console start, so its draft, resume guard and flow begin afresh for the template that start deploys. */
-const ConfigureDeploymentScreen: FC<ScreenProps> = ({ intent, isStartedByConsole, onDeployStartedChange, onDraftIdChange, dependencies: d }) => {
+const ConfigureDeploymentScreen: FC<ScreenProps> = ({
+  intent,
+  isStartedByConsole,
+  versionedTemplate,
+  onDeployStartedChange,
+  onDraftIdChange,
+  dependencies: d
+}) => {
   const draft = d.useConfigureDraft(intent);
 
   useEffect(
@@ -137,19 +151,22 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({ intent, isStartedByConsole
   const isDraftRestored = draft.persistedSdl !== undefined;
   const isAwaitingDraft = draft.isLoading || isDraftRestored;
   const fetchedTemplateId = isAwaitingDraft || hardcodedTemplate ? undefined : templateId;
-  const fetchedUserTemplateId = isAwaitingDraft ? undefined : intent.userTemplateId;
+  const fetchedUserTemplateId = isAwaitingDraft || versionedTemplate ? undefined : intent.userTemplateId;
   const templateQuery = d.usePublicTemplate(fetchedTemplateId);
   const userTemplateQuery = d.useUserTemplate(fetchedUserTemplateId);
+  const templateSource = versionedTemplate?.source;
   const { enqueueSnackbar } = d.useSnackbar();
 
-  const isFetchingTemplate = !!fetchedTemplateId || !!fetchedUserTemplateId;
-  const isTemplateLoading = (!!fetchedTemplateId && templateQuery.isLoading) || (!!fetchedUserTemplateId && userTemplateQuery.isLoading);
+  const isFetchingTemplate = !!fetchedTemplateId || !!fetchedUserTemplateId || !!versionedTemplate;
+  const isTemplateLoading =
+    (!!fetchedTemplateId && templateQuery.isLoading) || (!!fetchedUserTemplateId && userTemplateQuery.isLoading) || !!versionedTemplate?.isLoading;
   const hasTemplateFailed =
     (!!fetchedTemplateId && templateQuery.isError) ||
-    (!!fetchedUserTemplateId && (userTemplateQuery.isError || (userTemplateQuery.isSuccess && !userTemplateQuery.data?.sdl)));
+    (!!fetchedUserTemplateId && (userTemplateQuery.isError || (userTemplateQuery.isSuccess && !userTemplateQuery.data?.sdl))) ||
+    !!versionedTemplate?.hasFailed;
 
-  const fetchedSdl = fetchedTemplateId ? templateQuery.data?.deploy : userTemplateQuery.data?.sdl;
-  const fetchedName = fetchedTemplateId ? templateQuery.data?.name : userTemplateQuery.data?.title;
+  const fetchedSdl = fetchedTemplateId ? templateQuery.data?.deploy : versionedTemplate ? templateSource?.version.sdl : userTemplateQuery.data?.sdl;
+  const fetchedName = fetchedTemplateId ? templateQuery.data?.name : versionedTemplate ? templateSource?.template.title : userTemplateQuery.data?.title;
   const carriedInSdl = intent.vm || intent.exampleImage ? undefined : deploySdl?.content;
   const initialSdl = draft.persistedSdl ?? hardcodedTemplate?.content ?? (isFetchingTemplate ? fetchedSdl : carriedInSdl);
   const initialName = draft.persistedName ?? hardcodedTemplate?.name ?? (isFetchingTemplate ? fetchedName : undefined);
@@ -177,6 +194,8 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({ intent, isStartedByConsole
     () => ({
       templateId: intent.templateId,
       userTemplateId: intent.userTemplateId,
+      ...(intent.templateVersion ? { templateVersion: intent.templateVersion } : {}),
+      ...(templateSource ? { templateVersionId: templateSource.version.id } : {}),
       sdlStrategy: needsSecretValues || isEditedInForm || !isStartedByConsole ? "edit" : intent.sdlStrategy,
       bidStrategy: intent.bidStrategy,
       dseq: intent.dseq,
@@ -187,6 +206,8 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({ intent, isStartedByConsole
     [
       intent.templateId,
       intent.userTemplateId,
+      intent.templateVersion,
+      templateSource,
       intent.sdlStrategy,
       needsSecretValues,
       isEditedInForm,
@@ -236,6 +257,7 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({ intent, isStartedByConsole
                       initialSdl={initialSdl ?? resume.recordedDefinition?.sdl}
                       initialName={initialName ?? resume.recordedDefinition?.name}
                       intent={resolvedIntent}
+                      templateSource={templateSource}
                       flow={flow}
                     />
                   )}
@@ -248,6 +270,28 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({ intent, isStartedByConsole
     </d.DeployTargetGate>
   );
 };
+
+type VersionedTemplate = { source: TemplateSource | undefined; isLoading: boolean; hasFailed: boolean };
+
+/** Mounted only with the template marketplace on, so the legacy user template path never reads the marketplace. */
+const TemplateVersionDeploymentScreen: FC<ScreenProps & { userTemplateId: string }> = ({ userTemplateId, ...screenProps }) => {
+  const versionedTemplate = useTemplateVersionSource(screenProps.dependencies, userTemplateId, screenProps.intent.templateVersion);
+  return <ConfigureDeploymentScreen {...screenProps} versionedTemplate={versionedTemplate} />;
+};
+
+/** A named version the caller may not read answers 404, and a template without a current version has nothing to deploy, so both fail like an unreadable template. */
+function useTemplateVersionSource(d: typeof DEPENDENCIES, templateId: string, namedVersion: number | undefined): VersionedTemplate {
+  const templateQuery = d.useMarketplaceTemplate(templateId);
+  const namedVersionQuery = d.useTemplateVersion(namedVersion ? templateId : undefined, namedVersion);
+  const template = templateQuery.data;
+  const version = namedVersion ? namedVersionQuery.data : template?.currentVersion;
+  const source = useMemo(() => (template && version ? { template, version } : undefined), [template, version]);
+  const hasNoVersionToDeploy = namedVersion ? namedVersionQuery.isError : templateQuery.isSuccess;
+  const hasFailed = !source && (templateQuery.isError || hasNoVersionToDeploy);
+  const isLoading = !hasFailed && (templateQuery.isLoading || (!!namedVersion && namedVersionQuery.isLoading));
+
+  return { source, isLoading, hasFailed };
+}
 
 /** A failed attempt that left no deployment is as fresh as the form it returns to, while a cancelled deployment still closing counts, since a fresh start would never close it. */
 function ReportDeployStarted({ flow, onChange }: { flow: DeploymentFlow; onChange: (hasStartedDeploying: boolean) => void }) {

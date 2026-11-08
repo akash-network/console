@@ -212,6 +212,55 @@ describe(parseDeploymentIntent.name, () => {
     });
   });
 
+  describe("when deploying a template version", () => {
+    it("reads the version a user template deploys from", () => {
+      expect(parseTemplateUrl("userTemplateId=tpl-9&templateVersion=3")).toEqual({
+        templateId: undefined,
+        userTemplateId: "tpl-9",
+        templateVersion: 3,
+        sdlStrategy: "edit",
+        bidStrategy: "select",
+        dseq: undefined,
+        draftId: undefined,
+        vm: false,
+        exampleImage: false
+      });
+    });
+
+    it.each(["", "0", "-1", "1.5", "three", "1e3"])("ignores the unusable version %j", version => {
+      expect(parseTemplateUrl(`userTemplateId=tpl-9&templateVersion=${version}`)).not.toHaveProperty("templateVersion");
+    });
+
+    it("ignores a version without a user template", () => {
+      expect(parseTemplateUrl("templateId=abc&userTemplateId=tpl-9&templateVersion=3")).not.toHaveProperty("templateVersion");
+      expect(parseTemplateUrl("templateVersion=3")).not.toHaveProperty("templateVersion");
+      expect(parseTemplateUrl("vm=true&userTemplateId=tpl-9&templateVersion=3")).not.toHaveProperty("templateVersion");
+    });
+
+    it("keeps the version out of template mode", () => {
+      expect(parseTemplateUrl("templateMode=edit&userTemplateId=tpl-9&templateVersion=3")).not.toHaveProperty("templateVersion");
+    });
+
+    it("never reads a template version id from the URL", () => {
+      expect(parseTemplateUrl("userTemplateId=tpl-9&templateVersionId=ver-1")).not.toHaveProperty("templateVersionId");
+    });
+
+    it("ignores the version without the template marketplace", () => {
+      const intent = parseDeploymentIntent({ dseqSegment: undefined, searchParams: new URLSearchParams("userTemplateId=tpl-9&templateVersion=3") });
+
+      expect(intent).toEqual({
+        templateId: undefined,
+        userTemplateId: "tpl-9",
+        sdlStrategy: "edit",
+        bidStrategy: "select",
+        dseq: undefined,
+        draftId: undefined,
+        vm: false,
+        exampleImage: false
+      });
+    });
+  });
+
   describe("with template mode disabled", () => {
     it("parses a template mode URL exactly as before", () => {
       const query = "templateMode=new&templateId=abc&sdl-strategy=default&copyFromTemplateId=tpl-1&copyFromVersion=3&baseVersion=2&sourceDseq=12";

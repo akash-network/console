@@ -779,7 +779,7 @@ export function useDeploymentFlow({ intent, pendingCreate }: UseDeploymentFlowIn
               sdl,
               ...namePayload(options.name),
               ...projectPayload(deployTargetProjectId),
-              ...templatePayload(intentRef.current.templateId),
+              ...templatePayload(intentRef.current),
               ...sealed,
               ...inheritance,
               deposit: DEFAULT_DEPOSIT
@@ -1260,8 +1260,9 @@ function namePayload(name: string | undefined): { name?: string } {
   return trimmed ? { name: trimmed } : {};
 }
 
-/** Hardcoded starters such as hello-world are not in the gallery, so they have no guide to link the deployment to. */
-function templatePayload(templateId: string | undefined): { templateId?: string } {
+/** The api refuses a template version id alongside a gallery id, and hardcoded starters such as hello-world are not in the gallery, so they have no guide to link the deployment to. */
+function templatePayload({ templateId, templateVersionId }: DeploymentIntent): { templateId?: string } | { templateVersionId: string } {
+  if (templateVersionId) return { templateVersionId };
   return templateId && !hardcodedTemplates.some(template => template.code === templateId) ? { templateId } : {};
 }
 
@@ -1415,6 +1416,7 @@ export function buildConfigureUrl(intent: DeploymentIntent, dseq: string | undef
     dseq,
     templateId: intent.templateId,
     userTemplateId: intent.userTemplateId,
+    templateVersion: intent.templateVersion,
     sdlStrategy: intent.templateId ? intent.sdlStrategy : undefined,
     bidStrategy,
     draftId: intent.draftId,
