@@ -13,6 +13,7 @@ import {
   usePaymentMethodsQuery,
   usePaymentMutations,
   usePaymentTransactionsQuery,
+  useRecentPaymentRefusalsQuery,
   useSetupIntentMutation
 } from "./usePaymentQueries";
 
@@ -132,6 +133,20 @@ describe("usePaymentQueries", () => {
       expect(result.current.isSuccess).toBe(true);
     });
     expect(result.current.data).toEqual({ eligible: true });
+  });
+
+  it("fetches the payer's recent payment refusals", async () => {
+    const refusals = { refusedPaymentMethodIds: ["pm_refused"], pausedUntil: null };
+    const listPaymentMethodRefusals = vi.fn().mockResolvedValue({ data: refusals });
+    const api = createProxy({ v1: { listPaymentMethodRefusals } }) as unknown as ApiService;
+    const { result } = setupQuery(() => useRecentPaymentRefusalsQuery(), {
+      services: { api: () => api }
+    });
+
+    await vi.waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+    expect(result.current.data).toEqual(refusals);
   });
 
   it("does not report the api refusing to say whether the first-purchase bonus applies", async () => {
