@@ -40,6 +40,14 @@ const CRAZY_PRICED_SDL = ASSISTANT_TEST_SDL.replace(
   "deployment:\n  web:\n    dcloud:\n      profile: web\n      count: 1\n    backup:\n      profile: web\n      count: 1\n  db:\n    dcloud:\n      profile: db\n      count: 1\n"
 );
 
+const EPHEMERAL_MOUNT_SDL = ASSISTANT_TEST_SDL.replace(
+  "    expose:",
+  "    params:\n      storage:\n        data:\n          mount: /data\n    expose:"
+).replace("        storage:\n          size: 2Gi", "        storage:\n          - size: 2Gi\n          - name: data\n            size: 10Gi");
+
+const UNMOUNTABLE_VOLUME_MESSAGE =
+  "This SDL mounts web/data, but providers only mount persistent or RAM volumes. Give each mounted volume persistent: true and a class (beta1 HDD, beta2 SSD, beta3 NVMe), use class: ram with persistent: false for shared memory, or remove the volume.";
+
 const DEFAULT_CEILING = { denom: "uact", amount: 100000 };
 
 const RENAMED_PLACEMENT_SDL = ASSISTANT_TEST_SDL.replace("  placement:\n    dcloud:", "  placement:\n    akash:").replace(
@@ -153,6 +161,13 @@ describe(AssistantProposalService.name, () => {
       sdlService.parse.mockReturnValue({ ok: false, value: [] });
 
       expect(await propose(service, "create_deployment", { sdl: "x" })).toMatchObject({ services: [] });
+    });
+
+    it("refuses a generated SDL that mounts a volume which is neither persistent nor RAM, before screening it", async () => {
+      const { service, bidTools } = setup();
+
+      await expect(propose(service, "create_deployment", { sdl: EPHEMERAL_MOUNT_SDL })).rejects.toThrow(new AssistantToolError(UNMOUNTABLE_VOLUME_MESSAGE));
+      expect(bidTools.checkAvailability).not.toHaveBeenCalled();
     });
 
     it("lets a refusal of the SDL through", async () => {
@@ -378,6 +393,16 @@ describe(AssistantProposalService.name, () => {
       await expect(propose(service, "open_in_editor", { templateId: "dart", sdl: CRAZY_PRICED_SDL })).rejects.toThrow(
         new AssistantToolError(CHANGED_PRICING_MESSAGE)
       );
+    });
+
+    it.each([{}, { templateId: "hello-world" }, { dseq: "42" }])("refuses to open an SDL that mounts an unmountable volume with %o", async base => {
+      const { service, deploymentController, accountTools } = setup();
+
+      await expect(propose(service, "open_in_editor", { ...base, sdl: EPHEMERAL_MOUNT_SDL })).rejects.toThrow(
+        new AssistantToolError(UNMOUNTABLE_VOLUME_MESSAGE)
+      );
+      expect(deploymentController.findByDseq).not.toHaveBeenCalled();
+      expect(accountTools.templateSdl).not.toHaveBeenCalled();
     });
 
     it("opens a template or deployment without a lookup when the model sends no SDL", async () => {

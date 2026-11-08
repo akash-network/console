@@ -12,6 +12,7 @@ import { redactSecrets } from "@src/feedback/lib/redact-secrets/redact-secrets";
 import { keepsPlacementPricing, keepsPricing, withDefaultPricing } from "@src/feedback/lib/sdl-pricing/sdl-pricing";
 import { sdlWithResources } from "@src/feedback/lib/sdl-resources/sdl-with-resources";
 import { type SdlServiceSummary, summarizeSdl } from "@src/feedback/lib/sdl-summary/sdl-summary";
+import { unmountableVolumesOf } from "@src/feedback/lib/sdl-volumes/sdl-volumes";
 import { AssistantAccountToolsService } from "@src/feedback/services/assistant-account-tools/assistant-account-tools.service";
 import { AssistantBidToolsService, type SdlAvailability } from "@src/feedback/services/assistant-bid-tools/assistant-bid-tools.service";
 import { PricingService } from "@src/pricing/services/pricing/pricing.service";
@@ -163,7 +164,16 @@ export class AssistantProposalService {
     if (!keeps) throw new AssistantToolError(CHANGED_PRICING_MESSAGE);
   }
 
+  #assertMountableVolumes(sdl: string) {
+    const volumes = unmountableVolumesOf(sdl);
+    if (volumes.length > 0)
+      throw new AssistantToolError(
+        `This SDL mounts ${volumes.join(", ")}, but providers only mount persistent or RAM volumes. Give each mounted volume persistent: true and a class (beta1 HDD, beta2 SSD, beta3 NVMe), use class: ram with persistent: false for shared memory, or remove the volume.`
+      );
+  }
+
   async #createDeployment(args: ProposalArguments<"create_deployment">, context: ProposalContext): Promise<AssistantActionOf<"create_deployment">> {
+    if (args.sdl) this.#assertMountableVolumes(args.sdl);
     const sdl = args.sdl ? this.pricedSdl(args.sdl, context) : await this.accountTools.templateSdl(args.templateId as string);
 
     const availability = await this.bidTools.checkAvailability(sdl, { isTrialing: context.isTrialing === true });
@@ -209,6 +219,7 @@ export class AssistantProposalService {
 
   /** An SDL based on a deployment or template edits a ceiling the user already has; a deployment edit is held to the card's stricter per-placement check. */
   async #editorSdl(sdl: string, { dseq, templateId }: { dseq?: string; templateId?: string }, context: ProposalContext): Promise<string> {
+    this.#assertMountableVolumes(sdl);
     if (dseq) this.#assertKeepsPricing(keepsPlacementPricing(await this.#consoleSdl(dseq), sdl));
     else if (templateId) this.#assertKeepsPricing(keepsPricing(await this.accountTools.templateSdl(templateId), sdl));
     else return this.pricedSdl(sdl, context);
