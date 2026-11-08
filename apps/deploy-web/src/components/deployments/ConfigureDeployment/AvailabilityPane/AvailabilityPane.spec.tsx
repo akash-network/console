@@ -264,6 +264,28 @@ describe(AvailabilityPane.name, () => {
     expect(onChooseProvider).toHaveBeenCalled();
   });
 
+  it("holds the provider choice back with the reason while something blocks it, and still reports the click", async () => {
+    const { onChooseProvider } = setup({ isReady: true, blockedReason: "1 required field is empty" });
+    const choose = screen.getByRole("button", { name: "Choose a provider" });
+
+    expect(choose).toHaveAttribute("aria-disabled", "true");
+    expect(choose).toHaveAccessibleDescription("Compare live bids yourself 1 required field is empty");
+    expect(screen.getByText("1 required field is empty")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Request compute" })).not.toHaveAttribute("aria-disabled");
+
+    await userEvent.click(choose);
+
+    expect(onChooseProvider).toHaveBeenCalled();
+  });
+
+  it("offers the provider choice as before while nothing blocks it", () => {
+    setup({ isReady: true });
+    const choose = screen.getByRole("button", { name: "Choose a provider" });
+
+    expect(choose).not.toHaveAttribute("aria-disabled");
+    expect(choose).toHaveAccessibleDescription("Compare live bids yourself");
+  });
+
   it("holds the provider choice but not the compute request while a request is already being submitted", () => {
     setup({ isReady: true, isSubmitting: true });
 
@@ -413,6 +435,7 @@ describe(AvailabilityPane.name, () => {
     notBiddingCount?: number;
     isQuoteFlowEnabled?: boolean;
     accountStatus?: AccountStatus;
+    blockedReason?: string;
   }) {
     const onChooseProvider = vi.fn();
     const onRequestCompute = vi.fn();
@@ -472,6 +495,7 @@ describe(AvailabilityPane.name, () => {
         onRequestCompute={onRequestCompute}
         onRequestComputeForUnlikelyBids={onRequestComputeForUnlikelyBids}
         onRequestComputeForNoFit={onRequestComputeForNoFit}
+        blockedReason={input.blockedReason}
         dependencies={dependencies}
       />
     );

@@ -51,6 +51,20 @@ describe(OrganizationTemplatesSection.name, () => {
     expect(TemplateIcon).toHaveBeenCalledWith(expect.objectContaining({ icon: null }), {});
   });
 
+  it("deploys an organization template from its card", () => {
+    setup({ templates: [COMFY] });
+
+    const section = screen.getByRole("region", { name: "Your organization" });
+    const deploy = within(section).getByRole("link", { name: "Deploy", description: "ComfyUI + Flux.1 dev" });
+    expect(deploy).toHaveAttribute("href", UrlService.configureDeployment({ userTemplateId: COMFY.id }));
+  });
+
+  it("offers no deploy for a template saved without a version", () => {
+    setup({ templates: [INTERNAL_API] });
+
+    expect(within(screen.getByRole("region", { name: "Your organization" })).queryByRole("link", { name: "Deploy" })).not.toBeInTheDocument();
+  });
+
   it("shows a template saved without a version without a version label", () => {
     setup({ templates: [INTERNAL_API] });
 

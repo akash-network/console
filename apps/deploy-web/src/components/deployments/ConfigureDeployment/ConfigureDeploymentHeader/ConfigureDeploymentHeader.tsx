@@ -1,8 +1,9 @@
 import type { FC, ReactNode } from "react";
+import { useId } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { Button, CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { Clock, LoaderCircle } from "lucide-react";
+import { CircleAlert, Clock, LoaderCircle } from "lucide-react";
 
 import { PriceValue } from "@src/components/shared/PriceValue";
 import { AccountSpendGate } from "@src/components/user/AccountActionGate/AccountActionGate";
@@ -39,10 +40,22 @@ type Props = {
   deploymentName: string;
   onDeploy: () => void;
   allPlacementsHaveBids: boolean;
+  /** Holds Request quotes back while set and shows why; a click then reports the attempt instead of requesting. */
+  blockedReason?: string;
+  onBlockedAttempt?: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
-export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, deploymentName, onDeploy, allPlacementsHaveBids, dependencies: d = DEPENDENCIES }) => {
+export const ConfigureDeploymentHeader: FC<Props> = ({
+  flow,
+  sdl,
+  deploymentName,
+  onDeploy,
+  allPlacementsHaveBids,
+  blockedReason,
+  onBlockedAttempt,
+  dependencies: d = DEPENDENCIES
+}) => {
   const showAsHourly = d.useDeploymentHasGpu();
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const placements = useWatch({ control, name: "placements" });
@@ -86,6 +99,8 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, deploymentName
         </div>
         <HeaderCta
           state={ctaState}
+          blockedReason={blockedReason}
+          onBlockedAttempt={onBlockedAttempt}
           onRequestQuotes={requestQuotes}
           onCloseAndEdit={flow.actions.cancelAndEdit}
           onDeploy={onDeploy}
@@ -99,6 +114,8 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, deploymentName
 
 type HeaderCtaProps = {
   state: DeployCtaState;
+  blockedReason?: string;
+  onBlockedAttempt?: () => void;
   onRequestQuotes: () => void;
   onCloseAndEdit: () => void;
   onDeploy: () => void;
@@ -106,10 +123,30 @@ type HeaderCtaProps = {
   AccountSpendGate: typeof DEPENDENCIES.AccountSpendGate;
 };
 
-function HeaderCta({ state, onRequestQuotes, onCloseAndEdit, onDeploy, onRetry, AccountSpendGate }: HeaderCtaProps) {
+function HeaderCta({ state, blockedReason, onBlockedAttempt, onRequestQuotes, onCloseAndEdit, onDeploy, onRetry, AccountSpendGate }: HeaderCtaProps) {
+  const reasonId = useId();
   const className = "h-9 shrink-0 px-3 md:h-10 md:px-8";
   switch (state) {
     case "request-quotes":
+      if (blockedReason) {
+        return (
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <Button
+              type="button"
+              aria-disabled="true"
+              aria-describedby={reasonId}
+              onClick={onBlockedAttempt}
+              className={cn(className, "cursor-not-allowed opacity-50")}
+            >
+              Request quotes
+            </Button>
+            <p id={reasonId} className="flex items-center gap-1 text-xs text-destructive">
+              <CircleAlert className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              {blockedReason}
+            </p>
+          </div>
+        );
+      }
       return (
         <AccountSpendGate>
           <Button type="button" onClick={onRequestQuotes} className={className}>

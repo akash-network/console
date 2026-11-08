@@ -2,7 +2,7 @@ import type { FC, ReactNode } from "react";
 import { useId } from "react";
 import { Button, CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { ArrowRightIcon, CalendarClockIcon, GpuIcon, InfoIcon, LoaderCircleIcon, MessageSquareIcon, PanelsTopLeftIcon } from "lucide-react";
+import { ArrowRightIcon, CalendarClockIcon, CircleAlertIcon, GpuIcon, InfoIcon, LoaderCircleIcon, MessageSquareIcon, PanelsTopLeftIcon } from "lucide-react";
 
 import { AccountSpendGate } from "@src/components/user/AccountActionGate/AccountActionGate";
 import { useFlag } from "@src/hooks/useFlag";
@@ -45,6 +45,8 @@ type Props = {
   onRequestCompute: () => void;
   onRequestComputeForUnlikelyBids: () => void;
   onRequestComputeForNoFit: () => void;
+  /** Holds the provider choice back while set and shows why; a click still reaches `onChooseProvider`, which reports the attempt. */
+  blockedReason?: string;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -59,10 +61,12 @@ export const AvailabilityPane: FC<Props> = ({
   onRequestCompute,
   onRequestComputeForUnlikelyBids,
   onRequestComputeForNoFit,
+  blockedReason,
   dependencies: d = DEPENDENCIES
 }) => {
   const isQuoteFlowEnabled = d.useFlag("gpu_quote_requests");
   const headingId = useId();
+  const blockedReasonId = useId();
   const screened = d.useScreenedProviders({ sdl, placementName: placement.name, regions: placement.regions });
   const network = d.useNetworkProviderCount();
   const gpuAvailability = d.useGpuAvailability(placement);
@@ -111,6 +115,12 @@ export const AvailabilityPane: FC<Props> = ({
       <footer className="shrink-0 border-t border-zinc-300 p-4 dark:border-zinc-700">
         <div className="mx-auto max-w-[720px] space-y-3">
           {!isReady && <p className="text-sm text-muted-foreground">Add a container image and hardware to every service to deploy.</p>}
+          {blockedReason && (
+            <p id={blockedReasonId} className="flex items-center gap-1.5 text-sm text-destructive">
+              <CircleAlertIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
+              {blockedReason}
+            </p>
+          )}
           {hasPlacementWithoutProviders && canSourceNoFit && <NoFitCard placementCount={placementCount} onRequest={onRequestComputeForNoFit} />}
           {hasPlacementWithoutProviders && !canSourceNoFit && (
             <p className="text-sm text-muted-foreground">
@@ -142,6 +152,7 @@ export const AvailabilityPane: FC<Props> = ({
                 title="Choose a provider"
                 subtitle="Compare live bids yourself"
                 disabled={isSubmitting || hasPlacementWithoutProviders}
+                blockedReasonId={blockedReason ? blockedReasonId : undefined}
                 onClick={onChooseProvider}
               />
             </d.AccountSpendGate>
@@ -185,10 +196,11 @@ type FooterActionProps = {
   title: string;
   subtitle: string;
   disabled?: boolean;
+  blockedReasonId?: string;
   onClick: () => void;
 };
 
-function FooterAction({ variant, icon, title, subtitle, disabled, onClick }: FooterActionProps) {
+function FooterAction({ variant, icon, title, subtitle, disabled, blockedReasonId, onClick }: FooterActionProps) {
   const subtitleId = useId();
 
   return (
@@ -197,10 +209,11 @@ function FooterAction({ variant, icon, title, subtitle, disabled, onClick }: Foo
       variant={variant}
       data-variant={variant}
       aria-label={title}
-      aria-describedby={subtitleId}
+      aria-describedby={blockedReasonId ? `${subtitleId} ${blockedReasonId}` : subtitleId}
+      aria-disabled={blockedReasonId ? true : undefined}
       disabled={disabled}
       onClick={onClick}
-      className="group h-auto justify-start gap-3 whitespace-normal rounded-lg p-3 text-left"
+      className="group h-auto justify-start gap-3 whitespace-normal rounded-lg p-3 text-left aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
     >
       <span
         aria-hidden="true"

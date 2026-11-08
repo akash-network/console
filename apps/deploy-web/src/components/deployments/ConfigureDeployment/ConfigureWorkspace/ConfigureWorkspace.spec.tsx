@@ -1,4 +1,4 @@
-import type { ComponentProps, PropsWithChildren, ReactElement } from "react";
+import type { ComponentProps, PropsWithChildren, ReactElement, ReactNode } from "react";
 import type { FieldErrors } from "react-hook-form";
 import { FormProvider, useForm } from "react-hook-form";
 import { describe, expect, it, vi } from "vitest";
@@ -66,6 +66,46 @@ describe(ConfigureWorkspace.name, () => {
       const { editorProps } = setup({});
 
       expect(editorProps()).toMatchObject({ selectedServiceId: "web", activePlacementId: "p2", deploymentName: "shown-name" });
+    });
+
+    it("shows the editor header above the deployment", () => {
+      const header = <section aria-label="Template variables" />;
+      const { editorProps } = setup({ editorHeader: header });
+
+      expect(editorProps().header).toBe(header);
+    });
+
+    it("holds the provider choice back with the reason while something blocks it", () => {
+      const { availabilityProps, sheetBarProps, sheetPaneProps } = setup({ blockedReason: "1 required field is empty" });
+
+      expect(availabilityProps().blockedReason).toBe("1 required field is empty");
+      expect(sheetBarProps().blockedReason).toBe("1 required field is empty");
+      expect(sheetPaneProps().blockedReason).toBe("1 required field is empty");
+    });
+
+    it.each(["panel", "bottom bar"])("reports a blocked provider choice from the %s instead of requesting bids", source => {
+      const onBlockedAttempt = vi.fn();
+      const { availabilityProps, sheetBarProps, requestQuotes, analyticsService, sshKeyStepProps } = setup({
+        blockedReason: "1 required field is empty",
+        onBlockedAttempt,
+        vmSshPubKey: ""
+      });
+      act(() => sshKeyStepProps().onDismiss());
+
+      act(() => (source === "panel" ? availabilityProps() : sheetBarProps()).onChooseProvider());
+
+      expect(onBlockedAttempt).toHaveBeenCalledTimes(1);
+      expect(requestQuotes).not.toHaveBeenCalled();
+      expect(analyticsService.track).not.toHaveBeenCalledWith("configure_choose_provider_clicked", expect.anything());
+      expect(sheetBarProps().isSheetOpen).toBe(false);
+      expect(screen.queryByText("SSH key step")).not.toBeInTheDocument();
+    });
+
+    it("leaves the provider choice unblocked without a reason", () => {
+      const { availabilityProps, sheetBarProps } = setup({});
+
+      expect(availabilityProps().blockedReason).toBeUndefined();
+      expect(sheetBarProps().blockedReason).toBeUndefined();
     });
 
     it("follows the previous deployment closing in the background in a toast", () => {
@@ -658,6 +698,9 @@ describe(ConfigureWorkspace.name, () => {
     vmSshPubKey?: string;
     webImage?: string;
     isQuoteFlowEnabled?: boolean;
+    editorHeader?: ReactNode;
+    blockedReason?: string;
+    onBlockedAttempt?: () => void;
   }) {
     const first = { ...defaultPlacement({ name: "placement-1" }), id: "p1", regions: [] };
     const second = { ...defaultPlacement({ name: "gpu-pool" }), id: "p2", regions: ["us-west", "eu-west"] };
@@ -755,6 +798,9 @@ describe(ConfigureWorkspace.name, () => {
         onImport={onImport}
         onReset={onReset}
         onDiscard={onDiscard}
+        editorHeader={input.editorHeader}
+        blockedReason={input.blockedReason}
+        onBlockedAttempt={input.onBlockedAttempt}
         dependencies={dependencies}
       />
     );

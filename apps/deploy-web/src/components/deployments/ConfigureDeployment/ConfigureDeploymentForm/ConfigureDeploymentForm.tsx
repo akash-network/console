@@ -20,7 +20,7 @@ import { useDeploymentFundingConfigQuery } from "@src/queries/useDeploymentFundi
 import { usePlacementsWithBids } from "@src/queries/usePlacementsWithBids";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
-import type { TemplateSource } from "@src/types/marketplace-template";
+import type { TemplateAskedValue, TemplateSource } from "@src/types/marketplace-template";
 import { parseBidId } from "@src/utils/bids/bidId";
 import { getPlacementGseq } from "@src/utils/sdl/placementGseq";
 import { severalRegionPicksOf } from "@src/utils/sdl/placementRegions";
@@ -45,6 +45,8 @@ import type { FundingImpactState } from "../ReviewAndDeployModal/useFundingImpac
 import { SdlImportChangesBanner } from "../SdlImportChangesBanner/SdlImportChangesBanner";
 import { SdlImportExport } from "../SdlImportExport/SdlImportExport";
 import { firstBidReadyServiceId, nextSelectedServiceId, nextUndoneServiceId, resolveSelectedPlacement } from "../serviceSelection/serviceSelection";
+import { blockedReasonOf } from "../templateVariables/askedValueAnswers";
+import { TemplateVariablesCard } from "../templateVariables/TemplateVariablesCard/TemplateVariablesCard";
 import { useConfigureDraft } from "../useConfigureDraft/useConfigureDraft";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import type { DeploymentFlow, FlowError, FlowErrorKind } from "../useDeploymentFlow/useDeploymentFlow";
@@ -88,6 +90,8 @@ const REFUSAL_TOAST_DURATION_MS = 10000;
 
 const NEEDS_FUNDS_CONTEXT = "configure_quotes_needs_funds";
 
+const NO_ASKED_VALUES: TemplateAskedValue[] = [];
+
 /** Delay between a form edit and updating the debounced SDL preview. */
 const SDL_SYNC_DEBOUNCE_MS = 300;
 
@@ -101,7 +105,7 @@ type Props = {
   dependencies?: typeof DEPENDENCIES;
 };
 
-export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, intent, flow, dependencies: d = DEPENDENCIES }) => {
+export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, intent, templateSource, flow, dependencies: d = DEPENDENCIES }) => {
   const isTwoPanelEnabled = d.useFlag("ui_configure_two_panel");
   /** Unleash can flip a flag mid-session, and swapping the layout under someone configuring would lose their place. */
   const [isTwoPanel] = useState(isTwoPanelEnabled);
@@ -140,6 +144,10 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   const draftableStartingSdl = useMemo(() => startingSdl && draftableSdlOf(startingSdl, services), [startingSdl, services]);
   const selectedPlacement = resolveSelectedPlacement(services, placements, selectedServiceId || lastSelectedServiceId.current);
   const lastSelectedPlacementId = useRef(selectedPlacement.id);
+  const askedValues = templateSource?.version.askedValues ?? NO_ASKED_VALUES;
+  const variablesBlockedReason = useMemo(() => blockedReasonOf({ services }, askedValues), [services, askedValues]);
+  const [blockedVariableAttempts, setBlockedVariableAttempts] = useState(0);
+  const revealVariableIssues = useCallback(() => setBlockedVariableAttempts(attempts => attempts + 1), []);
   useSyncLogCollectors(form);
   useForceSshForVmServices(form);
   d.usePublishConfigureForm({ form, phase: flow.phase, sdl: liveSdl });
@@ -474,6 +482,15 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   const isEditable = flow.phase === "configuring" || flow.phase === "error";
   /** The review stays up, its deploy pending, until the api has the deploy, and comes back once that takes too long, which also keeps Edit and Leave out of reach. */
   const isHandingOffDeploy = flow.phase === "deploying" && (!flow.showsDeployProgress || flow.isDeployTakingLong);
+  const variablesCard = templateSource && (
+    <TemplateVariablesCard
+      askedValues={askedValues}
+      template={templateSource.template}
+      version={templateSource.version}
+      disabled={flow.phase === "creating" || flow.phase === "deploying"}
+      blockedAttempts={blockedVariableAttempts}
+    />
+  );
 
   return (
     <d.Layout background="white" disableContainer containerClassName="flex min-h-page-viewport flex-col lg:h-page-viewport">
@@ -517,6 +534,9 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
                   onImport={applyImportedState}
                   onReset={resetConfiguration}
                   onDiscard={discardDeployment}
+                  editorHeader={variablesCard}
+                  blockedReason={variablesBlockedReason}
+                  onBlockedAttempt={revealVariableIssues}
                 />
               ) : (
                 <>
@@ -529,6 +549,8 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
                         deploymentName={typedDeploymentName}
                         onDeploy={() => openReview(flow.selections)}
                         allPlacementsHaveBids={allPlacementsHaveBids}
+                        blockedReason={variablesBlockedReason}
+                        onBlockedAttempt={revealVariableIssues}
                       />
                     </div>
                   </div>
@@ -553,6 +575,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
                       configurationActions={
                         <d.SdlImportExport sdl={liveSdl} deploymentName={deploymentName} canImport={isEditable} onImport={applyImportedState} />
                       }
+                      configurationHeader={variablesCard}
                     />
                   </div>
                 </>

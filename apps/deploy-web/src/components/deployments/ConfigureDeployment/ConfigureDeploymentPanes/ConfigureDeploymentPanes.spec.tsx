@@ -139,6 +139,13 @@ describe("ConfigureDeploymentPanes", () => {
     expect(ConfigurationPane).toHaveBeenCalledWith(expect.objectContaining({ actions }), expect.anything());
   });
 
+  it("forwards the configuration header slot into the configuration pane", () => {
+    const header = <section aria-label="Template variables" />;
+    const { ConfigurationPane } = setup({ configurationHeader: header });
+
+    expect(ConfigurationPane).toHaveBeenCalledWith(expect.objectContaining({ header }), expect.anything());
+  });
+
   function setup(
     input: {
       isSdlPreviewEnabled?: boolean;
@@ -158,6 +165,7 @@ describe("ConfigureDeploymentPanes", () => {
       pendingClose?: PendingClose | null;
       onRetryClose?: () => void;
       configurationActions?: ReactNode;
+      configurationHeader?: ReactNode;
     } = {}
   ) {
     const SdlPreviewPane = vi.fn(({ isOpen, onOpen, onClose }: { isOpen: boolean; onOpen: () => void; onClose: () => void }) => (
@@ -205,6 +213,7 @@ describe("ConfigureDeploymentPanes", () => {
           deploymentName=""
           onDeploymentNameChange={vi.fn()}
           configurationActions={input.configurationActions}
+          configurationHeader={input.configurationHeader}
           dependencies={dependencies}
         />
       </JotaiStoreProvider>

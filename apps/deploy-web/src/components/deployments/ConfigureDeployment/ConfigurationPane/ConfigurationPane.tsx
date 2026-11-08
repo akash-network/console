@@ -20,6 +20,7 @@ type Props = {
   locked?: ConfigurationLock;
   /** Rendered at the trailing edge of the pane header, e.g. the SDL import/export menu. */
   actions?: ReactNode;
+  header?: ReactNode;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -30,7 +31,7 @@ type Props = {
  * index per mount rather than reacting to a changing one, which would otherwise
  * leave the previous service's values and errors on screen.
  */
-export const ConfigurationPane: FC<Props> = ({ selectedServiceId, locked, actions, dependencies: d = DEPENDENCIES }) => {
+export const ConfigurationPane: FC<Props> = ({ selectedServiceId, locked, actions, header, dependencies: d = DEPENDENCIES }) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const watchedServices = useWatch<SdlBuilderFormValuesType>({ control, name: "services" });
   const services = Array.isArray(watchedServices) ? (watchedServices as SdlBuilderFormValuesType["services"]) : [];
@@ -47,6 +48,7 @@ export const ConfigurationPane: FC<Props> = ({ selectedServiceId, locked, action
         {actions ? <div className="ml-auto shrink-0">{actions}</div> : null}
       </header>
       <div className="row-start-3 min-h-0 overflow-y-auto border-l border-zinc-300 py-4 dark:border-zinc-700">
+        {header && <div className="px-4 pb-6">{header}</div>}
         {selectedServiceIndex >= 0 && (
           <div key={selectedServiceId} className="flex flex-col gap-6">
             <d.ImageSection serviceIndex={selectedServiceIndex} locked={locked === "all"} />

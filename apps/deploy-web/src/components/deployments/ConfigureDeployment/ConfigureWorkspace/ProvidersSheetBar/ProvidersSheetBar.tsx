@@ -1,6 +1,7 @@
 import type { FC, ReactNode } from "react";
+import { useId } from "react";
 import { Button, Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@akashnetwork/ui/components";
-import { ChevronUpIcon, PanelsTopLeftIcon } from "lucide-react";
+import { ChevronUpIcon, CircleAlertIcon, PanelsTopLeftIcon } from "lucide-react";
 
 import { AccountSpendGate } from "@src/components/user/AccountActionGate/AccountActionGate";
 import { useDeploymentResourceSummary } from "../../DeploymentResourceSummary/useDeploymentResourceSummary";
@@ -13,6 +14,8 @@ type Props = {
   sheet: ReactNode;
   isChooseProviderDisabled: boolean;
   onChooseProvider: () => void;
+  /** Holds the provider choice back while set and shows why; a click still reaches `onChooseProvider`, which reports the attempt. */
+  blockedReason?: string;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -22,9 +25,11 @@ export const ProvidersSheetBar: FC<Props> = ({
   sheet,
   isChooseProviderDisabled,
   onChooseProvider,
+  blockedReason,
   dependencies: d = DEPENDENCIES
 }) => {
   const segments = d.useDeploymentResourceSummary();
+  const blockedReasonId = useId();
 
   return (
     <Sheet open={isSheetOpen} onOpenChange={onSheetOpenChange}>
@@ -43,12 +48,25 @@ export const ProvidersSheetBar: FC<Props> = ({
           </button>
         </SheetTrigger>
         <d.AccountSpendGate>
-          <Button type="button" disabled={isChooseProviderDisabled} onClick={onChooseProvider} className="h-10 shrink-0 gap-2 px-4">
+          <Button
+            type="button"
+            disabled={isChooseProviderDisabled}
+            aria-disabled={blockedReason ? true : undefined}
+            aria-describedby={blockedReason ? blockedReasonId : undefined}
+            onClick={onChooseProvider}
+            className="h-10 shrink-0 gap-2 px-4 aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+          >
             <PanelsTopLeftIcon className="h-4 w-4" aria-hidden="true" />
             Choose a provider
           </Button>
         </d.AccountSpendGate>
       </div>
+      {blockedReason && (
+        <p id={blockedReasonId} className="mt-2 flex items-center gap-1.5 text-xs text-destructive">
+          <CircleAlertIcon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          {blockedReason}
+        </p>
+      )}
       <SheetContent
         side="bottom"
         hideCloseButton

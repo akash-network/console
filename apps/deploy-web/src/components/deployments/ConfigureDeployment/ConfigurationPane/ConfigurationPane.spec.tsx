@@ -132,6 +132,31 @@ describe(ConfigurationPane.name, () => {
     expect(ImageSection).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
   });
 
+  it("shows a header above the selected service's sections", () => {
+    const ImageSection = vi.fn(() => <div data-testid="image-section" />);
+    const values = defaultServiceWithPlacement({ title: "api" });
+    setup({ values, selectedServiceId: values.services[0].id, header: <section aria-label="Template variables" />, dependencies: { ImageSection } });
+
+    const header = screen.getByRole("region", { name: "Template variables" });
+    expect(screen.getByRole("region", { name: /2\. Configuration/ })).toContainElement(header);
+    expect(header.compareDocumentPosition(screen.getByTestId("image-section")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("adds nothing above the selected service's sections without a header", () => {
+    const ImageSection = vi.fn(() => <div data-testid="image-section" />);
+    const values = defaultServiceWithPlacement({ title: "api" });
+    setup({ values, selectedServiceId: values.services[0].id, dependencies: { ImageSection } });
+
+    expect(screen.getByTestId("image-section").parentElement?.previousElementSibling).toBeNull();
+  });
+
+  it("keeps the header while no service is selected", () => {
+    const values = defaultServiceWithPlacement({ title: "api" });
+    setup({ values, selectedServiceId: "missing", header: <section aria-label="Template variables" /> });
+
+    expect(screen.getByRole("region", { name: "Template variables" })).toBeInTheDocument();
+  });
+
   it("renders the actions slot in the pane header", () => {
     const values = defaultServiceWithPlacement({ title: "api" });
     setup({ values, selectedServiceId: values.services[0].id, actions: <button type="button">Import / export</button> });
@@ -144,6 +169,7 @@ describe(ConfigurationPane.name, () => {
     selectedServiceId: string;
     locked?: ConfigurationLock;
     actions?: ReactNode;
+    header?: ReactNode;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const Wrapper = ({ children }: PropsWithChildren) => {
@@ -156,6 +182,7 @@ describe(ConfigurationPane.name, () => {
           selectedServiceId={input.selectedServiceId}
           locked={input.locked}
           actions={input.actions}
+          header={input.header}
           dependencies={MockComponents(DEPENDENCIES, input.dependencies)}
         />
       </Wrapper>
