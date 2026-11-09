@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
-import { AssistantTurnTraceBuilder } from "./assistant-turn-trace";
+import type { CreateLogger } from "@src/core";
+import { AssistantTurnTraceBuilder, writeTraceQuietly } from "./assistant-turn-trace";
 
 const STARTED_AT = new Date("2026-11-08T12:00:00.000Z");
 
@@ -106,5 +108,33 @@ describe(AssistantTurnTraceBuilder.name, () => {
     });
 
     return { builder };
+  }
+});
+
+describe(writeTraceQuietly.name, () => {
+  it("writes the trace and logs nothing when the write succeeds", async () => {
+    const { logger, write } = setup();
+
+    await writeTraceQuietly(logger, write);
+
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it("logs ASSISTANT_TURN_TRACE_FAILED instead of throwing when the write fails", async () => {
+    const { logger, write } = setup();
+    const error = new Error("db down");
+    write.mockRejectedValue(error);
+
+    await expect(writeTraceQuietly(logger, write)).resolves.toBeUndefined();
+
+    expect(logger.warn).toHaveBeenCalledWith({ event: "ASSISTANT_TURN_TRACE_FAILED", error });
+  });
+
+  function setup() {
+    const logger = mock<ReturnType<CreateLogger>>();
+    const write = vi.fn<() => Promise<unknown>>().mockResolvedValue(undefined);
+
+    return { logger, write };
   }
 });

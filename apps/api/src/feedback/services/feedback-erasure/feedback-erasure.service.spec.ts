@@ -4,6 +4,7 @@ import { mock } from "vitest-mock-extended";
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { TxService } from "@src/core/services/tx/tx.service";
 import type { AssistantConversationRepository } from "@src/feedback/repositories/assistant-conversation/assistant-conversation.repository";
+import type { AssistantTurnTraceRepository } from "@src/feedback/repositories/assistant-turn-trace/assistant-turn-trace.repository";
 import type { FeedbackSubmissionRepository } from "@src/feedback/repositories/feedback-submission/feedback-submission.repository";
 import type { FeedbackThemeRepository } from "@src/feedback/repositories/feedback-theme/feedback-theme.repository";
 import { FeedbackErasureService } from "./feedback-erasure.service";
@@ -21,6 +22,18 @@ describe(FeedbackErasureService.name, () => {
       expect(assistantConversationRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "delete");
       expect(assistantConversationRepository.deleteAllOf).toHaveBeenCalledWith(user.id);
       expect(feedbackThemeRepository.refreshCounts).toHaveBeenCalledWith(["theme-1", "theme-2"]);
+    });
+
+    it("erases the user's turn traces with their conversations", async () => {
+      const { service, user, txService, assistantTurnTraceRepository } = setup();
+      txService.transaction.mockImplementation(async cb => {
+        const result = await cb();
+        expect(assistantTurnTraceRepository.deleteAllOf).toHaveBeenCalledWith(user.id);
+        return result;
+      });
+
+      expect(await service.eraseOwnConversations()).toBe(0);
+      expect(assistantTurnTraceRepository.deleteAllOf).toHaveBeenCalledTimes(1);
     });
 
     it("keeps the feedback submissions", async () => {
@@ -60,6 +73,19 @@ describe(FeedbackErasureService.name, () => {
       expect(feedbackThemeRepository.refreshCounts).toHaveBeenCalledWith(["theme-1", "theme-2"]);
     });
 
+    it("erases turn traces when the account's feedback is erased", async () => {
+      const { service, txService, assistantTurnTraceRepository } = setup();
+      txService.transaction.mockImplementation(async cb => {
+        const result = await cb();
+        expect(assistantTurnTraceRepository.deleteAllOf).toHaveBeenCalledWith("user-1");
+        return result;
+      });
+
+      await service.eraseAccountFeedback("user-1");
+
+      expect(assistantTurnTraceRepository.deleteAllOf).toHaveBeenCalledTimes(1);
+    });
+
     it("deletes and recounts inside one transaction", async () => {
       const { service, txService, feedbackThemeRepository } = setup();
       txService.transaction.mockImplementation(async cb => {
@@ -82,12 +108,29 @@ describe(FeedbackErasureService.name, () => {
     assistantConversationRepository.accessibleBy.mockReturnValue(assistantConversationRepository);
     assistantConversationRepository.deleteAllOf.mockResolvedValue(input.deletedConversations ?? { deletedCount: 0, themeIds: [] });
     const feedbackThemeRepository = mock<FeedbackThemeRepository>();
+    const assistantTurnTraceRepository = mock<AssistantTurnTraceRepository>();
     const authService = mock<AuthService>({ currentUser: user });
     const txService = mock<TxService>();
     txService.transaction.mockImplementation(async cb => await cb());
 
-    const service = new FeedbackErasureService(feedbackSubmissionRepository, assistantConversationRepository, feedbackThemeRepository, authService, txService);
+    const service = new FeedbackErasureService(
+      feedbackSubmissionRepository,
+      assistantConversationRepository,
+      feedbackThemeRepository,
+      assistantTurnTraceRepository,
+      authService,
+      txService
+    );
 
-    return { service, user, authService, txService, feedbackSubmissionRepository, assistantConversationRepository, feedbackThemeRepository };
+    return {
+      service,
+      user,
+      authService,
+      txService,
+      feedbackSubmissionRepository,
+      assistantConversationRepository,
+      feedbackThemeRepository,
+      assistantTurnTraceRepository
+    };
   }
 });

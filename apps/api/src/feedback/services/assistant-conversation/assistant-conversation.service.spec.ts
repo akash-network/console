@@ -1,14 +1,17 @@
 import type { MongoAbility } from "@casl/ability";
+import createError from "http-errors";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletRepository } from "@src/billing/repositories";
+import type { CreateLogger } from "@src/core";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import type { TxService } from "@src/core/services/tx/tx.service";
 import { envSchema } from "@src/feedback/config/env.config";
 import { ACTION_RESULT_TOOL_NAME } from "@src/feedback/lib/assistant-history/assistant-history";
+import { ASSISTANT_PROMPT_VERSION } from "@src/feedback/lib/assistant-prompt-version/assistant-prompt-version";
 import { REDACTED } from "@src/feedback/lib/redact-secrets/redact-secrets";
 import type { AssistantConsentOutput, AssistantConsentRepository } from "@src/feedback/repositories/assistant-consent/assistant-consent.repository";
 import type {
@@ -21,6 +24,7 @@ import type {
   AssistantPendingTurnOutput,
   AssistantPendingTurnRepository
 } from "@src/feedback/repositories/assistant-pending-turn/assistant-pending-turn.repository";
+import type { AssistantTurnTraceRepository } from "@src/feedback/repositories/assistant-turn-trace/assistant-turn-trace.repository";
 import type { AkashMlClient, ChatToolCall } from "@src/feedback/services/akashml-client/akashml.client";
 import type { AssistantLimitsService } from "@src/feedback/services/assistant-limits/assistant-limits.service";
 import { toolContentOf } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
@@ -165,6 +169,70 @@ describe(AssistantConversationService.name, () => {
       limitsService.countMessage.mockRejectedValue(Object.assign(new Error("slow down"), { status: 429 }));
 
       await expect(service.prepareMessage(CONVERSATION_ID, { content: "hi" })).rejects.toThrow("slow down");
+    });
+
+    it("traces a message refused by the rate limit as limited and still refuses it", async () => {
+      vi.useFakeTimers({ now: NOW });
+      const { service, limitsService, traceRepository, config } = setup({ organizationId: "org-1" });
+      const refusal = createError(429, "slow down", { errorCode: "assistant_rate_limited" });
+      limitsService.countMessage.mockRejectedValue(refusal);
+
+      await expect(service.prepareMessage(CONVERSATION_ID, { content: "hi", context: { page: "/deployments/42" } })).rejects.toBe(refusal);
+
+      expect(traceRepository.create).toHaveBeenCalledTimes(1);
+      expect(traceRepository.create).toHaveBeenCalledWith({
+        conversationId: CONVERSATION_ID,
+        userId: "user-1",
+        organizationId: "org-1",
+        page: "/deployments/42",
+        model: config.ASSISTANT_MODEL,
+        promptVersion: ASSISTANT_PROMPT_VERSION,
+        outcome: "limited",
+        startedAt: NOW,
+        firstTokenMs: null,
+        durationMs: 0,
+        promptTokens: 0,
+        completionTokens: 0,
+        toolCalls: [],
+        cards: []
+      });
+    });
+
+    it("traces a message refused by the daily limit outside an organization and any page with both as null", async () => {
+      const { service, limitsService, traceRepository } = setup();
+      const refusal = createError(429, "come back tomorrow", { errorCode: "assistant_daily_limit" });
+      limitsService.countMessage.mockRejectedValue(refusal);
+
+      await expect(service.prepareMessage(CONVERSATION_ID, { content: "hi" })).rejects.toBe(refusal);
+
+      expect(traceRepository.create).toHaveBeenCalledWith(expect.objectContaining({ outcome: "limited", organizationId: null, page: null }));
+    });
+
+    it("writes no trace for a refusal that is not a limit", async () => {
+      const { service, limitsService, consentRepository, akashMlClient, traceRepository } = setup();
+      limitsService.countMessage.mockRejectedValueOnce(createError(500, "db down"));
+      limitsService.assertWithinBudget.mockRejectedValueOnce(createError(503, "over budget"));
+
+      await expect(service.prepareMessage(CONVERSATION_ID, { content: "hi" })).rejects.toMatchObject({ status: 500 });
+      await expect(service.prepareMessage(CONVERSATION_ID, { content: "hi" })).rejects.toMatchObject({ status: 503 });
+      akashMlClient.isAvailable.mockReturnValueOnce(false);
+      await expect(service.prepareMessage(CONVERSATION_ID, { content: "hi" })).rejects.toMatchObject({ status: 503 });
+      consentRepository.findLatestByUserId.mockResolvedValueOnce(undefined);
+      await expect(service.prepareMessage(CONVERSATION_ID, { content: "hi" })).rejects.toMatchObject({ status: 409 });
+
+      expect(traceRepository.create).not.toHaveBeenCalled();
+    });
+
+    it("still refuses a limited message and logs ASSISTANT_TURN_TRACE_FAILED when its trace cannot be written", async () => {
+      const { service, limitsService, traceRepository, logger } = setup();
+      const refusal = createError(429, "slow down", { errorCode: "assistant_rate_limited" });
+      const error = new Error("db down");
+      limitsService.countMessage.mockRejectedValue(refusal);
+      traceRepository.create.mockRejectedValue(error);
+
+      await expect(service.prepareMessage(CONVERSATION_ID, { content: "hi" })).rejects.toBe(refusal);
+
+      expect(logger.warn).toHaveBeenCalledWith({ event: "ASSISTANT_TURN_TRACE_FAILED", error });
     });
 
     it("stores the redacted message of a stored conversation and replays its stored history", async () => {
@@ -541,6 +609,43 @@ describe(AssistantConversationService.name, () => {
       expect(transcriptService.record).not.toHaveBeenCalled();
     });
 
+    it("records a card decision on the trace even when the conversation is not stored", async () => {
+      const { service, consentRepository, traceRepository } = setup();
+      consentRepository.findLatestByUserId.mockResolvedValue(consent({ reviewOptIn: false }));
+      traceRepository.recordCardDecision.mockResolvedValue(true);
+
+      expect(await service.recordActionResult(CONVERSATION_ID, { ...input, decision: "cancelled" })).toEqual({ recorded: false });
+      expect(traceRepository.recordCardDecision).toHaveBeenCalledWith({
+        userId: "user-1",
+        conversationId: CONVERSATION_ID,
+        proposalId: input.proposalId,
+        decision: "cancelled"
+      });
+    });
+
+    it("leaves recordActionResult's answer unchanged when no trace holds the proposal", async () => {
+      const { service, conversationRepository, messageRepository, transcriptService, traceRepository } = setup();
+      conversationRepository.findOneBy.mockResolvedValue(conversation());
+      messageRepository.findProposal.mockResolvedValue(message({ role: "tool" }));
+      traceRepository.recordCardDecision.mockResolvedValue(false);
+
+      expect(await service.recordActionResult(CONVERSATION_ID, input)).toEqual({ recorded: true });
+      expect(traceRepository.recordCardDecision).toHaveBeenCalledWith(expect.objectContaining({ proposalId: input.proposalId, decision: "confirmed" }));
+      expect(transcriptService.record).toHaveBeenCalledTimes(1);
+    });
+
+    it("still records the action result and logs ASSISTANT_TURN_TRACE_FAILED when the card decision cannot be traced", async () => {
+      const { service, conversationRepository, messageRepository, transcriptService, traceRepository, logger } = setup();
+      const error = new Error("db down");
+      conversationRepository.findOneBy.mockResolvedValue(conversation());
+      messageRepository.findProposal.mockResolvedValue(message({ role: "tool" }));
+      traceRepository.recordCardDecision.mockRejectedValue(error);
+
+      expect(await service.recordActionResult(CONVERSATION_ID, input)).toEqual({ recorded: true });
+      expect(transcriptService.record).toHaveBeenCalledTimes(1);
+      expect(logger.warn).toHaveBeenCalledWith({ event: "ASSISTANT_TURN_TRACE_FAILED", error });
+    });
+
     it.each([[consent({ reviewOptIn: false })], [undefined]])("records nothing once the user no longer allows review (%j)", async latest => {
       const { service, conversationRepository, consentRepository, messageRepository, transcriptService } = setup();
       conversationRepository.findOneBy.mockResolvedValue(conversation());
@@ -616,6 +721,7 @@ describe(AssistantConversationService.name, () => {
     messageRepository.findAllOf.mockResolvedValue([]);
     const dailyCountRepository = mock<AssistantConversationDailyCountRepository>();
     const pendingTurnRepository = mock<AssistantPendingTurnRepository>();
+    const traceRepository = mock<AssistantTurnTraceRepository>();
     const userWalletRepository = mock<UserWalletRepository>();
     userWalletRepository.accessibleBy.mockReturnValue(userWalletRepository);
     userWalletRepository.findOneUsedBy.mockResolvedValue("wallet" in input ? input.wallet : createUserWallet({ isTrialing: false }));
@@ -628,6 +734,8 @@ describe(AssistantConversationService.name, () => {
     const txService = mock<TxService>();
     txService.transaction.mockImplementation(async callback => await callback());
     const config = envSchema.parse({ ASSISTANT_SUPPORT_URL: "https://discord.example" });
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
     const service = new AssistantConversationService(
       authService,
       executionContextService,
@@ -636,6 +744,7 @@ describe(AssistantConversationService.name, () => {
       messageRepository,
       dailyCountRepository,
       pendingTurnRepository,
+      traceRepository,
       userWalletRepository,
       akashMlClient,
       limitsService,
@@ -643,7 +752,8 @@ describe(AssistantConversationService.name, () => {
       turnService,
       jobQueueService,
       txService,
-      config
+      config,
+      createLogger
     );
 
     return {
@@ -660,7 +770,10 @@ describe(AssistantConversationService.name, () => {
       transcriptService,
       turnService,
       jobQueueService,
-      txService
+      txService,
+      traceRepository,
+      config,
+      logger
     };
   }
 });

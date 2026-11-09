@@ -7,7 +7,7 @@ import { fallbackAnswerOf } from "@src/feedback/lib/assistant-fallback-answer/as
 import { ASSISTANT_PROMPT_VERSION } from "@src/feedback/lib/assistant-prompt-version/assistant-prompt-version";
 import { isAssistantToolName, isLiveHelpToolName, isReadToolName } from "@src/feedback/lib/assistant-tools/assistant-tools";
 import { earlierResultOf, toolCallKeyOf } from "@src/feedback/lib/assistant-turn-tool-calls/assistant-turn-tool-calls";
-import { AssistantTurnTraceBuilder } from "@src/feedback/lib/assistant-turn-trace/assistant-turn-trace";
+import { AssistantTurnTraceBuilder, writeTraceQuietly } from "@src/feedback/lib/assistant-turn-trace/assistant-turn-trace";
 import type { AssistantTurnOutcome } from "@src/feedback/model-schemas/assistant-turn-trace/assistant-turn-trace.schema";
 import { FEEDBACK_CONFIG, type FeedbackConfig } from "@src/feedback/providers/config.provider";
 import { AssistantPendingTurnRepository } from "@src/feedback/repositories/assistant-pending-turn/assistant-pending-turn.repository";
@@ -215,7 +215,7 @@ export class AssistantTurnService {
 
   /** Runs after the turn's last event and swallows its own errors, so tracing never delays, fails or changes what the user sees. */
   async #finishTrace(trace: AssistantTurnTraceBuilder, outcome: AssistantTurnOutcome): Promise<void> {
-    try {
+    await writeTraceQuietly(this.#logger, async () => {
       const finished = trace.finish(outcome, new Date());
       this.#logger.info({
         event: "ASSISTANT_TURN_COMPLETED",
@@ -228,9 +228,7 @@ export class AssistantTurnService {
         failedToolCallCount: finished.toolCalls.filter(({ ok }) => !ok).length
       });
       await this.traceRepository.create(finished);
-    } catch (error) {
-      this.#logger.warn({ event: "ASSISTANT_TURN_TRACE_FAILED", error });
-    }
+    });
   }
 
   /** A turn that runs out of time still answers with what it read, since an error would hide reads the user already saw as chips. */
