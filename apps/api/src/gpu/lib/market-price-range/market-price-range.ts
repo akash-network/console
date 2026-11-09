@@ -29,7 +29,7 @@ export function summarizePriceSamples(samples: PriceSample[], thresholds: Market
 
   const prices = samples.map(sample => sample.usdPerGpuHour).sort((a, b) => a - b);
   const providerCount = new Set(samples.map(sample => sample.provider)).size;
-  const newestSampleAt = new Date(Math.max(...samples.map(sample => sample.observedAt.getTime())));
+  const newestSampleAt = new Date(samples.reduce((newest, sample) => Math.max(newest, sample.observedAt.getTime()), 0));
   const hasEnoughData = providerCount >= thresholds.minProviders && samples.length >= thresholds.minSamples;
 
   return {

@@ -269,6 +269,20 @@ describe(GpuMarketPriceService.name, () => {
       expect(logger.info).toHaveBeenCalledWith({ event: "GPU_MARKET_PRICES_REFRESHED", dryRun: false, rowCount: 1, bidSamples: 1, leaseSamples: 0 });
     });
 
+    it("logs the computed rows on a dry run", async () => {
+      const { service, logger } = setup({ deployments: [aDeployment({ bids: [aBid({ provider: "p1" })] })] });
+
+      await service.refresh({ dryRun: true, now: NOW });
+
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "GPU_MARKET_PRICES_REFRESHED",
+          dryRun: true,
+          rows: [expect.objectContaining({ area: null, source: "bid", sampleCount: 1, providerCount: 1, computedAt: NOW })]
+        })
+      );
+    });
+
     it("throws when no block falls in the window", async () => {
       const { service, akashBlockRepository } = setup({ deployments: [] });
       akashBlockRepository.getFirstBlockAfter.mockResolvedValue(null);

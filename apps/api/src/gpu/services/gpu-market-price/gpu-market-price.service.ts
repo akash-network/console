@@ -94,7 +94,8 @@ export class GpuMarketPriceService {
       dryRun,
       rowCount: rows.length,
       bidSamples: bidSamples.length,
-      leaseSamples: leaseSamples.length
+      leaseSamples: leaseSamples.length,
+      ...(dryRun && { rows })
     });
 
     return { rowCount: rows.length };
