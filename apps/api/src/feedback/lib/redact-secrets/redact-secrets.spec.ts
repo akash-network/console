@@ -88,17 +88,22 @@ describe(redactSecrets.name, () => {
     expect(redactSecrets(text)).toBe(text);
   });
 
-  it("does not reach past the end of the line for a closing quote", () => {
-    const text = `password="never closed\nthen "quoted" text`;
+  it.each([
+    { case: "double", text: `password="hunter2`, expected: `password="${REDACTED}` },
+    { case: "single", text: `token: 'two words`, expected: `token: '${REDACTED}` }
+  ])("replaces the rest of the line after a $case quote that never closes", ({ text, expected }) => {
+    expect(redactSecrets(text)).toBe(expected);
+  });
 
-    expect(redactSecrets(text)).toBe(text);
+  it("stops an unclosed quoted secret at the end of its line", () => {
+    expect(redactSecrets(`password="never closed\nthen "quoted" text`)).toBe(`password="${REDACTED}\nthen "quoted" text`);
   });
 
   it("scans a long line with an opening quote that never closes quickly", () => {
     const text = `password="${"a ".repeat(25_000)}`;
     const startedAt = performance.now();
 
-    expect(redactSecrets(text)).toBe(text);
+    expect(redactSecrets(text)).toBe(`password="${REDACTED}`);
     expect(performance.now() - startedAt).toBeLessThan(100);
   });
 
