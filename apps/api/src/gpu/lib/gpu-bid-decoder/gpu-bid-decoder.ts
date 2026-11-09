@@ -23,6 +23,8 @@ export interface DecodedGpuBid {
   denom: string | undefined;
   amountPerBlock: number;
   gpus: BidGpu[];
+  /** Gpu units across every offered resource, counting each replica. */
+  gpuUnits: number;
   cpuUnits: number;
   memoryUnits: number;
   storageUnits: number;
@@ -62,6 +64,7 @@ function toDecodedGpuBid(bid: MsgCreateBidV4 | MsgCreateBidV5, identity: Pick<De
     gpus: offers
       .filter(offer => resourceValToNumber(offer.resources?.gpu?.units?.val) > 0)
       .flatMap(offer => (offer.resources?.gpu?.attributes ? getGpusFromAttributes(offer.resources.gpu.attributes) : [])),
+    gpuUnits: sum(offers.map(offer => resourceValToNumber(offer.resources?.gpu?.units?.val) * offer.count)),
     cpuUnits: sum(offers.map(offer => resourceValToNumber(offer.resources?.cpu?.units?.val))),
     memoryUnits: sum(offers.map(offer => resourceValToNumber(offer.resources?.memory?.quantity?.val))),
     storageUnits: sum(offers.flatMap(offer => [...(offer.resources?.storage ?? [])]).map(storage => resourceValToNumber(storage.quantity?.val)))

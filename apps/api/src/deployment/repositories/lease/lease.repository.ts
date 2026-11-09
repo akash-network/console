@@ -49,6 +49,18 @@ export interface DatabaseLeaseListParams {
   reverse?: boolean;
 }
 
+export interface GpuLeasePrice {
+  deploymentId: string;
+  providerAddress: string;
+  gseq: number;
+  oseq: number;
+  price: number;
+  denom: string;
+  gpuUnits: number;
+  dayId: string;
+  createdAt: Date;
+}
+
 export type LeasePage = { rows: Lease[]; total: number } | { rows: Lease[]; hasNextPage: boolean };
 
 @singleton()
@@ -91,6 +103,20 @@ export class LeaseRepository implements DrainingDeploymentLeaseSource {
         AND r."gpuUnits" > 0
         AND l."owner" IN (:owners)`,
       { type: QueryTypes.SELECT, replacements: { owners } }
+    );
+  }
+
+  async findGpuLeasePricesOfDeployments(deploymentIds: string[]): Promise<GpuLeasePrice[]> {
+    if (deploymentIds.length === 0) return [];
+
+    return await this.#chainDb.query<GpuLeasePrice>(
+      `/* lease:gpuPricesOfDeployments */
+      SELECT l."deploymentId", l."providerAddress", l."gseq", l."oseq", l."price", l."denom", l."gpuUnits", b."dayId", b."datetime" AS "createdAt"
+      FROM lease l
+      JOIN block b ON b."height" = l."createdHeight"
+      WHERE l."deploymentId" IN (:deploymentIds)
+        AND l."gpuUnits" > 0`,
+      { type: QueryTypes.SELECT, replacements: { deploymentIds } }
     );
   }
 

@@ -74,6 +74,14 @@ jobs:
       - ./dist/instrumentation.js
       - ./dist/console.js
       - probe-trial-deployments
+  - name: refresh-gpu-market-prices
+    schedule: "37 3 * * *" # daily
+    command:
+      - node
+      - --require
+      - ./dist/instrumentation.js
+      - ./dist/console.js
+      - refresh-gpu-market-prices
   - name: detect-lease-gpus
     schedule: "17,47 * * * *" # every 30 minutes
     command:

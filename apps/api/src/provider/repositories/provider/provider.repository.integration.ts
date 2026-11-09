@@ -1,4 +1,5 @@
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
+import { ProviderAttribute } from "@akashnetwork/database/dbSchemas/akash";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
@@ -25,6 +26,35 @@ describe(ProviderRepository.name, () => {
       const pagedOwners = await readOwnersPageByPage(1, offset => repository.getWithAttributesAndAuditors({ limit: 1, offset }));
 
       expect(pagedOwners.filter(owner => owners.includes(owner))).toEqual([...owners].sort());
+    });
+  });
+
+  describe("findLocationRegions", () => {
+    it("maps each asked provider to its location-region attribute", async () => {
+      const { repository } = await setup({ count: 0 });
+      const [west, east, unasked, withoutRegion] = (await Promise.all(Array.from({ length: 4 }, () => createProvider()))).map(provider => provider.owner);
+      await ProviderAttribute.bulkCreate([
+        { provider: west, key: "location-region", value: "na-us-west" },
+        { provider: west, key: "country", value: "US" },
+        { provider: east, key: "location-region", value: "as-east" },
+        { provider: unasked, key: "location-region", value: "eu-west" },
+        { provider: withoutRegion, key: "country", value: "DE" }
+      ]);
+
+      const regions = await repository.findLocationRegions([west, east, withoutRegion]);
+
+      expect(regions).toEqual(
+        new Map([
+          [west, "na-us-west"],
+          [east, "as-east"]
+        ])
+      );
+    });
+
+    it("returns no regions when no provider is asked for", async () => {
+      const { repository } = await setup({ count: 0 });
+
+      expect(await repository.findLocationRegions([])).toEqual(new Map());
     });
   });
 
