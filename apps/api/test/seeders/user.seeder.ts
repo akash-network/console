@@ -27,6 +27,7 @@ export function createUser({
   timezone = null,
   timezonePickedAt = null,
   lastUsedOrganizationId = null,
+  accountStatus = "active",
   createdAt = faker.date.recent(),
   trial = false
 }: Partial<UserOutput> = {}): UserOutput {
@@ -55,6 +56,7 @@ export function createUser({
     timezone,
     timezonePickedAt,
     lastUsedOrganizationId,
+    accountStatus,
     createdAt,
     trial
   };

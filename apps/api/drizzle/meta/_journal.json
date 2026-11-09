@@ -862,6 +862,13 @@
       "when": 1794115725411,
       "tag": "0122_user_setting_last_fingerprint_idx",
       "breakpoints": true
+    },
+    {
+      "idx": 123,
+      "version": "7",
+      "when": 1794184169280,
+      "tag": "0123_account_status",
+      "breakpoints": true
     }
   ]
 }

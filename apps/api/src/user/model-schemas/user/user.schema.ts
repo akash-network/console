@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { type AnyPgColumn, boolean, index, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { type AnyPgColumn, boolean, index, pgEnum, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
 // eslint-disable-next-line import-x/no-cycle
 import { UserWallets } from "@src/billing/model-schemas/user-wallet/user-wallet.schema";
@@ -9,6 +9,8 @@ import { Organizations } from "@src/organization/model-schemas/organization/orga
 import { Templates } from "@src/user/model-schemas/template/template.schema";
 
 export const userAgentMaxLength = 500;
+
+export const accountStatusEnum = pgEnum("account_status", ["active", "suspended", "terminated"]);
 
 export const Users = pgTable(
   "userSetting",
@@ -41,10 +43,12 @@ export const Users = pgTable(
     /** Set once the user picks a timezone in their profile, after which sign-in detection leaves it alone. */
     timezonePickedAt: timestamp("timezone_picked_at", { withTimezone: true }),
     lastUsedOrganizationId: uuid("last_used_organization_id").references((): AnyPgColumn => Organizations.id, { onDelete: "set null" }),
+    accountStatus: accountStatusEnum("account_status").default("active").notNull(),
     createdAt: timestamp("created_at").defaultNow()
   },
   table => ({
-    lastFingerprintIdx: index("userSetting_last_fingerprint_idx").on(table.lastFingerprint)
+    lastFingerprintIdx: index("userSetting_last_fingerprint_idx").on(table.lastFingerprint),
+    accountStatusIdx: index("userSetting_account_status_idx").on(table.accountStatus)
   })
 );
 

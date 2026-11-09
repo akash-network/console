@@ -499,6 +499,7 @@ export class JobQueueService implements Disposable {
                 timezone: null,
                 timezonePickedAt: null,
                 lastUsedOrganizationId: null,
+                accountStatus: "active",
                 userId: "system:bg-job-user",
                 username: "___bg_job_user___",
                 trial: false

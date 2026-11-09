@@ -29609,6 +29609,19 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   "properties": {
                     "data": {
                       "properties": {
+                        "accountStatus": {
+                          "enum": [
+                            "active",
+                            "suspended",
+                            "terminated",
+                          ],
+                          "type": "string",
+                        },
+                        "accountStatusReason": {
+                          "description": "Why the account is suspended or terminated, as written for the user; null while active",
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "agentSetupCopiedAt": {
                           "format": "date-time",
                           "nullable": true,
@@ -29696,6 +29709,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "emailVerified",
                         "subscribedToNewsletter",
                         "createdAt",
+                        "accountStatus",
+                        "accountStatusReason",
                       ],
                       "type": "object",
                     },
