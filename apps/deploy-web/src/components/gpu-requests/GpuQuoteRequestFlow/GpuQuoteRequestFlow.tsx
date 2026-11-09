@@ -14,7 +14,6 @@ import type { QuoteRequestData, QuoteRequestSource } from "../gpuQuoteDraft/gpuQ
 import type { ConfigurationHardware, DraftAnswers, GpuQuoteDraft, QuoteStepId, StartingPoint } from "../gpuQuoteDraft/gpuQuoteDraft";
 import {
   applyStartingPoint,
-  asksUplink,
   configurationStartingPoint,
   createBlankDraft,
   CUSTOM_STARTING_POINT,
@@ -29,7 +28,7 @@ import {
 } from "../gpuQuoteDraft/gpuQuoteDraft";
 import type { DraftFieldProps } from "../GpuQuoteFields/HardwareFields";
 import { GpuField, InterconnectField, StartingPointField, StorageField } from "../GpuQuoteFields/HardwareFields";
-import { ContactField, ExtrasField, PriceField, RegionField, SlaField, TimingField } from "../GpuQuoteFields/RequestFields";
+import { ContactField, RegionField, SlaField, TimingField } from "../GpuQuoteFields/RequestFields";
 
 export const DEPENDENCIES = { useUser, useSnackbar };
 
@@ -57,7 +56,7 @@ const SOURCE_NOTES: Partial<Record<QuoteRequestSource, { icon: LucideIcon; text:
 const FULL_PAGE_CLASSES =
   "inset-0 max-h-none max-w-none translate-x-0 translate-y-0 rounded-none border-0 bg-background shadow-none sm:rounded-none data-[state=open]:!slide-in-from-left-0 data-[state=open]:!slide-in-from-top-0 data-[state=open]:!zoom-in-100";
 
-type StepFieldProps = DraftFieldProps & { asksUplink: boolean; today: string };
+type StepFieldProps = DraftFieldProps & { today: string };
 
 const FIELD_OF_STEP: Partial<Record<QuoteStepId, (props: StepFieldProps) => ReactNode>> = {
   gpu: GpuField,
@@ -65,22 +64,18 @@ const FIELD_OF_STEP: Partial<Record<QuoteStepId, (props: StepFieldProps) => Reac
   region: RegionField,
   storage: StorageField,
   sla: SlaField,
-  price: PriceField,
   timing: TimingField,
-  extras: ExtrasField,
   contact: ContactField
 };
 
 const QUESTION_OF_STEP: Record<QuoteStepId, { title: string; hint?: string }> = {
   start: { title: "What are you looking for?", hint: "Pick a common setup, or choose Custom to set every detail." },
   gpu: { title: "Which GPU, and how many?" },
-  interconnect: { title: "Do the GPUs need to work together?", hint: "This decides how GPUs connect inside a server and between servers." },
+  interconnect: { title: "How should the servers connect?", hint: "Your servers are linked into one cluster. Pick the network between them." },
   region: { title: "Where can they run?" },
   storage: { title: "How much storage?" },
   sla: { title: "What uptime do you need?", hint: "Higher guarantees narrow the providers we can work with." },
-  price: { title: "What would you like to pay?", hint: "Your target price per GPU-hour." },
   timing: { title: "How long, and from when?" },
-  extras: { title: "Anything else?", hint: "Both are optional." },
   contact: { title: "How should we reach you?" },
   review: { title: "Check your request", hint: "Select a line to change it." }
 };
@@ -259,7 +254,7 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
                 onPick={startingPoint => setDraft(current => applyStartingPoint(current, startingPoint))}
               />
             )}
-            {StepField && <StepField draft={draft} onChange={changeDraft} asksUplink={asksUplink(answers)} today={today} />}
+            {StepField && <StepField draft={draft} onChange={changeDraft} today={today} />}
             {isReview && (
               <ul className="divide-y rounded-lg border">
                 {describeReviewLines(draft).map(line => (

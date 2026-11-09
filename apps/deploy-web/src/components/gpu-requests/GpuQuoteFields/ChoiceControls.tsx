@@ -1,9 +1,7 @@
 import type { ReactNode } from "react";
-import { RadioGroup, RadioGroupItem, ToggleGroup, ToggleGroupItem } from "@akashnetwork/ui/components";
+import { ToggleGroup, ToggleGroupItem } from "@akashnetwork/ui/components";
 
 export type Choice<T> = { value: T; label: string; detail?: string };
-
-export type Option<T extends string> = { value: T; title: string; description: string; detail?: string };
 
 const CHIP_CLASSES =
   "h-auto min-h-9 gap-2 rounded-full px-4 py-1.5 font-normal data-[state=on]:border-foreground data-[state=on]:bg-foreground data-[state=on]:text-background data-[state=on]:hover:bg-foreground data-[state=on]:hover:text-background";
@@ -57,33 +55,6 @@ export function MultiChoiceChips<T extends string>({
         </ToggleGroupItem>
       ))}
     </ToggleGroup>
-  );
-}
-
-export function OptionCards<T extends string>({
-  label,
-  options,
-  value,
-  onChange
-}: {
-  label: string;
-  options: Option<T>[];
-  value: T | null;
-  onChange: (value: T) => void;
-}) {
-  return (
-    <RadioGroup aria-label={label} value={value ?? ""} onValueChange={next => onChange(next as T)} className="gap-2">
-      {options.map(option => (
-        <label key={option.value} className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 has-[[data-state=checked]]:border-foreground">
-          <RadioGroupItem value={option.value} className="mt-0.5" />
-          <span className="flex min-w-0 flex-col gap-0.5">
-            <span className="text-sm font-semibold">{option.title}</span>
-            <span className="text-sm text-muted-foreground">{option.description}</span>
-            {option.detail && <span className="font-mono text-xs text-muted-foreground">{option.detail}</span>}
-          </span>
-        </label>
-      ))}
-    </RadioGroup>
   );
 }
 

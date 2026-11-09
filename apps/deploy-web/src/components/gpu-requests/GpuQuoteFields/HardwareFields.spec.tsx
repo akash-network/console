@@ -15,7 +15,7 @@ describe("HardwareFields", () => {
 
       expect(screen.getByRole("radio", { name: /Custom/ })).toBeChecked();
       expect(screen.getByRole("radio", { name: /Full server/ }).closest("label")).toHaveTextContent(
-        "Full serverFine-tuning and large modelsNVIDIA · 141 GB8×H200Nodes1 × 8 GPUsLinkNVLinkStorage8 TB / nodeInternet10 Gbps"
+        "Full serverFine-tuning and large modelsNVIDIA · 96 GB8×RTX PRO 6000 SENodes1 × 8 GPUsLinkPCIe onlyStorage8 TB / node"
       );
       expect(screen.getByRole("radiogroup", { name: "Starting point" })).toHaveClass("sm:grid-cols-3");
 
@@ -43,6 +43,15 @@ describe("HardwareFields", () => {
       await userEvent.click(screen.getByRole("radio", { name: "MI300X 192 GB" }));
 
       expect(onChange).toHaveBeenCalledWith({ gpuModel: "mi300x" });
+    });
+
+    it("lists the RTX PRO 6000 models with the data center GPUs and no longer offers the L40S", () => {
+      setup({ Field: GpuField, answers: {} });
+      const dataCenterGpus = within(screen.getByRole("group", { name: "NVIDIA data center" }));
+
+      expect(dataCenterGpus.getByRole("radio", { name: "RTX PRO 6000 SE 96 GB" })).toBeInTheDocument();
+      expect(dataCenterGpus.getByRole("radio", { name: "RTX PRO 6000 96 GB" })).toBeInTheDocument();
+      expect(screen.queryByRole("radio", { name: /L40S/ })).not.toBeInTheDocument();
     });
 
     it("asks which GPU when something else is picked", async () => {
@@ -85,26 +94,16 @@ describe("HardwareFields", () => {
   });
 
   describe(InterconnectField.name, () => {
-    it("asks for the network and speed only when servers are linked", async () => {
-      const { onChange } = setup({ Field: InterconnectField, answers: { gpuCount: 16, interconnect: "server" } });
+    it("asks only for the network between servers, InfiniBand first and picked by default", async () => {
+      const { onChange } = setup({ Field: InterconnectField, answers: { gpuCount: 16 } });
+      const networks = screen.getAllByRole("radio");
 
-      expect(screen.queryByRole("group", { name: "Network between servers" })).not.toBeInTheDocument();
+      expect(networks.map(network => network.textContent)).toEqual(["InfiniBand", "RoCE (Ethernet)", "No preference"]);
+      expect(networks[0]).toBeChecked();
+      expect(screen.queryByText(/Speed per GPU/)).not.toBeInTheDocument();
 
-      await userEvent.click(screen.getByRole("radio", { name: /Linked across servers/ }));
-
-      expect(onChange).toHaveBeenCalledWith({ interconnect: "cluster" });
-    });
-
-    it("sets the network and speed of a cluster", async () => {
-      const { onChange } = setup({ Field: InterconnectField, answers: { gpuCount: 16, interconnect: "cluster", fabric: "any", fabricGbps: 400 } });
-
-      expect(within(screen.getByRole("group", { name: "Speed per GPU" })).getByRole("radio", { name: "400 Gb/s" })).toBeChecked();
-
-      await userEvent.click(screen.getByRole("radio", { name: "InfiniBand" }));
-      expect(onChange).toHaveBeenLastCalledWith({ fabric: "infiniband" });
-
-      await userEvent.click(screen.getByRole("radio", { name: "800 Gb/s" }));
-      expect(onChange).toHaveBeenLastCalledWith({ fabricGbps: 800 });
+      await userEvent.click(screen.getByRole("radio", { name: "RoCE (Ethernet)" }));
+      expect(onChange).toHaveBeenLastCalledWith({ fabric: "roce" });
     });
   });
 
@@ -119,6 +118,13 @@ describe("HardwareFields", () => {
 
       await userEvent.click(screen.getByRole("switch", { name: /Fast local disk/ }));
       expect(onChange).toHaveBeenLastCalledWith({ nvme: false });
+    });
+
+    it("starts at the recommended 10 TB", () => {
+      setup({ Field: StorageField, answers: {} });
+
+      expect(screen.getByRole("spinbutton", { name: "Storage in TB" })).toHaveValue(10);
+      expect(screen.getByText("10 TB recommended")).toBeInTheDocument();
     });
 
     it("says the storage is per server for whole servers", () => {

@@ -13,7 +13,7 @@ export const STACK_CYCLE_MS = 4200;
 
 export const STACK_DROP_MS = 460;
 
-const STACKED_GPUS = ["b200", "h200", "h100", "a100"].map(id => GPU_CATALOG.find(gpu => gpu.id === id)!);
+const STACKED_GPUS = ["b300", "h200", "h100", "a100"].map(id => GPU_CATALOG.find(gpu => gpu.id === id)!);
 
 /** Slots run from the front card back; each sits up, right and smaller than the one before it. */
 const SLOT_CLASSES = [

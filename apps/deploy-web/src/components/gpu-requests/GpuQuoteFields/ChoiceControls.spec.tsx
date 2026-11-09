@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { ChoiceChips, FieldGroup, MultiChoiceChips, OptionCards } from "./ChoiceControls";
+import { ChoiceChips, FieldGroup, MultiChoiceChips } from "./ChoiceControls";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -48,29 +48,6 @@ describe("ChoiceControls", () => {
       rerender(<MultiChoiceChips label="Areas" choices={AREA_CHOICES} values={["us", "eu"]} onChange={onChange} />);
       await userEvent.click(screen.getByRole("button", { name: "United States" }));
       expect(onChange).toHaveBeenLastCalledWith(["eu"]);
-    });
-  });
-
-  describe(OptionCards.name, () => {
-    it("shows each option's details and picks one", async () => {
-      const onChange = vi.fn();
-      render(
-        <OptionCards
-          label="Interconnect"
-          options={[
-            { value: "none", title: "Not needed", description: "Separate work.", detail: "PCIe only" },
-            { value: "server", title: "Linked", description: "Shared memory." }
-          ]}
-          value={null}
-          onChange={onChange}
-        />
-      );
-
-      expect(screen.getByText("PCIe only")).toBeInTheDocument();
-
-      await userEvent.click(screen.getByRole("radio", { name: /Linked/ }));
-
-      expect(onChange).toHaveBeenCalledWith("server");
     });
   });
 

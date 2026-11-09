@@ -31,7 +31,6 @@ describe("GpuQuoteRequestFlow", () => {
     await user.click(continueButton());
 
     expect(question()).toHaveTextContent("Where can they run?");
-    expect(screen.queryByRole("group", { name: "Internet speed" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("radio", { name: "Only in…" }));
     await user.click(continueButton());
     expect(screen.getByRole("alert")).toHaveTextContent("Add at least one region to continue.");
@@ -52,9 +51,9 @@ describe("GpuQuoteRequestFlow", () => {
         email: "jane@example.com",
         configuration: undefined,
         spec: expect.objectContaining({
-          gpu: { model: "H200", count: 8, interconnect: "server" },
+          gpu: { model: "RTX PRO 6000 SE", count: 8, interconnect: "none" },
           region: { mode: "only", areas: ["eu"] },
-          uplinkGbps: 10,
+          uplinkGbps: null,
           storage: { tbPerNode: 8, nvme: true },
           term: "12_months"
         })
@@ -92,7 +91,7 @@ describe("GpuQuoteRequestFlow", () => {
     });
   });
 
-  it("sends a custom request for a single A100 in Asia Pacific for 3 months", async () => {
+  it("sends a custom request for a single A100 in Asia Pacific for 6 months", async () => {
     const { user, createHardwareRequest, enqueueSnackbar } = setup({ source: "requests_page", lane: "sales" });
 
     await user.click(continueButton());
@@ -108,7 +107,8 @@ describe("GpuQuoteRequestFlow", () => {
     await user.click(continueButton());
     expect(question()).toHaveTextContent("How much storage?");
     await continueTo(user, "How long, and from when?");
-    await user.click(screen.getByRole("radio", { name: "3 months" }));
+    expect(screen.queryByRole("radio", { name: "3 months" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("radio", { name: "6 months" }));
     await continueTo(user, "Check your request");
     await user.click(screen.getByRole("button", { name: "Send request" }));
 
@@ -116,21 +116,34 @@ describe("GpuQuoteRequestFlow", () => {
     expect(createHardwareRequest.mock.lastCall?.[0].data.spec).toMatchObject({
       gpu: { model: "A100", count: 1, interconnect: "none" },
       region: { mode: "only", areas: ["apac"] },
-      term: "3_months"
+      term: "6_months"
     });
     expect(snackbarProps(enqueueSnackbar).subTitle).toBe("Our team will reply within 4 business hours.");
   });
 
-  it("asks how whole servers connect", async () => {
-    const { user } = setup({ source: "requests_page" });
+  it("asks only for the network between whole servers and sends them linked over InfiniBand by default", async () => {
+    const { user, createHardwareRequest } = setup({ source: "requests_page" });
 
     await user.click(continueButton());
     await user.click(screen.getByRole("radio", { name: "B200 180 GB" }));
     await user.click(screen.getByRole("radio", { name: "Whole servers of 8" }));
     await user.click(continueButton());
 
-    expect(question()).toHaveTextContent("Do the GPUs need to work together?");
-    expect(screen.getByText("Step 3 of 11")).toBeInTheDocument();
+    expect(question()).toHaveTextContent("How should the servers connect?");
+    expect(screen.getByText("Step 3 of 9")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "InfiniBand" })).toBeChecked();
+    await continueTo(user, "Check your request");
+    await user.click(screen.getByRole("button", { name: "Send request" }));
+
+    await waitFor(() => expect(createHardwareRequest).toHaveBeenCalled());
+    expect(createHardwareRequest.mock.lastCall?.[0].data.spec).toMatchObject({
+      gpu: { model: "B200", count: 8, interconnect: "cluster", fabric: "infiniband" },
+      uplinkGbps: null,
+      storage: { tbPerNode: 10, nvme: true },
+      targetPrice: null,
+      couldGrow: false,
+      wantsToTalk: false
+    });
   });
 
   it("asks one question per step of a custom request for whole servers", async () => {
@@ -150,17 +163,15 @@ describe("GpuQuoteRequestFlow", () => {
     questions.push(describeQuestion());
 
     expect(questions).toEqual([
-      "What are you looking for? Pick a common setup, or choose Custom to set every detail. Step 1 of 10",
-      "Which GPU, and how many? Step 2 of 11",
-      "Do the GPUs need to work together? This decides how GPUs connect inside a server and between servers. Step 3 of 11",
-      "Where can they run? Step 4 of 11",
-      "How much storage? Step 5 of 11",
-      "What uptime do you need? Higher guarantees narrow the providers we can work with. Step 6 of 11",
-      "What would you like to pay? Your target price per GPU-hour. Step 7 of 11",
-      "How long, and from when? Step 8 of 11",
-      "Anything else? Both are optional. Step 9 of 11",
-      "How should we reach you? Step 10 of 11",
-      "Check your request Select a line to change it. Step 11 of 11"
+      "What are you looking for? Pick a common setup, or choose Custom to set every detail. Step 1 of 8",
+      "Which GPU, and how many? Step 2 of 9",
+      "How should the servers connect? Your servers are linked into one cluster. Pick the network between them. Step 3 of 9",
+      "Where can they run? Step 4 of 9",
+      "How much storage? Step 5 of 9",
+      "What uptime do you need? Higher guarantees narrow the providers we can work with. Step 6 of 9",
+      "How long, and from when? Step 7 of 9",
+      "How should we reach you? Step 8 of 9",
+      "Check your request Select a line to change it. Step 9 of 9"
     ]);
     expect(screen.queryByRole("button", { name: "Continue" })).not.toBeInTheDocument();
   });
@@ -209,13 +220,10 @@ describe("GpuQuoteRequestFlow", () => {
     expect(lines.map(line => line.textContent)).toEqual([
       "GPUs2× RTX 5090",
       "RegionAnywhere",
-      "InternetNo preference",
-      "Storage1 TB NVMe",
+      "Storage10 TB NVMe",
       "UptimeNo requirement",
-      "Target priceOpen to offers",
       "TermMonth to month",
       "StartAs soon as possible",
-      "AlsoNothing else",
       "Contactjane@example.com"
     ]);
 
@@ -295,14 +303,14 @@ describe("GpuQuoteRequestFlow", () => {
   it("opens as a full page titled with its progress, focused on the question", async () => {
     const { user } = setup({ source: "requests_page" });
 
-    expect(screen.getByRole("dialog", { name: "Request GPUs" })).toHaveAccessibleDescription("Step 1 of 10");
-    expect(screen.getByRole("progressbar", { name: "Request progress" })).toHaveAttribute("aria-valuenow", "10");
+    expect(screen.getByRole("dialog", { name: "Request GPUs" })).toHaveAccessibleDescription("Step 1 of 8");
+    expect(screen.getByRole("progressbar", { name: "Request progress" })).toHaveAttribute("aria-valuenow", "12.5");
     expect(question()).toHaveFocus();
     expect(screen.getByText("Press")).toBeInTheDocument();
 
     await user.click(continueButton());
 
-    expect(screen.getByRole("progressbar", { name: "Request progress" })).toHaveAttribute("aria-valuenow", "20");
+    expect(screen.getByRole("progressbar", { name: "Request progress" })).toHaveAttribute("aria-valuenow", "25");
     expect(question()).toHaveFocus();
   });
 

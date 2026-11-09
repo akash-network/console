@@ -4,9 +4,9 @@ import { describe, expect, it, vi } from "vitest";
 import type { GpuQuoteDraft } from "../gpuQuoteDraft/gpuQuoteDraft";
 import { createBlankDraft } from "../gpuQuoteDraft/gpuQuoteDraft";
 import type { DraftFieldProps } from "./HardwareFields";
-import { ContactField, ExtrasField, PriceField, RegionField, SlaField, TimingField } from "./RequestFields";
+import { ContactField, RegionField, SlaField, TimingField } from "./RequestFields";
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe("RequestFields", () => {
@@ -37,16 +37,8 @@ describe("RequestFields", () => {
       expect(screen.getByRole("group", { name: "Regions to leave out" })).toBeInTheDocument();
     });
 
-    it("asks for internet speed unless the starting point answered it", async () => {
-      const { onChange } = setup({ Field: RegionField, answers: {}, asksUplink: true });
-
-      await userEvent.click(screen.getByRole("radio", { name: "25 Gbps or more" }));
-
-      expect(onChange).toHaveBeenCalledWith({ uplinkGbps: 25 });
-    });
-
-    it("leaves out internet speed when the starting point answered it", () => {
-      setup({ Field: RegionField, answers: {}, asksUplink: false });
+    it("doesn't ask for internet speed", () => {
+      setup({ Field: RegionField, answers: {} });
 
       expect(screen.queryByRole("group", { name: "Internet speed" })).not.toBeInTheDocument();
     });
@@ -64,18 +56,6 @@ describe("RequestFields", () => {
     });
   });
 
-  describe(PriceField.name, () => {
-    it("keeps only digits and a decimal point in each price", () => {
-      const { onChange } = setup({ Field: PriceField, answers: { minUsdPerGpuHour: "1", maxUsdPerGpuHour: "" } });
-
-      fireEvent.change(screen.getByLabelText("Lowest"), { target: { value: "$1.5a" } });
-      expect(onChange).toHaveBeenLastCalledWith({ minUsdPerGpuHour: "1.5" });
-
-      fireEvent.change(screen.getByLabelText("Highest"), { target: { value: "3" } });
-      expect(onChange).toHaveBeenLastCalledWith({ maxUsdPerGpuHour: "3" });
-    });
-  });
-
   describe(TimingField.name, () => {
     it("picks a term and a start", async () => {
       const { onChange } = setup({ Field: TimingField, answers: { start: "asap" } });
@@ -89,6 +69,17 @@ describe("RequestFields", () => {
       expect(onChange).toHaveBeenLastCalledWith({ start: "date" });
     });
 
+    it("offers every term but 3 months", () => {
+      setup({ Field: TimingField, answers: {} });
+
+      expect(within(screen.getByRole("group", { name: "Term" })).getAllByRole("radio").map(term => term.textContent)).toEqual([
+        "Month to month",
+        "6 months",
+        "1 year",
+        "2 years or more"
+      ]);
+    });
+
     it("asks for a start date from today on", () => {
       const { onChange } = setup({ Field: TimingField, answers: { start: "date", startDate: "" } });
       const startDate = screen.getByLabelText("Start date");
@@ -97,20 +88,6 @@ describe("RequestFields", () => {
 
       expect(startDate).toHaveAttribute("min", "2026-11-04");
       expect(onChange).toHaveBeenCalledWith({ startDate: "2026-12-01" });
-    });
-  });
-
-  describe(ExtrasField.name, () => {
-    it("says the request could grow or that they'd like to talk", async () => {
-      const { onChange } = setup({ Field: ExtrasField, answers: { couldGrow: false, wantsToTalk: true } });
-
-      expect(screen.getByRole("checkbox", { name: /I'd like to talk to someone/ })).toBeChecked();
-
-      await userEvent.click(screen.getByRole("checkbox", { name: /This could grow/ }));
-      expect(onChange).toHaveBeenLastCalledWith({ couldGrow: true });
-
-      await userEvent.click(screen.getByRole("checkbox", { name: /I'd like to talk to someone/ }));
-      expect(onChange).toHaveBeenLastCalledWith({ wantsToTalk: false });
     });
   });
 
@@ -134,20 +111,9 @@ describe("RequestFields", () => {
     });
   });
 
-  function setup(input: {
-    Field: (props: DraftFieldProps & { asksUplink: boolean; today: string }) => ReactNode;
-    answers: Partial<GpuQuoteDraft>;
-    asksUplink?: boolean;
-  }) {
+  function setup(input: { Field: (props: DraftFieldProps & { today: string }) => ReactNode; answers: Partial<GpuQuoteDraft> }) {
     const onChange = vi.fn();
-    render(
-      <input.Field
-        draft={{ ...createBlankDraft("me@example.com"), ...input.answers }}
-        onChange={onChange}
-        asksUplink={input.asksUplink ?? true}
-        today="2026-11-04"
-      />
-    );
+    render(<input.Field draft={{ ...createBlankDraft("me@example.com"), ...input.answers }} onChange={onChange} today="2026-11-04" />);
     return { onChange };
   }
 });

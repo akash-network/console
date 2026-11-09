@@ -19,24 +19,24 @@ describe(ReserveCapacityCard.name, () => {
     expect(onRequestQuote).toHaveBeenCalledTimes(2);
   });
 
-  it("stacks popular GPUs with the B200 in front", () => {
+  it("stacks popular GPUs with the B300 in front", () => {
     setup({});
 
-    expect(stackSlots()).toEqual({ B200: "0", H200: "1", H100: "2", A100: "3" });
-    expect(gpuCard("B200")).toHaveTextContent("NVIDIAB200180 GB HBM3e");
+    expect(stackSlots()).toEqual({ B300: "0", H200: "1", H100: "2", A100: "3" });
+    expect(gpuCard("B300")).toHaveTextContent("NVIDIAB300288 GB HBM3e");
   });
 
   it("drops the front card out and returns it to the back every few seconds", () => {
     setup({});
 
     act(() => vi.advanceTimersByTime(STACK_CYCLE_MS));
-    expect(stackSlots()).toEqual({ B200: "dropping", H200: "0", H100: "1", A100: "2" });
+    expect(stackSlots()).toEqual({ B300: "dropping", H200: "0", H100: "1", A100: "2" });
 
     act(() => vi.advanceTimersByTime(STACK_DROP_MS));
-    expect(stackSlots()).toEqual({ B200: "3", H200: "0", H100: "1", A100: "2" });
+    expect(stackSlots()).toEqual({ B300: "3", H200: "0", H100: "1", A100: "2" });
 
     act(() => vi.advanceTimersByTime(STACK_CYCLE_MS - STACK_DROP_MS));
-    expect(stackSlots()).toEqual({ B200: "2", H200: "dropping", H100: "0", A100: "1" });
+    expect(stackSlots()).toEqual({ B300: "2", H200: "dropping", H100: "0", A100: "1" });
   });
 
   it("holds still while hovered and moves on once the pointer leaves", () => {
@@ -44,11 +44,11 @@ describe(ReserveCapacityCard.name, () => {
 
     fireEvent.mouseEnter(screen.getByRole("region", { name: "Reserve capacity" }));
     act(() => vi.advanceTimersByTime(STACK_CYCLE_MS * 2));
-    expect(stackSlots()).toEqual({ B200: "0", H200: "1", H100: "2", A100: "3" });
+    expect(stackSlots()).toEqual({ B300: "0", H200: "1", H100: "2", A100: "3" });
 
     fireEvent.mouseLeave(screen.getByRole("region", { name: "Reserve capacity" }));
     act(() => vi.advanceTimersByTime(STACK_CYCLE_MS + STACK_DROP_MS));
-    expect(stackSlots()).toEqual({ B200: "3", H200: "0", H100: "1", A100: "2" });
+    expect(stackSlots()).toEqual({ B300: "3", H200: "0", H100: "1", A100: "2" });
   });
 
   it("settles a dropping card at the back when paused mid-drop", () => {
@@ -58,7 +58,7 @@ describe(ReserveCapacityCard.name, () => {
     fireEvent.mouseEnter(screen.getByRole("region", { name: "Reserve capacity" }));
     act(() => vi.advanceTimersByTime(STACK_DROP_MS));
 
-    expect(stackSlots()).toEqual({ B200: "3", H200: "0", H100: "1", A100: "2" });
+    expect(stackSlots()).toEqual({ B300: "3", H200: "0", H100: "1", A100: "2" });
   });
 
   it("shows a still stack to anyone who asks for reduced motion", () => {
@@ -66,7 +66,7 @@ describe(ReserveCapacityCard.name, () => {
 
     act(() => vi.advanceTimersByTime(STACK_CYCLE_MS * 2));
 
-    expect(stackSlots()).toEqual({ B200: "0", H200: "1", H100: "2", A100: "3" });
+    expect(stackSlots()).toEqual({ B300: "0", H200: "1", H100: "2", A100: "3" });
   });
 
   it("holds still while the page is hidden and moves on once it is shown", () => {
@@ -74,22 +74,22 @@ describe(ReserveCapacityCard.name, () => {
 
     changePageVisibility("hidden");
     act(() => vi.advanceTimersByTime(STACK_CYCLE_MS * 2));
-    expect(stackSlots()).toEqual({ B200: "0", H200: "1", H100: "2", A100: "3" });
+    expect(stackSlots()).toEqual({ B300: "0", H200: "1", H100: "2", A100: "3" });
 
     changePageVisibility("visible");
     act(() => vi.advanceTimersByTime(STACK_CYCLE_MS));
-    expect(stackSlots()).toEqual({ B200: "dropping", H200: "0", H100: "1", A100: "2" });
+    expect(stackSlots()).toEqual({ B300: "dropping", H200: "0", H100: "1", A100: "2" });
   });
 
   it("slides the returning card back more slowly than the cards stepping forward", () => {
     setup({});
 
     act(() => vi.advanceTimersByTime(STACK_CYCLE_MS));
-    expect(gpuCard("B200").className).toContain("460ms");
+    expect(gpuCard("B300").className).toContain("460ms");
     expect(gpuCard("H200").className).toContain("620ms");
 
     act(() => vi.advanceTimersByTime(STACK_DROP_MS));
-    expect(gpuCard("B200").className).toContain("760ms");
+    expect(gpuCard("B300").className).toContain("760ms");
     expect(gpuCard("H200").className).toContain("620ms");
     expect(gpuCard("H200")).toHaveClass("motion-reduce:!transition-none");
   });
@@ -110,7 +110,7 @@ describe(ReserveCapacityCard.name, () => {
   }
 
   function stackSlots() {
-    return Object.fromEntries(["B200", "H200", "H100", "A100"].map(label => [label, gpuCard(label).getAttribute("data-slot")]));
+    return Object.fromEntries(["B300", "H200", "H100", "A100"].map(label => [label, gpuCard(label).getAttribute("data-slot")]));
   }
 
   function changePageVisibility(visibilityState: DocumentVisibilityState) {

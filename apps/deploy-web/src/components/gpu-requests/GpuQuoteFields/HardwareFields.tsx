@@ -1,12 +1,18 @@
 import { Input, QuantityStepper, RadioGroup, RadioGroupItem, Switch } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 
-import type { Interconnect } from "../gpuQuoteDraft/gpuQuoteCatalog";
-import { FABRIC_SPEEDS, FABRICS, GPU_CATALOG, GPUS_PER_NODE, MAX_STORAGE_TB_PER_NODE, OTHER_GPU_MODEL } from "../gpuQuoteDraft/gpuQuoteCatalog";
+import {
+  FABRICS,
+  GPU_CATALOG,
+  GPUS_PER_NODE,
+  MAX_STORAGE_TB_PER_NODE,
+  OTHER_GPU_MODEL,
+  RECOMMENDED_STORAGE_TB_PER_NODE
+} from "../gpuQuoteDraft/gpuQuoteCatalog";
 import type { GpuQuoteDraft, StartingPoint, StartingPointId } from "../gpuQuoteDraft/gpuQuoteDraft";
 import { CUSTOM_STARTING_POINT, describeStartingPointCard, isWholeNodes } from "../gpuQuoteDraft/gpuQuoteDraft";
-import type { Choice, Option } from "./ChoiceControls";
-import { ChoiceChips, FieldGroup, OptionCards } from "./ChoiceControls";
+import type { Choice } from "./ChoiceControls";
+import { ChoiceChips, FieldGroup } from "./ChoiceControls";
 
 export type DraftFieldProps = { draft: GpuQuoteDraft; onChange: (patch: Partial<GpuQuoteDraft>) => void };
 
@@ -23,8 +29,8 @@ const TWO_COLUMN_PACKAGES_CLASSES = "grid-cols-1 gap-2.5 sm:grid-cols-2";
 const PICKABLE_CARD_CLASSES =
   "cursor-pointer rounded-xl border bg-background shadow-sm transition-[border-color,box-shadow] hover:border-foreground/35 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[[data-state=checked]]:border-foreground has-[[data-state=checked]]:ring-1 has-[[data-state=checked]]:ring-foreground";
 
-/** Each package spans the six rows of its column's subgrid, so the same spec lines up across the cards beside it. */
-const PACKAGE_CARD_CLASSES = cn(PICKABLE_CARD_CLASSES, "row-span-6 grid min-w-0 grid-rows-subgrid gap-y-0 overflow-hidden");
+/** Each package spans the five rows of its column's subgrid, so the same spec lines up across the cards beside it. */
+const PACKAGE_CARD_CLASSES = cn(PICKABLE_CARD_CLASSES, "row-span-5 grid min-w-0 grid-rows-subgrid gap-y-0 overflow-hidden");
 
 const CUSTOM_CARD_CLASSES = cn(PICKABLE_CARD_CLASSES, "col-span-full flex items-start gap-3 px-3.5 py-3");
 
@@ -43,22 +49,6 @@ const GPU_COUNT_CHOICES: Choice<GpuCountChoice>[] = [
   { value: 2, label: "2 GPUs" },
   { value: 4, label: "4 GPUs" },
   { value: WHOLE_SERVERS, label: "Whole servers of 8" }
-];
-
-const INTERCONNECT_OPTIONS: Option<Interconnect>[] = [
-  { value: "none", title: "Not needed", description: "Each GPU runs its own work, like inference or batch jobs.", detail: "PCIe only" },
-  {
-    value: "server",
-    title: "Linked inside each server",
-    description: "GPUs in the same server share memory at full speed. Common for fine-tuning and large models.",
-    detail: "NVLink or Infinity Fabric"
-  },
-  {
-    value: "cluster",
-    title: "Linked across servers",
-    description: "Servers work together as one cluster, for multi-node training.",
-    detail: "InfiniBand or RoCE between servers"
-  }
 ];
 
 export function StartingPointField({
@@ -110,7 +100,7 @@ function PackageCard({ startingPoint }: { startingPoint: StartingPoint }) {
         {memory && <span className="truncate font-mono text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground">{memory}</span>}
         <span className="flex min-w-0 items-baseline gap-1">
           {gpuCount !== undefined && <span className="shrink-0 font-mono text-sm font-semibold text-muted-foreground">{gpuCount}×</span>}
-          <span className="truncate text-2xl font-bold tracking-tight">{model}</span>
+          <span className="min-w-0 text-2xl font-bold leading-tight tracking-tight [overflow-wrap:anywhere]">{model}</span>
         </span>
       </span>
       {specs.map(spec => (
@@ -172,24 +162,9 @@ export function GpuField({ draft, onChange }: DraftFieldProps) {
 
 export function InterconnectField({ draft, onChange }: DraftFieldProps) {
   return (
-    <div className="flex flex-col gap-6">
-      <OptionCards label="Interconnect" options={INTERCONNECT_OPTIONS} value={draft.interconnect} onChange={interconnect => onChange({ interconnect })} />
-      {draft.interconnect === "cluster" && (
-        <>
-          <FieldGroup label="Network between servers">
-            <ChoiceChips label="Network between servers" choices={FABRICS} value={draft.fabric} onChange={fabric => onChange({ fabric })} />
-          </FieldGroup>
-          <FieldGroup label="Speed per GPU">
-            <ChoiceChips
-              label="Speed per GPU"
-              choices={FABRIC_SPEEDS.map(speed => ({ value: speed, label: `${speed} Gb/s` }))}
-              value={draft.fabricGbps}
-              onChange={fabricGbps => onChange({ fabricGbps })}
-            />
-          </FieldGroup>
-        </>
-      )}
-    </div>
+    <FieldGroup label="Network between servers">
+      <ChoiceChips label="Network between servers" choices={FABRICS} value={draft.fabric} onChange={fabric => onChange({ fabric })} />
+    </FieldGroup>
   );
 }
 
@@ -197,13 +172,16 @@ export function StorageField({ draft, onChange }: DraftFieldProps) {
   return (
     <div className="flex flex-col gap-4">
       <FieldGroup label="Terabytes" hint={isWholeNodes(draft.gpuCount) ? "In each server" : undefined}>
-        <QuantityStepper
-          label="Storage in TB"
-          value={draft.storageTbPerNode}
-          min={0}
-          max={MAX_STORAGE_TB_PER_NODE}
-          onChange={storageTbPerNode => onChange({ storageTbPerNode })}
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          <QuantityStepper
+            label="Storage in TB"
+            value={draft.storageTbPerNode}
+            min={0}
+            max={MAX_STORAGE_TB_PER_NODE}
+            onChange={storageTbPerNode => onChange({ storageTbPerNode })}
+          />
+          <span className="text-sm text-muted-foreground">{RECOMMENDED_STORAGE_TB_PER_NODE} TB recommended</span>
+        </div>
       </FieldGroup>
       <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border p-3">
         <span className="flex flex-col gap-0.5">

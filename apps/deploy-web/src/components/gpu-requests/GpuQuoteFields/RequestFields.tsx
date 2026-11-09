@@ -1,31 +1,24 @@
 import type { ReactNode } from "react";
-import { Checkbox, Input, Textarea } from "@akashnetwork/ui/components";
+import { Input, Textarea } from "@akashnetwork/ui/components";
 
-import { REGION_AREAS, REGION_MODES, STARTS, TERMS, UPLINKS, UPTIME_SLAS } from "../gpuQuoteDraft/gpuQuoteCatalog";
+import { REGION_AREAS, REGION_MODES, REQUESTABLE_TERMS, STARTS, UPTIME_SLAS } from "../gpuQuoteDraft/gpuQuoteCatalog";
 import { ChoiceChips, FieldGroup, MultiChoiceChips } from "./ChoiceControls";
 import type { DraftFieldProps } from "./HardwareFields";
 
 const MAX_CONTACT_FIELD_LENGTH = 100;
 const MAX_NOTES_LENGTH = 2000;
 
-export function RegionField({ draft, onChange, asksUplink }: DraftFieldProps & { asksUplink: boolean }) {
+export function RegionField({ draft, onChange }: DraftFieldProps) {
   const areasLabel = draft.regionMode === "only" ? "Regions to run in" : "Regions to leave out";
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3">
-        <ChoiceChips label="Region" choices={REGION_MODES} value={draft.regionMode} onChange={regionMode => onChange({ regionMode })} />
-        {draft.regionMode !== "any" && (
-          <div className="flex flex-col gap-2 rounded-lg border bg-muted p-3">
-            <span className="text-sm font-medium">{areasLabel}</span>
-            <MultiChoiceChips label={areasLabel} choices={REGION_AREAS} values={draft.areas} onChange={areas => onChange({ areas })} />
-          </div>
-        )}
-      </div>
-      {asksUplink && (
-        <FieldGroup label="How fast should the internet connection be?">
-          <ChoiceChips label="Internet speed" choices={UPLINKS} value={draft.uplinkGbps} onChange={uplinkGbps => onChange({ uplinkGbps })} />
-        </FieldGroup>
+    <div className="flex flex-col gap-3">
+      <ChoiceChips label="Region" choices={REGION_MODES} value={draft.regionMode} onChange={regionMode => onChange({ regionMode })} />
+      {draft.regionMode !== "any" && (
+        <div className="flex flex-col gap-2 rounded-lg border bg-muted p-3">
+          <span className="text-sm font-medium">{areasLabel}</span>
+          <MultiChoiceChips label={areasLabel} choices={REGION_AREAS} values={draft.areas} onChange={areas => onChange({ areas })} />
+        </div>
       )}
     </div>
   );
@@ -35,23 +28,11 @@ export function SlaField({ draft, onChange }: DraftFieldProps) {
   return <ChoiceChips label="Uptime guarantee" choices={UPTIME_SLAS} value={draft.sla} onChange={sla => onChange({ sla })} />;
 }
 
-export function PriceField({ draft, onChange }: DraftFieldProps) {
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="grid max-w-md grid-cols-2 gap-3">
-        <PriceInput id="gpu-quote-min-price" label="Lowest" value={draft.minUsdPerGpuHour} onChange={minUsdPerGpuHour => onChange({ minUsdPerGpuHour })} />
-        <PriceInput id="gpu-quote-max-price" label="Highest" value={draft.maxUsdPerGpuHour} onChange={maxUsdPerGpuHour => onChange({ maxUsdPerGpuHour })} />
-      </div>
-      <p className="text-sm text-muted-foreground">In USD per GPU-hour. Leave both blank if you&apos;re open to offers.</p>
-    </div>
-  );
-}
-
 export function TimingField({ draft, onChange, today }: DraftFieldProps & { today: string }) {
   return (
     <div className="flex flex-col gap-6">
       <FieldGroup label="How long do you need them?">
-        <ChoiceChips label="Term" choices={TERMS} value={draft.term} onChange={term => onChange({ term })} />
+        <ChoiceChips label="Term" choices={REQUESTABLE_TERMS} value={draft.term} onChange={term => onChange({ term })} />
       </FieldGroup>
       <FieldGroup label="When should they start?">
         <ChoiceChips label="Start" choices={STARTS} value={draft.start} onChange={start => onChange({ start })} />
@@ -67,25 +48,6 @@ export function TimingField({ draft, onChange, today }: DraftFieldProps & { toda
           />
         )}
       </FieldGroup>
-    </div>
-  );
-}
-
-export function ExtrasField({ draft, onChange }: DraftFieldProps) {
-  return (
-    <div className="flex flex-col gap-3">
-      <CheckboxCard
-        title="This could grow"
-        description="For example, to a full server or more later."
-        checked={draft.couldGrow}
-        onCheckedChange={couldGrow => onChange({ couldGrow })}
-      />
-      <CheckboxCard
-        title="I'd like to talk to someone"
-        description="We'll reach out to go over the details."
-        checked={draft.wantsToTalk}
-        onCheckedChange={wantsToTalk => onChange({ wantsToTalk })}
-      />
     </div>
   );
 }
@@ -128,44 +90,6 @@ export function ContactField({ draft, onChange }: DraftFieldProps) {
         onChange={event => onChange({ notes: event.target.value })}
       />
     </div>
-  );
-}
-
-function PriceInput({ id, label, value, onChange }: { id: string; label: string; value: string; onChange: (value: string) => void }) {
-  return (
-    <Input
-      id={id}
-      label={label}
-      inputMode="decimal"
-      placeholder="0.00"
-      startIcon={<span className="text-sm text-muted-foreground">$</span>}
-      startIconClassName="pl-3"
-      inputClassName="pl-7"
-      value={value}
-      onChange={event => onChange(event.target.value.replace(/[^0-9.]/g, ""))}
-    />
-  );
-}
-
-function CheckboxCard({
-  title,
-  description,
-  checked,
-  onCheckedChange
-}: {
-  title: string;
-  description: string;
-  checked: boolean;
-  onCheckedChange: (checked: boolean) => void;
-}) {
-  return (
-    <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3">
-      <Checkbox checked={checked} onCheckedChange={next => onCheckedChange(next === true)} className="mt-0.5" />
-      <span className="flex flex-col gap-0.5">
-        <span className="text-sm font-semibold">{title}</span>
-        <span className="text-sm text-muted-foreground">{description}</span>
-      </span>
-    </label>
   );
 }
 

@@ -4,7 +4,6 @@ import type { DraftAnswers, GpuQuoteDraft, StartingPointSpec } from "./gpuQuoteD
 import {
   answersForGpuModel,
   applyStartingPoint,
-  asksUplink,
   configurationStartingPoint,
   createBlankDraft,
   CUSTOM_STARTING_POINT,
@@ -117,6 +116,8 @@ describe("gpuQuoteDraft", () => {
   describe(answersForGpuModel.name, () => {
     it("matches a searched model to the catalog, keeps an unknown one as typed and ignores a blank search", () => {
       expect(answersForGpuModel(" H200 SXM ")).toEqual({ gpuModel: "h200", otherGpuModel: "" });
+      expect(answersForGpuModel("pro6000se")).toEqual({ gpuModel: "pro6000se", otherGpuModel: "" });
+      expect(answersForGpuModel("pro6000we")).toEqual({ gpuModel: "pro6000", otherGpuModel: "" });
       expect(answersForGpuModel(" GB200 ")).toEqual({ gpuModel: "other", otherGpuModel: "GB200" });
       expect(answersForGpuModel("  ")).toBeUndefined();
     });
@@ -126,13 +127,19 @@ describe("gpuQuoteDraft", () => {
     it("applies the package's answers and remembers which one was picked", () => {
       const draft = applyStartingPoint(createBlankDraft("me@example.com"), STARTER_PACKAGES[1]);
 
-      expect(draft).toMatchObject({ startingPoint: "training_cluster", gpuModel: "b200", gpuCount: 32, interconnect: "cluster", fabric: "infiniband" });
+      expect(draft).toMatchObject({ startingPoint: "training_cluster", gpuModel: "gb300", gpuCount: 72, interconnect: "server" });
     });
 
     it("keeps earlier answers when switching to custom", () => {
       const withPackage = applyStartingPoint(createBlankDraft("me@example.com"), STARTER_PACKAGES[0]);
 
-      expect(applyStartingPoint(withPackage, CUSTOM_STARTING_POINT)).toEqual({ ...withPackage, startingPoint: "custom" });
+      expect(applyStartingPoint(withPackage, CUSTOM_STARTING_POINT)).toEqual({ ...withPackage, interconnect: "cluster", startingPoint: "custom" });
+    });
+
+    it("links whole servers across servers over InfiniBand when the starting point leaves the link open", () => {
+      const draft = applyStartingPoint(createBlankDraft("me@example.com"), { ...CUSTOM_STARTING_POINT, answers: { gpuModel: "h100", gpuCount: 16 } });
+
+      expect(draft).toMatchObject({ interconnect: "cluster", fabric: "infiniband", storageTbPerNode: 10 });
     });
   });
 
@@ -145,9 +152,7 @@ describe("gpuQuoteDraft", () => {
         "region",
         "storage",
         "sla",
-        "price",
         "timing",
-        "extras",
         "contact",
         "review"
       ]);
@@ -160,7 +165,7 @@ describe("gpuQuoteDraft", () => {
     it("skips the questions a package answers", () => {
       const { answers } = STARTER_PACKAGES[0];
 
-      expect(listSteps(draftWith({ gpuCount: 8 }), answers)).toEqual(["start", "region", "sla", "price", "timing", "extras", "contact", "review"]);
+      expect(listSteps(draftWith({ gpuCount: 8 }), answers)).toEqual(["start", "region", "sla", "timing", "contact", "review"]);
     });
 
     it("still asks for the GPU when the starting point only answers the count", () => {
@@ -174,19 +179,10 @@ describe("gpuQuoteDraft", () => {
         "region",
         "storage",
         "sla",
-        "price",
         "timing",
-        "extras",
         "contact",
         "review"
       ]);
-    });
-  });
-
-  describe(asksUplink.name, () => {
-    it("asks for internet speed unless the starting point answers it", () => {
-      expect(asksUplink({})).toBe(true);
-      expect(asksUplink({ uplinkGbps: null })).toBe(false);
     });
   });
 
@@ -220,29 +216,6 @@ describe("gpuQuoteDraft", () => {
       ]);
       expect(listMissingAnswers(completeDraft({ regionMode: "except", areas: everyArea.slice(1) }), TODAY)).toEqual([]);
       expect(listMissingAnswers(completeDraft({ regionMode: "only", areas: [...everyArea] }), TODAY)).toEqual([]);
-    });
-
-    it.each(["0", "-1", "abc", "1000.01"])("rejects a target price of %s", price => {
-      expect(listMissingAnswers(completeDraft({ maxUsdPerGpuHour: price }), TODAY)).toEqual([
-        { step: "price", label: "a price over $0 and up to $1000 per GPU-hour" }
-      ]);
-      expect(listMissingAnswers(completeDraft({ minUsdPerGpuHour: price }), TODAY)).toHaveLength(1);
-    });
-
-    it("treats a blank target price as open to offers", () => {
-      expect(listMissingAnswers(completeDraft({ minUsdPerGpuHour: " ", maxUsdPerGpuHour: "" }), TODAY)).toEqual([]);
-      expect(lineValue(completeDraft({ minUsdPerGpuHour: " " }), "Target price")).toBe("Open to offers");
-    });
-
-    it("accepts a target price of $1000", () => {
-      expect(listMissingAnswers(completeDraft({ maxUsdPerGpuHour: "1000" }), TODAY)).toEqual([]);
-    });
-
-    it("asks for a lowest price under the highest", () => {
-      expect(listMissingAnswers(completeDraft({ minUsdPerGpuHour: "3", maxUsdPerGpuHour: "2" }), TODAY)).toEqual([
-        { step: "price", label: "a lowest price under the highest" }
-      ]);
-      expect(listMissingAnswers(completeDraft({ minUsdPerGpuHour: "2", maxUsdPerGpuHour: "2" }), TODAY)).toEqual([]);
     });
 
     it("asks for a start date from today on when starting on a date", () => {
@@ -309,7 +282,7 @@ describe("gpuQuoteDraft", () => {
           gpu: { model: "A100", count: 1, interconnect: "none" },
           region: { mode: "any", areas: [] },
           uplinkGbps: null,
-          storage: { tbPerNode: 1, nvme: true },
+          storage: { tbPerNode: 10, nvme: true },
           sla: null,
           targetPrice: null,
           term: "month_to_month",
@@ -322,27 +295,21 @@ describe("gpuQuoteDraft", () => {
       });
     });
 
-    it("sends a cluster with its fabric, prices, date and contact details", () => {
+    it("sends a cluster with its fabric, date and contact details, leaving internet speed and price open", () => {
       const draft = completeDraft({
         gpuModel: "other",
         otherGpuModel: " GB200 ",
         gpuCount: 16,
         interconnect: "cluster",
         fabric: "roce",
-        fabricGbps: 800,
         regionMode: "only",
         areas: ["apac"],
-        uplinkGbps: 25,
-        storageTbPerNode: 10,
+        storageTbPerNode: 12,
         nvme: false,
         sla: "99.9",
-        minUsdPerGpuHour: "2.5",
-        maxUsdPerGpuHour: "3",
         term: "12_months",
         start: "date",
         startDate: "2026-12-01",
-        couldGrow: true,
-        wantsToTalk: true,
         email: " me@example.com ",
         phone: " +1 555 ",
         company: " Acme ",
@@ -356,16 +323,16 @@ describe("gpuQuoteDraft", () => {
         source: "requests_page",
         configuration: undefined,
         spec: {
-          gpu: { model: "GB200", count: 16, interconnect: "cluster", fabric: "roce", fabricGbps: 800 },
+          gpu: { model: "GB200", count: 16, interconnect: "cluster", fabric: "roce" },
           region: { mode: "only", areas: ["apac"] },
-          uplinkGbps: 25,
-          storage: { tbPerNode: 10, nvme: false },
+          uplinkGbps: null,
+          storage: { tbPerNode: 12, nvme: false },
           sla: "99.9",
-          targetPrice: { minUsdPerGpuHour: 2.5, maxUsdPerGpuHour: 3 },
+          targetPrice: null,
           term: "12_months",
           start: { kind: "date", date: "2026-12-01" },
-          couldGrow: true,
-          wantsToTalk: true,
+          couldGrow: false,
+          wantsToTalk: false,
           company: "Acme",
           phone: "+1 555"
         }
@@ -381,12 +348,6 @@ describe("gpuQuoteDraft", () => {
       expect(spec.region).toEqual({ mode: "any", areas: [] });
     });
 
-    it("sends a target price with only one bound", () => {
-      const { spec } = toQuoteRequestData(completeDraft({ minUsdPerGpuHour: "1.2" }), { source: "no_bids" });
-
-      expect(spec.targetPrice).toEqual({ minUsdPerGpuHour: 1.2, maxUsdPerGpuHour: undefined });
-    });
-
     it("sends a flexible start", () => {
       const { spec } = toQuoteRequestData(completeDraft({ start: "flexible", startDate: "2026-12-01" }), { source: "no_bids" });
 
@@ -399,13 +360,10 @@ describe("gpuQuoteDraft", () => {
       expect(describeReviewLines(completeDraft())).toEqual([
         { step: "gpu", label: "GPUs", value: "1× A100" },
         { step: "region", label: "Region", value: "Anywhere" },
-        { step: "region", label: "Internet", value: "No preference" },
-        { step: "storage", label: "Storage", value: "1 TB NVMe" },
+        { step: "storage", label: "Storage", value: "10 TB NVMe" },
         { step: "sla", label: "Uptime", value: "No requirement" },
-        { step: "price", label: "Target price", value: "Open to offers" },
         { step: "timing", label: "Term", value: "Month to month" },
         { step: "timing", label: "Start", value: "As soon as possible" },
-        { step: "extras", label: "Also", value: "Nothing else" },
         { step: "contact", label: "Contact", value: "me@example.com" }
       ]);
     });
@@ -416,20 +374,14 @@ describe("gpuQuoteDraft", () => {
           gpuCount: 16,
           interconnect: "cluster",
           fabric: "infiniband",
-          fabricGbps: 400,
           regionMode: "except",
           areas: ["me", "us"],
-          uplinkGbps: 10,
           storageTbPerNode: 30,
           nvme: false,
           sla: "99.5",
-          minUsdPerGpuHour: "2",
-          maxUsdPerGpuHour: "3.5",
           term: "24_months",
           start: "date",
           startDate: "2026-12-01",
-          couldGrow: true,
-          wantsToTalk: true,
           phone: "+1 555",
           company: "Acme"
         })
@@ -437,15 +389,12 @@ describe("gpuQuoteDraft", () => {
 
       expect(lines.map(line => line.value)).toEqual([
         "16× A100 · 2 servers",
-        "InfiniBand between servers at 400 Gb/s",
+        "InfiniBand between servers",
         "Anywhere except United States, Middle East",
-        "10 Gbps",
         "30 TB per server",
         "99.5%",
-        "$2.00–$3.50 per GPU-hour",
         "2 years or more",
         "On 2026-12-01",
-        "Could grow, Wants to talk to someone",
         "me@example.com · +1 555 · Acme"
       ]);
     });
@@ -453,15 +402,20 @@ describe("gpuQuoteDraft", () => {
     it.each([
       [{ interconnect: "none" }, "Not needed"],
       [{ interconnect: "server" }, "Linked inside each server"],
-      [{ interconnect: "cluster", fabric: "any", fabricGbps: 200 }, "InfiniBand or RoCE between servers at 200 Gb/s"],
-      [{ interconnect: "cluster", fabric: "roce", fabricGbps: 800 }, "RoCE (Ethernet) between servers at 800 Gb/s"]
+      [{ interconnect: "cluster", fabric: "any" }, "InfiniBand or RoCE between servers"],
+      [{ interconnect: "cluster", fabric: "roce" }, "RoCE (Ethernet) between servers"]
     ] as const)("describes the connection %o as %s", (answers, expected) => {
       expect(lineValue(completeDraft({ gpuCount: 8, ...answers }), "Connection")).toBe(expected);
     });
 
     it("names one server in the singular", () => {
       expect(lineValue(completeDraft({ gpuCount: 8 }), "GPUs")).toBe("8× A100 · 1 server");
-      expect(describeReviewLines(completeDraft({ gpuCount: 8 }))[1]).toEqual({ step: "interconnect", label: "Connection", value: "Not needed" });
+      expect(describeReviewLines(completeDraft({ gpuCount: 8 }))[1]).toEqual({ step: "interconnect", label: "Connection", value: "InfiniBand between servers" });
+    });
+
+    it("counts a rack-scale GPU in whole racks, and in servers when it does not fill one", () => {
+      expect(lineValue(completeDraft({ gpuModel: "gb300", gpuCount: 72 }), "GPUs")).toBe("72× GB300 · 1 NVL72 rack");
+      expect(lineValue(completeDraft({ gpuModel: "gb300", gpuCount: 8 }), "GPUs")).toBe("8× GB300 · 1 server");
     });
 
     it("lists the notes last, trimmed, when the tenant wrote some", () => {
@@ -475,60 +429,53 @@ describe("gpuQuoteDraft", () => {
     });
 
     it("leaves unanswered lines empty", () => {
-      const draft = completeDraft({ gpuModel: null, regionMode: "only", areas: [], start: "date", startDate: "", email: "", maxUsdPerGpuHour: "abc" });
+      const draft = completeDraft({ gpuModel: null, regionMode: "only", areas: [], start: "date", startDate: "", email: "" });
 
       expect(lineValue(draft, "GPUs")).toBeNull();
       expect(lineValue(draft, "Region")).toBeNull();
       expect(lineValue(draft, "Start")).toBeNull();
       expect(lineValue(draft, "Contact")).toBeNull();
-      expect(lineValue(draft, "Target price")).toBeNull();
     });
 
     it("describes the other answers", () => {
       expect(lineValue(completeDraft({ regionMode: "only", areas: ["uk", "ca"] }), "Region")).toBe("Canada, United Kingdom");
       expect(lineValue(completeDraft({ storageTbPerNode: 0 }), "Storage")).toBe("None");
-      expect(lineValue(completeDraft({ maxUsdPerGpuHour: "4" }), "Target price")).toBe("Up to $4.00 per GPU-hour");
-      expect(lineValue(completeDraft({ minUsdPerGpuHour: "1.5" }), "Target price")).toBe("From $1.50 per GPU-hour");
       expect(lineValue(completeDraft({ start: "flexible" }), "Start")).toBe("Flexible");
-      expect(lineValue(completeDraft({ couldGrow: true }), "Also")).toBe("Could grow");
       expect(lineValue(completeDraft({ email: " me@example.com ", phone: " ", company: " Acme " }), "Contact")).toBe("me@example.com · Acme");
     });
   });
 
   describe(describeStartingPointCard.name, () => {
-    it("lays out each package as its GPUs and the same four specs", () => {
+    it("lays out each package as its GPUs and the same three specs", () => {
       expect(STARTER_PACKAGES.map(describeStartingPointCard)).toEqual([
         {
-          gpuCount: 8,
-          model: "H200",
-          memory: "NVIDIA · 141 GB",
-          specs: [
-            { label: "Nodes", value: "1 × 8 GPUs" },
-            { label: "Link", value: "NVLink" },
-            { label: "Storage", value: "8 TB / node" },
-            { label: "Internet", value: "10 Gbps" }
-          ]
-        },
-        {
-          gpuCount: 32,
-          model: "B200",
-          memory: "NVIDIA · 180 GB",
-          specs: [
-            { label: "Nodes", value: "4 × 8 GPUs" },
-            { label: "Link", value: "NVLink + InfiniBand" },
-            { label: "Storage", value: "30 TB / node" },
-            { label: "Internet", value: "25 Gbps+" }
-          ]
-        },
-        {
           gpuCount: 16,
-          model: "L40S",
-          memory: "NVIDIA · 48 GB",
+          model: "B300",
+          memory: "NVIDIA · 288 GB",
           specs: [
             { label: "Nodes", value: "2 × 8 GPUs" },
+            { label: "Link", value: "NVLink" },
+            { label: "Storage", value: "4 TB / node" }
+          ]
+        },
+        {
+          gpuCount: 72,
+          model: "GB300",
+          memory: "NVIDIA · 288 GB",
+          specs: [
+            { label: "Nodes", value: "1 NVL72 rack" },
+            { label: "Link", value: "NVLink" },
+            { label: "Storage", value: "30 TB / node" }
+          ]
+        },
+        {
+          gpuCount: 8,
+          model: "RTX PRO 6000 SE",
+          memory: "NVIDIA · 96 GB",
+          specs: [
+            { label: "Nodes", value: "1 × 8 GPUs" },
             { label: "Link", value: "PCIe only" },
-            { label: "Storage", value: "4 TB / node" },
-            { label: "Internet", value: "10 Gbps" }
+            { label: "Storage", value: "8 TB / node" }
           ]
         }
       ]);
@@ -542,8 +489,7 @@ describe("gpuQuoteDraft", () => {
         specs: [
           { label: "Nodes", value: "—" },
           { label: "Link", value: "—" },
-          { label: "Storage", value: "—" },
-          { label: "Internet", value: "—" }
+          { label: "Storage", value: "—" }
         ]
       });
     });
@@ -552,15 +498,15 @@ describe("gpuQuoteDraft", () => {
       [{ gpuCount: 1 }, "Nodes", "1 × 1 GPU"],
       [{ gpuCount: 4 }, "Nodes", "1 × 4 GPUs"],
       [{ gpuCount: 4 }, "Link", "PCIe only"],
+      [{ gpuModel: "gb300", gpuCount: 144 }, "Nodes", "2 NVL72 racks"],
+      [{ gpuModel: "gb300", gpuCount: 16 }, "Nodes", "2 × 8 GPUs"],
       [{ gpuCount: 8 }, "Link", "—"],
       [{ gpuModel: "mi300x", interconnect: "server" }, "Link", "Infinity Fabric"],
       [{ interconnect: "server" }, "Link", "NVLink or Infinity Fabric"],
       [{ gpuModel: "h100", interconnect: "cluster", fabric: "roce" }, "Link", "NVLink + RoCE"],
       [{ gpuModel: "h100", interconnect: "cluster", fabric: "any" }, "Link", "NVLink + InfiniBand or RoCE"],
       [{ gpuModel: "h100", interconnect: "cluster" }, "Link", "NVLink + InfiniBand or RoCE"],
-      [{ storageTbPerNode: 0 }, "Storage", "0 TB / node"],
-      [{ uplinkGbps: null }, "Internet", "Any"],
-      [{ uplinkGbps: 1 }, "Internet", "1 Gbps"]
+      [{ storageTbPerNode: 0 }, "Storage", "0 TB / node"]
     ] satisfies [DraftAnswers, StartingPointSpec["label"], string][])("describes %o with %s %s", (answers, label, value) => {
       const { specs } = describeStartingPointCard({ ...CUSTOM_STARTING_POINT, answers });
 
