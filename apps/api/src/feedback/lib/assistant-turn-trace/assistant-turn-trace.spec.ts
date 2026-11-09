@@ -57,6 +57,29 @@ describe(AssistantTurnTraceBuilder.name, () => {
     });
   });
 
+  it("redacts secrets from the page in both the running and the finished trace", () => {
+    const { builder } = setup({ page: "/deployments?token=hunter2hunter2" });
+
+    expect(builder.running().page).toBe("/deployments?token=[REDACTED]");
+    expect(builder.finish("answered", afterStart(0)).page).toBe("/deployments?token=[REDACTED]");
+  });
+
+  it("clamps a redacted page to the length the column holds", () => {
+    const { builder } = setup({ page: "token=a ".repeat(70) });
+
+    const page = builder.finish("answered", afterStart(0)).page;
+
+    expect(page).toHaveLength(500);
+    expect(page?.startsWith("token=[REDACTED] token=[REDACTED]")).toBe(true);
+  });
+
+  it("keeps a page that fits the column whole", () => {
+    const page = `/${"a".repeat(499)}`;
+    const { builder } = setup({ page });
+
+    expect(builder.finish("answered", afterStart(0)).page).toBe(page);
+  });
+
   it("records time to the first shown text only once", () => {
     const { builder } = setup({});
 

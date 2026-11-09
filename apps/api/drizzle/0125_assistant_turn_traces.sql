@@ -1,4 +1,4 @@
-CREATE TYPE "public"."assistant_turn_outcome" AS ENUM('running', 'answered', 'recovered', 'fallback', 'timed_out', 'awaiting_browser', 'model_failed', 'failed', 'cancelled', 'limited', 'blocked');--> statement-breakpoint
+CREATE TYPE "public"."assistant_turn_outcome" AS ENUM('running', 'answered', 'recovered', 'fallback', 'timed_out', 'awaiting_browser', 'model_failed', 'failed', 'cancelled', 'limited');--> statement-breakpoint
 CREATE TABLE "assistant_turn_traces" (
 	"id" uuid PRIMARY KEY DEFAULT uuid_generate_v4() NOT NULL,
 	"user_id" uuid NOT NULL,

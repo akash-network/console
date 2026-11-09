@@ -14,9 +14,10 @@ export const assistantTurnOutcomeEnum = pgEnum("assistant_turn_outcome", [
   "model_failed",
   "failed",
   "cancelled",
-  "limited",
-  "blocked"
+  "limited"
 ]);
+
+export const MAX_TRACED_PAGE_LENGTH = 500;
 
 export type AssistantTurnOutcome = (typeof assistantTurnOutcomeEnum.enumValues)[number];
 
@@ -37,7 +38,7 @@ export const AssistantTurnTraces = pgTable(
       .notNull(),
     organizationId: uuid("organization_id").references(() => Organizations.id, { onDelete: "set null" }),
     conversationId: uuid("conversation_id").notNull(),
-    page: varchar("page", { length: 500 }),
+    page: varchar("page", { length: MAX_TRACED_PAGE_LENGTH }),
     model: text("model").notNull(),
     promptVersion: text("prompt_version").notNull(),
     outcome: assistantTurnOutcomeEnum("outcome").notNull(),

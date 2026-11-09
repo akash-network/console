@@ -23,6 +23,7 @@ describe("assistant tools", () => {
     expect(proposalActionTypeOf("propose_close_deployment")).toBe("close_deployment");
     expect(proposalActionTypeOf("propose_shell")).toBeNull();
     expect(proposalActionTypeOf("close_deployment")).toBeNull();
+    expect(proposalActionTypeOf("propose_toString")).toBeNull();
   });
 
   it("tells read and client tools apart without matching inherited names", () => {
@@ -38,6 +39,7 @@ describe("assistant tools", () => {
     expect(buildAssistantChatTools().filter(tool => !isAssistantToolName(tool.function.name))).toEqual([]);
     expect(isAssistantToolName("propose_shell")).toBe(false);
     expect(isAssistantToolName("toString")).toBe(false);
+    expect(isAssistantToolName("propose_toString")).toBe(false);
     expect(isAssistantToolName("get_bids MARKER-7f3a")).toBe(false);
   });
 

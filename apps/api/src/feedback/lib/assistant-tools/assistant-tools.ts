@@ -123,7 +123,7 @@ export function proposalActionTypeOf(toolName: string): ProposalActionType | nul
   if (!toolName.startsWith(PROPOSAL_TOOL_PREFIX)) return null;
 
   const type = toolName.slice(PROPOSAL_TOOL_PREFIX.length);
-  return type in PROPOSAL_TOOL_ARGUMENTS ? (type as ProposalActionType) : null;
+  return Object.hasOwn(PROPOSAL_TOOL_ARGUMENTS, type) ? (type as ProposalActionType) : null;
 }
 
 export function isReadToolName(name: string): name is ReadToolName {

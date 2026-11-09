@@ -1,5 +1,11 @@
 import type { CreateLogger } from "@src/core";
-import type { AssistantTurnOutcome, TracedCard, TracedToolCall } from "@src/feedback/model-schemas/assistant-turn-trace/assistant-turn-trace.schema";
+import { redactSecrets } from "@src/feedback/lib/redact-secrets/redact-secrets";
+import {
+  type AssistantTurnOutcome,
+  MAX_TRACED_PAGE_LENGTH,
+  type TracedCard,
+  type TracedToolCall
+} from "@src/feedback/model-schemas/assistant-turn-trace/assistant-turn-trace.schema";
 import type { AssistantTurnTraceInput, AssistantTurnTraceResult } from "@src/feedback/repositories/assistant-turn-trace/assistant-turn-trace.repository";
 import type { ChatCompletion } from "@src/feedback/services/akashml-client/akashml.client";
 
@@ -24,7 +30,7 @@ export class AssistantTurnTraceBuilder {
   readonly #cards: TracedCard[] = [];
 
   constructor(start: AssistantTurnTraceStart) {
-    this.#start = start;
+    this.#start = { ...start, page: start.page === null ? null : redactSecrets(start.page).slice(0, MAX_TRACED_PAGE_LENGTH) };
   }
 
   textShown(at: Date): void {

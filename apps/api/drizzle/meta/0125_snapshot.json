@@ -1,5 +1,5 @@
 {
-  "id": "33c4a4df-4564-4173-869d-a86f2b3c8437",
+  "id": "9bb14d62-25b7-4dc0-9fe9-92efebf80468",
   "prevId": "db9d23bf-b08c-4e64-a025-8b1014f1a828",
   "version": "7",
   "dialect": "postgresql",
@@ -7307,8 +7307,7 @@
         "model_failed",
         "failed",
         "cancelled",
-        "limited",
-        "blocked"
+        "limited"
       ]
     }
   },
