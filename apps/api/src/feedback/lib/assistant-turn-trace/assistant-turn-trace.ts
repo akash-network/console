@@ -12,6 +12,8 @@ export interface AssistantTurnTraceStart {
   startedAt: Date;
 }
 
+export type FinishedAssistantTurnTrace = AssistantTurnTraceInput & { firstTokenMs: number | null; toolCalls: TracedToolCall[] };
+
 export class AssistantTurnTraceBuilder {
   readonly #start: AssistantTurnTraceStart;
   #firstTokenMs: number | null = null;
@@ -45,7 +47,7 @@ export class AssistantTurnTraceBuilder {
     this.#cards.push({ proposalId: card.proposalId, actionType: card.actionType, decision: null });
   }
 
-  finish(outcome: AssistantTurnOutcome, at: Date): AssistantTurnTraceInput {
+  finish(outcome: AssistantTurnOutcome, at: Date): FinishedAssistantTurnTrace {
     return {
       ...this.#start,
       outcome,

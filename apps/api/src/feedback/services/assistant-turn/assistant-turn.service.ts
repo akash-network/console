@@ -4,10 +4,14 @@ import { inject, singleton } from "tsyringe";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { type AssistantStreamEvent, MAX_CLIENT_TOOL_RESULT_LENGTH } from "@src/feedback/http-schemas/assistant-conversation.schema";
 import { fallbackAnswerOf } from "@src/feedback/lib/assistant-fallback-answer/assistant-fallback-answer";
+import { ASSISTANT_PROMPT_VERSION } from "@src/feedback/lib/assistant-prompt-version/assistant-prompt-version";
 import { isLiveHelpToolName, isReadToolName } from "@src/feedback/lib/assistant-tools/assistant-tools";
 import { earlierResultOf, toolCallKeyOf } from "@src/feedback/lib/assistant-turn-tool-calls/assistant-turn-tool-calls";
+import { AssistantTurnTraceBuilder } from "@src/feedback/lib/assistant-turn-trace/assistant-turn-trace";
+import type { AssistantTurnOutcome } from "@src/feedback/model-schemas/assistant-turn-trace/assistant-turn-trace.schema";
 import { FEEDBACK_CONFIG, type FeedbackConfig } from "@src/feedback/providers/config.provider";
 import { AssistantPendingTurnRepository } from "@src/feedback/repositories/assistant-pending-turn/assistant-pending-turn.repository";
+import { AssistantTurnTraceRepository } from "@src/feedback/repositories/assistant-turn-trace/assistant-turn-trace.repository";
 import {
   AkashMlClient,
   AkashMlOutputError,
@@ -47,6 +51,10 @@ export const ANSWER_NOW_NOTE: ChatMessage = {
 
 export type EmitAssistantEvent = (event: AssistantStreamEvent) => Promise<void>;
 
+type TimedToolOutcome = { outcome: ToolOutcome; durationMs: number };
+
+type TurnEnding = { outcome: AssistantTurnOutcome; finishReason: ChatCompletion["finishReason"] };
+
 function textDeltaEmitter(emit: EmitAssistantEvent, followsEarlierRoundText: boolean): (text: string) => Promise<void> {
   let separator = followsEarlierRoundText ? ROUND_TEXT_SEPARATOR : "";
 
@@ -80,6 +88,8 @@ export function alreadyReadContentOf(tool: string, earlierResult: string): strin
 export interface AssistantTurn {
   conversationId: string;
   userId: string;
+  organizationId: string | null;
+  page: string | null;
   stored: boolean;
   isTrialing: boolean | null;
   configureFormOpen: boolean;
@@ -119,6 +129,7 @@ export class AssistantTurnService {
     private readonly limitsService: AssistantLimitsService,
     private readonly transcriptService: AssistantTranscriptService,
     private readonly pendingTurnRepository: AssistantPendingTurnRepository,
+    private readonly traceRepository: AssistantTurnTraceRepository,
     @inject(FEEDBACK_CONFIG) private readonly config: FeedbackConfig,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -126,6 +137,17 @@ export class AssistantTurnService {
   }
 
   async run(turn: AssistantTurn, emitEvent: EmitAssistantEvent, signal: AbortSignal): Promise<void> {
+    const trace = this.#startTrace(turn);
+    let outcome: AssistantTurnOutcome = "failed";
+
+    try {
+      outcome = await this.#runTurn(turn, trace, emitEvent, signal);
+    } finally {
+      await this.#finishTrace(trace, outcome);
+    }
+  }
+
+  async #runTurn(turn: AssistantTurn, trace: AssistantTurnTraceBuilder, emitEvent: EmitAssistantEvent, signal: AbortSignal): Promise<AssistantTurnOutcome> {
     const { emit, shownText } = trackingShownText(emitEvent);
     const deadline = AbortSignal.timeout(TURN_TIMEOUT_MS);
     const abort = AbortSignal.any([signal, deadline]);
@@ -141,48 +163,91 @@ export class AssistantTurnService {
           requestMessagesFor(messages, round),
           { isFinalRound, configureFormOpen: turn.configureFormOpen },
           abort,
+          trace,
           textDeltaEmitter(emit, answer.length > 0)
         );
         if (completion.content) answer.push(completion.content);
 
         if (isFinalRound || completion.toolCalls.length === 0) {
-          const finishReason = hasText(completion.content) ? completion.finishReason : await this.#answerNow(turn, messages, answer, abort, emit);
+          const ending: TurnEnding = hasText(completion.content)
+            ? { outcome: "answered", finishReason: completion.finishReason }
+            : await this.#answerNow(turn, messages, answer, abort, trace, emit);
           await this.#recordAnswer(turn, answer);
-          await emit({ type: "done", reason: finishReason === "length" ? "length" : "stop" });
-          return;
+          await emit({ type: "done", reason: ending.finishReason === "length" ? "length" : "stop" });
+          return ending.outcome;
         }
 
         messages.push({ role: "assistant", content: completion.content, tool_calls: completion.toolCalls });
-        const clientToolCalls = await this.#runTools(turn, proposalContext, completion.toolCalls, messages, emit);
+        const clientToolCalls = await this.#runTools(turn, proposalContext, completion.toolCalls, messages, trace, emit);
 
         if (clientToolCalls.length > 0) {
           await this.#pause(turn, messages, clientToolCalls, round + 1);
           await this.#recordAnswer(turn, answer);
           await emit({ type: "done", reason: "awaiting_client_tool" });
-          return;
+          return "awaiting_browser";
         }
       }
     } catch (error) {
-      if (signal.aborted) return;
+      if (signal.aborted) return "cancelled";
       if (deadline.aborted) return await this.#endTimedOutTurn(turn, messages, shownText(), round, emit);
 
-      await emit(this.#errorEventOf(error));
+      return await this.#endFailedTurn(error, emit);
+    }
+  }
+
+  #startTrace(turn: AssistantTurn): AssistantTurnTraceBuilder {
+    return new AssistantTurnTraceBuilder({
+      conversationId: turn.conversationId,
+      userId: turn.userId,
+      organizationId: turn.organizationId,
+      page: turn.page,
+      model: this.config.ASSISTANT_MODEL,
+      promptVersion: ASSISTANT_PROMPT_VERSION,
+      startedAt: new Date()
+    });
+  }
+
+  /** Runs after the turn's last event and swallows its own errors, so tracing never delays, fails or changes what the user sees. */
+  async #finishTrace(trace: AssistantTurnTraceBuilder, outcome: AssistantTurnOutcome): Promise<void> {
+    try {
+      const finished = trace.finish(outcome, new Date());
+      this.#logger.info({
+        event: "ASSISTANT_TURN_COMPLETED",
+        outcome,
+        durationMs: finished.durationMs,
+        firstTokenMs: finished.firstTokenMs,
+        model: finished.model,
+        promptVersion: finished.promptVersion,
+        toolCallCount: finished.toolCalls.length,
+        failedToolCallCount: finished.toolCalls.filter(({ ok }) => !ok).length
+      });
+      await this.traceRepository.create(finished);
+    } catch (error) {
+      this.#logger.warn({ event: "ASSISTANT_TURN_TRACE_FAILED", error });
     }
   }
 
   /** A turn that runs out of time still answers with what it read, since an error would hide reads the user already saw as chips. */
-  async #endTimedOutTurn(turn: AssistantTurn, messages: ChatMessage[], shownText: string, round: number, emit: EmitAssistantEvent): Promise<void> {
+  async #endTimedOutTurn(
+    turn: AssistantTurn,
+    messages: ChatMessage[],
+    shownText: string,
+    round: number,
+    emit: EmitAssistantEvent
+  ): Promise<AssistantTurnOutcome> {
     this.#logger.warn({ event: "ASSISTANT_TURN_TIMED_OUT", round, timeoutMs: TURN_TIMEOUT_MS });
     const fallback = fallbackAnswerOf(messages);
     await textDeltaEmitter(emit, shownText.length > 0)(fallback);
     await this.#recordAnswer(turn, shownText ? [shownText, fallback] : [fallback]);
     await emit({ type: "done", reason: "stop" });
+    return "timed_out";
   }
 
   async #complete(
     messages: ChatMessage[],
     { isFinalRound, configureFormOpen }: { isFinalRound: boolean; configureFormOpen: boolean },
     signal: AbortSignal,
+    trace: AssistantTurnTraceBuilder,
     onContentDelta: (text: string) => Promise<void>
   ): Promise<ChatCompletion> {
     await this.limitsService.assertWithinBudget();
@@ -196,8 +261,15 @@ export class AssistantTurnService {
         max_completion_tokens: MAX_COMPLETION_TOKENS,
         reasoning_effort: this.config.ASSISTANT_REASONING_EFFORT
       },
-      { signal, onContentDelta }
+      {
+        signal,
+        onContentDelta: text => {
+          trace.textShown(new Date());
+          return onContentDelta(text);
+        }
+      }
     );
+    trace.usageAdded(completion.usage);
     await this.limitsService.recordUsage(completion.usage);
 
     return completion;
@@ -209,22 +281,24 @@ export class AssistantTurnService {
     messages: ChatMessage[],
     answer: string[],
     signal: AbortSignal,
+    trace: AssistantTurnTraceBuilder,
     emit: EmitAssistantEvent
-  ): Promise<ChatCompletion["finishReason"]> {
+  ): Promise<TurnEnding> {
     const completion = await this.#complete(
       [...messages, ANSWER_NOW_NOTE],
       { isFinalRound: true, configureFormOpen: turn.configureFormOpen },
       signal,
+      trace,
       textDeltaEmitter(emit, answer.length > 0)
     );
     if (completion.content) answer.push(completion.content);
     this.#logger.info({ event: "ASSISTANT_EMPTY_ANSWER_RECOVERED", recoveredBy: hasText(completion.content) ? "answer_now" : "fallback" });
-    if (hasText(completion.content)) return completion.finishReason;
+    if (hasText(completion.content)) return { outcome: "recovered", finishReason: completion.finishReason };
 
     const fallback = fallbackAnswerOf(messages);
     await textDeltaEmitter(emit, answer.length > 0)(fallback);
     answer.push(fallback);
-    return "stop";
+    return { outcome: "fallback", finishReason: "stop" };
   }
 
   async #runTools(
@@ -232,6 +306,7 @@ export class AssistantTurnService {
     proposalContext: ProposalContext,
     toolCalls: ChatToolCall[],
     messages: ChatMessage[],
+    trace: AssistantTurnTraceBuilder,
     emit: EmitAssistantEvent
   ): Promise<ChatToolCall[]> {
     const clientToolCalls: ChatToolCall[] = [];
@@ -248,7 +323,7 @@ export class AssistantTurnService {
       const showsAsRead = !isLiveHelpToolName(name);
       const startedRead = startedReads.get(call.id);
       if (showsAsRead && !startedRead) await emit({ type: "tool_started", toolCallId: call.id, name });
-      const outcome = await (startedRead ?? this.toolRunner.run(call, proposalContext));
+      const { outcome, durationMs } = await (startedRead ?? this.#timedRun(call, proposalContext));
 
       if (outcome.kind === "client") {
         clientToolCalls.push(call);
@@ -270,7 +345,9 @@ export class AssistantTurnService {
         continue;
       }
 
+      trace.toolFinished({ name, ok: outcome.ok, durationMs });
       if (outcome.kind === "proposal") {
+        trace.cardProposed({ proposalId: outcome.proposalId, actionType: outcome.action.type });
         await emit({
           type: "action_proposal",
           proposalId: outcome.proposalId,
@@ -300,8 +377,8 @@ export class AssistantTurnService {
     messages: ChatMessage[],
     proposalContext: ProposalContext,
     emit: EmitAssistantEvent
-  ): Promise<Map<string, Promise<ToolOutcome>>> {
-    const started = new Map<string, Promise<ToolOutcome>>();
+  ): Promise<Map<string, Promise<TimedToolOutcome>>> {
+    const started = new Map<string, Promise<TimedToolOutcome>>();
     const startedKeys = new Set<string>();
 
     for (const call of toolCalls) {
@@ -312,17 +389,33 @@ export class AssistantTurnService {
 
       startedKeys.add(key);
       await emit({ type: "tool_started", toolCallId: call.id, name: call.function.name });
-      started.set(call.id, this.toolRunner.run(call, proposalContext));
+      started.set(call.id, this.#timedRun(call, proposalContext));
     }
 
     return started;
+  }
+
+  async #timedRun(call: ChatToolCall, proposalContext: ProposalContext): Promise<TimedToolOutcome> {
+    const startedAt = Date.now();
+    const outcome = await this.toolRunner.run(call, proposalContext);
+
+    return { outcome, durationMs: Date.now() - startedAt };
   }
 
   async #pause(turn: AssistantTurn, messages: ChatMessage[], clientToolCalls: ChatToolCall[], roundsUsed: number): Promise<void> {
     await this.pendingTurnRepository.hold({
       conversationId: turn.conversationId,
       userId: turn.userId,
-      state: { messages, clientToolCalls, roundsUsed, stored: turn.stored, isTrialing: turn.isTrialing, configureFormOpen: turn.configureFormOpen },
+      state: {
+        messages,
+        clientToolCalls,
+        roundsUsed,
+        stored: turn.stored,
+        isTrialing: turn.isTrialing,
+        configureFormOpen: turn.configureFormOpen,
+        organizationId: turn.organizationId,
+        page: turn.page
+      },
       expiresAt: new Date(Date.now() + PENDING_TURN_TTL_MS)
     });
   }
@@ -339,13 +432,15 @@ export class AssistantTurnService {
     await this.transcriptService.record(turn.conversationId, entry);
   }
 
-  #errorEventOf(error: unknown): AssistantStreamEvent {
+  async #endFailedTurn(error: unknown, emit: EmitAssistantEvent): Promise<AssistantTurnOutcome> {
     if (isModelFailure(error)) {
       this.#logger.warn({ event: "ASSISTANT_MODEL_FAILED", error });
-      return { type: "error", code: "assistant_unavailable", message: "The assistant is unavailable right now. Ask on Discord for live help." };
+      await emit({ type: "error", code: "assistant_unavailable", message: "The assistant is unavailable right now. Ask on Discord for live help." });
+      return "model_failed";
     }
 
     this.#logger.error({ event: "ASSISTANT_TURN_FAILED", error });
-    return { type: "error", code: "assistant_error", message: "Something went wrong. Try again, or ask on Discord." };
+    await emit({ type: "error", code: "assistant_error", message: "Something went wrong. Try again, or ask on Discord." });
+    return "failed";
   }
 }

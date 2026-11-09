@@ -90,7 +90,7 @@ export class AssistantConversationService {
 
     const conversation = await this.assistantConversationRepository.accessibleBy(this.authService.ability, "create").create({
       userId: this.authService.currentUser.id,
-      organizationId: this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId ?? null,
+      organizationId: this.#currentOrganizationId(),
       context: { page: context?.page, dseq: context?.dseq, isTrialing: await this.#isTrialing() }
     });
 
@@ -117,11 +117,13 @@ export class AssistantConversationService {
     ];
 
     const redactedSecretCount = countRedactions(content, userMessage);
+    const organizationId = this.#currentOrganizationId();
+    const page = context?.page ?? conversation?.context.page ?? null;
 
     return async (emit, signal) => {
       if (redactedSecretCount > 0) await emit({ type: "secret_redacted", count: redactedSecretCount });
       await this.turnService.run(
-        { conversationId, userId: this.authService.currentUser.id, stored, isTrialing, configureFormOpen, messages, roundsUsed: 0 },
+        { conversationId, userId: this.authService.currentUser.id, organizationId, page, stored, isTrialing, configureFormOpen, messages, roundsUsed: 0 },
         emit,
         signal
       );
@@ -175,6 +177,8 @@ export class AssistantConversationService {
         {
           conversationId,
           userId,
+          organizationId: state.organizationId ?? null,
+          page: state.page ?? null,
           stored,
           isTrialing: state.isTrialing,
           configureFormOpen: state.configureFormOpen === true,
@@ -264,6 +268,10 @@ export class AssistantConversationService {
     return await this.assistantConversationRepository
       .accessibleBy(this.authService.ability, "read")
       .findOneBy({ id: conversationId, userId: this.authService.currentUser.id });
+  }
+
+  #currentOrganizationId(): string | null {
+    return this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId ?? null;
   }
 
   async #isTrialing(): Promise<boolean | null> {

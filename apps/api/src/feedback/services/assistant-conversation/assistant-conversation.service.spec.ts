@@ -405,6 +405,42 @@ describe(AssistantConversationService.name, () => {
       expect(turnService.run.mock.calls[0][0]).toMatchObject({ stored: false });
     });
 
+    it("passes the organization and page into the turn and keeps them for a resumed turn", async () => {
+      const { service, pendingTurnRepository, turnService } = setup({ organizationId: "org-1" });
+      pendingTurnRepository.take.mockResolvedValue(
+        pendingTurn({ clientToolCalls: [toolCall("c1", "read_events")], organizationId: "org-1", page: "/deployments/42" })
+      );
+
+      const message = await service.prepareMessage(CONVERSATION_ID, { content: "why?", context: { page: "/deployments/42" } });
+      await message(vi.fn(), new AbortController().signal);
+      const resumed = await service.prepareClientToolResults(CONVERSATION_ID, { results: [{ toolCallId: "c1", content: "OOMKilled", ok: true }] });
+      await resumed(vi.fn(), new AbortController().signal);
+
+      expect(turnService.run.mock.calls.map(([turn]) => ({ organizationId: turn.organizationId, page: turn.page }))).toEqual([
+        { organizationId: "org-1", page: "/deployments/42" },
+        { organizationId: "org-1", page: "/deployments/42" }
+      ]);
+    });
+
+    it("traces a turn outside an organization and any page as null, and falls back to the page the conversation started on", async () => {
+      const { service, conversationRepository, pendingTurnRepository, turnService } = setup();
+      pendingTurnRepository.take.mockResolvedValue(pendingTurn({ clientToolCalls: [toolCall("c1", "read_events")] }));
+
+      const unheld = await service.prepareMessage(CONVERSATION_ID, { content: "why?" });
+      await unheld(vi.fn(), new AbortController().signal);
+      conversationRepository.findOneBy.mockResolvedValue(conversation({ context: { page: "/deployments/7", isTrialing: false } }));
+      const stored = await service.prepareMessage(CONVERSATION_ID, { content: "why?" });
+      await stored(vi.fn(), new AbortController().signal);
+      const resumed = await service.prepareClientToolResults(CONVERSATION_ID, { results: [{ toolCallId: "c1", content: "OOMKilled", ok: true }] });
+      await resumed(vi.fn(), new AbortController().signal);
+
+      expect(turnService.run.mock.calls.map(([turn]) => ({ organizationId: turn.organizationId, page: turn.page }))).toEqual([
+        { organizationId: null, page: null },
+        { organizationId: null, page: "/deployments/7" },
+        { organizationId: null, page: null }
+      ]);
+    });
+
     it("refuses when no turn waits on the browser", async () => {
       const { service, pendingTurnRepository } = setup();
       pendingTurnRepository.take.mockResolvedValue(undefined);

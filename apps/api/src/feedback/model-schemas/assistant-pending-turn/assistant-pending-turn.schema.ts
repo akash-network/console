@@ -11,6 +11,9 @@ export type AssistantPendingTurnState = {
   isTrialing: boolean | null;
   /** Absent on turns held before the configure form tools existed. */
   configureFormOpen?: boolean;
+  /** Absent on turns held before turn traces existed. */
+  organizationId?: string | null;
+  page?: string | null;
 };
 
 /** A turn paused on a browser tool, held only until the browser answers or the row expires, whatever the user consented to. */
