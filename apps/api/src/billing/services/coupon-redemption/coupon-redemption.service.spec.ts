@@ -9,11 +9,14 @@ import type { CustomerService } from "@src/billing/services/customer/customer.se
 import type { Payer } from "@src/billing/services/payer/payer";
 import type { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import type { TxService } from "@src/core";
-import type { UserOutput } from "@src/user/repositories";
+import type { UserOutput, UserRepository } from "@src/user/repositories";
+import type { AccountStatusService } from "@src/user/services/account-status/account-status.service";
+import { AccountStatusGuard } from "@src/user/services/account-status-guard/account-status-guard.service";
 import { CouponRedemptionService } from "./coupon-redemption.service";
 
 import { createTeamPayer } from "@test/seeders/payer.seeder";
 import { createTestCoupon, createTestInvoice, createTestPromotionCode } from "@test/seeders/stripe-test-data.seeder";
+import { createUser } from "@test/seeders/user.seeder";
 import { createTestUser } from "@test/seeders/user-test.seeder";
 
 function payerOf(user: UserOutput): Payer {
@@ -22,6 +25,19 @@ function payerOf(user: UserOutput): Payer {
 
 describe(CouponRedemptionService.name, () => {
   describe("redeemCoupon", () => {
+    it("rejects a suspended user with account_suspended and the reason, before looking the code up", async () => {
+      const { service, stripeTransactionService } = setup({ userReason: "Chargeback" });
+      const findPromotionCode = vi.spyOn(service, "findPromotionCodeByCode");
+
+      await expect(service.redeemCoupon(payerOf(createUser({ accountStatus: "suspended" })), "PROMO")).rejects.toMatchObject({
+        status: 403,
+        errorCode: "account_suspended",
+        data: { reason: "Chargeback" }
+      });
+      expect(findPromotionCode).not.toHaveBeenCalled();
+      expect(stripeTransactionService.recordCouponClaim).not.toHaveBeenCalled();
+    });
+
     it("applies a promotion code, creates the discounted invoice, and records a pending coupon_claim", async () => {
       const { service, stripe, stripeTransactionService } = setup();
       const mockUser = createTestUser();
@@ -447,7 +463,7 @@ describe(CouponRedemptionService.name, () => {
     return { id: faker.string.uuid(), status: "pending", stripeInvoiceId: null, isStale: false, ...overrides };
   }
 
-  function setup() {
+  function setup(input: { userReason?: string } = {}) {
     const stripe = new Stripe(`sk_test_${faker.string.alphanumeric(32)}`, { apiVersion: "2025-10-29.clover", httpClient: Stripe.createFetchHttpClient() });
     const customerService = mock<CustomerService>();
     const stripeTransactionService = mock<StripeTransactionService>();
@@ -463,8 +479,17 @@ describe(CouponRedemptionService.name, () => {
     const txService = mock<TxService>();
     txService.transaction.mockImplementation(async cb => await cb());
 
-    const service = new CouponRedemptionService(stripe, customerService, stripeTransactionService, stripeTransactionRepository, txService, () =>
-      mock<LoggerService>()
+    const accountStatusService = mock<AccountStatusService>({ findUserReasonOf: vi.fn().mockResolvedValue(input.userReason ?? null) });
+    const accountStatusGuard = new AccountStatusGuard(mock<UserRepository>(), accountStatusService);
+
+    const service = new CouponRedemptionService(
+      stripe,
+      customerService,
+      stripeTransactionService,
+      stripeTransactionRepository,
+      txService,
+      accountStatusGuard,
+      () => mock<LoggerService>()
     );
 
     return { service, stripe, customerService, stripeTransactionService, stripeTransactionRepository, txService };

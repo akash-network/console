@@ -11,6 +11,7 @@ import type { CustomerService } from "@src/billing/services/customer/customer.se
 import type { Payer } from "@src/billing/services/payer/payer";
 import { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable, TxService } from "@src/core";
+import { AccountStatusGuard } from "@src/user/services/account-status-guard/account-status-guard.service";
 import { CouponRedemptionService } from "./coupon-redemption.service";
 
 import { seedOrganization } from "@test/seeders/db/organization.seeder";
@@ -130,6 +131,7 @@ describe(CouponRedemptionService.name, () => {
       container.resolve(StripeTransactionService),
       container.resolve(StripeTransactionRepository),
       container.resolve(TxService),
+      container.resolve(AccountStatusGuard),
       () => mock<LoggerService>()
     );
 

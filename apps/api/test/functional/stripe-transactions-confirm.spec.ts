@@ -8,6 +8,7 @@ import type { ConfirmPaymentResponse } from "@src/billing/http-schemas/stripe.sc
 import { StripeTransactionRepository, UserWalletRepository } from "@src/billing/repositories";
 import { PAYMENT_METHOD_REFUSED_ERROR_CODE, REFUSALS_PER_PAYMENT_METHOD } from "@src/billing/services/payment-refusal/payment-refusal.service";
 import { app } from "@src/rest-app";
+import { AccountStatusEventRepository } from "@src/user/repositories/account-status-event/account-status-event.repository";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
@@ -148,6 +149,30 @@ describe("Stripe transactions confirm", () => {
       expect(response.status).toBe(402);
       expect(await response.json()).toMatchObject({ code: PAYMENT_METHOD_REFUSED_ERROR_CODE });
       expect(paymentIntentCreateScope.isDone()).toBe(false);
+      expect(await stripeTransactionRepository.find({ userId: user.id })).toEqual([]);
+    });
+
+    it("refuses a suspended user with account_suspended and the reason written for them, without charging", async () => {
+      const { user, token, paymentMethodId } = await setup();
+      await userRepository.updateById(user.id, { accountStatus: "suspended" });
+      await container.resolve(AccountStatusEventRepository).create({
+        userId: user.id,
+        userEmail: user.email,
+        action: "suspend",
+        actorEmail: "admin@akash.network",
+        actorName: "Admin",
+        userReason: "Unpaid invoices",
+        internalNote: "Chargeback on card"
+      });
+      const stripeScope = nock("https://api.stripe.com").post("/v1/payment_intents").reply(500);
+
+      const response = await confirmPayment(token, { userId: user.userId!, paymentMethodId, amount: 20, idempotencyKey: faker.string.uuid() });
+
+      expect(response.status).toBe(403);
+      const body = await response.text();
+      expect(JSON.parse(body)).toMatchObject({ code: "account_suspended", data: { reason: "Unpaid invoices" } });
+      expect(body).not.toContain("Chargeback on card");
+      expect(stripeScope.isDone()).toBe(false);
       expect(await stripeTransactionRepository.find({ userId: user.id })).toEqual([]);
     });
 

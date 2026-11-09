@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { UserWalletRepository } from "@src/billing/repositories";
@@ -18,11 +18,16 @@ import type { DeploymentConfigService } from "@src/deployment/services/deploymen
 import type { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import type { ReconcileManagedTxJobService } from "@src/deployment/services/reconcile-managed-tx/reconcile-managed-tx-job.service";
 import { ProjectBudgetExceededError } from "@src/organization/services/project-budget-enforcement/project-budget-enforcement.service";
+import type { AccountStatus } from "@src/user/lib/account-status/account-status";
+import type { UserRepository } from "@src/user/repositories";
+import type { AccountStatusService } from "@src/user/services/account-status/account-status.service";
+import { AccountStatusGuard } from "@src/user/services/account-status-guard/account-status-guard.service";
 import { InitialDeploymentFundingService } from "./initial-deployment-funding.service";
 import type { InitialDeploymentFundingInstrumentationService } from "./initial-deployment-funding-instrumentation.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
-import { createUserWallet } from "@test/seeders/user-wallet.seeder";
+import { createUser } from "@test/seeders/user.seeder";
+import { createOrganizationWallet, createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(InitialDeploymentFundingService.name, () => {
   const CURRENT_HEIGHT = 1000;
@@ -116,6 +121,32 @@ describe(InitialDeploymentFundingService.name, () => {
     expect(managedSignerService.executeDerivedTx).toHaveBeenCalledWith(1, [depositMessage]);
     expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith({ walletId: 1 }, { triggeredByDeployment: true });
     expect(instrumentation.recordDeposit).toHaveBeenCalledWith(500000, "uakt", expect.objectContaining({ dseq: "123", address: "akash1owner" }));
+  });
+
+  describe("when the wallet owner's account is not active", () => {
+    it.each(["suspended", "terminated"] as const)("skips a personal wallet whose user is %s", async accountStatus => {
+      const { service, drainingDeploymentService, managedSignerService, userRepository, instrumentation } = setup({ accountStatus });
+      drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+
+      await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+      expect(userRepository.findOneBy).toHaveBeenCalledWith({ id: "owner-1" });
+      expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+      expect(instrumentation.recordSkipped).toHaveBeenCalledWith("account_not_active", { dseq: "123", address: "akash1owner", userId: "owner-1" });
+    });
+
+    it("still tops up a team wallet", async () => {
+      const { service, drainingDeploymentService, managedSignerService, userRepository, userWalletRepository } = setup({ accountStatus: "suspended" });
+      userWalletRepository.findById.mockResolvedValue(createOrganizationWallet({ id: 1, address: "akash1owner" }));
+      drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+
+      await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+      expect(userRepository.findOneBy).not.toHaveBeenCalled();
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalled();
+    });
   });
 
   it("sizes the deposit to the initial runway from the same height as the runway check", async () => {
@@ -721,7 +752,11 @@ describe(InitialDeploymentFundingService.name, () => {
     };
   }
 
-  function setup() {
+  function setup(input: { accountStatus?: AccountStatus } = {}) {
+    const userRepository = mock<UserRepository>({
+      findOneBy: vi.fn().mockResolvedValue(createUser({ id: "owner-1", accountStatus: input.accountStatus ?? "active" }))
+    });
+    const accountStatusGuard = new AccountStatusGuard(userRepository, mock<AccountStatusService>());
     const blockHttpService = mock<BlockHttpService>();
     const drainingDeploymentService = mock<DrainingDeploymentService>();
     const cachedBalanceService = mock<CachedBalanceService>();
@@ -743,7 +778,7 @@ describe(InitialDeploymentFundingService.name, () => {
 
     blockHttpService.getCurrentHeight.mockResolvedValue(CURRENT_HEIGHT);
     cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(1000000, { headroom: 0, minDeposit: MIN_DEPOSIT }));
-    userWalletRepository.findById.mockResolvedValue(createUserWallet({ id: 1, address: "akash1owner" }));
+    userWalletRepository.findById.mockResolvedValue(createUserWallet({ id: 1, address: "akash1owner", userId: "owner-1" }));
     managedSignerService.ensureFeeGrants.mockResolvedValue(100000);
     managedSignerService.executeDerivedTx.mockResolvedValue({ code: 0, hash: "TESTHASH", rawLog: "[]" });
     chainErrorService.isDeploymentClosedError.mockReturnValue(false);
@@ -766,6 +801,7 @@ describe(InitialDeploymentFundingService.name, () => {
       reconcileManagedTxJobService,
       chainErrorService,
       instrumentation,
+      accountStatusGuard,
       createLogger
     );
 
@@ -783,6 +819,7 @@ describe(InitialDeploymentFundingService.name, () => {
       reconcileManagedTxJobService,
       chainErrorService,
       instrumentation,
+      userRepository,
       logger
     };
   }

@@ -9,6 +9,7 @@ import { PaymentRefusalService } from "@src/billing/services/payment-refusal/pay
 import { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
+import { AccountStatusGuard } from "@src/user/services/account-status-guard/account-status-guard.service";
 
 /**
  * Namespace prefix added to a client attempt key so a top-up idempotency key can never collide with
@@ -27,11 +28,12 @@ export class TopUpService {
     private readonly trialValidationService: TrialValidationService,
     private readonly paymentMethodService: PaymentMethodService,
     private readonly stripeTransactionService: StripeTransactionService,
-    private readonly paymentRefusalService: PaymentRefusalService
+    private readonly paymentRefusalService: PaymentRefusalService,
+    private readonly accountStatusGuard: AccountStatusGuard
   ) {}
 
   /**
-   * Runs the user-initiated top-up: trial-activation gating, top-up amount validation, payment-method
+   * Runs the user-initiated top-up: account-status and trial-activation gating, top-up amount validation, payment-method
    * ownership, recent refusals, and a confirmed charge through the payment-transaction owner, followed by 3DS/success
    * interpretation and (optionally) settlement resolution.
    *
@@ -44,6 +46,8 @@ export class TopUpService {
     payer: PayingPayer,
     params: { amount: number; paymentMethodId: string; idempotencyKey?: string; awaitResolved?: boolean }
   ): Promise<ConfirmPaymentResponse["data"]> {
+    await this.accountStatusGuard.assertMaySpend(payer.user);
+
     const userWallet = await this.userWalletRepository.findOneUsedBy(payer.user.id);
 
     if (!payer.team) {
