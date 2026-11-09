@@ -185,7 +185,7 @@ describe("ability rules", () => {
 
       const rules = legacyRules(user);
 
-      expect(rules).toHaveLength(18);
+      expect(rules).toHaveLength(19);
       expect(rules).toEqual(
         expect.arrayContaining([
           { action: ["read", "sign"], subject: "UserWallet", conditions: { userId: user.id } },
@@ -205,6 +205,7 @@ describe("ability rules", () => {
           { action: ["create", "read"], subject: "FeedbackSubmission", conditions: { userId: user.id } },
           { action: ["create", "read"], subject: "AssistantConsent", conditions: { userId: user.id } },
           { action: ["create", "read", "update", "delete"], subject: "AssistantConversation", conditions: { userId: user.id } },
+          { action: "read", subject: "Affiliate", conditions: { userId: user.id } },
           { action: "manage", subject: "Template", conditions: { userId: user.userId } }
         ])
       );
@@ -214,7 +215,7 @@ describe("ability rules", () => {
       const rules = legacyRules(createUser({ userId: null }));
 
       expect(rules.map(({ subject }) => subject)).not.toContain("Template");
-      expect(rules).toHaveLength(17);
+      expect(rules).toHaveLength(18);
     });
 
     it("grants nothing to a user without an id", () => {
@@ -458,12 +459,13 @@ describe("ability rules", () => {
         "ConfigureDraft",
         "FeedbackSubmission",
         "AssistantConsent",
-        "AssistantConversation"
+        "AssistantConversation",
+        "Affiliate"
       ];
 
       const userKeyedRules = legacyRules(user).filter(rule => userKeyedSubjects.includes(rule.subject as string));
 
-      expect(userKeyedRules).toHaveLength(9);
+      expect(userKeyedRules).toHaveLength(10);
       expect(organizationRules(user, context)).toEqual(expect.arrayContaining(userKeyedRules));
     });
 

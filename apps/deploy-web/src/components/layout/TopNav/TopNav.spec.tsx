@@ -176,6 +176,7 @@ describe(TopNav.name, () => {
     expect(screen.getByRole("menuitem", { name: "API Keys" })).toHaveAttribute("href", "/user/api-keys");
     expect(screen.getByRole("menuitem", { name: "Usage" })).toHaveAttribute("href", "/usage");
     expect(screen.getByRole("menuitem", { name: "Alerts" })).toHaveAttribute("href", "/alerts");
+    expect(screen.queryByRole("menuitem", { name: "Referrals" })).not.toBeInTheDocument();
   });
 
   describe("organizations", () => {
@@ -323,6 +324,14 @@ describe(TopNav.name, () => {
     });
   });
 
+  it("shows Referrals when the affiliate program is enabled and the caller has a profile", async () => {
+    setup({ isAuthenticated: true, isAffiliateProgramEnabled: true, hasAffiliateProfile: true });
+
+    await userEvent.click(screen.getByRole("button", { name: /settings/i }));
+
+    expect(await screen.findByRole("menuitem", { name: "Referrals" })).toHaveAttribute("href", "/referrals");
+  });
+
   function setup(input: {
     isAuthenticated?: boolean;
     minimal?: boolean;
@@ -331,6 +340,8 @@ describe(TopNav.name, () => {
     isOrganizationsEnabled?: boolean;
     projectsEnabled?: boolean;
     isFeedbackLoopEnabled?: boolean;
+    isAffiliateProgramEnabled?: boolean;
+    hasAffiliateProfile?: boolean;
   }) {
     const accountMenu = vi.fn<typeof DEPENDENCIES.TopNavAccountMenu>(() => <></>);
     const openWhatsNew = vi.fn<ReturnType<typeof DEPENDENCIES.useOpenWhatsNew>>();
@@ -338,7 +349,8 @@ describe(TopNav.name, () => {
     const enabledFlags = {
       ui_command_menu: input.isCommandMenuEnabled ?? false,
       organizations: input.isOrganizationsEnabled ?? false,
-      user_feedback_loop: input.isFeedbackLoopEnabled ?? false
+      user_feedback_loop: input.isFeedbackLoopEnabled ?? false,
+      affiliate_program: input.isAffiliateProgramEnabled ?? false
     };
     const openAssistant = vi.fn();
     const commandMenu = vi.fn<typeof DEPENDENCIES.CommandMenu>(() => <button type="button">Search or run a command</button>);
@@ -375,6 +387,10 @@ describe(TopNav.name, () => {
           organizations: [],
           activeOrganization: undefined,
           projectsEnabled: input.projectsEnabled ?? false
+        }),
+      useAffiliateProfileQuery: () =>
+        Object.assign(mock<ReturnType<typeof DEPENDENCIES.useAffiliateProfileQuery>>(), {
+          data: input.hasAffiliateProfile ? { code: "friendcode", terms: { commissionPercent: 5, commissionMonths: 12, referralTrialCreditsUsd: 5 } } : null
         }),
       TopNavAccountMenu: accountMenu,
       ActivityBell: () => <button type="button">Activity</button>,

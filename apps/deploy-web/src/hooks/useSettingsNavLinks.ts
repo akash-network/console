@@ -1,11 +1,12 @@
 "use client";
 import type { ComponentType } from "react";
-import { ChartColumnIncreasing, Cpu, CreditCard, KeyRound, MessageSquareWarning, Settings, Users } from "lucide-react";
+import { ChartColumnIncreasing, Cpu, CreditCard, Gift, KeyRound, MessageSquareWarning, Settings, Users } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { canViewBillingAndUsage, hasGeneralSettingsPage, hasMembersPage } from "@src/components/organizations/organizationAccess";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useFlag } from "@src/hooks/useFlag";
+import { useAffiliateProfileQuery } from "@src/queries/useAffiliateProfileQuery";
 import { isRouteActive } from "@src/utils/isRouteActive";
 import { UrlService } from "@src/utils/urlUtils";
 
@@ -16,7 +17,7 @@ export type SettingsNavLink = {
   icon: ComponentType<{ className?: string }>;
 };
 
-export const DEPENDENCIES = { usePathname, useFlag, useActiveOrganization };
+export const DEPENDENCIES = { usePathname, useFlag, useActiveOrganization, useAffiliateProfileQuery };
 
 /**
  * Single source of truth for the settings navigation items, shared by the top-nav Settings dropdown
@@ -25,12 +26,15 @@ export const DEPENDENCIES = { usePathname, useFlag, useActiveOrganization };
 export function useSettingsNavLinks({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES } = {}): SettingsNavLink[] {
   const pathname = d.usePathname();
   const isOrganizationsEnabled = d.useFlag("organizations");
+  const isAffiliateProgramEnabled = d.useFlag("affiliate_program");
   const { activeOrganization } = d.useActiveOrganization();
+  const { data: affiliateProfile } = d.useAffiliateProfileQuery({ enabled: isAffiliateProgramEnabled });
   const organization = isOrganizationsEnabled ? activeOrganization : undefined;
   const showsGeneral = !!organization && hasGeneralSettingsPage(organization.type);
   const showsMembers = !!organization && hasMembersPage(organization.type);
   const showsBillingAndUsage = !organization || canViewBillingAndUsage(organization.role);
   const showsGpuRequests = d.useFlag("gpu_quote_requests");
+  const showsReferrals = isAffiliateProgramEnabled && !!affiliateProfile;
 
   return [
     ...(showsGeneral ? [{ title: "General", url: UrlService.organizationSettings(), isActive: isRouteActive(pathname, "/organization"), icon: Settings }] : []),
@@ -39,6 +43,7 @@ export function useSettingsNavLinks({ dependencies: d = DEPENDENCIES }: { depend
     { title: "API Keys", url: UrlService.userApiKeys(), isActive: isRouteActive(pathname, "/user/api-keys"), icon: KeyRound },
     ...(showsBillingAndUsage ? [{ title: "Usage", url: UrlService.usage(), isActive: isRouteActive(pathname, "/usage"), icon: ChartColumnIncreasing }] : []),
     { title: "Alerts", url: UrlService.alerts(), isActive: isRouteActive(pathname, "/alerts"), icon: MessageSquareWarning },
-    ...(showsGpuRequests ? [{ title: "GPU requests", url: UrlService.gpuRequests(), isActive: isRouteActive(pathname, "/gpu-requests"), icon: Cpu }] : [])
+    ...(showsGpuRequests ? [{ title: "GPU requests", url: UrlService.gpuRequests(), isActive: isRouteActive(pathname, "/gpu-requests"), icon: Cpu }] : []),
+    ...(showsReferrals ? [{ title: "Referrals", url: UrlService.referrals(), isActive: isRouteActive(pathname, "/referrals"), icon: Gift }] : [])
   ];
 }
