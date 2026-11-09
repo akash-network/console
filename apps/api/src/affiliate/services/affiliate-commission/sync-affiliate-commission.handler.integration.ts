@@ -134,7 +134,11 @@ describe(SyncAffiliateCommissionHandler.name, () => {
     await syncCommissionOf(payment.id, "refund");
 
     await expect(stripeTransactionRepository.findById(commission.id)).resolves.toMatchObject({ status: "succeeded", amount: 500, amountRefunded: 200 });
-    expect(reduceWalletBalance).toHaveBeenCalledWith(200, { userId: affiliateUser.id, organizationId: null }, { currency: "usd", transactionId: commission.id });
+    expect(reduceWalletBalance).toHaveBeenCalledWith(
+      200,
+      { userId: affiliateUser.id, organizationId: null },
+      { currency: "usd", transactionId: commission.id, refundedBefore: 0, refundedAfter: 200 }
+    );
   });
 
   it("records nothing when a refund sync finds no commission to take back", async () => {
@@ -200,13 +204,7 @@ describe(SyncAffiliateCommissionHandler.name, () => {
     return { payer, affiliateUser, affiliateWallet, payment, topUpWallet, reduceWalletBalance, syncCommissionOf };
   }
 
-  async function createPayment(input: {
-    userId: string;
-    organizationId?: string;
-    status?: "succeeded" | "pending";
-    amount?: number;
-    amountRefunded?: number;
-  }) {
+  async function createPayment(input: { userId: string; organizationId?: string; status?: "succeeded" | "pending"; amount?: number; amountRefunded?: number }) {
     return await container.resolve(StripeTransactionRepository).create({
       userId: input.userId,
       organizationId: input.organizationId,

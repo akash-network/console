@@ -382,8 +382,9 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
     return this.findOneBy({ sourceTransactionId, type: "affiliate_commission" });
   }
 
+  /** Leaves the key lockable, because taking back the commission records a refund debit that references it from another connection. */
   async findAffiliateCommissionBySourceAndLock(sourceTransactionId: string): Promise<StripeTransactionOutput | undefined> {
-    return this.findOneByAndLock({ sourceTransactionId, type: "affiliate_commission" });
+    return this.findOneByAndLock({ sourceTransactionId, type: "affiliate_commission" }, { strength: "no key update" });
   }
 
   async sumAmountByUserId(userId: string, options?: { startDate?: Date; endDate?: Date; status?: StripeTransactionStatus }): Promise<number> {

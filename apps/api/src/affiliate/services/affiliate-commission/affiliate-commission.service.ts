@@ -174,7 +174,7 @@ export class AffiliateCommissionService {
     const { shortfallCents } = await this.refillService.reduceWalletBalance(
       delta,
       { userId: affiliateUserId, organizationId: commission.organizationId },
-      { currency: "usd", transactionId: commission.id }
+      { currency: "usd", transactionId: commission.id, refundedBefore: commission.amountRefunded, refundedAfter: targetReversed }
     );
 
     const reason = payment.disputeLostAt ? "dispute_lost" : "refund";

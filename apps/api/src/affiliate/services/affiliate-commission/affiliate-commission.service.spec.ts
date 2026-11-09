@@ -421,7 +421,16 @@ describe(AffiliateCommissionService.name, () => {
         await service.syncCommission(payment.id, "refund");
 
         expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(commission.id, { amountRefunded: 200 });
-        expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(200, { userId: affiliate.userId, organizationId: commission.organizationId }, { currency: "usd", transactionId: commission.id });
+        expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(
+          200,
+          { userId: affiliate.userId, organizationId: commission.organizationId },
+          {
+            currency: "usd",
+            transactionId: commission.id,
+            refundedBefore: 0,
+            refundedAfter: 200
+          }
+        );
         expect(analyticsService.track).toHaveBeenCalledWith(affiliate.userId, "affiliate_commission_reversed", {
           amount_cents: 200,
           source_transaction_id: payment.id,
@@ -453,7 +462,12 @@ describe(AffiliateCommissionService.name, () => {
         await service.syncCommission(payment.id, "refund");
 
         expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(commission.id, { amountRefunded: 500, status: "refunded" });
-        expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(300, expect.objectContaining({ userId: affiliate.userId }), { currency: "usd", transactionId: commission.id });
+        expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(300, expect.objectContaining({ userId: affiliate.userId }), {
+          currency: "usd",
+          transactionId: commission.id,
+          refundedBefore: 200,
+          refundedAfter: 500
+        });
       });
 
       it("takes back nothing more when a later sync finds the refund already reversed", async () => {
@@ -579,7 +593,12 @@ describe(AffiliateCommissionService.name, () => {
         await service.syncCommission(payment.id, "dispute");
 
         expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(commission.id, { amountRefunded: 500, status: "refunded" });
-        expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(500, expect.objectContaining({ userId: affiliate.userId }), { currency: "usd", transactionId: commission.id });
+        expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(500, expect.objectContaining({ userId: affiliate.userId }), {
+          currency: "usd",
+          transactionId: commission.id,
+          refundedBefore: 0,
+          refundedAfter: 500
+        });
         expect(analyticsService.track).toHaveBeenCalledWith(
           affiliate.userId,
           "affiliate_commission_reversed",
@@ -600,7 +619,12 @@ describe(AffiliateCommissionService.name, () => {
 
         await service.syncCommission(payment.id, "dispute");
 
-        expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(300, expect.objectContaining({ userId: affiliate.userId }), { currency: "usd", transactionId: commission.id });
+        expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(300, expect.objectContaining({ userId: affiliate.userId }), {
+          currency: "usd",
+          transactionId: commission.id,
+          refundedBefore: 200,
+          refundedAfter: 500
+        });
       });
 
       it("still takes back the commission of an affiliate who was revoked since", async () => {
