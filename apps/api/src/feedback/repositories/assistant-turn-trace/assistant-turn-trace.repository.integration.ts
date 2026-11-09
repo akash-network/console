@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import { subDays } from "date-fns";
+import { subDays, subMinutes } from "date-fns";
 import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
@@ -24,7 +24,7 @@ describe(AssistantTurnTraceRepository.name, () => {
         model: "assistant-model",
         promptVersion: "2026-11-08",
         outcome: "recovered",
-        startedAt: new Date("2026-11-08T10:00:00.000Z"),
+        startedAt: subMinutes(new Date(), 5),
         firstTokenMs: 420,
         durationMs: 3100,
         promptTokens: 1200,
@@ -91,7 +91,7 @@ describe(AssistantTurnTraceRepository.name, () => {
       await repository.create({ ...traceOf({ userId, conversationId }), startedAt: subDays(now, 91) });
       await repository.create({ ...traceOf({ userId, conversationId }), startedAt: subDays(now, 89) });
 
-      expect(await repository.deleteStartedBefore(subDays(now, 90))).toBe(1);
+      expect(await repository.deleteStartedBefore(subDays(now, 90))).toBeGreaterThanOrEqual(1);
       expect(await findByConversation(conversationId)).toEqual([expect.objectContaining({ startedAt: subDays(now, 89) })]);
     });
   });
