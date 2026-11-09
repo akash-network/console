@@ -14,7 +14,7 @@ const SECRET_REPLACEMENTS: [RegExp, string][] = [
   [/\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g, REDACTED],
   [/\b(bearer\s+)[\w.~+/-]+=*/gi, `$1${REDACTED}`],
   [/\b([a-z][a-z0-9+.-]*:\/\/[^\s:@/]+:)[^\s@/]+@/gi, `$1${REDACTED}@`],
-  [new RegExp(String.raw`\b(${SECRET_KEY_NAME}\s*[:=]\s*)(["']?)[^\s"']+\2`, "gi"), `$1$2${REDACTED}$2`]
+  [new RegExp(String.raw`\b(${SECRET_KEY_NAME}\s*[:=]\s*)(?:(["'])(?:(?!\2)[^\n])+(\2)|(["'])(?:(?!\4)[^\n])+|[^\s"']+)`, "gi"), `$1$2$4${REDACTED}$3`]
 ];
 
 /** Best effort over common credential shapes, applied to every free text the team may later read, whatever the user consented to. */

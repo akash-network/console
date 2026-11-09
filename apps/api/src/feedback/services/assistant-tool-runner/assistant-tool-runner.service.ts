@@ -85,7 +85,18 @@ function deploymentLabelOf(data: unknown): string {
   return typeof name === "string" && name ? `deployment ${name}` : "your deployment";
 }
 
-function summaryOf(name: DedicatedReadToolName, data: unknown): string {
+/** Long enough for a model or app name, short enough to fit on a read chip. */
+const MAX_SUMMARY_QUERY_LENGTH = 40;
+
+function searchedFor(search: string, args: unknown): string {
+  const query = redactSecrets((args as { query?: string }).query?.trim().replace(/\s+/g, " ") ?? "");
+  if (!query) return search;
+
+  const shownQuery = query.length <= MAX_SUMMARY_QUERY_LENGTH ? query : `${query.slice(0, MAX_SUMMARY_QUERY_LENGTH - 3).trimEnd()}...`;
+  return `${search} for "${shownQuery}"`;
+}
+
+function summaryOf(name: DedicatedReadToolName, data: unknown, args: unknown): string {
   const deployment = deploymentLabelOf(data);
   const summaries: Record<DedicatedReadToolName, string> = {
     list_deployments: "Read your deployments",
@@ -93,8 +104,8 @@ function summaryOf(name: DedicatedReadToolName, data: unknown): string {
     get_bids: `Read the bids on ${deployment}`,
     get_balance_and_spend: "Read your balance and spend",
     get_lease_close_reason: `Read why ${deployment} closed`,
-    list_templates: "Searched the template gallery",
-    search_docs: "Searched the Console docs",
+    list_templates: searchedFor("Searched the template gallery", args),
+    search_docs: searchedFor("Searched the Console docs", args),
     check_availability: "Checked which providers could bid"
   };
 
@@ -281,7 +292,7 @@ export class AssistantToolRunnerService {
 
   async #summarizedRead(name: DedicatedReadToolName, args: unknown, context: ProposalContext): Promise<{ data: unknown; summary: string }> {
     const data = await this.#read(name, args, context);
-    return { data, summary: summaryOf(name, data) };
+    return { data, summary: summaryOf(name, data, args) };
   }
 
   async #read(name: DedicatedReadToolName, args: unknown, context: ProposalContext): Promise<unknown> {

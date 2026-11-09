@@ -74,6 +74,39 @@ describe(redactSecrets.name, () => {
     expect(redactSecrets(`HF_TOKEN="${alphanumeric(8)}" and SECRET='${alphanumeric(8)}'`)).toBe(`HF_TOKEN="${REDACTED}" and SECRET='${REDACTED}'`);
   });
 
+  it.each([
+    { case: "double quotes", text: `password="two words" here`, expected: `password="${REDACTED}" here` },
+    { case: "single quotes", text: `api_key: 'my secret key' here`, expected: `api_key: '${REDACTED}' here` },
+    { case: "double quotes around an apostrophe", text: `password="it's mine" here`, expected: `password="${REDACTED}" here` }
+  ])("replaces a quoted secret value holding spaces in $case", ({ text, expected }) => {
+    expect(redactSecrets(text)).toBe(expected);
+  });
+
+  it("keeps an empty quoted secret value", () => {
+    const text = `password="" is not set`;
+
+    expect(redactSecrets(text)).toBe(text);
+  });
+
+  it.each([
+    { case: "double", text: `password="hunter2`, expected: `password="${REDACTED}` },
+    { case: "single", text: `token: 'two words`, expected: `token: '${REDACTED}` }
+  ])("replaces the rest of the line after a $case quote that never closes", ({ text, expected }) => {
+    expect(redactSecrets(text)).toBe(expected);
+  });
+
+  it("stops an unclosed quoted secret at the end of its line", () => {
+    expect(redactSecrets(`password="never closed\nthen "quoted" text`)).toBe(`password="${REDACTED}\nthen "quoted" text`);
+  });
+
+  it("scans a long line with an opening quote that never closes quickly", () => {
+    const text = `password="${"a ".repeat(25_000)}`;
+    const startedAt = performance.now();
+
+    expect(redactSecrets(text)).toBe(`password="${REDACTED}`);
+    expect(performance.now() - startedAt).toBeLessThan(100);
+  });
+
   it("keeps an assignment whose name holds no secret word", () => {
     const text = "PORT=8080 and MODEL_NAME=llama-3 and keyboard=qwerty";
 
