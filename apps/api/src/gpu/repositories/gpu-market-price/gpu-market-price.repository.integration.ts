@@ -60,6 +60,22 @@ describe(GpuMarketPriceRepository.name, () => {
     });
   });
 
+  describe("when filtering by vendor and model", () => {
+    it("keeps only matching rows, regardless of case", async () => {
+      const { repository } = setup();
+      await repository.replaceAll([aRow({ model: "H100" }), aRow({ model: "a100" }), aRow({ vendor: "amd", model: "h100" })]);
+
+      const byVendorAndModel = await repository.findAllOrdered({ vendor: "NVIDIA", model: "h100" });
+      const byModel = await repository.findAllOrdered({ model: "H100" });
+
+      expect(byVendorAndModel.map(row => [row.vendor, row.model])).toEqual([["nvidia", "H100"]]);
+      expect(byModel.map(row => [row.vendor, row.model])).toEqual([
+        ["amd", "h100"],
+        ["nvidia", "H100"]
+      ]);
+    });
+  });
+
   function aRow(overrides: Partial<GpuMarketPriceInsert>): GpuMarketPriceInsert {
     return {
       vendor: "nvidia",

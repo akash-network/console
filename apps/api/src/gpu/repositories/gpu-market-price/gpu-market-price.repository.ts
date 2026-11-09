@@ -1,4 +1,4 @@
-import { asc } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -31,10 +31,16 @@ export class GpuMarketPriceRepository extends BaseRepository<Table, GpuMarketPri
     if (rows.length) await this.cursor.insert(this.table).values(rows);
   }
 
-  async findAllOrdered(): Promise<GpuMarketPriceOutput[]> {
+  async findAllOrdered(filter: { vendor?: string; model?: string } = {}): Promise<GpuMarketPriceOutput[]> {
     return await this.cursor
       .select()
       .from(this.table)
+      .where(
+        and(
+          filter.vendor ? eq(sql`lower(${this.table.vendor})`, filter.vendor.toLowerCase()) : undefined,
+          filter.model ? eq(sql`lower(${this.table.model})`, filter.model.toLowerCase()) : undefined
+        )
+      )
       .orderBy(asc(this.table.vendor), asc(this.table.model), asc(this.table.ram), asc(this.table.interface), asc(this.table.area), asc(this.table.source));
   }
 }

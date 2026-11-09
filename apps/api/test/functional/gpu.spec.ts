@@ -7,9 +7,12 @@ import type { Day, Transaction } from "@akashnetwork/database/dbSchemas/base";
 import { faker } from "@faker-js/faker";
 import { sub } from "date-fns";
 import nock from "nock";
+import { container } from "tsyringe";
 import { afterAll, describe, expect, it } from "vitest";
 
+import { CORE_CONFIG } from "@src/core/providers/config.provider";
 import type { ListGpuResponse } from "@src/gpu/http-schemas/gpu.schema";
+import type { GpuSupplyResponse } from "@src/gpu/http-schemas/gpu-market.schema";
 import { app, initDb } from "@src/rest-app";
 
 import {
@@ -396,6 +399,27 @@ describe("GPU API", () => {
           }
         ]
       });
+    });
+  });
+
+  describe("GET /internal/gpu-supply", () => {
+    it("lists each gpu variant with only the providers that bid on it", async () => {
+      const { providers } = await setup();
+
+      const response = await app.request("/internal/gpu-supply", {
+        headers: { "x-console-internal-token": container.resolve(CORE_CONFIG).INTERNAL_API_TOKEN ?? "" }
+      });
+
+      expect(response.status).toBe(200);
+      const { data } = (await response.json()) as GpuSupplyResponse;
+      expect(data.map(variant => [variant.vendor, variant.model, variant.providers.map(provider => [provider.owner, provider.bestBid.usdPerGpuHour])])).toEqual(
+        [
+          ["amd", "gpu2", []],
+          ["amd", "gpu3", [[providers?.[1].owner, 1.2]]],
+          ["nvidia", "gpu0", [[providers?.[0].owner, 0.6]]],
+          ["nvidia", "gpu1", []]
+        ]
+      );
     });
   });
 
