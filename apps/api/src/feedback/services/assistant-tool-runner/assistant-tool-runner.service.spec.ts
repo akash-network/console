@@ -158,6 +158,16 @@ describe(AssistantToolRunnerService.name, () => {
       expect(outcome).toMatchObject({ summary: 'Searched the template gallery for "web app with a postgres database and..."' });
     });
 
+    it("shows a search query that fills the chip exactly in full", async () => {
+      const { runner, accountTools } = setup();
+      accountTools.listTemplates.mockResolvedValue({ templates: [] });
+      const query = "a".repeat(40);
+
+      const outcome = await runner.run(call("list_templates", { query }), { isTrialing: false, withheldTemplateSdls: [] });
+
+      expect(outcome).toMatchObject({ summary: `Searched the template gallery for "${query}"` });
+    });
+
     it("keeps secrets out of the search query it shows", async () => {
       const { runner, accountTools } = setup();
       accountTools.listTemplates.mockResolvedValue({ templates: [] });
@@ -165,6 +175,15 @@ describe(AssistantToolRunnerService.name, () => {
       const outcome = await runner.run(call("list_templates", { query: "password=hunter2" }), { isTrialing: false, withheldTemplateSdls: [] });
 
       expect(outcome).toMatchObject({ summary: `Searched the template gallery for "password=${REDACTED}"` });
+    });
+
+    it("keeps a quoted secret holding spaces out of the search query it shows", async () => {
+      const { runner, accountTools } = setup();
+      accountTools.listTemplates.mockResolvedValue({ templates: [] });
+
+      const outcome = await runner.run(call("list_templates", { query: 'password="two words"' }), { isTrialing: false, withheldTemplateSdls: [] });
+
+      expect(outcome).toMatchObject({ summary: `Searched the template gallery for "password="${REDACTED}""` });
     });
 
     it("treats empty arguments as an empty object", async () => {
