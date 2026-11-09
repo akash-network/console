@@ -980,6 +980,20 @@ describe(AssistantTurnService.name, () => {
     expect(JSON.stringify(traceRepository.create.mock.calls[0][0])).not.toContain(marker);
   });
 
+  it("records a tool the model made up under a fixed name, so its name cannot carry the user's words", async () => {
+    const marker = "MARKER-7f3a";
+    const { akashMlClient, toolRunner, traceRepository, run } = setup();
+    akashMlClient.streamChatCompletion
+      .mockImplementationOnce(streamed({ toolCalls: [toolCall("c1", `find_${marker}`)] }))
+      .mockImplementationOnce(streamed({ content: "I could not look that up." }));
+    toolRunner.run.mockResolvedValue({ kind: "result", content: "{}", summary: "Could not run the tool", ok: false });
+
+    await run({});
+
+    expect(traceRepository.create.mock.calls[0][0].toolCalls).toEqual([{ name: "unknown", ok: false, durationMs: expect.any(Number) }]);
+    expect(JSON.stringify(traceRepository.create.mock.calls[0][0])).not.toContain(marker);
+  });
+
   it("logs ASSISTANT_TURN_COMPLETED with the outcome", async () => {
     vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
     const { akashMlClient, toolRunner, logger, run } = setup();

@@ -6,6 +6,7 @@ import {
   assistantChatTools,
   assistantChatToolsFor,
   buildAssistantChatTools,
+  isAssistantToolName,
   isClientToolName,
   isConfigureFormToolName,
   isLiveHelpToolName,
@@ -31,6 +32,13 @@ describe("assistant tools", () => {
     expect(isClientToolName("read_logs")).toBe(true);
     expect(isClientToolName("get_bids")).toBe(false);
     expect(isClientToolName("constructor")).toBe(false);
+  });
+
+  it("recognizes every offered tool name and nothing else", () => {
+    expect(buildAssistantChatTools().filter(tool => !isAssistantToolName(tool.function.name))).toEqual([]);
+    expect(isAssistantToolName("propose_shell")).toBe(false);
+    expect(isAssistantToolName("toString")).toBe(false);
+    expect(isAssistantToolName("get_bids MARKER-7f3a")).toBe(false);
   });
 
   it("converts a schema to plain JSON schema", () => {

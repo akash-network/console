@@ -5,7 +5,7 @@ import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { type AssistantStreamEvent, MAX_CLIENT_TOOL_RESULT_LENGTH } from "@src/feedback/http-schemas/assistant-conversation.schema";
 import { fallbackAnswerOf } from "@src/feedback/lib/assistant-fallback-answer/assistant-fallback-answer";
 import { ASSISTANT_PROMPT_VERSION } from "@src/feedback/lib/assistant-prompt-version/assistant-prompt-version";
-import { isLiveHelpToolName, isReadToolName } from "@src/feedback/lib/assistant-tools/assistant-tools";
+import { isAssistantToolName, isLiveHelpToolName, isReadToolName } from "@src/feedback/lib/assistant-tools/assistant-tools";
 import { earlierResultOf, toolCallKeyOf } from "@src/feedback/lib/assistant-turn-tool-calls/assistant-turn-tool-calls";
 import { AssistantTurnTraceBuilder } from "@src/feedback/lib/assistant-turn-trace/assistant-turn-trace";
 import type { AssistantTurnOutcome } from "@src/feedback/model-schemas/assistant-turn-trace/assistant-turn-trace.schema";
@@ -36,6 +36,7 @@ export const MAX_PARALLEL_READS = 4;
 
 const LIVE_HELP_SUMMARY = "Suggested live help on Discord";
 const ROUND_TEXT_SEPARATOR = "\n\n";
+const UNKNOWN_TOOL_NAME = "unknown";
 const ALREADY_READ_NOTE = "Already read this turn, so this is the earlier result. Answer from it instead of calling the tool again.";
 
 export const LAST_TOOL_ROUND_NOTE: ChatMessage = {
@@ -95,6 +96,11 @@ export interface AssistantTurn {
   configureFormOpen: boolean;
   messages: ChatMessage[];
   roundsUsed: number;
+}
+
+/** The model can invent a tool name, and an invented one could echo the user's words into a trace kept whatever they consented to. */
+function tracedToolNameOf(name: string): string {
+  return isAssistantToolName(name) ? name : UNKNOWN_TOOL_NAME;
 }
 
 function hasText(content: string | null): content is string {
@@ -345,7 +351,7 @@ export class AssistantTurnService {
         continue;
       }
 
-      trace.toolFinished({ name, ok: outcome.ok, durationMs });
+      trace.toolFinished({ name: tracedToolNameOf(name), ok: outcome.ok, durationMs });
       if (outcome.kind === "proposal") {
         trace.cardProposed({ proposalId: outcome.proposalId, actionType: outcome.action.type });
         await emit({

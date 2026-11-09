@@ -406,7 +406,7 @@ describe(AssistantConversationService.name, () => {
     });
 
     it("passes the organization and page into the turn and keeps them for a resumed turn", async () => {
-      const { service, pendingTurnRepository, turnService } = setup({ organizationId: "org-1" });
+      const { service, executionContextService, pendingTurnRepository, turnService } = setup({ organizationId: "org-1" });
       pendingTurnRepository.take.mockResolvedValue(
         pendingTurn({ clientToolCalls: [toolCall("c1", "read_events")], organizationId: "org-1", page: "/deployments/42" })
       );
@@ -420,6 +420,7 @@ describe(AssistantConversationService.name, () => {
         { organizationId: "org-1", page: "/deployments/42" },
         { organizationId: "org-1", page: "/deployments/42" }
       ]);
+      expect(executionContextService.get).toHaveBeenCalledWith("ORGANIZATION_CONTEXT");
     });
 
     it("traces a turn outside an organization and any page as null, and falls back to the page the conversation started on", async () => {
@@ -648,6 +649,7 @@ describe(AssistantConversationService.name, () => {
     return {
       service,
       authService,
+      executionContextService,
       consentRepository,
       conversationRepository,
       messageRepository,

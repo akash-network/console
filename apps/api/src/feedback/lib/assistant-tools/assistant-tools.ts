@@ -142,6 +142,10 @@ export function isLiveHelpToolName(name: string): boolean {
   return name === LIVE_HELP_TOOL_NAME;
 }
 
+export function isAssistantToolName(name: string): boolean {
+  return isReadToolName(name) || isClientToolName(name) || proposalActionTypeOf(name) !== null || isLiveHelpToolName(name);
+}
+
 /** Splits the optional diagnosis from the action's own arguments, which are validated apart, and drops it on a proposal that fixes nothing. */
 export function splitProposalArguments(type: ProposalActionType, args: unknown): { actionArguments: unknown; diagnosis: unknown } {
   if (typeof args !== "object" || args === null || Array.isArray(args)) return { actionArguments: args, diagnosis: undefined };
