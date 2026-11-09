@@ -1,11 +1,7 @@
-import { AuthzHttpService } from "@akashnetwork/http-sdk";
-import type { EncodeObject } from "@cosmjs/proto-signing";
 import { inject, singleton } from "tsyringe";
 
 import { type PersonalWallet, UserWalletRepository, type WalletInitialized } from "@src/billing/repositories";
-import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
-import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
-import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
+import { WalletGrantRevokerService } from "@src/billing/services/wallet-grant-revoker/wallet-grant-revoker.service";
 import { type CreateLogger, LOGGER_FACTORY, TxService } from "@src/core";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { CloseWalletDeploymentsService } from "@src/deployment/services/close-wallet-deployments/close-wallet-deployments.service";
@@ -21,9 +17,6 @@ export type EnforcementOutcome = {
   closedDseqs: string[];
 };
 
-/** The chain reports a revoke of a grant that no longer exists this way, which an earlier attempt of the same wipe can have caused. */
-const GRANT_MISSING_PATTERN = /not found/i;
-
 /**
  * Wipes a trial wallet caught mining: the deposit grant goes first so nothing new can be created, every open
  * deployment, leased or not, is closed while the fee grant still pays for the closes, then the fee grant goes and the
@@ -34,10 +27,7 @@ export class TrialAbuseEnforcementService {
   private readonly logger: ReturnType<CreateLogger>;
 
   constructor(
-    private readonly txManagerService: TxManagerService,
-    private readonly authzHttpService: AuthzHttpService,
-    private readonly rpcMessageService: RpcMessageService,
-    private readonly signerService: ManagedSignerService,
+    private readonly walletGrantRevokerService: WalletGrantRevokerService,
     private readonly closeWalletDeploymentsService: CloseWalletDeploymentsService,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly detectionRepository: WorkloadAbuseDetectionRepository,
@@ -128,47 +118,14 @@ export class TrialAbuseEnforcementService {
 
   /** The lock and the probe cancellations ride the row-lock transaction, so a wipe that fails partway rolls them back and leaves the wallet unlocked and still monitored for the retry. */
   async #wipe(wallet: WalletInitialized, reason: AbuseLockReason): Promise<EnforcementOutcome> {
-    const granter = await this.txManagerService.getFundingWalletAddress();
-    const depositGrantRevoked = await this.#revokeDepositGrant(granter, wallet.address);
+    const depositGrantRevoked = await this.walletGrantRevokerService.revokeDepositGrant(wallet.address);
     const closedDseqs = await this.closeWalletDeploymentsService.closeAllOf(wallet);
-    const feeGrantRevoked = await this.#revokeFeeGrant(granter, wallet.address);
+    const feeGrantRevoked = await this.walletGrantRevokerService.revokeFeeGrant(wallet.address);
     await this.userWalletRepository.lockForAbuse(wallet.id, reason);
     await this.probeJobService.cancelForWallet(wallet.id);
 
     return { depositGrantRevoked, feeGrantRevoked, closedDseqs };
   }
-
-  async #revokeDepositGrant(granter: string, grantee: string): Promise<boolean> {
-    if (!(await this.authzHttpService.hasDepositDeploymentGrant(granter, grantee))) return false;
-
-    await this.#executeRevoke(this.rpcMessageService.getRevokeDepositDeploymentGrantMsg({ granter, grantee }));
-    return true;
-  }
-
-  async #revokeFeeGrant(granter: string, grantee: string): Promise<boolean> {
-    if (!(await this.authzHttpService.hasFeeAllowance(granter, grantee))) return false;
-
-    await this.#executeRevoke(this.rpcMessageService.getRevokeAllowanceMsg({ granter, grantee }));
-    return true;
-  }
-
-  async #executeRevoke(message: EncodeObject): Promise<void> {
-    try {
-      await this.signerService.executeFundingTx([message]);
-    } catch (error) {
-      if (isGrantMissingError(error)) return;
-      throw error;
-    }
-  }
-}
-
-function isGrantMissingError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
-
-  const originalError = (error as { originalError?: unknown }).originalError;
-  const messages = [error.message, originalError instanceof Error ? originalError.message : undefined];
-
-  return messages.some(message => message && GRANT_MISSING_PATTERN.test(message));
 }
 
 /** Postgres rejects NUL in text, so an error quoting bytes it read back would fail the very update that records the failure. */

@@ -15,6 +15,7 @@ import { ORGANIZATION_FORBIDDEN_ERROR_CODE } from "@src/core/repositories/org-sc
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { type OrganizationContextResolver, PROJECT_FORBIDDEN_ERROR_CODE } from "@src/organization/services/organization-context/organization-context.resolver";
 import type { OrganizationContext, ProjectScope } from "@src/organization/types/organization-context";
+import { ACCOUNT_TERMINATED_ERROR_CODE } from "@src/user/lib/account-status/account-status";
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
 import { encodeActivityCursor } from "../../lib/activity-cursor/activity-cursor";
 import { ActivityService, type NewAlertActivity } from "./activity.service";
@@ -225,6 +226,10 @@ describe(ActivityService.name, () => {
 
     it.each([
       ["the user left the organization", { access: "not_a_member" as const, projectId: faker.string.uuid() }],
+      [
+        "the user's account is terminated",
+        { access: createError(403, "Your account has been terminated", { errorCode: ACCOUNT_TERMINATED_ERROR_CODE }), projectId: faker.string.uuid() }
+      ],
       ["no organization context resolves for the user", { access: "no_context" as const, projectId: faker.string.uuid() }],
       ["the member cannot see the alert's project", { access: projectScopeOf([faker.string.uuid()]), projectId: faker.string.uuid() }],
       ["the alert is in no project and the member reaches only some", { access: projectScopeOf([faker.string.uuid()]), projectId: null }]

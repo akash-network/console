@@ -17,6 +17,12 @@ export class AccountStatusGuard {
     throw createAccountStatusRefusal(user.accountStatus, await this.accountStatusService.findUserReasonOf(user));
   }
 
+  async assertNotTerminated(user: Pick<UserOutput, "id" | "accountStatus">): Promise<void> {
+    if (user.accountStatus !== "terminated") return;
+
+    throw createAccountStatusRefusal("terminated", await this.accountStatusService.findUserReasonOf(user));
+  }
+
   /** A user that no longer exists is left to the checks that need one, so only a found suspended or terminated account is refused. */
   async assertUserMaySpend(userId: string): Promise<void> {
     const user = await this.userRepository.findOneBy({ id: userId });

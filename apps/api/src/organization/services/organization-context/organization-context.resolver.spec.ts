@@ -14,6 +14,8 @@ import type {
 import type { ProjectGrantOfUser, ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import type { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
+import type { AccountStatusService } from "@src/user/services/account-status/account-status.service";
+import { AccountStatusGuard } from "@src/user/services/account-status-guard/account-status-guard.service";
 import {
   LAST_USED_ORGANIZATION_THROTTLE_MS,
   ORGANIZATION_MISMATCH_ERROR_CODE,
@@ -359,6 +361,60 @@ describe(OrganizationContextResolver.name, () => {
 
       expect(userRepository.updateById).not.toHaveBeenCalled();
       expect(userRepository.updateBy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("when the user's account is terminated", () => {
+    it("refuses a team named in the header with account_terminated and the reason written for them", async () => {
+      const { resolver, team, accountStatusService } = setup({ userReason: "Fraud" });
+      const user = createUser({ accountStatus: "terminated" });
+
+      await expect(resolver.resolve({ user, organizationHeader: team.organization.id })).rejects.toMatchObject({
+        status: 403,
+        errorCode: "account_terminated",
+        data: { reason: "Fraud" }
+      });
+      expect(accountStatusService.findUserReasonOf).toHaveBeenCalledWith(user);
+    });
+
+    it("refuses a team an API key is bound to and work bound to a team", async () => {
+      const { resolver, team } = setup({});
+      const user = createUser({ accountStatus: "terminated" });
+
+      await expect(resolver.resolve({ user, apiKey: { organizationId: team.organization.id, projectId: null } })).rejects.toMatchObject({
+        errorCode: "account_terminated"
+      });
+      await expect(resolver.resolveBoundTo(user, team.organization.id)).rejects.toMatchObject({ errorCode: "account_terminated" });
+    });
+
+    it("still resolves the personal organization named in the header", async () => {
+      const { resolver, personal, accountStatusService } = setup({});
+      const user = createUser({ accountStatus: "terminated" });
+
+      const context = await resolver.resolve({ user, organizationHeader: personal.organization.id });
+
+      expect(context).toMatchObject({ organizationId: personal.organization.id, organizationType: "personal", role: "owner" });
+      expect(accountStatusService.findUserReasonOf).not.toHaveBeenCalled();
+    });
+
+    it("resolves the personal organization instead of the team used last, which stays remembered", async () => {
+      const { resolver, personal, team, userRepository } = setup({});
+      const user = createUser({ accountStatus: "terminated", lastUsedOrganizationId: team.organization.id });
+
+      const context = await resolver.resolve({ user });
+
+      expect(context).toMatchObject({ organizationId: personal.organization.id, organizationType: "personal" });
+      expect(userRepository.updateBy).not.toHaveBeenCalled();
+      expect(userRepository.updateById).not.toHaveBeenCalled();
+    });
+
+    it("lets a suspended user act in a team", async () => {
+      const { resolver, team } = setup({});
+      const user = createUser({ accountStatus: "suspended", lastUsedOrganizationId: team.organization.id });
+
+      const context = await resolver.resolve({ user });
+
+      expect(context).toMatchObject({ organizationId: team.organization.id, organizationType: "team" });
     });
   });
 
@@ -834,6 +890,7 @@ describe(OrganizationContextResolver.name, () => {
     grantedProjectIds?: string[];
     grants?: ProjectGrantOfUser[];
     withoutPersonalMembership?: boolean;
+    userReason?: string;
   }) {
     const user: OrganizationContextRequest["user"] = createUser();
     const personal: MembershipWithProjectAccess = {
@@ -870,6 +927,7 @@ describe(OrganizationContextResolver.name, () => {
     });
     const personalOrganizationService = mock<PersonalOrganizationService>();
     const userRepository = mock<UserRepository>({ updateById: vi.fn().mockResolvedValue(undefined), updateBy: vi.fn().mockResolvedValue(undefined) });
+    const accountStatusService = mock<AccountStatusService>({ findUserReasonOf: vi.fn().mockResolvedValue(input.userReason ?? null) });
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
@@ -879,6 +937,7 @@ describe(OrganizationContextResolver.name, () => {
       projectRepository,
       personalOrganizationService,
       userRepository,
+      new AccountStatusGuard(userRepository, accountStatusService),
       createLogger
     );
 
@@ -892,6 +951,7 @@ describe(OrganizationContextResolver.name, () => {
       projectRepository,
       personalOrganizationService,
       userRepository,
+      accountStatusService,
       logger,
       createLogger
     };

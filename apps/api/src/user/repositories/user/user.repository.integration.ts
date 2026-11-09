@@ -102,6 +102,33 @@ describe(UserRepository.name, () => {
       expect(second.user.id).toBe(first.user.id);
     });
 
+    it("refreshes the address and its verification of an account that is not terminated", async () => {
+      const { userRepository, trackForCleanup } = setup();
+      const input = { ...newUserInput(), emailVerified: false };
+      const { user } = await userRepository.upsertOnExternalIdConflict(input);
+      trackForCleanup(user.id);
+      await userRepository.updateById(user.id, { accountStatus: "suspended" });
+      const email = faker.internet.email();
+
+      const { user: updated } = await userRepository.upsertOnExternalIdConflict({ ...input, email, emailVerified: true });
+
+      expect(updated).toMatchObject({ email, emailVerified: true });
+    });
+
+    it("keeps the address and its verification of a terminated account while refreshing the rest", async () => {
+      const { userRepository, trackForCleanup } = setup();
+      const input = { ...newUserInput(), emailVerified: true, lastIp: faker.internet.ipv4() };
+      const { user } = await userRepository.upsertOnExternalIdConflict(input);
+      trackForCleanup(user.id);
+      await userRepository.updateById(user.id, { accountStatus: "terminated" });
+      const lastIp = faker.internet.ipv4();
+
+      const { user: updated } = await userRepository.upsertOnExternalIdConflict({ ...input, email: faker.internet.email(), emailVerified: false, lastIp });
+
+      expect(updated).toMatchObject({ email: input.email, emailVerified: true, lastIp });
+      expect(await userRepository.findById(user.id)).toMatchObject({ email: input.email, emailVerified: true });
+    });
+
     it("refuses a user the attached ability may not write, and writes nothing", async () => {
       const { userRepository } = setup();
       const input = newUserInput();

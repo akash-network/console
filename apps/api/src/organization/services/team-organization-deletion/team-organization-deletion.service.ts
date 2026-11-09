@@ -4,9 +4,9 @@ import { inject, singleton } from "tsyringe";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { AuthService } from "@src/auth/services/auth.service";
 import { roundUsdToCentPrecision } from "@src/billing/lib/currency/currency";
-import { PaymentMethodRepository, type UserWalletOutput, UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";
+import { PaymentMethodRepository, type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { DeploymentDepositRepository } from "@src/billing/repositories/deployment-deposit/deployment-deposit.repository";
-import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
+import { AutoReloadShutoffService } from "@src/billing/services/auto-reload-shutoff/auto-reload-shutoff.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
@@ -42,11 +42,10 @@ export class TeamOrganizationDeletionService {
     private readonly invitationRepository: OrganizationInvitationRepository,
     private readonly apiKeyRepository: ApiKeyRepository,
     private readonly userWalletRepository: UserWalletRepository,
-    private readonly walletSettingRepository: WalletSettingRepository,
     private readonly paymentMethodRepository: PaymentMethodRepository,
     private readonly deploymentDepositRepository: DeploymentDepositRepository,
     private readonly dataKeyRepository: DataKeyRepository,
-    private readonly walletReloadJobService: WalletReloadJobService,
+    private readonly autoReloadShutoffService: AutoReloadShutoffService,
     private readonly jobQueueService: JobQueueService,
     private readonly txService: TxService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
@@ -130,14 +129,8 @@ export class TeamOrganizationDeletionService {
       .updateBy({ organizationId, status: "pending" }, { status: "revoked", revokedAt: deletedAt });
     await this.apiKeyRepository.unscoped("organization-deletion").deleteBy({ organizationId });
     await this.paymentMethodRepository.unscoped("organization-deletion").deleteBy({ organizationId });
-    if (wallet) await this.#turnOffAutoReload(wallet.id);
+    if (wallet) await this.autoReloadShutoffService.turnOff(wallet, "organization-deletion");
     await this.jobQueueService.enqueue(new TeamOrganizationDeleted({ organizationId, deletedByUserId }), TEAM_ORGANIZATION_DELETED_RETRY_OPTIONS);
-  }
-
-  async #turnOffAutoReload(walletId: number): Promise<void> {
-    await this.walletSettingRepository.unscoped("organization-deletion").updateBy({ walletId }, { autoReloadEnabled: false });
-    await this.walletReloadJobService.cancelReloadCheck({ walletId });
-    await this.walletReloadJobService.cancelCreditsLowCheck({ walletId });
   }
 
   #assertActiveTeam(id: string): void {
