@@ -16,11 +16,17 @@ describe(useSettingsNavLinks.name, () => {
   });
 
   it("adds GPU requests last while gpu quote requests are on", () => {
-    const links = setup({ isGpuQuoteRequestsEnabled: true, pathname: "/gpu-requests" });
+    const { links } = setup({ isGpuQuoteRequestsEnabled: true, pathname: "/gpu-requests" });
 
     expect(links.map(link => link.title)).toEqual(["Billing", "API Keys", "Usage", "Alerts", "GPU requests"]);
     expect(links[4]).toMatchObject({ url: "/gpu-requests", isActive: true });
     expect(links.filter(link => link.isActive)).toHaveLength(1);
+  });
+
+  it("lists Referrals after GPU requests when both are shown", () => {
+    const { links } = setup({ isGpuQuoteRequestsEnabled: true, isAffiliateProgramEnabled: true, affiliateProfile: buildAffiliateProfile() });
+
+    expect(links.map(link => link.title)).toEqual(["Billing", "API Keys", "Usage", "Alerts", "GPU requests", "Referrals"]);
   });
 
   it("marks the item matching the current route as active", () => {
@@ -180,7 +186,7 @@ describe(useSettingsNavLinks.name, () => {
     const useFlag = vi.fn<typeof DEPENDENCIES.useFlag>(flag => enabledFlags[flag as keyof typeof enabledFlags] ?? false);
     const useAffiliateProfileQuery = vi.fn<typeof DEPENDENCIES.useAffiliateProfileQuery>(() =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useAffiliateProfileQuery>>(), {
-        data: input.isSignedIn === false ? undefined : (input.affiliateProfile ?? null)
+        data: input.isSignedIn === false ? undefined : input.affiliateProfile ?? null
       })
     );
     const dependencies: typeof DEPENDENCIES = {
