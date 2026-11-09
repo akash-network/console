@@ -5,6 +5,7 @@ import { Organizations } from "@src/organization/model-schemas/organization/orga
 import { Users } from "@src/user/model-schemas";
 
 export const assistantTurnOutcomeEnum = pgEnum("assistant_turn_outcome", [
+  "running",
   "answered",
   "recovered",
   "fallback",
@@ -13,7 +14,8 @@ export const assistantTurnOutcomeEnum = pgEnum("assistant_turn_outcome", [
   "model_failed",
   "failed",
   "cancelled",
-  "limited"
+  "limited",
+  "blocked"
 ]);
 
 export type AssistantTurnOutcome = (typeof assistantTurnOutcomeEnum.enumValues)[number];

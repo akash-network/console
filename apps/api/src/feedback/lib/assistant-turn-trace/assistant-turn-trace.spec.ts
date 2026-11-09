@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { CreateLogger } from "@src/core";
-import { AssistantTurnTraceBuilder, writeTraceQuietly } from "./assistant-turn-trace";
+import { AssistantTurnTraceBuilder, traceResultOf, writeTraceQuietly } from "./assistant-turn-trace";
 
 const STARTED_AT = new Date("2026-11-08T12:00:00.000Z");
 
@@ -22,6 +22,31 @@ describe(AssistantTurnTraceBuilder.name, () => {
       model: "model-1",
       promptVersion: "abcdef123456",
       outcome: "answered",
+      startedAt: STARTED_AT,
+      firstTokenMs: null,
+      durationMs: 0,
+      promptTokens: 0,
+      completionTokens: 0,
+      toolCalls: [],
+      cards: []
+    });
+  });
+
+  it("starts as a running trace with nothing counted yet, whatever happened since", () => {
+    const { builder } = setup({ organizationId: "org-1", page: "/deployments" });
+    builder.textShown(afterStart(100));
+    builder.usageAdded({ promptTokens: 10, completionTokens: 5 });
+    builder.toolFinished({ name: "list_deployments", ok: true, durationMs: 40 });
+    builder.cardProposed({ proposalId: "proposal-1", actionType: "close_deployment" });
+
+    expect(builder.running()).toEqual({
+      conversationId: "conversation-1",
+      userId: "user-1",
+      organizationId: "org-1",
+      page: "/deployments",
+      model: "model-1",
+      promptVersion: "abcdef123456",
+      outcome: "running",
       startedAt: STARTED_AT,
       firstTokenMs: null,
       durationMs: 0,
@@ -96,6 +121,23 @@ describe(AssistantTurnTraceBuilder.name, () => {
     expect(builder.finish("timed_out", afterStart(45_250)).durationMs).toBe(45_250);
   });
 
+  it("gives the result of a finished turn without its start facts or cards", () => {
+    const { builder } = setup({});
+    builder.textShown(afterStart(200));
+    builder.usageAdded({ promptTokens: 10, completionTokens: 5 });
+    builder.toolFinished({ name: "list_deployments", ok: false, durationMs: 40 });
+    builder.cardProposed({ proposalId: "proposal-1", actionType: "close_deployment" });
+
+    expect(traceResultOf(builder.finish("answered", afterStart(900)))).toStrictEqual({
+      outcome: "answered",
+      firstTokenMs: 200,
+      durationMs: 900,
+      promptTokens: 10,
+      completionTokens: 5,
+      toolCalls: [{ name: "list_deployments", ok: false, durationMs: 40 }]
+    });
+  });
+
   function setup(input: { organizationId?: string | null; page?: string | null }) {
     const builder = new AssistantTurnTraceBuilder({
       conversationId: "conversation-1",
@@ -112,10 +154,11 @@ describe(AssistantTurnTraceBuilder.name, () => {
 });
 
 describe(writeTraceQuietly.name, () => {
-  it("writes the trace and logs nothing when the write succeeds", async () => {
+  it("writes the trace, returns what the write returned and logs nothing when the write succeeds", async () => {
     const { logger, write } = setup();
+    write.mockResolvedValue("trace-1");
 
-    await writeTraceQuietly(logger, write);
+    await expect(writeTraceQuietly(logger, write)).resolves.toBe("trace-1");
 
     expect(write).toHaveBeenCalledTimes(1);
     expect(logger.warn).not.toHaveBeenCalled();

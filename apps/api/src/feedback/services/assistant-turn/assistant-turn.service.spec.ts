@@ -29,6 +29,7 @@ import {
   ANSWER_NOW_NOTE,
   type AssistantTurn,
   AssistantTurnService,
+  type EmitAssistantEvent,
   LAST_TOOL_ROUND_NOTE,
   MAX_COMPLETION_TOKENS,
   MAX_PARALLEL_READS,
@@ -783,8 +784,8 @@ describe(AssistantTurnService.name, () => {
 
     await run({ organizationId: "org-1", page: "/deployments/42" });
 
-    expect(traceRepository.create).toHaveBeenCalledTimes(1);
-    expect(traceRepository.create).toHaveBeenCalledWith({
+    expect(traceRepository.start).toHaveBeenCalledTimes(1);
+    expect(traceRepository.start).toHaveBeenCalledWith({
       conversationId: "conversation-1",
       userId: "user-1",
       organizationId: "org-1",
@@ -792,14 +793,24 @@ describe(AssistantTurnService.name, () => {
       model: "assistant-model",
       promptVersion: ASSISTANT_PROMPT_VERSION,
       startedAt: NOW,
+      outcome: "running",
+      firstTokenMs: null,
+      durationMs: 0,
+      promptTokens: 0,
+      completionTokens: 0,
+      toolCalls: [],
+      cards: []
+    });
+    expect(traceRepository.finish).toHaveBeenCalledTimes(1);
+    expect(traceRepository.finish).toHaveBeenCalledWith("trace-1", {
       outcome: "answered",
       firstTokenMs: 400,
       durationMs: 500,
       promptTokens: 200,
       completionTokens: 40,
-      toolCalls: [{ name: "get_deployment", ok: true, durationMs: 250 }],
-      cards: []
+      toolCalls: [{ name: "get_deployment", ok: true, durationMs: 250 }]
     });
+    expect(traceRepository.create).not.toHaveBeenCalled();
   });
 
   it("traces a turn answered after the empty-answer retry as recovered", async () => {
@@ -810,8 +821,8 @@ describe(AssistantTurnService.name, () => {
 
     await run({});
 
-    expect(traceRepository.create).toHaveBeenCalledTimes(1);
-    expect(traceRepository.create.mock.calls[0][0]).toMatchObject({ outcome: "recovered", promptTokens: 200, completionTokens: 40 });
+    expect(traceRepository.finish).toHaveBeenCalledTimes(1);
+    expect(traceRepository.finish.mock.calls[0][1]).toMatchObject({ outcome: "recovered", promptTokens: 200, completionTokens: 40 });
   });
 
   it("traces a turn that fell back to the fixed answer as fallback", async () => {
@@ -824,7 +835,7 @@ describe(AssistantTurnService.name, () => {
     const events = await run({});
 
     expect(events.at(-2)).toMatchObject({ type: "text_delta", text: expect.stringContaining("Next step") });
-    expect(traceRepository.create.mock.calls[0][0]).toMatchObject({ outcome: "fallback", firstTokenMs: null, promptTokens: 300 });
+    expect(traceRepository.finish.mock.calls[0][1]).toMatchObject({ outcome: "fallback", firstTokenMs: null, promptTokens: 300 });
   });
 
   it("traces a timed out turn as timed_out", async () => {
@@ -842,8 +853,8 @@ describe(AssistantTurnService.name, () => {
     const events = await run({});
 
     expect(events.at(-1)).toEqual({ type: "done", reason: "stop" });
-    expect(traceRepository.create).toHaveBeenCalledTimes(1);
-    expect(traceRepository.create.mock.calls[0][0]).toMatchObject({
+    expect(traceRepository.finish).toHaveBeenCalledTimes(1);
+    expect(traceRepository.finish.mock.calls[0][1]).toMatchObject({
       outcome: "timed_out",
       firstTokenMs: null,
       toolCalls: [{ name: "list_deployments", ok: true, durationMs: expect.any(Number) }]
@@ -861,8 +872,8 @@ describe(AssistantTurnService.name, () => {
 
     await run({});
 
-    expect(traceRepository.create).toHaveBeenCalledTimes(1);
-    expect(traceRepository.create.mock.calls[0][0]).toMatchObject({
+    expect(traceRepository.finish).toHaveBeenCalledTimes(1);
+    expect(traceRepository.finish.mock.calls[0][1]).toMatchObject({
       outcome: "awaiting_browser",
       toolCalls: [{ name: "get_deployment", ok: false, durationMs: expect.any(Number) }]
     });
@@ -875,7 +886,7 @@ describe(AssistantTurnService.name, () => {
     await run({});
     await run({});
 
-    expect(traceRepository.create.mock.calls.map(([trace]) => trace.outcome)).toEqual(["model_failed", "failed"]);
+    expect(traceRepository.finish.mock.calls.map(([, result]) => result.outcome)).toEqual(["model_failed", "failed"]);
   });
 
   it("traces a turn the user cancelled as cancelled", async () => {
@@ -883,8 +894,8 @@ describe(AssistantTurnService.name, () => {
     akashMlClient.streamChatCompletion.mockRejectedValue(new Error("aborted"));
 
     expect(await run({}, AbortSignal.abort())).toEqual([]);
-    expect(traceRepository.create).toHaveBeenCalledTimes(1);
-    expect(traceRepository.create.mock.calls[0][0]).toMatchObject({ outcome: "cancelled" });
+    expect(traceRepository.finish).toHaveBeenCalledTimes(1);
+    expect(traceRepository.finish.mock.calls[0][1]).toMatchObject({ outcome: "cancelled" });
   });
 
   it("still traces a turn whose error it could not report", async () => {
@@ -894,8 +905,8 @@ describe(AssistantTurnService.name, () => {
 
     await expect(service.run(assistantTurn(), vi.fn().mockRejectedValue(streamClosed), new AbortController().signal)).rejects.toBe(streamClosed);
 
-    expect(traceRepository.create).toHaveBeenCalledTimes(1);
-    expect(traceRepository.create.mock.calls[0][0]).toMatchObject({ outcome: "failed" });
+    expect(traceRepository.finish).toHaveBeenCalledTimes(1);
+    expect(traceRepository.finish.mock.calls[0][1]).toMatchObject({ outcome: "failed" });
   });
 
   it("records a proposed card with no decision yet", async () => {
@@ -909,10 +920,106 @@ describe(AssistantTurnService.name, () => {
 
     await run({});
 
-    expect(traceRepository.create.mock.calls[0][0]).toMatchObject({
+    expect(traceRepository.appendCard).toHaveBeenCalledTimes(1);
+    expect(traceRepository.appendCard).toHaveBeenCalledWith("trace-1", { proposalId: "p1", actionType: "send_manifest_again", decision: null });
+    expect(traceRepository.finish.mock.calls[0][1]).toMatchObject({ toolCalls: [{ name: "propose_send_manifest_again", ok: true, durationMs: 0 }] });
+  });
+
+  it("records a card decision made while the turn is still streaming", async () => {
+    const { service, akashMlClient, toolRunner, traceRepository } = setup();
+    const action: AssistantAction = { type: "send_manifest_again", tier: "confirm", dseq: "42" };
+    akashMlClient.streamChatCompletion
+      .mockImplementationOnce(streamed({ toolCalls: [toolCall("c1", "propose_send_manifest_again", { dseq: "42" })] }))
+      .mockImplementationOnce(streamed({ content: "Confirm the card to send it." }));
+    toolRunner.run.mockResolvedValue({ kind: "proposal", content: "{}", summary: "Proposed send manifest again", ok: true, proposalId: "p1", action });
+    const cardTraced = vi.fn();
+    traceRepository.appendCard.mockImplementation(async () => {
+      await new Promise(resolve => setImmediate(resolve));
+      cardTraced();
+    });
+    const emit = vi.fn<EmitAssistantEvent>(async () => undefined);
+
+    await service.run(assistantTurn(), emit, new AbortController().signal);
+
+    const cardShownOrder = emit.mock.invocationCallOrder[emit.mock.calls.findIndex(([event]) => event.type === "action_proposal")];
+    expect(traceRepository.start.mock.invocationCallOrder[0]).toBeLessThan(traceRepository.appendCard.mock.invocationCallOrder[0]);
+    expect(cardTraced.mock.invocationCallOrder[0]).toBeLessThan(cardShownOrder);
+    expect(traceRepository.appendCard).toHaveBeenCalledWith("trace-1", { proposalId: "p1", actionType: "send_manifest_again", decision: null });
+    expect(traceRepository.finish.mock.calls[0][1]).not.toHaveProperty("cards");
+  });
+
+  it("starts streaming without waiting for the provisional trace", async () => {
+    const { akashMlClient, traceRepository, run } = setup();
+    const provisionalTrace = Promise.withResolvers<string>();
+    let provisionalTraceWritten = false;
+    traceRepository.start.mockReturnValue(provisionalTrace.promise.finally(() => (provisionalTraceWritten = true)));
+    let provisionalTraceWrittenAtFirstText: boolean | undefined;
+    akashMlClient.streamChatCompletion.mockImplementation(async (_request, { onContentDelta }) => {
+      await onContentDelta("Your deployment is live.");
+      provisionalTraceWrittenAtFirstText = provisionalTraceWritten;
+      provisionalTrace.resolve("trace-1");
+      return completion({ content: "Your deployment is live." });
+    });
+
+    const events = await run({});
+
+    expect(events[0]).toEqual({ type: "text_delta", text: "Your deployment is live." });
+    expect(provisionalTraceWrittenAtFirstText).toBe(false);
+    expect(traceRepository.finish).toHaveBeenCalledWith("trace-1", expect.objectContaining({ outcome: "answered" }));
+  });
+
+  it("falls back to inserting the whole trace when the provisional row could not be written", async () => {
+    vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
+    const { akashMlClient, toolRunner, traceRepository, logger, run } = setup();
+    const error = new Error("db down");
+    const action: AssistantAction = { type: "send_manifest_again", tier: "confirm", dseq: "42" };
+    traceRepository.start.mockRejectedValue(error);
+    akashMlClient.streamChatCompletion
+      .mockImplementationOnce(streamed({ toolCalls: [toolCall("c1", "propose_send_manifest_again", { dseq: "42" })] }))
+      .mockImplementationOnce(streamed({ content: "Confirm the card to send it." }));
+    toolRunner.run.mockResolvedValue({ kind: "proposal", content: "{}", summary: "Proposed send manifest again", ok: true, proposalId: "p1", action });
+
+    const events = await run({});
+
+    expect(events).toContainEqual(expect.objectContaining({ type: "action_proposal", proposalId: "p1" }));
+    expect(logger.warn).toHaveBeenCalledWith({ event: "ASSISTANT_TURN_TRACE_FAILED", error });
+    expect(traceRepository.appendCard).not.toHaveBeenCalled();
+    expect(traceRepository.finish).not.toHaveBeenCalled();
+    expect(traceRepository.create).toHaveBeenCalledTimes(1);
+    expect(traceRepository.create).toHaveBeenCalledWith({
+      conversationId: "conversation-1",
+      userId: "user-1",
+      organizationId: null,
+      page: null,
+      model: "assistant-model",
+      promptVersion: ASSISTANT_PROMPT_VERSION,
+      startedAt: NOW,
+      outcome: "answered",
+      firstTokenMs: 0,
+      durationMs: 0,
+      promptTokens: 200,
+      completionTokens: 40,
       toolCalls: [{ name: "propose_send_manifest_again", ok: true, durationMs: 0 }],
       cards: [{ proposalId: "p1", actionType: "send_manifest_again", decision: null }]
     });
+  });
+
+  it("still emits the card when appending it to the trace fails", async () => {
+    const { akashMlClient, toolRunner, traceRepository, logger, run } = setup();
+    const error = new Error("db down");
+    const action: AssistantAction = { type: "send_manifest_again", tier: "confirm", dseq: "42" };
+    traceRepository.appendCard.mockRejectedValue(error);
+    akashMlClient.streamChatCompletion
+      .mockImplementationOnce(streamed({ toolCalls: [toolCall("c1", "propose_send_manifest_again", { dseq: "42" })] }))
+      .mockImplementationOnce(streamed({ content: "Confirm the card to send it." }));
+    toolRunner.run.mockResolvedValue({ kind: "proposal", content: "{}", summary: "Proposed send manifest again", ok: true, proposalId: "p1", action });
+
+    const events = await run({});
+
+    expect(events).toContainEqual({ type: "action_proposal", proposalId: "p1", action });
+    expect(events.at(-1)).toEqual({ type: "done", reason: "stop" });
+    expect(logger.warn).toHaveBeenCalledWith({ event: "ASSISTANT_TURN_TRACE_FAILED", error });
+    expect(traceRepository.finish).toHaveBeenCalledWith("trace-1", expect.objectContaining({ outcome: "answered" }));
   });
 
   it("does not record a repeated call answered from the earlier result", async () => {
@@ -925,7 +1032,7 @@ describe(AssistantTurnService.name, () => {
 
     await run({});
 
-    expect(traceRepository.create.mock.calls[0][0].toolCalls).toEqual([{ name: "get_bids", ok: true, durationMs: expect.any(Number) }]);
+    expect(traceRepository.finish.mock.calls[0][1].toolCalls).toEqual([{ name: "get_bids", ok: true, durationMs: expect.any(Number) }]);
   });
 
   it("does not record suggested live help as a tool call", async () => {
@@ -937,10 +1044,11 @@ describe(AssistantTurnService.name, () => {
 
     await run({});
 
-    expect(traceRepository.create.mock.calls[0][0]).toMatchObject({ outcome: "answered", toolCalls: [] });
+    expect(traceRepository.finish.mock.calls[0][1]).toMatchObject({ outcome: "answered", toolCalls: [] });
+    expect(traceRepository.appendCard).not.toHaveBeenCalled();
   });
 
-  it("writes the trace only after the turn is done, so the write never holds back the answer", async () => {
+  it("finishes the trace only after the turn is done, so the write never holds back the answer", async () => {
     const { service, akashMlClient, traceRepository } = setup();
     akashMlClient.streamChatCompletion.mockImplementation(streamed({ content: "Done." }));
     const emit = vi.fn(async () => undefined);
@@ -948,13 +1056,14 @@ describe(AssistantTurnService.name, () => {
     await service.run(assistantTurn(), emit, new AbortController().signal);
 
     expect(emit).toHaveBeenLastCalledWith({ type: "done", reason: "stop" });
-    expect(traceRepository.create.mock.invocationCallOrder[0]).toBeGreaterThan(emit.mock.invocationCallOrder.at(-1)!);
+    expect(traceRepository.finish.mock.invocationCallOrder[0]).toBeGreaterThan(emit.mock.invocationCallOrder.at(-1)!);
   });
 
   it("still answers and logs ASSISTANT_TURN_TRACE_FAILED when the trace cannot be written", async () => {
     const { akashMlClient, traceRepository, logger, run } = setup();
     const error = new Error("db down");
     akashMlClient.streamChatCompletion.mockImplementation(streamed({ content: "Your deployment is live." }));
+    traceRepository.start.mockRejectedValue(error);
     traceRepository.create.mockRejectedValue(error);
 
     const events = await run({});
@@ -963,26 +1072,50 @@ describe(AssistantTurnService.name, () => {
       { type: "text_delta", text: "Your deployment is live." },
       { type: "done", reason: "stop" }
     ]);
+    expect(logger.warn).toHaveBeenCalledTimes(2);
     expect(logger.warn).toHaveBeenCalledWith({ event: "ASSISTANT_TURN_TRACE_FAILED", error });
+  });
+
+  it("still answers when the trace cannot be finished", async () => {
+    const { akashMlClient, traceRepository, logger, run } = setup();
+    const error = new Error("db down");
+    akashMlClient.streamChatCompletion.mockImplementation(streamed({ content: "Your deployment is live." }));
+    traceRepository.finish.mockRejectedValue(error);
+
+    const events = await run({});
+
+    expect(events.at(-1)).toEqual({ type: "done", reason: "stop" });
+    expect(logger.warn).toHaveBeenCalledWith({ event: "ASSISTANT_TURN_TRACE_FAILED", error });
+    expect(traceRepository.create).not.toHaveBeenCalled();
   });
 
   it("keeps the user's words out of the trace", async () => {
     const marker = "MARKER-7f3a";
-    const { akashMlClient, toolRunner, traceRepository, run } = setup();
+    const { akashMlClient, toolRunner, traceRepository, everythingTraced, run } = setup();
+    const action: AssistantAction = { type: "send_manifest_again", tier: "confirm", dseq: "42" };
     akashMlClient.streamChatCompletion
-      .mockImplementationOnce(streamed({ content: `Looking for ${marker}.`, toolCalls: [toolCall("c1", "list_deployments", { search: marker })] }))
+      .mockImplementationOnce(
+        streamed({
+          content: `Looking for ${marker}.`,
+          toolCalls: [toolCall("c1", "list_deployments", { search: marker }), toolCall("c2", "propose_send_manifest_again", { dseq: marker })]
+        })
+      )
       .mockImplementationOnce(streamed({ content: `${marker} is running.` }));
-    toolRunner.run.mockResolvedValue({ kind: "result", content: `{"name":"${marker}"}`, summary: `Read ${marker}`, ok: true });
+    toolRunner.run
+      .mockResolvedValueOnce({ kind: "result", content: `{"name":"${marker}"}`, summary: `Read ${marker}`, ok: true })
+      .mockResolvedValueOnce({ kind: "proposal", content: marker, summary: `Proposed ${marker}`, ok: true, proposalId: "p1", action });
 
     await run({ stored: true, messages: [{ role: "user", content: `where is ${marker}?` }] });
 
-    expect(traceRepository.create).toHaveBeenCalledTimes(1);
-    expect(JSON.stringify(traceRepository.create.mock.calls[0][0])).not.toContain(marker);
+    expect(traceRepository.start).toHaveBeenCalledTimes(1);
+    expect(traceRepository.appendCard).toHaveBeenCalledTimes(1);
+    expect(traceRepository.finish).toHaveBeenCalledTimes(1);
+    expect(everythingTraced()).not.toContain(marker);
   });
 
   it("records a tool the model made up under a fixed name, so its name cannot carry the user's words", async () => {
     const marker = "MARKER-7f3a";
-    const { akashMlClient, toolRunner, traceRepository, run } = setup();
+    const { akashMlClient, toolRunner, traceRepository, everythingTraced, run } = setup();
     akashMlClient.streamChatCompletion
       .mockImplementationOnce(streamed({ toolCalls: [toolCall("c1", `find_${marker}`)] }))
       .mockImplementationOnce(streamed({ content: "I could not look that up." }));
@@ -990,8 +1123,23 @@ describe(AssistantTurnService.name, () => {
 
     await run({});
 
-    expect(traceRepository.create.mock.calls[0][0].toolCalls).toEqual([{ name: "unknown", ok: false, durationMs: expect.any(Number) }]);
-    expect(JSON.stringify(traceRepository.create.mock.calls[0][0])).not.toContain(marker);
+    expect(traceRepository.finish.mock.calls[0][1].toolCalls).toEqual([{ name: "unknown", ok: false, durationMs: expect.any(Number) }]);
+    expect(everythingTraced()).not.toContain(marker);
+  });
+
+  it("keeps the user's words out of a trace written whole after the provisional row failed", async () => {
+    const marker = "MARKER-7f3a";
+    const { akashMlClient, toolRunner, traceRepository, everythingTraced, run } = setup();
+    traceRepository.start.mockRejectedValue(new Error("db down"));
+    akashMlClient.streamChatCompletion
+      .mockImplementationOnce(streamed({ toolCalls: [toolCall("c1", `find_${marker}`)] }))
+      .mockImplementationOnce(streamed({ content: `${marker} is running.` }));
+    toolRunner.run.mockResolvedValue({ kind: "result", content: marker, summary: `Read ${marker}`, ok: false });
+
+    await run({ stored: true, messages: [{ role: "user", content: `where is ${marker}?` }] });
+
+    expect(traceRepository.create).toHaveBeenCalledTimes(1);
+    expect(everythingTraced()).not.toContain(marker);
   });
 
   it("logs ASSISTANT_TURN_COMPLETED with the outcome", async () => {
@@ -1029,6 +1177,7 @@ describe(AssistantTurnService.name, () => {
     const transcriptService = mock<AssistantTranscriptService>();
     const pendingTurnRepository = mock<AssistantPendingTurnRepository>();
     const traceRepository = mock<AssistantTurnTraceRepository>();
+    traceRepository.start.mockResolvedValue("trace-1");
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
     const config = envSchema.parse({ ASSISTANT_MODEL: "assistant-model", AKASHML_API_KEY: "test-key" });
@@ -1056,6 +1205,23 @@ describe(AssistantTurnService.name, () => {
       return events;
     }
 
-    return { service, akashMlClient, akashMlHttpClient, toolRunner, limitsService, transcriptService, pendingTurnRepository, traceRepository, logger, run };
+    function everythingTraced(): string {
+      const { start, appendCard, finish, create } = traceRepository;
+      return JSON.stringify([start.mock.calls, appendCard.mock.calls, finish.mock.calls, create.mock.calls]);
+    }
+
+    return {
+      service,
+      akashMlClient,
+      akashMlHttpClient,
+      toolRunner,
+      limitsService,
+      transcriptService,
+      pendingTurnRepository,
+      traceRepository,
+      logger,
+      everythingTraced,
+      run
+    };
   }
 });

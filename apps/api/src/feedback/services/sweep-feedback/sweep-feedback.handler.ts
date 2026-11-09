@@ -17,8 +17,10 @@ export const SWEEP_FEEDBACK_KEY = "sweepFeedback";
 export const BACKFILL_BATCH_SIZE = 100;
 export const CONVERSATION_IDLE_MINUTES = 30;
 export const ASSISTANT_TURN_TRACE_RETENTION_DAYS = 90;
+/** Must stay well past the longest a turn can run, so only a trace whose pod died mid-turn is still running after it. */
+export const ABANDONED_TURN_TRACE_MINUTES = 10;
 
-/** Classifies what was stored while the model was unavailable or whose job gave up, lets theme scores decay, and drops assistant turns the browser never resumed and turn traces past retention. */
+/** Classifies what was stored while the model was unavailable or whose job gave up, lets theme scores decay, and drops assistant turns the browser never resumed and turn traces past retention, and fails turn traces a crashed pod left running. */
 export class SweepFeedback implements Job {
   static readonly [JOB_NAME] = "SweepFeedback";
   readonly name = SweepFeedback[JOB_NAME];
@@ -64,8 +66,9 @@ export class SweepFeedbackHandler implements JobHandler<SweepFeedback> {
     const rescored = await this.feedbackThemeScoreService.rescoreAll(now);
     const expiredPendingTurns = await this.assistantPendingTurnRepository.deleteExpired(now);
     const deletedTurnTraces = await this.assistantTurnTraceRepository.deleteStartedBefore(subDays(now, ASSISTANT_TURN_TRACE_RETENTION_DAYS));
+    const abandonedTurnTraces = await this.assistantTurnTraceRepository.markAbandoned(subMinutes(now, ABANDONED_TURN_TRACE_MINUTES));
 
-    this.#logger.info({ event: "FEEDBACK_SWEPT", backfilled, rescored, expiredPendingTurns, deletedTurnTraces });
+    this.#logger.info({ event: "FEEDBACK_SWEPT", backfilled, rescored, expiredPendingTurns, deletedTurnTraces, abandonedTurnTraces });
   }
 
   async #enqueueUnclassified(now: Date): Promise<{ submissions: number; conversations: number }> {

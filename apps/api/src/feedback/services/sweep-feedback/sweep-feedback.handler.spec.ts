@@ -1,4 +1,4 @@
-import { subDays } from "date-fns";
+import { subDays, subMinutes } from "date-fns";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -9,10 +9,12 @@ import type { AssistantPendingTurnRepository } from "@src/feedback/repositories/
 import type { AssistantTurnTraceRepository } from "@src/feedback/repositories/assistant-turn-trace/assistant-turn-trace.repository";
 import type { FeedbackSubmissionRepository } from "@src/feedback/repositories/feedback-submission/feedback-submission.repository";
 import type { AkashMlClient } from "@src/feedback/services/akashml-client/akashml.client";
+import { PENDING_TURN_TTL_MS, TURN_TIMEOUT_MS } from "@src/feedback/services/assistant-turn/assistant-turn.service";
 import { ClassifyConversation, classifyConversationOptionsFor } from "@src/feedback/services/classify-conversation/classify-conversation.handler";
 import { ClassifyFeedback, classifyFeedbackOptionsFor } from "@src/feedback/services/classify-feedback/classify-feedback.handler";
 import type { FeedbackThemeScoreService } from "@src/feedback/services/feedback-theme-score/feedback-theme-score.service";
 import {
+  ABANDONED_TURN_TRACE_MINUTES,
   ASSISTANT_TURN_TRACE_RETENTION_DAYS,
   BACKFILL_BATCH_SIZE,
   SweepFeedback,
@@ -73,7 +75,8 @@ describe(SweepFeedbackHandler.name, () => {
       backfilled: { submissions: 2, conversations: 1 },
       rescored: 7,
       expiredPendingTurns: 3,
-      deletedTurnTraces: 0
+      deletedTurnTraces: 0,
+      abandonedTurnTraces: 0
     });
   });
 
@@ -89,6 +92,18 @@ describe(SweepFeedbackHandler.name, () => {
     expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "FEEDBACK_SWEPT", deletedTurnTraces: 4 }));
   });
 
+  it("marks turn traces still running after 10 minutes as failed on each sweep", async () => {
+    vi.useFakeTimers({ now: NOW });
+    const { handler, assistantTurnTraceRepository, logger } = setup({ isAvailable: false });
+    assistantTurnTraceRepository.markAbandoned.mockResolvedValue(2);
+
+    await handler.handle();
+
+    expect(ABANDONED_TURN_TRACE_MINUTES * 60_000).toBeGreaterThan(TURN_TIMEOUT_MS + PENDING_TURN_TTL_MS);
+    expect(assistantTurnTraceRepository.markAbandoned).toHaveBeenCalledWith(subMinutes(NOW, 10));
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "FEEDBACK_SWEPT", abandonedTurnTraces: 2 }));
+  });
+
   it("only rescores while the model is unavailable", async () => {
     const { handler, jobQueueService, feedbackSubmissionRepository, feedbackThemeScoreService, logger } = setup({ isAvailable: false });
     feedbackThemeScoreService.rescoreAll.mockResolvedValue(2);
@@ -98,7 +113,14 @@ describe(SweepFeedbackHandler.name, () => {
     expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
     expect(jobQueueService.enqueue).toHaveBeenCalledWith(expect.any(SweepFeedback), expect.anything());
     expect(feedbackSubmissionRepository.findUnclassifiedIds).not.toHaveBeenCalled();
-    expect(logger.info).toHaveBeenCalledWith({ event: "FEEDBACK_SWEPT", backfilled: null, rescored: 2, expiredPendingTurns: 0, deletedTurnTraces: 0 });
+    expect(logger.info).toHaveBeenCalledWith({
+      event: "FEEDBACK_SWEPT",
+      backfilled: null,
+      rescored: 2,
+      expiredPendingTurns: 0,
+      deletedTurnTraces: 0,
+      abandonedTurnTraces: 0
+    });
   });
 
   function setup(input: { isAvailable?: boolean } = {}) {
@@ -114,6 +136,7 @@ describe(SweepFeedbackHandler.name, () => {
     assistantPendingTurnRepository.deleteExpired.mockResolvedValue(0);
     const assistantTurnTraceRepository = mock<AssistantTurnTraceRepository>();
     assistantTurnTraceRepository.deleteStartedBefore.mockResolvedValue(0);
+    assistantTurnTraceRepository.markAbandoned.mockResolvedValue(0);
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
     const handler = new SweepFeedbackHandler(

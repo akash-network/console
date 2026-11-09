@@ -90,4 +90,23 @@ describe(SweepFeedbackHandler.name, () => {
     const remaining = await container.resolve<ApiPgDatabase>(POSTGRES_DB).select().from(table).where(eq(table.conversationId, conversationId));
     expect(remaining).toEqual([expect.objectContaining({ startedAt: recentStartedAt })]);
   });
+
+  it("marks turn traces a crashed turn left running as failed", async () => {
+    const { enqueue, startWorkers } = await jobWorkers();
+    const { user } = await seedUserWithWallet({ isTrialing: false });
+    const conversationId = faker.string.uuid();
+    const traces = container.resolve(AssistantTurnTraceRepository);
+    const trace = { userId: user.id, conversationId, model: "assistant-model", promptVersion: "2026-11-08", outcome: "running" as const, durationMs: 0 };
+    const abandonedId = await traces.start({ ...trace, startedAt: subMinutes(new Date(), 15) });
+    const runningId = await traces.start({ ...trace, startedAt: new Date() });
+    vi.spyOn(container.resolve(AkashMlClient), "isAvailable").mockReturnValue(false);
+
+    await enqueue(new SweepFeedback(), { singletonKey: "abandonedTraceSweep" });
+    await startWorkers();
+    await expectJobCompleted(SweepFeedback[JOB_NAME], { singletonKey: "abandonedTraceSweep" });
+
+    const table = resolveTable("AssistantTurnTraces");
+    const remaining = await container.resolve<ApiPgDatabase>(POSTGRES_DB).select().from(table).where(eq(table.conversationId, conversationId));
+    expect(Object.fromEntries(remaining.map(({ id, outcome }) => [id, outcome]))).toEqual({ [abandonedId]: "failed", [runningId]: "running" });
+  });
 });

@@ -1,5 +1,5 @@
 {
-  "id": "8fa73ecd-132d-4a69-9b76-74b84b93f70f",
+  "id": "33c4a4df-4564-4173-869d-a86f2b3c8437",
   "prevId": "db9d23bf-b08c-4e64-a025-8b1014f1a828",
   "version": "7",
   "dialect": "postgresql",
@@ -7298,6 +7298,7 @@
       "name": "assistant_turn_outcome",
       "schema": "public",
       "values": [
+        "running",
         "answered",
         "recovered",
         "fallback",
@@ -7306,7 +7307,8 @@
         "model_failed",
         "failed",
         "cancelled",
-        "limited"
+        "limited",
+        "blocked"
       ]
     }
   },

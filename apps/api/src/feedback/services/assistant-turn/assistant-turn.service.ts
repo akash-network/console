@@ -7,8 +7,13 @@ import { fallbackAnswerOf } from "@src/feedback/lib/assistant-fallback-answer/as
 import { ASSISTANT_PROMPT_VERSION } from "@src/feedback/lib/assistant-prompt-version/assistant-prompt-version";
 import { isAssistantToolName, isLiveHelpToolName, isReadToolName } from "@src/feedback/lib/assistant-tools/assistant-tools";
 import { earlierResultOf, toolCallKeyOf } from "@src/feedback/lib/assistant-turn-tool-calls/assistant-turn-tool-calls";
-import { AssistantTurnTraceBuilder, writeTraceQuietly } from "@src/feedback/lib/assistant-turn-trace/assistant-turn-trace";
-import type { AssistantTurnOutcome } from "@src/feedback/model-schemas/assistant-turn-trace/assistant-turn-trace.schema";
+import {
+  AssistantTurnTraceBuilder,
+  type FinishedAssistantTurnTrace,
+  traceResultOf,
+  writeTraceQuietly
+} from "@src/feedback/lib/assistant-turn-trace/assistant-turn-trace";
+import type { AssistantTurnOutcome, TracedCard } from "@src/feedback/model-schemas/assistant-turn-trace/assistant-turn-trace.schema";
 import { FEEDBACK_CONFIG, type FeedbackConfig } from "@src/feedback/providers/config.provider";
 import { AssistantPendingTurnRepository } from "@src/feedback/repositories/assistant-pending-turn/assistant-pending-turn.repository";
 import { AssistantTurnTraceRepository } from "@src/feedback/repositories/assistant-turn-trace/assistant-turn-trace.repository";
@@ -55,6 +60,8 @@ export type EmitAssistantEvent = (event: AssistantStreamEvent) => Promise<void>;
 type TimedToolOutcome = { outcome: ToolOutcome; durationMs: number };
 
 type TurnEnding = { outcome: AssistantTurnOutcome; finishReason: ChatCompletion["finishReason"] };
+
+type TurnTrace = { builder: AssistantTurnTraceBuilder; provisionalId: Promise<string | undefined> };
 
 function textDeltaEmitter(emit: EmitAssistantEvent, followsEarlierRoundText: boolean): (text: string) => Promise<void> {
   let separator = followsEarlierRoundText ? ROUND_TEXT_SEPARATOR : "";
@@ -153,7 +160,7 @@ export class AssistantTurnService {
     }
   }
 
-  async #runTurn(turn: AssistantTurn, trace: AssistantTurnTraceBuilder, emitEvent: EmitAssistantEvent, signal: AbortSignal): Promise<AssistantTurnOutcome> {
+  async #runTurn(turn: AssistantTurn, trace: TurnTrace, emitEvent: EmitAssistantEvent, signal: AbortSignal): Promise<AssistantTurnOutcome> {
     const { emit, shownText } = trackingShownText(emitEvent);
     const deadline = AbortSignal.timeout(TURN_TIMEOUT_MS);
     const abort = AbortSignal.any([signal, deadline]);
@@ -169,7 +176,7 @@ export class AssistantTurnService {
           requestMessagesFor(messages, round),
           { isFinalRound, configureFormOpen: turn.configureFormOpen },
           abort,
-          trace,
+          trace.builder,
           textDeltaEmitter(emit, answer.length > 0)
         );
         if (completion.content) answer.push(completion.content);
@@ -177,7 +184,7 @@ export class AssistantTurnService {
         if (isFinalRound || completion.toolCalls.length === 0) {
           const ending: TurnEnding = hasText(completion.content)
             ? { outcome: "answered", finishReason: completion.finishReason }
-            : await this.#answerNow(turn, messages, answer, abort, trace, emit);
+            : await this.#answerNow(turn, messages, answer, abort, trace.builder, emit);
           await this.#recordAnswer(turn, answer);
           await emit({ type: "done", reason: ending.finishReason === "length" ? "length" : "stop" });
           return ending.outcome;
@@ -201,8 +208,9 @@ export class AssistantTurnService {
     }
   }
 
-  #startTrace(turn: AssistantTurn): AssistantTurnTraceBuilder {
-    return new AssistantTurnTraceBuilder({
+  /** Writes the running row without awaiting it, so the turn never waits on tracing to start streaming. */
+  #startTrace(turn: AssistantTurn): TurnTrace {
+    const builder = new AssistantTurnTraceBuilder({
       conversationId: turn.conversationId,
       userId: turn.userId,
       organizationId: turn.organizationId,
@@ -211,12 +219,24 @@ export class AssistantTurnService {
       promptVersion: ASSISTANT_PROMPT_VERSION,
       startedAt: new Date()
     });
+    const provisionalId = writeTraceQuietly(this.#logger, () => this.traceRepository.start(builder.running()));
+
+    return { builder, provisionalId };
+  }
+
+  /** Awaited before the card is shown, so a decision on it can never reach the trace before the card does. */
+  async #traceCard(trace: TurnTrace, card: Omit<TracedCard, "decision">): Promise<void> {
+    trace.builder.cardProposed(card);
+    await writeTraceQuietly(this.#logger, async () => {
+      const provisionalId = await trace.provisionalId;
+      if (provisionalId) await this.traceRepository.appendCard(provisionalId, { ...card, decision: null });
+    });
   }
 
   /** Runs after the turn's last event and swallows its own errors, so tracing never delays, fails or changes what the user sees. */
-  async #finishTrace(trace: AssistantTurnTraceBuilder, outcome: AssistantTurnOutcome): Promise<void> {
+  async #finishTrace(trace: TurnTrace, outcome: AssistantTurnOutcome): Promise<void> {
     await writeTraceQuietly(this.#logger, async () => {
-      const finished = trace.finish(outcome, new Date());
+      const finished = trace.builder.finish(outcome, new Date());
       this.#logger.info({
         event: "ASSISTANT_TURN_COMPLETED",
         outcome,
@@ -227,8 +247,18 @@ export class AssistantTurnService {
         toolCallCount: finished.toolCalls.length,
         failedToolCallCount: finished.toolCalls.filter(({ ok }) => !ok).length
       });
-      await this.traceRepository.create(finished);
+      await this.#writeFinishedTrace(await trace.provisionalId, finished);
     });
+  }
+
+  /** Finishing leaves the row's cards alone, since the user may already have decided on them while the turn streamed. */
+  async #writeFinishedTrace(provisionalId: string | undefined, finished: FinishedAssistantTurnTrace): Promise<void> {
+    if (provisionalId) {
+      await this.traceRepository.finish(provisionalId, traceResultOf(finished));
+      return;
+    }
+
+    await this.traceRepository.create(finished);
   }
 
   /** A turn that runs out of time still answers with what it read, since an error would hide reads the user already saw as chips. */
@@ -310,7 +340,7 @@ export class AssistantTurnService {
     proposalContext: ProposalContext,
     toolCalls: ChatToolCall[],
     messages: ChatMessage[],
-    trace: AssistantTurnTraceBuilder,
+    trace: TurnTrace,
     emit: EmitAssistantEvent
   ): Promise<ChatToolCall[]> {
     const clientToolCalls: ChatToolCall[] = [];
@@ -349,9 +379,9 @@ export class AssistantTurnService {
         continue;
       }
 
-      trace.toolFinished({ name: tracedToolNameOf(name), ok: outcome.ok, durationMs });
+      trace.builder.toolFinished({ name: tracedToolNameOf(name), ok: outcome.ok, durationMs });
       if (outcome.kind === "proposal") {
-        trace.cardProposed({ proposalId: outcome.proposalId, actionType: outcome.action.type });
+        await this.#traceCard(trace, { proposalId: outcome.proposalId, actionType: outcome.action.type });
         await emit({
           type: "action_proposal",
           proposalId: outcome.proposalId,

@@ -1,6 +1,6 @@
 import type { CreateLogger } from "@src/core";
 import type { AssistantTurnOutcome, TracedCard, TracedToolCall } from "@src/feedback/model-schemas/assistant-turn-trace/assistant-turn-trace.schema";
-import type { AssistantTurnTraceInput } from "@src/feedback/repositories/assistant-turn-trace/assistant-turn-trace.repository";
+import type { AssistantTurnTraceInput, AssistantTurnTraceResult } from "@src/feedback/repositories/assistant-turn-trace/assistant-turn-trace.repository";
 import type { ChatCompletion } from "@src/feedback/services/akashml-client/akashml.client";
 
 export interface AssistantTurnTraceStart {
@@ -13,7 +13,7 @@ export interface AssistantTurnTraceStart {
   startedAt: Date;
 }
 
-export type FinishedAssistantTurnTrace = AssistantTurnTraceInput & { firstTokenMs: number | null; toolCalls: TracedToolCall[] };
+export type FinishedAssistantTurnTrace = AssistantTurnTraceInput & AssistantTurnTraceResult & { cards: TracedCard[] };
 
 export class AssistantTurnTraceBuilder {
   readonly #start: AssistantTurnTraceStart;
@@ -48,6 +48,19 @@ export class AssistantTurnTraceBuilder {
     this.#cards.push({ proposalId: card.proposalId, actionType: card.actionType, decision: null });
   }
 
+  running(): FinishedAssistantTurnTrace {
+    return {
+      ...this.#start,
+      outcome: "running",
+      firstTokenMs: null,
+      durationMs: 0,
+      promptTokens: 0,
+      completionTokens: 0,
+      toolCalls: [],
+      cards: []
+    };
+  }
+
   finish(outcome: AssistantTurnOutcome, at: Date): FinishedAssistantTurnTrace {
     return {
       ...this.#start,
@@ -66,11 +79,23 @@ export class AssistantTurnTraceBuilder {
   }
 }
 
+export function traceResultOf(trace: FinishedAssistantTurnTrace): AssistantTurnTraceResult {
+  return {
+    outcome: trace.outcome,
+    firstTokenMs: trace.firstTokenMs,
+    durationMs: trace.durationMs,
+    promptTokens: trace.promptTokens,
+    completionTokens: trace.completionTokens,
+    toolCalls: trace.toolCalls
+  };
+}
+
 /** Tracing must never fail or change the user's turn, so a failed trace write is only logged. */
-export async function writeTraceQuietly(logger: ReturnType<CreateLogger>, write: () => Promise<unknown>): Promise<void> {
+export async function writeTraceQuietly<T>(logger: ReturnType<CreateLogger>, write: () => Promise<T>): Promise<T | undefined> {
   try {
-    await write();
+    return await write();
   } catch (error) {
     logger.warn({ event: "ASSISTANT_TURN_TRACE_FAILED", error });
+    return undefined;
   }
 }
