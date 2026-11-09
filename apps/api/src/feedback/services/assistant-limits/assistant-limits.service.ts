@@ -1,10 +1,13 @@
 import createError from "http-errors";
 import { inject, singleton } from "tsyringe";
 
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { ASSISTANT_ERROR_CODES, assistantUnavailable } from "@src/feedback/lib/assistant-errors/assistant-errors";
 import { FEEDBACK_CONFIG, type FeedbackConfig } from "@src/feedback/providers/config.provider";
 import { AssistantDailyTokenUsageRepository } from "@src/feedback/repositories/assistant-daily-token-usage/assistant-daily-token-usage.repository";
 import { AssistantUserUsageRepository } from "@src/feedback/repositories/assistant-user-usage/assistant-user-usage.repository";
+
+const BUDGET_WARNING_SHARE = 0.8;
 
 function dayOf(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -12,11 +15,16 @@ function dayOf(date: Date): string {
 
 @singleton()
 export class AssistantLimitsService {
+  readonly #logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly assistantUserUsageRepository: AssistantUserUsageRepository,
     private readonly assistantDailyTokenUsageRepository: AssistantDailyTokenUsageRepository,
-    @inject(FEEDBACK_CONFIG) private readonly config: FeedbackConfig
-  ) {}
+    @inject(FEEDBACK_CONFIG) private readonly config: FeedbackConfig,
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
+  ) {
+    this.#logger = createLogger({ context: AssistantLimitsService.name });
+  }
 
   /** Counts the attempt before checking it, so a client retrying against the limit stays limited. */
   async countMessage(userId: string, isTrialing: boolean | null): Promise<void> {
@@ -41,6 +49,14 @@ export class AssistantLimitsService {
   async recordUsage(usage: { promptTokens: number; completionTokens: number } | null): Promise<void> {
     if (!usage) return;
 
-    await this.assistantDailyTokenUsageRepository.add(dayOf(new Date()), usage);
+    const day = dayOf(new Date());
+    const total = await this.assistantDailyTokenUsageRepository.add(day, usage);
+    const totalBefore = total - (usage.promptTokens + usage.completionTokens);
+    const budget = this.config.ASSISTANT_DAILY_TOKEN_BUDGET;
+    const warningThreshold = budget * BUDGET_WARNING_SHARE;
+
+    if (totalBefore < warningThreshold && total >= warningThreshold) {
+      this.#logger.warn({ event: "ASSISTANT_TOKEN_BUDGET_WARNING", day, total, budget });
+    }
   }
 }
