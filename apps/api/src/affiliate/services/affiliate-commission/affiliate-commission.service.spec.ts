@@ -1039,6 +1039,20 @@ describe(AffiliateCommissionService.name, () => {
       expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
     });
 
+    it("takes back a refund from an already credited commission the usual way, without recording it as credited again", async () => {
+      const { service, payment, commission, stripeTransactionRepository } = setup({
+        hasCommission: true,
+        commissionStatus: "succeeded",
+        commissionAmountRefunded: 100,
+        paymentAmountRefunded: 10000,
+        releaseCredit: { status: "landed", amount: 400 }
+      });
+
+      await service.syncCommission(payment.id, "refund");
+
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(commission.id, { amountRefunded: 500, status: "refunded" });
+    });
+
     it("throws so the job retries while the release credit is still in flight", async () => {
       const { service, payment, stripeTransactionRepository, refillService } = setup({
         hasCommission: true,
