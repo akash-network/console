@@ -3,7 +3,7 @@ import { z } from "zod";
 import { isTimeZone } from "@src/hardware-request/lib/business-hours/business-hours";
 import { MAX_OWNER_LENGTH, REGION_AREAS } from "@src/hardware-request/model-schemas";
 
-const DATA_CENTER_GPU_MODELS = ["B300", "B200", "H200", "H100", "A100", "L40S", "MI355X", "MI325X", "MI300X"];
+const DATA_CENTER_GPU_MODELS = ["GB300", "B300", "B200", "H200", "H100", "A100", "L40S", "RTX PRO 6000 Server Edition", "MI355X", "MI325X", "MI300X"];
 
 /** Stand-in prices for a request without a target price, until a market price source exists (CON-1532). */
 const REFERENCE_USD_PER_GPU_HOUR: Record<string, number> = {

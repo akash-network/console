@@ -88,12 +88,11 @@ describe("RequestFields", () => {
     it("offers every term but 3 months", () => {
       setup({ Field: TimingField, answers: {} });
 
-      expect(within(screen.getByRole("group", { name: "Term" })).getAllByRole("radio").map(term => term.textContent)).toEqual([
-        "Month to month",
-        "6 months",
-        "1 year",
-        "2 years or more"
-      ]);
+      expect(
+        within(screen.getByRole("group", { name: "Term" }))
+          .getAllByRole("radio")
+          .map(term => term.textContent)
+      ).toEqual(["Month to month", "6 months", "1 year", "2 years or more"]);
     });
 
     it("takes a typed start date once it is a real day from today on", async () => {
@@ -117,6 +116,17 @@ describe("RequestFields", () => {
       expect(startDate).toHaveAttribute("aria-invalid", "true");
       expect(screen.getByText("Enter a date from today onward, like 11/04/2026.")).toBeInTheDocument();
       expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it("clears the start date when a valid date is edited into an invalid one", async () => {
+      const { onChange } = setup({ Field: TimingField, answers: { start: "date", startDate: "2026-12-01" } });
+      const startDate = screen.getByLabelText("Start date");
+
+      await userEvent.type(startDate, "{backspace}");
+      await userEvent.tab();
+
+      expect(startDate).toHaveAttribute("aria-invalid", "true");
+      expect(onChange).toHaveBeenLastCalledWith({ startDate: "" });
     });
 
     it("clears the start date when the typed date is erased, and accepts one typed with dashes", async () => {

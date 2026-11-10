@@ -88,7 +88,9 @@ function StartDateField({ value, today, onChange }: { value: string; today: stri
       return;
     }
     const isoDate = parseTypedDate(text);
-    setIsInvalid(!isoDate || isoDate < today);
+    const isInvalidDate = !isoDate || isoDate < today;
+    setIsInvalid(isInvalidDate);
+    if (isInvalidDate && value) onChange("");
   }
 
   function pickDate(date: Date | undefined) {
@@ -179,7 +181,9 @@ export function ContactField({ draft, onChange, asksEmail }: DraftFieldProps & {
 
 function RareBadge() {
   return (
-    <span className="rounded border border-warning/45 px-[5px] font-mono text-[9.5px] font-semibold uppercase leading-[14px] tracking-[0.08em] text-warning">Rare</span>
+    <span className="rounded border border-warning/45 px-[5px] font-mono text-[9.5px] font-semibold uppercase leading-[14px] tracking-[0.08em] text-warning">
+      Rare
+    </span>
   );
 }
 

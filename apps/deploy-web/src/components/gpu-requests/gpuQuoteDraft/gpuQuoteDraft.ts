@@ -234,7 +234,7 @@ export function toQuoteRequestData(
       gpu: { model: describeGpuModel(draft) ?? "", count: draft.gpuCount, interconnect: "cluster", fabric: draft.fabric },
       region: { mode: draft.regionMode, areas: draft.regionMode === "any" ? [] : draft.areas },
       uplinkGbps: null,
-      storage: { tbPerNode: draft.storageTbPerNode, nvme: draft.nvme },
+      storage: { tbPerNode: toStorageTbPerServer(draft), nvme: draft.nvme },
       sla: draft.sla,
       targetPrice: null,
       term: draft.term,
@@ -245,6 +245,12 @@ export function toQuoteRequestData(
       phone: draft.phone.trim() || undefined
     }
   };
+}
+
+/** The form asks storage per rack for rack-scale GPUs, while the api and offers count it per server of eight. */
+function toStorageTbPerServer(draft: Pick<GpuQuoteDraft, "storageTbPerNode" | "gpuModel">): number {
+  const serversPerUnit = unitOfGpu(draft.gpuModel).gpuCount / GPUS_PER_NODE;
+  return Math.round((draft.storageTbPerNode / serversPerUnit) * 100) / 100;
 }
 
 export function describeGpus(draft: Pick<GpuQuoteDraft, "gpuModel" | "otherGpuModel" | "gpuCount">): string | null {
@@ -316,7 +322,10 @@ export function describeStartingPointCard({ answers }: StartingPoint): StartingP
         label: unit.name === "rack" ? "Racks" : "Nodes",
         value: answers.gpuCount === undefined ? UNANSWERED_SPEC : `${Math.ceil(answers.gpuCount / unit.gpuCount)} × ${pluralize(unit.gpuCount, "GPU")}`
       },
-      { label: "Network", value: answers.fabric === undefined ? UNANSWERED_SPEC : describeNetwork({ gpuModel: answers.gpuModel ?? null, fabric: answers.fabric }) },
+      {
+        label: "Network",
+        value: answers.fabric === undefined ? UNANSWERED_SPEC : describeNetwork({ gpuModel: answers.gpuModel ?? null, fabric: answers.fabric })
+      },
       { label: "Storage", value: answers.storageTbPerNode === undefined ? UNANSWERED_SPEC : `${answers.storageTbPerNode} TB / ${unit.name}` }
     ]
   };

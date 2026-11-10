@@ -345,6 +345,12 @@ describe("gpuQuoteDraft", () => {
       expect(spec.region).toEqual({ mode: "any", areas: [] });
       expect(spec.start).toEqual({ kind: "flexible" });
     });
+
+    it("sends rack storage as the share of each eight-GPU server", () => {
+      const { spec } = toQuoteRequestData(completeDraft({ gpuModel: "gb300", gpuCount: 144, storageTbPerNode: 30, nvme: true }), { source: "gpu_menu" });
+
+      expect(spec.storage).toEqual({ tbPerNode: 3.33, nvme: true });
+    });
   });
 
   describe(describeGpus.name, () => {
