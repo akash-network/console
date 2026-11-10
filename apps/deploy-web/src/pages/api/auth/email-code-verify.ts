@@ -3,6 +3,7 @@ import { z } from "zod";
 import { setAccountCreatedCookie } from "@src/lib/analytics/account-created-cookie";
 import { readBrowserTimezone } from "@src/lib/browser-timezone/browser-timezone-cookie";
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
+import { readReferralCode } from "@src/lib/referral/referral-cookie";
 import { verifyCaptcha } from "@src/middleware/verify-captcha/verify-captcha";
 
 export default defineApiHandler({
@@ -24,7 +25,7 @@ export default defineApiHandler({
     const result = await services.sessionService.verifyEmailCode({ email: body.email, code: body.code });
 
     if (result.ok) {
-      const { userSettings, isNewUser } = await services.sessionService.createLocalUser(result.val, { timezone: readBrowserTimezone(req) });
+      const { userSettings, isNewUser } = await services.sessionService.createLocalUser(result.val, { timezone: readBrowserTimezone(req), referralCode: readReferralCode(req.cookies) });
       result.val.user = { ...result.val.user, ...userSettings };
       await services.setSession(req, res, result.val);
       if (isNewUser) setAccountCreatedCookie(res);
