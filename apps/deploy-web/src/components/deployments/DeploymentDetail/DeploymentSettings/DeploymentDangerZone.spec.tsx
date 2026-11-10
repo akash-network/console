@@ -4,10 +4,12 @@ import { mock } from "vitest-mock-extended";
 import type { DeploymentCloseReasonInput } from "@src/components/deployments/CloseDeploymentDialog/closeDeploymentReasons";
 import type { CloseOutcome } from "@src/hooks/useCloseDeployment/useCloseDeployment";
 import type { DeploymentDto } from "@src/types/deployment";
+import type { AccountStatus } from "@src/types/user";
 import { DEPENDENCIES, DeploymentDangerZone } from "./DeploymentDangerZone";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { accountActionGatesFor } from "@tests/unit/accountActionGates";
 import { MockComponents } from "@tests/unit/mocks";
 
 const CLOSE_REASON: DeploymentCloseReasonInput = { closeReason: "cost_or_budget" };
@@ -94,7 +96,28 @@ describe("DeploymentDangerZone", () => {
     expect(screen.getByText("Stop all services and permanently tear down this deployment. This action can't be undone.")).toBeInTheDocument();
   });
 
-  function setup(input: { closeReason?: DeploymentCloseReasonInput | null; outcome?: CloseOutcome; closeNeverAnswers?: boolean; closingDseqs?: string[] }) {
+  it("keeps close deployment enabled for a suspended user", () => {
+    setup({ accountStatus: "suspended" });
+
+    expect(screen.getByRole("button", { name: "Close deployment" })).toBeEnabled();
+  });
+
+  it("disables close deployment for a terminated user", async () => {
+    const { confirmCloseDeployment } = setup({ accountStatus: "terminated" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Close deployment" }));
+
+    expect(screen.getByRole("button", { name: "Close deployment" })).toBeDisabled();
+    expect(confirmCloseDeployment).not.toHaveBeenCalled();
+  });
+
+  function setup(input: {
+    closeReason?: DeploymentCloseReasonInput | null;
+    outcome?: CloseOutcome;
+    closeNeverAnswers?: boolean;
+    closingDseqs?: string[];
+    accountStatus?: AccountStatus;
+  }) {
     const onClosed = vi.fn();
     const confirmCloseDeployment = vi.fn().mockResolvedValue(input.closeReason ?? null);
     const recordCloseReason = vi.fn();
@@ -118,7 +141,8 @@ describe("DeploymentDangerZone", () => {
           useCloseDeploymentConfirm,
           useResolvedDeploymentName,
           useClosingDeployments,
-          useCloseDeployment
+          useCloseDeployment,
+          AccountMutationGate: accountActionGatesFor(input.accountStatus ?? "active").AccountMutationGate
         })}
       />
     );

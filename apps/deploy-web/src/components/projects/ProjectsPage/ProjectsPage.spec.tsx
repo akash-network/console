@@ -4,6 +4,7 @@ import { mock } from "vitest-mock-extended";
 import type { OrganizationRole } from "@src/types/organization";
 import type { OrganizationActivity } from "@src/types/organization-activity";
 import type { Project, ProjectDeploymentPreview } from "@src/types/project";
+import type { AccountStatus } from "@src/types/user";
 import type { DEPENDENCIES as NEW_PROJECT_MODAL_DEPENDENCIES } from "../NewProjectModal/NewProjectModal";
 import { NewProjectModal } from "../NewProjectModal/NewProjectModal";
 import { ProjectFolder } from "../ProjectFolder/ProjectFolder";
@@ -13,6 +14,7 @@ import { DEPENDENCIES, ProjectsPage } from "./ProjectsPage";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildProject } from "@tests/seeders/project";
+import { accountActionGatesFor } from "@tests/unit/accountActionGates";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(ProjectsPage.name, () => {
@@ -226,6 +228,12 @@ describe(ProjectsPage.name, () => {
     return { dseq, name, status: "running" };
   }
 
+  it("keeps a suspended user from starting a new deployment", () => {
+    setup({ role: "owner", projects: [project({ name: "default", isDefault: true })], accountStatus: "suspended" });
+
+    expect(screen.getByRole("link", { name: /^New deployment/ })).toHaveAttribute("aria-disabled", "true");
+  });
+
   function setup(input: {
     isOrganizationsEnabled?: boolean;
     projects: Project[];
@@ -236,6 +244,7 @@ describe(ProjectsPage.name, () => {
     projectsEnabled?: boolean;
     isOrganizationLoading?: boolean;
     isActivityError?: boolean;
+    accountStatus?: AccountStatus;
   }) {
     const retryActivity = vi.fn();
     const push = vi.fn();
@@ -276,6 +285,7 @@ describe(ProjectsPage.name, () => {
       ProjectFolderMenu: ({ project }) => <button type="button">menu of {project.name}</button>,
       RecentActivityFeed,
       GetStartedChecklist: () => <section aria-label="Get started" />,
+      AccountSpendGate: accountActionGatesFor(input.accountStatus ?? "active").AccountSpendGate,
       NewProjectModal: props => (
         <NewProjectModal
           {...props}

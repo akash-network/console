@@ -2,10 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
+import type { AccountStatus } from "@src/types/user";
 import { DEPENDENCIES, UsernameSetting } from "./UsernameSetting";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { accountActionGatesFor } from "@tests/unit/accountActionGates";
 import { MockComponents } from "@tests/unit/mocks";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
@@ -130,7 +132,21 @@ describe(UsernameSetting.name, () => {
     expect(screen.getByLabelText("Username")).toHaveValue("alice-dev");
   });
 
-  function setup(input: { username: string | undefined; availability?: { isChecking?: boolean; isAvailable?: boolean }; isSaving?: boolean }) {
+  it("keeps a terminated user from saving a new username", async () => {
+    const { user, saveSettings } = setup({ username: "alice", availability: { isAvailable: true }, accountStatus: "terminated" });
+
+    await user.type(screen.getByLabelText("Username"), "-dev{Enter}");
+
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(saveSettings).not.toHaveBeenCalled();
+  });
+
+  function setup(input: {
+    username: string | undefined;
+    availability?: { isChecking?: boolean; isAvailable?: boolean };
+    isSaving?: boolean;
+    accountStatus?: AccountStatus;
+  }) {
     const analyticsService = mock<AnalyticsService>();
     const saveSettings = vi.fn<ReturnType<typeof DEPENDENCIES.useSaveSettings>["mutate"]>();
     const enqueueSnackbar = vi.fn();
@@ -141,7 +157,8 @@ describe(UsernameSetting.name, () => {
     const dependencies = MockComponents(DEPENDENCIES, {
       useSaveSettings: () => mock<ReturnType<typeof DEPENDENCIES.useSaveSettings>>({ mutate: saveSettings, isPending: input.isSaving ?? false }),
       useUsernameAvailability,
-      useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar })
+      useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
+      AccountMutationGate: accountActionGatesFor(input.accountStatus ?? "active").AccountMutationGate
     });
 
     render(

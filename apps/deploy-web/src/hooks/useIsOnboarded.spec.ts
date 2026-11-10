@@ -4,6 +4,7 @@ import { mock } from "vitest-mock-extended";
 import type { DEPENDENCIES } from "@src/hooks/useIsOnboarded";
 import { useIsOnboarded } from "@src/hooks/useIsOnboarded";
 import type { OrganizationOutput } from "@src/types/organization";
+import type { AccountStatus } from "@src/types/user";
 
 import { renderHook } from "@testing-library/react";
 
@@ -44,6 +45,18 @@ describe(useIsOnboarded.name, () => {
     expect(result.current).toBe(true);
   });
 
+  it.each(["suspended", "terminated"] as const)("returns true for a %s account so it is never sent into onboarding", accountStatus => {
+    const { result } = setup({ hasWallet: false, accountStatus });
+
+    expect(result.current).toBe(true);
+  });
+
+  it("returns false for an active account without a lease", () => {
+    const { result } = setup({ hasWallet: false, accountStatus: "active" });
+
+    expect(result.current).toBe(false);
+  });
+
   it("returns false in a personal organization without a lease", () => {
     const { result } = setup({ hasWallet: true, address: "akash1abc", hasLease: false, organizationType: "personal" });
 
@@ -56,6 +69,7 @@ describe(useIsOnboarded.name, () => {
     hasLease?: boolean;
     onboardingSkippedAt?: string | null;
     organizationType?: "personal" | "team";
+    accountStatus?: AccountStatus;
   }) {
     const useWallet: typeof DEPENDENCIES.useWallet = () =>
       mock<ReturnType<typeof DEPENDENCIES.useWallet>>({
@@ -64,7 +78,7 @@ describe(useIsOnboarded.name, () => {
       });
     const useUser: typeof DEPENDENCIES.useUser = () =>
       mock<ReturnType<typeof DEPENDENCIES.useUser>>({
-        user: { onboardingSkippedAt: input?.onboardingSkippedAt ?? null }
+        user: { onboardingSkippedAt: input?.onboardingSkippedAt ?? null, accountStatus: input?.accountStatus }
       });
     const useLeaseExistenceQuery: typeof DEPENDENCIES.useLeaseExistenceQuery = () =>
       mock<ReturnType<typeof DEPENDENCIES.useLeaseExistenceQuery>>({ data: input?.hasLease ?? false });

@@ -5,6 +5,7 @@ import { cn } from "@akashnetwork/ui/utils";
 import { Clock, LoaderCircle } from "lucide-react";
 
 import { PriceValue } from "@src/components/shared/PriceValue";
+import { AccountSpendGate } from "@src/components/user/AccountActionGate/AccountActionGate";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { getAvgCostPerMonth, perBlockToHourly } from "@src/utils/priceUtils";
 import type { DeployCtaState } from "../deployCtaState/deployCtaState";
@@ -28,7 +29,8 @@ export const DEPENDENCIES = {
   useDeploymentCost,
   PriceValue,
   useQuoteExpiry,
-  CustomTooltip
+  CustomTooltip,
+  AccountSpendGate
 };
 
 type Props = {
@@ -82,7 +84,14 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, deploymentName
             <div className="h-4">{expiry ? <QuoteExpiryLine expiry={expiry} CustomTooltip={d.CustomTooltip} /> : null}</div>
           </div>
         </div>
-        <HeaderCta state={ctaState} onRequestQuotes={requestQuotes} onCloseAndEdit={flow.actions.cancelAndEdit} onDeploy={onDeploy} onRetry={retryDeploy} />
+        <HeaderCta
+          state={ctaState}
+          onRequestQuotes={requestQuotes}
+          onCloseAndEdit={flow.actions.cancelAndEdit}
+          onDeploy={onDeploy}
+          onRetry={retryDeploy}
+          AccountSpendGate={d.AccountSpendGate}
+        />
       </div>
     </header>
   );
@@ -94,16 +103,19 @@ type HeaderCtaProps = {
   onCloseAndEdit: () => void;
   onDeploy: () => void;
   onRetry: () => void;
+  AccountSpendGate: typeof DEPENDENCIES.AccountSpendGate;
 };
 
-function HeaderCta({ state, onRequestQuotes, onCloseAndEdit, onDeploy, onRetry }: HeaderCtaProps) {
+function HeaderCta({ state, onRequestQuotes, onCloseAndEdit, onDeploy, onRetry, AccountSpendGate }: HeaderCtaProps) {
   const className = "h-9 shrink-0 px-3 md:h-10 md:px-8";
   switch (state) {
     case "request-quotes":
       return (
-        <Button type="button" onClick={onRequestQuotes} className={className}>
-          Request quotes
-        </Button>
+        <AccountSpendGate>
+          <Button type="button" onClick={onRequestQuotes} className={className}>
+            Request quotes
+          </Button>
+        </AccountSpendGate>
       );
     case "close-and-edit":
       return (
@@ -114,15 +126,19 @@ function HeaderCta({ state, onRequestQuotes, onCloseAndEdit, onDeploy, onRetry }
     case "deploy":
     case "select-providers":
       return (
-        <Button type="button" disabled={state === "select-providers"} onClick={onDeploy} className={className}>
-          Deploy
-        </Button>
+        <AccountSpendGate>
+          <Button type="button" disabled={state === "select-providers"} onClick={onDeploy} className={className}>
+            Deploy
+          </Button>
+        </AccountSpendGate>
       );
     case "retry":
       return (
-        <Button type="button" onClick={onRetry} className={className}>
-          Retry
-        </Button>
+        <AccountSpendGate>
+          <Button type="button" onClick={onRetry} className={className}>
+            Retry
+          </Button>
+        </AccountSpendGate>
       );
     case "requesting":
       return (

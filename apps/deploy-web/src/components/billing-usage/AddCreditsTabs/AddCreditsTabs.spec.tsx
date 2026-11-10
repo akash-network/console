@@ -6,6 +6,7 @@ import type { DEPENDENCIES } from "./AddCreditsTabs";
 import { AddCreditsTabs } from "./AddCreditsTabs";
 
 import { render, screen } from "@testing-library/react";
+import { buildAccountStatus } from "@tests/seeders/accountStatus";
 
 describe(AddCreditsTabs.name, () => {
   it("renders a trigger for each tab", () => {
@@ -82,6 +83,22 @@ describe(AddCreditsTabs.name, () => {
     };
   }
 
+  it("explains instead of selling credits to a suspended account", () => {
+    const AddCreditsForm = vi.fn(() => <div>purchase-form</div>);
+    setup({ dependencies: { AddCreditsForm, useAccountStatus: () => buildAccountStatus("suspended") } });
+
+    expect(screen.getByText(/Your account is suspended, so you can't buy credits or redeem coupons\./)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Contact support" })).toHaveAttribute("href", "mailto:support@akash.network");
+    expect(screen.queryByRole("tab", { name: /redeem coupon/i })).not.toBeInTheDocument();
+    expect(AddCreditsForm).not.toHaveBeenCalled();
+  });
+
+  it("explains instead of selling credits to a terminated account", () => {
+    setup({ dependencies: { useAccountStatus: () => buildAccountStatus("terminated") } });
+
+    expect(screen.getByText(/Your account has been terminated, so you can't buy credits or redeem coupons\./)).toBeInTheDocument();
+  });
+
   function setup(input: {
     initialTab?: "purchase" | "coupon";
     context?: string;
@@ -106,6 +123,7 @@ describe(AddCreditsTabs.name, () => {
           TabsContent,
           AddCreditsForm: () => <></>,
           RedeemCouponForm: () => <></>,
+          useAccountStatus: () => buildAccountStatus("active"),
           ...input.dependencies
         }}
       />

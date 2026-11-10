@@ -161,13 +161,21 @@ describe(TopBanner.name, () => {
     expect(setIsGenericBannerOpen).toHaveBeenCalledWith(false);
   });
 
+  it("puts the account status banner above every other banner", () => {
+    setup({ hasAccountStatusBanner: true, isGenericBannerOpen: true, hasFundingBanner: true });
+
+    expect(screen.getByText("AccountStatusBanner")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Close generic banner" })).not.toBeInTheDocument();
+    expect(screen.queryByText("FundingBanner")).not.toBeInTheDocument();
+  });
+
   it("renders nothing when no banner applies", () => {
     const { container } = setup({});
 
     expect(container).toBeEmptyDOMElement();
   });
 
-  function setup(input: { isGenericBannerOpen?: boolean; hasTeamPaymentMethodBanner?: boolean; hasFundingBanner?: boolean }) {
+  function setup(input: { isGenericBannerOpen?: boolean; hasTeamPaymentMethodBanner?: boolean; hasFundingBanner?: boolean; hasAccountStatusBanner?: boolean }) {
     const setIsGenericBannerOpen = vi.fn();
     const useTopBanner: typeof TOP_BANNER_DEPENDENCIES.useTopBanner = () =>
       mock<ReturnType<typeof TOP_BANNER_DEPENDENCIES.useTopBanner>>({
@@ -176,7 +184,8 @@ describe(TopBanner.name, () => {
         isGenericBannerOpen: input.isGenericBannerOpen ?? false,
         setIsGenericBannerOpen,
         hasTeamPaymentMethodBanner: input.hasTeamPaymentMethodBanner ?? false,
-        hasFundingBanner: input.hasFundingBanner ?? false
+        hasFundingBanner: input.hasFundingBanner ?? false,
+        hasAccountStatusBanner: input.hasAccountStatusBanner ?? false
       });
     const dependencies = MockComponents(TOP_BANNER_DEPENDENCIES, {
       useTopBanner,
@@ -186,7 +195,8 @@ describe(TopBanner.name, () => {
         </button>
       ),
       TeamPaymentMethodBanner: () => <>TeamPaymentMethodBanner</>,
-      FundingBanner: () => <>FundingBanner</>
+      FundingBanner: () => <>FundingBanner</>,
+      AccountStatusBanner: () => <>AccountStatusBanner</>
     });
 
     return { ...render(<TopBanner dependencies={dependencies} />), setIsGenericBannerOpen };

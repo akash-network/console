@@ -6,6 +6,7 @@ import { Ellipsis, FolderInput, SquarePen, SquareX, Upload } from "lucide-react"
 
 import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { MoveDeploymentDialog } from "@src/components/projects/MoveDeploymentDialog/MoveDeploymentDialog";
+import { AccountMutationGate } from "@src/components/user/AccountActionGate/AccountActionGate";
 import { useServices } from "@src/context/ServicesProvider";
 import { useCloseDeployment } from "@src/hooks/useCloseDeployment/useCloseDeployment";
 import { useCloseDeploymentConfirm } from "@src/hooks/useCloseDeploymentConfirm";
@@ -21,7 +22,8 @@ export const DEPENDENCIES = {
   useRedeploy,
   useCloseDeployment,
   useProjectsUi,
-  MoveDeploymentDialog
+  MoveDeploymentDialog,
+  AccountMutationGate
 };
 
 export interface DeploymentActionsMenuProps {
@@ -98,10 +100,12 @@ export const DeploymentActionsMenu: FC<DeploymentActionsMenuProps> = ({
             </DropdownMenuItem>
           )}
           {deployment.state === "active" && canChangeDeployments && (
-            <DropdownMenuItem onSelect={confirmAndClose} disabled={isClosing}>
-              <SquareX className="mr-2 h-4 w-4" />
-              {isClosing ? "Closing…" : "Close"}
-            </DropdownMenuItem>
+            <d.AccountMutationGate>
+              <DropdownMenuItem onSelect={confirmAndClose} disabled={isClosing}>
+                <SquareX className="mr-2 h-4 w-4" />
+                {isClosing ? "Closing…" : "Close"}
+              </DropdownMenuItem>
+            </d.AccountMutationGate>
           )}
         </DropdownMenuContent>
       </DropdownMenu>

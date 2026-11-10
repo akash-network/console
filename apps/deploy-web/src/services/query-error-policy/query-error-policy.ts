@@ -1,6 +1,8 @@
 import { isHttpError } from "@akashnetwork/http-sdk";
 import { ApiError } from "@akashnetwork/openapi-sdk";
 
+import { readAccountStatusRefusal } from "@src/services/account-status-refusal/account-status-refusal";
+
 const MAX_SERVER_ERROR_RETRIES = 3;
 
 /** The provider proxy answers 502 when it cannot reach the provider host and 503 when the provider itself failed. */
@@ -58,7 +60,7 @@ const USER_STATE_STATUSES = [401, 402];
  * documented way to hand per-call policy to the global cache handlers.
  */
 export function shouldReportError(error: unknown, meta: Record<string, unknown> | undefined): boolean {
-  if (isNetworkFailure(error) || isUserStateRefusal(error)) return false;
+  if (isNetworkFailure(error) || isUserStateRefusal(error) || readAccountStatusRefusal(error)) return false;
 
   const skipErrorReporting = meta?.skipErrorReporting;
   return typeof skipErrorReporting === "function" ? !skipErrorReporting(error) : true;

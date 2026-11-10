@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { ScreenedProvider } from "@src/queries/useScreenedProviders";
+import type { AccountStatus } from "@src/types/user";
 import { defaultPlacement } from "@src/utils/sdl/data";
 import type { GpuAvailability } from "./useGpuAvailability/useGpuAvailability";
 import type { GpuQuantityAvailability } from "./useGpuQuantityAvailability/useGpuQuantityAvailability";
@@ -12,6 +13,7 @@ import { AvailabilityPane } from "./AvailabilityPane";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildScreenedProvider } from "@tests/seeders/screenedProvider";
+import { accountActionGatesFor } from "@tests/unit/accountActionGates";
 import { ComponentMock } from "@tests/unit/mocks";
 
 describe(AvailabilityPane.name, () => {
@@ -383,6 +385,15 @@ describe(AvailabilityPane.name, () => {
     });
   });
 
+  it("keeps a suspended user from choosing a provider", async () => {
+    const { onChooseProvider } = setup({ accountStatus: "suspended" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Choose a provider" }));
+
+    expect(screen.getByRole("button", { name: "Choose a provider" })).toBeDisabled();
+    expect(onChooseProvider).not.toHaveBeenCalled();
+  });
+
   function setup(input: {
     eligibleCount?: number;
     networkCount?: number | null;
@@ -401,6 +412,7 @@ describe(AvailabilityPane.name, () => {
     canSelect?: GpuSelectionActions["canSelect"];
     notBiddingCount?: number;
     isQuoteFlowEnabled?: boolean;
+    accountStatus?: AccountStatus;
   }) {
     const onChooseProvider = vi.fn();
     const onRequestCompute = vi.fn();
@@ -444,7 +456,8 @@ describe(AvailabilityPane.name, () => {
       CustomTooltip: CustomTooltip as never,
       InvalidSpecReasons: () => <p>Settings to fix</p>,
       NotBiddingNotice,
-      useFlag: flag => flag === "gpu_quote_requests" && !!input.isQuoteFlowEnabled
+      useFlag: flag => flag === "gpu_quote_requests" && !!input.isQuoteFlowEnabled,
+      AccountSpendGate: accountActionGatesFor(input.accountStatus ?? "active").AccountSpendGate
     };
 
     render(

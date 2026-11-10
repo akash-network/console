@@ -100,6 +100,15 @@ function handleErrorByCode(errorCode: string, originalMessage?: string): StripeE
       userAction: "Enter a valid coupon code."
     },
 
+    account_suspended: {
+      message: "Your account is suspended, so you can't add funds.",
+      userAction: "Contact support to find out more."
+    },
+    account_terminated: {
+      message: "Your account has been terminated, so you can't add funds.",
+      userAction: "Contact support to find out more."
+    },
+
     // HTTP status-based error codes
     bad_request: {
       message: "Invalid payment information. Please check your details and try again.",

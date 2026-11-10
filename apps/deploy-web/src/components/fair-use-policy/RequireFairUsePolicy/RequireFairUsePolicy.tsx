@@ -29,7 +29,7 @@ type Props = {
   dependencies?: typeof DEPENDENCIES;
 };
 
-/** Holds the page back until acceptance, so an auto-started deployment cannot fire behind the prompt. */
+/** Holds the page back until acceptance, so an auto-started deployment cannot fire behind the prompt; a terminated account can't accept and can't deploy, so it is let through read-only. */
 export function RequireFairUsePolicy({ children, isPublic, dependencies: d = DEPENDENCIES }: Props) {
   const { user } = d.useUser();
   const { isTrialing, hasWallet, isWalletLookupFailed } = d.useWallet();
@@ -38,7 +38,9 @@ export function RequireFairUsePolicy({ children, isPublic, dependencies: d = DEP
   /** Only a user who has never deployed can reach the onboarding route, so there the prompt belongs in the page flow rather than over it. */
   const isOnboardingRoute = d.usePathname() === UrlService.onboardingPicker();
   const isAwaitingTrialWallet = !hasWallet && !isWalletLookupFailed;
-  const mustAccept = !isPublic && isGateEnabled && (isTrialing || isAwaitingTrialWallet) && !!user?.userId && !user.fairUsePolicyAcceptedAt && !hasAccepted;
+  const isTerminated = user?.accountStatus === "terminated";
+  const mustAccept =
+    !isPublic && isGateEnabled && (isTrialing || isAwaitingTrialWallet) && !!user?.userId && !user.fairUsePolicyAcceptedAt && !hasAccepted && !isTerminated;
 
   if (mustAccept) {
     if (isOnboardingRoute) {
