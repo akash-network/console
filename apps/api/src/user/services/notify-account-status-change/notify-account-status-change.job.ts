@@ -13,6 +13,7 @@ export function notifyAccountStatusChangeKeyFor(eventId: string): string {
   return `notifyAccountStatusChange.${eventId}`;
 }
 
+/** Outlasts a notifications outage of a couple of hours, since this email is the only notice the user gets of the status change. */
 export const NOTIFY_ACCOUNT_STATUS_CHANGE_RETRY_OPTIONS = {
   retryLimit: 10,
   retryBackoff: true,
