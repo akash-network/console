@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { BlocksTable } from "./BlocksTable";
 
 import { PageContainer } from "@/components/PageContainer";
-import { Title } from "@/components/Title";
 
 export const metadata: Metadata = {
   title: "Blocks"
@@ -12,9 +11,9 @@ export const metadata: Metadata = {
 const BlocksPage: React.FunctionComponent = () => {
   return (
     <PageContainer>
-      <Title className="mb-4">Blocks</Title>
-
-      <BlocksTable />
+      <div className="mx-auto max-w-[1100px] pt-7">
+        <BlocksTable />
+      </div>
     </PageContainer>
   );
 };

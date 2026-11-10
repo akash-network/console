@@ -34,3 +34,23 @@ export function MeterBar({ percent, className, fillClassName = "bg-muted-foregro
     </div>
   );
 }
+
+export function LoadError({ subject, onRetry, className }: { subject: string; onRetry: () => void; className?: string }) {
+  return (
+    <div role="alert" className={cn("flex flex-col items-center justify-center gap-2 py-10 text-center text-sm text-muted-foreground", className)}>
+      <span>Couldn&apos;t load {subject}.</span>
+      <button type="button" onClick={onRetry} className="font-mono text-[11px] font-medium uppercase tracking-[0.04em] text-foreground hover:text-akash">
+        Try again
+      </button>
+    </div>
+  );
+}
+
+export function StatCard({ label, value }: { label: string; value: string }) {
+  return (
+    <Panel className="flex flex-col gap-2 px-5 py-4">
+      <Eyebrow className="text-[10px]">{label}</Eyebrow>
+      <span className="text-[22px] font-semibold tabular-nums leading-none tracking-[-0.02em]">{value}</span>
+    </Panel>
+  );
+}

@@ -2,7 +2,7 @@
 import { toCapacityRows, toGpuRows, toGpuSummary } from "./dashboardModel";
 
 import { Link } from "@/components/Link/Link";
-import { DeltaLabel, Eyebrow, MeterBar, Panel, PanelTitle } from "@/components/stats/Panel";
+import { DeltaLabel, Eyebrow, LoadError, MeterBar, Panel, PanelTitle } from "@/components/stats/Panel";
 import { Sparkline } from "@/components/stats/Sparkline";
 import type { SeriesPoint } from "@/lib/series/series";
 import { deltaPercent, sliceRange } from "@/lib/series/series";
@@ -35,10 +35,12 @@ export function KpiCard({ label, value, series, href }: { label: string; value: 
 export function GpuMarketplacePanel({
   models,
   capacity,
+  loadError,
   className
 }: {
   models: GpuModelPrice[] | undefined;
   capacity: NetworkCapacity | undefined;
+  loadError?: { onRetry: () => void };
   className?: string;
 }) {
   const rows = models ? toGpuRows(models, GPU_TABLE_ROW_LIMIT) : [];
@@ -69,7 +71,8 @@ export function GpuMarketplacePanel({
             <span className="text-right">Max/hr</span>
           </div>
 
-          {!models && Array.from({ length: 6 }, (_, index) => <div key={index} className="my-2 h-5 animate-pulse rounded bg-nested" />)}
+          {!models && loadError && <LoadError subject="GPU prices" onRetry={loadError.onRetry} />}
+          {!models && !loadError && Array.from({ length: 6 }, (_, index) => <div key={index} className="my-2 h-5 animate-pulse rounded bg-nested" />)}
 
           {rows.map(row => (
             <div key={row.key} className={cn(GPU_TABLE_COLUMNS, "items-center border-b border-muted py-[9px] font-mono text-xs leading-none")}>

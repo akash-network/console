@@ -1,5 +1,5 @@
 import { formatBytes, formatCompact, formatNumber, formatUsd, formatUsdPrice } from "@/lib/statsFormat/statsFormat";
-import type { GpuModelPrice, NetworkCapacity, TransactionDetail } from "@/types";
+import type { GpuModelPrice, NetworkCapacity } from "@/types";
 import { SnapshotsUrlParam } from "@/types/snapshots";
 
 export const microToUnit = (value: number) => value / 1e6;
@@ -118,15 +118,4 @@ export function toGpuSummary(capacity: NetworkCapacity) {
   const utilization = capacity.totalGPU ? Math.round((capacity.activeGPU / capacity.totalGPU) * 100) : 0;
 
   return `${utilization}% utilized · ${formatNumber(capacity.totalGPU - capacity.activeGPU)} available now`;
-}
-
-export function toMessageLabel(transaction: Pick<TransactionDetail, "messages">) {
-  const [firstMessage] = transaction.messages;
-
-  if (!firstMessage) return "—";
-  if (firstMessage.isReceiver) return "Receive";
-
-  const typeName = firstMessage.type.split(".").pop() ?? "";
-
-  return typeName.replace(/^Msg/, "") || "—";
 }

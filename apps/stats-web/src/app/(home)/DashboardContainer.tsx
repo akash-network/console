@@ -22,7 +22,7 @@ const DASHBOARD_REFRESH_INTERVAL_MS = 30_000;
 export const DashboardContainer: React.FunctionComponent = () => {
   const now = useNow(DASHBOARD_REFRESH_INTERVAL_MS);
   const { data: dashboardData } = useDashboardData({ refetchInterval: DASHBOARD_REFRESH_INTERVAL_MS });
-  const { data: gpuPrices } = useGpuPrices();
+  const { data: gpuPrices, isError: isGpuPricesError, refetch: refetchGpuPrices } = useGpuPrices();
   const dailyUsdSpent = useSeries(Snapshots.dailyUUsdSpent, microToUnit);
   const activeLeases = useSeries(Snapshots.activeLeaseCount);
   const activeGpus = useSeries(Snapshots.activeGPU);
@@ -70,7 +70,12 @@ export const DashboardContainer: React.FunctionComponent = () => {
       </div>
 
       <div className="grid grid-cols-12 gap-4">
-        <GpuMarketplacePanel models={gpuPrices?.models} capacity={dashboardData?.networkCapacity} className="col-span-12 xl:col-span-9" />
+        <GpuMarketplacePanel
+          models={gpuPrices?.models}
+          capacity={dashboardData?.networkCapacity}
+          loadError={isGpuPricesError ? { onRetry: () => refetchGpuPrices() } : undefined}
+          className="col-span-12 xl:col-span-9"
+        />
         <CapacityPanel capacity={dashboardData?.networkCapacity} className="col-span-12 xl:col-span-3" />
       </div>
 

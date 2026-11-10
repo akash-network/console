@@ -1,10 +1,10 @@
 "use client";
-import { toMessageLabel } from "./dashboardModel";
 import { SideRow } from "./SidePanels";
 
 import { Link } from "@/components/Link/Link";
-import { Eyebrow, MeterBar, Panel, PanelTitle } from "@/components/stats/Panel";
+import { Eyebrow, LoadError, MeterBar, Panel, PanelTitle } from "@/components/stats/Panel";
 import { useNow } from "@/hooks/useNow";
+import { firstMessageLabel } from "@/lib/chainActivity/chainActivity";
 import { formatAgo, formatCompact, formatHash, formatNumber, formatPercent } from "@/lib/statsFormat/statsFormat";
 import { UrlService } from "@/lib/urlUtils";
 import { cn } from "@/lib/utils";
@@ -17,7 +17,7 @@ const LATEST_ROW_LIMIT = 8;
 
 export function LatestBlocksPanel() {
   const now = useNow(RELATIVE_TIME_REFRESH_MS);
-  const { data: blocks } = useBlocks(LATEST_ROW_LIMIT, { refetchInterval: LATEST_REFRESH_INTERVAL_MS });
+  const { data: blocks, isError: isBlocksError, refetch: refetchBlocks } = useBlocks(LATEST_ROW_LIMIT, { refetchInterval: LATEST_REFRESH_INTERVAL_MS });
 
   return (
     <Panel className="flex flex-col px-5 py-5 sm:px-6">
@@ -27,7 +27,7 @@ export function LatestBlocksPanel() {
           All blocks →
         </Link>
       </div>
-      {!blocks && <RowsSkeleton />}
+      {!blocks && (isBlocksError ? <LoadError subject="blocks" onRetry={() => refetchBlocks()} /> : <RowsSkeleton />)}
       {blocks?.map((block: Block) => (
         <div key={block.height} className="grid grid-cols-[100px_minmax(0,1fr)_56px_64px] items-center gap-2.5 border-b border-muted py-2 leading-none">
           <Link href={UrlService.block(block.height)} className="font-mono text-xs font-medium text-foreground hover:text-akash hover:no-underline">
@@ -49,7 +49,11 @@ export function LatestBlocksPanel() {
 
 export function LatestTransactionsPanel() {
   const now = useNow(RELATIVE_TIME_REFRESH_MS);
-  const { data: transactions } = useTransactions(LATEST_ROW_LIMIT, { refetchInterval: LATEST_REFRESH_INTERVAL_MS });
+  const {
+    data: transactions,
+    isError: isTransactionsError,
+    refetch: refetchTransactions
+  } = useTransactions(LATEST_ROW_LIMIT, { refetchInterval: LATEST_REFRESH_INTERVAL_MS });
 
   return (
     <Panel className="flex flex-col px-5 py-5 sm:px-6">
@@ -59,7 +63,7 @@ export function LatestTransactionsPanel() {
           All transactions →
         </Link>
       </div>
-      {!transactions && <RowsSkeleton />}
+      {!transactions && (isTransactionsError ? <LoadError subject="transactions" onRetry={() => refetchTransactions()} /> : <RowsSkeleton />)}
       {transactions?.map((transaction: TransactionDetail) => (
         <div
           key={transaction.hash}
@@ -71,7 +75,7 @@ export function LatestTransactionsPanel() {
           <div className="flex min-w-0 items-center gap-1.5">
             <span className={cn("h-[5px] w-[5px] flex-none rounded-full", transaction.isSuccess ? "bg-muted-foreground" : "bg-akash")} aria-hidden />
             <span className="truncate rounded border px-1.5 py-1 font-mono text-[10px] font-medium tracking-[0.04em] text-foreground">
-              {toMessageLabel(transaction)}
+              {firstMessageLabel(transaction)}
             </span>
             {transaction.messages.length > 1 && <span className="font-mono text-[10px] text-faint">+{transaction.messages.length - 1}</span>}
           </div>
