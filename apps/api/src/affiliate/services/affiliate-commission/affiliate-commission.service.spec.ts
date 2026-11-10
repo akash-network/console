@@ -1020,7 +1020,11 @@ describe(AffiliateCommissionService.name, () => {
       await service.syncCommission(payment.id, "refund");
 
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(commission.id, { status: "succeeded", amountRefunded: 200 });
-      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(300, expect.anything(), expect.objectContaining({ refundedBefore: 200, refundedAfter: 500 }));
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(
+        300,
+        expect.anything(),
+        expect.objectContaining({ refundedBefore: 200, refundedAfter: 500 })
+      );
     });
 
     it("records the commission as credited without crediting it again or canceling it when the release retries after a revocation", async () => {
@@ -1036,6 +1040,67 @@ describe(AffiliateCommissionService.name, () => {
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledTimes(1);
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(commission.id, { status: "succeeded", amountRefunded: 0 });
       expect(refillService.topUpWallet).not.toHaveBeenCalled();
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+    });
+
+    it("takes back the share a refund trimmed off the held row before the release retried", async () => {
+      const { service, payment, commission, stripeTransactionRepository, refillService } = setup({
+        hasCommission: true,
+        commissionStatus: "pending",
+        commissionAmount: 500,
+        commissionAmountRefunded: 250,
+        paymentAmountRefunded: 5000,
+        releaseCredit: { status: "landed", amount: 500 }
+      });
+
+      await service.syncCommission(payment.id, "release");
+
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(commission.id, { status: "succeeded", amountRefunded: 0 });
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(commission.id, { amountRefunded: 250 });
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(
+        250,
+        expect.anything(),
+        expect.objectContaining({ refundedBefore: 0, refundedAfter: 250 })
+      );
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+    });
+
+    it.each(["release", "refund"] as const)(
+      "takes back the whole credit from a commission a full refund canceled before its credit was seen, on a %s",
+      async trigger => {
+        const { service, payment, commission, stripeTransactionRepository, refillService } = setup({
+          hasCommission: true,
+          commissionStatus: "canceled",
+          commissionAmount: 500,
+          commissionAmountRefunded: 500,
+          paymentAmountRefunded: 10000,
+          releaseCredit: { status: "landed", amount: 500 }
+        });
+
+        await service.syncCommission(payment.id, trigger);
+
+        expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(commission.id, { status: "succeeded", amountRefunded: 0 });
+        expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(commission.id, { amountRefunded: 500, status: "refunded" });
+        expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(
+          500,
+          expect.anything(),
+          expect.objectContaining({ refundedBefore: 0, refundedAfter: 500 })
+        );
+      }
+    );
+
+    it("leaves a canceled commission alone when no release credit exists", async () => {
+      const { service, payment, stripeTransactionRepository, refillService } = setup({
+        hasCommission: true,
+        commissionStatus: "canceled",
+        commissionAmount: 500,
+        commissionAmountRefunded: 500,
+        paymentAmountRefunded: 10000
+      });
+
+      await service.syncCommission(payment.id, "refund");
+
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
       expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
     });
 
@@ -1155,7 +1220,8 @@ describe(AffiliateCommissionService.name, () => {
     affiliateRepository.findOneBy.mockResolvedValue(input.isAffiliateGone ? undefined : affiliate);
 
     const paymentCreditRepository = mock<PaymentCreditRepository>();
-    const paymentCredit = input.hasPaymentCredit === false ? undefined : createPaymentCredit({ transactionId: payment.id, status: input.paymentCreditStatus ?? "landed" });
+    const paymentCredit =
+      input.hasPaymentCredit === false ? undefined : createPaymentCredit({ transactionId: payment.id, status: input.paymentCreditStatus ?? "landed" });
     const releaseCredit = input.releaseCredit && createPaymentCredit({ transactionId: commission.id, ...input.releaseCredit });
     paymentCreditRepository.findByTransactionId.mockImplementation(async transactionId => (transactionId === commission.id ? releaseCredit : paymentCredit));
     stripeTransactionRepository.findAffiliateCommissionBySource.mockResolvedValue(input.hasCommission ? commission : undefined);

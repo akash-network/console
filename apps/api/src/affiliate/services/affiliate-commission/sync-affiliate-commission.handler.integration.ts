@@ -208,6 +208,26 @@ describe(SyncAffiliateCommissionHandler.name, () => {
     expect(topUpWallet).not.toHaveBeenCalled();
   });
 
+  it("takes back the whole credit when the release retries on a commission a full refund canceled before its credit was seen", async () => {
+    const { payment, affiliateUser, reduceWalletBalance, topUpWallet, syncCommissionOf, releaseCommissionOf } = await setup();
+    const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
+    await syncCommissionOf(payment.id);
+    const { id } = (await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id))!;
+    await stripeTransactionRepository.updateById(id, { status: "canceled", amountRefunded: 500 });
+    await seedPaymentCredit({ transactionId: id, status: "landed", amount: 500, bonusAmount: 0 });
+    await stripeTransactionRepository.updateById(payment.id, { amountRefunded: 10000 });
+
+    await releaseCommissionOf(payment.id);
+
+    await expect(stripeTransactionRepository.findById(id)).resolves.toMatchObject({ status: "refunded", amount: 500, amountRefunded: 500 });
+    expect(reduceWalletBalance).toHaveBeenCalledWith(
+      500,
+      { userId: affiliateUser.id, organizationId: null },
+      { currency: "usd", transactionId: id, refundedBefore: 0, refundedAfter: 500 }
+    );
+    expect(topUpWallet).not.toHaveBeenCalled();
+  });
+
   it("takes back the commission on the refunded part of a referred user's payment after its release, run the way a worker runs it", async () => {
     const { payment, affiliateUser, reduceWalletBalance, syncCommissionOf } = await setup({ paymentAmount: 10000, paymentAmountRefunded: 4000 });
     const stripeTransactionRepository = container.resolve(StripeTransactionRepository);

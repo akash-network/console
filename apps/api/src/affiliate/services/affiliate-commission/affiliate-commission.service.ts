@@ -37,6 +37,8 @@ type SkipReason =
 
 type CancelReason = Extract<SkipReason, "program_disabled" | "affiliate_revoked" | "affiliate_abuse_locked" | "nothing_left_to_grant">;
 
+const UNCREDITED_COMMISSION_STATUSES = new Set<StripeTransactionOutput["status"]>(["pending", "canceled"]);
+
 @singleton()
 export class AffiliateCommissionService {
   readonly #logger: ReturnType<CreateLogger>;
@@ -72,7 +74,7 @@ export class AffiliateCommissionService {
       const commission = await this.stripeTransactionRepository.findAffiliateCommissionBySourceAndLock(payment.id);
       if (!commission) {
         if (trigger === "settlement") await this.#hold(payment);
-      } else if (commission.status === "pending" && releaseCredit) {
+      } else if (releaseCredit && UNCREDITED_COMMISSION_STATUSES.has(commission.status)) {
         await this.#recoverLandedRelease(payment, commission, releaseCredit, trigger);
       } else if (commission.status === "pending") {
         await (trigger === "release" ? this.#release(payment, commission) : this.#reconcileHeld(payment, commission));
@@ -94,7 +96,7 @@ export class AffiliateCommissionService {
     return commission ? this.paymentCreditRepository.findByTransactionId(commission.id) : undefined;
   }
 
-  /** A release whose credit landed on its own connection before its transaction rolled back leaves the row pending, so the row is recorded as credited before any refund is taken back from it. */
+  /** A release whose credit landed on its own connection before its transaction rolled back leaves the row pending, or canceled by a refund that read no credit yet, so the row is recorded as credited before any refund is taken back from it. */
   async #recoverLandedRelease(
     payment: StripeTransactionOutput,
     commission: StripeTransactionOutput,
@@ -105,9 +107,15 @@ export class AffiliateCommissionService {
 
     const credited = { ...commission, status: "succeeded" as const, amountRefunded: commission.amount - credit.amount };
     await this.stripeTransactionRepository.updateById(commission.id, { status: credited.status, amountRefunded: credited.amountRefunded });
-    this.#logger.warn({ event: "AFFILIATE_COMMISSION_RELEASE_RECOVERED", commissionId: commission.id, sourceTransactionId: payment.id, amountCents: credit.amount, trigger });
+    this.#logger.warn({
+      event: "AFFILIATE_COMMISSION_RELEASE_RECOVERED",
+      commissionId: commission.id,
+      sourceTransactionId: payment.id,
+      amountCents: credit.amount,
+      trigger
+    });
 
-    if (trigger !== "release") await this.#reconcileReversal(payment, credited);
+    await this.#reconcileReversal(payment, credited);
   }
 
   /** Records the commission without crediting it and schedules its release in the same transaction, so a refund or a lost dispute during the hold only ever edits a row. */
