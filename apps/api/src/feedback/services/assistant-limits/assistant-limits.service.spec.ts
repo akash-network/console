@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { CreateLogger } from "@src/core";
 import { envSchema } from "@src/feedback/config/env.config";
 import type { AssistantDailyTokenUsageRepository } from "@src/feedback/repositories/assistant-daily-token-usage/assistant-daily-token-usage.repository";
 import type { AssistantUserUsageRepository } from "@src/feedback/repositories/assistant-user-usage/assistant-user-usage.repository";
@@ -80,19 +81,57 @@ describe(AssistantLimitsService.name, () => {
 
       expect(tokenUsageRepository.add).not.toHaveBeenCalled();
     });
+
+    it("warns once when the day's tokens cross 80% of the budget", async () => {
+      vi.useFakeTimers({ now: NOW });
+      const { service, tokenUsageRepository, logger } = setup();
+      const usage = { promptTokens: 15, completionTokens: 5 };
+
+      tokenUsageRepository.add.mockResolvedValueOnce(790);
+      await service.recordUsage(usage);
+      expect(logger.warn).not.toHaveBeenCalled();
+
+      tokenUsageRepository.add.mockResolvedValueOnce(810);
+      await service.recordUsage(usage);
+      expect(logger.warn).toHaveBeenCalledWith({ event: "ASSISTANT_TOKEN_BUDGET_WARNING", day: "2026-11-04", total: 810, budget: 1000 });
+
+      tokenUsageRepository.add.mockResolvedValueOnce(850);
+      await service.recordUsage(usage);
+      expect(logger.warn).toHaveBeenCalledTimes(1);
+    });
+
+    it("warns when the day's tokens land exactly on 80% of the budget", async () => {
+      const { service, tokenUsageRepository, logger } = setup();
+      tokenUsageRepository.add.mockResolvedValue(800);
+
+      await service.recordUsage({ promptTokens: 15, completionTokens: 5 });
+
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "ASSISTANT_TOKEN_BUDGET_WARNING", total: 800 }));
+    });
+
+    it("does not warn again when the day's tokens were already at 80% of the budget", async () => {
+      const { service, tokenUsageRepository, logger } = setup();
+      tokenUsageRepository.add.mockResolvedValue(820);
+
+      await service.recordUsage({ promptTokens: 15, completionTokens: 5 });
+
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
   });
 
   function setup() {
     const userUsageRepository = mock<AssistantUserUsageRepository>();
     const tokenUsageRepository = mock<AssistantDailyTokenUsageRepository>();
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
     const config = envSchema.parse({
       ASSISTANT_MESSAGES_PER_MINUTE: "3",
       ASSISTANT_MESSAGES_PER_DAY: "50",
       ASSISTANT_TRIAL_MESSAGES_PER_DAY: "10",
       ASSISTANT_DAILY_TOKEN_BUDGET: "1000"
     });
-    const service = new AssistantLimitsService(userUsageRepository, tokenUsageRepository, config);
+    const service = new AssistantLimitsService(userUsageRepository, tokenUsageRepository, config, createLogger);
 
-    return { service, userUsageRepository, tokenUsageRepository };
+    return { service, userUsageRepository, tokenUsageRepository, logger };
   }
 });

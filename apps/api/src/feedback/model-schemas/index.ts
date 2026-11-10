@@ -8,3 +8,4 @@ export * from "./assistant-conversation-daily-count/assistant-conversation-daily
 export * from "./assistant-user-usage/assistant-user-usage.schema";
 export * from "./assistant-daily-token-usage/assistant-daily-token-usage.schema";
 export * from "./assistant-pending-turn/assistant-pending-turn.schema";
+export * from "./assistant-turn-trace/assistant-turn-trace.schema";

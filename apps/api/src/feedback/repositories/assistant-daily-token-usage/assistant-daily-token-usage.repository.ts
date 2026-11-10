@@ -19,8 +19,8 @@ export class AssistantDailyTokenUsageRepository {
     return this.txManager.getPgTx() || this.pg;
   }
 
-  async add(day: string, usage: { promptTokens: number; completionTokens: number }): Promise<void> {
-    await this.#cursor
+  async add(day: string, usage: { promptTokens: number; completionTokens: number }): Promise<number> {
+    const [row] = await this.#cursor
       .insert(this.table)
       .values({ day, ...usage })
       .onConflictDoUpdate({
@@ -30,7 +30,10 @@ export class AssistantDailyTokenUsageRepository {
           completionTokens: sql`${this.table.completionTokens} + excluded.completion_tokens`,
           updatedAt: sql`now()`
         }
-      });
+      })
+      .returning({ promptTokens: this.table.promptTokens, completionTokens: this.table.completionTokens });
+
+    return row.promptTokens + row.completionTokens;
   }
 
   async totalOn(day: string): Promise<number> {

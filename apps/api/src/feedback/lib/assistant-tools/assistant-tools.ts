@@ -123,7 +123,7 @@ export function proposalActionTypeOf(toolName: string): ProposalActionType | nul
   if (!toolName.startsWith(PROPOSAL_TOOL_PREFIX)) return null;
 
   const type = toolName.slice(PROPOSAL_TOOL_PREFIX.length);
-  return type in PROPOSAL_TOOL_ARGUMENTS ? (type as ProposalActionType) : null;
+  return Object.hasOwn(PROPOSAL_TOOL_ARGUMENTS, type) ? (type as ProposalActionType) : null;
 }
 
 export function isReadToolName(name: string): name is ReadToolName {
@@ -140,6 +140,10 @@ export function isConfigureFormToolName(name: string): boolean {
 
 export function isLiveHelpToolName(name: string): boolean {
   return name === LIVE_HELP_TOOL_NAME;
+}
+
+export function isAssistantToolName(name: string): boolean {
+  return isReadToolName(name) || isClientToolName(name) || proposalActionTypeOf(name) !== null || isLiveHelpToolName(name);
 }
 
 /** Splits the optional diagnosis from the action's own arguments, which are validated apart, and drops it on a proposal that fixes nothing. */

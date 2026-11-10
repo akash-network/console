@@ -31,6 +31,13 @@ describe(AssistantDailyTokenUsageRepository.name, () => {
 
       expect(await repository.totalOn("2026-11-04")).toBe(55);
     });
+
+    it("returns the day's new total", async () => {
+      const { repository } = setup();
+
+      expect(await repository.add("2026-11-05", { promptTokens: 100, completionTokens: 20 })).toBe(120);
+      expect(await repository.add("2026-11-05", { promptTokens: 50, completionTokens: 5 })).toBe(175);
+    });
   });
 
   describe("totalOn", () => {

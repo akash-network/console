@@ -1,9 +1,10 @@
-import createError from "http-errors";
+import createError, { isHttpError } from "http-errors";
 import { randomUUID } from "node:crypto";
 import { inject, singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { UserWalletRepository } from "@src/billing/repositories";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import { TxService } from "@src/core/services/tx/tx.service";
@@ -18,7 +19,9 @@ import type {
 } from "@src/feedback/http-schemas/assistant-conversation.schema";
 import { ASSISTANT_ERROR_CODES, assistantUnavailable } from "@src/feedback/lib/assistant-errors/assistant-errors";
 import { ACTION_RESULT_TOOL_NAME, historyFromClient, historyFromStored, recentActionsOf } from "@src/feedback/lib/assistant-history/assistant-history";
+import { ASSISTANT_PROMPT_VERSION } from "@src/feedback/lib/assistant-prompt-version/assistant-prompt-version";
 import { buildAssistantSystemPrompt } from "@src/feedback/lib/assistant-system-prompt/assistant-system-prompt";
+import { AssistantTurnTraceBuilder, writeTraceQuietly } from "@src/feedback/lib/assistant-turn-trace/assistant-turn-trace";
 import { countRedactions, redactSecrets } from "@src/feedback/lib/redact-secrets/redact-secrets";
 import type { AssistantConversationContext } from "@src/feedback/model-schemas";
 import { FEEDBACK_CONFIG, type FeedbackConfig } from "@src/feedback/providers/config.provider";
@@ -30,6 +33,7 @@ import {
 import { AssistantConversationDailyCountRepository } from "@src/feedback/repositories/assistant-conversation-daily-count/assistant-conversation-daily-count.repository";
 import { AssistantMessageRepository } from "@src/feedback/repositories/assistant-message/assistant-message.repository";
 import { AssistantPendingTurnRepository } from "@src/feedback/repositories/assistant-pending-turn/assistant-pending-turn.repository";
+import { AssistantTurnTraceRepository } from "@src/feedback/repositories/assistant-turn-trace/assistant-turn-trace.repository";
 import { AkashMlClient, type ChatMessage } from "@src/feedback/services/akashml-client/akashml.client";
 import { AssistantLimitsService } from "@src/feedback/services/assistant-limits/assistant-limits.service";
 import { toolContentOf, truncated } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
@@ -43,6 +47,8 @@ const MAX_CLIENT_EXCERPT_LENGTH = 6_000;
 export type RunAssistantTurn = (emit: EmitAssistantEvent, signal: AbortSignal) => Promise<void>;
 
 type ConversationContextInput = StartAssistantConversationRequest["data"]["context"];
+
+type CountedMessage = { conversationId: string; page: string | null };
 
 function dayOf(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -62,6 +68,8 @@ function excerptOf(tool: string, content: string): string {
 /** Stores a conversation only when the user allowed review; otherwise the client holds the history and the API keeps a daily count when it ends. */
 @singleton()
 export class AssistantConversationService {
+  readonly #logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly authService: AuthService,
     private readonly executionContextService: ExecutionContextService,
@@ -70,6 +78,7 @@ export class AssistantConversationService {
     private readonly assistantMessageRepository: AssistantMessageRepository,
     private readonly assistantConversationDailyCountRepository: AssistantConversationDailyCountRepository,
     private readonly assistantPendingTurnRepository: AssistantPendingTurnRepository,
+    private readonly assistantTurnTraceRepository: AssistantTurnTraceRepository,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly akashMlClient: AkashMlClient,
     private readonly limitsService: AssistantLimitsService,
@@ -77,8 +86,11 @@ export class AssistantConversationService {
     private readonly turnService: AssistantTurnService,
     private readonly jobQueueService: JobQueueService,
     private readonly txService: TxService,
-    @inject(FEEDBACK_CONFIG) private readonly config: FeedbackConfig
-  ) {}
+    @inject(FEEDBACK_CONFIG) private readonly config: FeedbackConfig,
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
+  ) {
+    this.#logger = createLogger({ context: AssistantConversationService.name });
+  }
 
   async start({ copyVersion, context }: StartAssistantConversationRequest["data"]): Promise<StartAssistantConversationResponse["data"]> {
     const consent = await this.#currentConsent();
@@ -90,7 +102,7 @@ export class AssistantConversationService {
 
     const conversation = await this.assistantConversationRepository.accessibleBy(this.authService.ability, "create").create({
       userId: this.authService.currentUser.id,
-      organizationId: this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId ?? null,
+      organizationId: this.#currentOrganizationId(),
       context: { page: context?.page, dseq: context?.dseq, isTrialing: await this.#isTrialing() }
     });
 
@@ -98,7 +110,7 @@ export class AssistantConversationService {
   }
 
   async prepareMessage(conversationId: string, { content, history, context }: SendAssistantMessageRequest["data"]): Promise<RunAssistantTurn> {
-    const { consent, isTrialing } = await this.#admit({ countsAsMessage: true });
+    const { consent, isTrialing } = await this.#admit({ conversationId, page: context?.page ?? null });
     const conversation = await this.#ownConversation(conversationId);
     if (conversation?.endedAt) throw createError(409, "This conversation has ended. Start a new one.", { errorCode: ASSISTANT_ERROR_CODES.conversationEnded });
 
@@ -117,11 +129,13 @@ export class AssistantConversationService {
     ];
 
     const redactedSecretCount = countRedactions(content, userMessage);
+    const organizationId = this.#currentOrganizationId();
+    const page = context?.page ?? conversation?.context.page ?? null;
 
     return async (emit, signal) => {
       if (redactedSecretCount > 0) await emit({ type: "secret_redacted", count: redactedSecretCount });
       await this.turnService.run(
-        { conversationId, userId: this.authService.currentUser.id, stored, isTrialing, configureFormOpen, messages, roundsUsed: 0 },
+        { conversationId, userId: this.authService.currentUser.id, organizationId, page, stored, isTrialing, configureFormOpen, messages, roundsUsed: 0 },
         emit,
         signal
       );
@@ -130,7 +144,7 @@ export class AssistantConversationService {
 
   /** Each requested call must be answered once, so a resumed turn never shows the model a result it did not ask for. */
   async prepareClientToolResults(conversationId: string, { results }: SubmitClientToolResultsRequest["data"]): Promise<RunAssistantTurn> {
-    const { consent } = await this.#admit({ countsAsMessage: false });
+    const { consent } = await this.#admit();
     const userId = this.authService.currentUser.id;
 
     const turn = await this.txService.transaction(async () => {
@@ -175,6 +189,8 @@ export class AssistantConversationService {
         {
           conversationId,
           userId,
+          organizationId: state.organizationId ?? null,
+          page: state.page ?? null,
           stored,
           isTrialing: state.isTrialing,
           configureFormOpen: state.configureFormOpen === true,
@@ -213,6 +229,15 @@ export class AssistantConversationService {
   }
 
   async recordActionResult(conversationId: string, input: RecordAssistantActionResultRequest["data"]): Promise<{ recorded: boolean }> {
+    await writeTraceQuietly(this.#logger, () =>
+      this.assistantTurnTraceRepository.recordCardDecision({
+        userId: this.authService.currentUser.id,
+        conversationId,
+        proposalId: input.proposalId,
+        decision: input.decision
+      })
+    );
+
     const conversation = await this.#ownConversation(conversationId);
     if (!conversation || !(await this.#latestConsent())?.reviewOptIn) return { recorded: false };
 
@@ -236,15 +261,39 @@ export class AssistantConversationService {
     return { recorded: true };
   }
 
-  async #admit({ countsAsMessage }: { countsAsMessage: boolean }): Promise<{ consent: AssistantConsentOutput; isTrialing: boolean | null }> {
+  async #admit(countedMessage?: CountedMessage): Promise<{ consent: AssistantConsentOutput; isTrialing: boolean | null }> {
     const consent = await this.#currentConsent();
     if (!this.akashMlClient.isAvailable()) throw assistantUnavailable();
 
     const isTrialing = await this.#isTrialing();
-    if (countsAsMessage) await this.limitsService.countMessage(this.authService.currentUser.id, isTrialing);
+    if (countedMessage) await this.#countMessage(countedMessage, isTrialing);
     await this.limitsService.assertWithinBudget();
 
     return { consent, isTrialing };
+  }
+
+  async #countMessage(countedMessage: CountedMessage, isTrialing: boolean | null): Promise<void> {
+    try {
+      await this.limitsService.countMessage(this.authService.currentUser.id, isTrialing);
+    } catch (error) {
+      if (isHttpError(error) && error.status === 429) await this.#traceLimitedTurn(countedMessage);
+      throw error;
+    }
+  }
+
+  async #traceLimitedTurn({ conversationId, page }: CountedMessage): Promise<void> {
+    const refusedAt = new Date();
+    const trace = new AssistantTurnTraceBuilder({
+      conversationId,
+      userId: this.authService.currentUser.id,
+      organizationId: this.#currentOrganizationId(),
+      page,
+      model: this.config.ASSISTANT_MODEL,
+      promptVersion: ASSISTANT_PROMPT_VERSION,
+      startedAt: refusedAt
+    });
+
+    await writeTraceQuietly(this.#logger, () => this.assistantTurnTraceRepository.create(trace.finish("limited", refusedAt)));
   }
 
   async #currentConsent(): Promise<AssistantConsentOutput> {
@@ -264,6 +313,10 @@ export class AssistantConversationService {
     return await this.assistantConversationRepository
       .accessibleBy(this.authService.ability, "read")
       .findOneBy({ id: conversationId, userId: this.authService.currentUser.id });
+  }
+
+  #currentOrganizationId(): string | null {
+    return this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId ?? null;
   }
 
   async #isTrialing(): Promise<boolean | null> {
