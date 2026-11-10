@@ -4,8 +4,8 @@ import { Parser } from "@json2csv/plainjs";
 import { Download } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+import { ZoomableChart } from "@/components/graph/ZoomableChart";
 import { Link } from "@/components/Link/Link";
-import { LineChart } from "@/components/stats/LineChart";
 import { DeltaLabel, Eyebrow, Panel } from "@/components/stats/Panel";
 import { RangePicker } from "@/components/stats/Toggles";
 import type { GraphKind, GraphMetric, GraphSources } from "@/lib/graphMetrics/graphMetrics";
@@ -16,7 +16,6 @@ import { EMPTY_VALUE, formatLongDate, formatPercent } from "@/lib/statsFormat/st
 import { cn } from "@/lib/utils";
 import { useBmeDashboardData, useDashboardData, useGraphSnapshot, useProviderGraphSnapshot } from "@/queries";
 
-const GRAPH_MIN_HEIGHT = 400;
 const METRIC_GROUPS = groupGraphMetrics(GRAPH_METRICS);
 
 export function GraphPage({ kind, urlParam }: { kind: GraphKind; urlParam: string }) {
@@ -59,15 +58,7 @@ export function GraphPage({ kind, urlParam }: { kind: GraphKind; urlParam: strin
             {rangedSeries.length > 1 && <DeltaLabel className="text-[13px]" percent={deltaPercent(rangedSeries, 0)} period={range.toLowerCase()} />}
           </div>
 
-          <LineChart
-            series={rangedSeries}
-            minHeight={GRAPH_MIN_HEIGHT}
-            formatValue={metric.formatValue}
-            formatAxisValue={metric.formatAxisValue}
-            latestPointLabel="LATEST"
-            yTickCount={5}
-            maxDateLabels={8}
-          />
+          <ZoomableChart series={series ?? []} rangedSeries={rangedSeries} formatValue={metric.formatValue} formatAxisValue={metric.formatAxisValue} />
         </Panel>
 
         <GraphSummary metric={metric} series={rangedSeries} range={range} />
