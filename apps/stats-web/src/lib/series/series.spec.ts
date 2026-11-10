@@ -84,12 +84,12 @@ describe("series", () => {
       expect(deltaPercent(points([200, 150]), 1)).toBe(-25);
     });
 
-    it("is zero from a zero reference", () => {
-      expect(deltaPercent(points([0, 10]), 1)).toBe(0);
+    it("is unknown from a zero reference", () => {
+      expect(deltaPercent(points([0, 10]), 1)).toBeUndefined();
     });
 
-    it("is zero without enough points", () => {
-      expect(deltaPercent(points([10]), 1)).toBe(0);
+    it("is unknown without enough points", () => {
+      expect(deltaPercent(points([10]), 1)).toBeUndefined();
     });
   });
 

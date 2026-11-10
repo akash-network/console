@@ -38,7 +38,7 @@ export function HeroChartPanel({ seriesByMetric, className }: { seriesByMetric: 
               <span className="text-[40px] font-semibold tabular-nums leading-none tracking-[-0.025em]">
                 {latest ? metric.formatValue(latest.value) : EMPTY_VALUE}
               </span>
-              {series && <DeltaLabel className="text-[13px]" percent={deltaPercent(series, daysOf(range))} period={range.toLowerCase()} />}
+              {rangedSeries.length > 1 && <DeltaLabel className="text-[13px]" percent={deltaPercent(rangedSeries, 0)} period={range.toLowerCase()} />}
             </div>
             <span className="text-xs leading-snug text-faint">{metric.description}</span>
           </div>

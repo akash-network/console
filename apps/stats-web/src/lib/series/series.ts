@@ -52,13 +52,13 @@ export function sliceRange(series: SeriesPoint[], days: number) {
 
 export function deltaPercent(series: SeriesPoint[], days: number) {
   if (series.length < 2) {
-    return 0;
+    return undefined;
   }
 
   const latest = series[series.length - 1].value;
   const reference = series[Math.max(0, series.length - 1 - (days || series.length))].value;
 
-  return reference ? ((latest - reference) / reference) * 100 : 0;
+  return reference ? ((latest - reference) / reference) * 100 : undefined;
 }
 
 export function fitSeries(series: SeriesPoint[], width: number, height: number, padding: ChartPadding): FittedSeries {
