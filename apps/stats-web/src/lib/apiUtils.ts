@@ -37,6 +37,9 @@ export class ApiUrlService {
   static providerAttributesSchema() {
     return `${this.baseApiUrl}/v1/provider-attributes-schema`;
   }
+  static gpuPrices() {
+    return `${this.baseApiUrl}/v1/gpu-prices`;
+  }
   static networkCapacity() {
     return `${this.baseApiUrl}/v1/network-capacity`;
   }

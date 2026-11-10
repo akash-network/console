@@ -7,3 +7,4 @@ export * from "./useTransactionsQuery";
 export * from "./useValidatorsQuery";
 export * from "./useBmeDashboardData";
 export * from "./useBmeStatusHistory";
+export * from "./useGpuPrices";
