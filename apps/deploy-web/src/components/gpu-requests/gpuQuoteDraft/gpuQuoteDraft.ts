@@ -4,7 +4,7 @@ import { z } from "zod";
 import type {
   CatalogGpu,
   Fabric,
-  Interconnect,
+  GpuUnit,
   QuoteRequestData,
   QuoteRequestReceipt,
   QuoteRequestSource,
@@ -15,15 +15,15 @@ import type {
   UptimeSla
 } from "./gpuQuoteCatalog";
 import {
-  FABRICS,
+  findCatalogGpu,
   GPU_CATALOG,
   GPUS_PER_NODE,
   OTHER_GPU_MODEL,
   RECOMMENDED_STORAGE_TB_PER_NODE,
   REGION_AREAS,
-  SERVER_LINKS,
-  SMALL_GPU_COUNTS,
-  TERMS
+  STARTS,
+  TERMS,
+  unitOfGpu
 } from "./gpuQuoteCatalog";
 
 export type StartingPointId = "configuration" | "full_server" | "training_cluster" | "inference_fleet" | "custom";
@@ -33,7 +33,6 @@ export type GpuQuoteDraft = {
   gpuModel: string | null;
   otherGpuModel: string;
   gpuCount: number;
-  interconnect: Interconnect;
   fabric: Fabric;
   regionMode: RegionMode;
   areas: RegionArea[];
@@ -50,10 +49,7 @@ export type GpuQuoteDraft = {
 };
 
 export type DraftAnswers = Partial<
-  Pick<
-    GpuQuoteDraft,
-    "gpuModel" | "otherGpuModel" | "gpuCount" | "interconnect" | "fabric" | "storageTbPerNode" | "nvme" | "regionMode" | "areas"
-  >
+  Pick<GpuQuoteDraft, "gpuModel" | "otherGpuModel" | "gpuCount" | "fabric" | "storageTbPerNode" | "nvme" | "regionMode" | "areas">
 >;
 
 export type StartingPoint = { id: StartingPointId; name: string; use: string; answers: DraftAnswers; detail?: string };
@@ -63,19 +59,19 @@ export const STARTER_PACKAGES: StartingPoint[] = [
     id: "inference_fleet",
     name: "Inference fleet",
     use: "Serving models at scale",
-    answers: { gpuModel: "b300", gpuCount: 16, interconnect: "server", storageTbPerNode: 4, nvme: true }
+    answers: { gpuModel: "b300", gpuCount: 16, fabric: "infiniband", storageTbPerNode: 4, nvme: true }
   },
   {
     id: "training_cluster",
     name: "Training cluster",
     use: "Multi-node training",
-    answers: { gpuModel: "gb300", gpuCount: 72, interconnect: "server", storageTbPerNode: 30, nvme: true }
+    answers: { gpuModel: "gb300", gpuCount: 72, fabric: "infiniband", storageTbPerNode: 30, nvme: true }
   },
   {
     id: "full_server",
     name: "Full server",
     use: "Fine-tuning and large models",
-    answers: { gpuModel: "pro6000se", gpuCount: 8, interconnect: "none", storageTbPerNode: 8, nvme: true }
+    answers: { gpuModel: "pro6000", gpuCount: 8, fabric: "infiniband", storageTbPerNode: 8, nvme: true }
   }
 ];
 
@@ -85,9 +81,7 @@ export type QuoteStepId = "start" | "gpu" | "interconnect" | "region" | "storage
 
 export type MissingAnswer = { step: QuoteStepId; label: string };
 
-export type ReviewLine = { step: QuoteStepId; label: string; value: string | null };
-
-export type StartingPointSpec = { label: "Nodes" | "Link" | "Storage"; value: string };
+export type StartingPointSpec = { label: "Nodes" | "Racks" | "Network" | "Storage"; value: string };
 
 export type StartingPointCard = { gpuCount?: number; model: string; memory: string | null; specs: StartingPointSpec[] };
 
@@ -97,7 +91,7 @@ const BYTES_PER_TB = 1024 ** 4;
 
 const UNANSWERED_SPEC = "—";
 
-const FABRIC_SHORT_NAMES: Record<Fabric, string> = { any: "InfiniBand or RoCE", infiniband: "InfiniBand", roce: "RoCE" };
+const FABRIC_NAMES: Record<Fabric, string> = { any: "InfiniBand or RoCE", infiniband: "InfiniBand", roce: "RoCE" };
 
 const AREA_PATTERNS: [RegionArea, RegExp][] = [
   ["us", /^(na-)?us/],
@@ -114,8 +108,7 @@ export function createBlankDraft(email: string): GpuQuoteDraft {
     startingPoint: null,
     gpuModel: null,
     otherGpuModel: "",
-    gpuCount: 1,
-    interconnect: "cluster",
+    gpuCount: GPUS_PER_NODE,
     fabric: "infiniband",
     regionMode: "any",
     areas: [],
@@ -132,19 +125,27 @@ export function createBlankDraft(email: string): GpuQuoteDraft {
   };
 }
 
-/** Requests come in single GPUs up to 4, then in whole servers of 8, so any other count rounds up to the next of those. */
-export function snapGpuCount(count: number): number {
-  const smallCount = SMALL_GPU_COUNTS.find(size => count <= size);
-  return smallCount ?? Math.ceil(count / GPUS_PER_NODE) * GPUS_PER_NODE;
+/** GPUs come in whole nodes, or whole racks for a rack-scale model, so any other count rounds up to the next of those. */
+export function snapGpuCount(count: number, gpuModel: string | null | undefined): number {
+  const unit = unitOfGpu(gpuModel);
+  return Math.max(1, Math.ceil(count / unit.gpuCount)) * unit.gpuCount;
 }
 
-export function isWholeNodes(gpuCount: number): boolean {
-  return gpuCount >= GPUS_PER_NODE;
+export function countUnits({ gpuCount, gpuModel }: Pick<GpuQuoteDraft, "gpuCount" | "gpuModel">): { unit: GpuUnit; count: number } {
+  const unit = unitOfGpu(gpuModel);
+  return { unit, count: Math.ceil(gpuCount / unit.gpuCount) };
+}
+
+/** A model sold in another unit size starts over at one of its units, since a count of nodes means nothing in racks. */
+export function withGpuModel(draft: GpuQuoteDraft, gpuModel: string): GpuQuoteDraft {
+  const isSameUnit = unitOfGpu(gpuModel).gpuCount === unitOfGpu(draft.gpuModel).gpuCount;
+  return { ...draft, gpuModel, gpuCount: isSameUnit ? draft.gpuCount : unitOfGpu(gpuModel).gpuCount };
 }
 
 /** Storage is asked in whole terabytes, so a configuration with less than one leaves the storage question to the user. */
 export function configurationStartingPoint(hardware: ConfigurationHardware, summary: string): StartingPoint {
   const areas = [...new Set(hardware.regions.flatMap(region => areaOfRegion(region) ?? []))];
+  const modelAnswers = hardware.gpuModels.length > 0 ? gpuModelAnswers(hardware.gpuModels[0]) : {};
 
   return {
     id: "configuration",
@@ -152,8 +153,8 @@ export function configurationStartingPoint(hardware: ConfigurationHardware, summ
     use: "What you set up on the Configure page",
     detail: summary,
     answers: {
-      ...(hardware.gpuCount > 0 ? { gpuCount: snapGpuCount(hardware.gpuCount) } : {}),
-      ...(hardware.gpuModels.length > 0 ? gpuModelAnswers(hardware.gpuModels[0]) : {}),
+      ...(hardware.gpuCount > 0 ? { gpuCount: snapGpuCount(hardware.gpuCount, modelAnswers.gpuModel) } : {}),
+      ...modelAnswers,
       ...(hardware.storageBytes >= BYTES_PER_TB ? { storageTbPerNode: Math.ceil(hardware.storageBytes / BYTES_PER_TB) } : {}),
       ...(areas.length > 0 ? { regionMode: "only", areas } : {})
     }
@@ -166,18 +167,17 @@ export function answersForGpuModel(search: string): DraftAnswers | undefined {
   return model ? gpuModelAnswers(model) : undefined;
 }
 
-/** Whole servers whose link is asked are always linked across servers, so a starting point that leaves the link open resets it. */
 export function applyStartingPoint(draft: GpuQuoteDraft, startingPoint: StartingPoint): GpuQuoteDraft {
-  return { ...draft, interconnect: "cluster", ...startingPoint.answers, startingPoint: startingPoint.id };
+  const answered = { ...draft, ...startingPoint.answers, startingPoint: startingPoint.id };
+  return { ...answered, gpuCount: snapGpuCount(answered.gpuCount, answered.gpuModel) };
 }
 
-/** A starting point that answers a question takes its step out of the flow, and the interconnect question only applies to whole servers. */
-export function listSteps(draft: GpuQuoteDraft, answers: DraftAnswers): QuoteStepId[] {
-  const asksInterconnect = isWholeNodes(draft.gpuCount) && answers.interconnect === undefined;
+/** A starting point that answers a question takes its step out of the flow. */
+export function listSteps(answers: DraftAnswers): QuoteStepId[] {
   const steps: (QuoteStepId | false)[] = [
     "start",
     answers.gpuModel === undefined && "gpu",
-    asksInterconnect && "interconnect",
+    answers.fabric === undefined && "interconnect",
     "region",
     answers.storageTbPerNode === undefined && "storage",
     "sla",
@@ -216,15 +216,14 @@ export function describeMissingAnswers(missing: MissingAnswer[], action: "send" 
 
 export function describeGpuModel(draft: Pick<GpuQuoteDraft, "gpuModel" | "otherGpuModel">): string | null {
   if (draft.gpuModel === OTHER_GPU_MODEL) return draft.otherGpuModel.trim() || null;
-  return GPU_CATALOG.find(gpu => gpu.id === draft.gpuModel)?.label ?? null;
+  return findCatalogGpu(draft.gpuModel)?.label ?? null;
 }
 
+/** Every request is linked across servers, so the interconnect is always the cluster's and only its network varies. */
 export function toQuoteRequestData(
   draft: GpuQuoteDraft,
   { source, configuration }: { source: QuoteRequestSource; configuration?: QuoteRequestData["configuration"] }
 ): QuoteRequestData {
-  const interconnect = effectiveInterconnect(draft);
-
   return {
     category: "quote",
     email: draft.email.trim(),
@@ -232,12 +231,7 @@ export function toQuoteRequestData(
     source,
     configuration,
     spec: {
-      gpu: {
-        model: describeGpuModel(draft) ?? "",
-        count: draft.gpuCount,
-        interconnect,
-        ...(interconnect === "cluster" ? { fabric: draft.fabric } : {})
-      },
+      gpu: { model: describeGpuModel(draft) ?? "", count: draft.gpuCount, interconnect: "cluster", fabric: draft.fabric },
       region: { mode: draft.regionMode, areas: draft.regionMode === "any" ? [] : draft.areas },
       uplinkGbps: null,
       storage: { tbPerNode: draft.storageTbPerNode, nvme: draft.nvme },
@@ -253,34 +247,77 @@ export function toQuoteRequestData(
   };
 }
 
-export function describeReviewLines(draft: GpuQuoteDraft): ReviewLine[] {
-  const lines: (ReviewLine | false)[] = [
-    { step: "gpu", label: "GPUs", value: describeGpus(draft) },
-    isWholeNodes(draft.gpuCount) && { step: "interconnect", label: "Connection", value: describeInterconnect(draft) },
-    { step: "region", label: "Region", value: describeRegion(draft) },
-    { step: "storage", label: "Storage", value: describeStorage(draft) },
-    { step: "sla", label: "Uptime", value: draft.sla ? `${draft.sla}%` : "No requirement" },
-    { step: "timing", label: "Term", value: TERMS.find(term => term.value === draft.term)?.label ?? null },
-    { step: "timing", label: "Start", value: describeStart(draft) },
-    { step: "contact", label: "Contact", value: [draft.email.trim(), draft.phone.trim(), draft.company.trim()].filter(Boolean).join(" · ") || null },
-    draft.notes.trim().length > 0 && { step: "contact", label: "Notes", value: draft.notes.trim() }
-  ];
+export function describeGpus(draft: Pick<GpuQuoteDraft, "gpuModel" | "otherGpuModel" | "gpuCount">): string | null {
+  const model = describeGpuModel(draft);
+  if (!model) return null;
 
-  return lines.filter((line): line is ReviewLine => line !== false);
+  const { unit, count } = countUnits(draft);
+  const gpu = findCatalogGpu(draft.gpuModel);
+  return `${pluralize(count, unit.name)} × ${unit.gpuCount} ${gpu ? `${gpu.vendor} ${gpu.label}` : model}`;
+}
+
+export function describeGpuTotal(gpuCount: number): string {
+  return `${pluralize(gpuCount, "GPU")} total`;
+}
+
+export function describeNetwork({ gpuModel, fabric }: Pick<GpuQuoteDraft, "gpuModel" | "fabric">): string {
+  const serverLink = findCatalogGpu(gpuModel)?.serverLink;
+  return serverLink ? `${serverLink} + ${FABRIC_NAMES[fabric]}` : FABRIC_NAMES[fabric];
+}
+
+export function describeRegion(draft: Pick<GpuQuoteDraft, "regionMode" | "areas">): string | null {
+  if (draft.regionMode === "any") return "Anywhere";
+  if (draft.areas.length === 0) return null;
+
+  const areaNames = REGION_AREAS.filter(area => draft.areas.includes(area.value))
+    .map(area => area.label)
+    .join(", ");
+  return draft.regionMode === "only" ? areaNames : `Anywhere except ${areaNames}`;
+}
+
+export function describeStorage(draft: Pick<GpuQuoteDraft, "storageTbPerNode" | "nvme" | "gpuModel">): string {
+  if (draft.storageTbPerNode <= 0) return "None";
+  return `${draft.storageTbPerNode} TB${draft.nvme ? " NVMe" : ""} per ${unitOfGpu(draft.gpuModel).name}`;
+}
+
+export function describeStorageTotal(draft: Pick<GpuQuoteDraft, "storageTbPerNode" | "gpuModel" | "gpuCount">): string | null {
+  if (draft.storageTbPerNode <= 0) return null;
+  return `${(draft.storageTbPerNode * countUnits(draft).count).toLocaleString("en-US")} TB total`;
+}
+
+export function describeSla(sla: UptimeSla | null): string {
+  return sla ? `${sla}% uptime` : "No requirement";
+}
+
+export function describeTerm(term: RequestTerm): string | null {
+  return TERMS.find(option => option.value === term)?.label ?? null;
+}
+
+export function describeStart(draft: Pick<GpuQuoteDraft, "start" | "startDate">): string | null {
+  if (draft.start !== "date") return STARTS.find(option => option.value === draft.start)!.label;
+  return draft.startDate ? formatDate(draft.startDate, { month: "short", day: "numeric", year: "numeric" }) : null;
+}
+
+export function describeContact(draft: Pick<GpuQuoteDraft, "email" | "phone">): string | null {
+  return [draft.email.trim(), draft.phone.trim()].filter(Boolean).join(" · ") || null;
 }
 
 /** A spec the starting point leaves open shows a dash, because a later step asks it. */
 export function describeStartingPointCard({ answers }: StartingPoint): StartingPointCard {
-  const gpu = GPU_CATALOG.find(catalogGpu => catalogGpu.id === answers.gpuModel);
+  const gpu = findCatalogGpu(answers.gpuModel);
+  const unit = unitOfGpu(answers.gpuModel);
 
   return {
     gpuCount: answers.gpuCount,
-    model: describeGpuModel({ gpuModel: answers.gpuModel ?? null, otherGpuModel: answers.otherGpuModel ?? "" }) ?? "Any GPU",
-    memory: gpu ? `${gpu.vendor} · ${gpu.memory}` : null,
+    model: describeCardModel(answers, gpu),
+    memory: gpu ? `${gpu.brand ?? gpu.vendor} · ${gpu.memory}` : null,
     specs: [
-      { label: "Nodes", value: answers.gpuCount === undefined ? UNANSWERED_SPEC : describeNodes(answers.gpuCount, gpu) },
-      { label: "Link", value: describeStartingPointLink(answers, gpu) },
-      { label: "Storage", value: answers.storageTbPerNode === undefined ? UNANSWERED_SPEC : `${answers.storageTbPerNode} TB / node` }
+      {
+        label: unit.name === "rack" ? "Racks" : "Nodes",
+        value: answers.gpuCount === undefined ? UNANSWERED_SPEC : `${Math.ceil(answers.gpuCount / unit.gpuCount)} × ${pluralize(unit.gpuCount, "GPU")}`
+      },
+      { label: "Network", value: answers.fabric === undefined ? UNANSWERED_SPEC : describeNetwork({ gpuModel: answers.gpuModel ?? null, fabric: answers.fabric }) },
+      { label: "Storage", value: answers.storageTbPerNode === undefined ? UNANSWERED_SPEC : `${answers.storageTbPerNode} TB / ${unit.name}` }
     ]
   };
 }
@@ -295,6 +332,18 @@ export function describeNextStep({ lane, firstReplyDueAt }: Pick<QuoteRequestRec
   return `${replier} ${firstReplyDueAt ? `by ${describeReplyTime(new Date(firstReplyDueAt), now)}` : window}.`;
 }
 
+export function pluralize(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
+export function formatDate(isoDate: string, format: Intl.DateTimeFormatOptions): string {
+  return new Date(`${isoDate}T00:00:00`).toLocaleDateString("en-US", format);
+}
+
+export function toIsoDate(date: Date): string {
+  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
+}
+
 function describeReplyTime(dueAt: Date, now: Date): string {
   const time = dueAt.toLocaleTimeString("en-US", dueAt.getMinutes() === 0 ? { hour: "numeric" } : { hour: "numeric", minute: "2-digit" });
   const daysAway = differenceInCalendarDays(dueAt, now);
@@ -304,81 +353,9 @@ function describeReplyTime(dueAt: Date, now: Date): string {
   return `${dueAt.toLocaleDateString("en-US", { weekday: "long" })} ${time}`;
 }
 
-function describeNodes(gpuCount: number, gpu: CatalogGpu | undefined): string {
-  const racks = describeWholeRacks(gpuCount, gpu);
-  if (racks) return racks;
-
-  const [nodes, gpusPerNode] = isWholeNodes(gpuCount) ? [gpuCount / GPUS_PER_NODE, GPUS_PER_NODE] : [1, gpuCount];
-  return `${nodes} × ${gpusPerNode} ${gpusPerNode === 1 ? "GPU" : "GPUs"}`;
-}
-
-function describeStartingPointLink({ gpuCount, interconnect, fabric }: DraftAnswers, gpu: CatalogGpu | undefined): string {
-  const serverLink = gpu ? SERVER_LINKS[gpu.vendor] : "NVLink or Infinity Fabric";
-
-  if (interconnect === "server") return serverLink;
-  if (interconnect === "cluster") return `${serverLink} + ${FABRIC_SHORT_NAMES[fabric ?? "any"]}`;
-  if (interconnect === "none" || (gpuCount !== undefined && !isWholeNodes(gpuCount))) return "PCIe only";
-  return UNANSWERED_SPEC;
-}
-
-function describeGpus(draft: GpuQuoteDraft): string | null {
-  const model = describeGpuModel(draft);
-  if (!model) return null;
-  if (!isWholeNodes(draft.gpuCount)) return `${draft.gpuCount}× ${model}`;
-
-  const racks = describeWholeRacks(draft.gpuCount, GPU_CATALOG.find(gpu => gpu.id === draft.gpuModel));
-  if (racks) return `${draft.gpuCount}× ${model} · ${racks}`;
-
-  const nodes = draft.gpuCount / GPUS_PER_NODE;
-  return `${draft.gpuCount}× ${model} · ${nodes} ${nodes === 1 ? "server" : "servers"}`;
-}
-
-function describeWholeRacks(gpuCount: number, gpu: CatalogGpu | undefined): string | null {
-  if (!gpu?.rack || gpuCount % gpu.rack.gpuCount !== 0) return null;
-
-  const racks = gpuCount / gpu.rack.gpuCount;
-  return `${racks} ${gpu.rack.name} ${racks === 1 ? "rack" : "racks"}`;
-}
-
-function describeInterconnect(draft: GpuQuoteDraft): string {
-  switch (draft.interconnect) {
-    case "none":
-      return "Not needed";
-    case "server":
-      return "Linked inside each server";
-    case "cluster":
-      return `${draft.fabric === "any" ? "InfiniBand or RoCE" : FABRICS.find(fabric => fabric.value === draft.fabric)?.label} between servers`;
-  }
-}
-
-function describeRegion(draft: GpuQuoteDraft): string | null {
-  if (draft.regionMode === "any") return "Anywhere";
-  if (draft.areas.length === 0) return null;
-
-  const areaNames = REGION_AREAS.filter(area => draft.areas.includes(area.value))
-    .map(area => area.label)
-    .join(", ");
-  return draft.regionMode === "only" ? areaNames : `Anywhere except ${areaNames}`;
-}
-
-function describeStorage(draft: GpuQuoteDraft): string {
-  if (draft.storageTbPerNode <= 0) return "None";
-  return `${draft.storageTbPerNode} TB${draft.nvme ? " NVMe" : ""}${isWholeNodes(draft.gpuCount) ? " per server" : ""}`;
-}
-
-function describeStart(draft: GpuQuoteDraft): string | null {
-  switch (draft.start) {
-    case "asap":
-      return "As soon as possible";
-    case "flexible":
-      return "Flexible";
-    case "date":
-      return draft.startDate ? `On ${draft.startDate}` : null;
-  }
-}
-
-function effectiveInterconnect(draft: GpuQuoteDraft): Interconnect {
-  return isWholeNodes(draft.gpuCount) ? draft.interconnect : "none";
+function describeCardModel(answers: DraftAnswers, gpu: CatalogGpu | undefined): string {
+  if (gpu) return gpu.shortLabel ?? gpu.label;
+  return describeGpuModel({ gpuModel: answers.gpuModel ?? null, otherGpuModel: answers.otherGpuModel ?? "" }) ?? "Any GPU";
 }
 
 function gpuModelAnswers(sdlModel: string): DraftAnswers {

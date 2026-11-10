@@ -1,6 +1,7 @@
+import { CheckIcon } from "lucide-react";
 import { describe, expect, it, vi } from "vitest";
 
-import { ChoiceChips, FieldGroup, MultiChoiceChips } from "./ChoiceControls";
+import { ChoiceChips, ChoiceTiles, FieldGroup, MultiChoiceChips, OptionCards } from "./ChoiceControls";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -48,6 +49,73 @@ describe("ChoiceControls", () => {
       rerender(<MultiChoiceChips label="Areas" choices={AREA_CHOICES} values={["us", "eu"]} onChange={onChange} />);
       await userEvent.click(screen.getByRole("button", { name: "United States" }));
       expect(onChange).toHaveBeenLastCalledWith(["eu"]);
+    });
+  });
+
+  describe("MultiChoiceChips with a selected icon", () => {
+    it("marks only the picked values with the icon", () => {
+      const { container } = render(<MultiChoiceChips label="Areas" choices={AREA_CHOICES} values={["eu"]} selectedIcon={CheckIcon} onChange={vi.fn()} />);
+
+      expect(container.querySelectorAll("svg")).toHaveLength(1);
+      expect(screen.getByRole("button", { name: "Europe" }).querySelector("svg")).toBeInTheDocument();
+    });
+  });
+
+  describe(ChoiceTiles.name, () => {
+    it("shows each choice's detail and badge and hands back the picked value", async () => {
+      const onChange = vi.fn();
+      render(
+        <ChoiceTiles
+          label="Uptime"
+          choices={[
+            { value: null, label: "No requirement", detail: "Best effort" },
+            { value: "99.9", label: "99.9%", detail: "44 min", badge: <span>Rare</span>, isNumeric: true }
+          ]}
+          value={null}
+          onChange={onChange}
+        />
+      );
+
+      expect(screen.getByRole("radio", { name: "No requirement Best effort" })).toBeChecked();
+      expect(screen.getByText("99.9%")).toHaveClass("font-mono");
+      expect(screen.getByText("No requirement")).not.toHaveClass("font-mono");
+
+      await userEvent.click(screen.getByRole("radio", { name: "99.9% Rare 44 min" }));
+      expect(onChange).toHaveBeenCalledWith("99.9");
+    });
+
+    it("keeps the current choice when it is clicked again", async () => {
+      const onChange = vi.fn();
+      render(<ChoiceTiles label="Uptime" choices={[{ value: "99", label: "99%" }]} value="99" onChange={onChange} />);
+
+      await userEvent.click(screen.getByRole("radio", { name: "99%" }));
+
+      expect(onChange).not.toHaveBeenCalled();
+    });
+  });
+
+  describe(OptionCards.name, () => {
+    it("shows each option's detail and spec and hands back the picked value", async () => {
+      const onChange = vi.fn();
+      render(
+        <OptionCards
+          label="Network"
+          options={[
+            { value: "infiniband", label: "InfiniBand", spec: "GPUDirect RDMA" },
+            { value: "any", label: "No preference", detail: "Either" }
+          ]}
+          value="infiniband"
+          onChange={onChange}
+        />
+      );
+
+      expect(screen.getByRole("radiogroup", { name: "Network" })).toBeInTheDocument();
+      expect(screen.getByRole("radio", { name: "InfiniBand" })).toBeChecked();
+      expect(screen.getByText("GPUDirect RDMA")).toBeInTheDocument();
+      expect(screen.getByText("Either")).toBeInTheDocument();
+
+      await userEvent.click(screen.getByText("No preference"));
+      expect(onChange).toHaveBeenCalledWith("any");
     });
   });
 

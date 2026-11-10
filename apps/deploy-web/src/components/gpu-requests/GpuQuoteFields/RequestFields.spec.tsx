@@ -15,7 +15,7 @@ describe("RequestFields", () => {
       const { onChange } = setup({ Field: RegionField, answers: { regionMode: "any" } });
 
       expect(screen.getByRole("radio", { name: "Anywhere" })).toBeChecked();
-      expect(screen.queryByRole("group", { name: "Regions to run in" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("group", { name: "Where can they run?" })).not.toBeInTheDocument();
 
       await userEvent.click(screen.getByRole("radio", { name: "Only in…" }));
 
@@ -27,14 +27,22 @@ describe("RequestFields", () => {
 
       await userEvent.click(screen.getByRole("button", { name: "Asia Pacific" }));
 
-      expect(screen.getByRole("group", { name: "Regions to run in" })).toBeInTheDocument();
+      expect(screen.getByRole("group", { name: "Where can they run?" })).toBeInTheDocument();
       expect(onChange).toHaveBeenCalledWith({ areas: ["eu", "apac"] });
     });
 
     it("picks the areas they can't run in", () => {
       setup({ Field: RegionField, answers: { regionMode: "except", areas: [] } });
 
-      expect(screen.getByRole("group", { name: "Regions to leave out" })).toBeInTheDocument();
+      expect(screen.getByRole("group", { name: "Where can't they run?" })).toBeInTheDocument();
+    });
+
+    it("marks picked areas with a check to run in and a ban to leave out", () => {
+      const { rerender } = setup({ Field: RegionField, answers: { regionMode: "only", areas: ["eu"] } });
+      expect(screen.getByRole("button", { name: "Europe" }).querySelector(".lucide-check")).toBeInTheDocument();
+
+      rerender({ regionMode: "except" });
+      expect(screen.getByRole("button", { name: "Europe" }).querySelector(".lucide-ban")).toBeInTheDocument();
     });
 
     it("doesn't ask for internet speed", () => {
@@ -53,6 +61,14 @@ describe("RequestFields", () => {
       await userEvent.click(screen.getByRole("radio", { name: /99.9%/ }));
 
       expect(onChange).toHaveBeenCalledWith({ sla: "99.9" });
+      expect(screen.queryByText(/Very few providers offer 99.9%/)).not.toBeInTheDocument();
+    });
+
+    it("marks 99.9% as rare and warns when it is picked", () => {
+      setup({ Field: SlaField, answers: { sla: "99.9" } });
+
+      expect(screen.getByRole("radio", { name: "99.9% Rare Up to 44 min down a month" })).toBeChecked();
+      expect(screen.getByText(/Very few providers offer 99.9%/)).toBeInTheDocument();
     });
   });
 
@@ -80,27 +96,73 @@ describe("RequestFields", () => {
       ]);
     });
 
-    it("asks for a start date from today on", () => {
+    it("takes a typed start date once it is a real day from today on", async () => {
       const { onChange } = setup({ Field: TimingField, answers: { start: "date", startDate: "" } });
       const startDate = screen.getByLabelText("Start date");
 
-      fireEvent.change(startDate, { target: { value: "2026-12-01" } });
+      await userEvent.type(startDate, "12/01/202");
+      expect(onChange).not.toHaveBeenCalled();
 
-      expect(startDate).toHaveAttribute("min", "2026-11-04");
-      expect(onChange).toHaveBeenCalledWith({ startDate: "2026-12-01" });
+      await userEvent.type(startDate, "6");
+      expect(onChange).toHaveBeenLastCalledWith({ startDate: "2026-12-01" });
+    });
+
+    it.each(["02/30/2027", "11/03/2026", "soon"])("flags %s when the field is left", async typed => {
+      const { onChange } = setup({ Field: TimingField, answers: { start: "date", startDate: "" } });
+      const startDate = screen.getByLabelText("Start date");
+
+      await userEvent.type(startDate, typed);
+      await userEvent.tab();
+
+      expect(startDate).toHaveAttribute("aria-invalid", "true");
+      expect(screen.getByText("Enter a date from today onward, like 11/04/2026.")).toBeInTheDocument();
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it("clears the start date when the typed date is erased, and accepts one typed with dashes", async () => {
+      const { onChange } = setup({ Field: TimingField, answers: { start: "date", startDate: "2026-12-01" } });
+      const startDate = screen.getByLabelText("Start date");
+
+      expect(startDate).toHaveValue("12/01/2026");
+
+      await userEvent.clear(startDate);
+      await userEvent.tab();
+      expect(onChange).toHaveBeenLastCalledWith({ startDate: "" });
+
+      await userEvent.type(startDate, "1-5-2027");
+      await userEvent.tab();
+      expect(onChange).toHaveBeenLastCalledWith({ startDate: "2027-01-05" });
+      expect(startDate).not.toHaveAttribute("aria-invalid");
+    });
+
+    it("picks a start date on the calendar, where earlier days are off", async () => {
+      const { onChange } = setup({ Field: TimingField, answers: { start: "date", startDate: "" } });
+
+      expect(screen.getByRole("button", { name: /November 3rd, 2026/ })).toBeDisabled();
+
+      await userEvent.click(screen.getByRole("button", { name: /November 20th, 2026/ }));
+
+      expect(onChange).toHaveBeenLastCalledWith({ startDate: "2026-11-20" });
+      expect(screen.getByLabelText("Start date")).toHaveValue("11/20/2026");
+    });
+
+    it("clears the start date when the picked day is picked again", async () => {
+      const { onChange } = setup({ Field: TimingField, answers: { start: "date", startDate: "2026-11-20" } });
+
+      await userEvent.click(screen.getByRole("button", { name: /November 20th, 2026/ }));
+
+      expect(onChange).toHaveBeenLastCalledWith({ startDate: "" });
+      expect(screen.getByLabelText("Start date")).toHaveValue("");
     });
   });
 
   describe(ContactField.name, () => {
-    it("fills in the contact details", () => {
+    it("fills in the contact details without asking again for the account's email", () => {
       const { onChange } = setup({ Field: ContactField, answers: {} });
 
-      expect(screen.getByLabelText("Email")).toHaveValue("me@example.com");
+      expect(screen.queryByLabelText("Email")).not.toBeInTheDocument();
 
-      fireEvent.change(screen.getByLabelText("Email"), { target: { value: "ops@example.com" } });
-      expect(onChange).toHaveBeenLastCalledWith({ email: "ops@example.com" });
-
-      fireEvent.change(screen.getByLabelText(/Phone/), { target: { value: "+1 555" } });
+      fireEvent.change(screen.getByLabelText(/Phone number/), { target: { value: "+1 555" } });
       expect(onChange).toHaveBeenLastCalledWith({ phone: "+1 555" });
 
       fireEvent.change(screen.getByLabelText(/Company/), { target: { value: "Acme" } });
@@ -109,11 +171,26 @@ describe("RequestFields", () => {
       fireEvent.change(screen.getByLabelText(/Anything else/), { target: { value: "Training" } });
       expect(onChange).toHaveBeenLastCalledWith({ notes: "Training" });
     });
+
+    it("asks for an email when the account has none", () => {
+      const { onChange } = setup({ Field: ContactField, answers: { email: "" }, asksEmail: true });
+
+      fireEvent.change(screen.getByLabelText("Email"), { target: { value: "ops@example.com" } });
+
+      expect(onChange).toHaveBeenLastCalledWith({ email: "ops@example.com" });
+    });
   });
 
-  function setup(input: { Field: (props: DraftFieldProps & { today: string }) => ReactNode; answers: Partial<GpuQuoteDraft> }) {
+  type FieldProps = DraftFieldProps & { today: string; asksEmail: boolean };
+
+  function setup(input: { Field: (props: FieldProps) => ReactNode; answers: Partial<GpuQuoteDraft>; asksEmail?: boolean }) {
     const onChange = vi.fn();
-    render(<input.Field draft={{ ...createBlankDraft("me@example.com"), ...input.answers }} onChange={onChange} today="2026-11-04" />);
-    return { onChange };
+    const draft = { ...createBlankDraft("me@example.com"), ...input.answers };
+    const renderField = (answers: Partial<GpuQuoteDraft>) => (
+      <input.Field draft={{ ...draft, ...answers }} onChange={onChange} today="2026-11-04" asksEmail={input.asksEmail ?? false} />
+    );
+    const { rerender } = render(renderField({}));
+
+    return { onChange, rerender: (answers: Partial<GpuQuoteDraft>) => rerender(renderField(answers)) };
   }
 });

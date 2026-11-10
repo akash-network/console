@@ -11,7 +11,8 @@ import { useSnackbar } from "notistack";
 import { useServices } from "@src/context/ServicesProvider";
 import { useUser } from "@src/hooks/useUser";
 import type { QuoteRequestData, QuoteRequestSource } from "../gpuQuoteDraft/gpuQuoteCatalog";
-import type { ConfigurationHardware, DraftAnswers, GpuQuoteDraft, QuoteStepId, StartingPoint } from "../gpuQuoteDraft/gpuQuoteDraft";
+import { unitOfGpu } from "../gpuQuoteDraft/gpuQuoteCatalog";
+import type { ConfigurationHardware, DraftAnswers, GpuQuoteDraft, MissingAnswer, QuoteStepId, StartingPoint } from "../gpuQuoteDraft/gpuQuoteDraft";
 import {
   applyStartingPoint,
   configurationStartingPoint,
@@ -19,16 +20,21 @@ import {
   CUSTOM_STARTING_POINT,
   describeMissingAnswers,
   describeNextStep,
-  describeReviewLines,
+  formatDate,
   listMissingAnswers,
   listSteps,
   STARTER_PACKAGES,
   stepToChange,
+  toIsoDate,
   toQuoteRequestData
 } from "../gpuQuoteDraft/gpuQuoteDraft";
+import { describeReceiptSections } from "../gpuQuoteDraft/gpuQuoteReceipt";
 import type { DraftFieldProps } from "../GpuQuoteFields/HardwareFields";
 import { GpuField, InterconnectField, StartingPointField, StorageField } from "../GpuQuoteFields/HardwareFields";
 import { ContactField, RegionField, SlaField, TimingField } from "../GpuQuoteFields/RequestFields";
+import { GpuQuoteReceipt } from "../GpuQuoteReceipt/GpuQuoteReceipt";
+import { GpuRackBuild } from "../GpuRackBuild/GpuRackBuild";
+import { describeRackBuild } from "../GpuRackBuild/rackBuild";
 
 export const DEPENDENCIES = { useUser, useSnackbar };
 
@@ -56,7 +62,13 @@ const SOURCE_NOTES: Partial<Record<QuoteRequestSource, { icon: LucideIcon; text:
 const FULL_PAGE_CLASSES =
   "inset-0 max-h-none max-w-none translate-x-0 translate-y-0 rounded-none border-0 bg-background shadow-none sm:rounded-none data-[state=open]:!slide-in-from-left-0 data-[state=open]:!slide-in-from-top-0 data-[state=open]:!zoom-in-100";
 
-type StepFieldProps = DraftFieldProps & { today: string };
+/** One column below 860px; from there the question sits beside the server room, which widens at 1100px. */
+const COLUMNS_CLASSES =
+  "mx-auto w-full max-w-[640px] px-4 sm:px-6 min-[860px]:max-w-[980px] min-[860px]:grid-cols-[minmax(0,1fr)_300px] min-[860px]:gap-x-8 min-[1100px]:max-w-[1044px] min-[1100px]:grid-cols-[minmax(0,1fr)_340px] min-[1100px]:gap-x-14";
+
+const PICK_A_SETUP: MissingAnswer = { step: "start", label: "a setup" };
+
+type StepFieldProps = DraftFieldProps & { today: string; asksEmail: boolean };
 
 const FIELD_OF_STEP: Partial<Record<QuoteStepId, (props: StepFieldProps) => ReactNode>> = {
   gpu: GpuField,
@@ -68,24 +80,45 @@ const FIELD_OF_STEP: Partial<Record<QuoteStepId, (props: StepFieldProps) => Reac
   contact: ContactField
 };
 
-const QUESTION_OF_STEP: Record<QuoteStepId, { title: string; hint?: string }> = {
-  start: { title: "What are you looking for?", hint: "Pick a common setup, or choose Custom to set every detail." },
-  gpu: { title: "Which GPU, and how many?" },
-  interconnect: { title: "How should the servers connect?", hint: "Your servers are linked into one cluster. Pick the network between them." },
-  region: { title: "Where can they run?" },
-  storage: { title: "How much storage?" },
-  sla: { title: "What uptime do you need?", hint: "Higher guarantees narrow the providers we can work with." },
-  timing: { title: "How long, and from when?" },
-  contact: { title: "How should we reach you?" },
-  review: { title: "Check your request", hint: "Select a line to change it." }
-};
+type Question = { title: string; hint?: string };
+
+function questionOfStep(step: QuoteStepId, draft: GpuQuoteDraft, asksEmail: boolean): Question {
+  const unit = unitOfGpu(draft.gpuModel).name;
+
+  switch (step) {
+    case "start":
+      return { title: "What are you looking for?", hint: "Pick a common setup, or choose Custom to set every detail." };
+    case "gpu":
+      return { title: `Which GPU, and how many ${unit}s?` };
+    case "interconnect":
+      return { title: "Which network between servers?", hint: "Your GPUs are linked across servers over this network." };
+    case "region":
+      return { title: "Where can they run?" };
+    case "storage":
+      return { title: `How much storage per ${unit}?` };
+    case "sla":
+      return {
+        title: "What uptime do you need?",
+        hint: "The SLA sets how much downtime you can accept each month. Higher guarantees narrow the providers we can work with."
+      };
+    case "timing":
+      return { title: "How long, and from when?" };
+    case "contact":
+      return {
+        title: "How should we reach you?",
+        hint: asksEmail ? "Add the email we should reply to, and a phone number if you'd also like a call." : `We'll email you at ${draft.email}. Add a phone number if you'd also like a call.`
+      };
+    case "review":
+      return { title: "Check your request", hint: "Click any section to change it." };
+  }
+}
 
 /** Enter moves the flow on, except where a control acts on Enter itself; radio cards ignore Enter, so it moves on from them too. */
 function continuesOnEnter(event: KeyboardEvent<HTMLElement>): boolean {
   if (event.key !== "Enter" || event.nativeEvent.isComposing) return false;
 
   const target = event.target as HTMLElement;
-  return !!target.closest('[role="radiogroup"]') || !target.closest("button, textarea");
+  return !!target.closest('[role="radiogroup"]') || !target.closest('button, textarea, [role="combobox"], [role="listbox"]');
 }
 
 function isRequestLimitError(error: unknown): boolean {
@@ -105,18 +138,25 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
   const configurationKey = configuration && JSON.stringify([configuration.hardware, configuration.summary.summary]);
   const startingPoints = [...(configurationPoint ? [configurationPoint] : []), ...STARTER_PACKAGES, CUSTOM_STARTING_POINT];
   const [draft, setDraft] = useState(() => createInitialDraft({ email: user?.email ?? "", configurationPoint, initialAnswers }));
+  const [asksEmail] = useState(() => !user?.email);
   const questionId = useId();
   const questionRef = useRef<HTMLHeadingElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [stepId, setStepId] = useState<QuoteStepId>("start");
+  const [reachedSteps, setReachedSteps] = useState<ReadonlySet<QuoteStepId>>(() => new Set(["start"]));
   const [showsMissing, setShowsMissing] = useState(false);
   const today = toIsoDate(new Date());
-  const answers = startingPoints.find(startingPoint => startingPoint.id === draft.startingPoint)?.answers ?? {};
-  const steps = listSteps(draft, answers);
+  const startingPoint = startingPoints.find(point => point.id === draft.startingPoint);
+  const steps = listSteps(startingPoint?.answers ?? {});
   const stepIndex = Math.max(0, steps.indexOf(stepId));
   const step = steps[stepIndex];
   const isReview = step === "review";
-  const blocking = listMissingAnswers(draft, today).filter(answer => answer.step === step);
+  const hasReviewed = reachedSteps.has("review");
+  const nextStep = hasReviewed ? steps.slice(stepIndex + 1).find(later => !reachedSteps.has(later)) ?? "review" : steps[stepIndex + 1];
+  const missing = listMissingAnswers(draft, today);
+  const blocking = step === "start" && !draft.startingPoint ? [PICK_A_SETUP] : missing.filter(answer => answer.step === step);
   const limitMessage = isRequestLimitError(createHardwareRequest.error) ? extractApiErrorMessage(createHardwareRequest.error) : null;
+  const rackBuild = describeRackBuild({ steps, draft, setupName: startingPoint?.name, reachedSteps, currentStep: step });
 
   useEffect(
     function trackFormOpened() {
@@ -136,7 +176,8 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
   );
 
   useEffect(
-    function focusQuestionOfStep() {
+    function showQuestionOfStep() {
+      scrollRef.current?.scrollTo?.({ top: 0 });
       questionRef.current?.focus();
     },
     [step]
@@ -146,22 +187,31 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
     setDraft(current => ({ ...current, ...patch }));
   }
 
-  function goTo(nextStep: QuoteStepId) {
+  function goTo(targetStep: QuoteStepId) {
     setShowsMissing(false);
-    setStepId(nextStep);
+    setStepId(targetStep);
+    setReachedSteps(current => (current.has(targetStep) ? current : new Set([...current, targetStep])));
   }
 
   function continueOrSend() {
     if (isReview) {
-      sendRequest();
+      sendOrShowMissing();
       return;
     }
     if (blocking.length > 0) {
       setShowsMissing(true);
       return;
     }
-    if (!draft.startingPoint) changeDraft({ startingPoint: CUSTOM_STARTING_POINT.id });
-    goTo(steps[stepIndex + 1]);
+    goTo(nextStep);
+  }
+
+  function sendOrShowMissing() {
+    if (missing.length === 0) {
+      sendRequest();
+      return;
+    }
+    goTo(stepToChange(steps, missing[0].step));
+    setShowsMissing(true);
   }
 
   function continueOnEnter(event: KeyboardEvent<HTMLElement>) {
@@ -192,7 +242,7 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
     );
   }
 
-  const question = QUESTION_OF_STEP[step];
+  const question = questionOfStep(step, draft, asksEmail);
   const StepField = FIELD_OF_STEP[step];
   const sourceNote = stepIndex === 0 ? SOURCE_NOTES[source] : undefined;
 
@@ -224,63 +274,59 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
             className="absolute -bottom-px left-0 h-0.5 rounded-none bg-transparent [&>div]:bg-foreground [&>div]:duration-300 motion-reduce:[&>div]:transition-none"
           />
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <section
-            key={step}
-            aria-labelledby={questionId}
-            className="mx-auto flex max-w-[640px] flex-col gap-6 px-4 pb-8 pt-7 duration-300 animate-in fade-in-0 slide-in-from-bottom-2 motion-reduce:animate-none sm:px-6 sm:pb-10 sm:pt-[clamp(2rem,7vh,4.5rem)]"
-          >
-            <div className="flex flex-col gap-2">
-              {sourceNote && (
-                <p className="inline-flex items-center gap-2 text-[13px] text-muted-foreground">
-                  <sourceNote.icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                  {sourceNote.text}
+        <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
+          <div className={`${COLUMNS_CLASSES} grid items-start pb-8 pt-7 sm:pb-10 sm:pt-[clamp(2rem,7vh,4.5rem)]`}>
+            <section
+              key={step}
+              aria-labelledby={questionId}
+              className="flex min-w-0 flex-col gap-6 duration-300 animate-in fade-in-0 slide-in-from-bottom-2 motion-reduce:animate-none"
+            >
+              <div className="flex flex-col gap-2">
+                {sourceNote && (
+                  <p className="inline-flex items-center gap-2 text-[12.5px] text-muted-foreground">
+                    <sourceNote.icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    {sourceNote.text}
+                  </p>
+                )}
+                <h3
+                  id={questionId}
+                  ref={questionRef}
+                  tabIndex={-1}
+                  className="text-balance text-[22px] font-bold leading-tight tracking-[-0.015em] focus:outline-none sm:text-[28px]"
+                >
+                  {question.title}
+                </h3>
+                {question.hint && <p className="text-pretty text-sm text-muted-foreground">{question.hint}</p>}
+              </div>
+              {step === "start" && (
+                <StartingPointField
+                  startingPoints={startingPoints}
+                  value={draft.startingPoint}
+                  onPick={pickedPoint => setDraft(current => applyStartingPoint(current, pickedPoint))}
+                />
+              )}
+              {StepField && <StepField draft={draft} onChange={changeDraft} today={today} asksEmail={asksEmail} />}
+              {isReview && (
+                <GpuQuoteReceipt
+                  sections={describeReceiptSections(steps, draft, startingPoint)}
+                  date={formatDate(today, { month: "short", day: "numeric", year: "numeric" })}
+                  onChangeStep={goTo}
+                />
+              )}
+              {showsMissing && blocking.length > 0 && (
+                <p role="alert" className="text-sm font-medium text-warning">
+                  {step === "start" ? "Pick a setup to continue." : describeMissingAnswers(blocking, "continue")}
                 </p>
               )}
-              <h3
-                id={questionId}
-                ref={questionRef}
-                tabIndex={-1}
-                className="text-balance text-[22px] font-bold leading-tight tracking-[-0.015em] focus:outline-none sm:text-[28px]"
-              >
-                {question.title}
-              </h3>
-              {question.hint && <p className="text-sm text-muted-foreground">{question.hint}</p>}
-            </div>
-            {step === "start" && (
-              <StartingPointField
-                startingPoints={startingPoints}
-                value={draft.startingPoint}
-                onPick={startingPoint => setDraft(current => applyStartingPoint(current, startingPoint))}
-              />
-            )}
-            {StepField && <StepField draft={draft} onChange={changeDraft} today={today} />}
-            {isReview && (
-              <ul className="divide-y rounded-lg border">
-                {describeReviewLines(draft).map(line => (
-                  <li key={line.label}>
-                    <button
-                      type="button"
-                      onClick={() => goTo(stepToChange(steps, line.step))}
-                      className="grid w-full grid-cols-[7rem_minmax(0,1fr)] gap-3 px-4 py-2.5 text-left text-sm hover:bg-muted/60"
-                    >
-                      <span className="font-mono text-xs uppercase leading-5 tracking-wider text-muted-foreground">{line.label}</span>
-                      <span className={line.value ? "font-medium" : "text-warning"}>{line.value ?? "Needs an answer"}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {showsMissing && blocking.length > 0 && (
-              <p role="alert" className="text-sm font-medium text-warning">
-                {describeMissingAnswers(blocking, "continue")}
-              </p>
-            )}
-            {limitMessage && <Alert variant="destructive">{limitMessage}</Alert>}
-          </section>
+              {limitMessage && <Alert variant="destructive">{limitMessage}</Alert>}
+            </section>
+            <aside aria-label="Your server room" className="sticky top-6 hidden min-w-0 min-[860px]:block">
+              <GpuRackBuild build={rackBuild} onChangeStep={goTo} />
+            </aside>
+          </div>
         </div>
-        <footer className="shrink-0 border-t px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3">
-          <div className="mx-auto flex max-w-[640px] items-center gap-2.5">
+        <footer className="shrink-0 border-t pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3">
+          <div className={`${COLUMNS_CLASSES} flex items-center gap-2.5`}>
             <Button type="button" variant="ghost" disabled={stepIndex === 0} onClick={() => goTo(steps[stepIndex - 1])} className="gap-2">
               <ArrowLeftIcon className="h-4 w-4" aria-hidden="true" />
               Back
@@ -293,7 +339,7 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
               )}
             </span>
             <Button type="button" disabled={createHardwareRequest.isPending} onClick={continueOrSend} className="gap-2">
-              {isReview ? "Send request" : "Continue"}
+              {isReview ? "Send request" : hasReviewed && nextStep === "review" ? "Back to review" : "Continue"}
               {isReview ? <SendIcon className="h-4 w-4" aria-hidden="true" /> : <ArrowRightIcon className="h-4 w-4" aria-hidden="true" />}
             </Button>
           </div>
@@ -315,8 +361,4 @@ function createInitialDraft({
   const blank = createBlankDraft(email);
   const prefilled = configurationPoint ? applyStartingPoint(blank, configurationPoint) : blank;
   return initialAnswers ? applyStartingPoint(prefilled, { ...CUSTOM_STARTING_POINT, answers: initialAnswers }) : prefilled;
-}
-
-function toIsoDate(date: Date): string {
-  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
 }
