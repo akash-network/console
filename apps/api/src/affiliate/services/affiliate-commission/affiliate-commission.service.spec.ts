@@ -985,6 +985,96 @@ describe(AffiliateCommissionService.name, () => {
     return new Error("Failed query: insert into stripe_transactions", { cause: driverError });
   }
 
+  describe("when a release credit landed but its sync rolled back", () => {
+    it.each(["refund", "dispute"] as const)("records the commission as credited and takes back the refunded share on a %s", async trigger => {
+      const { service, payment, commission, stripeTransactionRepository, refillService, affiliate } = setup({
+        hasCommission: true,
+        commissionStatus: "pending",
+        commissionAmount: 500,
+        paymentAmountRefunded: 10000,
+        releaseCredit: { status: "landed", amount: 500 }
+      });
+
+      await service.syncCommission(payment.id, trigger);
+
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(commission.id, { status: "succeeded", amountRefunded: 0 });
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(commission.id, { amountRefunded: 500, status: "refunded" });
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(
+        500,
+        { userId: affiliate.userId, organizationId: commission.organizationId },
+        { currency: "usd", transactionId: commission.id, refundedBefore: 0, refundedAfter: 500 }
+      );
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalledWith(commission.id, expect.objectContaining({ status: "canceled" }));
+    });
+
+    it("keeps the share the release trimmed off as already not credited", async () => {
+      const { service, payment, commission, stripeTransactionRepository, refillService } = setup({
+        hasCommission: true,
+        commissionStatus: "pending",
+        commissionAmount: 500,
+        commissionAmountRefunded: 200,
+        paymentAmountRefunded: 10000,
+        releaseCredit: { status: "landed", amount: 300 }
+      });
+
+      await service.syncCommission(payment.id, "refund");
+
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(commission.id, { status: "succeeded", amountRefunded: 200 });
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(300, expect.anything(), expect.objectContaining({ refundedBefore: 200, refundedAfter: 500 }));
+    });
+
+    it("records the commission as credited without crediting it again or canceling it when the release retries after a revocation", async () => {
+      const { service, payment, commission, stripeTransactionRepository, refillService } = setup({
+        hasCommission: true,
+        commissionStatus: "pending",
+        affiliateRevokedAt: new Date(),
+        releaseCredit: { status: "landed", amount: 500 }
+      });
+
+      await service.syncCommission(payment.id, "release");
+
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledTimes(1);
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(commission.id, { status: "succeeded", amountRefunded: 0 });
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+    });
+
+    it("throws so the job retries while the release credit is still in flight", async () => {
+      const { service, payment, stripeTransactionRepository, refillService } = setup({
+        hasCommission: true,
+        commissionStatus: "pending",
+        paymentAmountRefunded: 10000,
+        releaseCredit: { status: "pending", amount: 500 }
+      });
+
+      await expect(service.syncCommission(payment.id, "refund")).rejects.toThrow("still in flight");
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+    });
+
+    it("reads the release credit before taking the payment lock", async () => {
+      const { service, payment, stripeTransactionRepository, paymentCreditRepository } = setup({
+        hasCommission: true,
+        commissionStatus: "pending",
+        releaseCredit: { status: "landed", amount: 500 }
+      });
+
+      await service.syncCommission(payment.id, "refund");
+
+      expect(paymentCreditRepository.findByTransactionId.mock.invocationCallOrder[0]).toBeLessThan(
+        stripeTransactionRepository.findOneByAndLock.mock.invocationCallOrder[0]
+      );
+    });
+
+    it("does not look for a release credit when settling a payment", async () => {
+      const { service, payment, stripeTransactionRepository } = setup();
+
+      await service.syncCommission(payment.id, "settlement");
+
+      expect(stripeTransactionRepository.findAffiliateCommissionBySource).not.toHaveBeenCalled();
+    });
+  });
+
   function setup(
     input: {
       paymentAmount?: number;
@@ -1011,6 +1101,7 @@ describe(AffiliateCommissionService.name, () => {
       isAffiliateGone?: boolean;
       hasPaymentCredit?: boolean;
       paymentCreditStatus?: PaymentCreditOutput["status"];
+      releaseCredit?: { status: PaymentCreditOutput["status"]; amount: number };
       holdSeconds?: number;
       shortfallCents?: number;
     } = {}
@@ -1050,9 +1141,10 @@ describe(AffiliateCommissionService.name, () => {
     affiliateRepository.findOneBy.mockResolvedValue(input.isAffiliateGone ? undefined : affiliate);
 
     const paymentCreditRepository = mock<PaymentCreditRepository>();
-    paymentCreditRepository.findByTransactionId.mockResolvedValue(
-      input.hasPaymentCredit === false ? undefined : createPaymentCredit({ transactionId: payment.id, status: input.paymentCreditStatus ?? "landed" })
-    );
+    const paymentCredit = input.hasPaymentCredit === false ? undefined : createPaymentCredit({ transactionId: payment.id, status: input.paymentCreditStatus ?? "landed" });
+    const releaseCredit = input.releaseCredit && createPaymentCredit({ transactionId: commission.id, ...input.releaseCredit });
+    paymentCreditRepository.findByTransactionId.mockImplementation(async transactionId => (transactionId === commission.id ? releaseCredit : paymentCredit));
+    stripeTransactionRepository.findAffiliateCommissionBySource.mockResolvedValue(input.hasCommission ? commission : undefined);
 
     const paymentMethodRepository = mock<PaymentMethodRepository>();
     paymentMethodRepository.hasSharedFingerprint.mockResolvedValue(input.sharesPaymentMethod ?? false);
