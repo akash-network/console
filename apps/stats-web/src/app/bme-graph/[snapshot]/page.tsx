@@ -1,87 +1,30 @@
-import React from "react";
-import { Button } from "@akashnetwork/ui/components";
-import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 
-import GraphContainer from "./GraphContainer";
-
-import { Link } from "@/components/Link/Link";
+import { GraphPage } from "@/components/graph/GraphPage";
 import { PageContainer } from "@/components/PageContainer";
-import { urlParamToBmeSnapshot } from "@/lib/snapshotsUrlHelpers";
-import { UrlService } from "@/lib/urlUtils";
-import type { BmeSnapshotsUrlParam } from "@/types";
-import { BmeSnapshots } from "@/types";
+import { findGraphMetric } from "@/lib/graphMetrics/graphMetrics";
 
 interface IGraphProps {
   params: Promise<{ snapshot: string }>;
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 export async function generateMetadata({ params }: IGraphProps): Promise<Metadata> {
-  const { snapshot: snapshotUrlParam } = await params;
-  const snapshot = urlParamToBmeSnapshot(snapshotUrlParam as BmeSnapshotsUrlParam);
-  const title = getTitle(snapshot as BmeSnapshots);
+  const { snapshot } = await params;
 
-  return {
-    title: title
-  };
+  return { title: findGraphMetric("bme-graph", snapshot)?.title ?? "Graph not found" };
 }
 
-export default async function BmeGraphPage({ params }: IGraphProps) {
-  const { snapshot: snapshotUrlParam } = await params;
-  const snapshot = urlParamToBmeSnapshot(snapshotUrlParam as BmeSnapshotsUrlParam);
-  const title = getTitle(snapshot as BmeSnapshots);
+export default async function BmeGraphRoute({ params }: IGraphProps) {
+  const { snapshot } = await params;
+
+  if (!findGraphMetric("bme-graph", snapshot)) {
+    notFound();
+  }
 
   return (
     <PageContainer>
-      <div className="m-auto max-w-3xl">
-        <div className="mb-6 mt-6">
-          <Link href={UrlService.bme()}>
-            <Button variant="ghost">
-              <ArrowLeft className="mr-2 h-4 w-4" /> Back
-            </Button>
-          </Link>
-        </div>
-
-        <div className="mb-2">
-          <h1 className="text-center text-3xl sm:text-left">{title}</h1>
-        </div>
-
-        <GraphContainer snapshot={snapshot} />
-      </div>
+      <GraphPage kind="bme-graph" urlParam={snapshot} />
     </PageContainer>
   );
 }
-
-const getTitle = (snapshot: BmeSnapshots): string => {
-  switch (snapshot) {
-    case BmeSnapshots.totalAktBurnedForAct:
-      return "Total AKT Burned for ACT";
-    case BmeSnapshots.dailyAktBurnedForAct:
-      return "Daily AKT Burned for ACT";
-    case BmeSnapshots.totalActMinted:
-      return "Total ACT Minted";
-    case BmeSnapshots.dailyActMinted:
-      return "Daily ACT Minted";
-    case BmeSnapshots.totalActBurnedForAkt:
-      return "Total ACT Burned for AKT";
-    case BmeSnapshots.dailyActBurnedForAkt:
-      return "Daily ACT Burned for AKT";
-    case BmeSnapshots.totalAktReminted:
-      return "Total AKT Reminted";
-    case BmeSnapshots.dailyAktReminted:
-      return "Daily AKT Reminted";
-    case BmeSnapshots.netAktBurned:
-      return "Net AKT Burned";
-    case BmeSnapshots.dailyNetAktBurned:
-      return "Daily Net AKT Burned";
-    case BmeSnapshots.outstandingAct:
-      return "Outstanding ACT";
-    case BmeSnapshots.vaultAkt:
-      return "Vault AKT Balance";
-    case BmeSnapshots.collateralRatio:
-      return "Collateral Ratio";
-    default:
-      return "Graph not found.";
-  }
-};
