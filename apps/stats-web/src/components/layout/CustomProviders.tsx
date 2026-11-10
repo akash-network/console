@@ -21,7 +21,7 @@ function Providers({ children, nonce }: React.PropsWithChildren<{ nonce?: string
     <CustomIntlProvider>
       <QueryClientProvider client={queryClient}>
         <Provider store={store}>
-          <ThemeProvider attribute="class" defaultTheme="system" storageKey="theme" enableSystem disableTransitionOnChange nonce={nonce}>
+          <ThemeProvider attribute="class" defaultTheme="dark" storageKey="theme" enableSystem disableTransitionOnChange nonce={nonce}>
             <CustomSnackbarProvider>
               <PricingProvider>
                 <TooltipProvider>

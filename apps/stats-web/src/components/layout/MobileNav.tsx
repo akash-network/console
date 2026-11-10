@@ -3,102 +3,86 @@ import "react-modern-drawer/dist/index.css";
 
 import { useState } from "react";
 import Drawer from "react-modern-drawer";
-import { Button, DiscordLogo, GithubLogo, XLogo } from "@akashnetwork/ui/components";
-import { ChartColumnIncreasing, Flame, Menu, Rocket, SquareArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Menu } from "lucide-react";
 import dynamic from "next/dynamic";
+import { usePathname } from "next/navigation";
 
-import { AkashConsoleDarkLogo, AkashConsoleLightLogo } from "../icons/AkashConsoleLogo";
+import { AkashLogo } from "../icons/AkashLogo";
 import { ModeToggle } from "../ModeToggle";
-import { NavLinks } from "../NavLinks";
+import { isActiveNavLink, NAV_LINKS } from "./navLinks/navLinks";
+import { LiveBlockHeight } from "./LiveBlockHeight";
+import { SocialLinks } from "./SocialLinks";
 
 import { Link } from "@/components/Link/Link";
-import useCookieTheme from "@/hooks/useTheme";
+import { SearchBar } from "@/components/SearchBar";
+import { cn } from "@/lib/utils";
 
 const NetworkSelect = dynamic(() => import("./NetworkSelect"), {
   ssr: false
 });
 
 export function MobileNav() {
-  const theme = useCookieTheme();
   const [isOpen, setIsOpen] = useState(false);
-  const toggleDrawer = () => {
-    setIsOpen(prevState => !prevState);
-  };
+  const pathname = usePathname();
+  const closeDrawer = () => setIsOpen(false);
 
   return (
     <>
-      <Button variant="ghost" className="text-md" onClick={() => toggleDrawer()}>
-        <Menu className="h-5 w-5" />
+      <button
+        type="button"
+        onClick={() => setIsOpen(prevState => !prevState)}
+        className="flex h-9 w-9 items-center justify-center rounded-md border text-muted-foreground transition-colors hover:bg-nested hover:text-foreground"
+      >
+        <Menu className="h-4 w-4" />
         <span className="sr-only">Toggle Menu</span>
-      </Button>
+      </button>
 
-      <Drawer open={isOpen} onClose={toggleDrawer} direction="left" className="!bg-background p-4" customIdSuffix="mobile-drawer">
-        {theme === "light" ? <AkashConsoleLightLogo className="h-[25px] w-full" /> : <AkashConsoleDarkLogo className="h-[25px] w-full" />}
-
-        <div className="flex h-[100%] flex-col items-center justify-between pb-8 pt-4">
-          <div className="mt-4 w-full">
-            <NavLinks
-              links={[
-                {
-                  title: "Deploy",
-                  icon: <Rocket className="h-5 w-5 rotate-45" />,
-                  variant: "default",
-                  href: "https://console.akash.network",
-                  isExternal: true,
-                  rel: "noreferrer"
-                },
-                {
-                  title: "Dashboard",
-                  icon: <ChartColumnIncreasing className="h-5 w-5" />,
-                  variant: "ghost",
-                  href: "/"
-                },
-                {
-                  title: "BME",
-                  icon: <Flame className="h-5 w-5" />,
-                  variant: "ghost",
-                  href: "/bme"
-                },
-                {
-                  title: "akash.network",
-                  icon: <SquareArrowUpRight className="h-5 w-5" />,
-                  variant: "ghost",
-                  href: "https://akash.network",
-                  isExternal: true,
-                  rel: "noreferrer"
-                }
-              ]}
-            />
+      <Drawer open={isOpen} onClose={closeDrawer} direction="left" size={300} className="!bg-background" customIdSuffix="mobile-drawer">
+        <div className="flex h-full flex-col gap-5 overflow-y-auto border-r p-5">
+          <div className="flex items-center gap-3">
+            <AkashLogo className="h-[18px] w-auto text-foreground" />
+            <span className="rounded border px-[7px] py-1 font-mono text-[11px] font-medium leading-none tracking-[0.1em] text-muted-foreground">STATS</span>
           </div>
-          <div>
-            <div>
-              <NetworkSelect />
-            </div>
 
-            <div className="flex items-center justify-center pt-4">
-              <Link target="_blank" rel="noreferrer" href="https://twitter.com/akashnet" className="text-foreground">
-                <Button variant="ghost" size="icon">
-                  <XLogo width="1.2rem" height="1.2rem" />
-                  <span className="sr-only">Twitter</span>
-                </Button>
-              </Link>
+          <SearchBar onNavigate={closeDrawer} />
 
-              <Link target="_blank" rel="noreferrer" href="https://github.com/akash-network/console" className="text-foreground">
-                <Button variant="ghost" size="icon">
-                  <GithubLogo width="1.2rem" height="1.2rem" />
-                  <span className="sr-only">GitHub</span>
-                </Button>
-              </Link>
+          <nav aria-label="Mobile" className="flex flex-col gap-1 text-sm font-medium">
+            {NAV_LINKS.map(link => {
+              const isActive = isActiveNavLink(link, pathname);
 
-              <Link target="_blank" rel="noreferrer" href="https://discord.akash.network" className="text-foreground">
-                <Button variant="ghost" size="icon">
-                  <DiscordLogo width="1.2rem" height="1.2rem" />
-                  <span className="sr-only">Twitter</span>
-                </Button>
-              </Link>
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={closeDrawer}
+                  aria-current={isActive ? "page" : undefined}
+                  className={cn(
+                    "rounded-md px-3 py-2 transition-colors hover:no-underline",
+                    isActive ? "bg-muted text-foreground hover:text-foreground" : "text-muted-foreground hover:bg-nested hover:text-foreground"
+                  )}
+                >
+                  {link.title}
+                </Link>
+              );
+            })}
+          </nav>
 
+          <div className="mt-auto flex flex-col gap-3">
+            <LiveBlockHeight className="self-start" />
+            <NetworkSelect className="h-9 w-full max-w-none font-mono text-xs" />
+            <div className="flex items-center justify-between">
+              <SocialLinks />
               <ModeToggle />
             </div>
+            <Link
+              href="https://console.akash.network"
+              target="_blank"
+              rel="noreferrer"
+              className="flex h-9 items-center justify-center gap-1 rounded-md border text-sm font-medium text-foreground hover:bg-nested hover:text-foreground hover:no-underline"
+            >
+              Deploy on Akash
+              <ArrowUpRight className="h-4 w-4" />
+            </Link>
           </div>
         </div>
       </Drawer>
