@@ -15,10 +15,10 @@ export const BmeDashboardContainer: React.FunctionComponent = () => {
   const hasData = dashboardData?.now && dashboardData?.compare;
 
   return (
-    <div className="mt-8">
+    <div>
       {hasData && (
         <>
-          <Title className="mb-4 text-2xl font-semibold">BME Dashboard</Title>
+          <Title className="mb-4">BME dashboard</Title>
 
           <div className="mb-8">
             <p className="text-italic text-sm italic text-muted-foreground">

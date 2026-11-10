@@ -5,15 +5,14 @@ import { cn } from "@/lib/utils";
 
 type Props = {
   children?: ReactNode;
-  hasMargin?: boolean;
   subTitle?: boolean;
   className?: string;
 };
 
 export const Title: React.FunctionComponent<Props> = ({ children, subTitle, className = "" }) => {
   return subTitle ? (
-    <h3 className={cn("text-xl sm:text-2xl", className)}>{children}</h3>
+    <h2 className={cn("text-[15px] font-semibold leading-snug tracking-normal", className)}>{children}</h2>
   ) : (
-    <h1 className={cn("text-2xl sm:text-4xl", className)}>{children}</h1>
+    <h1 className={cn("pt-7 text-2xl font-semibold leading-tight tracking-[-0.025em]", className)}>{children}</h1>
   );
 };
