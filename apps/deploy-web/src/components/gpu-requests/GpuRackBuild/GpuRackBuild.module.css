@@ -1,0 +1,362 @@
+/*
+ * The isometric styles below are adapted from Anatomy (https://github.com/wheresryan22/anatomy), kit/iso.css.
+ *
+ * MIT License
+ *
+ * Copyright (c) 2026 Ryan
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+.root {
+  --iso-card: #fbfbfa;
+  --iso-text: #57575a;
+  --iso-strong: #18181a;
+  --iso-muted: #8c8c90;
+  --iso-paper: var(--iso-card);
+  --iso-face: #ffffff;
+  --iso-top: #ffffff;
+  --iso-shade-0: #dcdcd9;
+  --iso-shade-1: #e5e5e2;
+  --iso-shade-2: #ededea;
+  --iso-lit-top: #ffffff;
+  --iso-lit-shade: #eeeeeb;
+  --iso-hi: #26262a;
+  --iso-mid: #8a8a8f;
+  --iso-lo: #b4b4b8;
+  --iso-faint: #d4d4d6;
+  --iso-lit: #000000;
+  --iso-halo: #8a8a80;
+  --iso-halo-opacity: 0.32;
+  --iso-dot: #3a3a3e;
+  --iso-weight: 0.6px;
+  --iso-ease: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+:global(.dark) .root {
+  --iso-card: #131313;
+  --iso-text: #a3a3a3;
+  --iso-strong: #e6e6e6;
+  --iso-muted: #6e6e6e;
+  --iso-face: #1b1b1b;
+  --iso-top: #1c1c1c;
+  --iso-shade-0: #0f0f0f;
+  --iso-shade-1: #121212;
+  --iso-shade-2: #151515;
+  --iso-lit-top: #262626;
+  --iso-lit-shade: #1d1d1d;
+  --iso-hi: #d4d4d4;
+  --iso-mid: #6a6a6a;
+  --iso-lo: #3e3e3e;
+  --iso-faint: #2a2a2a;
+  --iso-lit: #ffffff;
+  --iso-halo: #050505;
+  --iso-halo-opacity: 0.9;
+  --iso-dot: #e6e6e6;
+}
+
+.plate {
+  position: relative;
+  padding: 40px 12px;
+  border-radius: 12px;
+  background: var(--iso-card);
+  box-shadow: 0 0 0 1px var(--iso-mid);
+}
+
+.corners {
+  position: absolute;
+  inset: 16px;
+  pointer-events: none;
+}
+
+.corner {
+  position: absolute;
+  color: var(--iso-muted);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10.5px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.corner[data-corner="fig"] {
+  top: 0;
+  left: 0;
+  color: var(--iso-text);
+}
+
+.corner[data-corner="title"] {
+  top: 0;
+  right: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.corner[data-corner="hint"] {
+  bottom: 0;
+  left: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.corner[data-corner="readout"] {
+  right: 0;
+  bottom: 0;
+  color: var(--iso-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.figure {
+  position: relative;
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0 auto;
+  overflow: visible;
+}
+
+.svg path,
+.svg circle {
+  vector-effect: non-scaling-stroke;
+}
+
+.fill {
+  fill: var(--iso-paper);
+}
+
+.solid[data-lit] > .fill {
+  fill: var(--iso-face);
+}
+
+.shade[data-shade="0"] {
+  fill: var(--iso-shade-0);
+}
+
+.shade[data-shade="1"] {
+  fill: var(--iso-shade-1);
+}
+
+.shade[data-shade="2"] {
+  fill: var(--iso-shade-2);
+}
+
+.top {
+  fill: var(--iso-top);
+}
+
+.solid[data-lit] > .top {
+  fill: var(--iso-lit-top);
+}
+
+.solid[data-lit] > .shade {
+  fill: var(--iso-lit-shade);
+}
+
+.halo {
+  fill: var(--iso-halo);
+  filter: blur(9px);
+  opacity: var(--iso-halo-opacity);
+  transform: translateY(3px);
+}
+
+.line {
+  fill: none;
+  stroke: var(--iso-lo);
+  stroke-width: var(--iso-weight);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.line[data-tone="hi"] {
+  stroke: var(--iso-hi);
+}
+
+.line[data-tone="mid"] {
+  stroke: var(--iso-mid);
+}
+
+.line[data-tone="faint"] {
+  stroke: var(--iso-faint);
+}
+
+.line[data-tone="lit"],
+.solid[data-lit] > .line {
+  stroke: var(--iso-lit);
+}
+
+.dots circle {
+  fill: var(--iso-dot);
+  opacity: 0.32;
+}
+
+.dots[data-tone="hi"] circle {
+  opacity: 0.85;
+}
+
+.dots[data-tone="mid"] circle {
+  opacity: 0.45;
+}
+
+.dots[data-tone="lo"] circle {
+  opacity: 0.22;
+}
+
+.slideIn {
+  animation: slide-in 680ms var(--iso-ease) both;
+  animation-delay: var(--slide-delay, 0ms);
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translate(var(--slide-x, 0px), var(--slide-y, 0px));
+  }
+  to {
+    opacity: 1;
+    transform: translate(0px, 0px);
+  }
+}
+
+.part {
+  cursor: pointer;
+}
+
+.part:hover .line[data-edge] {
+  stroke: var(--iso-hi);
+}
+
+.led {
+  fill: var(--iso-lo);
+  transition: fill 400ms ease;
+}
+
+.led[data-on] {
+  fill: var(--iso-lit);
+}
+
+.pin {
+  fill: var(--iso-mid);
+  transition: fill 120ms ease;
+}
+
+.pin[data-hot] {
+  fill: var(--iso-lit);
+}
+
+.callout {
+  appearance: none;
+  position: absolute;
+  width: 30%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  padding: 4px 6px 5px;
+  border: 1px solid var(--iso-lo);
+  border-radius: 7px;
+  background: var(--iso-card);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  translate: 0 -50%;
+  animation: callout-in 420ms var(--iso-ease) both;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.callout[data-side="left"] {
+  left: 0;
+}
+
+.callout[data-side="right"] {
+  right: 0;
+}
+
+.callout:hover,
+.callout:focus-visible,
+.callout[data-hot] {
+  border-color: var(--iso-hi);
+  box-shadow: 0 0 0 1px var(--iso-hi);
+  outline: none;
+}
+
+.callout[aria-current="step"] {
+  border-color: var(--iso-lit);
+}
+
+.calloutLabel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  color: var(--iso-muted);
+  font:
+    500 8.5px/12px var(--font-mono, ui-monospace, monospace);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.callout[aria-current="step"] .calloutLabel {
+  color: var(--iso-strong);
+}
+
+.calloutValue {
+  overflow: hidden;
+  color: var(--iso-strong);
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 14px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.calloutEdit {
+  display: inline-flex;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.callout:hover .calloutEdit,
+.callout:focus-visible .calloutEdit,
+.callout[data-hot] .calloutEdit {
+  opacity: 1;
+}
+
+@keyframes callout-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slideIn,
+  .callout {
+    animation: none;
+  }
+}

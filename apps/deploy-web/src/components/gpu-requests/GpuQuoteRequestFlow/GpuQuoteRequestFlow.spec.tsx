@@ -11,7 +11,7 @@ import type { DraftAnswers } from "../gpuQuoteDraft/gpuQuoteDraft";
 import type { ConfigurationPrefill, DEPENDENCIES } from "./GpuQuoteRequestFlow";
 import { GpuQuoteRequestFlow } from "./GpuQuoteRequestFlow";
 
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
@@ -31,7 +31,6 @@ describe("GpuQuoteRequestFlow", () => {
     await user.click(continueButton());
 
     expect(question()).toHaveTextContent("Where can they run?");
-    expect(screen.queryByRole("group", { name: "Internet speed" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("radio", { name: "Only in…" }));
     await user.click(continueButton());
     expect(screen.getByRole("alert")).toHaveTextContent("Add at least one region to continue.");
@@ -52,10 +51,11 @@ describe("GpuQuoteRequestFlow", () => {
         email: "jane@example.com",
         configuration: undefined,
         spec: expect.objectContaining({
-          gpu: { model: "H200", count: 8, interconnect: "server" },
+          gpu: { model: "RTX PRO 6000 Server Edition", count: 8, interconnect: "cluster", fabric: "infiniband" },
           region: { mode: "only", areas: ["eu"] },
-          uplinkGbps: 10,
+          uplinkGbps: null,
           storage: { tbPerNode: 8, nvme: true },
+          targetPrice: null,
           term: "12_months"
         })
       })
@@ -68,11 +68,13 @@ describe("GpuQuoteRequestFlow", () => {
     ]);
   });
 
-  it("sends the configuration being set up without asking hardware questions", async () => {
+  it("sends the configuration being set up in whole nodes, asking only for the network", async () => {
     const { user, createHardwareRequest } = setup({ source: "no_fit", configuration: CONFIGURATION });
 
     expect(screen.getByText("No provider can host this configuration right now.")).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /Your configuration/ })).toBeChecked();
+    await user.click(continueButton());
+    expect(question()).toHaveTextContent("Which network between servers?");
     await user.click(continueButton());
     expect(question()).toHaveTextContent("Where can they run?");
     await continueTo(user, "Check your request");
@@ -84,7 +86,7 @@ describe("GpuQuoteRequestFlow", () => {
         source: "no_fit",
         configuration: CONFIGURATION.summary,
         spec: expect.objectContaining({
-          gpu: { model: "H100", count: 1, interconnect: "none" },
+          gpu: { model: "H100", count: 8, interconnect: "cluster", fabric: "infiniband" },
           region: { mode: "only", areas: ["eu"] },
           storage: { tbPerNode: 2, nvme: true }
         })
@@ -92,48 +94,42 @@ describe("GpuQuoteRequestFlow", () => {
     });
   });
 
-  it("sends a custom request for a single A100 in Asia Pacific for 3 months", async () => {
+  it("sends a custom request for two A100 nodes in Asia Pacific for 6 months", async () => {
     const { user, createHardwareRequest, enqueueSnackbar } = setup({ source: "requests_page", lane: "sales" });
 
+    await user.click(screen.getByRole("radio", { name: /Custom/ }));
     await user.click(continueButton());
-    expect(question()).toHaveTextContent("Which GPU, and how many?");
+    expect(question()).toHaveTextContent("Which GPU, and how many nodes?");
     await user.click(continueButton());
     expect(screen.getByRole("alert")).toHaveTextContent("Add a GPU model to continue.");
 
-    await user.click(screen.getByRole("radio", { name: "A100 80 GB" }));
+    await pickGpu(user, "NVIDIA A100");
+    await user.click(screen.getByRole("radio", { name: "2" }));
     await user.click(continueButton());
-    expect(question()).toHaveTextContent("Where can they run?");
+    expect(question()).toHaveTextContent("Which network between servers?");
+    await user.click(screen.getByRole("radio", { name: "RoCE (Ethernet)" }));
+    await user.click(continueButton());
     await user.click(screen.getByRole("radio", { name: "Only in…" }));
     await user.click(screen.getByRole("button", { name: "Asia Pacific" }));
     await user.click(continueButton());
-    expect(question()).toHaveTextContent("How much storage?");
+    expect(question()).toHaveTextContent("How much storage per node?");
     await continueTo(user, "How long, and from when?");
-    await user.click(screen.getByRole("radio", { name: "3 months" }));
+    expect(screen.queryByRole("radio", { name: "3 months" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("radio", { name: "6 months" }));
     await continueTo(user, "Check your request");
     await user.click(screen.getByRole("button", { name: "Send request" }));
 
     await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalled());
     expect(createHardwareRequest.mock.lastCall?.[0].data.spec).toMatchObject({
-      gpu: { model: "A100", count: 1, interconnect: "none" },
+      gpu: { model: "A100", count: 16, interconnect: "cluster", fabric: "roce" },
       region: { mode: "only", areas: ["apac"] },
-      term: "3_months"
+      storage: { tbPerNode: 10, nvme: true },
+      term: "6_months"
     });
     expect(snackbarProps(enqueueSnackbar).subTitle).toBe("Our team will reply within 4 business hours.");
   });
 
-  it("asks how whole servers connect", async () => {
-    const { user } = setup({ source: "requests_page" });
-
-    await user.click(continueButton());
-    await user.click(screen.getByRole("radio", { name: "B200 180 GB" }));
-    await user.click(screen.getByRole("radio", { name: "Whole servers of 8" }));
-    await user.click(continueButton());
-
-    expect(question()).toHaveTextContent("Do the GPUs need to work together?");
-    expect(screen.getByText("Step 3 of 11")).toBeInTheDocument();
-  });
-
-  it("asks one question per step of a custom request for whole servers", async () => {
+  it("asks one question per step of a custom request, in racks for a rack-scale GPU", async () => {
     const { user } = setup({ source: "requests_page" });
     const questions: string[] = [];
 
@@ -141,8 +137,7 @@ describe("GpuQuoteRequestFlow", () => {
     questions.push(describeQuestion());
     await user.click(continueButton());
     expect(screen.queryByRole("radiogroup", { name: "Starting point" })).not.toBeInTheDocument();
-    await user.click(screen.getByRole("radio", { name: "H200 141 GB" }));
-    await user.click(screen.getByRole("radio", { name: "Whole servers of 8" }));
+    await pickGpu(user, "NVIDIA GB300");
     while (!question().textContent?.includes("Check your request")) {
       questions.push(describeQuestion());
       await user.click(continueButton());
@@ -150,17 +145,15 @@ describe("GpuQuoteRequestFlow", () => {
     questions.push(describeQuestion());
 
     expect(questions).toEqual([
-      "What are you looking for? Pick a common setup, or choose Custom to set every detail. Step 1 of 10",
-      "Which GPU, and how many? Step 2 of 11",
-      "Do the GPUs need to work together? This decides how GPUs connect inside a server and between servers. Step 3 of 11",
-      "Where can they run? Step 4 of 11",
-      "How much storage? Step 5 of 11",
-      "What uptime do you need? Higher guarantees narrow the providers we can work with. Step 6 of 11",
-      "What would you like to pay? Your target price per GPU-hour. Step 7 of 11",
-      "How long, and from when? Step 8 of 11",
-      "Anything else? Both are optional. Step 9 of 11",
-      "How should we reach you? Step 10 of 11",
-      "Check your request Select a line to change it. Step 11 of 11"
+      "What are you looking for? Pick a common setup, or choose Custom to set every detail. Step 1 of 9",
+      "Which GPU, and how many racks? Step 2 of 9",
+      "Which network between servers? Your GPUs are linked across servers over this network. Step 3 of 9",
+      "Where can they run? Step 4 of 9",
+      "How much storage per rack? Step 5 of 9",
+      "What uptime do you need? The SLA sets how much downtime you can accept each month. Higher guarantees narrow the providers we can work with. Step 6 of 9",
+      "How long, and from when? Step 7 of 9",
+      "How should we reach you? We'll email you at jane@example.com. Add a phone number if you'd also like a call. Step 8 of 9",
+      "Check your request Click any section to change it. Step 9 of 9"
     ]);
     expect(screen.queryByRole("button", { name: "Continue" })).not.toBeInTheDocument();
   });
@@ -175,18 +168,19 @@ describe("GpuQuoteRequestFlow", () => {
     const { user } = setup({ source });
 
     expect(screen.getByText(note)).toBeInTheDocument();
+    await user.click(screen.getByRole("radio", { name: /Custom/ }));
     await user.click(continueButton());
     expect(screen.queryByText(note)).not.toBeInTheDocument();
   });
 
-  it("starts from Custom when nothing was picked", async () => {
+  it("asks to pick a setup before moving on", async () => {
     const { user } = setup({ source: "requests_page" });
 
     expect(screen.queryByRole("radio", { checked: true })).not.toBeInTheDocument();
     await user.click(continueButton());
-    await user.click(screen.getByRole("button", { name: "Back" }));
 
-    expect(screen.getByRole("radio", { name: /Custom/ })).toBeChecked();
+    expect(screen.getByRole("alert")).toHaveTextContent("Pick a setup to continue.");
+    expect(question()).toHaveTextContent("What are you looking for?");
   });
 
   it("confirms the request with the time the team promised to reply", async () => {
@@ -200,41 +194,76 @@ describe("GpuQuoteRequestFlow", () => {
     expect(snackbarProps(enqueueSnackbar).subTitle).toMatch(/^We'll get back to you by \w+day \d{1,2}(:\d{2})? [AP]M\.$/);
   });
 
-  it("shows every answer on the review step and jumps back to its question", async () => {
-    const { user } = setup({ source: "requests_page", initialAnswers: { gpuModel: "rtx5090", gpuCount: 2 } });
-
-    await continueTo(user, "Check your request");
-    const lines = within(screen.getByRole("list")).getAllByRole("button");
-
-    expect(lines.map(line => line.textContent)).toEqual([
-      "GPUs2× RTX 5090",
-      "RegionAnywhere",
-      "InternetNo preference",
-      "Storage1 TB NVMe",
-      "UptimeNo requirement",
-      "Target priceOpen to offers",
-      "TermMonth to month",
-      "StartAs soon as possible",
-      "AlsoNothing else",
-      "Contactjane@example.com"
-    ]);
-
-    await user.click(screen.getByRole("button", { name: /^Uptime/ }));
-    expect(question()).toHaveTextContent("What uptime do you need?");
-  });
-
-  it("goes back to the starting point to change an answer the package gave", async () => {
+  it("prints the request on the review and goes back to a section, then straight back to the review", async () => {
     const { user } = setup({ source: "requests_page" });
 
     await user.click(screen.getByRole("radio", { name: /Inference fleet/ }));
     await continueTo(user, "Check your request");
-    await user.click(screen.getByRole("button", { name: /^GPUs/ }));
 
-    expect(question()).toHaveTextContent("What are you looking for?");
+    expect(receiptSections()).toEqual([
+      "Change SetupInference fleetGPUs2 nodes × 8 NVIDIA B30016 GPUs totalNetworkNVLink + InfiniBandStorage4 TB NVMe per node8 TB total",
+      "Change RegionAnywhere",
+      "Change SLANo requirement",
+      "Change TermMonth to monthStartAs soon as possible",
+      "Change Contactjane@example.com"
+    ]);
+
+    await user.click(screen.getByRole("button", { name: /^Change SLA/ }));
+    expect(question()).toHaveTextContent("What uptime do you need?");
+    await user.click(screen.getByRole("radio", { name: /99.5%/ }));
+    await user.click(screen.getByRole("button", { name: "Back to review" }));
+
+    expect(question()).toHaveTextContent("Check your request");
+    expect(screen.getByRole("button", { name: /^Change SLA/ })).toHaveTextContent("99.5% uptime");
+  });
+
+  it("asks the new hardware questions after switching to custom from the review", async () => {
+    const { user } = setup({ source: "requests_page" });
+
+    await user.click(screen.getByRole("radio", { name: /Inference fleet/ }));
+    await continueTo(user, "Check your request");
+    await user.click(screen.getByRole("button", { name: /^Change Setup/ }));
+    await user.click(screen.getByRole("radio", { name: /Custom/ }));
+    const questions: string[] = [];
+    while (!question().textContent?.includes("Check your request")) {
+      await user.click(screen.getByRole("button", { name: /^(Continue|Back to review)$/ }));
+      questions.push(question().textContent!);
+    }
+
+    expect(questions).toEqual(["Which GPU, and how many nodes?", "Which network between servers?", "How much storage per node?", "Check your request"]);
+  });
+
+  it("goes back to a question from the server room", async () => {
+    const { user } = setup({ source: "requests_page" });
+
+    await user.click(screen.getByRole("radio", { name: /Inference fleet/ }));
+    await continueTo(user, "What uptime do you need?");
+    await user.click(screen.getByRole("button", { name: "Change Region: Anywhere" }));
+
+    expect(question()).toHaveTextContent("Where can they run?");
+    expect(screen.getByRole("button", { name: "Continue" })).toBeInTheDocument();
+  });
+
+  it("goes to the first missing answer instead of sending", async () => {
+    const { user, createHardwareRequest } = setup({ source: "requests_page" });
+
+    await user.click(screen.getByRole("radio", { name: /Inference fleet/ }));
+    await continueTo(user, "Check your request");
+    await user.click(screen.getByRole("button", { name: /^Change Region / }));
+    await user.click(screen.getByRole("radio", { name: "Only in…" }));
+    await user.click(screen.getByRole("button", { name: "Change Uptime: No SLA" }));
+    await user.click(screen.getByRole("button", { name: "Back to review" }));
+    expect(screen.getByRole("button", { name: /^Change Region / })).toHaveTextContent("Region—");
+
+    await user.click(screen.getByRole("button", { name: "Send request" }));
+
+    expect(question()).toHaveTextContent("Where can they run?");
+    expect(screen.getByRole("alert")).toHaveTextContent("Add at least one region to continue.");
+    expect(createHardwareRequest).not.toHaveBeenCalled();
   });
 
   it("goes back one step", async () => {
-    const { user } = setup({ source: "requests_page" });
+    const { user } = setup({ source: "requests_page", initialAnswers: { gpuModel: "h100" } });
 
     expect(screen.getByRole("button", { name: "Back" })).toBeDisabled();
     await user.click(continueButton());
@@ -247,6 +276,7 @@ describe("GpuQuoteRequestFlow", () => {
     const { user } = setup({ source: "gpu_menu", email: undefined, initialAnswers: { gpuModel: "h100" } });
 
     await continueTo(user, "How should we reach you?");
+    expect(screen.getByText("Add the email we should reply to, and a phone number if you'd also like a call.")).toBeInTheDocument();
     await user.click(continueButton());
 
     expect(screen.getByRole("alert")).toHaveTextContent("Add an email address to continue.");
@@ -258,7 +288,7 @@ describe("GpuQuoteRequestFlow", () => {
     rerender({ ...CONFIGURATION, hardware: { ...CONFIGURATION.hardware, gpuModels: ["a100"] } });
     await continueTo(user, "Check your request");
 
-    expect(screen.getByRole("button", { name: /^GPUs/ })).toHaveTextContent("1× A100");
+    expect(screen.getByRole("button", { name: /^Change Setup/ })).toHaveTextContent("1 node × 8 NVIDIA A100");
   });
 
   it("shows the limit in the flow when the user has sent too many requests", async () => {
@@ -292,25 +322,26 @@ describe("GpuQuoteRequestFlow", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("opens as a full page titled with its progress, focused on the question", async () => {
+  it("opens as a full page titled with its progress, focused on the question, beside the server room", async () => {
     const { user } = setup({ source: "requests_page" });
 
-    expect(screen.getByRole("dialog", { name: "Request GPUs" })).toHaveAccessibleDescription("Step 1 of 10");
-    expect(screen.getByRole("progressbar", { name: "Request progress" })).toHaveAttribute("aria-valuenow", "10");
+    expect(screen.getByRole("dialog", { name: "Request GPUs" })).toHaveAccessibleDescription("Step 1 of 9");
+    expect(screen.getByRole("complementary", { name: "Your server room" })).toHaveTextContent("Empty rack");
     expect(question()).toHaveFocus();
     expect(screen.getByText("Press")).toBeInTheDocument();
 
+    await user.click(screen.getByRole("radio", { name: /Inference fleet/ }));
     await user.click(continueButton());
 
-    expect(screen.getByRole("progressbar", { name: "Request progress" })).toHaveAttribute("aria-valuenow", "20");
+    expect(screen.getByRole("progressbar", { name: "Request progress" })).toHaveAttribute("aria-valuenow", String((2 / 6) * 100));
     expect(question()).toHaveFocus();
   });
 
   it("continues on Enter from the question and from a picked package", async () => {
-    const { user } = setup({ source: "requests_page" });
+    const { user } = setup({ source: "requests_page", initialAnswers: { gpuModel: "h100" } });
 
     await user.keyboard("{Enter}");
-    expect(question()).toHaveTextContent("Which GPU, and how many?");
+    expect(question()).toHaveTextContent("Which GPU, and how many nodes?");
 
     await user.click(screen.getByRole("button", { name: "Back" }));
     await user.click(screen.getByRole("radio", { name: /Inference fleet/ }));
@@ -319,7 +350,7 @@ describe("GpuQuoteRequestFlow", () => {
     expect(question()).toHaveTextContent("Where can they run?");
   });
 
-  it("leaves Enter to buttons, notes and text being composed, and ignores other keys", async () => {
+  it("leaves Enter to the GPU search, buttons, notes and text being composed, and ignores other keys", async () => {
     const { user } = setup({ source: "requests_page", initialAnswers: { gpuModel: "h100" } });
 
     await user.keyboard("x");
@@ -327,7 +358,13 @@ describe("GpuQuoteRequestFlow", () => {
     fireEvent.keyDown(question(), { key: "Enter", isComposing: true });
     expect(question()).toHaveTextContent("What are you looking for?");
 
+    await user.click(screen.getByRole("radio", { name: /Custom/ }));
     await user.click(continueButton());
+    await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+    await user.type(screen.getByPlaceholderText("Search GPUs…"), "h200{Enter}");
+    expect(question()).toHaveTextContent("Which GPU, and how many nodes?");
+    expect(screen.getByRole("combobox", { name: "GPU model" })).toHaveTextContent("NVIDIA H200");
+
     screen.getByRole("button", { name: "Back" }).focus();
     await user.keyboard("{Enter}");
     expect(question()).toHaveTextContent("What are you looking for?");
@@ -368,6 +405,15 @@ describe("GpuQuoteRequestFlow", () => {
     expect(createHardwareRequest).not.toHaveBeenCalled();
   });
 
+  async function pickGpu(user: ReturnType<typeof userEvent.setup>, name: string) {
+    await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+    await user.click(screen.getByRole("option", { name: new RegExp(`^${name}`) }));
+  }
+
+  function receiptSections() {
+    return screen.getAllByRole("button", { name: /^Change [A-Za-z]+ / }).map(section => section.textContent);
+  }
+
   function continueButton() {
     return screen.getByRole("button", { name: "Continue" });
   }
@@ -382,6 +428,9 @@ describe("GpuQuoteRequestFlow", () => {
   }
 
   async function continueTo(user: ReturnType<typeof userEvent.setup>, title: string) {
+    if (screen.queryAllByRole("radio", { checked: true }).length === 0 && question().textContent?.includes("What are you looking for?")) {
+      await user.click(screen.getByRole("radio", { name: /Custom/ }));
+    }
     while (!question().textContent?.includes(title)) {
       await user.click(continueButton());
     }

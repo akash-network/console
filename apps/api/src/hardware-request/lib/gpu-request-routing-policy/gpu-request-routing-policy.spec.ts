@@ -14,7 +14,7 @@ describe("GPU request routing policy", () => {
         wantsToTalk: { enabled: true }
       },
       salesRequiresPaymentMethod: true,
-      dataCenterGpuModels: ["B300", "B200", "H200", "H100", "A100", "L40S", "MI355X", "MI325X", "MI300X"],
+      dataCenterGpuModels: ["GB300", "B300", "B200", "H200", "H100", "A100", "L40S", "RTX PRO 6000 Server Edition", "MI355X", "MI325X", "MI300X"],
       referenceUsdPerGpuHour: {
         B300: 6,
         B200: 5,
