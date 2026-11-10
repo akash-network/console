@@ -1027,7 +1027,7 @@ describe(AffiliateCommissionService.name, () => {
       const { service, payment, commission, stripeTransactionRepository, refillService } = setup({
         hasCommission: true,
         commissionStatus: "pending",
-        affiliateRevokedAt: new Date(),
+        affiliateRevokedAt: new Date().toISOString(),
         releaseCredit: { status: "landed", amount: 500 }
       });
 
