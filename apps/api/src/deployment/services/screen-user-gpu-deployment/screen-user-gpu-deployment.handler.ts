@@ -7,6 +7,7 @@ import { inject, singleton } from "tsyringe";
 import { CHAIN_SDK, type ChainSDK } from "@src/chain/providers/chain-sdk.provider";
 import { type CreateLogger, type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
 import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
+import { countGpus, findRegionArea } from "@src/deployment/lib/unmet-gpu-ask/unmet-gpu-ask";
 import { BidScreeningHttpService } from "@src/deployment/services/bid-screening-http/bid-screening-http.service";
 import { RecordUserGpuBids, recordUserGpuBidsKeyFor } from "@src/deployment/services/record-user-gpu-bids/record-user-gpu-bids.handler";
 import { findCheckedGpuModel } from "@src/deployment/utils/checked-gpu-model/checked-gpu-model";
@@ -56,7 +57,7 @@ export class ScreenUserGpuDeploymentHandler implements JobHandler<ScreenUserGpuD
 
     const groups = deployment.groups.flatMap(({ id, groupSpec }) => {
       const model = groupSpec && findCheckedGpuModel(groupSpec);
-      return id && groupSpec && model ? [{ gseq: id.gseq, groupSpec, ...model }] : [];
+      return id && groupSpec && model ? [{ gseq: id.gseq, groupSpec, ...model, gpuCount: countGpus(groupSpec), regionArea: findRegionArea(groupSpec) }] : [];
     });
     if (!groups.length) return;
 
@@ -69,7 +70,15 @@ export class ScreenUserGpuDeploymentHandler implements JobHandler<ScreenUserGpuD
       new RecordUserGpuBids({
         owner,
         dseq,
-        groups: groups.map(({ gseq, vendor, model }, index) => ({ gseq, vendor, model, screened: screened[index], wasOpenThroughWait: openGseqs.has(gseq) }))
+        groups: groups.map(({ gseq, vendor, model, gpuCount, regionArea }, index) => ({
+          gseq,
+          vendor,
+          model,
+          gpuCount,
+          regionArea,
+          screened: screened[index],
+          wasOpenThroughWait: openGseqs.has(gseq)
+        }))
       }),
       { singletonKey: recordUserGpuBidsKeyFor(owner, dseq), startAfter: addMinutes(new Date(), RECORD_AFTER_MINUTES).toISOString() }
     );
