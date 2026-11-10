@@ -29,6 +29,7 @@ import { ReconcileLeaseCreateHandler } from "@src/deployment/services/reconcile-
 import { ReconcileManagedTxHandler } from "@src/deployment/services/reconcile-managed-tx/reconcile-managed-tx.handler";
 import { RecordDeploymentSettingHandler } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import { RecordLeaseGpuOffersHandler } from "@src/deployment/services/record-lease-gpu-offers/record-lease-gpu-offers.handler";
+import { RecordUnmetGpuScreeningHandler } from "@src/deployment/services/record-unmet-gpu-screening/record-unmet-gpu-screening.handler";
 import { RecordUserGpuBidsHandler } from "@src/deployment/services/record-user-gpu-bids/record-user-gpu-bids.handler";
 import { ScreenUserGpuDeploymentHandler } from "@src/deployment/services/screen-user-gpu-deployment/screen-user-gpu-deployment.handler";
 import { ClassifyConversationHandler } from "@src/feedback/services/classify-conversation/classify-conversation.handler";
@@ -146,6 +147,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(ApiKeyExpiryReminderHandler),
     container.resolve(ScreenUserGpuDeploymentHandler),
     container.resolve(RecordUserGpuBidsHandler),
+    container.resolve(RecordUnmetGpuScreeningHandler),
     container.resolve(ClassifyFeedbackHandler),
     container.resolve(ClassifyConversationHandler),
     container.resolve(SweepFeedbackHandler)
