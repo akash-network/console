@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { TransactionsTable } from "./TransactionsTable";
 
 import { PageContainer } from "@/components/PageContainer";
-import { Title } from "@/components/Title";
 
 export const metadata: Metadata = {
   title: "Transactions"
@@ -11,9 +10,7 @@ export const metadata: Metadata = {
 
 const TransactionsPage: React.FunctionComponent = () => {
   return (
-    <PageContainer>
-      <Title className="mb-4">Transactions</Title>
-
+    <PageContainer className="max-w-[1100px] pt-7">
       <TransactionsTable />
     </PageContainer>
   );

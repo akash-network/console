@@ -34,3 +34,12 @@ export function MeterBar({ percent, className, fillClassName = "bg-muted-foregro
     </div>
   );
 }
+
+export function StatCard({ label, value }: { label: string; value: string }) {
+  return (
+    <Panel className="flex flex-col gap-2 px-5 py-4">
+      <Eyebrow className="text-[10px]">{label}</Eyebrow>
+      <span className="text-[22px] font-semibold tabular-nums leading-none tracking-[-0.02em]">{value}</span>
+    </Panel>
+  );
+}
