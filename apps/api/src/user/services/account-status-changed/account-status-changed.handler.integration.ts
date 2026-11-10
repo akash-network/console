@@ -1,12 +1,13 @@
 import { faker } from "@faker-js/faker";
 import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
 import { WalletBalanceReloadCheckHandler } from "@src/billing/services/wallet-balance-reload-check/wallet-balance-reload-check.handler";
 import type { ApiPgDatabase } from "@src/core";
 import { JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
+import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import type { AccountStatus } from "@src/user/lib/account-status/account-status";
 import type { AccountStatusEventInput } from "@src/user/repositories/account-status-event/account-status-event.repository";
 import { AccountStatusEventRepository } from "@src/user/repositories/account-status-event/account-status-event.repository";
@@ -18,6 +19,8 @@ import {
   CloseAccountDeployments,
   closeAccountDeploymentsKeyFor
 } from "@src/user/services/close-account-deployments/close-account-deployments.job";
+import { NotifyAccountStatusChangeHandler } from "@src/user/services/notify-account-status-change/notify-account-status-change.handler";
+import { NotifyAccountStatusChange, notifyAccountStatusChangeKeyFor } from "@src/user/services/notify-account-status-change/notify-account-status-change.job";
 import { AccountStatusChangedHandler } from "./account-status-changed.handler";
 import { AccountStatusChanged, accountStatusChangedKeyFor } from "./account-status-changed.job";
 
@@ -29,10 +32,31 @@ const jobWorkers = useJobWorkers(() => [
   container.resolve(AccountStatusChangedHandler),
   container.resolve(CloseAccountDeploymentsHandler),
   container.resolve(ApplyAccountTerminationHandler),
-  container.resolve(WalletBalanceReloadCheckHandler)
+  container.resolve(WalletBalanceReloadCheckHandler),
+  container.resolve(NotifyAccountStatusChangeHandler)
 ]);
 
 describe(AccountStatusChangedHandler.name, () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("queues one email for each change, keyed on its event", async () => {
+    const { handler, record } = await setup({ accountStatus: "terminated" });
+    const events = [
+      await record({ action: "suspend", userReason: "Unpaid invoices", options: { closeDeployments: false } }),
+      await record({ action: "reinstate", userReason: null, options: {} }),
+      await record({ action: "terminate", userReason: "Fraud", options: { forfeitCredits: false, emailVerified: true } })
+    ];
+
+    for (const event of events) await handler.handle({ eventId: event.id, version: 1 });
+
+    const jobRows = await Promise.all(
+      events.map(event => findJobRows(NotifyAccountStatusChange[JOB_NAME], { singletonKey: notifyAccountStatusChangeKeyFor(event.id) }))
+    );
+    expect(jobRows).toEqual(events.map(event => [expect.objectContaining({ state: "created", data: { eventId: event.id, version: 1 }, retry_limit: 10 })]));
+  });
+
   it("leaves the deployments of a suspension that kept them alone", async () => {
     const { handler, user, record } = await setup({ accountStatus: "suspended" });
     const event = await record({ action: "suspend", userReason: "Abuse", options: { closeDeployments: false } });
@@ -98,6 +122,8 @@ describe(AccountStatusChangedHandler.name, () => {
     const event = await record({ action: "suspend", userReason: "Abuse", options: { closeDeployments: true } });
     await deleteQueuedJobs(ApplyAccountTermination[JOB_NAME]);
     await deleteQueuedJobs(WalletBalanceReloadCheck[JOB_NAME]);
+    await deleteQueuedJobs(NotifyAccountStatusChange[JOB_NAME]);
+    vi.spyOn(container.resolve(NotificationService), "createNotification").mockResolvedValue();
 
     await enqueue(new AccountStatusChanged({ eventId: event.id }), { singletonKey: accountStatusChangedKeyFor(event.id) });
     await startWorkers();
