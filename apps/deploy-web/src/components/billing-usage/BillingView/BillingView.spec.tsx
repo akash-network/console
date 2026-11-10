@@ -219,6 +219,18 @@ describe(BillingView.name, () => {
     expect(pill).toHaveAttribute("data-status", "pending");
   });
 
+  it("shows a held commission trimmed by a refund as what is still to be credited, with nothing taken back", () => {
+    setup({ data: [createMockTransaction({ type: "affiliate_commission", amount: 500, amountRefunded: 200, status: "pending", cardLast4: null })] });
+
+    expect(cell(0, "Amount")).toHaveTextContent(/^\+3\.00$/);
+  });
+
+  it("still shows a card payment's pending refund against its full amount", () => {
+    setup({ data: [createMockTransaction({ type: "payment_intent", amount: 500, amountRefunded: 200, status: "pending" })] });
+
+    expect(cell(0, "Amount")).toHaveTextContent("5.00-2.00 refunded");
+  });
+
   it("labels a pending card payment as Pending", () => {
     setup({ data: [createMockTransaction({ type: "payment_intent", status: "pending" })] });
 

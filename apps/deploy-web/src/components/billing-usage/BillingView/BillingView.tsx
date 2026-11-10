@@ -251,15 +251,16 @@ const TransactionAmount: React.FC<{ transaction: BillingTransaction; usd: (cents
   const { amount, currency, bonusAmount = 0, amountRefunded = 0, type, status } = transaction;
   const isCredit = isCreditTransaction(type);
   const isCanceledBeforeCredit = type === "affiliate_commission" && status === "canceled";
+  const isHeldCommission = type === "affiliate_commission" && status === "pending";
 
   return (
     <>
       <span data-credit={isCredit || undefined} className="data-[credit]:font-medium data-[credit]:text-success">
         {isCredit && "+"}
-        {usd(amount, currency)}
+        {usd(isHeldCommission ? amount - amountRefunded : amount, currency)}
       </span>
       {bonusAmount > 0 && <span className="block text-xs font-medium text-muted-foreground">+{usd(bonusAmount, currency)} bonus</span>}
-      {amountRefunded > 0 && !isCanceledBeforeCredit && (
+      {amountRefunded > 0 && !isCanceledBeforeCredit && !isHeldCommission && (
         <span className="block text-xs font-medium text-muted-foreground">
           -{usd(amountRefunded, currency)} {type === "affiliate_commission" ? "taken back" : "refunded"}
         </span>
