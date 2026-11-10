@@ -27,7 +27,7 @@ export function Footer({ version }: { version: string }) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <NetworkSelect className="h-8 min-w-[160px] font-mono text-xs" />
+          <NetworkSelect className="h-8 w-[180px] min-w-0 font-mono text-xs" />
           <ModeToggle />
           <SocialLinks />
           <Link
