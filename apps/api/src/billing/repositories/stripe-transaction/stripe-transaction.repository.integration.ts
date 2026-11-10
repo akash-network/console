@@ -558,14 +558,24 @@ describe(StripeTransactionRepository.name, () => {
       await expect(stripeTransactionRepository.sumAffiliateCommissionNet(affiliate.id)).resolves.toBe(700);
     });
 
-    it("leaves out commissions still on hold or canceled during the hold", async () => {
+    it("counts commission still on hold net of refunds during the hold, and leaves out canceled commission", async () => {
       const { stripeTransactionRepository, createTestUser, createTestCommission } = setup();
       const affiliate = await createTestUser();
-      await createTestCommission(affiliate.id, { amount: 500, status: "pending" });
+      await createTestCommission(affiliate.id, { amount: 500, amountRefunded: 100, status: "pending" });
       await createTestCommission(affiliate.id, { amount: 400, amountRefunded: 400, status: "canceled" });
+      await createTestCommission(affiliate.id, { amount: 250, amountRefunded: 0, status: "canceled" });
       await createTestCommission(affiliate.id, { amount: 300, amountRefunded: 100, status: "refunded" });
 
-      await expect(stripeTransactionRepository.sumAffiliateCommissionNet(affiliate.id)).resolves.toBe(200);
+      await expect(stripeTransactionRepository.sumAffiliateCommissionNet(affiliate.id)).resolves.toBe(600);
+    });
+
+    it("counts a commission held this month toward this month", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestCommission } = setup();
+      const affiliate = await createTestUser();
+      const monthStart = new Date("2024-06-01T00:00:00Z");
+      await createTestCommission(affiliate.id, { amount: 500, status: "pending", createdAt: new Date("2024-06-10T00:00:00Z") });
+
+      await expect(stripeTransactionRepository.sumAffiliateCommissionNet(affiliate.id, monthStart)).resolves.toBe(500);
     });
 
     it("returns 0 when the user has no commission rows", async () => {

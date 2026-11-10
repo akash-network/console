@@ -387,12 +387,12 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
     return this.findOneByAndLock({ sourceTransactionId, type: "affiliate_commission" }, { strength: "no key update" });
   }
 
-  /** Nets each credited row's amount against its own amountRefunded before summing, so a partly reversed commission counts for only what the affiliate kept and a held one not at all. */
+  /** Counts commission earned, held or credited, net of what refunds took back, so a commission is counted in the month it was earned rather than the month its hold ended. */
   async sumAffiliateCommissionNet(userId: string, since?: Date): Promise<number> {
     const conditions: SQL[] = [
       eq(this.table.userId, userId),
       eq(this.table.type, "affiliate_commission"),
-      inArray(this.table.status, [...SETTLED_TRANSACTION_STATUSES])
+      inArray(this.table.status, [...SETTLED_TRANSACTION_STATUSES, "pending"])
     ];
 
     if (since) {
