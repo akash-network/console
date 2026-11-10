@@ -9,6 +9,8 @@ const CHART_PADDING = { top: 10, right: 60, bottom: 22, left: 8 };
 const AXIS_LABEL_STYLE = { font: "400 10px var(--font-geist-mono), monospace" };
 const TOOLTIP_WIDTH = 170;
 const MIN_DATE_LABEL_SPACING = 90;
+const Y_TICK_COUNT = 4;
+const MAX_DATE_LABELS = 6;
 
 type LineChartProps = {
   series: SeriesPoint[];
@@ -16,11 +18,9 @@ type LineChartProps = {
   formatAxisValue: (value: number) => string;
   formatValue: (value: number) => string;
   latestPointLabel?: string;
-  yTickCount?: number;
-  maxDateLabels?: number;
 };
 
-export function LineChart({ series, minHeight, formatAxisValue, formatValue, latestPointLabel, yTickCount = 4, maxDateLabels = 6 }: LineChartProps) {
+export function LineChart({ series, minHeight, formatAxisValue, formatValue, latestPointLabel }: LineChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [measuredHeight, setMeasuredHeight] = useState(0);
@@ -71,7 +71,7 @@ export function LineChart({ series, minHeight, formatAxisValue, formatValue, lat
           }}
           onMouseLeave={() => setHoverIndex(null)}
         >
-          {axisTicks(fitted.min, fitted.max, yTickCount).map(tick => (
+          {axisTicks(fitted.min, fitted.max, Y_TICK_COUNT).map(tick => (
             <g key={tick}>
               <line x1={0} x2={gridRight} y1={fitted.yOf(tick)} y2={fitted.yOf(tick)} className="stroke-muted" strokeWidth={1} />
               <text x={gridRight + 6} y={fitted.yOf(tick) + 3} className="fill-faint" style={AXIS_LABEL_STYLE}>
@@ -80,7 +80,7 @@ export function LineChart({ series, minHeight, formatAxisValue, formatValue, lat
             </g>
           ))}
 
-          {labelIndexes(series.length, Math.max(2, Math.min(maxDateLabels, Math.floor(width / MIN_DATE_LABEL_SPACING)))).map(index => (
+          {labelIndexes(series.length, Math.max(2, Math.min(MAX_DATE_LABELS, Math.floor(width / MIN_DATE_LABEL_SPACING)))).map(index => (
             <text
               key={index}
               x={fitted.xOf(index)}

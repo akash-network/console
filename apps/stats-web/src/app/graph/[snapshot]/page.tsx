@@ -1,88 +1,30 @@
-import React from "react";
-import { Button } from "@akashnetwork/ui/components";
-import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 
-import GraphContainer from "./GraphContainer";
-
-import { Link } from "@/components/Link/Link";
+import { GraphPage } from "@/components/graph/GraphPage";
 import { PageContainer } from "@/components/PageContainer";
-import { urlParamToSnapshot } from "@/lib/snapshotsUrlHelpers";
-import { UrlService } from "@/lib/urlUtils";
-import type { SnapshotsUrlParam } from "@/types";
-import { Snapshots } from "@/types";
+import { findGraphMetric } from "@/lib/graphMetrics/graphMetrics";
 
 interface IGraphProps {
   params: Promise<{ snapshot: string }>;
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 export async function generateMetadata({ params }: IGraphProps): Promise<Metadata> {
-  const { snapshot: snapshotUrlParam } = await params;
-  const snapshot = urlParamToSnapshot(snapshotUrlParam as SnapshotsUrlParam);
-  const title = getTitle(snapshot as Snapshots);
+  const { snapshot } = await params;
 
-  return {
-    title: title
-  };
+  return { title: findGraphMetric("graph", snapshot)?.title ?? "Graph not found" };
 }
 
-export default async function GraphPage({ params }: IGraphProps) {
-  const { snapshot: snapshotUrlParam } = await params;
-  const snapshot = urlParamToSnapshot(snapshotUrlParam as SnapshotsUrlParam);
-  const title = getTitle(snapshot as Snapshots);
+export default async function GraphRoute({ params }: IGraphProps) {
+  const { snapshot } = await params;
+
+  if (!findGraphMetric("graph", snapshot)) {
+    notFound();
+  }
 
   return (
     <PageContainer>
-      <div className="m-auto max-w-3xl">
-        <div className="mb-6 mt-6">
-          <Link href={UrlService.home()}>
-            <Button variant="ghost">
-              <ArrowLeft className="mr-2 h-4 w-4" /> Back
-            </Button>
-          </Link>
-        </div>
-
-        <div className="mb-2">
-          <h1 className="text-center text-3xl sm:text-left">{title}</h1>
-        </div>
-
-        <GraphContainer snapshot={snapshot} />
-      </div>
+      <GraphPage kind="graph" urlParam={snapshot} />
     </PageContainer>
   );
 }
-
-const getTitle = (snapshot: Snapshots): string => {
-  switch (snapshot) {
-    case Snapshots.activeLeaseCount:
-      return "Active leases";
-    case Snapshots.totalUAktSpent:
-      return "Total AKT spent";
-    case Snapshots.totalUActSpent:
-      return "Total ACT spent";
-    case Snapshots.totalUUsdSpent:
-      return "Total USD spent";
-    case Snapshots.totalLeaseCount:
-      return "All-time lease count";
-    case Snapshots.activeCPU:
-      return "CPU leased";
-    case Snapshots.activeGPU:
-      return "GPU leased";
-    case Snapshots.activeMemory:
-      return "Memory leased";
-    case Snapshots.activeStorage:
-      return "Disk storage leased";
-    case Snapshots.dailyUAktSpent:
-      return "Daily AKT spent";
-    case Snapshots.dailyUActSpent:
-      return "Daily ACT spent";
-    case Snapshots.dailyUUsdSpent:
-      return "Daily USD spent";
-    case Snapshots.dailyLeaseCount:
-      return "Daily new leases";
-
-    default:
-      return "Graph not found.";
-  }
-};
