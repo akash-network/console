@@ -6,13 +6,17 @@ export function formatNumber(value: number | undefined) {
   return value === undefined ? EMPTY_VALUE : Math.round(value).toLocaleString("en-US");
 }
 
+/** Values that would round up to "1000.00M" or "1000.0K" move to the next suffix instead. */
+const MIN_BILLIONS = 999_995_000;
+const MIN_MILLIONS = 999_950;
+
 export function formatCompact(value: number | undefined) {
   if (value === undefined) return EMPTY_VALUE;
 
   const magnitude = Math.abs(value);
 
-  if (magnitude >= 1e9) return `${(value / 1e9).toFixed(2)}B`;
-  if (magnitude >= 1e6) return `${(value / 1e6).toFixed(2)}M`;
+  if (magnitude >= MIN_BILLIONS) return `${(value / 1e9).toFixed(2)}B`;
+  if (magnitude >= MIN_MILLIONS) return `${(value / 1e6).toFixed(2)}M`;
   if (magnitude >= 1e4) return `${(value / 1e3).toFixed(1)}K`;
 
   return formatNumber(value);
