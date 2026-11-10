@@ -3,9 +3,8 @@ import React from "react";
 import { CustomTooltip } from "@akashnetwork/ui/components";
 import { CircleQuestionMark } from "lucide-react";
 
-import { DiffPercentageChip } from "@/components/DiffPercentageChip";
 import { Link } from "@/components/Link/Link";
-import { Eyebrow, Panel } from "@/components/stats/Panel";
+import { DeltaLabel, Eyebrow, Panel } from "@/components/stats/Panel";
 
 interface IStatsCardProps {
   number: React.ReactNode;
@@ -36,7 +35,7 @@ export const StatsCard: React.FunctionComponent<IStatsCardProps> = ({ number, su
       </div>
       <div className="text-[26px] font-semibold tabular-nums leading-none tracking-[-0.02em]">{number}</div>
       {subNumber}
-      {!!diffPercent && <DiffPercentageChip value={diffPercent} />}
+      {!!diffPercent && Number.isFinite(diffPercent) && <DeltaLabel percent={diffPercent * 100} period="24H" />}
     </Panel>
   );
 };
