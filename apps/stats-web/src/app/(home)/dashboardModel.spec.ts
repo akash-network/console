@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { HERO_METRICS, microToUnit, toCapacityRows, toGpuRows, toGpuSummary, toMessageLabel } from "./dashboardModel";
+import { HERO_METRICS, microToUnit, toCapacityRows, toGpuRows, toGpuSummary } from "./dashboardModel";
 
 import type { GpuModelPrice, NetworkCapacity } from "@/types";
 
@@ -104,28 +104,6 @@ describe("dashboardModel", () => {
     it("reads 0% without gpus", () => {
       expect(toGpuSummary(capacity({ activeGPU: 0, totalGPU: 0 }))).toBe("0% utilized · 0 available now");
     });
-  });
-
-  describe(toMessageLabel.name, () => {
-    it("names the first message without its Msg prefix", () => {
-      expect(toMessageLabel({ messages: [message("/akash.market.v1beta5.MsgCreateBid"), message("/cosmos.bank.v1beta1.MsgSend")] })).toBe("CreateBid");
-    });
-
-    it("names a received transfer", () => {
-      expect(toMessageLabel({ messages: [{ ...message("/cosmos.bank.v1beta1.MsgSend"), isReceiver: true }] })).toBe("Receive");
-    });
-
-    it("shows a dash without messages", () => {
-      expect(toMessageLabel({ messages: [] })).toBe("—");
-    });
-
-    it("shows a dash for an empty type", () => {
-      expect(toMessageLabel({ messages: [message("")] })).toBe("—");
-    });
-
-    function message(type: string) {
-      return { id: type, type };
-    }
   });
 
   function gpu(input: {

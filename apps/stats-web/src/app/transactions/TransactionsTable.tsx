@@ -2,10 +2,10 @@
 import { useState } from "react";
 
 import { Link } from "@/components/Link/Link";
-import { Panel } from "@/components/stats/Panel";
+import { LoadError, Panel } from "@/components/stats/Panel";
 import { useNow } from "@/hooks/useNow";
 import type { TransactionGroupKey } from "@/lib/chainActivity/chainActivity";
-import { filterTransactionsByGroup, messageTypeName, TRANSACTION_GROUPS } from "@/lib/chainActivity/chainActivity";
+import { filterTransactionsByGroup, firstMessageLabel, TRANSACTION_GROUPS } from "@/lib/chainActivity/chainActivity";
 import { formatAgo, formatHash, formatNumber } from "@/lib/statsFormat/statsFormat";
 import { UrlService } from "@/lib/urlUtils";
 import { cn } from "@/lib/utils";
@@ -20,7 +20,7 @@ const TRANSACTION_COLUMNS =
 export const TransactionsTable: React.FunctionComponent = () => {
   const now = useNow(1000);
   const [groupKey, setGroupKey] = useState<TransactionGroupKey>("all");
-  const { data: transactions } = useTransactions(TRANSACTION_LIMIT, { refetchInterval: TRANSACTION_REFRESH_INTERVAL_MS });
+  const { data: transactions, isError, refetch } = useTransactions(TRANSACTION_LIMIT, { refetchInterval: TRANSACTION_REFRESH_INTERVAL_MS });
   const rows: TransactionDetail[] | undefined = transactions && filterTransactionsByGroup(transactions, groupKey);
 
   return (
@@ -64,7 +64,8 @@ export const TransactionsTable: React.FunctionComponent = () => {
           <span className="text-right">Time</span>
         </div>
 
-        {!rows && Array.from({ length: 12 }, (_, index) => <div key={index} className="my-2 h-7 animate-pulse rounded bg-nested" />)}
+        {!rows && isError && <LoadError subject="transactions" onRetry={() => refetch()} />}
+        {!rows && !isError && Array.from({ length: 12 }, (_, index) => <div key={index} className="my-2 h-7 animate-pulse rounded bg-nested" />)}
         {rows?.length === 0 && <p className="py-10 text-center text-sm text-muted-foreground">None of the latest transactions are of this type.</p>}
         {rows?.map(transaction => (
           <div
@@ -79,7 +80,7 @@ export const TransactionsTable: React.FunctionComponent = () => {
             </Link>
             <div className="flex min-w-0 items-center gap-1.5">
               <span className="truncate rounded border bg-nested px-[7px] py-[5px] font-mono text-[10px] font-medium tracking-[0.04em] text-foreground">
-                {transaction.messages[0]?.isReceiver ? "Receive" : messageTypeName(transaction.messages[0]?.type ?? "")}
+                {firstMessageLabel(transaction)}
               </span>
               {transaction.messages.length > 1 && <span className="font-mono text-[10px] text-faint">+{transaction.messages.length - 1}</span>}
             </div>

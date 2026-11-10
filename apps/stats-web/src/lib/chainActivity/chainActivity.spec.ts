@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { averageBlockTimeSeconds, filterTransactionsByGroup, initialsOf, messageTypeName } from "./chainActivity";
+import { averageBlockTimeSeconds, filterTransactionsByGroup, firstMessageLabel, initialsOf, messageTypeName } from "./chainActivity";
+
+import { EMPTY_VALUE } from "@/lib/statsFormat/statsFormat";
 
 describe("chainActivity", () => {
   describe(messageTypeName.name, () => {
@@ -11,6 +13,28 @@ describe("chainActivity", () => {
     it("keeps a name without a Msg prefix", () => {
       expect(messageTypeName("cosmos.bank.Send")).toBe("Send");
     });
+  });
+
+  describe(firstMessageLabel.name, () => {
+    it("names the first message without its Msg prefix", () => {
+      expect(firstMessageLabel({ messages: [message("/akash.market.v1beta5.MsgCreateBid"), message("/cosmos.bank.v1beta1.MsgSend")] })).toBe("CreateBid");
+    });
+
+    it("names a received transfer", () => {
+      expect(firstMessageLabel({ messages: [{ ...message("/cosmos.bank.v1beta1.MsgSend"), isReceiver: true }] })).toBe("Receive");
+    });
+
+    it("shows a dash without messages", () => {
+      expect(firstMessageLabel({ messages: [] })).toBe(EMPTY_VALUE);
+    });
+
+    it("shows a dash for an empty type", () => {
+      expect(firstMessageLabel({ messages: [message("")] })).toBe(EMPTY_VALUE);
+    });
+
+    function message(type: string) {
+      return { id: type, type };
+    }
   });
 
   describe(filterTransactionsByGroup.name, () => {

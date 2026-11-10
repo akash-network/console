@@ -1,3 +1,4 @@
+import { EMPTY_VALUE } from "@/lib/statsFormat/statsFormat";
 import type { Block, TransactionDetail } from "@/types";
 
 export const TRANSACTION_GROUPS = [
@@ -13,6 +14,15 @@ export type TransactionGroupKey = (typeof TRANSACTION_GROUPS)[number]["key"];
 
 export function messageTypeName(type: string) {
   return (type.split(".").pop() ?? "").replace(/^Msg/, "");
+}
+
+export function firstMessageLabel(transaction: Pick<TransactionDetail, "messages">) {
+  const [firstMessage] = transaction.messages;
+
+  if (!firstMessage) return EMPTY_VALUE;
+  if (firstMessage.isReceiver) return "Receive";
+
+  return messageTypeName(firstMessage.type) || EMPTY_VALUE;
 }
 
 export function filterTransactionsByGroup<T extends Pick<TransactionDetail, "messages">>(transactions: T[], groupKey: TransactionGroupKey) {

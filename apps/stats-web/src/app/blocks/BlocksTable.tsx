@@ -1,6 +1,6 @@
 "use client";
 import { Link } from "@/components/Link/Link";
-import { Panel, StatCard } from "@/components/stats/Panel";
+import { LoadError, Panel, StatCard } from "@/components/stats/Panel";
 import { useNow } from "@/hooks/useNow";
 import { averageBlockTimeSeconds, initialsOf } from "@/lib/chainActivity/chainActivity";
 import { EMPTY_VALUE, formatAgo, formatCompact, formatNumber } from "@/lib/statsFormat/statsFormat";
@@ -15,7 +15,7 @@ const BLOCK_COLUMNS = "grid grid-cols-[96px_minmax(0,1fr)_48px_72px] gap-3 sm:gr
 
 export const BlocksTable: React.FunctionComponent = () => {
   const now = useNow(1000);
-  const { data: blocks } = useBlocks(BLOCK_LIMIT, { refetchInterval: BLOCK_REFRESH_INTERVAL_MS });
+  const { data: blocks, isError, refetch } = useBlocks(BLOCK_LIMIT, { refetchInterval: BLOCK_REFRESH_INTERVAL_MS });
   const { data: dashboardData } = useDashboardData();
   const averageBlockTime = blocks && averageBlockTimeSeconds(blocks);
 
@@ -40,7 +40,8 @@ export const BlocksTable: React.FunctionComponent = () => {
           <span className="text-right">Time</span>
         </div>
 
-        {!blocks && Array.from({ length: 12 }, (_, index) => <div key={index} className="my-2 h-7 animate-pulse rounded bg-nested" />)}
+        {!blocks && isError && <LoadError subject="blocks" onRetry={() => refetch()} />}
+        {!blocks && !isError && Array.from({ length: 12 }, (_, index) => <div key={index} className="my-2 h-7 animate-pulse rounded bg-nested" />)}
         {blocks?.map((block: Block) => (
           <div
             key={block.height}

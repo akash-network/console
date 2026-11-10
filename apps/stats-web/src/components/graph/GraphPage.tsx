@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { ZoomableChart } from "@/components/graph/ZoomableChart";
 import { Link } from "@/components/Link/Link";
-import { DeltaLabel, Eyebrow, Panel } from "@/components/stats/Panel";
+import { DeltaLabel, Eyebrow, LoadError, Panel } from "@/components/stats/Panel";
 import { RangePicker } from "@/components/stats/Toggles";
 import type { GraphKind, GraphMetric, GraphSources } from "@/lib/graphMetrics/graphMetrics";
 import { findGraphMetric, GRAPH_METRICS, graphMetricHref, groupGraphMetrics } from "@/lib/graphMetrics/graphMetrics";
@@ -21,7 +21,7 @@ const METRIC_GROUPS = groupGraphMetrics(GRAPH_METRICS);
 export function GraphPage({ kind, urlParam }: { kind: GraphKind; urlParam: string }) {
   const metric = findGraphMetric(kind, urlParam) ?? GRAPH_METRICS[0];
   const [range, setRange] = useState<RangeKey>("1Y");
-  const series = useMetricSeries(metric);
+  const { series, isError, refetch } = useMetricSeries(metric);
   const { data: dashboard } = useDashboardData();
   const { data: bme } = useBmeDashboardData();
   const rangedSeries = useMemo(() => (series ? sliceRange(series, daysOf(range)) : []), [series, range]);
@@ -58,7 +58,11 @@ export function GraphPage({ kind, urlParam }: { kind: GraphKind; urlParam: strin
             {rangedSeries.length > 1 && <DeltaLabel className="text-[13px]" percent={deltaPercent(rangedSeries, 0)} period={range.toLowerCase()} />}
           </div>
 
-          <ZoomableChart series={series ?? []} rangedSeries={rangedSeries} formatValue={metric.formatValue} formatAxisValue={metric.formatAxisValue} />
+          {!series && isError ? (
+            <LoadError subject={metric.label.toLowerCase()} onRetry={refetch} className="h-[400px]" />
+          ) : (
+            <ZoomableChart series={series ?? []} rangedSeries={rangedSeries} formatValue={metric.formatValue} formatAxisValue={metric.formatAxisValue} />
+          )}
         </Panel>
 
         <GraphSummary metric={metric} series={rangedSeries} range={range} />
@@ -69,15 +73,16 @@ export function GraphPage({ kind, urlParam }: { kind: GraphKind; urlParam: strin
 
 function useMetricSeries(metric: GraphMetric) {
   const isProviderGraph = metric.kind === "provider-graph";
-  const { data: graphData } = useGraphSnapshot(metric.snapshot, { enabled: !isProviderGraph });
-  const { data: providerGraphData } = useProviderGraphSnapshot(metric.snapshot, { enabled: isProviderGraph });
-  const data = isProviderGraph ? providerGraphData : graphData;
+  const graphQuery = useGraphSnapshot(metric.snapshot, { enabled: !isProviderGraph });
+  const providerGraphQuery = useProviderGraphSnapshot(metric.snapshot, { enabled: isProviderGraph });
+  const { data, isError, refetch } = isProviderGraph ? providerGraphQuery : graphQuery;
+  const series = useMemo(() => {
+    const points = data ? toSeries(data, metric.scale) : [];
 
-  return useMemo(() => {
-    const series = data ? toSeries(data, metric.scale) : [];
-
-    return series.length ? series : undefined;
+    return points.length ? points : undefined;
   }, [data, metric]);
+
+  return { series, isError, refetch: () => refetch() };
 }
 
 function GraphSidebar({ activeMetric, sources }: { activeMetric: GraphMetric; sources: GraphSources }) {
