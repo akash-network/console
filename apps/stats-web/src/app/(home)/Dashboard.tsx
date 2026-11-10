@@ -24,7 +24,6 @@ import { AKTAmount } from "@/components/AKTAmount";
 import { AKTLabel } from "@/components/AKTLabel";
 import { HumanReadableBytes } from "@/components/HumanReadableBytes";
 import { Link } from "@/components/Link/Link";
-import SearchBar from "@/components/SearchBar";
 import { Title } from "@/components/Title";
 import { ACTLabel } from "@/components/UsdLabel";
 import { percIncrease, udenomToDenom } from "@/lib/mathHelpers";
@@ -474,11 +473,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
         </>
       )}
 
-      <div className="pb-4 pt-12">
-        <SearchBar />
-      </div>
-
-      <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
+      <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-2">
         <Card className="flex w-full flex-col justify-between">
           <CardHeader className="flex flex-row items-center space-y-0 pb-2 pl-4 pr-4">
             <CardTitle className="text-lg font-medium">Blocks</CardTitle>

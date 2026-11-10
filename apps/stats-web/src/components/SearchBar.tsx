@@ -1,158 +1,71 @@
 "use client";
-import { useEffect, useState } from "react";
-import { Button, Card, CardContent, Input } from "@akashnetwork/ui/components";
-import { fromBech32, normalizeBech32 } from "@cosmjs/encoding";
-import { Search, X } from "lucide-react";
+import { useState } from "react";
+import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMediaQuery } from "usehooks-ts";
 
-import { breakpoints } from "@/lib/responsiveUtils";
+import type { SearchTarget } from "@/lib/searchTarget/searchTarget";
+import { toSearchTarget } from "@/lib/searchTarget/searchTarget";
 import { UrlService } from "@/lib/urlUtils";
+import { cn } from "@/lib/utils";
 
-enum SearchType {
-  AccountAddress,
-  ValidatorAddress,
-  TxHash,
-  BlockHeight
-}
-
-const SearchBar: React.FunctionComponent = () => {
+export function SearchBar({ className, onNavigate }: { className?: string; onNavigate?: () => void }) {
   const [searchTerms, setSearchTerms] = useState("");
-  const [searchType, setSearchType] = useState<SearchType | null>(null);
-  const [isFocused, setIsFocused] = useState(false);
+  const [isInvalid, setIsInvalid] = useState(false);
   const router = useRouter();
-  const hasSearchTerms = !!searchTerms.trim();
-  const smallScreen = useMediaQuery(breakpoints.xs.mediaQuery);
 
-  useEffect(() => {
-    setSearchType(getSearchType(searchTerms));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerms]);
+  function navigateToSearchTarget(event: React.FormEvent) {
+    event.preventDefault();
 
-  function onSearchTermsChange(ev: React.ChangeEvent<HTMLInputElement>) {
-    setSearchTerms(ev.target.value);
-  }
+    if (!searchTerms.trim()) return;
 
-  function onSubmit(ev: React.FormEvent) {
-    ev.preventDefault();
+    const target = toSearchTarget(searchTerms);
 
-    const trimmedSearch = searchTerms.trim();
-
-    if (trimmedSearch.length === 0) return;
-
-    const searchType = getSearchType(trimmedSearch);
-
-    switch (searchType) {
-      case SearchType.AccountAddress:
-        router.push(UrlService.address(normalizeBech32(trimmedSearch)));
-        break;
-      case SearchType.ValidatorAddress:
-        router.push(UrlService.validator(normalizeBech32(trimmedSearch)));
-        break;
-      case SearchType.TxHash:
-        router.push(UrlService.transaction(trimmedSearch.toUpperCase()));
-        break;
-      case SearchType.BlockHeight:
-        router.push(UrlService.block(parseInt(trimmedSearch)));
-        break;
-    }
-  }
-
-  function getSearchType(search: string): SearchType | null {
-    // Check if valid block height
-    if (/^[0-9]+$/.test(search)) {
-      return SearchType.BlockHeight;
-    }
-    // Check if tx hash
-    else if (/^[A-Fa-f0-9]{64}$/.test(search)) {
-      return SearchType.TxHash;
-    } else {
-      // Check if valid bech32 address
-      const bech32 = parseBech32(search);
-      if (bech32?.prefix === "akash") {
-        return SearchType.AccountAddress;
-      } else if (bech32?.prefix === "akashvaloper") {
-        return SearchType.ValidatorAddress;
-      }
+    if (!target) {
+      setIsInvalid(true);
+      return;
     }
 
-    return null;
-  }
-
-  function parseBech32(str: string) {
-    try {
-      return fromBech32(str);
-    } catch {
-      return null;
-    }
-  }
-
-  function getSearchBtnLabel(searchType: SearchType | null) {
-    switch (searchType) {
-      case SearchType.AccountAddress:
-        return "Search Account";
-      case SearchType.ValidatorAddress:
-        return "Search Validator";
-      case SearchType.TxHash:
-        return "Search Transaction";
-      case SearchType.BlockHeight:
-        return "Search Block";
-      default:
-        return "Search";
-    }
-  }
-
-  const onClear = () => {
+    router.push(urlOf(target));
     setSearchTerms("");
-    setSearchType(null);
-  };
+    onNavigate?.();
+  }
 
   return (
-    <div className="relative flex-grow">
-      <form onSubmit={onSubmit}>
-        <label className="relative block text-gray-400 focus-within:text-gray-600">
-          <Input
-            value={searchTerms}
-            onChange={onSearchTermsChange}
-            onClick={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            placeholder="Search by Address, Block Height, TxHash..."
-          />
-
-          <div className="absolute right-0 top-0 flex items-center">
-            {hasSearchTerms && (
-              <Button
-                type="button"
-                size="icon"
-                onClick={onClear}
-                className="bg-transparent text-gray-400 hover:bg-transparent hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-              >
-                <X className="h-5 w-5" />
-              </Button>
-            )}
-
-            {smallScreen ? (
-              <Button variant="default" size="icon" type="submit" disabled={searchType === null || !hasSearchTerms} className="ml-2">
-                <Search className="h-5 w-5" />
-              </Button>
-            ) : (
-              <Button type="submit" disabled={searchType === null || !hasSearchTerms} className="ml-2">
-                {getSearchBtnLabel(searchType)}
-              </Button>
-            )}
-          </div>
-        </label>
-
-        {searchType === null && searchTerms.trim() && isFocused && (
-          <div className="absolute -bottom-14 left-0 w-full">
-            <Card>
-              <CardContent className="!p-4">Invalid search term</CardContent>
-            </Card>
-          </div>
-        )}
-      </form>
-    </div>
+    <form role="search" onSubmit={navigateToSearchTarget} className={cn("relative", className)}>
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" aria-hidden />
+      <input
+        value={searchTerms}
+        onChange={event => {
+          setSearchTerms(event.target.value);
+          setIsInvalid(false);
+        }}
+        onBlur={() => setIsInvalid(false)}
+        aria-label="Search by block height, transaction hash or address"
+        aria-invalid={isInvalid}
+        placeholder="Search height / tx / address"
+        className="h-9 w-full rounded-md border bg-card pl-8 pr-3 font-mono text-xs tracking-[0.02em] text-foreground outline-none transition-shadow placeholder:text-faint focus:border-akash focus:ring-[3px] focus:ring-akash/20"
+      />
+      {isInvalid && (
+        <p
+          role="alert"
+          className="absolute left-0 top-full mt-2 w-full rounded-md border border-border-strong bg-popover px-3 py-2 text-xs text-muted-foreground shadow-lg"
+        >
+          No block height, transaction hash or Akash address matches this search.
+        </p>
+      )}
+    </form>
   );
-};
+}
 
-export default SearchBar;
+function urlOf(target: SearchTarget) {
+  switch (target.type) {
+    case "block":
+      return UrlService.block(target.height);
+    case "transaction":
+      return UrlService.transaction(target.hash);
+    case "address":
+      return UrlService.address(target.address);
+    case "validator":
+      return UrlService.validator(target.address);
+  }
+}

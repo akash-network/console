@@ -1,94 +1,58 @@
 "use client";
-import { Button, DiscordLogo, GithubLogo, XLogo } from "@akashnetwork/ui/components";
-import { Rocket } from "lucide-react";
+import { usePathname } from "next/navigation";
 
-import { AkashConsoleDarkLogo, AkashConsoleLightLogo } from "../icons/AkashConsoleLogo";
-import { ModeToggle } from "../ModeToggle";
+import { AkashLogo } from "../icons/AkashLogo";
+import { isActiveNavLink, NAV_LINKS } from "./navLinks/navLinks";
+import { LiveBlockHeight } from "./LiveBlockHeight";
 import { MobileNav } from "./MobileNav";
-
-import { Link } from "@/components/Link/Link";
-
-const NetworkSelect = dynamic(() => import("./NetworkSelect"), {
-  ssr: false
-});
-
-import dynamic from "next/dynamic";
-
 import { TopBanner } from "./TopBanner";
 
-import useCookieTheme from "@/hooks/useTheme";
+import { Link } from "@/components/Link/Link";
+import { SearchBar } from "@/components/SearchBar";
 import { useTopBanner } from "@/hooks/useTopBanner";
+import { cn } from "@/lib/utils";
 
 export const Nav = () => {
-  const theme = useCookieTheme();
   const { hasBanner } = useTopBanner();
+  const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-header backdrop-blur supports-[backdrop-filter]:bg-header">
-      {hasBanner && (
-        <div>
-          <TopBanner />
-        </div>
-      )}
+    <header className="sticky top-0 z-50 w-full border-b bg-background/90 backdrop-blur-md">
+      {hasBanner && <TopBanner />}
 
-      <div className="container flex h-14 items-center">
-        <div className="mr-4 flex">
-          {!!theme && (
-            <Link className="flex items-center space-x-2" href="/">
-              {theme === "light" ? <AkashConsoleLightLogo className="h-[25px] max-w-[180px]" /> : <AkashConsoleDarkLogo className="h-[25px] max-w-[180px]" />}
-            </Link>
-          )}
+      <div className="mx-auto flex h-16 max-w-page items-center gap-[18px] px-4 sm:px-6">
+        <Link href="/" className="flex flex-none items-center gap-3 text-foreground hover:text-foreground hover:no-underline">
+          <AkashLogo className="h-[18px] w-auto" />
+          <span className="rounded border px-[7px] py-1 font-mono text-[11px] font-medium leading-none tracking-[0.1em] text-muted-foreground">STATS</span>
+        </Link>
 
-          <div className="ml-8 hidden items-center gap-4 md:flex">
-            <NetworkSelect />
-            <Link href="/bme" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
-              BME
-            </Link>
-          </div>
-        </div>
+        <nav aria-label="Main" className="hidden gap-1 text-[13px] font-medium lg:flex">
+          {NAV_LINKS.map(link => {
+            const isActive = isActiveNavLink(link, pathname);
 
-        <div className="flex flex-1 items-center justify-end">
-          <div className="md:hidden">
-            <MobileNav />
-          </div>
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                aria-current={isActive ? "page" : undefined}
+                className={cn(
+                  "rounded-md px-2.5 py-[7px] transition-colors hover:no-underline",
+                  isActive ? "bg-muted text-foreground hover:text-foreground" : "text-muted-foreground hover:bg-nested hover:text-foreground"
+                )}
+              >
+                {link.title}
+              </Link>
+            );
+          })}
+        </nav>
 
-          <nav className="hidden items-center md:flex">
-            <Link target="_blank" rel="noreferrer" href="https://twitter.com/akashnet" className="text-foreground">
-              <Button variant="ghost" size="icon">
-                <XLogo width="1.2rem" height="1.2rem" />
-                <span className="sr-only">Twitter</span>
-              </Button>
-            </Link>
+        <div className="flex-1" />
 
-            <Link target="_blank" rel="noreferrer" href="https://github.com/akash-network/console" className="text-foreground">
-              <Button variant="ghost" size="icon">
-                <GithubLogo width="1.2rem" height="1.2rem" />
-                <span className="sr-only">GitHub</span>
-              </Button>
-            </Link>
+        <SearchBar className="hidden w-[250px] min-w-[110px] shrink md:block" />
+        <LiveBlockHeight className="hidden sm:flex" />
 
-            <Link target="_blank" rel="noreferrer" href="https://discord.akash.network" className="text-foreground">
-              <Button variant="ghost" size="icon">
-                <DiscordLogo width="1.2rem" height="1.2rem" />
-                <span className="sr-only">Twitter</span>
-              </Button>
-            </Link>
-
-            <ModeToggle />
-
-            <Link rel="noreferrer" href="https://akash.network" passHref target="_blank" className="ml-4 text-foreground">
-              <Button variant="outline" size="sm" className="h-[30px]">
-                akash.network
-              </Button>
-            </Link>
-
-            <Link rel="noreferrer" href="https://console.akash.network" passHref target="_blank" className="ml-4">
-              <Button variant="default" size="sm" className="h-[30px]">
-                Deploy
-                <Rocket className="ml-2 h-5 w-5 rotate-45" />
-              </Button>
-            </Link>
-          </nav>
+        <div className="lg:hidden">
+          <MobileNav />
         </div>
       </div>
     </header>
