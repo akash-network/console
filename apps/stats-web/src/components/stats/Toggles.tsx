@@ -17,7 +17,7 @@ export function SegmentedTabs<T extends string>({
   label: string;
 }) {
   return (
-    <div role="tablist" aria-label={label} className="flex max-w-full gap-0.5 self-start overflow-x-auto rounded-md border bg-nested p-0.5">
+    <div role="group" aria-label={label} className="flex max-w-full gap-0.5 self-start overflow-x-auto rounded-md border bg-nested p-0.5">
       {options.map(option => {
         const isSelected = option.value === value;
 
@@ -25,8 +25,7 @@ export function SegmentedTabs<T extends string>({
           <button
             key={option.value}
             type="button"
-            role="tab"
-            aria-selected={isSelected}
+            aria-pressed={isSelected}
             onClick={() => onChange(option.value)}
             className={cn(
               "whitespace-nowrap rounded px-[11px] py-1.5 text-xs font-medium leading-none transition-colors",

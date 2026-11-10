@@ -12,7 +12,7 @@ import {
   formatPercent,
   formatShortDate,
   formatUsd,
-  formatUsdCents
+  formatUsdPrice
 } from "./statsFormat";
 
 describe("statsFormat", () => {
@@ -61,13 +61,13 @@ describe("statsFormat", () => {
     });
   });
 
-  describe(formatUsdCents.name, () => {
+  describe(formatUsdPrice.name, () => {
     it("prints cents", () => {
-      expect(formatUsdCents(2.4)).toBe("$2.40");
+      expect(formatUsdPrice(2.4)).toBe("$2.40");
     });
 
     it("shows a dash without a value", () => {
-      expect(formatUsdCents(undefined)).toBe(EMPTY_VALUE);
+      expect(formatUsdPrice(undefined)).toBe(EMPTY_VALUE);
     });
   });
 

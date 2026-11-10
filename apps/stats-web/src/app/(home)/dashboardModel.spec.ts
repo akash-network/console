@@ -17,10 +17,6 @@ describe("dashboardModel", () => {
       expect(metric.formatValue(value)).toBe(formattedValue);
       expect(metric.formatAxisValue(axisValue)).toBe(formattedAxis);
     });
-
-    it("scales daily spend from micro usd", () => {
-      expect(HERO_METRICS[0].scale?.(8_250_000_000)).toBe(8250);
-    });
   });
 
   describe(microToUnit.name, () => {

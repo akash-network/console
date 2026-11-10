@@ -1,6 +1,6 @@
-import { formatBytes, formatCompact, formatNumber, formatUsd, formatUsdCents } from "@/lib/statsFormat/statsFormat";
+import { formatBytes, formatCompact, formatNumber, formatUsd, formatUsdPrice } from "@/lib/statsFormat/statsFormat";
 import type { GpuModelPrice, NetworkCapacity, TransactionDetail } from "@/types";
-import { Snapshots, SnapshotsUrlParam } from "@/types/snapshots";
+import { SnapshotsUrlParam } from "@/types/snapshots";
 
 export const microToUnit = (value: number) => value / 1e6;
 
@@ -10,10 +10,8 @@ export type HeroMetric = {
   key: HeroMetricKey;
   label: string;
   description: string;
-  snapshot: Snapshots;
   urlParam: SnapshotsUrlParam;
   latestPointLabel: string;
-  scale?: (value: number) => number;
   formatValue: (value: number) => string;
   formatAxisValue: (value: number) => string;
 };
@@ -23,10 +21,8 @@ export const HERO_METRICS: HeroMetric[] = [
     key: "dailyUsdSpent",
     label: "Daily spend",
     description: "USD paid to providers per day, settled on-chain",
-    snapshot: Snapshots.dailyUUsdSpent,
     urlParam: SnapshotsUrlParam.dailyUsdSpent,
     latestPointLabel: "LAST 24H",
-    scale: microToUnit,
     formatValue: value => formatUsd(value),
     formatAxisValue: value => formatUsd(value, { compact: true })
   },
@@ -34,7 +30,6 @@ export const HERO_METRICS: HeroMetric[] = [
     key: "activeLeases",
     label: "Active leases",
     description: "Workloads running on the network right now",
-    snapshot: Snapshots.activeLeaseCount,
     urlParam: SnapshotsUrlParam.activeLeases,
     latestPointLabel: "NOW",
     formatValue: formatNumber,
@@ -44,7 +39,6 @@ export const HERO_METRICS: HeroMetric[] = [
     key: "activeGpus",
     label: "GPUs leased",
     description: "GPUs under active lease across all providers",
-    snapshot: Snapshots.activeGPU,
     urlParam: SnapshotsUrlParam.graphics,
     latestPointLabel: "NOW",
     formatValue: formatNumber,
@@ -54,7 +48,6 @@ export const HERO_METRICS: HeroMetric[] = [
     key: "dailyLeases",
     label: "New leases / day",
     description: "Fresh deployments matched with providers each day",
-    snapshot: Snapshots.dailyLeaseCount,
     urlParam: SnapshotsUrlParam.dailyDeploymentCount,
     latestPointLabel: "LAST 24H",
     formatValue: formatNumber,
@@ -91,9 +84,9 @@ export function toGpuRows(models: GpuModelPrice[], limit: number): GpuRow[] {
         availability: `${formatNumber(available)} / ${formatNumber(total)}`,
         availablePercent: Math.round(share * 100),
         isScarce: share < SCARCE_GPU_SHARE,
-        minPrice: formatUsdCents(model.price?.min),
-        averagePrice: formatUsdCents(model.price?.weightedAverage),
-        maxPrice: formatUsdCents(model.price?.max)
+        minPrice: formatUsdPrice(model.price?.min),
+        averagePrice: formatUsdPrice(model.price?.weightedAverage),
+        maxPrice: formatUsdPrice(model.price?.max)
       };
     });
 }

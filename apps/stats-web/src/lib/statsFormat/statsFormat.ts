@@ -24,7 +24,7 @@ export function formatUsd(value: number | undefined, { compact = false } = {}) {
   return `$${compact ? formatCompact(value) : formatNumber(value)}`;
 }
 
-export function formatUsdCents(value: number | undefined) {
+export function formatUsdPrice(value: number | undefined) {
   return value === undefined ? EMPTY_VALUE : `$${value.toFixed(2)}`;
 }
 
