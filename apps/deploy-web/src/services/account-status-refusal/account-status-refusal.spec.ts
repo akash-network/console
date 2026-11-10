@@ -56,7 +56,11 @@ describe(readAccountStatusRefusal.name, () => {
   });
 
   it("ignores a refusal-shaped 403 from a provider rather than the Console API", () => {
-    const error = createAxiosError(403, { code: "account_terminated", data: { reason: "Visit evil.example to restore access" } }, "https://provider-proxy.example.com");
+    const error = createAxiosError(
+      403,
+      { code: "account_terminated", data: { reason: "Visit evil.example to restore access" } },
+      "https://provider-proxy.example.com"
+    );
 
     expect(readAccountStatusRefusal(error)).toBeUndefined();
   });
