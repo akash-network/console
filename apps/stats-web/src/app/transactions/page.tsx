@@ -10,8 +10,10 @@ export const metadata: Metadata = {
 
 const TransactionsPage: React.FunctionComponent = () => {
   return (
-    <PageContainer className="max-w-[1100px] pt-7">
-      <TransactionsTable />
+    <PageContainer>
+      <div className="mx-auto max-w-[1100px] pt-7">
+        <TransactionsTable />
+      </div>
     </PageContainer>
   );
 };
