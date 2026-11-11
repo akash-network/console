@@ -30,7 +30,7 @@ const MAX_LOGGABLE_LINE_BYTES = 16384;
 describe(DrainingDeploymentService.name, () => {
   describe("findDrainingDeploymentsByOwner", () => {
     it("paginates draining deployments by owner and marks closed ones as such", async () => {
-      const { service, deploymentSettingRepository, leaseRepository, loggerService, currentHeight } = setup();
+      const { service, deploymentSettingRepository, leaseRepository, loggerService, rpcService, currentHeight } = setup();
       const deploymentSettings = createManyAutoTopUpDeployments(4);
       const addresses = deploymentSettings.map(s => s.address);
       const dseqs = deploymentSettings.map(s => Number(s.dseq));
@@ -67,7 +67,7 @@ describe(DrainingDeploymentService.name, () => {
         }
       ];
 
-      vi.spyOn(service, "findLeases")
+      rpcService.findManyByDseqAndOwner
         .mockResolvedValueOnce(activeBatches[0])
         .mockResolvedValueOnce(closedBatch)
         .mockResolvedValueOnce([])
@@ -110,7 +110,7 @@ describe(DrainingDeploymentService.name, () => {
     });
 
     it("yields a non-draining owner with its active deployments and an empty fundable subset", async () => {
-      const { service, deploymentSettingRepository, currentHeight } = setup();
+      const { service, deploymentSettingRepository, rpcService, currentHeight } = setup();
       const creditsLowNotifiedAt = faker.date.recent();
       const setting = createAutoTopUpDeployment({ isWalletAutoTopUpEnabled: true, walletIsTrialing: true, walletCreditsLowNotifiedAt: creditsLowNotifiedAt });
       const farFromClosure = createDrainingDeployment({
@@ -124,14 +124,14 @@ describe(DrainingDeploymentService.name, () => {
           yield { address: setting.address, walletId: setting.walletId, deploymentSettings: [setting] };
         })()
       );
-      const findLeasesSpy = vi.spyOn(service, "findLeases").mockResolvedValue([farFromClosure]);
+      rpcService.findManyByDseqAndOwner.mockResolvedValue([farFromClosure]);
 
       const callback = vi.fn();
       for await (const result of service.findDrainingDeploymentsByOwner(currentHeight, mock<DeploymentTopUpInstrumentation>())) {
         callback(result);
       }
 
-      expect(findLeasesSpy).toHaveBeenCalledWith(Number.MAX_SAFE_INTEGER, setting.address, [setting.dseq]);
+      expect(rpcService.findManyByDseqAndOwner).toHaveBeenCalledWith(Number.MAX_SAFE_INTEGER, setting.address, [setting.dseq]);
       expect(callback).toHaveBeenCalledTimes(1);
       expect(callback).toHaveBeenCalledWith({
         address: setting.address,
@@ -146,7 +146,7 @@ describe(DrainingDeploymentService.name, () => {
     });
 
     it("reports marked-closed deployments to the caller's instrumentation", async () => {
-      const { service, deploymentSettingRepository, currentHeight } = setup();
+      const { service, deploymentSettingRepository, rpcService, currentHeight } = setup();
       const sink = mock<DeploymentTopUpInstrumentation>();
       const address = createAkashAddress();
       const closedSetting = createAutoTopUpDeployment({ address, dseq: "4001" });
@@ -156,7 +156,7 @@ describe(DrainingDeploymentService.name, () => {
           yield { address, walletId: closedSetting.walletId, deploymentSettings: [closedSetting] };
         })()
       );
-      vi.spyOn(service, "findLeases").mockResolvedValue([
+      rpcService.findManyByDseqAndOwner.mockResolvedValue([
         createDrainingDeployment({
           dseq: Number(closedSetting.dseq),
           owner: address,
@@ -176,7 +176,7 @@ describe(DrainingDeploymentService.name, () => {
     });
 
     it("marks an owner's closed deployments even when the lease source returns nothing else", async () => {
-      const { service, deploymentSettingRepository, currentHeight } = setup();
+      const { service, deploymentSettingRepository, rpcService, currentHeight } = setup();
       const sink = mock<DeploymentTopUpInstrumentation>();
       const address = createAkashAddress();
       const closedSetting = createAutoTopUpDeployment({ address, dseq: "4010" });
@@ -186,7 +186,7 @@ describe(DrainingDeploymentService.name, () => {
           yield { address, walletId: closedSetting.walletId, deploymentSettings: [closedSetting] };
         })()
       );
-      vi.spyOn(service, "findLeases").mockResolvedValue([
+      rpcService.findManyByDseqAndOwner.mockResolvedValue([
         createDrainingDeployment({ dseq: Number(closedSetting.dseq), owner: address, predictedClosedHeight: 0, isClosed: true })
       ]);
 
@@ -199,7 +199,7 @@ describe(DrainingDeploymentService.name, () => {
     });
 
     it("records a deployment the lease source knows nothing about instead of dropping it silently", async () => {
-      const { service, deploymentSettingRepository, currentHeight } = setup();
+      const { service, deploymentSettingRepository, rpcService, currentHeight } = setup();
       const sink = mock<DeploymentTopUpInstrumentation>();
       const address = createAkashAddress();
       const unknownSetting = createAutoTopUpDeployment({ address, dseq: "4011" });
@@ -209,7 +209,7 @@ describe(DrainingDeploymentService.name, () => {
           yield { address, walletId: unknownSetting.walletId, deploymentSettings: [unknownSetting] };
         })()
       );
-      vi.spyOn(service, "findLeases").mockResolvedValue([]);
+      rpcService.findManyByDseqAndOwner.mockResolvedValue([]);
 
       const yielded = vi.fn();
       for await (const owner of service.findDrainingDeploymentsByOwner(currentHeight, sink)) {
@@ -221,7 +221,7 @@ describe(DrainingDeploymentService.name, () => {
     });
 
     it("leaves a deployment still waiting on a bid out of the missing-chain-state count", async () => {
-      const { service, deploymentSettingRepository, currentHeight } = setup();
+      const { service, deploymentSettingRepository, rpcService, currentHeight } = setup();
       const sink = mock<DeploymentTopUpInstrumentation>();
       const address = createAkashAddress();
       const unleasedSetting = createAutoTopUpDeployment({ address, dseq: "4012" });
@@ -231,7 +231,7 @@ describe(DrainingDeploymentService.name, () => {
           yield { address, walletId: unleasedSetting.walletId, deploymentSettings: [unleasedSetting] };
         })()
       );
-      vi.spyOn(service, "findLeases").mockResolvedValue([
+      rpcService.findManyByDseqAndOwner.mockResolvedValue([
         createDrainingDeployment({ dseq: Number(unleasedSetting.dseq), owner: address, predictedClosedHeight: 0, blockRate: 0, hasNoLease: true })
       ]);
 
@@ -246,7 +246,7 @@ describe(DrainingDeploymentService.name, () => {
     });
 
     it("marks no deployment closed during a dry run", async () => {
-      const { service, deploymentSettingRepository, currentHeight } = setup();
+      const { service, deploymentSettingRepository, rpcService, currentHeight } = setup();
       const sink = mock<DeploymentTopUpInstrumentation>();
       const address = createAkashAddress();
       const closedSetting = createAutoTopUpDeployment({ address, dseq: "4002" });
@@ -256,7 +256,7 @@ describe(DrainingDeploymentService.name, () => {
           yield { address, walletId: closedSetting.walletId, deploymentSettings: [closedSetting] };
         })()
       );
-      vi.spyOn(service, "findLeases").mockResolvedValue([
+      rpcService.findManyByDseqAndOwner.mockResolvedValue([
         createDrainingDeployment({
           dseq: Number(closedSetting.dseq),
           owner: address,
@@ -274,12 +274,71 @@ describe(DrainingDeploymentService.name, () => {
       expect(sink.recordDeploymentsMarkedClosed).not.toHaveBeenCalled();
     });
 
+    it("leaves a deployment the indexer reports closed open for the next chain read when the chain read fails, and still tops up the live ones", async () => {
+      const { service, deploymentSettingRepository, rpcService, leaseRepository, loggerService, currentHeight } = setup();
+      const sink = mock<DeploymentTopUpInstrumentation>();
+      const address = createAkashAddress();
+      const releasedSetting = createAutoTopUpDeployment({ address, dseq: "4020" });
+      const liveSetting = createAutoTopUpDeployment({ address, dseq: "4021" });
+
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() =>
+        (async function* () {
+          yield { address, walletId: liveSetting.walletId, deploymentSettings: [releasedSetting, liveSetting] };
+        })()
+      );
+      rpcService.findManyByDseqAndOwner.mockRejectedValue(new Error("read ECONNRESET"));
+      leaseRepository.findManyByDseqAndOwner.mockResolvedValue([
+        createDrainingDeployment({
+          dseq: Number(releasedSetting.dseq),
+          owner: address,
+          predictedClosedHeight: currentHeight + 500,
+          closedHeight: currentHeight - 100
+        }),
+        createDrainingDeployment({ dseq: Number(liveSetting.dseq), owner: address, predictedClosedHeight: currentHeight + 500 })
+      ]);
+
+      const yielded: AutoTopUpOwnerDeployments[] = [];
+      for await (const owner of service.findDrainingDeploymentsByOwner(currentHeight, sink)) {
+        yielded.push(owner);
+      }
+
+      expect(deploymentSettingRepository.markAsClosed).not.toHaveBeenCalled();
+      expect(sink.recordDeploymentsMarkedClosed).not.toHaveBeenCalled();
+      expect(loggerService.warn).toHaveBeenCalledWith({ event: "LEASE_FALLBACK_CLOSE_UNCONFIRMED", owner: address, dseqs: [releasedSetting.dseq] });
+      expect(yielded[0].drainingDeployments).toEqual([expect.objectContaining({ dseq: liveSetting.dseq })]);
+    });
+
+    it("reports no unconfirmed close when the indexer fallback holds every deployment open", async () => {
+      const { service, deploymentSettingRepository, rpcService, leaseRepository, loggerService, currentHeight } = setup();
+      const address = createAkashAddress();
+      const liveSetting = createAutoTopUpDeployment({ address, dseq: "4022" });
+
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() =>
+        (async function* () {
+          yield { address, walletId: liveSetting.walletId, deploymentSettings: [liveSetting] };
+        })()
+      );
+      rpcService.findManyByDseqAndOwner.mockRejectedValue(new Error("read ECONNRESET"));
+      leaseRepository.findManyByDseqAndOwner.mockResolvedValue([
+        createDrainingDeployment({ dseq: Number(liveSetting.dseq), owner: address, predictedClosedHeight: currentHeight + 500 })
+      ]);
+
+      const yielded: AutoTopUpOwnerDeployments[] = [];
+      for await (const owner of service.findDrainingDeploymentsByOwner(currentHeight, mock<DeploymentTopUpInstrumentation>())) {
+        yielded.push(owner);
+      }
+
+      expect(yielded[0].drainingDeployments).toEqual([expect.objectContaining({ dseq: liveSetting.dseq })]);
+      expect(loggerService.warn).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.markAsClosed).not.toHaveBeenCalled();
+    });
+
     it("does not persist a runtime countdown during a dry run and still returns a calculated deadline", async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2025-01-01T12:00:00.000Z"));
 
       try {
-        const { service, deploymentSettingRepository, currentHeight } = setup();
+        const { service, deploymentSettingRepository, rpcService, currentHeight } = setup();
         const address = createAkashAddress();
         const runtimeLimitHours = 12;
         const setting = createAutoTopUpDeployment({ address, dseq: "3005", runtimeLimitHours, runtimeEndsAt: null });
@@ -289,7 +348,7 @@ describe(DrainingDeploymentService.name, () => {
             yield { address, walletId: setting.walletId, deploymentSettings: [setting] };
           })()
         );
-        vi.spyOn(service, "findLeases").mockResolvedValue([
+        rpcService.findManyByDseqAndOwner.mockResolvedValue([
           createDrainingDeployment({ dseq: Number(setting.dseq), owner: address, predictedClosedHeight: currentHeight + 500 })
         ]);
 
@@ -319,7 +378,7 @@ describe(DrainingDeploymentService.name, () => {
 
   describe("findDrainingDeploymentsForOwner", () => {
     it("returns the owner's active draining deployments enriched with block rate and predicted close height", async () => {
-      const { service, deploymentSettingRepository, currentHeight } = setup();
+      const { service, deploymentSettingRepository, rpcService, currentHeight } = setup();
       const address = createAkashAddress();
       const settings = [createAutoTopUpDeployment({ address, dseq: "1001" }), createAutoTopUpDeployment({ address, dseq: "1002" })];
       const leases = settings.map(setting =>
@@ -327,7 +386,7 @@ describe(DrainingDeploymentService.name, () => {
       );
 
       deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue(settings);
-      vi.spyOn(service, "findLeases").mockResolvedValue(leases);
+      rpcService.findManyByDseqAndOwner.mockResolvedValue(leases);
 
       const result = await service.findDrainingDeploymentsForOwner(address, mock<DeploymentTopUpInstrumentation>(), currentHeight);
 
@@ -339,14 +398,14 @@ describe(DrainingDeploymentService.name, () => {
     });
 
     it("marks a deployment whose escrow account is no longer open even though its lease still reads open", async () => {
-      const { service, deploymentSettingRepository, currentHeight } = setup();
+      const { service, deploymentSettingRepository, rpcService, currentHeight } = setup();
       const sink = mock<DeploymentTopUpInstrumentation>();
       const address = createAkashAddress();
       const activeSetting = createAutoTopUpDeployment({ address, dseq: "3001" });
       const closedSetting = createAutoTopUpDeployment({ address, dseq: "3002" });
 
       deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue([activeSetting, closedSetting]);
-      vi.spyOn(service, "findLeases").mockResolvedValue([
+      rpcService.findManyByDseqAndOwner.mockResolvedValue([
         createDrainingDeployment({ dseq: Number(activeSetting.dseq), owner: address, predictedClosedHeight: currentHeight + 500 }),
         createDrainingDeployment({ dseq: Number(closedSetting.dseq), owner: address, predictedClosedHeight: currentHeight + 500, isClosed: true })
       ]);
@@ -360,14 +419,14 @@ describe(DrainingDeploymentService.name, () => {
     });
 
     it("marks closed deployments as closed and excludes them from the result", async () => {
-      const { service, deploymentSettingRepository, currentHeight } = setup();
+      const { service, deploymentSettingRepository, rpcService, currentHeight } = setup();
       const sink = mock<DeploymentTopUpInstrumentation>();
       const address = createAkashAddress();
       const activeSetting = createAutoTopUpDeployment({ address, dseq: "2001" });
       const closedSetting = createAutoTopUpDeployment({ address, dseq: "2002" });
 
       deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue([activeSetting, closedSetting]);
-      vi.spyOn(service, "findLeases").mockResolvedValue([
+      rpcService.findManyByDseqAndOwner.mockResolvedValue([
         createDrainingDeployment({ dseq: Number(activeSetting.dseq), owner: address, predictedClosedHeight: currentHeight + 500 }),
         createDrainingDeployment({
           dseq: Number(closedSetting.dseq),
@@ -390,7 +449,7 @@ describe(DrainingDeploymentService.name, () => {
       vi.setSystemTime(new Date("2025-01-01T12:00:00.000Z"));
 
       try {
-        const { service, deploymentSettingRepository, currentHeight } = setup();
+        const { service, deploymentSettingRepository, rpcService, currentHeight } = setup();
         const sink = mock<DeploymentTopUpInstrumentation>();
         const address = createAkashAddress();
         const runtimeEndsAt = new Date(Date.now() + 2 * millisecondsInHour);
@@ -398,7 +457,7 @@ describe(DrainingDeploymentService.name, () => {
         const unlimitedSetting = createAutoTopUpDeployment({ address, dseq: "3002" });
 
         deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue([limitedSetting, unlimitedSetting]);
-        vi.spyOn(service, "findLeases").mockResolvedValue([
+        rpcService.findManyByDseqAndOwner.mockResolvedValue([
           createDrainingDeployment({
             dseq: Number(limitedSetting.dseq),
             owner: address,
@@ -422,14 +481,14 @@ describe(DrainingDeploymentService.name, () => {
       vi.setSystemTime(new Date("2025-01-01T12:00:00.000Z"));
 
       try {
-        const { service, deploymentSettingRepository, currentHeight } = setup();
+        const { service, deploymentSettingRepository, rpcService, currentHeight } = setup();
         const sink = mock<DeploymentTopUpInstrumentation>();
         const address = createAkashAddress();
         const runtimeEndsAt = new Date(Date.now() + 10 * millisecondsInHour);
         const setting = createAutoTopUpDeployment({ address, dseq: "3003", runtimeLimitHours: 12, runtimeEndsAt });
 
         deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue([setting]);
-        vi.spyOn(service, "findLeases").mockResolvedValue([
+        rpcService.findManyByDseqAndOwner.mockResolvedValue([
           createDrainingDeployment({
             dseq: Number(setting.dseq),
             owner: address,
@@ -452,7 +511,7 @@ describe(DrainingDeploymentService.name, () => {
       vi.setSystemTime(new Date("2025-01-01T12:00:00.000Z"));
 
       try {
-        const { service, deploymentSettingRepository, currentHeight } = setup();
+        const { service, deploymentSettingRepository, rpcService, currentHeight } = setup();
         const sink = mock<DeploymentTopUpInstrumentation>();
         const address = createAkashAddress();
         const anchoredEndsAt = new Date(Date.now() + 12 * millisecondsInHour);
@@ -460,7 +519,7 @@ describe(DrainingDeploymentService.name, () => {
 
         deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue([setting]);
         deploymentSettingRepository.startRuntimeCountdown.mockResolvedValue(anchoredEndsAt);
-        vi.spyOn(service, "findLeases").mockResolvedValue([
+        rpcService.findManyByDseqAndOwner.mockResolvedValue([
           createDrainingDeployment({ dseq: Number(setting.dseq), owner: address, predictedClosedHeight: currentHeight + 500 })
         ]);
 
@@ -475,7 +534,7 @@ describe(DrainingDeploymentService.name, () => {
     });
 
     it("schedules a close job for a deadline it just anchored", async () => {
-      const { service, deploymentSettingRepository, deploymentCloseJobService, currentHeight } = setup();
+      const { service, deploymentSettingRepository, deploymentCloseJobService, rpcService, currentHeight } = setup();
       const sink = mock<DeploymentTopUpInstrumentation>();
       const address = createAkashAddress();
       const anchoredEndsAt = new Date(Date.now() + 12 * millisecondsInHour);
@@ -483,7 +542,7 @@ describe(DrainingDeploymentService.name, () => {
 
       deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue([setting]);
       deploymentSettingRepository.startRuntimeCountdown.mockResolvedValue(anchoredEndsAt);
-      vi.spyOn(service, "findLeases").mockResolvedValue([
+      rpcService.findManyByDseqAndOwner.mockResolvedValue([
         createDrainingDeployment({ dseq: Number(setting.dseq), owner: address, predictedClosedHeight: currentHeight + 500 })
       ]);
 
@@ -496,7 +555,7 @@ describe(DrainingDeploymentService.name, () => {
     });
 
     it("schedules no close job for a deadline that was already anchored", async () => {
-      const { service, deploymentSettingRepository, deploymentCloseJobService, currentHeight } = setup();
+      const { service, deploymentSettingRepository, deploymentCloseJobService, rpcService, currentHeight } = setup();
       const sink = mock<DeploymentTopUpInstrumentation>();
       const address = createAkashAddress();
       const setting = createAutoTopUpDeployment({
@@ -507,7 +566,7 @@ describe(DrainingDeploymentService.name, () => {
       });
 
       deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue([setting]);
-      vi.spyOn(service, "findLeases").mockResolvedValue([
+      rpcService.findManyByDseqAndOwner.mockResolvedValue([
         createDrainingDeployment({ dseq: Number(setting.dseq), owner: address, predictedClosedHeight: currentHeight + 500 })
       ]);
 
@@ -517,7 +576,7 @@ describe(DrainingDeploymentService.name, () => {
     });
 
     it("still anchors and funds when the close job cannot be scheduled", async () => {
-      const { service, deploymentSettingRepository, deploymentCloseJobService, currentHeight } = setup();
+      const { service, deploymentSettingRepository, deploymentCloseJobService, rpcService, currentHeight } = setup();
       const sink = mock<DeploymentTopUpInstrumentation>();
       const address = createAkashAddress();
       const anchoredEndsAt = new Date(Date.now() + 12 * millisecondsInHour);
@@ -526,7 +585,7 @@ describe(DrainingDeploymentService.name, () => {
       deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue([setting]);
       deploymentSettingRepository.startRuntimeCountdown.mockResolvedValue(anchoredEndsAt);
       deploymentCloseJobService.schedule.mockRejectedValue(new Error("queue unavailable"));
-      vi.spyOn(service, "findLeases").mockResolvedValue([
+      rpcService.findManyByDseqAndOwner.mockResolvedValue([
         createDrainingDeployment({ dseq: Number(setting.dseq), owner: address, predictedClosedHeight: currentHeight + 500 })
       ]);
 
@@ -537,7 +596,7 @@ describe(DrainingDeploymentService.name, () => {
     });
 
     it("schedules no close job during a dry run", async () => {
-      const { service, deploymentSettingRepository, deploymentCloseJobService, currentHeight } = setup();
+      const { service, deploymentSettingRepository, deploymentCloseJobService, rpcService, currentHeight } = setup();
       const address = createAkashAddress();
       const setting = createAutoTopUpDeployment({ address, dseq: "3012", runtimeLimitHours: 12, runtimeEndsAt: null });
 
@@ -546,7 +605,7 @@ describe(DrainingDeploymentService.name, () => {
           yield { address, walletId: setting.walletId, deploymentSettings: [setting] };
         })()
       );
-      vi.spyOn(service, "findLeases").mockResolvedValue([
+      rpcService.findManyByDseqAndOwner.mockResolvedValue([
         createDrainingDeployment({ dseq: Number(setting.dseq), owner: address, predictedClosedHeight: currentHeight + 500 })
       ]);
 
@@ -560,14 +619,13 @@ describe(DrainingDeploymentService.name, () => {
     });
 
     it("returns an empty array without querying leases when the owner has no auto-top-up deployments", async () => {
-      const { service, deploymentSettingRepository, currentHeight } = setup();
-      const findLeasesSpy = vi.spyOn(service, "findLeases");
+      const { service, deploymentSettingRepository, rpcService, currentHeight } = setup();
       deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue([]);
 
       const result = await service.findDrainingDeploymentsForOwner(createAkashAddress(), mock<DeploymentTopUpInstrumentation>(), currentHeight);
 
       expect(result).toEqual([]);
-      expect(findLeasesSpy).not.toHaveBeenCalled();
+      expect(rpcService.findManyByDseqAndOwner).not.toHaveBeenCalled();
     });
   });
 
