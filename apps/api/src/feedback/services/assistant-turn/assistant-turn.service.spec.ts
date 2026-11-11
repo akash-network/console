@@ -825,6 +825,22 @@ describe(AssistantTurnService.name, () => {
     });
   });
 
+  it("keeps only the earlier text when a resumed turn pauses again before writing any", async () => {
+    const { akashMlClient, toolRunner, pendingTurnRepository, signer, run } = setup();
+    const logs = toolCall("c2", "read_logs", { dseq: "42" });
+    akashMlClient.streamChatCompletion.mockImplementation(streamed({ toolCalls: [logs] }));
+    toolRunner.run.mockResolvedValue({ kind: "client", call: { id: "c2", name: "read_logs", arguments: { dseq: "42", tailLines: 100 } } });
+
+    const events = await run({ earlierAnswerText: "Checking.", roundsUsed: 1 });
+
+    expect(pendingTurnRepository.hold).toHaveBeenCalledWith(expect.objectContaining({ state: expect.objectContaining({ shownText: "Checking." }) }));
+    expect(events.at(-1)).toEqual({
+      type: "done",
+      reason: "awaiting_client_tool",
+      answerSignature: signer.sign({ userId: "user-1", conversationId: "conversation-1", text: "Checking." })
+    });
+  });
+
   it("signs the fallback answer of a timed out turn", async () => {
     const deadline = new AbortController();
     vi.spyOn(AbortSignal, "timeout").mockReturnValue(deadline.signal);
