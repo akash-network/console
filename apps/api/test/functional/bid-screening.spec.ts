@@ -132,6 +132,15 @@ describe("Bid screening API", () => {
       expect(response.status).toBe(400);
       expect(await response.json()).toEqual({ error: "BadRequest", message: "Invalid request" });
     });
+
+    it("answers 503 instead of relaying a provider inventory server error", async () => {
+      nock(PROVIDER_INVENTORY_API_URL).post("/v1/bid-screening").reply(500, { error: "InternalServerError", message: "Unexpected failure" });
+
+      const response = await screenProviders({ body: aGpuRequest("vendor/nvidia/model/h100") });
+
+      expect(response.status).toBe(503);
+      expect(await response.json()).toMatchObject({ message: "Failed to screen providers." });
+    });
   });
 
   async function seedChecks(input: { model: string; silent: string; bidding: string }) {

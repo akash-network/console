@@ -13472,6 +13472,13 @@ export interface operations {
         };
         content?: never;
       };
+      /** @description Provider screening is unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
     };
   };
   listPlacementOptions: {
