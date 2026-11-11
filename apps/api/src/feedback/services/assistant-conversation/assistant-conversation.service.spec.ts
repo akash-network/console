@@ -10,6 +10,7 @@ import type { ExecutionContextService } from "@src/core/services/execution-conte
 import type { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import type { TxService } from "@src/core/services/tx/tx.service";
 import { envSchema } from "@src/feedback/config/env.config";
+import { ASSISTANT_ERROR_CODES } from "@src/feedback/lib/assistant-errors/assistant-errors";
 import { ACTION_RESULT_TOOL_NAME } from "@src/feedback/lib/assistant-history/assistant-history";
 import { ASSISTANT_PROMPT_VERSION } from "@src/feedback/lib/assistant-prompt-version/assistant-prompt-version";
 import { REDACTED } from "@src/feedback/lib/redact-secrets/redact-secrets";
@@ -19,15 +20,17 @@ import type {
   AssistantConversationRepository
 } from "@src/feedback/repositories/assistant-conversation/assistant-conversation.repository";
 import type { AssistantConversationDailyCountRepository } from "@src/feedback/repositories/assistant-conversation-daily-count/assistant-conversation-daily-count.repository";
+import type { AssistantDailyTokenUsageRepository } from "@src/feedback/repositories/assistant-daily-token-usage/assistant-daily-token-usage.repository";
 import type { AssistantMessageOutput, AssistantMessageRepository } from "@src/feedback/repositories/assistant-message/assistant-message.repository";
 import type {
   AssistantPendingTurnOutput,
   AssistantPendingTurnRepository
 } from "@src/feedback/repositories/assistant-pending-turn/assistant-pending-turn.repository";
 import type { AssistantTurnTraceRepository } from "@src/feedback/repositories/assistant-turn-trace/assistant-turn-trace.repository";
+import type { AssistantUserUsageRepository } from "@src/feedback/repositories/assistant-user-usage/assistant-user-usage.repository";
 import type { AkashMlClient, ChatToolCall } from "@src/feedback/services/akashml-client/akashml.client";
 import { AssistantAnswerSigner } from "@src/feedback/services/assistant-answer-signer/assistant-answer-signer.service";
-import type { AssistantLimitsService } from "@src/feedback/services/assistant-limits/assistant-limits.service";
+import { AssistantLimitsService } from "@src/feedback/services/assistant-limits/assistant-limits.service";
 import { toolContentOf } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
 import type { AssistantTranscriptService } from "@src/feedback/services/assistant-transcript/assistant-transcript.service";
 import type { AssistantTurnService } from "@src/feedback/services/assistant-turn/assistant-turn.service";
@@ -219,6 +222,20 @@ describe(AssistantConversationService.name, () => {
       await expect(service.prepareMessage(CONVERSATION_ID, { content: "hi" })).rejects.toBe(refusal);
 
       expect(traceRepository.create).toHaveBeenCalledWith(expect.objectContaining({ outcome: "limited", organizationId: null, page: null }));
+    });
+
+    it("traces a message refused by the daily token cap as limited and refuses it with the daily limit error", async () => {
+      const userUsageRepository = mock<AssistantUserUsageRepository>();
+      userUsageRepository.countMessage.mockResolvedValue({ minuteMessageCount: 1, dayMessageCount: 1, dayTokenCount: 2_000_000 });
+      const { service, traceRepository, turnService } = setup({ userUsageRepository });
+
+      await expect(service.prepareMessage(CONVERSATION_ID, { content: "hi" })).rejects.toMatchObject({
+        status: 429,
+        errorCode: ASSISTANT_ERROR_CODES.dailyLimit
+      });
+
+      expect(traceRepository.create).toHaveBeenCalledWith(expect.objectContaining({ outcome: "limited" }));
+      expect(turnService.run).not.toHaveBeenCalled();
     });
 
     it("writes no trace for a refusal that is not a limit", async () => {
@@ -822,7 +839,13 @@ describe(AssistantConversationService.name, () => {
   }
 
   function setup(
-    input: { consent?: AssistantConsentOutput; organizationId?: string; wallet?: ReturnType<typeof createUserWallet>; withoutSigningKey?: boolean } = {}
+    input: {
+      consent?: AssistantConsentOutput;
+      organizationId?: string;
+      wallet?: ReturnType<typeof createUserWallet>;
+      withoutSigningKey?: boolean;
+      userUsageRepository?: AssistantUserUsageRepository;
+    } = {}
   ) {
     const authService = mock<AuthService>({ currentUser: mock<UserOutput>({ id: "user-1" }), ability: mock<MongoAbility>() });
     const executionContextService = mock<ExecutionContextService>();
@@ -868,7 +891,9 @@ describe(AssistantConversationService.name, () => {
       userWalletRepository,
       akashMlClient,
       answerSigner,
-      limitsService,
+      input.userUsageRepository
+        ? new AssistantLimitsService(input.userUsageRepository, mock<AssistantDailyTokenUsageRepository>(), config, createLogger)
+        : limitsService,
       transcriptService,
       turnService,
       jobQueueService,

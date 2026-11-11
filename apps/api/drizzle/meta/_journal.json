@@ -897,6 +897,13 @@
       "when": 1794288727529,
       "tag": "0127_referrals",
       "breakpoints": true
+    },
+    {
+      "idx": 128,
+      "version": "7",
+      "when": 1794358739649,
+      "tag": "0128_assistant_user_day_tokens",
+      "breakpoints": true
     }
   ]
 }

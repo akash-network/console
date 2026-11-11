@@ -181,7 +181,7 @@ export class AssistantTurnService {
         const isFinalRound = round >= MAX_TOOL_ROUNDS;
         const completion = await this.#complete(
           requestMessagesFor(messages, round),
-          { isFinalRound, configureFormOpen: turn.configureFormOpen },
+          { userId: turn.userId, isFinalRound, configureFormOpen: turn.configureFormOpen },
           abort,
           trace.builder,
           textDeltaEmitter(emit, answer.length > 0)
@@ -294,7 +294,7 @@ export class AssistantTurnService {
 
   async #complete(
     messages: ChatMessage[],
-    { isFinalRound, configureFormOpen }: { isFinalRound: boolean; configureFormOpen: boolean },
+    { userId, isFinalRound, configureFormOpen }: { userId: string; isFinalRound: boolean; configureFormOpen: boolean },
     signal: AbortSignal,
     trace: AssistantTurnTraceBuilder,
     onContentDelta: (text: string) => Promise<void>
@@ -319,7 +319,7 @@ export class AssistantTurnService {
       }
     );
     trace.usageAdded(completion.usage);
-    await this.limitsService.recordUsage(completion.usage);
+    await this.limitsService.recordUsage(userId, completion.usage);
 
     return completion;
   }
@@ -335,7 +335,7 @@ export class AssistantTurnService {
   ): Promise<TurnEnding> {
     const completion = await this.#complete(
       [...messages, ANSWER_NOW_NOTE],
-      { isFinalRound: true, configureFormOpen: turn.configureFormOpen },
+      { userId: turn.userId, isFinalRound: true, configureFormOpen: turn.configureFormOpen },
       signal,
       trace,
       textDeltaEmitter(emit, answer.length > 0)

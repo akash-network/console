@@ -1,0 +1,1 @@
+ALTER TABLE "assistant_user_usage" ADD COLUMN "day_token_count" integer DEFAULT 0 NOT NULL;
