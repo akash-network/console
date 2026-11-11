@@ -4,6 +4,7 @@ import { container } from "tsyringe";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { PaymentCreditRepository } from "@src/billing/repositories/payment-credit/payment-credit.repository";
+import { RefundDebitRepository } from "@src/billing/repositories/refund-debit/refund-debit.repository";
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { TxService } from "@src/core/services/tx/tx.service";
@@ -397,8 +398,24 @@ describe(StripeTransactionRepository.name, () => {
         currency: "usd",
         description: "Affiliate commission",
         amount: 500,
+        amountRefunded: 0,
         sourceTransactionId: sourcePayment.id
       });
+    });
+
+    it("records the part of the commission already taken back when the source payment was partly refunded", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestTransaction } = setup();
+      const affiliate = await createTestUser();
+      const sourcePayment = await createTestTransaction();
+
+      const commission = await stripeTransactionRepository.createAffiliateCommission({
+        userId: affiliate.id,
+        amount: 500,
+        amountRefunded: 200,
+        sourceTransactionId: sourcePayment.id
+      });
+
+      expect(commission).toMatchObject({ status: "succeeded", amount: 500, amountRefunded: 200 });
     });
 
     it("rejects a second commission for the same source transaction", async () => {
@@ -490,6 +507,25 @@ describe(StripeTransactionRepository.name, () => {
       const found = await stripeTransactionRepository.findAffiliateCommissionBySourceAndLock(sourcePayment.id);
 
       expect(found).toBeUndefined();
+    });
+
+    it("lets another connection record a refund debit for the commission while it is locked", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestTransaction } = setup();
+      const affiliate = await createTestUser();
+      const sourcePayment = await createTestTransaction();
+      const commission = await stripeTransactionRepository.createAffiliateCommission({
+        userId: affiliate.id,
+        amount: 500,
+        sourceTransactionId: sourcePayment.id
+      });
+      const refundDebitRepository = container.resolve(RefundDebitRepository);
+
+      await container.resolve(TxService).transaction(async () => {
+        await stripeTransactionRepository.findAffiliateCommissionBySourceAndLock(sourcePayment.id);
+        await refundDebitRepository.createPending({ transactionId: commission.id, amountRefunded: 200, address: createAkashAddress(), amount: 200 });
+      });
+
+      await expect(refundDebitRepository.findRefundedBeyond(commission.id, 0)).resolves.toMatchObject([{ transactionId: commission.id, amountRefunded: 200 }]);
     });
   });
 
