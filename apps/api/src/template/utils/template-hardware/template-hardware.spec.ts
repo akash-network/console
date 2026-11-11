@@ -210,6 +210,33 @@ describe(summarizeTemplateHardware.name, () => {
     expect(parse).not.toHaveBeenCalled();
   });
 
+  it.each([
+    { spelling: "a null key tagged !!merge", mergeKey: "!!merge " },
+    { spelling: "an explicit null key tagged !!merge", mergeKey: "? !!merge " },
+    { spelling: "a << key tagged !!merge", mergeKey: "!!merge <<" },
+    { spelling: "a merge tag written in full", mergeKey: "!<tag:yaml.org,2002:merge> " },
+    { spelling: "a percent-encoded merge tag", mergeKey: "!<tag:yaml.org,2002:%6Derge> " },
+    { spelling: "a merge tag behind a %TAG handle", mergeKey: "!y!merge ", directive: "%TAG !y! tag:yaml.org,2002:\n---\n" }
+  ])("does not parse an SDL whose merge keys copy too many keys through $spelling", ({ mergeKey, directive }) => {
+    const parse = spyOnYamlParse();
+
+    expect(summarizeTemplateHardware(mergeBombCopying(MAX_SUBMITTED_SDL_LENGTH + 1024, { mergeKey, directive }))).toBeUndefined();
+    expect(parse).not.toHaveBeenCalled();
+  });
+
+  it("does not parse an SDL whose only merge is a tagged one", () => {
+    const parse = spyOnYamlParse();
+
+    expect(summarizeTemplateHardware("x-base: &base {cpu: {units: 1}}\nx-web: {!!merge : *base}\n")).toBeUndefined();
+    expect(parse).not.toHaveBeenCalled();
+  });
+
+  it("summarizes an SDL that uses tags js-yaml knows besides merge", () => {
+    const tagged = `x-created: 2026-11-10\nx-blob: !!binary aGVsbG8=\nx-names: !!set {web: null}\nprofiles:\n  compute:\n    web: {resources: {cpu: {units: 1}, memory: {size: 1Gi}, storage: {size: 1Gi}}}\ndeployment:\n  web: {akash: {profile: web, count: 1}}\n`;
+
+    expect(summarizeTemplateHardware(tagged)).toEqual({ cpu: 1, memoryBytes: GiB, storageBytes: GiB });
+  });
+
   it("does not parse an SDL whose merge key merges a mapping that contains it", () => {
     const parse = spyOnYamlParse();
 
@@ -223,14 +250,15 @@ describe(summarizeTemplateHardware.name, () => {
     expect(summarizeTemplateHardware(cyclic)).toBeUndefined();
   });
 
-  function mergeBombCopying(keyCopies: number, input: { relayed?: boolean } = {}) {
+  function mergeBombCopying(keyCopies: number, input: { relayed?: boolean; mergeKey?: string; directive?: string } = {}) {
     const keysPerMapping = 1024;
     const keys = Array.from({ length: keysPerMapping }, (_, index) => `k${index}: 1`).join(", ");
     const source = input.relayed ? "relay" : "keys";
     const relay = input.relayed ? "x-relay: &relay {<<: *keys}\n" : "";
-    const merges = Array.from({ length: keyCopies / keysPerMapping }, (_, index) => `  m${index}: {<<: *${source}}`).join("\n");
+    const mergeKey = input.mergeKey ?? "<<";
+    const merges = Array.from({ length: keyCopies / keysPerMapping }, (_, index) => `  m${index}: {${mergeKey}: *${source}}`).join("\n");
 
-    return `x-keys: &keys {${keys}}\n${relay}x-merges:\n${merges}\n`;
+    return `${input.directive ?? ""}x-keys: &keys {${keys}}\n${relay}x-merges:\n${merges}\n`;
   }
 
   function spyOnYamlParse() {

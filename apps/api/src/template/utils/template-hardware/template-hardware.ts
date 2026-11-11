@@ -1,5 +1,5 @@
 import { yaml } from "@akashnetwork/chain-sdk";
-import { CORE_SCHEMA, load } from "js-yaml";
+import { DEFAULT_SCHEMA, load, Type } from "js-yaml";
 import { z } from "zod";
 
 import { MAX_SUBMITTED_SDL_LENGTH } from "@src/deployment/config/sdl.config";
@@ -12,6 +12,9 @@ const MERGE_KEY = "<<";
 
 /** A merge key copies every key of the mapping it merges while the SDL is still being parsed, so the copies are bounded before the parse rather than after it. */
 const MAX_MERGED_KEY_COPIES = MAX_SUBMITTED_SDL_LENGTH;
+
+/** js-yaml's default schema with a merge type that never resolves, so a `<<` key stays a plain key to count and an explicitly tagged merge throws instead of expanding. */
+const UNMERGED_SCHEMA = DEFAULT_SCHEMA.extend({ implicit: [new Type("tag:yaml.org,2002:merge", { kind: "scalar", resolve: () => false })] });
 
 const quantitySchema = z.union([z.string(), z.number()]);
 
@@ -53,7 +56,7 @@ export function summarizeTemplateHardware(sdl: string): TemplateHardware | undef
 
 /** Counts merges on a parse that leaves them unresolved, where every alias is a shared reference and the walk is linear in the document. */
 function copiesTooManyMergedKeys(sdl: string): boolean {
-  return sdl.includes(MERGE_KEY) && countMergedKeyCopies(load(sdl, { schema: CORE_SCHEMA })) > MAX_MERGED_KEY_COPIES;
+  return countMergedKeyCopies(load(sdl, { schema: UNMERGED_SCHEMA })) > MAX_MERGED_KEY_COPIES;
 }
 
 function countMergedKeyCopies(document: unknown): number {
