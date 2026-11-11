@@ -149,7 +149,9 @@ export const AssistantStreamEventSchema = z
       answerSignature: z
         .string()
         .optional()
-        .openapi({ description: "Signs the answer's full text so far; the client sends it back with this answer in `history`" })
+        .openapi({
+          description: `Signs the answer's text so far, up to its first ${MAX_ASSISTANT_HISTORY_MESSAGE_LENGTH} characters, which is all the client sends back with this answer in \`history\``
+        })
     }),
     z.object({ type: z.literal("error"), code: z.enum(ASSISTANT_STREAM_ERROR_CODES), message: z.string() })
   ])

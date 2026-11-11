@@ -19919,7 +19919,7 @@ export interface operations {
                  * @enum {string}
                  */
                 reason: "stop" | "length" | "awaiting_client_tool";
-                /** @description Signs the answer's full text so far; the client sends it back with this answer in `history` */
+                /** @description Signs the answer's text so far, up to its first 8000 characters, which is all the client sends back with this answer in `history` */
                 answerSignature?: string;
               }
             | {
@@ -20436,7 +20436,7 @@ export interface operations {
                  * @enum {string}
                  */
                 reason: "stop" | "length" | "awaiting_client_tool";
-                /** @description Signs the answer's full text so far; the client sends it back with this answer in `history` */
+                /** @description Signs the answer's text so far, up to its first 8000 characters, which is all the client sends back with this answer in `history` */
                 answerSignature?: string;
               }
             | {
