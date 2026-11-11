@@ -34,7 +34,7 @@ describe("GET /v1/placement-options", () => {
     const response = await request("/v1/placement-options");
 
     expect(response.status).toBe(200);
-    expect(modelNames(await response.json())).toEqual(["h100"]);
+    expect(modelNames((await response.json()) as PlacementOptionsResponse)).toEqual(["h100"]);
   });
 
   it("offers gpus of unaudited providers too when asked to", async () => {
@@ -45,7 +45,7 @@ describe("GET /v1/placement-options", () => {
     const response = await request("/v1/placement-options?includeUnaudited=true");
 
     expect(response.status).toBe(200);
-    expect(modelNames(await response.json())).toEqual(["a100", "h100"]);
+    expect(modelNames((await response.json()) as PlacementOptionsResponse)).toEqual(["a100", "h100"]);
   });
 
   it("rejects a value other than true or false", async () => {
