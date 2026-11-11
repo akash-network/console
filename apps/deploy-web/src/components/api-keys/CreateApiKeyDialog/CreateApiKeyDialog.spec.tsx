@@ -12,7 +12,7 @@ import { PROJECTS_QUERY_KEY } from "@src/queries/useProjectsQuery";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { ProjectOutput } from "@src/types/project";
 import type { DEPENDENCIES } from "./CreateApiKeyDialog";
-import { CreateApiKeyDialog, PROJECT_NOT_FOUND_MESSAGE } from "./CreateApiKeyDialog";
+import { API_KEY_EMAIL_VERIFICATION_MESSAGE, CreateApiKeyDialog, PROJECT_NOT_FOUND_MESSAGE } from "./CreateApiKeyDialog";
 
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event";
@@ -219,6 +219,27 @@ describe("CreateApiKeyDialog", () => {
       }),
       { variant: "error" }
     );
+  });
+
+  it("asks a user with an unconfirmed email to verify it instead of creating the key", async () => {
+    const { user, createApiKey, promptEmailVerification, analyticsService } = setup({ isEmailVerified: false });
+
+    await user.type(screen.getByLabelText("Name"), "Local dev");
+    await user.click(screen.getByRole("button", { name: "Create key" }));
+
+    expect(promptEmailVerification).toHaveBeenCalledWith(API_KEY_EMAIL_VERIFICATION_MESSAGE);
+    expect(createApiKey).not.toHaveBeenCalled();
+    expect(analyticsService.track).not.toHaveBeenCalled();
+  });
+
+  it("does not ask a user with a confirmed email to verify it", async () => {
+    const { user, createApiKey, promptEmailVerification } = setup();
+
+    await user.type(screen.getByLabelText("Name"), "Local dev");
+    await user.click(screen.getByRole("button", { name: "Create key" }));
+
+    expect(createApiKey).toHaveBeenCalledOnce();
+    expect(promptEmailVerification).not.toHaveBeenCalled();
   });
 
   it("keeps the generic message for a refusal with another code", async () => {
@@ -522,7 +543,9 @@ describe("CreateApiKeyDialog", () => {
     await user.click(await screen.findByRole("option", { name: "Custom date" }));
   }
 
-  function setup(input: { createdApiKey?: ApiKeyResponse; isPending?: boolean; now?: Date; projects?: ProjectOutput[]; teamName?: string } = {}) {
+  function setup(
+    input: { createdApiKey?: ApiKeyResponse; isPending?: boolean; now?: Date; projects?: ProjectOutput[]; teamName?: string; isEmailVerified?: boolean } = {}
+  ) {
     if (input.now) {
       vi.useFakeTimers({ toFake: ["Date"] });
       vi.setSystemTime(input.now);
@@ -546,13 +569,21 @@ describe("CreateApiKeyDialog", () => {
         isPending: input.isPending ?? false
       });
     const useSnackbar: typeof DEPENDENCIES.useSnackbar = () => Object.assign(mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>(), { enqueueSnackbar });
+    const promptEmailVerification = vi.fn();
+    const useRunWhenEmailVerified: typeof DEPENDENCIES.useRunWhenEmailVerified = () => (messageOtherwise, proceed) =>
+      input.isEmailVerified === false ? promptEmailVerification(messageOtherwise) : proceed();
 
     render(
       <TestContainerProvider services={{ analyticsService: () => analyticsService, queryClient: () => queryClient }}>
-        <CreateApiKeyDialog onClose={onClose} projects={input.projects} teamName={input.teamName} dependencies={{ useCreateApiKey, useSnackbar }} />
+        <CreateApiKeyDialog
+          onClose={onClose}
+          projects={input.projects}
+          teamName={input.teamName}
+          dependencies={{ useCreateApiKey, useSnackbar, useRunWhenEmailVerified }}
+        />
       </TestContainerProvider>
     );
 
-    return { user, onClose, createApiKey, enqueueSnackbar, analyticsService, writeText, queryClient };
+    return { user, onClose, createApiKey, enqueueSnackbar, analyticsService, writeText, queryClient, promptEmailVerification };
   }
 });

@@ -50,18 +50,22 @@ import {
 import { ALL_PROJECTS_LABEL } from "@src/components/api-keys/ApiKeyList/ApiKeyList";
 import { ApiKeySecret, copyApiKeySecret } from "@src/components/api-keys/ApiKeySecret/ApiKeySecret";
 import { useServices } from "@src/context/ServicesProvider";
+import { useRunWhenEmailVerified } from "@src/hooks/useEmailVerificationRequiredEventHandler";
 import { useCreateApiKey } from "@src/queries/useApiKeysQuery";
 import { PROJECTS_QUERY_KEY } from "@src/queries/useProjectsQuery";
 import type { ProjectOutput } from "@src/types/project";
 
 export const DEPENDENCIES = {
   useCreateApiKey,
-  useSnackbar
+  useSnackbar,
+  useRunWhenEmailVerified
 };
 
 export const MAX_API_KEY_NAME_LENGTH = 40;
 
 export const PROJECT_NOT_FOUND_MESSAGE = "This project is no longer available. Choose another one.";
+
+export const API_KEY_EMAIL_VERIFICATION_MESSAGE = "Verify your email to create an API key.";
 
 const CUSTOM_LIFETIME = "custom";
 
@@ -95,6 +99,7 @@ export const CreateApiKeyDialog: FC<Props> = ({ onClose, projects, teamName, dep
   const { analyticsService } = useServices();
   const { enqueueSnackbar } = d.useSnackbar();
   const { mutate: createApiKey, data: createdApiKey, isPending } = d.useCreateApiKey();
+  const runWhenEmailVerified = d.useRunWhenEmailVerified();
   const queryClient = useQueryClient();
   const isDismissible = !isPending && !createdApiKey?.apiKey;
 
@@ -124,6 +129,9 @@ export const CreateApiKeyDialog: FC<Props> = ({ onClose, projects, teamName, dep
     });
   };
 
+  const createKeyWhenEmailVerified = (values: NewApiKeyValues, refuseProject: () => void) =>
+    runWhenEmailVerified(API_KEY_EMAIL_VERIFICATION_MESSAGE, () => createKey(values, refuseProject));
+
   const copySecret = (secret: string) => copyApiKeySecret(secret, enqueueSnackbar);
 
   return (
@@ -132,7 +140,7 @@ export const CreateApiKeyDialog: FC<Props> = ({ onClose, projects, teamName, dep
         {createdApiKey?.apiKey ? (
           <ApiKeySecretStep name={createdApiKey.name} secret={createdApiKey.apiKey} onCopy={copySecret} onDone={onClose} />
         ) : (
-          <NewApiKeyStep isCreating={isPending} projects={projects} teamName={teamName} onCreate={createKey} onCancel={onClose} />
+          <NewApiKeyStep isCreating={isPending} projects={projects} teamName={teamName} onCreate={createKeyWhenEmailVerified} onCancel={onClose} />
         )}
       </DialogV2Content>
     </DialogV2>
