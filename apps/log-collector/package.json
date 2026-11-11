@@ -24,7 +24,8 @@
     "test": "vitest run",
     "test:cov": "vitest run --coverage",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
-    "test:watch": "vitest --watch"
+    "test:watch": "vitest --watch",
+    "validate:types": "tsc --noEmit"
   },
   "dependencies": {
     "@akashnetwork/env-loader": "*",

@@ -21,7 +21,8 @@
     "test:cov": "vitest run --project unit --project integration --project functional --coverage",
     "test:functional": "vitest run --project functional",
     "test:integration": "vitest run --project integration",
-    "test:unit": "vitest run --project unit"
+    "test:unit": "vitest run --project unit",
+    "validate:types": "tsc --noEmit"
   },
   "dependencies": {
     "@akashnetwork/chain-sdk": "1.0.0-alpha.45",
