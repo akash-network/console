@@ -1,9 +1,9 @@
 import type { FC } from "react";
-import { useState } from "react";
 import { CollapsibleCard } from "@akashnetwork/ui/components";
 import { CpuIcon, PackageOpenIcon } from "lucide-react";
 
-import { AddCreditsSheet } from "@src/components/auth/AddCreditsSheet/AddCreditsSheet";
+import { useAddCredits } from "@src/hooks/useAddCredits";
+import type { AddCreditsRequest } from "@src/store/addCreditsStore";
 import { isTrialBlockedGpuSelection, isTrialGpuRestrictionActive } from "@src/utils/deploymentData/v1beta3";
 import { useRevalidateUniqueness } from "../../DeploymentPane/useRevalidateUniqueness/useRevalidateUniqueness";
 import { computeResourcesTooltip, presetsTooltip } from "../cardTooltips";
@@ -38,9 +38,37 @@ export const DEPENDENCIES = {
   SecurityCard,
   TrialGpuBlockHint,
   TrialResourceLimitHint,
-  AddCreditsSheet,
+  useAddCredits,
   useRevalidateUniqueness,
   useTrialGate
+};
+
+type UnlockReason = "gpu" | "preset" | "gpu_interconnect" | "confidential_gpu" | "size_limit";
+
+const UNLOCK_REQUESTS: Record<UnlockReason, Required<Pick<AddCreditsRequest, "description" | "context">>> = {
+  gpu: {
+    context: "configure_unlock_gpu",
+    description: "High-end GPUs aren't covered by your free trial. Add credits to run this deployment on one, along with longer runtimes and the full Console."
+  },
+  preset: {
+    context: "configure_unlock_preset",
+    description:
+      "Presets with high-end GPUs aren't covered by your free trial. Add credits to use any preset for this deployment, along with longer runtimes and the full Console."
+  },
+  gpu_interconnect: {
+    context: "configure_unlock_gpu_interconnect",
+    description: "GPU interconnect isn't covered by your free trial. Add credits to use it in this deployment, along with longer runtimes and the full Console."
+  },
+  confidential_gpu: {
+    context: "configure_unlock_confidential_gpu",
+    description:
+      "Confidential compute on a GPU isn't covered by your free trial. Add credits to attest a GPU in this deployment, along with longer runtimes and the full Console."
+  },
+  size_limit: {
+    context: "configure_unlock_size_limit",
+    description:
+      "This deployment needs more CPU or memory than your free trial allows. Add credits to deploy it at this size, along with longer runtimes and the full Console."
+  }
 };
 
 type Props = {
@@ -66,10 +94,9 @@ type Props = {
 export const HardwareSection: FC<Props> = ({ serviceIndex, locked = false, showsDeploymentLimit = true, dependencies: d = DEPENDENCIES }) => {
   d.useRevalidateUniqueness(`services.${serviceIndex}.profile.storage`, storageUniquenessKey);
   const { isRestricted } = d.useTrialGate();
-  const [isUnlockOpen, setIsUnlockOpen] = useState(false);
+  const openAddCredits = d.useAddCredits();
 
-  const openUnlock = () => setIsUnlockOpen(true);
-  const closeUnlock = () => setIsUnlockOpen(false);
+  const unlock = (reason: UnlockReason) => () => openAddCredits({ initialTab: "purchase", suggestFirstDeployment: false, ...UNLOCK_REQUESTS[reason] });
 
   /**
    * True only for GPU selections the trial blocks and only while the pane is editable — so the lock never
@@ -82,10 +109,10 @@ export const HardwareSection: FC<Props> = ({ serviceIndex, locked = false, shows
     <div className="flex flex-col gap-2 px-4">
       <p className="font-mono text-xs uppercase text-muted-foreground">Hardware</p>
       {!locked && showsDeploymentLimit && isRestricted && <d.TrialGpuBlockHint />}
-      {!locked && showsDeploymentLimit && <d.TrialResourceLimitHint onUnlock={openUnlock} />}
+      {!locked && showsDeploymentLimit && <d.TrialResourceLimitHint onUnlock={unlock("size_limit")} />}
       <div className="flex flex-col gap-4">
         <d.CollapsibleCard locked={locked} title="Presets" icon={<PackageOpenIcon className="h-4 w-4" />} infoTooltip={presetsTooltip}>
-          <d.PresetsCard serviceIndex={serviceIndex} locked={locked} isBlockedModel={isBlockedModel} onUnlock={openUnlock} />
+          <d.PresetsCard serviceIndex={serviceIndex} locked={locked} isBlockedModel={isBlockedModel} onUnlock={unlock("preset")} />
         </d.CollapsibleCard>
 
         <d.GpuCard
@@ -93,7 +120,8 @@ export const HardwareSection: FC<Props> = ({ serviceIndex, locked = false, shows
           locked={locked}
           isBlockedModel={isBlockedModel}
           isInterconnectTrialBlocked={isRestricted && !locked && isTrialGpuRestrictionActive()}
-          onUnlock={openUnlock}
+          onUnlock={unlock("gpu")}
+          onUnlockInterconnect={unlock("gpu_interconnect")}
         />
 
         <d.CollapsibleCard locked={locked} title="Compute" icon={<CpuIcon className="h-4 w-4" />} infoTooltip={computeResourcesTooltip}>
@@ -104,15 +132,13 @@ export const HardwareSection: FC<Props> = ({ serviceIndex, locked = false, shows
           serviceIndex={serviceIndex}
           locked={locked}
           isGpuBlocked={isRestricted && !locked && isTrialGpuRestrictionActive()}
-          onUnlock={openUnlock}
+          onUnlock={unlock("confidential_gpu")}
         />
 
         <d.RamStorageCard serviceIndex={serviceIndex} locked={locked} />
 
         <d.PersistentStorageCard serviceIndex={serviceIndex} locked={locked} />
       </div>
-
-      <d.AddCreditsSheet open={isUnlockOpen} onOpenChange={setIsUnlockOpen} onDone={closeUnlock} />
     </div>
   );
 };

@@ -120,6 +120,16 @@ describe(GpuCard.name, () => {
     expect(screen.getByRole("switch", { name: "Enable GPU interconnect" })).not.toBeChecked();
   });
 
+  it("hands the GPU interconnect its own unlock handler, apart from the GPU model unlock", () => {
+    const onUnlock = vi.fn();
+    const onUnlockInterconnect = vi.fn();
+    const GpuInterconnectFields = vi.fn<typeof DEPENDENCIES.GpuInterconnectFields>(ComponentMock);
+
+    setup({ hasGpu: true, gpu: 1, onUnlock, onUnlockInterconnect, dependencies: { GpuInterconnectFields } });
+
+    expect(GpuInterconnectFields.mock.calls.at(-1)![0].onUnlock).toBe(onUnlockInterconnect);
+  });
+
   it("increments the GPU count", async () => {
     const { getValues, user } = setup({ hasGpu: true, gpu: 1 });
 
@@ -1223,6 +1233,8 @@ describe(GpuCard.name, () => {
     locked?: boolean;
     screened?: Record<string, Partial<ScreenedProviderCount>>;
     isQuoteFlowEnabled?: boolean;
+    onUnlock?: () => void;
+    onUnlockInterconnect?: () => void;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const values = defaultServiceWithPlacement({
@@ -1274,6 +1286,8 @@ describe(GpuCard.name, () => {
         <GpuCard
           serviceIndex={0}
           locked={input.locked}
+          onUnlock={input.onUnlock}
+          onUnlockInterconnect={input.onUnlockInterconnect}
           dependencies={{
             ...DEPENDENCIES,
             useGpuModels,

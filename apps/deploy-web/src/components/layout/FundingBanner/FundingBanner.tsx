@@ -16,7 +16,7 @@ export function FundingBanner({ dependencies: d = DEPENDENCIES }: FundingBannerP
   const openAddCredits = d.useAddCredits();
 
   return (
-    <Banner variant="info" onClick={() => openAddCredits({ initialTab: "purchase", description: FUNDING_SHEET_DESCRIPTION })}>
+    <Banner variant="info" onClick={() => openAddCredits({ initialTab: "purchase", description: FUNDING_SHEET_DESCRIPTION, context: "funding_banner" })}>
       <span>
         <span className="font-semibold">Get $100</span> · Purchase your first credits and get up to $100 free. Access the full GPU marketplace and unlimited
         deployments.

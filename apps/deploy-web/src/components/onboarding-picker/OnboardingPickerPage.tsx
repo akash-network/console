@@ -39,9 +39,13 @@ const DEPLOY_CTA = { label: "Deploy now", icon: "arrow" } as const;
 
 const ADD_CREDITS_TO_DEPLOY_CTA = { label: "Add credits to deploy", icon: "lock" } as const;
 
-const OUT_OF_CREDIT_SHEET_DESCRIPTION = "Your balance is too low to start a deployment. Add credits, then continue to deploy this template.";
-
 type AddCreditsPrompt = { context: "unlock-gpu" | "out-of-credit"; templateId: string } | { context: "hackathon-coupon" };
+
+const ADD_CREDITS_SHEET_DESCRIPTIONS: Partial<Record<AddCreditsPrompt["context"], string>> = {
+  "unlock-gpu":
+    "This template needs a top-tier GPU, which isn't covered by your free trial. Add credits to unlock high-end GPUs, longer runtimes, and the full Console.",
+  "out-of-credit": "Your balance is too low to start a deployment. Add credits, then continue to deploy this template."
+};
 
 /** One shared object, so the deep-link effect re-running sets identical state and React skips the re-render instead of looping. */
 const HACKATHON_COUPON_PROMPT: AddCreditsPrompt = { context: "hackathon-coupon" };
@@ -152,7 +156,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
     <d.AddCreditsSheet
       open={addCreditsPrompt !== null}
       context={addCreditsPrompt?.context}
-      description={addCreditsPrompt?.context === "out-of-credit" ? OUT_OF_CREDIT_SHEET_DESCRIPTION : undefined}
+      description={addCreditsPrompt ? ADD_CREDITS_SHEET_DESCRIPTIONS[addCreditsPrompt.context] : undefined}
       onOpenChange={open => (!open ? closeAddCreditsPrompt() : undefined)}
       onRedeemed={closeAddCreditsPrompt}
       initialTab={addCreditsPrompt?.context === "hackathon-coupon" ? "coupon" : "purchase"}
