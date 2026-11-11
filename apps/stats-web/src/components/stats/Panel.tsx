@@ -21,7 +21,13 @@ export function DeltaLabel({ percent, period, className }: { percent: number | u
   }
 
   return (
-    <span className={cn("font-mono text-[11px] font-medium leading-none", percent >= 0 ? "text-muted-foreground" : "text-akash", className)}>
+    <span
+      className={cn(
+        "font-mono text-[11px] font-medium leading-none",
+        percent > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground",
+        className
+      )}
+    >
       {formatDelta(percent, period)}
     </span>
   );

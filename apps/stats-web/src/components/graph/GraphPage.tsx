@@ -158,17 +158,19 @@ function GraphSummary({ metric, series, range }: { metric: GraphMetric; series: 
         label={`Change · ${range}`}
         value={formatPercent(change, { signed: true })}
         detail={`${metric.formatAxisValue(first.value)} → ${metric.formatAxisValue(last.value)}`}
-        isNegative={change !== undefined && change < 0}
+        isPositive={change !== undefined && change > 0}
       />
     </div>
   );
 }
 
-function SummaryCard({ label, value, detail, isNegative }: { label: string; value: string; detail: string; isNegative?: boolean }) {
+function SummaryCard({ label, value, detail, isPositive }: { label: string; value: string; detail: string; isPositive?: boolean }) {
   return (
     <Panel className="flex flex-col gap-2 px-5 py-4">
       <Eyebrow className="text-[10px]">{label}</Eyebrow>
-      <span className={cn("text-xl font-semibold tabular-nums leading-none tracking-[-0.02em]", isNegative && "text-akash")}>{value}</span>
+      <span className={cn("text-xl font-semibold tabular-nums leading-none tracking-[-0.02em]", isPositive && "text-emerald-600 dark:text-emerald-400")}>
+        {value}
+      </span>
       <span className="font-mono text-[10px] uppercase text-faint">{detail}</span>
     </Panel>
   );
