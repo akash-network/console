@@ -157,6 +157,7 @@ describe(BillingView.name, () => {
     const amount = within(cell(0, "Amount")).getByText(/25\.00/);
     expect(amount).toHaveTextContent("+25.00");
     expect(amount).toHaveAttribute("data-credit", "true");
+    expect(amount).not.toHaveAttribute("data-canceled");
   });
 
   it("shows card payments without a sign", () => {
