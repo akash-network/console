@@ -127,3 +127,6 @@ jobDefaults:
     limits:
       # Boot is CPU-bound: at the chart's 500m default a busy node slows it enough to time out the first DB connect.
       cpu: 2
+
+pgbouncer:
+  enabled: true
