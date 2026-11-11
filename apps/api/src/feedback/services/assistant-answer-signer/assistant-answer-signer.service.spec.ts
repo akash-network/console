@@ -53,7 +53,13 @@ describe(AssistantAnswerSigner.name, () => {
 
   it("refuses to sign without a key", () => {
     const { signer, input } = setup({ key: undefined });
-    expect(() => signer.sign(input)).toThrow();
+    expect(() => signer.sign(input)).toThrow("ASSISTANT_HISTORY_SIGNING_KEY is not set");
+  });
+
+  it("verifies nothing without a key instead of throwing", () => {
+    const { signer: keyedSigner, input } = setup();
+    const { signer } = setup({ key: undefined });
+    expect(signer.verifies({ ...input, signature: keyedSigner.sign(input) })).toBe(false);
   });
 
   function setup(input: { key?: string; text?: string } = {}) {

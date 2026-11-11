@@ -27,6 +27,8 @@ export class AssistantAnswerSigner {
   }
 
   verifies({ signature, ...answer }: AssistantAnswer & { signature: string }): boolean {
+    if (!this.isConfigured()) return false;
+
     const expected = Buffer.from(this.sign(answer));
     const given = Buffer.from(signature);
 
