@@ -158,8 +158,8 @@ describe(VerificationCodeInput.name, () => {
     expect(onComplete).toHaveBeenCalledWith("654321");
   });
 
-  function setup(input: { onComplete?: (code: string) => void; disabled?: boolean; ref?: React.Ref<VerificationCodeInputRef> } = {}) {
-    const onComplete = (input.onComplete as ReturnType<typeof vi.fn>) ?? vi.fn();
+  function setup(input: { disabled?: boolean; ref?: React.Ref<VerificationCodeInputRef> } = {}) {
+    const onComplete = vi.fn<(code: string) => void>();
 
     render(<VerificationCodeInput ref={input.ref ?? null} onComplete={onComplete} disabled={input.disabled} />);
 

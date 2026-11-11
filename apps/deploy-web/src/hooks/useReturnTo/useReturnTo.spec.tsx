@@ -89,7 +89,7 @@ describe(useReturnTo.name, () => {
     const windowAvailable = input?.windowAvailable ?? true;
 
     type Router = ReturnType<typeof DEPENDENCIES.useRouter>;
-    const routerPush = vi.fn<ReturnType<Router["push"]>, Parameters<Router["push"]>>();
+    const routerPush = vi.fn<Router["push"]>();
     const router = mock<Router>({ push: routerPush });
     const useRouter = () => router;
 

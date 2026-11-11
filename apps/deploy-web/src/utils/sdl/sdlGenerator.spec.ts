@@ -542,7 +542,7 @@ describe("CPU architecture", () => {
 
     const groups = getManifest(parsedYaml);
 
-    expect(groups[0].services[0].resources.cpu.attributes).toEqual([{ key: "arch", value: "arm64" }]);
+    expect(groups[0].services[0].resources?.cpu?.attributes).toEqual([{ key: "arch", value: "arm64" }]);
   });
 
   type ComputeYaml = { profiles: { compute: Record<string, { resources: { cpu: { units: number; attributes?: { arch: string } } } }> } };
