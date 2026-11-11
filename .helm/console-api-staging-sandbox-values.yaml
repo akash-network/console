@@ -90,3 +90,11 @@ backgroundJobs:
     limits:
       # Boot is CPU-bound: the chart's 500m default stretches it to 20-30s.
       cpu: 2
+
+pgbouncer:
+  enabled: true
+  upstream:
+    # Staging's database URIs use the instance's public IP, which stays out of this public repo.
+    host: cloudsql-proxy-console-api.prod.svc.cluster.local
+  # Staging shares the prod instance, so it gets a smaller share of its connection slots.
+  defaultPoolSize: 10
