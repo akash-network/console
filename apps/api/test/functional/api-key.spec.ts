@@ -222,6 +222,23 @@ describe("API Keys", () => {
       expect((await apiKeyRepository.find({ userId: user.id })).map(({ name }) => name)).toEqual(["Caller key"]);
     });
 
+    it("refuses a user whose email address is not confirmed and creates no key", async () => {
+      const { user, token } = await setup({ emailVerified: false });
+
+      const response = await app.request("/v1/api-keys", {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify({ data: { name: "Test key" } })
+      });
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({
+        code: "email_verification_required",
+        message: "Confirm your email address before creating an API key."
+      });
+      expect(await apiKeyRepository.find({ userId: user.id })).toEqual([]);
+    });
+
     it("creates API key and returns full key once", async () => {
       const { token } = await setup();
       const futureDate = addDays(new Date(), 90);
@@ -531,10 +548,10 @@ describe("API Keys", () => {
     });
   });
 
-  async function setup(input: { trial?: boolean } = {}) {
+  async function setup(input: { trial?: boolean; emailVerified?: boolean } = {}) {
     const userToToken: Record<string, string> = {};
     const createUser = async () => {
-      const user = await userRepository.create({ userId: faker.string.uuid() });
+      const user = await userRepository.create({ userId: faker.string.uuid(), emailVerified: input.emailVerified ?? true });
       const token = faker.string.alphanumeric(40);
       userToToken[token] = user.userId!;
       return { user, token };

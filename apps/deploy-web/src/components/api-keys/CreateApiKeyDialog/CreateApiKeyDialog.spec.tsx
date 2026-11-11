@@ -199,7 +199,37 @@ describe("CreateApiKeyDialog", () => {
     await user.type(screen.getByLabelText("Name"), "Local dev");
     await user.click(screen.getByRole("button", { name: "Create key" }));
 
-    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Couldn't create the API key" }) }), {
+    expect(enqueueSnackbar).toHaveBeenCalledWith(
+      expect.objectContaining({ props: expect.objectContaining({ title: "Couldn't create the API key", subTitle: "Try again in a moment." }) }),
+      { variant: "error" }
+    );
+  });
+
+  it("shows the refusal message when the email address is not confirmed", async () => {
+    const { user, createApiKey, enqueueSnackbar } = setup();
+    const refusal = buildRefusal({ code: "email_verification_required", message: "Confirm your email address before creating an API key." });
+    createApiKey.mockImplementation((newApiKey, options) => options?.onError?.(refusal, newApiKey, undefined));
+
+    await user.type(screen.getByLabelText("Name"), "Local dev");
+    await user.click(screen.getByRole("button", { name: "Create key" }));
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        props: expect.objectContaining({ title: "Couldn't create the API key", subTitle: "Confirm your email address before creating an API key." })
+      }),
+      { variant: "error" }
+    );
+  });
+
+  it("keeps the generic message for a refusal with another code", async () => {
+    const { user, createApiKey, enqueueSnackbar } = setup();
+    const refusal = buildRefusal({ code: "forbidden", message: "Forbidden" });
+    createApiKey.mockImplementation((newApiKey, options) => options?.onError?.(refusal, newApiKey, undefined));
+
+    await user.type(screen.getByLabelText("Name"), "Local dev");
+    await user.click(screen.getByRole("button", { name: "Create key" }));
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ subTitle: "Try again in a moment." }) }), {
       variant: "error"
     });
   });
@@ -482,6 +512,10 @@ describe("CreateApiKeyDialog", () => {
       expect(screen.queryByRole("button", { name: "Close" })).not.toBeInTheDocument();
     });
   });
+
+  function buildRefusal(body: { code: string; message: string }) {
+    return new AxiosError("Request failed", "403", undefined, undefined, mock<AxiosResponse>({ status: 403, data: body }));
+  }
 
   async function pickCustomExpiry(user: UserEvent) {
     await user.click(screen.getByRole("combobox", { name: /Expiration/ }));

@@ -69,6 +69,8 @@ const ALL_PROJECTS = "all";
 
 const NOT_FOUND_STATUS = 404;
 
+const EMAIL_VERIFICATION_REQUIRED_ERROR_CODE = "email_verification_required";
+
 const newApiKeySchema = z.object({
   name: z
     .string()
@@ -114,7 +116,10 @@ export const CreateApiKeyDialog: FC<Props> = ({ onClose, projects, teamName, dep
           return;
         }
 
-        enqueueSnackbar(<Snackbar title="Couldn't create the API key" subTitle="Try again in a moment." iconVariant="error" />, { variant: "error" });
+        enqueueSnackbar(
+          <Snackbar title="Couldn't create the API key" subTitle={getEmailVerificationRefusal(error) ?? "Try again in a moment."} iconVariant="error" />,
+          { variant: "error" }
+        );
       }
     });
   };
@@ -133,6 +138,12 @@ export const CreateApiKeyDialog: FC<Props> = ({ onClose, projects, teamName, dep
     </DialogV2>
   );
 };
+
+function getEmailVerificationRefusal(error: unknown): string | undefined {
+  if (isHttpError<{ code?: string; message?: string }>(error) && error.response?.data?.code === EMAIL_VERIFICATION_REQUIRED_ERROR_CODE) {
+    return error.response.data.message;
+  }
+}
 
 type NewApiKeyStepProps = {
   isCreating: boolean;

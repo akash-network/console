@@ -553,7 +553,7 @@ describe("Cross-team access", () => {
 
   async function seedTeam(sessions: Map<string, string>) {
     const stripeCustomerId = `cus_${faker.string.alphanumeric(14)}`;
-    const { user: owner, organization } = await seedOrganizationWithOwner({ stripeCustomerId, user: { userId: faker.string.uuid() } });
+    const { user: owner, organization } = await seedOrganizationWithOwner({ stripeCustomerId, user: { userId: faker.string.uuid(), emailVerified: true } });
     const [grantedProject, otherProject] = await Promise.all([
       seedProject({ organizationId: organization.id, name: "Granted", createdByUserId: owner.id }),
       seedProject({ organizationId: organization.id, name: "Other", createdByUserId: owner.id })
@@ -702,7 +702,7 @@ describe("Cross-team access", () => {
   }
 
   async function seedDepartedMember(organizationId: string, sessions: Map<string, string>) {
-    const user = await seedUser({ userId: faker.string.uuid() });
+    const user = await seedUser({ userId: faker.string.uuid(), emailVerified: true });
     const key = await seedApiKey({ userId: user.id, organizationId });
 
     return { session: { ...signIn(user.userId!, sessions), "x-organization-id": organizationId }, apiKey: { "x-api-key": key.secret } };
