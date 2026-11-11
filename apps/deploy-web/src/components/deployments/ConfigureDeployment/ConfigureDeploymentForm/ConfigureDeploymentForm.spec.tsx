@@ -721,6 +721,27 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Your free trial credit is below the deployment minimum");
   });
 
+  it("rewords the refusal once the deployment minimum loads, without counting it as shown twice", async () => {
+    const { analyticsService, rerenderWith } = setup({
+      initialSdl: undefined,
+      phase: "error",
+      flowError: { message: "Not enough balance", kind: "needs-funds", shortfall: { requiredAmountUsd: 0.5, availableAmountUsd: 0.43 } },
+      isTrialing: true
+    });
+
+    rerenderWith({ minimumDepositUsd: 0.5 });
+    await userEvent.click(screen.getByRole("button", { name: "Add credits" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Your free trial credit is below the deployment minimum");
+    expect(analyticsService.track.mock.calls.filter(([event]) => event === "configure_needs_funds_shown")).toEqual([
+      ["configure_needs_funds_shown", { category: "deployments", variant: "not_enough_balance", requiredAmountUsd: 0.5, availableAmountUsd: 0.43 }]
+    ]);
+    expect(analyticsService.track).toHaveBeenCalledWith(
+      "configure_needs_funds_add_credits_clicked",
+      expect.objectContaining({ variant: "trial_credit_below_minimum" })
+    );
+  });
+
   it("keeps the refusal on the page in the two panel layout too", () => {
     setup({ initialSdl: undefined, twoPanel: true, phase: "error", flowError: { message: "Not enough balance", kind: "needs-funds" } });
 
@@ -1563,13 +1584,10 @@ describe(ConfigureDeploymentForm.name, () => {
         Object.assign(mock<ReturnType<typeof DEPENDENCIES.useWalletBalance>>(), {
           balance: input.deployBalanceUsd === undefined ? null : mock<WalletBalance>({ totalDeploymentGrantsUSD: input.deployBalanceUsd })
         }),
-      useDeploymentFundingConfigQuery: () =>
-        Object.assign(mock<ReturnType<typeof DEPENDENCIES.useDeploymentFundingConfigQuery>>(), {
-          data: input.minimumDepositUsd === undefined ? undefined : { targetRunwayHours: 48, balanceHeadroomUsd: 5, defaultDepositUsd: input.minimumDepositUsd }
-        })
+      useDeploymentFundingConfigQuery: fundingConfigQueryWith(input.minimumDepositUsd)
     };
 
-    const formWithFlags = (flags: { twoPanel: boolean }) => (
+    const formWithFlags = (flags: { twoPanel: boolean; minimumDepositUsd?: number }) => (
       <ConfigureDeploymentForm
         initialSdl={input.initialSdl}
         initialName={input.initialName}
@@ -1584,11 +1602,12 @@ describe(ConfigureDeploymentForm.name, () => {
         flow={flow}
         dependencies={{
           ...dependencies,
-          useFlag: flag => flag === "ui_configure_two_panel" && flags.twoPanel
+          useFlag: flag => flag === "ui_configure_two_panel" && flags.twoPanel,
+          useDeploymentFundingConfigQuery: fundingConfigQueryWith(flags.minimumDepositUsd)
         }}
       />
     );
-    const initialFlags = { twoPanel: input.twoPanel ?? false };
+    const initialFlags = { twoPanel: input.twoPanel ?? false, minimumDepositUsd: input.minimumDepositUsd };
     const { rerender } = render(formWithFlags(initialFlags));
 
     return {
@@ -1747,6 +1766,13 @@ function ProviderSelectProbePanes({ selectedPlacementId, onSelectProvider }: Pro
  * like ImageCard/ReplicasCard/etc. This registration is what resurrected a removed service before the fix, so a
  * regression test must mount something that registers.
  */
+function fundingConfigQueryWith(minimumDepositUsd: number | undefined): typeof DEPENDENCIES.useDeploymentFundingConfigQuery {
+  return () =>
+    Object.assign(mock<ReturnType<typeof DEPENDENCIES.useDeploymentFundingConfigQuery>>(), {
+      data: minimumDepositUsd === undefined ? undefined : { targetRunwayHours: 48, balanceHeadroomUsd: 5, defaultDepositUsd: minimumDepositUsd }
+    });
+}
+
 function FieldRegisteringSection({ serviceIndex }: { serviceIndex: number }) {
   useController<SdlBuilderFormValuesType>({ name: `services.${serviceIndex}.image` as never });
   useController<SdlBuilderFormValuesType>({ name: `services.${serviceIndex}.title` as never });

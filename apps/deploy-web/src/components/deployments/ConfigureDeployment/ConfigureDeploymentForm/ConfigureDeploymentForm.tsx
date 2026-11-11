@@ -246,8 +246,12 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   const deployBalanceUsd = d.useWalletBalance().balance?.totalDeploymentGrantsUSD;
   const minimumDepositUsd = d.useDeploymentFundingConfigQuery().data?.defaultDepositUsd;
   const [fundsRefusal, setFundsRefusal] = useState<FundsRefusal>();
-  const shownFundsRefusal =
+  const fundsRefusalOnPage =
     isRefusedForFunds && fundsRefusal && fundsRefusal.error === flow.error && fundsRefusal.deploymentName === typedDeploymentName ? fundsRefusal : undefined;
+  const shownFundsRefusal = fundsRefusalOnPage && {
+    ...fundsRefusalOnPage,
+    variant: needsFundsVariantOfRefusal(fundsRefusalOnPage.error, { isTrialing, deployBalanceUsd, minimumDepositUsd })
+  };
 
   useEffect(
     function dismissFundsRefusalOnEdit() {
@@ -264,12 +268,10 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
     function toastFlowError() {
       if (flow.error && flow.error !== lastToastedFlowError.current) {
         if (flow.error.kind === "needs-funds") {
-          const availableAmountUsd = flow.error.shortfall?.availableAmountUsd ?? deployBalanceUsd;
-          const variant = needsFundsVariantOf({ isTrialing, availableAmountUsd, minimumDepositUsd });
-          setFundsRefusal({ error: flow.error, deploymentName: typedDeploymentName, variant });
+          setFundsRefusal({ error: flow.error, deploymentName: typedDeploymentName });
           analyticsService.track("configure_needs_funds_shown", {
             category: "deployments",
-            variant: variant.name,
+            variant: needsFundsVariantOfRefusal(flow.error, { isTrialing, deployBalanceUsd, minimumDepositUsd }).name,
             ...shortfallPropertiesOf(flow.error)
           });
         } else if (flow.error.kind === "budget-exceeded") {
@@ -315,7 +317,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
     ]
   );
 
-  function addCreditsForRefusedDeploy({ error, variant }: FundsRefusal) {
+  function addCreditsForRefusedDeploy({ error, variant }: ShownFundsRefusal) {
     analyticsService.track("configure_needs_funds_add_credits_clicked", {
       category: "billing",
       context: NEEDS_FUNDS_CONTEXT,
@@ -332,7 +334,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
     });
   }
 
-  function retryRefusedDeploy({ variant }: FundsRefusal) {
+  function retryRefusedDeploy({ variant }: ShownFundsRefusal) {
     analyticsService.track("configure_needs_funds_retry_clicked", { category: "deployments", variant: variant.name });
     flow.actions.requestQuotesAgain();
   }
@@ -580,7 +582,11 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   );
 };
 
-type FundsRefusal = { error: FlowError; deploymentName: string; variant: NeedsFundsVariant };
+type FundsRefusal = { error: FlowError; deploymentName: string };
+
+type ShownFundsRefusal = FundsRefusal & { variant: NeedsFundsVariant };
+
+type DeployFunds = { isTrialing: boolean; deployBalanceUsd?: number; minimumDepositUsd?: number };
 
 /** What a fresh deployment is seeded with when nothing was carried in. */
 type DefaultSeed = Pick<DeploymentIntent, "vm" | "exampleImage">;
@@ -677,6 +683,10 @@ function flowErrorToastCopy(kind: FlowErrorKind | undefined): { title: string; f
     };
   }
   return { title: "Couldn't get bids from providers", fallback: "Something went wrong. Please adjust your deployment and try again." };
+}
+
+function needsFundsVariantOfRefusal({ shortfall }: FlowError, { isTrialing, deployBalanceUsd, minimumDepositUsd }: DeployFunds): NeedsFundsVariant {
+  return needsFundsVariantOf({ isTrialing, availableAmountUsd: shortfall?.availableAmountUsd ?? deployBalanceUsd, minimumDepositUsd });
 }
 
 function shortfallPropertiesOf({ shortfall }: FlowError) {
