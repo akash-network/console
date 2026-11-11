@@ -255,8 +255,12 @@ const TransactionAmount: React.FC<{ transaction: BillingTransaction; usd: (cents
 
   return (
     <>
-      <span data-credit={isCredit || undefined} className="data-[credit]:font-medium data-[credit]:text-success">
-        {isCredit && "+"}
+      <span
+        data-credit={(isCredit && !isCanceledBeforeCredit) || undefined}
+        data-canceled={isCanceledBeforeCredit || undefined}
+        className="data-[credit]:font-medium data-[canceled]:text-muted-foreground data-[credit]:text-success data-[canceled]:line-through"
+      >
+        {isCredit && !isCanceledBeforeCredit && "+"}
         {usd(isHeldCommission ? amount - amountRefunded : amount, currency)}
       </span>
       {bonusAmount > 0 && <span className="block text-xs font-medium text-muted-foreground">+{usd(bonusAmount, currency)} bonus</span>}

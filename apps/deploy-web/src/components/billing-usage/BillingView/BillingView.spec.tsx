@@ -244,6 +244,15 @@ describe(BillingView.name, () => {
     expect(cell(0, "Status")).toHaveTextContent(/^Canceled$/);
   });
 
+  it("shows a commission canceled during its hold struck through, without reading it as money in", () => {
+    setup({ data: [createMockTransaction({ type: "affiliate_commission", amount: 500, amountRefunded: 500, status: "canceled", cardLast4: null })] });
+
+    const amount = within(cell(0, "Amount")).getByText("5.00");
+    expect(cell(0, "Amount")).toHaveTextContent(/^5\.00$/);
+    expect(amount).not.toHaveAttribute("data-credit");
+    expect(amount).toHaveAttribute("data-canceled", "true");
+  });
+
   it("says a canceled card payment's refund was refunded", () => {
     setup({ data: [createMockTransaction({ type: "payment_intent", amount: 500, amountRefunded: 500, status: "canceled" })] });
 
