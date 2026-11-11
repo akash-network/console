@@ -50,7 +50,157 @@ describe(EmailDomainBlockService.name, () => {
       expect(blockedEmailDomainRepository.blockIfAbsent).toHaveBeenCalledWith(expect.objectContaining({ domain: "attacker.com" }));
     });
 
+    describe("when the address is on a subdomain", () => {
+      it("blocks the registrable domain and primes the lookup cache for it", async () => {
+        const { service, wallet, blockedEmailDomainRepository, blockedEmailDomainService } = setup({ email: "miner@eu.mail.attacker.co.uk" });
+
+        await service.blockDomainOf(wallet);
+
+        expect(blockedEmailDomainRepository.blockIfAbsent).toHaveBeenCalledWith({
+          domain: "attacker.co.uk",
+          reason: DOMAIN_BLOCK_REASON,
+          triggeredByUserId: wallet.userId
+        });
+        expect(blockedEmailDomainService.rememberBlocked).toHaveBeenCalledWith("attacker.co.uk");
+      });
+
+      it("evaluates every guardrail on the registrable domain", async () => {
+        const { service, wallet, userRepository, stripeTransactionRepository, detectionRepository } = setup({
+          email: "miner@mail.attacker.com",
+          minAccountAgeDays: 45
+        });
+
+        await service.blockDomainOf(wallet);
+
+        expect(stripeTransactionRepository.hasPaidUserWithEmailDomain).toHaveBeenCalledWith("attacker.com");
+        expect(userRepository.hasEstablishedUserWithEmailDomain).toHaveBeenCalledWith("attacker.com", 45, wallet.userId);
+        expect(detectionRepository.hasEnforcedSignatureMatchByAnotherMailbox).toHaveBeenCalledWith("attacker.com", wallet.userId);
+      });
+
+      it("sweeps the siblings on the registrable domain", async () => {
+        const { service, wallet, userWalletRepository, jobQueueService } = setup({
+          email: "miner@mail.attacker.com",
+          siblings: [{ walletId: 7, userId: "user-7" }]
+        });
+
+        await service.blockDomainOf(wallet);
+
+        expect(userWalletRepository.findLockableTrialWalletsByEmailDomain).toHaveBeenCalledWith("attacker.com", expect.anything());
+        expect(jobQueueService.enqueue).toHaveBeenCalledWith(new LockBlockedDomainWallet({ walletId: 7, domain: "attacker.com" }), {
+          singletonKey: "lockBlockedDomainWallet.7"
+        });
+      });
+
+      it("skips as allowlisted when an operator allowed the address's own subdomain", async () => {
+        const { service, wallet, blockedEmailDomainRepository, instrumentation } = setup({
+          email: "someone@mail.customer.com",
+          existing: createBlockedEmailDomain({ domain: "mail.customer.com", status: "allowed" })
+        });
+
+        await service.blockDomainOf(wallet);
+
+        expect(blockedEmailDomainRepository.findNearestRule).toHaveBeenCalledTimes(1);
+        expect(blockedEmailDomainRepository.findNearestRule).toHaveBeenCalledWith("mail.customer.com");
+        expect(blockedEmailDomainRepository.blockIfAbsent).not.toHaveBeenCalled();
+        expect(instrumentation.recordDomainBlock).toHaveBeenCalledWith("skipped", "allowlisted");
+      });
+
+      it("skips as already blocked when the registrable domain is the nearest block, without a second lookup", async () => {
+        const { service, wallet, blockedEmailDomainRepository, instrumentation } = setup({
+          email: "miner@mail.attacker.com",
+          existing: createBlockedEmailDomain({ domain: "attacker.com", status: "blocked" })
+        });
+
+        await service.blockDomainOf(wallet);
+
+        expect(blockedEmailDomainRepository.findNearestRule).toHaveBeenCalledTimes(1);
+        expect(blockedEmailDomainRepository.blockIfAbsent).not.toHaveBeenCalled();
+        expect(instrumentation.recordDomainBlock).toHaveBeenCalledWith("skipped", "already_blocked");
+      });
+
+      it("still blocks the registrable domain when only the address's subdomain is blocked", async () => {
+        const { service, wallet, blockedEmailDomainRepository } = setup({
+          email: "miner@eu.mail.attacker.com",
+          existing: createBlockedEmailDomain({ domain: "mail.attacker.com", status: "blocked" })
+        });
+
+        await service.blockDomainOf(wallet);
+
+        expect(blockedEmailDomainRepository.findNearestRule).toHaveBeenNthCalledWith(1, "eu.mail.attacker.com");
+        expect(blockedEmailDomainRepository.findNearestRule).toHaveBeenNthCalledWith(2, "attacker.com");
+        expect(blockedEmailDomainRepository.blockIfAbsent).toHaveBeenCalledWith(expect.objectContaining({ domain: "attacker.com" }));
+      });
+
+      it("skips as allowlisted when the registrable domain is allowed above a blocked subdomain", async () => {
+        const { service, wallet, blockedEmailDomainRepository, instrumentation } = setup({
+          email: "miner@eu.mail.customer.com",
+          existing: createBlockedEmailDomain({ domain: "mail.customer.com", status: "blocked" }),
+          registrableRule: createBlockedEmailDomain({ domain: "customer.com", status: "allowed" })
+        });
+
+        await service.blockDomainOf(wallet);
+
+        expect(blockedEmailDomainRepository.blockIfAbsent).not.toHaveBeenCalled();
+        expect(instrumentation.recordDomainBlock).toHaveBeenCalledWith("skipped", "allowlisted");
+      });
+
+      it("logs the dry run with both the registrable domain and the address's domain", async () => {
+        const { service, wallet, logger } = setup({ email: "miner@mail.attacker.com", mode: "detect" });
+
+        await service.blockDomainOf(wallet);
+
+        expect(logger.info).toHaveBeenCalledWith(
+          expect.objectContaining({ event: "EMAIL_DOMAIN_AUTO_BLOCK_DRY_RUN", domain: "attacker.com", emailDomain: "mail.attacker.com" })
+        );
+      });
+    });
+
     describe("guardrails", () => {
+      it("skips with no_domain when the wallet's owner no longer exists", async () => {
+        const { service, wallet, instrumentation, logger } = setup({ userMissing: true });
+
+        await service.blockDomainOf(wallet);
+
+        expect(instrumentation.recordDomainBlock).toHaveBeenCalledWith("skipped", "no_domain");
+        expect(logger.info).toHaveBeenCalledWith(
+          expect.objectContaining({ event: "EMAIL_DOMAIN_AUTO_BLOCK_SKIPPED", reason: "no_domain", walletId: wallet.id, userId: wallet.userId })
+        );
+      });
+
+      it.each([["miner@co.uk"], ["miner@github.io"]])("never blocks %s, whose domain is a public suffix", async email => {
+        const { service, wallet, blockedEmailDomainRepository, instrumentation, logger } = setup({ email });
+
+        await service.blockDomainOf(wallet);
+
+        expect(blockedEmailDomainRepository.findNearestRule).not.toHaveBeenCalled();
+        expect(blockedEmailDomainRepository.blockIfAbsent).not.toHaveBeenCalled();
+        expect(instrumentation.recordDomainBlock).toHaveBeenCalledWith("skipped", "public_suffix");
+        expect(logger.info).toHaveBeenCalledWith(
+          expect.objectContaining({
+            event: "EMAIL_DOMAIN_AUTO_BLOCK_SKIPPED",
+            reason: "public_suffix",
+            emailDomain: email.split("@")[1],
+            userId: wallet.userId
+          })
+        );
+      });
+
+      it("blocks a domain registered under a private suffix rather than the suffix", async () => {
+        const { service, wallet, blockedEmailDomainRepository } = setup({ email: "miner@mail.attacker.github.io" });
+
+        await service.blockDomainOf(wallet);
+
+        expect(blockedEmailDomainRepository.blockIfAbsent).toHaveBeenCalledWith(expect.objectContaining({ domain: "attacker.github.io" }));
+      });
+
+      it("skips an address on a subdomain of a public email provider", async () => {
+        const { service, wallet, instrumentation } = setup({ email: "someone@mail.gmail.com" });
+
+        await service.blockDomainOf(wallet);
+
+        expect(instrumentation.recordDomainBlock).toHaveBeenCalledWith("skipped", "public_provider");
+      });
+
       it.each([
         { reason: "no_domain", input: { email: null } },
         { reason: "public_provider", input: { email: "miner@gmail.com" } },
@@ -361,6 +511,7 @@ describe(EmailDomainBlockService.name, () => {
   function setup(input?: {
     email?: string | null;
     existing?: ReturnType<typeof createBlockedEmailDomain>;
+    registrableRule?: ReturnType<typeof createBlockedEmailDomain>;
     hasPaidUser?: boolean;
     hasEstablishedUser?: boolean;
     anotherAccountCaught?: boolean;
@@ -371,6 +522,7 @@ describe(EmailDomainBlockService.name, () => {
     minAccountAgeDays?: number;
     raceWinner?: "blocked" | "allowed" | "gone";
     lookupError?: Error;
+    userMissing?: boolean;
   }) {
     const raceWinner =
       input?.raceWinner && input.raceWinner !== "gone" ? createBlockedEmailDomain({ domain: "attacker.com", status: input.raceWinner }) : undefined;
@@ -378,7 +530,7 @@ describe(EmailDomainBlockService.name, () => {
     const user = createUser({ id: wallet.userId, email: input?.email === undefined ? "miner@attacker.com" : (input.email as string) });
 
     const userRepository = mock<UserRepository>({
-      findById: input?.lookupError ? vi.fn().mockRejectedValue(input.lookupError) : vi.fn().mockResolvedValue(user),
+      findById: input?.lookupError ? vi.fn().mockRejectedValue(input.lookupError) : vi.fn().mockResolvedValue(input?.userMissing ? undefined : user),
       hasEstablishedUserWithEmailDomain: vi.fn().mockResolvedValue(input?.hasEstablishedUser ?? false)
     });
     const userWalletRepository = mock<UserWalletRepository>({
@@ -388,7 +540,7 @@ describe(EmailDomainBlockService.name, () => {
       hasPaidUserWithEmailDomain: vi.fn().mockResolvedValue(input?.hasPaidUser ?? false)
     });
     const blockedEmailDomainRepository = mock<BlockedEmailDomainRepository>({
-      findNearestRule: vi.fn().mockResolvedValue(input?.existing),
+      findNearestRule: vi.fn().mockResolvedValueOnce(input?.existing).mockResolvedValue(input?.registrableRule),
       findByDomain: vi.fn().mockResolvedValue(raceWinner),
       blockIfAbsent: vi.fn().mockResolvedValue(input?.raceWinner ? undefined : createBlockedEmailDomain())
     });

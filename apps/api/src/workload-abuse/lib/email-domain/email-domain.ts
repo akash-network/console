@@ -1,3 +1,5 @@
+import { getDomain } from "tldts";
+
 const DOMAIN_LABEL = "[a-z0-9](?:[a-z0-9-]*[a-z0-9])?";
 
 export const MAX_EMAIL_DOMAIN_LENGTH = 253;
@@ -56,4 +58,9 @@ export function listDomainAndParents(domain: string): string[] {
 
 export function isWithinDomain(domain: string, parent: string): boolean {
   return domain === parent || domain.endsWith(`.${parent}`);
+}
+
+/** Private suffixes such as github.io count as public ones, so the result is never a suffix shared by unrelated owners; null when the domain is a suffix itself. */
+export function getRegistrableDomain(domain: string): string | null {
+  return getDomain(domain, { allowPrivateDomains: true, extractHostname: false });
 }
