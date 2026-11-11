@@ -80,7 +80,7 @@ function fitsToolResult(tool: string, payload: ToolPayload): boolean {
 }
 
 /** Only Console's note stays under data since the screening result quotes the SDL, and an SDL too long for the cap is left out rather than cut into broken JSON. */
-function withheldContentOf(tool: string, { templateSdl, ...feedback }: Record<string, unknown>): string {
+export function withheldContentOf(tool: string, { templateSdl, ...feedback }: Record<string, unknown>): string {
   const payload = { data: { shownToUser: false, note: WITHHELD_PROPOSAL_NOTE }, untrustedData: { ...feedback, templateSdl } };
   if (fitsToolResult(tool, payload)) return toolContentOf(tool, payload);
 
@@ -159,7 +159,7 @@ interface Rejection {
 }
 
 /** A client error's message can pass on what a provider or the chain answered, so it reaches the model as untrusted data. */
-function rejectionOf(error: unknown): Rejection | null {
+export function rejectionOf(error: unknown): Rejection | null {
   if (error instanceof AssistantToolError) return { error: error.message, untrustedData: error.untrustedDetail };
   if (isHttpError(error) && error.status < 500) return { error: `Console refused this call with status ${error.status}.`, untrustedData: error.message };
 
