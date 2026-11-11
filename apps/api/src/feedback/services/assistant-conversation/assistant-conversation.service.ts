@@ -291,7 +291,7 @@ export class AssistantConversationService {
     return { consent, isTrialing };
   }
 
-  /** Verifies only after #admit, since the signer throws when no key is set. */
+  /** Verifies only after #admit, so a deployment with no signing key fails as unavailable instead of dropping every answer as unverified. */
   #verifiedHistory(conversationId: string, history: ClientHistory): { role: "user" | "assistant"; content: string }[] {
     const userId = this.authService.currentUser.id;
     const messages = history ?? [];
