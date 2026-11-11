@@ -43,6 +43,7 @@ IMPORTANT: Before pushing, ALWAYS run in the affected app:
 1. `npm test` (runs unit, integration, and functional tests)
 2. `npm run lint -- --quiet`
 3. `npx tsc --noEmit`
+4. The mutation check on the changed lines (see [Mutation Testing](#mutation-testing))
 
 #### Unit Tests
 
@@ -136,6 +137,21 @@ cd apps/<app-name>
 npm test
 ```
 
+#### Mutation Testing
+
+CI runs Stryker on the lines a PR changes in each app and fails when the mutation score drops below 80% (`MUTATION_MIN_SCORE` in `.github/workflows/reusable-validate-app.yml`). Run it locally before the first push and add tests for surviving mutants, rather than waiting for CI to find the gap:
+
+```bash
+# From the repo root: prints the mutate, testFiles and testEnv values for the branch
+node script/mutation-targets.mjs apps/<app-name> origin/main
+
+cd apps/<app-name>
+env <testEnv> npx stryker run ../../stryker.config.mjs --mutate '<mutate>' --testFiles '<testFiles>'
+
+# The score CI gates on (killed over reached mutants), which differs from the one Stryker prints
+node ../../script/mutation-report.mjs reports/mutation/mutation.json --min 80
+```
+
 ### Linting
 
 ESLint config lives in `packages/dev-config`; lint runs on commit via `lint-staged`/`husky`. Note the custom `eslint-plugin-akash` rules (e.g. `akash/no-mnemonic`).
@@ -196,32 +212,32 @@ myRouter.openapi(myRoute, async function routeGetExample(c) {
 ## `setup` function instead of `beforeEach` in unit & service level tests
 
 See detailed guidelines:
-@./.Codex/instructions/setup-function-instead-of-beforeeach-in-unit-service-level-tests.md
+@./.claude/instructions/setup-function-instead-of-beforeeach-in-unit-service-level-tests.md
 
 ## Use `LoggerService` instead of `console.log/warn/error`
 
 See detailed guidelines:
-@./.Codex/instructions/use-logger-service-instead-of-console.md
+@./.claude/instructions/use-logger-service-instead-of-console.md
 
 ## Clean Code Over Comments
 
 See detailed guidelines:
-@./.Codex/instructions/clean-code-over-comments.md
+@./.claude/instructions/clean-code-over-comments.md
 
 ## Commit and PR Conventions
 
 See detailed guidelines:
-@./.Codex/instructions/commit-and-pr-conventions.md
+@./.claude/instructions/commit-and-pr-conventions.md
 
 ## Use `mock<T>()` instead of `as unknown as <Type>` in tests
 
 See detailed guidelines:
-@./.Codex/instructions/use-mock-instead-of-as-unknown-as-in-tests.md
+@./.claude/instructions/use-mock-instead-of-as-unknown-as-in-tests.md
 
 ## Prefer pg-boss over cron jobs for double writes and time-specific executions
 
 See detailed guidelines:
-@./.Codex/instructions/prefer-pg-boss-over-cron-jobs.md
+@./.claude/instructions/prefer-pg-boss-over-cron-jobs.md
 
 ## Writing Tests
 
