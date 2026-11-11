@@ -26,6 +26,16 @@ describe(buildTrialSignupReviewMessage.name, () => {
     );
   });
 
+  it("heads a held trial differently from a flagged sign-up", () => {
+    const message = buildTrialSignupReviewMessage({
+      account: { id: "signup-id", email: "signup@example.com" },
+      linkedAccounts: [{ id: "linked-a", email: "a@example.com" }],
+      held: true
+    });
+
+    expect(message.text).toBe([":no_entry: *Trial held pending review*", "signup@example.com", "Linked accounts (1):", "• a@example.com"].join("\n"));
+  });
+
   it("names an account without an email by its id and leaves out admin links when no admin url is set", () => {
     const message = buildTrialSignupReviewMessage({
       account: { id: "signup-id", email: null },

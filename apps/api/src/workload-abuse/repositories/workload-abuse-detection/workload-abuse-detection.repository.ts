@@ -7,6 +7,7 @@ import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
 import { Users } from "@src/user/model-schemas";
+import { isEmailWithinDomain } from "@src/workload-abuse/lib/email-domain/email-domain-sql";
 
 type Table = ApiPgTables["WorkloadAbuseDetections"];
 export type WorkloadAbuseDetectionInput = Partial<Table["$inferInsert"]>;
@@ -81,7 +82,7 @@ export class WorkloadAbuseDetectionRepository extends BaseRepository<Table, Work
         and(
           eq(this.table.verdict, "hard"),
           eq(this.table.action, "enforced"),
-          sql`lower(${CaughtUsers.email}) LIKE ${"%@"} || ${domain}`,
+          isEmailWithinDomain(CaughtUsers.email, domain),
           sql`${mailboxOf(CaughtUsers.email)} <> ${mailboxOf(TriggeringUsers.email)}`
         )
       )

@@ -63,13 +63,13 @@ export class EmailDomainBlockService {
 
     if (isPublicEmailProvider(domain)) return this.#skip("public_provider", context);
 
-    const existing = await this.blockedEmailDomainRepository.findByDomain(domain);
+    const existing = await this.blockedEmailDomainRepository.findNearestRule(domain);
 
     if (existing?.status === "allowed") return this.#skip("allowlisted", context);
 
     if (existing?.status === "blocked") {
       this.#skip("already_blocked", context);
-      await this.#sweepSiblings(domain, wallet);
+      await this.#sweepSiblings(existing.domain, wallet);
       return;
     }
 

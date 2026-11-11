@@ -94,6 +94,20 @@ describe(EmailDomainBlockService.name, () => {
         });
       });
 
+      it("sweeps the siblings of the blocked parent domain when the address is on its subdomain", async () => {
+        const { service, wallet, blockedEmailDomainRepository, userWalletRepository, instrumentation } = setup({
+          email: "miner@mail.attacker.com",
+          existing: createBlockedEmailDomain({ domain: "attacker.com", status: "blocked" })
+        });
+
+        await service.blockDomainOf(wallet);
+
+        expect(blockedEmailDomainRepository.findNearestRule).toHaveBeenCalledWith("mail.attacker.com");
+        expect(blockedEmailDomainRepository.blockIfAbsent).not.toHaveBeenCalled();
+        expect(instrumentation.recordDomainBlock).toHaveBeenCalledWith("skipped", "already_blocked");
+        expect(userWalletRepository.findLockableTrialWalletsByEmailDomain).toHaveBeenCalledWith("attacker.com", expect.anything());
+      });
+
       it("checks the paid guardrail before the age guardrail", async () => {
         const { service, wallet, userRepository } = setup({ email: "miner@attacker.com", hasPaidUser: true });
 
@@ -374,7 +388,8 @@ describe(EmailDomainBlockService.name, () => {
       hasPaidUserWithEmailDomain: vi.fn().mockResolvedValue(input?.hasPaidUser ?? false)
     });
     const blockedEmailDomainRepository = mock<BlockedEmailDomainRepository>({
-      findByDomain: vi.fn().mockResolvedValueOnce(input?.existing).mockResolvedValue(raceWinner),
+      findNearestRule: vi.fn().mockResolvedValue(input?.existing),
+      findByDomain: vi.fn().mockResolvedValue(raceWinner),
       blockIfAbsent: vi.fn().mockResolvedValue(input?.raceWinner ? undefined : createBlockedEmailDomain())
     });
     const blockedEmailDomainService = mock<BlockedEmailDomainService>();

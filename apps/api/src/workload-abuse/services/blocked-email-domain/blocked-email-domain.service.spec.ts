@@ -19,13 +19,26 @@ describe(BlockedEmailDomainService.name, () => {
       const { service, blockedEmailDomainRepository } = setup({ row: createBlockedEmailDomain({ domain: "attacker.com", status: "blocked" }) });
 
       await expect(service.isBlockedEmail("miner@attacker.com")).resolves.toBe(true);
-      expect(blockedEmailDomainRepository.findByDomain).toHaveBeenCalledWith("attacker.com");
+      expect(blockedEmailDomainRepository.findNearestRule).toHaveBeenCalledWith("attacker.com");
     });
 
     it("allows an address whose domain an operator has explicitly allowed", async () => {
       const { service } = setup({ row: createBlockedEmailDomain({ domain: "customer.com", status: "allowed" }) });
 
       await expect(service.isBlockedEmail("someone@customer.com")).resolves.toBe(false);
+    });
+
+    it("blocks an address on a subdomain whose nearest rule is a block on a parent domain", async () => {
+      const { service, blockedEmailDomainRepository } = setup({ row: createBlockedEmailDomain({ domain: "attacker.com", status: "blocked" }) });
+
+      await expect(service.isBlockedEmail("miner@eu.mail.attacker.com")).resolves.toBe(true);
+      expect(blockedEmailDomainRepository.findNearestRule).toHaveBeenCalledWith("eu.mail.attacker.com");
+    });
+
+    it("allows an address on a subdomain whose nearest rule is an allow", async () => {
+      const { service } = setup({ row: createBlockedEmailDomain({ domain: "mail.customer.com", status: "allowed" }) });
+
+      await expect(service.isBlockedEmail("someone@mail.customer.com")).resolves.toBe(false);
     });
 
     it("allows an address whose domain has no row", async () => {
@@ -39,14 +52,14 @@ describe(BlockedEmailDomainService.name, () => {
 
       await service.isBlockedEmail("Miner@Attacker.COM");
 
-      expect(blockedEmailDomainRepository.findByDomain).toHaveBeenCalledWith("attacker.com");
+      expect(blockedEmailDomainRepository.findNearestRule).toHaveBeenCalledWith("attacker.com");
     });
 
     it("allows an address it cannot parse without consulting the repository", async () => {
       const { service, blockedEmailDomainRepository } = setup();
 
       await expect(service.isBlockedEmail("not-an-address")).resolves.toBe(false);
-      expect(blockedEmailDomainRepository.findByDomain).not.toHaveBeenCalled();
+      expect(blockedEmailDomainRepository.findNearestRule).not.toHaveBeenCalled();
     });
 
     it("allows every address without consulting the repository while the flag is off", async () => {
@@ -56,7 +69,7 @@ describe(BlockedEmailDomainService.name, () => {
       });
 
       await expect(service.isBlockedEmail("miner@attacker.com")).resolves.toBe(false);
-      expect(blockedEmailDomainRepository.findByDomain).not.toHaveBeenCalled();
+      expect(blockedEmailDomainRepository.findNearestRule).not.toHaveBeenCalled();
     });
 
     it("decides the enforcement flag for the normalized domain being checked", async () => {
@@ -73,7 +86,7 @@ describe(BlockedEmailDomainService.name, () => {
       await service.isBlockedEmail("one@attacker.com");
       await service.isBlockedEmail("two@attacker.com");
 
-      expect(blockedEmailDomainRepository.findByDomain).toHaveBeenCalledTimes(1);
+      expect(blockedEmailDomainRepository.findNearestRule).toHaveBeenCalledTimes(1);
     });
 
     it("caches a negative so a legitimate domain does not reach the database on every login", async () => {
@@ -82,7 +95,7 @@ describe(BlockedEmailDomainService.name, () => {
       await service.isBlockedEmail("someone@customer.com");
       await service.isBlockedEmail("someone.else@customer.com");
 
-      expect(blockedEmailDomainRepository.findByDomain).toHaveBeenCalledTimes(1);
+      expect(blockedEmailDomainRepository.findNearestRule).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -97,7 +110,7 @@ describe(BlockedEmailDomainService.name, () => {
       const { service, blockedEmailDomainRepository } = setup();
 
       await expect(service.isBlockedDomain("localhost")).resolves.toBe(false);
-      expect(blockedEmailDomainRepository.findByDomain).not.toHaveBeenCalled();
+      expect(blockedEmailDomainRepository.findNearestRule).not.toHaveBeenCalled();
     });
   });
 
@@ -116,7 +129,7 @@ describe(BlockedEmailDomainService.name, () => {
       await service.isBlockedEmail("miner@attacker.com");
       await service.isBlockedEmail("miner@attacker.com");
 
-      expect(blockedEmailDomainRepository.findByDomain).toHaveBeenCalledTimes(2);
+      expect(blockedEmailDomainRepository.findNearestRule).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -127,7 +140,22 @@ describe(BlockedEmailDomainService.name, () => {
       service.rememberBlocked("attacker.com");
 
       await expect(service.isBlockedEmail("miner@attacker.com")).resolves.toBe(true);
-      expect(blockedEmailDomainRepository.findByDomain).not.toHaveBeenCalled();
+      expect(blockedEmailDomainRepository.findNearestRule).not.toHaveBeenCalled();
+    });
+
+    it("drops the verdicts cached for its subdomains, so they are read again", async () => {
+      const { service, blockedEmailDomainRepository } = setup();
+      await service.isBlockedEmail("miner@mail.attacker.com");
+      await service.isBlockedEmail("miner@eu.mail.attacker.com");
+      await service.isBlockedEmail("someone@xattacker.com");
+      blockedEmailDomainRepository.findNearestRule.mockResolvedValue(createBlockedEmailDomain({ domain: "attacker.com", status: "blocked" }));
+
+      service.rememberBlocked("attacker.com");
+
+      await expect(service.isBlockedEmail("miner@mail.attacker.com")).resolves.toBe(true);
+      await expect(service.isBlockedEmail("miner@eu.mail.attacker.com")).resolves.toBe(true);
+      await expect(service.isBlockedEmail("someone@xattacker.com")).resolves.toBe(false);
+      expect(blockedEmailDomainRepository.findNearestRule).toHaveBeenCalledTimes(5);
     });
   });
 
@@ -139,12 +167,12 @@ describe(BlockedEmailDomainService.name, () => {
     await service.isBlockedEmail("miner@attacker.com");
 
     expect(cacheRegistry.getStats().some(stats => stats.name.startsWith(BlockedEmailDomainService.name))).toBe(true);
-    expect(blockedEmailDomainRepository.findByDomain).toHaveBeenCalledWith("attacker.com");
+    expect(blockedEmailDomainRepository.findNearestRule).toHaveBeenCalledWith("attacker.com");
   });
 
   function setup(input?: { row?: ReturnType<typeof createBlockedEmailDomain>; isFlagEnabled?: boolean; lookupError?: Error; ttlSeconds?: number }) {
-    const findByDomain = input?.lookupError ? vi.fn().mockRejectedValue(input.lookupError) : vi.fn().mockResolvedValue(input?.row);
-    const blockedEmailDomainRepository = mock<BlockedEmailDomainRepository>({ findByDomain });
+    const findNearestRule = input?.lookupError ? vi.fn().mockRejectedValue(input.lookupError) : vi.fn().mockResolvedValue(input?.row);
+    const blockedEmailDomainRepository = mock<BlockedEmailDomainRepository>({ findNearestRule });
     const featureFlagsService = mock<FeatureFlagsService>({ isEnabledForSubject: vi.fn().mockReturnValue(input?.isFlagEnabled ?? true) });
     const workloadAbuseConfigService = mockConfigService<WorkloadAbuseConfigService>({
       WORKLOAD_ABUSE_BLOCKED_DOMAIN_CACHE_TTL_SECONDS: input?.ttlSeconds ?? 60

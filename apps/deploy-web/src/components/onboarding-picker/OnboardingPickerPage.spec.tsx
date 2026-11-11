@@ -181,6 +181,15 @@ describe(OnboardingPickerPage.name, () => {
     expect(push).toHaveBeenCalledWith(UrlService.configureDeployment({ templateId: LLM_ID, sdlStrategy: "default", bidStrategy: "auto" }));
   });
 
+  it("leaves the description to the sheet's neutral default when it opens for a hackathon coupon", () => {
+    const AddCreditsSheet = vi.fn(ComponentMock);
+    setup({ isTrialing: true, isHackathonsEnabled: true, searchParams: "redeemCoupon=true", dependencies: { AddCreditsSheet } });
+
+    const sheetProps = AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps;
+    expect(sheetProps.open).toBe(true);
+    expect(sheetProps.description).toBeUndefined();
+  });
+
   it("labels the purchase confirmation with the deploy step when the sheet unlocks the LLM template", () => {
     const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
     const AddCreditsSheet = vi.fn(ComponentMock);
@@ -444,7 +453,7 @@ describe(OnboardingPickerPage.name, () => {
     expect(push).toHaveBeenCalledWith(UrlService.configureDeployment({ templateId, sdlStrategy: "default", bidStrategy: "auto" }));
   });
 
-  it("opens the add-credits sheet with the gpu unlock context and its default description for the gated LLM card", () => {
+  it("opens the add-credits sheet with the gpu unlock context and the top-tier GPU description for the gated LLM card", () => {
     const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
     const AddCreditsSheet = vi.fn(ComponentMock);
     setup({ isTrialing: true, isOutOfCredit: true, dependencies: { DeploymentTemplatePickerCard, AddCreditsSheet } });
@@ -453,7 +462,9 @@ describe(OnboardingPickerPage.name, () => {
 
     const sheetProps = AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps;
     expect(sheetProps.context).toBe("unlock-gpu");
-    expect(sheetProps.description).toBeUndefined();
+    expect(sheetProps.description).toBe(
+      "This template needs a top-tier GPU, which isn't covered by your free trial. Add credits to unlock high-end GPUs, longer runtimes, and the full Console."
+    );
   });
 
   it("keeps the add-credits sheet open when it reports itself open", () => {

@@ -44,7 +44,8 @@ describe(LockBlockedDomainWalletHandler.name, () => {
     { reason: "NOT_TRIALING", input: { wallet: createUserWallet({ isTrialing: false }) } },
     { reason: "DOMAIN_NOT_BLOCKED", input: { wallet: createUserWallet({ isTrialing: true }), blockedDomain: null } },
     { reason: "DOMAIN_CHANGED", input: { wallet: createUserWallet({ isTrialing: true }), ownerEmail: "someone@elsewhere.com" } },
-    { reason: "DOMAIN_CHANGED", input: { wallet: createUserWallet({ isTrialing: true }), ownerEmail: null } }
+    { reason: "DOMAIN_CHANGED", input: { wallet: createUserWallet({ isTrialing: true }), ownerEmail: null } },
+    { reason: "DOMAIN_CHANGED", input: { wallet: createUserWallet({ isTrialing: true }), ownerEmail: "someone@xattacker.com" } }
   ])("skips with $reason without wiping", async ({ reason, input }) => {
     const { handler, enforcementService, instrumentation, logger } = setup(input);
 
@@ -56,7 +57,7 @@ describe(LockBlockedDomainWalletHandler.name, () => {
   });
 
   it("leaves a domain an operator has allowed since the sweep started", async () => {
-    const { handler, enforcementService, logger } = setup({
+    const { handler, wallet, enforcementService, logger } = setup({
       wallet: createUserWallet({ isTrialing: true }),
       blockedDomain: createBlockedEmailDomain({ domain: "attacker.com", status: "allowed" })
     });
@@ -64,15 +65,53 @@ describe(LockBlockedDomainWalletHandler.name, () => {
     await handler.handle(PAYLOAD);
 
     expect(enforcementService.wipeTrialWallet).not.toHaveBeenCalled();
-    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "BLOCKED_DOMAIN_WALLET_LOCK_SKIPPED", reason: "DOMAIN_NOT_BLOCKED" }));
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "BLOCKED_DOMAIN_WALLET_LOCK_SKIPPED", reason: "DOMAIN_NOT_BLOCKED", userId: wallet.userId })
+    );
   });
 
-  it("reads the domain row rather than a cached verdict", async () => {
+  it("skips a wallet whose owner no longer exists as one whose domain changed", async () => {
+    const { handler, wallet, enforcementService, logger } = setup({ wallet: createUserWallet({ isTrialing: true }), ownerMissing: true });
+
+    await handler.handle(PAYLOAD);
+
+    expect(enforcementService.wipeTrialWallet).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "BLOCKED_DOMAIN_WALLET_LOCK_SKIPPED", reason: "DOMAIN_CHANGED", userId: wallet.userId })
+    );
+  });
+
+  it("reads the domain rows rather than a cached verdict", async () => {
     const { handler, blockedEmailDomainRepository } = setup({ wallet: createUserWallet({ isTrialing: true }) });
 
     await handler.handle(PAYLOAD);
 
-    expect(blockedEmailDomainRepository.findByDomain).toHaveBeenCalledWith("attacker.com");
+    expect(blockedEmailDomainRepository.findNearestRule).toHaveBeenCalledWith("attacker.com");
+  });
+
+  it("wipes a wallet whose owner is on a subdomain of the blocked domain, judged by the subdomain's nearest rule", async () => {
+    const { handler, wallet, enforcementService, blockedEmailDomainRepository } = setup({
+      wallet: createUserWallet({ isTrialing: true }),
+      ownerEmail: "owner@mail.attacker.com"
+    });
+
+    await handler.handle(PAYLOAD);
+
+    expect(blockedEmailDomainRepository.findNearestRule).toHaveBeenCalledWith("mail.attacker.com");
+    expect(enforcementService.wipeTrialWallet).toHaveBeenCalledWith(wallet, "blocked_domain");
+  });
+
+  it("leaves a wallet whose owner's subdomain an operator has allowed", async () => {
+    const { handler, enforcementService, logger } = setup({
+      wallet: createUserWallet({ isTrialing: true }),
+      ownerEmail: "owner@mail.attacker.com",
+      blockedDomain: createBlockedEmailDomain({ domain: "mail.attacker.com", status: "allowed" })
+    });
+
+    await handler.handle(PAYLOAD);
+
+    expect(enforcementService.wipeTrialWallet).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "BLOCKED_DOMAIN_WALLET_LOCK_SKIPPED", reason: "DOMAIN_NOT_BLOCKED" }));
   });
 
   it("records a failure and rethrows it when the wipe fails on the chain", async () => {
@@ -107,14 +146,19 @@ describe(LockBlockedDomainWalletHandler.name, () => {
     blockedDomain?: ReturnType<typeof createBlockedEmailDomain> | null;
     enforcementOutcome?: EnforcementOutcome | null;
     ownerEmail?: string | null;
+    ownerMissing?: boolean;
   }) {
     const userWalletRepository = mock<UserWalletRepository>();
     userWalletRepository.findById.mockResolvedValue(input.wallet ?? undefined);
     const userRepository = mock<UserRepository>({
-      findById: vi.fn().mockResolvedValue(createUser({ email: input.ownerEmail === undefined ? `owner@${PAYLOAD.domain}` : input.ownerEmail }))
+      findById: vi
+        .fn()
+        .mockResolvedValue(
+          input.ownerMissing ? undefined : createUser({ email: input.ownerEmail === undefined ? `owner@${PAYLOAD.domain}` : input.ownerEmail })
+        )
     });
     const blockedEmailDomainRepository = mock<BlockedEmailDomainRepository>({
-      findByDomain: vi
+      findNearestRule: vi
         .fn()
         .mockResolvedValue(
           input.blockedDomain === undefined ? createBlockedEmailDomain({ domain: PAYLOAD.domain, status: "blocked" }) : input.blockedDomain ?? undefined

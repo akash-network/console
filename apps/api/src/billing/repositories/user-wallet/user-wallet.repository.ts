@@ -11,6 +11,7 @@ import { ExecutionContextService } from "@src/core/services/execution-context/ex
 import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
 import { Users } from "@src/user/model-schemas";
 import { DELETED_TRIAL_ACCOUNT_LOCK_REASON } from "@src/workload-abuse/lib/abuse-lock-reason/abuse-lock-reason";
+import { isEmailWithinDomain } from "@src/workload-abuse/lib/email-domain/email-domain-sql";
 
 export type DbCreateUserWalletInput = ApiPgTables["UserWallets"]["$inferInsert"];
 export type DbUserWalletInput = Partial<DbCreateUserWalletInput>;
@@ -236,7 +237,7 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
   }
 
   /**
-   * Trial wallets on a domain that are still worth wiping. The paid check is redundant while a domain is
+   * Trial wallets on a domain or any of its subdomains that are still worth wiping. The paid check is redundant while a domain is
    * auto-blocked — the guardrail already proved nobody paid — but keeps the sweep correct when it runs
    * for a domain an operator blocked by hand. The limit bounds the damage of a match that is too broad.
    */
@@ -251,7 +252,7 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
       .where(
         this.unscoped("email-domain-account-checks").whereAccessibleBy(
           and(
-            sql`lower(${Users.email}) LIKE ${"%@"} || ${domain}`,
+            isEmailWithinDomain(Users.email, domain),
             eq(this.table.isTrialing, true),
             isNull(this.table.abuseLockedAt),
             ne(this.table.id, options.excludeWalletId),

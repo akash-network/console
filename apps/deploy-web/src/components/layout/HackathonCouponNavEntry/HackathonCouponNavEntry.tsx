@@ -25,7 +25,7 @@ export function HackathonCouponNavEntry({ dependencies: d = DEPENDENCIES }: Prop
   if (!isHackathonsEnabled || !isTrialing) return null;
 
   return (
-    <Button variant="ghost" size="sm" onClick={() => openAddCredits({ initialTab: "coupon" })}>
+    <Button variant="ghost" size="sm" onClick={() => openAddCredits({ initialTab: "coupon", context: "hackathon_coupon_nav" })}>
       Hackathon? click here
       <ArrowRight className="ml-2 h-4 w-4" />
     </Button>

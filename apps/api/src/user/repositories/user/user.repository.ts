@@ -8,6 +8,7 @@ import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
 import { userAgentMaxLength } from "@src/user/model-schemas/user/user.schema";
+import { isEmailWithinDomain } from "@src/workload-abuse/lib/email-domain/email-domain-sql";
 
 export type UserOutput = ApiPgTables["Users"]["$inferSelect"] & {
   trial?: boolean;
@@ -174,7 +175,7 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
       .from(this.table)
       .where(
         and(
-          sql`lower(${this.table.email}) LIKE ${"%@"} || ${domain}`,
+          isEmailWithinDomain(this.table.email, domain),
           lt(this.table.createdAt, sql`now() - make_interval(days => ${minAgeDays})`),
           ne(this.table.id, excludeUserId)
         )

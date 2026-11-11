@@ -210,6 +210,30 @@ describe("workload abuse env config", () => {
     expect(() => setup({ WORKLOAD_ABUSE_DAILY_SUMMARY_HOUR_UTC: "12.5" })).toThrow(/WORKLOAD_ABUSE_DAILY_SUMMARY_HOUR_UTC/);
   });
 
+  it("defaults the sign-up hold to report only from the third linked account when its variables are unset or blank", () => {
+    const unset = setup();
+    const blank = setup({ WORKLOAD_ABUSE_SIGNUP_HOLD_MODE: " ", WORKLOAD_ABUSE_SIGNUP_HOLD_MIN_LINKED_ACCOUNTS: "" });
+
+    expect(unset.WORKLOAD_ABUSE_SIGNUP_HOLD_MODE).toBe("report");
+    expect(unset.WORKLOAD_ABUSE_SIGNUP_HOLD_MIN_LINKED_ACCOUNTS).toBe(2);
+    expect(blank.WORKLOAD_ABUSE_SIGNUP_HOLD_MODE).toBe("report");
+    expect(blank.WORKLOAD_ABUSE_SIGNUP_HOLD_MIN_LINKED_ACCOUNTS).toBe(2);
+  });
+
+  it("reads the sign-up hold variables when they carry a value", () => {
+    const config = setup({ WORKLOAD_ABUSE_SIGNUP_HOLD_MODE: "enforce", WORKLOAD_ABUSE_SIGNUP_HOLD_MIN_LINKED_ACCOUNTS: "4" });
+
+    expect(config.WORKLOAD_ABUSE_SIGNUP_HOLD_MODE).toBe("enforce");
+    expect(config.WORKLOAD_ABUSE_SIGNUP_HOLD_MIN_LINKED_ACCOUNTS).toBe(4);
+    expect(setup({ WORKLOAD_ABUSE_SIGNUP_HOLD_MODE: "off" }).WORKLOAD_ABUSE_SIGNUP_HOLD_MODE).toBe("off");
+  });
+
+  it("rejects an unknown sign-up hold mode or a threshold that is not a positive integer", () => {
+    expect(() => setup({ WORKLOAD_ABUSE_SIGNUP_HOLD_MODE: "detect" })).toThrow(/WORKLOAD_ABUSE_SIGNUP_HOLD_MODE/);
+    expect(() => setup({ WORKLOAD_ABUSE_SIGNUP_HOLD_MIN_LINKED_ACCOUNTS: "0" })).toThrow(/WORKLOAD_ABUSE_SIGNUP_HOLD_MIN_LINKED_ACCOUNTS/);
+    expect(() => setup({ WORKLOAD_ABUSE_SIGNUP_HOLD_MIN_LINKED_ACCOUNTS: "1.5" })).toThrow(/WORKLOAD_ABUSE_SIGNUP_HOLD_MIN_LINKED_ACCOUNTS/);
+  });
+
   it("requires an account hash secret of at least 32 characters", () => {
     const secret = "s".repeat(32);
 

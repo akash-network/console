@@ -81,8 +81,8 @@ type Props = {
   isBlockedModel?: (vendor?: string | null, model?: string | null) => boolean;
   /** A trial wallet can't opt into the GPU interconnect. */
   isInterconnectTrialBlocked?: boolean;
-  /** Opens the add-credits (unlock) sheet owned by the HardwareSection. */
   onUnlock?: () => void;
+  onUnlockInterconnect?: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -95,6 +95,7 @@ export const GpuCard: FC<Props> = ({
   isBlockedModel = () => false,
   isInterconnectTrialBlocked = false,
   onUnlock,
+  onUnlockInterconnect,
   dependencies: d = DEPENDENCIES
 }) => {
   const { control, getValues } = useFormContext<SdlBuilderFormValuesType>();
@@ -186,7 +187,7 @@ export const GpuCard: FC<Props> = ({
             </Button>
           )}
 
-          <d.GpuInterconnectFields serviceIndex={serviceIndex} locked={locked} isTrialBlocked={isInterconnectTrialBlocked} onUnlock={onUnlock} />
+          <d.GpuInterconnectFields serviceIndex={serviceIndex} locked={locked} isTrialBlocked={isInterconnectTrialBlocked} onUnlock={onUnlockInterconnect} />
         </fieldset>
       </d.CollapsibleCard>
 

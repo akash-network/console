@@ -6,7 +6,6 @@ import { LockIcon } from "lucide-react";
 const UNLOCK_EXPLANATION = "High-end GPUs aren't included in your free trial. Add credits to unlock them, along with longer runtimes and the full Console.";
 
 type Props = {
-  /** Opens the add-credits (unlock) sheet owned by the HardwareSection. */
   onUnlock?: () => void;
   /**
    * Renders a filled primary button when this is the alert's main call-to-action (the trial confidential-compute

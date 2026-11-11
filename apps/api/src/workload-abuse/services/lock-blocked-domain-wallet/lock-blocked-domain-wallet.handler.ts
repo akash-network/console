@@ -4,7 +4,7 @@ import { isPersonalWallet, isWalletInitialized, type PersonalWallet, UserWalletR
 import { type CreateLogger, type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
 import { UserRepository } from "@src/user/repositories";
 import { BLOCKED_DOMAIN_LOCK_REASON } from "@src/workload-abuse/lib/abuse-lock-reason/abuse-lock-reason";
-import { extractEmailDomain } from "@src/workload-abuse/lib/email-domain/email-domain";
+import { extractEmailDomain, isWithinDomain } from "@src/workload-abuse/lib/email-domain/email-domain";
 import { BlockedEmailDomainRepository } from "@src/workload-abuse/repositories/blocked-email-domain/blocked-email-domain.repository";
 import { type EnforcementOutcome, TrialAbuseEnforcementService } from "@src/workload-abuse/services/trial-abuse-enforcement/trial-abuse-enforcement.service";
 import { WorkloadAbuseInstrumentationService } from "@src/workload-abuse/services/workload-abuse-instrumentation/workload-abuse-instrumentation.service";
@@ -73,13 +73,15 @@ export class LockBlockedDomainWalletHandler implements JobHandler<LockBlockedDom
       return;
     }
 
-    if (!(await this.#isDomainStillBlocked(domain))) {
-      this.#skip("DOMAIN_NOT_BLOCKED", { ...context, userId: wallet.userId });
+    const ownerDomain = await this.#findOwnerDomain(wallet.userId);
+
+    if (!ownerDomain || !isWithinDomain(ownerDomain, domain)) {
+      this.#skip("DOMAIN_CHANGED", { ...context, userId: wallet.userId });
       return;
     }
 
-    if (!(await this.#isWalletStillOnDomain(wallet.userId, domain))) {
-      this.#skip("DOMAIN_CHANGED", { ...context, userId: wallet.userId });
+    if (!(await this.#isDomainStillBlocked(ownerDomain))) {
+      this.#skip("DOMAIN_NOT_BLOCKED", { ...context, userId: wallet.userId });
       return;
     }
 
@@ -105,16 +107,16 @@ export class LockBlockedDomainWalletHandler implements JobHandler<LockBlockedDom
     }
   }
 
-  /** Reads the row rather than the cached verdict, so an operator un-blocking the domain mid-sweep stops the wipes still queued behind it. */
+  /** Reads the rows rather than the cached verdict, so an operator un-blocking the domain mid-sweep stops the wipes still queued behind it. */
   async #isDomainStillBlocked(domain: string): Promise<boolean> {
-    return (await this.blockedEmailDomainRepository.findByDomain(domain))?.status === "blocked";
+    return (await this.blockedEmailDomainRepository.findNearestRule(domain))?.status === "blocked";
   }
 
   /** The sweep picked this wallet off its owner's email, which every login rewrites, so the domain is re-read rather than trusted from the payload. */
-  async #isWalletStillOnDomain(userId: string, domain: string): Promise<boolean> {
+  async #findOwnerDomain(userId: string): Promise<string | null> {
     const user = await this.userRepository.findById(userId);
 
-    return extractEmailDomain(user?.email) === domain;
+    return extractEmailDomain(user?.email);
   }
 
   #skip(reason: string, context: Record<string, unknown>): void {

@@ -345,7 +345,7 @@ describe("Organizations", () => {
       project: personalProject
     } = await seedOrganizationWithOwner({
       type: "personal",
-      user: { userId: `auth0|${faker.string.alphanumeric(24)}`, username: `user-${faker.string.alphanumeric(12)}` }
+      user: { userId: `auth0|${faker.string.alphanumeric(24)}`, username: `user-${faker.string.alphanumeric(12)}`, emailVerified: true }
     });
     const { organization: team } = await seedOrganizationWithOwner();
     await seedOrganizationMember({ organizationId: team.id, userId: user.id, role: input.teamRole ?? "member" });

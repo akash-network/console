@@ -49,6 +49,23 @@ describe("POST /internal/auth/email-domain-check", () => {
     expect(await response.json()).toEqual({ blocked: false });
   });
 
+  it("reports a subdomain of a blocked domain as blocked", async () => {
+    const domain = await seedDomain("blocked");
+
+    const response = await check({ email: `miner@eu.mail.${domain}` });
+
+    expect(await response.json()).toEqual({ blocked: true });
+  });
+
+  it("reports a subdomain an operator has allowed under a blocked domain as not blocked", async () => {
+    const domain = await seedDomain("blocked");
+    await blockedEmailDomainRepository.create({ domain: `mail.${domain}`, status: "allowed", source: "manual" });
+
+    const response = await check({ email: `someone@mail.${domain}` });
+
+    expect(await response.json()).toEqual({ blocked: false });
+  });
+
   it("reports an unknown domain as not blocked", async () => {
     const response = await check({ email: `someone@${uniqueDomain()}` });
 
