@@ -13,7 +13,7 @@
     "test:cov": "NODE_ENV=test jest --coverage --reporters=default --reporters=jest-junit",
     "test:unit": "NODE_ENV=test jest",
     "type-check": "tsc",
-    "validate:types": "tsc --noEmit -p tsconfig.build.json"
+    "validate:types": "tsc --noEmit"
   },
   "dependencies": {
     "@akashnetwork/env-loader": "*",
@@ -71,6 +71,7 @@
     "@akashnetwork/dev-config": "*",
     "@akashnetwork/docker": "*",
     "@akashnetwork/releaser": "*",
+    "@jest/globals": "^29.7.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
     "@testing-library/user-event": "^14.6.1",

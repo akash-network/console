@@ -1,4 +1,4 @@
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/jest-globals";
 
 import React from "react";
 
@@ -14,7 +14,7 @@ class ResizeObserverMock {
 }
 Object.defineProperty(globalThis, "ResizeObserver", { writable: true, value: ResizeObserverMock });
 
-const mockMutate = jest.fn();
+const mockMutate = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockUseMigration = jest.fn();
 jest.mock("@src/queries/useProviderQuery", () => ({
   useMigrateProviderToGatewayApi: () => mockUseMigration()

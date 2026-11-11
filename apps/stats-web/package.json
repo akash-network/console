@@ -12,7 +12,7 @@
     "lint": "eslint .",
     "start": "next start",
     "test:unit": "NODE_ENV=test vitest run",
-    "validate:types": "tsc --noEmit -p tsconfig.build.json"
+    "validate:types": "tsc --noEmit"
   },
   "dependencies": {
     "@akashnetwork/chain-sdk": "1.0.0-alpha.45",
