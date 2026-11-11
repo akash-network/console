@@ -43,7 +43,7 @@ export const MAX_PARALLEL_READS = 4;
 const LIVE_HELP_SUMMARY = "Suggested live help on Discord";
 const ROUND_TEXT_SEPARATOR = "\n\n";
 const UNKNOWN_TOOL_NAME = "unknown";
-const ALREADY_READ_NOTE = "Already read this turn, so this is the earlier result. Answer from it instead of calling the tool again.";
+export const ALREADY_READ_NOTE = "Already read this turn, so this is the earlier result. Answer from it instead of calling the tool again.";
 
 export const LAST_TOOL_ROUND_NOTE: ChatMessage = {
   role: "system",
@@ -90,12 +90,17 @@ function trackingShownText(emit: EmitAssistantEvent, earlierAnswerText: string):
   };
 }
 
-export function alreadyReadContentOf(tool: string, earlierResult: string): string {
+function parsedOrRaw(text: string): unknown {
   try {
-    return toolContentOf(tool, { data: { note: ALREADY_READ_NOTE, earlierResult: JSON.parse(earlierResult) } });
+    return JSON.parse(text);
   } catch {
-    return toolContentOf(tool, { data: { note: ALREADY_READ_NOTE, earlierResult } });
+    return text;
   }
+}
+
+/** The earlier result can quote what others wrote, so only our own note stays under data. */
+export function alreadyReadContentOf(tool: string, earlierResult: string): string {
+  return toolContentOf(tool, { data: { note: ALREADY_READ_NOTE }, untrustedData: parsedOrRaw(earlierResult) });
 }
 
 export interface AssistantTurn {

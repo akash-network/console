@@ -16,12 +16,12 @@ import {
 import { fallbackAnswerOf } from "@src/feedback/lib/assistant-fallback-answer/assistant-fallback-answer";
 import { assistantKnowledge } from "@src/feedback/lib/assistant-knowledge/assistant-knowledge";
 import { buildAssistantSystemPrompt } from "@src/feedback/lib/assistant-system-prompt/assistant-system-prompt";
-import { assistantChatToolsFor, isLiveHelpToolName, proposalActionTypeOf } from "@src/feedback/lib/assistant-tools/assistant-tools";
+import { assistantChatToolsFor, isLiveHelpToolName, isReadToolName, proposalActionTypeOf } from "@src/feedback/lib/assistant-tools/assistant-tools";
 import { earlierResultOf } from "@src/feedback/lib/assistant-turn-tool-calls/assistant-turn-tool-calls";
 import { consoleApiCatalogOf, consoleApiRoutesOf } from "@src/feedback/lib/console-api-catalog/console-api-catalog";
 import { FEEDBACK_CONFIG } from "@src/feedback/providers/config.provider";
 import { AkashMlClient, type ChatMessage, type ChatToolCall } from "@src/feedback/services/akashml-client/akashml.client";
-import { toolContentOf } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
+import { readContentOf, toolContentOf } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
 import {
   alreadyReadContentOf,
   ANSWER_NOW_NOTE,
@@ -96,7 +96,9 @@ function toolMessageOf(evalCase: AssistantEvalCase, call: ChatToolCall, proposal
           ? { data: fixture }
           : { error: "No data for this tool in this case." };
 
-  return { role: "tool", tool_call_id: call.id, content: toolContentOf(name, payload) };
+  const content = isReadToolName(name) && "data" in payload ? readContentOf(name, payload.data) : toolContentOf(name, payload);
+
+  return { role: "tool", tool_call_id: call.id, content };
 }
 
 interface CaseRequest {

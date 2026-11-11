@@ -202,7 +202,7 @@ describe("Assistant conversations", () => {
         { type: "done", reason: "stop", answerSignature: expect.any(String) }
       ]);
       const toolMessage = completions.bodies[1].messages.at(-1)!;
-      expect(JSON.parse(toolMessage.content)).toMatchObject({ tool: "read_console_api", data: { data: [{ id: ownRequest.id, category: "quote" }] } });
+      expect(JSON.parse(toolMessage.content)).toMatchObject({ tool: "read_console_api", untrustedData: { data: [{ id: ownRequest.id, category: "quote" }] } });
       expect(toolMessage.content).not.toContain("someone else's request");
       for (const personal of ["jane@example.com", "Acme Corp", "+1 555 0100", "contactEmail", "userId", user.id])
         expect(toolMessage.content).not.toContain(personal);

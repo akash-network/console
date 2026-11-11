@@ -62,8 +62,15 @@ export function truncated(text: string, maxLength: number): string {
 }
 
 /** Tool results reach the model as JSON data, redacted and bounded, so their content cannot pass for instructions or flood the context. */
-export function toolContentOf(tool: string, payload: { data: unknown } | { error: string }): string {
+export function toolContentOf(tool: string, payload: { data: unknown } | { untrustedData: unknown } | { error: string }): string {
   return truncated(redactSecrets(JSON.stringify({ tool, ...payload })), MAX_TOOL_RESULT_LENGTH);
+}
+
+/** Reads whose content only Console wrote, so they stay under data while every other read reaches the model as untrustedData. */
+export const FIRST_PARTY_READ_TOOLS: ReadonlySet<ReadToolName> = new Set<ReadToolName>(["search_docs", "get_balance_and_spend"]);
+
+export function readContentOf(tool: ReadToolName, data: unknown): string {
+  return toolContentOf(tool, FIRST_PARTY_READ_TOOLS.has(tool) ? { data } : { untrustedData: data });
 }
 
 function fitsToolResult(tool: string, payload: { data: unknown }): boolean {
@@ -249,7 +256,7 @@ export class AssistantToolRunnerService {
           ? await this.consoleApi.read(parsed as ReadToolArguments<typeof CONSOLE_API_READ_TOOL_NAME>)
           : await this.#summarizedRead(name, parsed, context);
 
-      return { kind: "result", content: toolContentOf(name, { data }), summary, ok: true };
+      return { kind: "result", content: readContentOf(name, data), summary, ok: true };
     }
 
     if (isClientToolName(name)) {

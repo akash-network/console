@@ -38,7 +38,8 @@ function isEmptyList(value: unknown): boolean {
 
 function dataOf(result: string | undefined): Record<string, unknown> | undefined {
   try {
-    return JSON.parse(result ?? "").data;
+    const { data, untrustedData } = JSON.parse(result ?? "");
+    return untrustedData ?? data;
   } catch {
     return undefined;
   }
@@ -60,8 +61,8 @@ function dseqOf(call: ChatToolCall): string | undefined {
 
 function isFailedRead(result: string | undefined): boolean {
   try {
-    const { error, data } = JSON.parse(result ?? "{}");
-    return error !== undefined || data?.earlierResult?.error !== undefined;
+    const { error, untrustedData } = JSON.parse(result ?? "{}");
+    return error !== undefined || untrustedData?.error !== undefined;
   } catch {
     return false;
   }
