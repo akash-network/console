@@ -1,6 +1,6 @@
 import { Trace } from "@akashnetwork/instrumentation";
 import subDays from "date-fns/subDays";
-import { and, asc, count, eq, gt, inArray, isNotNull, isNull, lte, ne, notExists, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, count, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, ne, notExists, notInArray, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { StripeTransactions } from "@src/billing/model-schemas";
@@ -274,6 +274,22 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
   /** One write, so a wallet is never left with zeroed allowances but no lock or the other way round. */
   async lockForAbuse(id: UserWalletOutput["id"], reason: string): Promise<void> {
     await this.updateById(id, { deploymentAllowance: 0, feeAllowance: 0, isTrialing: false, abuseLockedAt: new Date(), abuseLockedReason: reason });
+  }
+
+  /** A trial grant leaves `isTrialing` set, a lock after it clears the flag, and a payment or a lock at activation never starts a trial. */
+  async countTrialsStartedBetween(from: Date, to: Date): Promise<number> {
+    const [{ trialsStarted }] = await this.cursor
+      .select({ trialsStarted: count() })
+      .from(this.table)
+      .where(
+        and(
+          gte(this.table.activatedAt, from),
+          lt(this.table.activatedAt, to),
+          or(eq(this.table.isTrialing, true), gt(this.table.abuseLockedAt, this.table.activatedAt))
+        )
+      );
+
+    return trialsStarted;
   }
 
   /** Activated as well as locked, so a payment settles on it and lifts the lock just as it does for a wallet locked during its trial. */

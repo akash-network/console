@@ -154,6 +154,19 @@ describe("workload abuse env config", () => {
     expect(() => setup({ WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES: "1.5" })).toThrow(/WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES/);
   });
 
+  it("posts the daily summary at 13:00 UTC unless another hour is set", () => {
+    expect(setup().WORKLOAD_ABUSE_DAILY_SUMMARY_HOUR_UTC).toBe(13);
+    expect(setup({ WORKLOAD_ABUSE_DAILY_SUMMARY_HOUR_UTC: " " }).WORKLOAD_ABUSE_DAILY_SUMMARY_HOUR_UTC).toBe(13);
+    expect(setup({ WORKLOAD_ABUSE_DAILY_SUMMARY_HOUR_UTC: "0" }).WORKLOAD_ABUSE_DAILY_SUMMARY_HOUR_UTC).toBe(0);
+    expect(setup({ WORKLOAD_ABUSE_DAILY_SUMMARY_HOUR_UTC: "23" }).WORKLOAD_ABUSE_DAILY_SUMMARY_HOUR_UTC).toBe(23);
+  });
+
+  it("rejects a daily summary hour outside the day or between whole hours", () => {
+    expect(() => setup({ WORKLOAD_ABUSE_DAILY_SUMMARY_HOUR_UTC: "-1" })).toThrow(/WORKLOAD_ABUSE_DAILY_SUMMARY_HOUR_UTC/);
+    expect(() => setup({ WORKLOAD_ABUSE_DAILY_SUMMARY_HOUR_UTC: "24" })).toThrow(/WORKLOAD_ABUSE_DAILY_SUMMARY_HOUR_UTC/);
+    expect(() => setup({ WORKLOAD_ABUSE_DAILY_SUMMARY_HOUR_UTC: "12.5" })).toThrow(/WORKLOAD_ABUSE_DAILY_SUMMARY_HOUR_UTC/);
+  });
+
   it("requires an account hash secret of at least 32 characters", () => {
     const secret = "s".repeat(32);
 
