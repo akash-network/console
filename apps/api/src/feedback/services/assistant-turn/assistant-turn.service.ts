@@ -79,13 +79,17 @@ type ShownText = { shownText: () => string; streamedText: () => string };
 /** A paused turn already stored its earlier text, so only `streamedText` is stored again while the signature covers the whole `shownText`. */
 function trackingShownText(emit: EmitAssistantEvent, earlierAnswerText: string): ShownText & { emit: EmitAssistantEvent } {
   const streamed: string[] = [];
+  const separatorAfterEarlierText = earlierAnswerText ? ROUND_TEXT_SEPARATOR : "";
 
   return {
     emit: event => {
-      if (event.type === "text_delta") streamed.push(event.text);
-      return emit(event);
+      if (event.type !== "text_delta") return emit(event);
+
+      const separator = streamed.length === 0 ? separatorAfterEarlierText : "";
+      streamed.push(event.text);
+      return emit({ ...event, text: separator + event.text });
     },
-    shownText: () => earlierAnswerText + streamed.join(""),
+    shownText: () => (streamed.length > 0 ? earlierAnswerText + separatorAfterEarlierText + streamed.join("") : earlierAnswerText),
     streamedText: () => streamed.join("")
   };
 }

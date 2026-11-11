@@ -781,37 +781,47 @@ describe(AssistantTurnService.name, () => {
     });
   });
 
-  it("signs the earlier stream's text together with the resumed stream's text", async () => {
+  it("signs the earlier stream's text together with the resumed stream's text, set apart from it", async () => {
     const { akashMlClient, signer, run } = setup();
-    akashMlClient.streamChatCompletion.mockImplementation(streamed({ content: " The port is wrong." }));
+    akashMlClient.streamChatCompletion.mockImplementation(streamed({ content: "The port is wrong." }, ["The port ", "is wrong."]));
 
     const events = await run({ earlierAnswerText: "Reading your logs.", roundsUsed: 1 });
 
     expect(events).toEqual([
-      { type: "text_delta", text: " The port is wrong." },
+      { type: "text_delta", text: "\n\nThe port " },
+      { type: "text_delta", text: "is wrong." },
       {
         type: "done",
         reason: "stop",
-        answerSignature: signer.sign({ userId: "user-1", conversationId: "conversation-1", text: "Reading your logs. The port is wrong." })
+        answerSignature: signer.sign({ userId: "user-1", conversationId: "conversation-1", text: "Reading your logs.\n\nThe port is wrong." })
       }
     ]);
+  });
+
+  it("stores a resumed turn's own text without the break that sets it apart from the earlier text", async () => {
+    const { akashMlClient, transcriptService, run } = setup();
+    akashMlClient.streamChatCompletion.mockImplementation(streamed({ content: "The port is wrong." }));
+
+    await run({ stored: true, earlierAnswerText: "Reading your logs.", roundsUsed: 1 });
+
+    expect(transcriptService.record).toHaveBeenLastCalledWith("conversation-1", { role: "assistant", content: "The port is wrong." });
   });
 
   it("keeps the text shown so far when it pauses for a browser read", async () => {
     const { akashMlClient, toolRunner, pendingTurnRepository, signer, run } = setup();
     const logs = toolCall("c2", "read_logs", { dseq: "42" });
-    akashMlClient.streamChatCompletion.mockImplementation(streamed({ content: " Reading logs.", toolCalls: [logs] }, [" Reading ", "logs."]));
+    akashMlClient.streamChatCompletion.mockImplementation(streamed({ content: "Reading logs.", toolCalls: [logs] }, ["Reading ", "logs."]));
     toolRunner.run.mockResolvedValue({ kind: "client", call: { id: "c2", name: "read_logs", arguments: { dseq: "42", tailLines: 100 } } });
 
     const events = await run({ earlierAnswerText: "Checking.", roundsUsed: 1 });
 
     expect(pendingTurnRepository.hold).toHaveBeenCalledWith(
-      expect.objectContaining({ state: expect.objectContaining({ shownText: "Checking. Reading logs." }) })
+      expect.objectContaining({ state: expect.objectContaining({ shownText: "Checking.\n\nReading logs." }) })
     );
     expect(events.at(-1)).toEqual({
       type: "done",
       reason: "awaiting_client_tool",
-      answerSignature: signer.sign({ userId: "user-1", conversationId: "conversation-1", text: "Checking. Reading logs." })
+      answerSignature: signer.sign({ userId: "user-1", conversationId: "conversation-1", text: "Checking.\n\nReading logs." })
     });
   });
 
@@ -842,7 +852,7 @@ describe(AssistantTurnService.name, () => {
     vi.spyOn(AbortSignal, "timeout").mockReturnValue(deadline.signal);
     const { akashMlClient, transcriptService, signer, run } = setup();
     akashMlClient.streamChatCompletion.mockImplementation(async (_request, { onContentDelta }) => {
-      await onContentDelta(" The port ");
+      await onContentDelta("The port ");
       deadline.abort();
       throw new Error("aborted");
     });
@@ -850,12 +860,35 @@ describe(AssistantTurnService.name, () => {
     const events = await run({ stored: true, earlierAnswerText: "Reading your logs.", roundsUsed: 1 });
 
     const fallback = "I could not finish my answer this time. Next step: ask again in a shorter question, or ask on Discord for live help.";
-    expect(transcriptService.record).toHaveBeenLastCalledWith("conversation-1", { role: "assistant", content: ` The port \n\n${fallback}` });
+    expect(transcriptService.record).toHaveBeenLastCalledWith("conversation-1", { role: "assistant", content: `The port \n\n${fallback}` });
     expect(events.at(-1)).toEqual({
       type: "done",
       reason: "stop",
-      answerSignature: signer.sign({ userId: "user-1", conversationId: "conversation-1", text: `Reading your logs. The port \n\n${fallback}` })
+      answerSignature: signer.sign({ userId: "user-1", conversationId: "conversation-1", text: `Reading your logs.\n\nThe port \n\n${fallback}` })
     });
+  });
+
+  it("sets a resumed turn's fallback apart from the earlier text when it runs out of time before writing any", async () => {
+    const deadline = new AbortController();
+    vi.spyOn(AbortSignal, "timeout").mockReturnValue(deadline.signal);
+    const { akashMlClient, transcriptService, signer, run } = setup();
+    akashMlClient.streamChatCompletion.mockImplementation(async () => {
+      deadline.abort();
+      throw new Error("aborted");
+    });
+
+    const events = await run({ stored: true, earlierAnswerText: "Reading your logs.", roundsUsed: 1 });
+
+    const fallback = "I could not finish my answer this time. Next step: ask again in a shorter question, or ask on Discord for live help.";
+    expect(events).toEqual([
+      { type: "text_delta", text: `\n\n${fallback}` },
+      {
+        type: "done",
+        reason: "stop",
+        answerSignature: signer.sign({ userId: "user-1", conversationId: "conversation-1", text: `Reading your logs.\n\n${fallback}` })
+      }
+    ]);
+    expect(transcriptService.record).toHaveBeenLastCalledWith("conversation-1", { role: "assistant", content: fallback });
   });
 
   it("leaves the signature out when the answer has no text", async () => {
