@@ -1,21 +1,47 @@
+import assert from "http-assert";
 import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
+import { TxService } from "@src/core/services";
 import { DeploymentProjectService } from "@src/deployment/services/deployment-project/deployment-project.service";
-import { TemplateInput, type TemplateOutput, UserTemplateRepository } from "../../repositories/user-template/user-template.repository";
+import { summarizeTemplateHardware } from "@src/template/utils/template-hardware/template-hardware";
+import { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
+import {
+  TemplateInput,
+  type TemplateOutput,
+  type TemplateVersionState,
+  UserTemplateRepository
+} from "../../repositories/user-template/user-template.repository";
 
 type TemplateWriteAction = "create" | "update" | "delete";
+
+function visibilityPatch({ isPublic, ...rest }: TemplateInput, stored: TemplateVersionState): Partial<TemplateInput> {
+  const isChanged = isPublic !== undefined && isPublic !== stored.isPublic;
+  const isDrifted = stored.isPublic !== (stored.visibility === "public");
+
+  return isChanged || isDrifted ? { ...rest, isPublic: isPublic ?? stored.isPublic } : rest;
+}
 
 @singleton()
 export class UserTemplatesService {
   readonly #userTemplateRepository: UserTemplateRepository;
   readonly #authService: AuthService;
   readonly #deploymentProjectService: DeploymentProjectService;
+  readonly #templateVersionRepository: TemplateVersionRepository;
+  readonly #txService: TxService;
 
-  constructor(userTemplateRepository: UserTemplateRepository, authService: AuthService, deploymentProjectService: DeploymentProjectService) {
+  constructor(
+    userTemplateRepository: UserTemplateRepository,
+    authService: AuthService,
+    deploymentProjectService: DeploymentProjectService,
+    templateVersionRepository: TemplateVersionRepository,
+    txService: TxService
+  ) {
     this.#userTemplateRepository = userTemplateRepository;
     this.#authService = authService;
     this.#deploymentProjectService = deploymentProjectService;
+    this.#templateVersionRepository = templateVersionRepository;
+    this.#txService = txService;
   }
 
   async getTemplateById(id: string, userId: string = ""): Promise<(TemplateOutput & { isFavorite?: boolean }) | null> {
@@ -43,14 +69,22 @@ export class UserTemplatesService {
 
   async saveTemplate(id: string | undefined | null, userId: string, { projectId, ...template }: TemplateInput & { projectId?: string }): Promise<string> {
     if (id && (await this.#userTemplateRepository.isAuthoredBy(id, userId))) {
-      await this.#writableBy("update").updateTemplate(id, userId, template);
+      await this.#updateAndVersion(id, userId, template);
       return id;
     }
 
     const repository = this.#writableBy("create");
     const filingProjectId = await this.#deploymentProjectService.resolveFilingProject(projectId, "Template");
 
-    return await repository.createTemplate(userId, template, { projectId: filingProjectId, copiedFromId: id });
+    const resources = summarizeTemplateHardware(template.sdl);
+    const authorId = this.#authService.currentUser.id;
+
+    return await this.#txService.transaction(async () => {
+      const templateId = await repository.createTemplate(userId, template, { projectId: filingProjectId, copiedFromId: id, authorId });
+      await this.#templateVersionRepository.appendVersion({ templateId, sdl: template.sdl, resources, createdById: authorId });
+
+      return templateId;
+    });
   }
 
   async update(id: string, userId: string, data: Partial<TemplateInput>): Promise<void> {
@@ -79,6 +113,23 @@ export class UserTemplatesService {
 
   async removeFavoriteTemplate(userId: string, templateId: string): Promise<void> {
     await this.#userTemplateRepository.removeFavorite(userId, templateId);
+  }
+
+  async #updateAndVersion(id: string, userId: string, template: TemplateInput): Promise<void> {
+    const repository = this.#writableBy("update");
+    const resources = summarizeTemplateHardware(template.sdl);
+    const createdById = this.#authService.currentUser.id;
+
+    await this.#txService.transaction(async () => {
+      const stored = await this.#userTemplateRepository.findVersionState(id, userId);
+      assert(stored, 404, "Template not found");
+
+      await repository.updateTemplate(id, userId, visibilityPatch(template, stored));
+
+      if (!stored.currentVersionId || stored.currentVersionSdl !== template.sdl) {
+        await this.#templateVersionRepository.appendVersion({ templateId: id, sdl: template.sdl, resources, createdById });
+      }
+    });
   }
 
   /** A caller whose rules reach no template, such as a billing member of a team, reads public templates only. */

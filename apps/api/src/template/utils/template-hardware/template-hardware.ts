@@ -1,9 +1,20 @@
 import { yaml } from "@akashnetwork/chain-sdk";
+import { DEFAULT_SCHEMA, load, Type } from "js-yaml";
 import { z } from "zod";
 
+import { MAX_SUBMITTED_SDL_LENGTH } from "@src/deployment/config/sdl.config";
+import { exceedsSubmittableLength } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import type { TemplateHardware } from "@src/template/types/template";
 
 const SIZE_PREFIXES = "kmgtpe";
+
+const MERGE_KEY = "<<";
+
+/** A merge key copies every key of the mapping it merges while the SDL is still being parsed, so the copies are bounded before the parse rather than after it. */
+const MAX_MERGED_KEY_COPIES = MAX_SUBMITTED_SDL_LENGTH;
+
+/** js-yaml's default schema with a merge type that never resolves, so a `<<` key stays a plain key to count and an explicitly tagged merge throws instead of expanding. */
+const UNMERGED_SCHEMA = DEFAULT_SCHEMA.extend({ implicit: [new Type("tag:yaml.org,2002:merge", { kind: "scalar", resolve: () => false })] });
 
 const quantitySchema = z.union([z.string(), z.number()]);
 
@@ -34,10 +45,70 @@ type ComputeResources = z.infer<typeof computeProfileSchema>["resources"];
 /** Reads only the resource fields, so a template that fails strict SDL validation still gets a hardware summary. */
 export function summarizeTemplateHardware(sdl: string): TemplateHardware | undefined {
   try {
-    return totalHardware(sdlSchema.parse(yaml.raw(sdl)));
+    if (copiesTooManyMergedKeys(sdl)) return undefined;
+
+    const document = yaml.raw(sdl);
+    return exceedsSubmittableLength(sdl, document) || containsCycle(document) ? undefined : totalHardware(sdlSchema.parse(document));
   } catch {
     return undefined;
   }
+}
+
+/** Counts merges on a parse that leaves them unresolved, where every alias is a shared reference and the walk is linear in the document. */
+function copiesTooManyMergedKeys(sdl: string): boolean {
+  return countMergedKeyCopies(load(sdl, { schema: UNMERGED_SCHEMA })) > MAX_MERGED_KEY_COPIES;
+}
+
+function countMergedKeyCopies(document: unknown): number {
+  const keysAfterMerging = new Map<object, number>();
+  let copies = 0;
+
+  function visit(node: unknown): number {
+    if (node === null || typeof node !== "object") return 0;
+
+    const known = keysAfterMerging.get(node);
+    if (known !== undefined) return known;
+
+    keysAfterMerging.set(node, Infinity);
+
+    let keys = 0;
+    for (const [key, value] of Object.entries(node)) {
+      if (key === MERGE_KEY) {
+        const merged = [value].flat().reduce((total: number, source) => total + visit(source), 0);
+        copies += merged;
+        keys += merged;
+      } else {
+        visit(value);
+        keys += 1;
+      }
+    }
+
+    keysAfterMerging.set(node, keys);
+    return keys;
+  }
+
+  visit(document);
+
+  return copies;
+}
+
+function containsCycle(document: unknown): boolean {
+  const ancestors = new Set<object>();
+  const finished = new Set<object>();
+
+  function reachesAncestor(node: unknown): boolean {
+    if (node === null || typeof node !== "object" || finished.has(node)) return false;
+    if (ancestors.has(node)) return true;
+
+    ancestors.add(node);
+    const cyclic = Object.values(node).some(reachesAncestor);
+    ancestors.delete(node);
+    finished.add(node);
+
+    return cyclic;
+  }
+
+  return reachesAncestor(document);
 }
 
 function totalHardware(sdl: Sdl): TemplateHardware {

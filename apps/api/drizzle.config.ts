@@ -21,7 +21,8 @@ export default defineConfig({
     "organization",
     "feedback",
     "affiliate",
-    "gpu"
+    "gpu",
+    "template-marketplace"
   ].map(schema => `./src/${schema}/model-schemas`),
   out: "./drizzle",
   dialect: "postgresql",
