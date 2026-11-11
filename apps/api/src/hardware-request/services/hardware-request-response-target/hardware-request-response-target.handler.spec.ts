@@ -114,6 +114,24 @@ describe(HardwareRequestResponseTargetHandler.name, () => {
     });
   });
 
+  it("emails the lead and records the escalation without posting to Slack while response target Slack alerts are off", async () => {
+    const { handler, notificationService, slackWebhookClient, hardwareRequestEventRepository, hardwareRequest } = setup({
+      areSlackAlertsEnabled: false,
+      salesLead: LEAD
+    });
+
+    await handler.handle(aPayload(hardwareRequest.id, "first_offer", "escalation"));
+
+    expect(sentNotification(notificationService).user).toEqual({ id: emailRecipientUserId("lead@akash.network"), email: "lead@akash.network" });
+    expect(slackWebhookClient.post).not.toHaveBeenCalled();
+    expect(hardwareRequestEventRepository.record).toHaveBeenCalledWith({
+      hardwareRequestId: hardwareRequest.id,
+      type: "escalated",
+      actor: null,
+      payload: { target: "first_offer" }
+    });
+  });
+
   it("skips Slack when no webhook is configured", async () => {
     const { handler, slackWebhookClient, hardwareRequestEventRepository, hardwareRequest } = setup({ webhookUrl: undefined });
 
@@ -182,6 +200,7 @@ describe(HardwareRequestResponseTargetHandler.name, () => {
       status?: HardwareRequestStatus;
       offers?: Array<Pick<HardwareRequestOfferOutput, "publishedAt">>;
       areEmailsEnabled?: boolean;
+      areSlackAlertsEnabled?: boolean;
     } = {}
   ) {
     const hardwareRequest = createHardwareRequest({ status: input.status ?? "sourcing", firstRepliedAt: input.firstRepliedAt ?? null });
@@ -196,7 +215,11 @@ describe(HardwareRequestResponseTargetHandler.name, () => {
     gpuRequestRoutingService.getPolicy.mockReturnValue({ ...DEFAULT_GPU_REQUEST_ROUTING_POLICY, salesLead: input.salesLead });
     const notificationService = mock<NotificationService>();
     const featureFlagsService = mock<FeatureFlagsService>();
-    featureFlagsService.isEnabled.mockImplementation(flag => flag === FeatureFlags.GPU_REQUEST_RESPONSE_TARGET_EMAILS && (input.areEmailsEnabled ?? true));
+    const enabledByFlag: Record<string, boolean> = {
+      [FeatureFlags.GPU_REQUEST_RESPONSE_TARGET_EMAILS]: input.areEmailsEnabled ?? true,
+      [FeatureFlags.GPU_REQUEST_RESPONSE_TARGET_SLACK_ALERTS]: input.areSlackAlertsEnabled ?? true
+    };
+    featureFlagsService.isEnabled.mockImplementation(flag => enabledByFlag[flag] ?? false);
     const config = mock<HardwareRequestConfig>({
       HARDWARE_REQUEST_EMAIL: "support@akash.network",
       HARDWARE_REQUEST_SLACK_WEBHOOK_URL: "webhookUrl" in input ? input.webhookUrl : WEBHOOK_URL

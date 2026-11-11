@@ -13,6 +13,7 @@ export const FeatureFlags = {
   TEAM_DATA_KEYS: "team_data_keys",
   GPU_REQUEST_ROUTING: "gpu_request_routing",
   GPU_REQUEST_RESPONSE_TARGET_EMAILS: "gpu_request_response_target_emails",
+  GPU_REQUEST_RESPONSE_TARGET_SLACK_ALERTS: "gpu_request_response_target_slack_alerts",
   USER_FEEDBACK_LOOP: "user_feedback_loop",
   AFFILIATE_PROGRAM: "affiliate_program"
 } as const;

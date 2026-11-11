@@ -59,6 +59,20 @@ describe(HardwareRequestResponseTargetHandler.name, () => {
     ]);
   });
 
+  it("escalates a missed first offer to the mailbox alone and records it while response target Slack alerts are off", async () => {
+    const { runJob, notifications, slackPosts } = await setup();
+    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.GPU_REQUEST_RESPONSE_TARGET_SLACK_ALERTS);
+    const hardwareRequest = await seedHardwareRequest({ userId: (await seedUser()).id, owner: null, status: "sourcing" });
+
+    await runJob(hardwareRequest.id);
+
+    expect(notifications).toMatchObject([{ notificationId: `hardwareRequestResponseTarget.${hardwareRequest.id}.first_offer.escalation` }]);
+    expect(slackPosts).toEqual([]);
+    expect(await container.resolve(HardwareRequestEventRepository).findOldestFirst(hardwareRequest.id)).toMatchObject([
+      { type: "escalated", actor: null, payload: { target: "first_offer" } }
+    ]);
+  });
+
   it("does nothing for a request that was withdrawn in the meantime", async () => {
     const { runJob, notifications, slackPosts } = await setup();
     const hardwareRequest = await seedHardwareRequest({ userId: (await seedUser()).id, status: "withdrawn" });

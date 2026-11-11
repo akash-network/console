@@ -73,7 +73,11 @@ export class HardwareRequestResponseTargetHandler implements JobHandler<Hardware
       await this.notificationService.createNotification(responseTargetEmail({ ...notice, recipient: { id: emailRecipientUserId(email), email } }));
     }
 
-    if (stage === "escalation" && this.config.HARDWARE_REQUEST_SLACK_WEBHOOK_URL) {
+    if (
+      stage === "escalation" &&
+      this.config.HARDWARE_REQUEST_SLACK_WEBHOOK_URL &&
+      this.featureFlagsService.isEnabled(FeatureFlags.GPU_REQUEST_RESPONSE_TARGET_SLACK_ALERTS)
+    ) {
       await this.slackWebhookClient.post(this.config.HARDWARE_REQUEST_SLACK_WEBHOOK_URL, {
         text: responseTargetEscalationSlackText({ ...notice, lead: policy.salesLead, owner })
       });
