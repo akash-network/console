@@ -46,3 +46,14 @@ export function normalizeEmailDomain(domain: string | null | undefined): string 
 
   return withoutRootLabel;
 }
+
+/** Most specific first and never shorter than two labels, so the nearest rule on a domain is the first one that matches. */
+export function listDomainAndParents(domain: string): string[] {
+  const labels = domain.split(".");
+
+  return Array.from({ length: labels.length - 1 }, (_, index) => labels.slice(index).join("."));
+}
+
+export function isWithinDomain(domain: string, parent: string): boolean {
+  return domain === parent || domain.endsWith(`.${parent}`);
+}

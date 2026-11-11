@@ -11,6 +11,7 @@ import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { writtenForTeamBy } from "@src/organization/lib/team-records/team-records";
 import { Users } from "@src/user/model-schemas";
+import { isEmailWithinDomain } from "@src/workload-abuse/lib/email-domain/email-domain-sql";
 
 type Table = ApiPgTables["StripeTransactions"];
 export type StripeTransactionInput = Table["$inferInsert"];
@@ -330,7 +331,7 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
       .from(Users)
       .where(
         and(
-          sql`lower(${Users.email}) LIKE ${"%@"} || ${domain}`,
+          isEmailWithinDomain(Users.email, domain),
           exists(
             this.cursor
               .select({ id: this.table.id })

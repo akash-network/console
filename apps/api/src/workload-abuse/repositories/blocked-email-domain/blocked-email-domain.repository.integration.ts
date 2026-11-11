@@ -25,6 +25,49 @@ describe(BlockedEmailDomainRepository.name, () => {
     });
   });
 
+  describe("findNearestRule", () => {
+    it("returns the row on the domain itself", async () => {
+      const { repository, domain } = await setup();
+      await repository.create({ domain, status: "blocked" });
+
+      await expect(repository.findNearestRule(domain)).resolves.toMatchObject({ domain, status: "blocked" });
+    });
+
+    it("returns the row on a parent domain for any of its subdomains", async () => {
+      const { repository, domain } = await setup();
+      await repository.create({ domain, status: "blocked" });
+
+      await expect(repository.findNearestRule(`eu.mail.${domain}`)).resolves.toMatchObject({ domain, status: "blocked" });
+    });
+
+    it("prefers the row nearest to the domain over the ones above it", async () => {
+      const { repository, domain } = await setup();
+      await repository.create({ domain, status: "blocked" });
+      await repository.create({ domain: `mail.${domain}`, status: "allowed" });
+      await repository.create({ domain: `eu.mail.${domain}`, status: "blocked" });
+
+      const [subdomain, nestedSubdomain, deeperSubdomain] = await Promise.all([
+        repository.findNearestRule(`mail.${domain}`),
+        repository.findNearestRule(`eu.mail.${domain}`),
+        repository.findNearestRule(`x.eu.mail.${domain}`)
+      ]);
+
+      expect(subdomain).toMatchObject({ domain: `mail.${domain}`, status: "allowed" });
+      expect(nestedSubdomain).toMatchObject({ domain: `eu.mail.${domain}`, status: "blocked" });
+      expect(deeperSubdomain).toMatchObject({ domain: `eu.mail.${domain}`, status: "blocked" });
+    });
+
+    it("ignores rows on sibling, child and lookalike domains", async () => {
+      const { repository, domain } = await setup();
+      await repository.create({ domain: `mail.${domain}`, status: "blocked" });
+      await repository.create({ domain: `x${domain}`, status: "blocked" });
+
+      const [parent, sibling] = await Promise.all([repository.findNearestRule(domain), repository.findNearestRule(`eu.${domain}`)]);
+
+      expect([parent, sibling]).toEqual([undefined, undefined]);
+    });
+  });
+
   describe("blockIfAbsent", () => {
     it("records an auto block with the wallet owner that triggered it", async () => {
       const { repository, domain, userId } = await setup();
