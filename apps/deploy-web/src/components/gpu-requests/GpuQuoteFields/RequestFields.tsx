@@ -107,7 +107,7 @@ function StartDateField({ value, today, onChange }: { value: string; today: stri
         aria-label="Start date"
         placeholder="MM/DD/YYYY"
         inputMode="numeric"
-        startIcon={<CalendarIcon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />}
+        startIcon={<CalendarIcon className="ml-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />}
         value={text}
         error={isInvalid}
         aria-invalid={isInvalid || undefined}
@@ -150,7 +150,7 @@ export function ContactField({ draft, onChange, asksEmail }: DraftFieldProps & {
         label={<OptionalLabel>Phone number</OptionalLabel>}
         labelClassName="text-[12.5px] font-medium"
         placeholder="+1 555 010 0100"
-        startIcon={<PhoneIcon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />}
+        startIcon={<PhoneIcon className="ml-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />}
         autoComplete="tel"
         maxLength={MAX_CONTACT_FIELD_LENGTH}
         value={draft.phone}
