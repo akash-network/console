@@ -57,7 +57,7 @@ describe(useAssistantConversation.name, () => {
   });
 
   it("resends the earlier messages of a conversation the api does not store and reuses the conversation", async () => {
-    const { result, startConversation, assistantConversation } = setup({ turns: [answerOf("First answer"), answerOf("Second answer")] });
+    const { result, startConversation, assistantConversation } = setup({ turns: [answerOf("First answer", "sig-1"), answerOf("Second answer")] });
 
     await act(() => result.current.send("First question"));
     await act(() => result.current.send("Second question"));
@@ -69,7 +69,7 @@ describe(useAssistantConversation.name, () => {
         data: expect.objectContaining({
           history: [
             { role: "user", content: "First question" },
-            { role: "assistant", content: "First answer" }
+            { role: "assistant", content: "First answer", signature: "sig-1" }
           ]
         })
       }),
@@ -255,10 +255,10 @@ describe(useAssistantConversation.name, () => {
     });
   });
 
-  function answerOf(text: string): AssistantStreamEvent[] {
+  function answerOf(text: string, answerSignature?: string): AssistantStreamEvent[] {
     return [
       { type: "text_delta", text },
-      { type: "done", reason: "stop" }
+      { type: "done", reason: "stop", answerSignature }
     ];
   }
 

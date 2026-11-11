@@ -153,6 +153,40 @@ describe("transcriptModel", () => {
       expect(applyAssistantEvent(message, { type: "done", reason: "stop" })).toBe(message);
       expect(applyAssistantEvent(message, { type: "error", code: "assistant_error", message: "x" })).toBe(message);
     });
+
+    it("keeps the signature the api sends when the answer is done", () => {
+      expect(answer().signature).toBeNull();
+
+      const message = applyAssistantEvent(answer({ text: "Your lease is active." }), { type: "done", reason: "stop", answerSignature: "sig-1" });
+
+      expect(message).toEqual(answer({ text: "Your lease is active.", signature: "sig-1" }));
+    });
+
+    it("replaces the signature from a paused stream with the one from the resumed stream", () => {
+      const events: AssistantStreamEvent[] = [
+        { type: "text_delta", text: "Reading the logs." },
+        { type: "done", reason: "awaiting_client_tool", answerSignature: "sig-paused" },
+        { type: "text_delta", text: " It ran out of memory." },
+        { type: "done", reason: "stop", answerSignature: "sig-resumed" }
+      ];
+
+      const message = events.reduce(applyAssistantEvent, answer());
+
+      expect(message).toEqual(answer({ text: "Reading the logs. It ran out of memory.", signature: "sig-resumed" }));
+    });
+
+    it("drops the paused stream's signature once the resumed stream adds text", () => {
+      const events: AssistantStreamEvent[] = [
+        { type: "text_delta", text: "Reading the logs." },
+        { type: "done", reason: "awaiting_client_tool", answerSignature: "sig-paused" },
+        { type: "text_delta", text: " It ran out" },
+        { type: "error", code: "assistant_error", message: "x" }
+      ];
+
+      const message = events.reduce(applyAssistantEvent, answer());
+
+      expect(message).toEqual(answer({ text: "Reading the logs. It ran out", signature: null }));
+    });
   });
 
   describe(visibleReadsOf.name, () => {
@@ -232,6 +266,27 @@ describe("transcriptModel", () => {
       expect(history).toHaveLength(MAX_HISTORY_MESSAGES);
       expect(history[0].content).toBe("message 3");
       expect(history.at(-1)?.content).toHaveLength(8000);
+    });
+
+    it("sends each answer's signature back in the history", () => {
+      const history = historyOf([createTranscriptMessage("1", "user", "Why no bids?"), answer({ text: "No provider has 8 GPUs free.", signature: "sig-1" })]);
+
+      expect(history).toStrictEqual([
+        { role: "user", content: "Why no bids?" },
+        { role: "assistant", content: "No provider has 8 GPUs free.", signature: "sig-1" }
+      ]);
+    });
+
+    it("sends an answer without a signature as before", () => {
+      const history = historyOf([answer({ text: "No provider has 8 GPUs free." })]);
+
+      expect(history).toStrictEqual([{ role: "assistant", content: "No provider has 8 GPUs free." }]);
+    });
+
+    it("never adds a signature to the user's messages", () => {
+      const history = historyOf([{ ...createTranscriptMessage("1", "user", "Why no bids?"), signature: "sig-1" }]);
+
+      expect(history).toStrictEqual([{ role: "user", content: "Why no bids?" }]);
     });
   });
 
