@@ -52,8 +52,10 @@ export class AssistantLimitsService {
 
     const day = dayOf(new Date());
     const tokens = usage.promptTokens + usage.completionTokens;
-    await this.assistantUserUsageRepository.addTokens(userId, day, tokens);
-    const total = await this.assistantDailyTokenUsageRepository.add(day, usage);
+    const [, total] = await Promise.all([
+      this.assistantUserUsageRepository.addTokens(userId, day, tokens),
+      this.assistantDailyTokenUsageRepository.add(day, usage)
+    ]);
     const totalBefore = total - tokens;
     const budget = this.config.ASSISTANT_DAILY_TOKEN_BUDGET;
     const warningThreshold = budget * BUDGET_WARNING_SHARE;

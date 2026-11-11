@@ -101,6 +101,28 @@ describe(AssistantLimitsService.name, () => {
       expect(userUsageRepository.addTokens).toHaveBeenCalledWith("user-1", "2026-11-04", 15);
     });
 
+    it("still adds to the shared budget when the user's count cannot be written", async () => {
+      vi.useFakeTimers({ now: NOW });
+      const { service, tokenUsageRepository, userUsageRepository } = setup();
+      const failure = new Error("user usage write failed");
+      userUsageRepository.addTokens.mockRejectedValue(failure);
+
+      await expect(service.recordUsage("user-1", { promptTokens: 10, completionTokens: 5 })).rejects.toBe(failure);
+
+      expect(tokenUsageRepository.add).toHaveBeenCalledWith("2026-11-04", { promptTokens: 10, completionTokens: 5 });
+    });
+
+    it("still adds to the user's count when the shared budget cannot be written", async () => {
+      vi.useFakeTimers({ now: NOW });
+      const { service, tokenUsageRepository, userUsageRepository } = setup();
+      const failure = new Error("budget write failed");
+      tokenUsageRepository.add.mockRejectedValue(failure);
+
+      await expect(service.recordUsage("user-1", { promptTokens: 10, completionTokens: 5 })).rejects.toBe(failure);
+
+      expect(userUsageRepository.addTokens).toHaveBeenCalledWith("user-1", "2026-11-04", 15);
+    });
+
     it("records nothing when the model reported no usage", async () => {
       const { service, tokenUsageRepository, userUsageRepository } = setup();
 
