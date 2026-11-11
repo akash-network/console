@@ -254,6 +254,7 @@ export class AccountDeletionService {
       await this.departedMemberAlertsService.stopEveryTeamAlertTo(user.id);
       await this.feedbackErasureService.eraseAccountFeedback(user.id);
       await this.deletedAccountAbuseLockService.rememberLockOf(lockedUser, wallet);
+      await this.deletedTrialAccountService.forgetRefusalsOf(lockedUser);
       await this.deletedTrialAccountService.remember(lockedUser, wallet);
       await this.userRepository.deleteById(user.id);
       if (wallet) await userWallets.detachFromOrganization(wallet.id);

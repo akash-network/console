@@ -47,6 +47,10 @@ export class DeletedTrialAccountService {
     this.logger.info({ event: "DELETED_TRIAL_ACCOUNT_REMEMBERED", userId: account.id });
   }
 
+  async forgetRefusalsOf(account: Pick<Account, "id">): Promise<void> {
+    await this.deletedTrialAccountRepository.clearRefusalsOf(account.id);
+  }
+
   /** The review is queued in the transaction that marks the refusal, so it is raised once per refused account and never lost. */
   async refusesTrialOf(account: Account): Promise<boolean> {
     const refusal = await this.#findRefusalOf(account);

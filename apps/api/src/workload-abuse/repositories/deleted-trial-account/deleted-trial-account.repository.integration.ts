@@ -93,6 +93,27 @@ describe(DeletedTrialAccountRepository.name, () => {
     });
   });
 
+  describe("clearRefusalsOf", () => {
+    it("clears the given account from every record it was refused over and leaves the other accounts' marks", async () => {
+      const { repository, record, recordAt, findRecord } = await setup();
+      const refusedUserId = faker.string.uuid();
+      const anotherUserId = faker.string.uuid();
+      const earlier = await recordAt(subHours(new Date(), 5));
+      const unrelated = await recordAt(subHours(new Date(), 9));
+      await repository.markRefusedOnce(record.id, refusedUserId);
+      await repository.markRefusedOnce(earlier.id, refusedUserId);
+      await repository.markRefusedOnce(unrelated.id, anotherUserId);
+
+      await repository.clearRefusalsOf(refusedUserId);
+
+      expect([await findRecord(record.id), await findRecord(earlier.id), await findRecord(unrelated.id)]).toMatchObject([
+        { refusedUserId: null },
+        { refusedUserId: null },
+        { refusedUserId: anotherUserId }
+      ]);
+    });
+  });
+
   describe("deleteOlderThan", () => {
     it("deletes the records written before the given moment and keeps the rest", async () => {
       const { repository, record, recordAt, findRecord } = await setup();

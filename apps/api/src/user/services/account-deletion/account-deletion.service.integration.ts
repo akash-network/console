@@ -628,6 +628,40 @@ describe(AccountDeletionService.name, () => {
       expect(stored).not.toContain(email.toLowerCase());
       expect(stored).not.toContain(account.user.id);
     });
+
+    it("keeps no user id of a refused account once that account is deleted too", async () => {
+      const {
+        service,
+        db,
+        account,
+        token,
+        issueDeletionTokenFor,
+        answerActiveDeployments,
+        answerBalanceOf,
+        setEmailOf,
+        startTrialOf,
+        limitReturningTrials,
+        signUpAgain
+      } = await setup();
+      answerActiveDeployments([]);
+      limitReturningTrials({ cooldownHours: 4 });
+      const email = await setEmailOf(account, faker.internet.email().toLowerCase());
+      await startTrialOf(account, { isTrialing: true, activatedAt: new Date() });
+      await service.confirm({ token });
+      const { user: refusedUser, wallet: refusedWallet } = await signUpAgain({ userId: account.user.userId!, email });
+      answerBalanceOf(refusedWallet.address!, undefined);
+      const findRemembered = async () =>
+        await db
+          .select({ refusedUserId: resolveTable("DeletedTrialAccounts").refusedUserId })
+          .from(resolveTable("DeletedTrialAccounts"))
+          .where(eq(resolveTable("DeletedTrialAccounts").walletAddress, account.address));
+      const whileRefused = await findRemembered();
+
+      await service.confirm({ token: await issueDeletionTokenFor(refusedUser.id) });
+
+      expect(whileRefused).toEqual([{ refusedUserId: refusedUser.id }]);
+      expect(await findRemembered()).toEqual([{ refusedUserId: null }]);
+    });
   });
 
   it("leaves the account untouched while it still has an active deployment", async () => {
@@ -662,13 +696,19 @@ describe(AccountDeletionService.name, () => {
     await templateRepository.addFavorite(account.user.userId!, sharedTemplateId);
     await templateRepository.addFavorite(bystander.user.userId!, account.templateId);
 
-    const token = faker.string.alphanumeric(43);
-    await container.resolve(AccountDeletionTokenRepository).replaceForUser({
-      userId: account.user.id,
-      tokenHash: createHash("sha256").update(token).digest("hex"),
-      acknowledgedForfeitUsd: 0,
-      expiresAt: addMinutes(new Date(), 10)
-    });
+    const token = await issueDeletionTokenFor(account.user.id);
+
+    async function issueDeletionTokenFor(userId: string) {
+      const issued = faker.string.alphanumeric(43);
+      await container.resolve(AccountDeletionTokenRepository).replaceForUser({
+        userId,
+        tokenHash: createHash("sha256").update(issued).digest("hex"),
+        acknowledgedForfeitUsd: 0,
+        expiresAt: addMinutes(new Date(), 10)
+      });
+
+      return issued;
+    }
 
     async function seedAccount() {
       const { user, wallet, address } = await seedUserWithWallet({
@@ -970,6 +1010,7 @@ describe(AccountDeletionService.name, () => {
       account,
       bystander,
       token,
+      issueDeletionTokenFor,
       answerActiveDeployments,
       answerBalanceOf,
       setEmailOf,

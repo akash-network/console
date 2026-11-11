@@ -126,16 +126,16 @@ export function TopBanner({ dependencies: d = TOP_BANNER_DEPENDENCIES }: { depen
     return <d.NetworkDownBanner />;
   }
 
-  if (hasTrialRefusedBanner) {
-    return <d.TrialRefusedBanner />;
-  }
-
   if (isMaintenanceBannerOpen) {
     return <d.MaintenanceBanner onClose={() => setIsMaintenanceBannerOpen(false)} />;
   }
 
   if (isGenericBannerOpen) {
     return <d.GenericBanner onClose={() => setIsGenericBannerOpen(false)} />;
+  }
+
+  if (hasTrialRefusedBanner) {
+    return <d.TrialRefusedBanner />;
   }
 
   if (hasTeamPaymentMethodBanner) {

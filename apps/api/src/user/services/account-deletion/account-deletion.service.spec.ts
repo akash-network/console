@@ -378,6 +378,15 @@ describe(AccountDeletionService.name, () => {
       expect(deletedTrialAccountService.remember.mock.invocationCallOrder[0]).toBeLessThan(userRepository.deleteById.mock.invocationCallOrder[0]);
     });
 
+    it("clears the account from the deleted trial records it was refused over before the user row goes", async () => {
+      const { service, user, userRepository, deletedTrialAccountService } = setup({ storedToken: {} });
+
+      await service.confirm({ token: "link-token" });
+
+      expect(deletedTrialAccountService.forgetRefusalsOf).toHaveBeenCalledWith(user);
+      expect(deletedTrialAccountService.forgetRefusalsOf.mock.invocationCallOrder[0]).toBeLessThan(userRepository.deleteById.mock.invocationCallOrder[0]);
+    });
+
     it("checks the team owners once the user row is locked, inside the erasing transaction", async () => {
       const { service, user, userRepository, organizationMemberRepository, txService } = setup({ storedToken: {} });
       txService.transaction.mockImplementation(async callback => {

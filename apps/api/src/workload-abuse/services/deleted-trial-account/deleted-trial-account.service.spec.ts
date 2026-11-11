@@ -108,6 +108,17 @@ describe(DeletedTrialAccountService.name, () => {
     });
   });
 
+  describe("forgetRefusalsOf", () => {
+    it("clears the account from the records it was refused over", async () => {
+      const { service, repository } = setup();
+      const account = createUser();
+
+      await service.forgetRefusalsOf(account);
+
+      expect(repository.clearRefusalsOf).toHaveBeenCalledWith(account.id);
+    });
+  });
+
   describe("refusesTrialOf", () => {
     it("looks the account up by its keyed hashes among the records inside the configured age", async () => {
       const { service, repository } = setup({ cooldownHours: 4 });

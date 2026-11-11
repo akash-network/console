@@ -49,6 +49,13 @@ export class DeletedTrialAccountRepository extends BaseRepository<Table, Deleted
     return !!marked;
   }
 
+  async clearRefusalsOf(refusedUserId: string): Promise<void> {
+    await this.cursor
+      .update(this.table)
+      .set({ refusedUserId: null })
+      .where(this.whereAccessibleBy(eq(this.table.refusedUserId, refusedUserId)));
+  }
+
   async deleteOlderThan(cutoff: Date): Promise<void> {
     await this.cursor.delete(this.table).where(this.whereAccessibleBy(lt(this.table.createdAt, cutoff)));
   }
