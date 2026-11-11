@@ -24,11 +24,7 @@ import {
 } from "@src/feedback/services/akashml-client/akashml.client";
 import { AssistantAnswerSigner } from "@src/feedback/services/assistant-answer-signer/assistant-answer-signer.service";
 import type { AssistantLimitsService } from "@src/feedback/services/assistant-limits/assistant-limits.service";
-import {
-  type AssistantToolRunnerService,
-  readContentOf,
-  type ToolOutcome
-} from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
+import { type AssistantToolRunnerService, readContentOf, type ToolOutcome } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
 import type { AssistantTranscriptService } from "@src/feedback/services/assistant-transcript/assistant-transcript.service";
 import {
   ALREADY_READ_NOTE,
@@ -838,6 +834,27 @@ describe(AssistantTurnService.name, () => {
       type: "done",
       reason: "stop",
       answerSignature: signer.sign({ userId: "user-1", conversationId: "conversation-1", text: streamedText })
+    });
+  });
+
+  it("stores only a resumed turn's own text and fallback when it runs out of time, while signing the earlier text with them", async () => {
+    const deadline = new AbortController();
+    vi.spyOn(AbortSignal, "timeout").mockReturnValue(deadline.signal);
+    const { akashMlClient, transcriptService, signer, run } = setup();
+    akashMlClient.streamChatCompletion.mockImplementation(async (_request, { onContentDelta }) => {
+      await onContentDelta(" The port ");
+      deadline.abort();
+      throw new Error("aborted");
+    });
+
+    const events = await run({ stored: true, earlierAnswerText: "Reading your logs.", roundsUsed: 1 });
+
+    const fallback = "I could not finish my answer this time. Next step: ask again in a shorter question, or ask on Discord for live help.";
+    expect(transcriptService.record).toHaveBeenLastCalledWith("conversation-1", { role: "assistant", content: ` The port \n\n${fallback}` });
+    expect(events.at(-1)).toEqual({
+      type: "done",
+      reason: "stop",
+      answerSignature: signer.sign({ userId: "user-1", conversationId: "conversation-1", text: `Reading your logs. The port \n\n${fallback}` })
     });
   });
 
