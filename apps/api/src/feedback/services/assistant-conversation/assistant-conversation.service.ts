@@ -137,7 +137,18 @@ export class AssistantConversationService {
     return async (emit, signal) => {
       if (redactedSecretCount > 0) await emit({ type: "secret_redacted", count: redactedSecretCount });
       await this.turnService.run(
-        { conversationId, userId: this.authService.currentUser.id, organizationId, page, stored, isTrialing, configureFormOpen, messages, roundsUsed: 0 },
+        {
+          conversationId,
+          userId: this.authService.currentUser.id,
+          organizationId,
+          page,
+          stored,
+          isTrialing,
+          configureFormOpen,
+          messages,
+          roundsUsed: 0,
+          earlierAnswerText: ""
+        },
         emit,
         signal
       );
@@ -197,7 +208,8 @@ export class AssistantConversationService {
           isTrialing: state.isTrialing,
           configureFormOpen: state.configureFormOpen === true,
           messages: [...state.messages, ...toolMessages],
-          roundsUsed: state.roundsUsed
+          roundsUsed: state.roundsUsed,
+          earlierAnswerText: state.shownText ?? ""
         },
         emit,
         signal

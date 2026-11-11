@@ -271,7 +271,8 @@ describe(AssistantConversationService.name, () => {
         stored: true,
         isTrialing: true,
         configureFormOpen: false,
-        roundsUsed: 0
+        roundsUsed: 0,
+        earlierAnswerText: ""
       });
       expect(turn.messages.slice(1)).toEqual([
         { role: "user", content: "earlier" },
@@ -403,7 +404,7 @@ describe(AssistantConversationService.name, () => {
       expect(pendingTurnRepository.take).toHaveBeenCalledWith(CONVERSATION_ID, "user-1", expect.any(Date));
       expect(limitsService.countMessage).not.toHaveBeenCalled();
       const [turn] = turnService.run.mock.calls[0];
-      expect(turn).toMatchObject({ conversationId: CONVERSATION_ID, userId: "user-1", stored: true, isTrialing: true, roundsUsed: 2 });
+      expect(turn).toMatchObject({ conversationId: CONVERSATION_ID, userId: "user-1", stored: true, isTrialing: true, roundsUsed: 2, earlierAnswerText: "" });
       expect(turn.messages).toEqual([
         { role: "user", content: "why crash?" },
         {
@@ -456,6 +457,16 @@ describe(AssistantConversationService.name, () => {
       await run(vi.fn(), new AbortController().signal);
 
       expect(turnService.run.mock.calls[0][0].configureFormOpen).toBe(false);
+    });
+
+    it("resumes the held turn after the answer text the browser was already shown", async () => {
+      const { service, pendingTurnRepository, turnService } = setup();
+      pendingTurnRepository.take.mockResolvedValue(pendingTurn({ clientToolCalls: [toolCall("c1", "read_logs")], shownText: "Reading your logs." }));
+
+      const run = await service.prepareClientToolResults(CONVERSATION_ID, { results: [{ toolCallId: "c1", content: "port 80", ok: true }] });
+      await run(vi.fn(), new AbortController().signal);
+
+      expect(turnService.run.mock.calls[0][0].earlierAnswerText).toBe("Reading your logs.");
     });
 
     it("keeps a short excerpt whole and stores nothing for an unstored conversation", async () => {

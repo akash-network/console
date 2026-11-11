@@ -26,6 +26,7 @@ import {
   type ChatMessage,
   type ChatToolCall
 } from "@src/feedback/services/akashml-client/akashml.client";
+import { AssistantAnswerSigner } from "@src/feedback/services/assistant-answer-signer/assistant-answer-signer.service";
 import { AssistantLimitsService } from "@src/feedback/services/assistant-limits/assistant-limits.service";
 import type { ProposalContext } from "@src/feedback/services/assistant-proposal/assistant-proposal.service";
 import { AssistantToolRunnerService, toolContentOf, type ToolOutcome } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
@@ -73,15 +74,19 @@ function textDeltaEmitter(emit: EmitAssistantEvent, followsEarlierRoundText: boo
   };
 }
 
-function trackingShownText(emit: EmitAssistantEvent): { emit: EmitAssistantEvent; shownText: () => string } {
-  const shown: string[] = [];
+type ShownText = { shownText: () => string; streamedText: () => string };
+
+/** A paused turn already stored its earlier text, so only `streamedText` is stored again while the signature covers the whole `shownText`. */
+function trackingShownText(emit: EmitAssistantEvent, earlierAnswerText: string): ShownText & { emit: EmitAssistantEvent } {
+  const streamed: string[] = [];
 
   return {
     emit: event => {
-      if (event.type === "text_delta") shown.push(event.text);
+      if (event.type === "text_delta") streamed.push(event.text);
       return emit(event);
     },
-    shownText: () => shown.join("")
+    shownText: () => earlierAnswerText + streamed.join(""),
+    streamedText: () => streamed.join("")
   };
 }
 
@@ -103,6 +108,7 @@ export interface AssistantTurn {
   configureFormOpen: boolean;
   messages: ChatMessage[];
   roundsUsed: number;
+  earlierAnswerText: string;
 }
 
 /** The model can invent a tool name, and an invented one could echo the user's words into a trace kept whatever they consented to. */
@@ -143,6 +149,7 @@ export class AssistantTurnService {
     private readonly transcriptService: AssistantTranscriptService,
     private readonly pendingTurnRepository: AssistantPendingTurnRepository,
     private readonly traceRepository: AssistantTurnTraceRepository,
+    private readonly answerSigner: AssistantAnswerSigner,
     @inject(FEEDBACK_CONFIG) private readonly config: FeedbackConfig,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -161,7 +168,7 @@ export class AssistantTurnService {
   }
 
   async #runTurn(turn: AssistantTurn, trace: TurnTrace, emitEvent: EmitAssistantEvent, signal: AbortSignal): Promise<AssistantTurnOutcome> {
-    const { emit, shownText } = trackingShownText(emitEvent);
+    const { emit, shownText, streamedText } = trackingShownText(emitEvent, turn.earlierAnswerText);
     const deadline = AbortSignal.timeout(TURN_TIMEOUT_MS);
     const abort = AbortSignal.any([signal, deadline]);
     const messages = [...turn.messages];
@@ -186,7 +193,7 @@ export class AssistantTurnService {
             ? { outcome: "answered", finishReason: completion.finishReason }
             : await this.#answerNow(turn, messages, answer, abort, trace.builder, emit);
           await this.#recordAnswer(turn, answer);
-          await emit({ type: "done", reason: ending.finishReason === "length" ? "length" : "stop" });
+          await this.#done(turn, shownText(), ending.finishReason === "length" ? "length" : "stop", emit);
           return ending.outcome;
         }
 
@@ -194,15 +201,15 @@ export class AssistantTurnService {
         const clientToolCalls = await this.#runTools(turn, proposalContext, completion.toolCalls, messages, trace, emit);
 
         if (clientToolCalls.length > 0) {
-          await this.#pause(turn, messages, clientToolCalls, round + 1);
+          await this.#pause(turn, messages, clientToolCalls, round + 1, shownText());
           await this.#recordAnswer(turn, answer);
-          await emit({ type: "done", reason: "awaiting_client_tool" });
+          await this.#done(turn, shownText(), "awaiting_client_tool", emit);
           return "awaiting_browser";
         }
       }
     } catch (error) {
       if (signal.aborted) return "cancelled";
-      if (deadline.aborted) return await this.#endTimedOutTurn(turn, messages, shownText(), round, emit);
+      if (deadline.aborted) return await this.#endTimedOutTurn(turn, messages, { streamedText, shownText }, round, emit);
 
       return await this.#endFailedTurn(error, emit);
     }
@@ -265,16 +272,24 @@ export class AssistantTurnService {
   async #endTimedOutTurn(
     turn: AssistantTurn,
     messages: ChatMessage[],
-    shownText: string,
+    { streamedText, shownText }: ShownText,
     round: number,
     emit: EmitAssistantEvent
   ): Promise<AssistantTurnOutcome> {
     this.#logger.warn({ event: "ASSISTANT_TURN_TIMED_OUT", round, timeoutMs: TURN_TIMEOUT_MS });
     const fallback = fallbackAnswerOf(messages);
-    await textDeltaEmitter(emit, shownText.length > 0)(fallback);
-    await this.#recordAnswer(turn, shownText ? [shownText, fallback] : [fallback]);
-    await emit({ type: "done", reason: "stop" });
+    const streamedBefore = streamedText();
+    await textDeltaEmitter(emit, streamedBefore.length > 0)(fallback);
+    await this.#recordAnswer(turn, streamedBefore ? [streamedBefore, fallback] : [fallback]);
+    await this.#done(turn, shownText(), "stop", emit);
     return "timed_out";
+  }
+
+  async #done(turn: AssistantTurn, shownText: string, reason: "stop" | "length" | "awaiting_client_tool", emit: EmitAssistantEvent): Promise<void> {
+    if (!shownText.trim()) return await emit({ type: "done", reason });
+
+    const answerSignature = this.answerSigner.sign({ userId: turn.userId, conversationId: turn.conversationId, text: shownText });
+    await emit({ type: "done", reason, answerSignature });
   }
 
   async #complete(
@@ -436,7 +451,7 @@ export class AssistantTurnService {
     return { outcome, durationMs: Date.now() - startedAt };
   }
 
-  async #pause(turn: AssistantTurn, messages: ChatMessage[], clientToolCalls: ChatToolCall[], roundsUsed: number): Promise<void> {
+  async #pause(turn: AssistantTurn, messages: ChatMessage[], clientToolCalls: ChatToolCall[], roundsUsed: number, shownText: string): Promise<void> {
     await this.pendingTurnRepository.hold({
       conversationId: turn.conversationId,
       userId: turn.userId,
@@ -448,7 +463,8 @@ export class AssistantTurnService {
         isTrialing: turn.isTrialing,
         configureFormOpen: turn.configureFormOpen,
         organizationId: turn.organizationId,
-        page: turn.page
+        page: turn.page,
+        shownText
       },
       expiresAt: new Date(Date.now() + PENDING_TURN_TTL_MS)
     });

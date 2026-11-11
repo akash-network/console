@@ -137,7 +137,11 @@ export const AssistantStreamEventSchema = z
       type: z.literal("done"),
       reason: z.enum(["stop", "length", "awaiting_client_tool"]).openapi({
         description: "`awaiting_client_tool`: the turn is paused until the browser posts the requested results to `client-tool-results`"
-      })
+      }),
+      answerSignature: z
+        .string()
+        .optional()
+        .openapi({ description: "Signs the answer's full text so far; the client sends it back with this answer in `history`" })
     }),
     z.object({ type: z.literal("error"), code: z.enum(ASSISTANT_STREAM_ERROR_CODES), message: z.string() })
   ])
