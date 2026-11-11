@@ -51,15 +51,27 @@ export function useGenericBannerVisibility(input: { isFlagEnabled: boolean; dism
   return [isOpen, setIsOpen] as const;
 }
 
-export function useTopBanner(): ITopBannerContext {
-  const maintenanceBannerFlag = useVariant("maintenance_banner");
-  const genericBannerFlag = useVariant("generic_banner");
-  const { isBlockchainDown } = useBlockchainStatus();
-  const hasTeamPaymentMethodBanner = !!useTeamWithoutPaymentMethod();
-  const hasFundingBanner = useHasFundingBanner();
-  const hasAccountStatusBanner = useAccountStatus().status !== "active";
-  const hasTrialRefusedBanner = useHasTrialRefusedBanner();
-  const { dismissId } = useGenericBannerDetails();
+type BannerFlag = ReturnType<typeof useVariant>;
+
+export const DEPENDENCIES = {
+  useVariant: useVariant<string, BannerFlag>,
+  useBlockchainStatus,
+  useTeamWithoutPaymentMethod,
+  useHasFundingBanner,
+  useAccountStatus,
+  useHasTrialRefusedBanner,
+  useGenericBannerDetails
+};
+
+export function useTopBanner(dependencies: typeof DEPENDENCIES = DEPENDENCIES): ITopBannerContext {
+  const maintenanceBannerFlag = dependencies.useVariant("maintenance_banner");
+  const genericBannerFlag = dependencies.useVariant("generic_banner");
+  const { isBlockchainDown } = dependencies.useBlockchainStatus();
+  const hasTeamPaymentMethodBanner = !!dependencies.useTeamWithoutPaymentMethod();
+  const hasFundingBanner = dependencies.useHasFundingBanner();
+  const hasAccountStatusBanner = dependencies.useAccountStatus().status !== "active";
+  const hasTrialRefusedBanner = dependencies.useHasTrialRefusedBanner();
+  const { dismissId } = dependencies.useGenericBannerDetails();
 
   const [isMaintenanceBannerOpen, setIsMaintenanceBannerOpen] = useAtom(IS_MAINTENANCE_ATOM);
   useWhen(maintenanceBannerFlag.enabled, () => setIsMaintenanceBannerOpen(true));
