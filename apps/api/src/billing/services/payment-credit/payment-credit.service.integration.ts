@@ -2,6 +2,7 @@ import { faker } from "@faker-js/faker";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { SyncAffiliateCommissionHandler } from "@src/affiliate/services/affiliate-commission/sync-affiliate-commission.handler";
 import { type StripeTransactionOutput, StripeTransactionRepository } from "@src/billing/repositories";
 import { PaymentCreditRepository } from "@src/billing/repositories/payment-credit/payment-credit.repository";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
@@ -20,7 +21,7 @@ import { deleteQueuedJobs, findJobRows, useJobWorkers } from "@test/services/job
 
 const CHECK = ReconcileDeploymentAllowance[JOB_NAME];
 
-const jobWorkers = useJobWorkers(() => [container.resolve(ReconcileDeploymentAllowanceHandler)]);
+const jobWorkers = useJobWorkers(() => [container.resolve(ReconcileDeploymentAllowanceHandler), container.resolve(SyncAffiliateCommissionHandler)]);
 
 describe(PaymentCreditService.name, () => {
   const paidCents = 100_00;

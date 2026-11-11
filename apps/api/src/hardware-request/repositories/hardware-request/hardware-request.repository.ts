@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, isNull, lte, not, notInArray, or, type SQL, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, isNull, lte, not, notInArray, or, type SQL, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -6,7 +6,13 @@ import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repositor
 import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { ResponseTarget } from "@src/hardware-request/lib/hardware-request-response-schedule/hardware-request-response-schedule";
-import { HardwareRequestEvents, type HardwareRequestLane, HardwareRequestOffers, type HardwareRequestStatus } from "@src/hardware-request/model-schemas";
+import {
+  HardwareRequestEvents,
+  type HardwareRequestLane,
+  HardwareRequestOffers,
+  type HardwareRequestSpec,
+  type HardwareRequestStatus
+} from "@src/hardware-request/model-schemas";
 import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
 
 type Table = ApiPgTables["HardwareRequests"];
@@ -32,6 +38,8 @@ export type HardwareRequestQueueFilters = {
   limit: number;
   offset: number;
 };
+
+export type RequestedHardware = { model: string; region: HardwareRequestSpec["region"] | null };
 
 export type ResponseTargetStanding = "at_risk" | "missed";
 
@@ -64,6 +72,17 @@ export class HardwareRequestRepository extends OrgScopedRepository<Table, Hardwa
       .orderBy(asc(this.table.createdAt));
 
     return rows.map(row => row.createdAt);
+  }
+
+  /** Reads only the model and region each request asks for, never who asked. */
+  async findRequestedGpusSince(since: Date): Promise<RequestedHardware[]> {
+    const model = sql<string>`coalesce(${this.table.spec} -> 'gpu' ->> 'model', ${this.table.gpuModel})`;
+    const region = sql<RequestedHardware["region"]>`${this.table.spec} -> 'region'`;
+
+    return await this.cursor
+      .select({ model, region })
+      .from(this.table)
+      .where(this.whereAccessibleBy(and(gte(this.table.createdAt, since), sql`${model} is not null`)));
   }
 
   /** Hands the requests the team filed for an address with no account to the account that owns it. */

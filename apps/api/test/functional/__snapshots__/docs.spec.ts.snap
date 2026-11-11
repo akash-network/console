@@ -4171,6 +4171,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
           "400": {
             "description": "Invalid request body",
           },
+          "503": {
+            "description": "Provider screening is unavailable",
+          },
         },
         "security": [],
         "summary": "Screen providers by deployment resource requirements",
@@ -28076,6 +28079,63 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         "summary": "Decline an invitation sent to the caller's verified email",
         "tags": [
           "Organizations",
+        ],
+      },
+    },
+    "/v1/referral": {
+      "get": {
+        "operationId": "getReferral",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "nullable": true,
+                      "properties": {
+                        "trialCreditsUsd": {
+                          "type": "number",
+                        },
+                      },
+                      "required": [
+                        "trialCreditsUsd",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The caller's referral trial credits, or null when they were not referred",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Get the caller's referral trial credits",
+        "tags": [
+          "Affiliates",
         ],
       },
     },

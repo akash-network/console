@@ -1,6 +1,6 @@
 import { activityRouter } from "@src/activity";
 import { addressRouter } from "@src/address";
-import { affiliateProfileRouter } from "@src/affiliate";
+import { affiliateProfileRouter, referralRouter } from "@src/affiliate";
 import { apiKeysRouter, sendVerificationCodeRouter, signupRouter, verifyEmailCodeRouter } from "@src/auth";
 import { bidsRouter } from "@src/bid/routes/bids/bids.router";
 import { bidScreeningRouter } from "@src/bid-screening";
@@ -162,5 +162,6 @@ export const openApiHonoHandlers: OpenApiHonoHandler[] = [
   feedbackRouter,
   assistantPrivacyRouter,
   assistantConversationRouter,
-  affiliateProfileRouter
+  affiliateProfileRouter,
+  referralRouter
 ];

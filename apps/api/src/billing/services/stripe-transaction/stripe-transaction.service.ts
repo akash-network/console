@@ -5,6 +5,7 @@ import createError, { isHttpError } from "http-errors";
 import Stripe from "stripe";
 import { inject, singleton } from "tsyringe";
 
+import { type AffiliateCommissionSyncTrigger, SyncAffiliateCommission } from "@src/affiliate/services/affiliate-commission/sync-affiliate-commission.job";
 import { FundDrainingDeploymentsCommand } from "@src/billing/commands/fund-draining-deployments.command";
 import { IssueCardPaymentInvoiceCommand } from "@src/billing/commands/issue-card-payment-invoice.command";
 import type { CreditsAdded } from "@src/billing/events/credits-added";
@@ -31,6 +32,7 @@ import { AnalyticsService } from "@src/core/services/analytics/analytics.service
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import { TimerService } from "@src/core/services/timer/timer.service";
 import { type OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 
@@ -137,6 +139,7 @@ export class StripeTransactionService {
     private readonly timerService: TimerService,
     private readonly payerService: PayerService,
     private readonly domainEventsService: DomainEventsService,
+    private readonly jobQueueService: JobQueueService,
     private readonly analyticsService: AnalyticsService,
     private readonly organizationRepository: OrganizationRepository,
     private readonly featureFlagsService: FeatureFlagsService,
@@ -569,6 +572,7 @@ export class StripeTransactionService {
       receiptUrl: params.receiptUrl,
       stripePaymentIntentId: params.stripePaymentIntentId
     });
+    await this.#queueAffiliateCommissionSync(transaction, "settlement");
 
     const bonusAmount = await this.firstPurchaseBonusService.recordGrant(transaction, eligibleBonus.bonusCents);
     const bonusWindowOpened = bonusAmount === 0 ? await this.firstPurchaseBonusService.findWindowOpenedBy(transaction) : undefined;
@@ -604,6 +608,13 @@ export class StripeTransactionService {
     }
 
     return { settled: true, bonusAmount, bonusWindowOpened, toppedUpWallet, actingUserId };
+  }
+
+  /** Runs before the payer's wallet changes: a failed enqueue after the chain call would roll the write back and let the webhook retry move the payer's balance twice. */
+  async #queueAffiliateCommissionSync(transaction: StripeTransactionOutput, trigger: AffiliateCommissionSyncTrigger): Promise<void> {
+    if (transaction.type !== "payment_intent") return;
+
+    await this.jobQueueService.enqueue(new SyncAffiliateCommission({ transactionId: transaction.id, trigger }));
   }
 
   async settlePaymentIntent(event: Stripe.PaymentIntentSucceededEvent): Promise<SettlementOutcome> {
@@ -1082,6 +1093,7 @@ export class StripeTransactionService {
       amountRefunded: params.amountRefunded,
       ...(isFullyRefunded ? { status: "refunded" } : {})
     });
+    await this.#queueAffiliateCommissionSync(transaction, "refund");
 
     const payer = payerOf(transaction, "user" in params.customerOwner ? params.customerOwner.user.id : undefined, payingTeam.team);
 
@@ -1123,6 +1135,34 @@ export class StripeTransactionService {
 
     this.loggerService.warn({ event: "CHARGE_REFUNDED_BEFORE_CREDIT", chargeId, transactionId: payment.id, transactionStatus: payment.status });
     throw createError(409, "The refunded payment is not credited yet, so its refund is applied once it is", { errorCode: REFUND_BEFORE_CREDIT_ERROR_CODE });
+  }
+
+  /** Leaves the payer's own balance as it is: the loss is recorded only so the affiliate commission on this charge is taken back. */
+  @WithTransaction()
+  async markDisputeLost(event: Stripe.ChargeDisputeClosedEvent): Promise<void> {
+    const dispute = event.data.object;
+    if (dispute.status !== "lost") return;
+
+    const chargeId = typeof dispute.charge === "string" ? dispute.charge : dispute.charge.id;
+    const transaction = await this.stripeTransactionRepository.findOneByAndLock({ stripeChargeId: chargeId });
+
+    if (!transaction) {
+      this.loggerService.warn({ event: "CHARGE_DISPUTE_LOST_NO_TRANSACTION", chargeId, disputeId: dispute.id });
+      return;
+    }
+
+    if (transaction.disputeLostAt) return;
+
+    await this.stripeTransactionRepository.updateById(transaction.id, { disputeLostAt: new Date(event.created * 1000) });
+    await this.#queueAffiliateCommissionSync(transaction, "dispute");
+
+    this.loggerService.info({
+      event: "CHARGE_DISPUTE_LOST",
+      chargeId,
+      disputeId: dispute.id,
+      transactionId: transaction.id,
+      userId: transaction.userId
+    });
   }
 
   async recordCouponClaim(params: {

@@ -1634,7 +1634,8 @@
                                 "enum": [
                                   "payment_intent",
                                   "coupon_claim",
-                                  "manual_credit"
+                                  "manual_credit",
+                                  "affiliate_commission"
                                 ]
                               },
                               "amount": {
@@ -24488,6 +24489,9 @@
           },
           "400": {
             "description": "Invalid request body"
+          },
+          "503": {
+            "description": "Provider screening is unavailable"
           }
         }
       }
@@ -28915,6 +28919,63 @@
                       "required": [
                         "code",
                         "terms"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      }
+    },
+    "/v1/referral": {
+      "get": {
+        "summary": "Get the caller's referral trial credits",
+        "operationId": "getReferral",
+        "tags": [
+          "Affiliates"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The caller's referral trial credits, or null when they were not referred",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "trialCreditsUsd": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "trialCreditsUsd"
                       ]
                     }
                   },

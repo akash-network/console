@@ -1,5 +1,5 @@
 {
-  "id": "63e947a0-474d-4520-8c31-fd00efcbeed9",
+  "id": "21ac954e-8d4f-478f-b59f-29b5b182a23d",
   "prevId": "f7f301b1-534e-4e30-89e1-c79acdd97201",
   "version": "7",
   "dialect": "postgresql",
@@ -585,6 +585,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "source_transaction_id": {
+          "name": "source_transaction_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -645,6 +651,22 @@
           ],
           "isUnique": true,
           "where": "\"stripe_transactions\".\"bonus_amount\" > 0",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "stripe_transactions_source_transaction_id_unique": {
+          "name": "stripe_transactions_source_transaction_id_unique",
+          "columns": [
+            {
+              "expression": "source_transaction_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"stripe_transactions\".\"source_transaction_id\" IS NOT NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -816,6 +838,19 @@
             "id"
           ],
           "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "stripe_transactions_source_transaction_id_stripe_transactions_id_fk": {
+          "name": "stripe_transactions_source_transaction_id_stripe_transactions_id_fk",
+          "tableFrom": "stripe_transactions",
+          "tableTo": "stripe_transactions",
+          "columnsFrom": [
+            "source_transaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -6445,13 +6480,6 @@
           "notNull": true,
           "default": 0
         },
-        "day_token_count": {
-          "name": "day_token_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp with time zone",
@@ -7126,7 +7154,8 @@
       "values": [
         "payment_intent",
         "coupon_claim",
-        "manual_credit"
+        "manual_credit",
+        "affiliate_commission"
       ]
     },
     "public.auto_reload_mode": {

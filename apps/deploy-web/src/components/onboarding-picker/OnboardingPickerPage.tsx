@@ -21,6 +21,7 @@ import { useMarkAutoDeployStart } from "@src/hooks/useAutoDeployStart/useAutoDep
 import { useEnsureTrialStarted } from "@src/hooks/useEnsureTrialStarted";
 import { useFlag } from "@src/hooks/useFlag";
 import { useIsOutOfDeployCredit } from "@src/hooks/useIsOutOfDeployCredit/useIsOutOfDeployCredit";
+import { useReferralQuery } from "@src/queries/useReferralQuery";
 
 /**
  * Template ids the picker cards deploy. Each card marks its template and redirects to the bid-screening (configure) view
@@ -54,6 +55,7 @@ export const DEPENDENCIES = {
   useMarkAutoDeployStart,
   useServices,
   useFlag,
+  useReferralQuery,
   DeploymentTemplatePickerCard,
   AddCreditsSheet,
   OnboardingHeader,
@@ -70,7 +72,9 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
   const router = d.useRouter();
   const { isTrialing } = d.useWallet();
   const { publicConfig, urlService, analyticsService } = d.useServices();
-  const trialCreditsAmount = publicConfig.NEXT_PUBLIC_TRIAL_CREDITS_AMOUNT;
+  const isAffiliateProgramEnabled = d.useFlag("affiliate_program");
+  const { data: referral, isLoading: isReferralLoading } = d.useReferralQuery({ enabled: isAffiliateProgramEnabled });
+  const trialCreditsAmount = referral?.trialCreditsUsd ?? publicConfig.NEXT_PUBLIC_TRIAL_CREDITS_AMOUNT;
   const [addCreditsPrompt, setAddCreditsPrompt] = useState<AddCreditsPrompt | null>(null);
   const templateIdToDeployAfterCredits = addCreditsPrompt && "templateId" in addCreditsPrompt ? addCreditsPrompt.templateId : undefined;
   const { isWalletReady } = d.useEnsureTrialStarted();
@@ -197,11 +201,15 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
                   <OutOfCreditIntro isTrialing={isTrialing} />
                 ) : (
                   <>
-                    We&apos;ve provided you with{" "}
-                    <span className="font-medium text-blue-600 dark:text-blue-400">${trialCreditsAmount} in free trial credits</span>. This covers a couple of
-                    smaller deployments so you can see how easy it is. Purchase your first credits to unlock our full experience - up to ${MAX_BONUS} free
-                    credits, full GPU access and 30 day deployments. Plus, get {BONUS_PERCENT}% in bonus credits on your first purchase, up to ${MAX_BONUS}.
-                    Pick a template to get a live URL in about 30 seconds.
+                    {!isReferralLoading && (
+                      <>
+                        We&apos;ve provided you with{" "}
+                        <span className="font-medium text-blue-600 dark:text-blue-400">${trialCreditsAmount} in free trial credits</span>. This covers a couple
+                        of smaller deployments so you can see how easy it is.{" "}
+                      </>
+                    )}
+                    Purchase your first credits to unlock our full experience - up to ${MAX_BONUS} free credits, full GPU access and 30 day deployments. Plus,
+                    get {BONUS_PERCENT}% in bonus credits on your first purchase, up to ${MAX_BONUS}. Pick a template to get a live URL in about 30 seconds.
                   </>
                 )}
               </p>

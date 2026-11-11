@@ -235,6 +235,21 @@ describe(RefillService.name, () => {
       expect(analyticsService.track).toHaveBeenCalledWith(unlockedWallet.userId, "account_restriction_lifted", { lifted_by: "payment" });
     });
 
+    it("credits the wallet but keeps its abuse lock when the top-up opts out of lifting it", async () => {
+      const { service, userWalletRepository, managedUserWalletService, walletInitializerService, balancesService, analyticsService } = setup();
+      const lockedWallet = createInitializedUserWallet({ userId, abuseLockedAt: new Date(), abuseLockedReason: "trial_abuse" });
+      walletInitializerService.ensureWallet.mockResolvedValue(lockedWallet);
+      userWalletRepository.claimActivation.mockResolvedValue(undefined);
+      balancesService.retrieveDeploymentLimit.mockResolvedValue(0);
+      userWalletRepository.clearAbuseLock.mockResolvedValue(true);
+
+      await service.topUpWallet(amountUsd, { userId }, { payment, liftAbuseLock: false });
+
+      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalled();
+      expect(userWalletRepository.clearAbuseLock).not.toHaveBeenCalled();
+      expect(analyticsService.track).not.toHaveBeenCalledWith(userId, "account_restriction_lifted", expect.anything());
+    });
+
     it("does not report a cleared lock when the wallet held none", async () => {
       const { service, userWalletRepository, walletInitializerService, balancesService, analyticsService, logger } = setup();
       walletInitializerService.ensureWallet.mockResolvedValue(createInitializedUserWallet({ userId }));
@@ -411,6 +426,20 @@ describe(RefillService.name, () => {
       expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_refund", expect.objectContaining({ amount_cents: 100 }));
     });
 
+    it("reduces the team wallet row it locked, so a concurrent credit of the team waits for it", async () => {
+      const { service, userWalletRepository, managedUserWalletService, balancesService } = setup();
+      const team = createOrganization({ type: "team" });
+      const teamWallet = createUserWallet({ organizationId: team.id, address: "akash1stale" });
+      userWalletRepository.findOneByOrganizationId.mockResolvedValue(teamWallet);
+      userWalletRepository.findOneByAndLock.mockResolvedValue({ ...teamWallet, address: "akash1locked" });
+      balancesService.retrieveDeploymentLimit.mockResolvedValue(5000000);
+
+      await service.reduceWalletBalance(100, { userId, organizationId: team.id, team }, refund);
+
+      expect(userWalletRepository.findOneByAndLock).toHaveBeenCalledWith({ id: teamWallet.id });
+      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ address: "akash1locked" }));
+    });
+
     it("debits the team for a refund whose member has deleted their account, tracking no one", async () => {
       const { service, userWalletRepository, refundDebitService, analyticsService } = setup();
       const team = createOrganization({ type: "team" });
@@ -521,6 +550,60 @@ describe(RefillService.name, () => {
       expect(mocks.refundDebitService.debitOnce).toHaveBeenCalled();
       expect(mocks.managedUserWalletService.authorizeSpending).toHaveBeenCalled();
       expect(mocks.balancesService.refreshUserWalletLimits).not.toHaveBeenCalled();
+    });
+
+    it("reports no shortfall when the allowance covers the whole reduction", async () => {
+      const { service, userWalletRepository, refundDebitService } = setup();
+      userWalletRepository.findOneBy.mockResolvedValue(createUserWallet({ userId, address: "akash1test..." }));
+      refundDebitService.debitOnce.mockResolvedValue({ previousLimit: 1_000_000, nextLimit: 0 });
+
+      await expect(service.reduceWalletBalance(100, { userId }, refund)).resolves.toEqual({ shortfallCents: 0 });
+    });
+
+    it("reports no shortfall when an earlier delivery already landed the debit", async () => {
+      const { service, userWalletRepository, refundDebitService } = setup();
+      userWalletRepository.findOneBy.mockResolvedValue(createUserWallet({ userId, address: "akash1test..." }));
+      refundDebitService.debitOnce.mockResolvedValue(undefined);
+
+      await expect(service.reduceWalletBalance(100, { userId }, refund)).resolves.toEqual({ shortfallCents: 0 });
+    });
+
+    it("reports the part of the reduction the allowance could not cover", async () => {
+      const { service, userWalletRepository, refundDebitService } = setup();
+      userWalletRepository.findOneBy.mockResolvedValue(createUserWallet({ userId, address: "akash1test..." }));
+      refundDebitService.debitOnce.mockResolvedValue({ previousLimit: 50_000, nextLimit: 0 });
+
+      await expect(service.reduceWalletBalance(100, { userId }, refund)).resolves.toEqual({ shortfallCents: 95 });
+    });
+
+    it("rounds a shortfall of a fraction of a cent up to the next cent", async () => {
+      const { service, userWalletRepository, refundDebitService } = setup();
+      userWalletRepository.findOneBy.mockResolvedValue(createUserWallet({ userId, address: "akash1test..." }));
+      refundDebitService.debitOnce.mockResolvedValue({ previousLimit: 12_345, nextLimit: 0 });
+
+      await expect(service.reduceWalletBalance(100, { userId }, refund)).resolves.toEqual({ shortfallCents: 99 });
+    });
+
+    it("reduces the wallet row it locked, so a concurrent credit of the same wallet waits for it", async () => {
+      const { service, userWalletRepository, refundDebitService, paymentCreditService, balancesService } = setup();
+      const wallet = createUserWallet({ userId, address: "akash1stale" });
+      const lockedWallet = { ...wallet, address: "akash1locked" };
+      userWalletRepository.findOneBy.mockResolvedValue(wallet);
+      userWalletRepository.findOneByAndLock.mockResolvedValue(lockedWallet);
+
+      await service.reduceWalletBalance(100, { userId }, refund);
+
+      expect(userWalletRepository.findOneByAndLock).toHaveBeenCalledWith({ id: wallet.id });
+      expect(paymentCreditService.isCreditInFlight).toHaveBeenCalledWith("akash1locked");
+      expect(refundDebitService.debitOnce).toHaveBeenCalledWith(expect.objectContaining({ wallet: { id: wallet.id, address: "akash1locked" } }));
+      expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(lockedWallet);
+    });
+
+    it("reports the whole reduction as a shortfall when the user has no wallet", async () => {
+      const { service, userWalletRepository } = setup();
+      userWalletRepository.findOneBy.mockResolvedValue(undefined);
+
+      await expect(service.reduceWalletBalance(100, { userId }, refund)).resolves.toEqual({ shortfallCents: 100 });
     });
 
     it("does nothing when wallet does not exist", async () => {

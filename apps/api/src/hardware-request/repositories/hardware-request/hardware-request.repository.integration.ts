@@ -9,6 +9,7 @@ import { HardwareRequestRepository } from "./hardware-request.repository";
 import { seedHardwareRequest } from "@test/seeders/db/hardware-request.seeder";
 import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { createHardwareRequestSpec } from "@test/seeders/hardware-request.seeder";
 
 describe(HardwareRequestRepository.name, () => {
   describe("claimByContactEmail", () => {
@@ -31,6 +32,34 @@ describe(HardwareRequestRepository.name, () => {
       await expect(repository.claimByContactEmail(email, { userId: user.id, organizationId: organization.id })).resolves.toEqual([]);
       expect(await repository.findById(owned.id)).toMatchObject({ userId: someoneElse.id });
       expect(await repository.findById(otherAddress.id)).toMatchObject({ userId: null });
+    });
+  });
+
+  describe("findRequestedGpusSince", () => {
+    it("reads the model and region each request since the cutoff asks for, from its spec or else its gpu model", async () => {
+      const { repository, user } = await setup();
+      const [specModel, legacyModel, oldModel] = [faker.string.alphanumeric(12), faker.string.alphanumeric(12), faker.string.alphanumeric(12)];
+      const since = new Date(Date.now() - 60_000);
+      await seedHardwareRequest({
+        userId: user.id,
+        category: "quote",
+        gpuModel: null,
+        spec: createHardwareRequestSpec({ gpu: { model: specModel, count: 8, interconnect: "none" }, region: { mode: "only", areas: ["eu"] } })
+      });
+      await seedHardwareRequest({ userId: user.id, gpuModel: legacyModel });
+      await seedHardwareRequest({ userId: user.id, gpuModel: oldModel, createdAt: new Date(since.getTime() - 1) });
+      await seedHardwareRequest({ userId: user.id, category: "other", gpuModel: null });
+
+      const requested = await repository.findRequestedGpusSince(since);
+
+      expect(requested).toEqual(
+        expect.arrayContaining([
+          { model: specModel, region: { mode: "only", areas: ["eu"] } },
+          { model: legacyModel, region: null }
+        ])
+      );
+      expect(requested.map(({ model }) => model)).not.toContain(oldModel);
+      expect(requested.every(({ model }) => model !== null)).toBe(true);
     });
   });
 
