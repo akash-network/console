@@ -156,7 +156,7 @@ export class AssistantAccountToolsService {
       return (await this.templateController.getTemplateById(id)).data.deploy;
     } catch (error) {
       if (isHttpError(error) && error.status === 404)
-        throw new AssistantToolError(`No template has id ${JSON.stringify(id)}. Call list_templates or pass an sdl.`);
+        throw new AssistantToolError("No template has this id. Call list_templates or pass an sdl.", JSON.stringify(id));
       throw error;
     }
   }

@@ -176,7 +176,7 @@ export class AssistantConsoleApiService {
     if (undeclared.length === 0) return;
 
     const accepted = route.queryParameters.length > 0 ? `It accepts ${route.queryParameters.join(", ")}.` : "It accepts no query parameters.";
-    throw new AssistantToolError(`${route.path} does not accept ${undeclared.join(", ")}. ${accepted}`);
+    throw new AssistantToolError(`${route.path} does not accept some of the query parameters given. ${accepted}`, undeclared.join(", "));
   }
 
   #urlOf(path: string, query: Record<string, string | number | boolean> | undefined): URL {

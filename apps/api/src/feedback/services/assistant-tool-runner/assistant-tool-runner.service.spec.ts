@@ -97,13 +97,12 @@ describe(AssistantToolRunnerService.name, () => {
     it("puts a read tool added later under untrustedData unless it is listed as first party", () => {
       const readsWrittenByOthers = (Object.keys(READ_TOOL_ARGUMENTS) as ReadToolName[]).filter(name => !FIRST_PARTY_READ_TOOLS.has(name));
 
-      expect(readsWrittenByOthers).toContain("list_templates");
+      expect(readsWrittenByOthers).toEqual(expect.arrayContaining(["list_templates", "get_balance_and_spend"]));
       for (const name of readsWrittenByOthers) {
         expect(JSON.parse(readContentOf(name, { read: name }))).toEqual({ tool: name, untrustedData: { read: name } });
       }
       expect([...FIRST_PARTY_READ_TOOLS].map(name => JSON.parse(readContentOf(name, { read: name })))).toEqual([
-        { tool: "search_docs", data: { read: "search_docs" } },
-        { tool: "get_balance_and_spend", data: { read: "get_balance_and_spend" } }
+        { tool: "search_docs", data: { read: "search_docs" } }
       ]);
     });
 

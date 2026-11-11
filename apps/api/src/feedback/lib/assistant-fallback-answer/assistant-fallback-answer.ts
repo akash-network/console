@@ -38,8 +38,7 @@ function isEmptyList(value: unknown): boolean {
 
 function dataOf(result: string | undefined): Record<string, unknown> | undefined {
   try {
-    const { data, untrustedData } = JSON.parse(result ?? "");
-    return untrustedData ?? data;
+    return JSON.parse(result ?? "").untrustedData;
   } catch {
     return undefined;
   }

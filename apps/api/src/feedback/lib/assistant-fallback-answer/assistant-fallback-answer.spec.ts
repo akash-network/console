@@ -218,7 +218,7 @@ describe(fallbackAnswerOf.name, () => {
     );
   });
 
-  it("names a deployment after a first party read that returned its name", () => {
+  it("names a deployment after a balance read that returned its name", () => {
     expect(
       fallbackAnswerOf(
         turnWithResultsOf(

@@ -266,12 +266,16 @@ describe(AssistantConsoleApiService.name, () => {
     it("refuses query parameters the route does not declare, naming the ones it accepts", async () => {
       const { service, consoleApi } = setup();
 
-      await expect(service.read({ path: "/v1/projects", query: { limit: 1, ownerId: "x" } })).rejects.toThrow(
-        new AssistantToolError("/v1/projects does not accept ownerId. It accepts limit.")
-      );
-      await expect(service.read({ path: "/v1/leases", query: { all: true } })).rejects.toThrow(
-        new AssistantToolError("/v1/leases does not accept all. It accepts no query parameters.")
-      );
+      await expect(service.read({ path: "/v1/projects", query: { limit: 1, ownerId: "x" } })).rejects.toMatchObject({
+        name: "AssistantToolError",
+        message: "/v1/projects does not accept some of the query parameters given. It accepts limit.",
+        untrustedDetail: "ownerId"
+      });
+      await expect(service.read({ path: "/v1/leases", query: { all: true } })).rejects.toMatchObject({
+        name: "AssistantToolError",
+        message: "/v1/leases does not accept some of the query parameters given. It accepts no query parameters.",
+        untrustedDetail: "all"
+      });
       expect(consoleApi.fetch).not.toHaveBeenCalled();
     });
 

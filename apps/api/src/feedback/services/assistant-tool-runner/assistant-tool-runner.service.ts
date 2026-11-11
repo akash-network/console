@@ -69,7 +69,7 @@ export function toolContentOf(tool: string, payload: ToolPayload): string {
 type ToolPayload = { data: unknown; untrustedData?: unknown } | { untrustedData: unknown } | { error: string; untrustedData?: unknown };
 
 /** Reads whose content only Console wrote, so they stay under data while every other read reaches the model as untrustedData. */
-export const FIRST_PARTY_READ_TOOLS: ReadonlySet<ReadToolName> = new Set<ReadToolName>(["search_docs", "get_balance_and_spend"]);
+export const FIRST_PARTY_READ_TOOLS: ReadonlySet<ReadToolName> = new Set<ReadToolName>(["search_docs"]);
 
 export function readContentOf(tool: ReadToolName, data: unknown): string {
   return toolContentOf(tool, FIRST_PARTY_READ_TOOLS.has(tool) ? { data } : { untrustedData: data });
