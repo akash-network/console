@@ -3,6 +3,7 @@ export const UNSCOPED_REASONS = [
   "account-deletion",
   "account-termination",
   "active-organization-resolution",
+  "affiliate-earnings",
   "api-key-authentication",
   "api-key-expiry-reminders",
   "deployment-activity",

@@ -5,7 +5,7 @@ import type { AffiliateProfile } from "@src/queries/useAffiliateProfileQuery";
 import { getBaseUrl, UrlService } from "@src/utils/urlUtils";
 import { DEPENDENCIES, ReferralsPage } from "./ReferralsPage";
 
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
@@ -37,6 +37,16 @@ describe(ReferralsPage.name, () => {
     expect(mockRouter.replace).not.toHaveBeenCalled();
     expect(SettingsLayout.mock.lastCall?.[0].title).toBe("Referrals");
     expect(screen.getByLabelText("Referral link")).toHaveValue(`${getBaseUrl()}/?ref=friendcode`);
+  });
+
+  it("selects the whole referral link when the field gets focus", () => {
+    setup({ isAffiliateProgramEnabled: true, profile: buildProfile({ code: "friendcode" }) });
+    const field = screen.getByLabelText<HTMLInputElement>("Referral link");
+
+    act(() => field.focus());
+
+    expect(field.selectionStart).toBe(0);
+    expect(field.selectionEnd).toBe(field.value.length);
   });
 
   it("shows the terms using the values the api returned", () => {
@@ -73,6 +83,76 @@ describe(ReferralsPage.name, () => {
     });
   });
 
+  it("shows the stats row with sign-ups, paying users, total earned and earned this month", () => {
+    setup({
+      isAffiliateProgramEnabled: true,
+      profile: buildProfile({ stats: { signups: 9, payingUsers: 4, totalCommissionUsd: 125.5, monthCommissionUsd: 12.25 } })
+    });
+
+    expect(screen.getByText("Sign-ups").nextSibling).toHaveTextContent("9");
+    expect(screen.getByText("Paying users").nextSibling).toHaveTextContent("4");
+    expect(screen.getByText("Total earned").nextSibling).toHaveTextContent("125.50");
+    expect(screen.getByText("Earned this month").nextSibling).toHaveTextContent("12.25");
+  });
+
+  it("shows the empty-state copy when the affiliate has no commission yet", () => {
+    setup({ isAffiliateProgramEnabled: true, profile: buildProfile({ commissions: [] }) });
+
+    expect(screen.getByText("No commission yet. You'll see it here when someone you referred pays by card.")).toBeInTheDocument();
+    expect(screen.queryByRole("table", { name: "Commission history" })).not.toBeInTheDocument();
+  });
+
+  it("lists each commission with its date and gross amount", () => {
+    setup({
+      isAffiliateProgramEnabled: true,
+      profile: buildProfile({
+        commissions: [{ id: "commission-1", createdAt: "2024-06-10T12:00:00.000Z", amountUsd: 5, reversedUsd: 0 }]
+      })
+    });
+
+    const row = screen.getByRole("row", { name: /6\/10\/2024/ });
+
+    expect(row).toHaveTextContent("5.00");
+  });
+
+  it("labels the commission table columns", () => {
+    setup({
+      isAffiliateProgramEnabled: true,
+      profile: buildProfile({
+        commissions: [{ id: "commission-1", createdAt: "2024-06-10T12:00:00.000Z", amountUsd: 5, reversedUsd: 0 }]
+      })
+    });
+
+    expect(screen.getAllByRole("columnheader").map(header => header.textContent)).toEqual(["Date", "Amount", "Taken back"]);
+  });
+
+  it("shows a dash in place of a deduction when nothing was taken back", () => {
+    setup({
+      isAffiliateProgramEnabled: true,
+      profile: buildProfile({
+        commissions: [{ id: "commission-1", createdAt: "2024-06-10T12:00:00.000Z", amountUsd: 5, reversedUsd: 0 }]
+      })
+    });
+
+    const row = screen.getByRole("row", { name: /6\/10\/2024/ });
+
+    expect(row).toHaveTextContent("—");
+    expect(row).not.toHaveTextContent("-5.00");
+  });
+
+  it("shows a reversed commission's taken-back amount as a deduction", () => {
+    setup({
+      isAffiliateProgramEnabled: true,
+      profile: buildProfile({
+        commissions: [{ id: "commission-1", createdAt: "2024-06-10T12:00:00.000Z", amountUsd: 5, reversedUsd: 1.5 }]
+      })
+    });
+
+    const row = screen.getByRole("row", { name: /6\/10\/2024/ });
+
+    expect(row).toHaveTextContent("-1.50");
+  });
+
   it("checks the affiliate_program flag and enables the profile query only when it is on", () => {
     const { useFlag, useAffiliateProfileQuery } = setup({ isAffiliateProgramEnabled: true, profile: buildProfile() });
 
@@ -87,7 +167,13 @@ describe(ReferralsPage.name, () => {
   });
 
   function buildProfile(overrides: Partial<AffiliateProfile> = {}): AffiliateProfile {
-    return { code: "friendcode", terms: { commissionPercent: 5, commissionMonths: 12, referralTrialCreditsUsd: 5 }, ...overrides };
+    return {
+      code: "friendcode",
+      terms: { commissionPercent: 5, commissionMonths: 12, referralTrialCreditsUsd: 5 },
+      stats: { signups: 0, payingUsers: 0, totalCommissionUsd: 0, monthCommissionUsd: 0 },
+      commissions: [],
+      ...overrides
+    };
   }
 
   function setup(input: { isAffiliateProgramEnabled: boolean; profile?: AffiliateProfile | null; isLoading?: boolean }) {
@@ -105,6 +191,7 @@ describe(ReferralsPage.name, () => {
         isLoading: input.isLoading ?? false
       })
     );
+    const FormattedNumber = vi.fn((({ value }: { value: number }) => <>{value.toFixed(2)}</>) as typeof DEPENDENCIES.FormattedNumber);
 
     const dependencies = MockComponents(DEPENDENCIES, {
       Layout,
@@ -113,7 +200,8 @@ describe(ReferralsPage.name, () => {
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
       useFlag,
       useAffiliateProfileQuery,
-      copyTextToClipboard
+      copyTextToClipboard,
+      FormattedNumber
     });
 
     render(<ReferralsPage dependencies={dependencies} />);
