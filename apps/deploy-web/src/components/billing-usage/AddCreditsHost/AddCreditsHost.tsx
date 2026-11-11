@@ -9,8 +9,6 @@ import { addCreditsRequestAtom } from "@src/store/addCreditsStore";
 
 export const DEPENDENCIES = { AddCreditsSheet, useServices, useUser };
 
-const DEFAULT_DESCRIPTION = "Buy credits or redeem a coupon to top up your balance.";
-
 /**
  * Hosts the single Add Credits sheet that any call site opens through `useAddCredits`. Mounted above the
  * onboarding gate so an open sheet survives a redirect. The sheet mounts its Stripe form only once open, but a
@@ -41,7 +39,7 @@ export function AddCreditsHost({ dependencies: d = DEPENDENCIES }: { dependencie
       open={!!request}
       onOpenChange={isOpen => (!isOpen ? closeSheet() : undefined)}
       initialTab={request?.initialTab ?? "purchase"}
-      description={request?.description ?? DEFAULT_DESCRIPTION}
+      description={request?.description}
       deploymentDailyCostUsd={request?.deploymentDailyCostUsd}
       context={request?.context}
       nextStepLabel={request?.nextStepLabel}

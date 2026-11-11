@@ -41,14 +41,16 @@ describe("AddCreditsHost", () => {
     expect(sheet).toHaveTextContent("Redeem your hackathon coupon.");
   });
 
-  it("falls back to the purchase tab and neutral copy for a request that names neither", () => {
-    const { open } = setup();
+  it("falls back to the purchase tab and leaves the copy to the sheet's neutral default for a request that names neither", () => {
+    const AddCreditsSheet = vi.fn<typeof DEPENDENCIES.AddCreditsSheet>(() => <div />);
+    const { open } = setup({ AddCreditsSheet });
 
     open({});
 
-    const sheet = screen.getByTestId("add-credits-sheet");
-    expect(sheet).toHaveAttribute("data-tab", "purchase");
-    expect(sheet).toHaveTextContent("Buy credits or redeem a coupon to top up your balance.");
+    const sheetProps = AddCreditsSheet.mock.calls.at(-1)![0];
+    expect(sheetProps.open).toBe(true);
+    expect(sheetProps.initialTab).toBe("purchase");
+    expect(sheetProps.description).toBeUndefined();
   });
 
   it("clears the request when the sheet is dismissed, so the same call site can reopen it", () => {

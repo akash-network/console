@@ -25,12 +25,12 @@ describe(HackathonCouponNavEntry.name, () => {
     expect(screen.getByRole("button", { name: /Hackathon\? click here/i })).toBeInTheDocument();
   });
 
-  it("opens the app-wide add-credits sheet on the coupon tab when the trigger is clicked", () => {
+  it("opens the app-wide add-credits sheet on the coupon tab, recorded as opened from the nav entry, when the trigger is clicked", () => {
     const { openAddCredits } = setup({ isHackathonsEnabled: true, isTrialing: true });
 
     fireEvent.click(screen.getByRole("button", { name: /Hackathon\? click here/i }));
 
-    expect(openAddCredits).toHaveBeenCalledWith({ initialTab: "coupon" });
+    expect(openAddCredits).toHaveBeenCalledWith({ initialTab: "coupon", context: "hackathon_coupon_nav" });
   });
 
   function setup(
