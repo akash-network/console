@@ -7,6 +7,7 @@ import { mock } from "vitest-mock-extended";
 import type { BillingConfig } from "@src/billing/providers";
 import type { ManagedWalletRef, UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import type { ManagedUserWalletService, RpcMessageService } from "@src/billing/services";
+import type { BalancesService } from "@src/billing/services/balances/balances.service";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
@@ -703,6 +704,99 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
     });
   });
 
+  describe("when a close returns its deposit to the wallet's grant", () => {
+    it("rewrites the wallet's limits from the chain once the close lands", async () => {
+      const { service, userWalletRepository, balancesService, wallet } = setup({ staleDeployments: ["1", "2"] });
+
+      await service.cleanUpForWallet(wallet, 0);
+
+      expect(userWalletRepository.findById).toHaveBeenCalledWith(wallet.id);
+      expect(balancesService.refreshUserWalletLimits.mock.calls).toEqual([[wallet]]);
+    });
+
+    it("rewrites the limits from the wallet as stored rather than as the caller last read it", async () => {
+      const { service, userWalletRepository, balancesService, wallet } = setup({ staleDeployments: ["1"] });
+      const storedWallet = { ...wallet, deploymentAllowance: 0 };
+      userWalletRepository.findById.mockResolvedValue(storedWallet);
+
+      await service.cleanUpForWallet({ ...wallet, deploymentAllowance: 500_000 }, 0);
+
+      expect(balancesService.refreshUserWalletLimits.mock.calls).toEqual([[storedWallet]]);
+    });
+
+    it("rewrites each owner's limits in the periodic sweep", async () => {
+      const { service, balancesService } = setup({
+        orphans: [
+          { owner: "akash1a", dseq: "1" },
+          { owner: "akash1b", dseq: "2" }
+        ],
+        walletIdsByAddress: { akash1a: 11, akash1b: 22 }
+      });
+
+      await service.cleanup({ concurrency: 1, dryRun: false });
+
+      expect(balancesService.refreshUserWalletLimits.mock.calls).toEqual([[expect.objectContaining({ id: 11 })], [expect.objectContaining({ id: 22 })]]);
+    });
+
+    it("rewrites the limits even when filing the closes in the feed fails", async () => {
+      const filingFailure = new Error("activity table unavailable");
+      const { service, balancesService, deploymentOrganizationActivityService, wallet } = setup({ staleDeployments: ["1"] });
+      deploymentOrganizationActivityService.recordClosed.mockRejectedValue(filingFailure);
+
+      await expect(service.cleanUpForWallet(wallet, 0)).rejects.toBe(filingFailure);
+
+      expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledTimes(1);
+    });
+
+    it("files the closes and reports a failed refresh without failing the cleanup", async () => {
+      const refreshFailure = new Error("rest unavailable");
+      const { service, balancesService, systemCloseActivityService, logger, wallet } = setup({ staleDeployments: ["1"] });
+      balancesService.refreshUserWalletLimits.mockRejectedValue(refreshFailure);
+
+      await service.cleanUpForWallet(wallet, 0);
+
+      expect(logger.error).toHaveBeenCalledWith({ event: "WALLET_LIMITS_REFRESH_FAILED", walletId: wallet.id, error: refreshFailure });
+      expect(systemCloseActivityService.record).toHaveBeenCalledTimes(1);
+      expect(logger.info).toHaveBeenCalledWith({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS", owner: OWNER, alreadyClosedCount: 0 });
+    });
+
+    it("leaves the limits alone when the wallet is no longer stored", async () => {
+      const { service, userWalletRepository, balancesService, logger, wallet } = setup({ staleDeployments: ["1"] });
+      userWalletRepository.findById.mockResolvedValue(undefined);
+
+      await service.cleanUpForWallet(wallet, 0);
+
+      expect(balancesService.refreshUserWalletLimits).not.toHaveBeenCalled();
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+
+    it("leaves the limits alone when the close cannot land", async () => {
+      const executeDerivedTx = vi.fn().mockRejectedValue(new Error("node unreachable"));
+      const { service, balancesService, wallet } = setup({ staleDeployments: ["1"], executeDerivedTx });
+
+      await expect(service.cleanUpForWallet(wallet, 0)).rejects.toThrow("node unreachable");
+
+      expect(balancesService.refreshUserWalletLimits).not.toHaveBeenCalled();
+    });
+
+    it("leaves the limits alone when every deployment turns out closed already", async () => {
+      const executeDerivedTx = vi.fn().mockRejectedValue(buildDeploymentClosedAppError(0));
+      const { service, balancesService, wallet } = setup({ staleDeployments: ["1", "2"], executeDerivedTx });
+
+      await service.cleanUpForWallet(wallet, 0);
+
+      expect(balancesService.refreshUserWalletLimits).not.toHaveBeenCalled();
+    });
+
+    it("leaves the limits alone on a dry run", async () => {
+      const { service, balancesService } = setup({ orphans: [{ owner: OWNER, dseq: "9" }] });
+
+      await service.cleanup({ concurrency: 1, dryRun: true });
+
+      expect(balancesService.refreshUserWalletLimits).not.toHaveBeenCalled();
+    });
+  });
+
   function buildUnsettleableAppError() {
     return createError(400, "Deployment escrow cannot be settled yet", { originalError: new Error(UNSETTLEABLE_PANIC) });
   }
@@ -775,6 +869,8 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
         for (const batch of walletBatches) yield batch;
       }) as UserWalletRepository["findManagedIteratively"]
     });
+    userWalletRepository.findById.mockImplementation(async id => (id === wallet.id ? wallet : createUserWallet({ id })));
+    const balancesService = mock<BalancesService>();
     const deploymentRepository = mock<DeploymentRepository>();
     const blockRepository = mock<BlockRepository>();
     const blockHttpService = mock<BlockHttpService>();
@@ -819,6 +915,7 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
       leaseHttpService,
       rpcMessageService,
       managedSignerService,
+      balancesService,
       config,
       managedUserWalletService,
       errorService,
@@ -839,6 +936,7 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
       leaseHttpService,
       rpcMessageService,
       managedSignerService,
+      balancesService,
       managedUserWalletService,
       chainErrorService,
       deploymentOrganizationActivityService,
