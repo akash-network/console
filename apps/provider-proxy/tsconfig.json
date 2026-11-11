@@ -1,9 +1,11 @@
 {
+  "extends": "./tsconfig.build.json",
+  // Vitest and tsup load these files as ESM, so `import.meta` and top-level await are legal here even though the build emits CommonJS.
   "compilerOptions": {
-    "outDir": "dist",
-    "noEmit": true
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true
   },
   "include": ["**/*.ts"],
-  "exclude": [],
-  "extends": "./tsconfig.build.json"
+  "exclude": ["node_modules", "dist"]
 }

@@ -27,7 +27,8 @@
     "start": "tsup --watch",
     "test": "vitest run",
     "test:unit": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "validate:types": "tsc --noEmit"
   },
   "dependencies": {
     "@akashnetwork/akash-api": "1.4.3",

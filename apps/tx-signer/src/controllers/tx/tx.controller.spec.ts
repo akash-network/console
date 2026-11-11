@@ -1,3 +1,4 @@
+import { MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgGrantAllowance } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import type { Registry } from "@cosmjs/proto-signing";
 import { describe, expect, it, vi } from "vitest";
@@ -59,12 +60,13 @@ describe(TxController.name, () => {
 
   it("checks derived messages against the derived wallet and its fee granter", async () => {
     const { controller, txPolicyService, decodedMessage, derivedWalletAddress, fundingWalletAddress } = setup();
+    const message = encodedDerivedMessage();
 
     await controller.signWithDerivedWallet({
-      data: { derivationIndex: 3, messages: [encodedMessage()], options: { fee: { granter: fundingWalletAddress } } }
+      data: { derivationIndex: 3, messages: [message], options: { fee: { granter: fundingWalletAddress } } }
     });
 
-    expect(txPolicyService.assertActingOnBehalfOf).toHaveBeenCalledWith([decodedMessage], derivedWalletAddress);
+    expect(txPolicyService.assertActingOnBehalfOf).toHaveBeenCalledWith([{ typeUrl: message.typeUrl, value: decodedMessage.value }], derivedWalletAddress);
     expect(txPolicyService.assertFeeGranter).toHaveBeenCalledWith(fundingWalletAddress, fundingWalletAddress);
   });
 
@@ -80,6 +82,10 @@ describe(TxController.name, () => {
 
   function encodedMessage() {
     return { typeUrl: `/${MsgGrantAllowance.$type}`, value: Buffer.from([1, 2, 3]).toString("base64") } as const;
+  }
+
+  function encodedDerivedMessage() {
+    return { typeUrl: `/${MsgCreateDeployment.$type}`, value: Buffer.from([1, 2, 3]).toString("base64") } as const;
   }
 
   function setup() {

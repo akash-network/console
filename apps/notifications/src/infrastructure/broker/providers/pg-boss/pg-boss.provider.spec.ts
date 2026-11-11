@@ -73,12 +73,9 @@ describe("createPgBoss", () => {
     const sql = "SELECT * FROM test";
     const values = [1, 2, 3];
 
-    if (capturedExecuteSql) {
-      await capturedExecuteSql(sql, values);
+    expect(capturedExecuteSql).toBeInstanceOf(Function);
+    await capturedExecuteSql?.(sql, values);
 
-      expect(pool.query).toHaveBeenCalledWith(sql, values);
-    } else {
-      fail("executeSql function was not captured");
-    }
+    expect(pool.query).toHaveBeenCalledWith(sql, values);
   });
 });
