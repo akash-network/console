@@ -1,6 +1,6 @@
 import type { paths } from "@akashnetwork/console-api-types";
 import { describe, expect, it } from "vitest";
-import { mock } from "vitest-mock-extended";
+import { mock, mockDeep } from "vitest-mock-extended";
 
 import { type DEPENDENCIES, H100PriceStatus } from "./H100PriceStatus";
 
@@ -59,17 +59,9 @@ describe(H100PriceStatus.name, () => {
   });
 
   function setup(input: { data: ListGpuPricesData | undefined }) {
-    const queryResult = mock<ListGpuPricesResult>({ data: input.data });
-    const useServices: typeof DEPENDENCIES.useServices = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useServices>>({
-        api: {
-          v1: {
-            listGpuPrices: {
-              useQuery: () => queryResult
-            }
-          }
-        }
-      });
+    const services = mockDeep<ReturnType<typeof DEPENDENCIES.useServices>>();
+    services.api.v1.listGpuPrices.useQuery.mockReturnValue(Object.assign(mock<ListGpuPricesResult>(), { data: input.data }));
+    const useServices: typeof DEPENDENCIES.useServices = () => services;
 
     return render(<H100PriceStatus dependencies={{ useServices }} />);
   }

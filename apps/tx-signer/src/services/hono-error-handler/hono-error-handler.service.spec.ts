@@ -100,9 +100,8 @@ describe(HonoErrorHandlerService.name, () => {
   function setup(input?: { chainErrorService?: ChainErrorService }) {
     const chainErrorService = mock<ChainErrorService>();
     const service = new HonoErrorHandlerService(input?.chainErrorService ?? chainErrorService);
-    const context = mock<AppContext>({
-      json: ((body: unknown, init: ResponseInit) => new Response(JSON.stringify(body), init)) as AppContext["json"]
-    });
+    const json = ((body: unknown, init: ResponseInit) => new Response(JSON.stringify(body), init)) as AppContext["json"];
+    const context = { json } as unknown as AppContext;
 
     return { service, context, chainErrorService };
   }

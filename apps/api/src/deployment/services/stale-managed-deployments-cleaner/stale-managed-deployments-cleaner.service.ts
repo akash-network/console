@@ -8,6 +8,7 @@ import { inject, singleton } from "tsyringe";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { type ManagedWalletRef, UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { ManagedUserWalletService, RpcMessageService } from "@src/billing/services";
+import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { BlockRepository } from "@src/chain/repositories/block.repository";
@@ -58,6 +59,7 @@ export class StaleManagedDeploymentsCleanerService {
     private readonly leaseHttpService: LeaseHttpService,
     private readonly rpcMessageService: RpcMessageService,
     private readonly managedSignerService: ManagedSignerService,
+    private readonly balancesService: BalancesService,
     @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly managedUserWalletService: ManagedUserWalletService,
     private readonly errorService: ErrorService,
@@ -239,6 +241,7 @@ export class StaleManagedDeploymentsCleanerService {
       const failure = await this.closeDeployments(wallet, messages);
 
       if (!failure) {
+        await this.#refreshWalletLimits(wallet);
         await this.#recordClosed(wallet, remaining);
         break;
       }
@@ -295,6 +298,17 @@ export class StaleManagedDeploymentsCleanerService {
       } catch (retryError) {
         return retryError;
       }
+    }
+  }
+
+  /** A refused create is re-served from cache until the wallet row changes, so the row must show the deposit a landed close returned to the grant. */
+  async #refreshWalletLimits(wallet: ManagedWalletRef): Promise<void> {
+    try {
+      const userWallet = await this.userWalletRepository.findById(wallet.id);
+
+      if (userWallet) await this.balancesService.refreshUserWalletLimits(userWallet);
+    } catch (error) {
+      this.logger.error({ event: "WALLET_LIMITS_REFRESH_FAILED", walletId: wallet.id, error });
     }
   }
 

@@ -73,7 +73,7 @@ describe(DeploymentStorageService.name, () => {
 
       expect(result).toBeDefined();
       expect(result?.manifestVersion).toBeInstanceOf(Uint8Array);
-      expect(Array.from(result!.manifestVersion)).toEqual([1, 2, 3, 4, 5]);
+      expect(Array.from(result?.manifestVersion ?? [])).toEqual([1, 2, 3, 4, 5]);
     });
 
     it("handles manifestVersion as base64 string and converts to Uint8Array", () => {

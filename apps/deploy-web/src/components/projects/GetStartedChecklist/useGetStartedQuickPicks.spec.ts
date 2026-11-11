@@ -15,7 +15,7 @@ const GEMMA: OnboardingTemplate = {
   imageSrc: "/gemma.png",
   cpu: 2,
   memoryGi: 4,
-  gpu: { vendor: "nvidia", model: "rtx4090" }
+  gpu: { vendor: "nvidia", model: "rtx4090", label: "RTX 4090" }
 };
 
 const GPU_MODEL_SLOT: OnboardingSlot = { id: "gpu-model", label: "Run a model", candidates: [GEMMA] };

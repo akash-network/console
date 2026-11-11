@@ -81,8 +81,8 @@ describe(ForgotPasswordForm.name, () => {
   });
 
   function setup(input: Partial<ComponentProps<typeof ForgotPasswordForm>> = {}) {
-    const onSubmit = input.onSubmit ?? vi.fn<void, [ForgotPasswordFormValues]>();
-    const onGoBack = input.onGoBack ?? vi.fn<void, []>();
+    const onSubmit = input.onSubmit ?? vi.fn<(values: ForgotPasswordFormValues) => void>();
+    const onGoBack = input.onGoBack ?? vi.fn<() => void>();
     const props: ComponentProps<typeof ForgotPasswordForm> = {
       status: "idle",
       ...input,
