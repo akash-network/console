@@ -10,6 +10,7 @@ import {
   isSampledForViolationReports
 } from "./lib/csp/csp";
 import { normalizeReferralCode, REFERRAL_COOKIE_MAX_AGE_SECONDS, REFERRAL_COOKIE_NAME } from "./lib/referral/referral-cookie";
+import { buildSecurityTxt, SECURITY_TXT_PATH } from "./lib/security-txt/security-txt";
 import { toSameOriginPath } from "./utils/toSameOriginPath/toSameOriginPath";
 
 const logger = new LoggerService({ name: "middleware" });
@@ -20,7 +21,15 @@ const PWA_ASSET_PATHNAME = /^\/(sw\.js|manifest\.json)$/;
 /** Kubernetes probes hit this path, so a maintenance 307 here would get the pod restarted. */
 const HEALTHCHECK_PATHNAME = "/api/healthz";
 
+const SECURITY_TXT_CACHE_SECONDS = 24 * 60 * 60;
+
 export function middleware(request: NextRequest) {
+  if (request.nextUrl.pathname === SECURITY_TXT_PATH) {
+    return new NextResponse(buildSecurityTxt(new Date()), {
+      headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": `public, max-age=${SECURITY_TXT_CACHE_SECONDS}` }
+    });
+  }
+
   const contentSecurityPolicyInput = {
     mainnetApiUrl: process.env.NEXT_PUBLIC_BASE_API_MAINNET_URL,
     testnetApiUrl: process.env.NEXT_PUBLIC_BASE_API_TESTNET_URL,

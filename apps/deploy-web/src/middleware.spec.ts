@@ -3,10 +3,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { THEME_SCRIPT_HASH, VIOLATION_REPORT_SAMPLE_RATE } from "@src/lib/csp/csp";
 import { REFERRAL_COOKIE_MAX_AGE_SECONDS, REFERRAL_COOKIE_NAME } from "@src/lib/referral/referral-cookie";
+import { buildSecurityTxt } from "@src/lib/security-txt/security-txt";
 import { middleware } from "@src/middleware";
 
 describe("middleware", () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
   });
@@ -100,6 +102,33 @@ describe("middleware", () => {
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(`http://localhost/maintenance?return=${encodeURIComponent("/deployments?network=sandbox")}`);
+  });
+
+  it("serves the security contact as cacheable plain text built for the current time", async () => {
+    const now = new Date("2026-11-10T12:00:00.000Z");
+    vi.useFakeTimers({ now });
+
+    const { response } = setup({ path: "/.well-known/security.txt" });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toBe("text/plain; charset=utf-8");
+    expect(response.headers.get("Cache-Control")).toBe("public, max-age=86400");
+    expect(await response.text()).toBe(buildSecurityTxt(now));
+  });
+
+  it("keeps serving the security contact during maintenance", async () => {
+    vi.stubEnv("MAINTENANCE_MODE", "true");
+
+    const { response } = setup({ path: "/.well-known/security.txt" });
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain("Contact: ");
+  });
+
+  it.each(["/.well-known/security.txt.bak", "/security.txt", "/docs/.well-known/security.txt"])("does not serve the security contact at %s", async path => {
+    const { response } = setup({ path });
+
+    expect(await response.text()).not.toContain("Contact: ");
   });
 
   it("leaves an ordinary page alone while maintenance mode is off", () => {
