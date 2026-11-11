@@ -51,6 +51,8 @@ type ConversationContextInput = StartAssistantConversationRequest["data"]["conte
 
 type CountedMessage = { conversationId: string; page: string | null };
 
+type ClientHistory = SendAssistantMessageRequest["data"]["history"];
+
 function dayOf(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
@@ -119,7 +121,7 @@ export class AssistantConversationService {
     const stored = !!conversation && consent.reviewOptIn;
     const userMessage = redactSecrets(content);
     const storedMessages = conversation ? await this.assistantMessageRepository.findAllOf(conversation.id) : [];
-    const earlier = conversation ? historyFromStored(storedMessages) : historyFromClient(history);
+    const earlier = conversation ? historyFromStored(storedMessages) : historyFromClient(this.#verifiedHistory(conversationId, history));
 
     if (stored) await this.transcriptService.record(conversationId, { role: "user", content: userMessage });
 
@@ -284,6 +286,23 @@ export class AssistantConversationService {
     await this.limitsService.assertWithinBudget();
 
     return { consent, isTrialing };
+  }
+
+  /** Verifies only after #admit, since the signer throws when no key is set. */
+  #verifiedHistory(conversationId: string, history: ClientHistory): { role: "user" | "assistant"; content: string }[] {
+    const userId = this.authService.currentUser.id;
+    const messages = history ?? [];
+    const verified = messages.filter(
+      ({ role, content, signature }) => role === "user" || (!!signature && this.answerSigner.verifies({ userId, conversationId, text: content, signature }))
+    );
+
+    const droppedCount = messages.length - verified.length;
+    if (droppedCount > 0) {
+      const missingCount = messages.filter(({ role, signature }) => role === "assistant" && !signature).length;
+      this.#logger.warn({ event: "ASSISTANT_HISTORY_UNVERIFIED", droppedCount, missingCount });
+    }
+
+    return verified.map(({ role, content }) => ({ role, content }));
   }
 
   async #countMessage(countedMessage: CountedMessage, isTrialing: boolean | null): Promise<void> {

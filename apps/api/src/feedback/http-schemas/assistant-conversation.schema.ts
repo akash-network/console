@@ -44,7 +44,15 @@ export const SendAssistantMessageRequestSchema = z.object({
   data: z.object({
     content: z.string().trim().min(1).max(MAX_ASSISTANT_MESSAGE_LENGTH),
     history: z
-      .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(MAX_ASSISTANT_HISTORY_MESSAGE_LENGTH) }))
+      .array(
+        z.object({
+          role: z.enum(["user", "assistant"]),
+          content: z.string().max(MAX_ASSISTANT_HISTORY_MESSAGE_LENGTH),
+          signature: z.string().max(128).optional().openapi({
+            description: "The `answerSignature` the API sent with this answer. An assistant message without a valid one is left out."
+          })
+        })
+      )
       .max(MAX_ASSISTANT_HISTORY_MESSAGES)
       .optional()
       .openapi({ description: "The earlier messages of a conversation the API does not store, oldest first. Ignored for a stored conversation." }),
