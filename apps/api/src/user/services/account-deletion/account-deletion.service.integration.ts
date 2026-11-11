@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DeploymentDepositRepository } from "@src/billing/repositories/deployment-deposit/deployment-deposit.repository";
 import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
-import { TRIAL_UNAVAILABLE_MESSAGE, WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
+import { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import type { ApiPgDatabase } from "@src/core";
 import { JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
@@ -33,7 +33,7 @@ import {
 import { AccountDeletionTokenRepository } from "@src/user/repositories/account-deletion-token/account-deletion-token.repository";
 import { UserTemplateRepository } from "@src/user/repositories/user-template/user-template.repository";
 import { PurgeDeletedAccount, PurgeDeletedAccountHandler } from "@src/user/services/purge-deleted-account/purge-deleted-account.handler";
-import { ABUSE_LOCK_REASON } from "@src/workload-abuse/lib/abuse-lock-reason/abuse-lock-reason";
+import { ABUSE_LOCK_REASON, DELETED_TRIAL_ACCOUNT_LOCK_REASON } from "@src/workload-abuse/lib/abuse-lock-reason/abuse-lock-reason";
 import { ReviewRefusedTrial, ReviewRefusedTrialHandler } from "@src/workload-abuse/services/review-refused-trial/review-refused-trial.handler";
 import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 import { AccountDeletionService } from "./account-deletion.service";
@@ -545,9 +545,16 @@ describe(AccountDeletionService.name, () => {
         email: `${localPart}+again@${domain.toUpperCase()}`
       });
 
-      expect(refusal).toMatchObject({ status: 400, message: TRIAL_UNAVAILABLE_MESSAGE });
+      expect(refusal).toBeUndefined();
       expect(grantTrial).not.toHaveBeenCalled();
-      expect(wallet).toMatchObject({ activatedAt: null, abuseLockedAt: null });
+      expect(wallet).toMatchObject({
+        isTrialing: false,
+        activatedAt: expect.any(Date),
+        abuseLockedAt: expect.any(Date),
+        abuseLockedReason: DELETED_TRIAL_ACCOUNT_LOCK_REASON,
+        deploymentAllowance: "0.00",
+        feeAllowance: "0.00"
+      });
       expect(await findJobRows(ReviewRefusedTrial[JOB_NAME], { data: { userId: user.id } })).toEqual([
         expect.objectContaining({
           data: expect.objectContaining({

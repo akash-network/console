@@ -17,16 +17,17 @@ import { ProviderJwtTokenService } from "@src/provider/services/provider-jwt-tok
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
 import { AccountStatusService } from "@src/user/services/account-status/account-status.service";
+import { DELETED_TRIAL_ACCOUNT_LOCK_REASON } from "@src/workload-abuse/lib/abuse-lock-reason/abuse-lock-reason";
 import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 import { DeletedAccountAbuseLockService } from "@src/workload-abuse/services/deleted-account-abuse-lock/deleted-account-abuse-lock.service";
-import { DELETED_TRIAL_ACCOUNT_ERROR_CODE, DeletedTrialAccountService } from "@src/workload-abuse/services/deleted-trial-account/deleted-trial-account.service";
+import { DeletedTrialAccountService } from "@src/workload-abuse/services/deleted-trial-account/deleted-trial-account.service";
 import { UserWalletRepository } from "../../repositories/user-wallet/user-wallet.repository";
 import { TrialActivationInstrumentationService } from "../activate-trial/trial-activation-instrumentation.service";
 import { ManagedSignerService } from "../managed-signer/managed-signer.service";
 import { ManagedUserWalletService } from "../managed-user-wallet/managed-user-wallet.service";
 import { StripeService } from "../stripe/stripe.service";
 import { TrialValidationService } from "../trial-validation/trial-validation.service";
-import { TRIAL_BLOCKED_DOMAIN_MESSAGE, TRIAL_UNAVAILABLE_MESSAGE, WalletInitializerService } from "./wallet-initializer.service";
+import { TRIAL_BLOCKED_DOMAIN_MESSAGE, WalletInitializerService } from "./wallet-initializer.service";
 
 import { createChainWallet } from "@test/seeders/chain-wallet.seeder";
 import { createUser } from "@test/seeders/user.seeder";
@@ -301,23 +302,52 @@ describe(WalletInitializerService.name, () => {
       expect(di.resolve(TrialActivationInstrumentationService).recordActivated).not.toHaveBeenCalled();
     });
 
-    it("refuses the trial with the support message when a deleted trial account stands against the user", async () => {
+    it("activates the wallet without a trial when a deleted trial account stands against the user", async () => {
       const user = createUser({ emailVerified: true });
       const wallet = createUserWallet({ userId: user.id, activatedAt: null });
+      const activateLockedForAbuse = vi.fn(async (_id: number, reason: string) => ({
+        ...wallet,
+        isTrialing: false,
+        activatedAt: new Date(),
+        abuseLockedAt: new Date(),
+        abuseLockedReason: reason
+      }));
       const updateWalletById = vi.fn();
-      const di = setup({ user, isRefusedAfterDeletion: true, getOrCreateWallet: vi.fn().mockResolvedValue({ wallet, isNew: false }), updateWalletById });
-
-      await expect(di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id)).rejects.toMatchObject({
-        status: 400,
-        message: TRIAL_UNAVAILABLE_MESSAGE,
-        errorCode: DELETED_TRIAL_ACCOUNT_ERROR_CODE
+      const di = setup({
+        user,
+        isRefusedAfterDeletion: true,
+        getOrCreateWallet: vi.fn().mockResolvedValue({ wallet, isNew: false }),
+        activateLockedForAbuse,
+        updateWalletById
       });
 
+      const result = await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id);
+
       expect(di.resolve(DeletedTrialAccountService).refusesTrialOf).toHaveBeenCalledWith(user);
-      expect(di.resolve(TxService).transaction).not.toHaveBeenCalled();
+      expect(activateLockedForAbuse).toHaveBeenCalledWith(wallet.id, DELETED_TRIAL_ACCOUNT_LOCK_REASON);
+      expect(result).toMatchObject({ id: wallet.id, address: wallet.address, isTrialing: false });
       expect(di.resolve(ManagedUserWalletService).createAndAuthorizeTrialSpending).not.toHaveBeenCalled();
       expect(updateWalletById).not.toHaveBeenCalled();
       expect(di.resolve(DomainEventsService).publish).not.toHaveBeenCalled();
+      expect(di.resolve(TrialActivationInstrumentationService).recordActivated).not.toHaveBeenCalled();
+    });
+
+    it("keeps a deleted account's lock ahead of the deleted trial account check", async () => {
+      const user = createUser({ emailVerified: true });
+      const wallet = createUserWallet({ userId: user.id, activatedAt: null });
+      const activateLockedForAbuse = vi.fn(async (_id: number, reason: string) => ({ ...wallet, isTrialing: false, abuseLockedReason: reason }));
+      const di = setup({
+        user,
+        deletedAccountLockReason: "workload_abuse",
+        isRefusedAfterDeletion: true,
+        getOrCreateWallet: vi.fn().mockResolvedValue({ wallet, isNew: false }),
+        activateLockedForAbuse
+      });
+
+      await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id);
+
+      expect(activateLockedForAbuse).toHaveBeenCalledWith(wallet.id, "workload_abuse");
+      expect(di.resolve(DeletedTrialAccountService).refusesTrialOf).not.toHaveBeenCalled();
     });
 
     it("leaves an already activated wallet out of the deleted trial account check", async () => {
@@ -330,7 +360,7 @@ describe(WalletInitializerService.name, () => {
       expect(di.resolve(DeletedTrialAccountService).refusesTrialOf).not.toHaveBeenCalled();
     });
 
-    it("looks for a deleted account's lock only once the wallet row is held", async () => {
+    it("looks for a deleted account's lock and a deleted trial account only once the wallet row is held", async () => {
       const user = createUser({ emailVerified: true });
       const wallet = createUserWallet({ userId: user.id, activatedAt: null });
       const findWalletAndLock = vi.fn().mockResolvedValue(wallet);
@@ -345,7 +375,9 @@ describe(WalletInitializerService.name, () => {
       await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id);
 
       const findLockReasonOf = vi.mocked(di.resolve(DeletedAccountAbuseLockService).findLockReasonOf);
+      const refusesTrialOf = vi.mocked(di.resolve(DeletedTrialAccountService).refusesTrialOf);
       expect(findWalletAndLock.mock.invocationCallOrder[0]).toBeLessThan(findLockReasonOf.mock.invocationCallOrder[0]);
+      expect(findLockReasonOf.mock.invocationCallOrder[0]).toBeLessThan(refusesTrialOf.mock.invocationCallOrder[0]);
       expect(di.resolve(ManagedUserWalletService).createAndAuthorizeTrialSpending).toHaveBeenCalled();
     });
 
@@ -595,6 +627,7 @@ describe(WalletInitializerService.name, () => {
         toPublic: (value, trialWindow) => ({
           ...value,
           isTrialing: !!value.isTrialing,
+          isTrialRefused: false,
           trialEndsAt: trialWindow?.trialEndsAt ?? null,
           trialDurationDays: trialWindow?.trialDurationDays ?? null
         })

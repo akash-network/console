@@ -74,6 +74,10 @@
                           "isTrialing": {
                             "type": "boolean"
                           },
+                          "isTrialRefused": {
+                            "type": "boolean",
+                            "description": "Whether this account was refused a free trial."
+                          },
                           "trialEndsAt": {
                             "type": "string",
                             "nullable": true,
@@ -99,6 +103,7 @@
                           "address",
                           "denom",
                           "isTrialing",
+                          "isTrialRefused",
                           "trialEndsAt",
                           "trialDurationDays",
                           "topUpMinAmountUsd",

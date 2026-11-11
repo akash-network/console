@@ -14,8 +14,6 @@ import {
 import { ReviewRefusedTrial } from "@src/workload-abuse/services/review-refused-trial/review-refused-trial.handler";
 import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 
-export const DELETED_TRIAL_ACCOUNT_ERROR_CODE = "deleted_trial_account";
-
 type Account = Pick<UserOutput, "id" | "userId" | "email">;
 
 interface TrialRefusal {

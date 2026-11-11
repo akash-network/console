@@ -31266,6 +31266,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "id": {
                             "type": "number",
                           },
+                          "isTrialRefused": {
+                            "description": "Whether this account was refused a free trial.",
+                            "type": "boolean",
+                          },
                           "isTrialing": {
                             "type": "boolean",
                           },
@@ -31294,6 +31298,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "address",
                           "denom",
                           "isTrialing",
+                          "isTrialRefused",
                           "trialEndsAt",
                           "trialDurationDays",
                           "topUpMinAmountUsd",

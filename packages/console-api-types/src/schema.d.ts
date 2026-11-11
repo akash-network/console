@@ -43,6 +43,8 @@ export interface paths {
                 address: string;
                 denom: string;
                 isTrialing: boolean;
+                /** @description Whether this account was refused a free trial. */
+                isTrialRefused: boolean;
                 /** @description When the free trial expires, or null when the wallet is no longer trialing. */
                 trialEndsAt: string | null;
                 /** @description Total length of the free trial in days, or null when the wallet is no longer trialing. */

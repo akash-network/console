@@ -62,15 +62,13 @@ describe(ReviewRefusedTrialHandler.name, () => {
 
     expect(refusals).toEqual([true, true, true]);
     expect(await findJobRows(ReviewRefusedTrial[JOB_NAME], { data: { userId: refused.id } })).toHaveLength(1);
-    expect(slackPosts).toEqual([
-      {
-        text: expect.stringMatching(
-          new RegExp(
-            `^:no_entry_sign: .*\\n${identity.email} · <${CONSOLE_ADMIN_URL}/users/${refused.id}\\|Admin>\\n` +
-              `Matched deleted account: wallet ${latestWalletAddress} · deleted \\d{4}-\\d{2}-\\d{2}T[\\d:.]+Z\\nDeleted trial accounts on record: 2$`
-          )
-        )
-      }
+    expect(slackPosts.map(post => post.text.split("\n"))).toEqual([
+      [
+        ":no_entry_sign: *Trial refused to a returning account*",
+        `${identity.email} · <${CONSOLE_ADMIN_URL}/users/${refused.id}|Admin>`,
+        expect.stringContaining(`Matched deleted account: wallet ${latestWalletAddress} · deleted `),
+        "Deleted trial accounts on record: 2"
+      ]
     ]);
   });
 

@@ -10,6 +10,7 @@ import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
 import { Users } from "@src/user/model-schemas";
+import { DELETED_TRIAL_ACCOUNT_LOCK_REASON } from "@src/workload-abuse/lib/abuse-lock-reason/abuse-lock-reason";
 
 export type DbCreateUserWalletInput = ApiPgTables["UserWallets"]["$inferInsert"];
 export type DbUserWalletInput = Partial<DbCreateUserWalletInput>;
@@ -62,6 +63,7 @@ export interface UserWalletPublicOutput {
   address: WalletInitialized["address"];
   creditAmount: UserWalletOutput["creditAmount"];
   isTrialing: boolean;
+  isTrialRefused: boolean;
   trialEndsAt: Date | null;
   trialDurationDays: number | null;
   createdAt: UserWalletOutput["createdAt"];
@@ -451,6 +453,7 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
       address: output.address,
       creditAmount: output.creditAmount,
       isTrialing: !!output.isTrialing,
+      isTrialRefused: output.abuseLockedReason === DELETED_TRIAL_ACCOUNT_LOCK_REASON,
       trialEndsAt: trialWindow.trialEndsAt,
       trialDurationDays: trialWindow.trialDurationDays,
       createdAt: output.createdAt

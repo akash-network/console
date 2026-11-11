@@ -6,6 +6,7 @@ import { atomWithStorage } from "jotai/utils";
 import { useServices } from "@src/context/ServicesProvider";
 import { useAccountStatus } from "@src/hooks/useAccountStatus/useAccountStatus";
 import { useHasFundingBanner } from "@src/hooks/useHasFundingBanner";
+import { useHasTrialRefusedBanner } from "@src/hooks/useHasTrialRefusedBanner";
 import { useTeamWithoutPaymentMethod } from "@src/hooks/useTeamWithoutPaymentMethod";
 import { useWhen } from "@src/hooks/useWhen";
 import { useBlockchainStatus } from "../context/BlockchainStatusProvider";
@@ -34,6 +35,7 @@ interface ITopBannerContext {
   hasTeamPaymentMethodBanner: boolean;
   hasFundingBanner: boolean;
   hasAccountStatusBanner: boolean;
+  hasTrialRefusedBanner: boolean;
 }
 
 const IS_MAINTENANCE_ATOM = atom(false);
@@ -56,6 +58,7 @@ export function useTopBanner(): ITopBannerContext {
   const hasTeamPaymentMethodBanner = !!useTeamWithoutPaymentMethod();
   const hasFundingBanner = useHasFundingBanner();
   const hasAccountStatusBanner = useAccountStatus().status !== "active";
+  const hasTrialRefusedBanner = useHasTrialRefusedBanner();
   const { dismissId } = useGenericBannerDetails();
 
   const [isMaintenanceBannerOpen, setIsMaintenanceBannerOpen] = useAtom(IS_MAINTENANCE_ATOM);
@@ -67,8 +70,23 @@ export function useTopBanner(): ITopBannerContext {
   });
 
   const hasBanner = useMemo(
-    () => hasAccountStatusBanner || isMaintenanceBannerOpen || isGenericBannerOpen || isBlockchainDown || hasTeamPaymentMethodBanner || hasFundingBanner,
-    [hasAccountStatusBanner, isMaintenanceBannerOpen, isGenericBannerOpen, isBlockchainDown, hasTeamPaymentMethodBanner, hasFundingBanner]
+    () =>
+      hasAccountStatusBanner ||
+      hasTrialRefusedBanner ||
+      isMaintenanceBannerOpen ||
+      isGenericBannerOpen ||
+      isBlockchainDown ||
+      hasTeamPaymentMethodBanner ||
+      hasFundingBanner,
+    [
+      hasAccountStatusBanner,
+      hasTrialRefusedBanner,
+      isMaintenanceBannerOpen,
+      isGenericBannerOpen,
+      isBlockchainDown,
+      hasTeamPaymentMethodBanner,
+      hasFundingBanner
+    ]
   );
 
   return useMemo(
@@ -81,7 +99,8 @@ export function useTopBanner(): ITopBannerContext {
       isBlockchainDown,
       hasTeamPaymentMethodBanner,
       hasFundingBanner,
-      hasAccountStatusBanner
+      hasAccountStatusBanner,
+      hasTrialRefusedBanner
     }),
     [
       hasBanner,
@@ -92,7 +111,8 @@ export function useTopBanner(): ITopBannerContext {
       isBlockchainDown,
       hasTeamPaymentMethodBanner,
       hasFundingBanner,
-      hasAccountStatusBanner
+      hasAccountStatusBanner,
+      hasTrialRefusedBanner
     ]
   );
 }
