@@ -28,6 +28,6 @@ export function describeDepositShortfall({ requiredAmountUsd, availableAmountUsd
   return `Starting this deployment takes ${formatUsd(requiredAmountUsd)} and your balance has ${formatUsd(availableAmountUsd)}, so you're ${formatUsd(missingAmountUsd)} short.`;
 }
 
-function formatUsd(amount: number): string {
+export function formatUsd(amount: number): string {
   return `$${amount.toFixed(2)}`;
 }
