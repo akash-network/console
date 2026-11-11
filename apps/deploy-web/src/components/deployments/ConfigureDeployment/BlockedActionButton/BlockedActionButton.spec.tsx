@@ -13,6 +13,8 @@ describe(BlockedActionButton.name, () => {
     expect(button).toHaveAttribute("aria-disabled", "true");
     expect(button).toHaveAccessibleDescription("1 required field is empty");
     expect(button).toHaveClass("h-10");
+    expect(button).toHaveClass("aria-[disabled='true']:pointer-events-auto");
+    expect(button).not.toHaveClass("aria-[disabled='true']:pointer-events-none");
 
     await userEvent.click(button);
 

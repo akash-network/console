@@ -270,6 +270,8 @@ describe(AvailabilityPane.name, () => {
 
     expect(choose).toHaveAttribute("aria-disabled", "true");
     expect(choose).toHaveAccessibleDescription("Compare live bids yourself 1 required field is empty");
+    expect(choose).toHaveClass("aria-[disabled='true']:pointer-events-auto");
+    expect(choose).not.toHaveClass("aria-[disabled='true']:pointer-events-none");
     expect(screen.getByText("1 required field is empty")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Request compute" })).not.toHaveAttribute("aria-disabled");
 

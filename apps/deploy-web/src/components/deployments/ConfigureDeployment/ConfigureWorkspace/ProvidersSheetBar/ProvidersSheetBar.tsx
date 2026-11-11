@@ -1,6 +1,7 @@
 import type { FC, ReactNode } from "react";
 import { useId } from "react";
 import { Button, Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { ChevronUpIcon, CircleAlertIcon, PanelsTopLeftIcon } from "lucide-react";
 
 import { AccountSpendGate } from "@src/components/user/AccountActionGate/AccountActionGate";
@@ -54,7 +55,10 @@ export const ProvidersSheetBar: FC<Props> = ({
             aria-disabled={blockedReason ? true : undefined}
             aria-describedby={blockedReason ? blockedReasonId : undefined}
             onClick={onChooseProvider}
-            className="h-10 shrink-0 gap-2 px-4 aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+            className={cn(
+              "h-10 shrink-0 gap-2 px-4 aria-disabled:cursor-not-allowed aria-disabled:opacity-50",
+              blockedReason && "aria-[disabled='true']:pointer-events-auto"
+            )}
           >
             <PanelsTopLeftIcon className="h-4 w-4" aria-hidden="true" />
             Choose a provider

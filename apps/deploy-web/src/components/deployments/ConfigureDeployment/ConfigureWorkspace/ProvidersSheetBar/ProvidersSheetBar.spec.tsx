@@ -64,6 +64,8 @@ describe(ProvidersSheetBar.name, () => {
 
     expect(choose).toHaveAttribute("aria-disabled", "true");
     expect(choose).toHaveAccessibleDescription("1 required field is empty");
+    expect(choose).toHaveClass("aria-[disabled='true']:pointer-events-auto");
+    expect(choose).not.toHaveClass("aria-[disabled='true']:pointer-events-none");
     expect(screen.getByText("1 required field is empty")).toBeInTheDocument();
 
     await userEvent.click(choose);
@@ -92,6 +94,12 @@ describe(ProvidersSheetBar.name, () => {
 
     expect(screen.getByRole("button", { name: /choose a provider/i })).toBeDisabled();
     expect(onChooseProvider).not.toHaveBeenCalled();
+  });
+
+  it("keeps pointer events off a suspended user's provider choice while nothing blocks it", () => {
+    setup({ accountStatus: "suspended" });
+
+    expect(screen.getByRole("button", { name: /choose a provider/i })).not.toHaveClass("aria-[disabled='true']:pointer-events-auto");
   });
 
   function setup(input: {

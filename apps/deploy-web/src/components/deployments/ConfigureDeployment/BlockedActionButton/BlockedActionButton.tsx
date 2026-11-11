@@ -17,7 +17,13 @@ export const BlockedActionButton: FC<Props> = ({ reason, onAttempt, className, c
 
   return (
     <div className="flex shrink-0 flex-col items-end gap-1">
-      <Button type="button" aria-disabled="true" aria-describedby={reasonId} onClick={onAttempt} className={cn(className, "cursor-not-allowed opacity-50")}>
+      <Button
+        type="button"
+        aria-disabled="true"
+        aria-describedby={reasonId}
+        onClick={onAttempt}
+        className={cn(className, "cursor-not-allowed opacity-50 aria-[disabled='true']:pointer-events-auto")}
+      >
         {children}
       </Button>
       <p id={reasonId} className="flex items-center gap-1 text-xs text-destructive">

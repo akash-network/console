@@ -213,7 +213,7 @@ function FooterAction({ variant, icon, title, subtitle, disabled, blockedReasonI
       aria-disabled={blockedReasonId ? true : undefined}
       disabled={disabled}
       onClick={onClick}
-      className="group h-auto justify-start gap-3 whitespace-normal rounded-lg p-3 text-left aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+      className="group h-auto justify-start gap-3 whitespace-normal rounded-lg p-3 text-left aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-[disabled='true']:pointer-events-auto"
     >
       <span
         aria-hidden="true"
