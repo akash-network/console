@@ -1,0 +1,161 @@
+import { faker } from "@faker-js/faker";
+import { container } from "tsyringe";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { AffiliateRepository } from "@src/affiliate/repositories/affiliate/affiliate.repository";
+import { ReferralRepository } from "@src/affiliate/repositories/referral/referral.repository";
+import { PaymentMethodRepository, StripeTransactionRepository } from "@src/billing/repositories";
+import { RefillService } from "@src/billing/services/refill/refill.service";
+import { JOB_NAME } from "@src/core";
+import { SyncAffiliateCommissionHandler } from "./sync-affiliate-commission.handler";
+import { SyncAffiliateCommission } from "./sync-affiliate-commission.job";
+
+import { seedOrganization, seedOrganizationMember } from "@test/seeders/db/organization.seeder";
+import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { expectJobCompleted, useJobWorkers } from "@test/services/job-queue-harness";
+
+const jobWorkers = useJobWorkers(() => [container.resolve(SyncAffiliateCommissionHandler)]);
+
+describe(SyncAffiliateCommissionHandler.name, () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("records and credits the affiliate's commission on a referred user's payment, run the way a worker runs it", async () => {
+    const { payment, affiliateUser, topUpWallet, syncCommissionOf } = await setup({ paymentAmount: 1234 });
+
+    await syncCommissionOf(payment.id);
+
+    const commission = await container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id);
+    expect(commission).toMatchObject({
+      userId: affiliateUser.id,
+      type: "affiliate_commission",
+      status: "succeeded",
+      amount: 61,
+      sourceTransactionId: payment.id
+    });
+    expect(topUpWallet).toHaveBeenCalledWith(
+      61,
+      { userId: affiliateUser.id, organizationId: null },
+      {
+        endTrial: false,
+        liftAbuseLock: false,
+        payment: { source: "affiliate_commission", transactionId: commission?.id, currency: "usd" }
+      }
+    );
+  });
+
+  it("files the commission under the affiliate's personal organization", async () => {
+    const { payment, affiliateUser, topUpWallet, syncCommissionOf } = await setup();
+    const personalOrganization = await seedOrganization({ type: "personal", createdByUserId: affiliateUser.id });
+
+    await syncCommissionOf(payment.id);
+
+    const commission = await container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id);
+    expect(commission).toMatchObject({ userId: affiliateUser.id, organizationId: personalOrganization.id });
+    expect(topUpWallet).toHaveBeenCalledWith(500, { userId: affiliateUser.id, organizationId: personalOrganization.id }, expect.anything());
+  });
+
+  it("credits a payment another member made for a team the referred user created", async () => {
+    const { payer, affiliateUser, topUpWallet, syncCommissionOf } = await setup();
+    const team = await seedOrganization({ type: "team", createdByUserId: payer.id });
+    const teammate = await seedUser();
+    const payment = await createPayment({ userId: teammate.id, organizationId: team.id });
+
+    await syncCommissionOf(payment.id);
+
+    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id)).resolves.toMatchObject({
+      userId: affiliateUser.id,
+      amount: 500
+    });
+    expect(topUpWallet).toHaveBeenCalledWith(500, expect.objectContaining({ userId: affiliateUser.id }), expect.anything());
+  });
+
+  it("records nothing for a payment by a team the referred user only joined", async () => {
+    const { payer, topUpWallet, syncCommissionOf } = await setup();
+    const team = await seedOrganization({ type: "team", createdByUserId: (await seedUser()).id });
+    await seedOrganizationMember({ organizationId: team.id, userId: payer.id });
+    const payment = await createPayment({ userId: payer.id, organizationId: team.id });
+
+    await syncCommissionOf(payment.id);
+
+    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id)).resolves.toBeUndefined();
+    expect(topUpWallet).not.toHaveBeenCalled();
+  });
+
+  it("records nothing when the payer's card is saved in a team the affiliate belongs to", async () => {
+    const { payment, payer, affiliateUser, topUpWallet, syncCommissionOf } = await setup();
+    const affiliateTeam = await seedOrganization({ type: "team" });
+    await seedOrganizationMember({ organizationId: affiliateTeam.id, userId: affiliateUser.id });
+    const fingerprint = faker.string.alphanumeric(16);
+    const paymentMethodRepository = container.resolve(PaymentMethodRepository);
+    await paymentMethodRepository.create({ userId: payer.id, fingerprint, paymentMethodId: `pm_${faker.string.alphanumeric(24)}` });
+    await paymentMethodRepository.create({
+      userId: (await seedUser()).id,
+      organizationId: affiliateTeam.id,
+      fingerprint,
+      paymentMethodId: `pm_${faker.string.alphanumeric(24)}`
+    });
+
+    await syncCommissionOf(payment.id);
+
+    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id)).resolves.toBeUndefined();
+    expect(topUpWallet).not.toHaveBeenCalled();
+  });
+
+  it("records nothing when the payer saved the same card as the affiliate", async () => {
+    const { payment, payer, affiliateUser, topUpWallet, syncCommissionOf } = await setup();
+    const paymentMethodRepository = container.resolve(PaymentMethodRepository);
+    const fingerprint = faker.string.alphanumeric(16);
+    await paymentMethodRepository.create({ userId: payer.id, fingerprint, paymentMethodId: `pm_${faker.string.alphanumeric(24)}` });
+    await paymentMethodRepository.create({ userId: affiliateUser.id, fingerprint, paymentMethodId: `pm_${faker.string.alphanumeric(24)}` });
+
+    await syncCommissionOf(payment.id);
+
+    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id)).resolves.toBeUndefined();
+    expect(topUpWallet).not.toHaveBeenCalled();
+  });
+
+  it("records nothing for a payment that has not settled", async () => {
+    const { payment, topUpWallet, syncCommissionOf } = await setup({ paymentStatus: "pending" });
+
+    await syncCommissionOf(payment.id);
+
+    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id)).resolves.toBeUndefined();
+    expect(topUpWallet).not.toHaveBeenCalled();
+  });
+
+  async function setup(input: { paymentAmount?: number; paymentStatus?: "succeeded" | "pending" } = {}) {
+    const { enqueue, startWorkers } = await jobWorkers();
+    const payer = await seedUser();
+    const { user: affiliateUser, wallet: affiliateWallet, address } = await seedUserWithWallet();
+    const affiliate = await container.resolve(AffiliateRepository).create({
+      userId: affiliateUser.id,
+      code: faker.string.alpha({ length: 8, casing: "lower" }),
+      approvedAt: new Date(),
+      approvedBy: "ops@akash.network"
+    });
+    await container.resolve(ReferralRepository).createIfAbsent({ referredUserId: payer.id, affiliateId: affiliate.id });
+    const payment = await createPayment({ userId: payer.id, status: input.paymentStatus, amount: input.paymentAmount });
+    const topUpWallet = vi.spyOn(container.resolve(RefillService), "topUpWallet").mockResolvedValue({ walletId: affiliateWallet.id, address });
+
+    async function syncCommissionOf(transactionId: string) {
+      await enqueue(new SyncAffiliateCommission({ transactionId }));
+      await startWorkers();
+      await expectJobCompleted(SyncAffiliateCommission[JOB_NAME], { data: { transactionId } });
+    }
+
+    return { payer, affiliateUser, payment, topUpWallet, syncCommissionOf };
+  }
+
+  async function createPayment(input: { userId: string; organizationId?: string; status?: "succeeded" | "pending"; amount?: number }) {
+    return await container.resolve(StripeTransactionRepository).create({
+      userId: input.userId,
+      organizationId: input.organizationId,
+      type: "payment_intent",
+      status: input.status ?? "succeeded",
+      amount: input.amount ?? 10000,
+      currency: "usd"
+    });
+  }
+});
