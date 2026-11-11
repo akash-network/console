@@ -11,6 +11,18 @@ describe(needsFundsVariantOf.name, () => {
     expect(needsFundsVariantOf({ isTrialing: true, availableAmountUsd: 0 })).toEqual({ name: "trial_credit_used_up" });
   });
 
+  it.each([0.004, -0.01])("says the free trial credit is used up when a trial holds %s, which displays as nothing", availableAmountUsd => {
+    expect(needsFundsVariantOf({ isTrialing: true, availableAmountUsd, minimumDepositUsd: 0.5 })).toEqual({ name: "trial_credit_used_up" });
+  });
+
+  it("says the free trial credit is below the minimum when a trial has a single cent left", () => {
+    expect(needsFundsVariantOf({ isTrialing: true, availableAmountUsd: 0.01, minimumDepositUsd: 0.5 })).toEqual({
+      name: "trial_credit_below_minimum",
+      availableAmountUsd: 0.01,
+      minimumDepositUsd: 0.5
+    });
+  });
+
   it("says the free trial credit is below the minimum when a trial has a few cents left", () => {
     expect(needsFundsVariantOf({ isTrialing: true, availableAmountUsd: 0.43, minimumDepositUsd: 0.5 })).toEqual({
       name: "trial_credit_below_minimum",
