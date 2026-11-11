@@ -38,6 +38,14 @@ describe("AskedValuesSchema", () => {
     expect(AskedValueSchema.safeParse(askedValue({ bindings: [{ service: "web", env: "-._ok.1" }] })).success).toBe(true);
   });
 
+  it("limits a binding's service to 63 characters and its env to 255", () => {
+    const parses = (binding: { service: string; env: string }) => AskedValueSchema.safeParse(askedValue({ bindings: [binding] })).success;
+
+    expect(parses({ service: "w".repeat(63), env: "E".repeat(255) })).toBe(true);
+    expect(parses({ service: "w".repeat(64), env: "NAME" })).toBe(false);
+    expect(parses({ service: "web", env: "E".repeat(256) })).toBe(false);
+  });
+
   it("refuses a number limit that is not finite", () => {
     expect(AskedValueSchema.safeParse(askedValue({ type: "number", min: Infinity })).success).toBe(false);
     expect(AskedValueSchema.safeParse(askedValue({ type: "number", max: -Infinity })).success).toBe(false);

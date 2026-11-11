@@ -5,12 +5,14 @@ const MAX_BINDINGS = 20;
 const MAX_CHOICES = 50;
 const MAX_CHOICE_LENGTH = 200;
 const MAX_DEFAULT_LENGTH = 4096;
+const MAX_SERVICE_NAME_LENGTH = 63;
+const MAX_ENV_NAME_LENGTH = 255;
 const KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
 const ENV_NAME_PATTERN = /^[-._a-zA-Z][-._a-zA-Z0-9]*$/;
 
 const BindingSchema = z.object({
-  service: z.string().min(1),
-  env: z.string().regex(ENV_NAME_PATTERN)
+  service: z.string().min(1).max(MAX_SERVICE_NAME_LENGTH),
+  env: z.string().max(MAX_ENV_NAME_LENGTH).regex(ENV_NAME_PATTERN)
 });
 
 const commonFields = {
