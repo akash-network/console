@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { describeStatusForTenant } from "./hardware-request-status-message";
+import { describeReceiptForTenant, describeStatusForTenant } from "./hardware-request-status-message";
 
 describe(describeStatusForTenant.name, () => {
   it.each([
@@ -29,6 +29,27 @@ describe(describeStatusForTenant.name, () => {
   it("ignores a close reason on a request that is not closed", () => {
     expect(describeStatusForTenant("GPU request: 1× A100", "sourcing", "price").detail).toBe(
       "We're reaching out to providers for capacity that matches your request."
+    );
+  });
+});
+
+describe(describeReceiptForTenant.name, () => {
+  it("promises a reply from the team by the sales lane's due time, in the business-hours zone", () => {
+    expect(describeReceiptForTenant("GPU request: 8× B200", { lane: "sales", firstReplyDueAt: "2026-11-12T18:00:00.000Z" }, "America/New_York")).toEqual({
+      headline: "GPU request: 8× B200 was received",
+      detail: "Our team will reply by Thursday, November 12 at 1:00 PM EST."
+    });
+  });
+
+  it("promises a reply by the automated lane's due time", () => {
+    expect(describeReceiptForTenant("GPU request: 1× A100", { lane: "automated", firstReplyDueAt: "2026-11-12T18:30:00.000Z" }, "Europe/Paris").detail).toBe(
+      "We'll get back to you by Thursday, November 12 at 7:30 PM GMT+1."
+    );
+  });
+
+  it("promises a reply soon when the request has no due time", () => {
+    expect(describeReceiptForTenant("GPU request: 1× A100", { lane: null, firstReplyDueAt: null }, "America/New_York").detail).toBe(
+      "We'll get back to you soon."
     );
   });
 });
