@@ -19,13 +19,14 @@ import { UserRepository } from "@src/user/repositories";
 import { AccountStatusService } from "@src/user/services/account-status/account-status.service";
 import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 import { DeletedAccountAbuseLockService } from "@src/workload-abuse/services/deleted-account-abuse-lock/deleted-account-abuse-lock.service";
+import { TrialSignupHoldService } from "@src/workload-abuse/services/trial-signup-hold/trial-signup-hold.service";
 import { UserWalletRepository } from "../../repositories/user-wallet/user-wallet.repository";
 import { TrialActivationInstrumentationService } from "../activate-trial/trial-activation-instrumentation.service";
 import { ManagedSignerService } from "../managed-signer/managed-signer.service";
 import { ManagedUserWalletService } from "../managed-user-wallet/managed-user-wallet.service";
 import { StripeService } from "../stripe/stripe.service";
 import { TrialValidationService } from "../trial-validation/trial-validation.service";
-import { TRIAL_BLOCKED_DOMAIN_MESSAGE, WalletInitializerService } from "./wallet-initializer.service";
+import { TRIAL_BLOCKED_DOMAIN_MESSAGE, TRIAL_UNAVAILABLE_MESSAGE, WalletInitializerService } from "./wallet-initializer.service";
 
 import { createChainWallet } from "@test/seeders/chain-wallet.seeder";
 import { createUser } from "@test/seeders/user.seeder";
@@ -89,6 +90,37 @@ describe(WalletInitializerService.name, () => {
       const result = await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id);
 
       expect(result.address).toBe(activatedWallet.address);
+    });
+
+    it("refuses a held trial with the generic message and grants nothing", async () => {
+      const user = createUser({ emailVerified: true });
+      const updateWalletById = vi.fn();
+      const di = setup({
+        user,
+        isTrialHeld: true,
+        updateWalletById,
+        getOrCreateWallet: vi.fn().mockResolvedValue({ wallet: createUserWallet({ userId: user.id, activatedAt: null }) })
+      });
+
+      await expect(di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id)).rejects.toMatchObject({
+        status: 400,
+        message: TRIAL_UNAVAILABLE_MESSAGE
+      });
+      expect(di.resolve(TrialSignupHoldService).isHeld).toHaveBeenCalledWith(user);
+      expect(di.resolve(ManagedUserWalletService).createAndAuthorizeTrialSpending).not.toHaveBeenCalled();
+      expect(updateWalletById).not.toHaveBeenCalled();
+      expect(di.resolve(DomainEventsService).publish).not.toHaveBeenCalled();
+    });
+
+    it("returns an already-activated wallet without consulting the hold", async () => {
+      const user = createUser({ emailVerified: true });
+      const activatedWallet = createUserWallet({ userId: user.id, activatedAt: new Date() });
+      const di = setup({ user, isTrialHeld: true, getOrCreateWallet: vi.fn().mockResolvedValue({ wallet: activatedWallet, isNew: false }) });
+
+      const result = await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id);
+
+      expect(result.address).toBe(activatedWallet.address);
+      expect(di.resolve(TrialSignupHoldService).isHeld).not.toHaveBeenCalled();
     });
 
     it("does not activate a trial for a suspended user", async () => {
@@ -544,6 +576,7 @@ describe(WalletInitializerService.name, () => {
     isBlockedEmailDomain?: boolean;
     deletedAccountLockReason?: string;
     referralTrialDeploymentLimit?: number;
+    isTrialHeld?: boolean;
   }) {
     const di = container.createChildContainer();
     di.registerInstance(TYPE_REGISTRY, new Registry());
@@ -623,6 +656,7 @@ describe(WalletInitializerService.name, () => {
         recordTrialGranted: vi.fn()
       })
     );
+    di.registerInstance(TrialSignupHoldService, mock<TrialSignupHoldService>({ isHeld: vi.fn().mockResolvedValue(input?.isTrialHeld ?? false) }));
 
     container.clearInstances();
 

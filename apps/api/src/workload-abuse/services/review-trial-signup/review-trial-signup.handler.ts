@@ -16,12 +16,17 @@ export class ReviewTrialSignup implements Job {
   constructor(
     public readonly data: {
       userId: UserOutput["id"];
+      held?: boolean;
     }
   ) {}
 }
 
 export function reviewTrialSignupKeyFor(userId: UserOutput["id"]): string {
   return `reviewTrialSignup.${userId}`;
+}
+
+export function reviewHeldTrialSignupKeyFor(userId: UserOutput["id"]): string {
+  return `reviewTrialSignup.held.${userId}`;
 }
 
 @singleton()
@@ -59,14 +64,14 @@ export class ReviewTrialSignupHandler implements JobHandler<ReviewTrialSignup> {
     if (!linkedAccounts.length) return;
 
     this.logger.warn({ event: "TRIAL_SIGNUP_FLAGGED_FOR_REVIEW", userId: user.id, linkedUserIds: linkedAccounts.map(account => account.id) });
-    await this.#postForReview(user, linkedAccounts);
+    await this.#postForReview(user, linkedAccounts, payload.held);
   }
 
-  async #postForReview(user: UserOutput, linkedAccounts: Pick<UserOutput, "id" | "email">[]): Promise<void> {
+  async #postForReview(user: UserOutput, linkedAccounts: Pick<UserOutput, "id" | "email">[], held: boolean | undefined): Promise<void> {
     const webhookUrl = this.workloadAbuseConfig.get("WORKLOAD_ABUSE_SIGNUP_REVIEW_SLACK_WEBHOOK_URL");
     if (!webhookUrl) return;
 
-    const message = buildTrialSignupReviewMessage({ account: user, linkedAccounts, adminUrl: this.billingConfig.get("CONSOLE_ADMIN_URL") });
+    const message = buildTrialSignupReviewMessage({ account: user, linkedAccounts, adminUrl: this.billingConfig.get("CONSOLE_ADMIN_URL"), held });
     await this.slackWebhookClient.post(webhookUrl, message);
   }
 }

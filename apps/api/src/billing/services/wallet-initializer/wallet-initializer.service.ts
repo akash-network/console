@@ -23,12 +23,15 @@ import { UserOutput, UserRepository } from "@src/user/repositories";
 import { AccountStatusGuard } from "@src/user/services/account-status-guard/account-status-guard.service";
 import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 import { DeletedAccountAbuseLockService } from "@src/workload-abuse/services/deleted-account-abuse-lock/deleted-account-abuse-lock.service";
+import { TrialSignupHoldService } from "@src/workload-abuse/services/trial-signup-hold/trial-signup-hold.service";
 import { ManagedUserWalletService } from "../managed-user-wallet/managed-user-wallet.service";
 
 const MICRO_DENOM_PER_UNIT = 1_000_000;
 
 /** Names the domain, unlike the registration refusal: only a verified account holder sees it, and support needs to be able to act on it. */
 export const TRIAL_BLOCKED_DOMAIN_MESSAGE = "Trial is not available for this email domain. Please contact support for assistance.";
+
+export const TRIAL_UNAVAILABLE_MESSAGE = "Unable to start trial. Please contact support for assistance.";
 
 @singleton()
 export class WalletInitializerService {
@@ -46,7 +49,8 @@ export class WalletInitializerService {
     private readonly deletedAccountAbuseLockService: DeletedAccountAbuseLockService,
     private readonly txService: TxService,
     private readonly accountStatusGuard: AccountStatusGuard,
-    private readonly referralService: ReferralService
+    private readonly referralService: ReferralService,
+    private readonly trialSignupHoldService: TrialSignupHoldService
   ) {}
 
   async #assertNoDuplicateFingerprint(user: UserOutput): Promise<void> {
@@ -55,7 +59,12 @@ export class WalletInitializerService {
     if (!user.lastFingerprint) return;
 
     const usersWithSameFingerprint = await this.userRepository.findTrialUsersByFingerprint(user.lastFingerprint, user.id);
-    assert(usersWithSameFingerprint.length === 0, 400, "Unable to start trial. Please contact support for assistance.");
+    assert(usersWithSameFingerprint.length === 0, 400, TRIAL_UNAVAILABLE_MESSAGE);
+  }
+
+  async #assertTrialNotHeld(user: UserOutput): Promise<void> {
+    const held = await this.trialSignupHoldService.isHeld(user);
+    assert(!held, 400, TRIAL_UNAVAILABLE_MESSAGE);
   }
 
   async #assertEmailDomainNotBlocked(user: UserOutput): Promise<void> {
@@ -75,6 +84,7 @@ export class WalletInitializerService {
 
     await this.#assertEmailDomainNotBlocked(user);
     await this.accountStatusGuard.assertMaySpend(user);
+    await this.#assertTrialNotHeld(user);
 
     const activation = await this.txService.transaction(async () => await this.#grantTrialLimitsOnce(userWallet, user));
     const activatedWallet = this.#toPublic({ ...activation.wallet, userId, address: userWallet.address });
