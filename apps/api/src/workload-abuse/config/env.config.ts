@@ -137,7 +137,10 @@ export const envSchema = z.object({
   /** Lives in Doppler only, and trial sign-ups go unreviewed while it is unset. */
   WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().optional()),
   WORKLOAD_ABUSE_SIGNUP_REVIEW_SLACK_WEBHOOK_URL: z.preprocess(blankToUndefined, z.string().url().optional()),
-  WORKLOAD_ABUSE_DAILY_SUMMARY_HOUR_UTC: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().min(0).max(23).default(13))
+  WORKLOAD_ABUSE_DAILY_SUMMARY_HOUR_UTC: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().min(0).max(23).default(13)),
+  /** `report` grants the trial and only logs the hold it would have placed; the hold needs the review window above to be set. */
+  WORKLOAD_ABUSE_SIGNUP_HOLD_MODE: z.preprocess(blankToUndefined, z.enum(["off", "report", "enforce"]).default("report")),
+  WORKLOAD_ABUSE_SIGNUP_HOLD_MIN_LINKED_ACCOUNTS: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().default(2))
 });
 
 export type WorkloadAbuseConfig = z.infer<typeof envSchema>;

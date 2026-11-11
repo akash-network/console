@@ -22,10 +22,11 @@ export function buildTrialSignupReviewMessage(input: {
   account: ReviewedAccount;
   linkedAccounts: ReviewedAccount[];
   adminUrl?: string;
+  held?: boolean;
 }): TrialSignupReviewMessage {
   const linkedLines = input.linkedAccounts.map(linkedAccount => `• ${describeAccount(linkedAccount, input.adminUrl)}`);
   const messageLines = [
-    ":mag: *Trial sign-up flagged for review*",
+    input.held ? ":no_entry: *Trial held pending review*" : ":mag: *Trial sign-up flagged for review*",
     describeAccount(input.account, input.adminUrl),
     `Linked accounts (${input.linkedAccounts.length}):`,
     ...linkedLines
