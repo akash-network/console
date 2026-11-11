@@ -3,6 +3,8 @@ import { inject, singleton } from "tsyringe";
 
 import { SLACK_WEBHOOK_HTTP_CLIENT } from "@src/billing/providers/slack-webhook-client.provider";
 import { type CreateLogger, type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { ResponseTarget } from "@src/hardware-request/lib/hardware-request-response-schedule/hardware-request-response-schedule";
 import type { HardwareRequestStatus } from "@src/hardware-request/model-schemas";
 import { HARDWARE_REQUEST_CONFIG, type HardwareRequestConfig } from "@src/hardware-request/providers/config.provider";
@@ -39,6 +41,7 @@ export class HardwareRequestResponseTargetHandler implements JobHandler<Hardware
     private readonly hardwareRequestAlertContextService: HardwareRequestAlertContextService,
     private readonly gpuRequestRoutingService: GpuRequestRoutingService,
     private readonly notificationService: NotificationService,
+    private readonly featureFlagsService: FeatureFlagsService,
     @inject(HARDWARE_REQUEST_CONFIG) private readonly config: HardwareRequestConfig,
     @inject(SLACK_WEBHOOK_HTTP_CLIENT) private readonly slackWebhookClient: HttpClient,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
@@ -63,9 +66,12 @@ export class HardwareRequestResponseTargetHandler implements JobHandler<Hardware
     const policy = this.gpuRequestRoutingService.getPolicy();
     const { owner } = await this.hardwareRequestAlertContextService.load(hardwareRequest);
     const notice = { hardwareRequest, target, stage, dueLabel: formatDue(dueAt, policy.businessHours.timeZone) };
-    const email = (stage === "reminder" ? owner?.email : policy.salesLead?.email) ?? this.config.HARDWARE_REQUEST_EMAIL;
 
-    await this.notificationService.createNotification(responseTargetEmail({ ...notice, recipient: { id: emailRecipientUserId(email), email } }));
+    if (this.featureFlagsService.isEnabled(FeatureFlags.GPU_REQUEST_RESPONSE_TARGET_EMAILS)) {
+      const email = (stage === "reminder" ? owner?.email : policy.salesLead?.email) ?? this.config.HARDWARE_REQUEST_EMAIL;
+
+      await this.notificationService.createNotification(responseTargetEmail({ ...notice, recipient: { id: emailRecipientUserId(email), email } }));
+    }
 
     if (stage === "escalation" && this.config.HARDWARE_REQUEST_SLACK_WEBHOOK_URL) {
       await this.slackWebhookClient.post(this.config.HARDWARE_REQUEST_SLACK_WEBHOOK_URL, {

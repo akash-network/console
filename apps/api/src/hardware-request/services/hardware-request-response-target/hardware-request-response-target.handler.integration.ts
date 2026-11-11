@@ -1,9 +1,11 @@
 import { faker } from "@faker-js/faker";
 import nock from "nock";
 import { container } from "tsyringe";
-import { afterEach, describe, expect, it, onTestFinished } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { JOB_NAME } from "@src/core";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { HARDWARE_REQUEST_CONFIG } from "@src/hardware-request/providers/config.provider";
 import { HardwareRequestEventRepository } from "@src/hardware-request/repositories/hardware-request-event/hardware-request-event.repository";
 import { NOTIFICATIONS_CONFIG } from "@src/notifications/providers/notifications-config.provider";
@@ -22,6 +24,7 @@ const jobWorkers = useJobWorkers(() => [container.resolve(HardwareRequestRespons
 describe(HardwareRequestResponseTargetHandler.name, () => {
   afterEach(() => {
     nock.cleanAll();
+    vi.restoreAllMocks();
   });
 
   it("escalates a missed first offer to Slack and the mailbox and records it, run the way a worker runs it", async () => {
@@ -36,6 +39,20 @@ describe(HardwareRequestResponseTargetHandler.name, () => {
         recipient: container.resolve(HARDWARE_REQUEST_CONFIG).HARDWARE_REQUEST_EMAIL
       }
     ]);
+    expect(slackPosts).toEqual([{ text: expect.stringContaining(`*Missed first offer target*`) }]);
+    expect(await container.resolve(HardwareRequestEventRepository).findOldestFirst(hardwareRequest.id)).toMatchObject([
+      { type: "escalated", actor: null, payload: { target: "first_offer" } }
+    ]);
+  });
+
+  it("escalates a missed first offer to Slack alone and records it while response target emails are off", async () => {
+    const { runJob, notifications, slackPosts } = await setup();
+    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.GPU_REQUEST_RESPONSE_TARGET_EMAILS);
+    const hardwareRequest = await seedHardwareRequest({ userId: (await seedUser()).id, owner: null, status: "sourcing" });
+
+    await runJob(hardwareRequest.id);
+
+    expect(notifications).toEqual([]);
     expect(slackPosts).toEqual([{ text: expect.stringContaining(`*Missed first offer target*`) }]);
     expect(await container.resolve(HardwareRequestEventRepository).findOldestFirst(hardwareRequest.id)).toMatchObject([
       { type: "escalated", actor: null, payload: { target: "first_offer" } }

@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { CreateLogger } from "@src/core";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { DEFAULT_GPU_REQUEST_ROUTING_POLICY, type SalesOwner } from "@src/hardware-request/lib/gpu-request-routing-policy/gpu-request-routing-policy";
 import type { ResponseTarget } from "@src/hardware-request/lib/hardware-request-response-schedule/hardware-request-response-schedule";
 import type { HardwareRequestStatus } from "@src/hardware-request/model-schemas";
@@ -77,6 +79,41 @@ describe(HardwareRequestResponseTargetHandler.name, () => {
     expect(sentNotification(notificationService).user).toEqual({ id: emailRecipientUserId("support@akash.network"), email: "support@akash.network" });
   });
 
+  it("records a reminder without emailing anyone while response target emails are off", async () => {
+    const { handler, notificationService, hardwareRequestEventRepository, hardwareRequest } = setup({
+      areEmailsEnabled: false,
+      owner: { name: "Remington", email: "remington@akash.network" }
+    });
+
+    await handler.handle(aPayload(hardwareRequest.id, "first_reply", "reminder"));
+
+    expect(notificationService.createNotification).not.toHaveBeenCalled();
+    expect(hardwareRequestEventRepository.record).toHaveBeenCalledWith({
+      hardwareRequestId: hardwareRequest.id,
+      type: "reminder_sent",
+      actor: null,
+      payload: { target: "first_reply" }
+    });
+  });
+
+  it("escalates to the sales channel without emailing the lead while response target emails are off", async () => {
+    const { handler, notificationService, slackWebhookClient, hardwareRequestEventRepository, hardwareRequest } = setup({
+      areEmailsEnabled: false,
+      salesLead: LEAD
+    });
+
+    await handler.handle(aPayload(hardwareRequest.id, "first_offer", "escalation"));
+
+    expect(notificationService.createNotification).not.toHaveBeenCalled();
+    expect(slackWebhookClient.post).toHaveBeenCalledWith(WEBHOOK_URL, { text: expect.stringContaining("<@U-LEAD> · Request") });
+    expect(hardwareRequestEventRepository.record).toHaveBeenCalledWith({
+      hardwareRequestId: hardwareRequest.id,
+      type: "escalated",
+      actor: null,
+      payload: { target: "first_offer" }
+    });
+  });
+
   it("skips Slack when no webhook is configured", async () => {
     const { handler, slackWebhookClient, hardwareRequestEventRepository, hardwareRequest } = setup({ webhookUrl: undefined });
 
@@ -144,6 +181,7 @@ describe(HardwareRequestResponseTargetHandler.name, () => {
       firstRepliedAt?: string;
       status?: HardwareRequestStatus;
       offers?: Array<Pick<HardwareRequestOfferOutput, "publishedAt">>;
+      areEmailsEnabled?: boolean;
     } = {}
   ) {
     const hardwareRequest = createHardwareRequest({ status: input.status ?? "sourcing", firstRepliedAt: input.firstRepliedAt ?? null });
@@ -157,6 +195,8 @@ describe(HardwareRequestResponseTargetHandler.name, () => {
     const gpuRequestRoutingService = mock<GpuRequestRoutingService>();
     gpuRequestRoutingService.getPolicy.mockReturnValue({ ...DEFAULT_GPU_REQUEST_ROUTING_POLICY, salesLead: input.salesLead });
     const notificationService = mock<NotificationService>();
+    const featureFlagsService = mock<FeatureFlagsService>();
+    featureFlagsService.isEnabled.mockImplementation(flag => flag === FeatureFlags.GPU_REQUEST_RESPONSE_TARGET_EMAILS && (input.areEmailsEnabled ?? true));
     const config = mock<HardwareRequestConfig>({
       HARDWARE_REQUEST_EMAIL: "support@akash.network",
       HARDWARE_REQUEST_SLACK_WEBHOOK_URL: "webhookUrl" in input ? input.webhookUrl : WEBHOOK_URL
@@ -171,6 +211,7 @@ describe(HardwareRequestResponseTargetHandler.name, () => {
       hardwareRequestAlertContextService,
       gpuRequestRoutingService,
       notificationService,
+      featureFlagsService,
       config,
       slackWebhookClient,
       createLogger
