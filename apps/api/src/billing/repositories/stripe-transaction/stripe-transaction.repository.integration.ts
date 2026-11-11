@@ -1044,13 +1044,22 @@ describe(StripeTransactionRepository.name, () => {
     it("matches the domain part only, never a domain that merely contains it", async () => {
       const { stripeTransactionRepository, createUserOnDomain } = setup();
       const domain = uniqueDomain();
-      const lookalikes = [`x${domain}`, `${domain}.attacker.net`, `mail.${domain}`];
+      const lookalikes = [`x${domain}`, `${domain}.attacker.net`];
       for (const lookalike of lookalikes) {
         const user = await createUserOnDomain(lookalike);
         await stripeTransactionRepository.create({ userId: user.id, type: "payment_intent", status: "succeeded", amount: 1000, currency: "usd" });
       }
 
       await expect(stripeTransactionRepository.hasPaidUserWithEmailDomain(domain)).resolves.toBe(false);
+    });
+
+    it("counts a payment from an account on a subdomain of the domain", async () => {
+      const { stripeTransactionRepository, createUserOnDomain } = setup();
+      const domain = uniqueDomain();
+      const user = await createUserOnDomain(`eu.mail.${domain}`);
+      await stripeTransactionRepository.create({ userId: user.id, type: "payment_intent", status: "succeeded", amount: 1000, currency: "usd" });
+
+      await expect(stripeTransactionRepository.hasPaidUserWithEmailDomain(domain)).resolves.toBe(true);
     });
 
     it("matches a stored address whatever its case", async () => {

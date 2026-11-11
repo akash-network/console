@@ -56,10 +56,55 @@ describe(WorkloadAbuseDetectionRepository.name, () => {
     });
   });
 
-  async function setup() {
+  describe("hasEnforcedSignatureMatchByAnotherMailbox", () => {
+    it.each([
+      { label: "on the domain", caughtEmail: (domain: string) => `first@${domain}` },
+      { label: "on a subdomain of the domain", caughtEmail: (domain: string) => `first@eu.mail.${domain}` }
+    ])("answers true for an enforced detection of another mailbox $label", async ({ caughtEmail }) => {
+      const domain = uniqueDomain();
+      const { repository, createDetection, createUser } = await setup({ email: caughtEmail(domain) });
+      await createDetection({ dseq: "1", verdict: "hard", action: "enforced" });
+      const triggering = await createUser(`second@${domain}`);
+
+      await expect(repository.hasEnforcedSignatureMatchByAnotherMailbox(domain, triggering.id)).resolves.toBe(true);
+    });
+
+    it("answers false for a detection of the same mailbox under a plus tag", async () => {
+      const domain = uniqueDomain();
+      const { repository, createDetection, createUser } = await setup({ email: `miner@${domain}` });
+      await createDetection({ dseq: "1", verdict: "hard", action: "enforced" });
+      const triggering = await createUser(`Miner+2@${domain}`);
+
+      await expect(repository.hasEnforcedSignatureMatchByAnotherMailbox(domain, triggering.id)).resolves.toBe(false);
+    });
+
+    it("answers false for a detection on a domain that merely contains the domain", async () => {
+      const domain = uniqueDomain();
+      const { repository, createDetection, createUser } = await setup({ email: `first@x${domain}` });
+      await createDetection({ dseq: "1", verdict: "hard", action: "enforced" });
+      const triggering = await createUser(`second@${domain}`);
+
+      await expect(repository.hasEnforcedSignatureMatchByAnotherMailbox(domain, triggering.id)).resolves.toBe(false);
+    });
+
+    it("answers false for a detection that was not enforced", async () => {
+      const domain = uniqueDomain();
+      const { repository, createDetection, createUser } = await setup({ email: `first@${domain}` });
+      await createDetection({ dseq: "1", verdict: "hard", action: "detected" });
+      const triggering = await createUser(`second@${domain}`);
+
+      await expect(repository.hasEnforcedSignatureMatchByAnotherMailbox(domain, triggering.id)).resolves.toBe(false);
+    });
+  });
+
+  function uniqueDomain() {
+    return `${faker.string.alphanumeric(16).toLowerCase()}.com`;
+  }
+
+  async function setup(input?: { email?: string }) {
     const userRepository = container.resolve(UserRepository);
     const repository = container.resolve(WorkloadAbuseDetectionRepository);
-    const user = await userRepository.create({ userId: faker.string.uuid() });
+    const user = await userRepository.create({ userId: faker.string.uuid(), email: input?.email });
     const walletId = faker.number.int({ min: 1, max: 1_000_000_000 });
 
     async function createDetection(input: {
@@ -82,6 +127,10 @@ describe(WorkloadAbuseDetectionRepository.name, () => {
       });
     }
 
-    return { repository, walletId, createDetection };
+    async function createUser(email: string) {
+      return await userRepository.create({ userId: faker.string.uuid(), email });
+    }
+
+    return { repository, walletId, createDetection, createUser };
   }
 });

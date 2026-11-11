@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { extractEmailDomain, normalizeEmailAddress, normalizeEmailDomain } from "./email-domain";
+import { extractEmailDomain, isWithinDomain, listDomainAndParents, normalizeEmailAddress, normalizeEmailDomain } from "./email-domain";
 
 describe("extractEmailDomain", () => {
   it.each([
@@ -71,5 +71,28 @@ describe("normalizeEmailDomain", () => {
 
   it.each([[""], ["localhost"], ["exa mple.com"], [null], [undefined]])("returns null for %s", domain => {
     expect(normalizeEmailDomain(domain)).toBeNull();
+  });
+});
+
+describe("listDomainAndParents", () => {
+  it.each([
+    ["example.com", ["example.com"]],
+    ["mail.example.com", ["mail.example.com", "example.com"]],
+    ["eu.mail.example.co.uk", ["eu.mail.example.co.uk", "mail.example.co.uk", "example.co.uk", "co.uk"]]
+  ])("lists %s and its parents down to two labels, most specific first", (domain, expected) => {
+    expect(listDomainAndParents(domain)).toEqual(expected);
+  });
+});
+
+describe("isWithinDomain", () => {
+  it.each([
+    ["example.com", "example.com", true],
+    ["mail.example.com", "example.com", true],
+    ["eu.mail.example.com", "example.com", true],
+    ["xexample.com", "example.com", false],
+    ["example.com", "mail.example.com", false],
+    ["example.com.other.net", "example.com", false]
+  ])("answers whether %s is within %s", (domain, parent, expected) => {
+    expect(isWithinDomain(domain, parent)).toBe(expected);
   });
 });
