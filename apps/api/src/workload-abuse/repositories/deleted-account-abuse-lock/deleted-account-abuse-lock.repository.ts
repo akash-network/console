@@ -4,15 +4,11 @@ import { singleton } from "tsyringe";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
+import type { AccountHashes } from "@src/workload-abuse/lib/account-hashes/account-hashes";
 
 type Table = ApiPgTables["DeletedAccountAbuseLocks"];
 export type DeletedAccountAbuseLockInput = Partial<Table["$inferInsert"]>;
 export type DeletedAccountAbuseLockOutput = Table["$inferSelect"];
-
-export interface AccountHashes {
-  identityHash: string | null;
-  emailHash: string | null;
-}
 
 @singleton()
 export class DeletedAccountAbuseLockRepository extends BaseRepository<Table, DeletedAccountAbuseLockInput, DeletedAccountAbuseLockOutput> {

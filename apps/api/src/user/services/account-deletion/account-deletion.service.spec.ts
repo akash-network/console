@@ -32,6 +32,7 @@ import { PURGE_DELETED_ACCOUNT_RETRY_OPTIONS, PurgeDeletedAccount } from "@src/u
 import type { TeamRecordRetentionService } from "@src/user/services/team-record-retention/team-record-retention.service";
 import type { WorkloadProbeEvidenceRepository } from "@src/workload-abuse/repositories/workload-probe-evidence/workload-probe-evidence.repository";
 import type { DeletedAccountAbuseLockService } from "@src/workload-abuse/services/deleted-account-abuse-lock/deleted-account-abuse-lock.service";
+import type { DeletedTrialAccountService } from "@src/workload-abuse/services/deleted-trial-account/deleted-trial-account.service";
 import { AccountDeletionService, DELETION_LINK_TTL_MINUTES } from "./account-deletion.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
@@ -365,6 +366,16 @@ describe(AccountDeletionService.name, () => {
 
       expect(deletedAccountAbuseLockService.rememberLockOf).toHaveBeenCalledWith(user, wallet);
       expect(deletedAccountAbuseLockService.rememberLockOf.mock.invocationCallOrder[0]).toBeLessThan(userRepository.deleteById.mock.invocationCallOrder[0]);
+    });
+
+    it("hands the account and its wallet to the deleted trial record before the user row goes", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service, user, userRepository, deletedTrialAccountService } = setup({ wallet, storedToken: {} });
+
+      await service.confirm({ token: "link-token" });
+
+      expect(deletedTrialAccountService.remember).toHaveBeenCalledWith(user, wallet);
+      expect(deletedTrialAccountService.remember.mock.invocationCallOrder[0]).toBeLessThan(userRepository.deleteById.mock.invocationCallOrder[0]);
     });
 
     it("checks the team owners once the user row is locked, inside the erasing transaction", async () => {
@@ -738,6 +749,7 @@ describe(AccountDeletionService.name, () => {
     accountTeamsService.assess.mockImplementation(async owned => teamsOf(owned));
     accountTeamsService.lockAndAssess.mockImplementation(async owned => teamsOf(owned));
     const deletedAccountAbuseLockService = mock<DeletedAccountAbuseLockService>();
+    const deletedTrialAccountService = mock<DeletedTrialAccountService>();
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
@@ -761,6 +773,7 @@ describe(AccountDeletionService.name, () => {
       deploymentConfig,
       accountTeamsService,
       deletedAccountAbuseLockService,
+      deletedTrialAccountService,
       new AccountStatusGuard(userRepository, mock<AccountStatusService>({ findUserReasonOf: vi.fn().mockResolvedValue(null) })),
       createLogger
     );
@@ -787,6 +800,7 @@ describe(AccountDeletionService.name, () => {
       featureFlagsService,
       accountTeamsService,
       deletedAccountAbuseLockService,
+      deletedTrialAccountService,
       logger,
       createLogger
     };

@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DeploymentDepositRepository } from "@src/billing/repositories/deployment-deposit/deployment-deposit.repository";
 import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
-import { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
+import { TRIAL_UNAVAILABLE_MESSAGE, WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import type { ApiPgDatabase } from "@src/core";
 import { JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
@@ -34,6 +34,8 @@ import { AccountDeletionTokenRepository } from "@src/user/repositories/account-d
 import { UserTemplateRepository } from "@src/user/repositories/user-template/user-template.repository";
 import { PurgeDeletedAccount, PurgeDeletedAccountHandler } from "@src/user/services/purge-deleted-account/purge-deleted-account.handler";
 import { ABUSE_LOCK_REASON } from "@src/workload-abuse/lib/abuse-lock-reason/abuse-lock-reason";
+import { ReviewRefusedTrial, ReviewRefusedTrialHandler } from "@src/workload-abuse/services/review-refused-trial/review-refused-trial.handler";
+import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 import { AccountDeletionService } from "./account-deletion.service";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
@@ -55,7 +57,8 @@ type SeededTeam = Awaited<ReturnType<typeof seedOrganizationWithOwner>>;
 const jobWorkers = useJobWorkers(() => [
   container.resolve(PurgeDeletedAccountHandler),
   container.resolve(StopTeamAlertsToDepartedMemberHandler),
-  container.resolve(TeamOrganizationDeletedHandler)
+  container.resolve(TeamOrganizationDeletedHandler),
+  container.resolve(ReviewRefusedTrialHandler)
 ]);
 
 describe(AccountDeletionService.name, () => {
@@ -526,6 +529,98 @@ describe(AccountDeletionService.name, () => {
       expect(stored).not.toContain(email.toLowerCase());
       expect(stored).not.toContain(account.user.id);
     });
+
+    it("refuses a new trial to a returning account inside the configured limits and queues its review with the deleted account", async () => {
+      const { service, account, token, answerActiveDeployments, setEmailOf, startTrialOf, limitReturningTrials, signUpAgain } = await setup();
+      answerActiveDeployments([]);
+      limitReturningTrials({ cooldownHours: 4 });
+      const localPart = faker.string.alpha({ length: 10, casing: "lower" });
+      const domain = `${faker.string.alpha({ length: 12, casing: "lower" })}.com`;
+      await setEmailOf(account, `${localPart}@${domain}`);
+      await startTrialOf(account, { isTrialing: true, activatedAt: new Date() });
+
+      await service.confirm({ token });
+      const { user, wallet, grantTrial, refusal } = await signUpAgain({
+        userId: `auth0|${faker.string.alphanumeric(24)}`,
+        email: `${localPart}+again@${domain.toUpperCase()}`
+      });
+
+      expect(refusal).toMatchObject({ status: 400, message: TRIAL_UNAVAILABLE_MESSAGE });
+      expect(grantTrial).not.toHaveBeenCalled();
+      expect(wallet).toMatchObject({ activatedAt: null, abuseLockedAt: null });
+      expect(await findJobRows(ReviewRefusedTrial[JOB_NAME], { data: { userId: user.id } })).toEqual([
+        expect.objectContaining({
+          data: expect.objectContaining({
+            userId: user.id,
+            deletedAccount: { walletAddress: account.address, deletedAt: expect.any(String), deletionsOnRecord: 1 }
+          })
+        })
+      ]);
+    });
+
+    it("grants a trial again to a returning account outside the configured limits", async () => {
+      const { service, account, token, answerActiveDeployments, setEmailOf, startTrialOf, limitReturningTrials, signUpAgain } = await setup();
+      answerActiveDeployments([]);
+      limitReturningTrials({ maxReturns: 1 });
+      const email = await setEmailOf(account, faker.internet.email().toLowerCase());
+      await startTrialOf(account, { isTrialing: true, activatedAt: new Date() });
+
+      await service.confirm({ token });
+      const { user, wallet, grantTrial, refusal } = await signUpAgain({ userId: account.user.userId!, email });
+
+      expect(refusal).toBeUndefined();
+      expect(grantTrial).toHaveBeenCalledWith(expect.anything(), { addressIndex: wallet.id });
+      expect(wallet).toMatchObject({ isTrialing: true, activatedAt: expect.any(Date) });
+      expect(await findJobRows(ReviewRefusedTrial[JOB_NAME], { data: { userId: user.id } })).toEqual([]);
+    });
+
+    it.each([
+      { isTrialing: true, activatedAt: null },
+      { isTrialing: false, activatedAt: new Date() }
+    ])("grants a trial to a returning account whose deleted account left no trial on record, case %#", async trial => {
+      const { service, account, token, answerActiveDeployments, answerBalanceOf, setEmailOf, startTrialOf, limitReturningTrials, signUpAgain } = await setup();
+      answerActiveDeployments([]);
+      answerBalanceOf(account.address, undefined);
+      limitReturningTrials({ cooldownHours: 4, maxReturns: 0 });
+      const email = await setEmailOf(account, faker.internet.email().toLowerCase());
+      await startTrialOf(account, trial);
+
+      await service.confirm({ token });
+      const { wallet, grantTrial, refusal } = await signUpAgain({ userId: account.user.userId!, email });
+
+      expect(refusal).toBeUndefined();
+      expect(grantTrial).toHaveBeenCalledWith(expect.anything(), { addressIndex: wallet.id });
+      expect(wallet).toMatchObject({ isTrialing: true, activatedAt: expect.any(Date) });
+    });
+
+    it("keeps no identity, email or user id of a deleted trial account in plain text", async () => {
+      const { service, db, account, token, answerActiveDeployments, setEmailOf, startTrialOf, limitReturningTrials } = await setup();
+      answerActiveDeployments([]);
+      limitReturningTrials({ cooldownHours: 4 });
+      const email = await setEmailOf(account, faker.internet.email());
+      await startTrialOf(account, { isTrialing: true, activatedAt: new Date() });
+
+      await service.confirm({ token });
+
+      const remembered = await db
+        .select()
+        .from(resolveTable("DeletedTrialAccounts"))
+        .where(eq(resolveTable("DeletedTrialAccounts").walletAddress, account.address));
+      expect(remembered).toEqual([
+        {
+          id: expect.any(String),
+          identityHash: expect.stringMatching(/^[0-9a-f]{64}$/),
+          emailHash: expect.stringMatching(/^[0-9a-f]{64}$/),
+          walletAddress: account.address,
+          refusedUserId: null,
+          createdAt: expect.any(Date)
+        }
+      ]);
+      const stored = JSON.stringify(remembered).toLowerCase();
+      expect(stored).not.toContain(account.user.userId!.toLowerCase());
+      expect(stored).not.toContain(email.toLowerCase());
+      expect(stored).not.toContain(account.user.id);
+    });
   });
 
   it("leaves the account untouched while it still has an active deployment", async () => {
@@ -709,7 +804,26 @@ describe(AccountDeletionService.name, () => {
         .where(eq(resolveTable("UserWallets").id, wallet.id));
     }
 
-    async function registerAgain(identity: { userId: string; email: string }) {
+    async function startTrialOf({ wallet }: Awaited<ReturnType<typeof seedAccount>>, trial: { isTrialing: boolean; activatedAt: Date | null }) {
+      await db
+        .update(resolveTable("UserWallets"))
+        .set(trial)
+        .where(eq(resolveTable("UserWallets").id, wallet.id));
+    }
+
+    function limitReturningTrials(limits: { cooldownHours?: number; maxReturns?: number }) {
+      const workloadAbuseConfig = container.resolve(WorkloadAbuseConfigService);
+      const readWorkloadAbuseConfig = workloadAbuseConfig.get.bind(workloadAbuseConfig);
+      const overrides: Partial<Record<Parameters<typeof readWorkloadAbuseConfig>[0], unknown>> = {
+        WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS: 9,
+        WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS: limits.cooldownHours,
+        WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS: limits.maxReturns
+      };
+      vi.spyOn(workloadAbuseConfig, "get").mockImplementation((key =>
+        key in overrides ? overrides[key] : readWorkloadAbuseConfig(key)) as typeof workloadAbuseConfig.get);
+    }
+
+    async function signUpAgain(identity: { userId: string; email: string }) {
       const user = await seedUser({ ...identity, emailVerified: true });
       await personalOrganizationService.ensureForUser(user);
       const grantTrial = vi
@@ -717,13 +831,26 @@ describe(AccountDeletionService.name, () => {
         .mockImplementation(async (_signer, { addressIndex }) => ({ address: `granted-${addressIndex}`, limits: { deployment: 7_000_000, fees: 3_000_000 } }));
       vi.spyOn(container.resolve(DomainEventsService), "publish").mockResolvedValue(null);
 
-      await container.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id);
+      const refusal: unknown = await container
+        .resolve(WalletInitializerService)
+        .initializeAndGrantTrialLimits(user.id)
+        .then(
+          () => undefined,
+          (error: unknown) => error
+        );
 
       const [wallet] = await db
         .select()
         .from(resolveTable("UserWallets"))
         .where(eq(resolveTable("UserWallets").userId, user.id));
-      return { wallet, grantTrial };
+      return { user, wallet, grantTrial, refusal };
+    }
+
+    async function registerAgain(identity: { userId: string; email: string }) {
+      const { refusal, ...registered } = await signUpAgain(identity);
+      if (refusal) throw refusal;
+
+      return registered;
     }
 
     async function seedTeam() {
@@ -840,6 +967,9 @@ describe(AccountDeletionService.name, () => {
       answerBalanceOf,
       setEmailOf,
       lockForWorkloadAbuse,
+      startTrialOf,
+      limitReturningTrials,
+      signUpAgain,
       registerAgain,
       countRowsOwnedBy,
       joinTeam,

@@ -33,3 +33,25 @@ export function buildTrialSignupReviewMessage(input: {
 
   return { text: messageLines.join("\n") };
 }
+
+export interface MatchedDeletedTrialAccount {
+  walletAddress: string | null;
+  deletedAt: string;
+  deletionsOnRecord: number;
+}
+
+export function buildRefusedTrialReviewMessage(input: {
+  account: ReviewedAccount;
+  deletedAccount: MatchedDeletedTrialAccount;
+  adminUrl?: string;
+}): TrialSignupReviewMessage {
+  const { walletAddress, deletedAt, deletionsOnRecord } = input.deletedAccount;
+  const messageLines = [
+    ":no_entry_sign: *Trial refused to a returning account*",
+    describeAccount(input.account, input.adminUrl),
+    `Matched deleted account: wallet ${escapeSlackText(walletAddress ?? "not on record")} · deleted ${escapeSlackText(deletedAt)}`,
+    `Deleted trial accounts on record: ${deletionsOnRecord}`
+  ];
+
+  return { text: messageLines.join("\n") };
+}

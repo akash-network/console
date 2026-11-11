@@ -1,21 +1,14 @@
-import { createHmac } from "node:crypto";
 import { inject, singleton } from "tsyringe";
 
 import type { UserWalletOutput } from "@src/billing/repositories";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import type { UserOutput } from "@src/user/repositories";
 import { ABUSE_LOCK_REASON } from "@src/workload-abuse/lib/abuse-lock-reason/abuse-lock-reason";
-import { normalizeEmailAddress } from "@src/workload-abuse/lib/email-domain/email-domain";
-import {
-  type AccountHashes,
-  DeletedAccountAbuseLockRepository
-} from "@src/workload-abuse/repositories/deleted-account-abuse-lock/deleted-account-abuse-lock.repository";
+import { type AccountHashes, hashAccount } from "@src/workload-abuse/lib/account-hashes/account-hashes";
+import { DeletedAccountAbuseLockRepository } from "@src/workload-abuse/repositories/deleted-account-abuse-lock/deleted-account-abuse-lock.repository";
 import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 
 type Account = Pick<UserOutput, "id" | "userId" | "email">;
-
-const IDENTITY_HASH_PURPOSE = "deleted-account-identity";
-const EMAIL_HASH_PURPOSE = "deleted-account-email";
 
 @singleton()
 export class DeletedAccountAbuseLockService {
@@ -49,17 +42,6 @@ export class DeletedAccountAbuseLockService {
   }
 
   #hashesOf(account: Account): AccountHashes {
-    const secret = this.workloadAbuseConfigService.get("WORKLOAD_ABUSE_ACCOUNT_HASH_SECRET");
-
-    const email = normalizeEmailAddress(account.email);
-
-    return {
-      identityHash: account.userId ? keyedHash(secret, IDENTITY_HASH_PURPOSE, account.userId) : null,
-      emailHash: email ? keyedHash(secret, EMAIL_HASH_PURPOSE, email) : null
-    };
+    return hashAccount(this.workloadAbuseConfigService.get("WORKLOAD_ABUSE_ACCOUNT_HASH_SECRET"), account);
   }
-}
-
-function keyedHash(secret: string, purpose: string, value: string): string {
-  return createHmac("sha256", secret).update(`${purpose}:${value}`).digest("hex");
 }

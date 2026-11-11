@@ -23,9 +23,12 @@ import { UserOutput, UserRepository } from "@src/user/repositories";
 import { AccountStatusGuard } from "@src/user/services/account-status-guard/account-status-guard.service";
 import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 import { DeletedAccountAbuseLockService } from "@src/workload-abuse/services/deleted-account-abuse-lock/deleted-account-abuse-lock.service";
+import { DELETED_TRIAL_ACCOUNT_ERROR_CODE, DeletedTrialAccountService } from "@src/workload-abuse/services/deleted-trial-account/deleted-trial-account.service";
 import { ManagedUserWalletService } from "../managed-user-wallet/managed-user-wallet.service";
 
 const MICRO_DENOM_PER_UNIT = 1_000_000;
+
+export const TRIAL_UNAVAILABLE_MESSAGE = "Unable to start trial. Please contact support for assistance.";
 
 /** Names the domain, unlike the registration refusal: only a verified account holder sees it, and support needs to be able to act on it. */
 export const TRIAL_BLOCKED_DOMAIN_MESSAGE = "Trial is not available for this email domain. Please contact support for assistance.";
@@ -44,6 +47,7 @@ export class WalletInitializerService {
     private readonly trialValidationService: TrialValidationService,
     private readonly blockedEmailDomainService: BlockedEmailDomainService,
     private readonly deletedAccountAbuseLockService: DeletedAccountAbuseLockService,
+    private readonly deletedTrialAccountService: DeletedTrialAccountService,
     private readonly txService: TxService,
     private readonly accountStatusGuard: AccountStatusGuard,
     private readonly referralService: ReferralService
@@ -55,7 +59,12 @@ export class WalletInitializerService {
     if (!user.lastFingerprint) return;
 
     const usersWithSameFingerprint = await this.userRepository.findTrialUsersByFingerprint(user.lastFingerprint, user.id);
-    assert(usersWithSameFingerprint.length === 0, 400, "Unable to start trial. Please contact support for assistance.");
+    assert(usersWithSameFingerprint.length === 0, 400, TRIAL_UNAVAILABLE_MESSAGE);
+  }
+
+  async #assertNoDeletedTrialRefusal(user: UserOutput): Promise<void> {
+    const isRefused = await this.deletedTrialAccountService.refusesTrialOf(user);
+    assert(!isRefused, 400, TRIAL_UNAVAILABLE_MESSAGE, { errorCode: DELETED_TRIAL_ACCOUNT_ERROR_CODE });
   }
 
   async #assertEmailDomainNotBlocked(user: UserOutput): Promise<void> {
@@ -75,6 +84,7 @@ export class WalletInitializerService {
 
     await this.#assertEmailDomainNotBlocked(user);
     await this.accountStatusGuard.assertMaySpend(user);
+    await this.#assertNoDeletedTrialRefusal(user);
 
     const activation = await this.txService.transaction(async () => await this.#grantTrialLimitsOnce(userWallet, user));
     const activatedWallet = this.#toPublic({ ...activation.wallet, userId, address: userWallet.address });

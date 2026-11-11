@@ -15,9 +15,10 @@ import createError from "http-errors";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { TRIAL_BLOCKED_DOMAIN_MESSAGE } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
+import { TRIAL_BLOCKED_DOMAIN_MESSAGE, TRIAL_UNAVAILABLE_MESSAGE } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import type { MetricsService } from "@src/core";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
+import { DELETED_TRIAL_ACCOUNT_ERROR_CODE } from "@src/workload-abuse/services/deleted-trial-account/deleted-trial-account.service";
 import { TrialActivationInstrumentationService } from "./trial-activation-instrumentation.service";
 
 describe(TrialActivationInstrumentationService.name, () => {
@@ -50,6 +51,9 @@ describe(TrialActivationInstrumentationService.name, () => {
       { error: createError(404, "wallet not found"), reason: "user_or_wallet_not_found" },
       { error: createError(400, "Email not verified"), reason: "email_not_verified" },
       { error: createError(400, "Unable to start trial for this user"), reason: "fingerprint_block" },
+      { error: createError(400, TRIAL_UNAVAILABLE_MESSAGE, { errorCode: DELETED_TRIAL_ACCOUNT_ERROR_CODE }), reason: "deleted_trial_account" },
+      { error: createError(409, "still provisioning", { errorCode: DELETED_TRIAL_ACCOUNT_ERROR_CODE }), reason: "provisioning_in_progress" },
+      { error: createError(400, TRIAL_UNAVAILABLE_MESSAGE, { errorCode: "another_code" }), reason: "fingerprint_block" },
       { error: createError(400, TRIAL_BLOCKED_DOMAIN_MESSAGE), reason: "blocked_domain" },
       { error: createError(400, "some other bad request"), reason: "grant_failed" },
       { error: new Error("chain grant reverted"), reason: "grant_failed" }

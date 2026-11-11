@@ -6,6 +6,7 @@ import { singleton } from "tsyringe";
 import { MetricsService } from "@src/core";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import type { UserOutput } from "@src/user/repositories";
+import { DELETED_TRIAL_ACCOUNT_ERROR_CODE } from "@src/workload-abuse/services/deleted-trial-account/deleted-trial-account.service";
 
 /**
  * Classifies a failed activation so a terminal block (duplicate fingerprint, unverified email) is
@@ -17,6 +18,7 @@ function classifyFailure(error: unknown): string {
     if (error.status === 409) return "provisioning_in_progress";
     if (error.status === 404) return "user_or_wallet_not_found";
     if (error.status === 400 && /email not verified/i.test(error.message)) return "email_not_verified";
+    if (error.status === 400 && error.errorCode === DELETED_TRIAL_ACCOUNT_ERROR_CODE) return "deleted_trial_account";
     if (error.status === 400 && /unable to start trial/i.test(error.message)) return "fingerprint_block";
     if (error.status === 400 && /not available for this email domain/i.test(error.message)) return "blocked_domain";
   }
