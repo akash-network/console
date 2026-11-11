@@ -17,7 +17,7 @@ const HERO_CHART_MIN_HEIGHT = 280;
 
 export function HeroChartPanel({ seriesByMetric, className }: { seriesByMetric: Record<HeroMetricKey, SeriesPoint[] | undefined>; className?: string }) {
   const [metricKey, setMetricKey] = useState<HeroMetricKey>("dailyUsdSpent");
-  const [range, setRange] = useState<RangeKey>("90D");
+  const [range, setRange] = useState<RangeKey>("30D");
   const metric = HERO_METRICS.find(candidate => candidate.key === metricKey) ?? HERO_METRICS[0];
   const series = seriesByMetric[metricKey];
   const rangedSeries = useMemo(() => (series ? sliceRange(series, daysOf(range)) : []), [series, range]);
@@ -38,7 +38,7 @@ export function HeroChartPanel({ seriesByMetric, className }: { seriesByMetric: 
               <span className="text-[40px] font-semibold tabular-nums leading-none tracking-[-0.025em]">
                 {latest ? metric.formatValue(latest.value) : EMPTY_VALUE}
               </span>
-              {rangedSeries.length > 1 && <DeltaLabel className="text-[13px]" percent={deltaPercent(rangedSeries, 0)} period={range.toLowerCase()} />}
+              {series && series.length > 1 && <DeltaLabel className="text-[13px]" percent={deltaPercent(series, daysOf(range))} period={range.toLowerCase()} />}
             </div>
             <span className="text-xs leading-snug text-faint">{metric.description}</span>
           </div>
