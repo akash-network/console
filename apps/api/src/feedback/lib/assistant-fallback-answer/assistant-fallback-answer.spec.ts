@@ -203,4 +203,31 @@ describe(fallbackAnswerOf.name, () => {
       "I read your balance and spend and the Console docs, but could not finish my answer. Next step: ask again in a shorter question, or ask on Discord for live help."
     );
   });
+
+  it("keeps a read whose data carries an error field of its own", () => {
+    expect(fallbackAnswerOf(turnWithResultsOf(readOf("c1", "get_deployment", "1", { dseq: "1", name: "web", error: "ImagePullBackOff" })))).toBe(
+      "I read deployment web, but could not finish my answer. Next step: tell me what you expected deployment web to do, or ask on Discord for live help."
+    );
+  });
+
+  it("keeps a read asked for again when the earlier read succeeded", () => {
+    const earlier = readContentOf("list_deployments", { deployments: [] });
+
+    expect(fallbackAnswerOf(askedTurnOf("what is wrong", { call: toolCall("c1", "list_deployments"), result: alreadyReadContentOf("list_deployments", earlier) }))).toBe(
+      "I read your deployments, but could not finish my answer. Next step: ask again in a shorter question, or ask on Discord for live help."
+    );
+  });
+
+  it("names a deployment after a first party read that returned its name", () => {
+    expect(
+      fallbackAnswerOf(
+        turnWithResultsOf(
+          { call: toolCall("c1", "get_balance_and_spend"), result: readContentOf("get_balance_and_spend", { spendByDeployment: [{ dseq: "5", name: "billing-web" }] }) },
+          { call: toolCall("c2", "read_logs", { dseq: "5" }) }
+        )
+      )
+    ).toBe(
+      "I read your balance and spend and the logs of deployment billing-web, but could not finish my answer. Next step: tell me what you expected deployment billing-web to do, or ask on Discord for live help."
+    );
+  });
 });

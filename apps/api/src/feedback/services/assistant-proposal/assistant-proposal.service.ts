@@ -34,7 +34,8 @@ function serviceNamed(services: SdlServiceSummary[], name: string): SdlServiceSu
   const service = services.find(({ service }) => service === name);
   if (!service)
     throw new AssistantToolError(
-      `The deployment has no service named ${JSON.stringify(name)}. Its services are: ${services.map(({ service }) => service).join(", ")}`
+      `The deployment has no service named ${JSON.stringify(name)}.`,
+      `Its services are: ${services.map(({ service }) => service).join(", ")}`
     );
 
   return service;

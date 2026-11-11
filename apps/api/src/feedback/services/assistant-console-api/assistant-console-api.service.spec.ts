@@ -314,7 +314,10 @@ describe(AssistantConsoleApiService.name, () => {
       });
 
       await expect(service.read({ path: "/v1/projects" })).rejects.toThrow(
-        new AssistantToolError(`The Console API refused /v1/projects with 400: bad limit for ${REDACTED}, password=${REDACTED}`)
+        expect.objectContaining({
+          message: "The Console API refused /v1/projects with 400.",
+          untrustedDetail: `bad limit for ${REDACTED}, password=${REDACTED}`
+        })
       );
     });
 
@@ -323,9 +326,12 @@ describe(AssistantConsoleApiService.name, () => {
       const { service: jsonService } = setup({ response: Response.json({ error: "Unprocessable" }, { status: 422 }) });
 
       const error = (await service.read({ path: "/v1/projects" }).catch((error: unknown) => error)) as AssistantToolError;
+      const jsonError = (await jsonService.read({ path: "/v1/projects" }).catch((error: unknown) => error)) as AssistantToolError;
 
-      expect(error.message).toBe(`The Console API refused /v1/projects with 422: ${"x".repeat(300)}`);
-      await expect(jsonService.read({ path: "/v1/projects" })).rejects.toThrow(new AssistantToolError("The Console API refused /v1/projects with 422: "));
+      expect(error).toMatchObject({ message: "The Console API refused /v1/projects with 422.", untrustedDetail: "x".repeat(300) });
+      expect(jsonError).toBeInstanceOf(AssistantToolError);
+      expect(jsonError.message).toBe("The Console API refused /v1/projects with 422.");
+      expect(jsonError.untrustedDetail).toBeUndefined();
     });
 
     it("treats a server error as a failure the model does not see", async () => {

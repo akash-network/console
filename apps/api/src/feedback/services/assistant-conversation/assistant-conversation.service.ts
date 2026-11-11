@@ -44,6 +44,7 @@ import { ClassifyConversation, classifyConversationOptionsFor } from "@src/feedb
 
 /** Logs matter most at their end, so a long excerpt keeps its last lines. */
 const MAX_CLIENT_EXCERPT_LENGTH = 6_000;
+const CLIENT_TOOL_FAILED_MESSAGE = "The browser could not read this.";
 
 export type RunAssistantTurn = (emit: EmitAssistantEvent, signal: AbortSignal) => Promise<void>;
 
@@ -182,7 +183,9 @@ export class AssistantConversationService {
     const toolMessages: ChatMessage[] = state.clientToolCalls.map(call => {
       const result = results.find(({ toolCallId }) => toolCallId === call.id)!;
       const excerpt = redactSecrets(excerptOf(call.function.name, result.content));
-      const payload = result.ok ? { data: { untrustedExcerpt: excerpt } } : { error: truncated(excerpt, MAX_CLIENT_EXCERPT_LENGTH) };
+      const payload = result.ok
+        ? { data: { untrustedExcerpt: excerpt } }
+        : { error: CLIENT_TOOL_FAILED_MESSAGE, untrustedData: truncated(excerpt, MAX_CLIENT_EXCERPT_LENGTH) };
 
       return { role: "tool", tool_call_id: call.id, content: toolContentOf(call.function.name, payload) };
     });

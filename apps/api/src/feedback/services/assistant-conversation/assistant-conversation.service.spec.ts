@@ -523,7 +523,11 @@ describe(AssistantConversationService.name, () => {
           tool_call_id: "c1",
           content: toolContentOf("read_logs", { data: { untrustedExcerpt: `...[earlier lines dropped]${"a".repeat(5983)}\npassword=${REDACTED}` } })
         },
-        { role: "tool", tool_call_id: "c2", content: toolContentOf("read_events", { error: "provider unreachable" }) }
+        {
+          role: "tool",
+          tool_call_id: "c2",
+          content: toolContentOf("read_events", { error: "The browser could not read this.", untrustedData: "provider unreachable" })
+        }
       ]);
       expect(transcriptService.record.mock.calls).toEqual([
         [CONVERSATION_ID, { role: "tool", content: "Read logs in the browser", toolName: "read_logs", toolPayload: { toolCallId: "c1", ok: true } }],

@@ -206,7 +206,7 @@ export class AssistantConsoleApiService {
     if (response.status >= 500) return new Error(`The Console API answered ${response.status}`);
 
     const message = redactEmailAddresses(redactSecrets(errorMessageOf(await response.text()))).slice(0, MAX_ERROR_MESSAGE_LENGTH);
-    return new AssistantToolError(`The Console API refused ${path} with ${response.status}: ${message}`);
+    return new AssistantToolError(`The Console API refused ${path} with ${response.status}.`, message || undefined);
   }
 
   async #shaped(route: ConsoleApiRoute, body: unknown): Promise<unknown> {

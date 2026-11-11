@@ -59,10 +59,15 @@ function dseqOf(call: ChatToolCall): string | undefined {
   }
 }
 
+/** A read asked for again carries the earlier tool result, with its own tool name, as its untrusted data. */
+function isFailedEarlierResult(untrustedData: { tool?: unknown; error?: unknown } | null | undefined): boolean {
+  return typeof untrustedData?.tool === "string" && untrustedData.error !== undefined;
+}
+
 function isFailedRead(result: string | undefined): boolean {
   try {
     const { error, untrustedData } = JSON.parse(result ?? "{}");
-    return error !== undefined || untrustedData?.error !== undefined;
+    return error !== undefined || isFailedEarlierResult(untrustedData);
   } catch {
     return false;
   }

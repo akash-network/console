@@ -497,7 +497,7 @@ describe(AssistantProposalService.name, () => {
       const { service } = setup();
 
       await expect(propose(service, "update_deployment", { dseq: "42", services: { api: { image: "a:1" } } })).rejects.toThrow(
-        new AssistantToolError('The deployment has no service named "api". Its services are: web')
+        expect.objectContaining({ message: 'The deployment has no service named "api".', untrustedDetail: "Its services are: web" })
       );
     });
 
