@@ -276,7 +276,7 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
     await this.updateById(id, { deploymentAllowance: 0, feeAllowance: 0, isTrialing: false, abuseLockedAt: new Date(), abuseLockedReason: reason });
   }
 
-  /** A trial grant leaves `isTrialing` set, a lock after it clears the flag, and a payment or a lock at activation never starts a trial. */
+  /** A wallet keeps no record of a trial once it is paid for, so a trial that converted before the count reads like a wallet that never had one and is left out. */
   async countTrialsStartedBetween(from: Date, to: Date): Promise<number> {
     const [{ trialsStarted }] = await this.cursor
       .select({ trialsStarted: count() })
