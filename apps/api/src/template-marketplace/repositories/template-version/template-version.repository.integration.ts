@@ -5,6 +5,7 @@ import { container } from "tsyringe";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
+import type { AskedValue } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
 import { TemplateVersionRepository } from "./template-version.repository";
 
 import { seedOrganization, seedProject } from "@test/seeders/db/organization.seeder";
@@ -39,8 +40,9 @@ describe(TemplateVersionRepository.name, () => {
       const { repository } = setup();
       const template = await seedTemplate();
       const resources = { cpu: 2, memoryBytes: 1024, storageBytes: 2048 };
+      const portValue: AskedValue = { type: "number", key: "PORT", label: "Port", required: true, bindings: [{ service: "web", env: "PORT" }] };
 
-      const version = await repository.appendVersion({ templateId: template.id, sdl: "sdl", readme: "# readme", askedValues: [{ key: "PORT" }], resources });
+      const version = await repository.appendVersion({ templateId: template.id, sdl: "sdl", readme: "# readme", askedValues: [portValue], resources });
       const bare = await repository.appendVersion({ templateId: template.id, sdl: "other" });
 
       expect(version).toEqual({
@@ -49,7 +51,7 @@ describe(TemplateVersionRepository.name, () => {
         version: 1,
         sdl: "sdl",
         readme: "# readme",
-        askedValues: [{ key: "PORT" }],
+        askedValues: [portValue],
         resources,
         imageDigests: {},
         status: "live",
