@@ -35,6 +35,7 @@ import { AssistantMessageRepository } from "@src/feedback/repositories/assistant
 import { AssistantPendingTurnRepository } from "@src/feedback/repositories/assistant-pending-turn/assistant-pending-turn.repository";
 import { AssistantTurnTraceRepository } from "@src/feedback/repositories/assistant-turn-trace/assistant-turn-trace.repository";
 import { AkashMlClient, type ChatMessage } from "@src/feedback/services/akashml-client/akashml.client";
+import { AssistantAnswerSigner } from "@src/feedback/services/assistant-answer-signer/assistant-answer-signer.service";
 import { AssistantLimitsService } from "@src/feedback/services/assistant-limits/assistant-limits.service";
 import { toolContentOf, truncated } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
 import { AssistantTranscriptService } from "@src/feedback/services/assistant-transcript/assistant-transcript.service";
@@ -81,6 +82,7 @@ export class AssistantConversationService {
     private readonly assistantTurnTraceRepository: AssistantTurnTraceRepository,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly akashMlClient: AkashMlClient,
+    private readonly answerSigner: AssistantAnswerSigner,
     private readonly limitsService: AssistantLimitsService,
     private readonly transcriptService: AssistantTranscriptService,
     private readonly turnService: AssistantTurnService,
@@ -263,7 +265,7 @@ export class AssistantConversationService {
 
   async #admit(countedMessage?: CountedMessage): Promise<{ consent: AssistantConsentOutput; isTrialing: boolean | null }> {
     const consent = await this.#currentConsent();
-    if (!this.akashMlClient.isAvailable()) throw assistantUnavailable();
+    if (!this.akashMlClient.isAvailable() || !this.answerSigner.isConfigured()) throw assistantUnavailable();
 
     const isTrialing = await this.#isTrialing();
     if (countedMessage) await this.#countMessage(countedMessage, isTrialing);

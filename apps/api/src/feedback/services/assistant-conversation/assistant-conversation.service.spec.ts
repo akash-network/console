@@ -26,6 +26,7 @@ import type {
 } from "@src/feedback/repositories/assistant-pending-turn/assistant-pending-turn.repository";
 import type { AssistantTurnTraceRepository } from "@src/feedback/repositories/assistant-turn-trace/assistant-turn-trace.repository";
 import type { AkashMlClient, ChatToolCall } from "@src/feedback/services/akashml-client/akashml.client";
+import type { AssistantAnswerSigner } from "@src/feedback/services/assistant-answer-signer/assistant-answer-signer.service";
 import type { AssistantLimitsService } from "@src/feedback/services/assistant-limits/assistant-limits.service";
 import { toolContentOf } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
 import type { AssistantTranscriptService } from "@src/feedback/services/assistant-transcript/assistant-transcript.service";
@@ -142,6 +143,14 @@ describe(AssistantConversationService.name, () => {
     it("refuses before counting when the assistant is unavailable", async () => {
       const { service, akashMlClient, limitsService } = setup();
       akashMlClient.isAvailable.mockReturnValue(false);
+
+      await expect(service.prepareMessage(CONVERSATION_ID, { content: "hi" })).rejects.toMatchObject({ status: 503, errorCode: "assistant_unavailable" });
+      expect(limitsService.countMessage).not.toHaveBeenCalled();
+    });
+
+    it("reports the assistant unavailable when no signing key is set", async () => {
+      const { service, answerSigner, limitsService } = setup();
+      answerSigner.isConfigured.mockReturnValue(false);
 
       await expect(service.prepareMessage(CONVERSATION_ID, { content: "hi" })).rejects.toMatchObject({ status: 503, errorCode: "assistant_unavailable" });
       expect(limitsService.countMessage).not.toHaveBeenCalled();
@@ -727,6 +736,8 @@ describe(AssistantConversationService.name, () => {
     userWalletRepository.findOneUsedBy.mockResolvedValue("wallet" in input ? input.wallet : createUserWallet({ isTrialing: false }));
     const akashMlClient = mock<AkashMlClient>();
     akashMlClient.isAvailable.mockReturnValue(true);
+    const answerSigner = mock<AssistantAnswerSigner>();
+    answerSigner.isConfigured.mockReturnValue(true);
     const limitsService = mock<AssistantLimitsService>();
     const transcriptService = mock<AssistantTranscriptService>();
     const turnService = mock<AssistantTurnService>();
@@ -747,6 +758,7 @@ describe(AssistantConversationService.name, () => {
       traceRepository,
       userWalletRepository,
       akashMlClient,
+      answerSigner,
       limitsService,
       transcriptService,
       turnService,
@@ -766,6 +778,7 @@ describe(AssistantConversationService.name, () => {
       dailyCountRepository,
       pendingTurnRepository,
       akashMlClient,
+      answerSigner,
       limitsService,
       transcriptService,
       turnService,
