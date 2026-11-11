@@ -14,15 +14,17 @@ export async function dispatchWsEvent(websocket: WebSocket, event: Event) {
 }
 
 export function createWebsocketMock(): WebSocket {
-  return mock<WebSocket>({
+  const websocket = mock<WebSocket>({
     readyState: WebSocket.OPEN as WebSocket["readyState"],
     onopen: null,
     onmessage: null,
     onerror: null,
     onclose: null,
-    close: vi.fn(function close() {
-      this.readyState = WebSocket.CLOSED;
-      dispatchWsEvent(this, new Event("close"));
+    close: vi.fn(() => {
+      Object.assign(websocket, { readyState: WebSocket.CLOSED });
+      dispatchWsEvent(websocket, new Event("close"));
     })
   });
+
+  return websocket;
 }

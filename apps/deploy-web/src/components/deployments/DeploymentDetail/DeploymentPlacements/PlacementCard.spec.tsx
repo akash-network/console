@@ -281,7 +281,7 @@ describe(PlacementCard.name, () => {
   }) {
     const leaseStatus = input && "leaseStatus" in input ? input.leaseStatus : buildStatus(["web"]);
     const useLeaseStatus: typeof DEPENDENCIES.useLeaseStatus = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useLeaseStatus>>({
+      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useLeaseStatus>>(), {
         data: leaseStatus,
         error: input?.leaseStatusError ?? null,
         isPending: !leaseStatus && !input?.leaseStatusError,

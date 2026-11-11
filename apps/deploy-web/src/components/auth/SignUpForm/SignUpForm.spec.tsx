@@ -60,7 +60,7 @@ describe(SignUpForm.name, () => {
 
   function setup(input: Partial<ComponentProps<typeof SignUpForm>> = {}) {
     const goBack = vi.fn();
-    const onSubmit = input?.onSubmit ?? vi.fn<void, [SignUpFormValues]>();
+    const onSubmit = input?.onSubmit ?? vi.fn<(values: SignUpFormValues) => void>();
     const props: ComponentProps<typeof SignUpForm> = {
       isLoading: false,
       ...input,

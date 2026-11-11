@@ -834,7 +834,7 @@ describe("DeploymentDetail", () => {
         refetch: refetchDeployment
       });
     const refetchLeases = vi.fn();
-    const leaseList = mock<ReturnType<typeof DEPENDENCIES.useDeploymentLeaseList>>({
+    const leaseList = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useDeploymentLeaseList>>(), {
       refetch: refetchLeases,
       data: leases,
       isLoading: false,

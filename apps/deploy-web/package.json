@@ -26,7 +26,7 @@
     "test:e2e:orgs-release": "PW_ORGS_RELEASE=1 playwright test tests/ui/organizations-release",
     "test:unit": "NODE_ENV=test DEPLOYMENT_ENV=staging vitest run",
     "type-check": "tsc",
-    "validate:types": "tsc --noEmit -p tsconfig.build.json"
+    "validate:types": "tsc --noEmit"
   },
   "dependencies": {
     "@akashnetwork/chain-sdk": "1.0.0-alpha.45",

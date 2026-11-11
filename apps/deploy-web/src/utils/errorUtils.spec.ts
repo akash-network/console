@@ -1,3 +1,5 @@
+import { describe, expect, it } from "vitest";
+
 import type { AppError, ErrorResponse } from "@src/types";
 import { extractErrorData, extractErrorMessage, isHttpErrorResponse } from "./errorUtils";
 
@@ -99,10 +101,9 @@ describe("errorUtils", () => {
       expect(result).toBe("404");
     });
 
-    it("handles boolean error", () => {
-      const booleanError = false;
-      const result = extractErrorMessage(booleanError as unknown as AppError);
-      expect(result).toBe("false");
+    it("returns fallback message for a false error", () => {
+      const result = extractErrorMessage(false as unknown as AppError);
+      expect(result).toBe("An error occurred. Please try again.");
     });
   });
 

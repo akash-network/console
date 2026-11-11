@@ -7,7 +7,6 @@ import { buildUser } from "@tests/seeders/user";
 
 export function activityFeedOf(activities: Activity[]): typeof DEPENDENCIES {
   return {
-    useFlag: () => true,
     useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: buildUser() }),
     useActivityFeedQuery: () =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useActivityFeedQuery>>(), {
