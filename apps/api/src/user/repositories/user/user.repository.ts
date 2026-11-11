@@ -13,6 +13,7 @@ export type UserOutput = ApiPgTables["Users"]["$inferSelect"] & {
   trial?: boolean;
 };
 export type UserInput = Partial<UserOutput>;
+export type CreatedAccount = Pick<UserOutput, "id" | "email" | "userId" | "lastFingerprint">;
 
 const MAX_LINKED_ACCOUNTS = 20;
 
@@ -156,6 +157,14 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
       )
       .orderBy(desc(this.table.lastActiveAt))
       .limit(MAX_LINKED_ACCOUNTS);
+  }
+
+  async findCreatedBetween(from: Date, to: Date): Promise<CreatedAccount[]> {
+    return this.pg
+      .select({ id: this.table.id, email: this.table.email, userId: this.table.userId, lastFingerprint: this.table.lastFingerprint })
+      .from(this.table)
+      .where(and(gte(this.table.createdAt, from), lt(this.table.createdAt, to)))
+      .orderBy(this.table.createdAt);
   }
 
   /** The triggering account never counts as evidence that its own domain predates the attack, or aging one signup past the window would put that domain permanently out of reach. */
