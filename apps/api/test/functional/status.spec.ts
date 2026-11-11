@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { INTERNAL_TOKEN_HEADER } from "@src/middlewares/internal-token/internal-token.middleware";
 import { app } from "@src/rest-app";
 
 const FUNCTIONAL_TEST_SECRET_TOKEN = "functional-test-secret-token-000000";
@@ -23,7 +24,7 @@ describe("GET /status/caches", () => {
   });
 
   it("reports every registered cache with its counts and byte accounting", async () => {
-    const response = await app.request(`/status/caches?token=${FUNCTIONAL_TEST_SECRET_TOKEN}`);
+    const response = await app.request("/status/caches", { headers: { [INTERNAL_TOKEN_HEADER]: FUNCTIONAL_TEST_SECRET_TOKEN } });
 
     expect(response.status).toBe(200);
     const data = (await response.json()) as {

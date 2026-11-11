@@ -15,12 +15,6 @@ describe("GET /dashboard/stats", () => {
     expect(response.status).toBe(401);
   });
 
-  it("rejects a caller with the wrong private token", async () => {
-    const response = await app.request(`/dashboard/stats?token=${faker.string.alphanumeric(32)}`);
-
-    expect(response.status).toBe(401);
-  });
-
   it("rejects a caller with the wrong private token in the header", async () => {
     const response = await app.request("/dashboard/stats", { headers: { [INTERNAL_TOKEN_HEADER]: faker.string.alphanumeric(32) } });
 
@@ -45,22 +39,16 @@ describe("GET /dashboard/stats", () => {
     });
   });
 
-  it("reports user and template counts to a caller with the private token in the query string", async () => {
+  it("rejects a caller with the private token in the query string", async () => {
     const response = await app.request(`/dashboard/stats?token=${secretToken}`);
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(401);
   });
 });
 
 describe("GET /internal/financial", () => {
   it("rejects a caller without the private token", async () => {
     const response = await app.request("/internal/financial");
-
-    expect(response.status).toBe(401);
-  });
-
-  it("rejects a caller with the wrong private token", async () => {
-    const response = await app.request(`/internal/financial?token=${faker.string.alphanumeric(32)}`);
 
     expect(response.status).toBe(401);
   });
