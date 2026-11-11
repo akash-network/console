@@ -17,7 +17,7 @@ const HERO_CHART_MIN_HEIGHT = 280;
 
 export function HeroChartPanel({ seriesByMetric, className }: { seriesByMetric: Record<HeroMetricKey, SeriesPoint[] | undefined>; className?: string }) {
   const [metricKey, setMetricKey] = useState<HeroMetricKey>("dailyUsdSpent");
-  const [range, setRange] = useState<RangeKey>("90D");
+  const [range, setRange] = useState<RangeKey>("30D");
   const metric = HERO_METRICS.find(candidate => candidate.key === metricKey) ?? HERO_METRICS[0];
   const series = seriesByMetric[metricKey];
   const rangedSeries = useMemo(() => (series ? sliceRange(series, daysOf(range)) : []), [series, range]);
