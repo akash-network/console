@@ -24488,6 +24488,9 @@
           },
           "400": {
             "description": "Invalid request body"
+          },
+          "503": {
+            "description": "Provider screening is unavailable"
           }
         }
       }

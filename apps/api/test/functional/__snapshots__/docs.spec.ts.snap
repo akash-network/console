@@ -4171,6 +4171,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
           "400": {
             "description": "Invalid request body",
           },
+          "503": {
+            "description": "Provider screening is unavailable",
+          },
         },
         "security": [],
         "summary": "Screen providers by deployment resource requirements",
