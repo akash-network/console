@@ -42,7 +42,7 @@ export class TrialSignupHoldService {
     return true;
   }
 
-  /** Enqueued outside any surrounding transaction because the hold refuses by throwing, and throttled to one report per account per review window. */
+  /** Enqueued outside any surrounding transaction because the hold refuses by throwing; pg-boss throttles on fixed slots counted from the epoch, so attempts on either side of a slot boundary each report. */
   async #reportHeld(userId: UserOutput["id"], windowMinutes: number): Promise<void> {
     try {
       await this.txService.outsideTransaction(
