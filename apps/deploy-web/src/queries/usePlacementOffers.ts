@@ -92,9 +92,10 @@ export function usePlacementOffers(
     [groupBids, screenedByOwner, providersByOwner, regions]
   );
 
+  const hasBidOffers = !isScreening && placementBids.length > 0;
   const offers = useMemo(
     function buildOffers(): PlacementOffer[] {
-      if (isScreening || placementBids.length === 0) return screened.providers.map(toSearchingOffer);
+      if (!hasBidOffers) return screened.providers.map(toSearchingOffer);
 
       const bidByOwner = pickBestBidPerOwner(placementBids);
       return mergedOwners(screened.providers, bidByOwner).map(function toMergedOffer(owner): PlacementOffer {
@@ -106,13 +107,13 @@ export function usePlacementOffers(
         return { ...meta, offerState: "unavailable", bidId: undefined, price: undefined, gpus: undefined };
       });
     },
-    [isScreening, screened.providers, screenedByOwner, placementBids, providersByOwner]
+    [hasBidOffers, screened.providers, screenedByOwner, placementBids, providersByOwner]
   );
 
   const isQuoting = phase === "quoting";
   return {
     offers,
-    isLoading: screened.isLoading || (isQuoting && offers.length === 0 && bidsQuery.isLoading),
+    isLoading: (screened.isLoading && !hasBidOffers) || (isQuoting && offers.length === 0 && bidsQuery.isLoading),
     isError: screened.isError || (isQuoting && bidsQuery.isError),
     isInvalid: !isLocked && screened.isInvalid
   };
