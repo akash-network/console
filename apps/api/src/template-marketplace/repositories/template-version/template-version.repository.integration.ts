@@ -98,6 +98,17 @@ describe(TemplateVersionRepository.name, () => {
       expect(resaved.changes).toEqual([]);
     });
 
+    it("tells the readme change against the readme the current version shows", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+      await repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("nginx:1") });
+
+      const carried = await repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("nginx:1"), readme: "Legacy", currentReadmeShown: "Legacy" });
+      const edited = await repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("nginx:1"), readme: "# New", currentReadmeShown: "Legacy" });
+
+      expect([carried.changes, edited.changes]).toEqual([[], ["readme_changed"]]);
+    });
+
     it("compares each concurrent append with the version it numbers after", async () => {
       const { repository } = setup();
       const template = await seedTemplate();

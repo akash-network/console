@@ -175,7 +175,8 @@ export class TemplateWriterService {
     const { imageDigests: _imageDigests, ...version } = await this.txService.transaction(async () => {
       const template = await this.#lockWritable(id, "update");
       const base = template.currentVersionId ? await this.#findBaseVersion(id, input.baseVersion) : undefined;
-      const readme = input.readme === undefined ? readmeShownFor(base, template) : input.readme;
+      const currentReadmeShown = readmeShownFor(base, template);
+      const readme = input.readme === undefined ? currentReadmeShown : input.readme;
       const appended = await this.templateVersionRepository.appendVersion({
         templateId: id,
         sdl: input.sdl,
@@ -183,7 +184,8 @@ export class TemplateWriterService {
         askedValues: input.askedValues,
         resources: hardware ?? null,
         createdById,
-        expectedCurrentVersionId: base?.id
+        expectedCurrentVersionId: base?.id,
+        currentReadmeShown
       });
       await this.marketplaceTemplateRepository.mirrorVersion(id, {
         sdl: input.sdl,

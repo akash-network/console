@@ -276,7 +276,8 @@ describe(TemplateWriterService.name, () => {
         askedValues,
         resources: { cpu: 1.5, memoryBytes: 1536 * MEBIBYTE, storageBytes: 3 * GIBIBYTE },
         createdById: user.id,
-        expectedCurrentVersionId: base.id
+        expectedCurrentVersionId: base.id,
+        currentReadmeShown: "# Before"
       });
       expect(repository.mirrorVersion).toHaveBeenCalledWith(template.id, {
         sdl,
@@ -315,6 +316,17 @@ describe(TemplateWriterService.name, () => {
 
       expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ readme: "Legacy description" }));
       expect(repository.mirrorVersion).toHaveBeenCalledWith(template.id, expect.objectContaining({ description: "Legacy description" }));
+    });
+
+    it("tells the readme change against the legacy description a version saved without a readme shows", async () => {
+      const template = createTemplateRow({ description: "Legacy description" });
+      const { service, templateVersionRepository } = setup({ template, base: createVersion({ templateId: template.id, readme: null }) });
+
+      await service.appendVersion(template.id, { sdl: buildSdl(), readme: "# New", askedValues: [], baseVersion: 1 });
+
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(
+        expect.objectContaining({ readme: "# New", currentReadmeShown: "Legacy description" })
+      );
     });
 
     it("carries no readme forward when neither the version nor the legacy description holds one", async () => {

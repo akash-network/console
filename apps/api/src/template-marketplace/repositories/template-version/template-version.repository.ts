@@ -47,6 +47,8 @@ export type AppendTemplateVersionInput = {
   resources?: TemplateHardware | null;
   createdById?: string | null;
   expectedCurrentVersionId?: string;
+  /** A version saved before readmes were recorded shows the legacy description, so its changes are told against that rather than its empty column. */
+  currentReadmeShown?: string | null;
 };
 
 export const TEMPLATE_VERSION_CONFLICT_ERROR_CODE = "template_version_conflict";
@@ -83,7 +85,8 @@ export class TemplateVersionRepository extends BaseRepository<Table, TemplateVer
         throw createError(409, "The template has a newer version", { errorCode: TEMPLATE_VERSION_CONFLICT_ERROR_CODE });
       }
 
-      const current = template?.currentVersionId ? await this.#readContent(tx, template.currentVersionId) : undefined;
+      const stored = template?.currentVersionId ? await this.#readContent(tx, template.currentVersionId) : undefined;
+      const current = stored && { ...stored, readme: input.currentReadmeShown ?? stored.readme };
 
       const [{ next }] = await tx
         .select({ next: sql<number>`coalesce(max(${this.table.version}), 0) + 1` })
