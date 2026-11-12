@@ -112,6 +112,7 @@
     "sql-formatter": "~15.7.4",
     "stripe": "^19.3.0",
     "tar": "^6.2.1",
+    "tldts": "^6.1.86",
     "ts-results": "^3.3.0",
     "tsyringe": "^4.10.0",
     "unleash-client": "^6.6.0",

@@ -1,9 +1,12 @@
 import { faker } from "@faker-js/faker";
+import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
+import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 import { app } from "@src/rest-app";
+import { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { UserTemplateRepository } from "@src/user/repositories/user-template/user-template.repository";
 
@@ -11,6 +14,7 @@ describe("User templates", () => {
   const userRepository = container.resolve(UserRepository);
   const userTemplateRepository = container.resolve(UserTemplateRepository);
   const userAuthTokenService = container.resolve(UserAuthTokenService);
+  const templateVersionRepository = container.resolve(TemplateVersionRepository);
 
   afterEach(() => {
     vi.restoreAllMocks();
@@ -31,6 +35,123 @@ describe("User templates", () => {
         ram: 536870912,
         storage: 1073741824
       });
+    });
+
+    it("saves a public template as public but not listed", async () => {
+      const { user, token } = await setup();
+
+      const response = await saveTemplate(token, { ...buildTemplate(), isPublic: true });
+
+      const templateId = await response.text();
+      expect(await findStoredTemplate(templateId)).toMatchObject({ visibility: "public", isListed: false, authorId: user.id });
+      expect(await templateVersionRepository.listByTemplate(templateId)).toHaveLength(1);
+    });
+
+    it("answers a save exactly as before", async () => {
+      const { token } = await setup();
+
+      const response = await saveTemplate(token, buildTemplate());
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toContain("text/plain");
+      expect(await response.text()).toMatch(/^[0-9a-f-]{36}$/);
+    });
+
+    it("versions an update that changes the sdl and leaves one that keeps it", async () => {
+      const { token } = await setup();
+      const template = buildTemplate();
+      const id = await (await saveTemplate(token, template)).text();
+
+      await saveTemplate(token, { ...template, id, title: faker.lorem.words(3) });
+      expect(await templateVersionRepository.listByTemplate(id)).toHaveLength(1);
+
+      await saveTemplate(token, { ...template, id, sdl: "version: '2.1'" });
+      const versions = await templateVersionRepository.listByTemplate(id);
+
+      expect(versions.map(({ version }) => version)).toEqual([2, 1]);
+      expect(await templateVersionRepository.findCurrent(id)).toMatchObject({ version: 2, sdl: "version: '2.1'" });
+    });
+
+    it("keeps visibility in step with isPublic on an update", async () => {
+      const { token } = await setup();
+      const template = buildTemplate();
+      const id = await (await saveTemplate(token, template)).text();
+
+      await saveTemplate(token, { ...template, id, isPublic: true });
+      expect(await findStoredTemplate(id)).toMatchObject({ visibility: "public", isListed: false });
+
+      await saveTemplate(token, { ...template, id, isPublic: false });
+      expect(await findStoredTemplate(id)).toMatchObject({ visibility: "private", isListed: true });
+    });
+
+    it("keeps an organization template organization-visible when it is re-saved private", async () => {
+      const { token } = await setup();
+      const template = buildTemplate();
+      const id = await (await saveTemplate(token, template)).text();
+      await setStoredState(id, { visibility: "organization", isListed: true });
+
+      await saveTemplate(token, { ...template, id, isPublic: false });
+
+      expect(await findStoredTemplate(id)).toMatchObject({ isPublic: false, visibility: "organization", isListed: true });
+    });
+
+    it("keeps a listed public template listed when it is re-saved public", async () => {
+      const { token } = await setup();
+      const template = { ...buildTemplate(), isPublic: true };
+      const id = await (await saveTemplate(token, template)).text();
+      await setStoredState(id, { isListed: true });
+
+      await saveTemplate(token, { ...template, id });
+
+      expect(await findStoredTemplate(id)).toMatchObject({ isPublic: true, visibility: "public", isListed: true });
+    });
+
+    it("records a version when a template written without one is saved again with the same sdl", async () => {
+      const { user, token } = await setup();
+      const template = buildTemplate();
+      const id = await userTemplateRepository.createTemplate(user.userId!, template);
+      expect(await findStoredTemplate(id)).toMatchObject({ currentVersionId: null });
+
+      const response = await saveTemplate(token, { ...template, id });
+
+      const versions = await templateVersionRepository.listByTemplate(id);
+      expect(response.status).toBe(200);
+      expect(versions.map(({ version }) => version)).toEqual([1]);
+      expect(await findStoredTemplate(id)).toMatchObject({ currentVersionId: versions[0].id });
+    });
+
+    it("records a version when the template's sdl was changed behind its current version", async () => {
+      const { token } = await setup();
+      const template = buildTemplate();
+      const id = await (await saveTemplate(token, template)).text();
+      const driftedSdl = "version: '2.9'";
+      await setStoredState(id, { sdl: driftedSdl });
+
+      await saveTemplate(token, { ...template, id, sdl: driftedSdl });
+
+      expect(await templateVersionRepository.findCurrent(id)).toMatchObject({ version: 2, sdl: driftedSdl });
+    });
+
+    it("repairs a private template stored as public when it is saved private", async () => {
+      const { token } = await setup();
+      const template = buildTemplate();
+      const id = await (await saveTemplate(token, template)).text();
+      await setStoredState(id, { visibility: "public", isListed: false });
+
+      await saveTemplate(token, { ...template, id, isPublic: false });
+
+      expect(await findStoredTemplate(id)).toMatchObject({ isPublic: false, visibility: "private", isListed: true });
+    });
+
+    it("repairs a public template stored as private when it is saved public", async () => {
+      const { token } = await setup();
+      const template = { ...buildTemplate(), isPublic: true };
+      const id = await (await saveTemplate(token, template)).text();
+      await setStoredState(id, { visibility: "private", isListed: true });
+
+      await saveTemplate(token, { ...template, id });
+
+      expect(await findStoredTemplate(id)).toMatchObject({ isPublic: true, visibility: "public", isListed: false });
     });
 
     it.each([
@@ -67,6 +188,18 @@ describe("User templates", () => {
       isPublic: false,
       ...overrides
     };
+  }
+
+  async function setStoredState(id: string, state: { sdl?: string; visibility?: "private" | "organization" | "public"; isListed?: boolean }) {
+    const templates = resolveTable("Templates");
+    await container.resolve<ApiPgDatabase>(POSTGRES_DB).update(templates).set(state).where(eq(templates.id, id));
+  }
+
+  async function findStoredTemplate(id: string) {
+    const templates = resolveTable("Templates");
+    const [row] = await container.resolve<ApiPgDatabase>(POSTGRES_DB).select().from(templates).where(eq(templates.id, id));
+
+    return row;
   }
 
   async function saveTemplate(token: string, template: Record<string, unknown>) {

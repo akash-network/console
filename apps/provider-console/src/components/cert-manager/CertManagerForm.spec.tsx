@@ -1,4 +1,4 @@
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/jest-globals";
 
 import React from "react";
 
@@ -39,7 +39,7 @@ describe("CertManagerForm", () => {
     await user.click(screen.getByRole("button", { name: "Continue" }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
-    expect(onSubmit).toHaveBeenCalledWith<[CertManagerPayload]>({
+    expect(onSubmit).toHaveBeenCalledWith({
       use_staging: false,
       dns_provider: "cloudflare",
       cloudflare: { api_token: "cf-token-123" }
@@ -58,7 +58,7 @@ describe("CertManagerForm", () => {
     await user.click(screen.getByRole("button", { name: "Continue" }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
-    expect(onSubmit).toHaveBeenCalledWith<[CertManagerPayload]>({
+    expect(onSubmit).toHaveBeenCalledWith({
       use_staging: false,
       dns_provider: "clouddns",
       clouddns: { project: "my-gcp-project", service_account_json: VALID_GCP_JSON }
@@ -189,7 +189,7 @@ describe("CertManagerForm", () => {
   }) {
     return render(
       <CertManagerForm
-        onSubmit={input.onSubmit ?? jest.fn()}
+        onSubmit={input.onSubmit ?? jest.fn<(payload: CertManagerPayload) => void>()}
         acmeEmailMode={input.acmeEmailMode ?? "optional"}
         defaultValues={input.defaultValues}
         rootError={input.rootError}

@@ -483,12 +483,28 @@ describe(UserWalletRepository.name, () => {
       const { domain, createWalletOnDomain, userWalletRepository } = await setupDomain();
       await createWalletOnDomain({}, `x${domain}`);
       await createWalletOnDomain({}, `${domain}.attacker.net`);
-      await createWalletOnDomain({}, `mail.${domain}`);
       const trigger = await createWalletOnDomain({});
 
       const lockable = await userWalletRepository.findLockableTrialWalletsByEmailDomain(domain, { excludeWalletId: trigger.id, limit: 10 });
 
       expect(lockable).toEqual([]);
+    });
+
+    it("returns the wallets on subdomains of the domain", async () => {
+      const { domain, createWalletOnDomain, userWalletRepository } = await setupDomain();
+      const onSubdomain = await createWalletOnDomain({}, `mail.${domain}`);
+      const onNestedSubdomain = await createWalletOnDomain({}, `eu.mail.${domain}`);
+      const trigger = await createWalletOnDomain({});
+
+      const lockable = await userWalletRepository.findLockableTrialWalletsByEmailDomain(domain, { excludeWalletId: trigger.id, limit: 10 });
+
+      expect(lockable).toHaveLength(2);
+      expect(lockable).toEqual(
+        expect.arrayContaining([
+          { walletId: onSubdomain.id, userId: onSubdomain.userId },
+          { walletId: onNestedSubdomain.id, userId: onNestedSubdomain.userId }
+        ])
+      );
     });
 
     it("returns no more wallets than the limit allows", async () => {

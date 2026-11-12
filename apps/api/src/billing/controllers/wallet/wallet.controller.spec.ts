@@ -31,6 +31,7 @@ describe("WalletController", () => {
           address: faker.string.alphanumeric(44),
           creditAmount: 100,
           isTrialing: true,
+          isTrialRefused: false,
           trialEndsAt: faker.date.future(),
           trialDurationDays: 30,
           createdAt: new Date()
@@ -41,6 +42,7 @@ describe("WalletController", () => {
           address: faker.string.alphanumeric(44),
           creditAmount: 200,
           isTrialing: false,
+          isTrialRefused: false,
           trialEndsAt: null,
           trialDurationDays: null,
           createdAt: new Date()

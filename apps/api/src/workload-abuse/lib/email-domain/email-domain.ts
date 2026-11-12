@@ -1,3 +1,5 @@
+import { getDomain } from "tldts";
+
 const DOMAIN_LABEL = "[a-z0-9](?:[a-z0-9-]*[a-z0-9])?";
 
 export const MAX_EMAIL_DOMAIN_LENGTH = 253;
@@ -45,4 +47,20 @@ export function normalizeEmailDomain(domain: string | null | undefined): string 
   if (!NORMALIZED_DOMAIN_PATTERN.test(withoutRootLabel)) return null;
 
   return withoutRootLabel;
+}
+
+/** Most specific first and never shorter than two labels, so the nearest rule on a domain is the first one that matches. */
+export function listDomainAndParents(domain: string): string[] {
+  const labels = domain.split(".");
+
+  return Array.from({ length: labels.length - 1 }, (_, index) => labels.slice(index).join("."));
+}
+
+export function isWithinDomain(domain: string, parent: string): boolean {
+  return domain === parent || domain.endsWith(`.${parent}`);
+}
+
+/** Private suffixes such as github.io count as public ones, so the result is never a suffix shared by unrelated owners; null when the domain is a suffix itself. */
+export function getRegistrableDomain(normalizedDomain: string): string | null {
+  return getDomain(normalizedDomain, { allowPrivateDomains: true, extractHostname: false });
 }

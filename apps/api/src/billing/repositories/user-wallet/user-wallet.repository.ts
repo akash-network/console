@@ -1,6 +1,6 @@
 import { Trace } from "@akashnetwork/instrumentation";
 import subDays from "date-fns/subDays";
-import { and, asc, count, eq, gt, inArray, isNotNull, isNull, lte, ne, notExists, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, count, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, ne, notExists, notInArray, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { StripeTransactions } from "@src/billing/model-schemas";
@@ -10,6 +10,8 @@ import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
 import { Users } from "@src/user/model-schemas";
+import { DELETED_TRIAL_ACCOUNT_LOCK_REASON } from "@src/workload-abuse/lib/abuse-lock-reason/abuse-lock-reason";
+import { isEmailWithinDomain } from "@src/workload-abuse/lib/email-domain/email-domain-sql";
 
 export type DbCreateUserWalletInput = ApiPgTables["UserWallets"]["$inferInsert"];
 export type DbUserWalletInput = Partial<DbCreateUserWalletInput>;
@@ -62,6 +64,7 @@ export interface UserWalletPublicOutput {
   address: WalletInitialized["address"];
   creditAmount: UserWalletOutput["creditAmount"];
   isTrialing: boolean;
+  isTrialRefused: boolean;
   trialEndsAt: Date | null;
   trialDurationDays: number | null;
   createdAt: UserWalletOutput["createdAt"];
@@ -234,7 +237,7 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
   }
 
   /**
-   * Trial wallets on a domain that are still worth wiping. The paid check is redundant while a domain is
+   * Trial wallets on a domain or any of its subdomains that are still worth wiping. The paid check is redundant while a domain is
    * auto-blocked — the guardrail already proved nobody paid — but keeps the sweep correct when it runs
    * for a domain an operator blocked by hand. The limit bounds the damage of a match that is too broad.
    */
@@ -249,7 +252,7 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
       .where(
         this.unscoped("email-domain-account-checks").whereAccessibleBy(
           and(
-            sql`lower(${Users.email}) LIKE ${"%@"} || ${domain}`,
+            isEmailWithinDomain(Users.email, domain),
             eq(this.table.isTrialing, true),
             isNull(this.table.abuseLockedAt),
             ne(this.table.id, options.excludeWalletId),
@@ -274,6 +277,22 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
   /** One write, so a wallet is never left with zeroed allowances but no lock or the other way round. */
   async lockForAbuse(id: UserWalletOutput["id"], reason: string): Promise<void> {
     await this.updateById(id, { deploymentAllowance: 0, feeAllowance: 0, isTrialing: false, abuseLockedAt: new Date(), abuseLockedReason: reason });
+  }
+
+  /** A wallet keeps no record of a trial once it is paid for, so a trial that converted before the count reads like a wallet that never had one and is left out. */
+  async countTrialsStartedBetween(from: Date, to: Date): Promise<number> {
+    const [{ trialsStarted }] = await this.cursor
+      .select({ trialsStarted: count() })
+      .from(this.table)
+      .where(
+        and(
+          gte(this.table.activatedAt, from),
+          lt(this.table.activatedAt, to),
+          or(eq(this.table.isTrialing, true), gt(this.table.abuseLockedAt, this.table.activatedAt))
+        )
+      );
+
+    return trialsStarted;
   }
 
   /** Activated as well as locked, so a payment settles on it and lifts the lock just as it does for a wallet locked during its trial. */
@@ -435,6 +454,7 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
       address: output.address,
       creditAmount: output.creditAmount,
       isTrialing: !!output.isTrialing,
+      isTrialRefused: output.abuseLockedReason === DELETED_TRIAL_ACCOUNT_LOCK_REASON,
       trialEndsAt: trialWindow.trialEndsAt,
       trialDurationDays: trialWindow.trialDurationDays,
       createdAt: output.createdAt

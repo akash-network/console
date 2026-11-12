@@ -277,9 +277,15 @@ describe(UserRepository.name, () => {
       const { userRepository, domain, createUserOnDomain, someoneElse } = setupDomain();
       await createUserOnDomain({ createdAt: subDays(new Date(), 45) }, `x${domain}`);
       await createUserOnDomain({ createdAt: subDays(new Date(), 45) }, `${domain}.attacker.net`);
-      await createUserOnDomain({ createdAt: subDays(new Date(), 45) }, `mail.${domain}`);
 
       await expect(userRepository.hasEstablishedUserWithEmailDomain(domain, 30, someoneElse)).resolves.toBe(false);
+    });
+
+    it("counts an account on a subdomain of the domain", async () => {
+      const { userRepository, domain, createUserOnDomain, someoneElse } = setupDomain();
+      await createUserOnDomain({ createdAt: subDays(new Date(), 45) }, `eu.mail.${domain}`);
+
+      await expect(userRepository.hasEstablishedUserWithEmailDomain(domain, 30, someoneElse)).resolves.toBe(true);
     });
 
     it("matches a stored address whatever its case", async () => {

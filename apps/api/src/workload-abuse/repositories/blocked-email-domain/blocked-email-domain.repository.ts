@@ -1,9 +1,10 @@
-import { eq } from "drizzle-orm";
+import { desc, eq, inArray, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
+import { listDomainAndParents } from "@src/workload-abuse/lib/email-domain/email-domain";
 
 type Table = ApiPgTables["BlockedEmailDomains"];
 export type BlockedEmailDomainInput = Partial<Table["$inferInsert"]>;
@@ -31,6 +32,14 @@ export class BlockedEmailDomainRepository extends BaseRepository<Table, BlockedE
 
   async findByDomain(domain: string): Promise<BlockedEmailDomainOutput | undefined> {
     return await this.cursor.query.BlockedEmailDomains.findFirst({ where: this.whereAccessibleBy(eq(this.table.domain, domain)) });
+  }
+
+  /** The row on the domain or its nearest parent, so an operator's allow on a subdomain outranks a block on a domain above it. */
+  async findNearestRule(domain: string): Promise<BlockedEmailDomainOutput | undefined> {
+    return await this.cursor.query.BlockedEmailDomains.findFirst({
+      where: this.whereAccessibleBy(inArray(this.table.domain, listDomainAndParents(domain))),
+      orderBy: desc(sql`length(${this.table.domain})`)
+    });
   }
 
   /**

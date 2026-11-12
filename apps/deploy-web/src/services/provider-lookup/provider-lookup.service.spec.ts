@@ -23,7 +23,7 @@ describe(ProviderLookupService.name, () => {
 
     await Promise.all(addresses.map(address => service.findByAddress(address)));
 
-    expect(httpClient.get.mock.calls.map(([, config]) => config?.params.addresses.split(",").length)).toEqual([MAX_ADDRESSES_PER_REQUEST, 1]);
+    expect(httpClient.get.mock.calls.map(([, config]) => requestedAddresses(config).length)).toEqual([MAX_ADDRESSES_PER_REQUEST, 1]);
   });
 
   it("asks once for an address looked up twice within one tick", async () => {
@@ -68,11 +68,16 @@ describe(ProviderLookupService.name, () => {
   function setup(input: { knownAddresses: string[] }) {
     const httpClient = mock<AxiosInstance>();
     httpClient.get.mockImplementation(async (_url, config) => {
-      const requested: string[] = config?.params.addresses.split(",") ?? [];
+      const requested = requestedAddresses(config);
       return { data: requested.filter(address => input.knownAddresses.includes(address)).map(address => mock<ApiProviderList>({ owner: address })) };
     });
     const service = new ProviderLookupService(httpClient, () => BASE_API_URL);
 
     return { service, httpClient };
+  }
+
+  function requestedAddresses(config: { params?: unknown } | undefined): string[] {
+    const params = config?.params as { addresses: string } | undefined;
+    return params?.addresses.split(",") ?? [];
   }
 });

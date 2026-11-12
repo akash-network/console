@@ -11,8 +11,9 @@ import { SyncAffiliateCommissionHandler } from "./sync-affiliate-commission.hand
 import { type AffiliateCommissionSyncTrigger, SyncAffiliateCommission } from "./sync-affiliate-commission.job";
 
 import { seedOrganization, seedOrganizationMember } from "@test/seeders/db/organization.seeder";
+import { seedPaymentCredit } from "@test/seeders/db/payment-credit.seeder";
 import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
-import { expectJobCompleted, useJobWorkers } from "@test/services/job-queue-harness";
+import { expectJobCompleted, findJobRows, makeJobDue, useJobWorkers } from "@test/services/job-queue-harness";
 
 const jobWorkers = useJobWorkers(() => [container.resolve(SyncAffiliateCommissionHandler)]);
 
@@ -21,7 +22,7 @@ describe(SyncAffiliateCommissionHandler.name, () => {
     vi.restoreAllMocks();
   });
 
-  it("records and credits the affiliate's commission on a referred user's payment, run the way a worker runs it", async () => {
+  it("holds the affiliate's commission on a referred user's payment and schedules its release, run the way a worker runs it", async () => {
     const { payment, affiliateUser, topUpWallet, syncCommissionOf } = await setup({ paymentAmount: 1234 });
 
     await syncCommissionOf(payment.id);
@@ -30,11 +31,24 @@ describe(SyncAffiliateCommissionHandler.name, () => {
     expect(commission).toMatchObject({
       userId: affiliateUser.id,
       type: "affiliate_commission",
-      status: "succeeded",
+      status: "pending",
       amount: 61,
       sourceTransactionId: payment.id
     });
-    expect(topUpWallet).toHaveBeenCalledWith(
+    const [releaseJob] = await findJobRows(SyncAffiliateCommission[JOB_NAME], { data: { transactionId: payment.id, trigger: "release" } });
+    expect(new Date(releaseJob.start_after).getTime()).toBeGreaterThan(Date.now() + 29 * 24 * 60 * 60 * 1000);
+    expect(topUpWallet).not.toHaveBeenCalled();
+  });
+
+  it("credits the held commission once the hold ends", async () => {
+    const { payment, affiliateUser, topUpWallet, syncCommissionOf, releaseCommissionOf } = await setup({ paymentAmount: 1234 });
+    await syncCommissionOf(payment.id);
+
+    await releaseCommissionOf(payment.id);
+
+    const commission = await container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id);
+    expect(commission).toMatchObject({ status: "succeeded", amount: 61, amountRefunded: 0 });
+    expect(topUpWallet).toHaveBeenCalledExactlyOnceWith(
       61,
       { userId: affiliateUser.id, organizationId: null },
       {
@@ -46,10 +60,11 @@ describe(SyncAffiliateCommissionHandler.name, () => {
   });
 
   it("files the commission under the affiliate's personal organization", async () => {
-    const { payment, affiliateUser, topUpWallet, syncCommissionOf } = await setup();
+    const { payment, affiliateUser, topUpWallet, syncCommissionOf, releaseCommissionOf } = await setup();
     const personalOrganization = await seedOrganization({ type: "personal", createdByUserId: affiliateUser.id });
 
     await syncCommissionOf(payment.id);
+    await releaseCommissionOf(payment.id);
 
     const commission = await container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id);
     expect(commission).toMatchObject({ userId: affiliateUser.id, organizationId: personalOrganization.id });
@@ -57,12 +72,13 @@ describe(SyncAffiliateCommissionHandler.name, () => {
   });
 
   it("credits a payment another member made for a team the referred user created", async () => {
-    const { payer, affiliateUser, topUpWallet, syncCommissionOf } = await setup();
+    const { payer, affiliateUser, topUpWallet, syncCommissionOf, releaseCommissionOf } = await setup();
     const team = await seedOrganization({ type: "team", createdByUserId: payer.id });
     const teammate = await seedUser();
     const payment = await createPayment({ userId: teammate.id, organizationId: team.id });
 
     await syncCommissionOf(payment.id);
+    await releaseCommissionOf(payment.id);
 
     await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id)).resolves.toMatchObject({
       userId: affiliateUser.id,
@@ -126,10 +142,97 @@ describe(SyncAffiliateCommissionHandler.name, () => {
     expect(topUpWallet).not.toHaveBeenCalled();
   });
 
-  it("takes back the commission on the refunded part of a referred user's payment, run the way a worker runs it", async () => {
+  it("records nothing until the referred user's payment has been credited", async () => {
+    const { payer, topUpWallet, syncCommissionOf } = await setup();
+    const payment = await createPayment({ userId: payer.id, creditStatus: "pending" });
+
+    await syncCommissionOf(payment.id);
+
+    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id)).resolves.toBeUndefined();
+    await expect(findJobRows(SyncAffiliateCommission[JOB_NAME], { data: { transactionId: payment.id, trigger: "release" } })).resolves.toEqual([]);
+    expect(topUpWallet).not.toHaveBeenCalled();
+  });
+
+  it("cancels the held commission when the affiliate is revoked before the hold ends", async () => {
+    const { payment, affiliate, topUpWallet, syncCommissionOf, releaseCommissionOf } = await setup();
+    await syncCommissionOf(payment.id);
+    await container.resolve(AffiliateRepository).revokeIfActive(affiliate.id, { revokedAt: new Date(), revokedBy: "ops@akash.network" });
+
+    await releaseCommissionOf(payment.id);
+
+    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id)).resolves.toMatchObject({
+      status: "canceled",
+      amount: 500,
+      amountRefunded: 500
+    });
+    expect(topUpWallet).not.toHaveBeenCalled();
+  });
+
+  it("shrinks the held commission without touching the affiliate's balance when the payment is partly refunded during the hold", async () => {
+    const { payment, reduceWalletBalance, syncCommissionOf, releaseCommissionOf, topUpWallet } = await setup();
+    await syncCommissionOf(payment.id);
+    await container.resolve(StripeTransactionRepository).updateById(payment.id, { amountRefunded: 4000 });
+
+    await syncCommissionOf(payment.id, "refund");
+
+    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id)).resolves.toMatchObject({
+      status: "pending",
+      amountRefunded: 200
+    });
+    expect(reduceWalletBalance).not.toHaveBeenCalled();
+
+    await releaseCommissionOf(payment.id);
+
+    expect(topUpWallet).toHaveBeenCalledExactlyOnceWith(300, expect.anything(), expect.anything());
+  });
+
+  it("takes back a refund from a held commission whose release credit landed before its sync rolled back", async () => {
+    const { payment, affiliateUser, reduceWalletBalance, topUpWallet, syncCommissionOf, releaseCommissionOf } = await setup();
+    const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
+    await syncCommissionOf(payment.id);
+    const held = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+    await seedPaymentCredit({ transactionId: held!.id, status: "landed", amount: 500, bonusAmount: 0 });
+    await stripeTransactionRepository.updateById(payment.id, { amountRefunded: 10000 });
+
+    await syncCommissionOf(payment.id, "refund");
+
+    await expect(stripeTransactionRepository.findById(held!.id)).resolves.toMatchObject({ status: "refunded", amount: 500, amountRefunded: 500 });
+    expect(reduceWalletBalance).toHaveBeenCalledWith(
+      500,
+      { userId: affiliateUser.id, organizationId: null },
+      { currency: "usd", transactionId: held!.id, refundedBefore: 0, refundedAfter: 500 }
+    );
+
+    await releaseCommissionOf(payment.id);
+
+    expect(topUpWallet).not.toHaveBeenCalled();
+  });
+
+  it("takes back the whole credit when the release retries on a commission a full refund canceled before its credit was seen", async () => {
+    const { payment, affiliateUser, reduceWalletBalance, topUpWallet, syncCommissionOf, releaseCommissionOf } = await setup();
+    const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
+    await syncCommissionOf(payment.id);
+    const { id } = (await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id))!;
+    await stripeTransactionRepository.updateById(id, { status: "canceled", amountRefunded: 500 });
+    await seedPaymentCredit({ transactionId: id, status: "landed", amount: 500, bonusAmount: 0 });
+    await stripeTransactionRepository.updateById(payment.id, { amountRefunded: 10000 });
+
+    await releaseCommissionOf(payment.id);
+
+    await expect(stripeTransactionRepository.findById(id)).resolves.toMatchObject({ status: "refunded", amount: 500, amountRefunded: 500 });
+    expect(reduceWalletBalance).toHaveBeenCalledWith(
+      500,
+      { userId: affiliateUser.id, organizationId: null },
+      { currency: "usd", transactionId: id, refundedBefore: 0, refundedAfter: 500 }
+    );
+    expect(topUpWallet).not.toHaveBeenCalled();
+  });
+
+  it("takes back the commission on the refunded part of a referred user's payment after its release, run the way a worker runs it", async () => {
     const { payment, affiliateUser, reduceWalletBalance, syncCommissionOf } = await setup({ paymentAmount: 10000, paymentAmountRefunded: 4000 });
     const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
-    const commission = await stripeTransactionRepository.createAffiliateCommission({ userId: affiliateUser.id, amount: 500, sourceTransactionId: payment.id });
+    const { id } = await stripeTransactionRepository.createAffiliateCommission({ userId: affiliateUser.id, amount: 500, sourceTransactionId: payment.id });
+    const commission = await stripeTransactionRepository.updateById(id, { status: "succeeded" }, { returning: true });
 
     await syncCommissionOf(payment.id, "refund");
 
@@ -151,10 +254,14 @@ describe(SyncAffiliateCommissionHandler.name, () => {
     expect(reduceWalletBalance).not.toHaveBeenCalled();
   });
 
-  it("grants only what is left of the commission when the payment was partly refunded before the settlement sync ran", async () => {
-    const { payment, affiliateUser, topUpWallet, reduceWalletBalance, syncCommissionOf } = await setup({ paymentAmount: 10000, paymentAmountRefunded: 4000 });
+  it("credits only what is left of the commission when the payment was partly refunded before the settlement sync ran", async () => {
+    const { payment, affiliateUser, topUpWallet, reduceWalletBalance, syncCommissionOf, releaseCommissionOf } = await setup({
+      paymentAmount: 10000,
+      paymentAmountRefunded: 4000
+    });
 
     await syncCommissionOf(payment.id);
+    await releaseCommissionOf(payment.id);
 
     await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id)).resolves.toMatchObject({
       userId: affiliateUser.id,
@@ -195,17 +302,31 @@ describe(SyncAffiliateCommissionHandler.name, () => {
     const topUpWallet = vi.spyOn(container.resolve(RefillService), "topUpWallet").mockResolvedValue({ walletId: affiliateWallet.id, address });
     const reduceWalletBalance = vi.spyOn(container.resolve(RefillService), "reduceWalletBalance").mockResolvedValue({ shortfallCents: 0 });
 
-    async function syncCommissionOf(transactionId: string, trigger: AffiliateCommissionSyncTrigger = "settlement") {
+    async function syncCommissionOf(transactionId: string, trigger: Exclude<AffiliateCommissionSyncTrigger, "release"> = "settlement") {
       await enqueue(new SyncAffiliateCommission({ transactionId, trigger }));
       await startWorkers();
-      await expectJobCompleted(SyncAffiliateCommission[JOB_NAME], { data: { transactionId } });
+      await expectJobCompleted(SyncAffiliateCommission[JOB_NAME], { data: { transactionId, trigger } });
     }
 
-    return { payer, affiliateUser, affiliateWallet, payment, topUpWallet, reduceWalletBalance, syncCommissionOf };
+    async function releaseCommissionOf(transactionId: string) {
+      const releaseJob = { data: { transactionId, trigger: "release" } };
+      await makeJobDue(SyncAffiliateCommission[JOB_NAME], releaseJob);
+      await startWorkers();
+      await expectJobCompleted(SyncAffiliateCommission[JOB_NAME], releaseJob);
+    }
+
+    return { payer, affiliate, affiliateUser, affiliateWallet, payment, topUpWallet, reduceWalletBalance, syncCommissionOf, releaseCommissionOf };
   }
 
-  async function createPayment(input: { userId: string; organizationId?: string; status?: "succeeded" | "pending"; amount?: number; amountRefunded?: number }) {
-    return await container.resolve(StripeTransactionRepository).create({
+  async function createPayment(input: {
+    userId: string;
+    organizationId?: string;
+    status?: "succeeded" | "pending";
+    amount?: number;
+    amountRefunded?: number;
+    creditStatus?: "landed" | "pending";
+  }) {
+    const payment = await container.resolve(StripeTransactionRepository).create({
       userId: input.userId,
       organizationId: input.organizationId,
       type: "payment_intent",
@@ -214,5 +335,8 @@ describe(SyncAffiliateCommissionHandler.name, () => {
       amountRefunded: input.amountRefunded ?? 0,
       currency: "usd"
     });
+    await seedPaymentCredit({ transactionId: payment.id, status: input.creditStatus ?? "landed" });
+
+    return payment;
   }
 });

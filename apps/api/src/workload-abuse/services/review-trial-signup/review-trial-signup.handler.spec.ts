@@ -7,7 +7,7 @@ import type { BillingConfigService } from "@src/billing/services/billing-config/
 import type { CreateLogger } from "@src/core";
 import type { UserOutput, UserRepository } from "@src/user/repositories";
 import type { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
-import { ReviewTrialSignup, ReviewTrialSignupHandler, reviewTrialSignupKeyFor } from "./review-trial-signup.handler";
+import { reviewHeldTrialSignupKeyFor, ReviewTrialSignup, ReviewTrialSignupHandler, reviewTrialSignupKeyFor } from "./review-trial-signup.handler";
 import { buildTrialSignupReviewMessage } from "./trial-signup-review-message";
 
 import { createUser } from "@test/seeders/user.seeder";
@@ -22,6 +22,7 @@ describe(ReviewTrialSignupHandler.name, () => {
 
     expect(job).toMatchObject({ name: "ReviewTrialSignup", version: 1, data: { userId: "user-1" } });
     expect(reviewTrialSignupKeyFor("user-1")).toBe("reviewTrialSignup.user-1");
+    expect(reviewHeldTrialSignupKeyFor("user-1")).toBe("reviewTrialSignup.held.user-1");
   });
 
   it("declares no permissions and names its logger after itself", () => {
@@ -44,6 +45,17 @@ describe(ReviewTrialSignupHandler.name, () => {
       linkedUserIds: linkedAccounts.map(account => account.id)
     });
     expect(slackWebhookClient.post).toHaveBeenCalledWith(WEBHOOK_URL, buildTrialSignupReviewMessage({ account: user, linkedAccounts, adminUrl: ADMIN_URL }));
+  });
+
+  it("posts a held trial as held", async () => {
+    const { handler, user, linkedAccounts, slackWebhookClient } = setup();
+
+    await handler.handle({ userId: user.id, held: true, version: 1 });
+
+    expect(slackWebhookClient.post).toHaveBeenCalledWith(
+      WEBHOOK_URL,
+      buildTrialSignupReviewMessage({ account: user, linkedAccounts, adminUrl: ADMIN_URL, held: true })
+    );
   });
 
   it("flags the sign-up without posting when no review channel is configured", async () => {

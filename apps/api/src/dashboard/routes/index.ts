@@ -5,3 +5,5 @@ export * from "@src/dashboard/routes/network-capacity/network-capacity.router";
 export * from "@src/dashboard/routes/graph-data/graph-data.router";
 export * from "@src/dashboard/routes/market-data/market-data.router";
 export * from "@src/dashboard/routes/leases-duration/leases-duration.router";
+export * from "@src/dashboard/routes/sink-dashboard-data/sink-dashboard-data.router";
+export * from "@src/dashboard/routes/sink-transfers/sink-transfers.router";

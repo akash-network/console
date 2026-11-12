@@ -40,6 +40,8 @@ export type AutoTopUpOwnerDeployments = {
   drainingDeployments: DrainingDeployment[];
 };
 
+type LeaseRead = { leases: DrainingDeploymentOutput[]; isReadFromChain: boolean };
+
 /** Hours in the seven-day window every weekly spending figure is quoted over. */
 const WEEK_HOURS = 24 * 7;
 
@@ -128,6 +130,7 @@ export class DrainingDeploymentService {
     return { activeDeployments, drainingDeployments };
   }
 
+  /** Ends a deployment's top-up only on a chain read, because the indexer fallback counts a deployment closed once any one of its leases has closed. */
   async #resolveActiveDeployments(
     deploymentSettings: AutoTopUpDeployment[],
     address: string,
@@ -139,9 +142,9 @@ export class DrainingDeploymentService {
     }
 
     const dseqs = deploymentSettings.map(deployment => deployment.dseq);
-    const leases = await this.findLeases(Number.MAX_SAFE_INTEGER, address, dseqs);
+    const { leases, isReadFromChain } = await this.#readLeases(Number.MAX_SAFE_INTEGER, address, dseqs);
     const byDseqOwner = keyBy(leases, "dseq");
-    const [active, closedIds] = deploymentSettings.reduce<[DrainingDeployment[], string[]]>(
+    const [active, closed] = deploymentSettings.reduce<[DrainingDeployment[], AutoTopUpDeployment[]]>(
       (acc, deploymentSetting) => {
         const deployment = byDseqOwner[Number(deploymentSetting.dseq)];
 
@@ -150,12 +153,12 @@ export class DrainingDeploymentService {
           return acc;
         }
 
-        if (deployment.isClosed || deployment.closedHeight) {
-          acc[1].push(deploymentSetting.id);
+        if (this.#isClosed(deployment, isReadFromChain)) {
+          acc[1].push(deploymentSetting);
           return acc;
         }
 
-        if (deployment.hasNoLease) {
+        if (this.#isAwaitingLease(deployment)) {
           return acc;
         }
 
@@ -170,12 +173,23 @@ export class DrainingDeploymentService {
       [[], []]
     );
 
-    if (closedIds.length && !dryRun) {
-      await this.deploymentSettingRepository.markAsClosed(closedIds);
-      instrumentation.recordDeploymentsMarkedClosed(closedIds.length);
+    if (closed.length && !isReadFromChain) {
+      this.loggerService.warn({ event: "LEASE_FALLBACK_CLOSE_UNCONFIRMED", owner: address, dseqs: closed.map(({ dseq }) => dseq) });
+    } else if (closed.length && !dryRun) {
+      await this.deploymentSettingRepository.markAsClosed(closed.map(({ id }) => id));
+      instrumentation.recordDeploymentsMarkedClosed(closed.length);
     }
 
     return active;
+  }
+
+  /** A chain read closes a deployment on its escrow account alone, since a provider closing its lease leaves the deployment open for a new one. */
+  #isClosed({ isClosed, closedHeight }: DrainingDeploymentOutput, isReadFromChain: boolean): boolean {
+    return !!isClosed || (!isReadFromChain && !!closedHeight);
+  }
+
+  #isAwaitingLease({ hasNoLease, closedHeight }: DrainingDeploymentOutput): boolean {
+    return !!hasNoLease || !!closedHeight;
   }
 
   /**
@@ -586,8 +600,14 @@ export class DrainingDeploymentService {
       return [];
     }
 
+    const { leases } = await this.#readLeases(closureHeight, owner, dseqs);
+
+    return leases;
+  }
+
+  async #readLeases(closureHeight: number, owner: string, dseqs: string[]): Promise<LeaseRead> {
     try {
-      return await this.rpcService.findManyByDseqAndOwner(closureHeight, owner, dseqs);
+      return { leases: await this.rpcService.findManyByDseqAndOwner(closureHeight, owner, dseqs), isReadFromChain: true };
     } catch (error) {
       this.loggerService.error({
         event: "LEASE_RPC_QUERY_FAILED_FALLBACK_TO_DB",
@@ -595,7 +615,7 @@ export class DrainingDeploymentService {
         owner,
         error
       });
-      return await this.leaseRepository.findManyByDseqAndOwner(closureHeight, owner, dseqs);
+      return { leases: await this.leaseRepository.findManyByDseqAndOwner(closureHeight, owner, dseqs), isReadFromChain: false };
     }
   }
 

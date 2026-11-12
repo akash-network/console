@@ -33,7 +33,8 @@
     "test:unit": "vitest run --project=unit",
     "test:unit:cov": "vitest run --project=unit --coverage",
     "test:unit:watch": "vitest --project=unit",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "validate:types": "tsc --noEmit"
   },
   "dependencies": {
     "@akashnetwork/chain-sdk": "1.0.0-alpha.45",

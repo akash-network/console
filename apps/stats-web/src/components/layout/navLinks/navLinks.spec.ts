@@ -13,7 +13,9 @@ describe(isActiveNavLink.name, () => {
     ["/validators", "Validators"],
     ["/validators/akashvaloper1abc", "Validators"],
     ["/bme", "BME"],
-    ["/bme-graph/vault-akt", "BME"]
+    ["/bme-graph/vault-akt", "BME"],
+    ["/solana-migration", "Solana migration"],
+    ["/solana-migration-graph/akt-migrated", "Solana migration"]
   ])("marks only %s's link as active", (pathname, title) => {
     expect(activeTitlesFor(pathname)).toEqual([title]);
   });

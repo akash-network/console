@@ -11,6 +11,7 @@ import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { writtenForTeamBy } from "@src/organization/lib/team-records/team-records";
 import { Users } from "@src/user/model-schemas";
+import { isEmailWithinDomain } from "@src/workload-abuse/lib/email-domain/email-domain-sql";
 
 type Table = ApiPgTables["StripeTransactions"];
 export type StripeTransactionInput = Table["$inferInsert"];
@@ -330,7 +331,7 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
       .from(Users)
       .where(
         and(
-          sql`lower(${Users.email}) LIKE ${"%@"} || ${domain}`,
+          isEmailWithinDomain(Users.email, domain),
           exists(
             this.cursor
               .select({ id: this.table.id })
@@ -357,7 +358,7 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
     return total;
   }
 
-  /** Stores the commission as a `stripe_transactions` row so billing history and CSV export pick it up unchanged. */
+  /** Stores the commission as a held `stripe_transactions` row so billing history and CSV export pick it up unchanged; its release credits it. */
   async createAffiliateCommission(input: {
     userId: string;
     organizationId?: string | null;
@@ -369,7 +370,7 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
       userId: input.userId,
       organizationId: input.organizationId,
       type: "affiliate_commission",
-      status: "succeeded",
+      status: "pending",
       currency: "usd",
       description: "Affiliate commission",
       amount: input.amount,
@@ -382,9 +383,39 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
     return this.findOneBy({ sourceTransactionId, type: "affiliate_commission" });
   }
 
-  /** Leaves the key lockable, because taking back the commission records a refund debit that references it from another connection. */
+  /** Leaves the key lockable, because crediting the commission or taking it back records a row that references it from another connection. */
   async findAffiliateCommissionBySourceAndLock(sourceTransactionId: string): Promise<StripeTransactionOutput | undefined> {
     return this.findOneByAndLock({ sourceTransactionId, type: "affiliate_commission" }, { strength: "no key update" });
+  }
+
+  /** Counts commission earned, held or credited, net of what refunds took back, so a commission is counted in the month it was earned rather than the month its hold ended. */
+  async sumAffiliateCommissionNet(userId: string, since?: Date): Promise<number> {
+    const conditions: SQL[] = [
+      eq(this.table.userId, userId),
+      eq(this.table.type, "affiliate_commission"),
+      inArray(this.table.status, [...SETTLED_TRANSACTION_STATUSES, "pending"])
+    ];
+
+    if (since) {
+      conditions.push(gte(this.table.createdAt, since));
+    }
+
+    const items = await this.cursor.query.StripeTransactions.findMany({
+      where: this.unscoped("affiliate-earnings").whereAccessibleBy(and(...conditions)),
+      columns: { amount: true, amountRefunded: true }
+    });
+
+    return items.reduce((sum, item) => sum + (item.amount - item.amountRefunded), 0);
+  }
+
+  async findAffiliateCommissions(userId: string, limit = 100): Promise<StripeTransactionOutput[]> {
+    return this.toOutputList(
+      await this.cursor.query.StripeTransactions.findMany({
+        where: this.unscoped("affiliate-earnings").whereAccessibleBy(and(eq(this.table.userId, userId), eq(this.table.type, "affiliate_commission"))),
+        orderBy: [desc(this.table.createdAt)],
+        limit
+      })
+    );
   }
 
   async sumAmountByUserId(userId: string, options?: { startDate?: Date; endDate?: Date; status?: StripeTransactionStatus }): Promise<number> {

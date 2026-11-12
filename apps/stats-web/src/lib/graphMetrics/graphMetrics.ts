@@ -1,12 +1,22 @@
 import { formatBytes, formatCompact, formatNumber, formatUsd } from "@/lib/statsFormat/statsFormat";
-import type { BmeDashboardData, DashboardData } from "@/types";
-import { BmeSnapshots, BmeSnapshotsUrlParam, ProviderSnapshots, ProviderSnapshotsUrlParam, Snapshots, SnapshotsUrlParam } from "@/types/snapshots";
+import type { BmeDashboardData, DashboardData, SinkDashboardData } from "@/types";
+import {
+  BmeSnapshots,
+  BmeSnapshotsUrlParam,
+  ProviderSnapshots,
+  ProviderSnapshotsUrlParam,
+  SinkSnapshots,
+  SinkSnapshotsUrlParam,
+  Snapshots,
+  SnapshotsUrlParam
+} from "@/types/snapshots";
 
-export type GraphKind = "graph" | "provider-graph" | "bme-graph";
+export type GraphKind = "graph" | "provider-graph" | "bme-graph" | "solana-migration-graph";
 
 export type GraphSources = {
   dashboard?: DashboardData;
   bme?: BmeDashboardData;
+  sink?: SinkDashboardData;
 };
 
 export type GraphMetric = {
@@ -52,6 +62,11 @@ const fromBme = (key: BmeSnapshots) => (sources: GraphSources) => sources.bme?.n
 const graph = (urlParam: SnapshotsUrlParam, snapshot: Snapshots) => ({ kind: "graph" as const, urlParam, snapshot });
 const providerGraph = (urlParam: ProviderSnapshotsUrlParam, snapshot: ProviderSnapshots) => ({ kind: "provider-graph" as const, urlParam, snapshot });
 const bmeGraph = (urlParam: BmeSnapshotsUrlParam, snapshot: BmeSnapshots) => ({ kind: "bme-graph" as const, urlParam, snapshot });
+const solanaMigrationGraph = (key: keyof typeof SinkSnapshots) => ({
+  kind: "solana-migration-graph" as const,
+  urlParam: SinkSnapshotsUrlParam[key],
+  snapshot: SinkSnapshots[key]
+});
 
 export const GRAPH_METRICS: GraphMetric[] = [
   {
@@ -216,7 +231,8 @@ export const GRAPH_METRICS: GraphMetric[] = [
     description: "Disk storage offered by all active providers, leased or idle.",
     readCurrent: fromCapacity(capacity => capacity.totalStorage)
   },
-  ...bmeMetrics()
+  ...bmeMetrics(),
+  ...solanaMigrationMetrics()
 ];
 
 function bmeMetrics(): GraphMetric[] {
@@ -247,6 +263,34 @@ function bmeMetrics(): GraphMetric[] {
       const value = fromBme(snapshot)(sources);
 
       return value === undefined ? undefined : unit === "ratio" ? value : fromMicro(value);
+    }
+  }));
+}
+
+function solanaMigrationMetrics(): GraphMetric[] {
+  const definitions: [keyof typeof SinkSnapshots, "AKT" | "count", string, string, string][] = [
+    ["mintedUakt", "AKT", "AKT migrated", "AKT migrated to Solana", "AKT escrowed on Akash and minted on Solana, all-time."],
+    ["dailyMintedUakt", "AKT", "AKT migrated / day", "AKT migrated to Solana per day", "AKT escrowed on Akash and minted on Solana, per day."],
+    ["mintedTransfers", "count", "Transfers", "Transfers to Solana (all-time)", "Migration transfers minted on Solana, all-time."],
+    ["dailyMintedTransfers", "count", "Transfers / day", "Transfers to Solana per day", "Migration transfers minted on Solana, per day."],
+    ["pendingUakt", "AKT", "AKT pending mint", "AKT pending mint", "AKT deposited for migration and not yet confirmed as minted on Solana."],
+    ["voidedUakt", "AKT", "AKT voided", "AKT voided", "AKT in transfers voided by governance and awaiting confirmation on Solana."],
+    ["refundPendingUakt", "AKT", "AKT awaiting refund", "AKT awaiting refund", "AKT authorized for a refund on Akash and still in its challenge period."],
+    ["refundedUakt", "AKT", "AKT refunded", "AKT refunded", "AKT refunded to its original owner on Akash, all-time."],
+    ["uniqueSenders", "count", "Migrating addresses", "Addresses migrating to Solana", "Akash addresses that have started a migration transfer, all-time."]
+  ];
+
+  return definitions.map(([key, unit, label, title, description]) => ({
+    ...solanaMigrationGraph(key),
+    ...(unit === "count" ? count : tokens(unit)),
+    group: "Solana migration",
+    label,
+    title,
+    description,
+    readCurrent: (sources: GraphSources) => {
+      const value = sources.sink?.now?.[key];
+
+      return value === undefined || unit === "count" ? value : fromMicro(value);
     }
   }));
 }

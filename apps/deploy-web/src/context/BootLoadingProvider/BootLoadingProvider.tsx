@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { AkashLoadingMark } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-
-import { AkashLoadingMark } from "@src/components/layout/AkashLoadingMark";
 
 /**
  * Keeps the single boot overlay mounted across the brief handoff when one gate resolves and the next

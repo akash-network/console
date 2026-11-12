@@ -20,7 +20,6 @@ type Props = {
   locked?: boolean;
   /** Returns whether a preset's GPU model is blocked for the current (trial) user; blocked presets render locked. */
   isBlockedModel?: (vendor?: string | null, model?: string | null) => boolean;
-  /** Opens the add-credits (unlock) sheet owned by the HardwareSection. */
   onUnlock?: () => void;
   dependencies?: typeof DEPENDENCIES;
 };

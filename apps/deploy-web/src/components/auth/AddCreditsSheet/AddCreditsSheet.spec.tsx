@@ -17,17 +17,17 @@ describe(AddCreditsSheet.name, () => {
     expect(dependencies.AddCreditsTabs).toHaveBeenCalled();
   });
 
-  it("renders the default description when none is provided", () => {
+  it("renders neutral copy that names no gated feature when no description is provided", () => {
     setup({ open: true });
 
-    expect(screen.getByText(/this template needs a top-tier gpu/i)).toBeInTheDocument();
+    expect(screen.getByText(/buy credits or redeem a coupon to top up your balance/i)).toBeInTheDocument();
   });
 
   it("renders a custom description instead of the default copy when provided", () => {
-    setup({ open: true, description: "Buy credits or redeem a coupon to top up your balance." });
+    setup({ open: true, description: "Add credits to deploy this template." });
 
-    expect(screen.getByText(/buy credits or redeem a coupon to top up your balance/i)).toBeInTheDocument();
-    expect(screen.queryByText(/this template needs a top-tier gpu/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/add credits to deploy this template/i)).toBeInTheDocument();
+    expect(screen.queryByText(/buy credits or redeem a coupon to top up your balance/i)).not.toBeInTheDocument();
   });
 
   it("tells a member who cannot manage billing who can add credits, instead of opening the payment form", () => {

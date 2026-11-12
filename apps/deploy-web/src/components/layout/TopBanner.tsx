@@ -6,6 +6,7 @@ import { useChainMaintenanceDetails, useGenericBannerDetails, useTopBanner } fro
 import { AccountStatusBanner } from "./AccountStatusBanner/AccountStatusBanner";
 import { FundingBanner } from "./FundingBanner/FundingBanner";
 import { TeamPaymentMethodBanner } from "./TeamPaymentMethodBanner/TeamPaymentMethodBanner";
+import { TrialRefusedBanner } from "./TrialRefusedBanner/TrialRefusedBanner";
 
 export const NETWORK_DOWN_BANNER_DEPENDENCIES = { useChainMaintenanceDetails };
 
@@ -96,6 +97,7 @@ export const TOP_BANNER_DEPENDENCIES = {
   MaintenanceBanner,
   GenericBanner,
   TeamPaymentMethodBanner,
+  TrialRefusedBanner,
   FundingBanner
 };
 
@@ -112,7 +114,8 @@ export function TopBanner({ dependencies: d = TOP_BANNER_DEPENDENCIES }: { depen
     isBlockchainDown,
     hasTeamPaymentMethodBanner,
     hasFundingBanner,
-    hasAccountStatusBanner
+    hasAccountStatusBanner,
+    hasTrialRefusedBanner
   } = d.useTopBanner();
 
   if (hasAccountStatusBanner) {
@@ -129,6 +132,10 @@ export function TopBanner({ dependencies: d = TOP_BANNER_DEPENDENCIES }: { depen
 
   if (isGenericBannerOpen) {
     return <d.GenericBanner onClose={() => setIsGenericBannerOpen(false)} />;
+  }
+
+  if (hasTrialRefusedBanner) {
+    return <d.TrialRefusedBanner />;
   }
 
   if (hasTeamPaymentMethodBanner) {

@@ -52,7 +52,7 @@ describe(SignInForm.name, () => {
 
   function setup(input: Partial<ComponentProps<typeof SignInForm>> = {}) {
     const goBack = vi.fn();
-    const onSubmit = input?.onSubmit ?? vi.fn<void, [SignInFormValues]>();
+    const onSubmit = input?.onSubmit ?? vi.fn<(values: SignInFormValues) => void>();
     const props: ComponentProps<typeof SignInForm> = {
       isLoading: false,
       ...input,

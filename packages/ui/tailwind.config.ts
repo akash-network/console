@@ -89,11 +89,16 @@ export default function createTailwindConfig(app: string): Config {
           "accordion-up": {
             from: { height: "var(--radix-accordion-content-height)" },
             to: { height: "0" }
+          },
+          "akash-loading-shard": {
+            "0%, 72%, 100%": { fill: "hsl(var(--border))" },
+            "14%, 46%": { fill: "hsl(var(--foreground))" }
           }
         },
         animation: {
           "accordion-down": "accordion-down 0.2s ease-out",
-          "accordion-up": "accordion-up 0.2s ease-out"
+          "accordion-up": "accordion-up 0.2s ease-out",
+          "akash-loading-shard": "akash-loading-shard 1.8s linear infinite"
         }
       }
     },

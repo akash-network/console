@@ -12,6 +12,7 @@ export interface DeploymentInfoSeederInput {
   owner?: string;
   dseq?: string;
   state?: string;
+  escrowState?: string;
   version?: string;
   createdAt?: string;
   amount?: string;
@@ -116,6 +117,7 @@ export function createDeploymentInfoSeed(input: DeploymentInfoSeederInput = {}):
     owner = createAkashAddress(),
     dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false }),
     state = "active",
+    escrowState = "open",
     version = deploymentVersion,
     createdAt = "2021-01-01T00:00:00Z",
     amount = "5000000",
@@ -141,7 +143,7 @@ export function createDeploymentInfoSeed(input: DeploymentInfoSeederInput = {}):
       },
       state: {
         owner,
-        state: "open",
+        state: escrowState,
         transferred: [
           {
             denom,

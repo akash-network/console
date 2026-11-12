@@ -1,11 +1,19 @@
 import type { ComponentPropsWithoutRef } from "react";
 import { forwardRef } from "react";
+import type { Mock } from "vitest";
 import { describe, expect, it, vi } from "vitest";
 
 import { DEPENDENCIES, HardwareSection } from "./HardwareSection";
 
-import { act, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { MockComponents } from "@tests/unit/mocks";
+
+type UnlockingCards = {
+  GpuCard: Mock<typeof DEPENDENCIES.GpuCard>;
+  PresetsCard: Mock<typeof DEPENDENCIES.PresetsCard>;
+  SecurityCard: Mock<typeof DEPENDENCIES.SecurityCard>;
+  TrialResourceLimitHint: Mock<typeof DEPENDENCIES.TrialResourceLimitHint>;
+};
 
 describe(HardwareSection.name, () => {
   it("renders each hardware row for the selected service", () => {
@@ -160,22 +168,55 @@ describe(HardwareSection.name, () => {
     expect(isBlockedModel?.("nvidia", "h100")).toBe(false);
   });
 
-  it("opens the AddCreditsSheet when a card requests unlock", () => {
-    const AddCreditsSheet = vi.fn(() => <div />);
-    let requestUnlock: () => void = () => {};
-    const GpuCard = vi.fn<typeof DEPENDENCIES.GpuCard>(props => {
-      requestUnlock = props.onUnlock ?? (() => {});
-      return null;
-    });
+  it.each([
+    {
+      unlock: "a blocked GPU",
+      context: "configure_unlock_gpu",
+      description:
+        "High-end GPUs aren't covered by your free trial. Add credits to run this deployment on one, along with longer runtimes and the full Console.",
+      requestUnlock: (cards: UnlockingCards) => cards.GpuCard.mock.calls.at(-1)![0].onUnlock?.()
+    },
+    {
+      unlock: "the GPU interconnect",
+      context: "configure_unlock_gpu_interconnect",
+      description:
+        "GPU interconnect isn't covered by your free trial. Add credits to use it in this deployment, along with longer runtimes and the full Console.",
+      requestUnlock: (cards: UnlockingCards) => cards.GpuCard.mock.calls.at(-1)![0].onUnlockInterconnect?.()
+    },
+    {
+      unlock: "a blocked preset",
+      context: "configure_unlock_preset",
+      description:
+        "Presets with high-end GPUs aren't covered by your free trial. Add credits to use any preset for this deployment, along with longer runtimes and the full Console.",
+      requestUnlock: (cards: UnlockingCards) => cards.PresetsCard.mock.calls.at(-1)![0].onUnlock?.()
+    },
+    {
+      unlock: "GPU confidential compute",
+      context: "configure_unlock_confidential_gpu",
+      description:
+        "Confidential compute on a GPU isn't covered by your free trial. Add credits to attest a GPU in this deployment, along with longer runtimes and the full Console.",
+      requestUnlock: (cards: UnlockingCards) => cards.SecurityCard.mock.calls.at(-1)![0].onUnlock?.()
+    },
+    {
+      unlock: "the trial size cap",
+      context: "configure_unlock_size_limit",
+      description:
+        "This deployment needs more CPU or memory than your free trial allows. Add credits to deploy it at this size, along with longer runtimes and the full Console.",
+      requestUnlock: (cards: UnlockingCards) => cards.TrialResourceLimitHint.mock.calls.at(-1)![0].onUnlock?.()
+    }
+  ])("opens add credits explaining $unlock and records it as $context", ({ context, description, requestUnlock }) => {
+    const cards = {
+      GpuCard: vi.fn<typeof DEPENDENCIES.GpuCard>(() => null),
+      PresetsCard: vi.fn<typeof DEPENDENCIES.PresetsCard>(() => null),
+      SecurityCard: vi.fn<typeof DEPENDENCIES.SecurityCard>(() => null),
+      TrialResourceLimitHint: vi.fn<typeof DEPENDENCIES.TrialResourceLimitHint>(() => null)
+    };
     const useTrialGate = () => ({ isRestricted: true, isWalletReady: true });
+    const { openAddCredits } = setup({ dependencies: { ...cards, useTrialGate } });
 
-    setup({ dependencies: { GpuCard, AddCreditsSheet, useTrialGate } });
+    requestUnlock(cards);
 
-    expect(AddCreditsSheet).toHaveBeenLastCalledWith(expect.objectContaining({ open: false }), expect.anything());
-
-    act(() => requestUnlock());
-
-    expect(AddCreditsSheet).toHaveBeenLastCalledWith(expect.objectContaining({ open: true }), expect.anything());
+    expect(openAddCredits).toHaveBeenCalledExactlyOnceWith({ initialTab: "purchase", suggestFirstDeployment: false, context, description });
   });
 
   it("states the trial size cap with an unlock handler while the pane is editable", () => {
@@ -202,16 +243,6 @@ describe(HardwareSection.name, () => {
     expect(TrialResourceLimitHint).not.toHaveBeenCalled();
   });
 
-  it("opens the AddCreditsSheet when the trial size cap requests unlock", () => {
-    const AddCreditsSheet = vi.fn(() => <div />);
-    const TrialResourceLimitHint = vi.fn<typeof DEPENDENCIES.TrialResourceLimitHint>(() => null);
-
-    setup({ dependencies: { AddCreditsSheet, TrialResourceLimitHint } });
-    act(() => TrialResourceLimitHint.mock.calls.at(-1)![0].onUnlock?.());
-
-    expect(AddCreditsSheet).toHaveBeenLastCalledWith(expect.objectContaining({ open: true }), expect.anything());
-  });
-
   it("offers the trial gpu alternatives to a restricted account while the pane is editable", () => {
     const TrialGpuBlockHint = vi.fn(() => null);
     const useTrialGate = () => ({ isRestricted: true, isWalletReady: true });
@@ -235,8 +266,10 @@ describe(HardwareSection.name, () => {
   });
 
   function setup(input: { serviceIndex?: number; locked?: boolean; showsDeploymentLimit?: boolean; dependencies?: Partial<typeof DEPENDENCIES> }) {
+    const openAddCredits = vi.fn();
     const dependencies = MockComponents(DEPENDENCIES, {
       useTrialGate: () => ({ isRestricted: false, isWalletReady: false }),
+      useAddCredits: () => openAddCredits,
       ...input.dependencies
     });
     render(
@@ -247,5 +280,7 @@ describe(HardwareSection.name, () => {
         dependencies={dependencies}
       />
     );
+
+    return { openAddCredits };
   }
 });

@@ -1,6 +1,7 @@
 export * from "./button";
 export * from "./loading-button";
 export * from "./alert/alert";
+export * from "./akash-loading-mark";
 export * from "./avatar";
 export * from "./badge";
 export * from "./banner/banner";

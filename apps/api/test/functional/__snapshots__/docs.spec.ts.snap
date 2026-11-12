@@ -2946,6 +2946,55 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "code": {
                           "type": "string",
                         },
+                        "commissions": {
+                          "items": {
+                            "properties": {
+                              "amountUsd": {
+                                "type": "number",
+                              },
+                              "createdAt": {
+                                "type": "string",
+                              },
+                              "id": {
+                                "type": "string",
+                              },
+                              "reversedUsd": {
+                                "type": "number",
+                              },
+                            },
+                            "required": [
+                              "id",
+                              "createdAt",
+                              "amountUsd",
+                              "reversedUsd",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                        "stats": {
+                          "properties": {
+                            "monthCommissionUsd": {
+                              "type": "number",
+                            },
+                            "payingUsers": {
+                              "type": "number",
+                            },
+                            "signups": {
+                              "type": "number",
+                            },
+                            "totalCommissionUsd": {
+                              "type": "number",
+                            },
+                          },
+                          "required": [
+                            "signups",
+                            "payingUsers",
+                            "totalCommissionUsd",
+                            "monthCommissionUsd",
+                          ],
+                          "type": "object",
+                        },
                         "terms": {
                           "properties": {
                             "commissionMonths": {
@@ -2969,6 +3018,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "required": [
                         "code",
                         "terms",
+                        "stats",
+                        "commissions",
                       ],
                       "type": "object",
                     },
@@ -3101,7 +3152,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
       "post": {
-        "description": "Requires a signed-in Console session. A request authenticated with an API key is refused.",
+        "description": "Requires a signed-in Console session and a confirmed email address. A request authenticated with an API key is refused.",
         "parameters": [
           {
             "$ref": "#/components/parameters/OrganizationIdHeader",
@@ -3223,7 +3274,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "API key created successfully",
           },
           "403": {
-            "description": "The request was not made from a signed-in session (\`session_required\`)",
+            "description": "The request was not made from a signed-in session (\`session_required\`), or the caller has not confirmed their email address (\`email_verification_required\`)",
           },
           "404": {
             "description": "No project with this \`projectId\` in the caller's reach",
@@ -14907,6 +14958,15 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 "outstandingAct",
                 "vaultAkt",
                 "collateralRatio",
+                "sinkMintedUakt",
+                "dailySinkMintedUakt",
+                "sinkMintedTransfers",
+                "dailySinkMintedTransfers",
+                "sinkPendingUakt",
+                "sinkVoidedUakt",
+                "sinkRefundPendingUakt",
+                "sinkRefundedUakt",
+                "sinkUniqueSenders",
               ],
               "example": "dailyUAktSpent",
               "type": "string",
@@ -28455,6 +28515,300 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/sink/dashboard-data": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "compare": {
+                      "properties": {
+                        "dailyMintedTransfers": {
+                          "type": "number",
+                        },
+                        "dailyMintedUakt": {
+                          "type": "number",
+                        },
+                        "date": {
+                          "type": "string",
+                        },
+                        "medianSecondsToMint": {
+                          "nullable": true,
+                          "type": "number",
+                        },
+                        "mintedTransfers": {
+                          "type": "number",
+                        },
+                        "mintedUakt": {
+                          "type": "number",
+                        },
+                        "pendingTransfers": {
+                          "type": "number",
+                        },
+                        "pendingUakt": {
+                          "type": "number",
+                        },
+                        "refundPendingTransfers": {
+                          "type": "number",
+                        },
+                        "refundPendingUakt": {
+                          "type": "number",
+                        },
+                        "refundedTransfers": {
+                          "type": "number",
+                        },
+                        "refundedUakt": {
+                          "type": "number",
+                        },
+                        "uniqueSenders": {
+                          "type": "number",
+                        },
+                        "voidedTransfers": {
+                          "type": "number",
+                        },
+                        "voidedUakt": {
+                          "type": "number",
+                        },
+                      },
+                      "required": [
+                        "date",
+                        "mintedUakt",
+                        "dailyMintedUakt",
+                        "mintedTransfers",
+                        "dailyMintedTransfers",
+                        "pendingUakt",
+                        "pendingTransfers",
+                        "voidedUakt",
+                        "voidedTransfers",
+                        "refundPendingUakt",
+                        "refundPendingTransfers",
+                        "refundedUakt",
+                        "refundedTransfers",
+                        "uniqueSenders",
+                        "medianSecondsToMint",
+                      ],
+                      "type": "object",
+                    },
+                    "now": {
+                      "properties": {
+                        "dailyMintedTransfers": {
+                          "type": "number",
+                        },
+                        "dailyMintedUakt": {
+                          "type": "number",
+                        },
+                        "date": {
+                          "type": "string",
+                        },
+                        "medianSecondsToMint": {
+                          "nullable": true,
+                          "type": "number",
+                        },
+                        "mintedTransfers": {
+                          "type": "number",
+                        },
+                        "mintedUakt": {
+                          "type": "number",
+                        },
+                        "pendingTransfers": {
+                          "type": "number",
+                        },
+                        "pendingUakt": {
+                          "type": "number",
+                        },
+                        "refundPendingTransfers": {
+                          "type": "number",
+                        },
+                        "refundPendingUakt": {
+                          "type": "number",
+                        },
+                        "refundedTransfers": {
+                          "type": "number",
+                        },
+                        "refundedUakt": {
+                          "type": "number",
+                        },
+                        "uniqueSenders": {
+                          "type": "number",
+                        },
+                        "voidedTransfers": {
+                          "type": "number",
+                        },
+                        "voidedUakt": {
+                          "type": "number",
+                        },
+                      },
+                      "required": [
+                        "date",
+                        "mintedUakt",
+                        "dailyMintedUakt",
+                        "mintedTransfers",
+                        "dailyMintedTransfers",
+                        "pendingUakt",
+                        "pendingTransfers",
+                        "voidedUakt",
+                        "voidedTransfers",
+                        "refundPendingUakt",
+                        "refundPendingTransfers",
+                        "refundedUakt",
+                        "refundedTransfers",
+                        "uniqueSenders",
+                        "medianSecondsToMint",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "now",
+                    "compare",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Returns the current sink totals and the totals of 24 hours earlier",
+          },
+        },
+        "security": [],
+        "summary": "Get the totals of AKT transferred to Solana through the sink module",
+        "tags": [
+          "Analytics",
+        ],
+      },
+    },
+    "/v1/sink/transfers": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "skip",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Number of transfers to skip",
+              "example": 0,
+              "minimum": 0,
+              "type": "number",
+            },
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Number of transfers to return",
+              "example": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "number",
+            },
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "latest",
+              "description": "Returns the most recent transfers first, or the largest amounts first",
+              "enum": [
+                "latest",
+                "largest",
+              ],
+              "example": "latest",
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "count": {
+                      "description": "Total number of transfers",
+                      "type": "number",
+                    },
+                    "results": {
+                      "items": {
+                        "properties": {
+                          "amountUakt": {
+                            "type": "number",
+                          },
+                          "createdAt": {
+                            "type": "string",
+                          },
+                          "height": {
+                            "description": "Height of the block that created the transfer",
+                            "type": "number",
+                          },
+                          "owner": {
+                            "description": "Akash address that sent the AKT",
+                            "type": "string",
+                          },
+                          "recipient": {
+                            "description": "Solana address that receives the AKT",
+                            "type": "string",
+                          },
+                          "sequence": {
+                            "description": "Position of the transfer among the transfers of its block",
+                            "type": "number",
+                          },
+                          "status": {
+                            "enum": [
+                              "pending",
+                              "minted",
+                              "voided",
+                              "refund_pending",
+                              "refunded",
+                            ],
+                            "type": "string",
+                          },
+                          "statusHeight": {
+                            "description": "Height of the block that last changed the status",
+                            "type": "number",
+                          },
+                          "statusUpdatedAt": {
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "owner",
+                          "height",
+                          "sequence",
+                          "recipient",
+                          "amountUakt",
+                          "status",
+                          "createdAt",
+                          "statusHeight",
+                          "statusUpdatedAt",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "count",
+                    "results",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Returns a page of sink transfers and the total number of transfers",
+          },
+        },
+        "security": [],
+        "summary": "Get the AKT transfers sent to Solana through the sink module",
+        "tags": [
+          "Analytics",
+        ],
+      },
+    },
     "/v1/spend-rate": {
       "get": {
         "operationId": "getSpendRate",
@@ -31215,6 +31569,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "id": {
                             "type": "number",
                           },
+                          "isTrialRefused": {
+                            "description": "Whether this account was refused a free trial.",
+                            "type": "boolean",
+                          },
                           "isTrialing": {
                             "type": "boolean",
                           },
@@ -31243,6 +31601,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "address",
                           "denom",
                           "isTrialing",
+                          "isTrialRefused",
                           "trialEndsAt",
                           "trialDurationDays",
                           "topUpMinAmountUsd",

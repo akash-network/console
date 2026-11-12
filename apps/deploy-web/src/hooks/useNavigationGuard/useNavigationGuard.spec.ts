@@ -142,7 +142,7 @@ describe(useNavigationGuard.name, () => {
   });
 
   it("should prevent toggle when enabled prop is provided", async () => {
-    const consoleSpy = vi.spyOn(console, "warn").mockImplementation();
+    const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const { toggle, confirm } = setup({ enabled: false });
 
     await vi.waitFor(() => {

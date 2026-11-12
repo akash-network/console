@@ -79,7 +79,7 @@ const postRoute = createRoute({
   method: "post",
   path: "/v1/api-keys",
   summary: "Create new API key",
-  description: "Requires a signed-in Console session. A request authenticated with an API key is refused.",
+  description: "Requires a signed-in Console session and a confirmed email address. A request authenticated with an API key is refused.",
   tags: ["API Keys"],
   security: SECURITY_BEARER,
   request: {
@@ -100,7 +100,10 @@ const postRoute = createRoute({
         }
       }
     },
-    403: { description: "The request was not made from a signed-in session (`session_required`)" },
+    403: {
+      description:
+        "The request was not made from a signed-in session (`session_required`), or the caller has not confirmed their email address (`email_verification_required`)"
+    },
     404: { description: "No project with this `projectId` in the caller's reach" }
   }
 });

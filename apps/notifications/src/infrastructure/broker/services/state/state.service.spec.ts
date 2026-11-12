@@ -1,7 +1,7 @@
 import { Test, type TestingModule } from "@nestjs/testing";
 import { Pool } from "pg";
 import { PgBoss } from "pg-boss";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 
 import { PgBossHandlerService } from "@src/infrastructure/broker/services/pg-boss-handler/pg-boss-handler.service";
@@ -42,7 +42,7 @@ describe(StateService.name, () => {
   it("should update state to 'stopped' when PgBoss emits 'stopped'", async () => {
     const { service, boss } = await setup();
 
-    const stoppedListener = (boss.on as jest.Mock).mock.calls.find(([event]: [string]) => event === "stopped")?.[1] as (() => void) | undefined;
+    const stoppedListener = vi.mocked(boss.on).mock.calls.find(([event]) => event === "stopped")?.[1] as (() => void) | undefined;
     expect(stoppedListener).toBeDefined();
 
     stoppedListener?.();

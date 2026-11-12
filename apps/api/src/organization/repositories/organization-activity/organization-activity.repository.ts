@@ -42,6 +42,11 @@ export class OrganizationActivityRepository extends OrgScopedRepository<Table, O
     return rows.map(({ activity, actor }) => ({ ...this.toOutput(activity), actor }));
   }
 
+  /** A moved deployment takes its history along, so the project that holds it now shows all of it to the members who can read that project. */
+  async refileDeploymentActivities({ organizationId, dseq, projectId }: { organizationId: string; dseq: string; projectId: string }): Promise<void> {
+    await this.updateWhere(and(eq(this.table.organizationId, organizationId), sql`${this.table.payload} ->> 'dseq' = ${dseq}`), { projectId });
+  }
+
   /** Matches invited addresses through the invitations the member accepted, which deleting the user row unlinks, so it must run first. */
   async redactMember(userId: string): Promise<void> {
     await this.#redactInvitedAddressesOf(userId);

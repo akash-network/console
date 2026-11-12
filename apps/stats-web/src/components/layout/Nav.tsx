@@ -36,7 +36,7 @@ export const Nav = () => {
                 href={link.href}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "rounded-md px-2.5 py-[7px] transition-colors hover:no-underline",
+                  "whitespace-nowrap rounded-md px-2.5 py-[7px] transition-colors hover:no-underline",
                   isActive ? "bg-muted text-foreground hover:text-foreground" : "text-muted-foreground hover:bg-nested hover:text-foreground"
                 )}
               >
@@ -49,7 +49,7 @@ export const Nav = () => {
         <div className="flex-1" />
 
         <SearchBar className="hidden w-[250px] min-w-[110px] shrink md:block" />
-        <LiveBlockHeight className="hidden sm:flex" />
+        <LiveBlockHeight className="hidden sm:flex lg:hidden xl:flex" />
 
         <div className="lg:hidden">
           <MobileNav />

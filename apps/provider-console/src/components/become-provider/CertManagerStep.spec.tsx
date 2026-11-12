@@ -1,6 +1,7 @@
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/jest-globals";
 
 import React from "react";
+import type * as Jotai from "jotai";
 import { atom, createStore, Provider } from "jotai";
 
 import { EMPTY_CERT_MANAGER_SECRETS, EMPTY_CERT_MANAGER_STATE } from "@src/types/certManager";
@@ -28,7 +29,7 @@ const defaultInitial: ProviderProcessShape = {
 };
 
 jest.mock("@src/store/providerProcessStore", () => {
-  const { atom: jotaiAtom } = jest.requireActual("jotai");
+  const { atom: jotaiAtom } = jest.requireActual<typeof Jotai>("jotai");
   const providerProcessAtom = jotaiAtom({
     config: { domain: "provider.example.com", organization: "Acme", email: "" },
     process: { certManager: false },

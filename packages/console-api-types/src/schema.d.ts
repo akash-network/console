@@ -43,6 +43,8 @@ export interface paths {
                 address: string;
                 denom: string;
                 isTrialing: boolean;
+                /** @description Whether this account was refused a free trial. */
+                isTrialRefused: boolean;
                 /** @description When the free trial expires, or null when the wallet is no longer trialing. */
                 trialEndsAt: string | null;
                 /** @description Total length of the free trial in days, or null when the wallet is no longer trialing. */
@@ -5207,7 +5209,16 @@ export interface paths {
             | "dailyNetAktBurned"
             | "outstandingAct"
             | "vaultAkt"
-            | "collateralRatio";
+            | "collateralRatio"
+            | "sinkMintedUakt"
+            | "dailySinkMintedUakt"
+            | "sinkMintedTransfers"
+            | "dailySinkMintedTransfers"
+            | "sinkPendingUakt"
+            | "sinkVoidedUakt"
+            | "sinkRefundPendingUakt"
+            | "sinkRefundedUakt"
+            | "sinkUniqueSenders";
         };
         cookie?: never;
       };
@@ -5350,6 +5361,137 @@ export interface paths {
               /** @example 1.5 */
               collateralRatio: number;
             }[];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/sink/dashboard-data": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get the totals of AKT transferred to Solana through the sink module */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Returns the current sink totals and the totals of 24 hours earlier */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              now: {
+                date: string;
+                mintedUakt: number;
+                dailyMintedUakt: number;
+                mintedTransfers: number;
+                dailyMintedTransfers: number;
+                pendingUakt: number;
+                pendingTransfers: number;
+                voidedUakt: number;
+                voidedTransfers: number;
+                refundPendingUakt: number;
+                refundPendingTransfers: number;
+                refundedUakt: number;
+                refundedTransfers: number;
+                uniqueSenders: number;
+                medianSecondsToMint: number | null;
+              };
+              compare: {
+                date: string;
+                mintedUakt: number;
+                dailyMintedUakt: number;
+                mintedTransfers: number;
+                dailyMintedTransfers: number;
+                pendingUakt: number;
+                pendingTransfers: number;
+                voidedUakt: number;
+                voidedTransfers: number;
+                refundPendingUakt: number;
+                refundPendingTransfers: number;
+                refundedUakt: number;
+                refundedTransfers: number;
+                uniqueSenders: number;
+                medianSecondsToMint: number | null;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/sink/transfers": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get the AKT transfers sent to Solana through the sink module */
+    get: {
+      parameters: {
+        query?: {
+          skip?: number;
+          limit?: number;
+          sort?: "latest" | "largest";
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Returns a page of sink transfers and the total number of transfers */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /** @description Total number of transfers */
+              count: number;
+              results: {
+                /** @description Akash address that sent the AKT */
+                owner: string;
+                /** @description Height of the block that created the transfer */
+                height: number;
+                /** @description Position of the transfer among the transfers of its block */
+                sequence: number;
+                /** @description Solana address that receives the AKT */
+                recipient: string;
+                amountUakt: number;
+                /** @enum {string} */
+                status: "pending" | "minted" | "voided" | "refund_pending" | "refunded";
+                createdAt: string;
+                /** @description Height of the block that last changed the status */
+                statusHeight: number;
+                statusUpdatedAt: string;
+              }[];
+            };
           };
         };
       };
@@ -15307,6 +15449,18 @@ export interface operations {
                 commissionMonths: number;
                 referralTrialCreditsUsd: number;
               };
+              stats: {
+                signups: number;
+                payingUsers: number;
+                totalCommissionUsd: number;
+                monthCommissionUsd: number;
+              };
+              commissions: {
+                id: string;
+                createdAt: string;
+                amountUsd: number;
+                reversedUsd: number;
+              }[];
             } | null;
           };
         };

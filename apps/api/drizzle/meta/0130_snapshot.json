@@ -1,5 +1,5 @@
 {
-  "id": "37d37d35-6381-4dd9-8944-4609abd4becd",
+  "id": "cddd85f9-ab16-4fc6-8e01-aebf38beb7d1",
   "prevId": "ae5d33c4-901d-41bc-8993-c61281bf9564",
   "version": "7",
   "dialect": "postgresql",
@@ -1773,6 +1773,88 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "author_id": {
+          "name": "author_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "summary": {
+          "name": "summary",
+          "type": "varchar(300)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "icon": {
+          "name": "icon",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "categories": {
+          "name": "categories",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "visibility": {
+          "name": "visibility",
+          "type": "template_visibility",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'private'"
+        },
+        "listed": {
+          "name": "listed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "official": {
+          "name": "official",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "featured": {
+          "name": "featured",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "moderation_status": {
+          "name": "moderation_status",
+          "type": "template_moderation_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "current_version_id": {
+          "name": "current_version_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
         }
       },
       "indexes": {
@@ -1825,6 +1907,19 @@
             "id"
           ],
           "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "template_author_id_userSetting_id_fk": {
+          "name": "template_author_id_userSetting_id_fk",
+          "tableFrom": "template",
+          "tableTo": "userSetting",
+          "columnsFrom": [
+            "author_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         },
         "template_organization_id_project_id_fk": {
@@ -6486,13 +6581,6 @@
           "notNull": true,
           "default": 0
         },
-        "day_token_count": {
-          "name": "day_token_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp with time zone",
@@ -7145,6 +7233,133 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
+    },
+    "public.template_versions": {
+      "name": "template_versions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuid_generate_v4()"
+        },
+        "template_id": {
+          "name": "template_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sdl": {
+          "name": "sdl",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "readme": {
+          "name": "readme",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "asked_values": {
+          "name": "asked_values",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "resources": {
+          "name": "resources",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image_digests": {
+          "name": "image_digests",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "check_results": {
+          "name": "check_results",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "template_version_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'live'"
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "template_versions_template_id_template_id_fk": {
+          "name": "template_versions_template_id_template_id_fk",
+          "tableFrom": "template_versions",
+          "tableTo": "template",
+          "columnsFrom": [
+            "template_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "template_versions_created_by_id_userSetting_id_fk": {
+          "name": "template_versions_created_by_id_userSetting_id_fk",
+          "tableFrom": "template_versions",
+          "tableTo": "userSetting",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "template_versions_template_id_version_unique": {
+          "name": "template_versions_template_id_version_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "template_id",
+            "version"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -7219,6 +7434,24 @@
         "active",
         "suspended",
         "terminated"
+      ]
+    },
+    "public.template_moderation_status": {
+      "name": "template_moderation_status",
+      "schema": "public",
+      "values": [
+        "active",
+        "hidden",
+        "removed"
+      ]
+    },
+    "public.template_visibility": {
+      "name": "template_visibility",
+      "schema": "public",
+      "values": [
+        "private",
+        "organization",
+        "public"
       ]
     },
     "public.account_status_action": {
@@ -7539,6 +7772,15 @@
         "failed",
         "cancelled",
         "limited"
+      ]
+    },
+    "public.template_version_status": {
+      "name": "template_version_status",
+      "schema": "public",
+      "values": [
+        "live",
+        "held",
+        "failed_checks"
       ]
     }
   },

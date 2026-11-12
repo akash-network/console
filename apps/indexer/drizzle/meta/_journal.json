@@ -85,6 +85,20 @@
       "when": 1763200000000,
       "tag": "0011_fix_provider_snapshot_join_key_statistics",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1763300000000,
+      "tag": "0012_add_sink_totals_snapshot",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1763400000000,
+      "tag": "0013_add_sink_transfer",
+      "breakpoints": true
     }
   ]
 }

@@ -169,26 +169,64 @@ describe(TopBanner.name, () => {
     expect(screen.queryByText("FundingBanner")).not.toBeInTheDocument();
   });
 
+  it("shows the trial refused banner above the team payment method and funding banners", () => {
+    setup({ hasTrialRefusedBanner: true, hasTeamPaymentMethodBanner: true, hasFundingBanner: true });
+
+    expect(screen.getByText("TrialRefusedBanner")).toBeInTheDocument();
+    expect(screen.queryByText("TeamPaymentMethodBanner")).not.toBeInTheDocument();
+    expect(screen.queryByText("FundingBanner")).not.toBeInTheDocument();
+  });
+
+  it("keeps an open maintenance banner above the trial refused banner", () => {
+    setup({ hasTrialRefusedBanner: true, isMaintenanceBannerOpen: true });
+
+    expect(screen.getByText("MaintenanceBanner")).toBeInTheDocument();
+    expect(screen.queryByText("TrialRefusedBanner")).not.toBeInTheDocument();
+  });
+
+  it("keeps an open generic banner above the trial refused banner", () => {
+    setup({ hasTrialRefusedBanner: true, isGenericBannerOpen: true });
+
+    expect(screen.getByRole("button", { name: "Close generic banner" })).toBeInTheDocument();
+    expect(screen.queryByText("TrialRefusedBanner")).not.toBeInTheDocument();
+  });
+
+  it("keeps the account status banner above the trial refused banner", () => {
+    setup({ hasAccountStatusBanner: true, hasTrialRefusedBanner: true });
+
+    expect(screen.getByText("AccountStatusBanner")).toBeInTheDocument();
+    expect(screen.queryByText("TrialRefusedBanner")).not.toBeInTheDocument();
+  });
+
   it("renders nothing when no banner applies", () => {
     const { container } = setup({});
 
     expect(container).toBeEmptyDOMElement();
   });
 
-  function setup(input: { isGenericBannerOpen?: boolean; hasTeamPaymentMethodBanner?: boolean; hasFundingBanner?: boolean; hasAccountStatusBanner?: boolean }) {
+  function setup(input: {
+    isMaintenanceBannerOpen?: boolean;
+    isGenericBannerOpen?: boolean;
+    hasTeamPaymentMethodBanner?: boolean;
+    hasFundingBanner?: boolean;
+    hasAccountStatusBanner?: boolean;
+    hasTrialRefusedBanner?: boolean;
+  }) {
     const setIsGenericBannerOpen = vi.fn();
     const useTopBanner: typeof TOP_BANNER_DEPENDENCIES.useTopBanner = () =>
       mock<ReturnType<typeof TOP_BANNER_DEPENDENCIES.useTopBanner>>({
         isBlockchainDown: false,
-        isMaintenanceBannerOpen: false,
+        isMaintenanceBannerOpen: input.isMaintenanceBannerOpen ?? false,
         isGenericBannerOpen: input.isGenericBannerOpen ?? false,
         setIsGenericBannerOpen,
         hasTeamPaymentMethodBanner: input.hasTeamPaymentMethodBanner ?? false,
         hasFundingBanner: input.hasFundingBanner ?? false,
-        hasAccountStatusBanner: input.hasAccountStatusBanner ?? false
+        hasAccountStatusBanner: input.hasAccountStatusBanner ?? false,
+        hasTrialRefusedBanner: input.hasTrialRefusedBanner ?? false
       });
     const dependencies = MockComponents(TOP_BANNER_DEPENDENCIES, {
       useTopBanner,
+      MaintenanceBanner: () => <>MaintenanceBanner</>,
       GenericBanner: ({ onClose }) => (
         <button type="button" onClick={onClose}>
           Close generic banner
@@ -196,7 +234,8 @@ describe(TopBanner.name, () => {
       ),
       TeamPaymentMethodBanner: () => <>TeamPaymentMethodBanner</>,
       FundingBanner: () => <>FundingBanner</>,
-      AccountStatusBanner: () => <>AccountStatusBanner</>
+      AccountStatusBanner: () => <>AccountStatusBanner</>,
+      TrialRefusedBanner: () => <>TrialRefusedBanner</>
     });
 
     return { ...render(<TopBanner dependencies={dependencies} />), setIsGenericBannerOpen };

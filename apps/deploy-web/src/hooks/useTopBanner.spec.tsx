@@ -1,11 +1,24 @@
 import { createStore, Provider as JotaiProvider } from "jotai";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { mock } from "vitest-mock-extended";
 
-import { isSafeLink, useGenericBannerVisibility } from "./useTopBanner";
+import type { OrganizationOutput } from "@src/types/organization";
+import type { AccountStatus } from "@src/types/user";
+import { type DEPENDENCIES, isSafeLink, useGenericBannerVisibility, useTopBanner } from "./useTopBanner";
 
 import { act, renderHook } from "@testing-library/react";
 
 const DISMISSED_KEY_PREFIX = "generic_banner_dismissed:";
+const NO_BANNER = {
+  hasBanner: false,
+  hasTrialRefusedBanner: false,
+  hasAccountStatusBanner: false,
+  isBlockchainDown: false,
+  hasTeamPaymentMethodBanner: false,
+  hasFundingBanner: false,
+  isMaintenanceBannerOpen: false,
+  isGenericBannerOpen: false
+};
 
 describe("useGenericBannerVisibility", () => {
   beforeEach(() => {
@@ -77,6 +90,71 @@ describe("useGenericBannerVisibility", () => {
     });
     await act(async () => {});
     return result;
+  }
+});
+
+describe(useTopBanner.name, () => {
+  afterEach(() => {
+    window.localStorage.clear();
+  });
+
+  it("has no banner when nothing calls for one", async () => {
+    const { result } = await setup({});
+
+    expect(result.current).toMatchObject(NO_BANNER);
+  });
+
+  it.each([
+    ["a refused free trial", { hasTrialRefusedBanner: true }, "hasTrialRefusedBanner"],
+    ["an account that is not active", { accountStatus: "suspended" }, "hasAccountStatusBanner"],
+    ["a chain that is down", { isBlockchainDown: true }, "isBlockchainDown"],
+    ["a team without a payment method", { hasTeamWithoutPaymentMethod: true }, "hasTeamPaymentMethodBanner"],
+    ["an account that needs funds", { hasFundingBanner: true }, "hasFundingBanner"],
+    ["scheduled maintenance", { isMaintenanceFlagEnabled: true }, "isMaintenanceBannerOpen"],
+    ["an announcement", { isAnnouncementFlagEnabled: true }, "isGenericBannerOpen"]
+  ] as const)("has only the banner for %s", async (_, input, banner) => {
+    const { result } = await setup(input);
+
+    expect(result.current).toMatchObject({ ...NO_BANNER, hasBanner: true, [banner]: true });
+  });
+
+  it("has no banner for an announcement the user already dismissed", async () => {
+    window.localStorage.setItem(DISMISSED_KEY_PREFIX + "dismissed-announcement", "true");
+
+    const { result } = await setup({ isAnnouncementFlagEnabled: true, announcementDismissId: "dismissed-announcement" });
+
+    expect(result.current).toMatchObject(NO_BANNER);
+  });
+
+  async function setup(input: {
+    hasTrialRefusedBanner?: boolean;
+    accountStatus?: AccountStatus;
+    isBlockchainDown?: boolean;
+    hasTeamWithoutPaymentMethod?: boolean;
+    hasFundingBanner?: boolean;
+    isMaintenanceFlagEnabled?: boolean;
+    isAnnouncementFlagEnabled?: boolean;
+    announcementDismissId?: string;
+  }) {
+    const enabledFlags: Record<string, boolean> = {
+      maintenance_banner: !!input.isMaintenanceFlagEnabled,
+      generic_banner: !!input.isAnnouncementFlagEnabled
+    };
+    const dependencies: typeof DEPENDENCIES = {
+      useVariant: flagName => mock<ReturnType<typeof DEPENDENCIES.useVariant>>({ enabled: enabledFlags[flagName] }),
+      useBlockchainStatus: () => mock<ReturnType<typeof DEPENDENCIES.useBlockchainStatus>>({ isBlockchainDown: !!input.isBlockchainDown }),
+      useTeamWithoutPaymentMethod: () => (input.hasTeamWithoutPaymentMethod ? mock<OrganizationOutput>() : undefined),
+      useHasFundingBanner: () => !!input.hasFundingBanner,
+      useAccountStatus: () => mock<ReturnType<typeof DEPENDENCIES.useAccountStatus>>({ status: input.accountStatus ?? "active" }),
+      useHasTrialRefusedBanner: () => !!input.hasTrialRefusedBanner,
+      useGenericBannerDetails: () => ({ message: "", dismissId: input.announcementDismissId })
+    };
+    const store = createStore();
+    const wrapper = ({ children }: { children: React.ReactNode }) => <JotaiProvider store={store}>{children}</JotaiProvider>;
+
+    const rendered = renderHook(() => useTopBanner(dependencies), { wrapper });
+    await act(async () => {});
+    return rendered;
   }
 });
 

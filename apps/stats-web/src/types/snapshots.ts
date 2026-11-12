@@ -62,6 +62,30 @@ export enum BmeSnapshotsUrlParam {
   collateralRatio = "collateral-ratio"
 }
 
+export enum SinkSnapshots {
+  mintedUakt = "sinkMintedUakt",
+  dailyMintedUakt = "dailySinkMintedUakt",
+  mintedTransfers = "sinkMintedTransfers",
+  dailyMintedTransfers = "dailySinkMintedTransfers",
+  pendingUakt = "sinkPendingUakt",
+  voidedUakt = "sinkVoidedUakt",
+  refundPendingUakt = "sinkRefundPendingUakt",
+  refundedUakt = "sinkRefundedUakt",
+  uniqueSenders = "sinkUniqueSenders"
+}
+
+export enum SinkSnapshotsUrlParam {
+  mintedUakt = "akt-migrated",
+  dailyMintedUakt = "daily-akt-migrated",
+  mintedTransfers = "transfers",
+  dailyMintedTransfers = "daily-transfers",
+  pendingUakt = "akt-pending",
+  voidedUakt = "akt-voided",
+  refundPendingUakt = "akt-refund-pending",
+  refundedUakt = "akt-refunded",
+  uniqueSenders = "migrating-addresses"
+}
+
 export enum ProviderSnapshots {
   count = "count",
   cpu = "cpu",
@@ -109,4 +133,43 @@ export type BmePeriodData = {
 export type BmeDashboardData = {
   now: BmePeriodData;
   compare: BmePeriodData;
+};
+
+export type SinkPeriodData = {
+  date: string;
+  mintedUakt: number;
+  dailyMintedUakt: number;
+  mintedTransfers: number;
+  dailyMintedTransfers: number;
+  pendingUakt: number;
+  pendingTransfers: number;
+  voidedUakt: number;
+  voidedTransfers: number;
+  refundPendingUakt: number;
+  refundPendingTransfers: number;
+  refundedUakt: number;
+  refundedTransfers: number;
+  uniqueSenders: number;
+  medianSecondsToMint: number | null;
+};
+
+export type SinkDashboardData = {
+  now: SinkPeriodData;
+  compare: SinkPeriodData;
+};
+
+export type SinkTransferStatus = "pending" | "minted" | "voided" | "refund_pending" | "refunded";
+
+export type SinkTransferSort = "latest" | "largest";
+
+export type SinkTransfer = {
+  owner: string;
+  height: number;
+  sequence: number;
+  recipient: string;
+  amountUakt: number;
+  status: SinkTransferStatus;
+  createdAt: string;
+  statusHeight: number;
+  statusUpdatedAt: string;
 };

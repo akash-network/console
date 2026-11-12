@@ -5,6 +5,7 @@ import type { Mock } from "vitest";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { WalletBalance } from "@src/hooks/useWalletBalance";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { PlacementType, SdlBuilderFormValuesType } from "@src/types";
 import type { OrganizationRole } from "@src/types/organization";
@@ -639,6 +640,7 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(enqueueSnackbar).not.toHaveBeenCalled();
     expect(analyticsService.track).toHaveBeenCalledWith("configure_needs_funds_shown", {
       category: "deployments",
+      variant: "not_enough_balance",
       requiredAmountUsd: 0.5,
       availableAmountUsd: 0.12
     });
@@ -646,10 +648,98 @@ describe(ConfigureDeploymentForm.name, () => {
 
   it("explains the refusal with the api's reason when it reports no amounts, so a trial gpu refusal reads correctly too", () => {
     const message = "GPU interconnect not available on free trial: Add funds to unlock GPU interconnect";
-    const { analyticsService } = setup({ initialSdl: undefined, phase: "error", flowError: { message, kind: "needs-funds" } });
+    const { analyticsService } = setup({
+      initialSdl: undefined,
+      phase: "error",
+      flowError: { message, kind: "needs-funds" },
+      isTrialing: true,
+      deployBalanceUsd: 20,
+      minimumDepositUsd: 0.5
+    });
 
     expect(screen.getByRole("alert")).toHaveTextContent(message);
-    expect(analyticsService.track).toHaveBeenCalledWith("configure_needs_funds_shown", { category: "deployments" });
+    expect(analyticsService.track).toHaveBeenCalledWith("configure_needs_funds_shown", { category: "deployments", variant: "not_enough_balance" });
+  });
+
+  it("tells a trial whose free credit is used up to add credits, rather than how far it falls short", () => {
+    const { analyticsService } = setup({
+      initialSdl: undefined,
+      phase: "error",
+      flowError: { message: "Not enough balance", kind: "needs-funds", shortfall: { requiredAmountUsd: 0.5, availableAmountUsd: 0 } },
+      isTrialing: true,
+      minimumDepositUsd: 0.5
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Your free trial credit is used up");
+    expect(analyticsService.track).toHaveBeenCalledWith("configure_needs_funds_shown", {
+      category: "deployments",
+      variant: "trial_credit_used_up",
+      requiredAmountUsd: 0.5,
+      availableAmountUsd: 0
+    });
+  });
+
+  it("tells a trial a few cents short that no configuration fits its remaining credit", () => {
+    const { analyticsService } = setup({
+      initialSdl: undefined,
+      phase: "error",
+      flowError: { message: "Not enough balance", kind: "needs-funds", shortfall: { requiredAmountUsd: 0.5, availableAmountUsd: 0.43 } },
+      isTrialing: true,
+      minimumDepositUsd: 0.5
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "You have $0.43 of free trial credit left, and every deployment needs at least $0.50 up front, so changing the configuration won't help."
+    );
+    expect(analyticsService.track).toHaveBeenCalledWith("configure_needs_funds_shown", expect.objectContaining({ variant: "trial_credit_below_minimum" }));
+  });
+
+  it("reads the trial's remaining credit from the wallet when the refusal reports no amounts", () => {
+    const { analyticsService } = setup({
+      initialSdl: undefined,
+      phase: "error",
+      flowError: { message: "Not enough balance", kind: "needs-funds" },
+      isTrialing: true,
+      deployBalanceUsd: 0,
+      minimumDepositUsd: 0.5
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Your free trial credit is used up");
+    expect(analyticsService.track).toHaveBeenCalledWith("configure_needs_funds_shown", { category: "deployments", variant: "trial_credit_used_up" });
+  });
+
+  it("prefers the amounts the refusal reports over the wallet balance", () => {
+    setup({
+      initialSdl: undefined,
+      phase: "error",
+      flowError: { message: "Not enough balance", kind: "needs-funds", shortfall: { requiredAmountUsd: 0.5, availableAmountUsd: 0.43 } },
+      isTrialing: true,
+      deployBalanceUsd: 0,
+      minimumDepositUsd: 0.5
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Your free trial credit is below the deployment minimum");
+  });
+
+  it("rewords the refusal once the deployment minimum loads, without counting it as shown twice", async () => {
+    const { analyticsService, rerenderWith } = setup({
+      initialSdl: undefined,
+      phase: "error",
+      flowError: { message: "Not enough balance", kind: "needs-funds", shortfall: { requiredAmountUsd: 0.5, availableAmountUsd: 0.43 } },
+      isTrialing: true
+    });
+
+    rerenderWith({ minimumDepositUsd: 0.5 });
+    await userEvent.click(screen.getByRole("button", { name: "Add credits" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Your free trial credit is below the deployment minimum");
+    expect(analyticsService.track.mock.calls.filter(([event]) => event === "configure_needs_funds_shown")).toEqual([
+      ["configure_needs_funds_shown", { category: "deployments", variant: "not_enough_balance", requiredAmountUsd: 0.5, availableAmountUsd: 0.43 }]
+    ]);
+    expect(analyticsService.track).toHaveBeenCalledWith(
+      "configure_needs_funds_add_credits_clicked",
+      expect.objectContaining({ variant: "trial_credit_below_minimum" })
+    );
   });
 
   it("keeps the refusal on the page in the two panel layout too", () => {
@@ -684,18 +774,36 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(analyticsService.track).toHaveBeenCalledWith("configure_needs_funds_add_credits_clicked", {
       category: "billing",
       context: "configure_quotes_needs_funds",
+      variant: "not_enough_balance",
       requiredAmountUsd: 0.5,
       availableAmountUsd: 0.12
     });
   });
 
-  it("sends the refused request again when the user tries again from the refusal", async () => {
-    const { flow, analyticsService } = setup({ initialSdl: undefined, phase: "error", flowError: { message: "Not enough balance", kind: "needs-funds" } });
+  it("offers no retry while the balance still can't cover the refused deploy", () => {
+    setup({
+      initialSdl: undefined,
+      phase: "error",
+      flowError: { message: "Not enough balance", kind: "needs-funds", shortfall: { requiredAmountUsd: 0.5, availableAmountUsd: 0.12 } },
+      deployBalanceUsd: 0.12
+    });
+
+    expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
+  });
+
+  it("sends the refused request again when the user tries again once the balance covers it", async () => {
+    const { flow, analyticsService } = setup({
+      initialSdl: undefined,
+      phase: "error",
+      flowError: { message: "Not enough balance", kind: "needs-funds", shortfall: { requiredAmountUsd: 0.5, availableAmountUsd: 0 } },
+      isTrialing: true,
+      deployBalanceUsd: 20
+    });
 
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
 
     expect(flow.actions.requestQuotesAgain).toHaveBeenCalledTimes(1);
-    expect(analyticsService.track).toHaveBeenCalledWith("configure_needs_funds_retry_clicked", { category: "deployments" });
+    expect(analyticsService.track).toHaveBeenCalledWith("configure_needs_funds_retry_clicked", { category: "deployments", variant: "trial_credit_used_up" });
   });
 
   it("takes the refusal down once the user edits the deployment", async () => {
@@ -1361,6 +1469,9 @@ describe(ConfigureDeploymentForm.name, () => {
     persistedStartingSdl?: string;
     organizationRole?: OrganizationRole;
     projectsEnabled?: boolean;
+    isTrialing?: boolean;
+    deployBalanceUsd?: number;
+    minimumDepositUsd?: number;
   }) {
     const ConfigureDeploymentPanes = vi.fn(
       input.Panes ?? (({ configurationActions }: ProbePanesProps) => <div data-testid="panes-mock">{configurationActions}</div>)
@@ -1467,10 +1578,16 @@ describe(ConfigureDeploymentForm.name, () => {
       usePlacementsWithBids: () => new Set<string>(),
       usePublishConfigureForm,
       useFlag: () => false,
-      useAddCredits: () => openAddCredits
+      useAddCredits: () => openAddCredits,
+      useWallet: () => Object.assign(mock<ReturnType<typeof DEPENDENCIES.useWallet>>(), { isTrialing: input.isTrialing ?? false }),
+      useWalletBalance: () =>
+        Object.assign(mock<ReturnType<typeof DEPENDENCIES.useWalletBalance>>(), {
+          balance: input.deployBalanceUsd === undefined ? null : mock<WalletBalance>({ totalDeploymentGrantsUSD: input.deployBalanceUsd })
+        }),
+      useDeploymentFundingConfigQuery: fundingConfigQueryWith(input.minimumDepositUsd)
     };
 
-    const formWithFlags = (flags: { twoPanel: boolean }) => (
+    const formWithFlags = (flags: { twoPanel: boolean; minimumDepositUsd?: number }) => (
       <ConfigureDeploymentForm
         initialSdl={input.initialSdl}
         initialName={input.initialName}
@@ -1485,11 +1602,12 @@ describe(ConfigureDeploymentForm.name, () => {
         flow={flow}
         dependencies={{
           ...dependencies,
-          useFlag: flag => flag === "ui_configure_two_panel" && flags.twoPanel
+          useFlag: flag => flag === "ui_configure_two_panel" && flags.twoPanel,
+          useDeploymentFundingConfigQuery: fundingConfigQueryWith(flags.minimumDepositUsd)
         }}
       />
     );
-    const initialFlags = { twoPanel: input.twoPanel ?? false };
+    const initialFlags = { twoPanel: input.twoPanel ?? false, minimumDepositUsd: input.minimumDepositUsd };
     const { rerender } = render(formWithFlags(initialFlags));
 
     return {
@@ -1553,8 +1671,6 @@ function EditorProbeWorkspace({ sdl, selectedServiceId, selectedPlacement, onSel
         onSelectService={onSelectService}
         deploymentName=""
         onDeploymentNameChange={vi.fn()}
-        pendingClose={null}
-        onRetryClose={vi.fn()}
         toolbar={null}
         dependencies={{ ...CONFIGURE_EDITOR_DEPENDENCIES, PlacementFields: PlacementFieldsWithoutRegion, ServiceStack: ServiceStackWithRegisteringCards }}
       />
@@ -1650,6 +1766,13 @@ function ProviderSelectProbePanes({ selectedPlacementId, onSelectProvider }: Pro
  * like ImageCard/ReplicasCard/etc. This registration is what resurrected a removed service before the fix, so a
  * regression test must mount something that registers.
  */
+function fundingConfigQueryWith(minimumDepositUsd: number | undefined): typeof DEPENDENCIES.useDeploymentFundingConfigQuery {
+  return () =>
+    Object.assign(mock<ReturnType<typeof DEPENDENCIES.useDeploymentFundingConfigQuery>>(), {
+      data: minimumDepositUsd === undefined ? undefined : { targetRunwayHours: 48, balanceHeadroomUsd: 5, defaultDepositUsd: minimumDepositUsd }
+    });
+}
+
 function FieldRegisteringSection({ serviceIndex }: { serviceIndex: number }) {
   useController<SdlBuilderFormValuesType>({ name: `services.${serviceIndex}.image` as never });
   useController<SdlBuilderFormValuesType>({ name: `services.${serviceIndex}.title` as never });

@@ -9,12 +9,15 @@ import {
   UpdateApiKeyRequest
 } from "@src/auth/http-schemas/api-key.schema";
 import { ApiKeyService } from "@src/auth/services/api-key/api-key.service";
-import { Protected } from "@src/auth/services/auth.service";
+import { AuthService, Protected } from "@src/auth/services/auth.service";
 import type { AuthMethod } from "@src/core/types/app-context";
 
 @singleton()
 export class ApiKeyController {
-  constructor(private readonly apiKeyService: ApiKeyService) {}
+  constructor(
+    private readonly apiKeyService: ApiKeyService,
+    private readonly authService: AuthService
+  ) {}
 
   @Protected([{ action: "read", subject: "ApiKey" }])
   async findAll(): Promise<ListApiKeysResponse> {
@@ -32,6 +35,9 @@ export class ApiKeyController {
   @Protected([{ action: "create", subject: "ApiKey" }])
   async create(input: CreateApiKeyRequest["data"], origin: { authMethod?: AuthMethod }): Promise<ApiKeyVisibleResponse> {
     assert(origin.authMethod === "bearer", 403, "An API key can only be created from a signed-in Console session.", { errorCode: "session_required" });
+    assert(this.authService.currentUser.emailVerified, 403, "Confirm your email address before creating an API key.", {
+      errorCode: "email_verification_required"
+    });
 
     const apiKey = await this.apiKeyService.create(input);
     return { data: apiKey };

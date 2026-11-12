@@ -179,6 +179,18 @@ describe(DeploymentProjectService.name, () => {
       });
     });
 
+    it("re-files the deployment's past activities of the organization into the target project", async () => {
+      const { service, organizationActivityService, deployment, target, context } = setup();
+
+      await service.move(deployment.dseq, target.id);
+
+      expect(organizationActivityService.refileDeploymentActivities).toHaveBeenCalledWith({
+        organizationId: context.organizationId,
+        dseq: deployment.dseq,
+        projectId: target.id
+      });
+    });
+
     it("queues the move of the deployment's alerts of the organization into the target project", async () => {
       const { service, jobQueueService, deployment, target, context } = setup();
 
@@ -218,6 +230,7 @@ describe(DeploymentProjectService.name, () => {
       await expect(service.move(deployment.dseq, target.id)).resolves.toEqual({ dseq: deployment.dseq, projectId: target.id });
 
       expect(scopedSettingRepository.updateById).not.toHaveBeenCalled();
+      expect(organizationActivityService.refileDeploymentActivities).not.toHaveBeenCalled();
       expect(organizationActivityService.record).not.toHaveBeenCalled();
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });

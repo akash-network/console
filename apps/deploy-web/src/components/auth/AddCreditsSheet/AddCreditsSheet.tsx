@@ -40,8 +40,7 @@ const NO_FIRST_DEPLOYMENT_OFFER: FirstDeploymentOffer = { offersDeployNow: false
 
 const DEPLOY_HELLO_WORLD_URL = UrlService.configureDeployment({ templateId: helloWorldTemplate.code, sdlStrategy: "default", bidStrategy: "auto" });
 
-const DEFAULT_DESCRIPTION =
-  "This template needs a top-tier GPU, which isn't covered by your free trial. Add credits to unlock high-end GPUs, longer runtimes, and the full Console.";
+const DEFAULT_DESCRIPTION = "Buy credits or redeem a coupon to top up your balance.";
 
 interface AddCreditsSheetProps {
   open: boolean;

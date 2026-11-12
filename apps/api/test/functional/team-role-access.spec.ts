@@ -440,7 +440,11 @@ describe("Team role access", () => {
 
   async function seedTeam(sessions: Map<string, string>) {
     const stripeCustomerId = `cus_${faker.string.alphanumeric(14)}`;
-    const { user: owner, organization, project: defaultProject } = await seedOrganizationWithOwner({ stripeCustomerId, user: { userId: faker.string.uuid() } });
+    const {
+      user: owner,
+      organization,
+      project: defaultProject
+    } = await seedOrganizationWithOwner({ stripeCustomerId, user: { userId: faker.string.uuid(), emailVerified: true } });
     const [grantedProject, otherProject, emptyProject] = await Promise.all([
       seedProject({ organizationId: organization.id, name: "Granted", createdByUserId: owner.id }),
       seedProject({ organizationId: organization.id, name: "Other", createdByUserId: owner.id }),
@@ -523,7 +527,7 @@ describe("Team role access", () => {
   }
 
   async function seedSignedUpUser() {
-    return await seedUser({ userId: faker.string.uuid() });
+    return await seedUser({ userId: faker.string.uuid(), emailVerified: true });
   }
 
   async function seedPaidCardPayment(userId: string, organizationId: string) {

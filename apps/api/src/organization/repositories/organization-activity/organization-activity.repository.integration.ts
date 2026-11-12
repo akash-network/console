@@ -94,6 +94,45 @@ describe(OrganizationActivityRepository.name, () => {
     });
   });
 
+  describe("refileDeploymentActivities", () => {
+    it("files every activity naming the deployment into the project it moved to", async () => {
+      const { repository, organization } = await setup();
+      const [source, target] = await Promise.all([seedProject({ organizationId: organization.id }), seedProject({ organizationId: organization.id })]);
+      const dseq = faker.string.numeric(8);
+      const activities = await Promise.all([
+        seedOrganizationActivity({ organizationId: organization.id, projectId: source.id, type: "deployment_created", payload: { dseq, name: null } }),
+        seedOrganizationActivity({ organizationId: organization.id, projectId: source.id, type: "deployment_updated", payload: { dseq, name: null } }),
+        seedOrganizationActivity({ organizationId: organization.id, projectId: null, type: "deployment_closed", payload: { dseq, name: null, reason: null } })
+      ]);
+
+      await repository.refileDeploymentActivities({ organizationId: organization.id, dseq, projectId: target.id });
+
+      expect(await projectIdsOf(repository, activities)).toEqual([target.id, target.id, target.id]);
+    });
+
+    it("leaves the activities of other deployments and of other organizations where they are", async () => {
+      const { repository, organization } = await setup();
+      const [source, target] = await Promise.all([seedProject({ organizationId: organization.id }), seedProject({ organizationId: organization.id })]);
+      const { organization: foreign } = await seedOrganizationWithOwner();
+      const foreignProject = await seedProject({ organizationId: foreign.id });
+      const dseq = faker.string.numeric(8);
+      const untouched = await Promise.all([
+        seedOrganizationActivity({
+          organizationId: organization.id,
+          projectId: source.id,
+          type: "deployment_created",
+          payload: { dseq: faker.string.numeric(9), name: null }
+        }),
+        seedOrganizationActivity({ organizationId: foreign.id, projectId: foreignProject.id, type: "deployment_created", payload: { dseq, name: null } }),
+        seedOrganizationActivity({ organizationId: organization.id, projectId: source.id, type: "project_created", payload: { projectName: source.name } })
+      ]);
+
+      await repository.refileDeploymentActivities({ organizationId: organization.id, dseq, projectId: target.id });
+
+      expect(await projectIdsOf(repository, untouched)).toEqual([source.id, foreignProject.id, source.id]);
+    });
+  });
+
   describe("redactMember", () => {
     it("takes the address the member accepted an invitation at out of that team's invitations, whatever the account's own address", async () => {
       const { repository, organization, owner, member, redactInOtherOrganization, payloadsOf } = await setup();
@@ -177,6 +216,10 @@ describe(OrganizationActivityRepository.name, () => {
       expect(await payloadsOf(activities)).toEqual(redacted);
     });
   });
+
+  async function projectIdsOf(repository: OrganizationActivityRepository, activities: OrganizationActivityOutput[]) {
+    return await Promise.all(activities.map(async ({ id }) => (await repository.findById(id))?.projectId));
+  }
 
   function positionOf({ createdAt, id }: OrganizationActivityWithActor) {
     return { createdAt: createdAt.toISOString(), id };

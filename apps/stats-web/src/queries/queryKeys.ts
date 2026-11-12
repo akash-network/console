@@ -46,5 +46,7 @@ export class QueryKeys {
   static getProviderAttributesSchema = () => ["PROVIDER_ATTRIBUTES_SCHEMA"];
   static getBmeDashboardDataKey = () => ["BME_DASHBOARD_DATA"];
   static getBmeStatusHistoryKey = () => ["BME_STATUS_HISTORY"];
+  static getSinkDashboardDataKey = () => ["SINK_DASHBOARD_DATA"];
+  static getSinkTransfersKey = (sort: string, limit: number) => ["SINK_TRANSFERS", sort, limit];
   static getGpuPricesKey = () => ["GPU_PRICES"];
 }

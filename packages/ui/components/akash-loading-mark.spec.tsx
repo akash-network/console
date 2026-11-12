@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { AkashLoadingMark } from "./AkashLoadingMark";
+import { AkashLoadingMark } from "./akash-loading-mark";
 
 import { render, screen } from "@testing-library/react";
 

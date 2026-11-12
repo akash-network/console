@@ -12,8 +12,11 @@ import { ConfigureDeployTargetChip } from "@src/components/projects/ConfigureDep
 import { ProjectBudgetRefusal } from "@src/components/projects/ProjectBudgetRefusal/ProjectBudgetRefusal";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useServices } from "@src/context/ServicesProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { useAddCredits } from "@src/hooks/useAddCredits";
 import { useFlag } from "@src/hooks/useFlag";
+import { useWalletBalance } from "@src/hooks/useWalletBalance";
+import { useDeploymentFundingConfigQuery } from "@src/queries/useDeploymentFundingConfigQuery";
 import { usePlacementsWithBids } from "@src/queries/usePlacementsWithBids";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
@@ -36,6 +39,8 @@ import { importDeploymentState, isKnownSdlParserError, NoVisibleServiceError, se
 import type { InheritedSecrets } from "../InheritedSecretsProvider/InheritedSecretsProvider";
 import { InheritedSecretsProvider } from "../InheritedSecretsProvider/InheritedSecretsProvider";
 import { NeedsFundsAlert } from "../NeedsFundsAlert/NeedsFundsAlert";
+import type { NeedsFundsVariant } from "../needsFundsVariant/needsFundsVariant";
+import { canRetryRefusedDeploy, needsFundsVariantOf } from "../needsFundsVariant/needsFundsVariant";
 import { PlacementManagerProvider } from "../PlacementManagerProvider/PlacementManagerProvider";
 import { ReviewAndDeployModal } from "../ReviewAndDeployModal/ReviewAndDeployModal";
 import { SdlImportChangesBanner } from "../SdlImportChangesBanner/SdlImportChangesBanner";
@@ -74,6 +79,9 @@ export const DEPENDENCIES = {
   useActiveOrganization,
   usePublishConfigureForm,
   useAddCredits,
+  useWallet,
+  useWalletBalance,
+  useDeploymentFundingConfigQuery,
   Snackbar
 };
 
@@ -234,11 +242,16 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
     }
   });
   const openAddCredits = d.useAddCredits();
-  const [fundsRefusal, setFundsRefusal] = useState<{ error: FlowError; deploymentName: string }>();
-  const shownFundsRefusal =
-    isRefusedForFunds && fundsRefusal && fundsRefusal.error === flow.error && fundsRefusal.deploymentName === typedDeploymentName
-      ? fundsRefusal.error
-      : undefined;
+  const { isTrialing } = d.useWallet();
+  const deployBalanceUsd = d.useWalletBalance().balance?.totalDeploymentGrantsUSD;
+  const minimumDepositUsd = d.useDeploymentFundingConfigQuery().data?.defaultDepositUsd;
+  const [fundsRefusal, setFundsRefusal] = useState<FundsRefusal>();
+  const fundsRefusalOnPage =
+    isRefusedForFunds && fundsRefusal && fundsRefusal.error === flow.error && fundsRefusal.deploymentName === typedDeploymentName ? fundsRefusal : undefined;
+  const shownFundsRefusal = fundsRefusalOnPage && {
+    ...fundsRefusalOnPage,
+    variant: needsFundsVariantOfRefusal(fundsRefusalOnPage.error, { isTrialing, deployBalanceUsd, minimumDepositUsd })
+  };
 
   useEffect(
     function dismissFundsRefusalOnEdit() {
@@ -256,7 +269,11 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
       if (flow.error && flow.error !== lastToastedFlowError.current) {
         if (flow.error.kind === "needs-funds") {
           setFundsRefusal({ error: flow.error, deploymentName: typedDeploymentName });
-          analyticsService.track("configure_needs_funds_shown", { category: "deployments", ...shortfallPropertiesOf(flow.error) });
+          analyticsService.track("configure_needs_funds_shown", {
+            category: "deployments",
+            variant: needsFundsVariantOfRefusal(flow.error, { isTrialing, deployBalanceUsd, minimumDepositUsd }).name,
+            ...shortfallPropertiesOf(flow.error)
+          });
         } else if (flow.error.kind === "budget-exceeded") {
           const key = enqueueSnackbar(
             <d.Snackbar
@@ -285,14 +302,27 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
       }
       lastToastedFlowError.current = flow.error;
     },
-    [flow.error, enqueueSnackbar, closeSnackbar, analyticsService, typedDeploymentName, organizationRole, projectsEnabled, d]
+    [
+      flow.error,
+      enqueueSnackbar,
+      closeSnackbar,
+      analyticsService,
+      typedDeploymentName,
+      organizationRole,
+      projectsEnabled,
+      isTrialing,
+      deployBalanceUsd,
+      minimumDepositUsd,
+      d
+    ]
   );
 
-  function addCreditsForRefusedDeploy(refusal: FlowError) {
+  function addCreditsForRefusedDeploy({ error, variant }: ShownFundsRefusal) {
     analyticsService.track("configure_needs_funds_add_credits_clicked", {
       category: "billing",
       context: NEEDS_FUNDS_CONTEXT,
-      ...shortfallPropertiesOf(refusal)
+      variant: variant.name,
+      ...shortfallPropertiesOf(error)
     });
     openAddCredits({
       initialTab: "purchase",
@@ -304,8 +334,8 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
     });
   }
 
-  function retryRefusedDeploy() {
-    analyticsService.track("configure_needs_funds_retry_clicked", { category: "deployments" });
+  function retryRefusedDeploy({ variant }: ShownFundsRefusal) {
+    analyticsService.track("configure_needs_funds_retry_clicked", { category: "deployments", variant: variant.name });
     flow.actions.requestQuotesAgain();
   }
 
@@ -449,10 +479,15 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
               {shownFundsRefusal && (
                 <div className="px-4 pt-4 sm:px-6">
                   <d.NeedsFundsAlert
-                    message={shownFundsRefusal.message}
-                    shortfall={shownFundsRefusal.shortfall}
+                    variant={shownFundsRefusal.variant}
+                    message={shownFundsRefusal.error.message}
+                    shortfall={shownFundsRefusal.error.shortfall}
                     onAddCredits={() => addCreditsForRefusedDeploy(shownFundsRefusal)}
-                    onTryAgain={retryRefusedDeploy}
+                    onTryAgain={
+                      canRetryRefusedDeploy({ shortfall: shownFundsRefusal.error.shortfall, balanceUsd: deployBalanceUsd })
+                        ? () => retryRefusedDeploy(shownFundsRefusal)
+                        : undefined
+                    }
                   />
                 </div>
               )}
@@ -546,6 +581,12 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
     </d.Layout>
   );
 };
+
+type FundsRefusal = { error: FlowError; deploymentName: string };
+
+type ShownFundsRefusal = FundsRefusal & { variant: NeedsFundsVariant };
+
+type DeployFunds = { isTrialing: boolean; deployBalanceUsd?: number; minimumDepositUsd?: number };
 
 /** What a fresh deployment is seeded with when nothing was carried in. */
 type DefaultSeed = Pick<DeploymentIntent, "vm" | "exampleImage">;
@@ -642,6 +683,10 @@ function flowErrorToastCopy(kind: FlowErrorKind | undefined): { title: string; f
     };
   }
   return { title: "Couldn't get bids from providers", fallback: "Something went wrong. Please adjust your deployment and try again." };
+}
+
+function needsFundsVariantOfRefusal({ shortfall }: FlowError, { isTrialing, deployBalanceUsd, minimumDepositUsd }: DeployFunds): NeedsFundsVariant {
+  return needsFundsVariantOf({ isTrialing, availableAmountUsd: shortfall?.availableAmountUsd ?? deployBalanceUsd, minimumDepositUsd });
 }
 
 function shortfallPropertiesOf({ shortfall }: FlowError) {

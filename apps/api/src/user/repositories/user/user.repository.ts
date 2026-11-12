@@ -8,11 +8,13 @@ import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
 import { userAgentMaxLength } from "@src/user/model-schemas/user/user.schema";
+import { isEmailWithinDomain } from "@src/workload-abuse/lib/email-domain/email-domain-sql";
 
 export type UserOutput = ApiPgTables["Users"]["$inferSelect"] & {
   trial?: boolean;
 };
 export type UserInput = Partial<UserOutput>;
+export type CreatedAccount = Pick<UserOutput, "id" | "email" | "userId" | "lastFingerprint">;
 
 const MAX_LINKED_ACCOUNTS = 20;
 
@@ -158,6 +160,14 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
       .limit(MAX_LINKED_ACCOUNTS);
   }
 
+  async findCreatedBetween(from: Date, to: Date): Promise<CreatedAccount[]> {
+    return this.pg
+      .select({ id: this.table.id, email: this.table.email, userId: this.table.userId, lastFingerprint: this.table.lastFingerprint })
+      .from(this.table)
+      .where(and(gte(this.table.createdAt, from), lt(this.table.createdAt, to)))
+      .orderBy(this.table.createdAt);
+  }
+
   /** The triggering account never counts as evidence that its own domain predates the attack, or aging one signup past the window would put that domain permanently out of reach. */
   async hasEstablishedUserWithEmailDomain(domain: string, minAgeDays: number, excludeUserId: string): Promise<boolean> {
     const [match] = await this.pg
@@ -165,7 +175,7 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
       .from(this.table)
       .where(
         and(
-          sql`lower(${this.table.email}) LIKE ${"%@"} || ${domain}`,
+          isEmailWithinDomain(this.table.email, domain),
           lt(this.table.createdAt, sql`now() - make_interval(days => ${minAgeDays})`),
           ne(this.table.id, excludeUserId)
         )

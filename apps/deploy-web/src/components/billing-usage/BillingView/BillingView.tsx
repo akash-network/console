@@ -56,8 +56,9 @@ const COLUMN_HEADERS = ["Date", "Amount", "Account source", "Status"];
 
 const TEAM_COLUMN_HEADERS = ["Date", "Amount", "Account source", "Initiated by", "Status"];
 
-/** A fully taken-back commission is reversed, not refunded: no money goes back to the affiliate. */
+/** A commission is held before it is credited, and a fully taken-back one is reversed, not refunded: no money goes back to the affiliate. */
 const getStatusLabel = ({ type, status }: BillingTransaction) => {
+  if (type === "affiliate_commission" && status === "pending") return "On hold";
   if (type === "affiliate_commission" && status === "refunded") return "Reversed";
 
   return STATUS_LABELS[status] ?? capitalizeFirstLetter(status);
@@ -247,17 +248,23 @@ export const BillingView: React.FC<BillingViewProps> = ({
 };
 
 const TransactionAmount: React.FC<{ transaction: BillingTransaction; usd: (cents: number, currency: string) => React.ReactNode }> = ({ transaction, usd }) => {
-  const { amount, currency, bonusAmount = 0, amountRefunded = 0, type } = transaction;
+  const { amount, currency, bonusAmount = 0, amountRefunded = 0, type, status } = transaction;
   const isCredit = isCreditTransaction(type);
+  const isCanceledBeforeCredit = type === "affiliate_commission" && status === "canceled";
+  const isHeldCommission = type === "affiliate_commission" && status === "pending";
 
   return (
     <>
-      <span data-credit={isCredit || undefined} className="data-[credit]:font-medium data-[credit]:text-success">
-        {isCredit && "+"}
-        {usd(amount, currency)}
+      <span
+        data-credit={(isCredit && !isCanceledBeforeCredit) || undefined}
+        data-canceled={isCanceledBeforeCredit || undefined}
+        className="data-[credit]:font-medium data-[canceled]:text-muted-foreground data-[credit]:text-success data-[canceled]:line-through"
+      >
+        {isCredit && !isCanceledBeforeCredit && "+"}
+        {usd(isHeldCommission ? amount - amountRefunded : amount, currency)}
       </span>
       {bonusAmount > 0 && <span className="block text-xs font-medium text-muted-foreground">+{usd(bonusAmount, currency)} bonus</span>}
-      {amountRefunded > 0 && (
+      {amountRefunded > 0 && !isCanceledBeforeCredit && !isHeldCommission && (
         <span className="block text-xs font-medium text-muted-foreground">
           -{usd(amountRefunded, currency)} {type === "affiliate_commission" ? "taken back" : "refunded"}
         </span>

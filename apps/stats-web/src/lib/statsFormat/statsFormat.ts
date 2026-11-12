@@ -72,6 +72,22 @@ export function formatAgo(time: number, now = Date.now()) {
   return hours < 24 ? `${hours}h ago` : `${Math.floor(hours / 24)}d ago`;
 }
 
+export function formatDuration(seconds: number | null | undefined) {
+  if (seconds === undefined || seconds === null) return EMPTY_VALUE;
+
+  const total = Math.max(0, Math.round(seconds));
+
+  if (total < 60) return `${total}s`;
+  if (total < 3600) return joinUnits(Math.floor(total / 60), "m", total % 60, "s");
+  if (total < 86_400) return joinUnits(Math.floor(total / 3600), "h", Math.floor((total % 3600) / 60), "m");
+
+  return joinUnits(Math.floor(total / 86_400), "d", Math.floor((total % 86_400) / 3600), "h");
+}
+
+function joinUnits(major: number, majorUnit: string, minor: number, minorUnit: string) {
+  return minor ? `${major}${majorUnit} ${minor}${minorUnit}` : `${major}${majorUnit}`;
+}
+
 export function formatHash(hash: string) {
   return `${hash.slice(0, 6)}…${hash.slice(-4)}`;
 }

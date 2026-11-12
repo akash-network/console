@@ -31,7 +31,9 @@ import {
   graphDataRouter,
   leasesDurationRouter,
   marketDataRouter,
-  networkCapacityRouter
+  networkCapacityRouter,
+  sinkDashboardDataRouter,
+  sinkTransfersRouter
 } from "@src/dashboard";
 import { configureDraftsRouter } from "@src/deployment/routes/configure-drafts/configure-drafts.router";
 import { deploymentFundingConfigRouter } from "@src/deployment/routes/deployment-funding-config/deployment-funding-config.router";
@@ -127,6 +129,8 @@ export const openApiHonoHandlers: OpenApiHonoHandler[] = [
   graphDataRouter,
   bmeDashboardDataRouter,
   bmeStatusHistoryRouter,
+  sinkDashboardDataRouter,
+  sinkTransfersRouter,
   dashboardDataRouter,
   networkCapacityRouter,
   blocksRouter,

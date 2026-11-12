@@ -4,9 +4,12 @@ import { type PersonalWallet, UserWalletRepository, type WalletInitialized } fro
 import { StripeTransactionRepository } from "@src/billing/repositories/stripe-transaction/stripe-transaction.repository";
 import { type CreateLogger, JOB_NAME, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { UserRepository } from "@src/user/repositories";
-import { extractEmailDomain } from "@src/workload-abuse/lib/email-domain/email-domain";
+import { extractEmailDomain, getRegistrableDomain } from "@src/workload-abuse/lib/email-domain/email-domain";
 import { isPublicEmailProvider } from "@src/workload-abuse/lib/email-domain/public-email-providers";
-import { BlockedEmailDomainRepository } from "@src/workload-abuse/repositories/blocked-email-domain/blocked-email-domain.repository";
+import {
+  type BlockedEmailDomainOutput,
+  BlockedEmailDomainRepository
+} from "@src/workload-abuse/repositories/blocked-email-domain/blocked-email-domain.repository";
 import { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
 import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 import {
@@ -20,6 +23,7 @@ export const DOMAIN_BLOCK_REASON = "workload_abuse";
 
 type SkipReason =
   | "no_domain"
+  | "public_suffix"
   | "public_provider"
   | "allowlisted"
   | "already_blocked"
@@ -28,7 +32,7 @@ type SkipReason =
   | "awaiting_second_account";
 
 /**
- * Turns a second mailbox caught mining on an email domain into a block on that whole domain, so the next
+ * Turns a second mailbox caught mining on an email domain into a block on its whole registrable domain, so the next
  * account on it never gets a trial. Blunt by design, so three guardrails stand in front of it:
  * a public provider, a domain anybody has ever paid from, and a domain older than the attack are all
  * left alone and merely recorded. The first caught mailbox only locks its own wallet.
@@ -55,15 +59,19 @@ export class EmailDomainBlockService {
   /** Throws: it runs on the queue, where a transient failure is worth a retry rather than a lost block. */
   async blockDomainOf(wallet: PersonalWallet): Promise<void> {
     const user = await this.userRepository.findById(wallet.userId);
-    const domain = extractEmailDomain(user?.email);
+    const emailDomain = extractEmailDomain(user?.email);
 
-    if (!domain) return this.#skip("no_domain", { walletId: wallet.id, userId: wallet.userId });
+    if (!emailDomain) return this.#skip("no_domain", { walletId: wallet.id, userId: wallet.userId });
 
-    const context = { walletId: wallet.id, userId: wallet.userId, domain };
+    const domain = getRegistrableDomain(emailDomain);
+
+    if (!domain) return this.#skip("public_suffix", { walletId: wallet.id, userId: wallet.userId, emailDomain });
+
+    const context = { walletId: wallet.id, userId: wallet.userId, domain, emailDomain };
 
     if (isPublicEmailProvider(domain)) return this.#skip("public_provider", context);
 
-    const existing = await this.blockedEmailDomainRepository.findByDomain(domain);
+    const existing = await this.#findGoverningRule(emailDomain, domain);
 
     if (existing?.status === "allowed") return this.#skip("allowlisted", context);
 
@@ -103,6 +111,14 @@ export class EmailDomainBlockService {
     }
 
     await this.#sweepSiblings(domain, wallet);
+  }
+
+  /** The address's own nearest allow stops the block, while a block only counts once it covers the whole registrable domain. */
+  async #findGoverningRule(emailDomain: string, domain: string): Promise<BlockedEmailDomainOutput | undefined> {
+    const addressRule = await this.blockedEmailDomainRepository.findNearestRule(emailDomain);
+    const isBlockBelowDomain = addressRule?.status === "blocked" && addressRule.domain.endsWith(`.${domain}`);
+
+    return isBlockBelowDomain ? await this.blockedEmailDomainRepository.findNearestRule(domain) : addressRule;
   }
 
   /** The insert lost to a row written since the read above, so the row that won says whether this is another pod's block to adopt or an operator's allow that outranks it. */

@@ -77,6 +77,12 @@ describe(AddToBalanceButton.name, () => {
     expect(MockAddCreditsSheet.mock.calls.at(-1)![0].suggestFirstDeployment).toBe(true);
   });
 
+  it("records the sheet as opened from the billing page's add to balance button", () => {
+    const { MockAddCreditsSheet } = setup({ searchParamsGet: () => null });
+
+    expect(MockAddCreditsSheet.mock.calls.at(-1)![0].context).toBe("billing_add_to_balance");
+  });
+
   function setup(input: {
     searchParamsGet?: (key: string) => string | null;
     routerReplace?: ReturnType<typeof vi.fn>;

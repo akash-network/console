@@ -104,6 +104,40 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(inc).toHaveBeenCalledWith("deploymentTopUpCount", 1);
     });
 
+    it("keeps auto top-up for an open deployment whose provider closed its lease and funds it once it is leased again", async () => {
+      const {
+        topUpService,
+        executeDerivedTx,
+        createUserWithWallet,
+        createDeploymentSetting,
+        findSetting,
+        mockLeasesForOwner,
+        mockDeploymentsForOwner,
+        stubGetFreshLimits
+      } = await setup();
+      const { user, wallet, address } = await createUserWithWallet();
+      const dseq = "100003";
+
+      await createDeploymentSetting(user.id, dseq);
+      mockLeasesForOwner(address, [createClosedLease(address, dseq)]);
+      mockDeploymentsForOwner(address, [createActiveDeployment(address, dseq)]);
+      stubGetFreshLimits({ [address]: 10000000 });
+
+      await topUpService.topUpDeployments({ dryRun: false });
+
+      expect(executeDerivedTx).not.toHaveBeenCalled();
+      expect((await findSetting(address, dseq))?.closed).toBe(false);
+
+      mockLeasesForOwner(address, [createClosedLease(address, dseq), createActiveLease(address, dseq)]);
+      mockDeploymentsForOwner(address, [createActiveDeployment(address, dseq)]);
+
+      await topUpService.topUpDeployments({ dryRun: false });
+
+      expect(executeDerivedTx).toHaveBeenCalledOnce();
+      expect(executeDerivedTx.mock.calls[0][0]).toBe(wallet.id);
+      expect(executeDerivedTx.mock.calls[0][1].map(dseqOf)).toEqual([dseq]);
+    });
+
     it("drops a deployment the chain rejects as closed and funds the rest of the batch in the same pass", async () => {
       const {
         topUpService,
@@ -643,6 +677,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       owner,
       dseq,
       state: "closed",
+      escrowState: "closed",
       amount: ESCROW_AMOUNT,
       denom: DENOM,
       createdAt: String(CURRENT_HEIGHT - 1000)

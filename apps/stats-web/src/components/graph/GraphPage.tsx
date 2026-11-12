@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Parser } from "@json2csv/plainjs";
 import { Download } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -14,7 +14,7 @@ import type { RangeKey, SeriesPoint } from "@/lib/series/series";
 import { daysOf, deltaPercent, sliceRange, summarize, toSeries } from "@/lib/series/series";
 import { EMPTY_VALUE, formatLongDate, formatPercent } from "@/lib/statsFormat/statsFormat";
 import { cn } from "@/lib/utils";
-import { useBmeDashboardData, useDashboardData, useGraphSnapshot, useProviderGraphSnapshot } from "@/queries";
+import { useBmeDashboardData, useDashboardData, useGraphSnapshot, useProviderGraphSnapshot, useSinkDashboardData } from "@/queries";
 
 const METRIC_GROUPS = groupGraphMetrics(GRAPH_METRICS);
 
@@ -24,11 +24,12 @@ export function GraphPage({ kind, urlParam }: { kind: GraphKind; urlParam: strin
   const { series, isError, refetch } = useMetricSeries(metric);
   const { data: dashboard } = useDashboardData();
   const { data: bme } = useBmeDashboardData();
+  const { data: sink } = useSinkDashboardData();
   const rangedSeries = useMemo(() => (series ? sliceRange(series, daysOf(range)) : []), [series, range]);
 
   return (
     <div className="grid items-start gap-4 pt-7 lg:grid-cols-[264px_minmax(0,1fr)]">
-      <GraphSidebar activeMetric={metric} sources={{ dashboard, bme }} />
+      <GraphSidebar activeMetric={metric} sources={{ dashboard, bme, sink }} />
 
       <div className="flex min-w-0 flex-col gap-4">
         <Panel className="flex flex-col gap-4 px-5 py-[22px] sm:px-6">
@@ -87,6 +88,14 @@ function useMetricSeries(metric: GraphMetric) {
 
 function GraphSidebar({ activeMetric, sources }: { activeMetric: GraphMetric; sources: GraphSources }) {
   const router = useRouter();
+  const metricListRef = useRef<HTMLDivElement>(null);
+
+  useEffect(
+    function revealActiveMetric() {
+      metricListRef.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: "nearest" });
+    },
+    [activeMetric]
+  );
 
   return (
     <>
@@ -109,31 +118,33 @@ function GraphSidebar({ activeMetric, sources }: { activeMetric: GraphMetric; so
         </select>
       </label>
 
-      <Panel className="sticky top-[92px] hidden max-h-[calc(100vh-116px)] flex-col overflow-y-auto p-2 lg:flex">
-        {METRIC_GROUPS.map(group => (
-          <div key={group.name} className="flex flex-col">
-            <Eyebrow className="px-3 pb-2 pt-3.5 text-[10px]">{group.name}</Eyebrow>
-            {group.metrics.map(metric => {
-              const isActive = metric === activeMetric;
-              const current = metric.readCurrent(sources);
+      <Panel className="sticky top-[92px] hidden max-h-[calc(100vh-116px)] overflow-y-auto p-2 lg:block">
+        <div ref={metricListRef} className="flex flex-col">
+          {METRIC_GROUPS.map(group => (
+            <div key={group.name} className="flex flex-col">
+              <Eyebrow className="px-3 pb-2 pt-3.5 text-[10px]">{group.name}</Eyebrow>
+              {group.metrics.map(metric => {
+                const isActive = metric === activeMetric;
+                const current = metric.readCurrent(sources);
 
-              return (
-                <Link
-                  key={graphMetricHref(metric)}
-                  href={graphMetricHref(metric)}
-                  aria-current={isActive ? "page" : undefined}
-                  className={cn(
-                    "flex items-center justify-between gap-2 rounded-md px-3 py-[9px] transition-colors hover:bg-muted hover:no-underline",
-                    isActive ? "bg-muted text-foreground hover:text-foreground" : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <span className="text-[13px] font-medium leading-tight">{metric.label}</span>
-                  <span className="whitespace-nowrap font-mono text-[11px] text-faint">{current === undefined ? "" : metric.formatAxisValue(current)}</span>
-                </Link>
-              );
-            })}
-          </div>
-        ))}
+                return (
+                  <Link
+                    key={graphMetricHref(metric)}
+                    href={graphMetricHref(metric)}
+                    aria-current={isActive ? "page" : undefined}
+                    className={cn(
+                      "flex items-center justify-between gap-2 rounded-md px-3 py-[9px] transition-colors hover:bg-muted hover:no-underline",
+                      isActive ? "bg-muted text-foreground hover:text-foreground" : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <span className="text-[13px] font-medium leading-tight">{metric.label}</span>
+                    <span className="whitespace-nowrap font-mono text-[11px] text-faint">{current === undefined ? "" : metric.formatAxisValue(current)}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
+        </div>
       </Panel>
     </>
   );

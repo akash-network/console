@@ -154,7 +154,7 @@ describe("DiscoveryScheduler pipeline", () => {
 
     const streamFactory = mock<ProviderStreamFactory>();
     streamFactory.disposeProvider.mockResolvedValue();
-    streamFactory.openStatusStream.mockImplementation((provider: ChainProvider, signal: AbortSignal) => {
+    streamFactory.openStatusStream.mockImplementation(async (provider: ChainProvider, signal: AbortSignal) => {
       openedHosts.push(provider.hostUri);
       signal.addEventListener("abort", () => abortedHosts.push(provider.hostUri), { once: true });
       const messages = queuedMessages.get(provider.hostUri) ?? [];

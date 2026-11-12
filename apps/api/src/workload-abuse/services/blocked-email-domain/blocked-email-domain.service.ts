@@ -47,8 +47,11 @@ export class BlockedEmailDomainService {
     return await this.#isBlocked(normalizeEmailDomain(domain));
   }
 
-  /** Primes the verdict we just wrote so a sibling sweep on the same pod does not wait out a stale negative. */
+  /** Primes the verdict just written and drops the ones cached for its subdomains, so a sibling sweep on the same pod does not wait out a stale negative. */
   rememberBlocked(domain: string): void {
+    const subdomains = [...this.#verdicts.keys()].filter(cached => cached.endsWith(`.${domain}`));
+
+    subdomains.forEach(subdomain => this.#verdicts.delete(subdomain));
     this.#verdicts.set(domain, true);
   }
 
@@ -60,7 +63,7 @@ export class BlockedEmailDomainService {
     if (cached !== undefined) return cached;
 
     try {
-      const blocked = (await this.blockedEmailDomainRepository.findByDomain(domain))?.status === "blocked";
+      const blocked = (await this.blockedEmailDomainRepository.findNearestRule(domain))?.status === "blocked";
       this.#verdicts.set(domain, blocked);
       return blocked;
     } catch (error) {
