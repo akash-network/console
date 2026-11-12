@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { extractEmailDomain, isWithinDomain, listDomainAndParents, normalizeEmailAddress, normalizeEmailDomain } from "./email-domain";
+import { extractEmailDomain, getRegistrableDomain, isWithinDomain, listDomainAndParents, normalizeEmailAddress, normalizeEmailDomain } from "./email-domain";
 
 describe("extractEmailDomain", () => {
   it.each([
@@ -94,5 +94,21 @@ describe("isWithinDomain", () => {
     ["example.com.other.net", "example.com", false]
   ])("answers whether %s is within %s", (domain, parent, expected) => {
     expect(isWithinDomain(domain, parent)).toBe(expected);
+  });
+});
+
+describe("getRegistrableDomain", () => {
+  it.each([
+    ["example.com", "example.com"],
+    ["eu.mail.example.com", "example.com"],
+    ["mail.example.co.uk", "example.co.uk"],
+    ["mail.example.github.io", "example.github.io"],
+    ["mail.example.test", "example.test"]
+  ])("reduces %s to %s", (domain, expected) => {
+    expect(getRegistrableDomain(domain)).toBe(expected);
+  });
+
+  it.each([["com"], ["co.uk"], ["github.io"]])("returns null for the public suffix %s", domain => {
+    expect(getRegistrableDomain(domain)).toBeNull();
   });
 });

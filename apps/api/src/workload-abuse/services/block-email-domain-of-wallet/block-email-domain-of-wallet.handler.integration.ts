@@ -55,6 +55,24 @@ describe(BlockEmailDomainOfWalletHandler.name, () => {
     expect(await findWallet(sibling.wallet.id)).toMatchObject({ isTrialing: false, abuseLockedReason: BLOCKED_DOMAIN_LOCK_REASON });
   });
 
+  it("blocks the registrable domain once accounts on two of its subdomains are caught, locking trials on its other subdomains", async () => {
+    const { domain, catchAccount, seedTrial, allowDomain, runDomainBlock, findDomain, findWallet, findSiblingLocks } = await setup();
+    await catchAccount(`first@eu.${domain}`);
+    const sibling = await seedTrial(`colleague@us.mail.${domain}`);
+    const allowedSibling = await seedTrial(`customer@shop.${domain}`);
+    await allowDomain(`shop.${domain}`);
+    const second = await catchAccount(`second@${domain}`);
+
+    await runDomainBlock(second.wallet.id);
+
+    expect(await findDomain()).toMatchObject({ status: "blocked", source: "auto", triggeredByUserId: second.user.id });
+    await expectJobCompleted(LockBlockedDomainWallet[JOB_NAME], { singletonKey: lockBlockedDomainWalletKeyFor(sibling.wallet.id) });
+    expect(await findWallet(sibling.wallet.id)).toMatchObject({ isTrialing: false, abuseLockedReason: BLOCKED_DOMAIN_LOCK_REASON });
+    await expectJobCompleted(LockBlockedDomainWallet[JOB_NAME], { singletonKey: lockBlockedDomainWalletKeyFor(allowedSibling.wallet.id) });
+    expect(await findWallet(allowedSibling.wallet.id)).toMatchObject({ isTrialing: true, abuseLockedAt: null });
+    expect(await findSiblingLocks(allowedSibling.wallet.id)).toHaveLength(1);
+  });
+
   it("does not count the same account twice when it is caught on another deployment", async () => {
     const { domain, catchAccount, seedTrial, runDomainBlock, findDomain, findSiblingLocks } = await setup();
     const caught = await catchAccount(`first@${domain}`);
@@ -135,6 +153,10 @@ describe(BlockEmailDomainOfWalletHandler.name, () => {
       return await seedUserWithWallet({ user: { email }, isTrialing: true, activatedAt: new Date() });
     }
 
+    async function allowDomain(allowed: string) {
+      await blockedEmailDomainRepository.create({ domain: allowed, status: "allowed", source: "manual" });
+    }
+
     async function runDomainBlock(walletId: number) {
       const singletonKey = blockEmailDomainOfWalletKeyFor(walletId);
 
@@ -147,6 +169,7 @@ describe(BlockEmailDomainOfWalletHandler.name, () => {
       domain,
       catchAccount,
       seedTrial,
+      allowDomain,
       runDomainBlock,
       findDomain: () => blockedEmailDomainRepository.findByDomain(domain),
       findWallet: (walletId: number) => userWalletRepository.findById(walletId),
