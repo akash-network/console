@@ -39,6 +39,9 @@ export const TemplateVersionSchema = TemplateVersionSummarySchema.extend({
   askedValues: z.array(AskedValueSchema)
 }).openapi("TemplateVersion");
 
+/** zod-to-openapi drops `nullable` from a named schema's `$ref`, so a nullable version inlines its shape. */
+const NullableTemplateVersionSchema = z.object(TemplateVersionSchema.shape).nullable();
+
 export const MarketplaceTemplateSchema = z
   .object({
     id: z.string().uuid(),
@@ -62,7 +65,7 @@ export const MarketplaceTemplateSchema = z
       })
       .nullable()
       .openapi({ description: "The organization the template belongs to, null for a template filed in none" }),
-    currentVersion: TemplateVersionSchema.nullable().openapi({
+    currentVersion: NullableTemplateVersionSchema.openapi({
       description: "Its readme falls back to the template's description and its resources to the SDL's, for versions saved before they were recorded"
     }),
     canEdit: z.boolean().openapi({ description: "Whether the caller may change the template" })

@@ -44233,10 +44233,12 @@
                   "properties": {
                     "service": {
                       "type": "string",
-                      "minLength": 1
+                      "minLength": 1,
+                      "maxLength": 63
                     },
                     "env": {
                       "type": "string",
+                      "maxLength": 255,
                       "pattern": "^[-._a-zA-Z][-._a-zA-Z0-9]*$"
                     }
                   },
@@ -44302,10 +44304,12 @@
                   "properties": {
                     "service": {
                       "type": "string",
-                      "minLength": 1
+                      "minLength": 1,
+                      "maxLength": 63
                     },
                     "env": {
                       "type": "string",
+                      "maxLength": 255,
                       "pattern": "^[-._a-zA-Z][-._a-zA-Z0-9]*$"
                     }
                   },
@@ -44372,10 +44376,12 @@
                   "properties": {
                     "service": {
                       "type": "string",
-                      "minLength": 1
+                      "minLength": 1,
+                      "maxLength": 63
                     },
                     "env": {
                       "type": "string",
+                      "maxLength": 255,
                       "pattern": "^[-._a-zA-Z][-._a-zA-Z0-9]*$"
                     }
                   },
@@ -44436,10 +44442,12 @@
                   "properties": {
                     "service": {
                       "type": "string",
-                      "minLength": 1
+                      "minLength": 1,
+                      "maxLength": 63
                     },
                     "env": {
                       "type": "string",
+                      "maxLength": 255,
                       "pattern": "^[-._a-zA-Z][-._a-zA-Z0-9]*$"
                     }
                   },
@@ -44507,10 +44515,12 @@
                   "properties": {
                     "service": {
                       "type": "string",
-                      "minLength": 1
+                      "minLength": 1,
+                      "maxLength": 63
                     },
                     "env": {
                       "type": "string",
+                      "maxLength": 255,
                       "pattern": "^[-._a-zA-Z][-._a-zA-Z0-9]*$"
                     }
                   },
@@ -44627,7 +44637,6 @@
           },
           {
             "type": "object",
-            "nullable": true,
             "properties": {
               "sdl": {
                 "type": "string"
@@ -44649,8 +44658,7 @@
               "askedValues"
             ]
           }
-        ],
-        "description": "Its readme falls back to the template's description and its resources to the SDL's, for versions saved before they were recorded"
+        ]
       },
       "MarketplaceTemplate": {
         "type": "object",
@@ -44752,7 +44760,102 @@
             "description": "The organization the template belongs to, null for a template filed in none"
           },
           "currentVersion": {
-            "$ref": "#/components/schemas/TemplateVersion"
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "templateId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "version": {
+                "type": "integer",
+                "minimum": 0,
+                "exclusiveMinimum": true
+              },
+              "resources": {
+                "type": "object",
+                "nullable": true,
+                "properties": {
+                  "cpu": {
+                    "type": "number",
+                    "description": "vCPUs across every service and replica"
+                  },
+                  "memoryBytes": {
+                    "type": "number"
+                  },
+                  "storageBytes": {
+                    "type": "number",
+                    "description": "Ephemeral and persistent storage combined"
+                  },
+                  "gpu": {
+                    "type": "object",
+                    "properties": {
+                      "units": {
+                        "type": "number"
+                      },
+                      "models": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Model names, or a vendor name when any of its models will do; empty when any GPU will do"
+                      }
+                    },
+                    "required": [
+                      "units",
+                      "models"
+                    ]
+                  }
+                },
+                "required": [
+                  "cpu",
+                  "memoryBytes",
+                  "storageBytes"
+                ],
+                "description": "Null when the version recorded none"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "live",
+                  "held",
+                  "failed_checks"
+                ]
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "sdl": {
+                "type": "string"
+              },
+              "readme": {
+                "type": "string",
+                "nullable": true
+              },
+              "askedValues": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TemplateAskedValue"
+                }
+              }
+            },
+            "required": [
+              "id",
+              "templateId",
+              "version",
+              "resources",
+              "status",
+              "createdAt",
+              "sdl",
+              "readme",
+              "askedValues"
+            ],
+            "description": "Its readme falls back to the template's description and its resources to the SDL's, for versions saved before they were recorded"
           },
           "canEdit": {
             "type": "boolean",
@@ -44807,41 +44910,7 @@
         "type": "object",
         "properties": {
           "data": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/TemplateVersion"
-              },
-              {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/TemplateVersionSummary"
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "sdl": {
-                        "type": "string"
-                      },
-                      "readme": {
-                        "type": "string",
-                        "nullable": true
-                      },
-                      "askedValues": {
-                        "type": "array",
-                        "items": {
-                          "$ref": "#/components/schemas/TemplateAskedValue"
-                        }
-                      }
-                    },
-                    "required": [
-                      "sdl",
-                      "readme",
-                      "askedValues"
-                    ]
-                  }
-                ]
-              }
-            ]
+            "$ref": "#/components/schemas/TemplateVersion"
           }
         },
         "required": [

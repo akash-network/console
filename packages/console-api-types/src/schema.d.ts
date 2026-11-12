@@ -9073,13 +9073,11 @@ export interface components {
       /** Format: date-time */
       createdAt: string;
     };
-    /** @description Its readme falls back to the template's description and its resources to the SDL's, for versions saved before they were recorded */
-    TemplateVersion: components["schemas"]["TemplateVersionSummary"] &
-      ({
-        sdl: string;
-        readme: string | null;
-        askedValues: components["schemas"]["TemplateAskedValue"][];
-      } | null);
+    TemplateVersion: components["schemas"]["TemplateVersionSummary"] & {
+      sdl: string;
+      readme: string | null;
+      askedValues: components["schemas"]["TemplateAskedValue"][];
+    };
     MarketplaceTemplate: {
       /** Format: uuid */
       id: string;
@@ -9111,7 +9109,34 @@ export interface components {
         /** @enum {string} */
         type: "personal" | "team";
       } | null;
-      currentVersion: components["schemas"]["TemplateVersion"];
+      /** @description Its readme falls back to the template's description and its resources to the SDL's, for versions saved before they were recorded */
+      currentVersion: {
+        /** Format: uuid */
+        id: string;
+        /** Format: uuid */
+        templateId: string;
+        version: number;
+        /** @description Null when the version recorded none */
+        resources: {
+          /** @description vCPUs across every service and replica */
+          cpu: number;
+          memoryBytes: number;
+          /** @description Ephemeral and persistent storage combined */
+          storageBytes: number;
+          gpu?: {
+            units: number;
+            /** @description Model names, or a vendor name when any of its models will do; empty when any GPU will do */
+            models: string[];
+          };
+        } | null;
+        /** @enum {string} */
+        status: "live" | "held" | "failed_checks";
+        /** Format: date-time */
+        createdAt: string;
+        sdl: string;
+        readme: string | null;
+        askedValues: components["schemas"]["TemplateAskedValue"][];
+      } | null;
       /** @description Whether the caller may change the template */
       canEdit: boolean;
     };
@@ -9122,12 +9147,7 @@ export interface components {
       data: components["schemas"]["TemplateVersionSummary"][];
     };
     GetUserTemplateVersionResponse: {
-      data: components["schemas"]["TemplateVersion"] &
-        (components["schemas"]["TemplateVersionSummary"] & {
-          sdl: string;
-          readme: string | null;
-          askedValues: components["schemas"]["TemplateAskedValue"][];
-        });
+      data: components["schemas"]["TemplateVersion"];
     };
   };
   responses: never;
