@@ -4,7 +4,7 @@ import type { ComponentsObject, OpenAPIObject, OperationObject, PathsObject, Ref
 import { inject, singleton } from "tsyringe";
 
 import { memoizeAsync } from "@src/caching/helpers";
-import { stripHiddenOperations, UNDOCUMENTED_REQUEST_FIELDS } from "@src/core/lib/create-route/create-route";
+import { ORGANIZATION_AWARE_OPEN_ROUTES, stripHiddenOperations, UNDOCUMENTED_REQUEST_FIELDS } from "@src/core/lib/create-route/create-route";
 import type { CoreConfig } from "@src/core/providers/config.provider";
 import { CORE_CONFIG } from "@src/core/providers/config.provider";
 import type { NotificationsConfig } from "@src/notifications/config/env.config";
@@ -18,8 +18,8 @@ const ORGANIZATION_CONTEXT_PARAMETER_REFS: ReferenceObject[] = Object.keys(ORGAN
   $ref: `#/components/parameters/${name}`
 }));
 
-function authenticatesCaller(operation: OperationObject): boolean {
-  return !!operation.security?.length;
+function readsOrganizationContext(operation: OperationObject, operationKey: string): boolean {
+  return !!operation.security?.length || ORGANIZATION_AWARE_OPEN_ROUTES.has(operationKey);
 }
 
 /** The notifications routes are proxied for signed-in callers only, though their own spec declares no per-operation security. */
@@ -90,7 +90,8 @@ export class OpenApiDocsService {
           // routes (e.g. Stripe) are typed and addressable via api.v1.*; the served /v1/doc keeps
           // stripping them so the public Swagger surface stays clean.
           const paths = options.includeHidden ? handlerDocs.paths : stripHiddenOperations(handlerDocs.paths);
-          this.#mergePaths(docs.paths, this.#documentOrganizationContextHeaders(this.#stripUndocumentedRequestFields(paths), authenticatesCaller));
+          this.#mergePaths(docs.paths, this.#documentOrganizationContextHeaders(this.#stripUndocumentedRequestFields(paths), readsOrganizationContext));
+          docs.components.schemas = { ...docs.components.schemas, ...this.#filterSchemasByReferences(handlerDocs.components?.schemas, paths) };
         } catch (error) {
           logger.error({
             name: `Error generating OpenAPI docs for handler, example path: ${handler.routes[0]?.path || "unknown"}`,
@@ -173,10 +174,10 @@ export class OpenApiDocsService {
   }
 
   /** The auth interceptor resolves the organization and project of every signed-in request from these headers, whichever route it reaches. */
-  #documentOrganizationContextHeaders(paths: PathsObject, appliesTo: (operation: OperationObject) => boolean): PathsObject {
-    for (const pathItem of Object.values(paths)) {
-      for (const operation of Object.values(pathItem ?? {}) as OperationObject[]) {
-        if (appliesTo(operation)) {
+  #documentOrganizationContextHeaders(paths: PathsObject, appliesTo: (operation: OperationObject, operationKey: string) => boolean): PathsObject {
+    for (const [path, pathItem] of Object.entries(paths)) {
+      for (const [method, operation] of Object.entries(pathItem ?? {}) as [string, OperationObject][]) {
+        if (appliesTo(operation, operation.operationId ?? `${method.toUpperCase()} ${path}`)) {
           operation.parameters = [...(operation.parameters ?? []), ...ORGANIZATION_CONTEXT_PARAMETER_REFS];
         }
       }
@@ -240,7 +241,7 @@ export class OpenApiDocsService {
    * referenced schema's body to pull in nested refs (if SchemaA references SchemaB, includes
    * SchemaB).
    *
-   * @param schemas - All available schemas from external OpenAPI spec
+   * @param schemas - All available schemas, from a handler or the external OpenAPI spec
    * @param seed - Object to scan for the initial set of `$ref`s (typically the filtered paths)
    * @returns Filtered schemas object containing only referenced schemas
    */

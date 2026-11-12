@@ -10,13 +10,14 @@ import type { FeatureFlagValue } from "../../services/feature-flags/feature-flag
 import { FeatureFlags } from "../../services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "../../services/feature-flags/feature-flags.service";
 import { SECURITY_BEARER, SECURITY_BEARER_OR_API_KEY, SECURITY_NONE } from "../../services/openapi-docs/openapi-security";
-import { createRoute, HIDDEN_ROUTES, stripHiddenOperations } from "./create-route";
+import { createRoute, HIDDEN_ROUTES, ORGANIZATION_AWARE_OPEN_ROUTES, stripHiddenOperations } from "./create-route";
 
 describe(createRoute.name, () => {
   afterEach(() => {
     container.clearInstances();
     // createRoute mutates the process-wide HIDDEN_ROUTES set; clear it so tests stay isolated.
     HIDDEN_ROUTES.clear();
+    ORGANIZATION_AWARE_OPEN_ROUTES.clear();
   });
 
   describe("when given GET config", () => {
@@ -418,6 +419,38 @@ describe(createRoute.name, () => {
       });
 
       expect(HIDDEN_ROUTES.has("POST /hidden-without-operation-id")).toBe(true);
+    });
+  });
+
+  describe("when readsOrganizationContext is true", () => {
+    it("registers the operationId so the docs list the organization context headers", () => {
+      const route = createRoute({
+        method: "get",
+        path: "/organization-aware",
+        operationId: "listOrganizationAware",
+        summary: "Test",
+        tags: ["Test"],
+        security: SECURITY_NONE,
+        readsOrganizationContext: true,
+        responses: { 200: { description: "OK" } }
+      });
+
+      expect(ORGANIZATION_AWARE_OPEN_ROUTES.has("listOrganizationAware")).toBe(true);
+      expect(route).not.toHaveProperty("readsOrganizationContext");
+    });
+
+    it("leaves a route that does not read it unregistered", () => {
+      createRoute({
+        method: "get",
+        path: "/organization-unaware",
+        operationId: "listOrganizationUnaware",
+        summary: "Test",
+        tags: ["Test"],
+        security: SECURITY_NONE,
+        responses: { 200: { description: "OK" } }
+      });
+
+      expect(ORGANIZATION_AWARE_OPEN_ROUTES.size).toBe(0);
     });
   });
 

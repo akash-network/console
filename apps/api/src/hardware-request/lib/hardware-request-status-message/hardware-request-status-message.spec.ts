@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { describeStatusForTenant } from "./hardware-request-status-message";
+import { describeReceiptForTenant, describeStatusForTenant } from "./hardware-request-status-message";
 
 describe(describeStatusForTenant.name, () => {
   it.each([
@@ -30,5 +30,14 @@ describe(describeStatusForTenant.name, () => {
     expect(describeStatusForTenant("GPU request: 1× A100", "sourcing", "price").detail).toBe(
       "We're reaching out to providers for capacity that matches your request."
     );
+  });
+});
+
+describe(describeReceiptForTenant.name, () => {
+  it("confirms the request without promising a reply time or capacity", () => {
+    expect(describeReceiptForTenant("GPU request: 8× B200")).toEqual({
+      headline: "GPU request: 8× B200 was received",
+      detail: "We're working on it and will let you know if we find capacity that matches your request."
+    });
   });
 });
