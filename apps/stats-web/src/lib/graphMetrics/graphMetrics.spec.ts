@@ -36,7 +36,8 @@ describe("graphMetrics", () => {
       pendingUakt: 2_500_000,
       voidedUakt: 0,
       refundPendingUakt: 1_000_000,
-      refundedUakt: 750_000
+      refundedUakt: 750_000,
+      uniqueSenders: 10
     }
   });
 
@@ -122,7 +123,8 @@ describe("graphMetrics", () => {
       [SinkSnapshotsUrlParam.pendingUakt, "sinkPendingUakt", 2.5, "3 AKT", "AKT"],
       [SinkSnapshotsUrlParam.voidedUakt, "sinkVoidedUakt", 0, "0 AKT", "AKT"],
       [SinkSnapshotsUrlParam.refundPendingUakt, "sinkRefundPendingUakt", 1, "1 AKT", "AKT"],
-      [SinkSnapshotsUrlParam.refundedUakt, "sinkRefundedUakt", 0.75, "1 AKT", "AKT"]
+      [SinkSnapshotsUrlParam.refundedUakt, "sinkRefundedUakt", 0.75, "1 AKT", "AKT"],
+      [SinkSnapshotsUrlParam.uniqueSenders, "sinkUniqueSenders", 10, "10", "count"]
     ])("reads %s from the %s series and the sink totals", (urlParam, snapshot, current, formattedValue, csvUnit) => {
       const metric = findGraphMetric("solana-migration-graph", urlParam)!;
 
@@ -138,7 +140,7 @@ describe("graphMetrics", () => {
     });
 
     it("reads nothing before the sink totals load", () => {
-      expect(GRAPH_METRICS.filter(metric => metric.kind === "solana-migration-graph").map(metric => metric.readCurrent({}))).toEqual(Array(8).fill(undefined));
+      expect(GRAPH_METRICS.filter(metric => metric.kind === "solana-migration-graph").map(metric => metric.readCurrent({}))).toEqual(Array(9).fill(undefined));
     });
 
     it("covers every sink snapshot", () => {

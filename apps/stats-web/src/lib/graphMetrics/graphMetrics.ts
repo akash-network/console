@@ -276,7 +276,8 @@ function solanaMigrationMetrics(): GraphMetric[] {
     ["pendingUakt", "AKT", "AKT pending mint", "AKT pending mint", "AKT deposited for migration and not yet confirmed as minted on Solana."],
     ["voidedUakt", "AKT", "AKT voided", "AKT voided", "AKT in transfers voided by governance and awaiting confirmation on Solana."],
     ["refundPendingUakt", "AKT", "AKT awaiting refund", "AKT awaiting refund", "AKT authorized for a refund on Akash and still in its challenge period."],
-    ["refundedUakt", "AKT", "AKT refunded", "AKT refunded", "AKT refunded to its original owner on Akash, all-time."]
+    ["refundedUakt", "AKT", "AKT refunded", "AKT refunded", "AKT refunded to its original owner on Akash, all-time."],
+    ["uniqueSenders", "count", "Migrating addresses", "Addresses migrating to Solana", "Akash addresses that have started a migration transfer, all-time."]
   ];
 
   return definitions.map(([key, unit, label, title, description]) => ({
