@@ -46,8 +46,8 @@ const LIVE_HELP_SUMMARY = "Suggested live help on Discord";
 const ROUND_TEXT_SEPARATOR = "\n\n";
 const UNKNOWN_TOOL_NAME = "unknown";
 export const ALREADY_READ_NOTE = "Already read this turn, so this is the earlier result. Answer from it instead of calling the tool again.";
-export const TOO_MANY_TOOL_CALLS_ERROR = `Not run: at most ${MAX_TOOL_CALLS_PER_ROUND} tool calls run per round. Call it again in the next round if you still need it.`;
-export const TOO_MANY_CLIENT_TOOL_CALLS_ERROR = `Not run: at most ${MAX_CLIENT_TOOL_RESULTS} browser reads run per round. Call it again in the next round if you still need it.`;
+export const TOO_MANY_TOOL_CALLS_ERROR = `Not run: at most ${MAX_TOOL_CALLS_PER_ROUND} tool calls run per round. Answer from what you already read, and say what you could not check.`;
+export const TOO_MANY_CLIENT_TOOL_CALLS_ERROR = `Not run: at most ${MAX_CLIENT_TOOL_RESULTS} browser reads run per round. Answer from what you already read, and say what you could not check.`;
 export const CLIENT_TOOL_CALL_OVER_LIMIT_SUMMARY = "Skipped a browser read over the per-round limit";
 
 export const LAST_TOOL_ROUND_NOTE: ChatMessage = {
