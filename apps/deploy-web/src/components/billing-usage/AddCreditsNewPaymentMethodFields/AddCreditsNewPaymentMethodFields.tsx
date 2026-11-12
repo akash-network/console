@@ -1,6 +1,6 @@
 "use client";
 
-import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
+import React, { forwardRef, useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { Alert, AlertDescription, Spinner } from "@akashnetwork/ui/components";
 import { AddressElement, Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
@@ -9,12 +9,15 @@ import { ShieldCheck } from "lucide-react";
 import { useTheme } from "next-themes";
 
 import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
+import type { IncompleteBillingDetail } from "./incompleteBillingDetail";
+import { findIncompleteBillingDetail } from "./incompleteBillingDetail";
 
 /** Why a payment method could not be set up, as codes only: Stripe's message is left out because it can echo what the user typed. */
 export interface PaymentMethodSetupFailure {
   errorType?: string;
   errorCode?: string;
   declineCode?: string;
+  incompleteBillingDetail?: IncompleteBillingDetail;
 }
 
 export type PaymentMethodSetupResult = { paymentMethodId: string } | { failure: PaymentMethodSetupFailure };
@@ -36,8 +39,13 @@ export interface PaymentMethodSourceHandle {
 }
 
 export function toPaymentMethodSetupFailure(error: StripeError): PaymentMethodSetupFailure {
-  return { errorType: error.type, errorCode: error.code, declineCode: error.decline_code };
+  return { errorType: error.type, errorCode: error.code, declineCode: error.decline_code, incompleteBillingDetail: findIncompleteBillingDetail(error) };
 }
+
+const INCOMPLETE_BILLING_DETAIL_MESSAGES: Record<IncompleteBillingDetail, string> = {
+  address: "Your billing address is incomplete. Fill in the highlighted fields under Billing address, then try again.",
+  name: "Your billing name is incomplete. Enter your full name under Billing address, then try again."
+};
 
 export const DEPENDENCIES = {
   Elements,
@@ -109,6 +117,7 @@ export const AddCreditsNewPaymentMethodFields = forwardRef<PaymentMethodSourceHa
             <StripePaymentMethodFields
               ref={ref}
               dependencies={d}
+              disabled={disabled}
               onPaymentTypeChange={onPaymentTypeChange}
               onReady={onReady}
               onLoadError={() => onLoadFailed("load_error")}
@@ -122,18 +131,47 @@ export const AddCreditsNewPaymentMethodFields = forwardRef<PaymentMethodSourceHa
 
 interface StripePaymentMethodFieldsProps {
   dependencies: typeof DEPENDENCIES;
+  disabled?: boolean;
   onPaymentTypeChange?: (type: string) => void;
   onReady?: () => void;
   onLoadError: () => void;
 }
 
 const StripePaymentMethodFields = forwardRef<PaymentMethodSourceHandle, StripePaymentMethodFieldsProps>(function StripePaymentMethodFields(
-  { dependencies: d, onPaymentTypeChange, onReady, onLoadError },
+  { dependencies: d, disabled, onPaymentTypeChange, onReady, onLoadError },
   ref
 ) {
   const stripe = d.useStripe();
   const elements = d.useElements();
   const [error, setError] = useState<string | null>(null);
+  const [incompleteBillingDetail, setIncompleteBillingDetail] = useState<IncompleteBillingDetail | null>(null);
+  /** Set by a refusal and consumed once the fields are interactive again, since an inert subtree cannot take focus. */
+  const shouldRevealBillingFieldsRef = useRef(false);
+  const lastPaymentTypeRef = useRef<string | null>(null);
+  const billingSectionRef = useRef<HTMLElement>(null);
+  const billingHeadingId = useId();
+  const shownError = incompleteBillingDetail ? INCOMPLETE_BILLING_DETAIL_MESSAGES[incompleteBillingDetail] : error;
+
+  const clearError = useCallback(() => {
+    setError(null);
+    setIncompleteBillingDetail(null);
+  }, []);
+
+  useEffect(
+    function revealIncompleteBillingFields() {
+      if (disabled || !shouldRevealBillingFieldsRef.current) return;
+      shouldRevealBillingFieldsRef.current = false;
+      elements?.getElement("address")?.focus();
+      billingSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    },
+    [disabled, incompleteBillingDetail, elements]
+  );
+
+  const reportPaymentType = (type: string) => {
+    if (type !== lastPaymentTypeRef.current) clearError();
+    lastPaymentTypeRef.current = type;
+    onPaymentTypeChange?.(type);
+  };
 
   useImperativeHandle(
     ref,
@@ -149,7 +187,7 @@ const StripePaymentMethodFields = forwardRef<PaymentMethodSourceHandle, StripePa
           return { failure: { errorType: "form_not_ready" } };
         }
 
-        setError(null);
+        clearError();
         let setupResult;
         try {
           setupResult = await stripe.confirmSetup({ elements, redirect: "if_required" });
@@ -159,8 +197,14 @@ const StripePaymentMethodFields = forwardRef<PaymentMethodSourceHandle, StripePa
         }
 
         if (setupResult.error) {
-          setError(setupResult.error.message || "Couldn't save your card. Please try again.");
-          return { failure: toPaymentMethodSetupFailure(setupResult.error) };
+          const failure = toPaymentMethodSetupFailure(setupResult.error);
+          if (failure.incompleteBillingDetail) {
+            shouldRevealBillingFieldsRef.current = true;
+            setIncompleteBillingDetail(failure.incompleteBillingDetail);
+          } else {
+            setError(setupResult.error.message || "Couldn't save your card. Please try again.");
+          }
+          return { failure };
         }
 
         const paymentMethodId = setupResult.setupIntent?.payment_method;
@@ -172,21 +216,28 @@ const StripePaymentMethodFields = forwardRef<PaymentMethodSourceHandle, StripePa
         return { paymentMethodId };
       }
     }),
-    [stripe, elements]
+    [stripe, elements, clearError]
   );
 
   return (
     <div className="space-y-6">
-      <div className="space-y-4">
-        <h3 className="text-left text-sm font-medium text-muted-foreground">BILLING ADDRESS</h3>
-        <d.AddressElement options={{ mode: "billing" }} />
-      </div>
+      <section ref={billingSectionRef} aria-labelledby={billingHeadingId} className="scroll-mt-4 space-y-4">
+        <h3 id={billingHeadingId} className="text-left text-sm font-medium text-muted-foreground">
+          BILLING ADDRESS
+        </h3>
+        <d.AddressElement
+          options={{ mode: "billing" }}
+          onChange={event => {
+            if (event.complete) setIncompleteBillingDetail(null);
+          }}
+        />
+      </section>
 
       <div className="space-y-2">
         <h3 className="text-left text-sm font-medium text-muted-foreground">CHOOSE A PAYMENT METHOD</h3>
         <d.PaymentElement
           options={{ layout: "tabs", paymentMethodOrder: ["card", "link"] }}
-          onChange={event => onPaymentTypeChange?.(event.value.type)}
+          onChange={event => reportPaymentType(event.value.type)}
           onReady={onReady}
           onLoadError={onLoadError}
         />
@@ -199,9 +250,9 @@ const StripePaymentMethodFields = forwardRef<PaymentMethodSourceHandle, StripePa
         </AlertDescription>
       </Alert>
 
-      {error && (
+      {shownError && (
         <Alert variant="destructive" aria-label="Payment error">
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>{shownError}</AlertDescription>
         </Alert>
       )}
     </div>
