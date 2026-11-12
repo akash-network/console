@@ -222,10 +222,12 @@ export class TemplateWriterService {
     });
   }
 
-  /** A version saved through the legacy route was never checked for secret values, so they are looked for before more members can read it. */
+  /** A version saved through the legacy route was never validated, so it is held to a new save's SDL and secret checks before more members can read it. */
   async #assertNoSecretValueSaved(template: StoredTemplate): Promise<void> {
     const current = await this.templateVersionRepository.findCurrent(template.id);
-    const issues = findSecretValueIssues(current?.sdl ?? template.sdl, current?.askedValues ?? []);
+    const sdl = current?.sdl ?? template.sdl;
+    const sdlIssues = this.#findSdlIssues(sdl);
+    const issues = sdlIssues.length > 0 ? sdlIssues : findSecretValueIssues(sdl, current?.askedValues ?? []);
 
     if (issues.length > 0) throw createTemplateInvalidError(issues);
   }

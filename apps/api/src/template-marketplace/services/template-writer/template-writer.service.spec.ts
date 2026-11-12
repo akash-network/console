@@ -505,6 +505,23 @@ describe(TemplateWriterService.name, () => {
       expect(repository.updateSettings).not.toHaveBeenCalled();
     });
 
+    it.each<[string, string]>([
+      ["a registry password typed as a number", buildSdl({ credentials: ["host: docker.io", "username: me", "password: 12345"] })],
+      ["an env written as a mapping", buildSdl({ envMapping: ["API_KEY: hunter2"] })],
+      ["an SDL that cannot be read", "services: [unclosed"]
+    ])("refuses opening a private template to its organization while its current version holds %s", async (_case, sdl) => {
+      const template = createTemplateRow({ visibility: "private" });
+      const { service, repository, templateVersionRepository } = setup({ template });
+      templateVersionRepository.findCurrent.mockResolvedValue(createVersion({ templateId: template.id, sdl, askedValues: [] }));
+
+      await expect(service.updateSettings(template.id, { visibility: "organization" })).rejects.toMatchObject({
+        status: 400,
+        errorCode: "template_invalid",
+        data: { issues: expect.arrayContaining([expect.any(String)]) }
+      });
+      expect(repository.updateSettings).not.toHaveBeenCalled();
+    });
+
     it.each<[string, "private" | "organization" | "public", "private" | "organization" | undefined]>([
       ["keeping a private template private", "private", "private"],
       ["narrowing an organization template", "organization", "private"],
