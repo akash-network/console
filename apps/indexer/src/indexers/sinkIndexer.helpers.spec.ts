@@ -2,7 +2,8 @@ import type { TransactionEvent } from "@akashnetwork/database/dbSchemas/base";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { findLastSinkTotalsEvent, parseSinkTotals, SINK_TOTALS_UPDATED_EVENT_TYPE } from "./sinkIndexer.helpers";
+import type { EventType } from "@src/shared/types";
+import { findBlockLevelSinkTotalsEvents, findLastSinkTotalsEvent, parseSinkTotals, SINK_TOTALS_UPDATED_EVENT_TYPE } from "./sinkIndexer.helpers";
 
 describe(findLastSinkTotalsEvent.name, () => {
   it("returns undefined when the transaction emitted no sink totals event", () => {
@@ -19,6 +20,52 @@ describe(findLastSinkTotalsEvent.name, () => {
     expect(findLastSinkTotalsEvent([last, first, unrelated])).toBe(last);
     expect(findLastSinkTotalsEvent([first, unrelated, last])).toBe(last);
   });
+});
+
+describe(findBlockLevelSinkTotalsEvents.name, () => {
+  it("finds no event in a block without a sink totals event", () => {
+    const events = [blockEvent({ type: "coin_spent", mode: "BeginBlock" }), blockEvent({ type: "akash.sink.v1.EventVoidOrdered", mode: "EndBlock" })];
+
+    expect(findBlockLevelSinkTotalsEvents(events)).toEqual({ beforeTransactions: undefined, afterTransactions: undefined });
+  });
+
+  it("returns the last totals event emitted on each side of the block's transactions", () => {
+    const firstBeginBlock = blockEvent({ type: SINK_TOTALS_UPDATED_EVENT_TYPE, mode: "BeginBlock" });
+    const lastBeginBlock = blockEvent({ type: SINK_TOTALS_UPDATED_EVENT_TYPE, mode: "BeginBlock" });
+    const firstEndBlock = blockEvent({ type: SINK_TOTALS_UPDATED_EVENT_TYPE, mode: "EndBlock" });
+    const lastEndBlock = blockEvent({ type: SINK_TOTALS_UPDATED_EVENT_TYPE, mode: "EndBlock" });
+    const unrelated = blockEvent({ type: "akash.oracle.v2.EventAggregatedPrice", mode: "EndBlock" });
+
+    const found = findBlockLevelSinkTotalsEvents([firstBeginBlock, lastBeginBlock, firstEndBlock, lastEndBlock, unrelated]);
+
+    expect(found.beforeTransactions).toBe(lastBeginBlock);
+    expect(found.afterTransactions).toBe(lastEndBlock);
+  });
+
+  it("places a totals event without a mode before the block's transactions", () => {
+    const withoutMode = blockEvent({ type: SINK_TOTALS_UPDATED_EVENT_TYPE });
+
+    expect(findBlockLevelSinkTotalsEvents([withoutMode])).toEqual({ beforeTransactions: withoutMode, afterTransactions: undefined });
+  });
+
+  it("reads the mode from the mode attribute only", () => {
+    const mentionsEndBlockElsewhere: EventType = {
+      type: SINK_TOTALS_UPDATED_EVENT_TYPE,
+      attributes: [
+        { key: "memo", value: "EndBlock", index: true },
+        { key: "mode", value: "BeginBlock", index: true }
+      ]
+    };
+
+    expect(findBlockLevelSinkTotalsEvents([mentionsEndBlockElsewhere])).toEqual({
+      beforeTransactions: mentionsEndBlockElsewhere,
+      afterTransactions: undefined
+    });
+  });
+
+  function blockEvent(input: { type: string; mode?: string }): EventType {
+    return { type: input.type, attributes: input.mode ? [{ key: "mode", value: input.mode, index: true }] : [] };
+  }
 });
 
 describe(parseSinkTotals.name, () => {

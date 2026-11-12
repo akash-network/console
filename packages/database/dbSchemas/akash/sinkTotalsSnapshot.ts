@@ -4,7 +4,7 @@ import { BelongsTo, Column, Model, PrimaryKey, Table } from "sequelize-typescrip
 import { Block } from "../base/block";
 import { Required } from "../decorators/requiredDecorator";
 
-/** One row per block whose transactions changed the x/sink totals, holding the absolute totals of akash.sink.v1.EventTotalsUpdated. */
+/** One row per block that changed the x/sink totals, holding the absolute totals of the block's last akash.sink.v1.EventTotalsUpdated. */
 @Table({ tableName: "sink_totals_snapshot", underscored: true })
 export class SinkTotalsSnapshot extends Model {
   @Required @PrimaryKey @Column(DataTypes.INTEGER) height!: number;
