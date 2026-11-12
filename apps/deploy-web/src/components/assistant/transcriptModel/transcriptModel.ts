@@ -33,6 +33,8 @@ export interface AssistantTranscriptMessage {
   liveHelpReason: AssistantLiveHelpReason | null;
   /** Secrets the api removed from this question before the model saw it; only ever a count, never the value or its kind. */
   redactedSecretCount: number;
+  /** Signs only the text up to the last `done`, so any later text drops it until the next `done` signs the whole answer. */
+  signature: string | null;
 }
 
 export interface AssistantTurnMessageIds {
@@ -68,7 +70,7 @@ const FAILED_READ_LABELS: Record<string, string> = {
 const UNKNOWN_FAILED_READ_LABEL = "Could not finish a check";
 
 export function createTranscriptMessage(id: string, role: AssistantTranscriptMessage["role"], text = ""): AssistantTranscriptMessage {
-  return { id, role, text, reads: [], proposals: [], liveHelpReason: null, redactedSecretCount: 0 };
+  return { id, role, text, reads: [], proposals: [], liveHelpReason: null, redactedSecretCount: 0, signature: null };
 }
 
 /** A redaction is about what the user sent, so it marks the question; every other event builds the answer. */
@@ -86,7 +88,7 @@ export function applyTurnEvent(
 export function applyAssistantEvent(message: AssistantTranscriptMessage, event: AssistantStreamEvent): AssistantTranscriptMessage {
   switch (event.type) {
     case "text_delta":
-      return { ...message, text: message.text + event.text };
+      return { ...message, text: message.text + event.text, signature: null };
     case "tool_started":
       if (isProposalTool(event.name)) return message;
       return { ...message, reads: [...message.reads, { id: event.toolCallId, tool: event.name, label: readLabelOfTool(event.name), ok: true }] };
@@ -107,6 +109,8 @@ export function applyAssistantEvent(message: AssistantTranscriptMessage, event: 
       return { ...message, proposals: [...message.proposals, { proposalId: event.proposalId, action: event.action, diagnosis: event.diagnosis }] };
     case "live_help_suggested":
       return { ...message, liveHelpReason: event.reason };
+    case "done":
+      return event.answerSignature ? { ...message, signature: event.answerSignature } : message;
     default:
       return message;
   }
@@ -139,7 +143,12 @@ export function historyOf(messages: AssistantTranscriptMessage[]): AssistantHist
   return messages
     .filter(message => message.text.trim().length > 0)
     .slice(-MAX_HISTORY_MESSAGES)
-    .map(message => ({ role: message.role, content: message.text.slice(0, MAX_HISTORY_MESSAGE_LENGTH) }));
+    .map(historyMessageOf);
+}
+
+function historyMessageOf(message: AssistantTranscriptMessage): AssistantHistoryMessage {
+  const content = message.text.slice(0, MAX_HISTORY_MESSAGE_LENGTH);
+  return message.role === "assistant" && message.signature ? { role: message.role, content, signature: message.signature } : { role: message.role, content };
 }
 
 /** A proposal shows as its action card, so it gets no read chip. */
