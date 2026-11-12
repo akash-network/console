@@ -145,7 +145,7 @@ export const AssistantPanel: FC<Props> = ({ isOpen, onOpenChange, conversation, 
       aria-labelledby={titleId}
       className="fixed bottom-0 right-0 top-[var(--app-header-height,57px)] z-40 flex w-full flex-col border-l border-border bg-background shadow-lg outline-none duration-300 animate-in slide-in-from-right-8 motion-reduce:animate-none sm:w-[440px] lg:shadow-none"
     >
-      <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b px-4">
+      <header className="flex h-[60px] shrink-0 items-center justify-between gap-3 border-b px-4">
         <h2 id={titleId} className="text-base font-semibold">
           Console assistant
         </h2>
