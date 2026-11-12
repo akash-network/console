@@ -1,34 +1,32 @@
 "use client";
-import { useMemo } from "react";
-
 import { ChainPanel, LatestBlocksPanel, LatestTransactionsPanel } from "./BlockchainPanels";
 import type { HeroMetricKey } from "./dashboardModel";
-import { microToUnit } from "./dashboardModel";
+import { HERO_METRICS, microToUnit } from "./dashboardModel";
 import { HeroChartPanel } from "./HeroChartPanel";
 import { CapacityPanel, GpuMarketplacePanel, KpiCard } from "./MarketPanels";
 import { NetworkNowPanel, SpendPanel } from "./SidePanels";
 
+import { useGraphSeries } from "@/hooks/useGraphSeries";
 import { useNow } from "@/hooks/useNow";
 import type { SeriesPoint } from "@/lib/series/series";
-import { toSeries } from "@/lib/series/series";
 import { formatAgo, formatCompact, formatNumber } from "@/lib/statsFormat/statsFormat";
 import { UrlService } from "@/lib/urlUtils";
-import { useDashboardData, useGpuPrices, useGraphSnapshot } from "@/queries";
-import type { GraphResponse } from "@/types";
+import { useDashboardData, useGpuPrices } from "@/queries";
 import { Snapshots, SnapshotsUrlParam } from "@/types";
 
 const DASHBOARD_REFRESH_INTERVAL_MS = 30_000;
+const HERO_CHART_METRICS = HERO_METRICS.map(metric => ({ ...metric, graphPath: UrlService.graph(metric.urlParam) }));
 
 export const DashboardContainer: React.FunctionComponent = () => {
   const now = useNow(DASHBOARD_REFRESH_INTERVAL_MS);
   const { data: dashboardData } = useDashboardData({ refetchInterval: DASHBOARD_REFRESH_INTERVAL_MS });
   const { data: gpuPrices, isError: isGpuPricesError, refetch: refetchGpuPrices } = useGpuPrices();
-  const dailyUsdSpent = useSeries(Snapshots.dailyUUsdSpent, microToUnit);
-  const activeLeases = useSeries(Snapshots.activeLeaseCount);
-  const activeGpus = useSeries(Snapshots.activeGPU);
-  const dailyLeases = useSeries(Snapshots.dailyLeaseCount);
-  const totalLeases = useSeries(Snapshots.totalLeaseCount);
-  const totalUsdSpent = useSeries(Snapshots.totalUUsdSpent, microToUnit);
+  const dailyUsdSpent = useGraphSeries(Snapshots.dailyUUsdSpent, microToUnit);
+  const activeLeases = useGraphSeries(Snapshots.activeLeaseCount);
+  const activeGpus = useGraphSeries(Snapshots.activeGPU);
+  const dailyLeases = useGraphSeries(Snapshots.dailyLeaseCount);
+  const totalLeases = useGraphSeries(Snapshots.totalLeaseCount);
+  const totalUsdSpent = useGraphSeries(Snapshots.totalUUsdSpent, microToUnit);
   const seriesByMetric: Record<HeroMetricKey, SeriesPoint[] | undefined> = { dailyUsdSpent, activeLeases, activeGpus, dailyLeases };
   const updatedAt = dashboardData?.now?.date ? new Date(dashboardData.now.date).getTime() : undefined;
 
@@ -40,7 +38,7 @@ export const DashboardContainer: React.FunctionComponent = () => {
       </div>
 
       <div className="grid grid-cols-12 gap-4">
-        <HeroChartPanel seriesByMetric={seriesByMetric} className="col-span-12 xl:col-span-9" />
+        <HeroChartPanel metrics={HERO_CHART_METRICS} metricsLabel="Network metric" seriesByMetric={seriesByMetric} className="col-span-12 xl:col-span-9" />
         <div className="col-span-12 grid gap-4 md:grid-cols-2 xl:col-span-3 xl:flex xl:flex-col">
           <SpendPanel dashboardData={dashboardData} totalUsdSeries={totalUsdSpent} />
           <NetworkNowPanel dashboardData={dashboardData} />
@@ -91,18 +89,6 @@ export const DashboardContainer: React.FunctionComponent = () => {
     </div>
   );
 };
-
-function useSeries(snapshot: Snapshots, scale?: (value: number) => number) {
-  const { data } = useGraphSnapshot(snapshot);
-
-  return useMemo(() => (data ? toSeriesOrUndefined(data, scale) : undefined), [data, scale]);
-}
-
-function toSeriesOrUndefined(graph: GraphResponse, scale?: (value: number) => number) {
-  const series = toSeries(graph, scale);
-
-  return series.length ? series : undefined;
-}
 
 function lastValueOf(series: SeriesPoint[] | undefined) {
   return series?.[series.length - 1]?.value;

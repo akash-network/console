@@ -19,6 +19,8 @@ export class UrlService {
   static proposal = (id: number) => `/proposals/${id}`;
   static bme = () => "/bme";
   static bmeGraph = (snapshot: string) => `/bme-graph/${snapshot}`;
+  static solanaMigration = () => "/solana-migration";
+  static solanaMigrationGraph = (snapshot: string) => `/solana-migration-graph/${snapshot}`;
 }
 
 export function appendSearchParams(params: { [key: string]: string | number | boolean }) {

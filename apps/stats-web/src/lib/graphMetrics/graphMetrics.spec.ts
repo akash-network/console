@@ -4,8 +4,8 @@ import { mock } from "vitest-mock-extended";
 import type { GraphMetric } from "./graphMetrics";
 import { findGraphMetric, GRAPH_METRICS, graphMetricHref, groupGraphMetrics } from "./graphMetrics";
 
-import type { BmeDashboardData, DashboardData } from "@/types";
-import { BmeSnapshotsUrlParam, ProviderSnapshotsUrlParam, SnapshotsUrlParam } from "@/types/snapshots";
+import type { BmeDashboardData, DashboardData, SinkDashboardData } from "@/types";
+import { BmeSnapshotsUrlParam, ProviderSnapshotsUrlParam, SinkSnapshotsUrlParam, SnapshotsUrlParam } from "@/types/snapshots";
 
 describe("graphMetrics", () => {
   const dashboard = mock<DashboardData>({
@@ -27,6 +27,18 @@ describe("graphMetrics", () => {
     networkCapacity: { activeProviderCount: 51, totalGPU: 396, totalCPU: 14_390_000, totalMemory: 81.9e12, totalStorage: 612e12 }
   });
   const bme = mock<BmeDashboardData>({ now: { outstandingAct: 272_069_226_813, collateralRatio: 1.557836, vaultAkt: 680_288_111_379 } });
+  const sink = mock<SinkDashboardData>({
+    now: {
+      mintedUakt: 1_612_541_902_979,
+      dailyMintedUakt: 412_000_000_000,
+      mintedTransfers: 27,
+      dailyMintedTransfers: 9,
+      pendingUakt: 2_500_000,
+      voidedUakt: 0,
+      refundPendingUakt: 1_000_000,
+      refundedUakt: 750_000
+    }
+  });
 
   it.each([
     ["graph", SnapshotsUrlParam.dailyUsdSpent, 8232, "$8,232", "$8,232"],
@@ -56,7 +68,9 @@ describe("graphMetrics", () => {
   });
 
   it("reads nothing before the dashboard data loads", () => {
-    expect(GRAPH_METRICS.filter(metric => metric.kind !== "bme-graph").map(metric => metric.readCurrent({}))).toEqual(Array(18).fill(undefined));
+    expect(GRAPH_METRICS.filter(metric => metric.kind === "graph" || metric.kind === "provider-graph").map(metric => metric.readCurrent({}))).toEqual(
+      Array(18).fill(undefined)
+    );
   });
 
   it.each([
@@ -95,6 +109,41 @@ describe("graphMetrics", () => {
     it("covers every bme snapshot", () => {
       expect(GRAPH_METRICS.filter(metric => metric.kind === "bme-graph").map(metric => metric.urlParam)).toEqual(
         expect.arrayContaining(Object.values(BmeSnapshotsUrlParam))
+      );
+    });
+  });
+
+  describe("solana migration", () => {
+    it.each([
+      [SinkSnapshotsUrlParam.mintedUakt, "sinkMintedUakt", 1_612_541.902979, "1.61M AKT", "AKT"],
+      [SinkSnapshotsUrlParam.dailyMintedUakt, "dailySinkMintedUakt", 412_000, "412.0K AKT", "AKT"],
+      [SinkSnapshotsUrlParam.mintedTransfers, "sinkMintedTransfers", 27, "27", "count"],
+      [SinkSnapshotsUrlParam.dailyMintedTransfers, "dailySinkMintedTransfers", 9, "9", "count"],
+      [SinkSnapshotsUrlParam.pendingUakt, "sinkPendingUakt", 2.5, "3 AKT", "AKT"],
+      [SinkSnapshotsUrlParam.voidedUakt, "sinkVoidedUakt", 0, "0 AKT", "AKT"],
+      [SinkSnapshotsUrlParam.refundPendingUakt, "sinkRefundPendingUakt", 1, "1 AKT", "AKT"],
+      [SinkSnapshotsUrlParam.refundedUakt, "sinkRefundedUakt", 0.75, "1 AKT", "AKT"]
+    ])("reads %s from the %s series and the sink totals", (urlParam, snapshot, current, formattedValue, csvUnit) => {
+      const metric = findGraphMetric("solana-migration-graph", urlParam)!;
+
+      expect(metric.snapshot).toBe(snapshot);
+      expect(metric.readCurrent({ sink })).toBeCloseTo(current);
+      expect(metric.formatValue(current)).toBe(formattedValue);
+      expect(metric.csvUnit).toBe(csvUnit);
+    });
+
+    it("scales AKT series from uakt and leaves transfer counts as they are", () => {
+      expect(findGraphMetric("solana-migration-graph", SinkSnapshotsUrlParam.mintedUakt)!.scale(1_000_000)).toBe(1);
+      expect(findGraphMetric("solana-migration-graph", SinkSnapshotsUrlParam.mintedTransfers)!.scale(27)).toBe(27);
+    });
+
+    it("reads nothing before the sink totals load", () => {
+      expect(GRAPH_METRICS.filter(metric => metric.kind === "solana-migration-graph").map(metric => metric.readCurrent({}))).toEqual(Array(8).fill(undefined));
+    });
+
+    it("covers every sink snapshot", () => {
+      expect(GRAPH_METRICS.filter(metric => metric.kind === "solana-migration-graph").map(metric => metric.urlParam)).toEqual(
+        Object.values(SinkSnapshotsUrlParam)
       );
     });
   });
