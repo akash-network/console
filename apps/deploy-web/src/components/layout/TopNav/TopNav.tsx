@@ -13,11 +13,12 @@ import {
   SheetTrigger
 } from "@akashnetwork/ui/components";
 import { cn, REMOVE_SCROLL_CLASS_NAMES } from "@akashnetwork/ui/utils";
-import { ChevronDown, Cloud, Files, LayoutGrid, Menu, Server, Sparkles } from "lucide-react";
+import { ChevronDown, Cloud, Files, LayoutGrid, Menu, Server } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { ActivityBell } from "@src/components/activity/ActivityBell/ActivityBell";
+import { AssistantLauncherButton } from "@src/components/assistant/AssistantLauncherButton/AssistantLauncherButton";
 import { useAssistantPanel } from "@src/components/assistant/useAssistantPanel/useAssistantPanel";
 import { CommandMenu } from "@src/components/command-menu/CommandMenu/CommandMenu";
 import { SendFeedbackDialog } from "@src/components/feedback/SendFeedbackDialog/SendFeedbackDialog";
@@ -168,11 +169,7 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
 
           {showNavLinks && isCommandMenuEnabled && <d.CommandMenu onOpenAssistant={openAssistantFromShortcut} />}
 
-          {showAssistantLauncher && (
-            <Button size="icon" variant="ghost" className="h-9 w-9 rounded-full" aria-label="Ask the assistant" onClick={() => openAssistant()}>
-              <Sparkles className="h-5 w-5" />
-            </Button>
-          )}
+          {showAssistantLauncher && <AssistantLauncherButton onClick={() => openAssistant()} />}
 
           {showNavLinks && <d.ActivityBell />}
 
