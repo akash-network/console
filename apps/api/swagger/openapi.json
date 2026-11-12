@@ -20598,7 +20598,8 @@
                 "sinkPendingUakt",
                 "sinkVoidedUakt",
                 "sinkRefundPendingUakt",
-                "sinkRefundedUakt"
+                "sinkRefundedUakt",
+                "sinkUniqueSenders"
               ]
             },
             "required": true,
@@ -20916,6 +20917,13 @@
                         },
                         "refundedTransfers": {
                           "type": "number"
+                        },
+                        "uniqueSenders": {
+                          "type": "number"
+                        },
+                        "medianSecondsToMint": {
+                          "type": "number",
+                          "nullable": true
                         }
                       },
                       "required": [
@@ -20931,7 +20939,9 @@
                         "refundPendingUakt",
                         "refundPendingTransfers",
                         "refundedUakt",
-                        "refundedTransfers"
+                        "refundedTransfers",
+                        "uniqueSenders",
+                        "medianSecondsToMint"
                       ]
                     },
                     "compare": {
@@ -20975,6 +20985,13 @@
                         },
                         "refundedTransfers": {
                           "type": "number"
+                        },
+                        "uniqueSenders": {
+                          "type": "number"
+                        },
+                        "medianSecondsToMint": {
+                          "type": "number",
+                          "nullable": true
                         }
                       },
                       "required": [
@@ -20990,13 +21007,146 @@
                         "refundPendingUakt",
                         "refundPendingTransfers",
                         "refundedUakt",
-                        "refundedTransfers"
+                        "refundedTransfers",
+                        "uniqueSenders",
+                        "medianSecondsToMint"
                       ]
                     }
                   },
                   "required": [
                     "now",
                     "compare"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sink/transfers": {
+      "get": {
+        "summary": "Get the AKT transfers sent to Solana through the sink module",
+        "tags": [
+          "Analytics"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "schema": {
+              "type": "number",
+              "description": "Number of transfers to skip",
+              "minimum": 0,
+              "example": 0,
+              "default": 0
+            },
+            "required": false,
+            "name": "skip",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "description": "Number of transfers to return",
+              "minimum": 1,
+              "maximum": 100,
+              "example": 20,
+              "default": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "latest",
+                "largest"
+              ],
+              "default": "latest",
+              "description": "Returns the most recent transfers first, or the largest amounts first",
+              "example": "latest"
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns a page of sink transfers and the total number of transfers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "count": {
+                      "type": "number",
+                      "description": "Total number of transfers"
+                    },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "owner": {
+                            "type": "string",
+                            "description": "Akash address that sent the AKT"
+                          },
+                          "height": {
+                            "type": "number",
+                            "description": "Height of the block that created the transfer"
+                          },
+                          "sequence": {
+                            "type": "number",
+                            "description": "Position of the transfer among the transfers of its block"
+                          },
+                          "recipient": {
+                            "type": "string",
+                            "description": "Solana address that receives the AKT"
+                          },
+                          "amountUakt": {
+                            "type": "number"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "pending",
+                              "minted",
+                              "voided",
+                              "refund_pending",
+                              "refunded"
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "statusHeight": {
+                            "type": "number",
+                            "description": "Height of the block that last changed the status"
+                          },
+                          "statusUpdatedAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "owner",
+                          "height",
+                          "sequence",
+                          "recipient",
+                          "amountUakt",
+                          "status",
+                          "createdAt",
+                          "statusHeight",
+                          "statusUpdatedAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "count",
+                    "results"
                   ]
                 }
               }

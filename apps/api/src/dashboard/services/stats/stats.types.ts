@@ -6,7 +6,8 @@ const SinkGraphDataNamesConst = [
   "sinkPendingUakt",
   "sinkVoidedUakt",
   "sinkRefundPendingUakt",
-  "sinkRefundedUakt"
+  "sinkRefundedUakt",
+  "sinkUniqueSenders"
 ] as const;
 
 const AuthorizedGraphDataNamesConst = [

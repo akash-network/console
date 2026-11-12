@@ -30,7 +30,9 @@ describe(SinkDashboardDataController.name, () => {
       refundPendingUakt: 20,
       refundPendingTransfers: 1,
       refundedUakt: 10,
-      refundedTransfers: 4
+      refundedTransfers: 4,
+      uniqueSenders: 21,
+      medianSecondsToMint: 162.5
     };
     const dashboardData: SinkDashboardDataResponse = { now: period, compare: { ...period, date: "2026-11-10T12:00:00.000Z", mintedUakt: 600 } };
     statsService.getSinkDashboardData.mockResolvedValue(dashboardData);

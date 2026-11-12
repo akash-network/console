@@ -8,7 +8,7 @@ import { cacheEngine } from "@src/caching/helpers";
 import type { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import type { LeasesDurationQuery } from "@src/dashboard/http-schemas/leases-duration/leases-duration.schema";
 import type { StatsRepository } from "../../repositories/stats";
-import type { SinkTotalsRow } from "../../repositories/stats/stats.repository";
+import type { SinkDashboardTotalsRow, SinkTransferRow } from "../../repositories/stats/stats.repository";
 import { StatsService } from "./stats.service";
 import { isValidGraphDataName } from "./stats.types";
 
@@ -843,7 +843,8 @@ describe(StatsService.name, () => {
       { dataName: "sinkPendingUakt", values: [10, 11, 12], currentValue: 12, compareValue: 11 },
       { dataName: "sinkVoidedUakt", values: [20, 21, 22], currentValue: 22, compareValue: 21 },
       { dataName: "sinkRefundPendingUakt", values: [30, 31, 32], currentValue: 32, compareValue: 31 },
-      { dataName: "sinkRefundedUakt", values: [40, 41, 42], currentValue: 42, compareValue: 41 }
+      { dataName: "sinkRefundedUakt", values: [40, 41, 42], currentValue: 42, compareValue: 41 },
+      { dataName: "sinkUniqueSenders", values: [5, 8, 13], currentValue: 13, compareValue: 8 }
     ] as const)("returns $dataName from the daily sink totals", async ({ dataName, values, currentValue, compareValue }) => {
       const { service, statsRepository } = setup();
       const firstDay = sinkTotals({
@@ -853,7 +854,8 @@ describe(StatsService.name, () => {
         pendingUakt: 10,
         voidedUakt: 20,
         refundPendingUakt: 30,
-        refundedUakt: 40
+        refundedUakt: 40,
+        uniqueSenders: 5
       });
       const secondDay = sinkTotals({
         date: day2,
@@ -862,7 +864,8 @@ describe(StatsService.name, () => {
         pendingUakt: 11,
         voidedUakt: 21,
         refundPendingUakt: 31,
-        refundedUakt: 41
+        refundedUakt: 41,
+        uniqueSenders: 8
       });
       const thirdDay = sinkTotals({
         date: day3,
@@ -871,7 +874,8 @@ describe(StatsService.name, () => {
         pendingUakt: 12,
         voidedUakt: 22,
         refundPendingUakt: 32,
-        refundedUakt: 42
+        refundedUakt: 42,
+        uniqueSenders: 13
       });
       statsRepository.findSinkDailyTotals.mockResolvedValue([firstDay, secondDay, thirdDay]);
       statsRepository.findSinkDashboardData.mockResolvedValue({ now: thirdDay, compare: secondDay, secondCompare: firstDay });
@@ -929,7 +933,9 @@ describe(StatsService.name, () => {
           refundPendingUakt: 20,
           refundPendingTransfers: 1,
           refundedUakt: 10,
-          refundedTransfers: 4
+          refundedTransfers: 4,
+          uniqueSenders: 21,
+          medianSecondsToMint: 162.5
         },
         compare: {
           date: new Date("2026-11-10T12:00:00Z"),
@@ -942,7 +948,9 @@ describe(StatsService.name, () => {
           refundPendingUakt: 11,
           refundPendingTransfers: 12,
           refundedUakt: 13,
-          refundedTransfers: 14
+          refundedTransfers: 14,
+          uniqueSenders: 15,
+          medianSecondsToMint: null
         },
         secondCompare: sinkTotals({ date: new Date("2026-11-09T12:00:00Z"), mintedUakt: 100, mintedTransfers: 2 })
       });
@@ -963,7 +971,9 @@ describe(StatsService.name, () => {
           refundPendingUakt: 20,
           refundPendingTransfers: 1,
           refundedUakt: 10,
-          refundedTransfers: 4
+          refundedTransfers: 4,
+          uniqueSenders: 21,
+          medianSecondsToMint: 162.5
         },
         compare: {
           date: "2026-11-10T12:00:00.000Z",
@@ -978,9 +988,73 @@ describe(StatsService.name, () => {
           refundPendingUakt: 11,
           refundPendingTransfers: 12,
           refundedUakt: 13,
-          refundedTransfers: 14
+          refundedTransfers: 14,
+          uniqueSenders: 15,
+          medianSecondsToMint: null
         }
       });
+    });
+  });
+
+  describe("getSinkTransfers", () => {
+    it("returns the requested page of transfers with the total number of transfers", async () => {
+      const { service, statsRepository } = setup();
+      statsRepository.countSinkTransfers.mockResolvedValue(42);
+      statsRepository.findSinkTransfers.mockResolvedValue([
+        sinkTransfer(),
+        sinkTransfer({
+          owner: "akash1second",
+          height: 29448400,
+          sequence: 2,
+          recipient: "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin",
+          amountUakt: 2500000,
+          status: "refund_pending",
+          createdAt: new Date("2026-11-10T08:00:00Z"),
+          statusHeight: 29448900,
+          statusUpdatedAt: new Date("2026-11-10T08:50:00Z")
+        })
+      ]);
+
+      const result = await service.getSinkTransfers({ skip: 20, limit: 2, sort: "largest" });
+
+      expect(statsRepository.findSinkTransfers).toHaveBeenCalledWith({ skip: 20, limit: 2, sort: "largest" });
+      expect(result).toEqual({
+        count: 42,
+        results: [
+          {
+            owner: "akash1first",
+            height: 29448411,
+            sequence: 1,
+            recipient: "7EcDhSYGxXyscszYEp35KHN8vvw3svAuLKTzXwCFLtV",
+            amountUakt: 975031000000,
+            status: "minted",
+            createdAt: "2026-11-11T12:00:00.000Z",
+            statusHeight: 29448440,
+            statusUpdatedAt: "2026-11-11T12:03:00.000Z"
+          },
+          {
+            owner: "akash1second",
+            height: 29448400,
+            sequence: 2,
+            recipient: "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin",
+            amountUakt: 2500000,
+            status: "refund_pending",
+            createdAt: "2026-11-10T08:00:00.000Z",
+            statusHeight: 29448900,
+            statusUpdatedAt: "2026-11-10T08:50:00.000Z"
+          }
+        ]
+      });
+    });
+
+    it("returns no results when no transfer is indexed yet", async () => {
+      const { service, statsRepository } = setup();
+      statsRepository.countSinkTransfers.mockResolvedValue(0);
+      statsRepository.findSinkTransfers.mockResolvedValue([]);
+
+      const result = await service.getSinkTransfers({ skip: 0, limit: 20, sort: "latest" });
+
+      expect(result).toEqual({ count: 0, results: [] });
     });
   });
 
@@ -1207,7 +1281,22 @@ describe(StatsService.name, () => {
     });
   }
 
-  function sinkTotals(overrides: Partial<SinkTotalsRow> = {}): SinkTotalsRow {
+  function sinkTransfer(overrides: Partial<SinkTransferRow> = {}): SinkTransferRow {
+    return {
+      owner: "akash1first",
+      height: 29448411,
+      sequence: 1,
+      recipient: "7EcDhSYGxXyscszYEp35KHN8vvw3svAuLKTzXwCFLtV",
+      amountUakt: 975031000000,
+      status: "minted",
+      createdAt: new Date("2026-11-11T12:00:00Z"),
+      statusHeight: 29448440,
+      statusUpdatedAt: new Date("2026-11-11T12:03:00Z"),
+      ...overrides
+    };
+  }
+
+  function sinkTotals(overrides: Partial<SinkDashboardTotalsRow> = {}): SinkDashboardTotalsRow {
     return {
       date: new Date("2026-11-11T12:00:00Z"),
       pendingUakt: 0,
@@ -1220,6 +1309,8 @@ describe(StatsService.name, () => {
       refundPendingTransfers: 0,
       refundedUakt: 0,
       refundedTransfers: 0,
+      uniqueSenders: 0,
+      medianSecondsToMint: null,
       ...overrides
     };
   }

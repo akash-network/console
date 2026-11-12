@@ -21,7 +21,8 @@ import {
   ProviderSnapshotNodeCPU,
   ProviderSnapshotNodeGPU,
   ProviderSnapshotStorage,
-  SinkTotalsSnapshot
+  SinkTotalsSnapshot,
+  SinkTransfer
 } from "./dbSchemas/akash";
 import type { Block, Message } from "./dbSchemas/base";
 dotenv.config({ path: ".env.local" });
@@ -93,7 +94,8 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
       BmeLedgerRecord,
       BmeRawEvent,
       BmeStatusChange,
-      SinkTotalsSnapshot
+      SinkTotalsSnapshot,
+      SinkTransfer
     ]
   },
   get akashTestnet() {
@@ -131,7 +133,8 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
         BmeLedgerRecord,
         BmeRawEvent,
         BmeStatusChange,
-        SinkTotalsSnapshot
+        SinkTotalsSnapshot,
+        SinkTransfer
       ]
     };
   },
@@ -169,7 +172,8 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
       BmeLedgerRecord,
       BmeRawEvent,
       BmeStatusChange,
-      SinkTotalsSnapshot
+      SinkTotalsSnapshot,
+      SinkTransfer
     ]
   }
 };
