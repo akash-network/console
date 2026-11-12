@@ -38,3 +38,7 @@ export function describeStatusForTenant(title: string, status: HardwareRequestSt
 
   return { headline: `${title} ${STATUS_HEADLINES[status]}`, detail };
 }
+
+export function describeReceiptForTenant(title: string): HardwareRequestStatusMessage {
+  return { headline: `${title} was received`, detail: "We're working on it and will let you know if we find capacity that matches your request." };
+}

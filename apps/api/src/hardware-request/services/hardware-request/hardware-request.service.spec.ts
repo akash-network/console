@@ -22,6 +22,7 @@ import type {
 import type { GpuRequestRoutingService, RoutedLane } from "@src/hardware-request/services/gpu-request-routing/gpu-request-routing.service";
 import { HardwareRequestEmailJob } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
 import { HardwareRequestFunnelJob } from "@src/hardware-request/services/hardware-request-funnel/hardware-request-funnel.handler";
+import { HardwareRequestReceivedNoticeJob } from "@src/hardware-request/services/hardware-request-received-notice/hardware-request-received-notice.handler";
 import { HardwareRequestResponseTargetJob } from "@src/hardware-request/services/hardware-request-response-target/hardware-request-response-target.handler";
 import type { ResponseTargetStage } from "@src/hardware-request/services/hardware-request-response-target/hardware-request-response-target-notice";
 import { HardwareRequestSlackAlertJob } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
@@ -144,7 +145,7 @@ describe(HardwareRequestService.name, () => {
       await expect(service.create(anInput())).resolves.toEqual({ ...created, ...ROUTING });
     });
 
-    it("queues the email, the Slack alert and the sales lane's response target checks in the same transaction", async () => {
+    it("queues the email, the requester's confirmation, the Slack alert and the sales lane's response target checks in the same transaction", async () => {
       const { service, jobQueueService, txService, created } = setup();
 
       await service.create(anInput());
@@ -154,6 +155,7 @@ describe(HardwareRequestService.name, () => {
         new HardwareRequestResponseTargetJob({ hardwareRequestId: created.id, target, stage, dueAt });
       expect(jobQueueService.enqueue.mock.calls).toEqual([
         [new HardwareRequestEmailJob({ hardwareRequestId: created.id })],
+        [new HardwareRequestReceivedNoticeJob({ hardwareRequestId: created.id })],
         [new HardwareRequestSlackAlertJob({ hardwareRequestId: created.id })],
         [
           new HardwareRequestFunnelJob({
@@ -316,6 +318,7 @@ describe(HardwareRequestService.name, () => {
         payload: { organizationId: "org-1", email: null }
       });
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(new HardwareRequestEmailJob({ hardwareRequestId: created.id }));
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new HardwareRequestReceivedNoticeJob({ hardwareRequestId: created.id }));
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(new HardwareRequestSlackAlertJob({ hardwareRequestId: created.id }));
     });
 

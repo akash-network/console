@@ -21,6 +21,7 @@ import { HardwareRequestOfferRepository } from "@src/hardware-request/repositori
 import { GpuRequestRoutingService, type RoutedLane } from "@src/hardware-request/services/gpu-request-routing/gpu-request-routing.service";
 import { HardwareRequestEmailJob } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
 import { HardwareRequestFunnelJob } from "@src/hardware-request/services/hardware-request-funnel/hardware-request-funnel.handler";
+import { HardwareRequestReceivedNoticeJob } from "@src/hardware-request/services/hardware-request-received-notice/hardware-request-received-notice.handler";
 import { HardwareRequestResponseTargetJob } from "@src/hardware-request/services/hardware-request-response-target/hardware-request-response-target.handler";
 import type { ResponseTargetStage } from "@src/hardware-request/services/hardware-request-response-target/hardware-request-response-target-notice";
 import { HardwareRequestSlackAlertJob } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
@@ -140,6 +141,7 @@ export class HardwareRequestService {
       firstOfferDueAt: schedule.first_offer.dueAt
     });
     await this.jobQueueService.enqueue(new HardwareRequestEmailJob({ hardwareRequestId: hardwareRequest.id }));
+    await this.jobQueueService.enqueue(new HardwareRequestReceivedNoticeJob({ hardwareRequestId: hardwareRequest.id }));
     await this.jobQueueService.enqueue(new HardwareRequestSlackAlertJob({ hardwareRequestId: hardwareRequest.id }));
     await this.jobQueueService.enqueue(
       new HardwareRequestFunnelJob({
