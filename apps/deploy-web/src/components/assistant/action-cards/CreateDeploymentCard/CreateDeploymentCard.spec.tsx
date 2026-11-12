@@ -134,6 +134,53 @@ describe("CreateDeploymentCard", () => {
     ]);
   });
 
+  it("shows the command, args and environment the SDL runs", () => {
+    const sdl = SDL.replace(
+      "    image: vllm/vllm-openai:v0.6.3\n",
+      '    image: vllm/vllm-openai:v0.6.3\n    command:\n      - sh\n      - -c\n    args:\n      - "vllm serve --port 8000"\n    env:\n      - HF_TOKEN=hf_example\n      - MODEL=llama\n'
+    );
+    const { chromeProps } = setup({ action: { sdl, services: [CPU_ONLY], providersAbleToBid: null, runtimeLimitHours: null } });
+
+    const rows = chromeProps().rows ?? [];
+    expect(rows).toEqual([
+      { label: "Image", value: "nginx:1.25.3" },
+      { label: "Command", value: '["sh","-c"]' },
+      { label: "Args", value: '["vllm serve --port 8000"]' },
+      { label: "Environment", value: expect.anything() },
+      { label: "CPU / memory / storage", value: "1 CPU / 1Gi / 2Gi" },
+      { label: "Port", value: "8000 to 80 (HTTP)" }
+    ]);
+
+    render(<>{rows[3].value}</>);
+
+    expect(screen.getByText("HF_TOKEN=hf_example")).toBeInTheDocument();
+    expect(screen.getByText("MODEL=llama")).toBeInTheDocument();
+  });
+
+  it("labels the command, args and environment of each service", () => {
+    const sdl = SDL.replace(
+      "    image: vllm/vllm-openai:v0.6.3\n",
+      "    image: vllm/vllm-openai:v0.6.3\n    command: [sh]\n    args: [start]\n    env: [MODE=dev]\n"
+    );
+    const worker: Action["services"][number] = { ...CPU_ONLY, service: "worker" };
+    const { chromeProps } = setup({ action: { sdl, services: [CPU_ONLY, worker] } });
+
+    expect(chromeProps().rows?.map(({ label }) => label)).toEqual(expect.arrayContaining(["web command", "web args", "web environment", "worker image"]));
+    expect(chromeProps().rows?.map(({ label }) => label)).not.toContain("worker command");
+  });
+
+  it("falls back to the action's rows when the SDL does not parse", () => {
+    const { chromeProps } = setup({ action: { sdl: "services: [", services: [CPU_ONLY] } });
+
+    expect(chromeProps().rows).toEqual([
+      { label: "Image", value: "nginx:1.25.3" },
+      { label: "CPU / memory / storage", value: "1 CPU / 1Gi / 2Gi" },
+      { label: "Providers able to bid now", value: "11" },
+      { label: "Runtime limit", value: "4 hours" }
+    ]);
+    expect(screen.getByText("Generated SDL")).toBeInTheDocument();
+  });
+
   it("shows the generated SDL on request", async () => {
     setup();
 
