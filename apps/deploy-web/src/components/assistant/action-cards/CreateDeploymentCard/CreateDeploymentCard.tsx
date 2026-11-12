@@ -170,8 +170,8 @@ function rowsOf(action: AssistantActionOf<"create_deployment">): ActionCardRow[]
 
 const EnvironmentList: FC<{ entries: string[] }> = ({ entries }) => (
   <span className="flex flex-col items-end font-mono text-xs">
-    {entries.map(entry => (
-      <span key={entry}>{entry}</span>
+    {entries.map((entry, index) => (
+      <span key={index}>{entry}</span>
     ))}
   </span>
 );

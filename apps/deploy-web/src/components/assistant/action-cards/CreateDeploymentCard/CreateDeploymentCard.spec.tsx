@@ -157,6 +157,19 @@ describe("CreateDeploymentCard", () => {
     expect(screen.getByText("MODEL=llama")).toBeInTheDocument();
   });
 
+  it("lists a repeated environment entry once per occurrence without a duplicate key warning", () => {
+    const sdl = SDL.replace("    image: vllm/vllm-openai:v0.6.3\n", "    image: vllm/vllm-openai:v0.6.3\n    env: [MODE=dev, MODE=dev]\n");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { chromeProps } = setup({ action: { sdl, services: [CPU_ONLY] } });
+    const environment = chromeProps().rows?.find(({ label }) => label === "Environment");
+
+    render(<>{environment?.value}</>);
+
+    expect(screen.getAllByText("MODE=dev")).toHaveLength(2);
+    expect(consoleError.mock.calls.flat().join(" ")).not.toContain("same key");
+    consoleError.mockRestore();
+  });
+
   it("labels the command, args and environment of each service", () => {
     const sdl = SDL.replace(
       "    image: vllm/vllm-openai:v0.6.3\n",
