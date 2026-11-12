@@ -94,6 +94,22 @@ describe("Signup", () => {
       await expect(response.json()).resolves.toMatchObject({ message: "PasswordStrengthError: Password is too weak" });
     });
 
+    it("returns 400 with the generic account message instead of the reason code when an auth0 action refuses the signup", async () => {
+      const { email, password, captchaToken } = setup({
+        auth0CreateUserResponse: {
+          status: 400,
+          body: { statusCode: 400, error: "Bad Request", message: "Sandbox Error: action.email_dedup.duplicate_email" }
+        }
+      });
+
+      const response = await signup({ email, password, captchaToken });
+
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toMatchObject({
+        message: "Unable to create account. Please try again or use a different email."
+      });
+    });
+
     it("returns 502 without echoing auth0's message when auth0 is unavailable", async () => {
       const { email, password, captchaToken } = setup({
         auth0CreateUserResponse: {
