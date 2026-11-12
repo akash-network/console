@@ -265,6 +265,7 @@ export class SessionService {
       void,
       | { code: "invalid_email"; message: string; cause: unknown }
       | { code: "rate_limited"; message: string; retryAfter: number; cause: unknown }
+      | { code: "action_refused"; message: string; cause: unknown }
       | { code: "unknown"; message: string; cause: unknown }
     >
   > {
@@ -303,6 +304,10 @@ export class SessionService {
       });
     }
 
+    if (isAuth0ActionRefusal(response)) {
+      return Err({ code: "action_refused", message: ACTION_REFUSED_MESSAGE, cause: extractResponseDetails(response) });
+    }
+
     return Err({
       code: "unknown",
       message: response.data?.error_description || "Unable to send code.",
@@ -318,6 +323,7 @@ export class SessionService {
       Session,
       | { code: "invalid_code"; message: string; cause: unknown }
       | { code: "rate_limited"; message: string; retryAfter: number; cause: unknown }
+      | { code: "action_refused"; message: string; cause: unknown }
       | { code: "unknown"; message: string; cause: unknown }
     >
   > {
@@ -354,6 +360,9 @@ export class SessionService {
           message: tokenResponse.data.error_description,
           cause: extractResponseDetails(tokenResponse)
         });
+      }
+      if (isAuth0ActionRefusal(tokenResponse)) {
+        return Err({ code: "action_refused", message: ACTION_REFUSED_MESSAGE, cause: extractResponseDetails(tokenResponse) });
       }
       return Err({
         code: "unknown",
@@ -426,6 +435,13 @@ export interface OauthConfig {
   CLIENT_ID: string;
   CLIENT_SECRET: string;
   AUDIENCE: string;
+}
+
+const ACTION_REFUSED_MESSAGE = "Unable to create account. Please try again or use a different email.";
+
+/** Auth0 reports an Action refusal with the Action's admin-facing reason code as `error_description`, e.g. `action.domain_blacklist.domain_blocked_by_console`. */
+function isAuth0ActionRefusal(response: AxiosResponse) {
+  return response.data?.error === "extensibility_error";
 }
 
 function notServerError(status: number) {
