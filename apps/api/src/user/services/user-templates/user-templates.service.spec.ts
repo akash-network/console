@@ -254,8 +254,47 @@ describe(UserTemplatesService.name, () => {
         templateId: id,
         sdl: data.sdl,
         resources: summarizeTemplateHardware(data.sdl),
-        createdById: user.id
+        createdById: user.id,
+        readmesShown: { current: null, next: data.description }
       });
+    });
+
+    it("tells the readme change between the descriptions a version without a readme shows", async () => {
+      const { service, userTemplateRepository, templateVersionRepository, user } = setup();
+      const data = { ...createTemplateInput(), description: "# New" };
+
+      userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+      userTemplateRepository.findVersionState.mockResolvedValue(createVersionState({ description: "# Old", currentVersionReadme: null }));
+
+      await service.saveTemplate(faker.string.uuid(), user.userId!, data);
+
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ readmesShown: { current: "# Old", next: "# New" } }));
+    });
+
+    it("keeps the stored description as the readme shown when a save sends none", async () => {
+      const { service, userTemplateRepository, templateVersionRepository, user } = setup();
+      const data = { ...createTemplateInput(), description: undefined };
+
+      userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+      userTemplateRepository.findVersionState.mockResolvedValue(createVersionState({ description: "# Kept", currentVersionReadme: null }));
+
+      await service.saveTemplate(faker.string.uuid(), user.userId!, data);
+
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ readmesShown: { current: "# Kept", next: "# Kept" } }));
+    });
+
+    it("takes the description a save sends as the readme of a version that carries one", async () => {
+      const { service, userTemplateRepository, templateVersionRepository, user } = setup();
+      const data = { ...createTemplateInput(), description: "# New" };
+
+      userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+      userTemplateRepository.findVersionState.mockResolvedValue(createVersionState({ description: "# Old", currentVersionReadme: "# Old" }));
+
+      await service.saveTemplate(faker.string.uuid(), user.userId!, data);
+
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(
+        expect.objectContaining({ readme: "# New", askedValues: [], readmesShown: { current: "# Old", next: "# New" } })
+      );
     });
 
     it("records no version when an update keeps the sdl", async () => {
@@ -285,7 +324,8 @@ describe(UserTemplatesService.name, () => {
         templateId: id,
         sdl: data.sdl,
         resources: summarizeTemplateHardware(data.sdl),
-        createdById: user.id
+        createdById: user.id,
+        readmesShown: { current: null, next: data.description }
       });
     });
 
@@ -545,7 +585,14 @@ describe(UserTemplatesService.name, () => {
   }
 
   function createVersionState(overrides: Partial<TemplateVersionState> = {}): TemplateVersionState {
-    return { isPublic: false, visibility: "private", currentVersionId: faker.string.uuid(), currentVersionSdl: faker.lorem.paragraph(), ...overrides };
+    return {
+      isPublic: false,
+      visibility: "private",
+      description: null,
+      currentVersionId: faker.string.uuid(),
+      currentVersionSdl: faker.lorem.paragraph(),
+      ...overrides
+    };
   }
 
   function createTemplateInput(): TemplateInput {

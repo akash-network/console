@@ -185,7 +185,7 @@ export class TemplateWriterService {
         resources: hardware ?? null,
         createdById,
         expectedCurrentVersionId: base?.id,
-        currentReadmeShown
+        readmesShown: { current: currentReadmeShown, next: readme }
       });
       await this.marketplaceTemplateRepository.mirrorVersion(id, {
         sdl: input.sdl,

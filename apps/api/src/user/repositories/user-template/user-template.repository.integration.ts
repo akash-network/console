@@ -535,11 +535,12 @@ describe(UserTemplateRepository.name, () => {
     it("returns the stored visibility and no current version for a template without versions", async () => {
       const { userTemplateRepository } = setup();
       const user = await createTestUser();
-      const template = await createTestTemplate({ userId: user.userId!, isPublic: true });
+      const template = await createTestTemplate({ userId: user.userId!, isPublic: true, description: "# Description" });
 
       expect(await userTemplateRepository.findVersionState(template.id, user.userId!)).toEqual({
         isPublic: true,
         visibility: "public",
+        description: "# Description",
         currentVersionId: null,
         currentVersionSdl: null
       });

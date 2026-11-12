@@ -21,6 +21,15 @@ describe(contentCarriedByLegacySave.name, () => {
     expect(contentCarriedByLegacySave(buildSdl(), { readme: "# Readme" })).toEqual({ readme: "# Readme", askedValues: [] });
   });
 
+  it("takes a submitted description as the readme it carries, and an empty one as none", () => {
+    expect(contentCarriedByLegacySave(buildSdl(), { readme: "# Old" }, "# New")).toEqual({ readme: "# New", askedValues: [] });
+    expect(contentCarriedByLegacySave(buildSdl(), { readme: "# Old" }, "")).toEqual({ readme: null, askedValues: [] });
+  });
+
+  it("carries nothing for a version with no content even when a description is submitted", () => {
+    expect(contentCarriedByLegacySave(buildSdl(), { readme: null, askedValues: [] }, "# New")).toEqual({});
+  });
+
   it("carries asked values alone with no readme", () => {
     const askedValues = [secretAskedValue("API_KEY")];
 

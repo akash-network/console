@@ -23,6 +23,10 @@ function visibilityPatch({ isPublic, ...rest }: TemplateInput, stored: TemplateV
   return isChanged || isDrifted ? { ...rest, isPublic: isPublic ?? stored.isPublic } : rest;
 }
 
+function readmeShownBy(readme: string | null | undefined, description: string | null | undefined): string | null {
+  return readme ?? (description || null);
+}
+
 @singleton()
 export class UserTemplatesService {
   readonly #userTemplateRepository: UserTemplateRepository;
@@ -126,13 +130,17 @@ export class UserTemplatesService {
       assert(stored, 404, "Template not found");
       const isNewVersion = !stored.currentVersionId || stored.currentVersionSdl !== template.sdl;
       const carried = isNewVersion
-        ? contentCarriedByLegacySave(template.sdl, { readme: stored.currentVersionReadme, askedValues: stored.currentVersionAskedValues })
+        ? contentCarriedByLegacySave(template.sdl, { readme: stored.currentVersionReadme, askedValues: stored.currentVersionAskedValues }, template.description)
         : {};
 
       await repository.updateTemplate(id, userId, visibilityPatch(template, stored));
 
       if (isNewVersion) {
-        await this.#templateVersionRepository.appendVersion({ templateId: id, sdl: template.sdl, resources, createdById, ...carried });
+        const readmesShown = {
+          current: readmeShownBy(stored.currentVersionReadme, stored.description),
+          next: readmeShownBy(carried.readme, template.description ?? stored.description)
+        };
+        await this.#templateVersionRepository.appendVersion({ templateId: id, sdl: template.sdl, resources, createdById, ...carried, readmesShown });
       }
     });
   }

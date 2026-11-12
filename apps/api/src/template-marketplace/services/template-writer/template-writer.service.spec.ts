@@ -277,7 +277,7 @@ describe(TemplateWriterService.name, () => {
         resources: { cpu: 1.5, memoryBytes: 1536 * MEBIBYTE, storageBytes: 3 * GIBIBYTE },
         createdById: user.id,
         expectedCurrentVersionId: base.id,
-        currentReadmeShown: "# Before"
+        readmesShown: { current: "# Before", next: "# After" }
       });
       expect(repository.mirrorVersion).toHaveBeenCalledWith(template.id, {
         sdl,
@@ -325,7 +325,7 @@ describe(TemplateWriterService.name, () => {
       await service.appendVersion(template.id, { sdl: buildSdl(), readme: "# New", askedValues: [], baseVersion: 1 });
 
       expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(
-        expect.objectContaining({ readme: "# New", currentReadmeShown: "Legacy description" })
+        expect.objectContaining({ readme: "# New", readmesShown: { current: "Legacy description", next: "# New" } })
       );
     });
 

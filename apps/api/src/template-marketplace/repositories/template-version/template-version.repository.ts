@@ -47,8 +47,8 @@ export type AppendTemplateVersionInput = {
   resources?: TemplateHardware | null;
   createdById?: string | null;
   expectedCurrentVersionId?: string;
-  /** A version saved before readmes were recorded shows the legacy description, so its changes are told against that rather than its empty column. */
-  currentReadmeShown?: string | null;
+  /** A version without a readme shows the legacy description, so readme changes are told between what readers see rather than the stored columns. */
+  readmesShown?: { current: string | null; next: string | null };
 };
 
 export const TEMPLATE_VERSION_CONFLICT_ERROR_CODE = "template_version_conflict";
@@ -86,7 +86,8 @@ export class TemplateVersionRepository extends BaseRepository<Table, TemplateVer
       }
 
       const stored = template?.currentVersionId ? await this.#readContent(tx, template.currentVersionId) : undefined;
-      const current = stored && { ...stored, readme: input.currentReadmeShown ?? stored.readme };
+      const current = stored && input.readmesShown ? { ...stored, readme: input.readmesShown.current } : stored;
+      const nextReadmeShown = input.readmesShown ? input.readmesShown.next : input.readme ?? null;
 
       const [{ next }] = await tx
         .select({ next: sql<number>`coalesce(max(${this.table.version}), 0) + 1` })
@@ -102,7 +103,7 @@ export class TemplateVersionRepository extends BaseRepository<Table, TemplateVer
           readme: input.readme,
           askedValues: input.askedValues,
           resources: input.resources,
-          changes: summarizeVersionChanges(current, { sdl: input.sdl, readme: input.readme ?? null, askedValues: input.askedValues ?? [] }),
+          changes: summarizeVersionChanges(current, { sdl: input.sdl, readme: nextReadmeShown, askedValues: input.askedValues ?? [] }),
           createdById: input.createdById
         })
         .returning();

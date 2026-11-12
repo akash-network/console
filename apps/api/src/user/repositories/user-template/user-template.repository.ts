@@ -50,6 +50,7 @@ type TemplateRow = ApiPgTables["Templates"]["$inferSelect"];
 export interface TemplateVersionState {
   isPublic: boolean;
   visibility: TemplateVisibility;
+  description: string | null;
   currentVersionId: string | null;
   currentVersionSdl: string | null;
   currentVersionReadme?: string | null;
@@ -170,7 +171,12 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
   /** Locks the template row without blocking foreign key checks on it, then reads its current version in a second statement that sees whatever a competing save committed meanwhile. */
   async findVersionState(id: string, userId: string): Promise<TemplateVersionState | undefined> {
     const [state] = await this.cursor
-      .select({ isPublic: this.table.isPublic, visibility: this.table.visibility, currentVersionId: this.table.currentVersionId })
+      .select({
+        isPublic: this.table.isPublic,
+        visibility: this.table.visibility,
+        description: this.table.description,
+        currentVersionId: this.table.currentVersionId
+      })
       .from(this.table)
       .where(this.#authoredBy(id, userId))
       .limit(1)
