@@ -14,6 +14,7 @@ export { Bid } from "./bid";
 export { BmeLedgerRecord } from "./bmeLedgerRecord";
 export { BmeRawEvent } from "./bmeRawEvent";
 export { BmeStatusChange } from "./bmeStatusChange";
+export { SinkTotalsSnapshot } from "./sinkTotalsSnapshot";
 
 // Overrides
 export { AkashBlock } from "./akashBlock";

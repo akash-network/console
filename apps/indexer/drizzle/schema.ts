@@ -730,3 +730,27 @@ export const bmeStatusChange = pgTable(
     })
   ]
 );
+
+export const sinkTotalsSnapshot = pgTable(
+  "sink_totals_snapshot",
+  {
+    height: integer().primaryKey().notNull(),
+    pending_amount: numeric({ precision: 30, scale: 0 }).notNull(),
+    pending_count: integer().notNull(),
+    minted_amount: numeric({ precision: 30, scale: 0 }).notNull(),
+    minted_count: integer().notNull(),
+    voided_amount: numeric({ precision: 30, scale: 0 }).notNull(),
+    voided_count: integer().notNull(),
+    refund_pending_amount: numeric({ precision: 30, scale: 0 }).notNull(),
+    refund_pending_count: integer().notNull(),
+    refunded_amount: numeric({ precision: 30, scale: 0 }).notNull(),
+    refunded_count: integer().notNull()
+  },
+  table => [
+    foreignKey({
+      columns: [table.height],
+      foreignColumns: [block.height],
+      name: "sink_totals_snapshot_height_fkey"
+    })
+  ]
+);

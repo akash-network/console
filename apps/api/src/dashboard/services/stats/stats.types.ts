@@ -1,3 +1,14 @@
+const SinkGraphDataNamesConst = [
+  "sinkMintedUakt",
+  "dailySinkMintedUakt",
+  "sinkMintedTransfers",
+  "dailySinkMintedTransfers",
+  "sinkPendingUakt",
+  "sinkVoidedUakt",
+  "sinkRefundPendingUakt",
+  "sinkRefundedUakt"
+] as const;
+
 const AuthorizedGraphDataNamesConst = [
   "dailyUAktSpent",
   "dailyUActSpent",
@@ -27,10 +38,13 @@ const AuthorizedGraphDataNamesConst = [
   "dailyNetAktBurned",
   "outstandingAct",
   "vaultAkt",
-  "collateralRatio"
+  "collateralRatio",
+  ...SinkGraphDataNamesConst
 ] as const;
 
 export type AuthorizedGraphDataName = (typeof AuthorizedGraphDataNamesConst)[number];
+
+export type SinkGraphDataName = (typeof SinkGraphDataNamesConst)[number];
 
 export type DashboardGraphDataName = Extract<
   AuthorizedGraphDataName,
@@ -52,6 +66,10 @@ export type DashboardGraphDataName = Extract<
 >;
 
 export const AuthorizedGraphDataNames: AuthorizedGraphDataName[] = [...AuthorizedGraphDataNamesConst];
+
+export function isSinkGraphDataName(x: AuthorizedGraphDataName): x is SinkGraphDataName {
+  return SinkGraphDataNamesConst.some(name => name === x);
+}
 
 export function isValidGraphDataName(x: string): x is AuthorizedGraphDataName {
   return AuthorizedGraphDataNames.includes(x as AuthorizedGraphDataName);

@@ -6,7 +6,15 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AuthorizedGraphDataNames } from "@src/dashboard/services/stats/stats.types";
 import { app, initDb } from "@src/rest-app";
 
-import { createAkashBlock, createDay, createProvider, createProviderSnapshot, createProviderSnapshotNode, createProviderSnapshotNodeGpu } from "@test/seeders";
+import {
+  createAkashBlock,
+  createDay,
+  createProvider,
+  createProviderSnapshot,
+  createProviderSnapshotNode,
+  createProviderSnapshotNodeGpu,
+  createSinkTotalsSnapshot
+} from "@test/seeders";
 import { formatUTCDate } from "@test/utils";
 
 describe("Graph Data", () => {
@@ -164,6 +172,36 @@ describe("Graph Data", () => {
         datetime: yesterday,
         height: 300,
         isProcessed: true
+      })
+    ]);
+
+    await Promise.all([
+      createSinkTotalsSnapshot({
+        height: 100,
+        mintedAmount: "100",
+        mintedCount: 1,
+        pendingAmount: "10",
+        voidedAmount: "1",
+        refundPendingAmount: "2",
+        refundedAmount: "3"
+      }),
+      createSinkTotalsSnapshot({
+        height: 200,
+        mintedAmount: "300",
+        mintedCount: 3,
+        pendingAmount: "20",
+        voidedAmount: "4",
+        refundPendingAmount: "5",
+        refundedAmount: "6"
+      }),
+      createSinkTotalsSnapshot({
+        height: 300,
+        mintedAmount: "600",
+        mintedCount: 6,
+        pendingAmount: "30",
+        voidedAmount: "7",
+        refundPendingAmount: "8",
+        refundedAmount: "9"
       })
     ]);
   });

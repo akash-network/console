@@ -8,6 +8,7 @@ import { cacheEngine } from "@src/caching/helpers";
 import type { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import type { LeasesDurationQuery } from "@src/dashboard/http-schemas/leases-duration/leases-duration.schema";
 import type { StatsRepository } from "../../repositories/stats";
+import type { SinkTotalsRow } from "../../repositories/stats/stats.repository";
 import { StatsService } from "./stats.service";
 import { isValidGraphDataName } from "./stats.types";
 
@@ -829,6 +830,160 @@ describe(StatsService.name, () => {
     });
   });
 
+  describe("getGraphData for the sink totals", () => {
+    const day1 = new Date("2026-11-09");
+    const day2 = new Date("2026-11-10");
+    const day3 = new Date("2026-11-11");
+
+    it.each([
+      { dataName: "sinkMintedUakt", values: [100, 300, 600], currentValue: 600, compareValue: 300 },
+      { dataName: "dailySinkMintedUakt", values: [100, 200, 300], currentValue: 300, compareValue: 200 },
+      { dataName: "sinkMintedTransfers", values: [1, 3, 6], currentValue: 6, compareValue: 3 },
+      { dataName: "dailySinkMintedTransfers", values: [1, 2, 3], currentValue: 3, compareValue: 2 },
+      { dataName: "sinkPendingUakt", values: [10, 11, 12], currentValue: 12, compareValue: 11 },
+      { dataName: "sinkVoidedUakt", values: [20, 21, 22], currentValue: 22, compareValue: 21 },
+      { dataName: "sinkRefundPendingUakt", values: [30, 31, 32], currentValue: 32, compareValue: 31 },
+      { dataName: "sinkRefundedUakt", values: [40, 41, 42], currentValue: 42, compareValue: 41 }
+    ] as const)("returns $dataName from the daily sink totals", async ({ dataName, values, currentValue, compareValue }) => {
+      const { service, statsRepository } = setup();
+      const firstDay = sinkTotals({
+        date: day1,
+        mintedUakt: 100,
+        mintedTransfers: 1,
+        pendingUakt: 10,
+        voidedUakt: 20,
+        refundPendingUakt: 30,
+        refundedUakt: 40
+      });
+      const secondDay = sinkTotals({
+        date: day2,
+        mintedUakt: 300,
+        mintedTransfers: 3,
+        pendingUakt: 11,
+        voidedUakt: 21,
+        refundPendingUakt: 31,
+        refundedUakt: 41
+      });
+      const thirdDay = sinkTotals({
+        date: day3,
+        mintedUakt: 600,
+        mintedTransfers: 6,
+        pendingUakt: 12,
+        voidedUakt: 22,
+        refundPendingUakt: 32,
+        refundedUakt: 42
+      });
+      statsRepository.findSinkDailyTotals.mockResolvedValue([firstDay, secondDay, thirdDay]);
+      statsRepository.findSinkDashboardData.mockResolvedValue({ now: thirdDay, compare: secondDay, secondCompare: firstDay });
+
+      const result = await service.getGraphData(dataName);
+
+      expect(result).toEqual({
+        currentValue,
+        compareValue,
+        snapshots: [
+          { date: day1, value: values[0] },
+          { date: day2, value: values[1] },
+          { date: day3, value: values[2] }
+        ]
+      });
+    });
+
+    it("returns no snapshots and zero values before any sink totals are indexed", async () => {
+      const { service, statsRepository } = setup();
+      statsRepository.findSinkDailyTotals.mockResolvedValue([]);
+      statsRepository.findSinkDashboardData.mockResolvedValue({ now: sinkTotals(), compare: sinkTotals(), secondCompare: sinkTotals() });
+
+      const result = await service.getGraphData("dailySinkMintedUakt");
+
+      expect(result).toEqual({ currentValue: 0, compareValue: 0, snapshots: [] });
+    });
+
+    it("reads the daily sink totals once for graphs requested within the cache window", async () => {
+      const { service, statsRepository } = setup();
+      statsRepository.findSinkDailyTotals.mockResolvedValue([sinkTotals({ mintedUakt: 100, pendingUakt: 10 })]);
+      statsRepository.findSinkDashboardData.mockResolvedValue({ now: sinkTotals(), compare: sinkTotals(), secondCompare: sinkTotals() });
+
+      const minted = await service.getGraphData("sinkMintedUakt");
+      const pending = await service.getGraphData("sinkPendingUakt");
+
+      expect(minted.snapshots[0].value).toBe(100);
+      expect(pending.snapshots[0].value).toBe(10);
+      expect(statsRepository.findSinkDailyTotals).toHaveBeenCalledTimes(1);
+      expect(statsRepository.findSinkDashboardData).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("getSinkDashboardData", () => {
+    it("returns the current and previous sink totals with their change over 24 hours", async () => {
+      const { service, statsRepository } = setup();
+      statsRepository.findSinkDashboardData.mockResolvedValue({
+        now: {
+          date: new Date("2026-11-11T12:00:00Z"),
+          mintedUakt: 900,
+          mintedTransfers: 9,
+          pendingUakt: 50,
+          pendingTransfers: 2,
+          voidedUakt: 30,
+          voidedTransfers: 3,
+          refundPendingUakt: 20,
+          refundPendingTransfers: 1,
+          refundedUakt: 10,
+          refundedTransfers: 4
+        },
+        compare: {
+          date: new Date("2026-11-10T12:00:00Z"),
+          mintedUakt: 600,
+          mintedTransfers: 5,
+          pendingUakt: 40,
+          pendingTransfers: 6,
+          voidedUakt: 7,
+          voidedTransfers: 8,
+          refundPendingUakt: 11,
+          refundPendingTransfers: 12,
+          refundedUakt: 13,
+          refundedTransfers: 14
+        },
+        secondCompare: sinkTotals({ date: new Date("2026-11-09T12:00:00Z"), mintedUakt: 100, mintedTransfers: 2 })
+      });
+
+      const result = await service.getSinkDashboardData();
+
+      expect(result).toEqual({
+        now: {
+          date: "2026-11-11T12:00:00.000Z",
+          mintedUakt: 900,
+          dailyMintedUakt: 300,
+          mintedTransfers: 9,
+          dailyMintedTransfers: 4,
+          pendingUakt: 50,
+          pendingTransfers: 2,
+          voidedUakt: 30,
+          voidedTransfers: 3,
+          refundPendingUakt: 20,
+          refundPendingTransfers: 1,
+          refundedUakt: 10,
+          refundedTransfers: 4
+        },
+        compare: {
+          date: "2026-11-10T12:00:00.000Z",
+          mintedUakt: 600,
+          dailyMintedUakt: 500,
+          mintedTransfers: 5,
+          dailyMintedTransfers: 3,
+          pendingUakt: 40,
+          pendingTransfers: 6,
+          voidedUakt: 7,
+          voidedTransfers: 8,
+          refundPendingUakt: 11,
+          refundPendingTransfers: 12,
+          refundedUakt: 13,
+          refundedTransfers: 14
+        }
+      });
+    });
+  });
+
   describe("getBmeDashboardData", () => {
     it("returns dashboard data with computed daily values", async () => {
       const { service, statsRepository } = setup();
@@ -1050,6 +1205,23 @@ describe(StatsService.name, () => {
       createdBlock: { datetime: input.createdAt ?? new Date("2024-01-01T00:00:00Z") },
       closedBlock: { datetime: input.closedAt ?? new Date("2024-01-15T00:00:00Z") }
     });
+  }
+
+  function sinkTotals(overrides: Partial<SinkTotalsRow> = {}): SinkTotalsRow {
+    return {
+      date: new Date("2026-11-11T12:00:00Z"),
+      pendingUakt: 0,
+      pendingTransfers: 0,
+      mintedUakt: 0,
+      mintedTransfers: 0,
+      voidedUakt: 0,
+      voidedTransfers: 0,
+      refundPendingUakt: 0,
+      refundPendingTransfers: 0,
+      refundedUakt: 0,
+      refundedTransfers: 0,
+      ...overrides
+    };
   }
 
   function setup() {

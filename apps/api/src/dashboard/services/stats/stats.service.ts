@@ -18,11 +18,14 @@ import {
   MAX_LEASES_DURATION_RESULTS
 } from "@src/dashboard/http-schemas/leases-duration/leases-duration.schema";
 import { MarketDataParams } from "@src/dashboard/http-schemas/market-data/market-data.schema";
+import type { SinkDashboardDataResponse, SinkPeriodData } from "@src/dashboard/http-schemas/sink-dashboard-data/sink-dashboard-data.schema";
 import { StatsRepository } from "@src/dashboard/repositories/stats";
+import type { SinkTotalsRow } from "@src/dashboard/repositories/stats/stats.repository";
 import { ProviderCapacityStats, StatsItem } from "@src/types/provider";
 import { forEachInChunks } from "@src/utils/array/array";
 import { createLoggingExecutor } from "@src/utils/logging";
-import type { AuthorizedGraphDataName, DashboardGraphDataName } from "./stats.types";
+import type { AuthorizedGraphDataName, DashboardGraphDataName, SinkGraphDataName } from "./stats.types";
+import { isSinkGraphDataName } from "./stats.types";
 
 const numberOrZero: (x: number | undefined | null) => number = (x: number | undefined | null) => (typeof x === "number" ? x : 0);
 
@@ -155,6 +158,23 @@ const blockMetrics: Partial<Record<AuthorizedGraphDataName, BlockMetricConfig>> 
   vaultAkt: { attributes: ["vaultUakt"], getter: b => numberOrZero(b.vaultUakt), requireBme: true, bmeDashboardKey: "vaultAkt" }
 };
 
+type SinkMetricConfig = {
+  getter: (totals: SinkTotalsRow) => number;
+  isRelative?: boolean;
+  dashboardKey: Exclude<keyof SinkPeriodData, "date">;
+};
+
+const sinkMetrics: Record<SinkGraphDataName, SinkMetricConfig> = {
+  sinkMintedUakt: { getter: totals => totals.mintedUakt, dashboardKey: "mintedUakt" },
+  dailySinkMintedUakt: { getter: totals => totals.mintedUakt, isRelative: true, dashboardKey: "dailyMintedUakt" },
+  sinkMintedTransfers: { getter: totals => totals.mintedTransfers, dashboardKey: "mintedTransfers" },
+  dailySinkMintedTransfers: { getter: totals => totals.mintedTransfers, isRelative: true, dashboardKey: "dailyMintedTransfers" },
+  sinkPendingUakt: { getter: totals => totals.pendingUakt, dashboardKey: "pendingUakt" },
+  sinkVoidedUakt: { getter: totals => totals.voidedUakt, dashboardKey: "voidedUakt" },
+  sinkRefundPendingUakt: { getter: totals => totals.refundPendingUakt, dashboardKey: "refundPendingUakt" },
+  sinkRefundedUakt: { getter: totals => totals.refundedUakt, dashboardKey: "refundedUakt" }
+};
+
 @singleton()
 export class StatsService {
   constructor(
@@ -224,6 +244,10 @@ export class StatsService {
   }
 
   async getGraphData(dataName: AuthorizedGraphDataName): Promise<GraphDataResponse> {
+    if (isSinkGraphDataName(dataName)) {
+      return this.getSinkGraphData(dataName);
+    }
+
     switch (dataName) {
       case "gpuUtilization":
         return this.getGpuUtilization();
@@ -234,7 +258,33 @@ export class StatsService {
     }
   }
 
-  private async getBlockGraphData(dataName: Exclude<AuthorizedGraphDataName, "gpuUtilization" | "collateralRatio">): Promise<GraphDataResponse> {
+  private async getSinkGraphData(dataName: SinkGraphDataName): Promise<GraphDataResponse> {
+    const config = sinkMetrics[dataName];
+    const [dailyTotals, dashboardData] = await Promise.all([this.findSinkDailyTotals(), this.getSinkDashboardData()]);
+    const stats = dailyTotals.map(totals => ({ date: totals.date, value: config.getter(totals) }));
+
+    return {
+      currentValue: dashboardData.now[config.dashboardKey],
+      compareValue: dashboardData.compare[config.dashboardKey],
+      snapshots: config.isRelative ? toRelativeValues(stats) : stats
+    };
+  }
+
+  @Memoize({ ttlInSeconds: minutesToSeconds(1) })
+  private async findSinkDailyTotals(): Promise<SinkTotalsRow[]> {
+    return this.statsRepository.findSinkDailyTotals();
+  }
+
+  @Memoize({ ttlInSeconds: minutesToSeconds(1) })
+  async getSinkDashboardData(): Promise<SinkDashboardDataResponse> {
+    const { now, compare, secondCompare } = await this.statsRepository.findSinkDashboardData();
+
+    return { now: toSinkPeriodData(now, compare), compare: toSinkPeriodData(compare, secondCompare) };
+  }
+
+  private async getBlockGraphData(
+    dataName: Exclude<AuthorizedGraphDataName, "gpuUtilization" | "collateralRatio" | SinkGraphDataName>
+  ): Promise<GraphDataResponse> {
     const config = blockMetrics[dataName];
     if (!config) {
       throw new Error(`Unknown graph data name: ${dataName}`);
@@ -630,6 +680,24 @@ function toRelativeValues(stats: DateValue[]): DateValue[] {
     date: dataPoint.date,
     value: dataPoint.value - (index > 0 ? stats[index - 1].value : 0)
   }));
+}
+
+function toSinkPeriodData(totals: SinkTotalsRow, previousTotals: SinkTotalsRow): SinkPeriodData {
+  return {
+    date: totals.date.toISOString(),
+    mintedUakt: totals.mintedUakt,
+    dailyMintedUakt: totals.mintedUakt - previousTotals.mintedUakt,
+    mintedTransfers: totals.mintedTransfers,
+    dailyMintedTransfers: totals.mintedTransfers - previousTotals.mintedTransfers,
+    pendingUakt: totals.pendingUakt,
+    pendingTransfers: totals.pendingTransfers,
+    voidedUakt: totals.voidedUakt,
+    voidedTransfers: totals.voidedTransfers,
+    refundPendingUakt: totals.refundPendingUakt,
+    refundPendingTransfers: totals.refundPendingTransfers,
+    refundedUakt: totals.refundedUakt,
+    refundedTransfers: totals.refundedTransfers
+  };
 }
 
 function buildStatItem(active: number, pending: number, available: number): StatsItem {

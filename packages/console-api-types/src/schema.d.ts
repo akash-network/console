@@ -5209,7 +5209,15 @@ export interface paths {
             | "dailyNetAktBurned"
             | "outstandingAct"
             | "vaultAkt"
-            | "collateralRatio";
+            | "collateralRatio"
+            | "sinkMintedUakt"
+            | "dailySinkMintedUakt"
+            | "sinkMintedTransfers"
+            | "dailySinkMintedTransfers"
+            | "sinkPendingUakt"
+            | "sinkVoidedUakt"
+            | "sinkRefundPendingUakt"
+            | "sinkRefundedUakt";
         };
         cookie?: never;
       };
@@ -5352,6 +5360,73 @@ export interface paths {
               /** @example 1.5 */
               collateralRatio: number;
             }[];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/sink/dashboard-data": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get the totals of AKT transferred to Solana through the sink module */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Returns the current sink totals and the totals of 24 hours earlier */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              now: {
+                date: string;
+                mintedUakt: number;
+                dailyMintedUakt: number;
+                mintedTransfers: number;
+                dailyMintedTransfers: number;
+                pendingUakt: number;
+                pendingTransfers: number;
+                voidedUakt: number;
+                voidedTransfers: number;
+                refundPendingUakt: number;
+                refundPendingTransfers: number;
+                refundedUakt: number;
+                refundedTransfers: number;
+              };
+              compare: {
+                date: string;
+                mintedUakt: number;
+                dailyMintedUakt: number;
+                mintedTransfers: number;
+                dailyMintedTransfers: number;
+                pendingUakt: number;
+                pendingTransfers: number;
+                voidedUakt: number;
+                voidedTransfers: number;
+                refundPendingUakt: number;
+                refundPendingTransfers: number;
+                refundedUakt: number;
+                refundedTransfers: number;
+              };
+            };
           };
         };
       };

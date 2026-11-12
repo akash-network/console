@@ -20590,7 +20590,15 @@
                 "dailyNetAktBurned",
                 "outstandingAct",
                 "vaultAkt",
-                "collateralRatio"
+                "collateralRatio",
+                "sinkMintedUakt",
+                "dailySinkMintedUakt",
+                "sinkMintedTransfers",
+                "dailySinkMintedTransfers",
+                "sinkPendingUakt",
+                "sinkVoidedUakt",
+                "sinkRefundPendingUakt",
+                "sinkRefundedUakt"
               ]
             },
             "required": true,
@@ -20845,6 +20853,151 @@
                       "collateralRatio"
                     ]
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sink/dashboard-data": {
+      "get": {
+        "summary": "Get the totals of AKT transferred to Solana through the sink module",
+        "tags": [
+          "Analytics"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Returns the current sink totals and the totals of 24 hours earlier",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "now": {
+                      "type": "object",
+                      "properties": {
+                        "date": {
+                          "type": "string"
+                        },
+                        "mintedUakt": {
+                          "type": "number"
+                        },
+                        "dailyMintedUakt": {
+                          "type": "number"
+                        },
+                        "mintedTransfers": {
+                          "type": "number"
+                        },
+                        "dailyMintedTransfers": {
+                          "type": "number"
+                        },
+                        "pendingUakt": {
+                          "type": "number"
+                        },
+                        "pendingTransfers": {
+                          "type": "number"
+                        },
+                        "voidedUakt": {
+                          "type": "number"
+                        },
+                        "voidedTransfers": {
+                          "type": "number"
+                        },
+                        "refundPendingUakt": {
+                          "type": "number"
+                        },
+                        "refundPendingTransfers": {
+                          "type": "number"
+                        },
+                        "refundedUakt": {
+                          "type": "number"
+                        },
+                        "refundedTransfers": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "date",
+                        "mintedUakt",
+                        "dailyMintedUakt",
+                        "mintedTransfers",
+                        "dailyMintedTransfers",
+                        "pendingUakt",
+                        "pendingTransfers",
+                        "voidedUakt",
+                        "voidedTransfers",
+                        "refundPendingUakt",
+                        "refundPendingTransfers",
+                        "refundedUakt",
+                        "refundedTransfers"
+                      ]
+                    },
+                    "compare": {
+                      "type": "object",
+                      "properties": {
+                        "date": {
+                          "type": "string"
+                        },
+                        "mintedUakt": {
+                          "type": "number"
+                        },
+                        "dailyMintedUakt": {
+                          "type": "number"
+                        },
+                        "mintedTransfers": {
+                          "type": "number"
+                        },
+                        "dailyMintedTransfers": {
+                          "type": "number"
+                        },
+                        "pendingUakt": {
+                          "type": "number"
+                        },
+                        "pendingTransfers": {
+                          "type": "number"
+                        },
+                        "voidedUakt": {
+                          "type": "number"
+                        },
+                        "voidedTransfers": {
+                          "type": "number"
+                        },
+                        "refundPendingUakt": {
+                          "type": "number"
+                        },
+                        "refundPendingTransfers": {
+                          "type": "number"
+                        },
+                        "refundedUakt": {
+                          "type": "number"
+                        },
+                        "refundedTransfers": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "date",
+                        "mintedUakt",
+                        "dailyMintedUakt",
+                        "mintedTransfers",
+                        "dailyMintedTransfers",
+                        "pendingUakt",
+                        "pendingTransfers",
+                        "voidedUakt",
+                        "voidedTransfers",
+                        "refundPendingUakt",
+                        "refundPendingTransfers",
+                        "refundedUakt",
+                        "refundedTransfers"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "now",
+                    "compare"
+                  ]
                 }
               }
             }

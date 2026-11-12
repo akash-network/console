@@ -43,6 +43,34 @@ export type BmeDashboardRow = {
   totalUaktReminted: number;
 };
 
+export type SinkTotalsRow = {
+  date: Date;
+  pendingUakt: number;
+  pendingTransfers: number;
+  mintedUakt: number;
+  mintedTransfers: number;
+  voidedUakt: number;
+  voidedTransfers: number;
+  refundPendingUakt: number;
+  refundPendingTransfers: number;
+  refundedUakt: number;
+  refundedTransfers: number;
+};
+
+type SinkDashboardPeriod = "now" | "compare" | "second_compare";
+
+const SINK_TOTALS_COLUMNS = `
+          COALESCE(s."pending_amount", 0)::float AS "pendingUakt",
+          COALESCE(s."pending_count", 0) AS "pendingTransfers",
+          COALESCE(s."minted_amount", 0)::float AS "mintedUakt",
+          COALESCE(s."minted_count", 0) AS "mintedTransfers",
+          COALESCE(s."voided_amount", 0)::float AS "voidedUakt",
+          COALESCE(s."voided_count", 0) AS "voidedTransfers",
+          COALESCE(s."refund_pending_amount", 0)::float AS "refundPendingUakt",
+          COALESCE(s."refund_pending_count", 0) AS "refundPendingTransfers",
+          COALESCE(s."refunded_amount", 0)::float AS "refundedUakt",
+          COALESCE(s."refunded_count", 0) AS "refundedTransfers"`;
+
 @injectable()
 export class StatsRepository {
   readonly #chainDb: Sequelize;
@@ -285,6 +313,73 @@ export class StatsRepository {
     return { now: nowRow, compare: compareRow, secondCompare: secondCompareRow };
   }
 
+  async findSinkDailyTotals(): Promise<SinkTotalsRow[]> {
+    return this.#chainDb.query<SinkTotalsRow>(
+      `/* dashboard-stats:sink-daily-totals */ SELECT
+          d."date",${SINK_TOTALS_COLUMNS}
+        FROM "day" d
+        CROSS JOIN LATERAL (
+          SELECT t.*
+          FROM "sink_totals_snapshot" t
+          WHERE t."height" <= COALESCE(d."lastBlockHeight", d."lastBlockHeightYet")
+          ORDER BY t."height" DESC
+          LIMIT 1
+        ) s
+        WHERE d."firstBlockHeight" <= (
+          SELECT b."height"
+          FROM "block" b
+          WHERE b."isProcessed" = true
+          ORDER BY b."height" DESC
+          LIMIT 1
+        )
+        ORDER BY d."date" ASC`,
+      { type: QueryTypes.SELECT }
+    );
+  }
+
+  async findSinkDashboardData(): Promise<{ now: SinkTotalsRow; compare: SinkTotalsRow; secondCompare: SinkTotalsRow }> {
+    const rows = await this.#chainDb.query<SinkTotalsRow & { period: SinkDashboardPeriod }>(
+      `/* dashboard-stats:sink-dashboard */ WITH latest AS (
+          SELECT b."datetime"
+          FROM "block" b
+          WHERE b."isProcessed" = true
+          ORDER BY b."height" DESC
+          LIMIT 1
+        ), periods AS (
+          SELECT 'now' AS "period", latest."datetime" AS "date" FROM latest
+          UNION ALL
+          SELECT 'compare' AS "period", latest."datetime" - INTERVAL '24 hours' AS "date" FROM latest
+          UNION ALL
+          SELECT 'second_compare' AS "period", latest."datetime" - INTERVAL '48 hours' AS "date" FROM latest
+        )
+        SELECT
+          p."period",
+          p."date",${SINK_TOTALS_COLUMNS}
+        FROM periods p
+        LEFT JOIN LATERAL (
+          SELECT t.*
+          FROM "sink_totals_snapshot" t
+          WHERE t."height" <= (
+            SELECT b."height"
+            FROM "block" b
+            WHERE b."datetime" <= p."date"
+            ORDER BY b."datetime" DESC
+            LIMIT 1
+          )
+          ORDER BY t."height" DESC
+          LIMIT 1
+        ) s ON true`,
+      { type: QueryTypes.SELECT }
+    );
+
+    const findPeriod = (period: SinkDashboardPeriod): SinkTotalsRow => {
+      const { period: _period, ...totals } = rows.find(row => row.period === period) ?? { period, ...emptySinkTotals() };
+      return totals;
+    };
+
+    return { now: findPeriod("now"), compare: findPeriod("compare"), secondCompare: findPeriod("second_compare") };
+  }
+
   async findClosedLeases(owner: string, query: { dseq?: string; startDate: Date; endDate: Date }, options: { limit: number }) {
     const { dseq, startDate, endDate } = query;
     return Lease.findAll({
@@ -308,4 +403,20 @@ export class StatsRepository {
       limit: options.limit
     });
   }
+}
+
+function emptySinkTotals(): SinkTotalsRow {
+  return {
+    date: new Date(),
+    pendingUakt: 0,
+    pendingTransfers: 0,
+    mintedUakt: 0,
+    mintedTransfers: 0,
+    voidedUakt: 0,
+    voidedTransfers: 0,
+    refundPendingUakt: 0,
+    refundPendingTransfers: 0,
+    refundedUakt: 0,
+    refundedTransfers: 0
+  };
 }
