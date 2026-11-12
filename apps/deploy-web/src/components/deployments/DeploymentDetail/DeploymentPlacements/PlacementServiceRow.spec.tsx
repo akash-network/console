@@ -175,7 +175,7 @@ describe(PlacementServiceRow.name, () => {
     setup({
       detail: {
         image: "ghcr.io/acmecorp/llm-gateway:0.9.4",
-        resources: { gpuUnits: 0, cpu: 1, memory: 2 * 1024 ** 3, storage: 10 * 1024 ** 3 }
+        resources: { gpuUnits: 0, cpu: 1, memory: 2 * 1024 ** 3, ephemeralStorage: 10 * 1024 ** 3 }
       }
     });
 
@@ -186,7 +186,28 @@ describe(PlacementServiceRow.name, () => {
     expect(screen.getByText("vCPU")).toBeInTheDocument();
     expect(screen.getByText("Memory")).toBeInTheDocument();
     expect(screen.getByText("2.15 GB")).toBeInTheDocument();
-    expect(screen.getByText("Storage")).toBeInTheDocument();
+    expect(screen.getByText("Ephemeral storage")).toBeInTheDocument();
+    expect(screen.getByText("10.74 GB")).toBeInTheDocument();
+    expect(screen.queryByText("Persistent storage")).not.toBeInTheDocument();
+    expect(screen.queryByText("RAM storage")).not.toBeInTheDocument();
+  });
+
+  it("names persistent and RAM storage apart from ephemeral storage", async () => {
+    setup({
+      detail: {
+        image: "nginx:1.25",
+        resources: { gpuUnits: 0, cpu: 2, memory: 4 * 1024 ** 3, ephemeralStorage: 1024 ** 3, persistentStorage: 25 * 1024 ** 3, ramStorage: 3 * 1024 ** 3 }
+      }
+    });
+
+    await expandService();
+
+    expect(screen.getByText("Ephemeral storage")).toBeInTheDocument();
+    expect(screen.getByText("1.07 GB")).toBeInTheDocument();
+    expect(screen.getByText("Persistent storage")).toBeInTheDocument();
+    expect(screen.getByText("26.84 GB")).toBeInTheDocument();
+    expect(screen.getByText("RAM storage")).toBeInTheDocument();
+    expect(screen.getByText("3.22 GB")).toBeInTheDocument();
   });
 
   it("does not show env vars or command", async () => {

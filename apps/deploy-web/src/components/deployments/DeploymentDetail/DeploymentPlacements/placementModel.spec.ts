@@ -35,7 +35,7 @@ describe("placementModel", () => {
       const result = parseManifestServices(manifest);
 
       expect(result.web.image).toBe("nginx:latest");
-      expect(result.web.resources).toEqual({ cpu: 2, gpuUnits: 0, memory: 512 * 1024 ** 2, storage: 1024 ** 3 });
+      expect(result.web.resources).toEqual({ cpu: 2, gpuUnits: 0, memory: 512 * 1024 ** 2, ephemeralStorage: 1024 ** 3 });
     });
 
     it("reads gpu units from the compute profile", () => {
@@ -45,6 +45,49 @@ describe("placementModel", () => {
       });
 
       expect(parseManifestServices(manifest).ml.resources?.gpuUnits).toBe(1);
+    });
+
+    it("sums every storage volume of a service by kind", () => {
+      const manifest = buildManifestWithStorage([
+        { size: "1Gi" },
+        { name: "data", size: "25Gi", attributes: { persistent: true, class: "beta3" } },
+        { name: "cache", size: "2Gi", attributes: { persistent: "true", class: "beta2" } },
+        { name: "shm", size: "512Mi", attributes: { class: "ram" } },
+        { name: "scratch", size: "3Gi", attributes: { persistent: false } }
+      ]);
+
+      expect(parseManifestServices(manifest).web.resources).toMatchObject({
+        ephemeralStorage: 4 * 1024 ** 3,
+        persistentStorage: 27 * 1024 ** 3,
+        ramStorage: 512 * 1024 ** 2
+      });
+    });
+
+    it("leaves a storage kind the service does not use undefined", () => {
+      const manifest = buildManifestWithStorage([{ size: "1Gi" }]);
+
+      const resources = parseManifestServices(manifest).web.resources;
+
+      expect(resources?.persistentStorage).toBeUndefined();
+      expect(resources?.ramStorage).toBeUndefined();
+    });
+
+    it("reads no storage for a compute profile that sets none", () => {
+      const manifest = yaml.dump({
+        services: { web: { image: "nginx" } },
+        profiles: { compute: { web: { resources: { cpu: { units: 1 }, memory: { size: "1Gi" } } } } }
+      });
+
+      expect(parseManifestServices(manifest).web.resources).toEqual({ cpu: 1, gpuUnits: 0, memory: 1024 ** 3 });
+    });
+
+    it("skips a storage volume without a size", () => {
+      const manifest = buildManifestWithStorage([{ size: "1Gi" }, { name: "data", attributes: { persistent: true } }]);
+
+      const resources = parseManifestServices(manifest).web.resources;
+
+      expect(resources?.ephemeralStorage).toBe(1024 ** 3);
+      expect(resources?.persistentStorage).toBeUndefined();
     });
 
     it("parses env vars and the joined command", () => {
@@ -78,7 +121,7 @@ describe("placementModel", () => {
         cpu: 1,
         gpuUnits: 0,
         memory: 256 * 1024 ** 2,
-        storage: 1024 ** 3
+        ephemeralStorage: 1024 ** 3
       });
     });
 
@@ -518,6 +561,13 @@ function buildPoll(availableByService: Record<string, number> | null | undefined
     },
     error: input?.error ?? null
   };
+}
+
+function buildManifestWithStorage(storage: Array<{ name?: string; size?: string; attributes?: Record<string, unknown> }>) {
+  return yaml.dump({
+    services: { web: { image: "nginx" } },
+    profiles: { compute: { web: { resources: { cpu: { units: 1 }, memory: { size: "1Gi" }, storage } } } }
+  });
 }
 
 function buildManifest(input: {
