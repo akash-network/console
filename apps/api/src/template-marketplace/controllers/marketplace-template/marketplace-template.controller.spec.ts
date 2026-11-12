@@ -2,8 +2,8 @@ import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { TemplateVersionSummary } from "@src/template-marketplace/repositories/template-version/template-version.repository";
 import type {
+  ListedTemplateVersion,
   MarketplaceTemplateOutput,
   MarketplaceTemplateService,
   PublishedTemplateVersion,
@@ -27,7 +27,8 @@ describe(MarketplaceTemplateController.name, () => {
           ...template,
           createdAt: template.createdAt.toISOString(),
           updatedAt: template.updatedAt.toISOString(),
-          currentVersion: publishedVersionOf(version)
+          currentVersion: publishedVersionOf(version),
+          usage: { ...template.usage, lastDeployedAt: template.usage.lastDeployedAt!.toISOString() }
         }
       });
       expect(service.getTemplate).toHaveBeenCalledWith(template.id);
@@ -42,14 +43,24 @@ describe(MarketplaceTemplateController.name, () => {
 
       expect(result.data.currentVersion).toBeNull();
     });
+
+    it("answers a template never deployed without a last deploy", async () => {
+      const template = createTemplate({ usage: { deploys: 0, lastDeployedAt: null, stillUpAfter24h: null } });
+      const { controller, service } = setup();
+      service.getTemplate.mockResolvedValue(template);
+
+      const result = await controller.getTemplate(template.id);
+
+      expect(result.data.usage).toEqual({ deploys: 0, lastDeployedAt: null, stillUpAfter24h: null });
+    });
   });
 
   describe("listVersions", () => {
     it("answers the version summaries with ISO dates and without their creators' internal ids", async () => {
       const templateId = faker.string.uuid();
-      const summaries: TemplateVersionSummary[] = [2, 1].map(version => {
+      const summaries: ListedTemplateVersion[] = [2, 1].map(version => {
         const { sdl: _sdl, readme: _readme, askedValues: _askedValues, ...summary } = createVersion({ templateId, version });
-        return summary;
+        return { ...summary, deploys: version * 3 };
       });
       const { controller, service } = setup();
       service.listVersions.mockResolvedValue(summaries);
@@ -88,7 +99,8 @@ describe(MarketplaceTemplateController.name, () => {
           ...template,
           createdAt: template.createdAt.toISOString(),
           updatedAt: template.updatedAt.toISOString(),
-          currentVersion: publishedVersionOf(template.currentVersion!)
+          currentVersion: publishedVersionOf(template.currentVersion!),
+          usage: { ...template.usage, lastDeployedAt: template.usage.lastDeployedAt!.toISOString() }
         }
       });
       expect(writer.create).toHaveBeenCalledWith(data);
@@ -112,7 +124,7 @@ describe(MarketplaceTemplateController.name, () => {
   describe("listTemplates", () => {
     it("answers the organization's templates with ISO dates", async () => {
       const item = createListItem();
-      const unversioned = createListItem({ currentVersion: null, lastEditedBy: null });
+      const unversioned = createListItem({ currentVersion: null, lastEditedBy: null, usage: { deploys: 0, lastDeployedAt: null } });
       const { controller, service } = setup();
       service.listInOrganization.mockResolvedValue([item, unversioned]);
       const query = { visibility: "organization" as const, projectId: faker.string.uuid() };
@@ -124,7 +136,8 @@ describe(MarketplaceTemplateController.name, () => {
           {
             ...item,
             updatedAt: item.updatedAt.toISOString(),
-            currentVersion: { ...item.currentVersion, createdAt: item.currentVersion!.createdAt.toISOString() }
+            currentVersion: { ...item.currentVersion, createdAt: item.currentVersion!.createdAt.toISOString() },
+            usage: { deploys: item.usage.deploys, lastDeployedAt: item.usage.lastDeployedAt!.toISOString() }
           },
           { ...unversioned, updatedAt: unversioned.updatedAt.toISOString() }
         ]
@@ -147,7 +160,8 @@ describe(MarketplaceTemplateController.name, () => {
           ...template,
           createdAt: template.createdAt.toISOString(),
           updatedAt: template.updatedAt.toISOString(),
-          currentVersion: publishedVersionOf(template.currentVersion!)
+          currentVersion: publishedVersionOf(template.currentVersion!),
+          usage: { ...template.usage, lastDeployedAt: template.usage.lastDeployedAt!.toISOString() }
         }
       });
       expect(writer.updateSettings).toHaveBeenCalledWith(template.id, data);
@@ -181,6 +195,7 @@ describe(MarketplaceTemplateController.name, () => {
       currentVersion: { version: 3, status: "live", createdAt: faker.date.recent() },
       lastEditedBy: { username: faker.internet.userName() },
       canEdit: true,
+      usage: { deploys: faker.number.int({ min: 1, max: 100 }), lastDeployedAt: faker.date.recent() },
       ...overrides
     };
   }
@@ -227,6 +242,7 @@ describe(MarketplaceTemplateController.name, () => {
       currentVersion: createVersion(),
       canEdit: false,
       isFavorite: false,
+      usage: { deploys: faker.number.int({ min: 1, max: 100 }), lastDeployedAt: faker.date.recent(), stillUpAfter24h: 0.8 },
       ...overrides
     };
   }

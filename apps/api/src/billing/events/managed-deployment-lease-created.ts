@@ -14,6 +14,8 @@ export class ManagedDeploymentLeaseCreated implements DomainEvent {
       dseq: string;
       /** The date and time the lease was created in ISO string format. */
       createdAt: string;
+      /** Whether the wallet was trialing when the lease was signed; absent on events published before it was carried. */
+      isTrialing?: boolean;
     }
   ) {}
 }

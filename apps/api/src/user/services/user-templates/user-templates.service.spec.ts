@@ -9,6 +9,7 @@ import type { TxService } from "@src/core/services";
 import type { DeploymentProjectService } from "@src/deployment/services/deployment-project/deployment-project.service";
 import { summarizeTemplateHardware } from "@src/template/utils/template-hardware/template-hardware";
 import type { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
+import type { TemplateUsageService } from "@src/template-marketplace/services/template-usage/template-usage.service";
 import type { UserOutput } from "@src/user/repositories";
 import type { TemplateInput, TemplateOutput, TemplateVersionState, UserTemplateRepository } from "../../repositories/user-template/user-template.repository";
 import { UserTemplatesService } from "./user-templates.service";
@@ -534,7 +535,7 @@ describe(UserTemplatesService.name, () => {
       const userId = faker.string.uuid();
       const templateId = faker.string.uuid();
 
-      userTemplateRepository.addFavorite.mockResolvedValue();
+      userTemplateRepository.addFavorite.mockResolvedValue(true);
 
       await service.addFavoriteTemplate(userId, templateId);
 
@@ -558,10 +559,51 @@ describe(UserTemplatesService.name, () => {
       const userId = faker.string.uuid();
       const templateId = faker.string.uuid();
 
-      userTemplateRepository.removeFavorite.mockResolvedValue();
+      userTemplateRepository.removeFavorite.mockResolvedValue(true);
 
       await service.removeFavoriteTemplate(userId, templateId);
 
+      expect(userTemplateRepository.removeFavorite).toHaveBeenCalledWith(userId, templateId);
+    });
+  });
+
+  describe("when favorites change", () => {
+    it("records a favorite only when it was added", async () => {
+      const { service, userTemplateRepository, templateUsageService } = setup();
+      const templateId = faker.string.uuid();
+      userTemplateRepository.addFavorite.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+
+      await service.addFavoriteTemplate(faker.string.uuid(), templateId);
+      await service.addFavoriteTemplate(faker.string.uuid(), templateId);
+
+      expect(templateUsageService.recordFavorite).toHaveBeenCalledTimes(1);
+      expect(templateUsageService.recordFavorite).toHaveBeenCalledWith(templateId, "favorite");
+    });
+
+    it("records an unfavorite only when one was removed", async () => {
+      const { service, userTemplateRepository, templateUsageService } = setup();
+      const templateId = faker.string.uuid();
+      userTemplateRepository.removeFavorite.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+
+      await service.removeFavoriteTemplate(faker.string.uuid(), templateId);
+      await service.removeFavoriteTemplate(faker.string.uuid(), templateId);
+
+      expect(templateUsageService.recordFavorite).toHaveBeenCalledTimes(1);
+      expect(templateUsageService.recordFavorite).toHaveBeenCalledWith(templateId, "unfavorite");
+    });
+
+    it("answers the favorite routes without a value and with the legacy repository arguments", async () => {
+      const { service, userTemplateRepository, templateUsageService } = setup();
+      const userId = faker.string.uuid();
+      const templateId = faker.string.uuid();
+      userTemplateRepository.addFavorite.mockResolvedValue(true);
+      userTemplateRepository.removeFavorite.mockResolvedValue(true);
+      templateUsageService.recordFavorite.mockResolvedValue();
+
+      const answers = [await service.addFavoriteTemplate(userId, templateId), await service.removeFavoriteTemplate(userId, templateId)];
+
+      expect(answers).toEqual([undefined, undefined]);
+      expect(userTemplateRepository.addFavorite).toHaveBeenCalledWith(userId, templateId, userId);
       expect(userTemplateRepository.removeFavorite).toHaveBeenCalledWith(userId, templateId);
     });
   });
@@ -579,9 +621,26 @@ describe(UserTemplatesService.name, () => {
     userTemplateRepository.findVersionState.mockResolvedValue(createVersionState());
     const txService = mock<TxService>();
     txService.transaction.mockImplementation(async cb => await cb());
-    const service = new UserTemplatesService(userTemplateRepository, authService, deploymentProjectService, templateVersionRepository, txService);
+    const templateUsageService = mock<TemplateUsageService>();
+    const service = new UserTemplatesService(
+      userTemplateRepository,
+      authService,
+      deploymentProjectService,
+      templateVersionRepository,
+      txService,
+      templateUsageService
+    );
 
-    return { service, userTemplateRepository, deploymentProjectService, templateVersionRepository, txService, user, ability };
+    return {
+      service,
+      userTemplateRepository,
+      deploymentProjectService,
+      templateVersionRepository,
+      txService,
+      user,
+      ability,
+      templateUsageService
+    };
   }
 
   function createVersionState(overrides: Partial<TemplateVersionState> = {}): TemplateVersionState {

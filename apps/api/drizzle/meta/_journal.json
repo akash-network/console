@@ -946,6 +946,20 @@
       "when": 1794517324314,
       "tag": "0134_template_version_changes",
       "breakpoints": true
+    },
+    {
+      "idx": 135,
+      "version": "7",
+      "when": 1794519858474,
+      "tag": "0135_template_usage_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 136,
+      "version": "7",
+      "when": 1794519859376,
+      "tag": "0136_deployment_template_version",
+      "breakpoints": true
     }
   ]
 }

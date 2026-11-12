@@ -24,6 +24,8 @@ import { ManagedSignerService } from "@src/billing/services/managed-signer/manag
 import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { type CreateLogger, JOB_NAME, JobQueueService, LOGGER_FACTORY, TxService } from "@src/core";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { MAX_SUBMITTED_SDL_LENGTH, SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import {
   assignsAnyServiceField,
@@ -99,6 +101,8 @@ import {
 import { findMissingGlobalExposure } from "@src/deployment/utils/sdl-manifest/sdl-manifest";
 import { failedUpdateActivityOf, pendingUpdateActivityOf, renamedActivityOf, updatedActivityOf } from "@src/deployment/utils/update-activity/update-activity";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
+import { MarketplaceTemplateService } from "@src/template-marketplace/services/marketplace-template/marketplace-template.service";
+import { TemplateUsageService } from "@src/template-marketplace/services/template-usage/template-usage.service";
 import { UserRepository } from "@src/user/repositories";
 import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
 import { denomToUdenom } from "@src/utils/math";
@@ -280,7 +284,10 @@ export class DeploymentWriterService {
     private readonly chainErrorService: ChainErrorService,
     private readonly deploymentPresenceService: DeploymentPresenceService,
     private readonly userGpuBidCheckService: UserGpuBidCheckService,
-    private readonly userRepository: UserRepository
+    private readonly userRepository: UserRepository,
+    private readonly featureFlagsService: FeatureFlagsService,
+    private readonly marketplaceTemplateService: MarketplaceTemplateService,
+    private readonly templateUsageService: TemplateUsageService
   ) {
     this.logger = createLogger({ context: DeploymentWriterService.name });
   }
@@ -361,6 +368,7 @@ export class DeploymentWriterService {
     /** SDL for storage ONLY, and the values taken out of it. Never stands in for the submitted document anywhere a hash is taken. */
     const { sdl, storedDocument, derived } = this.#storedSdlOf(input.sdl, storedValuesFor(input));
 
+    const templateVersionId = await this.#deployableTemplateVersionIdOf(input);
     const projectId = await this.deploymentProjectService.resolveFilingProject(input.projectId);
     const wallet = await this.walletReaderService.getWalletByUserId(input.userId);
     const depositInDollars = this.deploymentConfig.get("DEPLOYMENT_DEFAULT_DEPOSIT");
@@ -403,7 +411,8 @@ export class DeploymentWriterService {
       runtimeLimitHours: input.runtimeLimitHours,
       name: input.name ?? deriveDeploymentName(manifest.groups),
       projectId,
-      templateId: input.templateId
+      templateId: input.templateId,
+      templateVersionId
     });
     await this.#markOnboarded(input.userId);
 
@@ -412,6 +421,15 @@ export class DeploymentWriterService {
       manifest: unresolvedManifest,
       organizationId: wallet.organizationId
     };
+  }
+
+  async #deployableTemplateVersionIdOf(input: Pick<CreateDeploymentRequest["data"], "templateId" | "templateVersionId"> & { userId: string }) {
+    if (!input.templateVersionId || !this.featureFlagsService.isEnabled(FeatureFlags.TEMPLATE_MARKETPLACE, { userId: input.userId })) return undefined;
+    if (input.templateId) throw createError(400, "Name either templateId or templateVersionId, not both");
+
+    const { versionId } = await this.marketplaceTemplateService.findDeployableVersion(input.templateVersionId);
+
+    return versionId;
   }
 
   /** A user whose first create was accepted is past onboarding, and a failure to say so never costs them the create. */
@@ -451,14 +469,15 @@ export class DeploymentWriterService {
       throw error;
     }
 
-    await this.#settleCreated(accepted, wallet);
+    await this.#settleCreated(accepted, wallet, definition);
 
     return tx;
   }
 
-  async #settleCreated(accepted: AcceptedDeploymentCreate, wallet: WalletInitialized): Promise<void> {
+  async #settleCreated(accepted: AcceptedDeploymentCreate, wallet: WalletInitialized, definition: DeploymentSettingsOutput): Promise<void> {
     await this.retireCompensation({ userId: accepted.userId, dseq: accepted.dseq });
     await this.deploymentOrganizationActivityService.recordCreated({ wallet, dseq: accepted.dseq }, accepted.userId);
+    await this.templateUsageService.recordDeployed(definition, wallet);
   }
 
   /** Answers only once the chain can, for a create nothing is still sending: a deployment at the recorded version is adopted, an absence is believed only past the last create sent, and anything between throws for a retry. */
@@ -541,7 +560,7 @@ export class DeploymentWriterService {
     this.logger.info({ event: "DEPLOYMENT_CREATE_ADOPTED", userId: accepted.userId, walletId: wallet.id, dseq: accepted.dseq });
 
     await this.signerService.followUpLandedTx(wallet, [message], filingOf(accepted, definition));
-    await this.#settleCreated(accepted, wallet);
+    await this.#settleCreated(accepted, wallet, definition);
 
     return { code: COSMOS_TX_CODE_OK, hash: "", transactionHash: "", rawLog: "" };
   }
@@ -558,6 +577,7 @@ export class DeploymentWriterService {
     name?: string;
     projectId?: string;
     templateId?: string;
+    templateVersionId?: string;
   }): Promise<void> {
     const { owner, ...definition } = input;
 
@@ -616,6 +636,7 @@ export class DeploymentWriterService {
     name?: string;
     projectId?: string;
     templateId?: string;
+    templateVersionId?: string;
   }): Promise<string> {
     const { manifestVersion, ...rest } = input;
     const { sdl, sealedSecrets, ...loggable } = rest;

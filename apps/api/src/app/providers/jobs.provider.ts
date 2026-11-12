@@ -52,6 +52,7 @@ import { OrganizationInvitationEmailHandler } from "@src/organization/services/o
 import { ProjectBudgetAlertHandler } from "@src/organization/services/project-budget-alert/project-budget-alert.handler";
 import { PurgeOrganizationInvitationEmailsHandler } from "@src/organization/services/purge-organization-invitation-emails/purge-organization-invitation-emails.handler";
 import { TeamOrganizationDeletedHandler } from "@src/organization/services/team-organization-deleted/team-organization-deleted.handler";
+import { CheckTemplateDeploymentStillRunningHandler } from "@src/template-marketplace/services/check-template-deployment-still-running/check-template-deployment-still-running.handler";
 import { AccountStatusChangedHandler } from "@src/user/services/account-status-changed/account-status-changed.handler";
 import { ApplyAccountTerminationHandler } from "@src/user/services/apply-account-termination/apply-account-termination.handler";
 import { CloseAccountDeploymentsHandler } from "@src/user/services/close-account-deployments/close-account-deployments.handler";
@@ -125,6 +126,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(RecordLeaseGpuOffersHandler),
     container.resolve(ManagedDeploymentLeaseCreatedHandler),
     container.resolve(GpuWinBackCheckHandler),
+    container.resolve(CheckTemplateDeploymentStillRunningHandler),
     container.resolve(EnforceTrialAbuseHandler),
     container.resolve(LockBlockedDomainWalletHandler),
     container.resolve(BlockEmailDomainOfWalletHandler),

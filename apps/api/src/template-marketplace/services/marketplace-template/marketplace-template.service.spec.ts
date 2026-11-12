@@ -11,6 +11,10 @@ import type {
   UserTemplateListRow
 } from "@src/template-marketplace/repositories/marketplace-template/marketplace-template.repository";
 import type {
+  TemplateUsageEventRepository,
+  TemplateUsageSummary
+} from "@src/template-marketplace/repositories/template-usage-event/template-usage-event.repository";
+import type {
   TemplateVersionOutput,
   TemplateVersionRepository,
   TemplateVersionSummary
@@ -68,7 +72,8 @@ describe(MarketplaceTemplateService.name, () => {
         publisher: { name: "Team", slug: "team", type: "team" },
         currentVersion: publishedVersion,
         canEdit: false,
-        isFavorite: false
+        isFavorite: false,
+        usage: { deploys: 0, lastDeployedAt: null, stillUpAfter24h: null }
       });
     });
 
@@ -126,6 +131,17 @@ describe(MarketplaceTemplateService.name, () => {
 
       expect(result.isFavorite).toBe(true);
       expect(userTemplateRepository.isFavorite).toHaveBeenCalledWith(template.id, user!.userId);
+    });
+
+    it("reports the template's usage", async () => {
+      const template = createTemplateRow();
+      const usage: TemplateUsageSummary = { deploys: 12, lastDeployedAt: faker.date.recent(), stillUpAfter24h: 0.75 };
+      const { service, templateUsageEventRepository } = setup({ template, usages: new Map([[template.id, usage]]) });
+
+      const result = await service.getTemplate(template.id);
+
+      expect(result.usage).toEqual(usage);
+      expect(templateUsageEventRepository.summarize).toHaveBeenCalledWith([template.id]);
     });
 
     it.each<[string, Partial<UserOutput> | null]>([
@@ -303,8 +319,24 @@ describe(MarketplaceTemplateService.name, () => {
 
       const result = await service.listVersions(template.id);
 
-      expect(result).toEqual(summaries);
+      expect(result).toEqual(summaries.map(summary => ({ ...summary, deploys: 0 })));
       expect(templateVersionRepository.listByTemplate).toHaveBeenCalledWith(template.id);
+    });
+
+    it("counts the deploys of each listed version", async () => {
+      const template = createTemplateRow();
+      const [second, first] = [createSummary({ templateId: template.id, version: 2 }), createSummary({ templateId: template.id, version: 1 })];
+      const { service, templateVersionRepository, templateUsageEventRepository } = setup({ template, rules: [{ action: "update", subject: "Template" }] });
+      templateVersionRepository.listByTemplate.mockResolvedValue([second, first]);
+      templateUsageEventRepository.countDeploysByVersion.mockResolvedValue(new Map([[first.id, 4]]));
+
+      const result = await service.listVersions(template.id);
+
+      expect(result.map(({ id, deploys }) => ({ id, deploys }))).toEqual([
+        { id: second.id, deploys: 0 },
+        { id: first.id, deploys: 4 }
+      ]);
+      expect(templateUsageEventRepository.countDeploysByVersion).toHaveBeenCalledWith(template.id);
     });
 
     it("lists only the current version to a caller who may not edit the template", async () => {
@@ -315,7 +347,7 @@ describe(MarketplaceTemplateService.name, () => {
 
       const result = await service.listVersions(template.id);
 
-      expect(result).toEqual([current]);
+      expect(result).toEqual([{ ...current, deploys: 0 }]);
     });
 
     it("refuses an unreadable template with 404", async () => {
@@ -386,6 +418,51 @@ describe(MarketplaceTemplateService.name, () => {
     });
   });
 
+  describe("findDeployableVersion", () => {
+    it("lets an editor deploy an earlier version", async () => {
+      const template = createTemplateRow();
+      const earlier = createVersion({ templateId: template.id, version: 1 });
+      const { service, repository, templateVersionRepository } = setup({ template, rules: [{ action: "update", subject: "Template" }] });
+      templateVersionRepository.findById.mockResolvedValue(earlier);
+
+      const result = await service.findDeployableVersion(earlier.id);
+
+      expect(result).toEqual({ templateId: template.id, versionId: earlier.id });
+      expect(templateVersionRepository.findById).toHaveBeenCalledWith(earlier.id);
+      expect(repository.findReadable).toHaveBeenCalledWith(template.id);
+    });
+
+    it("lets a reader deploy only the current version", async () => {
+      const current = createVersion({ version: 2 });
+      const template = createTemplateRow({ currentVersionId: current.id });
+      const earlier = createVersion({ templateId: template.id, version: 1 });
+      const { service, templateVersionRepository } = setup({ template, rules: [{ action: "read", subject: "Template" }] });
+      templateVersionRepository.findById.mockImplementation(async id => [current, earlier].find(version => version.id === id));
+
+      const results = await Promise.allSettled([service.findDeployableVersion(current.id), service.findDeployableVersion(earlier.id)]);
+
+      expect(results).toEqual([
+        { status: "fulfilled", value: { templateId: template.id, versionId: current.id } },
+        { status: "rejected", reason: expect.objectContaining({ status: 404, message: "Template version not found" }) }
+      ]);
+    });
+
+    it("refuses a version of a template the caller may not read with 404 naming the version", async () => {
+      const { service, templateVersionRepository } = setup({ template: undefined });
+      templateVersionRepository.findById.mockResolvedValue(createVersion());
+
+      await expect(service.findDeployableVersion(faker.string.uuid())).rejects.toMatchObject({ status: 404, message: "Template version not found" });
+    });
+
+    it("refuses an unknown version with 404 before looking for a template", async () => {
+      const { service, repository, templateVersionRepository } = setup();
+      templateVersionRepository.findById.mockResolvedValue(undefined);
+
+      await expect(service.findDeployableVersion(faker.string.uuid())).rejects.toMatchObject({ status: 404, message: "Template version not found" });
+      expect(repository.findReadable).not.toHaveBeenCalled();
+    });
+  });
+
   describe("listInOrganization", () => {
     it("lists the active organization's templates within the caller's read rules, at most 200", async () => {
       const organizationId = faker.string.uuid();
@@ -418,7 +495,8 @@ describe(MarketplaceTemplateService.name, () => {
           updatedAt: editable.updatedAt,
           currentVersion: editable.currentVersion,
           lastEditedBy: { username: "alice" },
-          canEdit: true
+          canEdit: true,
+          usage: { deploys: 0, lastDeployedAt: null }
         },
         expect.objectContaining({ id: readOnly.id, currentVersion: null, lastEditedBy: null, canEdit: false })
       ]);
@@ -440,6 +518,27 @@ describe(MarketplaceTemplateService.name, () => {
 
       expect(readableRepository.findReadableIds).toHaveBeenCalledWith([readableSourceId, unreadableSourceId]);
       expect(result.map(item => item.copiedFromId)).toEqual([readableSourceId, readableSourceId, null, null]);
+    });
+
+    it("shows each listed template's deploys and last deploy, read in one summary", async () => {
+      const organizationId = faker.string.uuid();
+      const [deployed, quiet] = [createListRow({ organizationId }), createListRow({ organizationId })];
+      const lastDeployedAt = faker.date.recent();
+      const { service, readableRepository, templateUsageEventRepository } = setup({
+        rules: [{ action: "read", subject: "Template" }],
+        activeOrganizationId: organizationId,
+        usages: new Map([[deployed.id, { deploys: 3, lastDeployedAt, stillUpAfter24h: 0.5 }]])
+      });
+      readableRepository.listInOrganization.mockResolvedValue([deployed, quiet]);
+
+      const result = await service.listInOrganization({});
+
+      expect(result.map(({ id, usage }) => ({ id, usage }))).toEqual([
+        { id: deployed.id, usage: { deploys: 3, lastDeployedAt } },
+        { id: quiet.id, usage: { deploys: 0, lastDeployedAt: null } }
+      ]);
+      expect(templateUsageEventRepository.summarize).toHaveBeenCalledTimes(1);
+      expect(templateUsageEventRepository.summarize).toHaveBeenCalledWith([deployed.id, quiet.id]);
     });
 
     it("lists nothing to a caller whose rules reach no template", async () => {
@@ -542,6 +641,7 @@ describe(MarketplaceTemplateService.name, () => {
       rules?: RawRuleOf<MongoAbility>[];
       user?: Partial<UserOutput> | null;
       activeOrganizationId?: string | null;
+      usages?: Map<string, TemplateUsageSummary>;
     } = {}
   ) {
     const ability = createMongoAbility<MongoAbility>(input.rules ?? []);
@@ -565,8 +665,18 @@ describe(MarketplaceTemplateService.name, () => {
     executionContextService.get
       .calledWith("ORGANIZATION_CONTEXT")
       .mockReturnValue(activeOrganizationId ? createOrganizationContext({ organizationId: activeOrganizationId }) : undefined);
-    const service = new MarketplaceTemplateService(repository, templateVersionRepository, userTemplateRepository, authService, executionContextService);
+    const templateUsageEventRepository = mock<TemplateUsageEventRepository>();
+    templateUsageEventRepository.summarize.mockResolvedValue(input.usages ?? new Map());
+    templateUsageEventRepository.countDeploysByVersion.mockResolvedValue(new Map());
+    const service = new MarketplaceTemplateService(
+      repository,
+      templateVersionRepository,
+      userTemplateRepository,
+      authService,
+      executionContextService,
+      templateUsageEventRepository
+    );
 
-    return { service, repository, readableRepository, templateVersionRepository, userTemplateRepository, ability, user };
+    return { service, repository, readableRepository, templateVersionRepository, userTemplateRepository, templateUsageEventRepository, ability, user };
   }
 });

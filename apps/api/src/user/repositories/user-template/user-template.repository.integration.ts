@@ -138,6 +138,20 @@ describe(UserTemplateRepository.name, () => {
   });
 
   describe("removeFavorite", () => {
+    it("answers whether a favorite was removed", async () => {
+      const { userTemplateRepository } = setup();
+      const user = await createTestUser();
+      const template = await createTestTemplate({ userId: user.userId! });
+      await createTestFavorite({ userId: user.userId!, templateId: template.id });
+
+      const removed = [
+        await userTemplateRepository.removeFavorite(user.userId!, template.id),
+        await userTemplateRepository.removeFavorite(user.userId!, template.id)
+      ];
+
+      expect(removed).toEqual([true, false]);
+    });
+
     it("removes favorite for user and template", async () => {
       const { userTemplateRepository } = setup();
       const user = await createTestUser();
@@ -160,6 +174,23 @@ describe(UserTemplateRepository.name, () => {
   });
 
   describe("addFavorite", () => {
+    it("answers whether the favorite was added", async () => {
+      const { userTemplateRepository } = setup();
+      const [author, reader] = [await createTestUser(), await createTestUser()];
+      const [publicTemplate, privateTemplate] = [
+        await createTestTemplate({ userId: author.userId!, isPublic: true }),
+        await createTestTemplate({ userId: author.userId! })
+      ];
+
+      const added = [
+        await userTemplateRepository.addFavorite(reader.userId!, publicTemplate.id),
+        await userTemplateRepository.addFavorite(reader.userId!, publicTemplate.id),
+        await userTemplateRepository.addFavorite(reader.userId!, privateTemplate.id)
+      ];
+
+      expect(added).toEqual([true, false, false]);
+    });
+
     it("records no favorite on a private template of another user", async () => {
       const { userTemplateRepository } = setup();
       const author = await createTestUser();

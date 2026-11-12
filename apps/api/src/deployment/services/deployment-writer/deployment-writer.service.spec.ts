@@ -12,7 +12,7 @@ import { mock, type MockProxy } from "vitest-mock-extended";
 
 import { ACTIVITIES_DEDUPE_KEY_INDEX } from "@src/activity/model-schemas";
 import type { ActivityService } from "@src/activity/services/activity/activity.service";
-import type { WalletInitialized } from "@src/billing/repositories";
+import type { UserWalletRepository, WalletInitialized } from "@src/billing/repositories";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import type { DeploymentDepositLedgerService } from "@src/billing/services/deployment-deposit-ledger/deployment-deposit-ledger.service";
@@ -23,6 +23,10 @@ import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manag
 import type { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import type { CreateLogger, JobQueueService, TxService } from "@src/core";
 import { JOB_NAME } from "@src/core";
+import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
+import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { MAX_SUBMITTED_SDL_LENGTH, SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import type { DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
@@ -60,6 +64,9 @@ import { EXPANDED_SDL_TOO_LARGE_MESSAGE } from "@src/deployment/utils/sdl-for-st
 import { failedUpdateActivityOf, pendingUpdateActivityOf, renamedActivityOf, updatedActivityOf } from "@src/deployment/utils/update-activity/update-activity";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
 import { SECRET_UNREADABLE_ERROR_MESSAGE } from "@src/secret/config/secret-at-rest.config";
+import type { TemplateUsageEventRepository } from "@src/template-marketplace/repositories/template-usage-event/template-usage-event.repository";
+import type { MarketplaceTemplateService } from "@src/template-marketplace/services/marketplace-template/marketplace-template.service";
+import { TemplateUsageService } from "@src/template-marketplace/services/template-usage/template-usage.service";
 import type { UserRepository } from "@src/user/repositories";
 import type { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
 import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
@@ -87,6 +94,8 @@ const RETRY_DELAY_MAX_IN_MIN = 30;
 const RETRY_DELAY_IN_SEC = 30;
 const COMPENSATION_JOB_ID = faker.string.uuid();
 const PROJECT_ID = faker.string.uuid();
+const TEMPLATE_ID = faker.string.uuid();
+const TEMPLATE_VERSION_ID = faker.string.uuid();
 const RECORDED_VERSION = Buffer.from(new Uint8Array([4, 5, 6])).toString("base64");
 const ACCEPTED_DSEQ = "1748400000000";
 const ADOPTED_TX = { code: 0, hash: "", transactionHash: "", rawLog: "" };
@@ -620,6 +629,70 @@ describe(DeploymentWriterService.name, () => {
       await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5, templateId: "akash-network-awesome-akash-sdxl" });
 
       expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith(expect.objectContaining({ templateId: "akash-network-awesome-akash-sdxl" }));
+    });
+
+    it("records the template version a deployment came from", async () => {
+      const { service, deploymentSettingRepository, marketplaceTemplateService, featureFlagsService } = setup();
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5, templateVersionId: TEMPLATE_VERSION_ID });
+
+      expect(featureFlagsService.isEnabled).toHaveBeenCalledWith(FeatureFlags.TEMPLATE_MARKETPLACE, { userId: "user-1" });
+      expect(marketplaceTemplateService.findDeployableVersion).toHaveBeenCalledWith(TEMPLATE_VERSION_ID);
+      expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith(
+        expect.objectContaining({ templateId: undefined, templateVersionId: TEMPLATE_VERSION_ID })
+      );
+    });
+
+    it("ignores the template version while template_marketplace is off", async () => {
+      const { service, deploymentSettingRepository, marketplaceTemplateService, signerService } = setup({ isTemplateMarketplaceOn: false });
+
+      await service.create({
+        userId: "user-1",
+        sdl: SDL_WITH_SECRETS,
+        deposit: 5,
+        templateId: "akash-network-awesome-akash-sdxl",
+        templateVersionId: TEMPLATE_VERSION_ID
+      });
+
+      expect(marketplaceTemplateService.findDeployableVersion).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith(
+        expect.objectContaining({ templateId: "akash-network-awesome-akash-sdxl", templateVersionId: undefined })
+      );
+      expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledTimes(1);
+    });
+
+    it("refuses a template version alongside a gallery template id", async () => {
+      const { service, deploymentSettingRepository, marketplaceTemplateService, signerService } = setup();
+
+      await expect(
+        service.create({
+          userId: "user-1",
+          sdl: SDL_WITH_SECRETS,
+          deposit: 5,
+          templateId: "akash-network-awesome-akash-sdxl",
+          templateVersionId: TEMPLATE_VERSION_ID
+        })
+      ).rejects.toMatchObject({ status: 400, message: "Name either templateId or templateVersionId, not both" });
+
+      expect(marketplaceTemplateService.findDeployableVersion).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+      expect(signerService.assertCanBroadcast).not.toHaveBeenCalled();
+    });
+
+    it("refuses a version the caller may not deploy before anything is recorded", async () => {
+      const { service, deploymentSettingRepository, marketplaceTemplateService, signerService, sdlSecretsService, jobQueueService } = setup();
+      marketplaceTemplateService.findDeployableVersion.mockRejectedValue(createError(404, "Template version not found"));
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5, templateVersionId: TEMPLATE_VERSION_ID })).rejects.toMatchObject({
+        status: 404,
+        message: "Template version not found"
+      });
+
+      expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(sdlSecretsService.sealForStorage).not.toHaveBeenCalled();
+      expect(signerService.assertCanBroadcast).not.toHaveBeenCalled();
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
     });
 
     it("keeps the name the request supplied rather than deriving one", async () => {
@@ -1584,6 +1657,45 @@ describe(DeploymentWriterService.name, () => {
       );
     });
 
+    it("records the deploy once the create lands on chain", async () => {
+      const { service, templateUsageService, templateUsageEventRepository, deploymentOrganizationActivityService, definition, accepted } = setup({
+        definitionTemplateId: "hello-world"
+      });
+
+      await service.createOnChain(accepted);
+
+      expect(templateUsageService.recordDeployed).toHaveBeenCalledTimes(1);
+      expect(templateUsageService.recordDeployed).toHaveBeenCalledWith(definition, wallet);
+      expect(deploymentOrganizationActivityService.recordCreated.mock.invocationCallOrder[0]).toBeLessThan(
+        vi.mocked(templateUsageService.recordDeployed).mock.invocationCallOrder[0]
+      );
+      expect(templateUsageEventRepository.record).toHaveBeenCalledWith(
+        expect.objectContaining({ source: "awesome_akash", templateRef: "hello-world", action: "deploy", deploymentSettingId: DEPLOYMENT_SETTING_ID })
+      );
+    });
+
+    it("records no deploy for a create that never lands", async () => {
+      const { service, signerService, templateUsageService, accepted } = setup({ definitionTemplateId: "hello-world" });
+      const failure = new Error("broadcast failed");
+      signerService.executeDecodedTxByUserWallet.mockRejectedValue(failure);
+
+      await expect(service.createOnChain(accepted)).rejects.toBe(failure);
+
+      expect(templateUsageService.recordDeployed).not.toHaveBeenCalled();
+    });
+
+    it("returns the signed create even when recording its usage fails", async () => {
+      const { service, signerService, templateUsageEventRepository, logger, accepted } = setup({ definitionTemplateId: "hello-world" });
+      const txResult = { code: 0, transactionHash: "tx-hash", hash: "tx-hash", rawLog: "" };
+      signerService.executeDecodedTxByUserWallet.mockResolvedValue(txResult);
+      const failure = new Error("connection reset");
+      templateUsageEventRepository.record.mockRejectedValue(failure);
+
+      await expect(service.createOnChain(accepted)).resolves.toBe(txResult);
+
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "TEMPLATE_USAGE_RECORD_FAILED", action: "deploy", error: failure }));
+    });
+
     it("refuses without signing when the wallet the request resolved can no longer sign", async () => {
       const { service, signerService, walletReaderService, accepted } = setup();
       walletReaderService.getWalletById.mockRejectedValue(createError(404, "UserWallet Not Found"));
@@ -1830,6 +1942,21 @@ describe(DeploymentWriterService.name, () => {
         expect(logger.info).toHaveBeenCalledWith({ event: "DEPLOYMENT_CREATE_ADOPTED", userId: "user-1", walletId: wallet.id, dseq: ACCEPTED_DSEQ });
       });
 
+      it("records the deploy when a retry adopts an earlier create", async () => {
+        const { service, templateUsageService, templateUsageEventRepository, definition, accepted } = setup({
+          onChainVersion: RECORDED_VERSION,
+          definitionTemplateId: "hello-world"
+        });
+
+        await expect(service.createOnChain(accepted, { retry: true })).resolves.toEqual(ADOPTED_TX);
+
+        expect(templateUsageService.recordDeployed).toHaveBeenCalledTimes(1);
+        expect(templateUsageService.recordDeployed).toHaveBeenCalledWith(definition, wallet);
+        expect(templateUsageEventRepository.record).toHaveBeenCalledWith(
+          expect.objectContaining({ action: "deploy", deploymentSettingId: DEPLOYMENT_SETTING_ID })
+        );
+      });
+
       it("adopts a deployment an earlier attempt created without asking whether the member may still sign, since it signs nothing", async () => {
         const { service, signerService, accepted } = setup({ onChainVersion: RECORDED_VERSION });
         const assertMayStillSign = vi
@@ -2038,6 +2165,21 @@ describe(DeploymentWriterService.name, () => {
       expect(jobQueueService.cancelCreatedBy).toHaveBeenCalledTimes(1);
       expect(deploymentPresenceService.isOnChain).not.toHaveBeenCalled();
       expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+    });
+
+    it("records the deploy when the reconcile adopts the create", async () => {
+      const { service, templateUsageService, templateUsageEventRepository, definition, accepted } = setup({
+        onChainVersion: RECORDED_VERSION,
+        definitionTemplateId: "hello-world"
+      });
+
+      await expect(service.reconcileCreate(accepted)).resolves.toBe(true);
+
+      expect(templateUsageService.recordDeployed).toHaveBeenCalledTimes(1);
+      expect(templateUsageService.recordDeployed).toHaveBeenCalledWith(definition, wallet);
+      expect(templateUsageEventRepository.record).toHaveBeenCalledWith(
+        expect.objectContaining({ action: "deploy", deploymentSettingId: DEPLOYMENT_SETTING_ID })
+      );
     });
 
     it("adopts a team wallet's deployment with the wallet the request resolved, for the member who asked and into the project it was filed in", async () => {
@@ -4681,7 +4823,10 @@ describe(DeploymentWriterService.name, () => {
         mock<ChainErrorService>(),
         mock<DeploymentPresenceService>(),
         mock<UserGpuBidCheckService>(),
-        mock<UserRepository>()
+        mock<UserRepository>(),
+        mock<FeatureFlagsService>(),
+        mock<MarketplaceTemplateService>(),
+        mock<TemplateUsageService>()
       );
 
       function sealedFor() {
@@ -5286,6 +5431,8 @@ describe(DeploymentWriterService.name, () => {
     definitionFiledBy?: string;
     acceptedOwner?: string;
     acceptedMessageDseq?: string;
+    isTemplateMarketplaceOn?: boolean;
+    definitionTemplateId?: string;
   }) {
     const activeWallet = input?.wallet ?? wallet;
     const signerService = mock<ManagedSignerService>();
@@ -5313,18 +5460,19 @@ describe(DeploymentWriterService.name, () => {
     });
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     deploymentSettingRepository.upsertDefinition.mockResolvedValue(DEPLOYMENT_SETTING_ID);
-    deploymentSettingRepository.findOneOfWallet.mockResolvedValue(
-      input?.definitionDeleted
-        ? undefined
-        : mock<DeploymentSettingsOutput>({
-            id: DEPLOYMENT_SETTING_ID,
-            userId: input?.definitionFiledBy ?? "user-1",
-            projectId: input?.filingProjectId ?? null,
-            manifestVersion: input?.recordedVersion === undefined ? RECORDED_VERSION : input.recordedVersion,
-            createdAt: RECORDED_AT,
-            updatedAt: LAST_CREATE_ATTEMPT_AT
-          })
-    );
+    const definition = mock<DeploymentSettingsOutput>({
+      id: DEPLOYMENT_SETTING_ID,
+      userId: input?.definitionFiledBy ?? "user-1",
+      organizationId: null,
+      dseq: ACCEPTED_DSEQ,
+      projectId: input?.filingProjectId ?? null,
+      manifestVersion: input?.recordedVersion === undefined ? RECORDED_VERSION : input.recordedVersion,
+      templateId: input?.definitionTemplateId ?? null,
+      templateVersionId: null,
+      createdAt: RECORDED_AT,
+      updatedAt: LAST_CREATE_ATTEMPT_AT
+    });
+    deploymentSettingRepository.findOneOfWallet.mockResolvedValue(input?.definitionDeleted ? undefined : definition);
     const scopedSettingRepository = mock<DeploymentSettingRepository>();
     scopedSettingRepository.findOneBy.mockResolvedValue(
       "sourceSetting" in (input ?? {})
@@ -5341,6 +5489,7 @@ describe(DeploymentWriterService.name, () => {
     deploymentSettingRepository.accessibleBy.mockReturnValue(scopedSettingRepository);
     const txService = mock<TxService>();
     txService.transaction.mockImplementation(async cb => (input?.transactionRuns === false ? (undefined as never) : await cb()));
+    txService.outsideTransaction.mockImplementation(async cb => await cb());
     const jobQueueService = mock<JobQueueService>();
     jobQueueService.enqueue.mockResolvedValue(input?.compensationEnqueued === false ? null : COMPENSATION_JOB_ID);
     jobQueueService.hasWaitingSingleton.mockResolvedValue(input?.compensationWaiting ?? input?.compensationEnqueued !== false);
@@ -5354,6 +5503,23 @@ describe(DeploymentWriterService.name, () => {
     const deploymentPresenceService = mock<DeploymentPresenceService>();
     const userGpuBidCheckService = mock<UserGpuBidCheckService>();
     const userRepository = mock<UserRepository>();
+    const featureFlagsService = mock<FeatureFlagsService>();
+    featureFlagsService.isEnabled.mockReturnValue(input?.isTemplateMarketplaceOn ?? true);
+    const marketplaceTemplateService = mock<MarketplaceTemplateService>();
+    marketplaceTemplateService.findDeployableVersion.mockImplementation(async versionId => ({ templateId: TEMPLATE_ID, versionId }));
+    const templateUsageEventRepository = mock<TemplateUsageEventRepository>();
+    templateUsageEventRepository.record.mockResolvedValue(true);
+    const templateUsageService = new TemplateUsageService(
+      templateUsageEventRepository,
+      mock<UserWalletRepository>(),
+      mock<DeploymentSettingRepository>(),
+      mock<JobQueueService>(),
+      mockConfigService<CoreConfigService>({ NETWORK: "mainnet" }),
+      txService,
+      mock<ExecutionContextService>(),
+      createLogger
+    );
+    vi.spyOn(templateUsageService, "recordDeployed");
     deploymentPresenceService.isOnChain.mockResolvedValue(!!input?.onChainVersion);
     const accepted: AcceptedDeploymentCreate = {
       userId: "user-1",
@@ -5453,7 +5619,10 @@ describe(DeploymentWriterService.name, () => {
       chainErrorService,
       deploymentPresenceService,
       userGpuBidCheckService,
-      userRepository
+      userRepository,
+      featureFlagsService,
+      marketplaceTemplateService,
+      templateUsageService
     );
 
     function storedSecrets() {
@@ -5489,7 +5658,12 @@ describe(DeploymentWriterService.name, () => {
       deploymentPresenceService,
       userGpuBidCheckService,
       userRepository,
+      featureFlagsService,
+      marketplaceTemplateService,
+      templateUsageService,
+      templateUsageEventRepository,
       sdlSecretsDerivationService,
+      definition,
       accepted,
       ability: mock<AnyAbility>(),
       storedSecrets

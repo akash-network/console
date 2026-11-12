@@ -563,7 +563,7 @@ describe(ManagedSignerService.name, () => {
 
       const gpuCall = vi.mocked(domainEvents.publish).mock.calls.find(([event]) => event instanceof ManagedDeploymentLeaseCreated);
       const [event, options] = gpuCall as [ManagedDeploymentLeaseCreated, { singletonKey: string }];
-      expect(event.data).toEqual({ walletId: wallet.id, dseq: "123", createdAt: expect.any(String) });
+      expect(event.data).toEqual({ walletId: wallet.id, dseq: "123", createdAt: expect.any(String), isTrialing: false });
       expect(options).toEqual({ singletonKey: `ManagedDeploymentLeaseCreated.123.${wallet.id}` });
     });
 
@@ -1418,7 +1418,10 @@ describe(ManagedSignerService.name, () => {
           { singletonKey: `FundDeploymentCommand.123.${wallet.id}` }
         ],
         [
-          expect.objectContaining({ name: "ManagedDeploymentLeaseCreated", data: { walletId: wallet.id, dseq: "123", createdAt: expect.any(String) } }),
+          expect.objectContaining({
+            name: "ManagedDeploymentLeaseCreated",
+            data: { walletId: wallet.id, dseq: "123", createdAt: expect.any(String), isTrialing: false }
+          }),
           { singletonKey: `ManagedDeploymentLeaseCreated.123.${wallet.id}` }
         ]
       ]);
@@ -1442,7 +1445,10 @@ describe(ManagedSignerService.name, () => {
           { singletonKey: `FundDeploymentCommand.123.${wallet.id}` }
         ],
         [
-          expect.objectContaining({ name: "ManagedDeploymentLeaseCreated", data: { walletId: wallet.id, dseq: "123", createdAt: expect.any(String) } }),
+          expect.objectContaining({
+            name: "ManagedDeploymentLeaseCreated",
+            data: { walletId: wallet.id, dseq: "123", createdAt: expect.any(String), isTrialing: false }
+          }),
           { singletonKey: `ManagedDeploymentLeaseCreated.123.${wallet.id}` }
         ]
       ]);
@@ -1490,6 +1496,18 @@ describe(ManagedSignerService.name, () => {
       expect(leaseHttpService.list).toHaveBeenCalledWith({ owner: wallet.address, pagination: { limit: 3 } });
       expect(trialAnnouncementOf(domainEvents)).toEqual({ walletId: wallet.id, dseq: "123", createdAt: expect.any(String), isFirstLease: true });
       expect(domainEvents.publish).not.toHaveBeenCalledWith(expect.any(FundDeploymentCommand), expect.anything());
+    });
+
+    it("tells the lease follow-up that a trial wallet signed the lease", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const lease = { dseq: "123", gseq: 1, oseq: 1, provider: createAkashAddress() };
+      const { service, domainEvents } = setup({ listLeases: listing([leaseOn(wallet, lease)]) });
+
+      await service.followUpLandedLeases(wallet, [lease], wallet.userId);
+
+      expect(publishedDataOf(domainEvents, ManagedDeploymentLeaseCreated)).toEqual([
+        { walletId: wallet.id, dseq: "123", createdAt: expect.any(String), isTrialing: true }
+      ]);
     });
 
     it("announces a trial wallet's lease as not its first when the wallet holds another lease", async () => {

@@ -23,7 +23,7 @@ export const UserTemplateVersionParamsSchema = UserTemplateParamsSchema.extend({
     .openapi({ type: "integer", minimum: 1, maximum: MAX_VERSION_NUMBER, description: "The version number, counted from 1" })
 });
 
-export const TemplateVersionSummarySchema = z
+const TemplateVersionFieldsSchema = z
   .object({
     id: z.string().uuid(),
     templateId: z.string().uuid(),
@@ -37,9 +37,15 @@ export const TemplateVersionSummarySchema = z
     createdBy: z.object({ username: z.string() }).nullable().openapi({ description: "Null when the creator deleted their account or has no username" }),
     createdAt: z.string().datetime()
   })
-  .openapi("TemplateVersionSummary");
+  .openapi("TemplateVersionFields");
 
-export const TemplateVersionSchema = TemplateVersionSummarySchema.extend({
+export const DeploysSchema = z.number().int().nonnegative().openapi({ description: "Deploys made from Console on mainnet" });
+
+export const TemplateVersionSummarySchema = TemplateVersionFieldsSchema.extend({
+  deploys: DeploysSchema
+}).openapi("TemplateVersionSummary");
+
+export const TemplateVersionSchema = TemplateVersionFieldsSchema.extend({
   sdl: z.string(),
   readme: z.string().nullable(),
   askedValues: z.array(AskedValueSchema)
@@ -47,6 +53,12 @@ export const TemplateVersionSchema = TemplateVersionSummarySchema.extend({
 
 /** zod-to-openapi drops `nullable` from a named schema's `$ref`, so a nullable version inlines its shape. */
 const NullableTemplateVersionSchema = z.object(TemplateVersionSchema.shape).nullable();
+
+export const LastDeployedAtSchema = z
+  .string()
+  .datetime()
+  .nullable()
+  .openapi({ description: "The latest mainnet deploy made from Console, null before the first" });
 
 export const MarketplaceTemplateSchema = z
   .object({
@@ -80,7 +92,14 @@ export const MarketplaceTemplateSchema = z
       description: "Its readme falls back to the template's description and its resources to the SDL's, for versions saved before they were recorded"
     }),
     canEdit: z.boolean().openapi({ description: "Whether the caller may change the template" }),
-    isFavorite: z.boolean().openapi({ description: "Whether the caller made the template a favorite, false without a session" })
+    isFavorite: z.boolean().openapi({ description: "Whether the caller made the template a favorite, false without a session" }),
+    usage: z.object({
+      deploys: DeploysSchema,
+      lastDeployedAt: LastDeployedAtSchema,
+      stillUpAfter24h: z.number().min(0).max(1).nullable().openapi({
+        description: "The share of mainnet leases older than a day whose deployment was still running a day later, null below five such leases"
+      })
+    })
   })
   .openapi("MarketplaceTemplate");
 

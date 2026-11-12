@@ -7,6 +7,7 @@ import { DeploymentProjectService } from "@src/deployment/services/deployment-pr
 import { summarizeTemplateHardware } from "@src/template/utils/template-hardware/template-hardware";
 import { contentCarriedByLegacySave } from "@src/template-marketplace/lib/legacy-save/content-carried-by-legacy-save";
 import { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
+import { TemplateUsageService } from "@src/template-marketplace/services/template-usage/template-usage.service";
 import {
   TemplateInput,
   type TemplateOutput,
@@ -34,19 +35,22 @@ export class UserTemplatesService {
   readonly #deploymentProjectService: DeploymentProjectService;
   readonly #templateVersionRepository: TemplateVersionRepository;
   readonly #txService: TxService;
+  readonly #templateUsageService: TemplateUsageService;
 
   constructor(
     userTemplateRepository: UserTemplateRepository,
     authService: AuthService,
     deploymentProjectService: DeploymentProjectService,
     templateVersionRepository: TemplateVersionRepository,
-    txService: TxService
+    txService: TxService,
+    templateUsageService: TemplateUsageService
   ) {
     this.#userTemplateRepository = userTemplateRepository;
     this.#authService = authService;
     this.#deploymentProjectService = deploymentProjectService;
     this.#templateVersionRepository = templateVersionRepository;
     this.#txService = txService;
+    this.#templateUsageService = templateUsageService;
   }
 
   async getTemplateById(id: string, userId: string = ""): Promise<(TemplateOutput & { isFavorite?: boolean }) | null> {
@@ -113,11 +117,16 @@ export class UserTemplatesService {
 
   async addFavoriteTemplate(userId: string, templateId: string): Promise<void> {
     const readerUserId = this.#readerOf(userId);
-    await this.#readableBy(readerUserId).addFavorite(userId, templateId, readerUserId);
+
+    if (await this.#readableBy(readerUserId).addFavorite(userId, templateId, readerUserId)) {
+      await this.#templateUsageService.recordFavorite(templateId, "favorite");
+    }
   }
 
   async removeFavoriteTemplate(userId: string, templateId: string): Promise<void> {
-    await this.#userTemplateRepository.removeFavorite(userId, templateId);
+    if (await this.#userTemplateRepository.removeFavorite(userId, templateId)) {
+      await this.#templateUsageService.recordFavorite(templateId, "unfavorite");
+    }
   }
 
   async #updateAndVersion(id: string, userId: string, template: TemplateInput): Promise<void> {
