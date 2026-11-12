@@ -535,11 +535,12 @@ describe(UserTemplateRepository.name, () => {
     it("returns the stored visibility and no current version for a template without versions", async () => {
       const { userTemplateRepository } = setup();
       const user = await createTestUser();
-      const template = await createTestTemplate({ userId: user.userId!, isPublic: true });
+      const template = await createTestTemplate({ userId: user.userId!, isPublic: true, description: "# Description" });
 
       expect(await userTemplateRepository.findVersionState(template.id, user.userId!)).toEqual({
         isPublic: true,
         visibility: "public",
+        description: "# Description",
         currentVersionId: null,
         currentVersionSdl: null
       });
@@ -554,6 +555,19 @@ describe(UserTemplateRepository.name, () => {
       expect(await userTemplateRepository.findVersionState(template.id, user.userId!)).toMatchObject({
         currentVersionId: version.id,
         currentVersionSdl: "version: '2.1'"
+      });
+    });
+
+    it("returns the readme and asked values of the current version", async () => {
+      const { userTemplateRepository } = setup();
+      const user = await createTestUser();
+      const template = await createTestTemplate({ userId: user.userId! });
+      const askedValues = [{ key: "API_KEY", label: "API key", type: "secret" as const, required: true, bindings: [{ service: "web", env: "API_KEY" }] }];
+      await container.resolve(TemplateVersionRepository).appendVersion({ templateId: template.id, sdl: "version: '2.1'", readme: "# Readme", askedValues });
+
+      expect(await userTemplateRepository.findVersionState(template.id, user.userId!)).toMatchObject({
+        currentVersionReadme: "# Readme",
+        currentVersionAskedValues: askedValues
       });
     });
 

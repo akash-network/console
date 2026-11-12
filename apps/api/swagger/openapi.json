@@ -33827,6 +33827,128 @@
         }
       }
     },
+    "/v1/user-templates": {
+      "post": {
+        "operationId": "createUserTemplate",
+        "summary": "Create a private template with its first version",
+        "tags": [
+          "Templates"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserTemplateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The template created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateUserTemplateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is invalid, or the SDL or its asked values are refused (`template_invalid`, with the `issues` found), or a project must be named (`project_required`)"
+          },
+          "401": {
+            "description": "The caller is not signed in"
+          },
+          "403": {
+            "description": "The caller may not create templates"
+          },
+          "404": {
+            "description": "The project or the template copied from does not exist or the caller may not read it"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      },
+      "get": {
+        "operationId": "listUserTemplates",
+        "summary": "List the active organization's templates the caller may read, most recently updated first",
+        "tags": [
+          "Templates"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "private",
+                "organization",
+                "public"
+              ]
+            },
+            "required": false,
+            "name": "visibility",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": false,
+            "name": "projectId",
+            "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "At most 200 templates",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListUserTemplatesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The visibility or the project id is invalid"
+          },
+          "401": {
+            "description": "The caller is not signed in"
+          }
+        }
+      }
+    },
     "/v1/user-templates/{id}": {
       "get": {
         "operationId": "getUserTemplate",
@@ -33865,6 +33987,121 @@
           },
           "400": {
             "description": "The id is not a uuid"
+          },
+          "404": {
+            "description": "The template does not exist or the caller may not read it"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateUserTemplate",
+        "summary": "Change the title, summary, icon, categories or visibility of a template the caller may change",
+        "tags": [
+          "Templates"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserTemplateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The template changed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateUserTemplateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body changes no setting, or a setting is outside the catalog or its limits"
+          },
+          "401": {
+            "description": "The caller is not signed in"
+          },
+          "403": {
+            "description": "The template belongs to another organization than the active one (`organization_forbidden`), or the caller may not change it"
+          },
+          "404": {
+            "description": "The template does not exist or the caller may not read it"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteUserTemplate",
+        "summary": "Delete a template the caller may delete, with its versions and favorites",
+        "tags": [
+          "Templates"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The template deleted"
+          },
+          "400": {
+            "description": "The id is not a uuid"
+          },
+          "401": {
+            "description": "The caller is not signed in"
+          },
+          "403": {
+            "description": "The template belongs to another organization than the active one (`organization_forbidden`), or the caller may not change it"
           },
           "404": {
             "description": "The template does not exist or the caller may not read it"
@@ -33913,6 +34150,75 @@
           },
           "404": {
             "description": "The template does not exist or the caller may not read it"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createUserTemplateVersion",
+        "summary": "Save a new version of a template the caller may change",
+        "tags": [
+          "Templates"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserTemplateVersionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The version saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateUserTemplateVersionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is invalid, or the SDL or its asked values are refused (`template_invalid`, with the `issues` found)"
+          },
+          "401": {
+            "description": "The caller is not signed in"
+          },
+          "403": {
+            "description": "The caller may read the template but not change it"
+          },
+          "404": {
+            "description": "The template does not exist or the caller may not read it"
+          },
+          "409": {
+            "description": "Another version was saved after the base version (`template_version_conflict`)"
           }
         }
       }
@@ -44634,6 +44940,41 @@
               "failed_checks"
             ]
           },
+          "changes": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "first_version",
+                "service_added",
+                "service_removed",
+                "image_changed",
+                "image_tag_changed",
+                "env_changed",
+                "ports_changed",
+                "resources_changed",
+                "asked_value_added",
+                "asked_value_removed",
+                "asked_value_changed",
+                "readme_changed"
+              ]
+            },
+            "description": "What this version changed from the one before it, null for a version saved before changes were recorded"
+          },
+          "createdBy": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "username": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "username"
+            ],
+            "description": "Null when the creator deleted their account or has no username"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -44645,6 +44986,8 @@
           "version",
           "resources",
           "status",
+          "changes",
+          "createdBy",
           "createdAt"
         ]
       },
@@ -44724,10 +45067,17 @@
               "removed"
             ]
           },
+          "projectId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid",
+            "description": "The project the template is filed in, null for one filed in none or outside the active organization"
+          },
           "copiedFromId": {
             "type": "string",
             "nullable": true,
-            "format": "uuid"
+            "format": "uuid",
+            "description": "The template this one was copied from, null unless the caller may read it"
           },
           "createdAt": {
             "type": "string",
@@ -44844,6 +45194,41 @@
                   "failed_checks"
                 ]
               },
+              "changes": {
+                "type": "array",
+                "nullable": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "first_version",
+                    "service_added",
+                    "service_removed",
+                    "image_changed",
+                    "image_tag_changed",
+                    "env_changed",
+                    "ports_changed",
+                    "resources_changed",
+                    "asked_value_added",
+                    "asked_value_removed",
+                    "asked_value_changed",
+                    "readme_changed"
+                  ]
+                },
+                "description": "What this version changed from the one before it, null for a version saved before changes were recorded"
+              },
+              "createdBy": {
+                "type": "object",
+                "nullable": true,
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "username"
+                ],
+                "description": "Null when the creator deleted their account or has no username"
+              },
               "createdAt": {
                 "type": "string",
                 "format": "date-time"
@@ -44868,6 +45253,8 @@
               "version",
               "resources",
               "status",
+              "changes",
+              "createdBy",
               "createdAt",
               "sdl",
               "readme",
@@ -44878,6 +45265,10 @@
           "canEdit": {
             "type": "boolean",
             "description": "Whether the caller may change the template"
+          },
+          "isFavorite": {
+            "type": "boolean",
+            "description": "Whether the caller made the template a favorite, false without a session"
           }
         },
         "required": [
@@ -44890,13 +45281,15 @@
           "isListed",
           "isOfficial",
           "moderationStatus",
+          "projectId",
           "copiedFromId",
           "createdAt",
           "updatedAt",
           "author",
           "publisher",
           "currentVersion",
-          "canEdit"
+          "canEdit",
+          "isFavorite"
         ]
       },
       "GetUserTemplateResponse": {
@@ -44925,6 +45318,440 @@
         ]
       },
       "GetUserTemplateVersionResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/TemplateVersion"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "CreateUserTemplateRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "summary": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "icon": {
+                "type": "string",
+                "enum": [
+                  "box",
+                  "bot",
+                  "brain",
+                  "message-square",
+                  "image",
+                  "video",
+                  "music",
+                  "database",
+                  "server",
+                  "globe",
+                  "code",
+                  "terminal",
+                  "gamepad",
+                  "chart",
+                  "shield",
+                  "workflow",
+                  "cpu",
+                  "layers",
+                  "file-text",
+                  "search",
+                  "mail",
+                  "cloud",
+                  "wallet",
+                  "rocket"
+                ]
+              },
+              "categories": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "AI - CPU",
+                    "AI - GPU",
+                    "Benchmarking",
+                    "Blockchain",
+                    "Blogging",
+                    "Built with Cosmos-SDK",
+                    "Business",
+                    "CI/CD, DevOps",
+                    "Chat",
+                    "Data Visualization",
+                    "Databases and Administration",
+                    "DeFi",
+                    "Decentralized Storage",
+                    "Game Servers",
+                    "Games",
+                    "Hosting",
+                    "Machine Learning",
+                    "Mining - CPU",
+                    "Mining - GPU",
+                    "Mining Pools",
+                    "Network",
+                    "Official",
+                    "Peer-to-peer File Sharing",
+                    "Project Management",
+                    "Search Engines",
+                    "Social",
+                    "Tools",
+                    "Video Conferencing",
+                    "Wallet",
+                    "Web Frameworks"
+                  ]
+                },
+                "maxItems": 3
+              },
+              "sdl": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 131072
+              },
+              "readme": {
+                "type": "string",
+                "maxLength": 50000
+              },
+              "askedValues": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TemplateAskedValue"
+                },
+                "maxItems": 50,
+                "default": [],
+                "description": "The values the deployer fills in, bound to the SDL's env vars"
+              },
+              "projectId": {
+                "type": "string",
+                "format": "uuid",
+                "description": "The project to file the template in, required when the caller may write to several"
+              },
+              "copiedFromId": {
+                "type": "string",
+                "format": "uuid",
+                "description": "The template this one was copied from, which the caller must be able to read"
+              }
+            },
+            "required": [
+              "title",
+              "sdl"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "CreateUserTemplateResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MarketplaceTemplate"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "CreateUserTemplateVersionRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "sdl": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 131072
+              },
+              "readme": {
+                "type": "string",
+                "nullable": true,
+                "maxLength": 50000,
+                "description": "Omitted keeps the current version's readme, null clears it"
+              },
+              "askedValues": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TemplateAskedValue"
+                },
+                "maxItems": 50
+              },
+              "baseVersion": {
+                "type": "integer",
+                "minimum": 0,
+                "exclusiveMinimum": true,
+                "maximum": 2147483647,
+                "description": "The version this one was edited from, refused with 409 once another version has been saved after it; required once the template has a version"
+              }
+            },
+            "required": [
+              "sdl",
+              "askedValues"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "UserTemplateListItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string",
+            "nullable": true
+          },
+          "icon": {
+            "type": "string",
+            "nullable": true
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "private",
+              "organization",
+              "public"
+            ]
+          },
+          "isListed": {
+            "type": "boolean"
+          },
+          "moderationStatus": {
+            "type": "string",
+            "enum": [
+              "active",
+              "hidden",
+              "removed"
+            ]
+          },
+          "projectId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid"
+          },
+          "copiedFromId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "currentVersion": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "version": {
+                "type": "integer",
+                "minimum": 0,
+                "exclusiveMinimum": true
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "live",
+                  "held",
+                  "failed_checks"
+                ]
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "version",
+              "status",
+              "createdAt"
+            ],
+            "description": "Null on a template an older API pod saved without a version"
+          },
+          "lastEditedBy": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "username": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "username"
+            ],
+            "description": "Who saved the current version, null when unknown or gone"
+          },
+          "canEdit": {
+            "type": "boolean",
+            "description": "Whether the caller may change the template"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "summary",
+          "icon",
+          "categories",
+          "visibility",
+          "isListed",
+          "moderationStatus",
+          "projectId",
+          "copiedFromId",
+          "updatedAt",
+          "currentVersion",
+          "lastEditedBy",
+          "canEdit"
+        ]
+      },
+      "ListUserTemplatesResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserTemplateListItem"
+            }
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "UpdateUserTemplateResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MarketplaceTemplate"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "UpdateUserTemplateRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "summary": {
+                "type": "string",
+                "nullable": true,
+                "maxLength": 200,
+                "description": "Null or blank clears it"
+              },
+              "icon": {
+                "type": "string",
+                "nullable": true,
+                "enum": [
+                  "box",
+                  "bot",
+                  "brain",
+                  "message-square",
+                  "image",
+                  "video",
+                  "music",
+                  "database",
+                  "server",
+                  "globe",
+                  "code",
+                  "terminal",
+                  "gamepad",
+                  "chart",
+                  "shield",
+                  "workflow",
+                  "cpu",
+                  "layers",
+                  "file-text",
+                  "search",
+                  "mail",
+                  "cloud",
+                  "wallet",
+                  "rocket"
+                ],
+                "description": "Null shows the default icon"
+              },
+              "categories": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "AI - CPU",
+                    "AI - GPU",
+                    "Benchmarking",
+                    "Blockchain",
+                    "Blogging",
+                    "Built with Cosmos-SDK",
+                    "Business",
+                    "CI/CD, DevOps",
+                    "Chat",
+                    "Data Visualization",
+                    "Databases and Administration",
+                    "DeFi",
+                    "Decentralized Storage",
+                    "Game Servers",
+                    "Games",
+                    "Hosting",
+                    "Machine Learning",
+                    "Mining - CPU",
+                    "Mining - GPU",
+                    "Mining Pools",
+                    "Network",
+                    "Official",
+                    "Peer-to-peer File Sharing",
+                    "Project Management",
+                    "Search Engines",
+                    "Social",
+                    "Tools",
+                    "Video Conferencing",
+                    "Wallet",
+                    "Web Frameworks"
+                  ]
+                },
+                "maxItems": 3
+              },
+              "visibility": {
+                "type": "string",
+                "enum": [
+                  "private",
+                  "organization"
+                ],
+                "description": "Moving a public template to either clears its public flag"
+              }
+            }
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "CreateUserTemplateVersionResponse": {
         "type": "object",
         "properties": {
           "data": {

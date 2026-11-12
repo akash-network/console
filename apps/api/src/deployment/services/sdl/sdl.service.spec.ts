@@ -717,6 +717,45 @@ describe(SdlService.name, () => {
       expect(result.ok).toBeFalsy();
     });
 
+    it("reports the reason and position of a YAML error apart from its message", async () => {
+      const { result } = await setup({ sdl: "key: value\n  bad_indent: true" });
+
+      expect(result).toMatchObject({
+        ok: false,
+        value: [expect.objectContaining({ keyword: "yaml", params: { reason: "bad indentation of a mapping entry", line: 2, column: 13 } })]
+      });
+    });
+
+    it.each([
+      ["an unknown tag", "token: !<sk_live_123456> value"],
+      ["a redeclared tag handle", "%TAG !sklive! tag:a,2000:\n%TAG !sklive! tag:b,2000:\n---\na: 1"],
+      ["an unidentified alias", "token: *sk_live_123456"],
+      ["a malformed tag name", "token: !%sk_live v"]
+    ])("reports %s without the name the SDL gave it", async (_case, sdl) => {
+      const { result } = await setup({ sdl });
+
+      expect(result).toMatchObject({
+        ok: false,
+        value: [expect.objectContaining({ keyword: "yaml", params: expect.objectContaining({ reason: "a tag, alias or directive could not be resolved" }) })]
+      });
+    });
+
+    it("reports the reason alone for a YAML error that names no position, such as a second document", async () => {
+      const { result } = await setup({ sdl: "version: '2.0'\n---\nservices: {}" });
+
+      expect(result).toMatchObject({
+        ok: false,
+        value: [
+          {
+            keyword: "yaml",
+            params: { reason: "expected a single document in the stream, but found more" },
+            message: "expected a single document in the stream, but found more"
+          }
+        ]
+      });
+      expect((result as { value: { params: object }[] }).value[0].params).toEqual({ reason: "expected a single document in the stream, but found more" });
+    });
+
     it("returns error result with message for malformed YAML", async () => {
       const { result } = await setup({ sdl: "key: value\n  bad_indent: true" });
 
