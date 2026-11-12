@@ -45194,6 +45194,41 @@
                   "failed_checks"
                 ]
               },
+              "changes": {
+                "type": "array",
+                "nullable": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "first_version",
+                    "service_added",
+                    "service_removed",
+                    "image_changed",
+                    "image_tag_changed",
+                    "env_changed",
+                    "ports_changed",
+                    "resources_changed",
+                    "asked_value_added",
+                    "asked_value_removed",
+                    "asked_value_changed",
+                    "readme_changed"
+                  ]
+                },
+                "description": "What this version changed from the one before it, null for a version saved before changes were recorded"
+              },
+              "createdBy": {
+                "type": "object",
+                "nullable": true,
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "username"
+                ],
+                "description": "Null when the creator deleted their account or has no username"
+              },
               "createdAt": {
                 "type": "string",
                 "format": "date-time"
@@ -45218,6 +45253,8 @@
               "version",
               "resources",
               "status",
+              "changes",
+              "createdBy",
               "createdAt",
               "sdl",
               "readme",
@@ -45718,41 +45755,7 @@
         "type": "object",
         "properties": {
           "data": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/TemplateVersion"
-              },
-              {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/TemplateVersionSummary"
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "sdl": {
-                        "type": "string"
-                      },
-                      "readme": {
-                        "type": "string",
-                        "nullable": true
-                      },
-                      "askedValues": {
-                        "type": "array",
-                        "items": {
-                          "$ref": "#/components/schemas/TemplateAskedValue"
-                        }
-                      }
-                    },
-                    "required": [
-                      "sdl",
-                      "readme",
-                      "askedValues"
-                    ]
-                  }
-                ]
-              }
-            ]
+            "$ref": "#/components/schemas/TemplateVersion"
           }
         },
         "required": [

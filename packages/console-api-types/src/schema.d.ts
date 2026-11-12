@@ -9181,6 +9181,27 @@ export interface components {
         } | null;
         /** @enum {string} */
         status: "live" | "held" | "failed_checks";
+        /** @description What this version changed from the one before it, null for a version saved before changes were recorded */
+        changes:
+          | (
+              | "first_version"
+              | "service_added"
+              | "service_removed"
+              | "image_changed"
+              | "image_tag_changed"
+              | "env_changed"
+              | "ports_changed"
+              | "resources_changed"
+              | "asked_value_added"
+              | "asked_value_removed"
+              | "asked_value_changed"
+              | "readme_changed"
+            )[]
+          | null;
+        /** @description Null when the creator deleted their account or has no username */
+        createdBy: {
+          username: string;
+        } | null;
         /** Format: date-time */
         createdAt: string;
         sdl: string;
@@ -9409,12 +9430,7 @@ export interface components {
       };
     };
     CreateUserTemplateVersionResponse: {
-      data: components["schemas"]["TemplateVersion"] &
-        (components["schemas"]["TemplateVersionSummary"] & {
-          sdl: string;
-          readme: string | null;
-          askedValues: components["schemas"]["TemplateAskedValue"][];
-        });
+      data: components["schemas"]["TemplateVersion"];
     };
   };
   responses: never;
