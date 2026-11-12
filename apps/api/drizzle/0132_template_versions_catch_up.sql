@@ -16,9 +16,14 @@ WHERE latest."sdl" IS DISTINCT FROM t."sdl"
 ON CONFLICT ("template_id", "version") DO NOTHING;--> statement-breakpoint
 UPDATE "template" t SET "current_version_id" = latest."id"
 FROM (
-  SELECT DISTINCT ON (v."template_id") v."template_id", v."id" FROM "template_versions" v ORDER BY v."template_id", v."version" DESC
+  SELECT DISTINCT ON (v."template_id") v."template_id", v."id", observed."current_version_id" AS "observed_current_version_id"
+  FROM "template_versions" v
+  JOIN "template" observed ON observed."id" = v."template_id"
+  ORDER BY v."template_id", v."version" DESC
 ) latest
-WHERE latest."template_id" = t."id" AND t."current_version_id" IS DISTINCT FROM latest."id";--> statement-breakpoint
+WHERE latest."template_id" = t."id"
+  AND t."current_version_id" IS DISTINCT FROM latest."id"
+  AND t."current_version_id" IS NOT DISTINCT FROM latest."observed_current_version_id";--> statement-breakpoint
 UPDATE "template" t SET "author_id" = u."id"
 FROM "userSetting" u
 WHERE t."author_id" IS NULL AND u."userId" = t."userId";--> statement-breakpoint
