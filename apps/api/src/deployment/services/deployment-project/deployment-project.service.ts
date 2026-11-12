@@ -94,6 +94,11 @@ export class DeploymentProjectService {
       if (deployment.projectId === target.id) return;
 
       await repository.updateById(deployment.id, { projectId: target.id });
+      await this.organizationActivityService.refileDeploymentActivities({
+        organizationId: context.organizationId,
+        dseq: deployment.dseq,
+        projectId: target.id
+      });
       await this.#recordMoved(context, deployment, target);
       await this.jobQueueService.enqueue(
         new MoveDeploymentAlertsJob({ organizationId: context.organizationId, dseq: deployment.dseq }),
