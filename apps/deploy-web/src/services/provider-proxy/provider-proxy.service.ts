@@ -4,6 +4,7 @@ import type { AxiosResponse } from "axios";
 import saveFileInBrowser from "file-saver";
 
 import { WebsocketSession } from "@src/lib/websocket/WebsocketSession";
+import { LeaseShellCode } from "@src/types/shell";
 import type { AttestationEvidence, AttestationQuote } from "@src/utils/confidentialCompute";
 import { generateAttestationNonce } from "@src/utils/confidentialCompute";
 import { toBase64 } from "@src/utils/encoding";
@@ -145,74 +146,23 @@ export class ProviderProxyService {
     service: string;
     filePath: string;
   }): Promise<DownloadMessagesResult> {
-    const printCommand = "cat"; // print command on Windows is "type"
-    const session = this.connectToShell({ ...input, command: [printCommand, input.filePath] });
-
+    const session = this.connectToShell({ ...input, command: ["cat", input.filePath] });
     session.send(new Uint8Array());
 
-    const textDecoder = new TextDecoder("utf-8");
-    let fileContent: Uint8Array | null = null;
-    let exitCode: unknown;
-    let errorMessage = "";
-
-    for await (const message of session.receive()) {
-      if (!message.message?.data) continue;
-
-      const bufferData = new Uint8Array(message.message.data.slice(1));
-      const stringData = textDecoder.decode(bufferData).trim();
-
-      if (stringData[0] === "{" && stringData[stringData.length - 1] === "}" && stringData.includes('"exit_code"')) {
-        try {
-          const jsonData = JSON.parse(stringData);
-          exitCode = jsonData["exit_code"];
-          errorMessage = jsonData["message"];
-        } catch {
-          // empty
-        }
-      }
-
-      if (exitCode !== undefined) {
-        if (exitCode !== 0) {
-          errorMessage = fileContent ? textDecoder.decode(fileContent!).trim() : "Did not receive file content from server";
-          fileContent = null;
-          this.logger.error({ event: "DOWNLOAD_FILE_FROM_SHELL_ERROR", error: errorMessage });
-        } else if (fileContent) {
-          this.logger.info({ event: "DOWNLOAD_FILE_FROM_SHELL_SUCCESS", length: fileContent.length });
-        }
-
-        session.disconnect();
-        break;
-      }
-
-      if (!fileContent) {
-        this.logger.info({ event: "DOWNLOAD_FILE_FROM_SHELL_INIT" });
-        fileContent = bufferData;
-      } else {
-        this.logger.info({ event: "DOWNLOAD_FILE_FROM_SHELL_APPEND", length: fileContent.length });
-        const newFileContent: Uint8Array = new Uint8Array(fileContent.length + bufferData.length);
-        newFileContent.set(fileContent, 0);
-        newFileContent.set(bufferData, fileContent.length);
-        fileContent = newFileContent;
-      }
-    }
+    const download = await receiveShellDownload(session);
 
     if (input.signal?.aborted) {
       return { ok: false, code: "cancelled" };
     }
 
-    if (fileContent) {
-      this.logger.info({ event: "DOWNLOAD_FILE_FROM_SHELL_SUCCESS" });
-      const fileName = input.filePath.replace(/^.*[\\/]/, "");
-      this.saveFile(new Blob([fileContent as BlobPart]), fileName);
-      return { ok: true };
+    if (!download.ok) {
+      this.logger.error({ event: "DOWNLOAD_FILE_FROM_SHELL_ERROR", error: download.message });
+      return { ok: false, code: "unknown", message: download.message };
     }
 
-    if (errorMessage) {
-      this.logger.error({ event: "DOWNLOAD_FILE_FROM_SHELL_ERROR", error: errorMessage });
-      return { ok: false, code: "unknown", message: errorMessage };
-    }
-
-    return { ok: false, code: "unknown", message: "No file content received from server" };
+    this.logger.info({ event: "DOWNLOAD_FILE_FROM_SHELL_SUCCESS", size: download.file.size });
+    this.saveFile(download.file, input.filePath.replace(/^.*[\\/]/, ""));
+    return { ok: true };
   }
 
   async *getLogsStream<T extends "logs" | "events">(input: {
@@ -341,6 +291,54 @@ export class ProviderProxyService {
 function providerLeaseUrl(input: { providerBaseUrl: string; dseq: string; gseq: number; oseq: number; type: "logs" | "events" | "shell" }): string {
   const type = input.type === "events" ? "kubeevents" : input.type;
   return `${input.providerBaseUrl}/lease/${input.dseq}/${input.gseq}/${input.oseq}/${type}`;
+}
+
+const SHELL_DOWNLOAD_INTERRUPTED_MESSAGE = "The connection to the provider closed before the file finished downloading.";
+
+type ShellDownload = { ok: true; file: Blob } | { ok: false; message: string };
+
+interface ShellCommandResult {
+  exit_code: number;
+  message?: string;
+}
+
+async function receiveShellDownload(session: RotatingShellSession): Promise<ShellDownload> {
+  const stdoutChunks: BlobPart[] = [];
+  const stderrChunks: BlobPart[] = [];
+
+  for await (const message of session.receive()) {
+    if (message.closed || message.error) {
+      return { ok: false, message: SHELL_DOWNLOAD_INTERRUPTED_MESSAGE };
+    }
+    if (!message.message?.data) continue;
+
+    const frame = new Uint8Array(message.message.data);
+    const payload = frame.subarray(1);
+
+    switch (frame[0]) {
+      case LeaseShellCode.LeaseShellCodeStdout:
+        stdoutChunks.push(payload);
+        break;
+      case LeaseShellCode.LeaseShellCodeStderr:
+        stderrChunks.push(payload);
+        break;
+      case LeaseShellCode.LeaseShellCodeResult:
+        return toShellDownload(JSON.parse(new TextDecoder().decode(payload)), stdoutChunks, stderrChunks);
+      case LeaseShellCode.LeaseShellCodeFailure:
+        return { ok: false, message: "The provider failed to run the download command." };
+    }
+  }
+
+  return { ok: false, message: SHELL_DOWNLOAD_INTERRUPTED_MESSAGE };
+}
+
+async function toShellDownload(result: ShellCommandResult, stdoutChunks: BlobPart[], stderrChunks: BlobPart[]): Promise<ShellDownload> {
+  if (result.exit_code === 0 && !result.message) {
+    return stdoutChunks.length > 0 ? { ok: true, file: new Blob(stdoutChunks) } : { ok: false, message: "No file content received from server" };
+  }
+
+  const stderr = (await new Blob(stderrChunks).text()).trim();
+  return { ok: false, message: stderr || result.message || `The download command exited with code ${result.exit_code}.` };
 }
 
 export interface ProviderProxyPayload {

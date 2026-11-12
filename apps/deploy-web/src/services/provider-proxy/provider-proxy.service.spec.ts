@@ -3,6 +3,7 @@ import type { LoggerService } from "@akashnetwork/logging";
 import { afterEach, describe, expect, it, type Mock, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { LeaseShellCode } from "@src/types/shell";
 import { fromBase64 } from "@src/utils/encoding";
 import type { K8sEventMessage, LogEntryMessage } from "./provider-proxy.service";
 import { ProviderProxyService, WS_ERRORS } from "./provider-proxy.service";
@@ -260,9 +261,178 @@ describe(ProviderProxyService.name, () => {
   });
 
   describe("downloadFileFromShell", () => {
-    it("downloads file successfully and saves it", async () => {
+    it("saves the command's stdout under the file's name once the provider reports exit code 0", async () => {
+      const { service, saveFile, logger, websocket } = setup();
+
+      const promise = downloadFile(service, { filePath: "/very/long/path/to/config.json" });
+      await dispatchWsEvent(websocket, new Event("open"));
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, '{"setting": "value"}');
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
+
+      expect(await promise).toEqual({ ok: true });
+      expect(saveFile).toHaveBeenCalledWith(expect.any(Blob), "config.json");
+      expect(await readSavedFile(saveFile)).toBe('{"setting": "value"}');
+      expect(logger.info).toHaveBeenCalledWith({ event: "DOWNLOAD_FILE_FROM_SHELL_SUCCESS", size: 20 });
+      expect(websocket.send).toHaveBeenCalledWith(expect.stringContaining("cmd0=cat&cmd1=%2Fvery%2Flong%2Fpath%2Fto%2Fconfig.json&"));
+    });
+
+    it("joins stdout chunks in order and leaves stderr out of the saved file", async () => {
       const { service, saveFile, websocket } = setup();
-      const input = {
+
+      const promise = downloadFile(service);
+      await dispatchWsEvent(websocket, new Event("open"));
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "First chunk ");
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStderr, "warning: slow disk\n");
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "Second chunk");
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
+
+      expect(await promise).toEqual({ ok: true });
+      expect(await readSavedFile(saveFile)).toBe("First chunk Second chunk");
+    });
+
+    it("saves stdout that looks like a result as file content", async () => {
+      const { service, saveFile, websocket } = setup();
+
+      const promise = downloadFile(service);
+      await dispatchWsEvent(websocket, new Event("open"));
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, '{"exit_code": 1}');
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
+
+      expect(await promise).toEqual({ ok: true });
+      expect(await readSavedFile(saveFile)).toBe('{"exit_code": 1}');
+    });
+
+    it("ignores messages that carry no shell frame", async () => {
+      const { service, saveFile, websocket } = setup();
+
+      const promise = downloadFile(service);
+      await dispatchWsEvent(websocket, new Event("open"));
+      await sendProxyMessage(websocket, {});
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "content");
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
+
+      expect(await promise).toEqual({ ok: true });
+      expect(await readSavedFile(saveFile)).toBe("content");
+    });
+
+    it("returns the command's stderr as the error when it exits with a non-zero code", async () => {
+      const { service, saveFile, logger, websocket } = setup();
+      const stderr = "cat: /nonexistent/file.txt: No such file or directory";
+
+      const promise = downloadFile(service, { filePath: "/nonexistent/file.txt" });
+      await dispatchWsEvent(websocket, new Event("open"));
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "partial");
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStderr, `${stderr}\n`);
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":1}\n');
+
+      expect(await promise).toEqual({ ok: false, code: "unknown", message: stderr });
+      expect(saveFile).not.toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith({ event: "DOWNLOAD_FILE_FROM_SHELL_ERROR", error: stderr });
+    });
+
+    it("reports the exit code when a failing command writes nothing to stderr", async () => {
+      const { service, saveFile, websocket } = setup();
+
+      const promise = downloadFile(service);
+      await dispatchWsEvent(websocket, new Event("open"));
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":2}\n');
+
+      expect(await promise).toEqual({ ok: false, code: "unknown", message: "The download command exited with code 2." });
+      expect(saveFile).not.toHaveBeenCalled();
+    });
+
+    it("returns the provider's message when the result carries one", async () => {
+      const { service, saveFile, websocket } = setup();
+
+      const promise = downloadFile(service);
+      await dispatchWsEvent(websocket, new Event("open"));
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0,"message":"no active replicase for service"}\n');
+
+      expect(await promise).toEqual({ ok: false, code: "unknown", message: "no active replicase for service" });
+      expect(saveFile).not.toHaveBeenCalled();
+    });
+
+    it("returns an error when the command exits with code 0 without writing any content", async () => {
+      const { service, saveFile, websocket } = setup();
+
+      const promise = downloadFile(service);
+      await dispatchWsEvent(websocket, new Event("open"));
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
+
+      expect(await promise).toEqual({ ok: false, code: "unknown", message: "No file content received from server" });
+      expect(saveFile).not.toHaveBeenCalled();
+    });
+
+    it("returns an error without saving when the provider reports an internal failure", async () => {
+      const { service, saveFile, websocket } = setup();
+
+      const promise = downloadFile(service);
+      await dispatchWsEvent(websocket, new Event("open"));
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "partial");
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeFailure);
+
+      expect(await promise).toEqual({ ok: false, code: "unknown", message: "The provider failed to run the download command." });
+      expect(saveFile).not.toHaveBeenCalled();
+    });
+
+    it("stops right away without saving the partial file when the provider connection closes before the result", async () => {
+      const { service, saveFile, websocket } = setup();
+
+      const promise = downloadFile(service);
+      await dispatchWsEvent(websocket, new Event("open"));
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "partial");
+      await sendProxyMessage(websocket, { type: "websocket", message: "", closed: true, code: 1006, reason: "" });
+
+      expect(await promise).toEqual({ ok: false, code: "unknown", message: "The connection to the provider closed before the file finished downloading." });
+      expect(saveFile).not.toHaveBeenCalled();
+      expect(websocket.close).toHaveBeenCalled();
+    });
+
+    it("stops right away without saving the partial file when the provider connection fails before the result", async () => {
+      const { service, saveFile, websocket } = setup();
+
+      const promise = downloadFile(service);
+      await dispatchWsEvent(websocket, new Event("open"));
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "partial");
+      await sendProxyMessage(websocket, {
+        type: "websocket",
+        message: "Received error from provider websocket",
+        error: "Received error from provider websocket"
+      });
+
+      expect(await promise).toEqual({ ok: false, code: "unknown", message: "The connection to the provider closed before the file finished downloading." });
+      expect(saveFile).not.toHaveBeenCalled();
+      expect(websocket.close).toHaveBeenCalled();
+    });
+
+    it("returns an error without saving the partial file when the session ends before the result", async () => {
+      const { service, saveFile, websocket } = setup();
+
+      const promise = downloadFile(service);
+      await dispatchWsEvent(websocket, new Event("open"));
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "partial");
+      await dispatchWsEvent(websocket, new Event("close"));
+
+      expect(await promise).toEqual({ ok: false, code: "unknown", message: "The connection to the provider closed before the file finished downloading." });
+      expect(saveFile).not.toHaveBeenCalled();
+    });
+
+    it("returns cancelled without saving when the download is aborted", async () => {
+      const { service, saveFile, websocket } = setup();
+      const abortController = new AbortController();
+
+      const promise = downloadFile(service, { signal: abortController.signal });
+      await dispatchWsEvent(websocket, new Event("open"));
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "partial");
+      abortController.abort();
+
+      expect(await promise).toEqual({ ok: false, code: "cancelled" });
+      expect(saveFile).not.toHaveBeenCalled();
+      expect(websocket.close).toHaveBeenCalled();
+    });
+
+    function downloadFile(service: ProviderProxyService, input?: { filePath?: string; signal?: AbortSignal }) {
+      return service.downloadFileFromShell({
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
         ensureToken: () => Promise.resolve("jwt-token"),
@@ -270,208 +440,23 @@ describe(ProviderProxyService.name, () => {
         gseq: 1,
         oseq: 1,
         service: "web",
-        filePath: "/app/config.json"
-      };
-
-      const promise = service.downloadFileFromShell(input);
-
-      await dispatchWsEvent(websocket, new Event("open"));
-
-      // Simulate file content chunks
-      const fileContent = '{"setting": "value"}';
-      const encoder = new TextEncoder();
-      const contentBytes = encoder.encode(fileContent);
-
-      const message1 = JSON.stringify({
-        message: { data: [100, ...contentBytes] }
+        filePath: input?.filePath ?? "/app/data.bin",
+        signal: input?.signal
       });
-      await dispatchWsEvent(websocket, new MessageEvent("message", { data: message1 }));
+    }
 
-      const message2 = JSON.stringify({
-        message: { data: [0, ...encoder.encode('{"exit_code": 0}')] }
-      });
-      await dispatchWsEvent(websocket, new MessageEvent("message", { data: message2 }));
-      await dispatchWsEvent(websocket, new Event("close"));
+    function sendShellFrame(websocket: WebSocket, streamCode: LeaseShellCode, content = "") {
+      return sendProxyMessage(websocket, { type: "websocket", message: { type: "Buffer", data: [streamCode, ...new TextEncoder().encode(content)] } });
+    }
 
-      const result = await promise;
+    function sendProxyMessage(websocket: WebSocket, message: object) {
+      return dispatchWsEvent(websocket, new MessageEvent("message", { data: JSON.stringify(message) }));
+    }
 
-      expect(result).toEqual({ ok: true });
-      expect(saveFile).toHaveBeenCalledWith(expect.any(Blob), "config.json");
-
-      const savedBlob = (saveFile as Mock).mock.calls[0][0];
-      const savedContent = await savedBlob.text();
-      expect(savedContent).toBe(fileContent);
-    });
-
-    it("handles file download with multiple chunks", async () => {
-      const { service, saveFile, websocket } = setup();
-      const input = {
-        providerBaseUrl: "https://provider.akash.network",
-        providerAddress: "akash1provider",
-        ensureToken: () => Promise.resolve("jwt-token"),
-        dseq: "456",
-        gseq: 2,
-        oseq: 3,
-        service: "api",
-        filePath: "/data/largefile.txt"
-      };
-
-      const promise = service.downloadFileFromShell(input);
-
-      await dispatchWsEvent(websocket, new Event("open"));
-
-      const encoder = new TextEncoder();
-      const chunks = ["First chunk ", "Second chunk ", "Third chunk", `{"exit_code": 0}`];
-
-      for (const chunk of chunks) {
-        await dispatchWsEvent(
-          websocket,
-          new MessageEvent("message", {
-            data: JSON.stringify({ message: { data: [0, ...encoder.encode(chunk)] } })
-          })
-        );
-      }
-
-      await dispatchWsEvent(websocket, new Event("close"));
-
-      const result = await promise;
-
-      expect(result).toEqual({ ok: true });
-      const savedBlob = (saveFile as Mock).mock.calls[0][0];
-      const savedContent = await savedBlob.text();
-      expect(savedContent).toBe("First chunk Second chunk Third chunk");
-    });
-
-    it("handles error when exit code is non-zero", async () => {
-      const { service, saveFile, websocket } = setup();
-      const input = {
-        providerBaseUrl: "https://provider.akash.network",
-        providerAddress: "akash1provider",
-        ensureToken: () => Promise.resolve("token123"),
-        dseq: "789",
-        gseq: 1,
-        oseq: 1,
-        service: "web",
-        filePath: "/nonexistent/file.txt"
-      };
-
-      const promise = service.downloadFileFromShell(input);
-
-      await dispatchWsEvent(websocket, new Event("open"));
-
-      const encoder = new TextEncoder();
-      const errorContent = "cat: /nonexistent/file.txt: No such file or directory";
-      await dispatchWsEvent(websocket, new MessageEvent("message", { data: JSON.stringify({ message: { data: [0, ...encoder.encode(errorContent)] } }) }));
-      await dispatchWsEvent(
-        websocket,
-        new MessageEvent("message", { data: JSON.stringify({ message: { data: [0, ...encoder.encode('{"exit_code": 1}')] } }) })
-      );
-      await dispatchWsEvent(websocket, new Event("close"));
-
-      const result = await promise;
-
-      expect(result).toEqual({ ok: false, code: "unknown", message: errorContent });
-      expect(saveFile).not.toHaveBeenCalled();
-    });
-
-    it("handles cancellation via AbortSignal", async () => {
-      const { service, saveFile, websocket } = setup();
-      const abortController = new AbortController();
-      const input = {
-        providerBaseUrl: "https://provider.akash.network",
-        providerAddress: "akash1provider",
-        ensureToken: () => Promise.resolve("jwt-token"),
-        dseq: "999",
-        gseq: 1,
-        oseq: 1,
-        service: "web",
-        filePath: "/app/file.txt",
-        signal: abortController.signal
-      };
-
-      const promise = service.downloadFileFromShell(input);
-
-      await dispatchWsEvent(websocket, new Event("open"));
-      abortController.abort();
-
-      const result = await promise;
-
-      expect(result).toEqual({ ok: false, code: "cancelled" });
-      expect(saveFile).not.toHaveBeenCalled();
-      expect(websocket.close).toHaveBeenCalled();
-    });
-
-    it("handles error when no file content is received", async () => {
-      const { service, saveFile, websocket } = setup();
-      const input = {
-        providerBaseUrl: "https://provider.akash.network",
-        providerAddress: "akash1provider",
-        ensureToken: () => Promise.resolve("jwt-token"),
-        dseq: "111",
-        gseq: 1,
-        oseq: 1,
-        service: "web",
-        filePath: "/app/file.txt"
-      };
-
-      const promise = service.downloadFileFromShell(input);
-
-      await dispatchWsEvent(websocket, new Event("open"));
-
-      const encoder = new TextEncoder();
-      await dispatchWsEvent(
-        websocket,
-        new MessageEvent("message", {
-          data: JSON.stringify({
-            message: { data: [0, ...encoder.encode('{"exit_code": 0}')] }
-          })
-        })
-      );
-      await dispatchWsEvent(websocket, new Event("close"));
-
-      const result = await promise;
-      expect(result).toEqual({ ok: false, code: "unknown", message: expect.any(String) });
-      expect(saveFile).not.toHaveBeenCalled();
-    });
-
-    it("extracts filename correctly from path", async () => {
-      const { service, saveFile, websocket } = setup();
-      const input = {
-        providerBaseUrl: "https://provider.akash.network",
-        providerAddress: "akash1provider",
-        ensureToken: () => Promise.resolve("jwt-token"),
-        dseq: "222",
-        gseq: 1,
-        oseq: 1,
-        service: "web",
-        filePath: "/very/long/path/to/myfile.log"
-      };
-
-      const promise = service.downloadFileFromShell(input);
-
-      await dispatchWsEvent(websocket, new Event("open"));
-
-      const encoder = new TextEncoder();
-      await dispatchWsEvent(
-        websocket,
-        new MessageEvent("message", {
-          data: JSON.stringify({ message: { data: [0, ...encoder.encode("log content")] } })
-        })
-      );
-
-      await dispatchWsEvent(
-        websocket,
-        new MessageEvent("message", {
-          data: JSON.stringify({ message: { data: [0, ...encoder.encode('{"exit_code": 0}')] } })
-        })
-      );
-
-      await dispatchWsEvent(websocket, new Event("close"));
-
-      await promise;
-
-      expect(saveFile).toHaveBeenCalledWith(expect.any(Blob), "myfile.log");
-    });
+    function readSavedFile(saveFile: (data: Blob | string, filename?: string) => void) {
+      const [file] = vi.mocked(saveFile).mock.calls[0];
+      return (file as Blob).text();
+    }
   });
 
   describe("getLogsStream", () => {
