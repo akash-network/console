@@ -8,7 +8,7 @@ import { mock } from "vitest-mock-extended";
 import type { CreateLogger } from "@src/core";
 import { envSchema } from "@src/feedback/config/env.config";
 import type { AssistantAction } from "@src/feedback/http-schemas/assistant-action.schema";
-import type { AssistantStreamEvent } from "@src/feedback/http-schemas/assistant-conversation.schema";
+import { type AssistantStreamEvent, MAX_CLIENT_TOOL_RESULTS } from "@src/feedback/http-schemas/assistant-conversation.schema";
 import { assistantDailyLimitReached } from "@src/feedback/lib/assistant-errors/assistant-errors";
 import { ASSISTANT_PROMPT_VERSION } from "@src/feedback/lib/assistant-prompt-version/assistant-prompt-version";
 import { assistantChatToolsFor } from "@src/feedback/lib/assistant-tools/assistant-tools";
@@ -38,6 +38,7 @@ import {
   ANSWER_NOW_NOTE,
   type AssistantTurn,
   AssistantTurnService,
+  CLIENT_TOOL_CALL_OVER_LIMIT_SUMMARY,
   type EmitAssistantEvent,
   LAST_TOOL_ROUND_NOTE,
   MAX_COMPLETION_TOKENS,
@@ -45,6 +46,7 @@ import {
   MAX_TOOL_CALLS_PER_ROUND,
   MAX_TOOL_ROUNDS,
   PENDING_TURN_TTL_MS,
+  TOO_MANY_CLIENT_TOOL_CALLS_ERROR,
   TOO_MANY_TOOL_CALLS_ERROR,
   TURN_TIMEOUT_MS
 } from "./assistant-turn.service";
@@ -513,6 +515,33 @@ describe(AssistantTurnService.name, () => {
 
     expect(toolRunner.run).toHaveBeenCalledTimes(MAX_TOOL_CALLS_PER_ROUND);
     expect(logger.warn).not.toHaveBeenCalledWith(expect.objectContaining({ event: "ASSISTANT_TOOL_CALLS_OVER_LIMIT" }));
+  });
+
+  it("asks the browser for at most MAX_CLIENT_TOOL_RESULTS reads of one round and answers every later browser read with an error", async () => {
+    const { akashMlClient, toolRunner, pendingTurnRepository, run } = setup();
+    const calls = Array.from({ length: MAX_CLIENT_TOOL_RESULTS + 2 }, (_, index) => toolCall(`c${index}`, "read_logs", { dseq: `${index}` }));
+    akashMlClient.streamChatCompletion.mockImplementationOnce(streamed({ toolCalls: calls }));
+    toolRunner.run.mockImplementation(async call => ({ kind: "client", call: { id: call.id, name: "read_logs", arguments: { dseq: "42", tailLines: 100 } } }));
+
+    const events = await run({});
+
+    const callsRequested = calls.slice(0, MAX_CLIENT_TOOL_RESULTS);
+    const callsRefused = calls.slice(MAX_CLIENT_TOOL_RESULTS);
+    expect(events.filter(event => event.type === "client_tool_request").map(event => event.toolCallId)).toEqual(callsRequested.map(({ id }) => id));
+    expect(events.filter(event => event.type === "tool_result_summary")).toEqual(
+      callsRefused.map(({ id }) => ({
+        type: "tool_result_summary",
+        toolCallId: id,
+        name: "read_logs",
+        ok: false,
+        summary: CLIENT_TOOL_CALL_OVER_LIMIT_SUMMARY
+      }))
+    );
+    const [{ state }] = pendingTurnRepository.hold.mock.calls[0];
+    expect(state.clientToolCalls).toEqual(callsRequested);
+    expect(state.messages.slice(-callsRefused.length)).toEqual(
+      callsRefused.map(({ id }) => ({ role: "tool", tool_call_id: id, content: toolContentOf("read_logs", { error: TOO_MANY_CLIENT_TOOL_CALLS_ERROR }) }))
+    );
   });
 
   it("runs a read after a card only once the card is proposed, and a repeated read once", async () => {

@@ -2,7 +2,7 @@ import { isHttpError } from "http-errors";
 import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
-import { type AssistantStreamEvent, MAX_CLIENT_TOOL_RESULT_LENGTH } from "@src/feedback/http-schemas/assistant-conversation.schema";
+import { type AssistantStreamEvent, MAX_CLIENT_TOOL_RESULT_LENGTH, MAX_CLIENT_TOOL_RESULTS } from "@src/feedback/http-schemas/assistant-conversation.schema";
 import { ASSISTANT_ERROR_CODES } from "@src/feedback/lib/assistant-errors/assistant-errors";
 import { fallbackAnswerOf } from "@src/feedback/lib/assistant-fallback-answer/assistant-fallback-answer";
 import { ASSISTANT_PROMPT_VERSION } from "@src/feedback/lib/assistant-prompt-version/assistant-prompt-version";
@@ -47,6 +47,8 @@ const ROUND_TEXT_SEPARATOR = "\n\n";
 const UNKNOWN_TOOL_NAME = "unknown";
 export const ALREADY_READ_NOTE = "Already read this turn, so this is the earlier result. Answer from it instead of calling the tool again.";
 export const TOO_MANY_TOOL_CALLS_ERROR = `Not run: at most ${MAX_TOOL_CALLS_PER_ROUND} tool calls run per round. Call it again in the next round if you still need it.`;
+export const TOO_MANY_CLIENT_TOOL_CALLS_ERROR = `Not run: at most ${MAX_CLIENT_TOOL_RESULTS} browser reads run per round. Call it again in the next round if you still need it.`;
+export const CLIENT_TOOL_CALL_OVER_LIMIT_SUMMARY = "Skipped a browser read over the per-round limit";
 
 export const LAST_TOOL_ROUND_NOTE: ChatMessage = {
   role: "system",
@@ -126,6 +128,13 @@ export interface AssistantTurn {
 /** The model can invent a tool name, and an invented one could echo the user's words into a trace kept whatever they consented to. */
 function tracedToolNameOf(name: string): string {
   return isAssistantToolName(name) ? name : UNKNOWN_TOOL_NAME;
+}
+
+/** A paused turn resumes only once the browser answers every request, and the resume route takes at most MAX_CLIENT_TOOL_RESULTS results. */
+function withinClientToolLimit(outcome: ToolOutcome, name: string, clientToolCallCount: number): ToolOutcome {
+  if (outcome.kind !== "client" || clientToolCallCount < MAX_CLIENT_TOOL_RESULTS) return outcome;
+
+  return { kind: "result", content: toolContentOf(name, { error: TOO_MANY_CLIENT_TOOL_CALLS_ERROR }), summary: CLIENT_TOOL_CALL_OVER_LIMIT_SUMMARY, ok: false };
 }
 
 function hasText(content: string | null): content is string {
@@ -393,7 +402,8 @@ export class AssistantTurnService {
       const showsAsRead = !isLiveHelpToolName(name);
       const startedRead = startedReads.get(call.id);
       if (showsAsRead && !startedRead) await emit({ type: "tool_started", toolCallId: call.id, name });
-      const { outcome, durationMs } = await (startedRead ?? this.#timedRun(call, proposalContext));
+      const { outcome: runOutcome, durationMs } = await (startedRead ?? this.#timedRun(call, proposalContext));
+      const outcome = withinClientToolLimit(runOutcome, name, clientToolCalls.length);
 
       if (outcome.kind === "client") {
         clientToolCalls.push(call);
