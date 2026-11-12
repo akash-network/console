@@ -38,7 +38,7 @@ function isEmptyList(value: unknown): boolean {
 
 function dataOf(result: string | undefined): Record<string, unknown> | undefined {
   try {
-    return JSON.parse(result ?? "").data;
+    return JSON.parse(result ?? "").untrustedData;
   } catch {
     return undefined;
   }
@@ -58,10 +58,15 @@ function dseqOf(call: ChatToolCall): string | undefined {
   }
 }
 
+/** A read asked for again carries the earlier tool result, with its own tool name, as its untrusted data. */
+function isFailedEarlierResult(untrustedData: { tool?: unknown; error?: unknown } | null | undefined): boolean {
+  return typeof untrustedData?.tool === "string" && untrustedData.error !== undefined;
+}
+
 function isFailedRead(result: string | undefined): boolean {
   try {
-    const { error, data } = JSON.parse(result ?? "{}");
-    return error !== undefined || data?.earlierResult?.error !== undefined;
+    const { error, untrustedData } = JSON.parse(result ?? "{}");
+    return error !== undefined || isFailedEarlierResult(untrustedData);
   } catch {
     return false;
   }

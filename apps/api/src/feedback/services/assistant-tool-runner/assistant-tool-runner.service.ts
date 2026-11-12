@@ -62,20 +62,29 @@ export function truncated(text: string, maxLength: number): string {
 }
 
 /** Tool results reach the model as JSON data, redacted and bounded, so their content cannot pass for instructions or flood the context. */
-export function toolContentOf(tool: string, payload: { data: unknown } | { error: string }): string {
+export function toolContentOf(tool: string, payload: ToolPayload): string {
   return truncated(redactSecrets(JSON.stringify({ tool, ...payload })), MAX_TOOL_RESULT_LENGTH);
 }
 
-function fitsToolResult(tool: string, payload: { data: unknown }): boolean {
+type ToolPayload = { data: unknown; untrustedData?: unknown } | { untrustedData: unknown } | { error: string; untrustedData?: unknown };
+
+/** Reads whose content only Console wrote, so they stay under data while every other read reaches the model as untrustedData. */
+export const FIRST_PARTY_READ_TOOLS: ReadonlySet<ReadToolName> = new Set<ReadToolName>(["search_docs"]);
+
+export function readContentOf(tool: ReadToolName, data: unknown): string {
+  return toolContentOf(tool, FIRST_PARTY_READ_TOOLS.has(tool) ? { data } : { untrustedData: data });
+}
+
+function fitsToolResult(tool: string, payload: ToolPayload): boolean {
   return redactSecrets(JSON.stringify({ tool, ...payload })).length <= MAX_TOOL_RESULT_LENGTH;
 }
 
-/** Leaves out a template SDL too long for the result cap, since a cut payload would reach the model as broken JSON without its note. */
-function withheldContentOf(tool: string, { templateSdl, ...feedback }: Record<string, unknown>): string {
-  const payload = { data: { shownToUser: false, ...feedback, templateSdl, note: WITHHELD_PROPOSAL_NOTE } };
+/** Only Console's note stays under data since the screening result quotes the SDL, and an SDL too long for the cap is left out rather than cut into broken JSON. */
+export function withheldContentOf(tool: string, { templateSdl, ...feedback }: Record<string, unknown>): string {
+  const payload = { data: { shownToUser: false, note: WITHHELD_PROPOSAL_NOTE }, untrustedData: { ...feedback, templateSdl } };
   if (fitsToolResult(tool, payload)) return toolContentOf(tool, payload);
 
-  return toolContentOf(tool, { data: { shownToUser: false, ...feedback, note: `${WITHHELD_PROPOSAL_NOTE} ${TEMPLATE_SDL_LEFT_OUT_NOTE}` } });
+  return toolContentOf(tool, { data: { shownToUser: false, note: `${WITHHELD_PROPOSAL_NOTE} ${TEMPLATE_SDL_LEFT_OUT_NOTE}` }, untrustedData: feedback });
 }
 
 type DedicatedReadToolName = Exclude<ReadToolName, typeof CONSOLE_API_READ_TOOL_NAME>;
@@ -144,15 +153,22 @@ function redactedDiagnosisOf(diagnosis: unknown): AssistantDiagnosis | undefined
   return evidence.length > 0 ? { summary: redactSecrets(parsed.summary), evidence: evidence.map(redactSecrets) } : undefined;
 }
 
-function rejectionOf(error: unknown): string | null {
-  if (error instanceof AssistantToolError) return error.message;
-  if (isHttpError(error) && error.status < 500) return error.message;
+interface Rejection {
+  error: string;
+  untrustedData?: string;
+}
+
+/** A client error's message can pass on what a provider or the chain answered, so it reaches the model as untrusted data. */
+export function rejectionOf(error: unknown): Rejection | null {
+  if (error instanceof AssistantToolError) return { error: error.message, untrustedData: error.untrustedDetail };
+  if (isHttpError(error) && error.status < 500) return { error: `Console refused this call with status ${error.status}.`, untrustedData: error.message };
 
   return null;
 }
 
 /** A YAML parse error quotes the SDL lines around the fault after its first line, so only that first line reaches the logs. */
-function loggedRejectionOf(rejection: string): string {
+function loggedRejectionOf({ error, untrustedData }: Rejection): string {
+  const rejection = untrustedData === undefined ? error : `${error} ${untrustedData}`;
   return redactSecrets(rejection.split("\n", 1)[0]);
 }
 
@@ -233,7 +249,7 @@ export class AssistantToolRunnerService {
         };
       }
 
-      return { kind: "result", content: toolContentOf(name, { error: this.#reasonOf(name, error) }), summary: failedSummaryOf(name), ok: false };
+      return { kind: "result", content: toolContentOf(name, this.#rejectionPayloadOf(name, error)), summary: failedSummaryOf(name), ok: false };
     }
   }
 
@@ -249,7 +265,7 @@ export class AssistantToolRunnerService {
           ? await this.consoleApi.read(parsed as ReadToolArguments<typeof CONSOLE_API_READ_TOOL_NAME>)
           : await this.#summarizedRead(name, parsed, context);
 
-      return { kind: "result", content: toolContentOf(name, { data }), summary, ok: true };
+      return { kind: "result", content: readContentOf(name, data), summary, ok: true };
     }
 
     if (isClientToolName(name)) {
@@ -321,12 +337,12 @@ export class AssistantToolRunnerService {
     return await this.bidTools.checkAvailability(checkedSdl, { isTrialing: context.isTrialing === true });
   }
 
-  #reasonOf(tool: string, error: unknown): string {
-    if (error instanceof AssistantToolArgumentsRejectedError) return this.#rejectedArgumentsReasonOf(tool, error.issues);
+  #rejectionPayloadOf(tool: string, error: unknown): Rejection {
+    if (error instanceof AssistantToolArgumentsRejectedError) return { error: this.#rejectedArgumentsReasonOf(tool, error.issues) };
     const rejection = rejectionOf(error);
     if (rejection === null) {
       this.#logger.warn({ event: "ASSISTANT_TOOL_FAILED", tool, error });
-      return FAILED_TOOL_MESSAGE;
+      return { error: FAILED_TOOL_MESSAGE };
     }
 
     this.#logger.info({ event: "ASSISTANT_TOOL_REJECTED", tool, reason: loggedRejectionOf(rejection) });

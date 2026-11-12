@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { AssistantProposalWithheldError, AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
 import { assistantChatTools } from "@src/feedback/lib/assistant-tools/assistant-tools";
 import { ASSISTANT_EVAL_CASES } from "./assistant-eval-cases";
 import { formatAssistantEvalTable, scoreAssistantEval, sdlValidationErrorsOf } from "./assistant-eval-scoring";
@@ -421,8 +422,27 @@ describe(scoreAssistantEval.name, () => {
 
     expect(checkAvailability({ sdl: PERSISTENT_POSTGRES_SDL })).toMatchObject({ providersAbleToBid: 14 });
     expect(checkAvailability({ sdl: PRICELESS_POSTGRES_SDL })).toMatchObject({ providersAbleToBid: 14 });
-    expect(checkAvailability({ sdl: STORAGE_AS_MAP_SDL })).toEqual({ error: expect.stringMatching(/^The SDL is not valid: \/profiles\/compute\/postgres/) });
-    expect(checkAvailability({ templateId: "postgres" })).toEqual({ error: expect.stringMatching(/^The SDL is not valid: \S/) });
+
+    const refusal = errorThrownBy(() => checkAvailability({ sdl: STORAGE_AS_MAP_SDL }));
+    expect(refusal).toBeInstanceOf(AssistantToolError);
+    expect(refusal).toMatchObject({ message: "The SDL is not valid.", untrustedDetail: expect.stringMatching(/^\/profiles\/compute\/postgres/) });
+    expect(errorThrownBy(() => checkAvailability({ templateId: "postgres" }))).toMatchObject({
+      message: "The SDL is not valid.",
+      untrustedDetail: expect.stringMatching(/\S/)
+    });
+  });
+
+  it("holds back the dart template's create proposal with the screening the proposal service throws", () => {
+    const withoutBidders = ASSISTANT_EVAL_CASES.find(({ id }) => id === "deploy-template-without-bidders");
+    const [withheld] = withoutBidders?.proposalResults?.propose_create_deployment ?? [];
+
+    expect(withheld).toBeInstanceOf(AssistantProposalWithheldError);
+    expect(withheld.feedback).toEqual({
+      providersAbleToBid: 0,
+      groups: [expect.objectContaining({ providersAbleToBid: 0 })],
+      gpuModelsWithFreeCapacity: null,
+      templateSdl: expect.stringContaining("image: google/dart-hello")
+    });
   });
 
   it("fails the persistent postgres case when the proposed SDL mounts no persistent volume, whatever its reason says", () => {
@@ -454,4 +474,14 @@ describe(scoreAssistantEval.name, () => {
       expect(formatAssistantEvalTable([{ id: "a", passed: true, failures: [] }])).toBe(["case  result", "a     PASS", "", "1/1 passed"].join("\n"));
     });
   });
+
+  function errorThrownBy(run: () => unknown): unknown {
+    try {
+      run();
+    } catch (error) {
+      return error;
+    }
+
+    throw new Error("expected the call to throw");
+  }
 });

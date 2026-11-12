@@ -72,7 +72,7 @@ export class AssistantBidToolsService {
   /** Screens the exact SDL a proposal would deploy, validated with the checks a create runs. */
   async checkAvailability(sdl: string, options: { isTrialing: boolean }): Promise<SdlAvailability> {
     const manifest = await this.sdlService.generateManifest(sdl, options);
-    if (!manifest.ok) throw new AssistantToolError(`The SDL is not valid: ${manifest.value.map(({ message }) => message).join("; ")}`);
+    if (!manifest.ok) throw new AssistantToolError("The SDL is not valid.", manifest.value.map(({ message }) => message).join("; "));
 
     return await this.#availabilityOfGroups(manifest.value.groupSpecs);
   }

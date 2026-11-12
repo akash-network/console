@@ -8,7 +8,6 @@ import type { WalletSettingController } from "@src/billing/controllers/wallet-se
 import type { WalletSettingsResponse } from "@src/billing/http-schemas/wallet.schema";
 import type { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import type { DeploymentController } from "@src/deployment/controllers/deployment/deployment.controller";
-import { AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
 import { AssistantUsdService } from "@src/feedback/services/assistant-usd/assistant-usd.service";
 import type { TemplateController } from "@src/template/controllers/template/template.controller";
 import type { Template } from "@src/template/types/template";
@@ -231,7 +230,11 @@ describe(AssistantAccountToolsService.name, () => {
       const { service, templateController } = setup();
       templateController.getTemplateById.mockRejectedValue(createError(404, "Template not found"));
 
-      await expect(service.templateSdl("nginx")).rejects.toThrow(new AssistantToolError('No template has id "nginx". Call list_templates or pass an sdl.'));
+      await expect(service.templateSdl("nginx")).rejects.toMatchObject({
+        name: "AssistantToolError",
+        message: "No template has this id. Call list_templates or pass an sdl.",
+        untrustedDetail: '"nginx"'
+      });
     });
 
     it("lets other failures to read a template through", async () => {

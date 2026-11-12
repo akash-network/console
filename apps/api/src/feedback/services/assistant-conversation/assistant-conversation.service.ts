@@ -35,6 +35,7 @@ import { AssistantMessageRepository } from "@src/feedback/repositories/assistant
 import { AssistantPendingTurnRepository } from "@src/feedback/repositories/assistant-pending-turn/assistant-pending-turn.repository";
 import { AssistantTurnTraceRepository } from "@src/feedback/repositories/assistant-turn-trace/assistant-turn-trace.repository";
 import { AkashMlClient, type ChatMessage } from "@src/feedback/services/akashml-client/akashml.client";
+import { AssistantAnswerSigner } from "@src/feedback/services/assistant-answer-signer/assistant-answer-signer.service";
 import { AssistantLimitsService } from "@src/feedback/services/assistant-limits/assistant-limits.service";
 import { toolContentOf, truncated } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
 import { AssistantTranscriptService } from "@src/feedback/services/assistant-transcript/assistant-transcript.service";
@@ -43,12 +44,15 @@ import { ClassifyConversation, classifyConversationOptionsFor } from "@src/feedb
 
 /** Logs matter most at their end, so a long excerpt keeps its last lines. */
 const MAX_CLIENT_EXCERPT_LENGTH = 6_000;
+const CLIENT_TOOL_FAILED_MESSAGE = "The browser could not read this.";
 
 export type RunAssistantTurn = (emit: EmitAssistantEvent, signal: AbortSignal) => Promise<void>;
 
 type ConversationContextInput = StartAssistantConversationRequest["data"]["context"];
 
 type CountedMessage = { conversationId: string; page: string | null };
+
+type ClientHistory = SendAssistantMessageRequest["data"]["history"];
 
 function dayOf(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -81,6 +85,7 @@ export class AssistantConversationService {
     private readonly assistantTurnTraceRepository: AssistantTurnTraceRepository,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly akashMlClient: AkashMlClient,
+    private readonly answerSigner: AssistantAnswerSigner,
     private readonly limitsService: AssistantLimitsService,
     private readonly transcriptService: AssistantTranscriptService,
     private readonly turnService: AssistantTurnService,
@@ -117,7 +122,7 @@ export class AssistantConversationService {
     const stored = !!conversation && consent.reviewOptIn;
     const userMessage = redactSecrets(content);
     const storedMessages = conversation ? await this.assistantMessageRepository.findAllOf(conversation.id) : [];
-    const earlier = conversation ? historyFromStored(storedMessages) : historyFromClient(history);
+    const earlier = conversation ? historyFromStored(storedMessages) : historyFromClient(this.#verifiedHistory(conversationId, history));
 
     if (stored) await this.transcriptService.record(conversationId, { role: "user", content: userMessage });
 
@@ -135,7 +140,18 @@ export class AssistantConversationService {
     return async (emit, signal) => {
       if (redactedSecretCount > 0) await emit({ type: "secret_redacted", count: redactedSecretCount });
       await this.turnService.run(
-        { conversationId, userId: this.authService.currentUser.id, organizationId, page, stored, isTrialing, configureFormOpen, messages, roundsUsed: 0 },
+        {
+          conversationId,
+          userId: this.authService.currentUser.id,
+          organizationId,
+          page,
+          stored,
+          isTrialing,
+          configureFormOpen,
+          messages,
+          roundsUsed: 0,
+          earlierAnswerText: ""
+        },
         emit,
         signal
       );
@@ -167,7 +183,9 @@ export class AssistantConversationService {
     const toolMessages: ChatMessage[] = state.clientToolCalls.map(call => {
       const result = results.find(({ toolCallId }) => toolCallId === call.id)!;
       const excerpt = redactSecrets(excerptOf(call.function.name, result.content));
-      const payload = result.ok ? { data: { untrustedExcerpt: excerpt } } : { error: truncated(excerpt, MAX_CLIENT_EXCERPT_LENGTH) };
+      const payload = result.ok
+        ? { data: { untrustedExcerpt: excerpt } }
+        : { error: CLIENT_TOOL_FAILED_MESSAGE, untrustedData: truncated(excerpt, MAX_CLIENT_EXCERPT_LENGTH) };
 
       return { role: "tool", tool_call_id: call.id, content: toolContentOf(call.function.name, payload) };
     });
@@ -195,7 +213,8 @@ export class AssistantConversationService {
           isTrialing: state.isTrialing,
           configureFormOpen: state.configureFormOpen === true,
           messages: [...state.messages, ...toolMessages],
-          roundsUsed: state.roundsUsed
+          roundsUsed: state.roundsUsed,
+          earlierAnswerText: state.shownText ?? ""
         },
         emit,
         signal
@@ -263,13 +282,30 @@ export class AssistantConversationService {
 
   async #admit(countedMessage?: CountedMessage): Promise<{ consent: AssistantConsentOutput; isTrialing: boolean | null }> {
     const consent = await this.#currentConsent();
-    if (!this.akashMlClient.isAvailable()) throw assistantUnavailable();
+    if (!this.akashMlClient.isAvailable() || !this.answerSigner.isConfigured()) throw assistantUnavailable();
 
     const isTrialing = await this.#isTrialing();
     if (countedMessage) await this.#countMessage(countedMessage, isTrialing);
     await this.limitsService.assertWithinBudget();
 
     return { consent, isTrialing };
+  }
+
+  /** Verifies only after #admit, so a deployment with no signing key fails as unavailable instead of dropping every answer as unverified. */
+  #verifiedHistory(conversationId: string, history: ClientHistory): { role: "user" | "assistant"; content: string }[] {
+    const userId = this.authService.currentUser.id;
+    const messages = history ?? [];
+    const verified = messages.filter(
+      ({ role, content, signature }) => role === "user" || (!!signature && this.answerSigner.verifies({ userId, conversationId, text: content, signature }))
+    );
+
+    const droppedCount = messages.length - verified.length;
+    if (droppedCount > 0) {
+      const missingCount = messages.filter(({ role, signature }) => role === "assistant" && !signature).length;
+      this.#logger.warn({ event: "ASSISTANT_HISTORY_UNVERIFIED", droppedCount, missingCount });
+    }
+
+    return verified.map(({ role, content }) => ({ role, content }));
   }
 
   async #countMessage(countedMessage: CountedMessage, isTrialing: boolean | null): Promise<void> {

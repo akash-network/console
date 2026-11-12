@@ -167,9 +167,10 @@ describe(AssistantBidToolsService.name, () => {
         ]
       });
 
-      await expect(service.checkAvailability("bad", { isTrialing: true })).rejects.toThrow(
-        new AssistantToolError("The SDL is not valid: H100 not available on free trial; bad indent")
-      );
+      const error = await service.checkAvailability("bad", { isTrialing: true }).catch((error: unknown) => error);
+
+      expect(error).toBeInstanceOf(AssistantToolError);
+      expect(error).toMatchObject({ message: "The SDL is not valid.", untrustedDetail: "H100 not available on free trial; bad indent" });
     });
 
     it("reports the count as unknown when any group's screening did not answer", async () => {

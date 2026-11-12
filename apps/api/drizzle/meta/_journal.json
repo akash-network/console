@@ -932,6 +932,13 @@
       "when": 1794503781699,
       "tag": "0132_template_versions_catch_up",
       "breakpoints": true
+    },
+    {
+      "idx": 133,
+      "version": "7",
+      "when": 1794514603638,
+      "tag": "0133_assistant_user_day_tokens",
+      "breakpoints": true
     }
   ]
 }

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import type { ReadToolName } from "@src/feedback/lib/assistant-tools/assistant-tool-arguments";
 import type { ChatMessage, ChatToolCall } from "@src/feedback/services/akashml-client/akashml.client";
-import { toolContentOf } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
+import { readContentOf, toolContentOf } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
+import { alreadyReadContentOf } from "@src/feedback/services/assistant-turn/assistant-turn.service";
 import { fallbackAnswerOf } from "./assistant-fallback-answer";
 
 const NO_BIDS = { bids: [], leaseCount: 0 };
@@ -23,15 +25,15 @@ function askedTurnOf(question: string, ...reads: { call: ChatToolCall; result?: 
   return [
     { role: "user", content: "my deployment 7 has no bids" },
     { role: "assistant", content: null, tool_calls: [toolCall("old", "get_bids", { dseq: "7" })] },
-    { role: "tool", tool_call_id: "old", content: toolContentOf("get_bids", { data: NO_BIDS }) },
+    { role: "tool", tool_call_id: "old", content: readContentOf("get_bids", NO_BIDS) },
     { role: "user", content: question },
     { role: "assistant", content: null, tool_calls: reads.map(({ call }) => call) },
     ...reads.flatMap(({ call, result }): ChatMessage[] => (result === undefined ? [] : [{ role: "tool", tool_call_id: call.id, content: result }]))
   ];
 }
 
-function readOf(id: string, name: string, dseq: string, data: unknown) {
-  return { call: toolCall(id, name, { dseq }), result: toolContentOf(name, { data }) };
+function readOf(id: string, name: ReadToolName, dseq: string, data: unknown) {
+  return { call: toolCall(id, name, { dseq }), result: readContentOf(name, data) };
 }
 
 describe(fallbackAnswerOf.name, () => {
@@ -69,7 +71,7 @@ describe(fallbackAnswerOf.name, () => {
     expect(answer).not.toMatch(/\d/);
   });
 
-  it.each([
+  it.each<{ case: string; name: ReadToolName; data: unknown }>([
     { case: "bids it read", name: "get_bids", data: { bids: [{ provider: "akash1p" }], leaseCount: 0 } },
     { case: "a lease it read", name: "get_bids", data: { bids: [], leaseCount: 1 } },
     { case: "bids without a lease count", name: "get_bids", data: { bids: [] } },
@@ -83,7 +85,7 @@ describe(fallbackAnswerOf.name, () => {
   });
 
   it("does not suggest asking about missing bids when the bid read has no parseable result", () => {
-    const truncated = { call: toolCall("c1", "get_bids", { dseq: "1" }), result: '{"tool":"get_bids","data":{"bids":[...[truncated]' };
+    const truncated = { call: toolCall("c1", "get_bids", { dseq: "1" }), result: '{"tool":"get_bids","untrustedData":{"bids":[...[truncated]' };
 
     expect(fallbackAnswerOf(turnWithResultsOf(truncated, { call: toolCall("c2", "get_bids", { dseq: "2" }) }))).toContain(
       "Next step: tell me what you expected your deployment to do"
@@ -103,7 +105,7 @@ describe(fallbackAnswerOf.name, () => {
   it("names deployments after any read in the conversation that returned their name", () => {
     const listed = { deployments: [{ dseq: "1", name: "web" }, { dseq: "2", name: "" }, { dseq: 3, name: "db" }] };
     const reads = [
-      { call: toolCall("c1", "list_deployments"), result: toolContentOf("list_deployments", { data: listed }) },
+      { call: toolCall("c1", "list_deployments"), result: readContentOf("list_deployments", listed) },
       readOf("c2", "get_deployment", "1", { dseq: "1", name: null, leases: [{ name: "not a deployment" }] }),
       { call: toolCall("c3", "read_events", { dseq: "2" }) },
       { call: toolCall("c4", "read_logs", { dseq: "3" }) }
@@ -111,7 +113,7 @@ describe(fallbackAnswerOf.name, () => {
     const messages: ChatMessage[] = [
       { role: "user", content: "why no bids?" },
       { role: "assistant", content: null, tool_calls: [toolCall("old", "get_bids", { dseq: "3" })] },
-      { role: "tool", tool_call_id: "old", content: toolContentOf("get_bids", { data: { dseq: "3", name: "worker", bids: [], leaseCount: 1 } }) },
+      { role: "tool", tool_call_id: "old", content: readContentOf("get_bids", { dseq: "3", name: "worker", bids: [], leaseCount: 1 }) },
       ...askedTurnOf("what happened?", ...reads).slice(3)
     ];
 
@@ -192,13 +194,40 @@ describe(fallbackAnswerOf.name, () => {
         askedTurnOf(
           "what is wrong",
           { call: toolCall("c1", "list_deployments"), result: failed },
-          { call: toolCall("c2", "list_deployments"), result: toolContentOf("list_deployments", { data: { earlierResult: JSON.parse(failed) } }) },
-          { call: toolCall("c3", "get_balance_and_spend"), result: toolContentOf("get_balance_and_spend", { data: { balanceUsd: 5 } }) },
+          { call: toolCall("c2", "list_deployments"), result: alreadyReadContentOf("list_deployments", failed) },
+          { call: toolCall("c3", "get_balance_and_spend"), result: readContentOf("get_balance_and_spend", { balanceUsd: 5 }) },
           { call: toolCall("c4", "search_docs"), result: "null" }
         )
       )
     ).toBe(
       "I read your balance and spend and the Console docs, but could not finish my answer. Next step: ask again in a shorter question, or ask on Discord for live help."
+    );
+  });
+
+  it("keeps a read whose data carries an error field of its own", () => {
+    expect(fallbackAnswerOf(turnWithResultsOf(readOf("c1", "get_deployment", "1", { dseq: "1", name: "web", error: "ImagePullBackOff" })))).toBe(
+      "I read deployment web, but could not finish my answer. Next step: tell me what you expected deployment web to do, or ask on Discord for live help."
+    );
+  });
+
+  it("keeps a read asked for again when the earlier read succeeded", () => {
+    const earlier = readContentOf("list_deployments", { deployments: [] });
+
+    expect(fallbackAnswerOf(askedTurnOf("what is wrong", { call: toolCall("c1", "list_deployments"), result: alreadyReadContentOf("list_deployments", earlier) }))).toBe(
+      "I read your deployments, but could not finish my answer. Next step: ask again in a shorter question, or ask on Discord for live help."
+    );
+  });
+
+  it("names a deployment after a balance read that returned its name", () => {
+    expect(
+      fallbackAnswerOf(
+        turnWithResultsOf(
+          { call: toolCall("c1", "get_balance_and_spend"), result: readContentOf("get_balance_and_spend", { spendByDeployment: [{ dseq: "5", name: "billing-web" }] }) },
+          { call: toolCall("c2", "read_logs", { dseq: "5" }) }
+        )
+      )
+    ).toBe(
+      "I read your balance and spend and the logs of deployment billing-web, but could not finish my answer. Next step: tell me what you expected deployment billing-web to do, or ask on Discord for live help."
     );
   });
 });

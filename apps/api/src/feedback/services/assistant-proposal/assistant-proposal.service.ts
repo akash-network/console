@@ -34,7 +34,8 @@ function serviceNamed(services: SdlServiceSummary[], name: string): SdlServiceSu
   const service = services.find(({ service }) => service === name);
   if (!service)
     throw new AssistantToolError(
-      `The deployment has no service named ${JSON.stringify(name)}. Its services are: ${services.map(({ service }) => service).join(", ")}`
+      `The deployment has no service named ${JSON.stringify(name)}.`,
+      `Its services are: ${services.map(({ service }) => service).join(", ")}`
     );
 
   return service;
@@ -168,7 +169,8 @@ export class AssistantProposalService {
     const volumes = unmountableVolumesOf(sdl);
     if (volumes.length > 0)
       throw new AssistantToolError(
-        `This SDL mounts ${volumes.join(", ")}, but providers only mount persistent or RAM volumes. Give each mounted volume persistent: true and a class (beta1 HDD, beta2 SSD, beta3 NVMe), use class: ram with persistent: false for shared memory, or remove the volume.`
+        "This SDL mounts volumes that are neither persistent nor RAM, which providers do not mount. Give each mounted volume persistent: true and a class (beta1 HDD, beta2 SSD, beta3 NVMe), use class: ram with persistent: false for shared memory, or remove the volume.",
+        volumes.join(", ")
       );
   }
 
@@ -243,7 +245,7 @@ export class AssistantProposalService {
       dseq,
       choices: choices.map(({ gseq, oseq, provider }) => {
         const match = bids.find(({ bid }) => bid.state === "open" && bid.id.gseq === gseq && bid.id.oseq === oseq && bid.id.provider === provider);
-        if (!match) throw new AssistantToolError(`There is no open bid from ${provider} for group ${gseq}/${oseq}. Read the bids again with get_bids.`);
+        if (!match) throw new AssistantToolError(`There is no open bid from this provider for group ${gseq}/${oseq}. Read the bids again with get_bids.`, provider);
 
         return { gseq, oseq, provider, price: match.bid.price };
       })

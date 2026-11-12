@@ -14,6 +14,8 @@ export type AssistantPendingTurnState = {
   /** Absent on turns held before turn traces existed. */
   organizationId?: string | null;
   page?: string | null;
+  /** Absent on turns held before answers were signed, read as "". */
+  shownText?: string;
 };
 
 /** A turn paused on a browser tool, held only until the browser answers or the row expires, whatever the user consented to. */

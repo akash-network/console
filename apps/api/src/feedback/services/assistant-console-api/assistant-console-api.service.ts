@@ -176,7 +176,7 @@ export class AssistantConsoleApiService {
     if (undeclared.length === 0) return;
 
     const accepted = route.queryParameters.length > 0 ? `It accepts ${route.queryParameters.join(", ")}.` : "It accepts no query parameters.";
-    throw new AssistantToolError(`${route.path} does not accept ${undeclared.join(", ")}. ${accepted}`);
+    throw new AssistantToolError(`${route.path} does not accept some of the query parameters given. ${accepted}`, undeclared.join(", "));
   }
 
   #urlOf(path: string, query: Record<string, string | number | boolean> | undefined): URL {
@@ -206,7 +206,7 @@ export class AssistantConsoleApiService {
     if (response.status >= 500) return new Error(`The Console API answered ${response.status}`);
 
     const message = redactEmailAddresses(redactSecrets(errorMessageOf(await response.text()))).slice(0, MAX_ERROR_MESSAGE_LENGTH);
-    return new AssistantToolError(`The Console API refused ${path} with ${response.status}: ${message}`);
+    return new AssistantToolError(`The Console API refused ${path} with ${response.status}.`, message || undefined);
   }
 
   async #shaped(route: ConsoleApiRoute, body: unknown): Promise<unknown> {

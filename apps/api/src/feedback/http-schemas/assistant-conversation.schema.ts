@@ -44,7 +44,15 @@ export const SendAssistantMessageRequestSchema = z.object({
   data: z.object({
     content: z.string().trim().min(1).max(MAX_ASSISTANT_MESSAGE_LENGTH),
     history: z
-      .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(MAX_ASSISTANT_HISTORY_MESSAGE_LENGTH) }))
+      .array(
+        z.object({
+          role: z.enum(["user", "assistant"]),
+          content: z.string().max(MAX_ASSISTANT_HISTORY_MESSAGE_LENGTH),
+          signature: z.string().max(128).optional().openapi({
+            description: "The `answerSignature` the API sent with this answer. An assistant message without a valid one is left out."
+          })
+        })
+      )
       .max(MAX_ASSISTANT_HISTORY_MESSAGES)
       .optional()
       .openapi({ description: "The earlier messages of a conversation the API does not store, oldest first. Ignored for a stored conversation." }),
@@ -137,7 +145,13 @@ export const AssistantStreamEventSchema = z
       type: z.literal("done"),
       reason: z.enum(["stop", "length", "awaiting_client_tool"]).openapi({
         description: "`awaiting_client_tool`: the turn is paused until the browser posts the requested results to `client-tool-results`"
-      })
+      }),
+      answerSignature: z
+        .string()
+        .optional()
+        .openapi({
+          description: `Signs the answer's text so far, up to its first ${MAX_ASSISTANT_HISTORY_MESSAGE_LENGTH} characters, which is all the client sends back with this answer in \`history\``
+        })
     }),
     z.object({ type: z.literal("error"), code: z.enum(ASSISTANT_STREAM_ERROR_CODES), message: z.string() })
   ])

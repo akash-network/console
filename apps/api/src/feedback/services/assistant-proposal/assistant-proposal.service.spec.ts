@@ -48,8 +48,12 @@ const EPHEMERAL_MOUNT_SDL = ASSISTANT_TEST_SDL.replace(
   "        storage:\n          - size: 2Gi\n          - name: data\n            size: 10Gi\n          - name: cache\n            size: 1Gi"
 );
 
-const UNMOUNTABLE_VOLUME_MESSAGE =
-  "This SDL mounts web/data, web/cache, but providers only mount persistent or RAM volumes. Give each mounted volume persistent: true and a class (beta1 HDD, beta2 SSD, beta3 NVMe), use class: ram with persistent: false for shared memory, or remove the volume.";
+const UNMOUNTABLE_VOLUME_REFUSAL = {
+  name: "AssistantToolError",
+  message:
+    "This SDL mounts volumes that are neither persistent nor RAM, which providers do not mount. Give each mounted volume persistent: true and a class (beta1 HDD, beta2 SSD, beta3 NVMe), use class: ram with persistent: false for shared memory, or remove the volume.",
+  untrustedDetail: "web/data, web/cache"
+};
 
 const DEFAULT_CEILING = { denom: "uact", amount: 100000 };
 
@@ -169,7 +173,7 @@ describe(AssistantProposalService.name, () => {
     it("refuses a generated SDL that mounts a volume which is neither persistent nor RAM, before screening it", async () => {
       const { service, bidTools } = setup();
 
-      await expect(propose(service, "create_deployment", { sdl: EPHEMERAL_MOUNT_SDL })).rejects.toThrow(new AssistantToolError(UNMOUNTABLE_VOLUME_MESSAGE));
+      await expect(propose(service, "create_deployment", { sdl: EPHEMERAL_MOUNT_SDL })).rejects.toMatchObject(UNMOUNTABLE_VOLUME_REFUSAL);
       expect(bidTools.checkAvailability).not.toHaveBeenCalled();
     });
 
@@ -401,9 +405,7 @@ describe(AssistantProposalService.name, () => {
     it.each([{}, { templateId: "hello-world" }, { dseq: "42" }])("refuses to open an SDL that mounts an unmountable volume with %o", async base => {
       const { service, deploymentController, accountTools } = setup();
 
-      await expect(propose(service, "open_in_editor", { ...base, sdl: EPHEMERAL_MOUNT_SDL })).rejects.toThrow(
-        new AssistantToolError(UNMOUNTABLE_VOLUME_MESSAGE)
-      );
+      await expect(propose(service, "open_in_editor", { ...base, sdl: EPHEMERAL_MOUNT_SDL })).rejects.toMatchObject(UNMOUNTABLE_VOLUME_REFUSAL);
       expect(deploymentController.findByDseq).not.toHaveBeenCalled();
       expect(accountTools.templateSdl).not.toHaveBeenCalled();
     });
@@ -445,9 +447,11 @@ describe(AssistantProposalService.name, () => {
       bid.bid.state = state;
       bidController.list.mockResolvedValue({ data: [bid] });
 
-      await expect(propose(service, "choose_bid", { dseq: "42", choices: [{ gseq: 1, oseq: 1, provider }] })).rejects.toThrow(
-        new AssistantToolError(`There is no open bid from ${provider} for group 1/1. Read the bids again with get_bids.`)
-      );
+      await expect(propose(service, "choose_bid", { dseq: "42", choices: [{ gseq: 1, oseq: 1, provider }] })).rejects.toMatchObject({
+        name: "AssistantToolError",
+        message: "There is no open bid from this provider for group 1/1. Read the bids again with get_bids.",
+        untrustedDetail: provider
+      });
     });
 
     it("refuses a choice of another provider's bid", async () => {
@@ -497,7 +501,7 @@ describe(AssistantProposalService.name, () => {
       const { service } = setup();
 
       await expect(propose(service, "update_deployment", { dseq: "42", services: { api: { image: "a:1" } } })).rejects.toThrow(
-        new AssistantToolError('The deployment has no service named "api". Its services are: web')
+        expect.objectContaining({ message: 'The deployment has no service named "api".', untrustedDetail: "Its services are: web" })
       );
     });
 

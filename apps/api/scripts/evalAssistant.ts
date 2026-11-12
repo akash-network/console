@@ -16,12 +16,13 @@ import {
 import { fallbackAnswerOf } from "@src/feedback/lib/assistant-fallback-answer/assistant-fallback-answer";
 import { assistantKnowledge } from "@src/feedback/lib/assistant-knowledge/assistant-knowledge";
 import { buildAssistantSystemPrompt } from "@src/feedback/lib/assistant-system-prompt/assistant-system-prompt";
-import { assistantChatToolsFor, isLiveHelpToolName, proposalActionTypeOf } from "@src/feedback/lib/assistant-tools/assistant-tools";
+import type { AssistantProposalWithheldError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
+import { assistantChatToolsFor, isLiveHelpToolName, isReadToolName, proposalActionTypeOf } from "@src/feedback/lib/assistant-tools/assistant-tools";
 import { earlierResultOf } from "@src/feedback/lib/assistant-turn-tool-calls/assistant-turn-tool-calls";
 import { consoleApiCatalogOf, consoleApiRoutesOf } from "@src/feedback/lib/console-api-catalog/console-api-catalog";
 import { FEEDBACK_CONFIG } from "@src/feedback/providers/config.provider";
 import { AkashMlClient, type ChatMessage, type ChatToolCall } from "@src/feedback/services/akashml-client/akashml.client";
-import { toolContentOf } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
+import { readContentOf, rejectionOf, toolContentOf, withheldContentOf } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
 import {
   alreadyReadContentOf,
   ANSWER_NOW_NOTE,
@@ -80,23 +81,41 @@ function argumentsOf(call: ChatToolCall): Record<string, unknown> {
 
 const SHOWN_CARD = { shown: true, note: "The user sees a card and decides; nothing ran yet." };
 
-function toolMessageOf(evalCase: AssistantEvalCase, call: ChatToolCall, proposalResults: Map<string, unknown[]>): ChatMessage {
+function proposalContentOf(name: string, proposalResults: Map<string, AssistantProposalWithheldError[]>): string {
+  const withheld = proposalResults.get(name)?.shift();
+  return withheld ? withheldContentOf(name, withheld.feedback) : toolContentOf(name, { data: SHOWN_CARD });
+}
+
+function fixtureContentOf(evalCase: AssistantEvalCase, call: ChatToolCall): string | undefined {
   const name = call.function.name;
   const result = evalCase.toolResults?.[name];
-  const fixture =
-    (typeof result === "function" ? result(argumentsOf(call)) : result) ??
-    (name === "search_docs" ? assistantKnowledge.search(String(argumentsOf(call).query ?? "")) : undefined);
-  const toolError = evalCase.toolErrors?.[name];
-  const payload =
-    proposalActionTypeOf(name) || isLiveHelpToolName(name)
-      ? { data: proposalResults.get(name)?.shift() ?? SHOWN_CARD }
-      : toolError !== undefined
-        ? { error: toolError }
-        : fixture !== undefined
-          ? { data: fixture }
-          : { error: "No data for this tool in this case." };
 
-  return { role: "tool", tool_call_id: call.id, content: toolContentOf(name, payload) };
+  try {
+    const fixture =
+      (typeof result === "function" ? result(argumentsOf(call)) : result) ??
+      (name === "search_docs" ? assistantKnowledge.search(String(argumentsOf(call).query ?? "")) : undefined);
+    if (fixture === undefined) return undefined;
+
+    return isReadToolName(name) ? readContentOf(name, fixture) : toolContentOf(name, { data: fixture });
+  } catch (error) {
+    const rejection = rejectionOf(error);
+    if (rejection === null) throw error;
+
+    return toolContentOf(name, rejection);
+  }
+}
+
+function toolMessageOf(evalCase: AssistantEvalCase, call: ChatToolCall, proposalResults: Map<string, AssistantProposalWithheldError[]>): ChatMessage {
+  const name = call.function.name;
+  const toolError = evalCase.toolErrors?.[name];
+  const content =
+    proposalActionTypeOf(name) || isLiveHelpToolName(name)
+      ? proposalContentOf(name, proposalResults)
+      : toolError !== undefined
+        ? toolContentOf(name, { error: toolError })
+        : fixtureContentOf(evalCase, call) ?? toolContentOf(name, { error: "No data for this tool in this case." });
+
+  return { role: "tool", tool_call_id: call.id, content };
 }
 
 interface CaseRequest {

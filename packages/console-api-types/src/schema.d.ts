@@ -20026,6 +20026,8 @@ export interface operations {
               /** @enum {string} */
               role: "user" | "assistant";
               content: string;
+              /** @description The `answerSignature` the API sent with this answer. An assistant message without a valid one is left out. */
+              signature?: string;
             }[];
             context?: {
               /** @description The Console path the assistant was opened on */
@@ -20478,6 +20480,8 @@ export interface operations {
                  * @enum {string}
                  */
                 reason: "stop" | "length" | "awaiting_client_tool";
+                /** @description Signs the answer's text so far, up to its first 8000 characters, which is all the client sends back with this answer in `history` */
+                answerSignature?: string;
               }
             | {
                 /** @enum {string} */
@@ -20993,6 +20997,8 @@ export interface operations {
                  * @enum {string}
                  */
                 reason: "stop" | "length" | "awaiting_client_tool";
+                /** @description Signs the answer's text so far, up to its first 8000 characters, which is all the client sends back with this answer in `history` */
+                answerSignature?: string;
               }
             | {
                 /** @enum {string} */
