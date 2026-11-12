@@ -1137,32 +1137,61 @@ export class StripeTransactionService {
     throw createError(409, "The refunded payment is not credited yet, so its refund is applied once it is", { errorCode: REFUND_BEFORE_CREDIT_ERROR_CODE });
   }
 
-  /** Leaves the payer's own balance as it is: the loss is recorded only so the affiliate commission on this charge is taken back. */
+  /** Leaves the payer's own balance as it is: the dispute is recorded only so the affiliate commission on this charge waits for its outcome. */
   @WithTransaction()
-  async markDisputeLost(event: Stripe.ChargeDisputeClosedEvent): Promise<void> {
+  async recordDisputeOpened(event: Stripe.ChargeDisputeCreatedEvent): Promise<void> {
     const dispute = event.data.object;
-    if (dispute.status !== "lost") return;
+    const transaction = await this.#findDisputedTransactionAndLock(dispute);
+    if (!transaction) return;
 
-    const chargeId = typeof dispute.charge === "string" ? dispute.charge : dispute.charge.id;
-    const transaction = await this.stripeTransactionRepository.findOneByAndLock({ stripeChargeId: chargeId });
+    const openedAt = new Date(event.created * 1000);
+    if (transaction.disputeOpenedAt && transaction.disputeOpenedAt >= openedAt) return;
 
-    if (!transaction) {
-      this.loggerService.warn({ event: "CHARGE_DISPUTE_LOST_NO_TRANSACTION", chargeId, disputeId: dispute.id });
-      return;
-    }
-
-    if (transaction.disputeLostAt) return;
-
-    await this.stripeTransactionRepository.updateById(transaction.id, { disputeLostAt: new Date(event.created * 1000) });
-    await this.#queueAffiliateCommissionSync(transaction, "dispute");
+    await this.stripeTransactionRepository.updateById(transaction.id, { disputeOpenedAt: openedAt });
 
     this.loggerService.info({
-      event: "CHARGE_DISPUTE_LOST",
-      chargeId,
+      event: "CHARGE_DISPUTE_OPENED",
+      chargeId: transaction.stripeChargeId,
       disputeId: dispute.id,
       transactionId: transaction.id,
       userId: transaction.userId
     });
+  }
+
+  /** Leaves the payer's own balance as it is: the outcome is recorded only so the affiliate commission on this charge is released or taken back. */
+  @WithTransaction()
+  async recordDisputeClosed(event: Stripe.ChargeDisputeClosedEvent): Promise<void> {
+    const dispute = event.data.object;
+    const transaction = await this.#findDisputedTransactionAndLock(dispute);
+    if (!transaction) return;
+
+    const closedAt = new Date(event.created * 1000);
+    const isLost = dispute.status === "lost";
+    const isAlreadyRecorded = isLost ? !!transaction.disputeLostAt : !!transaction.disputeClosedAt && transaction.disputeClosedAt >= closedAt;
+    if (isAlreadyRecorded) return;
+
+    await this.stripeTransactionRepository.updateById(transaction.id, { disputeClosedAt: closedAt, ...(isLost && { disputeLostAt: closedAt }) });
+    await this.#queueAffiliateCommissionSync(transaction, "dispute");
+
+    this.loggerService.info({
+      event: isLost ? "CHARGE_DISPUTE_LOST" : "CHARGE_DISPUTE_CLOSED",
+      chargeId: transaction.stripeChargeId,
+      disputeId: dispute.id,
+      status: dispute.status,
+      transactionId: transaction.id,
+      userId: transaction.userId
+    });
+  }
+
+  async #findDisputedTransactionAndLock(dispute: Stripe.Dispute): Promise<StripeTransactionOutput | undefined> {
+    const chargeId = typeof dispute.charge === "string" ? dispute.charge : dispute.charge.id;
+    const transaction = await this.stripeTransactionRepository.findOneByAndLock({ stripeChargeId: chargeId });
+
+    if (!transaction) {
+      this.loggerService.warn({ event: "CHARGE_DISPUTE_NO_TRANSACTION", chargeId, disputeId: dispute.id, status: dispute.status });
+    }
+
+    return transaction;
   }
 
   async recordCouponClaim(params: {

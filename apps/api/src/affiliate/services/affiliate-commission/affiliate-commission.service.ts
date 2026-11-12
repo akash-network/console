@@ -77,7 +77,7 @@ export class AffiliateCommissionService {
       } else if (releaseCredit && UNCREDITED_COMMISSION_STATUSES.has(commission.status)) {
         await this.#recoverLandedRelease(payment, commission, releaseCredit, trigger);
       } else if (commission.status === "pending") {
-        await (trigger === "release" ? this.#release(payment, commission) : this.#reconcileHeld(payment, commission));
+        await (this.#isReleaseDue(payment, commission, trigger) ? this.#release(payment, commission) : this.#reconcileHeld(payment, commission));
       } else {
         await this.#reconcileReversal(payment, commission);
       }
@@ -141,7 +141,7 @@ export class AffiliateCommissionService {
     });
     if (!commission) return;
 
-    const releasesAt = addSeconds(commission.createdAt, this.billingConfig.AFFILIATE_COMMISSION_HOLD_SECONDS);
+    const releasesAt = this.#releasesAt(commission);
     await this.jobQueueService.enqueue(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "release" }), { startAfter: releasesAt });
 
     this.analyticsService.track(affiliate.userId, "affiliate_commission_held", {
@@ -161,10 +161,38 @@ export class AffiliateCommissionService {
     });
   }
 
+  #releasesAt(commission: StripeTransactionOutput): Date {
+    return addSeconds(commission.createdAt, this.billingConfig.AFFILIATE_COMMISSION_HOLD_SECONDS);
+  }
+
+  /** A dispute settled in Console's favour after the hold ended has no scheduled release left to wait for. */
+  #isReleaseDue(payment: StripeTransactionOutput, commission: StripeTransactionOutput, trigger: AffiliateCommissionSyncTrigger): boolean {
+    if (trigger === "release") return true;
+    if (trigger !== "dispute" || payment.disputeLostAt) return false;
+
+    return !isAfter(this.#releasesAt(commission), new Date());
+  }
+
+  #hasOpenDispute(payment: StripeTransactionOutput): boolean {
+    if (!payment.disputeOpenedAt) return false;
+
+    return !payment.disputeClosedAt || isAfter(payment.disputeOpenedAt, payment.disputeClosedAt);
+  }
+
   /** Re-runs the checks against the payment and the affiliate as they are now, and credits only what the payer still paid. */
   async #release(payment: StripeTransactionOutput, commission: StripeTransactionOutput): Promise<void> {
     const affiliateUserId = commission.userId;
     if (!affiliateUserId) return;
+
+    if (this.#hasOpenDispute(payment)) {
+      this.#logger.info({
+        event: "AFFILIATE_COMMISSION_RELEASE_DEFERRED",
+        commissionId: commission.id,
+        sourceTransactionId: payment.id,
+        reason: "dispute_open"
+      });
+      return;
+    }
 
     const releasedAmount = Math.min(commission.amount - commission.amountRefunded, this.#keptCommission(commission.amount, payment));
     const cancelReason = await this.#findCancelReason(affiliateUserId, releasedAmount);

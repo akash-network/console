@@ -1,6 +1,6 @@
 import type { CreateLogger } from "@akashnetwork/logging";
 import { faker } from "@faker-js/faker";
-import { addSeconds } from "date-fns";
+import { addSeconds, subSeconds } from "date-fns";
 import { PostgresError } from "postgres";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -690,6 +690,130 @@ describe(AffiliateCommissionService.name, () => {
       });
     });
 
+    describe("when the referred payment is disputed during the hold", () => {
+      it.each([
+        { state: "is still open", input: { paymentDisputeOpenedAt: new Date("2026-03-01T00:00:00Z") } },
+        {
+          state: "was opened after an earlier one closed",
+          input: { paymentDisputeOpenedAt: new Date("2026-03-01T00:00:00Z"), paymentDisputeClosedAt: new Date("2026-02-01T00:00:00Z") }
+        }
+      ])("leaves the commission held when the hold ends while a dispute $state", async ({ input }) => {
+        const { service, payment, commission, stripeTransactionRepository, refillService, analyticsService, logger } = setup({
+          hasCommission: true,
+          commissionStatus: "pending",
+          ...input
+        });
+
+        await service.syncCommission(payment.id, "release");
+
+        expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+        expect(refillService.topUpWallet).not.toHaveBeenCalled();
+        expect(analyticsService.track).not.toHaveBeenCalled();
+        expect(logger.info).toHaveBeenCalledWith({
+          event: "AFFILIATE_COMMISSION_RELEASE_DEFERRED",
+          commissionId: commission.id,
+          sourceTransactionId: payment.id,
+          reason: "dispute_open"
+        });
+      });
+
+      it("credits the held commission when the hold ends after the dispute closed in Console's favour", async () => {
+        const { service, payment, commission, stripeTransactionRepository, refillService, logger } = setup({
+          hasCommission: true,
+          commissionStatus: "pending",
+          paymentDisputeOpenedAt: new Date("2026-02-01T00:00:00Z"),
+          paymentDisputeClosedAt: new Date("2026-03-01T00:00:00Z")
+        });
+
+        await service.syncCommission(payment.id, "release");
+
+        expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(commission.id, { status: "succeeded", amountRefunded: 0 });
+        expect(refillService.topUpWallet).toHaveBeenCalledWith(500, expect.anything(), expect.anything());
+        expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "AFFILIATE_COMMISSION_RELEASE_DEFERRED" }));
+      });
+
+      it("credits the held commission as soon as a dispute closes in Console's favour once the hold is over", async () => {
+        const { service, payment, commission, stripeTransactionRepository, refillService } = setup({
+          hasCommission: true,
+          commissionStatus: "pending",
+          commissionCreatedAt: subSeconds(new Date(), HOLD_SECONDS + 60),
+          paymentDisputeOpenedAt: new Date("2026-02-01T00:00:00Z"),
+          paymentDisputeClosedAt: new Date("2026-03-01T00:00:00Z")
+        });
+
+        await service.syncCommission(payment.id, "dispute");
+
+        expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(commission.id, { status: "succeeded", amountRefunded: 0 });
+        expect(refillService.topUpWallet).toHaveBeenCalledWith(500, expect.anything(), expect.anything());
+      });
+
+      it("keeps the commission held when a dispute closes in Console's favour before the hold is over", async () => {
+        const { service, payment, stripeTransactionRepository, refillService } = setup({
+          hasCommission: true,
+          commissionStatus: "pending",
+          commissionCreatedAt: subSeconds(new Date(), HOLD_SECONDS - 60),
+          paymentDisputeOpenedAt: new Date("2026-02-01T00:00:00Z"),
+          paymentDisputeClosedAt: new Date("2026-03-01T00:00:00Z")
+        });
+
+        await service.syncCommission(payment.id, "dispute");
+
+        expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+        expect(refillService.topUpWallet).not.toHaveBeenCalled();
+      });
+
+      it("keeps the commission held when a dispute closes while a later one is open, even once the hold is over", async () => {
+        const { service, payment, stripeTransactionRepository, refillService } = setup({
+          hasCommission: true,
+          commissionStatus: "pending",
+          commissionCreatedAt: subSeconds(new Date(), HOLD_SECONDS + 60),
+          paymentDisputeOpenedAt: new Date("2026-03-01T00:00:00Z"),
+          paymentDisputeClosedAt: new Date("2026-02-01T00:00:00Z")
+        });
+
+        await service.syncCommission(payment.id, "dispute");
+
+        expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+        expect(refillService.topUpWallet).not.toHaveBeenCalled();
+      });
+
+      it("cancels a commission still held past its hold when the dispute is lost", async () => {
+        const { service, payment, affiliate, commission, stripeTransactionRepository, refillService, analyticsService } = setup({
+          hasCommission: true,
+          commissionStatus: "pending",
+          commissionCreatedAt: subSeconds(new Date(), HOLD_SECONDS + 60),
+          paymentDisputeOpenedAt: new Date("2026-02-01T00:00:00Z"),
+          paymentDisputeClosedAt: new Date("2026-03-01T00:00:00Z"),
+          paymentDisputeLostAt: new Date("2026-03-01T00:00:00Z")
+        });
+
+        await service.syncCommission(payment.id, "dispute");
+
+        expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(commission.id, { status: "canceled", amountRefunded: 500 });
+        expect(refillService.topUpWallet).not.toHaveBeenCalled();
+        expect(analyticsService.track).toHaveBeenCalledWith(
+          affiliate.userId,
+          "affiliate_commission_canceled",
+          expect.objectContaining({ reason: "dispute_lost" })
+        );
+      });
+
+      it("credits nothing on a refund of a commission still held past its hold", async () => {
+        const { service, payment, commission, stripeTransactionRepository, refillService } = setup({
+          hasCommission: true,
+          commissionStatus: "pending",
+          commissionCreatedAt: subSeconds(new Date(), HOLD_SECONDS + 60),
+          paymentAmount: 10000,
+          paymentAmountRefunded: 4000
+        });
+
+        await service.syncCommission(payment.id, "refund");
+
+        expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(commission.id, { amountRefunded: 200 });
+        expect(refillService.topUpWallet).not.toHaveBeenCalled();
+      });
+    });
+
     describe("when the referred payment is refunded or lost to a dispute after the release", () => {
       it("takes back 200 of a 500 cent commission when 40% of a $100 payment is refunded", async () => {
         const { service, payment, affiliate, commission, stripeTransactionRepository, refillService, analyticsService, logger } = setup({
@@ -1158,7 +1282,10 @@ describe(AffiliateCommissionService.name, () => {
     input: {
       paymentAmount?: number;
       paymentAmountRefunded?: number;
+      paymentDisputeOpenedAt?: Date;
+      paymentDisputeClosedAt?: Date;
       paymentDisputeLostAt?: Date;
+      commissionCreatedAt?: Date;
       paymentStatus?: StripeTransactionOutput["status"];
       paymentType?: StripeTransactionOutput["type"];
       paymentCreatedAt?: Date;
@@ -1192,6 +1319,8 @@ describe(AffiliateCommissionService.name, () => {
       status: input.paymentStatus ?? "succeeded",
       amount: input.paymentAmount ?? 10000,
       amountRefunded: input.paymentAmountRefunded ?? 0,
+      disputeOpenedAt: input.paymentDisputeOpenedAt ?? null,
+      disputeClosedAt: input.paymentDisputeClosedAt ?? null,
       disputeLostAt: input.paymentDisputeLostAt ?? null,
       createdAt: input.paymentCreatedAt ?? new Date(),
       organizationId: input.paymentOrganization?.id ?? null
@@ -1204,7 +1333,8 @@ describe(AffiliateCommissionService.name, () => {
       status: input.commissionStatus ?? "succeeded",
       amount: input.commissionAmount ?? 500,
       amountRefunded: input.commissionAmountRefunded ?? 0,
-      sourceTransactionId: payment.id
+      sourceTransactionId: payment.id,
+      createdAt: input.commissionCreatedAt ?? new Date()
     });
     const affiliateWallet = createUserWallet({ userId: affiliate.userId, abuseLockedAt: input.affiliateAbuseLockedAt ?? null });
 

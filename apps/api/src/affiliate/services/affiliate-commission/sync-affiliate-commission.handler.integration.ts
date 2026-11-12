@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import { subDays } from "date-fns";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -184,6 +185,44 @@ describe(SyncAffiliateCommissionHandler.name, () => {
     await releaseCommissionOf(payment.id);
 
     expect(topUpWallet).toHaveBeenCalledExactlyOnceWith(300, expect.anything(), expect.anything());
+  });
+
+  it("keeps the commission held when the hold ends during a dispute, then credits it once the dispute closes in Console's favour", async () => {
+    const { payment, topUpWallet, syncCommissionOf, releaseCommissionOf } = await setup();
+    const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
+    await syncCommissionOf(payment.id);
+    const held = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+    await stripeTransactionRepository.updateById(held!.id, { createdAt: subDays(new Date(), 31) });
+    await stripeTransactionRepository.updateById(payment.id, { disputeOpenedAt: subDays(new Date(), 2) });
+
+    await releaseCommissionOf(payment.id);
+
+    await expect(stripeTransactionRepository.findById(held!.id)).resolves.toMatchObject({ status: "pending", amountRefunded: 0 });
+    expect(topUpWallet).not.toHaveBeenCalled();
+
+    await stripeTransactionRepository.updateById(payment.id, { disputeClosedAt: subDays(new Date(), 1) });
+    await syncCommissionOf(payment.id, "dispute");
+
+    await expect(stripeTransactionRepository.findById(held!.id)).resolves.toMatchObject({ status: "succeeded", amount: 500, amountRefunded: 0 });
+    expect(topUpWallet).toHaveBeenCalledExactlyOnceWith(500, expect.anything(), expect.anything());
+  });
+
+  it("cancels the commission held through a dispute once the dispute is lost", async () => {
+    const { payment, topUpWallet, reduceWalletBalance, syncCommissionOf, releaseCommissionOf } = await setup();
+    const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
+    await syncCommissionOf(payment.id);
+    const held = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+    await stripeTransactionRepository.updateById(held!.id, { createdAt: subDays(new Date(), 31) });
+    await stripeTransactionRepository.updateById(payment.id, { disputeOpenedAt: subDays(new Date(), 2) });
+    await releaseCommissionOf(payment.id);
+    const lostAt = subDays(new Date(), 1);
+    await stripeTransactionRepository.updateById(payment.id, { disputeClosedAt: lostAt, disputeLostAt: lostAt });
+
+    await syncCommissionOf(payment.id, "dispute");
+
+    await expect(stripeTransactionRepository.findById(held!.id)).resolves.toMatchObject({ status: "canceled", amount: 500, amountRefunded: 500 });
+    expect(topUpWallet).not.toHaveBeenCalled();
+    expect(reduceWalletBalance).not.toHaveBeenCalled();
   });
 
   it("takes back a refund from a held commission whose release credit landed before its sync rolled back", async () => {
