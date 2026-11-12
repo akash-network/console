@@ -44,7 +44,10 @@ export const Templates = pgTable(
     moderationStatus: templateModerationStatusEnum("moderation_status").default("active").notNull(),
     currentVersionId: uuid("current_version_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull()
+      .$onUpdate(() => new Date())
   },
   table => ({
     userIdIdx: index("template_userId_idx").on(table.userId),

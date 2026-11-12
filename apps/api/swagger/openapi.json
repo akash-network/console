@@ -33827,6 +33827,152 @@
         }
       }
     },
+    "/v1/user-templates/{id}": {
+      "get": {
+        "operationId": "getUserTemplate",
+        "summary": "Get a template the caller may read, with its current version",
+        "tags": [
+          "Templates"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The template",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUserTemplateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The id is not a uuid"
+          },
+          "404": {
+            "description": "The template does not exist or the caller may not read it"
+          }
+        }
+      }
+    },
+    "/v1/user-templates/{id}/versions": {
+      "get": {
+        "operationId": "listUserTemplateVersions",
+        "summary": "List the versions of a template the caller may read, newest first",
+        "tags": [
+          "Templates"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The template's versions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListUserTemplateVersionsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The id is not a uuid"
+          },
+          "404": {
+            "description": "The template does not exist or the caller may not read it"
+          }
+        }
+      }
+    },
+    "/v1/user-templates/{id}/versions/{version}": {
+      "get": {
+        "operationId": "getUserTemplateVersion",
+        "summary": "Get one version of a template the caller may read",
+        "tags": [
+          "Templates"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "description": "The version number, counted from 1",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            "required": true,
+            "name": "version",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUserTemplateVersionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The id is not a uuid or the version is not a positive integer"
+          },
+          "404": {
+            "description": "The template or the version does not exist, or the caller may not read the template"
+          }
+        }
+      }
+    },
     "/v1/alerts": {
       "post": {
         "operationId": "createAlert",
@@ -44071,6 +44217,718 @@
               "dseq",
               "alerts"
             ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "TemplateAskedValue": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$"
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "help": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "bindings": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "service": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 63
+                    },
+                    "env": {
+                      "type": "string",
+                      "maxLength": 255,
+                      "pattern": "^[-._a-zA-Z][-._a-zA-Z0-9]*$"
+                    }
+                  },
+                  "required": [
+                    "service",
+                    "env"
+                  ]
+                },
+                "minItems": 1,
+                "maxItems": 20
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "text"
+                ]
+              },
+              "default": {
+                "type": "string",
+                "maxLength": 4096
+              },
+              "minLength": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "maxLength": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "key",
+              "label",
+              "required",
+              "bindings",
+              "type"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$"
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "help": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "bindings": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "service": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 63
+                    },
+                    "env": {
+                      "type": "string",
+                      "maxLength": 255,
+                      "pattern": "^[-._a-zA-Z][-._a-zA-Z0-9]*$"
+                    }
+                  },
+                  "required": [
+                    "service",
+                    "env"
+                  ]
+                },
+                "minItems": 1,
+                "maxItems": 20
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "number"
+                ]
+              },
+              "default": {
+                "type": "string",
+                "maxLength": 4096
+              },
+              "min": {
+                "type": "number"
+              },
+              "max": {
+                "type": "number"
+              },
+              "integer": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "key",
+              "label",
+              "required",
+              "bindings",
+              "type"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$"
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "help": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "bindings": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "service": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 63
+                    },
+                    "env": {
+                      "type": "string",
+                      "maxLength": 255,
+                      "pattern": "^[-._a-zA-Z][-._a-zA-Z0-9]*$"
+                    }
+                  },
+                  "required": [
+                    "service",
+                    "env"
+                  ]
+                },
+                "minItems": 1,
+                "maxItems": 20
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "boolean"
+                ]
+              },
+              "default": {
+                "type": "string",
+                "enum": [
+                  "true",
+                  "false"
+                ]
+              }
+            },
+            "required": [
+              "key",
+              "label",
+              "required",
+              "bindings",
+              "type"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$"
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "help": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "bindings": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "service": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 63
+                    },
+                    "env": {
+                      "type": "string",
+                      "maxLength": 255,
+                      "pattern": "^[-._a-zA-Z][-._a-zA-Z0-9]*$"
+                    }
+                  },
+                  "required": [
+                    "service",
+                    "env"
+                  ]
+                },
+                "minItems": 1,
+                "maxItems": 20
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "choice"
+                ]
+              },
+              "choices": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "minItems": 1,
+                "maxItems": 50
+              },
+              "default": {
+                "type": "string",
+                "maxLength": 4096
+              }
+            },
+            "required": [
+              "key",
+              "label",
+              "required",
+              "bindings",
+              "type",
+              "choices"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$"
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "help": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "bindings": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "service": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 63
+                    },
+                    "env": {
+                      "type": "string",
+                      "maxLength": 255,
+                      "pattern": "^[-._a-zA-Z][-._a-zA-Z0-9]*$"
+                    }
+                  },
+                  "required": [
+                    "service",
+                    "env"
+                  ]
+                },
+                "minItems": 1,
+                "maxItems": 20
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "secret"
+                ]
+              }
+            },
+            "required": [
+              "key",
+              "label",
+              "required",
+              "bindings",
+              "type"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "TemplateVersionSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "templateId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0,
+            "exclusiveMinimum": true
+          },
+          "resources": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "cpu": {
+                "type": "number",
+                "description": "vCPUs across every service and replica"
+              },
+              "memoryBytes": {
+                "type": "number"
+              },
+              "storageBytes": {
+                "type": "number",
+                "description": "Ephemeral and persistent storage combined"
+              },
+              "gpu": {
+                "type": "object",
+                "properties": {
+                  "units": {
+                    "type": "number"
+                  },
+                  "models": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Model names, or a vendor name when any of its models will do; empty when any GPU will do"
+                  }
+                },
+                "required": [
+                  "units",
+                  "models"
+                ]
+              }
+            },
+            "required": [
+              "cpu",
+              "memoryBytes",
+              "storageBytes"
+            ],
+            "description": "Null when the version recorded none"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "live",
+              "held",
+              "failed_checks"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "templateId",
+          "version",
+          "resources",
+          "status",
+          "createdAt"
+        ]
+      },
+      "TemplateVersion": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/TemplateVersionSummary"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "sdl": {
+                "type": "string"
+              },
+              "readme": {
+                "type": "string",
+                "nullable": true
+              },
+              "askedValues": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TemplateAskedValue"
+                }
+              }
+            },
+            "required": [
+              "sdl",
+              "readme",
+              "askedValues"
+            ]
+          }
+        ]
+      },
+      "MarketplaceTemplate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string",
+            "nullable": true
+          },
+          "icon": {
+            "type": "string",
+            "nullable": true
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "private",
+              "organization",
+              "public"
+            ]
+          },
+          "isListed": {
+            "type": "boolean"
+          },
+          "isOfficial": {
+            "type": "boolean"
+          },
+          "moderationStatus": {
+            "type": "string",
+            "enum": [
+              "active",
+              "hidden",
+              "removed"
+            ]
+          },
+          "copiedFromId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "author": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "username": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "username"
+            ],
+            "description": "Null when the author deleted their account"
+          },
+          "publisher": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string",
+                "nullable": true,
+                "description": "Null for a personal organization"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "personal",
+                  "team"
+                ]
+              }
+            },
+            "required": [
+              "name",
+              "slug",
+              "type"
+            ],
+            "description": "The organization the template belongs to, null for a template filed in none"
+          },
+          "currentVersion": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "templateId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "version": {
+                "type": "integer",
+                "minimum": 0,
+                "exclusiveMinimum": true
+              },
+              "resources": {
+                "type": "object",
+                "nullable": true,
+                "properties": {
+                  "cpu": {
+                    "type": "number",
+                    "description": "vCPUs across every service and replica"
+                  },
+                  "memoryBytes": {
+                    "type": "number"
+                  },
+                  "storageBytes": {
+                    "type": "number",
+                    "description": "Ephemeral and persistent storage combined"
+                  },
+                  "gpu": {
+                    "type": "object",
+                    "properties": {
+                      "units": {
+                        "type": "number"
+                      },
+                      "models": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Model names, or a vendor name when any of its models will do; empty when any GPU will do"
+                      }
+                    },
+                    "required": [
+                      "units",
+                      "models"
+                    ]
+                  }
+                },
+                "required": [
+                  "cpu",
+                  "memoryBytes",
+                  "storageBytes"
+                ],
+                "description": "Null when the version recorded none"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "live",
+                  "held",
+                  "failed_checks"
+                ]
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "sdl": {
+                "type": "string"
+              },
+              "readme": {
+                "type": "string",
+                "nullable": true
+              },
+              "askedValues": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TemplateAskedValue"
+                }
+              }
+            },
+            "required": [
+              "id",
+              "templateId",
+              "version",
+              "resources",
+              "status",
+              "createdAt",
+              "sdl",
+              "readme",
+              "askedValues"
+            ],
+            "description": "Its readme falls back to the template's description and its resources to the SDL's, for versions saved before they were recorded"
+          },
+          "canEdit": {
+            "type": "boolean",
+            "description": "Whether the caller may change the template"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "summary",
+          "icon",
+          "categories",
+          "visibility",
+          "isListed",
+          "isOfficial",
+          "moderationStatus",
+          "copiedFromId",
+          "createdAt",
+          "updatedAt",
+          "author",
+          "publisher",
+          "currentVersion",
+          "canEdit"
+        ]
+      },
+      "GetUserTemplateResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MarketplaceTemplate"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "ListUserTemplateVersionsResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TemplateVersionSummary"
+            }
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "GetUserTemplateVersionResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/TemplateVersion"
           }
         },
         "required": [

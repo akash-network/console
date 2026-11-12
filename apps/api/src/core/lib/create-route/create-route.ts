@@ -37,6 +37,9 @@ const PUBLISHED_FEATURE_FLAGS: ReadonlySet<FeatureFlagValue> = new Set([FeatureF
 /** Request-body properties, per operation, that are validated as normal but left out of every generated document. */
 export const UNDOCUMENTED_REQUEST_FIELDS = new Map<string, readonly string[]>();
 
+/** Operation ids of routes that answer anonymous callers but answer a signed-in caller from the organization it runs in. */
+export const ORGANIZATION_AWARE_OPEN_ROUTES = new Set<string>();
+
 export function createRoute<
   R extends Omit<RouteConfig, "security"> & {
     /** Any non-empty requirement answers 401 to callers that are not signed in, before validation or the handler runs. */
@@ -53,6 +56,8 @@ export function createRoute<
     undocumentedRequestFields?: readonly string[];
     /** Answers like an unmatched path, before any other middleware or validation runs, until this flag is on for the caller, and stays out of the served OpenAPI docs unless the flag is published. */
     featureFlag?: FeatureFlagValue;
+    /** Documents the organization context headers on a route with no security requirement, whose answer to a signed-in caller depends on them. */
+    readsOrganizationContext?: boolean;
   }
 >(routeConfig: R) {
   const {
@@ -62,6 +67,7 @@ export function createRoute<
     hiddenInOpenApiDocs,
     undocumentedRequestFields,
     featureFlag,
+    readsOrganizationContext,
     ...openApiConfig
   } = routeConfig;
   let middlewares: MiddlewareHandler[] = [];
@@ -117,6 +123,10 @@ export function createRoute<
 
   if (undocumentedRequestFields?.length) {
     UNDOCUMENTED_REQUEST_FIELDS.set(operationId, undocumentedRequestFields);
+  }
+
+  if (readsOrganizationContext) {
+    ORGANIZATION_AWARE_OPEN_ROUTES.add(operationId);
   }
 
   return createOpenApiRoute(openApiConfig as Omit<R, "cache" | "hiddenInOpenApiDocs" | "featureFlag">);

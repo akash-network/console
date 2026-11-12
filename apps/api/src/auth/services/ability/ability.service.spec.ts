@@ -9,7 +9,7 @@ import type { FeatureFlagsService } from "@src/core/services/feature-flags/featu
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import { AbilityService } from "./ability.service";
-import { legacyRules, organizationRules } from "./ability-rules";
+import { enabledRules, legacyRules, organizationRules } from "./ability-rules";
 import { ShadowedAbility } from "./shadowed-ability";
 
 import { createApiKey } from "@test/seeders/api-key.seeder";
@@ -46,11 +46,11 @@ describe(AbilityService.name, () => {
 
     it("uses only the organization rules in organization mode", () => {
       const organizationContext = createOrganizationContext({ mode: "organization", role: "member", projectScope: createProjectsScope([]) });
-      const { service, user, logger } = setup({ organizationContext });
+      const { service, user, logger, featureFlagsService } = setup({ organizationContext });
 
       const ability = service.getAbilityFor("REGULAR_USER", user);
 
-      expect(ability.rules).toEqual(organizationRules(user, organizationContext));
+      expect(ability.rules).toEqual(enabledRules(organizationRules(user, organizationContext), featureFlagsService));
       expect(ability.can("read", subject("DeploymentSetting", { userId: user.id, organizationId: null }))).toBe(false);
       expect(logger.warn).not.toHaveBeenCalled();
     });
@@ -58,13 +58,13 @@ describe(AbilityService.name, () => {
     it("builds the organization rules for the API key the request authenticated with", () => {
       const projectId = faker.string.uuid();
       const organizationContext = createOrganizationContext({ mode: "organization", role: "admin", projectScope: createProjectsScope([projectId]) });
-      const { service, user, executionContextService } = setup({ organizationContext });
+      const { service, user, executionContextService, featureFlagsService } = setup({ organizationContext });
       const apiKey = createApiKey({ userId: user.id, organizationId: organizationContext.organizationId, projectId });
       executionContextService.get.calledWith("CURRENT_API_KEY").mockReturnValue(apiKey);
 
       const ability = service.getAbilityFor("REGULAR_USER", user);
 
-      expect(ability.rules).toEqual(organizationRules(user, organizationContext, apiKey));
+      expect(ability.rules).toEqual(enabledRules(organizationRules(user, organizationContext, apiKey), featureFlagsService));
       expect(ability.can("read", subject("ApiKey", { userId: user.id, organizationId: organizationContext.organizationId }))).toBe(false);
     });
 
@@ -119,14 +119,14 @@ describe(AbilityService.name, () => {
     it("rebuilds the rules on every call so a mode change applies to the next request", () => {
       const legacyContext = createOrganizationContext({ mode: "legacy" });
       const organizationContext: OrganizationContext = { ...legacyContext, mode: "organization" };
-      const { service, user, executionContextService } = setup({ organizationContext: legacyContext });
+      const { service, user, executionContextService, featureFlagsService } = setup({ organizationContext: legacyContext });
 
       const before = service.getAbilityFor("REGULAR_USER", user);
       executionContextService.get.calledWith("ORGANIZATION_CONTEXT").mockReturnValue(organizationContext);
       const after = service.getAbilityFor("REGULAR_USER", user);
 
       expect(before.rules).toEqual(legacyRules(user));
-      expect(after.rules).toEqual(organizationRules(user, organizationContext));
+      expect(after.rules).toEqual(enabledRules(organizationRules(user, organizationContext), featureFlagsService));
     });
   });
 

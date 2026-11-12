@@ -202,7 +202,7 @@ describe("GET /v1/affiliates/me", () => {
 
     if (input.hasOrganizations) {
       const featureFlagsService = container.resolve(FeatureFlagsService);
-      const isEnabled = featureFlagsService.isEnabled.bind(featureFlagsService);
+      const isEnabled = FeatureFlagsService.prototype.isEnabled.bind(featureFlagsService);
       vi.spyOn(featureFlagsService, "isEnabled").mockImplementation((flag, context) => flag === FeatureFlags.ORGANIZATIONS || isEnabled(flag, context));
     }
 
