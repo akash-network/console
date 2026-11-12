@@ -43,13 +43,24 @@ export class TemplateUsageService {
     });
   }
 
-  async recordLeaseCreated({ walletId, dseq, leaseCreatedAt }: { walletId: number; dseq: string; leaseCreatedAt: Date }): Promise<void> {
+  /** Prefers the trial state the lease was signed with, since the wallet may have left its trial by the time this runs. */
+  async recordLeaseCreated({
+    walletId,
+    dseq,
+    leaseCreatedAt,
+    wasTrialing
+  }: {
+    walletId: number;
+    dseq: string;
+    leaseCreatedAt: Date;
+    wasTrialing?: boolean;
+  }): Promise<void> {
     await this.#recordSafely({ action: "lease_created", walletId, dseq }, async () => {
       const wallet = await this.userWalletRepository.findOneBy({ id: walletId });
       if (!wallet) return;
 
       const setting = await this.deploymentSettingRepository.findOneOfWallet(wallet, dseq);
-      const isTrial = !!wallet.isTrialing;
+      const isTrial = wasTrialing ?? !!wallet.isTrialing;
       if (!setting || !(await this.#recordFromTemplate("lease_created", setting, { isTrial, createdAt: leaseCreatedAt }))) return;
 
       await this.jobQueueService.enqueue(new CheckTemplateDeploymentStillRunning({ deploymentSettingId: setting.id, walletId, dseq, isTrial }), {

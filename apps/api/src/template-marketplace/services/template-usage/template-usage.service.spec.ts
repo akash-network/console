@@ -148,6 +148,23 @@ describe(TemplateUsageService.name, () => {
       );
     });
 
+    it.each([
+      { wasTrialing: true, isTrialingNow: false },
+      { wasTrialing: false, isTrialingNow: true }
+    ])("records the trial state the lease was signed with ($wasTrialing) over the wallet's current one", async ({ wasTrialing, isTrialingNow }) => {
+      const wallet = createUserWallet({ isTrialing: isTrialingNow });
+      const setting = buildSetting({ templateId: "hello-world" });
+      const { service, templateUsageEventRepository, jobQueueService } = setup({ wallet, setting });
+
+      await service.recordLeaseCreated({ walletId: wallet.id, dseq: setting.dseq, leaseCreatedAt: new Date(), wasTrialing });
+
+      expect(templateUsageEventRepository.record).toHaveBeenCalledWith(expect.objectContaining({ action: "lease_created", isTrial: wasTrialing }));
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        new CheckTemplateDeploymentStillRunning({ deploymentSettingId: setting.id, walletId: wallet.id, dseq: setting.dseq, isTrial: wasTrialing }),
+        expect.anything()
+      );
+    });
+
     it("schedules nothing for a deployment from no template", async () => {
       const wallet = createUserWallet();
       const setting = buildSetting();

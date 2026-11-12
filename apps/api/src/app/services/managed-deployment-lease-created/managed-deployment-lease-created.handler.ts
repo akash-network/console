@@ -42,7 +42,12 @@ export class ManagedDeploymentLeaseCreatedHandler implements JobHandler<ManagedD
 
   async #recordTemplateLease(payload: EventPayload<ManagedDeploymentLeaseCreated>): Promise<void> {
     try {
-      await this.templateUsageService.recordLeaseCreated({ walletId: payload.walletId, dseq: payload.dseq, leaseCreatedAt: new Date(payload.createdAt) });
+      await this.templateUsageService.recordLeaseCreated({
+        walletId: payload.walletId,
+        dseq: payload.dseq,
+        leaseCreatedAt: new Date(payload.createdAt),
+        wasTrialing: payload.isTrialing
+      });
     } catch (error) {
       this.logger.error({
         event: "TEMPLATE_USAGE_LEASE_RECORD_FAILED",

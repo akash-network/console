@@ -296,9 +296,10 @@ export class ManagedSignerService {
   /** Reading a lease's gpus is an extra the deployment does not depend on, so a failed publish is logged rather than failing a lease that already landed. */
   async #publishLeaseGpuRead(userWallet: UserWalletOutput, dseq: string) {
     try {
-      await this.domainEvents.publish(new ManagedDeploymentLeaseCreated({ walletId: userWallet.id, dseq, createdAt: new Date().toISOString() }), {
-        singletonKey: `${ManagedDeploymentLeaseCreated.name}.${dseq}.${userWallet.id}`
-      });
+      await this.domainEvents.publish(
+        new ManagedDeploymentLeaseCreated({ walletId: userWallet.id, dseq, createdAt: new Date().toISOString(), isTrialing: !!userWallet.isTrialing }),
+        { singletonKey: `${ManagedDeploymentLeaseCreated.name}.${dseq}.${userWallet.id}` }
+      );
     } catch (error) {
       this.logger.error({ event: "LEASE_GPU_DETECTION_PUBLISH_FAILED", walletId: userWallet.id, dseq, error });
     }

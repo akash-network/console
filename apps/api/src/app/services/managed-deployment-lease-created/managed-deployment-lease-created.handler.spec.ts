@@ -82,7 +82,20 @@ describe(ManagedDeploymentLeaseCreatedHandler.name, () => {
 
     await handler.handle(PAYLOAD);
 
-    expect(templateUsageService.recordLeaseCreated).toHaveBeenCalledWith({ walletId: 7, dseq: "12345", leaseCreatedAt: new Date("2026-09-21T10:00:00.000Z") });
+    expect(templateUsageService.recordLeaseCreated).toHaveBeenCalledWith({
+      walletId: 7,
+      dseq: "12345",
+      leaseCreatedAt: new Date("2026-09-21T10:00:00.000Z"),
+      wasTrialing: undefined
+    });
+  });
+
+  it("passes on the trial state the lease was signed with", async () => {
+    const { handler, templateUsageService } = setup();
+
+    await handler.handle({ ...PAYLOAD, isTrialing: true });
+
+    expect(templateUsageService.recordLeaseCreated).toHaveBeenCalledWith(expect.objectContaining({ wasTrialing: true }));
   });
 
   it("still schedules the gpu reads when recording template usage fails", async () => {
