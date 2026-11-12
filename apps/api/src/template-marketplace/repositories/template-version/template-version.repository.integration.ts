@@ -157,6 +157,7 @@ describe(TemplateVersionRepository.name, () => {
 
       expect(appended.createdBy).toEqual({ username: creator.username });
       expect((await repository.findCurrent(template.id))?.createdBy).toEqual({ username: creator.username });
+      expect((await repository.findById(appended.id))?.createdBy).toEqual({ username: creator.username });
       expect((await repository.findByTemplateAndVersion(template.id, 1))?.createdBy).toEqual({ username: creator.username });
       expect((await repository.listByTemplate(template.id))[0].createdBy).toEqual({ username: creator.username });
     });
@@ -246,6 +247,17 @@ describe(TemplateVersionRepository.name, () => {
       const template = await seedTemplate();
 
       expect(await repository.findCurrent(template.id)).toBeUndefined();
+    });
+  });
+
+  describe("findById", () => {
+    it("returns that version with its content, or nothing for an unknown id", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+      const appended = await repository.appendVersion({ templateId: template.id, sdl: "sdl", readme: "# readme" });
+
+      expect(await repository.findById(appended.id)).toEqual(appended);
+      expect(await repository.findById(faker.string.uuid())).toBeUndefined();
     });
   });
 

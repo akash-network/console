@@ -110,6 +110,16 @@ export class TemplateVersionRepository extends BaseRepository<Table, TemplateVer
     });
   }
 
+  async findById(id: string): Promise<TemplateVersionOutput | undefined> {
+    const [result] = await this.cursor
+      .select({ version: this.table, username: this.users.username })
+      .from(this.table)
+      .leftJoin(this.users, eq(this.users.id, this.table.createdById))
+      .where(eq(this.table.id, id));
+
+    return result && this.toOutput(result.version, result.username);
+  }
+
   async findByTemplateAndVersion(templateId: string, version: number): Promise<TemplateVersionOutput | undefined> {
     const [result] = await this.cursor
       .select({ version: this.table, username: this.users.username })
