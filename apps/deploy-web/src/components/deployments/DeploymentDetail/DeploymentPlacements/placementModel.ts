@@ -15,7 +15,9 @@ export interface ManifestServiceResources {
   /** Bytes, normalized from the SDL's own suffix so the page renders one unit family everywhere. */
   memory?: number;
   /** Bytes, normalized from the SDL's own suffix so the page renders one unit family everywhere. */
-  storage?: number;
+  ephemeralStorage?: number;
+  persistentStorage?: number;
+  ramStorage?: number;
 }
 
 export interface ManifestEnvVar {
@@ -287,14 +289,43 @@ function parseComputeResources(resources: unknown): ManifestServiceResources | u
   if (!resources || typeof resources !== "object") return undefined;
 
   const source = resources as { cpu?: { units?: unknown }; gpu?: { units?: unknown }; memory?: { size?: unknown }; storage?: unknown };
-  const firstStorage = Array.isArray(source.storage) ? source.storage[0] : source.storage;
+  const storage = sumStorageByKind(source.storage);
 
   return {
     cpu: toNumber((source.cpu ?? {}).units),
     gpuUnits: toNumber((source.gpu ?? {}).units) ?? 0,
     memory: parseSize((source.memory ?? {}).size),
-    storage: parseSize((firstStorage as { size?: unknown } | undefined)?.size)
+    ephemeralStorage: storage.ephemeral,
+    persistentStorage: storage.persistent,
+    ramStorage: storage.ram
   };
+}
+
+type StorageKind = "ephemeral" | "persistent" | "ram";
+
+interface StorageVolume {
+  size?: unknown;
+  attributes?: { persistent?: unknown; class?: unknown };
+}
+
+function sumStorageByKind(storage: unknown): Partial<Record<StorageKind, number>> {
+  const volumes = (Array.isArray(storage) ? storage : [storage]) as Array<StorageVolume | undefined>;
+
+  return volumes
+    .filter((volume): volume is StorageVolume => !!volume)
+    .reduce<Partial<Record<StorageKind, number>>>((totals, volume) => {
+      const bytes = parseSize(volume.size);
+      if (bytes === undefined) return totals;
+
+      const kind = storageKindOf(volume);
+      totals[kind] = (totals[kind] ?? 0) + bytes;
+      return totals;
+    }, {});
+}
+
+function storageKindOf({ attributes }: StorageVolume): StorageKind {
+  if (attributes?.class === "ram") return "ram";
+  return attributes?.persistent === true || attributes?.persistent === "true" ? "persistent" : "ephemeral";
 }
 
 function parseEnv(env: unknown): ManifestEnvVar[] {

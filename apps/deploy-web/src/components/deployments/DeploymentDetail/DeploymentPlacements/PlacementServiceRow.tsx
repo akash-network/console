@@ -140,8 +140,14 @@ function buildServiceStats(resources: ManifestServiceResources): PlacementStat[]
   const stats: PlacementStat[] = [
     { label: "vCPU", value: resources.cpu ?? "—" },
     { label: "Memory", value: formatSize(resources.memory) },
-    { label: "Storage", value: formatSize(resources.storage) }
+    { label: "Ephemeral storage", value: formatSize(resources.ephemeralStorage) }
   ];
+  if (resources.persistentStorage !== undefined) {
+    stats.push({ label: "Persistent storage", value: formatSize(resources.persistentStorage) });
+  }
+  if (resources.ramStorage !== undefined) {
+    stats.push({ label: "RAM storage", value: formatSize(resources.ramStorage) });
+  }
   if (resources.gpuUnits > 0) {
     stats.push({ label: "GPU", value: resources.gpuUnits });
   }
