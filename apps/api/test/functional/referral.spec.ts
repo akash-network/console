@@ -6,8 +6,11 @@ import { AffiliateRepository } from "@src/affiliate/repositories/affiliate/affil
 import { ReferralRepository } from "@src/affiliate/repositories/referral/referral.repository";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { BILLING_CONFIG } from "@src/billing/providers";
+import { UserWalletRepository } from "@src/billing/repositories";
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
+
+import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 
 describe("GET /v1/referral", () => {
   const userRepository = container.resolve(UserRepository);
@@ -15,6 +18,7 @@ describe("GET /v1/referral", () => {
   const referralRepository = container.resolve(ReferralRepository);
   const userAuthTokenService = container.resolve(UserAuthTokenService);
   const billingConfig = container.resolve(BILLING_CONFIG);
+  const userWalletRepository = container.resolve(UserWalletRepository);
 
   afterEach(() => {
     vi.restoreAllMocks();
@@ -73,6 +77,24 @@ describe("GET /v1/referral", () => {
     const response = await request(token);
 
     expect(await response.json()).toEqual({ data: { trialCreditsUsd: 5 } });
+  });
+
+  it("returns null data when the user's trial was activated without the referral trial", async () => {
+    const { token, user } = await setup();
+    const referrer = await userRepository.create({ userId: faker.string.uuid() });
+    const affiliate = await affiliateRepository.create({
+      userId: referrer.id,
+      code: faker.string.alpha({ length: 8, casing: "lower" }),
+      approvedAt: new Date(),
+      approvedBy: "ops@akash.network"
+    });
+    await referralRepository.createIfAbsent({ referredUserId: user.id, affiliateId: affiliate.id });
+    const wallet = await userWalletRepository.create({ userId: user.id, address: createAkashAddress() });
+    await userWalletRepository.updateById(wallet.id, { activatedAt: new Date() });
+
+    const response = await request(token);
+
+    expect(await response.json()).toEqual({ data: null });
   });
 
   it("does not expose another user's referral", async () => {

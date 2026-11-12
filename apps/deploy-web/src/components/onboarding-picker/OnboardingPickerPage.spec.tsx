@@ -45,10 +45,11 @@ describe(OnboardingPickerPage.name, () => {
     expect(screen.getByText("$5 in free trial credits")).toBeInTheDocument();
   });
 
-  it.each([true, false])("looks up the referral only while the affiliate program is on (%s)", isAffiliateProgramEnabled => {
-    const { useReferralQuery } = setup({ isAffiliateProgramEnabled });
+  it("renders the referral trial credit amount even when the affiliate program flag is off for the referred user", () => {
+    const { useReferralQuery } = setup({ trialCreditsAmount: 1, referral: { trialCreditsUsd: 5 }, isReferralLoading: false, isAffiliateProgramEnabled: false });
 
-    expect(useReferralQuery).toHaveBeenCalledWith({ enabled: isAffiliateProgramEnabled });
+    expect(useReferralQuery).toHaveBeenCalledWith();
+    expect(screen.getByText("$5 in free trial credits")).toBeInTheDocument();
   });
 
   it("does not render the trial credit amount while the referral lookup is loading", () => {
