@@ -31,7 +31,7 @@ export function findSecretValueIssues(sdl: string, askedValues: AskedValue[]): s
     }
 
     const password = isMapping(service.credentials) ? service.credentials.password : undefined;
-    if (typeof password === "string" && !isSdlReference(password)) {
+    if (password !== undefined && password !== null && !(typeof password === "string" && isSdlReference(password))) {
       issues.push(`Service "${serviceName}" carries a registry password; save it as a secret instead`);
     }
   }
@@ -69,7 +69,9 @@ function indexSecretBindings(askedValues: AskedValue[]): Map<string, Map<string,
   return index;
 }
 
+/** A legacy save stores an SDL unvalidated, so an env written as a mapping is read too rather than let a secret through. */
 function readEnvEntries(service: Mapping): Array<[string, string]> {
+  if (isMapping(service.env)) return Object.entries(service.env).map(([key, value]) => [key, value === null || value === undefined ? "" : String(value)]);
   if (!Array.isArray(service.env)) return [];
 
   return service.env.flatMap((entry): Array<[string, string]> => {

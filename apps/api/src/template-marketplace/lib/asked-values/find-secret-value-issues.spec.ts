@@ -54,6 +54,38 @@ describe(findSecretValueIssues.name, () => {
       credentials: { host: "ghcr.io", username: "me", password: "" },
       askedValues: [],
       expected: 'Service "web" carries a registry password; save it as a secret instead'
+    },
+    {
+      name: "a registry password typed as a number",
+      env: [],
+      credentials: { host: "ghcr.io", username: "me", password: 12345 },
+      askedValues: [],
+      expected: 'Service "web" carries a registry password; save it as a secret instead'
+    },
+    {
+      name: "a registry password typed as a boolean",
+      env: [],
+      credentials: { host: "ghcr.io", username: "me", password: true },
+      askedValues: [],
+      expected: 'Service "web" carries a registry password; save it as a secret instead'
+    },
+    {
+      name: "a secret bound to an env written as a mapping that carries a value",
+      env: { TOKEN: "hunter2" },
+      askedValues: [secretValue("TOKEN")],
+      expected: 'Variable "TOKEN" is a secret, so web.env.TOKEN must not carry a value'
+    },
+    {
+      name: "a secret bound to an env written as a mapping that carries a number",
+      env: { TOKEN: 12345 },
+      askedValues: [secretValue("TOKEN")],
+      expected: 'Variable "TOKEN" is a secret, so web.env.TOKEN must not carry a value'
+    },
+    {
+      name: "a secret reference in an env written as a mapping that no variable asks for",
+      env: { TOKEN: "ac-secret://TOKEN" },
+      askedValues: [],
+      expected: "web.env.TOKEN references a secret that no variable asks the deployer for"
     }
   ])("refuses $name", ({ env, credentials, askedValues, expected }) => {
     expect(findSecretValueIssues(sdlWith({ web: { env, credentials } }), askedValues)).toEqual([expected]);
@@ -93,6 +125,22 @@ describe(findSecretValueIssues.name, () => {
         { service: "web", env: "TOKEN" },
         { service: "worker", env: "API_TOKEN" }
       ])
+    ];
+
+    expect(findSecretValueIssues(sdl, askedValues)).toEqual([]);
+  });
+
+  it("accepts an env written as a mapping whose secret is empty or a reference, and a missing password", () => {
+    const sdl = sdlWith({
+      web: { env: { TOKEN: null, API_TOKEN: "ac-secret://API_TOKEN", NAME: "abc" }, credentials: { host: "ghcr.io", username: "me", password: null } },
+      worker: { env: { TOKEN: "" }, credentials: { host: "ghcr.io" } }
+    });
+    const askedValues = [
+      secretValue("TOKEN", [
+        { service: "web", env: "TOKEN" },
+        { service: "worker", env: "TOKEN" }
+      ]),
+      secretValue("API_TOKEN")
     ];
 
     expect(findSecretValueIssues(sdl, askedValues)).toEqual([]);
