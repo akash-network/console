@@ -1,8 +1,8 @@
 import type { GraphMetric } from "@/lib/graphMetrics/graphMetrics";
 import { GRAPH_METRICS, graphMetricHref } from "@/lib/graphMetrics/graphMetrics";
 import { percIncrease } from "@/lib/mathHelpers";
-import { formatCompact, formatNumber, formatUsd } from "@/lib/statsFormat/statsFormat";
-import type { SinkDashboardData, SinkPeriodData } from "@/types";
+import { formatCompact, formatDuration, formatHash, formatNumber, formatUsd } from "@/lib/statsFormat/statsFormat";
+import type { SinkDashboardData, SinkPeriodData, SinkTransfer, SinkTransferSort, SinkTransferStatus } from "@/types";
 import { SinkSnapshots, SinkSnapshotsUrlParam } from "@/types/snapshots";
 
 const HERO_SNAPSHOTS: string[] = [SinkSnapshots.mintedUakt, SinkSnapshots.dailyMintedUakt, SinkSnapshots.mintedTransfers, SinkSnapshots.dailyMintedTransfers];
@@ -33,7 +33,7 @@ export type MigrationCard = {
   unit?: string;
   detail?: string;
   tooltip: string;
-  graphPath: string;
+  graphPath?: string;
   diffPercent?: number;
 };
 
@@ -99,6 +99,80 @@ export function toMigrationStateCards(data: SinkDashboardData | undefined): Migr
     card("Awaiting refund", "refundPendingUakt", "refundPendingTransfers", "AKT authorized for a refund on Akash and still in its challenge period"),
     card("Refunded", "refundedUakt", "refundedTransfers", "AKT refunded to its original owner on Akash, all-time")
   ];
+}
+
+export function toMigrationActivityCards(data: SinkDashboardData | undefined): MigrationCard[] {
+  return [
+    {
+      label: "Migrating addresses",
+      value: formatNumber(data?.now.uniqueSenders),
+      tooltip: "Akash addresses that have started a migration transfer, all-time",
+      graphPath: graphPathOf("uniqueSenders"),
+      diffPercent: data && percIncrease(data.compare.uniqueSenders, data.now.uniqueSenders)
+    },
+    {
+      label: "Median time to mint",
+      value: formatDuration(data?.now.medianSecondsToMint),
+      tooltip: "Typical time from a transfer being created on Akash to its mint being confirmed on Solana"
+    }
+  ];
+}
+
+export const MIGRATION_TRANSFER_SORTS: { value: SinkTransferSort; label: string; title: string }[] = [
+  { value: "latest", label: "Latest", title: "Latest transfers" },
+  { value: "largest", label: "Largest", title: "Largest transfers" }
+];
+
+export const MIGRATION_TRANSFERS_PAGE_SIZE = 10;
+const MAX_TRANSFERS_PER_REQUEST = 100;
+
+export function nextTransfersLimit(limit: number, transferCount: number | undefined) {
+  const isEverythingShown = limit >= Math.min(transferCount ?? 0, MAX_TRANSFERS_PER_REQUEST);
+
+  return isEverythingShown ? undefined : Math.min(limit + MIGRATION_TRANSFERS_PAGE_SIZE, MAX_TRANSFERS_PER_REQUEST);
+}
+
+const TRANSFER_STATUS_LABELS: Record<SinkTransferStatus, string> = {
+  pending: "Pending mint",
+  minted: "Minted",
+  voided: "Voided",
+  refund_pending: "Awaiting refund",
+  refunded: "Refunded"
+};
+
+export type MigrationTransferRow = {
+  key: string;
+  owner: string;
+  ownerLabel: string;
+  recipient: string;
+  recipientLabel: string;
+  amount: string;
+  statusLabel: string;
+  isMinted: boolean;
+  timeToMint: string;
+  height: number;
+  createdAt: number;
+};
+
+export function toMigrationTransferRows(transfers: SinkTransfer[]): MigrationTransferRow[] {
+  return transfers.map(transfer => {
+    const createdAt = new Date(transfer.createdAt).getTime();
+    const isMinted = transfer.status === "minted";
+
+    return {
+      key: `${transfer.height}-${transfer.sequence}`,
+      owner: transfer.owner,
+      ownerLabel: formatHash(transfer.owner),
+      recipient: transfer.recipient,
+      recipientLabel: formatHash(transfer.recipient),
+      amount: `${toAkt(transfer.amountUakt).toLocaleString("en-US", { maximumFractionDigits: 2 })} AKT`,
+      statusLabel: TRANSFER_STATUS_LABELS[transfer.status],
+      isMinted,
+      timeToMint: formatDuration(isMinted ? (new Date(transfer.statusUpdatedAt).getTime() - createdAt) / 1000 : undefined),
+      height: transfer.height,
+      createdAt
+    };
+  });
 }
 
 function formatTransfers(period: SinkPeriodData, key: TransfersKey) {

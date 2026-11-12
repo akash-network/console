@@ -2,6 +2,7 @@ import { appendSearchParams } from "./urlUtils";
 
 import { browserApiUrlService } from "@/services/api-url/browser-api-url.service";
 import { networkStore } from "@/store/network.store";
+import type { SinkTransferSort } from "@/types";
 
 export class ApiUrlService {
   static dashboardData() {
@@ -51,6 +52,9 @@ export class ApiUrlService {
   }
   static sinkDashboardData() {
     return `${this.baseApiUrl}/v1/sink/dashboard-data`;
+  }
+  static sinkTransfers(sort: SinkTransferSort, limit: number) {
+    return `${this.baseApiUrl}/v1/sink/transfers${appendSearchParams({ sort, limit })}`;
   }
   static blockchainStatus() {
     return `${this.baseApiUrl}/v1/blockchain-status`;

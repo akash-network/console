@@ -6,6 +6,7 @@ import {
   formatBytes,
   formatCompact,
   formatDelta,
+  formatDuration,
   formatHash,
   formatLongDate,
   formatNumber,
@@ -157,6 +158,35 @@ describe("statsFormat", () => {
 
     it("never prints a future time", () => {
       expect(formatAgo(now + 5000, now)).toBe("1s ago");
+    });
+  });
+
+  describe(formatDuration.name, () => {
+    it.each([
+      [0, "0s"],
+      [0.4, "0s"],
+      [59, "59s"],
+      [59.6, "1m"],
+      [60, "1m"],
+      [144, "2m 24s"],
+      [3599, "59m 59s"],
+      [3600, "1h"],
+      [3659, "1h"],
+      [5400, "1h 30m"],
+      [86_399, "23h 59m"],
+      [86_400, "1d"],
+      [89_999, "1d"],
+      [93_600, "1d 2h"]
+    ])("prints %d seconds as %s", (seconds, expected) => {
+      expect(formatDuration(seconds)).toBe(expected);
+    });
+
+    it("never prints a negative duration", () => {
+      expect(formatDuration(-5)).toBe("0s");
+    });
+
+    it.each([undefined, null])("shows a dash for %s", seconds => {
+      expect(formatDuration(seconds)).toBe(EMPTY_VALUE);
     });
   });
 

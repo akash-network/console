@@ -1,14 +1,16 @@
 "use client";
 import { HeroChartPanel } from "../(home)/HeroChartPanel";
 import { StatsCard } from "../(home)/StatsCard";
+import { MigrationTransfersPanel } from "./MigrationTransfersPanel";
 import type { MigrationCard } from "./solanaMigrationModel";
-import { MIGRATION_HERO_METRICS, toMigrationStateCards, toMigrationSummaryCards } from "./solanaMigrationModel";
+import { MIGRATION_HERO_METRICS, toMigrationActivityCards, toMigrationStateCards, toMigrationSummaryCards } from "./solanaMigrationModel";
 
 import { LoadError, Panel } from "@/components/stats/Panel";
 import { usePricing } from "@/context/PricingProvider";
 import { useGraphSeries } from "@/hooks/useGraphSeries";
 import { useNow } from "@/hooks/useNow";
 import { formatAgo } from "@/lib/statsFormat/statsFormat";
+import { cn } from "@/lib/utils";
 import { useSinkDashboardData } from "@/queries";
 
 const MIGRATION_REFRESH_INTERVAL_MS = 60_000;
@@ -49,13 +51,19 @@ export const SolanaMigrationContainer: React.FunctionComponent = () => {
           <MigrationCardGrid cards={toMigrationStateCards(data)} />
         </>
       )}
+
+      <h2 className="pt-4 font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-faint">Individual transfers</h2>
+      <div className="grid gap-4 xl:grid-cols-4">
+        <MigrationCardGrid className="xl:col-start-4 xl:row-start-1 xl:grid-cols-1 xl:content-start" cards={toMigrationActivityCards(data)} />
+        <MigrationTransfersPanel className="xl:col-span-3 xl:row-start-1" now={now} refetchInterval={MIGRATION_REFRESH_INTERVAL_MS} />
+      </div>
     </div>
   );
 };
 
-function MigrationCardGrid({ cards }: { cards: MigrationCard[] }) {
+function MigrationCardGrid({ cards, className }: { cards: MigrationCard[]; className?: string }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className={cn("grid gap-4 sm:grid-cols-2 xl:grid-cols-4", className)}>
       {cards.map(card => (
         <StatsCard
           key={card.label}

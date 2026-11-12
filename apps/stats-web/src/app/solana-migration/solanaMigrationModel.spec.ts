@@ -1,8 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { MIGRATION_HERO_METRICS, toMigrationStateCards, toMigrationSummaryCards } from "./solanaMigrationModel";
+import {
+  MIGRATION_HERO_METRICS,
+  MIGRATION_TRANSFER_SORTS,
+  MIGRATION_TRANSFERS_PAGE_SIZE,
+  nextTransfersLimit,
+  toMigrationActivityCards,
+  toMigrationStateCards,
+  toMigrationSummaryCards,
+  toMigrationTransferRows
+} from "./solanaMigrationModel";
 
-import type { SinkDashboardData, SinkPeriodData } from "@/types";
+import type { SinkDashboardData, SinkPeriodData, SinkTransfer, SinkTransferStatus } from "@/types";
 
 describe("solanaMigrationModel", () => {
   describe("MIGRATION_HERO_METRICS", () => {
@@ -114,6 +123,140 @@ describe("solanaMigrationModel", () => {
     });
   });
 
+  describe(toMigrationActivityCards.name, () => {
+    it("shows how many addresses are migrating and how long a mint typically takes", () => {
+      const cards = toMigrationActivityCards(sinkData({ compare: { uniqueSenders: 8 } }));
+
+      expect(cards).toEqual([
+        {
+          label: "Migrating addresses",
+          value: "10",
+          tooltip: "Akash addresses that have started a migration transfer, all-time",
+          graphPath: "/solana-migration-graph/migrating-addresses",
+          diffPercent: 0.25
+        },
+        {
+          label: "Median time to mint",
+          value: "2m 24s",
+          tooltip: "Typical time from a transfer being created on Akash to its mint being confirmed on Solana"
+        }
+      ]);
+    });
+
+    it("shows a dash for the time to mint while no transfer is minted", () => {
+      const [, medianTimeToMint] = toMigrationActivityCards(sinkData({ now: { medianSecondsToMint: null } }));
+
+      expect(medianTimeToMint.value).toBe("—");
+    });
+
+    it("shows placeholders before the totals load", () => {
+      const cards = toMigrationActivityCards(undefined);
+
+      expect(cards.map(({ value, diffPercent }) => ({ value, diffPercent }))).toEqual(Array(2).fill({ value: "—", diffPercent: undefined }));
+    });
+  });
+
+  describe("MIGRATION_TRANSFER_SORTS", () => {
+    it("offers the latest transfers first, then the largest", () => {
+      expect(MIGRATION_TRANSFER_SORTS).toEqual([
+        { value: "latest", label: "Latest", title: "Latest transfers" },
+        { value: "largest", label: "Largest", title: "Largest transfers" }
+      ]);
+    });
+  });
+
+  describe(nextTransfersLimit.name, () => {
+    it("starts from a page of ten transfers", () => {
+      expect(MIGRATION_TRANSFERS_PAGE_SIZE).toBe(10);
+    });
+
+    it.each([
+      [10, 27, 20],
+      [20, 27, 30],
+      [10, 11, 20],
+      [90, 250, 100],
+      [95, 250, 100]
+    ])("grows a limit of %d to the next page when there are %d transfers", (limit, transferCount, expected) => {
+      expect(nextTransfersLimit(limit, transferCount)).toBe(expected);
+    });
+
+    it.each([
+      [30, 27],
+      [10, 10],
+      [10, 0],
+      [100, 250],
+      [100, 100]
+    ])("has no next page at a limit of %d with %d transfers", (limit, transferCount) => {
+      expect(nextTransfersLimit(limit, transferCount)).toBeUndefined();
+    });
+
+    it("has no next page before the transfers load", () => {
+      expect(nextTransfersLimit(10, undefined)).toBeUndefined();
+    });
+  });
+
+  describe(toMigrationTransferRows.name, () => {
+    it("describes a minted transfer with its shortened addresses, amount and time to mint", () => {
+      expect(toMigrationTransferRows([sinkTransfer()])).toEqual([
+        {
+          key: "29448411-1",
+          owner: "akash1qqzwc5d7hynl67nsmn9jukvwqp3vzdl6j2t7lk",
+          ownerLabel: "akash1…t7lk",
+          recipient: "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+          recipientLabel: "7xKXtg…gAsU",
+          amount: "975,031 AKT",
+          statusLabel: "Minted",
+          isMinted: true,
+          timeToMint: "2m 24s",
+          height: 29448411,
+          createdAt: Date.UTC(2026, 10, 11, 10, 0, 0)
+        }
+      ]);
+    });
+
+    it.each<[SinkTransferStatus, string]>([
+      ["pending", "Pending mint"],
+      ["voided", "Voided"],
+      ["refund_pending", "Awaiting refund"],
+      ["refunded", "Refunded"]
+    ])("labels a %s transfer as %s without a time to mint", (status, statusLabel) => {
+      const [row] = toMigrationTransferRows([sinkTransfer({ status })]);
+
+      expect(row).toMatchObject({ statusLabel, isMinted: false, timeToMint: "—" });
+    });
+
+    it.each([
+      [1_500_000, "1.5 AKT"],
+      [1_234_567_890, "1,234.57 AKT"],
+      [5_000_000, "5 AKT"]
+    ])("prints %d uakt as %s", (amountUakt, amount) => {
+      const [row] = toMigrationTransferRows([sinkTransfer({ amountUakt })]);
+
+      expect(row.amount).toBe(amount);
+    });
+
+    it("tells transfers created in the same block apart by their sequence", () => {
+      const rows = toMigrationTransferRows([sinkTransfer({ sequence: 1 }), sinkTransfer({ sequence: 2 })]);
+
+      expect(rows.map(row => row.key)).toEqual(["29448411-1", "29448411-2"]);
+    });
+  });
+
+  function sinkTransfer(input?: Partial<SinkTransfer>): SinkTransfer {
+    return {
+      owner: "akash1qqzwc5d7hynl67nsmn9jukvwqp3vzdl6j2t7lk",
+      height: 29448411,
+      sequence: 1,
+      recipient: "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+      amountUakt: 975_031_000_000,
+      status: "minted",
+      createdAt: "2026-11-11T10:00:00.000Z",
+      statusHeight: 29448435,
+      statusUpdatedAt: "2026-11-11T10:02:24.000Z",
+      ...input
+    };
+  }
+
   function sinkData(input?: { now?: Partial<SinkPeriodData>; compare?: Partial<SinkPeriodData> }): SinkDashboardData {
     const period: SinkPeriodData = {
       date: "2026-11-12T04:00:00.000Z",
@@ -128,7 +271,9 @@ describe("solanaMigrationModel", () => {
       refundPendingUakt: 0,
       refundPendingTransfers: 0,
       refundedUakt: 0,
-      refundedTransfers: 0
+      refundedTransfers: 0,
+      uniqueSenders: 10,
+      medianSecondsToMint: 144
     };
 
     return { now: { ...period, ...input?.now }, compare: { ...period, ...input?.compare } };

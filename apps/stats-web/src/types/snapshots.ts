@@ -70,7 +70,8 @@ export enum SinkSnapshots {
   pendingUakt = "sinkPendingUakt",
   voidedUakt = "sinkVoidedUakt",
   refundPendingUakt = "sinkRefundPendingUakt",
-  refundedUakt = "sinkRefundedUakt"
+  refundedUakt = "sinkRefundedUakt",
+  uniqueSenders = "sinkUniqueSenders"
 }
 
 export enum SinkSnapshotsUrlParam {
@@ -81,7 +82,8 @@ export enum SinkSnapshotsUrlParam {
   pendingUakt = "akt-pending",
   voidedUakt = "akt-voided",
   refundPendingUakt = "akt-refund-pending",
-  refundedUakt = "akt-refunded"
+  refundedUakt = "akt-refunded",
+  uniqueSenders = "migrating-addresses"
 }
 
 export enum ProviderSnapshots {
@@ -147,9 +149,27 @@ export type SinkPeriodData = {
   refundPendingTransfers: number;
   refundedUakt: number;
   refundedTransfers: number;
+  uniqueSenders: number;
+  medianSecondsToMint: number | null;
 };
 
 export type SinkDashboardData = {
   now: SinkPeriodData;
   compare: SinkPeriodData;
+};
+
+export type SinkTransferStatus = "pending" | "minted" | "voided" | "refund_pending" | "refunded";
+
+export type SinkTransferSort = "latest" | "largest";
+
+export type SinkTransfer = {
+  owner: string;
+  height: number;
+  sequence: number;
+  recipient: string;
+  amountUakt: number;
+  status: SinkTransferStatus;
+  createdAt: string;
+  statusHeight: number;
+  statusUpdatedAt: string;
 };
