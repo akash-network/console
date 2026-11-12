@@ -29,9 +29,10 @@ interface UseScreenedProvidersInput {
   /**
    * Gates the screening query. Defaults to true. Set false once the deployment is locked (quoting/creating/closing):
    * the spec is frozen, so re-running the CPU-heavy screening yields nothing new — the last result is kept (via
-   * `keepPreviousData`) while live bids drive the marketplace.
+   * `keepPreviousData`) while live bids drive the marketplace. `until-screened` still screens a spec that has no result
+   * yet, as on a page opened on a deployment that was created elsewhere.
    */
-  enabled?: boolean;
+  enabled?: boolean | "until-screened";
 }
 
 export interface KeyedScreeningRequest {
@@ -95,7 +96,7 @@ export function useScreenedProviders({ sdl, placementName, regions, enabled = tr
   /** A spec fixed mid-edit waits out the pacing as loading, so the panes stop explaining an invalid spec the moment it becomes valid. */
   const isInvalid = !isScreenable && request === null;
   const query = api.v1.screenProviders.useQuery(pacedRequest ?? SKIPPED_SCREENING_REQUEST, {
-    enabled: enabled && isScreenable,
+    enabled: enabled === "until-screened" ? screening => isScreenable && screening.state.data === undefined : enabled && isScreenable,
     placeholderData: keepPreviousData,
     meta: SKIP_REPORTING_REFUSED_INPUT
   });

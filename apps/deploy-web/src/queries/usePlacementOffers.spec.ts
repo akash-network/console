@@ -280,9 +280,9 @@ describe(usePlacementOffers.name, () => {
     expect(useScreenedProviders).toHaveBeenCalledWith(expect.objectContaining({ enabled: true }));
   });
 
-  it("stops screening providers once the deployment is locked", () => {
+  it("screens providers only until a result exists once the deployment is locked", () => {
     const { useScreenedProviders } = setup({ phase: "quoting", dseq: "100", screened: [polaris()], bids: [] });
-    expect(useScreenedProviders).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }));
+    expect(useScreenedProviders).toHaveBeenCalledWith(expect.objectContaining({ enabled: "until-screened" }));
   });
 
   it("ignores an open bid that belongs to a different placement group", () => {

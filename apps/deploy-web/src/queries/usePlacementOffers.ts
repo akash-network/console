@@ -60,7 +60,8 @@ export const DEPENDENCIES = { useScreenedProviders, useListBids, useProvidersByA
  *   was screened; only a bidder that was never screened is looked up by address, as its bid arrives.
  *
  * Once the deployment is locked (`creating`/`quoting`/`deploying`) screening is paused and the last
- * screened set is kept (`keepPreviousData`) as both the pre-bid fallback and the metadata source. `listBids`
+ * screened set is kept (`keepPreviousData`) as both the pre-bid fallback and the metadata source. A spec this
+ * page never screened, such as a deployment the assistant created, is still screened once. `listBids`
  * returns every bid for the deployment across its groups, so bids are scoped to this placement by its group
  * sequence (`gseq`). Several picked regions can't be enforced on chain, so the screened pool already holds only
  * providers located in them and a bid counts only once its provider is known to be located in one of them.
@@ -71,7 +72,7 @@ export function usePlacementOffers(
 ): UsePlacementOffersResult {
   const isLocked = phase === "creating" || phase === "quoting" || phase === "deploying";
   const isScreening = phase === "configuring" || phase === "creating";
-  const screened = dependencies.useScreenedProviders({ sdl, placementName, regions, enabled: !isLocked });
+  const screened = dependencies.useScreenedProviders({ sdl, placementName, regions, enabled: isLocked ? "until-screened" : true });
   const bidsQuery = dependencies.useListBids(dseq, { enabled: phase === "quoting", refetchInterval: BID_POLL_INTERVAL });
   const gseq = useMemo(() => dependencies.getPlacementGseq(sdl, placementName), [dependencies, sdl, placementName]);
   const screenedByOwner = useMemo(() => new Map(screened.providers.map(provider => [provider.owner, provider])), [screened.providers]);
