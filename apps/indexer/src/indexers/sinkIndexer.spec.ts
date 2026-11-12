@@ -1,11 +1,13 @@
 import { SinkTotalsSnapshot } from "@akashnetwork/database/dbSchemas/akash";
-import type { Transaction, TransactionEvent, TransactionEventAttribute } from "@akashnetwork/database/dbSchemas/base";
+import type { Block, Transaction, TransactionEvent, TransactionEventAttribute } from "@akashnetwork/database/dbSchemas/base";
 import type { LoggerService } from "@akashnetwork/logging";
 import type { DecodedTxRaw } from "@cosmjs/proto-signing";
 import type { Transaction as DbTransaction } from "sequelize";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { BlockResultsReader } from "@src/chain/blockResultsReader";
+import type { BlockResultType, EventType } from "@src/shared/types";
 import { SinkIndexer } from "./sinkIndexer";
 import { SINK_TOTALS_UPDATED_EVENT_TYPE } from "./sinkIndexer.helpers";
 
@@ -93,6 +95,87 @@ describe(SinkIndexer.name, () => {
     });
   });
 
+  describe("afterEveryBlock", () => {
+    it("replaces the block's snapshot with the totals of its last end-block event", async () => {
+      const { indexer, dbTransaction, upsert, bulkCreate, readBlockResults } = setup({
+        finalizeBlockEvents: [
+          blockTotalsEvent({ mode: "EndBlock", mintedAmount: "100", mintedCount: 1 }),
+          { type: "akash.sink.v1.EventVoidOrdered", attributes: [{ key: "mode", value: "EndBlock", index: true }] },
+          blockTotalsEvent({ mode: "EndBlock", mintedAmount: "250", mintedCount: 2 })
+        ]
+      });
+
+      await indexer.afterEveryBlock(block({ height: 29500000 }), null, dbTransaction);
+
+      expect(readBlockResults).toHaveBeenCalledWith(29500000);
+      expect(upsert).toHaveBeenCalledTimes(1);
+      expect(upsert).toHaveBeenCalledWith(snapshot({ height: 29500000, mintedAmount: "250", mintedCount: 2 }), { transaction: dbTransaction });
+      expect(bulkCreate).not.toHaveBeenCalled();
+    });
+
+    it("stores begin-block totals only when no transaction wrote a snapshot for the block", async () => {
+      const { indexer, dbTransaction, upsert, bulkCreate } = setup({
+        finalizeBlockEvents: [blockTotalsEvent({ mode: "BeginBlock", mintedAmount: "100", mintedCount: 1 })]
+      });
+
+      await indexer.afterEveryBlock(block({ height: 29500000 }), null, dbTransaction);
+
+      expect(bulkCreate).toHaveBeenCalledTimes(1);
+      expect(bulkCreate).toHaveBeenCalledWith([snapshot({ height: 29500000, mintedAmount: "100", mintedCount: 1 })], {
+        ignoreDuplicates: true,
+        transaction: dbTransaction
+      });
+      expect(upsert).not.toHaveBeenCalled();
+    });
+
+    it("prefers end-block totals over begin-block totals of the same block", async () => {
+      const { indexer, dbTransaction, upsert, bulkCreate } = setup({
+        finalizeBlockEvents: [
+          blockTotalsEvent({ mode: "BeginBlock", mintedAmount: "100", mintedCount: 1 }),
+          blockTotalsEvent({ mode: "EndBlock", mintedAmount: "250", mintedCount: 2 })
+        ]
+      });
+
+      await indexer.afterEveryBlock(block({ height: 29500000 }), null, dbTransaction);
+
+      expect(upsert).toHaveBeenCalledWith(snapshot({ height: 29500000, mintedAmount: "250", mintedCount: 2 }), { transaction: dbTransaction });
+      expect(bulkCreate).not.toHaveBeenCalled();
+    });
+
+    it("stores nothing for a block without a block-level sink totals event", async () => {
+      const { indexer, dbTransaction, upsert, bulkCreate, logger } = setup({
+        finalizeBlockEvents: [{ type: "coin_spent", attributes: [{ key: "mode", value: "BeginBlock", index: true }] }]
+      });
+
+      await indexer.afterEveryBlock(block({ height: 10 }), null, dbTransaction);
+
+      expect(upsert).not.toHaveBeenCalled();
+      expect(bulkCreate).not.toHaveBeenCalled();
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it("stores nothing for a block whose results predate finalize block events", async () => {
+      const { indexer, dbTransaction, upsert, bulkCreate } = setup({ finalizeBlockEvents: undefined });
+
+      await indexer.afterEveryBlock(block({ height: 10 }), null, dbTransaction);
+
+      expect(upsert).not.toHaveBeenCalled();
+      expect(bulkCreate).not.toHaveBeenCalled();
+    });
+
+    it("skips a malformed block-level totals event with a warning instead of halting the block group", async () => {
+      const { indexer, dbTransaction, upsert, bulkCreate, logger } = setup({
+        finalizeBlockEvents: [blockTotalsEvent({ mode: "EndBlock", mintedAmount: "not-a-number", mintedCount: 1 })]
+      });
+
+      await indexer.afterEveryBlock(block({ height: 10 }), null, dbTransaction);
+
+      expect(upsert).not.toHaveBeenCalled();
+      expect(bulkCreate).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith({ event: "SINK_TOTALS_EVENT_MALFORMED", height: 10 });
+    });
+  });
+
   describe("createTables", () => {
     it("creates the snapshot table without dropping an existing one", async () => {
       const { indexer } = setup();
@@ -115,18 +198,52 @@ describe(SinkIndexer.name, () => {
     });
   });
 
-  it("keeps no state to initialize, seed or update per block", async () => {
+  it("keeps no state to initialize or seed", async () => {
     const { indexer } = setup();
 
-    await expect(Promise.all([indexer.initCache(), indexer.seed(), indexer.afterEveryBlock()])).resolves.toEqual([undefined, undefined, undefined]);
+    await expect(Promise.all([indexer.initCache(), indexer.seed()])).resolves.toEqual([undefined, undefined]);
   });
+
+  function block(input: { height: number }) {
+    return mock<Block>({ height: input.height });
+  }
+
+  function snapshot(input: { height: number; mintedAmount: string; mintedCount: number }) {
+    return {
+      height: input.height,
+      pendingAmount: "10000000",
+      pendingCount: 1,
+      mintedAmount: input.mintedAmount,
+      mintedCount: input.mintedCount,
+      voidedAmount: "0",
+      voidedCount: 0,
+      refundPendingAmount: "0",
+      refundPendingCount: 0,
+      refundedAmount: "0",
+      refundedCount: 0
+    };
+  }
+
+  function blockTotalsEvent(input: { mode: string; mintedAmount: string; mintedCount: number }): EventType {
+    const values = { ...totalsAttributeValues(input), mode: input.mode };
+
+    return { type: SINK_TOTALS_UPDATED_EVENT_TYPE, attributes: Object.entries(values).map(([key, value]) => ({ key, value, index: true })) };
+  }
 
   function transaction(input: { height: number; hasProcessingError?: boolean }) {
     return mock<Transaction>({ id: "tx-id", height: input.height, hasProcessingError: input.hasProcessingError ?? false });
   }
 
   function totalsEvent(input: { index: number; mintedAmount: string; mintedCount: number }) {
-    const values = {
+    return mock<TransactionEvent>({
+      type: SINK_TOTALS_UPDATED_EVENT_TYPE,
+      index: input.index,
+      attributes: Object.entries(totalsAttributeValues(input)).map(([key, value], index) => mock<TransactionEventAttribute>({ key, value, index }))
+    });
+  }
+
+  function totalsAttributeValues(input: { mintedAmount: string; mintedCount: number }) {
+    return {
       minted_amount: JSON.stringify({ denom: "uakt", amount: input.mintedAmount }),
       minted_count: JSON.stringify(String(input.mintedCount)),
       pending_amount: JSON.stringify({ denom: "uakt", amount: "10000000" }),
@@ -140,20 +257,16 @@ describe(SinkIndexer.name, () => {
       voided_count: '"0"',
       msg_index: "0"
     };
-
-    return mock<TransactionEvent>({
-      type: SINK_TOTALS_UPDATED_EVENT_TYPE,
-      index: input.index,
-      attributes: Object.entries(values).map(([key, value], index) => mock<TransactionEventAttribute>({ key, value, index }))
-    });
   }
 
-  function setup() {
+  function setup(input: { finalizeBlockEvents: EventType[] | undefined } = { finalizeBlockEvents: [] }) {
     const logger = mock<LoggerService>();
-    const indexer = new SinkIndexer(logger);
+    const readBlockResults = vi.fn<BlockResultsReader>().mockResolvedValue(mock<BlockResultType>({ finalize_block_events: input.finalizeBlockEvents }));
+    const indexer = new SinkIndexer(readBlockResults, logger);
     const dbTransaction = mock<DbTransaction>();
     const upsert = vi.spyOn(SinkTotalsSnapshot, "upsert").mockResolvedValue([mock<SinkTotalsSnapshot>(), null]);
+    const bulkCreate = vi.spyOn(SinkTotalsSnapshot, "bulkCreate").mockResolvedValue([]);
 
-    return { indexer, logger, dbTransaction, upsert };
+    return { indexer, logger, dbTransaction, upsert, bulkCreate, readBlockResults };
   }
 });

@@ -1,5 +1,7 @@
 import type { TransactionEvent } from "@akashnetwork/database/dbSchemas/base";
 
+import type { EventType } from "@src/shared/types";
+
 export const SINK_TOTALS_UPDATED_EVENT_TYPE = "akash.sink.v1.EventTotalsUpdated";
 
 export type SinkTotals = {
@@ -27,6 +29,19 @@ export function findLastSinkTotalsEvent(txEvents: TransactionEvent[]): Transacti
   return txEvents
     .filter(event => event.type === SINK_TOTALS_UPDATED_EVENT_TYPE)
     .reduce<TransactionEvent | undefined>((last, event) => (last && last.index > event.index ? last : event), undefined);
+}
+
+export function findBlockLevelSinkTotalsEvents(blockEvents: EventType[]): { beforeTransactions?: EventType; afterTransactions?: EventType } {
+  const totalsEvents = blockEvents.filter(event => event.type === SINK_TOTALS_UPDATED_EVENT_TYPE);
+
+  return {
+    beforeTransactions: totalsEvents.findLast(event => !isEmittedAfterTransactions(event)),
+    afterTransactions: totalsEvents.findLast(isEmittedAfterTransactions)
+  };
+}
+
+function isEmittedAfterTransactions(blockEvent: EventType) {
+  return blockEvent.attributes.some(attribute => attribute.key === "mode" && attribute.value === "EndBlock");
 }
 
 export function parseSinkTotals(attributes: EventAttribute[]): SinkTotals | null {

@@ -1,5 +1,8 @@
 import { activeChain } from "@akashnetwork/database/chainDefinitions";
 
+import { createBlockResultsReader } from "@src/chain/blockResultsReader";
+import { blockHeightToKey, blockResultsDb, getCachedBlockResultsByHeight } from "@src/chain/dataStore";
+import { nodeAccessor } from "@src/chain/nodeAccessor";
 import { AkashStatsIndexer } from "./akashStatsIndexer";
 import { BmeIndexer } from "./bmeIndexer";
 import type { Indexer } from "./indexer";
@@ -9,7 +12,12 @@ import { ValidatorIndexer } from "./validatorIndexer";
 
 const validatorIndexer = new ValidatorIndexer();
 const messageAddressesIndexer = new MessageAddressesIndexer();
-const customIndexers = [new AkashStatsIndexer(), new BmeIndexer(), new SinkIndexer()].filter(x => activeChain.customIndexers.includes(x.name));
+const readBlockResults = createBlockResultsReader({
+  findCachedBlockResults: getCachedBlockResultsByHeight,
+  downloadBlockResults: async height => (await nodeAccessor.getBlockResult(height)).result,
+  cacheBlockResults: (height, blockResults) => blockResultsDb.put(blockHeightToKey(height), JSON.stringify(blockResults))
+});
+const customIndexers = [new AkashStatsIndexer(), new BmeIndexer(), new SinkIndexer(readBlockResults)].filter(x => activeChain.customIndexers.includes(x.name));
 
 export const indexers: Indexer[] = activeChain.startHeight
   ? [...customIndexers, messageAddressesIndexer]
