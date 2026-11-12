@@ -29363,6 +29363,156 @@
         ]
       }
     },
+    "/v1/affiliates/me/referrals": {
+      "get": {
+        "summary": "List the people the caller referred",
+        "operationId": "listAffiliateReferrals",
+        "tags": [
+          "Affiliates"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "description": "Referrals per page, at most 100."
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "nullable": true,
+              "minimum": 0,
+              "default": 0,
+              "description": "How many of the newest referrals to skip."
+            },
+            "required": false,
+            "name": "offset",
+            "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The caller's referrals, newest first, shown by a short code only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "referrals": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string",
+                                "description": "A short code that tells the affiliate's referrals apart without identifying anyone."
+                              },
+                              "joinedAt": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "on_trial",
+                                  "paying",
+                                  "inactive"
+                                ],
+                                "description": "`paying` once a card payment settled, `on_trial` while the free trial runs, `inactive` otherwise."
+                              },
+                              "commissionEndsAt": {
+                                "type": "string",
+                                "description": "When payments by this referral stop earning commission."
+                              },
+                              "commissionMonthsLeft": {
+                                "type": "integer",
+                                "description": "Months left before commissionEndsAt, a partial month counted as one, 0 once it has passed."
+                              },
+                              "paidUsd": {
+                                "type": "number",
+                                "description": "What the referral paid by card, net of refunds, teams they created included."
+                              },
+                              "earnedUsd": {
+                                "type": "number",
+                                "description": "Commission earned on those payments, held or credited, net of what was taken back."
+                              }
+                            },
+                            "required": [
+                              "code",
+                              "joinedAt",
+                              "status",
+                              "commissionEndsAt",
+                              "commissionMonthsLeft",
+                              "paidUsd",
+                              "earnedUsd"
+                            ]
+                          },
+                          "description": "Newest first."
+                        },
+                        "pagination": {
+                          "type": "object",
+                          "properties": {
+                            "total": {
+                              "type": "integer"
+                            },
+                            "limit": {
+                              "type": "integer"
+                            },
+                            "offset": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "total",
+                            "limit",
+                            "offset"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "referrals",
+                        "pagination"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "The caller is not an approved affiliate"
+          }
+        }
+      }
+    },
     "/v1/referral": {
       "get": {
         "summary": "Get the caller's referral trial credits",

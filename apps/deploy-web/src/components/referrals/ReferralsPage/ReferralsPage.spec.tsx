@@ -179,6 +179,12 @@ describe(ReferralsPage.name, () => {
     expect(tile("On hold")).toHaveTextContent(/^On hold0\.00Held 30 days after each payment$/);
   });
 
+  it("lists the people the affiliate referred with the commission window from the terms", () => {
+    const { ReferredPeopleList } = setup({ profile: buildProfile({ terms: buildTerms({ commissionMonths: 9 }) }) });
+
+    expect(ReferredPeopleList.mock.lastCall?.[0]).toMatchObject({ commissionMonths: 9 });
+  });
+
   it("notes that earnings go to the personal account while a team is active", () => {
     setup({ profile: buildProfile(), activeOrganization: mock<OrganizationOutput>({ type: "team", name: "Lumen Labs" }) });
 
@@ -386,12 +392,14 @@ describe(ReferralsPage.name, () => {
     const useActiveOrganization = vi.fn<typeof DEPENDENCIES.useActiveOrganization>(() =>
       mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({ activeOrganization: input.activeOrganization })
     );
+    const ReferredPeopleList = vi.fn<typeof DEPENDENCIES.ReferredPeopleList>(() => <></>);
     const FormattedNumber = vi.fn((({ value }: { value: number }) => <>{value.toFixed(2)}</>) as typeof DEPENDENCIES.FormattedNumber);
 
     const dependencies = MockComponents(DEPENDENCIES, {
       Layout,
       SettingsLayout,
       Card: DEPENDENCIES.Card,
+      ReferredPeopleList,
       useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>(mockRouter),
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
       useFlag,
@@ -403,6 +411,6 @@ describe(ReferralsPage.name, () => {
 
     render(<ReferralsPage dependencies={dependencies} />);
 
-    return { user, mockRouter, enqueueSnackbar, refetch, copyTextToClipboard, SettingsLayout, Layout, useFlag, useAffiliateProfileQuery };
+    return { user, mockRouter, enqueueSnackbar, refetch, copyTextToClipboard, SettingsLayout, Layout, ReferredPeopleList, useFlag, useAffiliateProfileQuery };
   }
 });

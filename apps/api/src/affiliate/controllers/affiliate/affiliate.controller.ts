@@ -7,13 +7,16 @@ import type {
   RevokeAffiliateResponse
 } from "@src/affiliate/http-schemas/affiliate-admin.schema";
 import type { AffiliateProfileResponse } from "@src/affiliate/http-schemas/affiliate-profile.schema";
+import type { ListAffiliateReferralsQuery, ListAffiliateReferralsResponse } from "@src/affiliate/http-schemas/affiliate-referral.schema";
 import { AffiliateService } from "@src/affiliate/services/affiliate/affiliate.service";
+import { AffiliateReferralService } from "@src/affiliate/services/affiliate-referral/affiliate-referral.service";
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 
 @singleton()
 export class AffiliateController {
   constructor(
     private readonly affiliateService: AffiliateService,
+    private readonly affiliateReferralService: AffiliateReferralService,
     private readonly authService: AuthService
   ) {}
 
@@ -31,5 +34,10 @@ export class AffiliateController {
   async getProfile(): Promise<AffiliateProfileResponse> {
     const profile = await this.affiliateService.getProfile(this.authService.currentUser.id);
     return { data: profile };
+  }
+
+  @Protected([{ action: "read", subject: "Affiliate" }])
+  async listReferrals(query: ListAffiliateReferralsQuery): Promise<ListAffiliateReferralsResponse> {
+    return { data: await this.affiliateReferralService.listReferrals(this.authService.currentUser.id, query) };
   }
 }
