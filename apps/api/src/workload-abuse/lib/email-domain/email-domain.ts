@@ -61,6 +61,6 @@ export function isWithinDomain(domain: string, parent: string): boolean {
 }
 
 /** Private suffixes such as github.io count as public ones, so the result is never a suffix shared by unrelated owners; null when the domain is a suffix itself. */
-export function getRegistrableDomain(domain: string): string | null {
-  return getDomain(domain, { allowPrivateDomains: true, extractHostname: false });
+export function getRegistrableDomain(normalizedDomain: string): string | null {
+  return getDomain(normalizedDomain, { allowPrivateDomains: true, extractHostname: false });
 }
