@@ -2,7 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import { MAX_ASSISTANT_HISTORY_MESSAGES } from "@src/feedback/http-schemas/assistant-conversation.schema";
 import { REDACTED } from "@src/feedback/lib/redact-secrets/redact-secrets";
-import { ACTION_RESULT_TOOL_NAME, historyFromClient, historyFromStored, MAX_HISTORY_LENGTH, MAX_RECENT_ACTIONS, recentActionsOf } from "./assistant-history";
+import {
+  ACTION_RESULT_TOOL_NAME,
+  historyFromClient,
+  historyFromStored,
+  MAX_HISTORY_LENGTH,
+  MAX_RECENT_ACTION_NAME_LENGTH,
+  MAX_RECENT_ACTIONS,
+  recentActionsOf
+} from "./assistant-history";
 
 describe("assistant history", () => {
   describe(historyFromStored.name, () => {
@@ -53,9 +61,37 @@ describe("assistant history", () => {
         ])
       ).toEqual([
         'create deployment named "dart": confirmed, succeeded at 2026-11-06 05:38 UTC',
-        `close deployment on deployment 7: confirmed, failed, error: boom ${"x".repeat(115)} at 2026-11-06 05:38 UTC`,
+        "close deployment on deployment 7: confirmed, failed at 2026-11-06 05:38 UTC",
         "buy credits: cancelled at 2026-11-06 05:38 UTC"
       ]);
+    });
+
+    it("leaves out the reported error text and cuts long card names", () => {
+      const longName = `${"n".repeat(MAX_RECENT_ACTION_NAME_LENGTH)}tail`;
+
+      const actions = recentActionsOf([
+        { toolName: "propose_create_deployment", toolPayload: { proposalId: "p1", action: { type: "create_deployment", name: longName } }, createdAt: at },
+        {
+          toolName: ACTION_RESULT_TOOL_NAME,
+          toolPayload: { proposalId: "p1", actionType: "create_deployment", decision: "confirmed", outcome: "failed", error: "insufficient funds" },
+          createdAt: at
+        }
+      ]);
+
+      expect(actions).toEqual([`create deployment named "${"n".repeat(MAX_RECENT_ACTION_NAME_LENGTH)}": confirmed, failed at 2026-11-06 05:38 UTC`]);
+      expect(actions.join("\n")).not.toContain("insufficient funds");
+    });
+
+    it("redacts a card name before cutting it", () => {
+      const keyBody = "A".repeat(MAX_RECENT_ACTION_NAME_LENGTH);
+      const name = `-----BEGIN RSA PRIVATE KEY-----\n${keyBody}\n-----END RSA PRIVATE KEY-----`;
+
+      const actions = recentActionsOf([
+        { toolName: "propose_rename_deployment", toolPayload: { proposalId: "p1", action: { name } }, createdAt: at },
+        { toolName: ACTION_RESULT_TOOL_NAME, toolPayload: { proposalId: "p1", actionType: "rename_deployment", decision: "cancelled" }, createdAt: at }
+      ]);
+
+      expect(actions).toEqual([`rename deployment named "${REDACTED}": cancelled at 2026-11-06 05:38 UTC`]);
     });
 
     it("keeps only the latest outcomes", () => {

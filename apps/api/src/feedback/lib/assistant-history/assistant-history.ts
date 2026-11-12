@@ -8,14 +8,13 @@ import type { ChatMessage } from "@src/feedback/services/akashml-client/akashml.
 export const MAX_HISTORY_LENGTH = 24_000;
 export const ACTION_RESULT_TOOL_NAME = "action_result";
 export const MAX_RECENT_ACTIONS = 3;
-const MAX_RECENT_ACTION_ERROR_LENGTH = 120;
+export const MAX_RECENT_ACTION_NAME_LENGTH = 60;
 
 const ActionResultPayloadSchema = z.object({
   proposalId: z.string(),
   actionType: z.string(),
   decision: z.string(),
-  outcome: z.string().nullish(),
-  error: z.string().nullish()
+  outcome: z.string().nullish()
 });
 
 const ProposalPayloadSchema = z.object({
@@ -62,14 +61,14 @@ interface StoredToolMessage {
 
 function targetOf(action: z.infer<typeof ProposalPayloadSchema>["action"] | undefined): string {
   if (action?.dseq) return ` on deployment ${action.dseq}`;
-  return action?.name ? ` named ${JSON.stringify(action.name)}` : "";
+  return action?.name ? ` named ${JSON.stringify(redactSecrets(action.name).slice(0, MAX_RECENT_ACTION_NAME_LENGTH))}` : "";
 }
 
 function minuteOf(date: Date): string {
   return `${date.toISOString().slice(0, 16).replace("T", " ")} UTC`;
 }
 
-/** What the user did with the latest cards, so "this didn't work" resolves to the deployment a card just touched without listing deployments. */
+/** Lands in the system prompt, so it leaves out the error text the browser reports and cuts the card name short. */
 export function recentActionsOf(messages: StoredToolMessage[]): string[] {
   const proposedActions = new Map(
     messages.flatMap(({ toolName, toolPayload }) => {
@@ -83,8 +82,8 @@ export function recentActionsOf(messages: StoredToolMessage[]): string[] {
       const result = toolName === ACTION_RESULT_TOOL_NAME ? ActionResultPayloadSchema.safeParse(toolPayload) : undefined;
       if (!result?.success) return [];
 
-      const { proposalId, actionType, decision, outcome, error } = result.data;
-      const status = [decision, outcome, error && `error: ${error.slice(0, MAX_RECENT_ACTION_ERROR_LENGTH)}`].filter(Boolean).join(", ");
+      const { proposalId, actionType, decision, outcome } = result.data;
+      const status = [decision, outcome].filter(Boolean).join(", ");
       return [redactSecrets(`${actionType.replaceAll("_", " ")}${targetOf(proposedActions.get(proposalId))}: ${status} at ${minuteOf(createdAt)}`)];
     })
     .slice(-MAX_RECENT_ACTIONS);

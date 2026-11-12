@@ -21047,7 +21047,7 @@ export interface operations {
                 /** @enum {string} */
                 type: "error";
                 /** @enum {string} */
-                code: "assistant_unavailable" | "assistant_timeout" | "assistant_error";
+                code: "assistant_unavailable" | "assistant_timeout" | "assistant_error" | "assistant_daily_limit";
                 message: string;
               };
         };
@@ -21564,7 +21564,7 @@ export interface operations {
                 /** @enum {string} */
                 type: "error";
                 /** @enum {string} */
-                code: "assistant_unavailable" | "assistant_timeout" | "assistant_error";
+                code: "assistant_unavailable" | "assistant_timeout" | "assistant_error" | "assistant_daily_limit";
                 message: string;
               };
         };

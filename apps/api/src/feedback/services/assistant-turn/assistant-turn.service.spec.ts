@@ -8,7 +8,8 @@ import { mock } from "vitest-mock-extended";
 import type { CreateLogger } from "@src/core";
 import { envSchema } from "@src/feedback/config/env.config";
 import type { AssistantAction } from "@src/feedback/http-schemas/assistant-action.schema";
-import type { AssistantStreamEvent } from "@src/feedback/http-schemas/assistant-conversation.schema";
+import { type AssistantStreamEvent, MAX_CLIENT_TOOL_RESULTS } from "@src/feedback/http-schemas/assistant-conversation.schema";
+import { assistantDailyLimitReached } from "@src/feedback/lib/assistant-errors/assistant-errors";
 import { ASSISTANT_PROMPT_VERSION } from "@src/feedback/lib/assistant-prompt-version/assistant-prompt-version";
 import { assistantChatToolsFor } from "@src/feedback/lib/assistant-tools/assistant-tools";
 import type { AssistantPendingTurnRepository } from "@src/feedback/repositories/assistant-pending-turn/assistant-pending-turn.repository";
@@ -24,7 +25,12 @@ import {
 } from "@src/feedback/services/akashml-client/akashml.client";
 import { AssistantAnswerSigner } from "@src/feedback/services/assistant-answer-signer/assistant-answer-signer.service";
 import type { AssistantLimitsService } from "@src/feedback/services/assistant-limits/assistant-limits.service";
-import { type AssistantToolRunnerService, readContentOf, type ToolOutcome } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
+import {
+  type AssistantToolRunnerService,
+  readContentOf,
+  toolContentOf,
+  type ToolOutcome
+} from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
 import type { AssistantTranscriptService } from "@src/feedback/services/assistant-transcript/assistant-transcript.service";
 import {
   ALREADY_READ_NOTE,
@@ -32,12 +38,16 @@ import {
   ANSWER_NOW_NOTE,
   type AssistantTurn,
   AssistantTurnService,
+  CLIENT_TOOL_CALL_OVER_LIMIT_SUMMARY,
   type EmitAssistantEvent,
   LAST_TOOL_ROUND_NOTE,
   MAX_COMPLETION_TOKENS,
   MAX_PARALLEL_READS,
+  MAX_TOOL_CALLS_PER_ROUND,
   MAX_TOOL_ROUNDS,
   PENDING_TURN_TTL_MS,
+  TOO_MANY_CLIENT_TOOL_CALLS_ERROR,
+  TOO_MANY_TOOL_CALLS_ERROR,
   TURN_TIMEOUT_MS
 } from "./assistant-turn.service";
 
@@ -476,6 +486,64 @@ describe(AssistantTurnService.name, () => {
     );
   });
 
+  it("runs at most MAX_TOOL_CALLS_PER_ROUND calls of one completion and answers every other call with an error", async () => {
+    const { akashMlClient, toolRunner, logger, run } = setup();
+    const calls = Array.from({ length: 20 }, (_, index) => toolCall(`c${index}`, "get_deployment", { dseq: `${index}` }));
+    akashMlClient.streamChatCompletion.mockImplementationOnce(streamed({ toolCalls: calls })).mockImplementationOnce(streamed({ content: "Done." }));
+    toolRunner.run.mockImplementation(async call => ({ kind: "result", content: call.id, summary: "Read", ok: true }));
+
+    const events = await run({});
+
+    const callsRun = calls.slice(0, MAX_TOOL_CALLS_PER_ROUND);
+    const callsRefused = calls.slice(MAX_TOOL_CALLS_PER_ROUND);
+    expect(toolRunner.run.mock.calls.map(([call]) => call.id)).toEqual(callsRun.map(({ id }) => id));
+    expect(akashMlClient.streamChatCompletion.mock.calls[1][0].messages.slice(-calls.length)).toEqual([
+      ...callsRun.map(({ id }) => ({ role: "tool", tool_call_id: id, content: id })),
+      ...callsRefused.map(({ id }) => ({ role: "tool", tool_call_id: id, content: toolContentOf("get_deployment", { error: TOO_MANY_TOOL_CALLS_ERROR }) }))
+    ]);
+    expect(events.filter(event => event.type === "tool_started")).toHaveLength(MAX_TOOL_CALLS_PER_ROUND);
+    expect(logger.warn).toHaveBeenCalledWith({ event: "ASSISTANT_TOOL_CALLS_OVER_LIMIT", refusedCount: callsRefused.length, limit: MAX_TOOL_CALLS_PER_ROUND });
+  });
+
+  it("runs every call of a completion that asks for exactly MAX_TOOL_CALLS_PER_ROUND", async () => {
+    const { akashMlClient, toolRunner, logger, run } = setup();
+    const calls = Array.from({ length: MAX_TOOL_CALLS_PER_ROUND }, (_, index) => toolCall(`c${index}`, "get_deployment", { dseq: `${index}` }));
+    akashMlClient.streamChatCompletion.mockImplementationOnce(streamed({ toolCalls: calls })).mockImplementationOnce(streamed({ content: "Done." }));
+    toolRunner.run.mockImplementation(async call => ({ kind: "result", content: call.id, summary: "Read", ok: true }));
+
+    await run({});
+
+    expect(toolRunner.run).toHaveBeenCalledTimes(MAX_TOOL_CALLS_PER_ROUND);
+    expect(logger.warn).not.toHaveBeenCalledWith(expect.objectContaining({ event: "ASSISTANT_TOOL_CALLS_OVER_LIMIT" }));
+  });
+
+  it("asks the browser for at most MAX_CLIENT_TOOL_RESULTS reads of one round and answers every later browser read with an error", async () => {
+    const { akashMlClient, toolRunner, pendingTurnRepository, run } = setup();
+    const calls = Array.from({ length: MAX_CLIENT_TOOL_RESULTS + 2 }, (_, index) => toolCall(`c${index}`, "read_logs", { dseq: `${index}` }));
+    akashMlClient.streamChatCompletion.mockImplementationOnce(streamed({ toolCalls: calls }));
+    toolRunner.run.mockImplementation(async call => ({ kind: "client", call: { id: call.id, name: "read_logs", arguments: { dseq: "42", tailLines: 100 } } }));
+
+    const events = await run({});
+
+    const callsRequested = calls.slice(0, MAX_CLIENT_TOOL_RESULTS);
+    const callsRefused = calls.slice(MAX_CLIENT_TOOL_RESULTS);
+    expect(events.filter(event => event.type === "client_tool_request").map(event => event.toolCallId)).toEqual(callsRequested.map(({ id }) => id));
+    expect(events.filter(event => event.type === "tool_result_summary")).toEqual(
+      callsRefused.map(({ id }) => ({
+        type: "tool_result_summary",
+        toolCallId: id,
+        name: "read_logs",
+        ok: false,
+        summary: CLIENT_TOOL_CALL_OVER_LIMIT_SUMMARY
+      }))
+    );
+    const [{ state }] = pendingTurnRepository.hold.mock.calls[0];
+    expect(state.clientToolCalls).toEqual(callsRequested);
+    expect(state.messages.slice(-callsRefused.length)).toEqual(
+      callsRefused.map(({ id }) => ({ role: "tool", tool_call_id: id, content: toolContentOf("read_logs", { error: TOO_MANY_CLIENT_TOOL_CALLS_ERROR }) }))
+    );
+  });
+
   it("runs a read after a card only once the card is proposed, and a repeated read once", async () => {
     const { akashMlClient, toolRunner, run } = setup();
     const order: string[] = [];
@@ -697,6 +765,47 @@ describe(AssistantTurnService.name, () => {
 
     expect(await run({})).toEqual([expect.objectContaining({ type: "error", code: "assistant_unavailable" })]);
     expect(akashMlClient.streamChatCompletion).not.toHaveBeenCalled();
+  });
+
+  it("checks the user's daily tokens before each completion and stops the turn once an earlier round used them up", async () => {
+    const { akashMlClient, toolRunner, limitsService, traceRepository, logger, run } = setup();
+    akashMlClient.streamChatCompletion.mockImplementation(
+      streamed({ content: "Let me check.", toolCalls: [toolCall("c1", "get_deployment", { dseq: "42" })] })
+    );
+    toolRunner.run.mockResolvedValue({ kind: "result", content: "deployment", summary: "Read deployment 42", ok: true });
+    limitsService.assertWithinUserTokens.mockResolvedValueOnce(undefined).mockRejectedValueOnce(assistantDailyLimitReached());
+
+    const events = await run({ userId: "user-2", isTrialing: true });
+
+    expect(limitsService.assertWithinUserTokens.mock.calls).toEqual([
+      ["user-2", true],
+      ["user-2", true]
+    ]);
+    expect(akashMlClient.streamChatCompletion).toHaveBeenCalledTimes(1);
+    expect(events.at(-1)).toEqual({
+      type: "error",
+      code: "assistant_daily_limit",
+      message: "You reached today's assistant limit. Try again tomorrow, or ask on Discord."
+    });
+    expect(traceRepository.finish).toHaveBeenCalledWith("trace-1", expect.objectContaining({ outcome: "limited" }));
+    expect(logger.info).toHaveBeenCalledWith({ event: "ASSISTANT_TURN_LIMITED" });
+  });
+
+  it("does not call the model for a resumed turn once the user's daily tokens are used up", async () => {
+    const { akashMlClient, limitsService, run } = setup();
+    limitsService.assertWithinUserTokens.mockRejectedValue(assistantDailyLimitReached());
+
+    const events = await run({
+      roundsUsed: 2,
+      messages: [
+        { role: "user", content: "why does it crash?" },
+        { role: "assistant", content: null, tool_calls: [toolCall("c1", "read_logs")] },
+        { role: "tool", tool_call_id: "c1", content: "logs" }
+      ]
+    });
+
+    expect(akashMlClient.streamChatCompletion).not.toHaveBeenCalled();
+    expect(events).toEqual([expect.objectContaining({ type: "error", code: "assistant_daily_limit" })]);
   });
 
   it("reports other failures generically and logs them", async () => {

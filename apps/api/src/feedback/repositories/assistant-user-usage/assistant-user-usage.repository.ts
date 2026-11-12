@@ -51,6 +51,15 @@ export class AssistantUserUsageRepository {
     return counts;
   }
 
+  async dayTokenCountOf(userId: string, day: string): Promise<number> {
+    const [usage] = await this.#cursor
+      .select({ dayTokenCount: this.table.dayTokenCount })
+      .from(this.table)
+      .where(and(eq(this.table.userId, userId), eq(this.table.day, day)));
+
+    return usage?.dayTokenCount ?? 0;
+  }
+
   /** Adds only to the row of the given day, so tokens never count against a day they were not used on. */
   async addTokens(userId: string, day: string, tokens: number): Promise<void> {
     await this.#cursor

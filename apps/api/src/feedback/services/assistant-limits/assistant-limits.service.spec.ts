@@ -76,6 +76,39 @@ describe(AssistantLimitsService.name, () => {
     });
   });
 
+  describe("assertWithinUserTokens", () => {
+    it("reads today's tokens of the user and lets them through below the cap", async () => {
+      vi.useFakeTimers({ now: NOW });
+      const { service, userUsageRepository } = setup();
+      userUsageRepository.dayTokenCountOf.mockResolvedValue(1_999_999);
+
+      await expect(service.assertWithinUserTokens("user-1", false)).resolves.toBeUndefined();
+      expect(userUsageRepository.dayTokenCountOf).toHaveBeenCalledWith("user-1", "2026-11-04");
+    });
+
+    it("refuses a user at the cap with the daily limit error", async () => {
+      const { service, userUsageRepository } = setup();
+      userUsageRepository.dayTokenCountOf.mockResolvedValue(2_000_000);
+
+      await expect(service.assertWithinUserTokens("user-1", false)).rejects.toMatchObject({
+        status: 429,
+        errorCode: ASSISTANT_ERROR_CODES.dailyLimit,
+        message: "You reached today's assistant limit. Try again tomorrow, or ask on Discord."
+      });
+    });
+
+    it("uses the lower token cap for a trial", async () => {
+      const { service, userUsageRepository } = setup();
+      userUsageRepository.dayTokenCountOf.mockResolvedValue(500_000);
+
+      await expect(service.assertWithinUserTokens("user-1", true)).rejects.toMatchObject({ status: 429, errorCode: ASSISTANT_ERROR_CODES.dailyLimit });
+      await expect(service.assertWithinUserTokens("user-1", null)).resolves.toBeUndefined();
+
+      userUsageRepository.dayTokenCountOf.mockResolvedValue(499_999);
+      await expect(service.assertWithinUserTokens("user-1", true)).resolves.toBeUndefined();
+    });
+  });
+
   describe("assertWithinBudget", () => {
     it("answers unavailable once today's tokens reach the budget", async () => {
       vi.useFakeTimers({ now: NOW });

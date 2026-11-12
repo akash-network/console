@@ -2,7 +2,8 @@ import { isHttpError } from "http-errors";
 import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
-import { type AssistantStreamEvent, MAX_CLIENT_TOOL_RESULT_LENGTH } from "@src/feedback/http-schemas/assistant-conversation.schema";
+import { type AssistantStreamEvent, MAX_CLIENT_TOOL_RESULT_LENGTH, MAX_CLIENT_TOOL_RESULTS } from "@src/feedback/http-schemas/assistant-conversation.schema";
+import { ASSISTANT_ERROR_CODES } from "@src/feedback/lib/assistant-errors/assistant-errors";
 import { fallbackAnswerOf } from "@src/feedback/lib/assistant-fallback-answer/assistant-fallback-answer";
 import { ASSISTANT_PROMPT_VERSION } from "@src/feedback/lib/assistant-prompt-version/assistant-prompt-version";
 import { isAssistantToolName, isLiveHelpToolName, isReadToolName } from "@src/feedback/lib/assistant-tools/assistant-tools";
@@ -39,11 +40,15 @@ export const TURN_TIMEOUT_MS = 90_000;
 export const PENDING_TURN_TTL_MS = 5 * 60_000;
 /** Bounds the burst one round sends to the chain, the provider-proxy and bid screening, since the model can ask for any number of reads at once. */
 export const MAX_PARALLEL_READS = 4;
+export const MAX_TOOL_CALLS_PER_ROUND = 8;
 
 const LIVE_HELP_SUMMARY = "Suggested live help on Discord";
 const ROUND_TEXT_SEPARATOR = "\n\n";
 const UNKNOWN_TOOL_NAME = "unknown";
 export const ALREADY_READ_NOTE = "Already read this turn, so this is the earlier result. Answer from it instead of calling the tool again.";
+export const TOO_MANY_TOOL_CALLS_ERROR = `Not run: at most ${MAX_TOOL_CALLS_PER_ROUND} tool calls run per round. Answer from what you already read, and say what you could not check.`;
+export const TOO_MANY_CLIENT_TOOL_CALLS_ERROR = `Not run: at most ${MAX_CLIENT_TOOL_RESULTS} browser reads run per round. Answer from what you already read, and say what you could not check.`;
+export const CLIENT_TOOL_CALL_OVER_LIMIT_SUMMARY = "Skipped a browser read over the per-round limit";
 
 export const LAST_TOOL_ROUND_NOTE: ChatMessage = {
   role: "system",
@@ -125,6 +130,13 @@ function tracedToolNameOf(name: string): string {
   return isAssistantToolName(name) ? name : UNKNOWN_TOOL_NAME;
 }
 
+/** A paused turn resumes only once the browser answers every request, and the resume route takes at most MAX_CLIENT_TOOL_RESULTS results. */
+function withinClientToolLimit(outcome: ToolOutcome, name: string, clientToolCallCount: number): ToolOutcome {
+  if (outcome.kind !== "client" || clientToolCallCount < MAX_CLIENT_TOOL_RESULTS) return outcome;
+
+  return { kind: "result", content: toolContentOf(name, { error: TOO_MANY_CLIENT_TOOL_CALLS_ERROR }), summary: CLIENT_TOOL_CALL_OVER_LIMIT_SUMMARY, ok: false };
+}
+
 function hasText(content: string | null): content is string {
   return !!content?.trim();
 }
@@ -135,6 +147,10 @@ export function requestMessagesFor(messages: ChatMessage[], round: number): Chat
   if (round === MAX_TOOL_ROUNDS - 1) return [...messages, LAST_TOOL_ROUND_NOTE];
 
   return messages;
+}
+
+function isDailyLimit(error: unknown): error is Error {
+  return isHttpError(error) && error.errorCode === ASSISTANT_ERROR_CODES.dailyLimit;
 }
 
 function isModelFailure(error: unknown): boolean {
@@ -189,8 +205,9 @@ export class AssistantTurnService {
       for (; ; round++) {
         const isFinalRound = round >= MAX_TOOL_ROUNDS;
         const completion = await this.#complete(
+          turn,
           requestMessagesFor(messages, round),
-          { userId: turn.userId, isFinalRound, configureFormOpen: turn.configureFormOpen },
+          { isFinalRound },
           abort,
           trace.builder,
           textDeltaEmitter(emit, answer.length > 0)
@@ -302,19 +319,21 @@ export class AssistantTurnService {
   }
 
   async #complete(
+    turn: AssistantTurn,
     messages: ChatMessage[],
-    { userId, isFinalRound, configureFormOpen }: { userId: string; isFinalRound: boolean; configureFormOpen: boolean },
+    { isFinalRound }: { isFinalRound: boolean },
     signal: AbortSignal,
     trace: AssistantTurnTraceBuilder,
     onContentDelta: (text: string) => Promise<void>
   ): Promise<ChatCompletion> {
     await this.limitsService.assertWithinBudget();
+    await this.limitsService.assertWithinUserTokens(turn.userId, turn.isTrialing);
 
     const completion = await this.akashMlClient.streamChatCompletion(
       {
         model: this.config.ASSISTANT_MODEL,
         messages,
-        tools: await this.toolRunner.chatTools({ configureFormOpen }),
+        tools: await this.toolRunner.chatTools({ configureFormOpen: turn.configureFormOpen }),
         tool_choice: isFinalRound ? "none" : "auto",
         max_completion_tokens: MAX_COMPLETION_TOKENS,
         reasoning_effort: this.config.ASSISTANT_REASONING_EFFORT
@@ -328,7 +347,7 @@ export class AssistantTurnService {
       }
     );
     trace.usageAdded(completion.usage);
-    await this.limitsService.recordUsage(userId, completion.usage);
+    await this.limitsService.recordUsage(turn.userId, completion.usage);
 
     return completion;
   }
@@ -343,8 +362,9 @@ export class AssistantTurnService {
     emit: EmitAssistantEvent
   ): Promise<TurnEnding> {
     const completion = await this.#complete(
+      turn,
       [...messages, ANSWER_NOW_NOTE],
-      { userId: turn.userId, isFinalRound: true, configureFormOpen: turn.configureFormOpen },
+      { isFinalRound: true },
       signal,
       trace,
       textDeltaEmitter(emit, answer.length > 0)
@@ -368,9 +388,10 @@ export class AssistantTurnService {
     emit: EmitAssistantEvent
   ): Promise<ChatToolCall[]> {
     const clientToolCalls: ChatToolCall[] = [];
-    const startedReads = await this.#startLeadingReads(toolCalls, messages, proposalContext, emit);
+    const callsToRun = toolCalls.slice(0, MAX_TOOL_CALLS_PER_ROUND);
+    const startedReads = await this.#startLeadingReads(callsToRun, messages, proposalContext, emit);
 
-    for (const call of toolCalls) {
+    for (const call of callsToRun) {
       const name = call.function.name;
       const earlierResult = earlierResultOf(call, messages);
       if (earlierResult !== undefined) {
@@ -381,7 +402,8 @@ export class AssistantTurnService {
       const showsAsRead = !isLiveHelpToolName(name);
       const startedRead = startedReads.get(call.id);
       if (showsAsRead && !startedRead) await emit({ type: "tool_started", toolCallId: call.id, name });
-      const { outcome, durationMs } = await (startedRead ?? this.#timedRun(call, proposalContext));
+      const { outcome: runOutcome, durationMs } = await (startedRead ?? this.#timedRun(call, proposalContext));
+      const outcome = withinClientToolLimit(runOutcome, name, clientToolCalls.length);
 
       if (outcome.kind === "client") {
         clientToolCalls.push(call);
@@ -426,7 +448,19 @@ export class AssistantTurnService {
       });
     }
 
+    this.#refuseCallsOverLimit(toolCalls.slice(MAX_TOOL_CALLS_PER_ROUND), messages);
+
     return clientToolCalls;
+  }
+
+  /** Every tool call of a completion needs a tool message, or the model rejects the next request. */
+  #refuseCallsOverLimit(callsOverLimit: ChatToolCall[], messages: ChatMessage[]): void {
+    if (callsOverLimit.length === 0) return;
+
+    this.#logger.warn({ event: "ASSISTANT_TOOL_CALLS_OVER_LIMIT", refusedCount: callsOverLimit.length, limit: MAX_TOOL_CALLS_PER_ROUND });
+    for (const call of callsOverLimit) {
+      messages.push({ role: "tool", tool_call_id: call.id, content: toolContentOf(call.function.name, { error: TOO_MANY_TOOL_CALLS_ERROR }) });
+    }
   }
 
   /** Only reads ahead of the round's first card or browser tool run at once, since a card can change what a later call in the round sees. */
@@ -492,6 +526,12 @@ export class AssistantTurnService {
   }
 
   async #endFailedTurn(error: unknown, emit: EmitAssistantEvent): Promise<AssistantTurnOutcome> {
+    if (isDailyLimit(error)) {
+      this.#logger.info({ event: "ASSISTANT_TURN_LIMITED" });
+      await emit({ type: "error", code: ASSISTANT_ERROR_CODES.dailyLimit, message: error.message });
+      return "limited";
+    }
+
     if (isModelFailure(error)) {
       this.#logger.warn({ event: "ASSISTANT_MODEL_FAILED", error });
       await emit({ type: "error", code: "assistant_unavailable", message: "The assistant is unavailable right now. Ask on Discord for live help." });

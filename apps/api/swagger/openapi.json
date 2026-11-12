@@ -37922,7 +37922,8 @@
                           "enum": [
                             "assistant_unavailable",
                             "assistant_timeout",
-                            "assistant_error"
+                            "assistant_error",
+                            "assistant_daily_limit"
                           ]
                         },
                         "message": {
@@ -39672,7 +39673,8 @@
                           "enum": [
                             "assistant_unavailable",
                             "assistant_timeout",
-                            "assistant_error"
+                            "assistant_error",
+                            "assistant_daily_limit"
                           ]
                         },
                         "message": {
