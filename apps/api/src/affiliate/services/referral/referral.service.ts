@@ -87,16 +87,18 @@ export class ReferralService {
     await this.referralRepository.updateById(referral.id, { trialCreditsCents: Math.round(deploymentLimit / (MICRO_DENOM_PER_UNIT / CENTS_PER_DOLLAR)) });
   }
 
+  /** Reads the wallet before the referral, since activation commits both together and a referral read after an activated wallet always shows what was granted. */
   async getReferral(userId: string): Promise<Referral | null> {
+    const isTrialActivated = await this.#isTrialActivated(userId);
     const referral = await this.referralRepository.findByReferredUserId(userId);
     if (!referral) return null;
     if (referral.trialCreditsCents != null) return { trialCreditsUsd: referral.trialCreditsCents / CENTS_PER_DOLLAR };
-    if (await this.#isTrialActivatedWithoutReferral(userId)) return null;
+    if (isTrialActivated) return null;
 
     return { trialCreditsUsd: this.billingConfig.REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT / MICRO_DENOM_PER_UNIT };
   }
 
-  async #isTrialActivatedWithoutReferral(userId: string): Promise<boolean> {
+  async #isTrialActivated(userId: string): Promise<boolean> {
     const wallet = await this.userWalletRepository.unscoped("referral-trial").findOneByUserId(userId);
     return !!wallet?.activatedAt;
   }

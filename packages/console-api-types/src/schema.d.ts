@@ -16023,7 +16023,7 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description The caller's referral trial credits, or null when they were not referred */
+      /** @description The caller's referral trial credits, or null when they were not referred or their trial started without them */
       200: {
         headers: {
           [name: string]: unknown;

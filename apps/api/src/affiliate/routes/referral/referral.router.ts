@@ -19,7 +19,7 @@ const getReferralRoute = createRoute({
   request: {},
   responses: {
     200: {
-      description: "The caller's referral trial credits, or null when they were not referred",
+      description: "The caller's referral trial credits, or null when they were not referred or their trial started without them",
       content: {
         "application/json": {
           schema: ReferralResponseSchema
