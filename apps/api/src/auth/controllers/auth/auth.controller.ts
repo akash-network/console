@@ -6,7 +6,7 @@ import type { SignupInput } from "@src/auth/routes/signup/signup.router";
 import type { VerifyEmailCodeRequest } from "@src/auth/routes/verify-email-code/verify-email-code.router";
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import { AUTH0_DB_CONNECTION, Auth0Service } from "@src/auth/services/auth0/auth0.service";
-import { extractAuth0ErrorMessage, isAuth0ApiError } from "@src/auth/services/auth0/auth0-error";
+import { extractAuth0ErrorMessage, isAuth0ActionsErrorMessage, isAuth0ApiError } from "@src/auth/services/auth0/auth0-error";
 import {
   CAPTCHA_VERIFICATION_FAILED_ERROR_CODE,
   type CaptchaVerificationContext,
@@ -58,7 +58,8 @@ export class AuthController {
         throw createError(502, AUTH_PROVIDER_UNAVAILABLE_MESSAGE);
       }
 
-      throw createError(error.statusCode, extractAuth0ErrorMessage(error));
+      const auth0Message = extractAuth0ErrorMessage(error);
+      throw createError(error.statusCode, isAuth0ActionsErrorMessage(auth0Message) ? ACCOUNT_UNAVAILABLE_MESSAGE : auth0Message);
     }
   }
 

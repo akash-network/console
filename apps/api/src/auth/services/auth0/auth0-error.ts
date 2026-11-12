@@ -5,6 +5,8 @@
  */
 export type Auth0ApiError = Error & { statusCode: number; body: string };
 
+const AUTH0_ACTIONS_ERROR_PREFIX = "Sandbox Error";
+
 export function isAuth0ApiError(error: unknown): error is Auth0ApiError {
   return (
     error instanceof Error && typeof (error as Partial<Auth0ApiError>).statusCode === "number" && typeof (error as Partial<Auth0ApiError>).body === "string"
@@ -21,4 +23,9 @@ export function extractAuth0ErrorMessage(error: Auth0ApiError): string {
   } catch {
     return error.message;
   }
+}
+
+/** Errors raised by a tenant Action carry its admin-facing reason code, e.g. `Sandbox Error: action.email_dedup.duplicate_email`. */
+export function isAuth0ActionsErrorMessage(message: string): boolean {
+  return message.startsWith(AUTH0_ACTIONS_ERROR_PREFIX);
 }
