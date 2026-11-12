@@ -90,6 +90,17 @@ describe(AuthController.name, () => {
       });
     });
 
+    it("replaces an auth0 action refusal with the generic account message, keeping its status", async () => {
+      const { controller, auth0Service } = setup();
+
+      auth0Service.createUser.mockRejectedValue(createManagementApiError(400, "Sandbox Error: action.email_dedup.duplicate_email"));
+
+      await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" }, {})).rejects.toMatchObject({
+        status: 400,
+        message: "Unable to create account. Please try again or use a different email."
+      });
+    });
+
     it("passes a rate limit through as 429", async () => {
       const { controller, auth0Service } = setup();
 
