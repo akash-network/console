@@ -40,3 +40,10 @@ jobs:
           # both limits are required and must stay within what AkashML serves for this model
           OPENAI_COMPATIBLE_CONTEXT: "1000000"
           OPENAI_COMPATIBLE_MAX_OUTPUT: "32000"
+          # named endpoint "akashml-kimi": a second AkashML model a run can ask by that name (https://docs.pullfrog.com/other-models)
+          OPENAI_COMPATIBLE_AKASHML_KIMI_BASE_URL: https://api.akashml.com/v1
+          OPENAI_COMPATIBLE_AKASHML_KIMI_API_KEY: ${{ secrets.OPENAI_COMPATIBLE_API_KEY }}
+          OPENAI_COMPATIBLE_AKASHML_KIMI_MODEL: moonshotai/Kimi-K3.1-Pro
+          # a named endpoint borrows nothing from the unnamed one, so it needs all five values
+          OPENAI_COMPATIBLE_AKASHML_KIMI_CONTEXT: "1000000"
+          OPENAI_COMPATIBLE_AKASHML_KIMI_MAX_OUTPUT: "32000"
