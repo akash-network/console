@@ -3,9 +3,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { CreateLogger } from "@src/core";
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
-import { DEFAULT_GPU_REQUEST_ROUTING_POLICY } from "@src/hardware-request/lib/gpu-request-routing-policy/gpu-request-routing-policy";
 import type { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
-import type { GpuRequestRoutingService } from "@src/hardware-request/services/gpu-request-routing/gpu-request-routing.service";
 import { emailRecipientUserId } from "@src/notifications/lib/email-recipient-user-id/email-recipient-user-id";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
 import type { UserRepository } from "@src/user/repositories";
@@ -16,7 +14,7 @@ import { createHardwareRequest } from "@test/seeders/hardware-request.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 
 describe(HardwareRequestReceivedNoticeHandler.name, () => {
-  it("emails the requester the reply time in the business-hours zone and a link to the request", async () => {
+  it("emails the requester a confirmation with a link to the request", async () => {
     const { handler, notificationService, hardwareRequest, requester } = setup({ email: "jane@example.com" });
 
     await handler.handle({ hardwareRequestId: hardwareRequest.id, version: 1 });
@@ -25,7 +23,7 @@ describe(HardwareRequestReceivedNoticeHandler.name, () => {
       notificationId: `gpuRequestReceived.${hardwareRequest.id}`,
       payload: {
         summary: expect.stringMatching(/ was received$/),
-        description: "Our team will reply by Thursday, November 12 at 7:00 PM GMT+1.",
+        description: "We're working on it and will let you know if we find capacity that matches your request.",
         actions: [{ label: "View request", url: `https://console.akash.network/gpu-requests/${hardwareRequest.id}` }]
       },
       user: { id: requester.id, email: "jane@example.com" }
@@ -85,17 +83,12 @@ describe(HardwareRequestReceivedNoticeHandler.name, () => {
 
   function setup(input: { email: string | null }) {
     const requester = createUser({ email: input.email });
-    const hardwareRequest = createHardwareRequest({ userId: requester.id, lane: "sales", firstReplyDueAt: "2026-11-12T18:00:00.000Z" });
+    const hardwareRequest = createHardwareRequest({ userId: requester.id });
     const hardwareRequestRepository = mock<HardwareRequestRepository>();
     hardwareRequestRepository.findById.mockResolvedValue(hardwareRequest);
     const userRepository = mock<UserRepository>();
     userRepository.findById.mockResolvedValue(requester);
     const notificationService = mock<NotificationService>();
-    const gpuRequestRoutingService = mock<GpuRequestRoutingService>();
-    gpuRequestRoutingService.getPolicy.mockReturnValue({
-      ...DEFAULT_GPU_REQUEST_ROUTING_POLICY,
-      businessHours: { ...DEFAULT_GPU_REQUEST_ROUTING_POLICY.businessHours, timeZone: "Europe/Paris" }
-    });
     const deploymentConfigService = mockConfigService<DeploymentConfigService>({ DEPLOY_WEB_BASE_URL: "https://console.akash.network" });
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
@@ -103,7 +96,6 @@ describe(HardwareRequestReceivedNoticeHandler.name, () => {
       hardwareRequestRepository,
       userRepository,
       notificationService,
-      gpuRequestRoutingService,
       deploymentConfigService,
       createLogger
     );

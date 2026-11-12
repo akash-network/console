@@ -1,4 +1,4 @@
-import type { CloseReason, HardwareRequestLane, HardwareRequestStatus } from "@src/hardware-request/model-schemas";
+import type { CloseReason, HardwareRequestStatus } from "@src/hardware-request/model-schemas";
 
 const STATUS_HEADLINES: Record<HardwareRequestStatus, string> = {
   submitted: "is back in our queue",
@@ -39,24 +39,6 @@ export function describeStatusForTenant(title: string, status: HardwareRequestSt
   return { headline: `${title} ${STATUS_HEADLINES[status]}`, detail };
 }
 
-export type HardwareRequestReceipt = { lane: HardwareRequestLane | null; firstReplyDueAt: string | null };
-
-/** The tenant's own time zone is unknown here, so the reply time is shown in the team's business-hours zone with its name. */
-export function describeReceiptForTenant(title: string, { lane, firstReplyDueAt }: HardwareRequestReceipt, timeZone: string): HardwareRequestStatusMessage {
-  const replier = lane === "sales" ? "Our team will reply" : "We'll get back to you";
-  const when = firstReplyDueAt ? `by ${formatReplyTime(new Date(firstReplyDueAt), timeZone)}` : "soon";
-
-  return { headline: `${title} was received`, detail: `${replier} ${when}.` };
-}
-
-function formatReplyTime(dueAt: Date, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone,
-    timeZoneName: "short"
-  }).format(dueAt);
+export function describeReceiptForTenant(title: string): HardwareRequestStatusMessage {
+  return { headline: `${title} was received`, detail: "We're working on it and will let you know if we find capacity that matches your request." };
 }

@@ -24,9 +24,9 @@ describe(HardwareRequestReceivedNoticeHandler.name, () => {
     nock.cleanAll();
   });
 
-  it("emails the requester a confirmation with the promised reply time, run the way a worker runs it", async () => {
+  it("emails the requester a confirmation, run the way a worker runs it", async () => {
     const { user, seedRequest, notifications, confirm } = await setup();
-    const hardwareRequest = await seedRequest({ lane: "sales", firstReplyDueAt: new Date("2026-11-12T18:00:00.000Z") });
+    const hardwareRequest = await seedRequest();
 
     await confirm(hardwareRequest.id);
 
@@ -37,7 +37,7 @@ describe(HardwareRequestReceivedNoticeHandler.name, () => {
           notificationId: `gpuRequestReceived.${hardwareRequest.id}`,
           payload: {
             summary: "GPU request: 8× B200 was received",
-            description: "Our team will reply by Thursday, November 12 at 1:00 PM EST.",
+            description: "We're working on it and will let you know if we find capacity that matches your request.",
             actions: [
               { label: "View request", url: `${container.resolve(DeploymentConfigService).get("DEPLOY_WEB_BASE_URL")}/gpu-requests/${hardwareRequest.id}` }
             ]
@@ -70,7 +70,7 @@ describe(HardwareRequestReceivedNoticeHandler.name, () => {
   async function setup() {
     const { enqueue, startWorkers } = await jobWorkers();
     const { user, organization } = await seedOrganizationWithOwner({ user: { email: faker.internet.email(), userId: faker.string.uuid() } });
-    const seedRequest = (overrides: Omit<Parameters<typeof seedHardwareRequest>[0], "userId">) =>
+    const seedRequest = (overrides: Omit<Parameters<typeof seedHardwareRequest>[0], "userId"> = {}) =>
       seedHardwareRequest({ userId: user.id, organizationId: organization.id, gpuModel: "B200", quantity: 8, ...overrides });
 
     const notifications: SentNotification[] = [];

@@ -9,7 +9,7 @@ describe(gpuRequestReceivedNotification.name, () => {
       {
         hardwareRequestId: "request-1",
         headline: "GPU request: 8× B200 was received",
-        detail: "Our team will reply soon.",
+        detail: "We're working on it and will let you know if we find capacity that matches your request.",
         requestUrl: "https://console.example.com/gpu-requests/request-1"
       }
     );
@@ -18,7 +18,7 @@ describe(gpuRequestReceivedNotification.name, () => {
       notificationId: "gpuRequestReceived.request-1",
       payload: {
         summary: "GPU request: 8× B200 was received",
-        description: "Our team will reply soon.",
+        description: "We're working on it and will let you know if we find capacity that matches your request.",
         actions: [{ label: "View request", url: "https://console.example.com/gpu-requests/request-1" }]
       },
       user: { id: "user-1", email: "jane@example.com" }

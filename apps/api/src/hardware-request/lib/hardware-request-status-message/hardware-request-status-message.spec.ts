@@ -34,22 +34,10 @@ describe(describeStatusForTenant.name, () => {
 });
 
 describe(describeReceiptForTenant.name, () => {
-  it("promises a reply from the team by the sales lane's due time, in the business-hours zone", () => {
-    expect(describeReceiptForTenant("GPU request: 8× B200", { lane: "sales", firstReplyDueAt: "2026-11-12T18:00:00.000Z" }, "America/New_York")).toEqual({
+  it("confirms the request without promising a reply time or capacity", () => {
+    expect(describeReceiptForTenant("GPU request: 8× B200")).toEqual({
       headline: "GPU request: 8× B200 was received",
-      detail: "Our team will reply by Thursday, November 12 at 1:00 PM EST."
+      detail: "We're working on it and will let you know if we find capacity that matches your request."
     });
-  });
-
-  it("promises a reply by the automated lane's due time", () => {
-    expect(describeReceiptForTenant("GPU request: 1× A100", { lane: "automated", firstReplyDueAt: "2026-11-12T18:30:00.000Z" }, "Europe/Paris").detail).toBe(
-      "We'll get back to you by Thursday, November 12 at 7:30 PM GMT+1."
-    );
-  });
-
-  it("promises a reply soon when the request has no due time", () => {
-    expect(describeReceiptForTenant("GPU request: 1× A100", { lane: null, firstReplyDueAt: null }, "America/New_York").detail).toBe(
-      "We'll get back to you soon."
-    );
   });
 });

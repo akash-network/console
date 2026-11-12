@@ -5,7 +5,6 @@ import { DeploymentConfigService } from "@src/deployment/services/deployment-con
 import { describeReceiptForTenant } from "@src/hardware-request/lib/hardware-request-status-message/hardware-request-status-message";
 import { hardwareRequestTitle } from "@src/hardware-request/lib/hardware-request-title/hardware-request-title";
 import { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
-import { GpuRequestRoutingService } from "@src/hardware-request/services/gpu-request-routing/gpu-request-routing.service";
 import { emailRecipientUserId } from "@src/notifications/lib/email-recipient-user-id/email-recipient-user-id";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { gpuRequestReceivedNotification } from "@src/notifications/services/notification-templates/gpu-request-received-notification";
@@ -29,7 +28,6 @@ export class HardwareRequestReceivedNoticeHandler implements JobHandler<Hardware
     private readonly hardwareRequestRepository: HardwareRequestRepository,
     private readonly userRepository: UserRepository,
     private readonly notificationService: NotificationService,
-    private readonly gpuRequestRoutingService: GpuRequestRoutingService,
     private readonly deploymentConfigService: DeploymentConfigService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -53,11 +51,7 @@ export class HardwareRequestReceivedNoticeHandler implements JobHandler<Hardware
 
     if (!recipient.email) return;
 
-    const { headline, detail } = describeReceiptForTenant(
-      hardwareRequestTitle(hardwareRequest),
-      hardwareRequest,
-      this.gpuRequestRoutingService.getPolicy().businessHours.timeZone
-    );
+    const { headline, detail } = describeReceiptForTenant(hardwareRequestTitle(hardwareRequest));
 
     await this.notificationService.createNotification(
       gpuRequestReceivedNotification(recipient, {
