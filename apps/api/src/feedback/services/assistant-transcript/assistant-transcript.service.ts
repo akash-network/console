@@ -1,6 +1,7 @@
 import { singleton } from "tsyringe";
 
 import { TxService } from "@src/core/services/tx/tx.service";
+import { redactSecretStrings } from "@src/feedback/lib/redact-secrets/redact-secrets";
 import type { AssistantMessageRole } from "@src/feedback/model-schemas";
 import { AssistantConversationRepository } from "@src/feedback/repositories/assistant-conversation/assistant-conversation.repository";
 import { AssistantMessageRepository } from "@src/feedback/repositories/assistant-message/assistant-message.repository";
@@ -23,7 +24,7 @@ export class AssistantTranscriptService {
 
   async record(conversationId: string, entry: TranscriptEntry): Promise<void> {
     await this.txService.transaction(async () => {
-      await this.assistantMessageRepository.create({ conversationId, ...entry });
+      await this.assistantMessageRepository.create({ conversationId, ...redactSecretStrings(entry) });
       await this.assistantConversationRepository.updateById(conversationId, { lastMessageAt: new Date() });
     });
   }

@@ -1,7 +1,7 @@
 import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 
-import { countRedactions, REDACTED, redactEmailAddresses, redactSecrets } from "./redact-secrets";
+import { countRedactions, REDACTED, redactEmailAddresses, redactSecrets, redactSecretStrings } from "./redact-secrets";
 
 describe(redactSecrets.name, () => {
   it.each([
@@ -179,6 +179,41 @@ describe(countRedactions.name, () => {
     const original = `I already replaced it with ${REDACTED}`;
 
     expect(countRedactions(original, redactSecrets(original))).toBe(0);
+  });
+});
+
+describe(redactSecretStrings.name, () => {
+  it("replaces secrets in strings nested in objects and arrays", () => {
+    const value = {
+      sdl: `env:\n  - HF_TOKEN=${faker.string.alphanumeric(24)}`,
+      before: { command: ["sh", "-c"], args: [`--api-key=sk-${faker.string.alphanumeric(24)}`, "--port=8080"] },
+      services: [{ env: { api_key: `api_key: ${faker.string.alphanumeric(12)}` } }]
+    };
+
+    expect(redactSecretStrings(value)).toEqual({
+      sdl: `env:\n  - HF_TOKEN=${REDACTED}`,
+      before: { command: ["sh", "-c"], args: [`--api-key=${REDACTED}`, "--port=8080"] },
+      services: [{ env: { api_key: `api_key: ${REDACTED}` } }]
+    });
+  });
+
+  it("keeps keys and non-string values unchanged", () => {
+    const value = { proposalId: faker.string.uuid(), count: 2, enabled: false, diagnosis: null, missing: undefined, nested: [1, true, null] };
+
+    expect(redactSecretStrings(value)).toEqual(value);
+  });
+
+  it("does not change the value it is given", () => {
+    const secret = `hf_${faker.string.alphanumeric(24)}`;
+    const value = { args: [secret] };
+
+    redactSecretStrings(value);
+
+    expect(value).toEqual({ args: [secret] });
+  });
+
+  it("replaces secrets in a bare string", () => {
+    expect(redactSecretStrings(`token=${faker.string.alphanumeric(12)}`)).toBe(`token=${REDACTED}`);
   });
 });
 

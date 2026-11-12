@@ -22,6 +22,16 @@ export function redactSecrets(text: string): string {
   return SECRET_REPLACEMENTS.reduce((redacted, [pattern, replacement]) => redacted.replace(pattern, replacement), text);
 }
 
+export function redactSecretStrings<T>(value: T): T {
+  if (typeof value === "string") return redactSecrets(value) as T;
+  if (Array.isArray(value)) return value.map(redactSecretStrings) as T;
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([key, nested]) => [key, redactSecretStrings(nested)])) as T;
+  }
+
+  return value;
+}
+
 /** Bounded like an address can be, so a long run of word characters without an @ cannot backtrack quadratically. */
 const EMAIL_ADDRESS = /\b[\w.%+-]{1,64}@(?:[A-Za-z0-9-]{1,63}\.){1,8}[A-Za-z]{2,24}\b/g;
 
