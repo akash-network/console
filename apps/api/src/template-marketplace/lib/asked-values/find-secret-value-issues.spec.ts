@@ -168,6 +168,10 @@ describe(findSecretValueIssues.name, () => {
     ]);
   });
 
+  it("accepts a service that fills in a secret with an empty env", () => {
+    expect(findSecretValueIssues(sdlWith({ web: { env: null } }), [secretValue("TOKEN")])).toEqual([]);
+  });
+
   it("ignores entries that are not text on a service that fills in no secret", () => {
     const sdl = sdlWith({ web: { env: [1, null, { TOKEN: "x" }] }, worker: { env: "TOKEN=x" } });
 
