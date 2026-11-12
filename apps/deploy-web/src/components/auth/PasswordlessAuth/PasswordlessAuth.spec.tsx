@@ -221,10 +221,11 @@ describe(PasswordlessAuth.name, () => {
     expect(screen.getByText("$5 in credits to deploy your first containers. No card required.")).toBeInTheDocument();
   });
 
-  it("hides the referral welcome on the verify screen", () => {
+  it("hides the referral welcome and the trial credits on the verify screen", () => {
     setup({ step: "verify", initialEmail: "user@example.com", trialOffer: { isReferred: true, trialCreditsUsd: 5 } });
 
     expect(screen.queryByText("You were referred to Akash Console")).not.toBeInTheDocument();
+    expect(screen.queryByText(/to deploy your first container/i)).not.toBeInTheDocument();
   });
 
   it("tracks terms_link_clk when the Terms link is clicked", async () => {
