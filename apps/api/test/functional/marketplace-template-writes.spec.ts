@@ -199,12 +199,9 @@ describe("Marketplace template writes", () => {
         read(`/v1/user-templates/${copyOfPublic.id}`)
       ]);
 
-      expect((await Promise.all(responses.map(response => response.json()))).map(({ data }) => data.copiedFromId)).toEqual([
-        null,
-        null,
-        hiddenSource.id,
-        publicSource.id
-      ]);
+      const bodies = (await Promise.all(responses.map(response => response.json()))) as { data: { copiedFromId: string | null } }[];
+
+      expect(bodies.map(({ data }) => data.copiedFromId)).toEqual([null, null, hiddenSource.id, publicSource.id]);
     });
   });
 
