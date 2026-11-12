@@ -122,9 +122,9 @@ export class MarketplaceTemplateService {
 
     if (!organizationId || !ability.can("read", "Template")) return [];
 
-    const rows = await this.marketplaceTemplateRepository
-      .accessibleBy(ability, "read")
-      .listInOrganization({ ...query, organizationId, limit: MAX_LISTED_USER_TEMPLATES });
+    const readableRepository = this.marketplaceTemplateRepository.accessibleBy(ability, "read");
+    const rows = await readableRepository.listInOrganization({ ...query, organizationId, limit: MAX_LISTED_USER_TEMPLATES });
+    const readableSourceIds = await readableRepository.findReadableIds([...new Set(rows.flatMap(row => row.copiedFromId ?? []))]);
 
     return rows.map(row => ({
       id: row.id,
@@ -136,7 +136,7 @@ export class MarketplaceTemplateService {
       isListed: row.isListed,
       moderationStatus: row.moderationStatus,
       projectId: row.projectId,
-      copiedFromId: row.copiedFromId,
+      copiedFromId: row.copiedFromId && readableSourceIds.has(row.copiedFromId) ? row.copiedFromId : null,
       updatedAt: row.updatedAt,
       currentVersion: row.currentVersion,
       lastEditedBy: row.lastEditedByUsername ? { username: row.lastEditedByUsername } : null,

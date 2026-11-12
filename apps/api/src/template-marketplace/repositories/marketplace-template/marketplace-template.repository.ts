@@ -1,4 +1,4 @@
-import { and, desc, eq, ne, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, ne, or, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm/sql/sql";
 import { singleton } from "tsyringe";
 
@@ -182,6 +182,17 @@ export class MarketplaceTemplateRepository extends OrgScopedRepository<Table, Pa
       authorUsername,
       publisher: publisherName && publisherSlug && publisherType ? { name: publisherName, slug: publisherSlug, type: publisherType } : null
     };
+  }
+
+  async findReadableIds(ids: string[]): Promise<Set<string>> {
+    if (ids.length === 0) return new Set();
+
+    const rows = await this.cursor
+      .select({ id: this.table.id })
+      .from(this.table)
+      .where(and(inArray(this.table.id, ids), ne(this.table.moderationStatus, "removed"), or(this.#publiclyReadable(), this.#readableThroughRules())));
+
+    return new Set(rows.map(row => row.id));
   }
 
   #publiclyReadable(): SQL | undefined {

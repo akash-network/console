@@ -424,6 +424,24 @@ describe(MarketplaceTemplateService.name, () => {
       ]);
     });
 
+    it("lists the template a row was copied from only when the caller may read it", async () => {
+      const organizationId = faker.string.uuid();
+      const readableSourceId = faker.string.uuid();
+      const unreadableSourceId = faker.string.uuid();
+      const fromReadable = createListRow({ organizationId, copiedFromId: readableSourceId });
+      const alsoFromReadable = createListRow({ organizationId, copiedFromId: readableSourceId });
+      const fromUnreadable = createListRow({ organizationId, copiedFromId: unreadableSourceId });
+      const original = createListRow({ organizationId, copiedFromId: null });
+      const { service, readableRepository } = setup({ rules: [{ action: "read", subject: "Template" }], activeOrganizationId: organizationId });
+      readableRepository.listInOrganization.mockResolvedValue([fromReadable, alsoFromReadable, fromUnreadable, original]);
+      readableRepository.findReadableIds.mockResolvedValue(new Set([readableSourceId]));
+
+      const result = await service.listInOrganization({});
+
+      expect(readableRepository.findReadableIds).toHaveBeenCalledWith([readableSourceId, unreadableSourceId]);
+      expect(result.map(item => item.copiedFromId)).toEqual([readableSourceId, readableSourceId, null, null]);
+    });
+
     it("lists nothing to a caller whose rules reach no template", async () => {
       const { service, repository } = setup({ rules: [], activeOrganizationId: faker.string.uuid() });
 
@@ -535,6 +553,7 @@ describe(MarketplaceTemplateService.name, () => {
     const repository = mock<MarketplaceTemplateRepository>();
     repository.accessibleBy.mockReturnValue(readableRepository);
     readableRepository.findReadable.mockImplementation(repository.findReadable);
+    readableRepository.findReadableIds.mockResolvedValue(new Set());
     const template = "template" in input ? input.template : createTemplateRow();
     repository.findReadable.mockResolvedValue(template);
     const templateVersionRepository = mock<TemplateVersionRepository>();

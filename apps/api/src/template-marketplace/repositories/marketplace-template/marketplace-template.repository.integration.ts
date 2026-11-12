@@ -101,6 +101,31 @@ describe(MarketplaceTemplateRepository.name, () => {
     });
   });
 
+  describe("findReadableIds", () => {
+    it("keeps the ids of templates within the rules or active and public, dropping removed, hidden and unknown ones", async () => {
+      const { repository, organization, project } = await setup();
+      const other = await seedOrganization();
+      const [withinRules, outsideRules, publicElsewhere, hiddenElsewhere, removed] = await Promise.all([
+        seedTemplate({ organizationId: organization.id, projectId: project.id, visibility: "organization" }),
+        seedTemplate({ organizationId: other.id, visibility: "private" }),
+        seedTemplate({ organizationId: other.id, visibility: "public" }),
+        seedTemplate({ organizationId: other.id, visibility: "public", moderationStatus: "hidden" }),
+        seedTemplate({ organizationId: organization.id, projectId: project.id, visibility: "private", moderationStatus: "removed" })
+      ]);
+      const readable = repository.accessibleBy(abilityOf([{ action: "read", subject: "Template", conditions: { organizationId: organization.id } }]), "read");
+
+      const found = await readable.findReadableIds([withinRules.id, outsideRules.id, publicElsewhere.id, hiddenElsewhere.id, removed.id, faker.string.uuid()]);
+
+      expect(found).toEqual(new Set([withinRules.id, publicElsewhere.id]));
+    });
+
+    it("finds nothing for no ids", async () => {
+      const { repository } = await setup();
+
+      expect(await repository.findReadableIds([])).toEqual(new Set());
+    });
+  });
+
   describe("createTemplate", () => {
     it("creates a private, listed template in the active organization's default project", async () => {
       const { repository, organization, author } = await setup();
