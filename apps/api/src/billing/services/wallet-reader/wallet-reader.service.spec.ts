@@ -148,6 +148,7 @@ describe(WalletReaderService.name, () => {
         address: value.address,
         creditAmount: value.creditAmount,
         isTrialing: !!value.isTrialing,
+        isTrialRefused: false,
         trialEndsAt: trialWindow?.trialEndsAt ?? null,
         trialDurationDays: trialWindow?.trialDurationDays ?? null,
         createdAt: value.createdAt

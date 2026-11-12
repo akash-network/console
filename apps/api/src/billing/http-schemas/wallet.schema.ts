@@ -15,6 +15,7 @@ const WalletOutputSchema = z.object({
   address: z.string().openapi({}),
   denom: z.string().openapi({}),
   isTrialing: z.boolean(),
+  isTrialRefused: z.boolean().openapi({ description: "Whether this account was refused a free trial." }),
   trialEndsAt: z.date().nullable().openapi({ description: "When the free trial expires, or null when the wallet is no longer trialing." }),
   trialDurationDays: z.number().nullable().openapi({ description: "Total length of the free trial in days, or null when the wallet is no longer trialing." }),
   topUpMinAmountUsd: z.number().openapi({ description: "Minimum USD amount accepted by the next paid top-up for this wallet." }),

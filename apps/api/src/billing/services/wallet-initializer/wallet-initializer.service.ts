@@ -21,8 +21,10 @@ import { TxService } from "@src/core/services/tx/tx.service";
 import type { OrganizationOutput } from "@src/organization/repositories/organization/organization.repository";
 import { UserOutput, UserRepository } from "@src/user/repositories";
 import { AccountStatusGuard } from "@src/user/services/account-status-guard/account-status-guard.service";
+import { DELETED_TRIAL_ACCOUNT_LOCK_REASON } from "@src/workload-abuse/lib/abuse-lock-reason/abuse-lock-reason";
 import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 import { DeletedAccountAbuseLockService } from "@src/workload-abuse/services/deleted-account-abuse-lock/deleted-account-abuse-lock.service";
+import { DeletedTrialAccountService } from "@src/workload-abuse/services/deleted-trial-account/deleted-trial-account.service";
 import { TrialSignupHoldService } from "@src/workload-abuse/services/trial-signup-hold/trial-signup-hold.service";
 import { ManagedUserWalletService } from "../managed-user-wallet/managed-user-wallet.service";
 
@@ -47,6 +49,7 @@ export class WalletInitializerService {
     private readonly trialValidationService: TrialValidationService,
     private readonly blockedEmailDomainService: BlockedEmailDomainService,
     private readonly deletedAccountAbuseLockService: DeletedAccountAbuseLockService,
+    private readonly deletedTrialAccountService: DeletedTrialAccountService,
     private readonly txService: TxService,
     private readonly accountStatusGuard: AccountStatusGuard,
     private readonly referralService: ReferralService,
@@ -110,8 +113,8 @@ export class WalletInitializerService {
     assert(lockedWallet, 404, "UserWallet Not Found");
     if (lockedWallet.activatedAt) return { wallet: lockedWallet, isNew: false };
 
-    const deletedAccountLockReason = await this.deletedAccountAbuseLockService.findLockReasonOf(user);
-    if (deletedAccountLockReason) return { wallet: await wallets.activateLockedForAbuse(userWallet.id, deletedAccountLockReason), isNew: false };
+    const lockReason = await this.#findLockReasonOf(user);
+    if (lockReason) return { wallet: await wallets.activateLockedForAbuse(userWallet.id, lockReason), isNew: false };
 
     const deploymentLimit = await this.referralService.getTrialDeploymentLimit(user.id);
     const chainWallet = await this.walletManager.createAndAuthorizeTrialSpending(this.managedSignerService, { addressIndex: userWallet.id, deploymentLimit });
@@ -131,6 +134,13 @@ export class WalletInitializerService {
     );
 
     return { wallet: activatedWallet, isNew: true, isReferral: deploymentLimit !== undefined };
+  }
+
+  async #findLockReasonOf(user: UserOutput): Promise<string | undefined> {
+    const deletedAccountLockReason = await this.deletedAccountAbuseLockService.findLockReasonOf(user);
+    if (deletedAccountLockReason) return deletedAccountLockReason;
+
+    return (await this.deletedTrialAccountService.refusesTrialOf(user)) ? DELETED_TRIAL_ACCOUNT_LOCK_REASON : undefined;
   }
 
   #toPublic(wallet: WalletInitialized & { userId: string }): UserWalletPublicOutput {

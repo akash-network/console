@@ -52,6 +52,7 @@ describe(AssistantAccountToolsService.name, () => {
             address: "akash1",
             denom: "uact",
             isTrialing: true,
+            isTrialRefused: false,
             trialEndsAt: new Date("2026-12-01T00:00:00.000Z"),
             trialDurationDays: 30,
             topUpMinAmountUsd: 20,

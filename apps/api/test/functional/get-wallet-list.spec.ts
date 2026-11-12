@@ -9,6 +9,7 @@ import { UserWalletRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
+import { ABUSE_LOCK_REASON, DELETED_TRIAL_ACCOUNT_LOCK_REASON } from "@src/workload-abuse/lib/abuse-lock-reason/abuse-lock-reason";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 
@@ -62,16 +63,46 @@ describe("Get Wallet List", () => {
       expect(body.data[0].trialEndsAt).toBeNull();
       expect(body.data[0].trialDurationDays).toBeNull();
     });
+
+    it("flags a wallet whose free trial was refused", async () => {
+      const { user, token } = await setup({ isTrialing: false, activatedAt: new Date(), abuseLockedReason: DELETED_TRIAL_ACCOUNT_LOCK_REASON });
+
+      const response = await app.request(`/v1/wallets?userId=${user.id}`, {
+        headers: { authorization: `Bearer ${token}` }
+      });
+      const body = (await response.json()) as WalletListOutputResponse;
+
+      expect(response.status).toBe(200);
+      expect(body.data[0].isTrialing).toBe(false);
+      expect(body.data[0].isTrialRefused).toBe(true);
+    });
+
+    it.each([{ abuseLockedReason: undefined }, { abuseLockedReason: ABUSE_LOCK_REASON }])(
+      "leaves a wallet unflagged when its free trial was not refused, case %#",
+      async ({ abuseLockedReason }) => {
+        const { user, token } = await setup({ isTrialing: false, activatedAt: new Date(), abuseLockedReason });
+
+        const response = await app.request(`/v1/wallets?userId=${user.id}`, {
+          headers: { authorization: `Bearer ${token}` }
+        });
+        const body = (await response.json()) as WalletListOutputResponse;
+
+        expect(response.status).toBe(200);
+        expect(body.data[0].isTrialRefused).toBe(false);
+      }
+    );
   });
 
-  async function setup(input: { isTrialing: boolean; activatedAt: Date }) {
+  async function setup(input: { isTrialing: boolean; activatedAt: Date; abuseLockedReason?: string }) {
     const user = await userRepository.create({ userId: faker.string.uuid() });
     const token = faker.string.alphanumeric(40);
     const { wallet } = await userWalletRepository.getOrCreate({ userId: user.id });
     await userWalletRepository.updateById(wallet.id, {
       address: createAkashAddress(),
       isTrialing: input.isTrialing,
-      activatedAt: input.activatedAt
+      activatedAt: input.activatedAt,
+      abuseLockedAt: input.abuseLockedReason ? input.activatedAt : null,
+      abuseLockedReason: input.abuseLockedReason ?? null
     });
 
     vi.spyOn(userAuthTokenService, "getValidUserId").mockResolvedValue(user.userId);

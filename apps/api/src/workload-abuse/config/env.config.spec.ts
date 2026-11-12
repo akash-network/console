@@ -154,6 +154,49 @@ describe("workload abuse env config", () => {
     expect(() => setup({ WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES: "1.5" })).toThrow(/WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES/);
   });
 
+  it("leaves the deleted trial account settings unset when their variables are unset or blank", () => {
+    const unset = setup();
+    const blank = setup({
+      WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS: " ",
+      WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS: "",
+      WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS: " "
+    });
+
+    expect([
+      unset.WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS,
+      unset.WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS,
+      unset.WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS,
+      blank.WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS,
+      blank.WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS,
+      blank.WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS
+    ]).toEqual([undefined, undefined, undefined, undefined, undefined, undefined]);
+  });
+
+  it("reads the deleted trial account settings when they carry a value", () => {
+    const config = setup({
+      WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS: "11",
+      WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS: "5",
+      WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS: "0"
+    });
+
+    expect(config).toMatchObject({
+      WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS: 11,
+      WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS: 5,
+      WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS: 0
+    });
+  });
+
+  it.each([
+    ["WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS", "0"],
+    ["WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS", "1.5"],
+    ["WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS", "0"],
+    ["WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS", "1.5"],
+    ["WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS", "-1"],
+    ["WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS", "1.5"]
+  ])("rejects %s set to %s", (name, value) => {
+    expect(() => setup({ [name]: value })).toThrow(new RegExp(name));
+  });
+
   it("posts the daily summary at 13:00 UTC unless another hour is set", () => {
     expect(setup().WORKLOAD_ABUSE_DAILY_SUMMARY_HOUR_UTC).toBe(13);
     expect(setup({ WORKLOAD_ABUSE_DAILY_SUMMARY_HOUR_UTC: " " }).WORKLOAD_ABUSE_DAILY_SUMMARY_HOUR_UTC).toBe(13);

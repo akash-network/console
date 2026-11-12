@@ -7,6 +7,7 @@ export const buildManagedWallet = (overrides: Partial<ApiManagedWalletOutput> = 
   address: `akash${faker.string.alphanumeric({ length: 39 })}`,
   denom: "uact",
   isTrialing: faker.datatype.boolean(),
+  isTrialRefused: false,
   trialEndsAt: null,
   trialDurationDays: null,
   creditAmount: faker.number.int({ min: 0, max: 1000 }),

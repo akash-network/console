@@ -6,6 +6,7 @@ import { atomWithStorage } from "jotai/utils";
 import { useServices } from "@src/context/ServicesProvider";
 import { useAccountStatus } from "@src/hooks/useAccountStatus/useAccountStatus";
 import { useHasFundingBanner } from "@src/hooks/useHasFundingBanner";
+import { useHasTrialRefusedBanner } from "@src/hooks/useHasTrialRefusedBanner";
 import { useTeamWithoutPaymentMethod } from "@src/hooks/useTeamWithoutPaymentMethod";
 import { useWhen } from "@src/hooks/useWhen";
 import { useBlockchainStatus } from "../context/BlockchainStatusProvider";
@@ -34,6 +35,7 @@ interface ITopBannerContext {
   hasTeamPaymentMethodBanner: boolean;
   hasFundingBanner: boolean;
   hasAccountStatusBanner: boolean;
+  hasTrialRefusedBanner: boolean;
 }
 
 const IS_MAINTENANCE_ATOM = atom(false);
@@ -49,14 +51,27 @@ export function useGenericBannerVisibility(input: { isFlagEnabled: boolean; dism
   return [isOpen, setIsOpen] as const;
 }
 
-export function useTopBanner(): ITopBannerContext {
-  const maintenanceBannerFlag = useVariant("maintenance_banner");
-  const genericBannerFlag = useVariant("generic_banner");
-  const { isBlockchainDown } = useBlockchainStatus();
-  const hasTeamPaymentMethodBanner = !!useTeamWithoutPaymentMethod();
-  const hasFundingBanner = useHasFundingBanner();
-  const hasAccountStatusBanner = useAccountStatus().status !== "active";
-  const { dismissId } = useGenericBannerDetails();
+type BannerFlag = ReturnType<typeof useVariant>;
+
+export const DEPENDENCIES = {
+  useVariant: useVariant<string, BannerFlag>,
+  useBlockchainStatus,
+  useTeamWithoutPaymentMethod,
+  useHasFundingBanner,
+  useAccountStatus,
+  useHasTrialRefusedBanner,
+  useGenericBannerDetails
+};
+
+export function useTopBanner(dependencies: typeof DEPENDENCIES = DEPENDENCIES): ITopBannerContext {
+  const maintenanceBannerFlag = dependencies.useVariant("maintenance_banner");
+  const genericBannerFlag = dependencies.useVariant("generic_banner");
+  const { isBlockchainDown } = dependencies.useBlockchainStatus();
+  const hasTeamPaymentMethodBanner = !!dependencies.useTeamWithoutPaymentMethod();
+  const hasFundingBanner = dependencies.useHasFundingBanner();
+  const hasAccountStatusBanner = dependencies.useAccountStatus().status !== "active";
+  const hasTrialRefusedBanner = dependencies.useHasTrialRefusedBanner();
+  const { dismissId } = dependencies.useGenericBannerDetails();
 
   const [isMaintenanceBannerOpen, setIsMaintenanceBannerOpen] = useAtom(IS_MAINTENANCE_ATOM);
   useWhen(maintenanceBannerFlag.enabled, () => setIsMaintenanceBannerOpen(true));
@@ -67,8 +82,23 @@ export function useTopBanner(): ITopBannerContext {
   });
 
   const hasBanner = useMemo(
-    () => hasAccountStatusBanner || isMaintenanceBannerOpen || isGenericBannerOpen || isBlockchainDown || hasTeamPaymentMethodBanner || hasFundingBanner,
-    [hasAccountStatusBanner, isMaintenanceBannerOpen, isGenericBannerOpen, isBlockchainDown, hasTeamPaymentMethodBanner, hasFundingBanner]
+    () =>
+      hasAccountStatusBanner ||
+      hasTrialRefusedBanner ||
+      isMaintenanceBannerOpen ||
+      isGenericBannerOpen ||
+      isBlockchainDown ||
+      hasTeamPaymentMethodBanner ||
+      hasFundingBanner,
+    [
+      hasAccountStatusBanner,
+      hasTrialRefusedBanner,
+      isMaintenanceBannerOpen,
+      isGenericBannerOpen,
+      isBlockchainDown,
+      hasTeamPaymentMethodBanner,
+      hasFundingBanner
+    ]
   );
 
   return useMemo(
@@ -81,7 +111,8 @@ export function useTopBanner(): ITopBannerContext {
       isBlockchainDown,
       hasTeamPaymentMethodBanner,
       hasFundingBanner,
-      hasAccountStatusBanner
+      hasAccountStatusBanner,
+      hasTrialRefusedBanner
     }),
     [
       hasBanner,
@@ -92,7 +123,8 @@ export function useTopBanner(): ITopBannerContext {
       isBlockchainDown,
       hasTeamPaymentMethodBanner,
       hasFundingBanner,
-      hasAccountStatusBanner
+      hasAccountStatusBanner,
+      hasTrialRefusedBanner
     ]
   );
 }
