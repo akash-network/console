@@ -163,6 +163,15 @@ describe(SinkIndexer.name, () => {
       expect(bulkCreate).not.toHaveBeenCalled();
     });
 
+    it("stores nothing for a block whose node reports null finalize block events", async () => {
+      const { indexer, dbTransaction, upsert, bulkCreate } = setup({ finalizeBlockEvents: null });
+
+      await indexer.afterEveryBlock(block({ height: 10 }), null, dbTransaction);
+
+      expect(upsert).not.toHaveBeenCalled();
+      expect(bulkCreate).not.toHaveBeenCalled();
+    });
+
     it("skips a malformed block-level totals event with a warning instead of halting the block group", async () => {
       const { indexer, dbTransaction, upsert, bulkCreate, logger } = setup({
         finalizeBlockEvents: [blockTotalsEvent({ mode: "EndBlock", mintedAmount: "not-a-number", mintedCount: 1 })]
@@ -259,7 +268,7 @@ describe(SinkIndexer.name, () => {
     };
   }
 
-  function setup(input: { finalizeBlockEvents: EventType[] | undefined } = { finalizeBlockEvents: [] }) {
+  function setup(input: { finalizeBlockEvents: EventType[] | null | undefined } = { finalizeBlockEvents: [] }) {
     const logger = mock<LoggerService>();
     const readBlockResults = vi.fn<BlockResultsReader>().mockResolvedValue(mock<BlockResultType>({ finalize_block_events: input.finalizeBlockEvents }));
     const indexer = new SinkIndexer(readBlockResults, logger);

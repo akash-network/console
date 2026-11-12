@@ -40,8 +40,8 @@ export class SinkIndexer extends Indexer {
 
   /** End-block totals follow the block's transactions and replace their snapshot, while begin-block totals precede them and only fill a block no transaction wrote. */
   async afterEveryBlock(currentBlock: Block, _previousBlock: Block | null, dbTransaction: DbTransaction): Promise<void> {
-    const { finalize_block_events: blockEvents = [] } = await this.readBlockResults(currentBlock.height);
-    const { beforeTransactions, afterTransactions } = findBlockLevelSinkTotalsEvents(blockEvents);
+    const { finalize_block_events: blockEvents } = await this.readBlockResults(currentBlock.height);
+    const { beforeTransactions, afterTransactions } = findBlockLevelSinkTotalsEvents(blockEvents ?? []);
     const totalsEvent = afterTransactions ?? beforeTransactions;
     if (!totalsEvent) return;
 
