@@ -53,9 +53,10 @@ export class MarketplaceTemplateService {
     private readonly authService: AuthService
   ) {}
 
+  /** Reads the version the readable row pointed at rather than the template's latest pointer, which a save that also hides the template may have moved since. */
   async getTemplate(id: string): Promise<MarketplaceTemplateOutput> {
     const template = await this.#findReadable(id);
-    const currentVersion = await this.templateVersionRepository.findCurrent(id);
+    const currentVersion = template.currentVersionId ? await this.templateVersionRepository.findById(template.currentVersionId) : undefined;
 
     return {
       id: template.id,

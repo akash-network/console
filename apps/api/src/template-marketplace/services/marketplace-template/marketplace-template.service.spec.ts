@@ -100,13 +100,23 @@ describe(MarketplaceTemplateService.name, () => {
       expect(result.currentVersion).toMatchObject({ readme: null, resources: null });
     });
 
-    it("reports no current version for a template saved without one", async () => {
+    it("reads the version the readable template pointed at", async () => {
       const template = createTemplateRow();
-      const { service } = setup({ template, currentVersion: undefined });
+      const { service, templateVersionRepository } = setup({ template });
+
+      await service.getTemplate(template.id);
+
+      expect(templateVersionRepository.findById).toHaveBeenCalledWith(template.currentVersionId);
+    });
+
+    it("reports no current version for a template saved without one", async () => {
+      const template = createTemplateRow({ currentVersionId: null });
+      const { service, templateVersionRepository } = setup({ template, currentVersion: undefined });
 
       const result = await service.getTemplate(template.id);
 
       expect(result.currentVersion).toBeNull();
+      expect(templateVersionRepository.findById).not.toHaveBeenCalled();
     });
 
     it("reports canEdit from the caller's update rule", async () => {
@@ -172,7 +182,7 @@ describe(MarketplaceTemplateService.name, () => {
       const { service, templateVersionRepository } = setup({ template: undefined });
 
       await expect(service.getTemplate(faker.string.uuid())).rejects.toMatchObject({ status: 404, message: "Template not found" });
-      expect(templateVersionRepository.findCurrent).not.toHaveBeenCalled();
+      expect(templateVersionRepository.findById).not.toHaveBeenCalled();
     });
   });
 
@@ -334,7 +344,7 @@ describe(MarketplaceTemplateService.name, () => {
     const template = "template" in input ? input.template : createTemplateRow();
     repository.findReadable.mockResolvedValue(template);
     const templateVersionRepository = mock<TemplateVersionRepository>();
-    templateVersionRepository.findCurrent.mockResolvedValue("currentVersion" in input ? input.currentVersion : createVersion());
+    templateVersionRepository.findById.mockResolvedValue("currentVersion" in input ? input.currentVersion : createVersion());
     const service = new MarketplaceTemplateService(repository, templateVersionRepository, authService);
 
     return { service, repository, readableRepository, templateVersionRepository, ability };
