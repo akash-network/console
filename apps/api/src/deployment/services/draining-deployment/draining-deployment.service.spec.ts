@@ -63,7 +63,7 @@ describe(DrainingDeploymentService.name, () => {
           denom: "uakt",
           blockRate: faker.number.int({ min: 50, max: 100 }),
           predictedClosedHeight: currentHeight + 1000,
-          closedHeight: currentHeight - 100
+          isClosed: true
         }
       ];
 
@@ -161,7 +161,8 @@ describe(DrainingDeploymentService.name, () => {
           dseq: Number(closedSetting.dseq),
           owner: address,
           predictedClosedHeight: currentHeight + 500,
-          closedHeight: currentHeight - 100
+          closedHeight: currentHeight - 100,
+          isClosed: true
         })
       ]);
 
@@ -245,6 +246,46 @@ describe(DrainingDeploymentService.name, () => {
       expect(yielded[0].activeDeployments).toEqual([]);
     });
 
+    it("keeps an open deployment whose provider closed its lease out of this pass and tops it up once it is leased again", async () => {
+      const { service, deploymentSettingRepository, rpcService, loggerService, currentHeight } = setup();
+      const sink = mock<DeploymentTopUpInstrumentation>();
+      const address = createAkashAddress();
+      const releasedSetting = createAutoTopUpDeployment({ address, dseq: "4013" });
+
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() =>
+        (async function* () {
+          yield { address, walletId: releasedSetting.walletId, deploymentSettings: [releasedSetting] };
+        })()
+      );
+      rpcService.findManyByDseqAndOwner
+        .mockResolvedValueOnce([
+          createDrainingDeployment({
+            dseq: Number(releasedSetting.dseq),
+            owner: address,
+            predictedClosedHeight: currentHeight + 500,
+            closedHeight: currentHeight - 100,
+            isClosed: false
+          })
+        ])
+        .mockResolvedValueOnce([createDrainingDeployment({ dseq: Number(releasedSetting.dseq), owner: address, predictedClosedHeight: currentHeight + 500 })]);
+
+      const awaitingLease: AutoTopUpOwnerDeployments[] = [];
+      for await (const owner of service.findDrainingDeploymentsByOwner(currentHeight, sink)) {
+        awaitingLease.push(owner);
+      }
+      const leasedAgain: AutoTopUpOwnerDeployments[] = [];
+      for await (const owner of service.findDrainingDeploymentsByOwner(currentHeight, sink)) {
+        leasedAgain.push(owner);
+      }
+
+      expect(deploymentSettingRepository.markAsClosed).not.toHaveBeenCalled();
+      expect(sink.recordDeploymentsMarkedClosed).not.toHaveBeenCalled();
+      expect(sink.recordSettingWithoutChainState).not.toHaveBeenCalled();
+      expect(loggerService.warn).not.toHaveBeenCalled();
+      expect(awaitingLease[0]).toEqual(expect.objectContaining({ activeDeployments: [], drainingDeployments: [] }));
+      expect(leasedAgain[0].drainingDeployments).toEqual([expect.objectContaining({ dseq: releasedSetting.dseq })]);
+    });
+
     it("marks no deployment closed during a dry run", async () => {
       const { service, deploymentSettingRepository, rpcService, currentHeight } = setup();
       const sink = mock<DeploymentTopUpInstrumentation>();
@@ -257,12 +298,7 @@ describe(DrainingDeploymentService.name, () => {
         })()
       );
       rpcService.findManyByDseqAndOwner.mockResolvedValue([
-        createDrainingDeployment({
-          dseq: Number(closedSetting.dseq),
-          owner: address,
-          predictedClosedHeight: currentHeight + 500,
-          closedHeight: currentHeight - 100
-        })
+        createDrainingDeployment({ dseq: Number(closedSetting.dseq), owner: address, predictedClosedHeight: currentHeight + 500, isClosed: true })
       ]);
 
       const callback = vi.fn();
@@ -418,18 +454,18 @@ describe(DrainingDeploymentService.name, () => {
       expect(sink.recordDeploymentsMarkedClosed).toHaveBeenCalledWith(1);
     });
 
-    it("marks closed deployments as closed and excludes them from the result", async () => {
-      const { service, deploymentSettingRepository, rpcService, currentHeight } = setup();
+    it("leaves an open deployment whose provider closed its lease unfunded and unmarked, beside a live one", async () => {
+      const { service, deploymentSettingRepository, rpcService, loggerService, currentHeight } = setup();
       const sink = mock<DeploymentTopUpInstrumentation>();
       const address = createAkashAddress();
       const activeSetting = createAutoTopUpDeployment({ address, dseq: "2001" });
-      const closedSetting = createAutoTopUpDeployment({ address, dseq: "2002" });
+      const releasedSetting = createAutoTopUpDeployment({ address, dseq: "2002" });
 
-      deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue([activeSetting, closedSetting]);
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue([activeSetting, releasedSetting]);
       rpcService.findManyByDseqAndOwner.mockResolvedValue([
         createDrainingDeployment({ dseq: Number(activeSetting.dseq), owner: address, predictedClosedHeight: currentHeight + 500 }),
         createDrainingDeployment({
-          dseq: Number(closedSetting.dseq),
+          dseq: Number(releasedSetting.dseq),
           owner: address,
           predictedClosedHeight: currentHeight + 500,
           closedHeight: currentHeight - 100
@@ -438,10 +474,10 @@ describe(DrainingDeploymentService.name, () => {
 
       const result = await service.findDrainingDeploymentsForOwner(address, sink, currentHeight);
 
-      expect(result).toHaveLength(1);
-      expect(result[0].dseq).toBe(activeSetting.dseq);
-      expect(deploymentSettingRepository.markAsClosed).toHaveBeenCalledWith([closedSetting.id]);
-      expect(sink.recordDeploymentsMarkedClosed).toHaveBeenCalledWith(1);
+      expect(result).toEqual([expect.objectContaining({ dseq: activeSetting.dseq })]);
+      expect(deploymentSettingRepository.markAsClosed).not.toHaveBeenCalled();
+      expect(sink.recordDeploymentsMarkedClosed).not.toHaveBeenCalled();
+      expect(loggerService.warn).not.toHaveBeenCalled();
     });
 
     it("drops a deployment already funded to its runtime deadline and records the skip", async () => {

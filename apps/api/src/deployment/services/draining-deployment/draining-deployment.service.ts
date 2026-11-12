@@ -153,12 +153,12 @@ export class DrainingDeploymentService {
           return acc;
         }
 
-        if (deployment.isClosed || deployment.closedHeight) {
+        if (this.#isClosed(deployment, isReadFromChain)) {
           acc[1].push(deploymentSetting);
           return acc;
         }
 
-        if (deployment.hasNoLease) {
+        if (this.#isAwaitingLease(deployment)) {
           return acc;
         }
 
@@ -181,6 +181,15 @@ export class DrainingDeploymentService {
     }
 
     return active;
+  }
+
+  /** A chain read closes a deployment on its escrow account alone, since a provider closing its lease leaves the deployment open for a new one. */
+  #isClosed({ isClosed, closedHeight }: DrainingDeploymentOutput, isReadFromChain: boolean): boolean {
+    return !!isClosed || (!isReadFromChain && !!closedHeight);
+  }
+
+  #isAwaitingLease({ hasNoLease, closedHeight }: DrainingDeploymentOutput): boolean {
+    return !!hasNoLease || !!closedHeight;
   }
 
   /**
