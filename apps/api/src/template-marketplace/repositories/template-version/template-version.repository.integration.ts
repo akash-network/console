@@ -87,6 +87,17 @@ describe(TemplateVersionRepository.name, () => {
       expect((await repository.listByTemplate(template.id)).map(({ changes }) => changes)).toEqual([["readme_changed"], ["image_changed"], ["first_version"]]);
     });
 
+    it("reads an asked value sent in another key order than jsonb stores it as unchanged", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+      const asked: AskedValue = { key: "PORT", label: "Port", required: true, bindings: [{ service: "web", env: "PORT" }], type: "number" };
+      await repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("nginx:1"), askedValues: [asked] });
+
+      const resaved = await repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("nginx:1"), askedValues: [asked] });
+
+      expect(resaved.changes).toEqual([]);
+    });
+
     it("compares each concurrent append with the version it numbers after", async () => {
       const { repository } = setup();
       const template = await seedTemplate();

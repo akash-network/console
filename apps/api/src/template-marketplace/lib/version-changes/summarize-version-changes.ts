@@ -70,8 +70,8 @@ function collectServiceChanges(previous: Mapping, next: Mapping, found: Set<Temp
     found.add(repositoryOf(previous.image) === repositoryOf(next.image) ? "image_tag_changed" : "image_changed");
   }
 
-  if (!isSameSet(asList(previous.env), asList(next.env))) found.add("env_changed");
-  if (!isSame(previous.expose, next.expose)) found.add("ports_changed");
+  if (!isSameSet(asList(previous.env).map(String), asList(next.env).map(String))) found.add("env_changed");
+  if (!isSameSet(asList(previous.expose).map(canonicalJson), asList(next.expose).map(canonicalJson))) found.add("ports_changed");
 }
 
 function collectAskedValueChanges(previous: AskedValue[], next: AskedValue[], found: Set<TemplateVersionChange>) {
@@ -118,12 +118,25 @@ function asMapping(value: unknown): Mapping {
   return isMapping(value) ? value : {};
 }
 
-function asList(value: unknown): string[] {
-  return Array.isArray(value) ? value.map(String) : [];
+function asList(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+/** Stored asked values come back from jsonb with their keys reordered, so equal values must not depend on key order. */
+function canonicalJson(value: unknown): string {
+  return JSON.stringify(value, (_key, nested: unknown) =>
+    isMapping(nested)
+      ? Object.fromEntries(
+          Object.keys(nested)
+            .sort()
+            .map(key => [key, nested[key]])
+        )
+      : nested
+  );
 }
 
 function isSame(left: unknown, right: unknown): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
+  return canonicalJson(left) === canonicalJson(right);
 }
 
 function isSameSet(left: string[], right: string[]): boolean {

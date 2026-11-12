@@ -102,6 +102,38 @@ describe(summarizeVersionChanges.name, () => {
     expect(summarizeVersionChanges(previous, next)).toEqual([]);
   });
 
+  it("reads an asked value stored with its keys reordered as unchanged", () => {
+    const asked = textValue("A", { help: "h" });
+    const stored = JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(asked).reverse())));
+
+    expect(summarizeVersionChanges(content({ sdl: sdlOf({}), askedValues: [stored] }), content({ sdl: sdlOf({}), askedValues: [asked] }))).toEqual([]);
+  });
+
+  it("ignores the order of keys in compute profiles and exposed ports", () => {
+    const previous = content({
+      sdl: sdlOf({ web: { image: "a:1", expose: [{ port: 80, as: 80 }] } }, { web: { resources: { cpu: { units: 1 }, memory: { size: "1Gi" } } } })
+    });
+    const next = content({
+      sdl: sdlOf({ web: { image: "a:1", expose: [{ as: 80, port: 80 }] } }, { web: { resources: { memory: { size: "1Gi" }, cpu: { units: 1 } } } })
+    });
+
+    expect(summarizeVersionChanges(previous, next)).toEqual([]);
+  });
+
+  it("ignores the order of exposed ports", () => {
+    const previous = content({ sdl: sdlOf({ web: { image: "a:1", expose: [{ port: 80 }, { port: 443 }] } }) });
+    const next = content({ sdl: sdlOf({ web: { image: "a:1", expose: [{ port: 443 }, { port: 80 }] } }) });
+
+    expect(summarizeVersionChanges(previous, next)).toEqual([]);
+  });
+
+  it("reports ports appearing on a service that exposed none", () => {
+    const previous = content({ sdl: sdlOf({ web: { image: "a:1" } }) });
+    const next = content({ sdl: sdlOf({ web: { image: "a:1", expose: [{ port: 80 }] } }) });
+
+    expect(summarizeVersionChanges(previous, next)).toEqual(["ports_changed"]);
+  });
+
   it("compares the env, image and ports of shared services only", () => {
     const previous = content({ sdl: sdlOf({ web: { image: "a:1", env: ["A=1"] } }) });
     const next = content({ sdl: sdlOf({ api: { image: "b:2", env: ["B=1"], expose: [{ port: 1 }] } }) });
