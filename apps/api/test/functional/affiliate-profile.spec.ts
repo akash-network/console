@@ -13,6 +13,7 @@ import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
 import { seedOrganization, seedOrganizationMember } from "@test/seeders/db/organization.seeder";
+import { seedPaymentCredit } from "@test/seeders/db/payment-credit.seeder";
 
 describe("GET /v1/affiliates/me", () => {
   const userRepository = container.resolve(UserRepository);
@@ -76,8 +77,8 @@ describe("GET /v1/affiliates/me", () => {
     expect(body).toEqual({
       data: {
         code: "friendcode",
-        terms: { commissionPercent: 5, commissionMonths: 12, referralTrialCreditsUsd: expect.any(Number) },
-        stats: { signups: 0, payingUsers: 0, totalCommissionUsd: 0, monthCommissionUsd: 0 },
+        terms: { commissionPercent: 5, commissionMonths: 12, referralTrialCreditsUsd: expect.any(Number), commissionHoldDays: 30 },
+        stats: { signups: 0, payingUsers: 0, totalCommissionUsd: 0, monthCommissionUsd: 0, creditedUsd: 0, onHoldUsd: 0, nextRelease: null },
         commissions: []
       }
     });
@@ -109,6 +110,48 @@ describe("GET /v1/affiliates/me", () => {
     expect(body.data).toMatchObject({
       stats: { signups: 1, payingUsers: 1, totalCommissionUsd: 4, monthCommissionUsd: expect.any(Number) },
       commissions: [{ id: expect.any(String), createdAt: expect.any(String), amountUsd: 5, reversedUsd: 1 }]
+    });
+  });
+
+  it("returns each commission's state with the credited and held totals and the next release", async () => {
+    const { token, user } = await setup();
+    await affiliateRepository.create({
+      userId: user.id,
+      code: faker.string.alpha({ length: 8, casing: "lower" }),
+      approvedAt: new Date(),
+      approvedBy: "ops@akash.network"
+    });
+    const payment = await stripeTransactionRepository.create({ userId: user.id, type: "payment_intent", status: "succeeded", amount: 20000, currency: "usd" });
+    const heldAt = new Date();
+    await stripeTransactionRepository.create({
+      userId: user.id,
+      type: "affiliate_commission",
+      status: "pending",
+      amount: 1000,
+      currency: "usd",
+      sourceTransactionId: payment.id,
+      createdAt: heldAt
+    });
+    const credited = await stripeTransactionRepository.create({
+      userId: user.id,
+      type: "affiliate_commission",
+      status: "succeeded",
+      amount: 250,
+      currency: "usd",
+      createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000)
+    });
+    const credit = await seedPaymentCredit({ transactionId: credited.id, status: "landed" });
+
+    const response = await request(token);
+    const body = (await response.json()) as AffiliateProfileResponse;
+
+    const releasesAt = new Date(heldAt.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    expect(body.data).toMatchObject({
+      stats: { creditedUsd: 2.5, onHoldUsd: 10, nextRelease: { releasesAt, amountUsd: 10 } },
+      commissions: [
+        { status: "on_hold", releasesAt, creditedAt: null, amountUsd: 10, paymentUsd: 200 },
+        { status: "credited", releasesAt: null, creditedAt: credit.createdAt.toISOString(), amountUsd: 2.5, paymentUsd: null }
+      ]
     });
   });
 

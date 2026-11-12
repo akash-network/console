@@ -61,6 +61,9 @@ export type StripeTransactionWithInitiator = StripeTransactionOutput & {
   initiatedBy: { id: string; username: string | null; email: string | null } | null;
 };
 
+/** A commission with when its release credit landed and the card payment it was earned on, both null when absent. */
+export type AffiliateCommissionEntry = StripeTransactionOutput & { creditedAt: Date | null; paymentAmount: number | null };
+
 @singleton()
 export class StripeTransactionRepository extends OrgScopedRepository<Table, StripeTransactionInput, StripeTransactionOutput> {
   constructor(
@@ -408,14 +411,40 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
     return items.reduce((sum, item) => sum + (item.amount - item.amountRefunded), 0);
   }
 
-  async findAffiliateCommissions(userId: string, limit = 100): Promise<StripeTransactionOutput[]> {
+  async sumCreditedAffiliateCommissionNet(userId: string): Promise<number> {
+    const items = await this.cursor.query.StripeTransactions.findMany({
+      where: this.unscoped("affiliate-earnings").whereAccessibleBy(
+        and(eq(this.table.userId, userId), eq(this.table.type, "affiliate_commission"), inArray(this.table.status, [...SETTLED_TRANSACTION_STATUSES]))
+      ),
+      columns: { amount: true, amountRefunded: true }
+    });
+
+    return items.reduce((sum, item) => sum + (item.amount - item.amountRefunded), 0);
+  }
+
+  async findHeldAffiliateCommissions(userId: string): Promise<StripeTransactionOutput[]> {
     return this.toOutputList(
       await this.cursor.query.StripeTransactions.findMany({
-        where: this.unscoped("affiliate-earnings").whereAccessibleBy(and(eq(this.table.userId, userId), eq(this.table.type, "affiliate_commission"))),
-        orderBy: [desc(this.table.createdAt)],
-        limit
+        where: this.unscoped("affiliate-earnings").whereAccessibleBy(
+          and(eq(this.table.userId, userId), eq(this.table.type, "affiliate_commission"), eq(this.table.status, "pending"))
+        ),
+        orderBy: [asc(this.table.createdAt)]
       })
     );
+  }
+
+  async findAffiliateCommissions(userId: string, limit = 100): Promise<AffiliateCommissionEntry[]> {
+    const sourcePayment = alias(this.table, "source_payment");
+    const rows = await this.cursor
+      .select({ commission: this.table, creditedAt: PaymentCredits.createdAt, paymentAmount: sourcePayment.amount })
+      .from(this.table)
+      .leftJoin(PaymentCredits, and(eq(PaymentCredits.transactionId, this.table.id), eq(PaymentCredits.status, "landed")))
+      .leftJoin(sourcePayment, eq(sourcePayment.id, this.table.sourceTransactionId))
+      .where(this.unscoped("affiliate-earnings").whereAccessibleBy(and(eq(this.table.userId, userId), eq(this.table.type, "affiliate_commission"))))
+      .orderBy(desc(this.table.createdAt))
+      .limit(limit);
+
+    return rows.map(({ commission, creditedAt, paymentAmount }) => ({ ...this.toOutput(commission), creditedAt, paymentAmount }));
   }
 
   async sumAmountByUserId(userId: string, options?: { startDate?: Date; endDate?: Date; status?: StripeTransactionStatus }): Promise<number> {
