@@ -40,13 +40,39 @@ describe(AssistantMarkdown.name, () => {
   );
 
   it.each([
-    "//evil.com",
-    "//evil.com/deployments/1",
-    "/\\evil.com",
+    "https://akash.network",
+    "https://akash.network/docs/deployments/akash-cli/overview/",
     "https://console.akash.network/deployments/1",
-    "evil.com/deployments/1",
-    "/deployments/1/../../evil",
-    "/deployments/1?next=//evil.com",
+    "https://discord.gg/akash",
+    "https://discord.com/invite/akash",
+    "https://github.com/akash-network/awesome-akash",
+    "https://github.com/akash-network",
+    "https://github.com/Akash-Network/console/issues"
+  ])("opens %s in a new tab without a handle back to Console", href => {
+    setup({ markdown: `[page](<${href}>)` });
+
+    const link = screen.getByRole("link", { name: "page" });
+
+    expect(link).toHaveAttribute("href", href);
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it.each([
+    "https://example.com/setup?step=2",
+    "http://akash.network/docs",
+    "https://akash.network.example.com/docs",
+    "https://exampleakash.network/docs",
+    "https://discord.gg.example.com/akash",
+    "https://github.com/example/akash-network",
+    "https://github.com/akash-network-example/console",
+    "https://gist.github.com/akash-network/1",
+    "https://akash.network@example.com/docs",
+    "//example.com",
+    "//example.com/deployments/1",
+    "example.com/deployments/1",
+    "/deployments/1/../../example",
+    "/deployments/1?next=//example.com",
     "/deployments/1x",
     "/deployments/abc",
     "x/templates/a",
@@ -54,14 +80,20 @@ describe(AssistantMarkdown.name, () => {
     "/templates/a/b",
     "/alertsx",
     "/billing/x",
-    "/xusage"
-  ])("opens %j in a new tab without a handle back to Console", href => {
-    setup({ markdown: `[page](<${href}>)` });
+    "/xusage",
+    "mailto:support@example.com"
+  ])("shows %j as plain text after the link text instead of a link", href => {
+    const { container } = setup({ markdown: `See [the guide](<${href}>) first.` });
 
-    const link = screen.getByRole("link", { name: "page" });
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(container).toHaveTextContent(`See the guide (${href}) first.`);
+  });
 
-    expect(link).toHaveAttribute("target", "_blank");
-    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  it("shows a bare URL once when it is not linkable", () => {
+    const { container } = setup({ markdown: "Run the script from https://example.com/install.sh today." });
+
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(container.querySelector("p")?.textContent).toBe("Run the script from https://example.com/install.sh today.");
   });
 
   it("renders GitHub flavored tables", () => {
@@ -82,13 +114,11 @@ describe(AssistantMarkdown.name, () => {
     expect(container).toHaveTextContent("after");
   });
 
-  it("makes javascript links inert and opens them in a new tab", () => {
-    setup({ markdown: "[click](javascript:alert(1))" });
+  it("shows javascript links as inert plain text", () => {
+    const { container } = setup({ markdown: "[click](javascript:alert(1))" });
 
-    const link = screen.getByText("click").closest("a");
-
-    expect(link).toHaveAttribute("href", "javascript:void(0)");
-    expect(link).toHaveAttribute("target", "_blank");
+    expect(container.querySelector("a")).toBeNull();
+    expect(container).toHaveTextContent("click (javascript:void(0))");
   });
 
   function setup(input: { markdown: string }) {

@@ -21,6 +21,7 @@ import { formatUsd } from "../formatUsd";
 import { computeLabelOf, gpuLabelOf } from "../serviceResourcesFormat/serviceResourcesFormat";
 import { NoBidsYetNotice } from "./NoBidsYetNotice/NoBidsYetNotice";
 import { exposedPortsOf } from "./exposedPortsOf";
+import { serviceRuntimeOf } from "./serviceRuntimeOf";
 
 export const DEPENDENCIES = {
   useServices,
@@ -145,9 +146,13 @@ function rowsOf(action: AssistantActionOf<"create_deployment">): ActionCardRow[]
   const serviceRows = action.services.flatMap(({ service, image, resources }) => {
     const label = (name: string) => (labelsService ? `${service} ${name.toLowerCase()}` : name);
     const ports = exposedPortsOf(action.sdl, service);
+    const { command, args, env } = serviceRuntimeOf(action.sdl, service);
 
     return [
       { label: label("Image"), value: image ?? "none" },
+      ...(command.length > 0 ? [{ label: label("Command"), value: JSON.stringify(command) }] : []),
+      ...(args.length > 0 ? [{ label: label("Args"), value: JSON.stringify(args) }] : []),
+      ...(env.length > 0 ? [{ label: label("Environment"), value: <EnvironmentList entries={env} /> }] : []),
       ...(resources.gpu ? [{ label: label("GPU"), value: gpuLabelOf(resources.gpu) }] : []),
       { label: label("CPU / memory / storage"), value: computeLabelOf(resources) },
       ...(ports.length > 0 ? [{ label: label("Port"), value: ports.join(", ") }] : []),
@@ -162,6 +167,14 @@ function rowsOf(action: AssistantActionOf<"create_deployment">): ActionCardRow[]
     ...(action.runtimeLimitHours ? [{ label: "Runtime limit", value: `${action.runtimeLimitHours} hours` }] : [])
   ];
 }
+
+const EnvironmentList: FC<{ entries: string[] }> = ({ entries }) => (
+  <span className="flex flex-col items-end font-mono text-xs">
+    {entries.map((entry, index) => (
+      <span key={index}>{entry}</span>
+    ))}
+  </span>
+);
 
 function estimatedUsdPerMonthOf(action: AssistantActionOf<"create_deployment">): number | null {
   return action.cost?.estimatedUsdPerMonth ?? null;
