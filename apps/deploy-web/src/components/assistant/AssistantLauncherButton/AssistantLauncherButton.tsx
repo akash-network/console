@@ -17,7 +17,7 @@ export function AssistantLauncherButton({ onClick }: Props) {
       onClick={onClick}
       title={LABEL}
       aria-label={LABEL}
-      className="group flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border bg-background bg-gradient-to-br from-violet-500/10 to-sky-400/10 transition-colors hover:from-violet-500/20 hover:to-sky-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="group flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border bg-background bg-gradient-to-br from-violet-500/10 to-sky-500/10 transition-colors hover:from-violet-500/20 hover:to-sky-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <svg width="0" height="0" className="absolute" aria-hidden="true">
         <defs>
