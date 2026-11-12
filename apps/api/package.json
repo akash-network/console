@@ -103,7 +103,7 @@
     "lru-cache": "^11.1.0",
     "markdown-to-txt": "^2.0.1",
     "pg": "^8.12.0",
-    "pg-boss": "^12.38.0",
+    "pg-boss": "^12.38.1",
     "postgres": "^3.4.4",
     "reflect-metadata": "^0.2.2",
     "semver": "^7.3.8",
