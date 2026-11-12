@@ -968,6 +968,47 @@ describe("useScreenedProviders — newest result wins", () => {
   }
 });
 
+describe("useScreenedProviders — until screened", () => {
+  it("screens a spec that has no result yet", async () => {
+    const providers = [buildScreenedProvider()];
+    const { result, screenProviders } = setup({ providers });
+
+    await waitFor(() => expect(result.current.providers).toEqual(providers));
+    expect(screenProviders).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the result of a screened spec instead of screening it again", async () => {
+    const providers = [buildScreenedProvider()];
+    const { result, screenProviders, queryClient } = setup({ providers });
+    await waitFor(() => expect(result.current.providers).toEqual(providers));
+
+    await act(() => queryClient.invalidateQueries());
+
+    expect(screenProviders).toHaveBeenCalledTimes(1);
+    expect(result.current.providers).toEqual(providers);
+  });
+
+  it("does not screen a spec that cannot be screened", async () => {
+    const { result, screenProviders } = setup({ providers: [], sdl: "foo: [unclosed" });
+
+    await waitFor(() => expect(result.current.isInvalid).toBe(true));
+    expect(screenProviders).not.toHaveBeenCalled();
+  });
+
+  function setup(input: { providers: ScreenedProvider[]; sdl?: string }) {
+    const screenProviders = vi.fn(async (): Promise<ScreenedProvidersResponse> => ({ providers: input.providers }));
+    const api = createProxy({ v1: { screenProviders } }) as unknown as ReturnType<
+      NonNullable<NonNullable<NonNullable<Parameters<typeof setupQuery>[1]>["services"]>["api"]>
+    >;
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const view = setupQuery(() => useScreenedProviders({ sdl: input.sdl ?? HELLO_WORLD_SDL, placementName: "dcloud", enabled: "until-screened" }), {
+      services: { api: () => api, queryClient: () => queryClient }
+    });
+
+    return { result: view.result, screenProviders, queryClient };
+  }
+});
+
 /** The request object handed to react-query on the most recent render. */
 function lastRequest(useQuery: ReturnType<typeof vi.fn>) {
   return useQuery.mock.lastCall![0] as { resources: unknown[]; requirements: { attributes: Array<{ key: string; value: string }> } };

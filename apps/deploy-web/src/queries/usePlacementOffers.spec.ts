@@ -275,14 +275,41 @@ describe(usePlacementOffers.name, () => {
     expect(result.current.offers).toHaveLength(1);
   });
 
+  it("reports loading while screening is pending and no bid has arrived", () => {
+    const { result } = setup({ phase: "quoting", dseq: "100", screened: [], screenedLoading: true, bids: [] });
+    expect(result.current.isLoading).toBe(true);
+  });
+
+  it("keeps a returned bid selectable while screening is still pending", () => {
+    const { result } = setup({
+      phase: "quoting",
+      dseq: "100",
+      screened: [],
+      screenedLoading: true,
+      bids: [{ bid: { state: "open", price: { amount: "1900", denom: "uakt" }, id: { provider: "akash1aaa", dseq: "100", gseq: 1, oseq: 1 } } }]
+    });
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.offers).toEqual([expect.objectContaining({ owner: "akash1aaa", offerState: "submitted", bidId: "akash1aaa/100/1/1" })]);
+  });
+
+  it("reports loading while configuring a spec whose screening is pending", () => {
+    const { result } = setup({
+      phase: "configuring",
+      screened: [],
+      screenedLoading: true,
+      bids: [{ bid: { state: "open", price: { amount: "1900", denom: "uakt" }, id: { provider: "akash1aaa", dseq: "100", gseq: 1, oseq: 1 } } }]
+    });
+    expect(result.current.isLoading).toBe(true);
+  });
+
   it("screens providers while configuring", () => {
     const { useScreenedProviders } = setup({ phase: "configuring", screened: [polaris()] });
     expect(useScreenedProviders).toHaveBeenCalledWith(expect.objectContaining({ enabled: true }));
   });
 
-  it("stops screening providers once the deployment is locked", () => {
+  it("screens providers only until a result exists once the deployment is locked", () => {
     const { useScreenedProviders } = setup({ phase: "quoting", dseq: "100", screened: [polaris()], bids: [] });
-    expect(useScreenedProviders).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }));
+    expect(useScreenedProviders).toHaveBeenCalledWith(expect.objectContaining({ enabled: "until-screened" }));
   });
 
   it("ignores an open bid that belongs to a different placement group", () => {
@@ -392,6 +419,7 @@ describe(usePlacementOffers.name, () => {
     dseq?: string;
     screened: ScreenedProvider[];
     screenedInvalid?: boolean;
+    screenedLoading?: boolean;
     placementGseq?: number;
     providerList?: Array<Partial<ApiProviderList> & { owner: string }>;
     bidsLoading?: boolean;
@@ -407,7 +435,12 @@ describe(usePlacementOffers.name, () => {
   }) {
     const withOffers = (entries: NonNullable<typeof input.bids>) => entries.map(entry => ({ ...entry, bid: { resources_offer: [], ...entry.bid } }));
     let bids = withOffers(input.bids ?? []);
-    const useScreenedProviders = vi.fn(() => ({ providers: input.screened, isLoading: false, isError: false, isInvalid: input.screenedInvalid ?? false }));
+    const useScreenedProviders = vi.fn(() => ({
+      providers: input.screened,
+      isLoading: input.screenedLoading ?? false,
+      isError: false,
+      isInvalid: input.screenedInvalid ?? false
+    }));
     const providers = (input.providerList ?? []) as ApiProviderList[];
     const useProvidersByAddresses = vi.fn((_addresses: readonly string[], _options?: { enabled?: boolean }) => ({
       data: providers,

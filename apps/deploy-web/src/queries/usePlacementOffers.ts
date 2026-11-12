@@ -60,7 +60,8 @@ export const DEPENDENCIES = { useScreenedProviders, useListBids, useProvidersByA
  *   was screened; only a bidder that was never screened is looked up by address, as its bid arrives.
  *
  * Once the deployment is locked (`creating`/`quoting`/`deploying`) screening is paused and the last
- * screened set is kept (`keepPreviousData`) as both the pre-bid fallback and the metadata source. `listBids`
+ * screened set is kept (`keepPreviousData`) as both the pre-bid fallback and the metadata source. A spec this
+ * page never screened, such as a deployment the assistant created, is still screened once. `listBids`
  * returns every bid for the deployment across its groups, so bids are scoped to this placement by its group
  * sequence (`gseq`). Several picked regions can't be enforced on chain, so the screened pool already holds only
  * providers located in them and a bid counts only once its provider is known to be located in one of them.
@@ -71,7 +72,7 @@ export function usePlacementOffers(
 ): UsePlacementOffersResult {
   const isLocked = phase === "creating" || phase === "quoting" || phase === "deploying";
   const isScreening = phase === "configuring" || phase === "creating";
-  const screened = dependencies.useScreenedProviders({ sdl, placementName, regions, enabled: !isLocked });
+  const screened = dependencies.useScreenedProviders({ sdl, placementName, regions, enabled: isLocked ? "until-screened" : true });
   const bidsQuery = dependencies.useListBids(dseq, { enabled: phase === "quoting", refetchInterval: BID_POLL_INTERVAL });
   const gseq = useMemo(() => dependencies.getPlacementGseq(sdl, placementName), [dependencies, sdl, placementName]);
   const screenedByOwner = useMemo(() => new Map(screened.providers.map(provider => [provider.owner, provider])), [screened.providers]);
@@ -91,9 +92,10 @@ export function usePlacementOffers(
     [groupBids, screenedByOwner, providersByOwner, regions]
   );
 
+  const hasBidOffers = !isScreening && placementBids.length > 0;
   const offers = useMemo(
     function buildOffers(): PlacementOffer[] {
-      if (isScreening || placementBids.length === 0) return screened.providers.map(toSearchingOffer);
+      if (!hasBidOffers) return screened.providers.map(toSearchingOffer);
 
       const bidByOwner = pickBestBidPerOwner(placementBids);
       return mergedOwners(screened.providers, bidByOwner).map(function toMergedOffer(owner): PlacementOffer {
@@ -105,13 +107,13 @@ export function usePlacementOffers(
         return { ...meta, offerState: "unavailable", bidId: undefined, price: undefined, gpus: undefined };
       });
     },
-    [isScreening, screened.providers, screenedByOwner, placementBids, providersByOwner]
+    [hasBidOffers, screened.providers, screenedByOwner, placementBids, providersByOwner]
   );
 
   const isQuoting = phase === "quoting";
   return {
     offers,
-    isLoading: screened.isLoading || (isQuoting && offers.length === 0 && bidsQuery.isLoading),
+    isLoading: (screened.isLoading && !hasBidOffers) || (isQuoting && offers.length === 0 && bidsQuery.isLoading),
     isError: screened.isError || (isQuoting && bidsQuery.isError),
     isInvalid: !isLocked && screened.isInvalid
   };
