@@ -12,6 +12,10 @@ export const ASSISTANT_ERROR_CODES = {
   proposalNotFound: "assistant_proposal_not_found"
 } as const;
 
+export function assistantDailyLimitReached() {
+  return createError(429, "You reached today's assistant limit. Try again tomorrow, or ask on Discord.", { errorCode: ASSISTANT_ERROR_CODES.dailyLimit });
+}
+
 export function assistantUnavailable() {
   return createError(503, "The assistant is unavailable right now. Ask on Discord for live help.", { errorCode: ASSISTANT_ERROR_CODES.unavailable });
 }

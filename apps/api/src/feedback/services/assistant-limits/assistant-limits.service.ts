@@ -2,7 +2,7 @@ import createError from "http-errors";
 import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
-import { ASSISTANT_ERROR_CODES, assistantUnavailable } from "@src/feedback/lib/assistant-errors/assistant-errors";
+import { ASSISTANT_ERROR_CODES, assistantDailyLimitReached, assistantUnavailable } from "@src/feedback/lib/assistant-errors/assistant-errors";
 import { FEEDBACK_CONFIG, type FeedbackConfig } from "@src/feedback/providers/config.provider";
 import { AssistantDailyTokenUsageRepository } from "@src/feedback/repositories/assistant-daily-token-usage/assistant-daily-token-usage.repository";
 import { AssistantUserUsageRepository } from "@src/feedback/repositories/assistant-user-usage/assistant-user-usage.repository";
@@ -35,10 +35,20 @@ export class AssistantLimitsService {
     }
 
     const dailyMessageLimit = isTrialing ? this.config.ASSISTANT_TRIAL_MESSAGES_PER_DAY : this.config.ASSISTANT_MESSAGES_PER_DAY;
-    const dailyTokenLimit = isTrialing ? this.config.ASSISTANT_TRIAL_USER_DAILY_TOKENS : this.config.ASSISTANT_USER_DAILY_TOKENS;
-    if (dayMessageCount > dailyMessageLimit || dayTokenCount >= dailyTokenLimit) {
-      throw createError(429, "You reached today's assistant limit. Try again tomorrow, or ask on Discord.", { errorCode: ASSISTANT_ERROR_CODES.dailyLimit });
+    if (dayMessageCount > dailyMessageLimit || dayTokenCount >= this.#dailyTokenLimitOf(isTrialing)) {
+      throw assistantDailyLimitReached();
     }
+  }
+
+  /** Runs before every completion of a turn, since one message can lead to several completions and a resumed turn counts no message. */
+  async assertWithinUserTokens(userId: string, isTrialing: boolean | null): Promise<void> {
+    if ((await this.assistantUserUsageRepository.dayTokenCountOf(userId, dayOf(new Date()))) >= this.#dailyTokenLimitOf(isTrialing)) {
+      throw assistantDailyLimitReached();
+    }
+  }
+
+  #dailyTokenLimitOf(isTrialing: boolean | null): number {
+    return isTrialing ? this.config.ASSISTANT_TRIAL_USER_DAILY_TOKENS : this.config.ASSISTANT_USER_DAILY_TOKENS;
   }
 
   async assertWithinBudget(): Promise<void> {

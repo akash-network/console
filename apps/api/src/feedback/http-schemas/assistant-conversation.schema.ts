@@ -99,7 +99,7 @@ export const RecordAssistantActionResultResponseSchema = z.object({
 
 export const ASSISTANT_LIVE_HELP_REASONS = ["provider_side_issue", "not_supported_here", "no_confident_answer", "user_asked_for_a_person"] as const;
 
-export const ASSISTANT_STREAM_ERROR_CODES = ["assistant_unavailable", "assistant_timeout", "assistant_error"] as const;
+export const ASSISTANT_STREAM_ERROR_CODES = ["assistant_unavailable", "assistant_timeout", "assistant_error", "assistant_daily_limit"] as const;
 
 export const AssistantStreamEventSchema = z
   .discriminatedUnion("type", [

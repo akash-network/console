@@ -110,6 +110,41 @@ describe(AssistantUserUsageRepository.name, () => {
     });
   });
 
+  describe("dayTokenCountOf", () => {
+    it("returns the tokens the user used on the given day", async () => {
+      const { repository, userId } = await setup();
+      await repository.countMessage(userId, new Date("2026-11-04T12:00:00.000Z"));
+      await repository.addTokens(userId, "2026-11-04", 120);
+      await repository.addTokens(userId, "2026-11-04", 30);
+
+      expect(await repository.dayTokenCountOf(userId, "2026-11-04")).toBe(150);
+    });
+
+    it("returns zero for a day the user has no count for", async () => {
+      const { repository, userId } = await setup();
+      await repository.countMessage(userId, new Date("2026-11-03T12:00:00.000Z"));
+      await repository.addTokens(userId, "2026-11-03", 900);
+
+      expect(await repository.dayTokenCountOf(userId, "2026-11-04")).toBe(0);
+    });
+
+    it("returns zero for a user who never sent a message", async () => {
+      const { repository, userId } = await setup();
+
+      expect(await repository.dayTokenCountOf(userId, "2026-11-04")).toBe(0);
+    });
+
+    it("counts each user apart", async () => {
+      const { repository, userId } = await setup();
+      const other = await seedUser();
+      await repository.countMessage(userId, new Date("2026-11-04T12:00:00.000Z"));
+      await repository.addTokens(userId, "2026-11-04", 300);
+      await repository.countMessage(other.id, new Date("2026-11-04T12:00:00.000Z"));
+
+      expect(await repository.dayTokenCountOf(other.id, "2026-11-04")).toBe(0);
+    });
+  });
+
   async function setup() {
     const user = await seedUser();
 
