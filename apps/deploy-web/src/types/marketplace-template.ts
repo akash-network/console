@@ -8,8 +8,7 @@ export type TemplateIconId = NonNullable<components["schemas"]["CreateUserTempla
 
 export type TemplateVersionDetail = NonNullable<components["schemas"]["MarketplaceTemplate"]["currentVersion"]>;
 
-/** The API answers a null current version for a template an older pod saved without one, which the generated type drops. */
-export type MarketplaceTemplate = Omit<components["schemas"]["MarketplaceTemplate"], "currentVersion"> & { currentVersion: TemplateVersionDetail | null };
+export type MarketplaceTemplate = components["schemas"]["MarketplaceTemplate"];
 
 export type TemplateVersionSummary = components["schemas"]["TemplateVersionSummary"];
 
