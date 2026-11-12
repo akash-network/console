@@ -521,6 +521,46 @@ describe("Provider proxy ws", () => {
     expect(negotiatedExtensions).toBe("");
   });
 
+  it("does not answer provider pings on a shell without stdin", async () => {
+    expect(await countPongsAnsweredOn("/lease/1/1/1/shell?stdin=0&tty=0&podIndex=0&cmd0=cat")).toBe(0);
+  });
+
+  it.each([
+    { session: "a shell with stdin", path: "/lease/1/1/1/shell?stdin=1&tty=1&podIndex=0&cmd0=sh" },
+    { session: "a log stream", path: "/lease/1/1/1/logs?follow=true&tail=100" }
+  ])("answers provider pings on $session", async ({ path }) => {
+    expect(await countPongsAnsweredOn(path)).toBe(1);
+  });
+
+  async function countPongsAnsweredOn(path: string): Promise<number> {
+    const providerAddress = generateBech32();
+    const certPair = await createX509CertPair({ commonName: providerAddress });
+    const chainServer = await startChainApiServer([certPair.cert]);
+    const { providerUrl } = await startProviderServer({
+      certPair,
+      websocketServer: {
+        enable: true,
+        onConnection: pws => {
+          let pongs = 0;
+          pws.on("pong", () => pongs++);
+          pws.on("message", () => pws.send(JSON.stringify({ pongs })));
+          pws.ping();
+          pws.send("pinged");
+        }
+      }
+    });
+    const proxyServerUrl = await startServer({ REST_API_NODE_URL: chainServer.url });
+    const ws = new WebSocket(`${proxyServerUrl}/ws`);
+    await new Promise(resolve => ws.once("open", resolve));
+
+    ws.send(JSON.stringify(ourMessage("", providerUrl, { providerAddress }, path)));
+    expect(await waitForMessage(ws)).toEqual(providerMessage("pinged"));
+    ws.send(JSON.stringify(ourMessage("count", providerUrl, { providerAddress }, path)));
+    const { message } = await waitForMessage<{ message: string }>(ws);
+
+    return JSON.parse(message).pongs;
+  }
+
   function withExpiredPayload(token: string, issuer: string): string {
     const [header, , signature] = token.split(".");
     const now = Math.floor(Date.now() / 1000);
@@ -544,7 +584,7 @@ describe("Provider proxy ws", () => {
     };
   }
 
-  function ourMessage(message: string, url: string, extra?: Record<string, any>) {
+  function ourMessage(message: string, url: string, extra?: Record<string, any>, path = "/test") {
     return {
       ...extra,
       type: "websocket",
@@ -552,7 +592,7 @@ describe("Provider proxy ws", () => {
         .split("")
         .map(char => char.charCodeAt(0))
         .join(","),
-      url: `${url}/test`,
+      url: `${url}${path}`,
       providerAddress: extra?.providerAddress || generateBech32()
     };
   }

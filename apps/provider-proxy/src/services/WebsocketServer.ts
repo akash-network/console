@@ -280,6 +280,7 @@ export class WebsocketServer {
     this.logger?.info(`Initializing new provider websocket connection: ${url}`);
 
     const pws = this.connectWebSocket(url, options);
+    if (isShellWithoutStdin(url)) stopAnsweringPings(pws);
 
     this.openProviderSockets[options.wsId] = { ws: pws, verification: "in-progress" };
     const wsDetails = this.openProviderSockets[options.wsId];
@@ -457,6 +458,16 @@ export function emitVerifiedWhenOpen(ws: WebSocket): void {
     return;
   }
   ws.once("open", () => ws.emit("verified"));
+}
+
+export function isShellWithoutStdin(url: string): boolean {
+  const { pathname, searchParams } = new URL(url);
+  return pathname.endsWith("/shell") && searchParams.get("stdin") !== "1";
+}
+
+/** A provider shell without stdin never reads its socket, so a pong left unread there turns its close into a reset that drops the output still queued. */
+export function stopAnsweringPings(ws: Pick<WebSocket, "pong">): void {
+  ws.pong = () => {};
 }
 
 export function isJwtExpiredError(error: z.ZodError): boolean {
