@@ -19,6 +19,10 @@ export function findSecretValueIssues(sdl: string, askedValues: AskedValue[]): s
   for (const [serviceName, service] of Object.entries(services)) {
     if (!isMapping(service)) continue;
 
+    if (secretBindings.has(serviceName) && !isReadableEnv(service.env)) {
+      issues.push(`Service "${serviceName}" fills in a secret, so its env must list NAME=value entries`);
+    }
+
     for (const [envName, value] of readEnvEntries(service)) {
       const key = secretBindings.get(serviceName)?.get(envName);
 
@@ -80,6 +84,11 @@ function readEnvEntries(service: Mapping): Array<[string, string]> {
     const declaration = readEnvDeclaration(entry);
     return [declaration ? [declaration.key, declaration.value] : [entry, ""]];
   });
+}
+
+/** A legacy save stores an SDL unvalidated, so an env this scan cannot read entry by entry could hide a secret's value. */
+function isReadableEnv(env: unknown): boolean {
+  return env === undefined || env === null || isMapping(env) || (Array.isArray(env) && env.every(entry => typeof entry === "string"));
 }
 
 function isSecretReference(value: string): boolean {

@@ -44,6 +44,15 @@ describe(contentCarriedByLegacySave.name, () => {
     );
   });
 
+  it.each([
+    ["an env entry written as a mapping", "API_KEY: hunter2"],
+    ["an env entry that is not text", "12345"]
+  ])("refuses a new SDL that hides a secret it carries behind %s", (_case, entry) => {
+    expect(() => contentCarriedByLegacySave(buildSdl([entry]), { askedValues: [secretAskedValue("API_KEY")] })).toThrow(
+      expect.objectContaining({ status: 400, data: { issues: ['Service "web" fills in a secret, so its env must list NAME=value entries'] } })
+    );
+  });
+
   it("refuses a new SDL that drops the service an asked value fills in or carries a registry password", () => {
     const askedValue = { ...secretAskedValue("API_KEY"), bindings: [{ service: "api", env: "API_KEY" }] };
 

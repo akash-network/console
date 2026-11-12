@@ -158,16 +158,25 @@ describe(findSecretValueIssues.name, () => {
     expect(findSecretValueIssues(sdl, [textValue("NAME"), textValue("PORT")])).toEqual([]);
   });
 
-  it("ignores entries that are not text", () => {
-    const sdl = sdlWith({ web: { env: [1, null, { TOKEN: "x" }, "TOKEN=ac-secret://TOKEN"] } });
+  it.each<[string, unknown]>([
+    ["entries that are not text", [1, null, { TOKEN: "x" }, "TOKEN=ac-secret://TOKEN"]],
+    ["a single text", "TOKEN=x"],
+    ["a number", 12345]
+  ])("refuses an env of %s on a service that fills in a secret", (_case, env) => {
+    expect(findSecretValueIssues(sdlWith({ web: { env } }), [secretValue("TOKEN")])).toEqual([
+      'Service "web" fills in a secret, so its env must list NAME=value entries'
+    ]);
+  });
 
-    expect(findSecretValueIssues(sdl, [secretValue("TOKEN")])).toEqual([]);
+  it("ignores entries that are not text on a service that fills in no secret", () => {
+    const sdl = sdlWith({ web: { env: [1, null, { TOKEN: "x" }] }, worker: { env: "TOKEN=x" } });
+
+    expect(findSecretValueIssues(sdl, [textValue("TOKEN")])).toEqual([]);
   });
 
   it("finds nothing in an SDL without services or env", () => {
     expect(findSecretValueIssues("version: '2.0'\n", [secretValue("TOKEN")])).toEqual([]);
     expect(findSecretValueIssues(sdlWith({ web: { image: "nginx" }, bad: "text", list: [] }), [secretValue("TOKEN")])).toEqual([]);
-    expect(findSecretValueIssues(sdlWith({ web: { env: "TOKEN=x" } }), [secretValue("TOKEN")])).toEqual([]);
   });
 
   it("returns nothing for an SDL that cannot be read", () => {
