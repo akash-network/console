@@ -726,6 +726,20 @@ describe(SdlService.name, () => {
       });
     });
 
+    it.each([
+      ["an unknown tag", "token: !<sk_live_123456> value"],
+      ["a redeclared tag handle", "%TAG !sklive! tag:a,2000:\n%TAG !sklive! tag:b,2000:\n---\na: 1"],
+      ["an unidentified alias", "token: *sk_live_123456"],
+      ["a malformed tag name", "token: !%sk_live v"]
+    ])("reports %s without the name the SDL gave it", async (_case, sdl) => {
+      const { result } = await setup({ sdl });
+
+      expect(result).toMatchObject({
+        ok: false,
+        value: [expect.objectContaining({ keyword: "yaml", params: expect.objectContaining({ reason: "a tag, alias or directive could not be resolved" }) })]
+      });
+    });
+
     it("reports the reason alone for a YAML error that names no position, such as a second document", async () => {
       const { result } = await setup({ sdl: "version: '2.0'\n---\nservices: {}" });
 

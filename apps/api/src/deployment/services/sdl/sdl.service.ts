@@ -43,6 +43,14 @@ function canTakeAuditors(profile: SdlPlacementProfile): boolean {
 /** The message quotes the SDL around the error, so a caller that must not echo it reports these instead. */
 export type YamlErrorParams = { reason: string; line?: number; column?: number };
 
+/** js-yaml names the offending tag, handle, alias or directive in some reasons, quoted or after a colon, which would echo the SDL. */
+const QUOTES_DOCUMENT_TEXT = /"|!<|: /;
+const UNRESOLVED_YAML_NAME_REASON = "a tag, alias or directive could not be resolved";
+
+function reasonWithoutDocumentText(reason: string): string {
+  return QUOTES_DOCUMENT_TEXT.test(reason) ? UNRESOLVED_YAML_NAME_REASON : reason;
+}
+
 @singleton()
 export class SdlService {
   readonly #config: BillingConfig;
@@ -112,7 +120,7 @@ export class SdlService {
     } catch (error) {
       if (error instanceof YAMLException) {
         const mark: YAMLException["mark"] | undefined = error.mark;
-        const params: YamlErrorParams = { reason: error.reason, ...(mark && { line: mark.line + 1, column: mark.column + 1 }) };
+        const params: YamlErrorParams = { reason: reasonWithoutDocumentText(error.reason), ...(mark && { line: mark.line + 1, column: mark.column + 1 }) };
 
         return { ok: false, value: [{ schemaPath: "", instancePath: "", keyword: "yaml", params, message: error.message }] };
       }
