@@ -17,13 +17,13 @@ export type SinkTotals = {
   refundedCount: number;
 };
 
-type EventAttribute = { key: string; value?: string | null };
+export type EventAttribute = { key: string; value?: string | null };
 
 /** Amount columns are numeric(30, 0), so a longer value would fail the insert and halt indexing. */
 const AMOUNT_PATTERN = /^\d{1,30}$/;
-const COUNT_PATTERN = /^\d+$/;
-/** Count columns are 32-bit integers, so a larger value would fail the insert and halt indexing. */
-const MAX_COUNT = 2_147_483_647;
+const INTEGER_PATTERN = /^\d+$/;
+/** Integer columns are 32-bit, so a larger value would fail the insert and halt indexing. */
+const MAX_INTEGER = 2_147_483_647;
 
 export function findLastSinkTotalsEvent(txEvents: TransactionEvent[]): TransactionEvent | undefined {
   return txEvents
@@ -66,7 +66,7 @@ function isComplete(totals: { [K in keyof SinkTotals]: SinkTotals[K] | null }): 
   return Object.values(totals).every(value => value !== null);
 }
 
-function parseCoinAmount(value: string | null | undefined): string | null {
+export function parseCoinAmount(value: string | null | undefined): string | null {
   const coin = parseJson(value);
   if (typeof coin !== "object" || coin === null || !("amount" in coin)) return null;
 
@@ -74,14 +74,17 @@ function parseCoinAmount(value: string | null | undefined): string | null {
 }
 
 function parseCount(value: string | null | undefined): number | null {
-  const count = parseJson(value);
-  if (typeof count !== "string" || !COUNT_PATTERN.test(count)) return null;
-
-  const parsedCount = Number(count);
-  return parsedCount <= MAX_COUNT ? parsedCount : null;
+  return parseInteger(parseJson(value));
 }
 
-function parseJson(value: string | null | undefined): unknown {
+export function parseInteger(value: unknown): number | null {
+  if (typeof value !== "string" || !INTEGER_PATTERN.test(value)) return null;
+
+  const integer = Number(value);
+  return integer <= MAX_INTEGER ? integer : null;
+}
+
+export function parseJson(value: string | null | undefined): unknown {
   if (!value) return null;
 
   try {

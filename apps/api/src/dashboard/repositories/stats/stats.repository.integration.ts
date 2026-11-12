@@ -1,11 +1,11 @@
-import { addHours, subHours } from "date-fns";
+import { addHours, addSeconds, subHours } from "date-fns";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
 import { CHAIN_DB } from "@src/chain";
 import { StatsRepository } from "./stats.repository";
 
-import { createAkashBlock, createDay, createSinkTotalsSnapshot } from "@test/seeders";
+import { createAkashBlock, createDay, createSinkTotalsSnapshot, createSinkTransfer } from "@test/seeders";
 
 describe(StatsRepository.name, () => {
   describe("findSinkDailyTotals", () => {
@@ -42,6 +42,10 @@ describe(StatsRepository.name, () => {
         refundedCount: 4
       });
       await createSnapshot({ height: 320, dayId: currentDay.id, mintedAmount: "2000000000000", mintedCount: 30 });
+      await createSinkTransfer({ height: 150, owner: "akash1returning" });
+      await createSinkTransfer({ height: 180, sequence: 1, owner: "akash1returning" });
+      await createSinkTransfer({ height: 180, sequence: 2, owner: "akash1second" });
+      await createSinkTransfer({ height: 320, owner: "akash1third" });
 
       const dailyTotals = await repository.findSinkDailyTotals();
 
@@ -57,7 +61,8 @@ describe(StatsRepository.name, () => {
           refundPendingUakt: 4000000,
           refundPendingTransfers: 3,
           refundedUakt: 5000000,
-          refundedTransfers: 4
+          refundedTransfers: 4,
+          uniqueSenders: 2
         },
         {
           date: quietDay.date,
@@ -70,9 +75,10 @@ describe(StatsRepository.name, () => {
           refundPendingUakt: 4000000,
           refundPendingTransfers: 3,
           refundedUakt: 5000000,
-          refundedTransfers: 4
+          refundedTransfers: 4,
+          uniqueSenders: 2
         },
-        { ...zeroTotals(), date: currentDay.date, mintedUakt: 2000000000000, mintedTransfers: 30 }
+        { ...zeroTotals(), date: currentDay.date, mintedUakt: 2000000000000, mintedTransfers: 30, uniqueSenders: 3 }
       ]);
       expect(dailyTotals.map(totals => totals.date)).not.toContainEqual(dayBeforeMigration.date);
     });
@@ -118,9 +124,44 @@ describe(StatsRepository.name, () => {
       const dashboardData = await repository.findSinkDashboardData();
 
       expect(dashboardData).toEqual({
-        now: { ...zeroTotals(), date: latestProcessedBlockDate, mintedUakt: 600, mintedTransfers: 6, refundedUakt: 9, refundedTransfers: 2 },
-        compare: { ...zeroTotals(), date: subHours(latestProcessedBlockDate, 24), mintedUakt: 300, mintedTransfers: 3, pendingUakt: 7, pendingTransfers: 1 },
-        secondCompare: { ...zeroTotals(), date: subHours(latestProcessedBlockDate, 48), mintedUakt: 100, mintedTransfers: 1 }
+        now: { ...zeroDashboardTotals(), date: latestProcessedBlockDate, mintedUakt: 600, mintedTransfers: 6, refundedUakt: 9, refundedTransfers: 2 },
+        compare: {
+          ...zeroDashboardTotals(),
+          date: subHours(latestProcessedBlockDate, 24),
+          mintedUakt: 300,
+          mintedTransfers: 3,
+          pendingUakt: 7,
+          pendingTransfers: 1
+        },
+        secondCompare: { ...zeroDashboardTotals(), date: subHours(latestProcessedBlockDate, 48), mintedUakt: 100, mintedTransfers: 1 }
+      });
+    });
+
+    it("returns the number of distinct senders and the median time to mint as of each period", async () => {
+      const { repository } = await setup();
+      const latestProcessedBlockDate = new Date("2026-11-11T12:00:00Z");
+      const twoDaysAgo = subHours(latestProcessedBlockDate, 50);
+      const yesterday = subHours(latestProcessedBlockDate, 30);
+      const today = subHours(latestProcessedBlockDate, 10);
+      await createAkashBlock({ height: 10, datetime: twoDaysAgo, isProcessed: true });
+      await createAkashBlock({ height: 11, datetime: addSeconds(twoDaysAgo, 60), isProcessed: true });
+      await createAkashBlock({ height: 20, datetime: yesterday, isProcessed: true });
+      await createAkashBlock({ height: 21, datetime: addSeconds(yesterday, 120), isProcessed: true });
+      await createAkashBlock({ height: 30, datetime: today, isProcessed: true });
+      await createAkashBlock({ height: 31, datetime: addSeconds(today, 300), isProcessed: true });
+      await createAkashBlock({ height: 40, datetime: latestProcessedBlockDate, isProcessed: true });
+      await createSinkTransfer({ height: 10, owner: "akash1returning", status: "minted", statusHeight: 11 });
+      await createSinkTransfer({ height: 20, sequence: 1, owner: "akash1second", status: "minted", statusHeight: 21 });
+      await createSinkTransfer({ height: 20, sequence: 2, owner: "akash1voided", status: "voided", statusHeight: 21 });
+      await createSinkTransfer({ height: 30, sequence: 1, owner: "akash1returning", status: "minted", statusHeight: 31 });
+      await createSinkTransfer({ height: 30, sequence: 2, owner: "akash1pending", status: "pending" });
+
+      const dashboardData = await repository.findSinkDashboardData();
+
+      expect(dashboardData).toEqual({
+        now: { ...zeroDashboardTotals(), date: latestProcessedBlockDate, uniqueSenders: 4, medianSecondsToMint: 120 },
+        compare: { ...zeroDashboardTotals(), date: subHours(latestProcessedBlockDate, 24), uniqueSenders: 3, medianSecondsToMint: 90 },
+        secondCompare: { ...zeroDashboardTotals(), date: subHours(latestProcessedBlockDate, 48), uniqueSenders: 1, medianSecondsToMint: 60 }
       });
     });
 
@@ -133,9 +174,9 @@ describe(StatsRepository.name, () => {
       const dashboardData = await repository.findSinkDashboardData();
 
       expect(dashboardData).toEqual({
-        now: { ...zeroTotals(), date: latestProcessedBlockDate, mintedUakt: 600, mintedTransfers: 6 },
-        compare: { ...zeroTotals(), date: subHours(latestProcessedBlockDate, 24) },
-        secondCompare: { ...zeroTotals(), date: subHours(latestProcessedBlockDate, 48) }
+        now: { ...zeroDashboardTotals(), date: latestProcessedBlockDate, mintedUakt: 600, mintedTransfers: 6 },
+        compare: { ...zeroDashboardTotals(), date: subHours(latestProcessedBlockDate, 24) },
+        secondCompare: { ...zeroDashboardTotals(), date: subHours(latestProcessedBlockDate, 48) }
       });
     });
 
@@ -145,12 +186,128 @@ describe(StatsRepository.name, () => {
       const dashboardData = await repository.findSinkDashboardData();
 
       expect(dashboardData).toEqual({
-        now: { ...zeroTotals(), date: expect.any(Date) },
-        compare: { ...zeroTotals(), date: expect.any(Date) },
-        secondCompare: { ...zeroTotals(), date: expect.any(Date) }
+        now: { ...zeroDashboardTotals(), date: expect.any(Date) },
+        compare: { ...zeroDashboardTotals(), date: expect.any(Date) },
+        secondCompare: { ...zeroDashboardTotals(), date: expect.any(Date) }
       });
     });
   });
+
+  describe("findSinkTransfers", () => {
+    it("returns the most recent transfers first with the dates of their creation and last status change", async () => {
+      const { repository } = await setup();
+      const { firstBlockDate, mintBlockDate, lastBlockDate } = await createTransfers();
+
+      const transfers = await repository.findSinkTransfers({ skip: 0, limit: 10, sort: "latest" });
+
+      expect(transfers).toEqual([
+        {
+          owner: "akash1latest",
+          height: 30,
+          sequence: 1,
+          recipient: "solanaLatest",
+          amountUakt: 5000000,
+          status: "pending",
+          createdAt: lastBlockDate,
+          statusHeight: 30,
+          statusUpdatedAt: lastBlockDate
+        },
+        {
+          owner: "akash1largest",
+          height: 10,
+          sequence: 2,
+          recipient: "solanaLargest",
+          amountUakt: 975031000000,
+          status: "minted",
+          createdAt: firstBlockDate,
+          statusHeight: 20,
+          statusUpdatedAt: mintBlockDate
+        },
+        {
+          owner: "akash1first",
+          height: 10,
+          sequence: 1,
+          recipient: "solanaFirst",
+          amountUakt: 5000000,
+          status: "refunded",
+          createdAt: firstBlockDate,
+          statusHeight: 30,
+          statusUpdatedAt: lastBlockDate
+        }
+      ]);
+    });
+
+    it("returns the largest transfers first and the most recent first among equal amounts", async () => {
+      const { repository } = await setup();
+      await createTransfers();
+
+      const transfers = await repository.findSinkTransfers({ skip: 0, limit: 10, sort: "largest" });
+
+      expect(transfers.map(transfer => transfer.owner)).toEqual(["akash1largest", "akash1latest", "akash1first"]);
+    });
+
+    it("returns the page of transfers that follows the skipped ones", async () => {
+      const { repository } = await setup();
+      await createTransfers();
+
+      const transfers = await repository.findSinkTransfers({ skip: 1, limit: 1, sort: "latest" });
+
+      expect(transfers.map(transfer => transfer.owner)).toEqual(["akash1largest"]);
+    });
+  });
+
+  describe("countSinkTransfers", () => {
+    it("returns the number of transfers", async () => {
+      const { repository } = await setup();
+      await createTransfers();
+
+      const count = await repository.countSinkTransfers();
+
+      expect(count).toBe(3);
+    });
+
+    it("returns zero when no transfer is indexed yet", async () => {
+      const { repository } = await setup();
+
+      const count = await repository.countSinkTransfers();
+
+      expect(count).toBe(0);
+    });
+  });
+
+  async function createTransfers() {
+    const firstBlockDate = new Date("2026-11-11T10:00:00Z");
+    const mintBlockDate = new Date("2026-11-11T10:03:00Z");
+    const lastBlockDate = new Date("2026-11-11T11:00:00Z");
+    await createAkashBlock({ height: 10, datetime: firstBlockDate, isProcessed: true });
+    await createAkashBlock({ height: 20, datetime: mintBlockDate, isProcessed: true });
+    await createAkashBlock({ height: 30, datetime: lastBlockDate, isProcessed: true });
+    await createSinkTransfer({
+      height: 10,
+      sequence: 1,
+      owner: "akash1first",
+      recipient: "solanaFirst",
+      amount: "5000000",
+      status: "refunded",
+      statusHeight: 30
+    });
+    await createSinkTransfer({
+      height: 10,
+      sequence: 2,
+      owner: "akash1largest",
+      recipient: "solanaLargest",
+      amount: "975031000000",
+      status: "minted",
+      statusHeight: 20
+    });
+    await createSinkTransfer({ height: 30, sequence: 1, owner: "akash1latest", recipient: "solanaLatest", amount: "5000000" });
+
+    return { firstBlockDate, mintBlockDate, lastBlockDate };
+  }
+
+  function zeroDashboardTotals() {
+    return { ...zeroTotals(), medianSecondsToMint: null };
+  }
 
   function zeroTotals() {
     return {
@@ -163,7 +320,8 @@ describe(StatsRepository.name, () => {
       refundPendingUakt: 0,
       refundPendingTransfers: 0,
       refundedUakt: 0,
-      refundedTransfers: 0
+      refundedTransfers: 0,
+      uniqueSenders: 0
     };
   }
 
@@ -190,7 +348,7 @@ describe(StatsRepository.name, () => {
   async function setup() {
     const chainDb = container.resolve(CHAIN_DB);
     await chainDb.authenticate();
-    await chainDb.query('TRUNCATE "sink_totals_snapshot", "block", "day" CASCADE');
+    await chainDb.query('TRUNCATE "sink_transfer", "sink_totals_snapshot", "block", "day" CASCADE');
 
     return { repository: container.resolve(StatsRepository) };
   }

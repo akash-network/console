@@ -13,7 +13,8 @@ import {
   createProviderSnapshot,
   createProviderSnapshotNode,
   createProviderSnapshotNodeGpu,
-  createSinkTotalsSnapshot
+  createSinkTotalsSnapshot,
+  createSinkTransfer
 } from "@test/seeders";
 import { formatUTCDate } from "@test/utils";
 
@@ -204,6 +205,8 @@ describe("Graph Data", () => {
         refundedAmount: "9"
       })
     ]);
+
+    await Promise.all([createSinkTransfer({ height: 100 }), createSinkTransfer({ height: 200 }), createSinkTransfer({ height: 300 })]);
   });
 
   afterAll(async () => {

@@ -14966,6 +14966,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 "sinkVoidedUakt",
                 "sinkRefundPendingUakt",
                 "sinkRefundedUakt",
+                "sinkUniqueSenders",
               ],
               "example": "dailyUAktSpent",
               "type": "string",
@@ -28533,6 +28534,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "date": {
                           "type": "string",
                         },
+                        "medianSecondsToMint": {
+                          "nullable": true,
+                          "type": "number",
+                        },
                         "mintedTransfers": {
                           "type": "number",
                         },
@@ -28557,6 +28562,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "refundedUakt": {
                           "type": "number",
                         },
+                        "uniqueSenders": {
+                          "type": "number",
+                        },
                         "voidedTransfers": {
                           "type": "number",
                         },
@@ -28578,6 +28586,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "refundPendingTransfers",
                         "refundedUakt",
                         "refundedTransfers",
+                        "uniqueSenders",
+                        "medianSecondsToMint",
                       ],
                       "type": "object",
                     },
@@ -28592,6 +28602,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "date": {
                           "type": "string",
                         },
+                        "medianSecondsToMint": {
+                          "nullable": true,
+                          "type": "number",
+                        },
                         "mintedTransfers": {
                           "type": "number",
                         },
@@ -28616,6 +28630,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "refundedUakt": {
                           "type": "number",
                         },
+                        "uniqueSenders": {
+                          "type": "number",
+                        },
                         "voidedTransfers": {
                           "type": "number",
                         },
@@ -28637,6 +28654,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "refundPendingTransfers",
                         "refundedUakt",
                         "refundedTransfers",
+                        "uniqueSenders",
+                        "medianSecondsToMint",
                       ],
                       "type": "object",
                     },
@@ -28654,6 +28673,137 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         },
         "security": [],
         "summary": "Get the totals of AKT transferred to Solana through the sink module",
+        "tags": [
+          "Analytics",
+        ],
+      },
+    },
+    "/v1/sink/transfers": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "skip",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Number of transfers to skip",
+              "example": 0,
+              "minimum": 0,
+              "type": "number",
+            },
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Number of transfers to return",
+              "example": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "number",
+            },
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "latest",
+              "description": "Returns the most recent transfers first, or the largest amounts first",
+              "enum": [
+                "latest",
+                "largest",
+              ],
+              "example": "latest",
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "count": {
+                      "description": "Total number of transfers",
+                      "type": "number",
+                    },
+                    "results": {
+                      "items": {
+                        "properties": {
+                          "amountUakt": {
+                            "type": "number",
+                          },
+                          "createdAt": {
+                            "type": "string",
+                          },
+                          "height": {
+                            "description": "Height of the block that created the transfer",
+                            "type": "number",
+                          },
+                          "owner": {
+                            "description": "Akash address that sent the AKT",
+                            "type": "string",
+                          },
+                          "recipient": {
+                            "description": "Solana address that receives the AKT",
+                            "type": "string",
+                          },
+                          "sequence": {
+                            "description": "Position of the transfer among the transfers of its block",
+                            "type": "number",
+                          },
+                          "status": {
+                            "enum": [
+                              "pending",
+                              "minted",
+                              "voided",
+                              "refund_pending",
+                              "refunded",
+                            ],
+                            "type": "string",
+                          },
+                          "statusHeight": {
+                            "description": "Height of the block that last changed the status",
+                            "type": "number",
+                          },
+                          "statusUpdatedAt": {
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "owner",
+                          "height",
+                          "sequence",
+                          "recipient",
+                          "amountUakt",
+                          "status",
+                          "createdAt",
+                          "statusHeight",
+                          "statusUpdatedAt",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "count",
+                    "results",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Returns a page of sink transfers and the total number of transfers",
+          },
+        },
+        "security": [],
+        "summary": "Get the AKT transfers sent to Solana through the sink module",
         "tags": [
           "Analytics",
         ],

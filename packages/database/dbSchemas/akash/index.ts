@@ -15,6 +15,7 @@ export { BmeLedgerRecord } from "./bmeLedgerRecord";
 export { BmeRawEvent } from "./bmeRawEvent";
 export { BmeStatusChange } from "./bmeStatusChange";
 export { SinkTotalsSnapshot } from "./sinkTotalsSnapshot";
+export { SinkTransfer } from "./sinkTransfer";
 
 // Overrides
 export { AkashBlock } from "./akashBlock";

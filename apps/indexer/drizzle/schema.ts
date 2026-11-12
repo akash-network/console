@@ -10,6 +10,7 @@ import {
   jsonb,
   numeric,
   pgTable,
+  primaryKey,
   serial,
   smallint,
   text,
@@ -751,6 +752,35 @@ export const sinkTotalsSnapshot = pgTable(
       columns: [table.height],
       foreignColumns: [block.height],
       name: "sink_totals_snapshot_height_fkey"
+    })
+  ]
+);
+
+export const sinkTransfer = pgTable(
+  "sink_transfer",
+  {
+    height: integer().notNull(),
+    sequence: integer().notNull(),
+    owner: varchar({ length: 255 }).notNull(),
+    recipient: varchar({ length: 255 }).notNull(),
+    amount: numeric({ precision: 30, scale: 0 }).notNull(),
+    status: varchar({ length: 255 }).notNull(),
+    has_void_order: boolean().default(false).notNull(),
+    status_height: integer().notNull()
+  },
+  table => [
+    primaryKey({ columns: [table.height, table.sequence], name: "sink_transfer_pkey" }),
+    index("sink_transfer_owner").using("btree", table.owner.asc().nullsLast().op("text_ops")),
+    index("sink_transfer_amount").using("btree", table.amount.asc().nullsLast().op("numeric_ops")),
+    foreignKey({
+      columns: [table.height],
+      foreignColumns: [block.height],
+      name: "sink_transfer_height_fkey"
+    }),
+    foreignKey({
+      columns: [table.status_height],
+      foreignColumns: [block.height],
+      name: "sink_transfer_status_height_fkey"
     })
   ]
 );

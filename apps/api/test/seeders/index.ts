@@ -2,6 +2,7 @@ export * from "./akash-block.seeder";
 export * from "./auth0-user.seeder";
 export * from "./day.seeder";
 export * from "./sink-totals-snapshot.seeder";
+export * from "./sink-transfer.seeder";
 export * from "./provider.seeder";
 export * from "./provider-snapshot.seeder";
 export * from "./provider-snapshot-node.seeder";

@@ -1,4 +1,4 @@
-import { SinkTotalsSnapshot } from "@akashnetwork/database/dbSchemas/akash";
+import { SinkTotalsSnapshot, SinkTransfer } from "@akashnetwork/database/dbSchemas/akash";
 import type { Block, Transaction, TransactionEvent, TransactionEventAttribute } from "@akashnetwork/database/dbSchemas/base";
 import type { LoggerService } from "@akashnetwork/logging";
 import type { DecodedTxRaw } from "@cosmjs/proto-signing";
@@ -93,6 +93,142 @@ describe(SinkIndexer.name, () => {
       expect(upsert).not.toHaveBeenCalled();
       expect(logger.warn).toHaveBeenCalledTimes(1);
     });
+
+    it("stores a created transfer as pending under its chain id", async () => {
+      const { indexer, dbTransaction, upsertTransfer, findTransfer } = setup();
+      const events = [transferEvent({ index: 4, name: "EventTransferCreated", attributes: creationAttributeValues() })];
+
+      await indexer.afterEveryTransaction(mock<DecodedTxRaw>(), transaction({ height: 29448411 }), dbTransaction, events);
+
+      expect(upsertTransfer).toHaveBeenCalledTimes(1);
+      expect(upsertTransfer).toHaveBeenCalledWith(
+        {
+          height: 29448411,
+          sequence: 1,
+          owner: "akash1z6ql8ryp2sjdw2wgvrrwc0sm5u2yn4ghqxj4rl",
+          recipient: "CA7haEbmqKYBY7XtQLQzhDYHH1fNrf7Gop3Xshq7Qa8v",
+          amount: "10000000",
+          status: "pending",
+          hasVoidOrder: false,
+          statusHeight: 29448411
+        },
+        { transaction: dbTransaction }
+      );
+      expect(findTransfer).not.toHaveBeenCalled();
+    });
+
+    it("moves a stored transfer to its new status at the transaction height", async () => {
+      const { indexer, dbTransaction, findTransfer, updateTransfer, upsertTransfer } = setup({
+        storedTransfer: { status: "pending", hasVoidOrder: false, statusHeight: 29448411 }
+      });
+      const events = [transferEvent({ index: 2, name: "EventMintConfirmed" }), transferEvent({ index: 4, name: "EventOutcomeReported" })];
+
+      await indexer.afterEveryTransaction(mock<DecodedTxRaw>(), transaction({ height: 29448435 }), dbTransaction, events);
+
+      expect(findTransfer).toHaveBeenCalledTimes(1);
+      expect(findTransfer).toHaveBeenCalledWith({ where: { height: 29448411, sequence: 1 }, transaction: dbTransaction });
+      expect(updateTransfer).toHaveBeenCalledTimes(1);
+      expect(updateTransfer).toHaveBeenCalledWith(
+        { status: "minted", hasVoidOrder: false, statusHeight: 29448435 },
+        { where: { height: 29448411, sequence: 1 }, transaction: dbTransaction }
+      );
+      expect(upsertTransfer).not.toHaveBeenCalled();
+    });
+
+    it("keeps the height of the last status change when only the void order changes", async () => {
+      const { indexer, dbTransaction, updateTransfer } = setup({ storedTransfer: { status: "minted", hasVoidOrder: false, statusHeight: 29448435 } });
+      const events = [transferEvent({ index: 2, name: "EventVoidOrdered" })];
+
+      await indexer.afterEveryTransaction(mock<DecodedTxRaw>(), transaction({ height: 29500000 }), dbTransaction, events);
+
+      expect(updateTransfer).toHaveBeenCalledWith(
+        { status: "minted", hasVoidOrder: true, statusHeight: 29448435 },
+        { where: { height: 29448411, sequence: 1 }, transaction: dbTransaction }
+      );
+    });
+
+    it("writes nothing when an event leaves the stored transfer unchanged", async () => {
+      const { indexer, dbTransaction, updateTransfer, logger } = setup({ storedTransfer: { status: "pending", hasVoidOrder: false, statusHeight: 29448411 } });
+      const events = [transferEvent({ index: 2, name: "EventOutcomeReported" })];
+
+      await indexer.afterEveryTransaction(mock<DecodedTxRaw>(), transaction({ height: 29448420 }), dbTransaction, events);
+
+      expect(updateTransfer).not.toHaveBeenCalled();
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it("writes a change of status that keeps the void order", async () => {
+      const { indexer, dbTransaction, updateTransfer } = setup({ storedTransfer: { status: "voided", hasVoidOrder: true, statusHeight: 29448420 } });
+      const events = [transferEvent({ index: 2, name: "EventVoidConfirmed" })];
+
+      await indexer.afterEveryTransaction(mock<DecodedTxRaw>(), transaction({ height: 29448500 }), dbTransaction, events);
+
+      expect(updateTransfer).toHaveBeenCalledWith(
+        { status: "refund_pending", hasVoidOrder: true, statusHeight: 29448500 },
+        { where: { height: 29448411, sequence: 1 }, transaction: dbTransaction }
+      );
+    });
+
+    it("skips a status event of a transfer that was never stored with a warning", async () => {
+      const { indexer, dbTransaction, updateTransfer, logger } = setup({ storedTransfer: null });
+      const events = [transferEvent({ index: 2, name: "EventMintConfirmed" })];
+
+      await indexer.afterEveryTransaction(mock<DecodedTxRaw>(), transaction({ height: 29448435 }), dbTransaction, events);
+
+      expect(updateTransfer).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith({
+        event: "SINK_TRANSFER_NOT_FOUND",
+        height: 29448435,
+        change: "mintConfirmed",
+        transfer: { height: 29448411, sequence: 1 }
+      });
+    });
+
+    it("skips a malformed transfer event with a warning and applies the events after it", async () => {
+      const { indexer, dbTransaction, updateTransfer, upsertTransfer, logger } = setup({
+        storedTransfer: { status: "refund_pending", hasVoidOrder: true, statusHeight: 29448500 }
+      });
+      const events = [
+        transferEvent({ index: 1, name: "EventTransferCreated", attributes: { ...creationAttributeValues(), amount: '"ten"' } }),
+        transferEvent({ index: 2, name: "EventTransferRefunded" })
+      ];
+
+      await indexer.afterEveryTransaction(mock<DecodedTxRaw>(), transaction({ height: 29600000 }), dbTransaction, events);
+
+      expect(upsertTransfer).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith({
+        event: "SINK_TRANSFER_EVENT_MALFORMED",
+        height: 29600000,
+        eventType: "akash.sink.v1.EventTransferCreated"
+      });
+      expect(updateTransfer).toHaveBeenCalledWith(
+        { status: "refunded", hasVoidOrder: true, statusHeight: 29600000 },
+        { where: { height: 29448411, sequence: 1 }, transaction: dbTransaction }
+      );
+    });
+
+    it("stores no transfer for a failed transaction", async () => {
+      const { indexer, dbTransaction, upsertTransfer, findTransfer } = setup();
+      const events = [
+        transferEvent({ index: 1, name: "EventTransferCreated", attributes: creationAttributeValues() }),
+        transferEvent({ index: 2, name: "EventMintConfirmed" })
+      ];
+
+      await indexer.afterEveryTransaction(mock<DecodedTxRaw>(), transaction({ height: 10, hasProcessingError: true }), dbTransaction, events);
+
+      expect(upsertTransfer).not.toHaveBeenCalled();
+      expect(findTransfer).not.toHaveBeenCalled();
+    });
+
+    it("applies the transfer events of a transaction without a totals event", async () => {
+      const { indexer, dbTransaction, upsert, updateTransfer } = setup({ storedTransfer: { status: "minted", hasVoidOrder: false, statusHeight: 29448435 } });
+      const events = [transferEvent({ index: 2, name: "EventVoidOrdered" })];
+
+      await indexer.afterEveryTransaction(mock<DecodedTxRaw>(), transaction({ height: 29500000 }), dbTransaction, events);
+
+      expect(upsert).not.toHaveBeenCalled();
+      expect(updateTransfer).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("afterEveryBlock", () => {
@@ -183,27 +319,93 @@ describe(SinkIndexer.name, () => {
       expect(bulkCreate).not.toHaveBeenCalled();
       expect(logger.warn).toHaveBeenCalledWith({ event: "SINK_TOTALS_EVENT_MALFORMED", height: 10 });
     });
+
+    it("applies a governance resolution emitted at the end of the block", async () => {
+      const { indexer, dbTransaction, findTransfer, updateTransfer } = setup({
+        finalizeBlockEvents: [
+          blockTotalsEvent({ mode: "EndBlock", mintedAmount: "250", mintedCount: 2 }),
+          blockTransferEvent({ name: "EventTransferResolved", attributes: { decision: '"DECISION_CONFIRM_MINT"' } })
+        ],
+        storedTransfer: { status: "pending", hasVoidOrder: false, statusHeight: 29448411 }
+      });
+
+      await indexer.afterEveryBlock(block({ height: 29500000 }), null, dbTransaction);
+
+      expect(findTransfer).toHaveBeenCalledWith({ where: { height: 29448411, sequence: 1 }, transaction: dbTransaction });
+      expect(updateTransfer).toHaveBeenCalledWith(
+        { status: "minted", hasVoidOrder: false, statusHeight: 29500000 },
+        { where: { height: 29448411, sequence: 1 }, transaction: dbTransaction }
+      );
+    });
+
+    it("applies block-level transfer events of a block without a totals event", async () => {
+      const { indexer, dbTransaction, updateTransfer, upsert, bulkCreate } = setup({
+        finalizeBlockEvents: [blockTransferEvent({ name: "EventVoidOrdered" })],
+        storedTransfer: { status: "minted", hasVoidOrder: false, statusHeight: 29448435 }
+      });
+
+      await indexer.afterEveryBlock(block({ height: 29500000 }), null, dbTransaction);
+
+      expect(updateTransfer).toHaveBeenCalledWith(
+        { status: "minted", hasVoidOrder: true, statusHeight: 29448435 },
+        { where: { height: 29448411, sequence: 1 }, transaction: dbTransaction }
+      );
+      expect(upsert).not.toHaveBeenCalled();
+      expect(bulkCreate).not.toHaveBeenCalled();
+    });
+
+    it("applies block-level transfer events after a malformed block-level totals event", async () => {
+      const { indexer, dbTransaction, updateTransfer } = setup({
+        finalizeBlockEvents: [
+          blockTotalsEvent({ mode: "EndBlock", mintedAmount: "not-a-number", mintedCount: 1 }),
+          blockTransferEvent({ name: "EventVoidOrdered" })
+        ],
+        storedTransfer: { status: "pending", hasVoidOrder: false, statusHeight: 29448411 }
+      });
+
+      await indexer.afterEveryBlock(block({ height: 29500000 }), null, dbTransaction);
+
+      expect(updateTransfer).toHaveBeenCalledWith(
+        { status: "voided", hasVoidOrder: true, statusHeight: 29500000 },
+        { where: { height: 29448411, sequence: 1 }, transaction: dbTransaction }
+      );
+    });
+
+    it("skips a malformed block-level transfer event with a warning", async () => {
+      const { indexer, dbTransaction, findTransfer, logger } = setup({
+        finalizeBlockEvents: [{ type: "akash.sink.v1.EventVoidOrdered", attributes: [{ key: "mode", value: "EndBlock", index: true }] }]
+      });
+
+      await indexer.afterEveryBlock(block({ height: 29500000 }), null, dbTransaction);
+
+      expect(findTransfer).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith({ event: "SINK_TRANSFER_EVENT_MALFORMED", height: 29500000, eventType: "akash.sink.v1.EventVoidOrdered" });
+    });
   });
 
   describe("createTables", () => {
-    it("creates the snapshot table without dropping an existing one", async () => {
+    it("creates the snapshot and transfer tables without dropping existing ones", async () => {
       const { indexer } = setup();
-      const sync = vi.spyOn(SinkTotalsSnapshot, "sync").mockResolvedValue(mock<SinkTotalsSnapshot>());
+      const syncSnapshots = vi.spyOn(SinkTotalsSnapshot, "sync").mockResolvedValue(mock<SinkTotalsSnapshot>());
+      const syncTransfers = vi.spyOn(SinkTransfer, "sync").mockResolvedValue(mock<SinkTransfer>());
 
       await indexer.createTables();
 
-      expect(sync).toHaveBeenCalledWith({ force: false });
+      expect(syncSnapshots).toHaveBeenCalledWith({ force: false });
+      expect(syncTransfers).toHaveBeenCalledWith({ force: false });
     });
   });
 
   describe("dropTables", () => {
-    it("drops the snapshot table", async () => {
+    it("drops the snapshot and transfer tables", async () => {
       const { indexer } = setup();
-      const drop = vi.spyOn(SinkTotalsSnapshot, "drop").mockResolvedValue();
+      const dropSnapshots = vi.spyOn(SinkTotalsSnapshot, "drop").mockResolvedValue();
+      const dropTransfers = vi.spyOn(SinkTransfer, "drop").mockResolvedValue();
 
       await indexer.dropTables();
 
-      expect(drop).toHaveBeenCalledWith({ cascade: true });
+      expect(dropSnapshots).toHaveBeenCalledWith({ cascade: true });
+      expect(dropTransfers).toHaveBeenCalledWith({ cascade: true });
     });
   });
 
@@ -268,14 +470,51 @@ describe(SinkIndexer.name, () => {
     };
   }
 
-  function setup(input: { finalizeBlockEvents: EventType[] | null | undefined } = { finalizeBlockEvents: [] }) {
+  function transferEvent(input: { index: number; name: string; attributes?: Record<string, string> }) {
+    const values = { ...transferIdAttributeValues(), ...input.attributes, msg_index: "0" };
+
+    return mock<TransactionEvent>({
+      type: `akash.sink.v1.${input.name}`,
+      index: input.index,
+      attributes: Object.entries(values).map(([key, value], index) => mock<TransactionEventAttribute>({ key, value, index }))
+    });
+  }
+
+  function blockTransferEvent(input: { name: string; attributes?: Record<string, string> }): EventType {
+    const values = { ...transferIdAttributeValues(), ...input.attributes, mode: "EndBlock" };
+
+    return { type: `akash.sink.v1.${input.name}`, attributes: Object.entries(values).map(([key, value]) => ({ key, value, index: true })) };
+  }
+
+  function transferIdAttributeValues() {
+    return { id: JSON.stringify({ owner: "akash1z6ql8ryp2sjdw2wgvrrwc0sm5u2yn4ghqxj4rl", height: "29448411", sequence: "1" }) };
+  }
+
+  function creationAttributeValues() {
+    return {
+      sender: '"akash1z6ql8ryp2sjdw2wgvrrwc0sm5u2yn4ghqxj4rl"',
+      recipient: '"CA7haEbmqKYBY7XtQLQzhDYHH1fNrf7Gop3Xshq7Qa8v"',
+      amount: JSON.stringify({ denom: "uakt", amount: "10000000" }),
+      height: '"29448411"'
+    };
+  }
+
+  function setup(
+    input: {
+      finalizeBlockEvents?: EventType[] | null;
+      storedTransfer?: { status: string; hasVoidOrder: boolean; statusHeight: number } | null;
+    } = {}
+  ) {
     const logger = mock<LoggerService>();
     const readBlockResults = vi.fn<BlockResultsReader>().mockResolvedValue(mock<BlockResultType>({ finalize_block_events: input.finalizeBlockEvents }));
     const indexer = new SinkIndexer(readBlockResults, logger);
     const dbTransaction = mock<DbTransaction>();
     const upsert = vi.spyOn(SinkTotalsSnapshot, "upsert").mockResolvedValue([mock<SinkTotalsSnapshot>(), null]);
     const bulkCreate = vi.spyOn(SinkTotalsSnapshot, "bulkCreate").mockResolvedValue([]);
+    const upsertTransfer = vi.spyOn(SinkTransfer, "upsert").mockResolvedValue([mock<SinkTransfer>(), null]);
+    const findTransfer = vi.spyOn(SinkTransfer, "findOne").mockResolvedValue(input.storedTransfer ? mock<SinkTransfer>(input.storedTransfer) : null);
+    const updateTransfer = vi.spyOn(SinkTransfer, "update").mockResolvedValue([1]);
 
-    return { indexer, logger, dbTransaction, upsert, bulkCreate, readBlockResults };
+    return { indexer, logger, dbTransaction, upsert, bulkCreate, readBlockResults, upsertTransfer, findTransfer, updateTransfer };
   }
 });

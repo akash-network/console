@@ -19,8 +19,9 @@ import {
 } from "@src/dashboard/http-schemas/leases-duration/leases-duration.schema";
 import { MarketDataParams } from "@src/dashboard/http-schemas/market-data/market-data.schema";
 import type { SinkDashboardDataResponse, SinkPeriodData } from "@src/dashboard/http-schemas/sink-dashboard-data/sink-dashboard-data.schema";
+import type { SinkTransfersQuery, SinkTransfersResponse, SinkTransferStatus } from "@src/dashboard/http-schemas/sink-transfers/sink-transfers.schema";
 import { StatsRepository } from "@src/dashboard/repositories/stats";
-import type { SinkTotalsRow } from "@src/dashboard/repositories/stats/stats.repository";
+import type { SinkDashboardTotalsRow, SinkTotalsRow } from "@src/dashboard/repositories/stats/stats.repository";
 import { ProviderCapacityStats, StatsItem } from "@src/types/provider";
 import { forEachInChunks } from "@src/utils/array/array";
 import { createLoggingExecutor } from "@src/utils/logging";
@@ -161,7 +162,7 @@ const blockMetrics: Partial<Record<AuthorizedGraphDataName, BlockMetricConfig>> 
 type SinkMetricConfig = {
   getter: (totals: SinkTotalsRow) => number;
   isRelative?: boolean;
-  dashboardKey: Exclude<keyof SinkPeriodData, "date">;
+  dashboardKey: Exclude<keyof SinkPeriodData, "date" | "medianSecondsToMint">;
 };
 
 const sinkMetrics: Record<SinkGraphDataName, SinkMetricConfig> = {
@@ -172,7 +173,8 @@ const sinkMetrics: Record<SinkGraphDataName, SinkMetricConfig> = {
   sinkPendingUakt: { getter: totals => totals.pendingUakt, dashboardKey: "pendingUakt" },
   sinkVoidedUakt: { getter: totals => totals.voidedUakt, dashboardKey: "voidedUakt" },
   sinkRefundPendingUakt: { getter: totals => totals.refundPendingUakt, dashboardKey: "refundPendingUakt" },
-  sinkRefundedUakt: { getter: totals => totals.refundedUakt, dashboardKey: "refundedUakt" }
+  sinkRefundedUakt: { getter: totals => totals.refundedUakt, dashboardKey: "refundedUakt" },
+  sinkUniqueSenders: { getter: totals => totals.uniqueSenders, dashboardKey: "uniqueSenders" }
 };
 
 @singleton()
@@ -280,6 +282,25 @@ export class StatsService {
     const { now, compare, secondCompare } = await this.statsRepository.findSinkDashboardData();
 
     return { now: toSinkPeriodData(now, compare), compare: toSinkPeriodData(compare, secondCompare) };
+  }
+
+  async getSinkTransfers(query: SinkTransfersQuery): Promise<SinkTransfersResponse> {
+    const [count, transfers] = await Promise.all([this.statsRepository.countSinkTransfers(), this.statsRepository.findSinkTransfers(query)]);
+
+    return {
+      count,
+      results: transfers.map(transfer => ({
+        owner: transfer.owner,
+        height: transfer.height,
+        sequence: transfer.sequence,
+        recipient: transfer.recipient,
+        amountUakt: transfer.amountUakt,
+        status: transfer.status as SinkTransferStatus,
+        createdAt: transfer.createdAt.toISOString(),
+        statusHeight: transfer.statusHeight,
+        statusUpdatedAt: transfer.statusUpdatedAt.toISOString()
+      }))
+    };
   }
 
   private async getBlockGraphData(
@@ -682,7 +703,7 @@ function toRelativeValues(stats: DateValue[]): DateValue[] {
   }));
 }
 
-function toSinkPeriodData(totals: SinkTotalsRow, previousTotals: SinkTotalsRow): SinkPeriodData {
+function toSinkPeriodData(totals: SinkDashboardTotalsRow, previousTotals: SinkDashboardTotalsRow): SinkPeriodData {
   return {
     date: totals.date.toISOString(),
     mintedUakt: totals.mintedUakt,
@@ -696,7 +717,9 @@ function toSinkPeriodData(totals: SinkTotalsRow, previousTotals: SinkTotalsRow):
     refundPendingUakt: totals.refundPendingUakt,
     refundPendingTransfers: totals.refundPendingTransfers,
     refundedUakt: totals.refundedUakt,
-    refundedTransfers: totals.refundedTransfers
+    refundedTransfers: totals.refundedTransfers,
+    uniqueSenders: totals.uniqueSenders,
+    medianSecondsToMint: totals.medianSecondsToMint
   };
 }
 

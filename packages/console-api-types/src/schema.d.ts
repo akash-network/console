@@ -5217,7 +5217,8 @@ export interface paths {
             | "sinkPendingUakt"
             | "sinkVoidedUakt"
             | "sinkRefundPendingUakt"
-            | "sinkRefundedUakt";
+            | "sinkRefundedUakt"
+            | "sinkUniqueSenders";
         };
         cookie?: never;
       };
@@ -5410,6 +5411,8 @@ export interface paths {
                 refundPendingTransfers: number;
                 refundedUakt: number;
                 refundedTransfers: number;
+                uniqueSenders: number;
+                medianSecondsToMint: number | null;
               };
               compare: {
                 date: string;
@@ -5425,7 +5428,69 @@ export interface paths {
                 refundPendingTransfers: number;
                 refundedUakt: number;
                 refundedTransfers: number;
+                uniqueSenders: number;
+                medianSecondsToMint: number | null;
               };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/sink/transfers": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get the AKT transfers sent to Solana through the sink module */
+    get: {
+      parameters: {
+        query?: {
+          skip?: number;
+          limit?: number;
+          sort?: "latest" | "largest";
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Returns a page of sink transfers and the total number of transfers */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /** @description Total number of transfers */
+              count: number;
+              results: {
+                /** @description Akash address that sent the AKT */
+                owner: string;
+                /** @description Height of the block that created the transfer */
+                height: number;
+                /** @description Position of the transfer among the transfers of its block */
+                sequence: number;
+                /** @description Solana address that receives the AKT */
+                recipient: string;
+                amountUakt: number;
+                /** @enum {string} */
+                status: "pending" | "minted" | "voided" | "refund_pending" | "refunded";
+                createdAt: string;
+                /** @description Height of the block that last changed the status */
+                statusHeight: number;
+                statusUpdatedAt: string;
+              }[];
             };
           };
         };

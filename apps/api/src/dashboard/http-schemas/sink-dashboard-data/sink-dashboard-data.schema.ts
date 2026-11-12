@@ -13,7 +13,9 @@ const SinkPeriodSchema = z.object({
   refundPendingUakt: z.number(),
   refundPendingTransfers: z.number(),
   refundedUakt: z.number(),
-  refundedTransfers: z.number()
+  refundedTransfers: z.number(),
+  uniqueSenders: z.number(),
+  medianSecondsToMint: z.number().nullable()
 });
 
 export type SinkPeriodData = z.infer<typeof SinkPeriodSchema>;
