@@ -1,11 +1,4 @@
-/**
- * Animated Akash mark shown while the app boots (the initial-load gates).
- *
- * The three shards of the official mark pulse from dim to lit in a staggered chase, so the light appears to
- * travel around the mark. Delays follow the mark's visual order (bottom shard leads); the pulse keyframes live
- * in the app tailwind config (`akash-loading-shard`), while theme-token fills and `motion-reduce` classes keep
- * it following light/dark and honouring reduced motion.
- */
+/** Delays follow the mark's visual order (bottom shard leads); the pulse keyframes live in the shared tailwind config. */
 const SHARDS = [
   { d: "M321.355 279.4L400.615 419.038H240.511L160.415 279.4Z", delayMs: 600 },
   { d: "M400.572 419.061L480.536 279.423L320.476 0.0800781H160.415L400.572 419.061Z", delayMs: 300 },
@@ -21,7 +14,7 @@ export const AkashLoadingMark = ({ width = 96 }: { width?: number }) => {
         <path
           key={shard.d}
           d={shard.d}
-          className="animate-akash-loading-shard fill-border motion-reduce:animate-none motion-reduce:fill-foreground"
+          className="animate-akash-loading-shard fill-border motion-reduce:fill-foreground motion-reduce:animate-none"
           style={{ animationDelay: `${shard.delayMs}ms` }}
         />
       ))}
