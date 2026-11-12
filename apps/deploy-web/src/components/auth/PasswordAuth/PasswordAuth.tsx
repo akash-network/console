@@ -19,10 +19,12 @@ import type { SignInFormValues } from "../SignInForm/SignInForm";
 import { SignInForm } from "../SignInForm/SignInForm";
 import type { SignUpFormValues } from "../SignUpForm/SignUpForm";
 import { SignUpForm } from "../SignUpForm/SignUpForm";
+import { ReferralWelcome, TrialCreditsNotice, useSignUpTrialOffer } from "../SignUpTrialOffer/SignUpTrialOffer";
 
 export const DEPENDENCIES = {
   ForgotPasswordForm,
   OAuthRow,
+  ReferralWelcome,
   RemoteApiError,
   SignInForm,
   SignUpForm,
@@ -30,21 +32,25 @@ export const DEPENDENCIES = {
   TabsContent,
   TabsList,
   TabsTrigger,
+  TrialCreditsNotice,
   Turnstile: ClientOnlyTurnstile,
   useReturnTo,
   useRouter,
   useSearchParams,
+  useSignUpTrialOffer,
   useUser
 };
 
 interface Props {
+  referralCode?: string;
   dependencies?: typeof DEPENDENCIES;
 }
 
 type Tagged<TType extends string, TValue> = { type: TType; value: TValue };
 
-export function PasswordAuth({ dependencies: d = DEPENDENCIES }: Props = {}) {
+export function PasswordAuth({ referralCode, dependencies: d = DEPENDENCIES }: Props = {}) {
   const { authService, publicConfig, analyticsService } = useServices();
+  const trialOffer = d.useSignUpTrialOffer(referralCode);
   const router = d.useRouter();
   const searchParams = d.useSearchParams();
   const { checkSession } = d.useUser();
@@ -120,6 +126,7 @@ export function PasswordAuth({ dependencies: d = DEPENDENCIES }: Props = {}) {
 
   return (
     <>
+      {activeView !== "forgot-password" && <d.ReferralWelcome offer={trialOffer} />}
       <div className="flex w-full flex-col items-center gap-2 text-center">
         <h1 className="text-[30px] leading-9 text-neutral-950 dark:text-neutral-50">
           {activeView === "forgot-password" ? "Reset your password" : "Log in or sign up"}
@@ -129,9 +136,7 @@ export function PasswordAuth({ dependencies: d = DEPENDENCIES }: Props = {}) {
             ? "Enter your email address and we'll send you instructions to reset your password."
             : "Create your Akash account or log in to an existing one."}
         </p>
-        {activeView !== "forgot-password" && (
-          <p className="text-sm leading-5 text-neutral-500 dark:text-neutral-400">$1 credit to deploy your first container. No card required.</p>
-        )}
+        {activeView !== "forgot-password" && <d.TrialCreditsNotice offer={trialOffer} />}
       </div>
 
       <div className="relative w-full">

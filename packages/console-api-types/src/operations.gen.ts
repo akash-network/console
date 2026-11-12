@@ -435,6 +435,14 @@ export const operations = {
     },
     getAffiliateProfile: { path: "/v1/affiliates/me", method: "get", operationId: "getAffiliateProfile", pathParams: [], queryParams: [], hasBody: false },
     getReferral: { path: "/v1/referral", method: "get", operationId: "getReferral", pathParams: [], queryParams: [], hasBody: false },
+    getReferralCode: {
+      path: "/v1/referral-codes/{code}",
+      method: "get",
+      operationId: "getReferralCode",
+      pathParams: ["code"],
+      queryParams: [],
+      hasBody: false
+    },
     listOrganizations: { path: "/v1/organizations", method: "get", operationId: "listOrganizations", pathParams: [], queryParams: [], hasBody: false },
     createOrganization: { path: "/v1/organizations", method: "post", operationId: "createOrganization", pathParams: [], queryParams: [], hasBody: true },
     updateOrganization: {
