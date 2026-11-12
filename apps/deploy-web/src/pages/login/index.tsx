@@ -4,9 +4,14 @@ import { AuthPage } from "@src/components/auth/AuthPage/AuthPage";
 import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 import { isAuthenticated } from "@src/lib/nextjs/pageGuards/pageGuards";
 import { definePublicPage } from "@src/lib/pages/definePublicPage";
+import { readSignUpReferralCode } from "@src/lib/referral/referral-cookie";
 
-const LoginPage = () => {
-  return <AuthPage />;
+type LoginPageProps = {
+  referralCode: string | null;
+};
+
+const LoginPage = ({ referralCode }: LoginPageProps) => {
+  return <AuthPage referralCode={referralCode ?? undefined} />;
 };
 
 export default definePublicPage(LoginPage);
@@ -18,7 +23,8 @@ export const getServerSideProps = defineServerSideProps({
     query: z.object({
       tab: z.enum(["login", "signup", "forgot-password"]).default("login"),
       returnTo: z.union([z.string(), z.array(z.string())]).optional(),
-      from: z.union([z.string(), z.array(z.string())]).optional()
+      from: z.union([z.string(), z.array(z.string())]).optional(),
+      ref: z.union([z.string(), z.array(z.string())]).optional()
     })
   }),
   handler: async ctx => {
@@ -32,7 +38,9 @@ export const getServerSideProps = defineServerSideProps({
     }
 
     return {
-      props: {}
+      props: {
+        referralCode: readSignUpReferralCode(ctx.query.ref, ctx.req.cookies) ?? null
+      }
     };
   }
 });

@@ -29359,6 +29359,59 @@
         ]
       }
     },
+    "/v1/referral-codes/{code}": {
+      "get": {
+        "summary": "Check whether a referral code grants the referral trial credits",
+        "operationId": "getReferralCode",
+        "tags": [
+          "Affiliates"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Referral code from an affiliate's link",
+              "example": "friendcode"
+            },
+            "required": true,
+            "name": "code",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Whether the code is valid, with the trial credits a new account signing up with it gets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "valid": {
+                          "type": "boolean"
+                        },
+                        "trialCreditsUsd": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "valid"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/organizations": {
       "get": {
         "operationId": "listOrganizations",

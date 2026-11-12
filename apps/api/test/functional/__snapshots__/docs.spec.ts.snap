@@ -28199,6 +28199,59 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/referral-codes/{code}": {
+      "get": {
+        "operationId": "getReferralCode",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "description": "Referral code from an affiliate's link",
+              "example": "friendcode",
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "trialCreditsUsd": {
+                          "type": "number",
+                        },
+                        "valid": {
+                          "type": "boolean",
+                        },
+                      },
+                      "required": [
+                        "valid",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Whether the code is valid, with the trial credits a new account signing up with it gets",
+          },
+        },
+        "security": [],
+        "summary": "Check whether a referral code grants the referral trial credits",
+        "tags": [
+          "Affiliates",
+        ],
+      },
+    },
     "/v1/register-user": {
       "post": {
         "requestBody": {

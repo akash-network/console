@@ -7367,6 +7367,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/referral-codes/{code}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Check whether a referral code grants the referral trial credits */
+    get: operations["getReferralCode"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/organizations": {
     parameters: {
       query?: never;
@@ -16013,6 +16030,33 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+    };
+  };
+  getReferralCode: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        code: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Whether the code is valid, with the trial credits a new account signing up with it gets */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              valid: boolean;
+              trialCreditsUsd?: number;
+            };
+          };
+        };
       };
     };
   };

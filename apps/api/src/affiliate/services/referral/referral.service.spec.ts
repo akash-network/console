@@ -94,6 +94,40 @@ describe(ReferralService.name, () => {
     });
   });
 
+  describe("checkCode", () => {
+    it("returns the referral trial credits in dollars for an active code whose affiliate has the program enabled", async () => {
+      const affiliate = createAffiliate({ code: "friendcode" });
+      const { service, affiliateService, featureFlagsService } = setup();
+      affiliateService.findActiveByCode.mockResolvedValue(affiliate);
+
+      const result = await service.checkCode("FriendCode");
+
+      expect(affiliateService.findActiveByCode).toHaveBeenCalledWith("FriendCode");
+      expect(featureFlagsService.isEnabled).toHaveBeenCalledWith(FeatureFlags.AFFILIATE_PROGRAM, { userId: affiliate.userId });
+      expect(result).toEqual({ valid: true, trialCreditsUsd: 5 });
+    });
+
+    it("returns invalid for an unknown, malformed or revoked code", async () => {
+      const { service, affiliateService, featureFlagsService } = setup();
+      affiliateService.findActiveByCode.mockResolvedValue(undefined);
+
+      const result = await service.checkCode("bad-code");
+
+      expect(result).toEqual({ valid: false });
+      expect(featureFlagsService.isEnabled).not.toHaveBeenCalled();
+    });
+
+    it("returns invalid when the affiliate program flag is off for the affiliate", async () => {
+      const { service, affiliateService, featureFlagsService } = setup();
+      affiliateService.findActiveByCode.mockResolvedValue(createAffiliate({ code: "friendcode" }));
+      featureFlagsService.isEnabled.mockReturnValue(false);
+
+      const result = await service.checkCode("friendcode");
+
+      expect(result).toEqual({ valid: false });
+    });
+  });
+
   describe("getTrialDeploymentLimit", () => {
     it("returns the referral trial deployment allowance when the user was referred", async () => {
       const referral = createReferral({ referredUserId: "referred-user-id" });
