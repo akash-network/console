@@ -50,6 +50,17 @@ describe(OrganizationActivityService.name, () => {
     });
   });
 
+  describe("refileDeploymentActivities", () => {
+    it("re-files the deployment's activities into the project it names", async () => {
+      const { service, organizationActivityRepository } = setup();
+      const deployment = { organizationId: faker.string.uuid(), dseq: faker.string.numeric(8), projectId: faker.string.uuid() };
+
+      await service.refileDeploymentActivities(deployment);
+
+      expect(organizationActivityRepository.refileDeploymentActivities).toHaveBeenCalledWith(deployment);
+    });
+  });
+
   describe("recordTeamCreated", () => {
     it("files the activity into the new team, outside the organization the request runs in", async () => {
       const { service, organizationActivityRepository, unscopedRepository } = setup();

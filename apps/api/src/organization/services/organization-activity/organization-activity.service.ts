@@ -44,6 +44,10 @@ export class OrganizationActivityService {
     await this.organizationActivityRepository.unscoped("deployment-activity").create(activity);
   }
 
+  async refileDeploymentActivities(deployment: { organizationId: string; dseq: string; projectId: string }): Promise<void> {
+    await this.organizationActivityRepository.refileDeploymentActivities(deployment);
+  }
+
   /** Filed into the new team, which the request creating it does not run in yet. */
   async recordTeamCreated(activity: OrganizationActivityRecord<"organization_created">): Promise<void> {
     await this.organizationActivityRepository.unscoped("organization-creation").create(activity);
