@@ -14958,6 +14958,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 "outstandingAct",
                 "vaultAkt",
                 "collateralRatio",
+                "sinkMintedUakt",
+                "dailySinkMintedUakt",
+                "sinkMintedTransfers",
+                "dailySinkMintedTransfers",
+                "sinkPendingUakt",
+                "sinkVoidedUakt",
+                "sinkRefundPendingUakt",
+                "sinkRefundedUakt",
               ],
               "example": "dailyUAktSpent",
               "type": "string",
@@ -28503,6 +28511,151 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         "summary": "Sends a verification code to the authenticated user's email",
         "tags": [
           "Users",
+        ],
+      },
+    },
+    "/v1/sink/dashboard-data": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "compare": {
+                      "properties": {
+                        "dailyMintedTransfers": {
+                          "type": "number",
+                        },
+                        "dailyMintedUakt": {
+                          "type": "number",
+                        },
+                        "date": {
+                          "type": "string",
+                        },
+                        "mintedTransfers": {
+                          "type": "number",
+                        },
+                        "mintedUakt": {
+                          "type": "number",
+                        },
+                        "pendingTransfers": {
+                          "type": "number",
+                        },
+                        "pendingUakt": {
+                          "type": "number",
+                        },
+                        "refundPendingTransfers": {
+                          "type": "number",
+                        },
+                        "refundPendingUakt": {
+                          "type": "number",
+                        },
+                        "refundedTransfers": {
+                          "type": "number",
+                        },
+                        "refundedUakt": {
+                          "type": "number",
+                        },
+                        "voidedTransfers": {
+                          "type": "number",
+                        },
+                        "voidedUakt": {
+                          "type": "number",
+                        },
+                      },
+                      "required": [
+                        "date",
+                        "mintedUakt",
+                        "dailyMintedUakt",
+                        "mintedTransfers",
+                        "dailyMintedTransfers",
+                        "pendingUakt",
+                        "pendingTransfers",
+                        "voidedUakt",
+                        "voidedTransfers",
+                        "refundPendingUakt",
+                        "refundPendingTransfers",
+                        "refundedUakt",
+                        "refundedTransfers",
+                      ],
+                      "type": "object",
+                    },
+                    "now": {
+                      "properties": {
+                        "dailyMintedTransfers": {
+                          "type": "number",
+                        },
+                        "dailyMintedUakt": {
+                          "type": "number",
+                        },
+                        "date": {
+                          "type": "string",
+                        },
+                        "mintedTransfers": {
+                          "type": "number",
+                        },
+                        "mintedUakt": {
+                          "type": "number",
+                        },
+                        "pendingTransfers": {
+                          "type": "number",
+                        },
+                        "pendingUakt": {
+                          "type": "number",
+                        },
+                        "refundPendingTransfers": {
+                          "type": "number",
+                        },
+                        "refundPendingUakt": {
+                          "type": "number",
+                        },
+                        "refundedTransfers": {
+                          "type": "number",
+                        },
+                        "refundedUakt": {
+                          "type": "number",
+                        },
+                        "voidedTransfers": {
+                          "type": "number",
+                        },
+                        "voidedUakt": {
+                          "type": "number",
+                        },
+                      },
+                      "required": [
+                        "date",
+                        "mintedUakt",
+                        "dailyMintedUakt",
+                        "mintedTransfers",
+                        "dailyMintedTransfers",
+                        "pendingUakt",
+                        "pendingTransfers",
+                        "voidedUakt",
+                        "voidedTransfers",
+                        "refundPendingUakt",
+                        "refundPendingTransfers",
+                        "refundedUakt",
+                        "refundedTransfers",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "now",
+                    "compare",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Returns the current sink totals and the totals of 24 hours earlier",
+          },
+        },
+        "security": [],
+        "summary": "Get the totals of AKT transferred to Solana through the sink module",
+        "tags": [
+          "Analytics",
         ],
       },
     },
