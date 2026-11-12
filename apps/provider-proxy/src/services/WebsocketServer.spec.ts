@@ -4,7 +4,7 @@ import { mock } from "vitest-mock-extended";
 import WebSocket from "ws";
 import { z } from "zod";
 
-import { emitVerifiedWhenOpen, isJwtExpiredError } from "./WebsocketServer";
+import { emitVerifiedWhenOpen, isJwtExpiredError, isShellWithoutStdin, stopAnsweringPings } from "./WebsocketServer";
 
 describe("emitVerifiedWhenOpen", () => {
   it("emits 'verified' synchronously when the socket is already OPEN", () => {
@@ -138,4 +138,27 @@ describe("isJwtExpiredError", () => {
   function buildZodError(issues: z.ZodIssue[]) {
     return new z.ZodError(issues);
   }
+});
+
+describe(isShellWithoutStdin.name, () => {
+  it.each([
+    { session: "a shell without stdin", path: "/lease/1/1/1/shell?stdin=0&tty=0&podIndex=0&cmd0=cat", expected: true },
+    { session: "a shell with stdin", path: "/lease/1/1/1/shell?stdin=1&tty=1&podIndex=0&cmd0=sh", expected: false },
+    { session: "a log stream", path: "/lease/1/1/1/logs?follow=true&tail=100", expected: false },
+    { session: "an event stream", path: "/lease/1/1/1/kubeevents?follow=true", expected: false }
+  ])("returns $expected for $session", ({ path, expected }) => {
+    expect(isShellWithoutStdin(`wss://provider.example.com:8443${path}`)).toBe(expected);
+  });
+});
+
+describe(stopAnsweringPings.name, () => {
+  it("keeps the socket from sending pongs", () => {
+    const ws = mock<WebSocket>();
+    const { pong: sendPong } = ws;
+
+    stopAnsweringPings(ws);
+    ws.pong();
+
+    expect(sendPong).not.toHaveBeenCalled();
+  });
 });
