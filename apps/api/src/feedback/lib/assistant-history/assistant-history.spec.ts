@@ -82,6 +82,18 @@ describe("assistant history", () => {
       expect(actions.join("\n")).not.toContain("insufficient funds");
     });
 
+    it("redacts a card name before cutting it", () => {
+      const keyBody = "A".repeat(MAX_RECENT_ACTION_NAME_LENGTH);
+      const name = `-----BEGIN RSA PRIVATE KEY-----\n${keyBody}\n-----END RSA PRIVATE KEY-----`;
+
+      const actions = recentActionsOf([
+        { toolName: "propose_rename_deployment", toolPayload: { proposalId: "p1", action: { name } }, createdAt: at },
+        { toolName: ACTION_RESULT_TOOL_NAME, toolPayload: { proposalId: "p1", actionType: "rename_deployment", decision: "cancelled" }, createdAt: at }
+      ]);
+
+      expect(actions).toEqual([`rename deployment named "${REDACTED}": cancelled at 2026-11-06 05:38 UTC`]);
+    });
+
     it("keeps only the latest outcomes", () => {
       const outcomes = Array.from({ length: MAX_RECENT_ACTIONS + 1 }, (_, index) => ({
         toolName: ACTION_RESULT_TOOL_NAME,

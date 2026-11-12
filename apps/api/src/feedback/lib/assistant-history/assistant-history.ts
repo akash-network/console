@@ -61,7 +61,7 @@ interface StoredToolMessage {
 
 function targetOf(action: z.infer<typeof ProposalPayloadSchema>["action"] | undefined): string {
   if (action?.dseq) return ` on deployment ${action.dseq}`;
-  return action?.name ? ` named ${JSON.stringify(action.name.slice(0, MAX_RECENT_ACTION_NAME_LENGTH))}` : "";
+  return action?.name ? ` named ${JSON.stringify(redactSecrets(action.name).slice(0, MAX_RECENT_ACTION_NAME_LENGTH))}` : "";
 }
 
 function minuteOf(date: Date): string {
