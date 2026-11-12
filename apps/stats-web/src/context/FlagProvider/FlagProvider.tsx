@@ -1,6 +1,6 @@
 import type { FC, ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { Spinner } from "@akashnetwork/ui/components";
+import { AkashLoadingMark } from "@akashnetwork/ui/components";
 import { FlagProvider as FlagProviderOriginal, useUnleashClient } from "@unleash/nextjs";
 
 import { browserEnvConfig } from "../../config/browser-env.config";
@@ -62,8 +62,8 @@ function WaitForFeatureFlags({ children }: { children: ReactNode }) {
 
   if (!isReady) {
     return (
-      <div className="flex items-center justify-center p-4">
-        <Spinner size="large" />
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
+        <AkashLoadingMark />
       </div>
     );
   }
