@@ -325,6 +325,13 @@ export class StatsRepository {
           ORDER BY t."height" DESC
           LIMIT 1
         ) s
+        WHERE d."firstBlockHeight" <= (
+          SELECT b."height"
+          FROM "block" b
+          WHERE b."isProcessed" = true
+          ORDER BY b."height" DESC
+          LIMIT 1
+        )
         ORDER BY d."date" ASC`,
       { type: QueryTypes.SELECT }
     );

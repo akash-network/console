@@ -76,6 +76,19 @@ describe(StatsRepository.name, () => {
       ]);
       expect(dailyTotals.map(totals => totals.date)).not.toContainEqual(dayBeforeMigration.date);
     });
+
+    it("leaves out the days whose blocks are not processed yet", async () => {
+      const { repository } = await setup();
+      const processedDay = await createDay({ date: new Date("2026-11-09T00:00:00Z"), firstBlockHeight: 101, lastBlockHeight: 200, lastBlockHeightYet: 200 });
+      const unprocessedDay = await createDay({ date: new Date("2026-11-10T00:00:00Z"), firstBlockHeight: 201, lastBlockHeightYet: 250 });
+      await unprocessedDay.update({ lastBlockHeight: null });
+      await createSnapshot({ height: 150, dayId: processedDay.id, mintedAmount: "100", mintedCount: 1 });
+      await createAkashBlock({ height: 201, dayId: unprocessedDay.id, isProcessed: false });
+
+      const dailyTotals = await repository.findSinkDailyTotals();
+
+      expect(dailyTotals).toEqual([{ ...zeroTotals(), date: processedDay.date, mintedUakt: 100, mintedTransfers: 1 }]);
+    });
   });
 
   describe("findSinkDashboardData", () => {
