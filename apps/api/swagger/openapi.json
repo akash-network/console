@@ -8431,6 +8431,11 @@
                         "maxLength": 255,
                         "pattern": "^[^/\\\\]+$",
                         "description": "ID of the gallery template the SDL came from, as listed by GET /v1/templates. Console links the deployment to that template's guide. Not checked against the gallery."
+                      },
+                      "templateVersionId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "ID of the template version the SDL came from. Readers of the template may name its current version and its editors any version. Cannot be combined with `templateId`."
                       }
                     },
                     "required": [
@@ -44875,126 +44880,29 @@
         ]
       },
       "TemplateVersionSummary": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/TemplateVersionFields"
           },
-          "templateId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "version": {
-            "type": "integer",
-            "minimum": 0,
-            "exclusiveMinimum": true
-          },
-          "resources": {
+          {
             "type": "object",
-            "nullable": true,
             "properties": {
-              "cpu": {
-                "type": "number",
-                "description": "vCPUs across every service and replica"
-              },
-              "memoryBytes": {
-                "type": "number"
-              },
-              "storageBytes": {
-                "type": "number",
-                "description": "Ephemeral and persistent storage combined"
-              },
-              "gpu": {
-                "type": "object",
-                "properties": {
-                  "units": {
-                    "type": "number"
-                  },
-                  "models": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "description": "Model names, or a vendor name when any of its models will do; empty when any GPU will do"
-                  }
-                },
-                "required": [
-                  "units",
-                  "models"
-                ]
+              "deploys": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Deploys made from Console on mainnet"
               }
             },
             "required": [
-              "cpu",
-              "memoryBytes",
-              "storageBytes"
-            ],
-            "description": "Null when the version recorded none"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "live",
-              "held",
-              "failed_checks"
+              "deploys"
             ]
-          },
-          "changes": {
-            "type": "array",
-            "nullable": true,
-            "items": {
-              "type": "string",
-              "enum": [
-                "first_version",
-                "service_added",
-                "service_removed",
-                "image_changed",
-                "image_tag_changed",
-                "env_changed",
-                "ports_changed",
-                "resources_changed",
-                "asked_value_added",
-                "asked_value_removed",
-                "asked_value_changed",
-                "readme_changed"
-              ]
-            },
-            "description": "What this version changed from the one before it, null for a version saved before changes were recorded"
-          },
-          "createdBy": {
-            "type": "object",
-            "nullable": true,
-            "properties": {
-              "username": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "username"
-            ],
-            "description": "Null when the creator deleted their account or has no username"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
           }
-        },
-        "required": [
-          "id",
-          "templateId",
-          "version",
-          "resources",
-          "status",
-          "changes",
-          "createdBy",
-          "createdAt"
         ]
       },
       "TemplateVersion": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/TemplateVersionSummary"
+            "$ref": "#/components/schemas/TemplateVersionFields"
           },
           {
             "type": "object",
@@ -45269,6 +45177,34 @@
           "isFavorite": {
             "type": "boolean",
             "description": "Whether the caller made the template a favorite, false without a session"
+          },
+          "usage": {
+            "type": "object",
+            "properties": {
+              "deploys": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Deploys made from Console on mainnet"
+              },
+              "lastDeployedAt": {
+                "type": "string",
+                "nullable": true,
+                "format": "date-time",
+                "description": "The latest mainnet deploy made from Console, null before the first"
+              },
+              "stillUpAfter24h": {
+                "type": "number",
+                "nullable": true,
+                "minimum": 0,
+                "maximum": 1,
+                "description": "The share of mainnet leases older than a day whose deployment was still running a day later, null below five such leases"
+              }
+            },
+            "required": [
+              "deploys",
+              "lastDeployedAt",
+              "stillUpAfter24h"
+            ]
           }
         },
         "required": [
@@ -45289,7 +45225,8 @@
           "publisher",
           "currentVersion",
           "canEdit",
-          "isFavorite"
+          "isFavorite",
+          "usage"
         ]
       },
       "GetUserTemplateResponse": {
@@ -45605,6 +45542,26 @@
           "canEdit": {
             "type": "boolean",
             "description": "Whether the caller may change the template"
+          },
+          "usage": {
+            "type": "object",
+            "properties": {
+              "deploys": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Deploys made from Console on mainnet"
+              },
+              "lastDeployedAt": {
+                "type": "string",
+                "nullable": true,
+                "format": "date-time",
+                "description": "The latest mainnet deploy made from Console, null before the first"
+              }
+            },
+            "required": [
+              "deploys",
+              "lastDeployedAt"
+            ]
           }
         },
         "required": [
@@ -45621,7 +45578,8 @@
           "updatedAt",
           "currentVersion",
           "lastEditedBy",
-          "canEdit"
+          "canEdit",
+          "usage"
         ]
       },
       "ListUserTemplatesResponse": {
@@ -45760,6 +45718,123 @@
         },
         "required": [
           "data"
+        ]
+      },
+      "TemplateVersionFields": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "templateId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0,
+            "exclusiveMinimum": true
+          },
+          "resources": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "cpu": {
+                "type": "number",
+                "description": "vCPUs across every service and replica"
+              },
+              "memoryBytes": {
+                "type": "number"
+              },
+              "storageBytes": {
+                "type": "number",
+                "description": "Ephemeral and persistent storage combined"
+              },
+              "gpu": {
+                "type": "object",
+                "properties": {
+                  "units": {
+                    "type": "number"
+                  },
+                  "models": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Model names, or a vendor name when any of its models will do; empty when any GPU will do"
+                  }
+                },
+                "required": [
+                  "units",
+                  "models"
+                ]
+              }
+            },
+            "required": [
+              "cpu",
+              "memoryBytes",
+              "storageBytes"
+            ],
+            "description": "Null when the version recorded none"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "live",
+              "held",
+              "failed_checks"
+            ]
+          },
+          "changes": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "first_version",
+                "service_added",
+                "service_removed",
+                "image_changed",
+                "image_tag_changed",
+                "env_changed",
+                "ports_changed",
+                "resources_changed",
+                "asked_value_added",
+                "asked_value_removed",
+                "asked_value_changed",
+                "readme_changed"
+              ]
+            },
+            "description": "What this version changed from the one before it, null for a version saved before changes were recorded"
+          },
+          "createdBy": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "username": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "username"
+            ],
+            "description": "Null when the creator deleted their account or has no username"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "templateId",
+          "version",
+          "resources",
+          "status",
+          "changes",
+          "createdBy",
+          "createdAt"
         ]
       }
     },

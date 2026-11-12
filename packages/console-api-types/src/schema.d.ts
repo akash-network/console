@@ -9070,52 +9070,11 @@ export interface components {
           /** @enum {string} */
           type: "secret";
         };
-    TemplateVersionSummary: {
-      /** Format: uuid */
-      id: string;
-      /** Format: uuid */
-      templateId: string;
-      version: number;
-      /** @description Null when the version recorded none */
-      resources: {
-        /** @description vCPUs across every service and replica */
-        cpu: number;
-        memoryBytes: number;
-        /** @description Ephemeral and persistent storage combined */
-        storageBytes: number;
-        gpu?: {
-          units: number;
-          /** @description Model names, or a vendor name when any of its models will do; empty when any GPU will do */
-          models: string[];
-        };
-      } | null;
-      /** @enum {string} */
-      status: "live" | "held" | "failed_checks";
-      /** @description What this version changed from the one before it, null for a version saved before changes were recorded */
-      changes:
-        | (
-            | "first_version"
-            | "service_added"
-            | "service_removed"
-            | "image_changed"
-            | "image_tag_changed"
-            | "env_changed"
-            | "ports_changed"
-            | "resources_changed"
-            | "asked_value_added"
-            | "asked_value_removed"
-            | "asked_value_changed"
-            | "readme_changed"
-          )[]
-        | null;
-      /** @description Null when the creator deleted their account or has no username */
-      createdBy: {
-        username: string;
-      } | null;
-      /** Format: date-time */
-      createdAt: string;
+    TemplateVersionSummary: components["schemas"]["TemplateVersionFields"] & {
+      /** @description Deploys made from Console on mainnet */
+      deploys: number;
     };
-    TemplateVersion: components["schemas"]["TemplateVersionSummary"] & {
+    TemplateVersion: components["schemas"]["TemplateVersionFields"] & {
       sdl: string;
       readme: string | null;
       askedValues: components["schemas"]["TemplateAskedValue"][];
@@ -9212,6 +9171,17 @@ export interface components {
       canEdit: boolean;
       /** @description Whether the caller made the template a favorite, false without a session */
       isFavorite: boolean;
+      usage: {
+        /** @description Deploys made from Console on mainnet */
+        deploys: number;
+        /**
+         * Format: date-time
+         * @description The latest mainnet deploy made from Console, null before the first
+         */
+        lastDeployedAt: string | null;
+        /** @description The share of mainnet leases older than a day whose deployment was still running a day later, null below five such leases */
+        stillUpAfter24h: number | null;
+      };
     };
     GetUserTemplateResponse: {
       data: components["schemas"]["MarketplaceTemplate"];
@@ -9348,6 +9318,15 @@ export interface components {
       } | null;
       /** @description Whether the caller may change the template */
       canEdit: boolean;
+      usage: {
+        /** @description Deploys made from Console on mainnet */
+        deploys: number;
+        /**
+         * Format: date-time
+         * @description The latest mainnet deploy made from Console, null before the first
+         */
+        lastDeployedAt: string | null;
+      };
     };
     ListUserTemplatesResponse: {
       data: components["schemas"]["UserTemplateListItem"][];
@@ -9431,6 +9410,51 @@ export interface components {
     };
     CreateUserTemplateVersionResponse: {
       data: components["schemas"]["TemplateVersion"];
+    };
+    TemplateVersionFields: {
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      templateId: string;
+      version: number;
+      /** @description Null when the version recorded none */
+      resources: {
+        /** @description vCPUs across every service and replica */
+        cpu: number;
+        memoryBytes: number;
+        /** @description Ephemeral and persistent storage combined */
+        storageBytes: number;
+        gpu?: {
+          units: number;
+          /** @description Model names, or a vendor name when any of its models will do; empty when any GPU will do */
+          models: string[];
+        };
+      } | null;
+      /** @enum {string} */
+      status: "live" | "held" | "failed_checks";
+      /** @description What this version changed from the one before it, null for a version saved before changes were recorded */
+      changes:
+        | (
+            | "first_version"
+            | "service_added"
+            | "service_removed"
+            | "image_changed"
+            | "image_tag_changed"
+            | "env_changed"
+            | "ports_changed"
+            | "resources_changed"
+            | "asked_value_added"
+            | "asked_value_removed"
+            | "asked_value_changed"
+            | "readme_changed"
+          )[]
+        | null;
+      /** @description Null when the creator deleted their account or has no username */
+      createdBy: {
+        username: string;
+      } | null;
+      /** Format: date-time */
+      createdAt: string;
     };
   };
   responses: never;
@@ -12349,6 +12373,11 @@ export interface operations {
             projectId?: string;
             /** @description ID of the gallery template the SDL came from, as listed by GET /v1/templates. Console links the deployment to that template's guide. Not checked against the gallery. */
             templateId?: string;
+            /**
+             * Format: uuid
+             * @description ID of the template version the SDL came from. Readers of the template may name its current version and its editors any version. Cannot be combined with `templateId`.
+             */
+            templateVersionId?: string;
           };
         };
       };
