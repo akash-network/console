@@ -33844,6 +33844,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -33883,6 +33889,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -33933,6 +33945,12 @@
             "required": true,
             "name": "version",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {

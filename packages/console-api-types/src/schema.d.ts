@@ -18546,7 +18546,12 @@ export interface operations {
   getUserTemplate: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         id: string;
       };
@@ -18582,7 +18587,12 @@ export interface operations {
   listUserTemplateVersions: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         id: string;
       };
@@ -18618,7 +18628,12 @@ export interface operations {
   getUserTemplateVersion: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         id: string;
         version: number;

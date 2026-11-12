@@ -24,6 +24,7 @@ const getUserTemplateRoute = createRoute({
   summary: "Get a template the caller may read, with its current version",
   tags: ["Templates"],
   security: SECURITY_NONE,
+  readsOrganizationContext: true,
   featureFlag: FeatureFlags.TEMPLATE_MARKETPLACE,
   request: {
     params: UserTemplateParamsSchema
@@ -50,6 +51,7 @@ const listUserTemplateVersionsRoute = createRoute({
   summary: "List the versions of a template the caller may read, newest first",
   tags: ["Templates"],
   security: SECURITY_NONE,
+  readsOrganizationContext: true,
   featureFlag: FeatureFlags.TEMPLATE_MARKETPLACE,
   request: {
     params: UserTemplateParamsSchema
@@ -76,6 +78,7 @@ const getUserTemplateVersionRoute = createRoute({
   summary: "Get one version of a template the caller may read",
   tags: ["Templates"],
   security: SECURITY_NONE,
+  readsOrganizationContext: true,
   featureFlag: FeatureFlags.TEMPLATE_MARKETPLACE,
   request: {
     params: UserTemplateVersionParamsSchema

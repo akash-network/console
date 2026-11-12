@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 import { z } from "zod";
 
-import { createRoute, HIDDEN_ROUTES, UNDOCUMENTED_REQUEST_FIELDS } from "../../lib/create-route/create-route";
+import { createRoute, HIDDEN_ROUTES, ORGANIZATION_AWARE_OPEN_ROUTES, UNDOCUMENTED_REQUEST_FIELDS } from "../../lib/create-route/create-route";
 import { OpenApiHonoHandler } from "../open-api-hono-handler/open-api-hono-handler";
 import { OpenApiDocsService } from "./openapi-docs.service";
 import { SECURITY_BEARER_OR_API_KEY, SECURITY_NONE } from "./openapi-security";
@@ -24,6 +24,7 @@ describe("OpenApiDocsService", () => {
     // buildHandler mutates the process-wide HIDDEN_ROUTES set; clear it so tests stay isolated.
     HIDDEN_ROUTES.clear();
     UNDOCUMENTED_REQUEST_FIELDS.clear();
+    ORGANIZATION_AWARE_OPEN_ROUTES.clear();
   });
 
   it("loads the notifications spec from disk when source = file", async () => {
@@ -266,6 +267,25 @@ describe("OpenApiDocsService", () => {
       expect(docs.paths["/v1/test-public"].get?.parameters).toBeUndefined();
     });
 
+    it("lists them on a public route whose answer depends on the caller's organization", async () => {
+      const { service } = setup({});
+
+      const docs = await service.generateDocs([buildOrganizationContextHandler()], { scope: "console" });
+
+      expect(docs.paths["/v1/test-organization-aware/{id}"].get?.parameters).toEqual([
+        expect.objectContaining({ name: "id", in: "path" }),
+        ...ORGANIZATION_CONTEXT_PARAMETER_REFS
+      ]);
+    });
+
+    it("recognizes such a route by its method and path when it declares no operationId", async () => {
+      const { service } = setup({});
+
+      const docs = await service.generateDocs([buildOrganizationContextHandler()], { scope: "console" });
+
+      expect(docs.paths["/v1/test-organization-aware"].post?.parameters).toEqual(ORGANIZATION_CONTEXT_PARAMETER_REFS);
+    });
+
     it("lists them once per operation however many documents are generated", async () => {
       const { service } = setup({});
       const handler = buildOrganizationContextHandler();
@@ -342,10 +362,32 @@ describe("OpenApiDocsService", () => {
         security: SECURITY_NONE,
         responses: { 200: { description: "OK" } }
       });
+      const organizationAwarePublicRoute = createRoute({
+        method: "get",
+        path: "/v1/test-organization-aware/{id}",
+        operationId: "getTestOrganizationAware",
+        summary: "Public route that answers a signed-in caller from its organization",
+        tags: ["Test"],
+        security: SECURITY_NONE,
+        readsOrganizationContext: true,
+        request: { params: z.object({ id: z.string() }) },
+        responses: { 200: { description: "OK" } }
+      });
+      const organizationAwarePublicRouteWithoutOperationId = createRoute({
+        method: "post",
+        path: "/v1/test-organization-aware",
+        summary: "Public route without an operationId that answers a signed-in caller from its organization",
+        tags: ["Test"],
+        security: SECURITY_NONE,
+        readsOrganizationContext: true,
+        responses: { 200: { description: "OK" } }
+      });
       const handler = new OpenApiHonoHandler();
       handler.openapi(signedInRoute, c => c.body(null, 200));
       handler.openapi(signedInRouteWithoutParameters, c => c.body(null, 200));
       handler.openapi(publicRoute, c => c.body(null, 200));
+      handler.openapi(organizationAwarePublicRoute, c => c.body(null, 200));
+      handler.openapi(organizationAwarePublicRouteWithoutOperationId, c => c.body(null, 200));
       return handler;
     }
   });
