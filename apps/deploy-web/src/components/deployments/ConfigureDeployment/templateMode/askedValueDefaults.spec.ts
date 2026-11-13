@@ -222,10 +222,15 @@ describe("looksLikeSecret", () => {
     expect(looksLikeSecret("DATABASE_URL", value)).toBe(false);
   });
 
-  it("does not flag a value with whitespace inside", () => {
-    expect(looksLikeSecret("API_KEY", "abcd 1234")).toBe(false);
+  it("does not flag a value with whitespace inside under a key that does not sound secret", () => {
+    expect(looksLikeSecret("MODEL_NAME", "abcd 1234")).toBe(false);
     expect(looksLikeSecret("X", `${RANDOM_TOKEN.slice(0, 12)} ${RANDOM_TOKEN.slice(12)}`)).toBe(false);
     expect(looksLikeSecret("X", "sk-1234567 890123456")).toBe(false);
+  });
+
+  it("flags a passphrase with whitespace inside under a secret-sounding key", () => {
+    expect(looksLikeSecret("DB_PASSWORD", "correct horse battery staple")).toBe(true);
+    expect(looksLikeSecret("API_KEY", "abcd 1234")).toBe(true);
   });
 
   it("never flags a secret reference", () => {

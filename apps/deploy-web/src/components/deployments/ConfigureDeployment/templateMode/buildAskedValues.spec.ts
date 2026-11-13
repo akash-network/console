@@ -619,6 +619,16 @@ describe(buildAskedValues.name, () => {
       expect(keys.indexOf("LATE_TOKEN")).toBe(49);
     });
 
+    it("keeps every secret even past 50 values, leaving no room for plain ones", () => {
+      const secrets = Array.from({ length: 51 }, (_, index) => ({ key: `TOKEN_${index}`, value: `ac-secret://TOKEN_${index}`, isSecret: true }));
+      const { build } = setup({ services: [{ title: "web", env: [{ key: "MODEL", value: "llama" }, ...secrets] }], asked: ["MODEL"] });
+
+      const keys = build().map(value => value.key);
+      expect(keys).toHaveLength(51);
+      expect(keys).toContain("TOKEN_50");
+      expect(keys).not.toContain("MODEL");
+    });
+
     it("keeps the first appearance order of secrets and plain values it keeps", () => {
       const rows = [
         { key: "A", value: "x" },
@@ -852,6 +862,18 @@ describe(sealSharedSecretKeys.name, () => {
         ["MODEL", undefined]
       ]
     ]);
+  });
+
+  it("seals the plain rows of a key asked as a secret even past 50 secrets", () => {
+    const secrets = Array.from({ length: 51 }, (_, index) => ({ key: `TOKEN_${index}`, value: `ac-secret://TOKEN_${index}`, isSecret: true }));
+    const { sealed } = setup({
+      services: [
+        { title: "web", env: secrets },
+        { title: "worker", env: [{ key: "TOKEN_50", value: "plain-shared-value" }] }
+      ]
+    });
+
+    expect(sealed[1].env).toEqual([expect.objectContaining({ key: "TOKEN_50", isSecret: true })]);
   });
 
   it("leaves rows alone when no key is asked as a secret", () => {

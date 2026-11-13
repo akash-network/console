@@ -52,10 +52,11 @@ export function isAskableKey(key: string): boolean {
   return ASKED_VALUE_KEY_PATTERN.test(key);
 }
 
+/** A secret cut to fit would leave its plain rows unsealed, so only plain values are cut and more than 50 secrets is left to the api to refuse. */
 function capKeepingSecrets(askedValues: TemplateAskedValue[]): TemplateAskedValue[] {
   const secrets = askedValues.filter(value => value.type === "secret");
   const plain = askedValues.filter(value => value.type !== "secret");
-  const kept = new Set([...secrets, ...plain].slice(0, MAX_ASKED_VALUES));
+  const kept = new Set([...secrets, ...plain.slice(0, Math.max(MAX_ASKED_VALUES - secrets.length, 0))]);
   return askedValues.filter(value => kept.has(value));
 }
 

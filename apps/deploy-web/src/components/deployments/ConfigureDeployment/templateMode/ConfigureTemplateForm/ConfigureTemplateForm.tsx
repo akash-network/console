@@ -140,10 +140,13 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({
   const services = useWatch({ control: form.control, name: "services" });
   const placements = useWatch({ control: form.control, name: "placements" });
   const placementRegionPicks = useMemo(() => severalRegionPicksOf(placements), [placements]);
-  const draftableStartingSdl = useMemo(() => startingSdl && draftableSdlOf(startingSdl, services), [startingSdl, services]);
+  const askedValues = useMemo(() => buildAskedValues(services, templateMode.settings), [services, templateMode.settings]);
+  const draftableStartingSdl = useMemo(
+    () => startingSdl && draftableSdlOf(startingSdl, sealSharedSecretKeys(services, askedValues)),
+    [startingSdl, services, askedValues]
+  );
   const selectedPlacement = resolveSelectedPlacement(services, placements, selectedServiceId || lastSelectedServiceId.current);
   const lastSelectedPlacementId = useRef(selectedPlacement.id);
-  const askedValues = useMemo(() => buildAskedValues(services, templateMode.settings), [services, templateMode.settings]);
   const askedSummary = useMemo(() => summarizeAskedValues(askedValues, services), [askedValues, services]);
   const [hasRestoredEdits] = useState(() => isEditing && draft.persistedSdl !== undefined);
   const isDirty = hasRestoredEdits || templateMode.isDirty || form.formState.isDirty || liveSdl !== initialContent.sdl;

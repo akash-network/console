@@ -447,6 +447,20 @@ describe(ConfigureTemplateForm.name, () => {
     );
   });
 
+  it("keeps a plain value of a key that is a secret in another service out of the draft's starting SDL", () => {
+    vi.useFakeTimers();
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const { draft } = setup({ intent: NEW_INTENT, sdl: SHARED_KEY_SDL });
+
+    act(() => vi.advanceTimersByTime(300));
+
+    const startingSdl = draft.save.mock.lastCall?.[3];
+    expect(startingSdl).toContain("image: ghcr.io/berriai/litellm");
+    expect(startingSdl).not.toContain("sk-plain-shared-value");
+  });
+
   it("replaces the configuration with an imported SDL", () => {
     const { SdlImportExport, SdlImportChangesBanner } = setup({ intent: NEW_INTENT });
     const importState = SdlImportExport.mock.lastCall?.[0].onImport;

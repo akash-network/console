@@ -72,11 +72,12 @@ export function guessAskedValue(row: { value: string; isSecret: boolean }): Aske
 
 export function looksLikeSecret(key: string, value: string): boolean {
   const candidate = value.trim();
-  if (candidate === "" || /\s/.test(candidate) || isSdlReference(candidate)) return false;
+  if (candidate === "" || isSdlReference(candidate)) return false;
+  if (SECRET_KEY_PATTERN.test(key) && candidate.length >= MIN_KEYED_SECRET_LENGTH) return true;
+  if (/\s/.test(candidate)) return false;
 
   const hasKnownPrefix = SECRET_VALUE_PREFIXES.some(prefix => candidate.startsWith(prefix));
   if (hasKnownPrefix && candidate.length >= MIN_PREFIXED_SECRET_LENGTH) return true;
-  if (SECRET_KEY_PATTERN.test(key) && candidate.length >= MIN_KEYED_SECRET_LENGTH) return true;
   if (URL_CREDENTIALS_PATTERN.test(candidate)) return true;
   return looksRandom(candidate);
 }
