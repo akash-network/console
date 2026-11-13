@@ -98,6 +98,16 @@ describe(TemplateSettingsTab.name, () => {
     expect(updateSettings).toHaveBeenCalledWith({ id: "tpl-webui", data: { icon: "server" } });
   });
 
+  it("leaves a saved title with surrounding spaces alone when another field changes", async () => {
+    const { user, updateSettings } = setup({ template: { ...TEMPLATE, title: `  ${"t".repeat(80)}  ` } });
+
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    await user.click(screen.getByRole("radio", { name: "server" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(updateSettings).toHaveBeenCalledWith({ id: "tpl-webui", data: { icon: "server" } });
+  });
+
   it("still blocks a title edited to stay over the limit", async () => {
     const { user } = setup({ template: { ...TEMPLATE, title: "t".repeat(255) } });
 

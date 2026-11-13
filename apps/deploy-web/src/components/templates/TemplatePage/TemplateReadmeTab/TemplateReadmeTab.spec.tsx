@@ -2,7 +2,7 @@ import { ApiError } from "@akashnetwork/openapi-sdk";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { TemplateAskedValue } from "@src/types/marketplace-template";
+import type { TemplateAskedValue, TemplateVersionDetail } from "@src/types/marketplace-template";
 import { DEPENDENCIES, TemplateReadmeTab } from "./TemplateReadmeTab";
 
 import { fireEvent, render, screen } from "@testing-library/react";
@@ -135,6 +135,21 @@ describe(TemplateReadmeTab.name, () => {
     expect(enqueueSnackbar).not.toHaveBeenCalled();
   });
 
+  it("saves an open draft onto the version it was opened from when a newer one arrives", async () => {
+    const { createVersion, showVersion } = setup({ canEdit: true });
+
+    await userEvent.click(screen.getByRole("button", { name: "Edit README" }));
+    await userEvent.type(screen.getByRole("textbox", { name: "README" }), " edited");
+    showVersion(buildTemplateVersion({ version: 4, sdl: 'version: "2.0"\n', askedValues: [], readme: "# Newer" }));
+
+    expect(screen.getByRole("textbox", { name: "README" })).toHaveValue(`${README} edited`);
+    await userEvent.click(screen.getByRole("button", { name: "Save README" }));
+    expect(createVersion).toHaveBeenCalledWith({
+      id: "tpl-webui",
+      data: { sdl: SDL, askedValues: [ADMIN_EMAIL], readme: `${README} edited`, baseVersion: 3 }
+    });
+  });
+
   it("forgets the newer-version warning once the editor is closed", async () => {
     setup({ canEdit: true, saveError: new ApiError(409, { message: "Version 3 is no longer current" }, "conflict") });
 
@@ -218,8 +233,12 @@ describe(TemplateReadmeTab.name, () => {
       useSnackbar: () => snackbar
     });
 
-    const { container } = render(<TemplateReadmeTab templateId="tpl-webui" version={version} canEdit={input.canEdit ?? false} dependencies={dependencies} />);
+    const { container, rerender } = render(
+      <TemplateReadmeTab templateId="tpl-webui" version={version} canEdit={input.canEdit ?? false} dependencies={dependencies} />
+    );
+    const showVersion = (next: TemplateVersionDetail) =>
+      rerender(<TemplateReadmeTab templateId="tpl-webui" version={next} canEdit={input.canEdit ?? false} dependencies={dependencies} />);
 
-    return { createVersion, enqueueSnackbar, Markdown, container };
+    return { createVersion, enqueueSnackbar, Markdown, container, showVersion };
   }
 });

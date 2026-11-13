@@ -6,10 +6,10 @@ type ServiceLines = { image: Set<string>; env: Set<string> };
 
 const FIELDS = ["image", "env"] as const;
 
-export function describeVersionDiff(previousSdl: string | undefined, nextSdl: string): VersionDiffEntry[] {
+export function describeVersionDiff(previousSdl: string | undefined, nextSdl: string): VersionDiffEntry[] | null {
   const previous = previousSdl === undefined ? new Map<string, ServiceLines>() : readServices(previousSdl);
   const next = readServices(nextSdl);
-  if (!previous || !next) return [];
+  if (!previous || !next) return null;
 
   const serviceNames = [...next.keys(), ...[...previous.keys()].filter(name => !next.has(name))];
 

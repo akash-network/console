@@ -354,7 +354,7 @@ function findChanges(
   form: { title: string; summary: string; icon: TemplateIconId | null; categories: TemplateCategory[]; visibility: SettableVisibility | undefined }
 ): Changes {
   const changes: Changes = {};
-  if (form.title.trim() !== template.title) changes.title = form.title.trim();
+  if (form.title.trim() !== template.title.trim()) changes.title = form.title.trim();
   if (form.summary.trim() !== (template.summary ?? "").trim()) changes.summary = form.summary.trim() || null;
   if (form.icon !== findKnownIcon(template.icon)) changes.icon = form.icon;
   if (!isSameSet(form.categories, findKnownCategories(template.categories))) changes.categories = form.categories;

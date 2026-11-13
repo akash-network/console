@@ -148,6 +148,40 @@ describe(TemplatePage.name, () => {
     expect(mountReadme.mock.calls).toEqual([[3], [2]]);
   });
 
+  it("keeps an open README draft when a refetch brings a newer current version", async () => {
+    const mountReadme = vi.fn();
+    const TemplateReadmeTab = vi.fn<typeof DEPENDENCIES.TemplateReadmeTab>(({ version }) => {
+      useEffect(() => mountReadme(version.version), []);
+      return null;
+    });
+    const { receiveFromServer } = setup({ template: { ...TEMPLATE, canEdit: true }, TemplateReadmeTab });
+
+    const nextVersion = buildTemplateVersion({ templateId: TEMPLATE_ID, version: 4, readme: "# Open WebUI (v4)" });
+    receiveFromServer({ template: { ...TEMPLATE, canEdit: true, currentVersion: nextVersion } });
+
+    expect(mountReadme.mock.calls).toEqual([[3]]);
+    expect(TemplateReadmeTab).toHaveBeenLastCalledWith(
+      { templateId: TEMPLATE_ID, version: expect.objectContaining({ version: 4 }), canEdit: true },
+      expect.anything()
+    );
+  });
+
+  it("keeps the README mounted on another tab, so an open draft survives the switch", async () => {
+    const unmountReadme = vi.fn();
+    const TemplateReadmeTab = vi.fn<typeof DEPENDENCIES.TemplateReadmeTab>(() => {
+      useEffect(() => unmountReadme, []);
+      return <p>README editor</p>;
+    });
+    const { router, receiveFromServer } = setup({ template: { ...TEMPLATE, canEdit: true }, TemplateReadmeTab });
+
+    router.query = { id: TEMPLATE_ID, tab: "versions" };
+    receiveFromServer({ template: { ...TEMPLATE, canEdit: true } });
+
+    expect(screen.getByRole("tab", { name: /Versions/ })).toHaveAttribute("aria-selected", "true");
+    expect(unmountReadme).not.toHaveBeenCalled();
+    expect(screen.getByRole("tabpanel", { name: "README", hidden: true })).toHaveAttribute("data-state", "inactive");
+  });
+
   it("follows a new current version once the current one is picked again", async () => {
     const { receiveFromServer, TemplateReadmeTab } = setup({ template: { ...TEMPLATE, canEdit: true } });
     await userEvent.click(screen.getByRole("combobox", { name: "Version" }));

@@ -34,9 +34,15 @@ export const TemplateReadmeTab: FC<TemplateReadmeTabProps> = ({ templateId, vers
   const { mutateAsync: createVersion, isPending: isSaving } = d.useCreateTemplateVersionMutation();
   const { enqueueSnackbar } = d.useSnackbar();
   const [draft, setDraft] = useState<string | null>(null);
+  const [draftBase, setDraftBase] = useState(version);
   const [hasNewerVersion, setHasNewerVersion] = useState(false);
   const editorId = useId();
   const counterId = useId();
+
+  const openEditor = () => {
+    setDraft(version.readme ?? "");
+    setDraftBase(version);
+  };
 
   const closeEditor = () => {
     setDraft(null);
@@ -47,7 +53,7 @@ export const TemplateReadmeTab: FC<TemplateReadmeTabProps> = ({ templateId, vers
     try {
       await createVersion({
         id: templateId,
-        data: { sdl: version.sdl, askedValues: version.askedValues, readme: readme.trim() ? readme : null, baseVersion: version.version }
+        data: { sdl: draftBase.sdl, askedValues: draftBase.askedValues, readme: readme.trim() ? readme : null, baseVersion: draftBase.version }
       });
       closeEditor();
       enqueueSnackbar(<Snackbar title="README saved as a new version" iconVariant="success" />, { variant: "success" });
@@ -66,7 +72,7 @@ export const TemplateReadmeTab: FC<TemplateReadmeTabProps> = ({ templateId, vers
     return (
       <section className="relative rounded-[14px] border border-border bg-card px-4 pb-[26px] pt-[22px] shadow-sm sm:px-[26px]">
         {canEdit && (
-          <Button variant="outline" size="sm" className="float-right ml-4 gap-1.5" onClick={() => setDraft(version.readme ?? "")}>
+          <Button variant="outline" size="sm" className="float-right ml-4 gap-1.5" onClick={openEditor}>
             <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
             Edit README
           </Button>

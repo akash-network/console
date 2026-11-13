@@ -24,13 +24,13 @@ describe(describeVersionDiff.name, () => {
     ]);
   });
 
-  it("returns nothing for an unreadable SDL", () => {
+  it("returns null for an unreadable SDL, so it never reads as no change", () => {
     const readable = sdlOf({ web: { image: "nginx:1.27" } });
 
-    expect(describeVersionDiff(readable, "services: [unclosed")).toEqual([]);
-    expect(describeVersionDiff("services: [unclosed", readable)).toEqual([]);
-    expect(describeVersionDiff(undefined, "just a string")).toEqual([]);
-    expect(describeVersionDiff(undefined, "")).toEqual([]);
+    expect(describeVersionDiff(readable, "services: [unclosed")).toBeNull();
+    expect(describeVersionDiff("services: [unclosed", readable)).toBeNull();
+    expect(describeVersionDiff(undefined, "just a string")).toBeNull();
+    expect(describeVersionDiff(undefined, "")).toBeNull();
   });
 
   it("returns nothing when no image or env line changed", () => {
@@ -61,13 +61,13 @@ describe(describeVersionDiff.name, () => {
   it("refuses the function tag that only an unsafe load would resolve", () => {
     const hostile = 'services:\n  web:\n    image: nginx:1.27\n  evil:\n    image: !!js/function "function(){ return 1 }"\n';
 
-    expect(describeVersionDiff(undefined, hostile)).toEqual([]);
+    expect(describeVersionDiff(undefined, hostile)).toBeNull();
   });
 
-  it("returns nothing when services is not a mapping", () => {
-    expect(describeVersionDiff(undefined, "services: nginx")).toEqual([]);
-    expect(describeVersionDiff(undefined, "services:\n  - web")).toEqual([]);
-    expect(describeVersionDiff(undefined, "services:")).toEqual([]);
+  it("returns null when services is not a mapping", () => {
+    expect(describeVersionDiff(undefined, "services: nginx")).toBeNull();
+    expect(describeVersionDiff(undefined, "services:\n  - web")).toBeNull();
+    expect(describeVersionDiff(undefined, "services:")).toBeNull();
   });
 
   it("treats a service that is a scalar or null as having no lines", () => {
@@ -109,7 +109,7 @@ describe(describeVersionDiff.name, () => {
     const previous = sdlOf({ web: { image: "nginx:1.27", env: lines(0, 60000) } });
     const next = sdlOf({ web: { image: "nginx:1.27", env: lines(30000, 90000) } });
 
-    const [entry] = describeVersionDiff(previous, next);
+    const [entry] = describeVersionDiff(previous, next) ?? [];
 
     expect(entry.field).toBe("env");
     expect(entry.removed).toHaveLength(30000);

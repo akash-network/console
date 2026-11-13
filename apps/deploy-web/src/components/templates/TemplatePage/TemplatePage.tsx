@@ -254,9 +254,9 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
             )}
           </div>
 
-          <TabsContent value="readme" className="mt-5">
+          <TabsContent value="readme" forceMount className="mt-5 data-[state=inactive]:hidden">
             {renderShownVersion(version => (
-              <d.TemplateReadmeTab key={version.version} templateId={id} version={version} canEdit={template.canEdit && isCurrentShown} />
+              <d.TemplateReadmeTab key={selectedVersion ?? "current"} templateId={id} version={version} canEdit={template.canEdit && isCurrentShown} />
             ))}
           </TabsContent>
           <TabsContent value="configuration" className="mt-5">

@@ -224,6 +224,14 @@ describe(TemplateVersionsTab.name, () => {
     expect(screen.getByText("No image or env changes")).toBeInTheDocument();
   });
 
+  it("says it could not compare a version whose SDL is unreadable", () => {
+    const unreadable = buildTemplateVersion({ version: 2, sdl: "services: [unclosed" });
+    setup({ versions: [V2, V1], currentVersion: 2, shownVersion: 2, canEdit: true, details: { 1: VERSION_DETAILS[1], 2: unreadable } });
+
+    expect(screen.getByText("Couldn't compare these versions.")).toBeInTheDocument();
+    expect(screen.queryByText("No image or env changes")).not.toBeInTheDocument();
+  });
+
   it("waits while the versions load", () => {
     setup({ versions: [V3, V2, V1], currentVersion: 3, shownVersion: 3, canEdit: true, states: { 3: "loading", 2: "loading" } });
 

@@ -166,10 +166,12 @@ const WhatChangedPanel: FC<{ templateId: string; version: number; dependencies: 
       <div className="mt-3">
         {hasFailed ? (
           <PanelNotice>Couldn&apos;t load what changed.</PanelNotice>
-        ) : !diff ? (
+        ) : diff === undefined ? (
           <div role="status" aria-label={`Loading v${version}`} className="flex justify-center py-6">
             <Spinner size="small" />
           </div>
+        ) : diff === null ? (
+          <PanelNotice>Couldn&apos;t compare these versions.</PanelNotice>
         ) : diff.length === 0 ? (
           <PanelNotice>No image or env changes</PanelNotice>
         ) : (
