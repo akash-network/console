@@ -407,7 +407,7 @@ function TemplateRow({
         <div className="flex items-center justify-end gap-1">
           {template.canEdit && (
             <Link
-              href={UrlService.configureTemplate({ mode: "edit", userTemplateId: template.id })}
+              href={UrlService.configureTemplate({ mode: "edit", userTemplateId: template.id, baseVersion: template.currentVersion?.version })}
               aria-label={`Edit ${template.title}`}
               className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
             >

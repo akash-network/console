@@ -46,12 +46,18 @@ export interface ConfigureDraftContent {
   /** The SDL the session started from (a template, an upload or a redeploy), which a reset restores. */
   startingSdl?: string;
   placementRegions?: PlacementRegionPicks;
+  /** The title a template saved from this draft is suggested, kept only while the draft is handed over. */
+  templateTitle?: string;
+  /** The summary a template saved from this draft is suggested, kept only while the draft is handed over. */
+  templateSummary?: string;
 }
 
 export interface CreateConfigureDraftOptions {
   name?: string;
   runtimeLimitHours?: number;
   inheritSecretsFrom?: string;
+  templateTitle?: string;
+  templateSummary?: string;
 }
 
 export interface ConfigureDraft {
@@ -71,6 +77,10 @@ export interface ConfigureDraft {
   persistedStartingSdl: string | undefined;
   /** The persisted picks of placements choosing several regions, or undefined when none were saved. */
   persistedPlacementRegions: PlacementRegionPicks | undefined;
+  /** The title suggested for a template saved from a handed-over draft, or undefined when none was suggested. */
+  persistedTemplateTitle: string | undefined;
+  /** The summary suggested for a template saved from a handed-over draft, or undefined when none was suggested. */
+  persistedTemplateSummary: string | undefined;
   /** Saves `sdl` (and the optional deployment `name`, `runtimeLimitHours`, `startingSdl` and `placementRegions`) as the working draft once typing settles. */
   save(sdl: string, name?: string, runtimeLimitHours?: number, startingSdl?: string, placementRegions?: PlacementRegionPicks): void;
   /** Forgets the deployment this draft inherits secrets from, once the console has said those secrets cannot be reused. */
@@ -229,11 +239,13 @@ export function useConfigureDraft(intent: DeploymentIntent, dependencies: typeof
       persistedInheritSecretsFrom: inheritSecretsFrom,
       persistedStartingSdl: stored?.startingSdl,
       persistedPlacementRegions: stored?.placementRegions,
+      persistedTemplateTitle: handedOver?.templateTitle,
+      persistedTemplateSummary: handedOver?.templateSummary,
       save,
       dropInheritance,
       clear
     }),
-    [draftId, isLoading, stored, inheritSecretsFrom, save, dropInheritance, clear]
+    [draftId, isLoading, stored, handedOver, inheritSecretsFrom, save, dropInheritance, clear]
   );
 }
 
@@ -263,7 +275,9 @@ export function createConfigureDraft(sdl: string, options: CreateConfigureDraftO
     name: options.name,
     runtimeLimitHours: options.runtimeLimitHours,
     inheritSecretsFrom: options.inheritSecretsFrom,
-    startingSdl: sdl
+    startingSdl: sdl,
+    templateTitle: options.templateTitle,
+    templateSummary: options.templateSummary
   });
   return draftId;
 }

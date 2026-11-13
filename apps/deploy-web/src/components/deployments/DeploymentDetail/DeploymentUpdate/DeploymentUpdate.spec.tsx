@@ -1092,6 +1092,47 @@ describe(DeploymentUpdate.name, () => {
     });
   });
 
+  describe("saving the deployment as a template", () => {
+    it("offers Save as template beside Update deployment when the tab is given a way to", async () => {
+      const { onSaveAsTemplate } = setup({ offersSaveAsTemplate: true });
+
+      await userEvent.click(screen.getByRole("button", { name: "Save as template" }));
+
+      expect(onSaveAsTemplate).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole("button", { name: "Update deployment" })).toBeInTheDocument();
+    });
+
+    it("holds Save as template while there are edits that are not applied", async () => {
+      setup({ offersSaveAsTemplate: true });
+      expect(screen.getByRole("button", { name: "Save as template" })).toBeEnabled();
+
+      await userEvent.type(within(serviceSection("web")).getByLabelText("Image"), "-hotfix");
+
+      expect(screen.getByRole("button", { name: "Save as template" })).toBeDisabled();
+    });
+
+    it.each([
+      { named: "an update is being sent", input: { isUpdating: true } },
+      { named: "an update is applying in the background", input: { updatingDseqs: ["1234"] } }
+    ])("holds Save as template while $named", ({ input }) => {
+      setup({ offersSaveAsTemplate: true, ...input });
+
+      expect(screen.getByRole("button", { name: "Save as template" })).toBeDisabled();
+    });
+
+    it("offers no Save as template when the tab is given no way to", () => {
+      setup();
+
+      expect(screen.queryByRole("button", { name: "Save as template" })).not.toBeInTheDocument();
+    });
+
+    it("offers no Save as template on a closed deployment when the tab is given no way to", () => {
+      setup({ deploymentState: "closed" });
+
+      expect(screen.queryByRole("button", { name: "Save as template" })).not.toBeInTheDocument();
+    });
+  });
+
   describe("a deployment it cannot update", () => {
     it("shows a closed deployment read-only and offers a redeploy instead", async () => {
       const { onRedeploy } = setup({ deploymentState: "closed" });
@@ -1102,6 +1143,15 @@ describe(DeploymentUpdate.name, () => {
       await userEvent.click(screen.getByRole("button", { name: "Redeploy" }));
 
       expect(onRedeploy).toHaveBeenCalled();
+    });
+
+    it("offers Save as template beside Redeploy on a closed deployment", async () => {
+      const { onSaveAsTemplate } = setup({ deploymentState: "closed", offersSaveAsTemplate: true });
+
+      await userEvent.click(screen.getByRole("button", { name: "Save as template" }));
+
+      expect(onSaveAsTemplate).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole("button", { name: "Redeploy" })).toBeInTheDocument();
     });
 
     it.each([
@@ -1210,6 +1260,7 @@ describe(DeploymentUpdate.name, () => {
       isLoadingLeaseGpus?: boolean;
       updatingDseqs?: string[];
       failedUpdate?: Activity["meta"];
+      offersSaveAsTemplate?: boolean;
     } = {}
   ) {
     const submit = vi.fn();
@@ -1224,6 +1275,7 @@ describe(DeploymentUpdate.name, () => {
     const onUpdated = vi.fn();
     const onRedeploy = vi.fn();
     const onRedeployWithNewSecrets = vi.fn();
+    const onSaveAsTemplate = vi.fn();
     const RawEditor = vi.fn(() => <div>raw-editor</div>);
     const DefinitionImport = vi.fn(DefinitionImportDouble);
     const deployment = mock<DeploymentDto>({ dseq: "1234", state: input.deploymentState ?? "active" });
@@ -1252,6 +1304,7 @@ describe(DeploymentUpdate.name, () => {
         onUpdated={onUpdated}
         onRedeploy={onRedeploy}
         onRedeployWithNewSecrets={onRedeployWithNewSecrets}
+        onSaveAsTemplate={input.offersSaveAsTemplate ? onSaveAsTemplate : undefined}
         fallback={<RawEditor />}
         dependencies={{ ...DEPENDENCIES, useDeploymentUpdateSubmit, useUpdatingDeployments, useFailedDeploymentUpdate, DefinitionImport }}
       />
@@ -1270,6 +1323,7 @@ describe(DeploymentUpdate.name, () => {
       onUpdated,
       onRedeploy,
       onRedeployWithNewSecrets,
+      onSaveAsTemplate,
       DefinitionImport,
       showDefinition,
       showDeployment,

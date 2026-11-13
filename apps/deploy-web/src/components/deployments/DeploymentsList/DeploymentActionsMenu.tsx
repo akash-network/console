@@ -2,7 +2,7 @@
 import type { FC } from "react";
 import { useState } from "react";
 import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@akashnetwork/ui/components";
-import { Ellipsis, FolderInput, SquarePen, SquareX, Upload } from "lucide-react";
+import { BookmarkPlus, Ellipsis, FolderInput, SquarePen, SquareX, Upload } from "lucide-react";
 
 import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { MoveDeploymentDialog } from "@src/components/projects/MoveDeploymentDialog/MoveDeploymentDialog";
@@ -11,8 +11,10 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useCloseDeployment } from "@src/hooks/useCloseDeployment/useCloseDeployment";
 import { useCloseDeploymentConfirm } from "@src/hooks/useCloseDeploymentConfirm";
 import { isUsableDeploymentDefinition, sdlToRedeploy, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import { useFlag } from "@src/hooks/useFlag";
 import { useProjectsUi } from "@src/hooks/useProjectsUi/useProjectsUi";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
+import { useSaveAsTemplate } from "@src/hooks/useSaveAsTemplate/useSaveAsTemplate";
 import type { DeploymentDto, ListedDeploymentDto } from "@src/types/deployment";
 
 export const DEPENDENCIES = {
@@ -20,6 +22,8 @@ export const DEPENDENCIES = {
   useDeploymentDefinition,
   useCloseDeploymentConfirm,
   useRedeploy,
+  useSaveAsTemplate,
+  useFlag,
   useCloseDeployment,
   useProjectsUi,
   MoveDeploymentDialog,
@@ -50,6 +54,8 @@ export const DeploymentActionsMenu: FC<DeploymentActionsMenuProps> = ({
   const { confirmCloseDeployment, recordCloseReason } = d.useCloseDeploymentConfirm();
   const closeDeployment = d.useCloseDeployment();
   const redeploy = d.useRedeploy();
+  const saveAsTemplate = d.useSaveAsTemplate();
+  const isTemplateMarketplaceEnabled = d.useFlag("template_marketplace");
   /** Only once the menu is open, so a page of cards does not each fire a deployment read on mount. */
   const definition = d.useDeploymentDefinition(isOpen ? deployment.dseq : null, { acceptReferences: true });
   const isResolvingDefinition = definition.source === "resolving";
@@ -68,6 +74,11 @@ export const DeploymentActionsMenu: FC<DeploymentActionsMenuProps> = ({
     if (outcome === "closed") onDeploymentClosed?.();
     analyticsService.track("close_deployment", { category: "deployments", label: "Close deployment from list", reason: closeReason.closeReason });
   };
+
+  function saveDefinitionAsTemplate() {
+    if (!isUsableDeploymentDefinition(definition)) return;
+    saveAsTemplate({ sdl: definition.sdl, name: definition.name, projectId: deployment.projectId, dseq: deployment.dseq });
+  }
 
   if (!canManage) return null;
 
@@ -91,6 +102,12 @@ export const DeploymentActionsMenu: FC<DeploymentActionsMenuProps> = ({
             >
               <Upload className="mr-2 h-4 w-4" />
               Redeploy
+            </DropdownMenuItem>
+          )}
+          {isTemplateMarketplaceEnabled && canRedeploy && canChangeDeployments && (
+            <DropdownMenuItem disabled={isResolvingDefinition} onSelect={saveDefinitionAsTemplate}>
+              <BookmarkPlus className="mr-2 h-4 w-4" />
+              Save as template
             </DropdownMenuItem>
           )}
           {canManageProjects && deployment.projectId && (

@@ -1,4 +1,4 @@
-import type { FC } from "react";
+import type { FC, ReactNode } from "react";
 import { useEffect } from "react";
 import { X } from "lucide-react";
 
@@ -11,10 +11,11 @@ type Props = {
   isOpen: boolean;
   onOpen: () => void;
   onClose: () => void;
+  footer?: ReactNode;
   dependencies?: typeof DEPENDENCIES;
 };
 
-export const SdlPreviewPane: FC<Props> = ({ sdl, isOpen, onOpen, onClose, dependencies: d = DEPENDENCIES }) => {
+export const SdlPreviewPane: FC<Props> = ({ sdl, isOpen, onOpen, onClose, footer, dependencies: d = DEPENDENCIES }) => {
   useEffect(
     function bindSdlPreviewHotkey() {
       const toggleSdlPreview = (event: KeyboardEvent) => {
@@ -61,6 +62,7 @@ export const SdlPreviewPane: FC<Props> = ({ sdl, isOpen, onOpen, onClose, depend
       <div className="min-h-0 flex-1">
         <d.SDLEditor value={sdl} readonly height="100%" />
       </div>
+      {footer && <div className="shrink-0 border-t border-zinc-300 px-4 py-3 text-xs text-muted-foreground dark:border-zinc-700">{footer}</div>}
     </section>
   );
 };

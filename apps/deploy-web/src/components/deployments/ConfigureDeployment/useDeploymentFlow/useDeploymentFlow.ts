@@ -1397,8 +1397,20 @@ function resumedCreateOf(dseq: string | undefined, pendingCreate: PendingCreate 
   return dseq && pendingCreate ? { dseq, activityId: pendingCreate.activityId, attempt: 0 } : null;
 }
 
-/** Builds the canonical configure URL preserving both template ids, sdl-strategy, draftId and vm alongside the current dseq + bid-strategy. */
+/** Builds the canonical configure URL preserving both template ids, sdl-strategy, draftId and vm alongside the current dseq + bid-strategy, or the template mode URL while authoring. */
 export function buildConfigureUrl(intent: DeploymentIntent, dseq: string | undefined, bidStrategy: BidStrategy): string {
+  if (intent.templateMode) {
+    return UrlService.configureTemplate({
+      mode: intent.templateMode,
+      userTemplateId: intent.userTemplateId,
+      draftId: intent.draftId,
+      copyFromTemplateId: intent.copyFromTemplateId,
+      copyFromVersion: intent.copyFromVersion,
+      baseVersion: intent.baseVersion,
+      sourceDseq: intent.sourceDseq
+    });
+  }
+
   return UrlService.configureDeployment({
     dseq,
     templateId: intent.templateId,

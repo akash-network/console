@@ -212,7 +212,7 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
             </Button>
             {template.canEdit && (
               <Link
-                href={UrlService.configureTemplate({ mode: "edit", userTemplateId: id })}
+                href={UrlService.configureTemplate({ mode: "edit", userTemplateId: id, baseVersion: template.currentVersion?.version })}
                 className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
               >
                 <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />

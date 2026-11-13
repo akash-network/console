@@ -90,6 +90,14 @@ describe("DeploymentActionsMenu", () => {
     expect(screen.queryByRole("menuitem", { name: /Close/ })).not.toBeInTheDocument();
   });
 
+  it("offers a member who only reads deployments no Save as template", async () => {
+    setup({ canChangeDeployments: false, isTemplateMarketplaceEnabled: true, definition: { sdl: "version: '2.0'", name: "acme", source: "api" } });
+
+    await openMenu();
+
+    expect(screen.queryByRole("menuitem", { name: /Save as template/ })).not.toBeInTheDocument();
+  });
+
   it("redeploys from the resolved definition", async () => {
     const { redeploy } = setup({ definition: { sdl: "version: '2.0'", name: "acme", source: "api" } });
 
@@ -114,6 +122,66 @@ describe("DeploymentActionsMenu", () => {
     await openMenu();
 
     expect(screen.queryByRole("menuitem", { name: /Redeploy/ })).not.toBeInTheDocument();
+  });
+
+  it("offers Save as template on a deployment only with template_marketplace on", async () => {
+    setup({ isTemplateMarketplaceEnabled: true, definition: { sdl: "version: '2.0'", name: "acme", source: "api" } });
+
+    await openMenu();
+
+    expect(screen.getByRole("menuitem", { name: /Save as template/ })).toBeInTheDocument();
+  });
+
+  it("offers no Save as template without template_marketplace", async () => {
+    setup({ definition: { sdl: "version: '2.0'", name: "acme", source: "api" } });
+
+    await openMenu();
+
+    expect(screen.queryByRole("menuitem", { name: /Save as template/ })).not.toBeInTheDocument();
+  });
+
+  it("offers no Save as template when no usable definition survives", async () => {
+    setup({ isTemplateMarketplaceEnabled: true, definition: { sdl: undefined, name: undefined, source: "absent" } });
+
+    await openMenu();
+
+    expect(screen.queryByRole("menuitem", { name: /Save as template/ })).not.toBeInTheDocument();
+  });
+
+  it("holds Save as template while the definition is still being read", async () => {
+    const { saveAsTemplate } = setup({ isTemplateMarketplaceEnabled: true, definition: { sdl: undefined, name: undefined, source: "resolving" } });
+
+    await openMenu();
+    const item = screen.getByRole("menuitem", { name: /Save as template/ });
+    await userEvent.click(item);
+
+    expect(item).toHaveAttribute("aria-disabled", "true");
+    expect(saveAsTemplate).not.toHaveBeenCalled();
+  });
+
+  it("opens template mode on the deployment's SDL, filed in its project", async () => {
+    const { saveAsTemplate } = setup({
+      isTemplateMarketplaceEnabled: true,
+      projectId: "project-b",
+      definition: { sdl: "version: '2.0'", name: "acme", source: "api" }
+    });
+
+    await openMenu();
+    await userEvent.click(screen.getByRole("menuitem", { name: /Save as template/ }));
+
+    expect(saveAsTemplate).toHaveBeenCalledWith({ sdl: "version: '2.0'", name: "acme", projectId: "project-b", dseq: "100" });
+  });
+
+  it("saves the stored SDL, not the one with this browser's values filled back in", async () => {
+    const { saveAsTemplate } = setup({
+      isTemplateMarketplaceEnabled: true,
+      definition: { sdl: "version: '2.0' # stored", restoredSdl: "version: '2.0' # restored", name: "acme", source: "api" }
+    });
+
+    await openMenu();
+    await userEvent.click(screen.getByRole("menuitem", { name: /Save as template/ }));
+
+    expect(saveAsTemplate).toHaveBeenCalledWith(expect.objectContaining({ sdl: "version: '2.0' # stored" }));
   });
 
   it("offers no close action for a deployment that is already closed", async () => {
@@ -263,12 +331,14 @@ describe("DeploymentActionsMenu", () => {
     canChangeDeployments?: boolean;
     canManage?: boolean;
     accountStatus?: AccountStatus;
+    isTemplateMarketplaceEnabled?: boolean;
   }) {
     const changeDeploymentName = vi.fn();
     const closeDeployment = vi.fn(async () => input.outcome ?? ("closing" as const));
     const confirmCloseDeployment = vi.fn().mockResolvedValue("closeReason" in input ? input.closeReason : CLOSE_REASON);
     const recordCloseReason = vi.fn();
     const redeploy = vi.fn();
+    const saveAsTemplate = vi.fn();
     const onDeploymentClosed = vi.fn();
     const analyticsService = mock<AnalyticsService>();
 
@@ -278,6 +348,8 @@ describe("DeploymentActionsMenu", () => {
     );
     const useCloseDeploymentConfirm: typeof DEPENDENCIES.useCloseDeploymentConfirm = () => ({ confirmCloseDeployment, recordCloseReason });
     const useRedeploy: typeof DEPENDENCIES.useRedeploy = () => redeploy;
+    const useSaveAsTemplate: typeof DEPENDENCIES.useSaveAsTemplate = () => saveAsTemplate;
+    const useFlag: typeof DEPENDENCIES.useFlag = flag => flag === "template_marketplace" && !!input.isTemplateMarketplaceEnabled;
     const useCloseDeployment: typeof DEPENDENCIES.useCloseDeployment = () => closeDeployment;
     const useProjectsUi: typeof DEPENDENCIES.useProjectsUi = () =>
       mock<ReturnType<typeof DEPENDENCIES.useProjectsUi>>({
@@ -302,6 +374,8 @@ describe("DeploymentActionsMenu", () => {
             useDeploymentDefinition,
             useCloseDeploymentConfirm,
             useRedeploy,
+            useSaveAsTemplate,
+            useFlag,
             useCloseDeployment,
             useProjectsUi,
             MoveDeploymentDialog,
@@ -315,6 +389,7 @@ describe("DeploymentActionsMenu", () => {
       changeDeploymentName,
       closeDeployment,
       redeploy,
+      saveAsTemplate,
       onDeploymentClosed,
       useDeploymentDefinition,
       confirmCloseDeployment,

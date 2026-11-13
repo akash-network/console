@@ -1,39 +1,50 @@
 "use client";
 import type { FC } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Snackbar, Spinner } from "@akashnetwork/ui/components";
 import { useAtomValue } from "jotai";
 import { useParams, useSearchParams } from "next/navigation";
+import { useRouter } from "next/router";
 import { NextSeo } from "next-seo";
 import { useSnackbar } from "notistack";
 
 import Layout from "@src/components/layout/Layout";
 import { DeployTargetGate } from "@src/components/projects/DeployTargetGate/DeployTargetGate";
 import { useTakeAutoDeployStart } from "@src/hooks/useAutoDeployStart/useAutoDeployStart";
+import { useFlag } from "@src/hooks/useFlag";
 import { usePublicTemplate, useTemplate } from "@src/queries/useTemplateQuery";
+import { useMarketplaceTemplate, useTemplateVersion } from "@src/queries/useUserTemplateQueries";
 import sdlStore from "@src/store/sdlStore";
 import type { TemplateCreation } from "@src/types";
 import { secretReferenceNamesIn } from "@src/utils/sdl/sdlSecrets";
 import { hardcodedTemplates } from "@src/utils/templates";
+import { UrlService } from "@src/utils/urlUtils";
 import { AutoDeployFlow } from "../AutoDeployFlow/AutoDeployFlow";
 import { ConfigureDeploymentForm } from "../ConfigureDeploymentForm/ConfigureDeploymentForm";
 import { DeploymentFlowProvider } from "../DeploymentFlowProvider/DeploymentFlowProvider";
 import { ResumeDeploymentGuard } from "../ResumeDeploymentGuard/ResumeDeploymentGuard";
+import { ConfigureTemplateForm } from "../templateMode/ConfigureTemplateForm/ConfigureTemplateForm";
 import { useConfigureDraft } from "../useConfigureDraft/useConfigureDraft";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import { parseDeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
+import { buildConfigureUrl } from "../useDeploymentFlow/useDeploymentFlow";
 
 export const DEPENDENCIES = {
   Layout,
   NextSeo,
   AutoDeployFlow,
   ConfigureDeploymentForm,
+  ConfigureTemplateForm,
   DeploymentFlowProvider,
   ResumeDeploymentGuard,
   DeployTargetGate,
   usePublicTemplate,
   useUserTemplate: useTemplate,
+  useMarketplaceTemplate,
+  useTemplateVersion,
+  useFlag,
+  useRouter,
   useConfigureDraft,
   useTakeAutoDeployStart,
   useSearchParams,
@@ -63,10 +74,18 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
   const searchParams = d.useSearchParams();
   const routeParams = d.useParams();
   const dseqSegment = Array.isArray(routeParams?.dseq) ? routeParams.dseq[0] : (routeParams?.dseq as string | undefined);
-  const intent = parseDeploymentIntent({ dseqSegment, searchParams: new URLSearchParams(searchParams?.toString() ?? "") });
+  const isTemplateMarketplaceEnabled = d.useFlag("template_marketplace");
+  const intent = parseDeploymentIntent(
+    { dseqSegment, searchParams: new URLSearchParams(searchParams?.toString() ?? "") },
+    { isTemplateModeEnabled: isTemplateMarketplaceEnabled }
+  );
   const [hasStartedDeploying, setHasStartedDeploying] = useState(false);
   const autoDeployStart = d.useTakeAutoDeployStart(intent, { hasStartedDeploying });
   const session = useConfigureSession(intent.draftId);
+
+  if (intent.templateMode) {
+    return <ConfigureTemplateScreen key={session.key} intent={intent} onDraftIdChange={session.reportScreenDraftId} dependencies={d} />;
+  }
 
   return (
     <ConfigureDeploymentScreen
@@ -244,3 +263,122 @@ function ReportDeployStarted({ flow, onChange }: { flow: DeploymentFlow; onChang
 
   return null;
 }
+
+type TemplateScreenProps = {
+  intent: DeploymentIntent;
+  onDraftIdChange: (draftId: string) => void;
+  dependencies: typeof DEPENDENCIES;
+};
+
+/** Authors a template, so no flow, bid or deployment starts here; an edit is pinned to the version its starting SDL came from, the URL's for a restored draft and the current one otherwise, so a save after a colleague's is refused rather than applied over it. */
+const ConfigureTemplateScreen: FC<TemplateScreenProps> = ({ intent, onDraftIdChange, dependencies: d }) => {
+  const draft = d.useConfigureDraft(intent);
+  const router = d.useRouter();
+  const { enqueueSnackbar } = d.useSnackbar();
+  const isEditing = intent.templateMode === "edit";
+  /** Read once the draft loads, since the screen's own draft saves and the clear after a template save would otherwise turn a copy back on. */
+  const [restoredOnLoad, setRestoredOnLoad] = useState<boolean | null>(null);
+  if (restoredOnLoad === null && !draft.isLoading) setRestoredOnLoad(draft.persistedSdl !== undefined);
+  const isDraftRestored = restoredOnLoad ?? draft.persistedSdl !== undefined;
+  const templateQuery = d.useMarketplaceTemplate(isEditing ? intent.userTemplateId : undefined);
+  const isCopying = !isEditing && !!intent.copyFromTemplateId && !draft.isLoading && !isDraftRestored;
+  const copyQuery = d.useTemplateVersion(isCopying ? intent.copyFromTemplateId : undefined, isCopying ? intent.copyFromVersion : undefined);
+  const template = isEditing ? templateQuery.data : undefined;
+  const isNotEditor = !!template && !template.canEdit;
+  const hasTemplateFailed = isEditing && templateQuery.isError && !templateQuery.data;
+  const hasCopyFailed = isCopying && copyQuery.isError;
+  const copiedVersion = isCopying ? copyQuery.data : undefined;
+  const [pinnedBase, setPinnedBase] = useState<{ version?: number } | null>(null);
+  if (!pinnedBase && !draft.isLoading && template?.canEdit) {
+    setPinnedBase({ version: isDraftRestored && intent.baseVersion ? intent.baseVersion : template.currentVersion?.version });
+  }
+  const pinnedBaseVersion = pinnedBase?.version;
+  const pinnedToUrlRef = useRef<string>();
+
+  useEffect(
+    function reportTheDraftOnScreen() {
+      onDraftIdChange(draft.draftId);
+    },
+    [draft.draftId, onDraftIdChange]
+  );
+
+  useEffect(
+    function pinTheBaseVersionInTheUrl() {
+      const pinnedUrlKey = `${draft.draftId}:${pinnedBaseVersion}`;
+      if (draft.isLoading || !pinnedBaseVersion || intent.baseVersion === pinnedBaseVersion || pinnedToUrlRef.current === pinnedUrlKey) return;
+      pinnedToUrlRef.current = pinnedUrlKey;
+      router.replace(buildConfigureUrl({ ...intent, draftId: draft.draftId, baseVersion: pinnedBaseVersion }, undefined, intent.bidStrategy), undefined, {
+        shallow: true
+      });
+    },
+    [draft.isLoading, draft.draftId, pinnedBaseVersion, intent, router]
+  );
+
+  useEffect(
+    function sendNonEditorsToTheTemplatePage() {
+      if (isNotEditor && intent.userTemplateId) router.replace(UrlService.template(intent.userTemplateId));
+    },
+    [isNotEditor, intent.userTemplateId, router]
+  );
+
+  useEffect(
+    function leaveATemplateThatCannotBeRead() {
+      if (!hasTemplateFailed) return;
+      enqueueSnackbar(
+        <d.Snackbar title="Couldn't load the template" subTitle="It may have been deleted, or you no longer have access to it." iconVariant="error" />,
+        {
+          variant: "error"
+        }
+      );
+      router.replace(UrlService.myTemplates());
+    },
+    [hasTemplateFailed, enqueueSnackbar, router, d]
+  );
+
+  useEffect(
+    function notifyOnCopyError() {
+      if (!hasCopyFailed) return;
+      enqueueSnackbar(<d.Snackbar title="Couldn't load the template" subTitle="Starting from a new template instead." iconVariant="error" />, {
+        variant: "error"
+      });
+    },
+    [hasCopyFailed, enqueueSnackbar, d]
+  );
+
+  const loadingScreen = (
+    <d.Layout background="white" disableContainer containerClassName="flex min-h-page-viewport flex-col lg:h-page-viewport">
+      <d.NextSeo title="Configure your template" />
+      <div className="flex flex-1 items-center justify-center">
+        <Spinner size="large" />
+      </div>
+    </d.Layout>
+  );
+
+  const isWaitingForTemplate = isEditing && (!template || isNotEditor);
+  const isWaitingForCopy = isCopying && !copiedVersion && !hasCopyFailed;
+  if (draft.isLoading || isWaitingForTemplate || isWaitingForCopy) return loadingScreen;
+
+  const { copyFromTemplateId, copyFromVersion, ...intentWithoutCopy } = intent;
+  const isCopied = !!copiedVersion || (isDraftRestored && !!copyFromTemplateId);
+  const screenIntent: DeploymentIntent = {
+    ...intentWithoutCopy,
+    ...(isCopied ? { copyFromTemplateId, copyFromVersion } : {}),
+    ...(isEditing ? { baseVersion: pinnedBaseVersion } : {}),
+    draftId: draft.draftId
+  };
+  const startingVersion = template?.currentVersion ?? copiedVersion;
+  const templateForm = (
+    <d.ConfigureTemplateForm
+      key={`${draft.draftId}:${template?.id}`}
+      intent={screenIntent}
+      initialSdl={draft.persistedSdl ?? startingVersion?.sdl}
+      initialName={draft.persistedName ?? template?.title}
+      suggestedTitle={draft.persistedTemplateTitle}
+      suggestedSummary={draft.persistedTemplateSummary}
+      template={template}
+      askedValues={startingVersion?.askedValues ?? []}
+    />
+  );
+
+  return isEditing ? templateForm : <d.DeployTargetGate fallback={loadingScreen}>{templateForm}</d.DeployTargetGate>;
+};
