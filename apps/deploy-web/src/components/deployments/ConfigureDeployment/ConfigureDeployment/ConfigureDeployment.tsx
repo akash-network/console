@@ -175,7 +175,7 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({
   const initialSdl = draft.persistedSdl ?? hardcodedTemplate?.content ?? (isFetchingTemplate ? fetchedSdl : carriedInSdl);
   const initialName = draft.persistedName ?? hardcodedTemplate?.name ?? (isFetchingTemplate ? fetchedName : undefined);
   const isStartingFromDefault = hasTemplateFailed && !initialSdl;
-  if (isStartingFromDefault && !hasFallenBackToForm) setHasFallenBackToForm(true);
+  if (isStartingFromDefault && !draft.isLoading && !hasFallenBackToForm) setHasFallenBackToForm(true);
 
   useEffect(
     function notifyOnTemplateError() {

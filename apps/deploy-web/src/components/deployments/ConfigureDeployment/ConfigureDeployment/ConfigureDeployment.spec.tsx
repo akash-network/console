@@ -662,6 +662,22 @@ describe(ConfigureDeployment.name, () => {
       expect(router.replace).not.toHaveBeenCalled();
     });
 
+    it("keeps a template that recovers while the draft is still loading", () => {
+      const { ConfigureDeploymentForm, rerenderWithMarketplaceTemplate, finishLoadingDraft } = setup({
+        userTemplateId: "tpl-9",
+        isDraftLoading: true,
+        isTemplateMarketplaceEnabled: true,
+        marketplaceTemplate: { isError: true }
+      });
+
+      rerenderWithMarketplaceTemplate({ isSuccess: true, data: deployableTemplate() });
+      finishLoadingDraft();
+
+      const props = ConfigureDeploymentForm.mock.lastCall?.[0];
+      expect(props?.templateSource?.version.id).toBe("ver-4");
+      expect(props?.intent).toMatchObject({ templateVersionId: "ver-4" });
+    });
+
     it("falls back to a default deployment when the named version's template cannot be read", () => {
       const { ConfigureDeploymentForm, enqueueSnackbar } = setup({
         userTemplateId: "tpl-9",
@@ -1606,6 +1622,7 @@ describe(ConfigureDeployment.name, () => {
     const clear = vi.fn();
     let draft = { draftId: input.draftId ?? "minted-id", sdl: input.persistedSdl, name: input.persistedName };
     let isDraftReadFailed = false;
+    let isDraftLoading = !!input.isDraftLoading;
     let writeUrl = (_next: { params: URLSearchParams; dseq?: string }) => {};
     const useConfigureDraft = vi.fn(function useConfigureDraftFake(intent: DeploymentIntent) {
       const current = input.drafts ? draftFollowingTheUrl(input.drafts, intent, isDraftReadFailed) : draft;
@@ -1618,7 +1635,7 @@ describe(ConfigureDeployment.name, () => {
       );
       return mock<ReturnType<typeof DEPENDENCIES.useConfigureDraft>>({
         draftId: current.draftId,
-        isLoading: !!input.isDraftLoading,
+        isLoading: isDraftLoading,
         persistedSdl: current.sdl,
         persistedName: current.name,
         persistedTemplateTitle: input.persistedTemplateTitle,
@@ -1736,6 +1753,11 @@ describe(ConfigureDeployment.name, () => {
       rerender(renderScreen());
     };
 
+    const finishLoadingDraft = () => {
+      isDraftLoading = false;
+      rerender(renderScreen());
+    };
+
     const failDraftRead = () => {
       isDraftReadFailed = true;
       rerender(renderScreen());
@@ -1774,6 +1796,7 @@ describe(ConfigureDeployment.name, () => {
       enqueueSnackbar,
       rerenderWithTemplate,
       rerenderWithMarketplaceTemplate,
+      finishLoadingDraft,
       countTemplateFormMounts: () => templateFormMounts,
       markAutoDeployStart,
       navigate,
