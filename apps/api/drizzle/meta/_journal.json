@@ -981,6 +981,13 @@
       "when": 1794692173082,
       "tag": "0139_affiliate_commission_dispute_funds_withdrawn",
       "breakpoints": true
+    },
+    {
+      "idx": 140,
+      "version": "7",
+      "when": 1794691111728,
+      "tag": "0140_affiliate_commission_source_charge",
+      "breakpoints": true
     }
   ]
 }

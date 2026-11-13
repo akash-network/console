@@ -26,6 +26,7 @@ export function generateDatabaseStripeTransaction(overrides: Partial<StripeTrans
     description: null,
     errorMessage: null,
     sourceTransactionId: null,
+    sourceStripeChargeId: null,
     disputeOpenedAt: null,
     disputeClosedAt: null,
     disputeFundsWithdrawnAt: null,
