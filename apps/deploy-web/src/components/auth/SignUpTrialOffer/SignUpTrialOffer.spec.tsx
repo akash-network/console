@@ -77,4 +77,16 @@ describe(TrialCreditsNotice.name, () => {
 
     expect(screen.getByText("$1 credit to deploy your first container. No card required.")).toBeInTheDocument();
   });
+
+  it("words a standard trial of several dollars as credits", () => {
+    render(<TrialCreditsNotice offer={{ isReferred: false, trialCreditsUsd: 10 }} />);
+
+    expect(screen.getByText("$10 in credits to deploy your first containers. No card required.")).toBeInTheDocument();
+  });
+
+  it("words a one dollar referral trial as a single credit", () => {
+    render(<TrialCreditsNotice offer={{ isReferred: true, trialCreditsUsd: 1 }} />);
+
+    expect(screen.getByText("$1 credit to deploy your first container. No card required.")).toBeInTheDocument();
+  });
 });

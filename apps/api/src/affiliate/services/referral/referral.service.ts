@@ -56,7 +56,7 @@ export class ReferralService {
 
   async checkCode(code: string): Promise<ReferralCodeCheck> {
     const affiliate = await this.affiliateService.findActiveByCode(code);
-    if (!affiliate || !this.featureFlagsService.isEnabled(FeatureFlags.AFFILIATE_PROGRAM, { userId: affiliate.userId })) {
+    if (!affiliate || !this.featureFlagsService.isEnabledForSubject(FeatureFlags.AFFILIATE_PROGRAM, affiliate.userId)) {
       return { valid: false };
     }
 

@@ -41,9 +41,9 @@ export function ReferralWelcome({ offer }: { offer: SignUpTrialOffer }) {
 export function TrialCreditsNotice({ offer }: { offer: SignUpTrialOffer }) {
   return (
     <p className="text-sm leading-5 text-neutral-500 dark:text-neutral-400">
-      {offer.isReferred
-        ? `$${offer.trialCreditsUsd} in credits to deploy your first containers. No card required.`
-        : `$${offer.trialCreditsUsd} credit to deploy your first container. No card required.`}
+      {offer.trialCreditsUsd === 1
+        ? "$1 credit to deploy your first container. No card required."
+        : `$${offer.trialCreditsUsd} in credits to deploy your first containers. No card required.`}
     </p>
   );
 }

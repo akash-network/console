@@ -60,8 +60,8 @@ describe("GET /v1/referral-codes/{code}", () => {
 
   it("answers a code as invalid when the affiliate program is off for its affiliate", async () => {
     const affiliate = await seedAffiliate();
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(
-      (flag, context) => flag !== FeatureFlags.AFFILIATE_PROGRAM || context?.userId !== affiliate.userId
+    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabledForSubject").mockImplementation(
+      (flag, subjectId) => flag !== FeatureFlags.AFFILIATE_PROGRAM || subjectId !== affiliate.userId
     );
 
     const response = await request(affiliate.code);
