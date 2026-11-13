@@ -14,7 +14,7 @@ import { answerOf, askedValueIssuesOf, isAnswerRequired, withAnswer } from "../a
 
 export const DEPENDENCIES = { TemplateIcon };
 
-const SECRET_NOTE = "Sealed when you deploy. You won't be able to see it again.";
+const SEALING_NOTE = "Sealed when you deploy. You won't be able to see it again.";
 
 const SEALED_PLACEHOLDER = "Sealed with this deployment";
 
@@ -205,7 +205,7 @@ function VariableField({ id, askedValue, answer, isSealed, issue, disabled, onCh
       {showsSealedNote && (
         <p id={sealedNoteId} className="flex items-center gap-1 text-xs text-muted-foreground">
           <LockIcon className="h-3 w-3 shrink-0" aria-hidden="true" />
-          {SECRET_NOTE}
+          {SEALING_NOTE}
         </p>
       )}
       {issue && (
