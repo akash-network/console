@@ -297,6 +297,8 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({
     ? { name: initialName || `deployment ${intent.sourceDseq}`, href: UrlService.deploymentDetails(intent.sourceDseq) }
     : undefined;
   const canSaveVersion = askedSummary.unaskableSecrets.length === 0;
+  const hasServiceNameClash = new Set(services.map(service => service.title)).size < services.length;
+  const isSaving = isCreating || isSavingVersion;
 
   return (
     <d.Layout background="white" disableContainer containerClassName="flex min-h-page-viewport flex-col lg:h-page-viewport">
@@ -309,15 +311,20 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({
               source={source}
               services={services}
               askedCount={askedValues.length}
-              isSaving={isCreating || isSavingVersion}
-              canSave={!isEditing || (canSaveVersion && !isBaseVersionUnchanged)}
+              isSaving={isSaving}
+              canSave={!hasServiceNameClash && (!isEditing || (canSaveVersion && !isBaseVersionUnchanged))}
               onSave={save}
             />
             {isEditing && <UnaskableSecretsAlert unaskableSecrets={askedSummary.unaskableSecrets} className="mx-6 mt-4 w-auto" />}
             {importChanges.length > 0 && <d.SdlImportChangesBanner changes={importChanges} onDismiss={() => setImportChanges([])} />}
             {!isEditing && <d.ConfigureDeployTargetChip />}
             <div className="relative mt-6 flex flex-1 flex-col border-t border-zinc-300 lg:min-h-0 lg:flex-row dark:border-zinc-700">
-              <div className="border-zinc-300 lg:h-full lg:min-w-[560px] lg:flex-1 lg:border-r dark:border-zinc-700">
+              <div
+                ref={element => {
+                  if (element) element.inert = isSaving;
+                }}
+                className="border-zinc-300 lg:h-full lg:min-w-[560px] lg:flex-1 lg:border-r dark:border-zinc-700"
+              >
                 <d.ConfigureEditor
                   title="Template"
                   selectedServiceId={selectedServiceId}

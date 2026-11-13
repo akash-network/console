@@ -1041,6 +1041,19 @@ describe(ConfigureDeployment.name, () => {
       expect(ConfigureTemplateForm).not.toHaveBeenCalled();
     });
 
+    it("keeps editing a template whose refresh failed after it loaded", () => {
+      const { ConfigureTemplateForm, router, enqueueSnackbar } = setup({
+        templateMode: "edit",
+        userTemplateId: "tpl-9",
+        isTemplateMarketplaceEnabled: true,
+        marketplaceTemplate: { ...editableTemplate(), isSuccess: false, isError: true }
+      });
+
+      expect(router.replace).not.toHaveBeenCalledWith("/templates/mine");
+      expect(enqueueSnackbar).not.toHaveBeenCalled();
+      expect(ConfigureTemplateForm.mock.lastCall?.[0].template?.id).toBe("tpl-9");
+    });
+
     it("starts a copy from the copied version", () => {
       const { ConfigureTemplateForm, useTemplateVersion, enqueueSnackbar } = setup({
         templateMode: "new",

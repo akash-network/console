@@ -31,7 +31,7 @@ export const SaveAsTemplateCard: FC<ActionCardProps<"save_as_template"> & { depe
   const { mutateAsync: saveTemplate } = d.useSaveUserTemplate();
   const openInTemplateMode = d.useSaveAsTemplate();
   const isTemplateMarketplaceEnabled = d.useFlag("template_marketplace");
-  const { data: location } = d.useDeploymentLocationQuery(action.dseq, { enabled: isTemplateMarketplaceEnabled });
+  const { data: location, isLoading: isLocating } = d.useDeploymentLocationQuery(action.dseq, { enabled: isTemplateMarketplaceEnabled });
   const isUsable = isUsableDeploymentDefinition(definition);
   const isResolving = definition.source === "resolving";
 
@@ -53,9 +53,9 @@ export const SaveAsTemplateCard: FC<ActionCardProps<"save_as_template"> & { depe
       }
       confirmLabel={isTemplateMarketplaceEnabled ? "Open in template mode" : "Save template"}
       successMessage={isTemplateMarketplaceEnabled ? "Opened in template mode." : "Saved to your templates."}
-      isConfirmDisabled={!isUsable}
+      isConfirmDisabled={!isUsable || isLocating}
       onConfirm={async () => {
-        if (!isUsable) return;
+        if (!isUsable || isLocating) return;
         if (isTemplateMarketplaceEnabled) {
           openInTemplateMode({
             sdl: definition.sdl,

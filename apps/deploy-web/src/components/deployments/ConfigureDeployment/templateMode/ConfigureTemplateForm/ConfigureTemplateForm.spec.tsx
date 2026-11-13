@@ -633,6 +633,37 @@ describe(ConfigureTemplateForm.name, () => {
     expect(screen.getByRole("button", { name: /Save new version/ })).toBeDisabled();
   });
 
+  it("keeps the editor out of reach while a new version is being saved", () => {
+    setup({ template: { version: 4 }, pendingSave: "version" });
+
+    expect(screen.getByTestId("template-editor").parentElement).toHaveProperty("inert", true);
+  });
+
+  it("leaves the editor open while nothing is being saved", () => {
+    setup({ template: { version: 4 } });
+
+    expect(screen.getByTestId("template-editor").parentElement).toHaveProperty("inert", false);
+  });
+
+  it("holds the save while two services share a name", () => {
+    setup({ intent: NEW_INTENT, sdl: SHARED_KEY_SDL });
+    expect(screen.getByRole("button", { name: "Save template" })).toBeEnabled();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "worker service name" }), { target: { value: "web" } });
+
+    expect(screen.getByRole("button", { name: "Save template" })).toBeDisabled();
+  });
+
+  it("holds a new version while two services share a name", () => {
+    setup({ template: { version: 4 }, sdl: SHARED_KEY_SDL });
+    changeTheConfiguration();
+    expect(screen.getByRole("button", { name: "Save new version" })).toBeEnabled();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "worker service name" }), { target: { value: "web" } });
+
+    expect(screen.getByRole("button", { name: "Save new version" })).toBeDisabled();
+  });
+
   it("saves the first version of a template that has none", async () => {
     const { createVersion } = setup({ template: { version: null } });
 
@@ -897,8 +928,11 @@ describe(ConfigureTemplateForm.name, () => {
     const services = watch("services");
 
     return (
-      <div>
+      <div data-testid="template-editor">
         {toolbar}
+        {services.map((service, serviceIndex) => (
+          <input key={service.id} aria-label={`${service.title} service name`} {...register(`services.${serviceIndex}.title`)} />
+        ))}
         {services.map((service, serviceIndex) =>
           (service.env ?? []).map((variable, envIndex) => (
             <div key={variable.id}>

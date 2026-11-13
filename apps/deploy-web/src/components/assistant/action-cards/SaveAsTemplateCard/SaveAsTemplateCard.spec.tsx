@@ -107,6 +107,14 @@ describe(SaveAsTemplateCard.name, () => {
     });
   });
 
+  it("waits for the deployment's project before opening template mode", async () => {
+    const { chromeProps, saveAsTemplate } = setup({ isTemplateMarketplaceEnabled: true, isLocating: true });
+
+    expect(chromeProps().isConfirmDisabled).toBe(true);
+    await chromeProps().onConfirm!("");
+    expect(saveAsTemplate).not.toHaveBeenCalled();
+  });
+
   it("reads no deployment location without template_marketplace", () => {
     const { useDeploymentLocationQuery } = setup({ description: "nginx site" });
 
@@ -152,14 +160,18 @@ describe(SaveAsTemplateCard.name, () => {
     isTemplateMarketplaceEnabled?: boolean;
     filedProjectId?: string;
     deploymentName?: string | null;
+    isLocating?: boolean;
   }) {
     const useDeploymentName = vi.fn((_dseq: string | null | undefined, _knownName?: string | null): string | null =>
       input.deploymentName === undefined ? "blog" : input.deploymentName
     );
     const useDeploymentLocationQuery = vi.fn<typeof DEPENDENCIES.useDeploymentLocationQuery>(() =>
-      mock<ReturnType<typeof DEPENDENCIES.useDeploymentLocationQuery>>({
-        data: input.filedProjectId ? mock<DeploymentLocation>({ projectId: input.filedProjectId }) : null
-      })
+      input.isLocating
+        ? mock<ReturnType<typeof DEPENDENCIES.useDeploymentLocationQuery>>({ data: undefined, isLoading: true })
+        : mock<ReturnType<typeof DEPENDENCIES.useDeploymentLocationQuery>>({
+            data: input.filedProjectId ? mock<DeploymentLocation>({ projectId: input.filedProjectId }) : null,
+            isLoading: false
+          })
     );
     const saveTemplate = vi.fn(async (_template: unknown): Promise<unknown> => ({ data: "t-1" }));
     const saveAsTemplate = vi.fn();
