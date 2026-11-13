@@ -1175,6 +1175,28 @@ export class StripeTransactionService {
     });
   }
 
+  /** Leaves the payer's own balance as it is: the withdrawal is recorded only so the affiliate commission on this charge is taken back until the dispute is decided. */
+  @WithTransaction()
+  async recordDisputeFundsWithdrawn(event: Stripe.ChargeDisputeFundsWithdrawnEvent): Promise<void> {
+    const dispute = event.data.object;
+    const transaction = await this.#findDisputedTransactionAndLock(dispute);
+    if (!transaction) return;
+
+    const withdrawnAt = new Date(event.created * 1000);
+    if (transaction.disputeFundsWithdrawnAt && transaction.disputeFundsWithdrawnAt >= withdrawnAt) return;
+
+    await this.stripeTransactionRepository.updateById(transaction.id, { disputeFundsWithdrawnAt: withdrawnAt });
+    await this.#queueAffiliateCommissionSync(transaction, "dispute");
+
+    this.loggerService.info({
+      event: "CHARGE_DISPUTE_FUNDS_WITHDRAWN",
+      chargeId: transaction.stripeChargeId,
+      disputeId: dispute.id,
+      transactionId: transaction.id,
+      userId: transaction.userId
+    });
+  }
+
   /** Leaves the payer's own balance as it is: the outcome is recorded only so the affiliate commission on this charge is released or taken back. */
   @WithTransaction()
   async recordDisputeClosed(event: Stripe.ChargeDisputeClosedEvent): Promise<void> {

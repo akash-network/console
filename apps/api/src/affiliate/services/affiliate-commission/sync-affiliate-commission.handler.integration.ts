@@ -14,7 +14,7 @@ import { type AffiliateCommissionSyncTrigger, SyncAffiliateCommission } from "./
 import { seedOrganization, seedOrganizationMember } from "@test/seeders/db/organization.seeder";
 import { seedPaymentCredit } from "@test/seeders/db/payment-credit.seeder";
 import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
-import { expectJobCompleted, findJobRows, makeJobDue, useJobWorkers } from "@test/services/job-queue-harness";
+import { deleteCompletedJobs, expectJobCompleted, findJobRows, makeJobDue, useJobWorkers } from "@test/services/job-queue-harness";
 
 const jobWorkers = useJobWorkers(() => [container.resolve(SyncAffiliateCommissionHandler)]);
 
@@ -225,6 +225,64 @@ describe(SyncAffiliateCommissionHandler.name, () => {
     expect(reduceWalletBalance).not.toHaveBeenCalled();
   });
 
+  it("takes the credited commission back while the disputed funds are withdrawn, then credits it again once the dispute closes in Console's favour", async () => {
+    const { payment, affiliateUser, topUpWallet, reduceWalletBalance, syncCommissionOf, creditCommissionOf } = await setup();
+    const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
+    const credited = await creditCommissionOf(payment.id);
+    await stripeTransactionRepository.updateById(payment.id, { disputeOpenedAt: subDays(new Date(), 3), disputeFundsWithdrawnAt: subDays(new Date(), 2) });
+
+    await syncCommissionOf(payment.id, "dispute");
+
+    await expect(stripeTransactionRepository.findById(credited.id)).resolves.toMatchObject({ status: "refunded", amount: 500, amountRefunded: 500 });
+    expect(reduceWalletBalance).toHaveBeenCalledExactlyOnceWith(
+      500,
+      { userId: affiliateUser.id, organizationId: null },
+      { currency: "usd", transactionId: credited.id, refundedBefore: 0, refundedAfter: 500 }
+    );
+    const held = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+    expect(held).toMatchObject({ userId: affiliateUser.id, status: "pending", amount: 500, amountRefunded: 0, createdAt: credited.createdAt });
+    expect(held?.id).not.toBe(credited.id);
+
+    await stripeTransactionRepository.updateById(payment.id, { disputeClosedAt: subDays(new Date(), 1) });
+    await deleteCompletedJobs(SyncAffiliateCommission[JOB_NAME]);
+    await syncCommissionOf(payment.id, "dispute");
+
+    await expect(stripeTransactionRepository.findById(held!.id)).resolves.toMatchObject({ status: "succeeded", amount: 500, amountRefunded: 0 });
+    await expect(stripeTransactionRepository.findById(credited.id)).resolves.toMatchObject({ status: "refunded", amountRefunded: 500 });
+    expect(topUpWallet).toHaveBeenCalledTimes(2);
+    expect(topUpWallet).toHaveBeenLastCalledWith(
+      500,
+      { userId: affiliateUser.id, organizationId: null },
+      expect.objectContaining({ payment: { source: "affiliate_commission", transactionId: held!.id, currency: "usd" } })
+    );
+    expect(reduceWalletBalance).toHaveBeenCalledOnce();
+  });
+
+  it("takes the credited commission back once, however often the withdrawal is synced, and for good once the dispute is lost", async () => {
+    const { payment, topUpWallet, reduceWalletBalance, syncCommissionOf, creditCommissionOf } = await setup();
+    const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
+    const credited = await creditCommissionOf(payment.id);
+    await stripeTransactionRepository.updateById(payment.id, { disputeFundsWithdrawnAt: subDays(new Date(), 2) });
+    await syncCommissionOf(payment.id, "dispute");
+    const held = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+
+    await deleteCompletedJobs(SyncAffiliateCommission[JOB_NAME]);
+    await syncCommissionOf(payment.id, "dispute");
+
+    await expect(stripeTransactionRepository.findById(held!.id)).resolves.toMatchObject({ status: "pending", amount: 500, amountRefunded: 0 });
+    expect(reduceWalletBalance).toHaveBeenCalledOnce();
+
+    const lostAt = subDays(new Date(), 1);
+    await stripeTransactionRepository.updateById(payment.id, { disputeClosedAt: lostAt, disputeLostAt: lostAt });
+    await deleteCompletedJobs(SyncAffiliateCommission[JOB_NAME]);
+    await syncCommissionOf(payment.id, "dispute");
+
+    await expect(stripeTransactionRepository.findById(held!.id)).resolves.toMatchObject({ status: "canceled", amount: 500, amountRefunded: 500 });
+    await expect(stripeTransactionRepository.findById(credited.id)).resolves.toMatchObject({ status: "refunded", amount: 500, amountRefunded: 500 });
+    expect(reduceWalletBalance).toHaveBeenCalledOnce();
+    expect(topUpWallet).toHaveBeenCalledOnce();
+  });
+
   it("takes back a refund from a held commission whose release credit landed before its sync rolled back", async () => {
     const { payment, affiliateUser, reduceWalletBalance, topUpWallet, syncCommissionOf, releaseCommissionOf } = await setup();
     const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
@@ -354,7 +412,28 @@ describe(SyncAffiliateCommissionHandler.name, () => {
       await expectJobCompleted(SyncAffiliateCommission[JOB_NAME], releaseJob);
     }
 
-    return { payer, affiliate, affiliateUser, affiliateWallet, payment, topUpWallet, reduceWalletBalance, syncCommissionOf, releaseCommissionOf };
+    async function creditCommissionOf(transactionId: string) {
+      const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
+      await syncCommissionOf(transactionId);
+      const held = await stripeTransactionRepository.findAffiliateCommissionBySource(transactionId);
+      await stripeTransactionRepository.updateById(held!.id, { createdAt: subDays(new Date(), 31) });
+      await releaseCommissionOf(transactionId);
+
+      return (await stripeTransactionRepository.findById(held!.id))!;
+    }
+
+    return {
+      payer,
+      affiliate,
+      affiliateUser,
+      affiliateWallet,
+      payment,
+      topUpWallet,
+      reduceWalletBalance,
+      syncCommissionOf,
+      releaseCommissionOf,
+      creditCommissionOf
+    };
   }
 
   async function createPayment(input: {

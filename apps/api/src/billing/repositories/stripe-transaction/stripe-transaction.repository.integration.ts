@@ -430,6 +430,53 @@ describe(StripeTransactionRepository.name, () => {
       ).rejects.toThrow();
     });
 
+    it.each(["succeeded", "canceled"] as const)("rejects a second commission for a source transaction whose first one is %s", async status => {
+      const { stripeTransactionRepository, createTestUser, createTestTransaction } = setup();
+      const affiliate = await createTestUser();
+      const sourcePayment = await createTestTransaction();
+      const first = await stripeTransactionRepository.createAffiliateCommission({ userId: affiliate.id, amount: 500, sourceTransactionId: sourcePayment.id });
+      await stripeTransactionRepository.updateById(first.id, { status });
+
+      await expect(
+        stripeTransactionRepository.createAffiliateCommission({ userId: affiliate.id, amount: 500, sourceTransactionId: sourcePayment.id })
+      ).rejects.toThrow();
+    });
+
+    it("accepts a new commission for a source transaction whose earlier one was taken back in full", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestTransaction } = setup();
+      const affiliate = await createTestUser();
+      const sourcePayment = await createTestTransaction();
+      const first = await stripeTransactionRepository.createAffiliateCommission({ userId: affiliate.id, amount: 500, sourceTransactionId: sourcePayment.id });
+      await stripeTransactionRepository.updateById(first.id, { status: "refunded", amountRefunded: 500 });
+
+      const second = await stripeTransactionRepository.createAffiliateCommission({ userId: affiliate.id, amount: 500, sourceTransactionId: sourcePayment.id });
+
+      expect(second).toMatchObject({ status: "pending", amount: 500, sourceTransactionId: sourcePayment.id });
+      expect(second.id).not.toBe(first.id);
+    });
+
+    it("dates the commission as asked, and like any other transaction otherwise", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestTransaction } = setup();
+      const affiliate = await createTestUser();
+      const createdAt = new Date("2026-01-15T10:00:00.000Z");
+      const sourcePayment = await createTestTransaction();
+
+      const backdated = await stripeTransactionRepository.createAffiliateCommission({
+        userId: affiliate.id,
+        amount: 500,
+        sourceTransactionId: (await createTestTransaction()).id,
+        createdAt
+      });
+      const dated = await stripeTransactionRepository.createAffiliateCommission({
+        userId: affiliate.id,
+        amount: 500,
+        sourceTransactionId: sourcePayment.id
+      });
+
+      expect(backdated.createdAt).toEqual(createdAt);
+      expect(dated.createdAt.getTime()).toBeGreaterThanOrEqual(sourcePayment.createdAt.getTime());
+    });
+
     it("survives deleting the referred user, with its source transaction id severed to null", async () => {
       const { stripeTransactionRepository, userRepository, createTestUser } = setup();
       const affiliate = await createTestUser();
@@ -480,9 +527,67 @@ describe(StripeTransactionRepository.name, () => {
 
       expect(found).toBeUndefined();
     });
+
+    it("finds the commission still open ahead of one taken back in full, whichever was touched last", async () => {
+      const { stripeTransactionRepository, createTestTransaction, createCommissionTakenBackInFull } = setup();
+      const sourcePayment = await createTestTransaction();
+      const takenBack = await createCommissionTakenBackInFull(sourcePayment.id);
+      const open = await stripeTransactionRepository.createAffiliateCommission({
+        userId: takenBack.userId!,
+        amount: 500,
+        sourceTransactionId: sourcePayment.id
+      });
+      await stripeTransactionRepository.updateById(takenBack.id, { description: "Touched last" });
+
+      const found = await stripeTransactionRepository.findAffiliateCommissionBySource(sourcePayment.id);
+
+      expect(found?.id).toBe(open.id);
+    });
+
+    it("finds the last commission touched when each was taken back in full", async () => {
+      const { stripeTransactionRepository, createTestTransaction, createCommissionTakenBackInFull } = setup();
+      const sourcePayment = await createTestTransaction();
+      await createCommissionTakenBackInFull(sourcePayment.id);
+      const latest = await createCommissionTakenBackInFull(sourcePayment.id);
+
+      const found = await stripeTransactionRepository.findAffiliateCommissionBySource(sourcePayment.id);
+
+      expect(found?.id).toBe(latest.id);
+    });
   });
 
   describe("findAffiliateCommissionBySourceAndLock", () => {
+    it("finds the commission still open ahead of one taken back in full, whichever was touched last", async () => {
+      const { stripeTransactionRepository, createTestTransaction, createCommissionTakenBackInFull } = setup();
+      const sourcePayment = await createTestTransaction();
+      const takenBack = await createCommissionTakenBackInFull(sourcePayment.id);
+      const open = await stripeTransactionRepository.createAffiliateCommission({
+        userId: takenBack.userId!,
+        amount: 500,
+        sourceTransactionId: sourcePayment.id
+      });
+      await stripeTransactionRepository.updateById(takenBack.id, { description: "Touched last" });
+
+      const found = await container
+        .resolve(TxService)
+        .transaction(async () => stripeTransactionRepository.findAffiliateCommissionBySourceAndLock(sourcePayment.id));
+
+      expect(found?.id).toBe(open.id);
+    });
+
+    it("finds the last commission touched when each was taken back in full", async () => {
+      const { stripeTransactionRepository, createTestTransaction, createCommissionTakenBackInFull } = setup();
+      const sourcePayment = await createTestTransaction();
+      await createCommissionTakenBackInFull(sourcePayment.id);
+      const latest = await createCommissionTakenBackInFull(sourcePayment.id);
+
+      const found = await container
+        .resolve(TxService)
+        .transaction(async () => stripeTransactionRepository.findAffiliateCommissionBySourceAndLock(sourcePayment.id));
+
+      expect(found?.id).toBe(latest.id);
+    });
+
     it("finds the commission row inside a transaction", async () => {
       const { stripeTransactionRepository, createTestUser, createTestTransaction } = setup();
       const affiliate = await createTestUser();
@@ -1142,6 +1247,22 @@ describe(StripeTransactionRepository.name, () => {
       });
     }
 
-    return { stripeTransactionRepository, userRepository, txService, createTestTransaction, createTestCommission, createTestUser, createUserOnDomain };
+    async function createCommissionTakenBackInFull(sourceTransactionId: string) {
+      const affiliate = await createTestUser();
+      const commission = await stripeTransactionRepository.createAffiliateCommission({ userId: affiliate.id, amount: 500, sourceTransactionId });
+      await stripeTransactionRepository.updateById(commission.id, { status: "refunded", amountRefunded: 500 });
+      return commission;
+    }
+
+    return {
+      stripeTransactionRepository,
+      userRepository,
+      txService,
+      createTestTransaction,
+      createTestCommission,
+      createCommissionTakenBackInFull,
+      createTestUser,
+      createUserOnDomain
+    };
   }
 });

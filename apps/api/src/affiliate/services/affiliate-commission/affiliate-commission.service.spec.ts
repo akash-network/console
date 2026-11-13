@@ -1096,6 +1096,236 @@ describe(AffiliateCommissionService.name, () => {
         expect(analyticsService.track).not.toHaveBeenCalled();
       });
     });
+
+    describe("when the disputed funds of the referred payment are withdrawn", () => {
+      const WITHDRAWN_AT = new Date("2026-03-01T00:00:00Z");
+
+      it("takes back the whole credited commission and holds it again until the dispute is decided", async () => {
+        const { service, payment, affiliate, commission, stripeTransactionRepository, refillService, analyticsService, logger } = setup({
+          hasCommission: true,
+          paymentDisputeOpenedAt: new Date("2026-02-28T00:00:00Z"),
+          paymentDisputeFundsWithdrawnAt: WITHDRAWN_AT
+        });
+        const heldCommission = generateDatabaseStripeTransaction({ type: "affiliate_commission", status: "pending" });
+        stripeTransactionRepository.createAffiliateCommission.mockResolvedValue(heldCommission);
+
+        await service.syncCommission(payment.id, "dispute");
+
+        expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(commission.id, { amountRefunded: 500, status: "refunded" });
+        expect(refillService.reduceWalletBalance).toHaveBeenCalledExactlyOnceWith(
+          500,
+          { userId: affiliate.userId, organizationId: commission.organizationId },
+          { currency: "usd", transactionId: commission.id, refundedBefore: 0, refundedAfter: 500 }
+        );
+        expect(stripeTransactionRepository.createAffiliateCommission).toHaveBeenCalledExactlyOnceWith({
+          userId: affiliate.userId,
+          organizationId: commission.organizationId,
+          amount: 500,
+          amountRefunded: 0,
+          sourceTransactionId: payment.id,
+          createdAt: commission.createdAt
+        });
+        expect(refillService.topUpWallet).not.toHaveBeenCalled();
+        expect(analyticsService.track).toHaveBeenCalledExactlyOnceWith(affiliate.userId, "affiliate_commission_reversed", {
+          amount_cents: 500,
+          source_transaction_id: payment.id,
+          referred_user_id: payment.userId,
+          reason: "dispute_funds_withdrawn"
+        });
+        expect(logger.info).toHaveBeenCalledWith({
+          event: "AFFILIATE_COMMISSION_HELD_FOR_DISPUTE",
+          commissionId: heldCommission.id,
+          reversedCommissionId: commission.id,
+          affiliateUserId: affiliate.userId,
+          sourceTransactionId: payment.id,
+          amountCents: 500
+        });
+        expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "AFFILIATE_COMMISSION_REVERSED", reason: "dispute_funds_withdrawn" }));
+      });
+
+      it("marks the credited commission taken back before holding it again", async () => {
+        const { service, payment, stripeTransactionRepository } = setup({ hasCommission: true, paymentDisputeFundsWithdrawnAt: WITHDRAWN_AT });
+
+        await service.syncCommission(payment.id, "dispute");
+
+        expect(stripeTransactionRepository.updateById.mock.invocationCallOrder[0]).toBeLessThan(
+          stripeTransactionRepository.createAffiliateCommission.mock.invocationCallOrder[0]
+        );
+      });
+
+      it("holds again only what the affiliate's balance still covered", async () => {
+        const { service, payment, stripeTransactionRepository, logger } = setup({
+          hasCommission: true,
+          paymentDisputeFundsWithdrawnAt: WITHDRAWN_AT,
+          shortfallCents: 120
+        });
+
+        await service.syncCommission(payment.id, "dispute");
+
+        expect(stripeTransactionRepository.createAffiliateCommission).toHaveBeenCalledExactlyOnceWith(
+          expect.objectContaining({ amount: 500, amountRefunded: 120 })
+        );
+        expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "AFFILIATE_COMMISSION_HELD_FOR_DISPUTE", amountCents: 380 }));
+      });
+
+      it("holds again only the part of a partly refunded payment's commission that was still credited", async () => {
+        const { service, payment, commission, stripeTransactionRepository, refillService } = setup({
+          hasCommission: true,
+          paymentAmount: 10000,
+          paymentAmountRefunded: 4000,
+          commissionAmount: 500,
+          commissionAmountRefunded: 200,
+          paymentDisputeFundsWithdrawnAt: WITHDRAWN_AT
+        });
+
+        await service.syncCommission(payment.id, "dispute");
+
+        expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(300, expect.anything(), {
+          currency: "usd",
+          transactionId: commission.id,
+          refundedBefore: 200,
+          refundedAfter: 500
+        });
+        expect(stripeTransactionRepository.createAffiliateCommission).toHaveBeenCalledExactlyOnceWith(
+          expect.objectContaining({ amount: 500, amountRefunded: 200 })
+        );
+      });
+
+      it("holds nothing again when the affiliate's balance covered none of what was taken back", async () => {
+        const { service, payment, stripeTransactionRepository, logger } = setup({
+          hasCommission: true,
+          paymentDisputeFundsWithdrawnAt: WITHDRAWN_AT,
+          shortfallCents: 500
+        });
+
+        await service.syncCommission(payment.id, "dispute");
+
+        expect(stripeTransactionRepository.createAffiliateCommission).not.toHaveBeenCalled();
+        expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "AFFILIATE_COMMISSION_HELD_FOR_DISPUTE" }));
+        expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "AFFILIATE_COMMISSION_REVERSED", shortfallCents: 500 }));
+      });
+
+      it("takes nothing back again when a later sync finds the commission already taken back", async () => {
+        const { service, payment, stripeTransactionRepository, refillService } = setup({
+          hasCommission: true,
+          commissionStatus: "refunded",
+          commissionAmountRefunded: 500,
+          paymentDisputeFundsWithdrawnAt: WITHDRAWN_AT
+        });
+
+        await service.syncCommission(payment.id, "dispute");
+
+        expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+        expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+        expect(stripeTransactionRepository.createAffiliateCommission).not.toHaveBeenCalled();
+      });
+
+      it("keeps the credited commission once the dispute closed in Console's favour after the withdrawal", async () => {
+        const { service, payment, stripeTransactionRepository, refillService } = setup({
+          hasCommission: true,
+          paymentDisputeFundsWithdrawnAt: WITHDRAWN_AT,
+          paymentDisputeClosedAt: addSeconds(WITHDRAWN_AT, 60)
+        });
+
+        await service.syncCommission(payment.id, "dispute");
+
+        expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+        expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+        expect(stripeTransactionRepository.createAffiliateCommission).not.toHaveBeenCalled();
+      });
+
+      it("takes back the credited commission when the funds are withdrawn after an earlier dispute closed", async () => {
+        const { service, payment, stripeTransactionRepository, refillService } = setup({
+          hasCommission: true,
+          paymentDisputeFundsWithdrawnAt: WITHDRAWN_AT,
+          paymentDisputeClosedAt: subSeconds(WITHDRAWN_AT, 60)
+        });
+
+        await service.syncCommission(payment.id, "dispute");
+
+        expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(500, expect.anything(), expect.anything());
+        expect(stripeTransactionRepository.createAffiliateCommission).toHaveBeenCalledOnce();
+      });
+
+      it("takes the commission back for good, holding nothing again, when the dispute was lost", async () => {
+        const { service, payment, stripeTransactionRepository, refillService, logger } = setup({
+          hasCommission: true,
+          paymentDisputeFundsWithdrawnAt: WITHDRAWN_AT,
+          paymentDisputeClosedAt: addSeconds(WITHDRAWN_AT, 60),
+          paymentDisputeLostAt: addSeconds(WITHDRAWN_AT, 60)
+        });
+
+        await service.syncCommission(payment.id, "dispute");
+
+        expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(500, expect.anything(), expect.anything());
+        expect(stripeTransactionRepository.createAffiliateCommission).not.toHaveBeenCalled();
+        expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "AFFILIATE_COMMISSION_REVERSED", reason: "dispute_lost" }));
+      });
+
+      it.each(["release", "dispute"] as const)("leaves a commission held past its hold as it is on a %s sync", async trigger => {
+        const { service, payment, commission, stripeTransactionRepository, refillService, logger } = setup({
+          hasCommission: true,
+          commissionStatus: "pending",
+          commissionCreatedAt: subSeconds(new Date(), HOLD_SECONDS + 60),
+          paymentDisputeFundsWithdrawnAt: WITHDRAWN_AT
+        });
+
+        await service.syncCommission(payment.id, trigger);
+
+        expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+        expect(refillService.topUpWallet).not.toHaveBeenCalled();
+        expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+        expect(logger.info).toHaveBeenCalledWith({
+          event: "AFFILIATE_COMMISSION_RELEASE_DEFERRED",
+          commissionId: commission.id,
+          sourceTransactionId: payment.id,
+          reason: "dispute_open"
+        });
+      });
+
+      it("leaves a commission still in its hold as it is", async () => {
+        const { service, payment, stripeTransactionRepository, refillService, analyticsService } = setup({
+          hasCommission: true,
+          commissionStatus: "pending",
+          commissionCreatedAt: subSeconds(new Date(), HOLD_SECONDS - 60),
+          paymentDisputeFundsWithdrawnAt: WITHDRAWN_AT
+        });
+
+        await service.syncCommission(payment.id, "dispute");
+
+        expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+        expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+        expect(stripeTransactionRepository.createAffiliateCommission).not.toHaveBeenCalled();
+        expect(analyticsService.track).not.toHaveBeenCalled();
+      });
+
+      it("credits the commission held for the dispute as soon as it closes in Console's favour", async () => {
+        const { service, payment, commission, stripeTransactionRepository, refillService } = setup({
+          hasCommission: true,
+          commissionStatus: "pending",
+          commissionAmountRefunded: 120,
+          commissionCreatedAt: subSeconds(new Date(), HOLD_SECONDS + 60),
+          paymentDisputeFundsWithdrawnAt: WITHDRAWN_AT,
+          paymentDisputeClosedAt: addSeconds(WITHDRAWN_AT, 60)
+        });
+
+        await service.syncCommission(payment.id, "dispute");
+
+        expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(commission.id, { status: "succeeded", amountRefunded: 120 });
+        expect(refillService.topUpWallet).toHaveBeenCalledWith(380, expect.anything(), expect.anything());
+      });
+
+      it("reports the reversal without reporting a new hold when another sync already recorded it", async () => {
+        const { service, payment, stripeTransactionRepository, logger } = setup({ hasCommission: true, paymentDisputeFundsWithdrawnAt: WITHDRAWN_AT });
+        stripeTransactionRepository.createAffiliateCommission.mockRejectedValue(createUniqueViolation("stripe_transactions_source_transaction_id_unique"));
+
+        await service.syncCommission(payment.id, "dispute");
+
+        expect(logger.warn).toHaveBeenCalledWith({ event: "AFFILIATE_COMMISSION_ALREADY_GRANTED", transactionId: payment.id });
+        expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "AFFILIATE_COMMISSION_HELD_FOR_DISPUTE" }));
+        expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "AFFILIATE_COMMISSION_REVERSED" }));
+      });
+    });
   });
 
   function createUniqueViolation(constraintName: string) {
@@ -1129,6 +1359,35 @@ describe(AffiliateCommissionService.name, () => {
         { currency: "usd", transactionId: commission.id, refundedBefore: 0, refundedAfter: 500 }
       );
       expect(stripeTransactionRepository.updateById).not.toHaveBeenCalledWith(commission.id, expect.objectContaining({ status: "canceled" }));
+    });
+
+    it("leaves a commission held for a dispute alone when the landed credit belongs to the commission it replaced", async () => {
+      const { service, payment, commission, stripeTransactionRepository, refillService, logger } = setup({
+        hasCommission: true,
+        commissionStatus: "refunded",
+        commissionAmount: 500,
+        commissionAmountRefunded: 500,
+        paymentDisputeOpenedAt: subSeconds(new Date(), 600),
+        paymentDisputeFundsWithdrawnAt: subSeconds(new Date(), 300),
+        releaseCredit: { status: "landed", amount: 500 }
+      });
+      const heldForDispute = generateDatabaseStripeTransaction({
+        userId: commission.userId,
+        type: "affiliate_commission",
+        status: "pending",
+        amount: 500,
+        amountRefunded: 0,
+        sourceTransactionId: payment.id,
+        createdAt: commission.createdAt
+      });
+      stripeTransactionRepository.findAffiliateCommissionBySourceAndLock.mockResolvedValue(heldForDispute);
+
+      await service.syncCommission(payment.id, "dispute");
+
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+      expect(logger.warn).not.toHaveBeenCalledWith(expect.objectContaining({ event: "AFFILIATE_COMMISSION_RELEASE_RECOVERED" }));
     });
 
     it("keeps the share the release trimmed off as already not credited", async () => {
@@ -1284,6 +1543,7 @@ describe(AffiliateCommissionService.name, () => {
       paymentAmountRefunded?: number;
       paymentDisputeOpenedAt?: Date;
       paymentDisputeClosedAt?: Date;
+      paymentDisputeFundsWithdrawnAt?: Date;
       paymentDisputeLostAt?: Date;
       commissionCreatedAt?: Date;
       paymentStatus?: StripeTransactionOutput["status"];
@@ -1321,6 +1581,7 @@ describe(AffiliateCommissionService.name, () => {
       amountRefunded: input.paymentAmountRefunded ?? 0,
       disputeOpenedAt: input.paymentDisputeOpenedAt ?? null,
       disputeClosedAt: input.paymentDisputeClosedAt ?? null,
+      disputeFundsWithdrawnAt: input.paymentDisputeFundsWithdrawnAt ?? null,
       disputeLostAt: input.paymentDisputeLostAt ?? null,
       createdAt: input.paymentCreatedAt ?? new Date(),
       organizationId: input.paymentOrganization?.id ?? null

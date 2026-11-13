@@ -132,6 +132,11 @@ export async function deleteQueuedJobs(jobName: string): Promise<void> {
   await db().execute(sql`delete from ${jobTable()} where name = ${jobName} and state = 'created'`);
 }
 
+/** Lets a test queue a payload it already ran, which `expectJobCompleted` could not otherwise tell from the earlier run. */
+export async function deleteCompletedJobs(jobName: string): Promise<void> {
+  await db().execute(sql`delete from ${jobTable()} where name = ${jobName} and state = 'completed'`);
+}
+
 export async function makeJobDue(jobName: string, selector: JobSelector = {}): Promise<void> {
   await db().execute(sql`update ${jobTable()} set start_after = now() where name = ${jobName} ${selectorFilter(selector)}`);
 }
