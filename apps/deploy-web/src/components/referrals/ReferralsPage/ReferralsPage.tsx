@@ -81,9 +81,10 @@ type Props = {
 export function ReferralsPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
   const router = d.useRouter();
   const isAffiliateProgramEnabled = d.useFlag("affiliate_program");
-  const { data: profile, isSuccess, isError, isFetching, refetch } = d.useAffiliateProfileQuery({ enabled: isAffiliateProgramEnabled });
+  const { data: profile, isSuccess, errorUpdatedAt, isFetching, refetch } = d.useAffiliateProfileQuery({ enabled: isAffiliateProgramEnabled });
   const { activeOrganization } = d.useActiveOrganization();
   const isNotAnAffiliate = !isAffiliateProgramEnabled || (isSuccess && !profile);
+  const hasProfileLoadFailed = errorUpdatedAt > 0;
 
   useEffect(
     function redirectWhenNotAnApprovedAffiliate() {
@@ -92,7 +93,7 @@ export function ReferralsPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
     [isNotAnAffiliate, router]
   );
 
-  if (isNotAnAffiliate || (!profile && !isError)) return null;
+  if (isNotAnAffiliate || (!profile && !hasProfileLoadFailed)) return null;
 
   const usd: Usd = value => <d.FormattedNumber value={value} style="currency" currency="usd" currencyDisplay="narrowSymbol" />;
 

@@ -17,6 +17,7 @@ const NEXT_RELEASE_AT = "2024-11-13T12:00:00.000Z";
 const COMMISSION_CREATED_ON = format(new Date(COMMISSION_CREATED_AT), "MMM d, yyyy");
 const COMMISSION_SETTLED_ON = format(new Date(COMMISSION_SETTLED_AT), "MMM d");
 const NEXT_RELEASE_ON = format(new Date(NEXT_RELEASE_AT), "MMM d");
+const FAILED_AT = new Date("2024-06-10T12:00:00.000Z").getTime();
 
 describe(ReferralsPage.name, () => {
   it("redirects to billing and renders nothing when the affiliate program is off", () => {
@@ -42,7 +43,7 @@ describe(ReferralsPage.name, () => {
   });
 
   it("shows an error with a retry button instead of redirecting when the profile fails to load", async () => {
-    const { mockRouter, refetch, user, SettingsLayout } = setup({ profile: null, isSuccess: false, isError: true });
+    const { mockRouter, refetch, user, SettingsLayout } = setup({ profile: null, isSuccess: false, errorUpdatedAt: FAILED_AT });
 
     expect(mockRouter.replace).not.toHaveBeenCalled();
     expect(SettingsLayout.mock.lastCall?.[0].title).toBe("Referrals");
@@ -54,14 +55,14 @@ describe(ReferralsPage.name, () => {
     expect(refetch).toHaveBeenCalled();
   });
 
-  it("disables the retry button while the profile is being fetched again", () => {
-    setup({ profile: null, isSuccess: false, isError: true, isFetching: true });
+  it("keeps the retry button on screen and disabled while a failed first load is fetched again", () => {
+    setup({ profile: null, isSuccess: false, errorUpdatedAt: FAILED_AT, isFetching: true });
 
     expect(screen.getByRole("button", { name: /Try again/ })).toBeDisabled();
   });
 
   it("keeps showing the page when a refetch fails after the profile loaded", () => {
-    setup({ isSuccess: false, isError: true });
+    setup({ isSuccess: false, errorUpdatedAt: FAILED_AT });
 
     expect(screen.getByLabelText("Referral link")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
@@ -353,7 +354,7 @@ describe(ReferralsPage.name, () => {
       isAffiliateProgramEnabled?: boolean;
       profile?: AffiliateProfile | null;
       isSuccess?: boolean;
-      isError?: boolean;
+      errorUpdatedAt?: number;
       isFetching?: boolean;
       activeOrganization?: OrganizationOutput;
     } = {}
@@ -377,7 +378,7 @@ describe(ReferralsPage.name, () => {
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useAffiliateProfileQuery>>(), {
         data: input.profile === undefined ? buildProfile() : input.profile,
         isSuccess: input.isSuccess ?? isAffiliateProgramEnabled,
-        isError: input.isError ?? false,
+        errorUpdatedAt: input.errorUpdatedAt ?? 0,
         isFetching: input.isFetching ?? false,
         refetch
       })
