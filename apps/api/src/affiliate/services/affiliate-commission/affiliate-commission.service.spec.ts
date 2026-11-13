@@ -53,7 +53,8 @@ describe(AffiliateCommissionService.name, () => {
         organizationId: affiliatePersonalOrganization.id,
         amount: 500,
         amountRefunded: 0,
-        sourceTransactionId: payment.id
+        sourceTransactionId: payment.id,
+        sourceStripeChargeId: payment.stripeChargeId
       });
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "release" }), {
         startAfter: releasesAt
@@ -336,7 +337,8 @@ describe(AffiliateCommissionService.name, () => {
         organizationId: affiliatePersonalOrganization.id,
         amount: 500,
         amountRefunded: 200,
-        sourceTransactionId: payment.id
+        sourceTransactionId: payment.id,
+        sourceStripeChargeId: payment.stripeChargeId
       });
       expect(analyticsService.track).toHaveBeenCalledWith(affiliate.userId, "affiliate_commission_held", expect.objectContaining({ amount_cents: 300 }));
     });
@@ -1151,6 +1153,7 @@ describe(AffiliateCommissionService.name, () => {
           amount: 500,
           amountRefunded: 0,
           sourceTransactionId: payment.id,
+          sourceStripeChargeId: payment.stripeChargeId,
           createdAt: commission.createdAt
         });
         expect(refillService.topUpWallet).not.toHaveBeenCalled();
@@ -1565,6 +1568,188 @@ describe(AffiliateCommissionService.name, () => {
     });
   });
 
+  describe("reverseCommissionsOfDeletedPayment", () => {
+    it("takes back 200 of a 500 cent credited commission when 40% of the charge is refunded", async () => {
+      const { service, affiliate, orphanedCommissions, stripeTransactionRepository, refillService, analyticsService, logger, txService } = setup({
+        orphanedCommissions: [{ status: "succeeded", amount: 500 }]
+      });
+      const [commission] = orphanedCommissions;
+
+      await service.reverseCommissionsOfDeletedPayment(commission.sourceStripeChargeId!, { reason: "refund", amount: 10000, amountRefunded: 4000 });
+
+      expect(txService.transaction).toHaveBeenCalledOnce();
+      expect(stripeTransactionRepository.findAffiliateCommissionsOfDeletedPaymentAndLock).toHaveBeenCalledExactlyOnceWith(commission.sourceStripeChargeId);
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(commission.id, { amountRefunded: 200 });
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledExactlyOnceWith(
+        200,
+        { userId: affiliate.userId, organizationId: commission.organizationId },
+        { currency: "usd", transactionId: commission.id, refundedBefore: 0, refundedAfter: 200 }
+      );
+      expect(analyticsService.track).toHaveBeenCalledExactlyOnceWith(affiliate.userId, "affiliate_commission_reversed", {
+        amount_cents: 200,
+        source_transaction_id: null,
+        referred_user_id: null,
+        reason: "refund"
+      });
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "AFFILIATE_COMMISSION_REVERSED",
+        commissionId: commission.id,
+        affiliateUserId: affiliate.userId,
+        sourceTransactionId: null,
+        amountCents: 200,
+        totalReversedCents: 200,
+        shortfallCents: 0,
+        reason: "refund"
+      });
+    });
+
+    it("takes back the whole credited commission and marks it refunded when the dispute is lost", async () => {
+      const { service, affiliate, orphanedCommissions, stripeTransactionRepository, refillService, analyticsService } = setup({
+        orphanedCommissions: [{ status: "succeeded", amount: 500 }]
+      });
+      const [commission] = orphanedCommissions;
+
+      await service.reverseCommissionsOfDeletedPayment(commission.sourceStripeChargeId!, { reason: "dispute_lost" });
+
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(commission.id, { amountRefunded: 500, status: "refunded" });
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledExactlyOnceWith(500, expect.objectContaining({ userId: affiliate.userId }), {
+        currency: "usd",
+        transactionId: commission.id,
+        refundedBefore: 0,
+        refundedAfter: 500
+      });
+      expect(analyticsService.track).toHaveBeenCalledExactlyOnceWith(
+        affiliate.userId,
+        "affiliate_commission_reversed",
+        expect.objectContaining({ amount_cents: 500, reason: "dispute_lost" })
+      );
+    });
+
+    it("takes back only what an earlier refund left with the affiliate", async () => {
+      const { service, orphanedCommissions, stripeTransactionRepository, refillService } = setup({
+        orphanedCommissions: [{ status: "succeeded", amount: 500, amountRefunded: 200 }]
+      });
+      const [commission] = orphanedCommissions;
+
+      await service.reverseCommissionsOfDeletedPayment(commission.sourceStripeChargeId!, { reason: "refund", amount: 10000, amountRefunded: 10000 });
+
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(commission.id, { amountRefunded: 500, status: "refunded" });
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledExactlyOnceWith(300, expect.anything(), {
+        currency: "usd",
+        transactionId: commission.id,
+        refundedBefore: 200,
+        refundedAfter: 500
+      });
+    });
+
+    it("takes back nothing more when the same refund is delivered again", async () => {
+      const { service, orphanedCommissions, stripeTransactionRepository, refillService, analyticsService } = setup({
+        orphanedCommissions: [{ status: "succeeded", amount: 500, amountRefunded: 200 }]
+      });
+
+      await service.reverseCommissionsOfDeletedPayment(orphanedCommissions[0].sourceStripeChargeId!, { reason: "refund", amount: 10000, amountRefunded: 4000 });
+
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+      expect(analyticsService.track).not.toHaveBeenCalled();
+    });
+
+    it("takes nothing back from a commission whose affiliate account is gone", async () => {
+      const { service, orphanedCommissions, stripeTransactionRepository, refillService } = setup({
+        orphanedCommissions: [{ status: "succeeded", amount: 500, userId: null }]
+      });
+
+      await service.reverseCommissionsOfDeletedPayment(orphanedCommissions[0].sourceStripeChargeId!, { reason: "dispute_lost" });
+
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+    });
+
+    it("shrinks a held commission to the share still paid without touching the affiliate's balance", async () => {
+      const { service, orphanedCommissions, stripeTransactionRepository, refillService, analyticsService, logger } = setup({
+        orphanedCommissions: [{ status: "pending", amount: 500 }]
+      });
+      const [commission] = orphanedCommissions;
+
+      await service.reverseCommissionsOfDeletedPayment(commission.sourceStripeChargeId!, { reason: "refund", amount: 10000, amountRefunded: 4000 });
+
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(commission.id, { amountRefunded: 200 });
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+      expect(analyticsService.track).not.toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "AFFILIATE_COMMISSION_HOLD_REDUCED",
+        commissionId: commission.id,
+        sourceTransactionId: null,
+        amountCents: 300,
+        reason: "refund"
+      });
+    });
+
+    it("cancels a held commission when the dispute is lost", async () => {
+      const { service, affiliate, orphanedCommissions, stripeTransactionRepository, refillService, analyticsService, logger } = setup({
+        orphanedCommissions: [{ status: "pending", amount: 500 }]
+      });
+      const [commission] = orphanedCommissions;
+
+      await service.reverseCommissionsOfDeletedPayment(commission.sourceStripeChargeId!, { reason: "dispute_lost" });
+
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(commission.id, { status: "canceled", amountRefunded: 500 });
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+      expect(analyticsService.track).toHaveBeenCalledExactlyOnceWith(affiliate.userId, "affiliate_commission_canceled", {
+        amount_cents: 500,
+        source_transaction_id: null,
+        reason: "dispute_lost"
+      });
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "AFFILIATE_COMMISSION_CANCELED",
+        commissionId: commission.id,
+        sourceTransactionId: null,
+        reason: "dispute_lost"
+      });
+    });
+
+    it("cancels a held commission once the charge is fully refunded", async () => {
+      const { service, orphanedCommissions, stripeTransactionRepository, analyticsService } = setup({
+        orphanedCommissions: [{ status: "pending", amount: 500, amountRefunded: 200 }]
+      });
+      const [commission] = orphanedCommissions;
+
+      await service.reverseCommissionsOfDeletedPayment(commission.sourceStripeChargeId!, { reason: "refund", amount: 10000, amountRefunded: 10000 });
+
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(commission.id, { status: "canceled", amountRefunded: 500 });
+      expect(analyticsService.track).toHaveBeenCalledExactlyOnceWith(
+        expect.anything(),
+        "affiliate_commission_canceled",
+        expect.objectContaining({ amount_cents: 300, reason: "refund" })
+      );
+    });
+
+    it("settles every commission earned on the charge, leaving the ones already taken back alone", async () => {
+      const { service, orphanedCommissions, stripeTransactionRepository, refillService } = setup({
+        orphanedCommissions: [
+          { status: "refunded", amount: 500, amountRefunded: 500 },
+          { status: "pending", amount: 500 }
+        ]
+      });
+      const [, heldAgain] = orphanedCommissions;
+
+      await service.reverseCommissionsOfDeletedPayment(heldAgain.sourceStripeChargeId!, { reason: "dispute_lost" });
+
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(heldAgain.id, { status: "canceled", amountRefunded: 500 });
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when no commission was earned on the charge", async () => {
+      const { service, stripeTransactionRepository, refillService, analyticsService } = setup({ orphanedCommissions: [] });
+
+      await service.reverseCommissionsOfDeletedPayment("ch_without_commission", { reason: "dispute_lost" });
+
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+      expect(analyticsService.track).not.toHaveBeenCalled();
+    });
+  });
+
   function setup(
     input: {
       paymentAmount?: number;
@@ -1599,6 +1784,7 @@ describe(AffiliateCommissionService.name, () => {
       releaseCredit?: { status: PaymentCreditOutput["status"]; amount: number };
       holdSeconds?: number;
       shortfallCents?: number;
+      orphanedCommissions?: Partial<StripeTransactionOutput>[];
     } = {}
   ) {
     const affiliate = createAffiliate({ revokedAt: input.affiliateRevokedAt ?? null });
@@ -1608,6 +1794,7 @@ describe(AffiliateCommissionService.name, () => {
       status: input.paymentStatus ?? "succeeded",
       amount: input.paymentAmount ?? 10000,
       amountRefunded: input.paymentAmountRefunded ?? 0,
+      stripeChargeId: `ch_${faker.string.alphanumeric(24)}`,
       disputeOpenedAt: input.paymentDisputeOpenedAt ?? null,
       disputeClosedAt: input.paymentDisputeClosedAt ?? null,
       disputeFundsWithdrawnAt: input.paymentDisputeFundsWithdrawnAt ?? null,
@@ -1627,8 +1814,18 @@ describe(AffiliateCommissionService.name, () => {
       createdAt: input.commissionCreatedAt ?? new Date()
     });
     const affiliateWallet = createUserWallet({ userId: affiliate.userId, abuseLockedAt: input.affiliateAbuseLockedAt ?? null });
+    const orphanedCommissions = (input.orphanedCommissions ?? []).map(overrides =>
+      generateDatabaseStripeTransaction({
+        userId: affiliate.userId,
+        type: "affiliate_commission",
+        sourceTransactionId: null,
+        sourceStripeChargeId: payment.stripeChargeId,
+        ...overrides
+      })
+    );
 
     const stripeTransactionRepository = mock<StripeTransactionRepository>();
+    stripeTransactionRepository.findAffiliateCommissionsOfDeletedPaymentAndLock.mockResolvedValue(orphanedCommissions);
     stripeTransactionRepository.findOneByAndLock.mockResolvedValue(payment);
     stripeTransactionRepository.findAffiliateCommissionBySourceAndLock.mockResolvedValue(input.hasCommission ? commission : undefined);
     stripeTransactionRepository.createAffiliateCommission.mockImplementation(async created => ({ ...commission, ...created }));
@@ -1704,6 +1901,7 @@ describe(AffiliateCommissionService.name, () => {
       affiliatePersonalOrganization,
       referral,
       commission,
+      orphanedCommissions,
       stripeTransactionRepository,
       referralRepository,
       affiliateRepository,

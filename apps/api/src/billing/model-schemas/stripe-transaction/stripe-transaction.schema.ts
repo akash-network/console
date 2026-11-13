@@ -49,6 +49,8 @@ export const StripeTransactions = pgTable(
     description: varchar("description", { length: 500 }),
     errorMessage: varchar("error_message", { length: 1000 }),
     sourceTransactionId: uuid("source_transaction_id").references((): AnyPgColumn => StripeTransactions.id, { onDelete: "set null" }),
+    /** The charge a commission was earned on, kept because the payment row itself goes with its payer's account. */
+    sourceStripeChargeId: varchar("source_stripe_charge_id", { length: 255 }),
     /** Kept next to `dispute_closed_at` instead of being cleared, because Stripe can deliver the closing event before the opening one. */
     disputeOpenedAt: timestamp("dispute_opened_at", { withTimezone: true }),
     disputeClosedAt: timestamp("dispute_closed_at", { withTimezone: true }),
@@ -83,6 +85,9 @@ export const StripeTransactions = pgTable(
     organizationIdIdx: index("stripe_transactions_organization_id_idx").on(table.organizationId),
     stripePaymentIntentIdIdx: index("stripe_transactions_stripe_payment_intent_id_idx").on(table.stripePaymentIntentId),
     stripeChargeIdIdx: index("stripe_transactions_stripe_charge_id_idx").on(table.stripeChargeId),
+    sourceStripeChargeIdIdx: index("stripe_transactions_source_stripe_charge_id_idx")
+      .on(table.sourceStripeChargeId)
+      .where(sql`${table.sourceStripeChargeId} IS NOT NULL`),
     stripeCouponIdIdx: index("stripe_transactions_stripe_coupon_id_idx").on(table.stripeCouponId),
     stripePromotionCodeIdIdx: index("stripe_transactions_stripe_promotion_code_id_idx").on(table.stripePromotionCodeId),
     statusIdx: index("stripe_transactions_status_idx").on(table.status),
