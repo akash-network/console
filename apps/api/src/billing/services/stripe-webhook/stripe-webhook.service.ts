@@ -56,6 +56,9 @@ export class StripeWebhookService {
         case "charge.dispute.created":
           await this.stripeTransaction.recordDisputeOpened(event);
           break;
+        case "charge.dispute.funds_withdrawn":
+          await this.stripeTransaction.recordDisputeFundsWithdrawn(event);
+          break;
         case "charge.dispute.closed":
           await this.stripeTransaction.recordDisputeClosed(event);
           break;
