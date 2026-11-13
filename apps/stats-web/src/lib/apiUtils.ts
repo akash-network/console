@@ -56,6 +56,9 @@ export class ApiUrlService {
   static sinkTransfers(sort: SinkTransferSort, limit: number) {
     return `${this.baseApiUrl}/v1/sink/transfers${appendSearchParams({ sort, limit })}`;
   }
+  static sinkUnbondings() {
+    return `${this.baseApiUrl}/v1/sink/unbondings`;
+  }
   static blockchainStatus() {
     return `${this.baseApiUrl}/v1/blockchain-status`;
   }

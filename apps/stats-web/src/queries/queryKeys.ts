@@ -48,5 +48,6 @@ export class QueryKeys {
   static getBmeStatusHistoryKey = () => ["BME_STATUS_HISTORY"];
   static getSinkDashboardDataKey = () => ["SINK_DASHBOARD_DATA"];
   static getSinkTransfersKey = (sort: string, limit: number) => ["SINK_TRANSFERS", sort, limit];
+  static getSinkUnbondingsKey = () => ["SINK_UNBONDINGS"];
   static getGpuPricesKey = () => ["GPU_PRICES"];
 }
