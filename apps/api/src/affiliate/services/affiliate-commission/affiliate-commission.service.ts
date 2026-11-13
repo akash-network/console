@@ -74,7 +74,7 @@ export class AffiliateCommissionService {
       const commission = await this.stripeTransactionRepository.findAffiliateCommissionBySourceAndLock(payment.id);
       if (!commission) {
         if (trigger === "settlement") await this.#hold(payment);
-      } else if (releaseCredit && UNCREDITED_COMMISSION_STATUSES.has(commission.status)) {
+      } else if (releaseCredit?.transactionId === commission.id && UNCREDITED_COMMISSION_STATUSES.has(commission.status)) {
         await this.#recoverLandedRelease(payment, commission, releaseCredit, trigger);
       } else if (commission.status === "pending") {
         await (this.#isReleaseDue(payment, commission, trigger) ? this.#release(payment, commission) : this.#reconcileHeld(payment, commission));
@@ -90,7 +90,7 @@ export class AffiliateCommissionService {
     return credit?.status === "landed";
   }
 
-  /** Reads before taking the payment row lock, like `#isCreditLanded`, since the credit repository takes its own pool connection. */
+  /** Reads before taking the payment row lock, like `#isCreditLanded`, so the credit may belong to a commission another sync has replaced by the time the lock is held. */
   async #findReleaseCredit(transactionId: string): Promise<PaymentCreditOutput | undefined> {
     const commission = await this.stripeTransactionRepository.findAffiliateCommissionBySource(transactionId);
     return commission ? this.paymentCreditRepository.findByTransactionId(commission.id) : undefined;
@@ -174,9 +174,18 @@ export class AffiliateCommissionService {
   }
 
   #hasOpenDispute(payment: StripeTransactionOutput): boolean {
-    if (!payment.disputeOpenedAt) return false;
+    return this.#isSinceLastDisputeClose(payment.disputeOpenedAt, payment) || this.#hasWithdrawnDisputeFunds(payment);
+  }
 
-    return !payment.disputeClosedAt || isAfter(payment.disputeOpenedAt, payment.disputeClosedAt);
+  /** A dispute closed in Console's favour returns the withdrawn funds, so a withdrawal counts only until the close that follows it. */
+  #hasWithdrawnDisputeFunds(payment: StripeTransactionOutput): boolean {
+    return this.#isSinceLastDisputeClose(payment.disputeFundsWithdrawnAt, payment);
+  }
+
+  #isSinceLastDisputeClose(disputeEventAt: Date | null, payment: StripeTransactionOutput): boolean {
+    if (!disputeEventAt) return false;
+
+    return !payment.disputeClosedAt || isAfter(disputeEventAt, payment.disputeClosedAt);
   }
 
   /** Re-runs the checks against the payment and the affiliate as they are now, and credits only what the payer still paid. */
@@ -310,6 +319,7 @@ export class AffiliateCommissionService {
     amount: number;
     amountRefunded: number;
     sourceTransactionId: string;
+    createdAt?: Date;
   }): Promise<StripeTransactionOutput | undefined> {
     try {
       return await this.stripeTransactionRepository.createAffiliateCommission(input);
@@ -323,7 +333,8 @@ export class AffiliateCommissionService {
 
   /** Recomputes what the commission should be from what the payer still paid, so a redelivered refund or a repeated sync takes back nothing twice. */
   async #reconcileReversal(payment: StripeTransactionOutput, commission: StripeTransactionOutput): Promise<void> {
-    const keptAmount = this.#keptCommission(commission.amount, payment);
+    const hasWithdrawnDisputeFunds = this.#hasWithdrawnDisputeFunds(payment);
+    const keptAmount = hasWithdrawnDisputeFunds ? 0 : this.#keptCommission(commission.amount, payment);
     const targetReversed = Math.min(commission.amount, Math.max(commission.amountRefunded, commission.amount - keptAmount));
     const delta = targetReversed - commission.amountRefunded;
     const affiliateUserId = commission.userId;
@@ -338,8 +349,9 @@ export class AffiliateCommissionService {
       { userId: affiliateUserId, organizationId: commission.organizationId },
       { currency: "usd", transactionId: commission.id, refundedBefore: commission.amountRefunded, refundedAfter: targetReversed }
     );
+    if (hasWithdrawnDisputeFunds) await this.#holdUntilDisputeIsDecided(payment, { ...commission, userId: affiliateUserId }, delta - shortfallCents);
 
-    const reason = payment.disputeLostAt ? "dispute_lost" : "refund";
+    const reason = this.#findReversalReason(payment);
     this.analyticsService.track(affiliateUserId, "affiliate_commission_reversed", {
       amount_cents: delta,
       source_transaction_id: payment.id,
@@ -355,6 +367,40 @@ export class AffiliateCommissionService {
       totalReversedCents: targetReversed,
       shortfallCents,
       reason
+    });
+  }
+
+  #findReversalReason(payment: StripeTransactionOutput): "dispute_lost" | "dispute_funds_withdrawn" | "refund" {
+    if (payment.disputeLostAt) return "dispute_lost";
+
+    return this.#hasWithdrawnDisputeFunds(payment) ? "dispute_funds_withdrawn" : "refund";
+  }
+
+  /** Holds what was taken back as a new commission dated like the reversed one, whose hold is already over, so the close of the dispute alone credits it again or cancels it. */
+  async #holdUntilDisputeIsDecided(
+    payment: StripeTransactionOutput,
+    reversed: StripeTransactionOutput & { userId: string },
+    takenBackAmount: number
+  ): Promise<void> {
+    if (takenBackAmount <= 0) return;
+
+    const held = await this.#recordCommission({
+      userId: reversed.userId,
+      organizationId: reversed.organizationId,
+      amount: reversed.amount,
+      amountRefunded: reversed.amount - takenBackAmount,
+      sourceTransactionId: payment.id,
+      createdAt: reversed.createdAt
+    });
+    if (!held) return;
+
+    this.#logger.info({
+      event: "AFFILIATE_COMMISSION_HELD_FOR_DISPUTE",
+      commissionId: held.id,
+      reversedCommissionId: reversed.id,
+      affiliateUserId: reversed.userId,
+      sourceTransactionId: payment.id,
+      amountCents: takenBackAmount
     });
   }
 

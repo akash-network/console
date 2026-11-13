@@ -365,6 +365,7 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
     amount: number;
     amountRefunded?: number;
     sourceTransactionId: string;
+    createdAt?: Date;
   }): Promise<StripeTransactionOutput> {
     return this.create({
       userId: input.userId,
@@ -375,17 +376,45 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
       description: "Affiliate commission",
       amount: input.amount,
       amountRefunded: input.amountRefunded ?? 0,
-      sourceTransactionId: input.sourceTransactionId
+      sourceTransactionId: input.sourceTransactionId,
+      ...(input.createdAt && { createdAt: input.createdAt })
     });
   }
 
   async findAffiliateCommissionBySource(sourceTransactionId: string): Promise<StripeTransactionOutput | undefined> {
-    return this.findOneBy({ sourceTransactionId, type: "affiliate_commission" });
+    const item = await this.cursor.query.StripeTransactions.findFirst({
+      where: this.#isAffiliateCommissionOf(sourceTransactionId),
+      orderBy: this.#currentAffiliateCommissionFirst()
+    });
+    if (!item) return undefined;
+    this.compareWithShadow([item]);
+
+    return this.toOutput(item);
   }
 
   /** Leaves the key lockable, because crediting the commission or taking it back records a row that references it from another connection. */
   async findAffiliateCommissionBySourceAndLock(sourceTransactionId: string): Promise<StripeTransactionOutput | undefined> {
-    return this.findOneByAndLock({ sourceTransactionId, type: "affiliate_commission" }, { strength: "no key update" });
+    const items = await this.txManager
+      .getPgTx()
+      ?.select()
+      .from(this.table)
+      .where(this.#isAffiliateCommissionOf(sourceTransactionId))
+      .orderBy(...this.#currentAffiliateCommissionFirst())
+      .limit(1)
+      .for("no key update");
+    if (!items || items.length === 0) return undefined;
+    this.compareWithShadow(items);
+
+    return this.toOutput(items[0]);
+  }
+
+  #isAffiliateCommissionOf(sourceTransactionId: string): SQL | undefined {
+    return this.whereAccessibleBy(and(eq(this.table.sourceTransactionId, sourceTransactionId), eq(this.table.type, "affiliate_commission")));
+  }
+
+  /** A payment can have several commission rows once one was taken back in full, and the one still open, or else the last one touched, is the current one. */
+  #currentAffiliateCommissionFirst(): SQL[] {
+    return [asc(sql`${this.table.status} = 'refunded'`), desc(this.table.updatedAt)];
   }
 
   /** Counts commission earned, held or credited, net of what refunds took back, so a commission is counted in the month it was earned rather than the month its hold ended. */
