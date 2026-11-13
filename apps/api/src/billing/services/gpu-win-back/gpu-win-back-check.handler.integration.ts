@@ -20,7 +20,7 @@ import { GpuWinBackCheckHandler } from "./gpu-win-back-check.handler";
 import { GpuWinBackCheck, gpuWinBackCheckKeyFor } from "./gpu-win-back-check.job";
 
 import { createAkashBlock, createDeployment, createDeploymentGroup, createLease, createProvider } from "@test/seeders";
-import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationIdOf, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 import { holdTransaction, waitForLockWait } from "@test/services/lock-wait";
 
@@ -121,9 +121,14 @@ describe(GpuWinBackCheckHandler.name, () => {
     await runGpuDeployment({ createdAt: subDays(new Date(), 10), isOpen: false });
     const settlement = holdTransaction(async () => {
       await container.resolve(UserRepository).findOneByAndLock({ id: person.id }, { strength: "no key update" });
-      await container
-        .resolve(StripeTransactionRepository)
-        .create({ userId: person.id, type: "payment_intent", status: "succeeded", amount: 100_00, currency: "usd" });
+      await container.resolve(StripeTransactionRepository).create({
+        userId: person.id,
+        organizationId: await seedPersonalOrganizationIdOf(person.id),
+        type: "payment_intent",
+        status: "succeeded",
+        amount: 100_00,
+        currency: "usd"
+      });
     });
     await settlement.held;
 
@@ -161,6 +166,7 @@ describe(GpuWinBackCheckHandler.name, () => {
     async function payOnPersonalAccount(amount: number) {
       await container.resolve(StripeTransactionRepository).create({
         userId: person.id,
+        organizationId: await seedPersonalOrganizationIdOf(person.id),
         type: "payment_intent",
         status: "succeeded",
         amount,

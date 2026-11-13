@@ -6,14 +6,14 @@ import { uuidv4 } from "unleash-client/lib/uuidv4";
 import { type BillingOwner, ownedBy } from "@src/billing/lib/billing-owner/billing-owner";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { isUniqueViolation } from "@src/core/repositories/base.repository";
-import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
+import { type OrganizationFiledOnWrite, OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
 import { type ApiTransaction, TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { writtenForTeamBy } from "@src/organization/lib/team-records/team-records";
 import { OrganizationMembers } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 
 type Table = ApiPgTables["PaymentMethods"];
-export type PaymentMethodInput = ApiPgTables["PaymentMethods"]["$inferInsert"];
+export type PaymentMethodInput = OrganizationFiledOnWrite<ApiPgTables["PaymentMethods"]["$inferInsert"]>;
 export type PaymentMethodOutput = ApiPgTables["PaymentMethods"]["$inferSelect"];
 
 @singleton()
@@ -191,7 +191,7 @@ export class PaymentMethodRepository extends OrgScopedRepository<Table, PaymentM
       const [newRecord] = await this.cursor
         .insert(this.table)
         .values(
-          await this.attributeToOrganization({
+          await this.attributeToRequiredOrganization({
             ...input,
             isDefault
           })
@@ -212,7 +212,7 @@ export class PaymentMethodRepository extends OrgScopedRepository<Table, PaymentM
         const [retryRecord] = await this.cursor
           .insert(this.table)
           .values(
-            await this.attributeToOrganization({
+            await this.attributeToRequiredOrganization({
               ...input,
               isDefault: false
             })

@@ -13,6 +13,7 @@ import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { seedPersonalOrganizationIdOf } from "@test/seeders/db/user-with-wallet.seeder";
 import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
 import { createDeploymentListResponseSeed } from "@test/seeders/deployment-list-response.seeder";
 import { createFeeAllowanceResponse } from "@test/seeders/fee-allowance-response.seeder";
@@ -139,6 +140,7 @@ describe("Balances", () => {
 
     const user = await userRepository.create({});
     const userWithId = { ...user, userId: faker.string.uuid() };
+    const personalOrganizationId = await seedPersonalOrganizationIdOf(user.id);
     const wallet = createUserWallet({ userId: user.id, address: createAkashAddress() });
 
     const config = mock<CoreConfigService>({
@@ -161,7 +163,7 @@ describe("Balances", () => {
     const apiKeyData = {
       id: faker.string.uuid(),
       userId: userWithId.id,
-      organizationId: null,
+      organizationId: personalOrganizationId,
       projectId: null,
       hashedKey: await apiKeyGenerator.hashApiKey(apiKey),
       keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey),

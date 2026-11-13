@@ -6,7 +6,7 @@ import { type BillingOwner, ownedBy } from "@src/billing/lib/billing-owner/billi
 import { ONE_FIRST_PURCHASE_BONUS_PER_USER_INDEX, PaymentCredits } from "@src/billing/model-schemas";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { getPostgresError } from "@src/core/repositories/base.repository";
-import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
+import { type OrganizationFiledOnWrite, OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
 import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { writtenForTeamBy } from "@src/organization/lib/team-records/team-records";
@@ -14,7 +14,7 @@ import { Users } from "@src/user/model-schemas";
 import { isEmailWithinDomain } from "@src/workload-abuse/lib/email-domain/email-domain-sql";
 
 type Table = ApiPgTables["StripeTransactions"];
-export type StripeTransactionInput = Table["$inferInsert"];
+export type StripeTransactionInput = OrganizationFiledOnWrite<Table["$inferInsert"]>;
 export type StripeTransactionOutput = Table["$inferSelect"];
 
 export type StripeTransactionStatus = StripeTransactionOutput["status"];
@@ -176,7 +176,7 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
 
     const [created] = await this.cursor
       .insert(this.table)
-      .values(await this.attributeToOrganization(input))
+      .values(await this.attributeToRequiredOrganization(input))
       .onConflictDoNothing()
       .returning();
 
@@ -364,7 +364,7 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
   /** Stores the commission as a held `stripe_transactions` row so billing history and CSV export pick it up unchanged; its release credits it. */
   async createAffiliateCommission(input: {
     userId: string;
-    organizationId?: string | null;
+    organizationId: string;
     amount: number;
     amountRefunded?: number;
     sourceTransactionId: string;

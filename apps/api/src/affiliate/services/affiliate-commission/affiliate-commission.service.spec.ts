@@ -240,7 +240,10 @@ describe(AffiliateCommissionService.name, () => {
 
       await service.syncCommission(payment.id, "settlement");
 
-      expect(paymentMethodRepository.hasSharedFingerprint).toHaveBeenCalledWith({ userId: payment.userId, organizationId: null }, affiliate.userId);
+      expect(paymentMethodRepository.hasSharedFingerprint).toHaveBeenCalledWith(
+        { userId: payment.userId, organizationId: payment.organizationId },
+        affiliate.userId
+      );
     });
 
     it("checks the abuse lock of the affiliate's own wallet", async () => {
@@ -294,12 +297,11 @@ describe(AffiliateCommissionService.name, () => {
       expect(logger.debug).toHaveBeenCalledWith({ event: "AFFILIATE_COMMISSION_SKIPPED", transactionId: payment.id, reason: "not_referred" });
     });
 
-    it("records the commission with no organization for an affiliate who has no personal organization yet", async () => {
+    it("records no commission for an affiliate who has no personal organization to file it into", async () => {
       const { service, payment, stripeTransactionRepository } = setup({ affiliateHasPersonalOrganization: false });
 
-      await service.syncCommission(payment.id, "settlement");
-
-      expect(stripeTransactionRepository.createAffiliateCommission).toHaveBeenCalledWith(expect.objectContaining({ organizationId: null }));
+      await expect(service.syncCommission(payment.id, "settlement")).rejects.toThrow(/has no personal organization/);
+      expect(stripeTransactionRepository.createAffiliateCommission).not.toHaveBeenCalled();
     });
 
     it("holds the commission of an affiliate who has no wallet yet", async () => {
@@ -1314,7 +1316,10 @@ describe(AffiliateCommissionService.name, () => {
   ) {
     const affiliate = createAffiliate({ revokedAt: input.affiliateRevokedAt ?? null });
     const affiliatePersonalOrganization = createOrganization({ type: "personal", createdByUserId: affiliate.userId });
+    const payerUserId = faker.string.uuid();
+    const paymentOrganization = input.paymentOrganization ?? createOrganization({ type: "personal", createdByUserId: payerUserId });
     const payment = generateDatabaseStripeTransaction({
+      userId: payerUserId,
       type: input.paymentType ?? "payment_intent",
       status: input.paymentStatus ?? "succeeded",
       amount: input.paymentAmount ?? 10000,
@@ -1323,9 +1328,9 @@ describe(AffiliateCommissionService.name, () => {
       disputeClosedAt: input.paymentDisputeClosedAt ?? null,
       disputeLostAt: input.paymentDisputeLostAt ?? null,
       createdAt: input.paymentCreatedAt ?? new Date(),
-      organizationId: input.paymentOrganization?.id ?? null
+      organizationId: paymentOrganization.id
     });
-    const referredUserId = input.paymentOrganization?.createdByUserId ?? payment.userId!;
+    const referredUserId = paymentOrganization.createdByUserId ?? payerUserId;
     const referral = createReferral({ referredUserId, affiliateId: affiliate.id, createdAt: input.referredAt ?? new Date().toISOString() });
     const commission = generateDatabaseStripeTransaction({
       userId: input.isAffiliateAccountGone ? null : affiliate.userId,
@@ -1360,7 +1365,7 @@ describe(AffiliateCommissionService.name, () => {
     paymentMethodRepository.hasSharedFingerprint.mockResolvedValue(input.sharesPaymentMethod ?? false);
 
     const organizationRepository = mock<OrganizationRepository>();
-    organizationRepository.findById.mockResolvedValue(input.isOrganizationGone ? undefined : input.paymentOrganization);
+    organizationRepository.findById.mockResolvedValue(input.isOrganizationGone ? undefined : paymentOrganization);
     organizationRepository.findPersonalByUserId.mockResolvedValue(input.affiliateHasPersonalOrganization === false ? undefined : affiliatePersonalOrganization);
     const userWalletRepository = mock<UserWalletRepository>();
     userWalletRepository.findOneByUserId.mockResolvedValue(input.affiliateHasWallet === false ? undefined : affiliateWallet);

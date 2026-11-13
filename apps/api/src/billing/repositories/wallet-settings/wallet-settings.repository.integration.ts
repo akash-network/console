@@ -10,7 +10,7 @@ import type { ChargeClaimAttempt } from "./wallet-settings.repository";
 import { WalletSettingRepository } from "./wallet-settings.repository";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
-import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationIdOf, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 
 const COOLDOWN_MINUTES = 60;
 const NO_COOLDOWN = 0;
@@ -26,7 +26,12 @@ describe(WalletSettingRepository.name, () => {
       const { walletSettingRepository } = await setup();
       const { user, wallet } = await seedUserWithWallet();
 
-      const created = await walletSettingRepository.createUnlessExists({ userId: user.id, walletId: wallet.id, autoReloadEnabled: true });
+      const created = await walletSettingRepository.createUnlessExists({
+        userId: user.id,
+        organizationId: await seedPersonalOrganizationIdOf(user.id),
+        walletId: wallet.id,
+        autoReloadEnabled: true
+      });
 
       expect(created).toMatchObject({ userId: user.id, walletId: wallet.id, autoReloadEnabled: true });
     });
@@ -35,7 +40,12 @@ describe(WalletSettingRepository.name, () => {
       const { walletSettingRepository, userId, walletId, readSetting } = await setup();
       const before = await readSetting();
 
-      const created = await walletSettingRepository.createUnlessExists({ userId, walletId, autoReloadEnabled: !before.autoReloadEnabled });
+      const created = await walletSettingRepository.createUnlessExists({
+        userId,
+        organizationId: await seedPersonalOrganizationIdOf(userId),
+        walletId,
+        autoReloadEnabled: !before.autoReloadEnabled
+      });
 
       expect(created).toBeUndefined();
       expect(await readSetting()).toEqual(before);
@@ -207,9 +217,15 @@ describe(WalletSettingRepository.name, () => {
     const user = await userRepository.create({ userId: faker.string.uuid() });
     const [wallet] = await db
       .insert(userWalletsTable)
-      .values({ userId: user.id, address: createAkashAddress(), deploymentAllowance: "10000000", feeAllowance: "5000000" })
+      .values({
+        userId: user.id,
+        organizationId: await seedPersonalOrganizationIdOf(user.id),
+        address: createAkashAddress(),
+        deploymentAllowance: "10000000",
+        feeAllowance: "5000000"
+      })
       .returning({ id: userWalletsTable.id });
-    const setting = await walletSettingRepository.create({ userId: user.id, walletId: wallet.id });
+    const setting = await walletSettingRepository.create({ userId: user.id, organizationId: await seedPersonalOrganizationIdOf(user.id), walletId: wallet.id });
 
     async function backdateLastAutoChargeAt(id: string, minutesAgo: number) {
       await db

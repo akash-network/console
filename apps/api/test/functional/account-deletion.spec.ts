@@ -26,7 +26,7 @@ import { PurgeDeletedAccount } from "@src/user/services/purge-deleted-account/pu
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedOrganizationActivity, seedOrganizationInvitation, seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
-import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationIdOf, seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
 import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { createFeeAllowanceResponse } from "@test/seeders/fee-allowance-response.seeder";
@@ -518,6 +518,7 @@ describe("Account deletion", () => {
     const apiKey = apiKeyGenerator.generateApiKey();
     await container.resolve(ApiKeyRepository).create({
       userId,
+      organizationId: await seedPersonalOrganizationIdOf(userId),
       hashedKey: await apiKeyGenerator.hashApiKey(apiKey),
       keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey),
       name: "ci"

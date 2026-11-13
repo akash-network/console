@@ -12,6 +12,7 @@ import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { type TemplateInput, UserTemplateRepository } from "./user-template.repository";
 
 import { seedOrganization, seedProject } from "@test/seeders/db/organization.seeder";
+import { seedPersonalOrganizationIdOf } from "@test/seeders/db/user-with-wallet.seeder";
 import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 
 describe(UserTemplateRepository.name, () => {
@@ -331,14 +332,12 @@ describe(UserTemplateRepository.name, () => {
       const [team, personal] = await Promise.all([seedOrganization(), seedOrganization({ type: "personal" })]);
       const teamTemplate = await createTestTemplate({ userId: author.userId! }, team.id);
       const personalTemplate = await createTestTemplate({ userId: author.userId! }, personal.id);
-      const unfiledTemplate = await createTestTemplate({ userId: author.userId! });
       const colleagueTemplate = await createTestTemplate({ userId: colleague.userId! }, team.id);
 
       await userTemplateRepository.detachFromTeams(author.userId!);
 
       expect(await findStoredTemplate(teamTemplate.id)).toMatchObject({ userId: null, organizationId: team.id, title: teamTemplate.title });
       expect(await findStoredTemplate(personalTemplate.id)).toMatchObject({ userId: author.userId, organizationId: personal.id });
-      expect(await findStoredTemplate(unfiledTemplate.id)).toMatchObject({ userId: author.userId, organizationId: null });
       expect(await findStoredTemplate(colleagueTemplate.id)).toMatchObject({ userId: colleague.userId, organizationId: team.id });
     });
   });
@@ -425,7 +424,9 @@ describe(UserTemplateRepository.name, () => {
         description: faker.lorem.sentence()
       };
 
-      const templateId = await userTemplateRepository.createTemplate(user.userId!, templateData);
+      const templateId = await runInOrganization(await personalOrganizationIdOfAuthor(user.userId!), () =>
+        userTemplateRepository.createTemplate(user.userId!, templateData)
+      );
       createdTemplateIds.push(templateId);
 
       const template = await findStoredTemplate(templateId);
@@ -439,7 +440,9 @@ describe(UserTemplateRepository.name, () => {
       const { userTemplateRepository } = setup();
       const user = await createTestUser();
 
-      const templateId = await userTemplateRepository.createTemplate(user.userId!, { ...buildTemplateInput(), isPublic: true }, { authorId: user.id });
+      const templateId = await runInOrganization(await personalOrganizationIdOfAuthor(user.userId!), () =>
+        userTemplateRepository.createTemplate(user.userId!, { ...buildTemplateInput(), isPublic: true }, { authorId: user.id })
+      );
       createdTemplateIds.push(templateId);
 
       expect(await findStoredTemplate(templateId)).toMatchObject({ authorId: user.id, visibility: "public", isListed: false });
@@ -449,7 +452,9 @@ describe(UserTemplateRepository.name, () => {
       const { userTemplateRepository } = setup();
       const user = await createTestUser();
 
-      const templateId = await userTemplateRepository.createTemplate(user.userId!, buildTemplateInput());
+      const templateId = await runInOrganization(await personalOrganizationIdOfAuthor(user.userId!), () =>
+        userTemplateRepository.createTemplate(user.userId!, buildTemplateInput())
+      );
       createdTemplateIds.push(templateId);
 
       expect(await findStoredTemplate(templateId)).toMatchObject({ visibility: "private", isListed: true });
@@ -459,7 +464,9 @@ describe(UserTemplateRepository.name, () => {
       const { userTemplateRepository } = setup();
       const user = await createTestUser();
 
-      const templateId = await userTemplateRepository.createTemplate(user.userId!, buildTemplateInput());
+      const templateId = await runInOrganization(await personalOrganizationIdOfAuthor(user.userId!), () =>
+        userTemplateRepository.createTemplate(user.userId!, buildTemplateInput())
+      );
       createdTemplateIds.push(templateId);
 
       expect(await findStoredTemplate(templateId)).toMatchObject({ authorId: null });
@@ -478,7 +485,9 @@ describe(UserTemplateRepository.name, () => {
         storage: faker.number.int({ min: 1000000, max: 100000000 })
       };
 
-      const newTemplateId = await userTemplateRepository.createTemplate(user2.userId!, templateData, { copiedFromId: originalTemplate.id });
+      const newTemplateId = await runInOrganization(await personalOrganizationIdOfAuthor(user2.userId!), () =>
+        userTemplateRepository.createTemplate(user2.userId!, templateData, { copiedFromId: originalTemplate.id })
+      );
       createdTemplateIds.push(newTemplateId);
 
       expect(newTemplateId).not.toBe(originalTemplate.id);
@@ -500,7 +509,9 @@ describe(UserTemplateRepository.name, () => {
         storage: faker.number.int({ min: 1000000, max: 100000000 })
       };
 
-      const copyId = await userTemplateRepository.createTemplate(copier.userId!, submittedTemplate, { copiedFromId: submittedTemplate.id });
+      const copyId = await runInOrganization(await personalOrganizationIdOfAuthor(copier.userId!), () =>
+        userTemplateRepository.createTemplate(copier.userId!, submittedTemplate, { copiedFromId: submittedTemplate.id })
+      );
       createdTemplateIds.push(copyId);
 
       expect(copyId).not.toBe(originalTemplate.id);
@@ -849,7 +860,7 @@ describe(UserTemplateRepository.name, () => {
         isPublic: false,
         ...data
       });
-    const id = organizationId ? await runInOrganization(organizationId, create) : await create();
+    const id = await runInOrganization(organizationId ?? (await personalOrganizationIdOfAuthor(userId)), create);
     const template = await findStoredTemplate(id);
     createdTemplateIds.push(id);
     return template!;
@@ -904,6 +915,13 @@ describe(UserTemplateRepository.name, () => {
       .resolve<ApiPgDatabase>(POSTGRES_DB)
       .insert(resolveTable("TemplateFavorites"))
       .values({ id: faker.string.uuid(), userId, templateId, addedDate: new Date() });
+  }
+
+  async function personalOrganizationIdOfAuthor(externalUserId: string) {
+    const author = await container.resolve(UserRepository).findByUserId(externalUserId);
+    if (!author) throw new Error(`Seed author ${externalUserId} before their templates`);
+
+    return await seedPersonalOrganizationIdOf(author.id);
   }
 
   async function runInOrganization<R>(organizationId: string, run: () => Promise<R>) {

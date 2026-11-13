@@ -25,6 +25,7 @@ import { UserRepository } from "@src/user/repositories";
 import { DataKeyRewrapService } from "./data-key-rewrap.service";
 
 import { seedOrganization } from "@test/seeders/db/organization.seeder";
+import { seedPersonalOrganizationIdOf } from "@test/seeders/db/user-with-wallet.seeder";
 
 const PROJECT = "console-dev-mock";
 const LOCATION = "global";
@@ -326,7 +327,13 @@ describe(`${DataKeyRewrapService.name} against Cloud KMS`, () => {
 
       const dseq = faker.number.int({ min: 100000, max: 999999 }).toString();
       const sealedSecrets = await consoleApi.sealFor(user.id, dseq, plaintext);
-      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true, sealedSecrets });
+      await deploymentSettingRepository.create({
+        userId: user.id,
+        organizationId: await seedPersonalOrganizationIdOf(user.id),
+        dseq,
+        autoTopUpEnabled: true,
+        sealedSecrets
+      });
 
       return { userId: user.id, dseq };
     }

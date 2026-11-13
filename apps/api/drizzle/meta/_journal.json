@@ -967,6 +967,13 @@
       "when": 1794539911599,
       "tag": "0137_stripe_transaction_dispute_window",
       "breakpoints": true
+    },
+    {
+      "idx": 138,
+      "version": "7",
+      "when": 1794673427879,
+      "tag": "0138_organization_required_on_owned_records",
+      "breakpoints": true
     }
   ]
 }

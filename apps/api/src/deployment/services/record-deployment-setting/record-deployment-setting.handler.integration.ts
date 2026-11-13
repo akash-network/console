@@ -9,6 +9,7 @@ import { RecordDeploymentSetting, RecordDeploymentSettingHandler, recordDeployme
 
 import { createDseq, seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { seedOrganizationWithOwner, seedProject } from "@test/seeders/db/organization.seeder";
+import { seedPersonalOrganizationIdOf } from "@test/seeders/db/user-with-wallet.seeder";
 import { expectJobCompleted, useJobWorkers } from "@test/services/job-queue-harness";
 
 const jobWorkers = useJobWorkers(() => [container.resolve(RecordDeploymentSettingHandler)]);
@@ -93,6 +94,7 @@ describe(RecordDeploymentSettingHandler.name, () => {
     const { enqueue, startWorkers } = await jobWorkers();
 
     const user = await container.resolve(UserRepository).create({});
+    const personalOrganizationId = await seedPersonalOrganizationIdOf(user.id);
     const dseq = createDseq();
 
     return {
@@ -102,7 +104,9 @@ describe(RecordDeploymentSettingHandler.name, () => {
       seedExistingSetting: (overrides: { autoTopUpEnabled?: boolean; runtimeLimitHours?: number }) =>
         seedDeploymentSetting({ userId: user.id, dseq, ...overrides }),
       enqueueRecord: (filing: { organizationId?: string; projectId?: string } = {}) =>
-        enqueue(new RecordDeploymentSetting({ userId: user.id, dseq, ...filing }), { singletonKey: recordDeploymentSettingKeyFor({ userId: user.id, dseq }) }),
+        enqueue(new RecordDeploymentSetting({ userId: user.id, dseq, organizationId: personalOrganizationId, ...filing }), {
+          singletonKey: recordDeploymentSettingKeyFor({ userId: user.id, dseq })
+        }),
       startWorkers,
       findSettings: () => db.select().from(deploymentSettingsTable).where(eq(deploymentSettingsTable.userId, user.id))
     };

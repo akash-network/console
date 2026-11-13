@@ -195,7 +195,7 @@ describe(CloseExpiredDeploymentHandler.name, () => {
     const runtimeEndsAt = input.runtimeEndsAt === undefined ? new Date(Date.now() - 60_000) : input.runtimeEndsAt;
     const setting = await seedDeploymentSetting({
       userId: user.id,
-      organizationId: teamWallet?.organizationId,
+      organizationId: teamWallet?.organizationId ?? undefined,
       runtimeLimitHours: 1,
       runtimeEndsAt,
       closed: input.closed ?? false

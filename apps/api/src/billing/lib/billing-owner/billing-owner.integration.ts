@@ -6,7 +6,7 @@ import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 import { ownedBy } from "./billing-owner";
 
 import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
-import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe("ownedBy", () => {
   it("reads a user's own payment methods without the team's through the select builder", async () => {
@@ -41,16 +41,17 @@ describe("ownedBy", () => {
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
     const { organization: team } = await seedOrganizationWithOwner();
     const member = await seedUser();
+    const personal = await seedPersonalOrganizationOf(member);
     await seedOrganizationMember({ organizationId: team.id, userId: member.id, role: "billing" });
     const [ownCard, teamCard] = await db
       .insert(resolveTable("PaymentMethods"))
-      .values([card(member.id, null), card(member.id, team.id)])
+      .values([card(member.id, personal.id), card(member.id, team.id)])
       .returning();
 
     return { db, team, member, ownCard, teamCard };
   }
 
-  function card(userId: string, organizationId: string | null) {
+  function card(userId: string, organizationId: string) {
     return { userId, organizationId, fingerprint: `fp_${faker.string.alphanumeric(16)}`, paymentMethodId: `pm_${faker.string.alphanumeric(24)}` };
   }
 });

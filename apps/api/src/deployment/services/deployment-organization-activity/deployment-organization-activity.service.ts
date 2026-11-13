@@ -20,8 +20,6 @@ export type WalletDeploymentKey = { wallet: DeploymentWallet; dseq: string };
 
 export type DeploymentCloser = { actorUserId: string | null; reason: ConsoleCloseReason | null };
 
-type FiledDeployment = DeploymentSettingsOutput & { organizationId: string };
-
 @singleton()
 export class DeploymentOrganizationActivityService {
   readonly #logger: ReturnType<CreateLogger>;
@@ -83,13 +81,13 @@ export class DeploymentOrganizationActivityService {
   }
 
   /** The deployment already changed by the time this runs, so a failure to record it is logged rather than raised. */
-  async #recordFor({ wallet, dseq }: WalletDeploymentKey, type: string, record: (deployment: FiledDeployment) => Promise<void>): Promise<void> {
+  async #recordFor({ wallet, dseq }: WalletDeploymentKey, type: string, record: (deployment: DeploymentSettingsOutput) => Promise<void>): Promise<void> {
     try {
       const deployment = await this.deploymentSettingRepository.unscoped("deployment-activity").findOneOfWallet(wallet, dseq);
 
-      if (!deployment?.organizationId) return;
+      if (!deployment) return;
 
-      await record({ ...deployment, organizationId: deployment.organizationId });
+      await record(deployment);
     } catch (error) {
       this.#logger.error({
         event: "DEPLOYMENT_ORGANIZATION_ACTIVITY_RECORD_FAILED",

@@ -15,8 +15,8 @@ import { TemplateVersionRepository } from "@src/template-marketplace/repositorie
 import type { TemplateModerationStatus, TemplateVisibility } from "@src/user/model-schemas/template/template.schema";
 import type { UserOutput } from "@src/user/repositories";
 
-import { seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
-import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedOrganization, seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
+import { seedPersonalOrganizationIdOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 
 type Reader = "project member" | "organization member outside the project" | "member of another organization" | "visitor without a session";
 
@@ -198,11 +198,19 @@ describe("Marketplace templates", () => {
 
     it("serves a migrated template whose author deleted their account, read-only", async () => {
       const { owner, actAs, read } = await setup();
-      const template = await seedTemplate({ author: null, visibility: "public" });
+      const publisher = await seedOrganization();
+      const template = await seedTemplate({ author: null, organizationId: publisher.id, visibility: "public" });
 
       const responses = await Promise.all([read(`/v1/user-templates/${template.id}`), actAs(owner, { inTeam: false })(`/v1/user-templates/${template.id}`)]);
 
-      const readOnly = { data: expect.objectContaining({ id: template.id, author: null, publisher: null, canEdit: false }) };
+      const readOnly = {
+        data: expect.objectContaining({
+          id: template.id,
+          author: null,
+          publisher: { name: publisher.name, slug: publisher.slug, type: "team" },
+          canEdit: false
+        })
+      };
       expect(responses.map(({ status }) => status)).toEqual([200, 200]);
       expect(await Promise.all(responses.map(response => response.json()))).toEqual([readOnly, readOnly]);
     });
@@ -485,6 +493,7 @@ describe("Marketplace templates", () => {
       .values({
         sdl: "version: '2.0'",
         ...template,
+        organizationId: template.organizationId ?? (author ? await seedPersonalOrganizationIdOf(author.id) : (await seedOrganization()).id),
         userId: author?.userId ?? null,
         authorId: author?.id ?? null,
         isPublic: input.visibility === "public",

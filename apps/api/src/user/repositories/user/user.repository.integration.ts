@@ -7,8 +7,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { UserRepository } from "./user.repository";
 
-import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedOrganization } from "@test/seeders/db/organization.seeder";
+import { seedOwnWalletOf } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe(UserRepository.name, () => {
   describe("markAsActive", () => {
@@ -182,11 +182,11 @@ describe(UserRepository.name, () => {
       const fingerprint = faker.string.alphanumeric(24);
 
       const activatedTrialUser = await createTestUser({ lastFingerprint: fingerprint });
-      const activatedWallet = await userWalletRepository.create({ userId: activatedTrialUser.id, address: createAkashAddress() });
+      const activatedWallet = await seedOwnWalletOf(activatedTrialUser.id);
       await userWalletRepository.claimActivation(activatedWallet.id);
 
       const registeredOnlyUser = await createTestUser({ lastFingerprint: fingerprint });
-      await userWalletRepository.create({ userId: registeredOnlyUser.id, address: createAkashAddress() });
+      await seedOwnWalletOf(registeredOnlyUser.id);
 
       const currentUser = await createTestUser({ lastFingerprint: fingerprint });
 
@@ -206,7 +206,7 @@ describe(UserRepository.name, () => {
       };
 
       const trialUser = await createTestUser({ lastFingerprint: fingerprint });
-      const trialWallet = await userWalletRepository.create({ userId: trialUser.id, address: createAkashAddress() });
+      const trialWallet = await seedOwnWalletOf(trialUser.id);
       await userWalletRepository.claimActivation(trialWallet.id);
       await createActivatedTeamWallet(trialUser.id);
       await createActivatedTeamWallet(trialUser.id);

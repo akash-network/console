@@ -22,7 +22,7 @@ import type { UserOutput } from "@src/user/repositories";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { fileIntoPersonalOrganization } from "@test/seeders/db/organization.seeder";
 import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
-import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationIdOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
 import { createFeeAllowanceResponse } from "@test/seeders/fee-allowance-response.seeder";
 
@@ -333,7 +333,13 @@ describe("First-purchase bonus", () => {
     const buyAsUser = async (buyer: UserOutput, amountUsd = QUALIFYING_AMOUNT_USD) => {
       await db
         .insert(resolveTable("UserWallets"))
-        .values({ userId: buyer.id, address: createAkashAddress(), isTrialing: false, activatedAt: new Date() })
+        .values({
+          userId: buyer.id,
+          organizationId: await seedPersonalOrganizationIdOf(buyer.id),
+          address: createAkashAddress(),
+          isTrialing: false,
+          activatedAt: new Date()
+        })
         .onConflictDoNothing();
       await fileIntoPersonalOrganization(buyer);
 

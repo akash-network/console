@@ -32,6 +32,7 @@ import {
   screenUserGpuDeploymentKeyFor
 } from "@src/deployment/services/screen-user-gpu-deployment/screen-user-gpu-deployment.handler";
 import { creatingActivityOf } from "@src/deployment/utils/create-activity/create-activity";
+import { ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import { OrganizationContextResolver } from "@src/organization/services/organization-context/organization-context.resolver";
 import type { UserOutput } from "@src/user/repositories";
 import { CreateDeploymentHandler } from "./create-deployment.handler";
@@ -135,11 +136,12 @@ describe(CreateDeploymentHandler.name, () => {
       const { accepted, activityId } = await queueCreate();
 
       await expectJobCompleted(CreateDeployment[JOB_NAME], { singletonKey: createDeploymentKeyFor(accepted) });
+      const defaultProject = await container.resolve(ProjectRepository).findDefaultByOrganizationId(wallet.organizationId!);
       expect(sendsFor(broadcast, wallet.id)).toEqual([
         [
           expect.objectContaining({ id: wallet.id, address: wallet.address }),
           [expect.objectContaining({ typeUrl: "/akash.deployment.v1beta4.MsgCreateDeployment" })],
-          { actingUserId: user.id, filingProjectId: expect.any(String) }
+          { actingUserId: user.id, filingProjectId: defaultProject?.id }
         ]
       ]);
       expect(await findActivity(activityId)).toMatchObject({ status: "succeeded", meta: { dseq: accepted.dseq } });

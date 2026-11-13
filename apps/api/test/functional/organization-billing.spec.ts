@@ -17,7 +17,7 @@ import { app } from "@src/rest-app";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
-import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationIdOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
 import { createFeeAllowanceResponse } from "@test/seeders/fee-allowance-response.seeder";
 
@@ -477,7 +477,10 @@ describe("Organization billing", () => {
   }
 
   async function seedOwnWallet(userId: string) {
-    const [wallet] = await db.insert(resolveTable("UserWallets")).values({ userId, address: createAkashAddress(), isTrialing: true }).returning();
+    const [wallet] = await db
+      .insert(resolveTable("UserWallets"))
+      .values({ userId, organizationId: await seedPersonalOrganizationIdOf(userId), address: createAkashAddress(), isTrialing: true })
+      .returning();
 
     return { ...wallet, address: wallet.address! };
   }
@@ -485,7 +488,13 @@ describe("Organization billing", () => {
   async function seedTransaction(input: { userId: string; organizationId: string | null; status: "pending" | "succeeded"; stripeChargeId?: string }) {
     const [transaction] = await db
       .insert(resolveTable("StripeTransactions"))
-      .values({ type: "payment_intent", amount: 2000, currency: "usd", ...input })
+      .values({
+        type: "payment_intent",
+        amount: 2000,
+        currency: "usd",
+        ...input,
+        organizationId: input.organizationId ?? (await seedPersonalOrganizationIdOf(input.userId))
+      })
       .returning();
 
     return transaction;

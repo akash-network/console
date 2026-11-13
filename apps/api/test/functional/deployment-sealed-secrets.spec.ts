@@ -27,6 +27,7 @@ import { UserRepository } from "@src/user/repositories";
 
 import { registerFakeSdlSecretsKms, SDL_SECRETS_KID, warmSealingKeyAsBootWould } from "@test/mocks/sdl-secrets-kms.mock";
 import { createApiKey } from "@test/seeders/api-key.seeder";
+import { seedPersonalOrganizationOf } from "@test/seeders/db/user-with-wallet.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
@@ -976,10 +977,11 @@ describe("Deployment sealed secrets", () => {
     const dbUser = await userRepository.create({ userId: faker.string.uuid() });
     const apiKey = faker.string.alphanumeric(24);
     const user = createUser({ id: dbUser.id, userId: dbUser.userId ?? undefined });
+    const { id: organizationId } = await seedPersonalOrganizationOf(dbUser);
 
     knownUsers[dbUser.id] = user;
-    knownApiKeys[apiKey] = createApiKey({ userId: dbUser.id });
-    knownWallets[dbUser.id] = [createUserWallet({ userId: dbUser.id, address: "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm" })];
+    knownApiKeys[apiKey] = createApiKey({ userId: dbUser.id, organizationId });
+    knownWallets[dbUser.id] = [createUserWallet({ userId: dbUser.id, organizationId, address: "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm" })];
 
     return { user, apiKey };
   }

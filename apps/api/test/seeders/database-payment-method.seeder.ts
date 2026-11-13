@@ -6,7 +6,7 @@ export function generateDatabasePaymentMethod(overrides: Partial<PaymentMethodOu
   const basePaymentMethod: PaymentMethodOutput = {
     id: faker.string.uuid(),
     userId: faker.string.uuid(),
-    organizationId: null,
+    organizationId: faker.string.uuid(),
     fingerprint: faker.string.uuid(),
     paymentMethodId: faker.string.uuid(),
     isValidated: false,

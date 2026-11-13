@@ -15,7 +15,7 @@ import { UserRepository } from "@src/user/repositories";
 import { FirstPurchaseBonusWindowReminderHandler } from "./first-purchase-bonus-window-reminder.handler";
 import { FirstPurchaseBonusWindowReminderJob, firstPurchaseBonusWindowReminderOptionsFor } from "./first-purchase-bonus-window-reminder.job";
 
-import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationIdOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { expectJobCompleted, makeJobDue, useJobWorkers } from "@test/services/job-queue-harness";
 
 const NOTIFICATION_PATH = "/internal/v1/jobs/notification";
@@ -135,6 +135,7 @@ describe(FirstPurchaseBonusWindowReminderHandler.name, () => {
     }) {
       return await container.resolve(StripeTransactionRepository).create({
         userId: person.id,
+        organizationId: await seedPersonalOrganizationIdOf(person.id),
         type: "payment_intent",
         status: "succeeded",
         amount,

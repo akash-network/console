@@ -16,6 +16,7 @@ import type { ApiPgDatabase } from "@src/core";
 import { JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { TxService } from "@src/core/services/tx/tx.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { OrganizationActivityRepository } from "@src/organization/repositories/organization-activity/organization-activity.repository";
@@ -47,6 +48,7 @@ import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.
 import { seedWalletSetting } from "@test/seeders/db/wallet-setting.seeder";
 import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
 import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
+import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 import { findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 import { holdTransaction, waitForLockWait } from "@test/services/lock-wait";
 
@@ -220,13 +222,13 @@ describe(AccountDeletionService.name, () => {
     answerActiveDeployments([]);
     const team = await joinTeam("member");
     const teamTemplate = await seedTemplate({ userId: account.user.userId!, organizationId: team.organization.id, projectId: team.project.id, isPublic: true });
-    const unfiledTemplate = await seedTemplate({ userId: account.user.userId!, organizationId: null, projectId: null });
+    const personalTemplate = await seedTemplate({ userId: account.user.userId!, organizationId: account.organization.id, projectId: null });
     const teammateTemplate = await seedTemplate({ userId: team.owner.userId!, organizationId: team.organization.id, projectId: team.project.id });
     await templateRepository.addFavorite(team.owner.userId!, teamTemplate.id);
 
     await service.confirm({ token });
 
-    expect(await findTemplates([teamTemplate.id, unfiledTemplate.id, account.templateId, teammateTemplate.id])).toEqual([
+    expect(await findTemplates([teamTemplate.id, personalTemplate.id, account.templateId, teammateTemplate.id])).toEqual([
       expect.objectContaining({ id: teamTemplate.id, userId: null, organizationId: team.organization.id, projectId: team.project.id, sdl: teamTemplate.sdl }),
       expect.objectContaining({ id: teammateTemplate.id, userId: team.owner.userId })
     ]);
@@ -264,15 +266,15 @@ describe(AccountDeletionService.name, () => {
   });
 
   it("erases every row the account wrote for its personal organization rather than keeping it unnamed", async () => {
-    const { service, account, token, answerActiveDeployments, joinTeam, countRowsFiledUnder, seedUnfiledRowsOf, findRows } = await setup();
+    const { service, account, token, answerActiveDeployments, joinTeam, countRowsFiledUnder, seedPersonalRowsOf, findRows } = await setup();
     answerActiveDeployments([]);
     await joinTeam("member");
-    const unfiledRows = await seedUnfiledRowsOf(account.user.id);
+    const personalRows = await seedPersonalRowsOf(account.user.id, account.organization.id);
 
     await service.confirm({ token });
 
     expect(await countRowsFiledUnder(account.organization.id)).toEqual({ stripeTransactions: 0, paymentMethods: 0, walletSettings: 0, deploymentSettings: 0 });
-    expect(await findRows(unfiledRows)).toEqual({ stripeTransactions: [], paymentMethods: [], walletSettings: [], deploymentSettings: [] });
+    expect(await findRows(personalRows)).toEqual({ stripeTransactions: [], paymentMethods: [], walletSettings: [], deploymentSettings: [] });
   });
 
   it("lets an owner delete their account while another owner keeps the team", async () => {
@@ -692,11 +694,20 @@ describe(AccountDeletionService.name, () => {
     const account = await seedAccount();
     const bystander = await seedAccount();
 
-    const sharedTemplateId = await templateRepository.createTemplate(bystander.user.userId!, templateInput());
+    const sharedTemplateId = await inOrganization(bystander.organization.id, () => templateRepository.createTemplate(bystander.user.userId!, templateInput()));
     await templateRepository.addFavorite(account.user.userId!, sharedTemplateId);
     await templateRepository.addFavorite(bystander.user.userId!, account.templateId);
 
     const token = await issueDeletionTokenFor(account.user.id);
+
+    async function inOrganization<R>(organizationId: string, run: () => Promise<R>) {
+      const executionContextService = container.resolve(ExecutionContextService);
+
+      return await executionContextService.runWithContext(async () => {
+        executionContextService.set("ORGANIZATION_CONTEXT", createOrganizationContext({ organizationId, organizationType: "personal" }));
+        return await run();
+      });
+    }
 
     async function issueDeletionTokenFor(userId: string) {
       const issued = faker.string.alphanumeric(43);
@@ -717,17 +728,21 @@ describe(AccountDeletionService.name, () => {
       });
       const blockedDomain = faker.internet.domainName().toLowerCase();
       const dseq = faker.string.numeric(8);
+      const organization = await personalOrganizationService.ensureForUser(user);
+      const organizationId = organization.id;
 
       await seedWalletSetting({ userId: user.id, walletId: wallet.id });
       await seedDeploymentSetting({ userId: user.id });
-      await db.insert(resolveTable("ApiKeys")).values({ userId: user.id, hashedKey: faker.string.alphanumeric(64), keyFormat: "ac.sk", name: "ci" });
+      await db
+        .insert(resolveTable("ApiKeys"))
+        .values({ userId: user.id, organizationId, hashedKey: faker.string.alphanumeric(64), keyFormat: "ac.sk", name: "ci" });
       await db
         .insert(resolveTable("EmailVerificationCodes"))
         .values({ userId: user.id, email: user.email ?? faker.internet.email(), code: "0".repeat(64), expiresAt: new Date() });
       await db
         .insert(resolveTable("PaymentMethods"))
-        .values({ userId: user.id, fingerprint: faker.string.alphanumeric(16), paymentMethodId: `pm_${faker.string.alphanumeric(14)}` });
-      await db.insert(resolveTable("StripeTransactions")).values({ userId: user.id, type: "payment_intent", amount: 1000 });
+        .values({ userId: user.id, organizationId, fingerprint: faker.string.alphanumeric(16), paymentMethodId: `pm_${faker.string.alphanumeric(14)}` });
+      await db.insert(resolveTable("StripeTransactions")).values({ userId: user.id, organizationId, type: "payment_intent", amount: 1000 });
       await db.insert(resolveTable("HardwareRequests")).values({ userId: user.id, category: "other", contactEmail: faker.internet.email() });
       await seedFeedbackSubmission({ userId: user.id });
       await seedAssistantConsent({ userId: user.id });
@@ -746,9 +761,7 @@ describe(AccountDeletionService.name, () => {
         .insert(resolveTable("WorkloadProbeEvidence"))
         .values({ walletId: wallet.id, dseq, provider: "akash1provider", service: "web", shellStatus: "ok", verdict: "clean" });
       await db.insert(resolveTable("BlockedEmailDomains")).values({ domain: blockedDomain, triggeredByUserId: user.id });
-      const templateId = await templateRepository.createTemplate(user.userId!, templateInput());
-
-      const organization = await personalOrganizationService.ensureForUser(user);
+      const templateId = await inOrganization(organizationId, () => templateRepository.createTemplate(user.userId!, templateInput()));
       await personalOrganizationService.adoptUserRows(user, organization);
 
       return { user, wallet, address, blockedDomain, templateId, organization };
@@ -949,16 +962,16 @@ describe(AccountDeletionService.name, () => {
       };
     }
 
-    async function seedUnfiledRowsOf(userId: string) {
+    async function seedPersonalRowsOf(userId: string, organizationId: string) {
       const [transaction] = await db
         .insert(resolveTable("StripeTransactions"))
-        .values({ userId, organizationId: null, type: "payment_intent", amount: 2500 })
+        .values({ userId, organizationId, type: "payment_intent", amount: 2500 })
         .returning();
       const [paymentMethod] = await db
         .insert(resolveTable("PaymentMethods"))
-        .values({ userId, organizationId: null, fingerprint: faker.string.alphanumeric(16), paymentMethodId: `pm_${faker.string.alphanumeric(14)}` })
+        .values({ userId, organizationId, fingerprint: faker.string.alphanumeric(16), paymentMethodId: `pm_${faker.string.alphanumeric(14)}` })
         .returning();
-      const deploymentSetting = await seedDeploymentSetting({ userId, organizationId: null });
+      const deploymentSetting = await seedDeploymentSetting({ userId, organizationId });
 
       return {
         stripeTransactionIds: [transaction.id],
@@ -968,7 +981,7 @@ describe(AccountDeletionService.name, () => {
       };
     }
 
-    async function seedTemplate(input: { userId: string; organizationId: string | null; projectId: string | null; isPublic?: boolean }) {
+    async function seedTemplate(input: { userId: string; organizationId: string; projectId: string | null; isPublic?: boolean }) {
       const [template] = await db
         .insert(resolveTable("Templates"))
         .values({ ...input, ...templateInput() })
@@ -1024,7 +1037,7 @@ describe(AccountDeletionService.name, () => {
       ownTeam,
       findRows,
       countRowsFiledUnder,
-      seedUnfiledRowsOf,
+      seedPersonalRowsOf,
       templateRepository,
       seedTemplate,
       findTemplates

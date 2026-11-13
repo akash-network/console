@@ -20,6 +20,10 @@ class ExposedProjectMemberRepository extends ProjectMemberRepository {
   requireWrittenRow<R>(row: R | undefined): R {
     return super.requireWrittenRow(row);
   }
+
+  attributeToRequiredOrganization<V extends object>(values: V) {
+    return super.attributeToRequiredOrganization(values);
+  }
 }
 
 class ProjectFilingRepository extends ExposedProjectMemberRepository {
@@ -228,6 +232,37 @@ describe(OrgScopedRepository.name, () => {
 
       expect(() => repository.requireWrittenRow(undefined)).toThrow(expect.objectContaining({ status: 403, errorCode: ORGANIZATION_FORBIDDEN_ERROR_CODE }));
     });
+  });
+
+  describe("attributeToRequiredOrganization", () => {
+    it("files values that name no organization into the active one", async () => {
+      const context = createOrganizationContext();
+      const { repository, runInContext } = setup({ context });
+
+      const filed = await runInContext(() => repository.attributeToRequiredOrganization({ userId: "user-1" }));
+
+      expect(filed).toEqual({ userId: "user-1", organizationId: context.organizationId });
+    });
+
+    it("keeps the organization values name outside any organization context", async () => {
+      const organizationId = faker.string.uuid();
+      const { repository } = setup({});
+
+      const filed = await repository.attributeToRequiredOrganization({ userId: "user-1", organizationId });
+
+      expect(filed).toEqual({ userId: "user-1", organizationId });
+    });
+
+    it.each([{ organizationId: undefined }, { organizationId: null }])(
+      "refuses values naming no organization outside any organization context: %o",
+      async ({ organizationId }) => {
+        const { repository } = setup({});
+
+        await expect(repository.attributeToRequiredOrganization({ userId: "user-1", organizationId })).rejects.toThrow(
+          "A ProjectMember must belong to an organization"
+        );
+      }
+    );
   });
 
   describe("without an organization context", () => {

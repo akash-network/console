@@ -10,6 +10,7 @@ import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.reposit
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { BILLING_CONFIG } from "@src/billing/providers";
 import { CORE_CONFIG } from "@src/core";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { MAX_DEPLOYMENT_NAME_LENGTH } from "@src/deployment/utils/deployment-name/deployment-name";
@@ -18,13 +19,13 @@ import { deploymentVersion, marketVersion } from "@src/utils/constants";
 
 import { registerFakeSdlSecretsKms, warmSealingKeyAsBootWould } from "@test/mocks/sdl-secrets-kms.mock";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
-import { fileIntoPersonalOrganization } from "@test/seeders/db/organization.seeder";
-import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationIdOf, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
 import { createDeploymentInfoErrorSeed, createDeploymentInfoGroupsFromSdl, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { createFeeAllowanceResponse } from "@test/seeders/fee-allowance-response.seeder";
 import { createLeaseApiResponse } from "@test/seeders/lease-api-response.seeder";
 import { createLeaseStatus } from "@test/seeders/lease-status.seeder";
+import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 import { createProvider } from "@test/seeders/provider.seeder";
 
 registerFakeSdlSecretsKms();
@@ -35,6 +36,7 @@ const STORED_SDL = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world
 
 describe("PATCH /v1/deployments/{dseq} route wiring", () => {
   const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+  const executionContextService = container.resolve(ExecutionContextService);
 
   beforeAll(async () => {
     await startJobQueues();
@@ -288,12 +290,13 @@ describe("PATCH /v1/deployments/{dseq} route wiring", () => {
     return app.request(`/v1/deployments/${DSEQ}`, { method: "PATCH", body: JSON.stringify({ data }), headers });
   }
 
-  async function persistApiKeyFor(userId: string) {
+  async function persistApiKeyFor(userId: string, organizationId: string) {
     const apiKeyGenerator = container.resolve(ApiKeyGeneratorService);
     const apiKey = apiKeyGenerator.generateApiKey();
 
     await container.resolve(ApiKeyRepository).create({
       userId,
+      organizationId,
       name: faker.company.name(),
       hashedKey: apiKeyGenerator.hashApiKeySha256(apiKey),
       keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey)
@@ -357,7 +360,8 @@ describe("PATCH /v1/deployments/{dseq} route wiring", () => {
 
   async function setup(input: { recordsDefinition?: boolean; recordsName?: string; chainHoldsDeployment?: boolean } = {}) {
     const { user, address } = await seedUserWithWallet({ isTrialing: false, activatedAt: new Date() });
-    const apiKey = await persistApiKeyFor(user.id);
+    const organizationId = await seedPersonalOrganizationIdOf(user.id);
+    const apiKey = await persistApiKeyFor(user.id, organizationId);
     const provider = createAkashAddress();
 
     await createProvider({ owner: provider, deletedHeight: null });
@@ -366,18 +370,20 @@ describe("PATCH /v1/deployments/{dseq} route wiring", () => {
     const sentManifests = nockProviderProxy();
 
     if (input.recordsDefinition) {
-      await deploymentSettingRepository.upsertDefinition({
-        userId: user.id,
-        dseq: DSEQ,
-        sdl: STORED_SDL,
-        manifestVersion: REPLACED_MANIFEST_VERSION,
-        name: input.recordsName
+      await executionContextService.runWithContext(async () => {
+        executionContextService.set("ORGANIZATION_CONTEXT", createOrganizationContext({ organizationId, organizationType: "personal" }));
+
+        await deploymentSettingRepository.upsertDefinition({
+          userId: user.id,
+          dseq: DSEQ,
+          sdl: STORED_SDL,
+          manifestVersion: REPLACED_MANIFEST_VERSION,
+          name: input.recordsName
+        });
       });
     } else if (input.recordsName) {
-      await deploymentSettingRepository.create({ userId: user.id, dseq: DSEQ, name: input.recordsName });
+      await deploymentSettingRepository.create({ userId: user.id, organizationId, dseq: DSEQ, name: input.recordsName });
     }
-
-    await fileIntoPersonalOrganization(user);
 
     return { user, apiKey, sentManifests, broadcastMessages };
   }

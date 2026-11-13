@@ -275,9 +275,11 @@ export class AffiliateCommissionService {
     return organization?.createdByUserId ?? null;
   }
 
-  async #findPersonalOrganizationId(userId: string): Promise<string | null> {
+  async #findPersonalOrganizationId(userId: string): Promise<string> {
     const organization = await this.organizationRepository.findPersonalByUserId(userId);
-    return organization?.id ?? null;
+    if (!organization) throw new Error(`Affiliate ${userId} has no personal organization to file the commission into`);
+
+    return organization.id;
   }
 
   async #findSkipReason(
@@ -306,7 +308,7 @@ export class AffiliateCommissionService {
   /** The payment row lock already serializes syncs, so a unique violation here means a commission landed outside that lock and must not be credited twice. */
   async #recordCommission(input: {
     userId: string;
-    organizationId: string | null;
+    organizationId: string;
     amount: number;
     amountRefunded: number;
     sourceTransactionId: string;

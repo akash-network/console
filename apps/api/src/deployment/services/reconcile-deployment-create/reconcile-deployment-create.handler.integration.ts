@@ -26,6 +26,7 @@ import { ReconcileDeploymentCreateHandler } from "./reconcile-deployment-create.
 import { ReconcileDeploymentCreate, reconcileDeploymentCreateKeyFor } from "./reconcile-deployment-create.job";
 
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { createDenomExchangeRate } from "@test/seeders/denom-exchange-rate.seeder";
 import { createDeploymentInfoErrorSeed, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { expectJobCompleted, findJobRows, runAsUser, useJobWorkers } from "@test/services/job-queue-harness";
 
@@ -124,6 +125,7 @@ describe(ReconcileDeploymentCreateHandler.name, () => {
     const { enqueue, startWorkers } = await jobWorkers();
     const activityRepository = container.resolve(ActivityRepository);
     const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+    vi.spyOn(container.resolve(DenomExchangeService), "getExchangeRateToUSD").mockResolvedValue(createDenomExchangeRate({ price: 2 }));
     const { user, address: owner } = await seedUserWithWallet();
     vi.spyOn(container.resolve(ManagedSignerService), "assertCanBroadcast").mockResolvedValue(undefined);
     answerAktPrice();

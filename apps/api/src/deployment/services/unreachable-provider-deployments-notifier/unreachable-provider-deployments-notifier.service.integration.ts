@@ -15,7 +15,7 @@ import { UnreachableProviderDeploymentsNotifierService } from "./unreachable-pro
 import { createAkashAddress, createDeployment, createDeploymentGroup, createLease, createProvider } from "@test/seeders";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
-import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 
 const DOWN_SINCE = "2026-07-24T00:00:00.000Z";
 const SECOND_OUTAGE_SINCE = "2026-08-20T00:00:00.000Z";
@@ -133,6 +133,7 @@ describe(UnreachableProviderDeploymentsNotifierService.name, () => {
 
     const owner = createAkashAddress();
     const user = await userRepository.create({ userId: faker.string.uuid(), email: "owner@example.com" });
+    await seedPersonalOrganizationOf(user);
     const team = input.inTeam
       ? await seedTeamWallet(owner, { memberId: input.filerLeftTeam ? undefined : user.id, ownerCount: input.teamOwnerCount ?? 1 })
       : undefined;

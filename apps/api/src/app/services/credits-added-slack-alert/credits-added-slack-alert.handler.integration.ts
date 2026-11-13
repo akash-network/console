@@ -12,7 +12,7 @@ import { DOMAIN_EVENT_NAME } from "@src/core/services/domain-events/domain-event
 import { CreditsAddedSlackAlertHandler } from "./credits-added-slack-alert.handler";
 import { DELETED_BUYER_LABEL } from "./credits-added-slack-message";
 
-import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationIdOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 
 const SLACK_ORIGIN = "https://hooks.slack.test";
@@ -136,10 +136,16 @@ describe(CreditsAddedSlackAlertHandler.name, () => {
       await startWorkers();
     };
 
-    const seedCardPurchase = (overrides: { createdAt?: Date } = {}) =>
-      container
-        .resolve(StripeTransactionRepository)
-        .create({ userId: user.id, type: "payment_intent", status: "succeeded", amount: 2500, currency: "usd", ...overrides });
+    const seedCardPurchase = async (overrides: { createdAt?: Date } = {}) =>
+      container.resolve(StripeTransactionRepository).create({
+        userId: user.id,
+        organizationId: await seedPersonalOrganizationIdOf(user.id),
+        type: "payment_intent",
+        status: "succeeded",
+        amount: 2500,
+        currency: "usd",
+        ...overrides
+      });
 
     return {
       user,

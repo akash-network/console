@@ -16,7 +16,7 @@ import { JOB_NAME } from "@src/core";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { PAYMENT_CREDIT_UNDECIDED_ERROR_CODE, PaymentCreditService } from "./payment-credit.service";
 
-import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationIdOf, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { deleteQueuedJobs, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 
 const CHECK = ReconcileDeploymentAllowance[JOB_NAME];
@@ -136,9 +136,10 @@ describe(PaymentCreditService.name, () => {
   async function setup() {
     await jobWorkers();
     const { user, wallet } = await seedUserWithWallet({ activatedAt: new Date() });
-    const createPurchase = () =>
+    const createPurchase = async () =>
       container.resolve(StripeTransactionRepository).create({
         userId: user.id,
+        organizationId: await seedPersonalOrganizationIdOf(user.id),
         type: "payment_intent",
         status: "pending",
         amount: paidCents,

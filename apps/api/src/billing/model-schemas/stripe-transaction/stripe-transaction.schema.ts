@@ -29,7 +29,9 @@ export const StripeTransactions = pgTable(
     /** Null for a team organization's row whose member has deleted their account. */
     userId: uuid("user_id").references(() => Users.id, { onDelete: "cascade" }),
     /** The organization that paid; `user_id` stays the member who acted. */
-    organizationId: uuid("organization_id").references(() => Organizations.id),
+    organizationId: uuid("organization_id")
+      .references(() => Organizations.id)
+      .notNull(),
     type: stripeTransactionTypeEnum("type").notNull(),
     status: stripeTransactionStatusEnum("status").notNull().default("created"),
     amount: integer("amount").notNull(), // Amount in cents

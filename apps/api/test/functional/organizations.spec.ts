@@ -277,7 +277,7 @@ describe("Organizations", () => {
     return data.find(organization => organization.isActive);
   }
 
-  async function seedPaymentMethod(input: { organizationId: string | null; userId: string }) {
+  async function seedPaymentMethod(input: { organizationId: string; userId: string }) {
     await db.insert(resolveTable("PaymentMethods")).values({
       ...input,
       fingerprint: faker.string.alphanumeric(16),

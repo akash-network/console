@@ -13,7 +13,7 @@ import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
-import { fileIntoPersonalOrganization } from "@test/seeders/db/organization.seeder";
+import { seedPersonalOrganizationOf } from "@test/seeders/db/user-with-wallet.seeder";
 import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { createFeeAllowanceResponse } from "@test/seeders/fee-allowance-response.seeder";
 import { createLeaseApiResponse } from "@test/seeders/lease-api-response.seeder";
@@ -205,10 +205,10 @@ describe("Wallet chain reads", () => {
     const user = await userRepository.create({ userId: faker.string.uuid() });
     const token = faker.string.alphanumeric(40);
     const address = createAkashAddress();
+    await seedPersonalOrganizationOf(user);
     const { wallet } = await userWalletRepository.getOrCreate({ userId: user.id });
     await userWalletRepository.updateById(wallet.id, { address });
 
-    await fileIntoPersonalOrganization(user);
     vi.spyOn(userAuthTokenService, "getValidUserId").mockResolvedValue(user.userId);
 
     return { token, address };

@@ -13,7 +13,7 @@ import { SyncAffiliateCommissionHandler } from "./sync-affiliate-commission.hand
 import { SyncAffiliateCommission } from "./sync-affiliate-commission.job";
 
 import { seedPaymentCredit } from "@test/seeders/db/payment-credit.seeder";
-import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationIdOf, seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 
 const jobWorkers = useJobWorkers(() => [container.resolve(SyncAffiliateCommissionHandler)]);
@@ -66,6 +66,7 @@ describe(AffiliateCommissionService.name, () => {
     await container.resolve(ReferralRepository).createIfAbsent({ referredUserId: payer.id, affiliateId: affiliate.id });
     const payment = await container.resolve(StripeTransactionRepository).create({
       userId: payer.id,
+      organizationId: await seedPersonalOrganizationIdOf(payer.id),
       type: "payment_intent",
       status: "succeeded",
       amount: 10000,

@@ -7,7 +7,7 @@ import { StripeTransactionRepository } from "@src/billing/repositories";
 import { ReferralRepository } from "./referral.repository";
 
 import { seedOrganization, seedOrganizationMember } from "@test/seeders/db/organization.seeder";
-import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationIdOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe(ReferralRepository.name, () => {
   describe("createIfAbsent", () => {
@@ -157,7 +157,7 @@ describe(ReferralRepository.name, () => {
   async function seedPayment(userId: string, status: "succeeded" | "refunded" | "failed", options: { organizationId?: string } = {}) {
     return container.resolve(StripeTransactionRepository).create({
       userId,
-      organizationId: options.organizationId,
+      organizationId: options.organizationId ?? (await seedPersonalOrganizationIdOf(userId)),
       type: "payment_intent",
       status,
       amount: faker.number.int({ min: 1000, max: 100000 }),

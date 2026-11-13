@@ -61,7 +61,13 @@ describe(TeamSecretsResealService.name, () => {
       const sealedSecrets = (await executionContextService.runWithContext(
         async () => await sdlSecretsService.sealForStorage({ userId: filerId, dseq, secrets })
       ))!;
-      const { id } = await seedDeploymentSetting({ userId: filerId, organizationId, dseq, sealedSecrets, autoTopUpEnabled: false });
+      const { id } = await seedDeploymentSetting({
+        userId: filerId,
+        organizationId: organizationId ?? undefined,
+        dseq,
+        sealedSecrets,
+        autoTopUpEnabled: false
+      });
 
       return { id, dseq, secrets, sealedSecrets };
     }

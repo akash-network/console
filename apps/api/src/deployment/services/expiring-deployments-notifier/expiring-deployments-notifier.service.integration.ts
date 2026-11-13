@@ -12,6 +12,7 @@ import { UserRepository } from "@src/user/repositories";
 import { ExpiringDeploymentsNotifierService } from "./expiring-deployments-notifier.service";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { seedPersonalOrganizationIdOf } from "@test/seeders/db/user-with-wallet.seeder";
 
 /**
  * Covers which rows the sweep picks up and the once-per-deadline rule, both of which are pure SQL:
@@ -188,6 +189,7 @@ describe(ExpiringDeploymentsNotifierService.name, () => {
         .insert(userWalletsTable)
         .values({
           userId: user.id,
+          organizationId: await seedPersonalOrganizationIdOf(user.id),
           address,
           deploymentAllowance: "10000000",
           feeAllowance: "5000000",
@@ -203,6 +205,7 @@ describe(ExpiringDeploymentsNotifierService.name, () => {
         .insert(deploymentSettingsTable)
         .values({
           userId,
+          organizationId: await seedPersonalOrganizationIdOf(userId),
           dseq,
           autoTopUpEnabled: true,
           closed: false,

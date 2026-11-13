@@ -23,6 +23,11 @@ type OrganizationScopedTable = PgTableWithColumns<any> & { organizationId: PgCol
 
 type OrganizationAttributed = { organizationId?: string | null };
 
+type OrganizationFiled = { organizationId: string };
+
+/** What a caller writes to a table that refuses rows without an organization: the repository fills in the active one. */
+export type OrganizationFiledOnWrite<T extends OrganizationFiled> = Omit<T, "organizationId"> & OrganizationAttributed;
+
 type ProjectAttributed = { projectId?: string | null };
 
 /** Narrows queries and holds writes to the active organization; `unscoped` is the only way out. */
@@ -94,6 +99,17 @@ export abstract class OrgScopedRepository<
     return { ...values, organizationId, ...(await this.#defaultProjectUnlessNamed(values, organizationId)) };
   }
 
+  /** For tables that refuse rows without an organization, so a write with none to file into fails before it reaches the database. */
+  protected async attributeToRequiredOrganization<V extends object>(values: V): Promise<V & OrganizationFiled> {
+    const attributed = await this.attributeToOrganization(values);
+
+    if (!isOrganizationFiled(attributed)) {
+      throw new Error(`A ${this.entityName} must belong to an organization`);
+    }
+
+    return attributed;
+  }
+
   /** A write or conflict re-read that came back empty hit a row outside the active organization or the caller's rules. */
   protected requireWrittenRow<R>(row: R | undefined): R {
     if (!row) {
@@ -145,4 +161,8 @@ export abstract class OrgScopedRepository<
 
     return this.abilityParams ? repository.withAbility(...this.abilityParams) : repository;
   }
+}
+
+function isOrganizationFiled<V extends OrganizationAttributed>(values: V): values is V & OrganizationFiled {
+  return !!values.organizationId;
 }

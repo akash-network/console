@@ -318,7 +318,7 @@ describe("Deployment list by project", () => {
     return body.data.deployments.map(item => item.deployment.id.dseq);
   }
 
-  async function seedWallet(userId: string | null, organizationId?: string) {
+  async function seedWallet(userId: string | null, organizationId: string) {
     const address = createAkashAddress();
     await container
       .resolve<ApiPgDatabase>(POSTGRES_DB)

@@ -71,10 +71,8 @@ export class ApiKeyExpiryReminderHandler implements JobHandler<ApiKeyExpiryRemin
     this.#logger.info({ event: "API_KEY_EXPIRY_REMINDER_SENT", apiKeyId, keys: keysExpiringTogether.length, daysBeforeExpiry });
   }
 
-  #apiKeysUrl(organizationId: string | null): string {
-    const url = `${this.deploymentConfig.get("DEPLOY_WEB_BASE_URL")}/user/api-keys`;
-
-    return organizationId ? `${url}?org=${encodeURIComponent(organizationId)}` : url;
+  #apiKeysUrl(organizationId: string): string {
+    return `${this.deploymentConfig.get("DEPLOY_WEB_BASE_URL")}/user/api-keys?org=${encodeURIComponent(organizationId)}`;
   }
 }
 

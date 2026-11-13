@@ -11,6 +11,7 @@ import { ProviderOutagesHttpService } from "../provider-outages-http/provider-ou
 import { UnreachableProviderDeploymentsCloserService } from "./unreachable-provider-deployments-closer.service";
 
 import { createAkashAddress, createDeployment, createDeploymentGroup, createLease, createProvider } from "@test/seeders";
+import { seedPersonalOrganizationOf } from "@test/seeders/db/user-with-wallet.seeder";
 
 const DOWN_SINCE = "2026-07-24T00:00:00.000Z";
 
@@ -52,8 +53,8 @@ describe(UnreachableProviderDeploymentsCloserService.name, () => {
   });
 
   it("leaves a deployment already recorded as closed alone", async () => {
-    const { service, enqueue, deploymentSettingRepository, deployment, user } = await setup();
-    await deploymentSettingRepository.markClosed({ userId: user.id, dseq: deployment.dseq });
+    const { service, enqueue, deploymentSettingRepository, deployment, user, personalOrganization } = await setup();
+    await deploymentSettingRepository.markClosed({ userId: user.id, organizationId: personalOrganization.id, dseq: deployment.dseq });
 
     await service.closeUnreachableProviderDeployments({ dryRun: false });
 
@@ -67,6 +68,7 @@ describe(UnreachableProviderDeploymentsCloserService.name, () => {
 
     const owner = createAkashAddress();
     const user = await userRepository.create({ userId: faker.string.uuid(), email: "owner@example.com" });
+    const personalOrganization = await seedPersonalOrganizationOf(user);
     const { wallet } = await userWalletRepository.getOrCreate({ userId: user.id });
     await userWalletRepository.updateById(wallet.id, { address: owner });
 
@@ -93,7 +95,8 @@ describe(UnreachableProviderDeploymentsCloserService.name, () => {
       deploymentSettingRepository,
       enqueue,
       deployment,
-      user
+      user,
+      personalOrganization
     };
   }
 });

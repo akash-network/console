@@ -15,7 +15,8 @@ import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
 import { createApiKey } from "@test/seeders/api-key.seeder";
-import { findJobRows, runAsUser } from "@test/services/job-queue-harness";
+import { seedPersonalOrganizationOf } from "@test/seeders/db/user-with-wallet.seeder";
+import { findJobRows } from "@test/services/job-queue-harness";
 
 const OBFUSCATED_API_KEY_PATTERN = /^ac\.sk\.test\.[A-Za-z0-9]{6}\*{3}[A-Za-z0-9]{6}$/;
 const FULL_API_KEY_PATTERN = /^ac\.sk\.test\.[A-Za-z0-9]{64}$/;
@@ -51,22 +52,21 @@ describe("API Keys", () => {
     });
 
     it("does not return other user's API keys", async () => {
-      const { user: user1, token, createUser } = await setup();
+      const { user: user1, token, createUser, organizationId } = await setup();
       const { token: token2 } = await createUser();
 
       const key1 = createApiKey({
         userId: user1.id,
+        organizationId,
         name: "Test key 1"
       });
-      await runAsUser(user1, async () =>
-        apiKeyRepository.create({
-          ...key1,
-          createdAt: new Date(key1.createdAt),
-          updatedAt: new Date(key1.updatedAt),
-          expiresAt: key1.expiresAt ? new Date(key1.expiresAt) : null,
-          lastUsedAt: key1.lastUsedAt ? new Date(key1.lastUsedAt) : null
-        })
-      );
+      await apiKeyRepository.create({
+        ...key1,
+        createdAt: new Date(key1.createdAt),
+        updatedAt: new Date(key1.updatedAt),
+        expiresAt: key1.expiresAt ? new Date(key1.expiresAt) : null,
+        lastUsedAt: key1.lastUsedAt ? new Date(key1.lastUsedAt) : null
+      });
 
       const [response, nonOwnerResponse] = await Promise.all([
         app.request("/v1/api-keys", {
@@ -84,7 +84,7 @@ describe("API Keys", () => {
     });
 
     it("returns list of API keys with obfuscated keys", async () => {
-      const { token, user, apiKeyGenerator } = await setup();
+      const { token, user, apiKeyGenerator, organizationId } = await setup();
       const apiKey = apiKeyGenerator.generateApiKey();
       const hashedKey = await apiKeyGenerator.hashApiKey(apiKey);
       const obfuscatedKey = apiKeyGenerator.obfuscateApiKey(apiKey);
@@ -94,36 +94,34 @@ describe("API Keys", () => {
 
       const key1 = createApiKey({
         userId: user.id,
+        organizationId,
         name: "Test key 1",
         hashedKey,
         keyFormat: obfuscatedKey
       });
       const key2 = createApiKey({
         userId: user.id,
+        organizationId,
         name: "Test key 2",
         hashedKey: hashedKey2,
         keyFormat: obfuscatedKey2
       });
 
       await Promise.all([
-        runAsUser(user, async () =>
-          apiKeyRepository.create({
-            ...key1,
-            createdAt: new Date(key1.createdAt),
-            updatedAt: new Date(key1.updatedAt),
-            expiresAt: key1.expiresAt ? new Date(key1.expiresAt) : null,
-            lastUsedAt: key1.lastUsedAt ? new Date(key1.lastUsedAt) : null
-          })
-        ),
-        runAsUser(user, async () =>
-          apiKeyRepository.create({
-            ...key2,
-            createdAt: new Date(key2.createdAt),
-            updatedAt: new Date(key2.updatedAt),
-            expiresAt: key2.expiresAt ? new Date(key2.expiresAt) : null,
-            lastUsedAt: key2.lastUsedAt ? new Date(key2.lastUsedAt) : null
-          })
-        )
+        apiKeyRepository.create({
+          ...key1,
+          createdAt: new Date(key1.createdAt),
+          updatedAt: new Date(key1.updatedAt),
+          expiresAt: key1.expiresAt ? new Date(key1.expiresAt) : null,
+          lastUsedAt: key1.lastUsedAt ? new Date(key1.lastUsedAt) : null
+        }),
+        apiKeyRepository.create({
+          ...key2,
+          createdAt: new Date(key2.createdAt),
+          updatedAt: new Date(key2.updatedAt),
+          expiresAt: key2.expiresAt ? new Date(key2.expiresAt) : null,
+          lastUsedAt: key2.lastUsedAt ? new Date(key2.lastUsedAt) : null
+        })
       ]);
 
       const response = await app.request("/v1/api-keys", {
@@ -163,19 +161,18 @@ describe("API Keys", () => {
     });
 
     it("returns API key details with obfuscated key", async () => {
-      const { token, user, apiKeyGenerator } = await setup();
+      const { token, user, apiKeyGenerator, organizationId } = await setup();
       const apiKey = apiKeyGenerator.generateApiKey();
       const hashedKey = await apiKeyGenerator.hashApiKey(apiKey);
       const obfuscatedKey = apiKeyGenerator.obfuscateApiKey(apiKey);
 
-      const createdKey = await runAsUser(user, async () =>
-        apiKeyRepository.create({
-          userId: user.id,
-          hashedKey,
-          keyFormat: obfuscatedKey,
-          name: "Test key"
-        })
-      );
+      const createdKey = await apiKeyRepository.create({
+        userId: user.id,
+        organizationId,
+        hashedKey,
+        keyFormat: obfuscatedKey,
+        name: "Test key"
+      });
 
       const response = await app.request(`/v1/api-keys/${createdKey.id}`, {
         headers: { authorization: `Bearer ${token}` }
@@ -210,16 +207,15 @@ describe("API Keys", () => {
     });
 
     it("refuses a request authenticated with an API key and creates no key", async () => {
-      const { user, apiKeyGenerator } = await setup();
+      const { user, apiKeyGenerator, organizationId } = await setup();
       const callerKey = apiKeyGenerator.generateApiKey();
-      await runAsUser(user, async () =>
-        apiKeyRepository.create({
-          userId: user.id,
-          hashedKey: apiKeyGenerator.hashApiKeySha256(callerKey),
-          keyFormat: apiKeyGenerator.obfuscateApiKey(callerKey),
-          name: "Caller key"
-        })
-      );
+      await apiKeyRepository.create({
+        userId: user.id,
+        organizationId,
+        hashedKey: apiKeyGenerator.hashApiKeySha256(callerKey),
+        keyFormat: apiKeyGenerator.obfuscateApiKey(callerKey),
+        name: "Caller key"
+      });
 
       const response = await app.request("/v1/api-keys", {
         method: "POST",
@@ -462,19 +458,18 @@ describe("API Keys", () => {
     });
 
     it("updates API key", async () => {
-      const { token, user, apiKeyGenerator } = await setup();
+      const { token, user, apiKeyGenerator, organizationId } = await setup();
       const apiKey = apiKeyGenerator.generateApiKey();
       const hashedKey = await apiKeyGenerator.hashApiKey(apiKey);
       const obfuscatedKey = apiKeyGenerator.obfuscateApiKey(apiKey);
 
-      const createdKey = await runAsUser(user, async () =>
-        apiKeyRepository.create({
-          userId: user.id,
-          hashedKey,
-          keyFormat: obfuscatedKey,
-          name: "Test key"
-        })
-      );
+      const createdKey = await apiKeyRepository.create({
+        userId: user.id,
+        organizationId,
+        hashedKey,
+        keyFormat: obfuscatedKey,
+        name: "Test key"
+      });
 
       const response = await app.request(`/v1/api-keys/${createdKey.id}`, {
         method: "PATCH",
@@ -504,16 +499,15 @@ describe("API Keys", () => {
     });
 
     it("refuses a name holding a null character and keeps the old one", async () => {
-      const { token, user, apiKeyGenerator } = await setup();
+      const { token, user, apiKeyGenerator, organizationId } = await setup();
       const apiKey = apiKeyGenerator.generateApiKey();
-      const createdKey = await runAsUser(user, async () =>
-        apiKeyRepository.create({
-          userId: user.id,
-          hashedKey: await apiKeyGenerator.hashApiKey(apiKey),
-          keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey),
-          name: "Test key"
-        })
-      );
+      const createdKey = await apiKeyRepository.create({
+        userId: user.id,
+        organizationId,
+        hashedKey: await apiKeyGenerator.hashApiKey(apiKey),
+        keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey),
+        name: "Test key"
+      });
 
       const response = await app.request(`/v1/api-keys/${createdKey.id}`, {
         method: "PATCH",
@@ -537,19 +531,18 @@ describe("API Keys", () => {
     });
 
     it("deletes API key", async () => {
-      const { token, user, apiKeyGenerator } = await setup();
+      const { token, user, apiKeyGenerator, organizationId } = await setup();
       const apiKey = apiKeyGenerator.generateApiKey();
       const hashedKey = await apiKeyGenerator.hashApiKey(apiKey);
       const obfuscatedKey = apiKeyGenerator.obfuscateApiKey(apiKey);
 
-      const createdKey = await runAsUser(user, async () =>
-        apiKeyRepository.create({
-          userId: user.id,
-          hashedKey,
-          keyFormat: obfuscatedKey,
-          name: "Test key"
-        })
-      );
+      const createdKey = await apiKeyRepository.create({
+        userId: user.id,
+        organizationId,
+        hashedKey,
+        keyFormat: obfuscatedKey,
+        name: "Test key"
+      });
 
       const response = await app.request(`/v1/api-keys/${createdKey.id}`, {
         method: "DELETE",
@@ -568,9 +561,10 @@ describe("API Keys", () => {
     const userToToken: Record<string, string> = {};
     const createUser = async () => {
       const user = await userRepository.create({ userId: faker.string.uuid(), emailVerified: input.emailVerified ?? true });
+      const { id: organizationId } = await seedPersonalOrganizationOf(user);
       const token = faker.string.alphanumeric(40);
       userToToken[token] = user.userId!;
-      return { user, token };
+      return { user, token, organizationId };
     };
 
     const originalFindById = userRepository.findByUserId;
@@ -593,8 +587,8 @@ describe("API Keys", () => {
       get: vi.fn().mockReturnValue("test")
     });
     const apiKeyGenerator = new ApiKeyGeneratorService(config);
-    const { user, token } = await createUser();
+    const { user, token, organizationId } = await createUser();
 
-    return { user, token, createUser, apiKeyGenerator };
+    return { user, token, organizationId, createUser, apiKeyGenerator };
   }
 });

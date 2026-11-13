@@ -11,7 +11,7 @@ import { NOTIFICATIONS_CONFIG } from "@src/notifications/providers/notifications
 import { ApiKeyExpiryReminderHandler, ApiKeyExpiryReminderJob } from "./api-key-expiry-reminder.handler";
 
 import { seedOrganization } from "@test/seeders/db/organization.seeder";
-import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationIdOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { expectJobCompleted, useJobWorkers } from "@test/services/job-queue-harness";
 
 const NOTIFICATION_PATH = "/internal/v1/jobs/notification";
@@ -53,18 +53,6 @@ describe(ApiKeyExpiryReminderHandler.name, () => {
     ]);
   });
 
-  it("links a key created before organizations to the API keys page as is", async () => {
-    const { seedApiKey, answerNotifications, remind } = await setup();
-    const apiKey = await seedApiKey();
-    const notifications = answerNotifications();
-
-    await remind({ apiKeyId: apiKey.id, expiresAt: apiKey.expiresAt!, daysBeforeExpiry: 30 });
-
-    expect(notifications.map(({ body }) => body.payload.actions[0].url)).toEqual([
-      `${container.resolve(DeploymentConfigService).get("DEPLOY_WEB_BASE_URL")}/user/api-keys`
-    ]);
-  });
-
   it("emails one reminder listing the keys of an organization that expire at the same time", async () => {
     const { owner, seedApiKey, answerNotifications, remind } = await setup();
     const organization = await seedOrganization();
@@ -78,7 +66,7 @@ describe(ApiKeyExpiryReminderHandler.name, () => {
     }
 
     const apiKeysUrl = `${container.resolve(DeploymentConfigService).get("DEPLOY_WEB_BASE_URL")}/user/api-keys`;
-    const [teamReminder, personalReminder] = [`${apiKeysUrl}?org=${organization.id}`, apiKeysUrl].map(url =>
+    const [teamReminder, personalReminder] = [`${apiKeysUrl}?org=${organization.id}`, `${apiKeysUrl}?org=${personalKey.organizationId}`].map(url =>
       notifications.find(({ body }) => body.payload.actions[0].url === url)
     );
     expect(notifications).toHaveLength(2);
@@ -139,7 +127,7 @@ describe(ApiKeyExpiryReminderHandler.name, () => {
         hashedKey: faker.string.alphanumeric(64),
         keyFormat: `ac.sk.test.${faker.string.alphanumeric(6)}***${faker.string.alphanumeric(6)}`,
         expiresAt: overrides.expiresAt ?? addDays(new Date(), 200),
-        organizationId: overrides.organizationId
+        organizationId: overrides.organizationId ?? (await seedPersonalOrganizationIdOf(owner.id))
       });
     }
 

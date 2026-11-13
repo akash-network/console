@@ -54,7 +54,7 @@ import {
   seedProject,
   seedProjectMember
 } from "@test/seeders/db/organization.seeder";
-import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationIdOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { createLeaseApiResponse } from "@test/seeders/lease-api-response.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 import { findJobRows, type JobRow } from "@test/services/job-queue-harness";
@@ -984,7 +984,7 @@ describe("Deployment projects", () => {
       .insert(resolveTable("UserWallets"))
       .values([
         { userId: null, organizationId: input.organizationId, createdByUserId: input.userId, address: createAkashAddress(), ...funding },
-        { userId: input.userId, address: createAkashAddress(), ...funding }
+        { userId: input.userId, organizationId: await seedPersonalOrganizationIdOf(input.userId), address: createAkashAddress(), ...funding }
       ])
       .returning();
 

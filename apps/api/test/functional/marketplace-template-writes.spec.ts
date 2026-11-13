@@ -16,8 +16,8 @@ import { TemplateVersionRepository } from "@src/template-marketplace/repositorie
 import type { TemplateModerationStatus, TemplateVisibility } from "@src/user/model-schemas/template/template.schema";
 import type { UserOutput } from "@src/user/repositories";
 
-import { seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
-import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedOrganization, seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
+import { seedPersonalOrganizationIdOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 
 const MEBIBYTE = 1024 ** 2;
 const GIBIBYTE = 1024 ** 3;
@@ -496,26 +496,6 @@ describe("Marketplace template writes", () => {
 
       expect(response.status).toBe(403);
       expect(await response.json()).toMatchObject({ code: "organization_forbidden", message: "Switch to the template's organization to change it" });
-    });
-
-    it("refuses changing a template filed in no organization as one the caller cannot read", async () => {
-      const { actAs } = await setup();
-      const { user: author, organization: personal } = await seedOrganizationWithOwner({ type: "personal", user: createSignedUpUserInput() });
-      const template = await seedTemplate({ author });
-      const asAuthor = actAs(author, { organizationId: personal.id });
-
-      const responses = await Promise.all([
-        asAuthor(`/v1/user-templates/${template.id}`, { method: "PATCH", body: { data: { title: "Renamed" } } }),
-        asAuthor(`/v1/user-templates/${template.id}`, { method: "DELETE" }),
-        asAuthor(`/v1/user-templates/${template.id}/versions`, {
-          method: "POST",
-          body: { data: { sdl: buildSdl({ count: 3 }), askedValues: [], baseVersion: 1 } }
-        })
-      ]);
-
-      expect(responses.map(({ status }) => status)).toEqual([404, 404, 404]);
-      expect(await storedTemplate(template.id)).toEqual(template);
-      expect(await versionsOf(template.id)).toHaveLength(1);
     });
   });
 
@@ -1093,6 +1073,7 @@ describe("Marketplace template writes", () => {
       .insert(templates)
       .values({
         ...template,
+        organizationId: template.organizationId ?? (author ? await seedPersonalOrganizationIdOf(author.id) : (await seedOrganization()).id),
         sdl,
         visibility,
         isPublic: visibility === "public",

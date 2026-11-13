@@ -13,6 +13,7 @@ import { POSTGRES_DB, resolveTable } from "@src/core";
 import { UserRepository } from "@src/user/repositories";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { seedPersonalOrganizationIdOf } from "@test/seeders/db/user-with-wallet.seeder";
 import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
 import { createFeeAllowanceResponse } from "@test/seeders/fee-allowance-response.seeder";
 
@@ -79,6 +80,7 @@ describe("Wallets Refill", () => {
         .insert(userWalletsTable)
         .values({
           userId: user.id,
+          organizationId: await seedPersonalOrganizationIdOf(user.id),
           address: createAkashAddress(),
           isTrialing: input.isTrialing,
           activatedAt: input.activatedAt,

@@ -14,7 +14,7 @@ import { RecordUnmetGpuScreening } from "@src/deployment/services/record-unmet-g
 import { app } from "@src/rest-app";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
-import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationIdOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { findJobRows } from "@test/services/job-queue-harness";
 
 describe("Bid screening API", () => {
@@ -193,6 +193,7 @@ describe("Bid screening API", () => {
     const apiKey = apiKeyGenerator.generateApiKey();
     await container.resolve(ApiKeyRepository).create({
       userId: user.id,
+      organizationId: await seedPersonalOrganizationIdOf(user.id),
       name: faker.company.name(),
       hashedKey: apiKeyGenerator.hashApiKeySha256(apiKey),
       keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey)

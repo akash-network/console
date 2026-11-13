@@ -20,7 +20,7 @@ import type { AccountStatus } from "@src/user/lib/account-status/account-status"
 import { ApplyAccountTerminationHandler } from "./apply-account-termination.handler";
 import { ApplyAccountTermination, applyAccountTerminationKeyFor } from "./apply-account-termination.job";
 
-import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationIdOf, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { seedWalletSetting } from "@test/seeders/db/wallet-setting.seeder";
 import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
@@ -81,7 +81,9 @@ describe(ApplyAccountTerminationHandler.name, () => {
     const { user, run, db } = await setup({ openDseqs: ["11"] });
     const transactions = resolveTable("StripeTransactions");
     const users = resolveTable("Users");
-    await db.insert(transactions).values({ userId: user.id, type: "payment_intent", amount: 2500, status: "succeeded" });
+    await db
+      .insert(transactions)
+      .values({ userId: user.id, organizationId: await seedPersonalOrganizationIdOf(user.id), type: "payment_intent", amount: 2500, status: "succeeded" });
     const transactionsBefore = await db.select().from(transactions).where(eq(transactions.userId, user.id));
 
     await run({ forfeitCredits: true });

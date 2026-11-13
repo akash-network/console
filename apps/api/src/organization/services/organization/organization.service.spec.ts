@@ -28,7 +28,7 @@ describe(OrganizationService.name, () => {
     });
 
     it("lists only the organization an API key acts in", async () => {
-      const { service, team } = setup({ apiKey: createApiKey({ organizationId: null }) });
+      const { service, team } = setup({ apiKey: createApiKey() });
 
       const memberships = await service.listCallerMemberships();
 

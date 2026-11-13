@@ -26,7 +26,6 @@ import { ReconcileDeploymentUpdate } from "@src/deployment/services/reconcile-de
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
-import { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories";
@@ -36,18 +35,13 @@ import { registerFakeSdlSecretsKms, warmSealingKeyAsBootWould } from "@test/mock
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createApiKey } from "@test/seeders/api-key.seeder";
 import { createDseq, seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
-import {
-  fileIntoPersonalOrganization,
-  seedOrganizationMember,
-  seedOrganizationWithOwner,
-  seedProject,
-  seedProjectMember
-} from "@test/seeders/db/organization.seeder";
-import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
+import { seedPersonalOrganizationIdOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { createDeployment } from "@test/seeders/deployment.seeder";
 import { createDeploymentInfoGroupsFromSdl, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { createManyLeaseApiResponses } from "@test/seeders/lease-api-response.seeder";
 import { createLeaseStatus } from "@test/seeders/lease-status.seeder";
+import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 import { findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
@@ -304,12 +298,12 @@ describe("PATCH /v1/deployments/{dseq}?async=true", () => {
 
   async function setup() {
     const dbUser = await userRepository.create({ userId: faker.string.uuid() });
-    const personalOrganization = await container.resolve(PersonalOrganizationService).ensureForUser(dbUser);
+    const organizationId = await seedPersonalOrganizationIdOf(dbUser.id);
     const apiKey = faker.string.alphanumeric(24);
     const user = createUser({ id: dbUser.id, userId: dbUser.userId ?? undefined });
     const address = createAkashAddress();
-    const wallets = [createUserWallet({ userId: dbUser.id, address, organizationId: personalOrganization.id })];
-    const apiKeys: Record<string, ReturnType<typeof createApiKey>> = { [apiKey]: createApiKey({ userId: dbUser.id }) };
+    const wallets = [createUserWallet({ userId: dbUser.id, organizationId, address })];
+    const apiKeys: Record<string, ReturnType<typeof createApiKey>> = { [apiKey]: createApiKey({ userId: dbUser.id, organizationId }) };
 
     vi.spyOn(userRepository, "findById").mockImplementation(async id =>
       id === dbUser.id ? { ...user, trial: false, userWallets: { isTrialing: false } } : undefined
@@ -348,14 +342,12 @@ describe("PATCH /v1/deployments/{dseq}?async=true", () => {
 
       return await container.resolve(SdlSecretsService).sealForStorage({ userId: user.id, dseq: DSEQ, secrets });
     });
-    await deploymentSettingRepository.upsertDefinition({
-      userId: user.id,
-      dseq: DSEQ,
-      sdl: STORED_SDL,
-      manifestVersion: await recordedVersionFor(STORED_SDL, secrets),
-      sealedSecrets
+    const manifestVersion = await recordedVersionFor(STORED_SDL, secrets);
+    await container.resolve(ExecutionContextService).runWithContext(async () => {
+      container.resolve(ExecutionContextService).set("ORGANIZATION_CONTEXT", createOrganizationContext({ organizationId, organizationType: "personal" }));
+
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq: DSEQ, sdl: STORED_SDL, manifestVersion, sealedSecrets });
     });
-    await fileIntoPersonalOrganization(dbUser);
 
     return { user, wallet: wallets[0], apiKey, broadcast };
   }

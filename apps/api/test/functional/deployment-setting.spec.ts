@@ -5,14 +5,17 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { UserWalletRepository } from "@src/billing/repositories";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
+import { seedOwnWalletOf, seedPersonalOrganizationIdOf } from "@test/seeders/db/user-with-wallet.seeder";
 import { createDrainingDeployment } from "@test/seeders/draining-deployment.seeder";
-import { runAsUser } from "@test/services/job-queue-harness";
+import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 
 /** Shaped like the compact JWE the column really carries, and generated per call so no test can pin a literal. */
 function newSealedToken() {
@@ -51,10 +54,10 @@ describe("Deployment Settings", () => {
     });
 
     it("hands back none of what the console remembers the deployment by", async () => {
-      const { token, user } = await setup();
+      const { token, user, organizationId } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
       const sealedSecrets = newSealedToken();
-      await runAsUser(user, () =>
+      await inPersonalOrganization(organizationId, () =>
         deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG", sealedSecrets })
       );
 
@@ -78,13 +81,11 @@ describe("Deployment Settings", () => {
       const { token: token2 } = await setup();
 
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
-      await runAsUser(user1, () =>
-        deploymentSettingRepository.create({
-          userId: user1.id,
-          dseq,
-          autoTopUpEnabled: true
-        })
-      );
+      await seedDeploymentSetting({
+        userId: user1.id,
+        dseq,
+        autoTopUpEnabled: true
+      });
 
       const response = await app.request(`/v1/deployment-settings/${user1.id}/${dseq}`, {
         headers: {
@@ -119,13 +120,11 @@ describe("Deployment Settings", () => {
       const { token, user, wallet } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
 
-      const settings = await runAsUser(user, () =>
-        deploymentSettingRepository.create({
-          userId: user.id,
-          dseq,
-          autoTopUpEnabled: true
-        })
-      );
+      const settings = await seedDeploymentSetting({
+        userId: user.id,
+        dseq,
+        autoTopUpEnabled: true
+      });
 
       const response = await app.request(`/v1/deployment-settings/${user.id}/${dseq}`, {
         headers: {
@@ -159,9 +158,7 @@ describe("Deployment Settings", () => {
     it("says why Console closed a deployment it closed on its own", async () => {
       const { token, user } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
-      await runAsUser(user, () =>
-        deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: false, closed: true, consoleCloseReason: "runtime_limit_reached" })
-      );
+      await seedDeploymentSetting({ userId: user.id, dseq, autoTopUpEnabled: false, closed: true, consoleCloseReason: "runtime_limit_reached" });
 
       const response = await app.request(`/v2/deployment-settings/${dseq}`, { headers: { authorization: `Bearer ${token}` } });
 
@@ -189,9 +186,11 @@ describe("Deployment Settings", () => {
     });
 
     it("succeeds for a deployment whose creation already recorded its definition", async () => {
-      const { token, user } = await setup();
+      const { token, user, organizationId } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
-      await runAsUser(user, () => deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG" }));
+      await inPersonalOrganization(organizationId, () =>
+        deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG" })
+      );
 
       const response = await app.request("/v1/deployment-settings", {
         method: "POST",
@@ -208,9 +207,11 @@ describe("Deployment Settings", () => {
     });
 
     it("leaves the recorded definition alone when settings are created for the same deployment", async () => {
-      const { token, user } = await setup();
+      const { token, user, organizationId } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
-      await runAsUser(user, () => deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG" }));
+      await inPersonalOrganization(organizationId, () =>
+        deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG" })
+      );
 
       await app.request("/v1/deployment-settings", {
         method: "POST",
@@ -366,13 +367,11 @@ describe("Deployment Settings", () => {
       const { token: token2 } = await setup();
 
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
-      await runAsUser(user1, () =>
-        deploymentSettingRepository.create({
-          userId: user1.id,
-          dseq,
-          autoTopUpEnabled: false
-        })
-      );
+      await seedDeploymentSetting({
+        userId: user1.id,
+        dseq,
+        autoTopUpEnabled: false
+      });
 
       const response = await app.request(`/v1/deployment-settings/${user1.id}/${dseq}`, {
         method: "PATCH",
@@ -421,13 +420,11 @@ describe("Deployment Settings", () => {
       const { token, user, wallet } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
 
-      const settings = await runAsUser(user, () =>
-        deploymentSettingRepository.create({
-          userId: user.id,
-          dseq,
-          autoTopUpEnabled: false
-        })
-      );
+      const settings = await seedDeploymentSetting({
+        userId: user.id,
+        dseq,
+        autoTopUpEnabled: false
+      });
 
       const response = await app.request(`/v1/deployment-settings/${user.id}/${dseq}`, {
         method: "PATCH",
@@ -469,7 +466,7 @@ describe("Deployment Settings", () => {
     it("sets a first runtime limit and leaves it unanchored", async () => {
       const { token, user } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
-      await runAsUser(user, () => deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true }));
+      await seedDeploymentSetting({ userId: user.id, dseq, autoTopUpEnabled: true });
 
       const response = await patchRuntimeLimit({ dseq, token, runtimeLimitHours: 12 });
 
@@ -484,7 +481,7 @@ describe("Deployment Settings", () => {
       const { token, user } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
       const runtimeEndsAt = faker.date.future();
-      await runAsUser(user, () => deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true, runtimeLimitHours: 12, runtimeEndsAt }));
+      await seedDeploymentSetting({ userId: user.id, dseq, autoTopUpEnabled: true, runtimeLimitHours: 12, runtimeEndsAt });
 
       const response = await patchRuntimeLimit({ dseq, token, runtimeLimitHours: 20 });
 
@@ -497,7 +494,7 @@ describe("Deployment Settings", () => {
     it("returns 400 when lowering a runtime limit", async () => {
       const { token, user } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
-      await runAsUser(user, () => deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true, runtimeLimitHours: 24 }));
+      await seedDeploymentSetting({ userId: user.id, dseq, autoTopUpEnabled: true, runtimeLimitHours: 24 });
 
       const response = await patchRuntimeLimit({ dseq, token, runtimeLimitHours: 12 });
 
@@ -508,7 +505,7 @@ describe("Deployment Settings", () => {
     it("returns 400 when an extension exceeds the 48 hour increment", async () => {
       const { token, user } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
-      await runAsUser(user, () => deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true, runtimeLimitHours: 24 }));
+      await seedDeploymentSetting({ userId: user.id, dseq, autoTopUpEnabled: true, runtimeLimitHours: 24 });
 
       const response = await patchRuntimeLimit({ dseq, token, runtimeLimitHours: 73 });
 
@@ -519,7 +516,7 @@ describe("Deployment Settings", () => {
     it("returns 400 for a first runtime limit above 48 hours", async () => {
       const { token, user } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
-      await runAsUser(user, () => deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true }));
+      await seedDeploymentSetting({ userId: user.id, dseq, autoTopUpEnabled: true });
 
       const response = await patchRuntimeLimit({ dseq, token, runtimeLimitHours: 49 });
 
@@ -530,7 +527,7 @@ describe("Deployment Settings", () => {
     it("returns 400 when the deployment is already closed", async () => {
       const { token, user } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
-      await runAsUser(user, () => deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true, runtimeLimitHours: 12, closed: true }));
+      await seedDeploymentSetting({ userId: user.id, dseq, autoTopUpEnabled: true, runtimeLimitHours: 12, closed: true });
 
       const response = await patchRuntimeLimit({ dseq, token, runtimeLimitHours: 24 });
 
@@ -543,9 +540,7 @@ describe("Deployment Settings", () => {
     it("clears the limit and its deadline, leaving auto top-up on", async () => {
       const { token, user } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
-      await runAsUser(user, () =>
-        deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true, runtimeLimitHours: 12, runtimeEndsAt: faker.date.future() })
-      );
+      await seedDeploymentSetting({ userId: user.id, dseq, autoTopUpEnabled: true, runtimeLimitHours: 12, runtimeEndsAt: faker.date.future() });
 
       const response = await patchRuntimeLimit({ dseq, token, runtimeLimitHours: null });
 
@@ -560,7 +555,7 @@ describe("Deployment Settings", () => {
     it("leaves an already unlimited deployment alone", async () => {
       const { token, user } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
-      await runAsUser(user, () => deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true }));
+      await seedDeploymentSetting({ userId: user.id, dseq, autoTopUpEnabled: true });
 
       const response = await patchRuntimeLimit({ dseq, token, runtimeLimitHours: null });
 
@@ -571,7 +566,7 @@ describe("Deployment Settings", () => {
     it("returns 400 when the deployment is already closed", async () => {
       const { token, user } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
-      await runAsUser(user, () => deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true, runtimeLimitHours: 12, closed: true }));
+      await seedDeploymentSetting({ userId: user.id, dseq, autoTopUpEnabled: true, runtimeLimitHours: 12, closed: true });
 
       const response = await patchRuntimeLimit({ dseq, token, runtimeLimitHours: null });
 
@@ -584,7 +579,7 @@ describe("Deployment Settings", () => {
     it("records why the deployment was closed, trimming the details", async () => {
       const { token, user } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
-      await runAsUser(user, () => deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: false, closed: true }));
+      await seedDeploymentSetting({ userId: user.id, dseq, autoTopUpEnabled: false, closed: true });
 
       const response = await patchSetting({ dseq, token, data: { closeReason: "other", closeReasonDetails: "  Moved to our own cluster  " } });
 
@@ -608,7 +603,7 @@ describe("Deployment Settings", () => {
     it("returns 400 for a close reason the console does not offer", async () => {
       const { token, user } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
-      await runAsUser(user, () => deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: false, closed: true }));
+      await seedDeploymentSetting({ userId: user.id, dseq, autoTopUpEnabled: false, closed: true });
 
       const response = await patchSetting({ dseq, token, data: { closeReason: "bored" } });
 
@@ -619,7 +614,7 @@ describe("Deployment Settings", () => {
     it("returns 400 for close reason details longer than 1000 characters", async () => {
       const { token, user } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
-      await runAsUser(user, () => deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: false, closed: true }));
+      await seedDeploymentSetting({ userId: user.id, dseq, autoTopUpEnabled: false, closed: true });
 
       const response = await patchSetting({ dseq, token, data: { closeReason: "other", closeReasonDetails: "a".repeat(1001) } });
 
@@ -666,12 +661,23 @@ describe("Deployment Settings", () => {
     });
   }
 
+  async function inPersonalOrganization<T>(organizationId: string, write: () => Promise<T>) {
+    const executionContextService = container.resolve(ExecutionContextService);
+
+    return await executionContextService.runWithContext(async () => {
+      executionContextService.set("ORGANIZATION_CONTEXT", createOrganizationContext({ organizationId, organizationType: "personal" }));
+
+      return await write();
+    });
+  }
+
   async function setup() {
     const user = await userRepository.create({ userId: faker.string.uuid() });
     const walletAddress = createAkashAddress();
     const token = faker.string.alphanumeric(40);
 
-    const wallet = await runAsUser(user, () => userWalletRepository.create({ userId: user.id, address: walletAddress }));
+    const organizationId = await seedPersonalOrganizationIdOf(user.id);
+    const wallet = await seedOwnWalletOf(user.id, walletAddress);
 
     vi.spyOn(userAuthTokenService, "getValidUserId").mockResolvedValue(user.userId);
     vi.spyOn(userWalletRepository, "accessibleBy").mockReturnValue(userWalletRepository);
@@ -679,6 +685,6 @@ describe("Deployment Settings", () => {
     vi.spyOn(userWalletRepository, "findOneByUserId").mockResolvedValue(wallet);
     vi.spyOn(leaseRepository, "findOneByDseqAndOwner").mockResolvedValue(createDrainingDeployment());
 
-    return { user, token, wallet };
+    return { user, token, wallet, organizationId };
   }
 });

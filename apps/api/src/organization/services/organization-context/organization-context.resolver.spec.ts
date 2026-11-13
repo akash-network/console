@@ -46,15 +46,6 @@ describe(OrganizationContextResolver.name, () => {
       });
     });
 
-    it("resolves the owner's personal organization for a key bound to none, whatever was used last", async () => {
-      const { resolver, personal, team } = setup({});
-      const user = createUser({ lastUsedOrganizationId: team.organization.id });
-
-      const context = await resolver.resolve({ user, apiKey: { organizationId: null, projectId: null } });
-
-      expect(context).toMatchObject({ organizationId: personal.organization.id, role: "owner" });
-    });
-
     it("restores the default project of the personal organization the key is bound to", async () => {
       const { resolver, personal, user, personalOrganizationService } = setup({});
 
