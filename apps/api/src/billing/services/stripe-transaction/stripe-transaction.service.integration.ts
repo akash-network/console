@@ -2303,6 +2303,95 @@ describe(StripeTransactionService.name, () => {
       expect(jobQueueService.enqueue).toHaveBeenCalledExactlyOnceWith(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "dispute" }));
     });
 
+    it.each(["needs_response", "under_review", "warning_needs_response", "warning_under_review"] as const)(
+      "neither records nor queues anything for a won dispute while another dispute on the charge is %s",
+      async otherStatus => {
+        const { service, stripe, stripeTransactionRepository, jobQueueService, logger } = setup();
+        const payment = generateDatabaseStripeTransaction({ type: "payment_intent", status: "succeeded", stripeChargeId: "ch_123" });
+        stripeTransactionRepository.findOneByAndLock.mockResolvedValue(payment);
+        const disputesList = vi.spyOn(stripe.disputes, "list").mockResolvedValue(
+          disputeListOf([
+            { id: "dp_123", status: "won" },
+            { id: "dp_456", status: otherStatus }
+          ])
+        );
+
+        await service.recordDisputeClosed(createChargeDisputeClosedEvent({ id: "dp_123", charge: "ch_123", status: "won" }));
+
+        expect(disputesList).toHaveBeenCalledExactlyOnceWith({ charge: "ch_123", limit: 100 });
+        expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+        expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+        expect(logger.info).toHaveBeenCalledExactlyOnceWith({
+          event: "CHARGE_DISPUTE_CLOSED_WITH_ANOTHER_OPEN",
+          chargeId: "ch_123",
+          disputeId: "dp_123",
+          status: "won",
+          transactionId: payment.id,
+          userId: payment.userId
+        });
+      }
+    );
+
+    it.each(["won", "lost", "warning_closed", "prevented"] as const)(
+      "records a won dispute when the other dispute on the charge is already %s",
+      async otherStatus => {
+        const { service, stripe, stripeTransactionRepository, jobQueueService } = setup();
+        const payment = generateDatabaseStripeTransaction({ type: "payment_intent", status: "succeeded", stripeChargeId: "ch_123" });
+        stripeTransactionRepository.findOneByAndLock.mockResolvedValue(payment);
+        vi.spyOn(stripe.disputes, "list").mockResolvedValue(
+          disputeListOf([
+            { id: "dp_123", status: "won" },
+            { id: "dp_456", status: otherStatus }
+          ])
+        );
+
+        await service.recordDisputeClosed(createChargeDisputeClosedEvent({ id: "dp_123", charge: "ch_123", status: "won" }));
+
+        expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(payment.id, { disputeClosedAt: new Date(DISPUTE_CLOSED_AT * 1000) });
+        expect(jobQueueService.enqueue).toHaveBeenCalledExactlyOnceWith(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "dispute" }));
+      }
+    );
+
+    it("records a won dispute that Stripe still lists as under review", async () => {
+      const { service, stripe, stripeTransactionRepository, jobQueueService } = setup();
+      const payment = generateDatabaseStripeTransaction({ type: "payment_intent", status: "succeeded", stripeChargeId: "ch_123" });
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(payment);
+      vi.spyOn(stripe.disputes, "list").mockResolvedValue(disputeListOf([{ id: "dp_123", status: "under_review" }]));
+
+      await service.recordDisputeClosed(createChargeDisputeClosedEvent({ id: "dp_123", charge: "ch_123", status: "won" }));
+
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(payment.id, { disputeClosedAt: new Date(DISPUTE_CLOSED_AT * 1000) });
+      expect(jobQueueService.enqueue).toHaveBeenCalledExactlyOnceWith(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "dispute" }));
+    });
+
+    it("looks up the other disputes under the id of a charge Stripe sent expanded", async () => {
+      const { service, stripe, stripeTransactionRepository } = setup();
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(
+        generateDatabaseStripeTransaction({ type: "payment_intent", status: "succeeded", stripeChargeId: "ch_123" })
+      );
+      const disputesList = vi.spyOn(stripe.disputes, "list");
+
+      await service.recordDisputeClosed(createChargeDisputeClosedEvent({ id: "dp_123", charge: mock<Stripe.Charge>({ id: "ch_123" }), status: "won" }));
+
+      expect(disputesList).toHaveBeenCalledExactlyOnceWith({ charge: "ch_123", limit: 100 });
+    });
+
+    it("records a lost dispute without waiting for another dispute on the charge", async () => {
+      const { service, stripe, stripeTransactionRepository, jobQueueService } = setup();
+      const payment = generateDatabaseStripeTransaction({ type: "payment_intent", status: "succeeded", stripeChargeId: "ch_123" });
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(payment);
+      const disputesList = vi.spyOn(stripe.disputes, "list").mockResolvedValue(disputeListOf([{ id: "dp_456", status: "needs_response" }]));
+
+      await service.recordDisputeClosed(createChargeDisputeClosedEvent({ id: "dp_123", charge: "ch_123", status: "lost" }));
+
+      expect(disputesList).not.toHaveBeenCalled();
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(payment.id, {
+        disputeClosedAt: new Date(DISPUTE_CLOSED_AT * 1000),
+        disputeLostAt: new Date(DISPUTE_CLOSED_AT * 1000)
+      });
+      expect(jobQueueService.enqueue).toHaveBeenCalledExactlyOnceWith(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "dispute" }));
+    });
+
     it.each(["coupon_claim", "manual_credit"] as const)("records the lost dispute without queuing an affiliate commission sync for a %s charge", async type => {
       const { service, stripeTransactionRepository, jobQueueService } = setup();
       const transaction = generateDatabaseStripeTransaction({ type, status: "succeeded", stripeChargeId: "ch_123" });
@@ -2357,6 +2446,7 @@ describe(StripeTransactionService.name, () => {
     refillService.topUpWallet.mockResolvedValue(toppedUpWallet);
 
     const stripe = new Stripe(`sk_test_${faker.string.alphanumeric(32)}`, { apiVersion: "2025-10-29.clover", httpClient: Stripe.createFetchHttpClient() });
+    vi.spyOn(stripe.disputes, "list").mockResolvedValue(disputeListOf([]));
 
     const service = new StripeTransactionService(
       stripe,
@@ -2446,6 +2536,13 @@ describe(StripeTransactionService.name, () => {
   function refundListOf(refunds: Pick<Stripe.Refund, "amount" | "status">[]) {
     return mock<Stripe.Response<Stripe.ApiList<Stripe.Refund>>>({
       data: refunds.map(refund => mock<Stripe.Refund>({ id: `re_${faker.string.alphanumeric(14)}`, ...refund })),
+      has_more: false
+    });
+  }
+
+  function disputeListOf(disputes: Pick<Stripe.Dispute, "id" | "status">[]) {
+    return mock<Stripe.Response<Stripe.ApiList<Stripe.Dispute>>>({
+      data: disputes.map(dispute => mock<Stripe.Dispute>(dispute)),
       has_more: false
     });
   }

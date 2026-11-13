@@ -106,6 +106,17 @@ describe("Stripe webhook", () => {
       type: "charge.dispute.closed"
     });
 
+  const mockDisputesOf = (chargeId: string, disputes: { id: string; status: stripe.Dispute.Status }[] = []) =>
+    nock("https://api.stripe.com")
+      .get("/v1/disputes")
+      .query({ charge: chargeId, limit: "100" })
+      .reply(200, {
+        object: "list",
+        url: "/v1/disputes",
+        has_more: false,
+        data: disputes.map(dispute => ({ object: "dispute", charge: chargeId, ...dispute }))
+      });
+
   const getWebhookResponse = async (payload: string) => {
     const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
     if (!stripeWebhookSecret) throw new Error("STRIPE_WEBHOOK_SECRET env variable is not set");
@@ -1081,6 +1092,7 @@ describe("Stripe webhook", () => {
 
         const { user } = await setup();
         const { payment, affiliateUser } = await seedCommissionedPayment({ payerId: user.id, chargeId, amount: 10000, commission: 500 });
+        mockDisputesOf(chargeId);
 
         const response = await getWebhookResponse(generateDisputeClosedPayload(chargeId, "won"));
         await processAffiliateCommissionSyncOf(payment.id, "dispute");
@@ -1108,6 +1120,7 @@ describe("Stripe webhook", () => {
           commissionHeldSince: subSeconds(new Date(), billingConfig.AFFILIATE_COMMISSION_HOLD_SECONDS + 60)
         });
         await getWebhookResponse(generateDisputeCreatedPayload(chargeId));
+        mockDisputesOf(chargeId);
 
         const response = await getWebhookResponse(generateDisputeClosedPayload(chargeId, "won"));
         await processAffiliateCommissionSyncOf(payment.id, "dispute");
@@ -1118,6 +1131,37 @@ describe("Stripe webhook", () => {
         expect(response.status).toBe(200);
         expect(commission).toMatchObject({ status: "succeeded", amount: 500, amountRefunded: 0 });
         expect(affiliateWallet?.deploymentAllowance).toBe(`${500 * 10000}.00`);
+      });
+
+      it("keeps the referring affiliate's commission held past its hold when Console wins one dispute while another on the payment is open", async () => {
+        const chargeId = `ch_${faker.string.alphanumeric(24)}`;
+
+        const { user } = await setup();
+        const { payment, affiliateUser } = await seedCommissionedPayment({
+          payerId: user.id,
+          chargeId,
+          amount: 10000,
+          commission: 500,
+          commissionStatus: "pending",
+          commissionHeldSince: subSeconds(new Date(), billingConfig.AFFILIATE_COMMISSION_HOLD_SECONDS + 60)
+        });
+        await getWebhookResponse(generateDisputeCreatedPayload(chargeId));
+        const disputesLookup = mockDisputesOf(chargeId, [{ id: `dp_${faker.string.alphanumeric(24)}`, status: "needs_response" }]);
+
+        const response = await getWebhookResponse(generateDisputeClosedPayload(chargeId, "won"));
+        const { enqueue } = await affiliateCommissionWorkers();
+        await enqueue(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "release" }));
+        await processAffiliateCommissionSyncOf(payment.id, "release");
+
+        const disputedPayment = await stripeTransactionRepository.findById(payment.id);
+        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+        const affiliateWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, affiliateUser.id) });
+
+        expect(response.status).toBe(200);
+        expect(disputesLookup.isDone()).toBe(true);
+        expect(disputedPayment).toMatchObject({ disputeOpenedAt: new Date(DISPUTE_OPENED_AT * 1000), disputeClosedAt: null });
+        expect(commission).toMatchObject({ status: "pending", amount: 500, amountRefunded: 0 });
+        expect(affiliateWallet?.deploymentAllowance).toBe("0.00");
       });
     });
 

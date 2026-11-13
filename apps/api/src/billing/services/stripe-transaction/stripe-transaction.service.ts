@@ -67,6 +67,9 @@ const CHARGE_ALREADY_REFUNDED_STRIPE_CODE = "charge_already_refunded";
 /** A prevented dispute never becomes a chargeback, so it has no outcome for the affiliate commission to wait for. */
 const PREVENTED_DISPUTE_STATUS = "prevented" satisfies Stripe.Dispute.Status;
 
+/** A dispute in any other status still awaits its outcome. */
+const DECIDED_DISPUTE_STATUSES = new Set<Stripe.Dispute.Status>([PREVENTED_DISPUTE_STATUS, "won", "lost", "warning_closed"]);
+
 /** Without both, an issuer that wants 3DS leaves the intent stalled in requires_action instead of declining it. */
 const OFF_SESSION_CHARGE_OPTIONS = { off_session: true, error_on_requires_action: true } as const satisfies Pick<
   Stripe.PaymentIntentCreateParams,
@@ -1184,6 +1187,18 @@ export class StripeTransactionService {
     const isAlreadyRecorded = isLost ? !!transaction.disputeLostAt : !!transaction.disputeClosedAt && transaction.disputeClosedAt >= closedAt;
     if (isAlreadyRecorded) return;
 
+    if (!isLost && (await this.#hasAnotherUndecidedDispute(dispute))) {
+      this.loggerService.info({
+        event: "CHARGE_DISPUTE_CLOSED_WITH_ANOTHER_OPEN",
+        chargeId: transaction.stripeChargeId,
+        disputeId: dispute.id,
+        status: dispute.status,
+        transactionId: transaction.id,
+        userId: transaction.userId
+      });
+      return;
+    }
+
     await this.stripeTransactionRepository.updateById(transaction.id, { disputeClosedAt: closedAt, ...(isLost && { disputeLostAt: closedAt }) });
     await this.#queueAffiliateCommissionSync(transaction, "dispute");
 
@@ -1197,8 +1212,15 @@ export class StripeTransactionService {
     });
   }
 
+  /** A charge can carry a second dispute before the first is decided, and the commission on it waits for every one of them. */
+  async #hasAnotherUndecidedDispute(dispute: Stripe.Dispute): Promise<boolean> {
+    const disputes = await this.stripe.disputes.list({ charge: this.#chargeIdOf(dispute), limit: 100 });
+
+    return disputes.data.some(other => other.id !== dispute.id && !DECIDED_DISPUTE_STATUSES.has(other.status));
+  }
+
   async #findDisputedTransactionAndLock(dispute: Stripe.Dispute): Promise<StripeTransactionOutput | undefined> {
-    const chargeId = typeof dispute.charge === "string" ? dispute.charge : dispute.charge.id;
+    const chargeId = this.#chargeIdOf(dispute);
     const transaction = await this.stripeTransactionRepository.findOneByAndLock({ stripeChargeId: chargeId });
 
     if (!transaction) {
@@ -1206,6 +1228,10 @@ export class StripeTransactionService {
     }
 
     return transaction;
+  }
+
+  #chargeIdOf(dispute: Stripe.Dispute): string {
+    return typeof dispute.charge === "string" ? dispute.charge : dispute.charge.id;
   }
 
   async recordCouponClaim(params: {
