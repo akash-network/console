@@ -119,13 +119,13 @@ export const ReviewAndDeployModal: FC<Props> = ({
    */
   const [isRuntimeLimitOn, setIsRuntimeLimitOn] = useState(runtimeLimitHours !== undefined);
   const isRuntimeLimitIncomplete = isRuntimeLimitOffered && isRuntimeLimitOn && runtimeLimitHours === undefined;
+  const fundingImpact = d.useFundingImpact({ rows, runtimeLimitHours: effectiveRuntimeLimitHours });
+  const isCoveredByTrial = fundingImpact.kind === "visible" && fundingImpact.state === "trial";
+  const goBack = () => onBack(fundingImpact.kind === "visible" ? fundingImpact.state : null);
   /**
    * Only deployable once every placement is selected and still has a live (priced) bid: a closed or stale
    * bid leaves a row unpriced and would fail at create-lease.
    */
-  const fundingImpact = d.useFundingImpact({ rows, runtimeLimitHours: effectiveRuntimeLimitHours });
-  const isCoveredByTrial = fundingImpact.kind === "visible" && fundingImpact.state === "trial";
-  const goBack = () => onBack(fundingImpact.kind === "visible" ? fundingImpact.state : null);
   const canConfirm = totalCount > 0 && rows.length === totalCount && pricedCount === totalCount && !isRuntimeLimitIncomplete && !isStoredRuntimeLimitLoading;
   const preventDefault = (e: Event) => e.preventDefault();
 
