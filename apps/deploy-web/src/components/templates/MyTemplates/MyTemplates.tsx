@@ -27,7 +27,7 @@ import {
 import { usePopup } from "@akashnetwork/ui/context";
 import { cn, copyTextToClipboard } from "@akashnetwork/ui/utils";
 import { format } from "date-fns";
-import { Building2, ChevronRight, Copy, Ellipsis, ExternalLink, Folder, Globe, Link2, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
+import { ChevronRight, Copy, Ellipsis, ExternalLink, Folder, Link2, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { NextSeo } from "next-seo";
 import { useSnackbar } from "notistack";
@@ -35,6 +35,7 @@ import { useSnackbar } from "notistack";
 import Layout from "@src/components/layout/Layout";
 import { ImportSdlButton } from "@src/components/new-deployment/ImportSdlButton/ImportSdlButton";
 import { TemplateIcon } from "@src/components/templates/TemplateIcon/TemplateIcon";
+import { TemplateVisibilityBadge, VISIBILITY_LABELS } from "@src/components/templates/TemplateVisibilityBadge/TemplateVisibilityBadge";
 import { SUPPORT_EMAIL } from "@src/config/ui.config";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useServices } from "@src/context/ServicesProvider";
@@ -72,9 +73,6 @@ type Filters = {
 const ANY = "any";
 const EMPTY_CELL = "–";
 const NUMBER_FORMAT = new Intl.NumberFormat("en-US");
-
-const VISIBILITY_LABELS: Record<TemplateVisibility, string> = { private: "Private", organization: "Organization", public: "Public" };
-const VISIBILITY_ICONS: Record<TemplateVisibility, typeof Globe> = { private: Folder, organization: Building2, public: Globe };
 
 const STATUS_TONE_CLASSES: Record<TemplateStatus["tone"], { text: string; dot?: string }> = {
   neutral: { text: "text-muted-foreground" },
@@ -361,7 +359,6 @@ function TemplateRow({
   onDelete: () => void;
 }) {
   const status = templateStatusOf(template);
-  const VisibilityIcon = VISIBILITY_ICONS[template.visibility];
   const toneClasses = STATUS_TONE_CLASSES[status.tone];
 
   return (
@@ -380,10 +377,7 @@ function TemplateRow({
         </div>
       </TableCell>
       <TableCell>
-        <span className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-0.5 text-xs font-medium">
-          <VisibilityIcon className="h-3.5 w-3.5" aria-hidden="true" />
-          {VISIBILITY_LABELS[template.visibility]}
-        </span>
+        <TemplateVisibilityBadge visibility={template.visibility} />
       </TableCell>
       <TableCell>
         <p className={cn("flex items-center gap-1.5 text-[13px] font-medium", toneClasses.text)}>

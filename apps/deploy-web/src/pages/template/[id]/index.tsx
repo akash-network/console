@@ -1,19 +1,10 @@
 import { z } from "zod";
 
-import { UserTemplate } from "@src/components/templates/UserTemplate";
+import { loadTemplateRouteProps } from "@src/components/templates/TemplateRoute/loadTemplateRouteProps";
+import { TemplateRoute } from "@src/components/templates/TemplateRoute/TemplateRoute";
 import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
-import type { ITemplate } from "@src/types";
 
-type Props = {
-  id: string;
-  template: ITemplate;
-};
-
-const TemplatePage: React.FunctionComponent<Props> = ({ id, template }) => {
-  return <UserTemplate id={id} template={template} />;
-};
-
-export default TemplatePage;
+export default TemplateRoute;
 
 export const getServerSideProps = defineServerSideProps({
   route: "/template/[id]",
@@ -22,27 +13,5 @@ export const getServerSideProps = defineServerSideProps({
       id: z.string()
     })
   }),
-  async handler({ params, services, getCurrentSession }) {
-    const session = await getCurrentSession();
-    let config = {};
-
-    if (session) {
-      config = {
-        headers: {
-          Authorization: session ? `Bearer ${session.accessToken}` : ""
-        }
-      };
-    }
-    const response = await services.consoleApiHttpClient.get(
-      `${services.apiUrlService.getBaseApiUrlFor(services.privateConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID)}/v1/user/template/${params.id}`,
-      config
-    );
-
-    return {
-      props: {
-        id: params.id,
-        template: response.data
-      }
-    };
-  }
+  handler: context => loadTemplateRouteProps(context.params.id, context)
 });
