@@ -16,9 +16,14 @@ import { UrlService } from "@src/utils/urlUtils";
 // eslint-disable-next-line akash/dependencies-component-or-hook
 export const DEPENDENCIES = { useRouter, ImportSdlDialog, createConfigureDraft };
 
-type Props = { dependencies?: typeof DEPENDENCIES };
+type Props = {
+  configureUrl?: (draftId: string) => string;
+  dependencies?: typeof DEPENDENCIES;
+};
 
-export const ImportSdlButton: FC<Props> = ({ dependencies: d = DEPENDENCIES }) => {
+const configureDeploymentUrl = (draftId: string) => UrlService.configureDeployment({ draftId });
+
+export const ImportSdlButton: FC<Props> = ({ configureUrl = configureDeploymentUrl, dependencies: d = DEPENDENCIES }) => {
   const { analyticsService } = useServices();
   const router = d.useRouter();
   const [isImportOpen, setImportOpen] = useState(false);
@@ -26,7 +31,7 @@ export const ImportSdlButton: FC<Props> = ({ dependencies: d = DEPENDENCIES }) =
   function openImportedSdlInConfigure(state: ImportedDeploymentState, meta: ImportMeta) {
     setImportOpen(false);
     analyticsService.track("sdl_uploaded", { category: "deployments", method: meta.method }, "Amplitude");
-    router.push(UrlService.configureDeployment({ draftId: d.createConfigureDraft(state.sdl) }));
+    router.push(configureUrl(d.createConfigureDraft(state.sdl)));
   }
 
   return (

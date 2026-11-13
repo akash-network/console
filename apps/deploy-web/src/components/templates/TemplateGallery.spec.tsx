@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { EnhancedTemplateCategory, TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
+import { UrlService } from "@src/utils/urlUtils";
 import type { TemplateCardProps } from "./TemplateCard/TemplateCard";
 import type { TemplateUseCaseNavProps } from "./TemplateUseCaseNav/TemplateUseCaseNav";
 import { TemplateUseCaseNav } from "./TemplateUseCaseNav/TemplateUseCaseNav";
@@ -213,6 +214,29 @@ describe(TemplateGallery.name, () => {
     setup({ categories: [makeCategory("Games", ["Minecraft", "Tetris"])], url: { category: "Games" } });
 
     expect(screen.getByRole("button", { name: "Filter by use case: Games 2" })).toBeInTheDocument();
+  });
+
+  it("links to My templates only when template_marketplace is on", () => {
+    const categories = [makeCategory("Games", ["Minecraft"])];
+    const useFlag = vi.fn<typeof DEPENDENCIES.useFlag>(flag => flag === "template_marketplace");
+    const { rerenderWithTemplates } = setup({ categories, dependencies: { useFlag } });
+
+    expect(screen.getByRole("link", { name: "My templates" })).toHaveAttribute("href", UrlService.myTemplates());
+
+    useFlag.mockReturnValue(false);
+    rerenderWithTemplates(categories);
+
+    expect(screen.queryByRole("link", { name: "My templates" })).not.toBeInTheDocument();
+  });
+
+  it("puts the organization section above the category sections and keeps it while searching", () => {
+    const OrganizationTemplatesSection = vi.fn(() => <section aria-label="Your organization" />);
+    setup({ categories: [makeCategory("Games", ["Minecraft", "Tetris"])], url: { search: "tetris" }, dependencies: { OrganizationTemplatesSection } });
+
+    const organization = screen.getByRole("region", { name: "Your organization" });
+    const games = screen.getByRole("region", { name: "Games" });
+    expect(organization.compareDocumentPosition(games) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(OrganizationTemplatesSection).toHaveBeenCalledWith({}, {});
   });
 
   function makeCategory(title: string, names: string[]): EnhancedTemplateCategory {

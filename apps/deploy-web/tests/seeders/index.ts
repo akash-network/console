@@ -16,6 +16,7 @@ export * from "./provider";
 export * from "./receivedInvitation";
 export * from "./screenedProvider";
 export * from "./usage";
+export * from "./userTemplate";
 export * from "./user";
 export * from "./wallet";
 export * from "./walletBalance";

@@ -86,3 +86,29 @@ describe(UrlService.configureDeployment.name, () => {
     expect(UrlService.configureDeployment({ exampleImage: true })).toBe("/new-deployment/configure?exampleImage=true");
   });
 });
+
+describe(UrlService.configureTemplate.name, () => {
+  it("builds a template mode URL for each mode", () => {
+    expect(UrlService.configureTemplate({ mode: "new" })).toBe("/new-deployment/configure?templateMode=new");
+    expect(UrlService.configureTemplate({ mode: "edit", userTemplateId: "tpl-1", draftId: "draft-1" })).toBe(
+      "/new-deployment/configure?templateMode=edit&userTemplateId=tpl-1&draftId=draft-1"
+    );
+    expect(UrlService.configureTemplate({ mode: "new", copyFromTemplateId: "tpl-1", copyFromVersion: 3 })).toBe(
+      "/new-deployment/configure?templateMode=new&copyFromTemplateId=tpl-1&copyFromVersion=3"
+    );
+  });
+});
+
+describe(UrlService.myTemplates.name, () => {
+  it("returns the My templates page", () => {
+    expect(UrlService.myTemplates()).toBe("/templates/mine");
+  });
+});
+
+describe("UrlService.configureDeployment with a template version", () => {
+  it("carries the template version on a configure URL", () => {
+    expect(UrlService.configureDeployment({ userTemplateId: "tpl-1", templateVersion: 2 })).toBe(
+      "/new-deployment/configure?userTemplateId=tpl-1&templateVersion=2"
+    );
+  });
+});

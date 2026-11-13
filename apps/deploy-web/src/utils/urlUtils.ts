@@ -6,6 +6,7 @@ export type ConfigureDeploymentParams = {
   dseq?: string | number;
   templateId?: string;
   userTemplateId?: string;
+  templateVersion?: number;
   sdlStrategy?: "default" | "edit";
   bidStrategy?: "auto" | "select";
   draftId?: string;
@@ -81,6 +82,7 @@ export const UrlService = {
   deploymentDetails: (dseq: string, tab?: string, logsMode?: string) => `/deployments/${dseq}${appendSearchParams({ tab, logsMode })}`,
   templates: (category?: string | null, search?: string) => `/templates${appendSearchParams({ category, search })}`,
   templateDetails: (templateId: string) => `/templates/${templateId}`,
+  myTemplates: () => "/templates/mine",
   providers: (sort?: string) => `/providers${appendSearchParams({ sort })}`,
   providerDetail: (owner: string) => `/providers/${owner}${appendSearchParams({ network: networkStore.selectedNetworkId })}`,
   alerts: () => "/alerts",
@@ -96,9 +98,14 @@ export const UrlService = {
   newDeployment: ({ projectId }: { projectId?: string } = {}) => `/new-deployment${appendSearchParams({ projectId })}`,
 
   configureDeployment: (params: ConfigureDeploymentParams = {}) => {
-    const { dseq, templateId, userTemplateId, sdlStrategy, bidStrategy, draftId, vm, exampleImage } = params;
+    const { dseq, templateId, userTemplateId, templateVersion, sdlStrategy, bidStrategy, draftId, vm, exampleImage } = params;
     const base = dseq ? `/new-deployment/configure/${dseq}` : "/new-deployment/configure";
-    return `${base}${appendSearchParams({ templateId, userTemplateId, "sdl-strategy": sdlStrategy, "bid-strategy": bidStrategy, draftId, vm, exampleImage })}`;
+    return `${base}${appendSearchParams({ templateId, userTemplateId, templateVersion, "sdl-strategy": sdlStrategy, "bid-strategy": bidStrategy, draftId, vm, exampleImage })}`;
+  },
+
+  configureTemplate: (params: { mode: "new" | "edit"; userTemplateId?: string; draftId?: string; copyFromTemplateId?: string; copyFromVersion?: number }) => {
+    const { mode, userTemplateId, draftId, copyFromTemplateId, copyFromVersion } = params;
+    return `/new-deployment/configure${appendSearchParams({ templateMode: mode, userTemplateId, draftId, copyFromTemplateId, copyFromVersion })}`;
   }
 };
 

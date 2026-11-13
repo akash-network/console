@@ -37,6 +37,15 @@ describe("ImportSdlButton", () => {
     expect(screen.queryByRole("button", { name: "apply" })).not.toBeInTheDocument();
   });
 
+  it("opens the draft where the caller asks", async () => {
+    const { push } = setup({ configureUrl: draftId => UrlService.configureTemplate({ mode: "new", draftId }) });
+
+    await userEvent.click(screen.getByRole("button", { name: "Import SDL" }));
+    await userEvent.click(screen.getByRole("button", { name: "apply" }));
+
+    expect(push).toHaveBeenCalledWith(UrlService.configureTemplate({ mode: "new", draftId: "draft-xyz" }));
+  });
+
   it("closes the dialog without leaving the page", async () => {
     const { push, createConfigureDraft } = setup();
 
@@ -48,7 +57,7 @@ describe("ImportSdlButton", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  function setup() {
+  function setup(input: { configureUrl?: (draftId: string) => string } = {}) {
     const push = vi.fn();
     const createConfigureDraft = vi.fn(() => "draft-xyz");
     const analyticsService = mock<AnalyticsService>();
@@ -66,7 +75,7 @@ describe("ImportSdlButton", () => {
 
     render(
       <TestContainerProvider services={{ analyticsService: () => analyticsService }}>
-        <ImportSdlButton dependencies={{ useRouter: () => router, ImportSdlDialog, createConfigureDraft }} />
+        <ImportSdlButton configureUrl={input.configureUrl} dependencies={{ useRouter: () => router, ImportSdlDialog, createConfigureDraft }} />
       </TestContainerProvider>
     );
 
