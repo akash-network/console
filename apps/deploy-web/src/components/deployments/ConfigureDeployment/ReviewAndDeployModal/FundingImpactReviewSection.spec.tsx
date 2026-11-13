@@ -130,6 +130,7 @@ describe("FundingImpactReviewSection", () => {
     await userEvent.click(screen.getByRole("button", { name: /Escrow/ }));
 
     expect(screen.getByText(/Add credits whenever you want to keep deployments running longer/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add Credits" })).toHaveClass("border-input");
     expect(screen.getByRole("button", { name: "Add Credits" })).not.toHaveClass("bg-primary");
   });
 
