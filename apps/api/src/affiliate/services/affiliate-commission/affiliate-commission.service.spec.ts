@@ -572,6 +572,34 @@ describe(AffiliateCommissionService.name, () => {
         });
       });
 
+      it("cancels the held commission on the abuse lock of the wallet row it holds for the credit", async () => {
+        const { service, payment, affiliate, commission, stripeTransactionRepository, userWalletRepository, refillService, logger } = setup({
+          hasCommission: true,
+          commissionStatus: "pending",
+          affiliateAbuseLockedAtCredit: new Date()
+        });
+
+        await service.syncCommission(payment.id, "release");
+
+        expect(userWalletRepository.findOneByAndLock).toHaveBeenCalledWith({ userId: affiliate.userId });
+        expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(commission.id, { status: "canceled", amountRefunded: 500 });
+        expect(refillService.topUpWallet).not.toHaveBeenCalled();
+        expect(logger.info).toHaveBeenCalledWith({
+          event: "AFFILIATE_COMMISSION_CANCELED",
+          commissionId: commission.id,
+          sourceTransactionId: payment.id,
+          reason: "affiliate_abuse_locked"
+        });
+      });
+
+      it("credits the held commission of an affiliate who has no wallet yet", async () => {
+        const { service, payment, affiliate, refillService } = setup({ hasCommission: true, commissionStatus: "pending", affiliateHasWallet: false });
+
+        await service.syncCommission(payment.id, "release");
+
+        expect(refillService.topUpWallet).toHaveBeenCalledWith(500, expect.objectContaining({ userId: affiliate.userId }), expect.anything());
+      });
+
       it("leaves a held commission whose affiliate account is gone untouched", async () => {
         const { service, payment, stripeTransactionRepository, refillService } = setup({
           hasCommission: true,
@@ -1552,6 +1580,7 @@ describe(AffiliateCommissionService.name, () => {
       referredAt?: ReferralOutput["createdAt"];
       affiliateRevokedAt?: AffiliateOutput["revokedAt"];
       affiliateAbuseLockedAt?: Date;
+      affiliateAbuseLockedAtCredit?: Date;
       affiliateHasWallet?: boolean;
       isReferred?: boolean;
       isProgramEnabled?: boolean;
@@ -1625,6 +1654,11 @@ describe(AffiliateCommissionService.name, () => {
     organizationRepository.findPersonalByUserId.mockResolvedValue(input.affiliateHasPersonalOrganization === false ? undefined : affiliatePersonalOrganization);
     const userWalletRepository = mock<UserWalletRepository>();
     userWalletRepository.findOneByUserId.mockResolvedValue(input.affiliateHasWallet === false ? undefined : affiliateWallet);
+    userWalletRepository.findOneByAndLock.mockResolvedValue(
+      input.affiliateHasWallet === false
+        ? undefined
+        : { ...affiliateWallet, abuseLockedAt: input.affiliateAbuseLockedAtCredit ?? affiliateWallet.abuseLockedAt }
+    );
 
     const refillService = mock<RefillService>();
     refillService.topUpWallet.mockResolvedValue({ walletId: affiliateWallet.id, address: "akash1affiliate" });
