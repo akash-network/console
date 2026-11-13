@@ -1058,6 +1058,60 @@ describe(StatsService.name, () => {
     });
   });
 
+  describe("getSinkUnbondings", () => {
+    it("returns the summary and one entry per UTC day from the first to the last day with an amount", async () => {
+      const { service, statsRepository } = setup();
+      const summary = { unbondingUakt: 420, unbondingDelegators: 2, senders: 3, sendersWhoUnbonded: 2, sentUakt: 220, sentBySendersWhoUnbondedUakt: 160 };
+      statsRepository.findSinkUnbondingSummary.mockResolvedValue(summary);
+      statsRepository.findSinkUnbondingDailyAmounts.mockResolvedValue([
+        { series: "sentToSolana", date: "2026-11-02", amountUakt: 220 },
+        { series: "unbondStarted", date: "2026-10-31", amountUakt: 950 },
+        { series: "unbondCompleting", date: "2026-11-02", amountUakt: 420 },
+        { series: "cancelled", date: "2026-11-01", amountUakt: 30 },
+        { series: "sentBySendersWhoUnbonded", date: "2026-11-02", amountUakt: 160 }
+      ]);
+
+      const result = await service.getSinkUnbondings();
+
+      expect(result).toEqual({
+        summary,
+        daily: [
+          { ...zeroUnbondingDay(), date: "2026-10-31", unbondStartedUakt: 950 },
+          { ...zeroUnbondingDay(), date: "2026-11-01", cancelledUakt: 30 },
+          { ...zeroUnbondingDay(), date: "2026-11-02", unbondCompletingUakt: 420, sentToSolanaUakt: 220, sentBySendersWhoUnbondedUakt: 160 }
+        ]
+      });
+    });
+
+    it("returns a single day when every amount falls on the same day", async () => {
+      const { service, statsRepository } = setup();
+      statsRepository.findSinkUnbondingSummary.mockResolvedValue(zeroUnbondingSummary());
+      statsRepository.findSinkUnbondingDailyAmounts.mockResolvedValue([{ series: "unbondStarted", date: "2026-11-13", amountUakt: 5 }]);
+
+      const result = await service.getSinkUnbondings();
+
+      expect(result.daily).toEqual([{ ...zeroUnbondingDay(), date: "2026-11-13", unbondStartedUakt: 5 }]);
+    });
+
+    it("returns no days when nothing is indexed yet", async () => {
+      const { service, statsRepository } = setup();
+      statsRepository.findSinkUnbondingSummary.mockResolvedValue(zeroUnbondingSummary());
+      statsRepository.findSinkUnbondingDailyAmounts.mockResolvedValue([]);
+
+      const result = await service.getSinkUnbondings();
+
+      expect(result).toEqual({ summary: zeroUnbondingSummary(), daily: [] });
+    });
+
+    function zeroUnbondingSummary() {
+      return { unbondingUakt: 0, unbondingDelegators: 0, senders: 0, sendersWhoUnbonded: 0, sentUakt: 0, sentBySendersWhoUnbondedUakt: 0 };
+    }
+
+    function zeroUnbondingDay() {
+      return { unbondStartedUakt: 0, unbondCompletingUakt: 0, cancelledUakt: 0, sentToSolanaUakt: 0, sentBySendersWhoUnbondedUakt: 0 };
+    }
+  });
+
   describe("getBmeDashboardData", () => {
     it("returns dashboard data with computed daily values", async () => {
       const { service, statsRepository } = setup();

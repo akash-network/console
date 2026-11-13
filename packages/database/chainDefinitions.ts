@@ -22,7 +22,8 @@ import {
   ProviderSnapshotNodeGPU,
   ProviderSnapshotStorage,
   SinkTotalsSnapshot,
-  SinkTransfer
+  SinkTransfer,
+  StakingUnbonding
 } from "./dbSchemas/akash";
 import type { Block, Message } from "./dbSchemas/base";
 dotenv.config({ path: ".env.local" });
@@ -69,7 +70,7 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
     coinGeckoId: "akash-network",
     logoUrlSVG: "https://raw.githubusercontent.com/cosmos/chain-registry/master/akash/images/akt.svg",
     logoUrlPNG: "https://console.akash.network/images/chains/akash.png",
-    customIndexers: ["AkashStatsIndexer", "BmeIndexer", "SinkIndexer"],
+    customIndexers: ["AkashStatsIndexer", "BmeIndexer", "SinkIndexer", "StakingUnbondingIndexer"],
     bech32Prefix: "akash",
     denom: "akt",
     udenom: "uakt",
@@ -95,7 +96,8 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
       BmeRawEvent,
       BmeStatusChange,
       SinkTotalsSnapshot,
-      SinkTransfer
+      SinkTransfer,
+      StakingUnbonding
     ]
   },
   get akashTestnet() {
@@ -108,7 +110,7 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
       coinGeckoId: "akash-network",
       logoUrlSVG: "https://raw.githubusercontent.com/cosmos/chain-registry/master/akash/images/akt.svg",
       logoUrlPNG: "https://console.akash.network/images/chains/akash.png",
-      customIndexers: ["AkashStatsIndexer", "BmeIndexer", "SinkIndexer"],
+      customIndexers: ["AkashStatsIndexer", "BmeIndexer", "SinkIndexer", "StakingUnbondingIndexer"],
       bech32Prefix: "akash",
       denom: "act",
       udenom: "uact",
@@ -134,7 +136,8 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
         BmeRawEvent,
         BmeStatusChange,
         SinkTotalsSnapshot,
-        SinkTransfer
+        SinkTransfer,
+        StakingUnbonding
       ]
     };
   },
@@ -147,7 +150,7 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
     coinGeckoId: "akash-network",
     logoUrlSVG: "https://raw.githubusercontent.com/cosmos/chain-registry/master/akash/images/akt.svg",
     logoUrlPNG: "https://console.akash.network/images/chains/akash.png",
-    customIndexers: ["AkashStatsIndexer", "BmeIndexer", "SinkIndexer"],
+    customIndexers: ["AkashStatsIndexer", "BmeIndexer", "SinkIndexer", "StakingUnbondingIndexer"],
     bech32Prefix: "akash",
     denom: "akt",
     udenom: "uakt",
@@ -173,7 +176,8 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
       BmeRawEvent,
       BmeStatusChange,
       SinkTotalsSnapshot,
-      SinkTransfer
+      SinkTransfer,
+      StakingUnbonding
     ]
   }
 };

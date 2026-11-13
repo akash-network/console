@@ -99,6 +99,13 @@
       "when": 1763400000000,
       "tag": "0013_add_sink_transfer",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1763500000000,
+      "tag": "0014_add_staking_unbonding",
+      "breakpoints": true
     }
   ]
 }

@@ -7,3 +7,4 @@ export * from "@src/dashboard/routes/market-data/market-data.router";
 export * from "@src/dashboard/routes/leases-duration/leases-duration.router";
 export * from "@src/dashboard/routes/sink-dashboard-data/sink-dashboard-data.router";
 export * from "@src/dashboard/routes/sink-transfers/sink-transfers.router";
+export * from "@src/dashboard/routes/sink-unbondings/sink-unbondings.router";
