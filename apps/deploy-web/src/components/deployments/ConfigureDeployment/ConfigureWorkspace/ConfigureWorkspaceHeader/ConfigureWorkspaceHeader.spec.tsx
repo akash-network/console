@@ -42,12 +42,23 @@ describe(ConfigureWorkspaceHeader.name, () => {
     expect(handlers[handler]).toHaveBeenCalled();
   });
 
-  function setup(input: { ctaState: DeployCtaState }) {
-    const handlers = { onDeploy: vi.fn(), onRetry: vi.fn(), onCloseAndEdit: vi.fn() };
+  it("holds the deploy back with the reason while something blocks it", async () => {
+    const handlers = setup({ ctaState: "deploy", blockedReason: "1 required field is empty" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Deploy" }));
+
+    expect(screen.getByText("1 required field is empty")).toBeInTheDocument();
+    expect(handlers.onBlockedAttempt).toHaveBeenCalled();
+    expect(handlers.onDeploy).not.toHaveBeenCalled();
+  });
+
+  function setup(input: { ctaState: DeployCtaState; blockedReason?: string }) {
+    const handlers = { onDeploy: vi.fn(), onRetry: vi.fn(), onCloseAndEdit: vi.fn(), onBlockedAttempt: vi.fn() };
     render(
       <ConfigureWorkspaceHeader
         backButton={<span>back control</span>}
         ctaState={input.ctaState}
+        blockedReason={input.blockedReason}
         {...handlers}
         dependencies={{
           DeploymentResourceSummary: () => <span>resource summary</span>,

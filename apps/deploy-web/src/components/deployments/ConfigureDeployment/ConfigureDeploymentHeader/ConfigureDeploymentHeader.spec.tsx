@@ -30,6 +30,35 @@ describe(ConfigureDeploymentHeader.name, () => {
     expect(useRequestQuotes).toHaveBeenCalledWith({ flow, deploymentName: "my-app" });
   });
 
+  it("holds Request quotes back with the reason while something blocks it, and reports the attempt instead", async () => {
+    const onBlockedAttempt = vi.fn();
+    const { requestQuotes } = setup({ phase: "configuring", blockedReason: "1 required field is empty", onBlockedAttempt });
+    const cta = screen.getByRole("button", { name: /request quotes/i });
+
+    expect(cta).toHaveAttribute("aria-disabled", "true");
+    expect(cta).toHaveAccessibleDescription("1 required field is empty");
+    expect(screen.getByText("1 required field is empty")).toBeInTheDocument();
+
+    await userEvent.click(cta);
+
+    expect(onBlockedAttempt).toHaveBeenCalledTimes(1);
+    expect(requestQuotes).not.toHaveBeenCalled();
+  });
+
+  it("offers Request quotes as before while nothing blocks it", () => {
+    setup({ phase: "configuring" });
+    const cta = screen.getByRole("button", { name: /request quotes/i });
+
+    expect(cta).not.toHaveAttribute("aria-disabled");
+    expect(cta).not.toHaveAttribute("aria-describedby");
+  });
+
+  it("shows no blocked reason once bids are requested", () => {
+    setup({ phase: "creating", blockedReason: "1 required field is empty" });
+
+    expect(screen.queryByText("1 required field is empty")).not.toBeInTheDocument();
+  });
+
   it("shows each resource of the deployment in the summary", () => {
     setup({ phase: "configuring" });
 
@@ -99,6 +128,63 @@ describe(ConfigureDeploymentHeader.name, () => {
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
 
     expect(retryDeploy).toHaveBeenCalled();
+  });
+
+  it("holds Deploy back with the reason while something blocks it, and reports the attempt instead", async () => {
+    const onDeploy = vi.fn();
+    const onBlockedAttempt = vi.fn();
+    setup({
+      phase: "quoting",
+      allPlacementsHaveBids: true,
+      placements: [{ id: "p1" }],
+      selections: { p1: "akash1a/1/1/1" },
+      onDeploy,
+      blockedReason: "1 required field is empty",
+      onBlockedAttempt
+    });
+    const deploy = screen.getByRole("button", { name: "Deploy" });
+
+    expect(deploy).toHaveAttribute("aria-disabled", "true");
+    expect(deploy).toHaveAccessibleDescription("1 required field is empty");
+
+    await userEvent.click(deploy);
+
+    expect(onBlockedAttempt).toHaveBeenCalledTimes(1);
+    expect(onDeploy).not.toHaveBeenCalled();
+  });
+
+  it("holds Retry back with the reason while something blocks it, and reports the attempt instead", async () => {
+    const onBlockedAttempt = vi.fn();
+    const { retryDeploy } = setup({
+      phase: "quoting",
+      allPlacementsHaveBids: true,
+      placements: [{ id: "p1" }],
+      selections: { p1: "akash1a/1/1/1" },
+      deployError: { message: "boom" },
+      blockedReason: "1 required field is empty",
+      onBlockedAttempt
+    });
+    const retry = screen.getByRole("button", { name: "Retry" });
+
+    expect(retry).toHaveAccessibleDescription("1 required field is empty");
+
+    await userEvent.click(retry);
+
+    expect(onBlockedAttempt).toHaveBeenCalledTimes(1);
+    expect(retryDeploy).not.toHaveBeenCalled();
+  });
+
+  it("keeps Deploy disabled without a reason until every placement has a selection, even while blocked", () => {
+    setup({
+      phase: "quoting",
+      allPlacementsHaveBids: true,
+      placements: [{ id: "p1" }, { id: "p2" }],
+      selections: { p1: "akash1a/1/1/1" },
+      blockedReason: "1 required field is empty"
+    });
+
+    expect(screen.getByRole("button", { name: "Deploy" })).toBeDisabled();
+    expect(screen.queryByText("1 required field is empty")).not.toBeInTheDocument();
   });
 
   it("shows a dash for the cost before any bids arrive", () => {
@@ -232,6 +318,8 @@ describe(ConfigureDeploymentHeader.name, () => {
     deploymentName?: string;
     noBidsReceived?: boolean;
     accountStatus?: AccountStatus;
+    blockedReason?: string;
+    onBlockedAttempt?: () => void;
   }) {
     const flow = mock<DeploymentFlow>({
       phase: input.phase,
@@ -264,6 +352,8 @@ describe(ConfigureDeploymentHeader.name, () => {
           deploymentName={input.deploymentName ?? ""}
           onDeploy={input.onDeploy ?? vi.fn()}
           allPlacementsHaveBids={input.allPlacementsHaveBids ?? false}
+          blockedReason={input.blockedReason}
+          onBlockedAttempt={input.onBlockedAttempt}
           dependencies={dependencies}
         />
       </Wrapper>

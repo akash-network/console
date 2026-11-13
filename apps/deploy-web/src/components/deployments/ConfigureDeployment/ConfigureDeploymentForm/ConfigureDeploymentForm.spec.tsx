@@ -8,6 +8,7 @@ import { mock } from "vitest-mock-extended";
 import type { WalletBalance } from "@src/hooks/useWalletBalance";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { PlacementType, SdlBuilderFormValuesType } from "@src/types";
+import type { TemplateAskedValue, TemplateSource } from "@src/types/marketplace-template";
 import type { OrganizationRole } from "@src/types/organization";
 import { defaultService } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
@@ -32,6 +33,7 @@ import { ConfigureDeploymentForm } from "./ConfigureDeploymentForm";
 
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { buildMarketplaceTemplate, buildTemplateVersion } from "@tests/seeders/userTemplate";
 
 const VALID_SDL = [
   "version: '2.0'",
@@ -82,6 +84,18 @@ const INHERITED_REFERENCE_SDL = VALID_SDL.replace(
   "    image: nginx:1.0",
   ["    image: nginx:1.0", "    credentials:", "      host: ghcr.io", "      username: alice", "      password: ac-secret://c_password"].join("\n")
 );
+
+const TEMPLATE_SDL = VALID_SDL.replace(
+  "    image: nginx:1.0",
+  ["    image: nginx:1.0", "    env:", "      - ADMIN_EMAIL=", "      - HF_TOKEN=ac-secret://HF_TOKEN"].join("\n")
+);
+
+const FILLED_TEMPLATE_SDL = TEMPLATE_SDL.replace("ADMIN_EMAIL=", "ADMIN_EMAIL=admin@northwind.dev");
+
+const TEMPLATE_ASKED_VALUES: TemplateAskedValue[] = [
+  { key: "ADMIN_EMAIL", label: "Admin email", type: "text", required: true, bindings: [{ service: "web", env: "ADMIN_EMAIL" }] },
+  { key: "HF_TOKEN", label: "Hugging Face token", type: "secret", required: true, bindings: [{ service: "web", env: "HF_TOKEN" }] }
+];
 
 const TWO_SERVICE_SDL = [
   "version: '2.0'",
@@ -1203,6 +1217,197 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(analyticsService.track).toHaveBeenCalledWith("configure_page_viewed", { category: "deployments", layout: "three_pane" });
   });
 
+  describe("with a template version", () => {
+    it.each([
+      { layout: "two panel", twoPanel: true },
+      { layout: "three pane", twoPanel: false }
+    ])("blocks requesting bids until required variables are filled, with inline errors ($layout layout)", async ({ twoPanel }) => {
+      setup({
+        initialSdl: TEMPLATE_SDL,
+        templateSource: templateSourceOf(),
+        twoPanel,
+        Workspace: TemplateProbeWorkspace,
+        Panes: TemplateProbePanes,
+        Header: TemplateProbeHeader
+      });
+
+      expect(screen.getByTestId("blocked-reason")).toHaveTextContent("2 required fields are empty");
+      expect(screen.getByRole("textbox", { name: "Admin email" })).not.toBeInvalid();
+
+      await userEvent.click(screen.getByRole("button", { name: "request bids" }));
+
+      expect(screen.getByRole("textbox", { name: "Admin email" })).toBeInvalid();
+      expect(screen.getByText("Enter a value for Admin email to continue.")).toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: "Admin email" })).toHaveFocus();
+
+      await userEvent.type(screen.getByLabelText("Hugging Face token"), "hf_secret");
+      await userEvent.type(screen.getByRole("textbox", { name: "Admin email" }), "admin@northwind.dev");
+
+      expect(screen.getByTestId("blocked-reason")).toBeEmptyDOMElement();
+      expect(screen.queryByText("Enter a value for Admin email to continue.")).not.toBeInTheDocument();
+    });
+
+    it("seals a secret variable like any deployment secret", async () => {
+      const { flow } = setup({ initialSdl: TEMPLATE_SDL, templateSource: templateSourceOf(), Panes: TemplateProbePanes });
+
+      await userEvent.type(screen.getByLabelText("Hugging Face token"), "hf_secret");
+      await userEvent.type(screen.getByRole("textbox", { name: "Admin email" }), "admin@northwind.dev");
+      await userEvent.click(screen.getByRole("button", { name: "select provider" }));
+      await userEvent.click(screen.getByRole("button", { name: "confirm and deploy" }));
+
+      const [sdl, options] = (flow.actions.deploy as Mock).mock.calls[0];
+      expect(sdl).toContain("HF_TOKEN=ac-secret://HF_TOKEN");
+      expect(sdl).toContain("ADMIN_EMAIL=admin@northwind.dev");
+      expect(sdl).not.toContain("hf_secret");
+      expect(options).toEqual({ secrets: { HF_TOKEN: "hf_secret" }, unresolvedSecrets: [] });
+    });
+
+    it("blocks deploying once a required variable is cleared after bids were requested, with inline errors", async () => {
+      const { ReviewAndDeployModal, flow } = setup({
+        initialSdl: FILLED_TEMPLATE_SDL,
+        templateSource: templateSourceOf(),
+        Panes: TemplateProbePanes,
+        Header: TemplateProbeHeader,
+        phase: "quoting",
+        dseq: "42"
+      });
+      expect(screen.getByTestId("blocked-reason")).toBeEmptyDOMElement();
+
+      await userEvent.clear(screen.getByRole("textbox", { name: "Admin email" }));
+      await userEvent.click(screen.getByRole("button", { name: "open review" }));
+      await userEvent.click(screen.getByRole("button", { name: "select provider" }));
+
+      expect(screen.getByTestId("blocked-reason")).toHaveTextContent("1 required field is empty");
+      expect(ReviewAndDeployModal).toHaveBeenLastCalledWith(expect.objectContaining({ open: false }), expect.anything());
+      expect(screen.getByText("Enter a value for Admin email to continue.")).toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: "Admin email" })).toHaveFocus();
+      expect(flow.actions.deploy).not.toHaveBeenCalled();
+    });
+
+    it.each(["confirm and deploy", "retry"])("blocks a deploy sent from the review with %s once a required variable is cleared", async action => {
+      const { flow } = setup({ initialSdl: FILLED_TEMPLATE_SDL, templateSource: templateSourceOf(), Panes: TemplateProbePanes, phase: "quoting", dseq: "42" });
+      await userEvent.click(screen.getByRole("button", { name: "select provider" }));
+
+      await userEvent.clear(screen.getByRole("textbox", { name: "Admin email" }));
+      await userEvent.click(screen.getByRole("button", { name: action }));
+
+      expect(flow.actions.deploy).not.toHaveBeenCalled();
+      expect(screen.getByText("Enter a value for Admin email to continue.")).toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: "Admin email" })).toHaveFocus();
+    });
+
+    it("deploys a resumed deployment whose secret its create already sealed", async () => {
+      const { flow } = setup({ initialSdl: FILLED_TEMPLATE_SDL, templateSource: templateSourceOf(), Panes: TemplateProbePanes, phase: "quoting", dseq: "42" });
+
+      await userEvent.click(screen.getByRole("button", { name: "select provider" }));
+      await userEvent.click(screen.getByRole("button", { name: "confirm and deploy" }));
+
+      const [sdl, options] = (flow.actions.deploy as Mock).mock.calls[0];
+      expect(sdl).toContain("HF_TOKEN=ac-secret://HF_TOKEN");
+      expect(options).toEqual({
+        secrets: {},
+        unresolvedSecrets: [{ serviceTitle: "web", label: "HF_TOKEN", name: "HF_TOKEN", isKeptReference: true }]
+      });
+      expect(screen.getByLabelText("Hugging Face token")).toHaveAttribute("placeholder", "Sealed with this deployment");
+    });
+
+    it("asks for a secret the template only references before the deployment exists", () => {
+      const { ConfigureDeploymentHeader } = setup({ initialSdl: FILLED_TEMPLATE_SDL, templateSource: templateSourceOf() });
+
+      expect(ConfigureDeploymentHeader).toHaveBeenLastCalledWith(expect.objectContaining({ blockedReason: "1 required field is empty" }), expect.anything());
+    });
+
+    it("deploys an untouched yes/no without a default as No", async () => {
+      const signUps: TemplateAskedValue = {
+        key: "ENABLE_SIGNUP",
+        label: "Allow sign-ups",
+        type: "boolean",
+        required: true,
+        bindings: [{ service: "web", env: "ENABLE_SIGNUP" }]
+      };
+      const { flow, ConfigureDeploymentPanes } = setup({
+        initialSdl: FILLED_TEMPLATE_SDL.replace("      - ADMIN_EMAIL=", "      - ENABLE_SIGNUP=\n      - ADMIN_EMAIL="),
+        templateSource: templateSourceOf([...TEMPLATE_ASKED_VALUES, signUps]),
+        Panes: TemplateProbePanes,
+        phase: "quoting",
+        dseq: "42"
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "select provider" }));
+      await userEvent.click(screen.getByRole("button", { name: "confirm and deploy" }));
+
+      expect(lastPanesProps(ConfigureDeploymentPanes).sdl).toContain("ENABLE_SIGNUP=false");
+      expect((flow.actions.deploy as Mock).mock.calls[0][0]).toContain("ENABLE_SIGNUP=false");
+    });
+
+    it("starts over with an untouched yes/no as No when the configuration is reset", async () => {
+      const signUps: TemplateAskedValue = {
+        key: "ENABLE_SIGNUP",
+        label: "Allow sign-ups",
+        type: "boolean",
+        required: true,
+        bindings: [{ service: "web", env: "ENABLE_SIGNUP" }]
+      };
+      setup({
+        initialSdl: FILLED_TEMPLATE_SDL.replace("      - ADMIN_EMAIL=", "      - ENABLE_SIGNUP=\n      - ADMIN_EMAIL="),
+        templateSource: templateSourceOf([...TEMPLATE_ASKED_VALUES, signUps]),
+        twoPanel: true,
+        Workspace: ResetProbeWorkspace
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "reset" }));
+
+      expect(screen.getByTestId("sdl")).toHaveTextContent("ENABLE_SIGNUP=false");
+    });
+
+    it("leaves an sdl without an unset yes/no as it was", () => {
+      const { ConfigureDeploymentPanes } = setup({ initialSdl: FILLED_TEMPLATE_SDL, templateSource: templateSourceOf() });
+
+      expect(lastPanesProps(ConfigureDeploymentPanes).sdl).toBe(sealedSdlOf(FILLED_TEMPLATE_SDL));
+    });
+
+    it("shows the filled values in the live sdl", async () => {
+      const { ConfigureDeploymentPanes } = setup({ initialSdl: TEMPLATE_SDL, templateSource: templateSourceOf(), Panes: TemplateProbePanes });
+
+      await userEvent.type(screen.getByRole("textbox", { name: "Admin email" }), "admin@northwind.dev");
+
+      expect(lastPanesProps(ConfigureDeploymentPanes).sdl).toContain("ADMIN_EMAIL=admin@northwind.dev");
+    });
+
+    it.each(["creating", "deploying"] as const)("locks the variables while the deployment is %s", phase => {
+      setup({ initialSdl: TEMPLATE_SDL, templateSource: templateSourceOf(), Panes: TemplateProbePanes, phase });
+
+      expect(screen.getByRole("textbox", { name: "Admin email" })).toBeDisabled();
+    });
+
+    it("keeps the variables editable while bids come in", () => {
+      setup({ initialSdl: TEMPLATE_SDL, templateSource: templateSourceOf(), Panes: TemplateProbePanes, phase: "quoting" });
+
+      expect(screen.getByRole("textbox", { name: "Admin email" })).toBeEnabled();
+    });
+
+    it("blocks nothing once a template asks for nothing", () => {
+      const { ConfigureDeploymentHeader } = setup({ initialSdl: VALID_SDL, templateSource: templateSourceOf([]) });
+
+      expect(ConfigureDeploymentHeader).toHaveBeenLastCalledWith(expect.objectContaining({ blockedReason: undefined }), expect.anything());
+    });
+
+    it("adds no variables and blocks nothing without a template", () => {
+      const threePane = setup({ initialSdl: TEMPLATE_SDL });
+
+      expect(threePane.ConfigureDeploymentHeader).toHaveBeenLastCalledWith(expect.objectContaining({ blockedReason: undefined }), expect.anything());
+      expect(threePane.ConfigureDeploymentPanes).toHaveBeenLastCalledWith(expect.objectContaining({ configurationHeader: undefined }), expect.anything());
+      threePane.unmount();
+
+      const twoPanel = setup({ initialSdl: TEMPLATE_SDL, twoPanel: true });
+
+      expect(twoPanel.ConfigureWorkspace).toHaveBeenLastCalledWith(
+        expect.objectContaining({ editorHeader: undefined, blockedReason: undefined }),
+        expect.anything()
+      );
+    });
+  });
+
   describe("with the two panel layout", () => {
     it("renders the two panel workspace instead of the three panes", () => {
       const { ConfigureWorkspace, ConfigureDeploymentPanes } = setup({ initialSdl: VALID_SDL, twoPanel: true });
@@ -1514,11 +1719,14 @@ describe(ConfigureDeploymentForm.name, () => {
     deployBalanceUsd?: number;
     minimumDepositUsd?: number;
     reviewFundingState?: FundingImpactState;
+    templateSource?: TemplateSource;
+    Header?: (props: HeaderProbeProps) => ReactNode;
+    dseq?: string;
   }) {
     const ConfigureDeploymentPanes = vi.fn(
       input.Panes ?? (({ configurationActions }: ProbePanesProps) => <div data-testid="panes-mock">{configurationActions}</div>)
     );
-    const ConfigureDeploymentHeader = vi.fn(() => <div data-testid="header-mock" />);
+    const ConfigureDeploymentHeader = vi.fn(input.Header ?? (() => <div data-testid="header-mock" />));
     const ConfigureWorkspace = vi.fn(input.Workspace ?? (() => <div data-testid="workspace-mock" />));
     const SdlImportExport = vi.fn(() => null);
     const enqueueSnackbar = vi.fn();
@@ -1581,7 +1789,7 @@ describe(ConfigureDeploymentForm.name, () => {
     const flow = Object.assign(
       mock<DeploymentFlow>({
         phase: input.phase ?? "configuring",
-        dseq: null,
+        dseq: input.dseq ?? null,
         bidStrategy: "select",
         selections: {},
         deploySucceeded: input.deploySucceeded ?? false,
@@ -1648,6 +1856,7 @@ describe(ConfigureDeploymentForm.name, () => {
           exampleImage: input.exampleImage
         }}
         flow={flow}
+        templateSource={input.templateSource}
         dependencies={{
           ...dependencies,
           useFlag: flag => flag === "ui_configure_two_panel" && flags.twoPanel,
@@ -1656,9 +1865,10 @@ describe(ConfigureDeploymentForm.name, () => {
       />
     );
     const initialFlags = { twoPanel: input.twoPanel ?? false, minimumDepositUsd: input.minimumDepositUsd };
-    const { rerender } = render(formWithFlags(initialFlags));
+    const { rerender, unmount } = render(formWithFlags(initialFlags));
 
     return {
+      unmount,
       rerenderWith: (flags: Partial<typeof initialFlags>) => rerender(formWithFlags({ ...initialFlags, ...flags })),
       ConfigureDeploymentPanes,
       ConfigureWorkspace,
@@ -2059,6 +2269,63 @@ function SelectionProbePanes({ selectedServiceId }: ProbePanesProps) {
       <button type="button" onClick={() => setValue("services", [defaultService(getValues("placements")[0].id, { title: "service-2" })])}>
         replace services
       </button>
+    </div>
+  );
+}
+
+function templateSourceOf(askedValues: TemplateAskedValue[] = TEMPLATE_ASKED_VALUES): TemplateSource {
+  const version = buildTemplateVersion({ id: "ver-4", version: 4, sdl: TEMPLATE_SDL, askedValues: structuredClone(askedValues) });
+  return { template: buildMarketplaceTemplate({ title: "Open WebUI", currentVersion: version }), version };
+}
+
+interface HeaderProbeProps {
+  blockedReason?: string;
+  onBlockedAttempt?: () => void;
+  onDeploy?: () => void;
+}
+
+interface TemplateWorkspaceProbeProps extends WorkspaceProbeProps {
+  editorHeader?: ReactNode;
+  blockedReason?: string;
+  onBlockedAttempt?: () => void;
+}
+
+function TemplateProbeWorkspace({ editorHeader, blockedReason, onBlockedAttempt }: TemplateWorkspaceProbeProps) {
+  return (
+    <div>
+      {editorHeader}
+      <BlockedRequestProbe blockedReason={blockedReason} onBlockedAttempt={onBlockedAttempt} />
+    </div>
+  );
+}
+
+function TemplateProbeHeader({ blockedReason, onBlockedAttempt, onDeploy }: HeaderProbeProps) {
+  return (
+    <div>
+      <BlockedRequestProbe blockedReason={blockedReason} onBlockedAttempt={onBlockedAttempt} />
+      <button type="button" onClick={onDeploy}>
+        open review
+      </button>
+    </div>
+  );
+}
+
+function BlockedRequestProbe({ blockedReason, onBlockedAttempt }: HeaderProbeProps) {
+  return (
+    <div>
+      <p data-testid="blocked-reason">{blockedReason}</p>
+      <button type="button" onClick={() => blockedReason && onBlockedAttempt?.()}>
+        request bids
+      </button>
+    </div>
+  );
+}
+
+function TemplateProbePanes(props: ProbePanesProps & { configurationHeader?: ReactNode }) {
+  return (
+    <div>
+      {props.configurationHeader}
+      <ProviderSelectProbePanes {...props} />
     </div>
   );
 }

@@ -18,10 +18,22 @@ type Props = {
   onDeploy: () => void;
   onRetry: () => void;
   onCloseAndEdit: () => void;
+  blockedReason?: string;
+  onBlockedAttempt?: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
-export const DeploymentCostBar: FC<Props> = ({ ctaState, cost, expiry, onDeploy, onRetry, onCloseAndEdit, dependencies: d = DEPENDENCIES }) => {
+export const DeploymentCostBar: FC<Props> = ({
+  ctaState,
+  cost,
+  expiry,
+  onDeploy,
+  onRetry,
+  onCloseAndEdit,
+  blockedReason,
+  onBlockedAttempt,
+  dependencies: d = DEPENDENCIES
+}) => {
   const showAsHourly = d.useDeploymentHasGpu();
 
   return (
@@ -36,7 +48,14 @@ export const DeploymentCostBar: FC<Props> = ({ ctaState, cost, expiry, onDeploy,
         )}
       </div>
       <div className="grid sm:block">
-        <d.WorkspaceCtaButton state={ctaState} onDeploy={onDeploy} onRetry={onRetry} onCloseAndEdit={onCloseAndEdit} />
+        <d.WorkspaceCtaButton
+          state={ctaState}
+          onDeploy={onDeploy}
+          onRetry={onRetry}
+          onCloseAndEdit={onCloseAndEdit}
+          blockedReason={blockedReason}
+          onBlockedAttempt={onBlockedAttempt}
+        />
       </div>
     </div>
   );

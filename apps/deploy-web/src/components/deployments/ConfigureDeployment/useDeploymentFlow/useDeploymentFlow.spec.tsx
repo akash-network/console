@@ -101,6 +101,42 @@ describe(useDeploymentFlow.name, () => {
     expect(createMutate.mock.calls[0][0].data).not.toHaveProperty("templateId");
   });
 
+  it("sends the template version id with the create and no gallery id", async () => {
+    const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
+    const { result } = setup({
+      createMutate,
+      intent: {
+        sdlStrategy: "edit",
+        bidStrategy: "select",
+        templateId: "akash-network-awesome-akash-comfyui",
+        userTemplateId: "tpl-9",
+        templateVersionId: "ver-3"
+      }
+    });
+
+    act(() => result.current.actions.requestQuotes("sdl-content"));
+
+    await settleSeal();
+
+    await waitFor(() => expect(createMutate).toHaveBeenCalled());
+    expect(createMutate.mock.calls[0][0].data).toMatchObject({ templateVersionId: "ver-3" });
+    expect(createMutate.mock.calls[0][0].data).not.toHaveProperty("templateId");
+    expect(createMutate.mock.calls[0][0].data).not.toHaveProperty("userTemplateId");
+  });
+
+  it("sends no template version id for a user template whose version was never resolved", async () => {
+    const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
+    const { result } = setup({ createMutate, intent: { sdlStrategy: "edit", bidStrategy: "select", userTemplateId: "tpl-9" } });
+
+    act(() => result.current.actions.requestQuotes("sdl-content"));
+
+    await settleSeal();
+
+    await waitFor(() => expect(createMutate).toHaveBeenCalled());
+    expect(createMutate.mock.calls[0][0].data).not.toHaveProperty("templateVersionId");
+    expect(createMutate.mock.calls[0][0].data).not.toHaveProperty("templateId");
+  });
+
   it("asks for a project again when the api requires one", async () => {
     const createMutate = vi.fn((_args, { onError }) => onError(new ApiError(400, { message: "Choose a project", code: "project_required" }, "bad request")));
     const { result, forgetProject } = setup({ createMutate, deployTargetProjectId: "project-1" });
@@ -4470,7 +4506,16 @@ describe(useDeploymentFlow.name, () => {
   });
 
   function setup(input: {
-    intent?: { sdlStrategy: "default" | "edit"; bidStrategy: "auto" | "select"; dseq?: string; templateId?: string; draftId?: string; vm?: boolean };
+    intent?: {
+      sdlStrategy: "default" | "edit";
+      bidStrategy: "auto" | "select";
+      dseq?: string;
+      templateId?: string;
+      userTemplateId?: string;
+      templateVersionId?: string;
+      draftId?: string;
+      vm?: boolean;
+    };
     pendingCreate?: PendingCreate;
     replace?: ReturnType<typeof vi.fn>;
     createMutate?: ReturnType<typeof vi.fn>;
@@ -4748,6 +4793,16 @@ describe(useDeploymentFlow.name, () => {
 });
 
 describe(buildConfigureUrl.name, () => {
+  it("keeps the user template's named version and never writes the resolved version id", () => {
+    const url = buildConfigureUrl(
+      { sdlStrategy: "edit", bidStrategy: "select", userTemplateId: "tpl-9", templateVersion: 3, templateVersionId: "ver-3", draftId: "draft-1", vm: false },
+      undefined,
+      "select"
+    );
+
+    expect(url).toBe("/new-deployment/configure?userTemplateId=tpl-9&templateVersion=3&bid-strategy=select&draftId=draft-1");
+  });
+
   it("preserves the draft id alongside the dseq and bid strategy", () => {
     const url = buildConfigureUrl({ sdlStrategy: "edit", bidStrategy: "select", templateId: "tpl", draftId: "draft-1", vm: false }, "999", "auto");
 

@@ -6,6 +6,10 @@ export interface DeploymentIntent {
   templateId?: string;
   /** A user-authored template (`?userTemplateId=`), resolved against the private user-template API rather than the public gallery. */
   userTemplateId?: string;
+  /** The version of `userTemplateId` to deploy (`?templateVersion=`); its current version when absent. */
+  templateVersion?: number;
+  /** The id of the template version the SDL came from, resolved by the Configure screen and never read from the URL. */
+  templateVersionId?: string;
   sdlStrategy: SdlStrategy;
   bidStrategy: BidStrategy;
   dseq?: string;
@@ -33,7 +37,7 @@ interface ParseInput {
 }
 
 interface ParseOptions {
-  /** Without it a template mode URL parses as a deploy URL, exactly as it did before template mode existed. */
+  /** Without it the URL parses exactly as it did before the template marketplace: no template mode and no template version. */
   isTemplateModeEnabled: boolean;
 }
 
@@ -53,7 +57,11 @@ export function parseDeploymentIntent(
   { isTemplateModeEnabled }: ParseOptions = { isTemplateModeEnabled: false }
 ): DeploymentIntent {
   const templateMode = isTemplateModeEnabled ? toTemplateMode(searchParams.get("templateMode")) : undefined;
-  return templateMode ? parseTemplateIntent(templateMode, searchParams) : parseDeployIntent(dseqSegment, searchParams);
+  if (templateMode) return parseTemplateIntent(templateMode, searchParams);
+
+  const intent = parseDeployIntent(dseqSegment, searchParams);
+  const templateVersion = isTemplateModeEnabled && intent.userTemplateId ? toVersion(searchParams.get("templateVersion")) : undefined;
+  return templateVersion ? { ...intent, templateVersion } : intent;
 }
 
 /** Authoring never deploys, so a template intent carries none of the params that choose what, where or how to deploy. */

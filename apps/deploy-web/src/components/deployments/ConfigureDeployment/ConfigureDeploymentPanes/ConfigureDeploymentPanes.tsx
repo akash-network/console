@@ -33,6 +33,7 @@ type Props = {
   onDeploymentNameChange: (value: string) => void;
   /** Rendered in the Configuration column header, e.g. the SDL import/export menu. */
   configurationActions?: ReactNode;
+  configurationHeader?: ReactNode;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -59,6 +60,7 @@ export const ConfigureDeploymentPanes: FC<Props> = ({
   deploymentName,
   onDeploymentNameChange,
   configurationActions,
+  configurationHeader,
   dependencies: d = DEPENDENCIES
 }) => {
   const [isSdlPreviewOpen, setIsSdlPreviewOpen] = useAtom(sdlStore.sdlPreviewOpen);
@@ -81,7 +83,7 @@ export const ConfigureDeploymentPanes: FC<Props> = ({
           deploymentName={deploymentName}
           onDeploymentNameChange={onDeploymentNameChange}
         />
-        <d.ConfigurationPane selectedServiceId={selectedServiceId} locked={configurationLock} actions={configurationActions} />
+        <d.ConfigurationPane selectedServiceId={selectedServiceId} locked={configurationLock} actions={configurationActions} header={configurationHeader} />
         {isLocked ? (
           <div className="col-start-1 col-end-3 row-start-2">
             <d.PaneLockBanner onCancelAndEdit={onCancelAndEdit} />

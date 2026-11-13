@@ -3,6 +3,7 @@ import { Button } from "@akashnetwork/ui/components";
 import { LoaderCircleIcon, RocketIcon } from "lucide-react";
 
 import { AccountSpendGate } from "@src/components/user/AccountActionGate/AccountActionGate";
+import { BlockedActionButton } from "../../BlockedActionButton/BlockedActionButton";
 import type { DeployCtaState } from "../../deployCtaState/deployCtaState";
 
 export const DEPENDENCIES = { AccountSpendGate };
@@ -15,11 +16,27 @@ type Props = {
   onRetry: () => void;
   onCloseAndEdit: () => void;
   dependencies?: typeof DEPENDENCIES;
+  blockedReason?: string;
+  onBlockedAttempt?: () => void;
 };
 
 const CTA_CLASSES = "h-10 shrink-0 gap-2 px-6";
 
-export const WorkspaceCtaButton: FC<Props> = ({ state, onDeploy, onRetry, onCloseAndEdit, dependencies: d = DEPENDENCIES }) => {
+export const WorkspaceCtaButton: FC<Props> = ({ state, onDeploy, onRetry, onCloseAndEdit, blockedReason, onBlockedAttempt, dependencies: d = DEPENDENCIES }) => {
+  if (blockedReason && (state === "deploy" || state === "retry")) {
+    return (
+      <BlockedActionButton reason={blockedReason} onAttempt={onBlockedAttempt} className={CTA_CLASSES}>
+        {state === "deploy" ? (
+          <>
+            <RocketIcon className="h-4 w-4" aria-hidden="true" />
+            Deploy
+          </>
+        ) : (
+          "Retry"
+        )}
+      </BlockedActionButton>
+    );
+  }
   switch (state) {
     case "requesting":
       return (

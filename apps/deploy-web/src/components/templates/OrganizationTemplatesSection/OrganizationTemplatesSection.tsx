@@ -1,6 +1,9 @@
 "use client";
 import type { FC } from "react";
 import { useId } from "react";
+import { buttonVariants } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 import { TemplateIcon } from "@src/components/templates/TemplateIcon/TemplateIcon";
@@ -42,17 +45,39 @@ export const OrganizationTemplatesSection: FC<{ dependencies?: typeof DEPENDENCI
   );
 };
 
-const OrganizationTemplateCard: FC<{ template: UserTemplateListItem; dependencies: typeof DEPENDENCIES }> = ({ template, dependencies: d }) => (
-  <Link
-    href={UrlService.template(template.id)}
-    prefetch={false}
-    className="group flex flex-col gap-2 rounded-[14px] border border-border bg-card px-[18px] py-4 text-card-foreground !no-underline shadow-sm transition-[box-shadow,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-blue-600/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-  >
-    <div className="flex items-center gap-2">
-      <d.TemplateIcon icon={template.icon} className="h-4 w-4 shrink-0 text-muted-foreground" />
-      <h3 className="min-w-0 flex-1 truncate text-base font-bold tracking-tight">{template.title}</h3>
-      {template.currentVersion && <span className="font-mono text-xs text-muted-foreground">v{template.currentVersion.version}</span>}
+const OrganizationTemplateCard: FC<{ template: UserTemplateListItem; dependencies: typeof DEPENDENCIES }> = ({ template, dependencies: d }) => {
+  const titleId = useId();
+
+  return (
+    <div className="relative transition-transform duration-200 hover:-translate-y-0.5">
+      <Link
+        href={UrlService.template(template.id)}
+        prefetch={false}
+        className={cn(
+          "group flex h-full flex-col gap-2 rounded-[14px] border border-border bg-card px-[18px] py-4 text-card-foreground !no-underline shadow-sm transition-[box-shadow,border-color] duration-200 hover:border-blue-600/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          template.currentVersion && "pb-14"
+        )}
+      >
+        <div className="flex items-center gap-2">
+          <d.TemplateIcon icon={template.icon} className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <h3 id={titleId} className="min-w-0 flex-1 truncate text-base font-bold tracking-tight">
+            {template.title}
+          </h3>
+          {template.currentVersion && <span className="font-mono text-xs text-muted-foreground">v{template.currentVersion.version}</span>}
+        </div>
+        <p className="line-clamp-2 min-h-[34px] break-words text-[12.5px] leading-[17px] text-muted-foreground">{template.summary}</p>
+      </Link>
+      {template.currentVersion && (
+        <Link
+          href={UrlService.configureDeployment({ userTemplateId: template.id })}
+          prefetch={false}
+          aria-describedby={titleId}
+          className={cn(buttonVariants({ size: "sm" }), "absolute bottom-4 right-[18px] gap-1.5")}
+        >
+          Deploy
+          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </Link>
+      )}
     </div>
-    <p className="line-clamp-2 min-h-[34px] break-words text-[12.5px] leading-[17px] text-muted-foreground">{template.summary}</p>
-  </Link>
-);
+  );
+};

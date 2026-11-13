@@ -1,4 +1,4 @@
-import type { ComponentProps, PropsWithChildren } from "react";
+import type { ComponentProps, PropsWithChildren, ReactNode } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import { FormProvider, useForm } from "react-hook-form";
 import { describe, expect, it, vi } from "vitest";
@@ -26,6 +26,21 @@ describe(ConfigureEditor.name, () => {
 
     expect(screen.getByRole("heading", { name: "Template" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Deployment" })).not.toBeInTheDocument();
+  });
+
+  it("shows a header above the deployment's fields", () => {
+    setup({ header: <section aria-label="Template variables" /> });
+
+    const header = screen.getByRole("region", { name: "Template variables" });
+    const panel = screen.getByRole("region", { name: "Deployment" });
+    expect(panel).toContainElement(header);
+    expect(header.compareDocumentPosition(screen.getByTestId("name-field")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("shows no header unless given one", () => {
+    setup({});
+
+    expect(screen.queryByRole("region", { name: "Template variables" })).not.toBeInTheDocument();
   });
 
   it("shows the name field unless told otherwise", () => {
@@ -126,7 +141,7 @@ describe(ConfigureEditor.name, () => {
     expect(addedServiceId).toBe("worker");
   });
 
-  function setup(input: { selectedServiceId?: string; activePlacementId?: string; title?: string; showsNameField?: boolean }) {
+  function setup(input: { selectedServiceId?: string; activePlacementId?: string; title?: string; showsNameField?: boolean; header?: ReactNode }) {
     const placements = [placement("p1", "placement-1"), placement("p2", "placement-2")];
     const servicesByPlacement: Record<string, IndexedService[]> = {
       p1: [indexed("web", "p1", 0), indexed("api", "p1", 1)],
@@ -140,6 +155,7 @@ describe(ConfigureEditor.name, () => {
     });
     const onSelectService = vi.fn();
     const dependencies = MockComponents(DEPENDENCIES, {
+      DeploymentNameField: vi.fn(() => <div data-testid="name-field" />),
       usePlacementManagerContext: () => manager,
       useConfigurationStatus: () => ({ placementStatus: placementId => (placementId === "p1" ? "complete" : "incomplete") })
     });
@@ -167,6 +183,7 @@ describe(ConfigureEditor.name, () => {
           toolbar={<span>toolbar</span>}
           title={input.title}
           showsNameField={input.showsNameField}
+          header={input.header}
           dependencies={dependencies}
         />
       </Wrapper>

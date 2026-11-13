@@ -10,6 +10,8 @@ export type TemplateVersionDetail = NonNullable<components["schemas"]["Marketpla
 
 export type MarketplaceTemplate = components["schemas"]["MarketplaceTemplate"];
 
+export type TemplateSource = { template: MarketplaceTemplate; version: TemplateVersionDetail };
+
 export type TemplateVersionSummary = components["schemas"]["TemplateVersionSummary"];
 
 export type TemplateAskedValue = components["schemas"]["TemplateAskedValue"];

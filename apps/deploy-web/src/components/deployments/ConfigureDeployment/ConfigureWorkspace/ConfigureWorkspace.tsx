@@ -1,4 +1,4 @@
-import type { FC, RefObject } from "react";
+import type { FC, ReactNode, RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { FieldErrors } from "react-hook-form";
 import { useFormContext, useFormState, useWatch } from "react-hook-form";
@@ -112,6 +112,10 @@ type Props = {
   onImport: (state: ImportedDeploymentState) => void;
   onReset: () => void;
   onDiscard: () => void;
+  editorHeader?: ReactNode;
+  /** Holds the provider choice, the deploy and the retry back while set and shows why; a click then reports the attempt through `onBlockedAttempt`. */
+  blockedReason?: string;
+  onBlockedAttempt?: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -133,6 +137,9 @@ export const ConfigureWorkspace: FC<Props> = ({
   onImport,
   onReset,
   onDiscard,
+  editorHeader,
+  blockedReason,
+  onBlockedAttempt,
   dependencies: d = DEPENDENCIES
 }) => {
   const { control, getValues } = useFormContext<SdlBuilderFormValuesType>();
@@ -175,6 +182,10 @@ export const ConfigureWorkspace: FC<Props> = ({
 
   function chooseProvider() {
     setIsProvidersSheetOpen(false);
+    if (blockedReason) {
+      onBlockedAttempt?.();
+      return;
+    }
     analyticsService.track("configure_choose_provider_clicked", {
       category: "deployments",
       usesExampleImage: getValues("services").some(service => service.image === HELLO_WORLD_IMAGE)
@@ -233,6 +244,7 @@ export const ConfigureWorkspace: FC<Props> = ({
       onRequestCompute={() => requestCompute("footer", "gpu_model")}
       onRequestComputeForUnlikelyBids={() => requestCompute("not_bidding_notice", "capacity")}
       onRequestComputeForNoFit={() => requestCompute("no_fit_notice", "capacity")}
+      blockedReason={blockedReason}
     />
   );
 
@@ -257,6 +269,8 @@ export const ConfigureWorkspace: FC<Props> = ({
           onDeploy={onDeploy}
           onRetry={retryDeploy}
           onCloseAndEdit={flow.actions.cancelAndEdit}
+          blockedReason={blockedReason}
+          onBlockedAttempt={onBlockedAttempt}
         />
       </div>
       {placements.map(placement => (
@@ -297,6 +311,7 @@ export const ConfigureWorkspace: FC<Props> = ({
                     onSelectService={onSelectService}
                     deploymentName={deploymentName}
                     onDeploymentNameChange={onDeploymentNameChange}
+                    header={editorHeader}
                     toolbar={
                       <div className="flex items-center gap-1">
                         <d.SdlImportExport variant="toolbar" sdl={sdl} deploymentName={deploymentName} canImport={isEditable} onImport={onImport} />
@@ -343,7 +358,6 @@ export const ConfigureWorkspace: FC<Props> = ({
                           dseq={flow.dseq}
                           onRequestCompute={() => requestCompute("no_bids_notice", "capacity")}
                         />
-
                       ) : undefined
                     }
                   />
@@ -373,6 +387,7 @@ export const ConfigureWorkspace: FC<Props> = ({
             sheet={availabilityPane}
             isChooseProviderDisabled={isSubmitting || hasPlacementWithoutProviders}
             onChooseProvider={chooseProvider}
+            blockedReason={blockedReason}
           />
         ) : (
           <d.DeploymentCostBar
@@ -382,6 +397,8 @@ export const ConfigureWorkspace: FC<Props> = ({
             onDeploy={onDeploy}
             onRetry={retryDeploy}
             onCloseAndEdit={flow.actions.cancelAndEdit}
+            blockedReason={blockedReason}
+            onBlockedAttempt={onBlockedAttempt}
           />
         )}
       </div>

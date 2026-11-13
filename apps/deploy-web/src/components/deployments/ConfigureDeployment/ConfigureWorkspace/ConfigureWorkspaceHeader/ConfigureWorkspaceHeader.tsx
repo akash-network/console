@@ -12,11 +12,22 @@ type Props = {
   onDeploy: () => void;
   onRetry: () => void;
   onCloseAndEdit: () => void;
+  blockedReason?: string;
+  onBlockedAttempt?: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
 /** Below lg the resources and the action move to the workspace's bottom bar, so the header keeps only the title there. */
-export const ConfigureWorkspaceHeader: FC<Props> = ({ backButton, ctaState, onDeploy, onRetry, onCloseAndEdit, dependencies: d = DEPENDENCIES }) => (
+export const ConfigureWorkspaceHeader: FC<Props> = ({
+  backButton,
+  ctaState,
+  onDeploy,
+  onRetry,
+  onCloseAndEdit,
+  blockedReason,
+  onBlockedAttempt,
+  dependencies: d = DEPENDENCIES
+}) => (
   <header className="flex flex-col items-start gap-2.5">
     {backButton}
     <div className="flex w-full flex-wrap items-center justify-between gap-x-8 gap-y-3">
@@ -26,7 +37,16 @@ export const ConfigureWorkspaceHeader: FC<Props> = ({ backButton, ctaState, onDe
       </div>
       <div className="hidden flex-wrap items-center gap-x-6 gap-y-3 lg:flex">
         <d.DeploymentResourceSummary className="gap-x-5 text-lg font-medium [&_svg]:h-5 [&_svg]:w-5" />
-        {ctaState !== "request-quotes" && <d.WorkspaceCtaButton state={ctaState} onDeploy={onDeploy} onRetry={onRetry} onCloseAndEdit={onCloseAndEdit} />}
+        {ctaState !== "request-quotes" && (
+          <d.WorkspaceCtaButton
+            state={ctaState}
+            onDeploy={onDeploy}
+            onRetry={onRetry}
+            onCloseAndEdit={onCloseAndEdit}
+            blockedReason={blockedReason}
+            onBlockedAttempt={onBlockedAttempt}
+          />
+        )}
       </div>
     </div>
   </header>

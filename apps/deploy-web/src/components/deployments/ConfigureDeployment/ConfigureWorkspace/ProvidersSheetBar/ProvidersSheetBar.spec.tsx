@@ -58,6 +58,29 @@ describe(ProvidersSheetBar.name, () => {
     expect(onChooseProvider).toHaveBeenCalled();
   });
 
+  it("holds the provider choice back with the reason while something blocks it, and still reports the click", async () => {
+    const { onChooseProvider } = setup({ blockedReason: "1 required field is empty" });
+    const choose = screen.getByRole("button", { name: "Choose a provider" });
+
+    expect(choose).toHaveAttribute("aria-disabled", "true");
+    expect(choose).toHaveAccessibleDescription("1 required field is empty");
+    expect(choose).toHaveClass("aria-[disabled='true']:pointer-events-auto");
+    expect(choose).not.toHaveClass("aria-[disabled='true']:pointer-events-none");
+    expect(screen.getByText("1 required field is empty")).toBeInTheDocument();
+
+    await userEvent.click(choose);
+
+    expect(onChooseProvider).toHaveBeenCalled();
+  });
+
+  it("offers the provider choice as before while nothing blocks it", () => {
+    setup({});
+    const choose = screen.getByRole("button", { name: "Choose a provider" });
+
+    expect(choose).not.toHaveAttribute("aria-disabled");
+    expect(choose).not.toHaveAttribute("aria-describedby");
+  });
+
   it("holds the provider choice while it is unavailable", () => {
     setup({ isChooseProviderDisabled: true });
 
@@ -73,7 +96,19 @@ describe(ProvidersSheetBar.name, () => {
     expect(onChooseProvider).not.toHaveBeenCalled();
   });
 
-  function setup(input: { segments?: DeploymentResourceSegment[]; isSheetOpen?: boolean; isChooseProviderDisabled?: boolean; accountStatus?: AccountStatus }) {
+  it("keeps pointer events off a suspended user's provider choice while nothing blocks it", () => {
+    setup({ accountStatus: "suspended" });
+
+    expect(screen.getByRole("button", { name: /choose a provider/i })).not.toHaveClass("aria-[disabled='true']:pointer-events-auto");
+  });
+
+  function setup(input: {
+    segments?: DeploymentResourceSegment[];
+    isSheetOpen?: boolean;
+    isChooseProviderDisabled?: boolean;
+    blockedReason?: string;
+    accountStatus?: AccountStatus;
+  }) {
     const onSheetOpenChange = vi.fn();
     const onChooseProvider = vi.fn();
     render(
@@ -83,6 +118,7 @@ describe(ProvidersSheetBar.name, () => {
         sheet={<p>providers pane</p>}
         isChooseProviderDisabled={input.isChooseProviderDisabled ?? false}
         onChooseProvider={onChooseProvider}
+        blockedReason={input.blockedReason}
         dependencies={{
           useDeploymentResourceSummary: () => input.segments ?? [{ kind: "cpu", label: "1 vCPU" }],
           AccountSpendGate: accountActionGatesFor(input.accountStatus ?? "active").AccountSpendGate
