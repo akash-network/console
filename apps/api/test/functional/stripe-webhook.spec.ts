@@ -78,7 +78,7 @@ describe("Stripe webhook", () => {
   const DISPUTE_OPENED_AT = 1791400000;
   const DISPUTE_CLOSED_AT = 1791460000;
 
-  const generateDisputeCreatedPayload = (chargeId: string) =>
+  const generateDisputeCreatedPayload = (chargeId: string, status: "needs_response" | "prevented" = "needs_response") =>
     JSON.stringify({
       created: DISPUTE_OPENED_AT,
       data: {
@@ -86,7 +86,7 @@ describe("Stripe webhook", () => {
           id: `dp_${faker.string.alphanumeric(24)}`,
           object: "dispute",
           charge: chargeId,
-          status: "needs_response"
+          status
         }
       },
       type: "charge.dispute.created"
@@ -1172,6 +1172,34 @@ describe("Stripe webhook", () => {
         expect(response.status).toBe(200);
         expect(commission).toMatchObject({ status: "pending", amount: 500, amountRefunded: 0 });
         expect(affiliateWallet?.deploymentAllowance).toBe("0.00");
+      });
+
+      it("credits the referring affiliate's commission at the end of its hold when the dispute was prevented", async () => {
+        const chargeId = `ch_${faker.string.alphanumeric(24)}`;
+
+        const { user } = await setup();
+        const { payment, affiliateUser } = await seedCommissionedPayment({
+          payerId: user.id,
+          chargeId,
+          amount: 10000,
+          commission: 500,
+          commissionStatus: "pending",
+          commissionHeldSince: subSeconds(new Date(), billingConfig.AFFILIATE_COMMISSION_HOLD_SECONDS + 60)
+        });
+
+        const response = await getWebhookResponse(generateDisputeCreatedPayload(chargeId, "prevented"));
+        const { enqueue } = await affiliateCommissionWorkers();
+        await enqueue(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "release" }));
+        await processAffiliateCommissionSyncOf(payment.id, "release");
+
+        const preventedPayment = await stripeTransactionRepository.findById(payment.id);
+        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+        const affiliateWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, affiliateUser.id) });
+
+        expect(response.status).toBe(200);
+        expect(preventedPayment).toMatchObject({ disputeOpenedAt: null, disputeClosedAt: null });
+        expect(commission).toMatchObject({ status: "succeeded", amount: 500, amountRefunded: 0 });
+        expect(affiliateWallet?.deploymentAllowance).toBe(`${500 * 10000}.00`);
       });
     });
 

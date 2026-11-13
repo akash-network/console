@@ -2119,6 +2119,24 @@ describe(StripeTransactionService.name, () => {
       });
     });
 
+    it("leaves a prevented dispute unrecorded, as it never becomes a chargeback", async () => {
+      const { service, stripeTransactionRepository, jobQueueService, logger } = setup();
+      const payment = generateDatabaseStripeTransaction({ type: "payment_intent", status: "succeeded", stripeChargeId: "ch_123" });
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(payment);
+
+      await service.recordDisputeOpened(createChargeDisputeCreatedEvent({ id: "dp_123", charge: "ch_123", status: "prevented" }));
+
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledExactlyOnceWith({
+        event: "CHARGE_DISPUTE_PREVENTED",
+        chargeId: "ch_123",
+        disputeId: "dp_123",
+        transactionId: payment.id,
+        userId: payment.userId
+      });
+    });
+
     it.each([
       ["the same dispute delivered again", DISPUTE_OPENED_AT],
       ["a dispute older than the recorded one", DISPUTE_OPENED_AT - 60]

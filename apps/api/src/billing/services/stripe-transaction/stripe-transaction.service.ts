@@ -64,6 +64,9 @@ export const PAYMENT_PARTLY_REFUNDED_ERROR_CODE = "payment_partly_refunded";
 
 const CHARGE_ALREADY_REFUNDED_STRIPE_CODE = "charge_already_refunded";
 
+/** A prevented dispute never becomes a chargeback, so it has no outcome for the affiliate commission to wait for. */
+const PREVENTED_DISPUTE_STATUS = "prevented" satisfies Stripe.Dispute.Status;
+
 /** Without both, an issuer that wants 3DS leaves the intent stalled in requires_action instead of declining it. */
 const OFF_SESSION_CHARGE_OPTIONS = { off_session: true, error_on_requires_action: true } as const satisfies Pick<
   Stripe.PaymentIntentCreateParams,
@@ -1143,6 +1146,17 @@ export class StripeTransactionService {
     const dispute = event.data.object;
     const transaction = await this.#findDisputedTransactionAndLock(dispute);
     if (!transaction) return;
+
+    if (dispute.status === PREVENTED_DISPUTE_STATUS) {
+      this.loggerService.info({
+        event: "CHARGE_DISPUTE_PREVENTED",
+        chargeId: transaction.stripeChargeId,
+        disputeId: dispute.id,
+        transactionId: transaction.id,
+        userId: transaction.userId
+      });
+      return;
+    }
 
     const openedAt = new Date(event.created * 1000);
     if (transaction.disputeOpenedAt && transaction.disputeOpenedAt >= openedAt) return;
