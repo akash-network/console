@@ -5,6 +5,7 @@ import type { PlacementType } from "@src/types";
 import { MAX_RUNTIME_LIMIT_HOURS, MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "@src/utils/runtimeLimitUtils";
 import type { DEPENDENCIES } from "./ReviewAndDeployModal";
 import { ReviewAndDeployModal } from "./ReviewAndDeployModal";
+import type { FundingImpact } from "./useFundingImpact";
 import type { ReviewRow } from "./useReviewRows";
 
 import { render, screen, waitFor } from "@testing-library/react";
@@ -37,11 +38,38 @@ describe(ReviewAndDeployModal.name, () => {
     expect(onConfirm).toHaveBeenCalled();
   });
 
-  it("goes back with onBack", async () => {
+  it("goes back with onBack, reporting the funding state the review showed", async () => {
     const onBack = vi.fn();
-    setup({ onBack });
+    setup({ onBack, fundingImpact: visibleFundingImpact({ state: "not-enough-available" }) });
     await userEvent.click(screen.getByRole("button", { name: /back to marketplace/i }));
-    expect(onBack).toHaveBeenCalled();
+    expect(onBack).toHaveBeenCalledWith("not-enough-available");
+  });
+
+  it("goes back with an unknown funding state while the funding impact is still loading", async () => {
+    const onBack = vi.fn();
+    setup({ onBack, fundingImpact: { kind: "loading" } });
+    await userEvent.click(screen.getByRole("button", { name: /back to marketplace/i }));
+    expect(onBack).toHaveBeenCalledWith(null);
+  });
+
+  it("tells a trial user up front that their trial credit covers the deployment and needs no payment", () => {
+    setup({ fundingImpact: visibleFundingImpact({ state: "trial", trialDurationHours: 12 }) });
+
+    expect(screen.getByText("Covered by your free trial credit")).toBeInTheDocument();
+    expect(screen.getByText(/Confirming uses trial credit and needs no payment/)).toHaveTextContent("close automatically after 12 hours");
+  });
+
+  it.each(["funded", "crosses-threshold", "no-payment-method", "not-enough-available"] as const)(
+    "does not claim trial coverage when the funding state is %s",
+    state => {
+      setup({ fundingImpact: visibleFundingImpact({ state }) });
+      expect(screen.queryByText("Covered by your free trial credit")).not.toBeInTheDocument();
+    }
+  );
+
+  it("does not claim trial coverage while the funding impact is unknown", () => {
+    setup({ fundingImpact: { kind: "loading" } });
+    expect(screen.queryByText("Covered by your free trial credit")).not.toBeInTheDocument();
   });
 
   it("shows no spinner on Confirm and deploy while nothing is pending", () => {
@@ -101,13 +129,15 @@ describe(ReviewAndDeployModal.name, () => {
   });
 
   it("shows the funding impact for the reviewed rows and the effective runtime limit", () => {
-    setup({ runtimeLimitHours: 12 });
-    expect(screen.getByTestId("funding-impact-section")).toHaveTextContent("1 rows · limit 12");
+    const { useFundingImpact, rows } = setup({ runtimeLimitHours: 12, fundingImpact: visibleFundingImpact() });
+    expect(useFundingImpact).toHaveBeenCalledWith({ rows, runtimeLimitHours: 12 });
+    expect(screen.getByTestId("funding-impact-section")).toHaveTextContent("visible · limit 12");
   });
 
   it("shows the funding impact without a limit when runtime limits are not offered", () => {
-    setup({ runtimeLimitHours: 12, isRuntimeLimitEnabled: false });
-    expect(screen.getByTestId("funding-impact-section")).toHaveTextContent("1 rows · no limit");
+    const { useFundingImpact, rows } = setup({ runtimeLimitHours: 12, isRuntimeLimitEnabled: false });
+    expect(useFundingImpact).toHaveBeenCalledWith({ rows, runtimeLimitHours: undefined });
+    expect(screen.getByTestId("funding-impact-section")).toHaveTextContent("hidden · no limit");
   });
 
   describe("runtime limit", () => {
@@ -288,7 +318,7 @@ describe(ReviewAndDeployModal.name, () => {
       const { mutateAsync } = setup({ onConfirm, runtimeLimitHours: 48, maxInitialHours: 24 });
 
       expect(screen.getByTestId("runtime-limit-value")).toHaveTextContent("24");
-      expect(screen.getByTestId("funding-impact-section")).toHaveTextContent("1 rows · limit 24");
+      expect(screen.getByTestId("funding-impact-section")).toHaveTextContent("hidden · limit 24");
 
       await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
 
@@ -303,7 +333,8 @@ describe(ReviewAndDeployModal.name, () => {
     totalCount?: number;
     hasGpu?: boolean;
     onConfirm?: () => void;
-    onBack?: () => void;
+    onBack?: (fundingState: string | null) => void;
+    fundingImpact?: FundingImpact;
     onRetryDeploy?: () => void;
     onBackToBids?: () => void;
     isDeploying?: boolean;
@@ -343,9 +374,10 @@ describe(ReviewAndDeployModal.name, () => {
         <span data-testid="runtime-limit-value">{value}</span>
       </div>
     );
-    const FundingImpactReviewSection: typeof DEPENDENCIES.FundingImpactReviewSection = ({ rows: fundingRows, runtimeLimitHours }) => (
+    const useFundingImpact = vi.fn<typeof DEPENDENCIES.useFundingImpact>(() => input.fundingImpact ?? { kind: "hidden" });
+    const FundingImpactReviewSection: typeof DEPENDENCIES.FundingImpactReviewSection = ({ impact, runtimeLimitHours }) => (
       <div data-testid="funding-impact-section">
-        {fundingRows.length} rows · {runtimeLimitHours === undefined ? "no limit" : `limit ${runtimeLimitHours}`}
+        {impact.kind} · {runtimeLimitHours === undefined ? "no limit" : `limit ${runtimeLimitHours}`}
       </div>
     );
     const useFlag: typeof DEPENDENCIES.useFlag = () => input.isRuntimeLimitEnabled ?? true;
@@ -404,6 +436,7 @@ describe(ReviewAndDeployModal.name, () => {
           useReviewRows,
           PricePerTimeUnit,
           useDeploymentHasGpu,
+          useFundingImpact,
           FundingImpactReviewSection,
           RuntimeLimitReviewSection,
           useFlag,
@@ -420,6 +453,22 @@ describe(ReviewAndDeployModal.name, () => {
     const { rerender } = render(modal(input.runtimeLimitHours));
     const setRuntimeLimitHours = (runtimeLimitHours: number | undefined) => rerender(modal(runtimeLimitHours));
 
-    return { mutateAsync, enqueueSnackbar, setRuntimeLimitHours };
+    return { mutateAsync, enqueueSnackbar, setRuntimeLimitHours, useFundingImpact, rows };
+  }
+
+  function visibleFundingImpact(overrides?: Partial<Extract<FundingImpact, { kind: "visible" }>>): FundingImpact {
+    return {
+      kind: "visible",
+      state: "funded",
+      escrowUsd: 144,
+      dailyCostUsd: 72,
+      availableNowUsd: 200,
+      availableAfterUsd: 56,
+      thresholdUsd: null,
+      chargeUsd: 100,
+      cardLabel: null,
+      trialDurationHours: 24,
+      ...overrides
+    };
   }
 });

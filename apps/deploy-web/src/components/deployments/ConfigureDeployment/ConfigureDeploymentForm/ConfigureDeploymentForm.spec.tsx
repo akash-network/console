@@ -24,6 +24,7 @@ import { importDeploymentState } from "../importDeploymentState/importDeployment
 import { useInheritedSecrets } from "../InheritedSecretsProvider/InheritedSecretsProvider";
 import { NeedsFundsAlert } from "../NeedsFundsAlert/NeedsFundsAlert";
 import { usePlacementManagerContext } from "../PlacementManagerProvider/PlacementManagerProvider";
+import type { FundingImpactState } from "../ReviewAndDeployModal/useFundingImpact";
 import { SdlImportChangesBanner } from "../SdlImportChangesBanner/SdlImportChangesBanner";
 import type { DeploymentFlow, FlowError } from "../useDeploymentFlow/useDeploymentFlow";
 import type { DEPENDENCIES } from "./ConfigureDeploymentForm";
@@ -1097,6 +1098,46 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(analyticsService.track).toHaveBeenCalledWith("review_deploy_dismissed", expect.objectContaining({ category: "deployments" }));
   });
 
+  it("records a dismissal with the trial, whether the deployment fits the credit, and how long the review was open", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2026-11-12T10:00:00.000Z"));
+      const { analyticsService } = setup({ initialSdl: VALID_SDL, Panes: ProviderSelectProbePanes, isTrialing: true, reviewFundingState: "trial" });
+
+      await userEvent.click(screen.getByRole("button", { name: "select provider" }));
+      vi.setSystemTime(new Date("2026-11-12T10:00:06.600Z"));
+      await userEvent.click(screen.getByRole("button", { name: "back to marketplace" }));
+
+      expect(analyticsService.track).toHaveBeenCalledWith(
+        "review_deploy_dismissed",
+        expect.objectContaining({ isTrialing: true, fundingState: "trial", fitsAvailableCredit: true, secondsOpen: 7 })
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("records a dismissal of a review whose deployment the available credit cannot cover", async () => {
+    const { analyticsService } = setup({ initialSdl: VALID_SDL, Panes: ProviderSelectProbePanes, reviewFundingState: "not-enough-available" });
+
+    await userEvent.click(screen.getByRole("button", { name: "select provider" }));
+    await userEvent.click(screen.getByRole("button", { name: "back to marketplace" }));
+
+    expect(analyticsService.track).toHaveBeenCalledWith(
+      "review_deploy_dismissed",
+      expect.objectContaining({ isTrialing: false, fundingState: "not-enough-available", fitsAvailableCredit: false })
+    );
+  });
+
+  it("records an unknown fit when the review is dismissed before its funding impact is known", async () => {
+    const { analyticsService } = setup({ initialSdl: VALID_SDL, Panes: ProviderSelectProbePanes });
+
+    await userEvent.click(screen.getByRole("button", { name: "select provider" }));
+    await userEvent.click(screen.getByRole("button", { name: "back to marketplace" }));
+
+    expect(analyticsService.track).toHaveBeenCalledWith("review_deploy_dismissed", expect.objectContaining({ fundingState: null, fitsAvailableCredit: null }));
+  });
+
   it("seeds an ssh-ready vm service on a vm entry with no carried-in SDL", () => {
     setup({ initialSdl: undefined, vm: true, Panes: VmStateProbePanes });
 
@@ -1472,6 +1513,7 @@ describe(ConfigureDeploymentForm.name, () => {
     isTrialing?: boolean;
     deployBalanceUsd?: number;
     minimumDepositUsd?: number;
+    reviewFundingState?: FundingImpactState;
   }) {
     const ConfigureDeploymentPanes = vi.fn(
       input.Panes ?? (({ configurationActions }: ProbePanesProps) => <div data-testid="panes-mock">{configurationActions}</div>)
@@ -1491,10 +1533,16 @@ describe(ConfigureDeploymentForm.name, () => {
     const setDeploymentName = vi.fn();
     const DeployProgressOverlay = vi.fn(() => null);
     const ReviewAndDeployModal = vi.fn(
-      (props: { open: boolean; onBack: () => void; onConfirm: () => void; onRetryDeploy: () => void; onBackToBids: () => void }) =>
+      (props: {
+        open: boolean;
+        onBack: (fundingState: FundingImpactState | null) => void;
+        onConfirm: () => void;
+        onRetryDeploy: () => void;
+        onBackToBids: () => void;
+      }) =>
         props.open ? (
           <div>
-            <button type="button" onClick={props.onBack}>
+            <button type="button" onClick={() => props.onBack(input.reviewFundingState ?? null)}>
               back to marketplace
             </button>
             <button type="button" onClick={props.onConfirm}>

@@ -1,12 +1,10 @@
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { mock } from "vitest-mock-extended";
 
 import { UrlService } from "@src/utils/urlUtils";
 import type { DEPENDENCIES } from "./FundingImpactReviewSection";
 import { FundingImpactReviewSection } from "./FundingImpactReviewSection";
 import type { FundingImpact } from "./useFundingImpact";
-import type { ReviewRow } from "./useReviewRows";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -126,6 +124,15 @@ describe("FundingImpactReviewSection", () => {
     expect(screen.getByRole("button", { name: "Add Credits" })).toBeInTheDocument();
   });
 
+  it("keeps Add Credits secondary while the trial credit covers the deployment", async () => {
+    setup({ impact: visible({ state: "trial" }) });
+
+    await userEvent.click(screen.getByRole("button", { name: /Escrow/ }));
+
+    expect(screen.getByText(/Add credits whenever you want to keep deployments running longer/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add Credits" })).not.toHaveClass("bg-primary");
+  });
+
   it("offers credits and drops the bar when the balance cannot cover the escrow", async () => {
     setup({ impact: visible({ state: "not-enough-available", availableAfterUsd: null, availableNowUsd: 100 }) });
 
@@ -134,7 +141,7 @@ describe("FundingImpactReviewSection", () => {
 
     expect(screen.getByRole("alert")).toHaveTextContent("Your available balance of $100 can't cover the estimated escrow of ~$144");
     expect(screen.queryByTestId("balance-bar")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Add Credits" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add Credits" })).toHaveClass("bg-primary");
   });
 
   it("opens the add credits sheet in place, sized to this deployment's daily cost, without suggesting another deployment", async () => {
@@ -170,7 +177,6 @@ describe("FundingImpactReviewSection", () => {
 
   function setup(input: { impact: FundingImpact; runtimeLimitHours?: number }) {
     const openAddCredits = vi.fn();
-    const useFundingImpact: typeof DEPENDENCIES.useFundingImpact = () => input.impact;
     const useAddCredits: typeof DEPENDENCIES.useAddCredits = () => openAddCredits;
     const BalanceBreakdownBar: typeof DEPENDENCIES.BalanceBreakdownBar = ({ segments, threshold }) => (
       <div data-testid="balance-bar" data-threshold={threshold ?? undefined}>
@@ -189,9 +195,9 @@ describe("FundingImpactReviewSection", () => {
       openAddCredits,
       ...render(
         <FundingImpactReviewSection
-          rows={[mock<ReviewRow>({ price: { amount: "0.005", denom: "uakt" } })]}
+          impact={input.impact}
           runtimeLimitHours={input.runtimeLimitHours}
-          dependencies={{ useFundingImpact, useAddCredits, BalanceBreakdownBar, UsdValue, Link, Skeleton }}
+          dependencies={{ useAddCredits, BalanceBreakdownBar, UsdValue, Link, Skeleton }}
         />
       )
     };
