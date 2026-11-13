@@ -1,5 +1,4 @@
 import type { ApiKeyResponse } from "@akashnetwork/http-sdk";
-import { faker } from "@faker-js/faker";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -140,40 +139,23 @@ describe(ApiKeysPage.name, () => {
     expect(deleteApiKey).not.toHaveBeenCalled();
   });
 
-  describe("when organizations are off", () => {
-    it("lists the keys without projects and never loads them", () => {
-      const { ApiKeyList, useProjectsQuery } = setup({ apiKeys: [buildApiKey({ projectId: faker.string.uuid() })], projects: [buildProject()] });
-
-      expect(useProjectsQuery).toHaveBeenLastCalledWith({ enabled: false });
-      expect(ApiKeyList.mock.lastCall?.[0].projects).toBeUndefined();
-    });
-
-    it("offers no project choice when creating a key", async () => {
-      const { user, CreateApiKeyDialog } = setup({ projects: [buildProject()] });
-
-      await user.click(screen.getByRole("button", { name: "Create new key" }));
-
-      expect(CreateApiKeyDialog.mock.lastCall?.[0].projects).toBeUndefined();
-    });
-  });
-
   describe("when the active organization shows projects", () => {
     it("lists the keys with the projects of the active organization", () => {
       const projects = [buildProject({ name: "default" }), buildProject({ name: "storefront" })];
-      const { ApiKeyList, useProjectsQuery } = setup({ isOrganizationsEnabled: true, isProjectsUiEnabled: true, projects });
+      const { ApiKeyList, useProjectsQuery } = setup({ isProjectsUiEnabled: true, projects });
 
       expect(useProjectsQuery).toHaveBeenLastCalledWith({ enabled: true });
       expect(ApiKeyList.mock.lastCall?.[0].projects).toEqual(projects);
     });
 
     it("shows no project column while the projects can't load", () => {
-      const { ApiKeyList } = setup({ isOrganizationsEnabled: true, isProjectsUiEnabled: true, projects: undefined });
+      const { ApiKeyList } = setup({ isProjectsUiEnabled: true, projects: undefined });
 
       expect(ApiKeyList.mock.lastCall?.[0].projects).toBeUndefined();
     });
 
     it("shows the list loading until the projects load", () => {
-      const { ApiKeyList, Layout } = setup({ isOrganizationsEnabled: true, isProjectsUiEnabled: true, isLoadingProjects: true });
+      const { ApiKeyList, Layout } = setup({ isProjectsUiEnabled: true, isLoadingProjects: true });
 
       expect(ApiKeyList.mock.lastCall?.[0].isLoading).toBe(true);
       expect(Layout.mock.lastCall?.[0].isLoading).toBe(true);
@@ -181,7 +163,7 @@ describe(ApiKeysPage.name, () => {
 
     it("offers the projects when creating a key", async () => {
       const projects = [buildProject({ name: "storefront" })];
-      const { user, CreateApiKeyDialog } = setup({ isOrganizationsEnabled: true, isProjectsUiEnabled: true, projects, role: "member" });
+      const { user, CreateApiKeyDialog } = setup({ isProjectsUiEnabled: true, projects, role: "member" });
 
       await user.click(screen.getByRole("button", { name: "Create new key" }));
 
@@ -190,7 +172,7 @@ describe(ApiKeysPage.name, () => {
 
     it("offers the projects while the active organization is still unknown", async () => {
       const projects = [buildProject({ name: "storefront" })];
-      const { user, CreateApiKeyDialog } = setup({ isOrganizationsEnabled: true, isProjectsUiEnabled: true, projects });
+      const { user, CreateApiKeyDialog } = setup({ isProjectsUiEnabled: true, projects });
 
       await user.click(screen.getByRole("button", { name: "Create new key" }));
 
@@ -199,7 +181,7 @@ describe(ApiKeysPage.name, () => {
 
     it("offers no project choice to a billing member", async () => {
       const projects = [buildProject({ name: "storefront" })];
-      const { user, ApiKeyList, CreateApiKeyDialog } = setup({ isOrganizationsEnabled: true, isProjectsUiEnabled: true, projects, role: "billing" });
+      const { user, ApiKeyList, CreateApiKeyDialog } = setup({ isProjectsUiEnabled: true, projects, role: "billing" });
 
       await user.click(screen.getByRole("button", { name: "Create new key" }));
 
@@ -209,7 +191,6 @@ describe(ApiKeysPage.name, () => {
 
     it("names the team to the list and to a new key", async () => {
       const { user, ApiKeyList, CreateApiKeyDialog } = setup({
-        isOrganizationsEnabled: true,
         isProjectsUiEnabled: true,
         role: "member",
         organizationName: "Acme"
@@ -224,7 +205,6 @@ describe(ApiKeysPage.name, () => {
     it("offers a personal account's projects when creating a key without naming a team", async () => {
       const projects = [buildProject({ name: "staging" })];
       const { user, ApiKeyList, CreateApiKeyDialog } = setup({
-        isOrganizationsEnabled: true,
         isProjectsUiEnabled: true,
         projects,
         role: "owner",
@@ -239,7 +219,7 @@ describe(ApiKeysPage.name, () => {
     });
 
     it("names no team while the active organization is still unknown", async () => {
-      const { user, ApiKeyList, CreateApiKeyDialog } = setup({ isOrganizationsEnabled: true, isProjectsUiEnabled: true });
+      const { user, ApiKeyList, CreateApiKeyDialog } = setup({ isProjectsUiEnabled: true });
 
       await user.click(screen.getByRole("button", { name: "Create new key" }));
 
@@ -251,7 +231,6 @@ describe(ApiKeysPage.name, () => {
   describe("when the active organization hides projects", () => {
     it("shows no project column and loads no projects while no key is limited to a project", () => {
       const { ApiKeyList, useProjectsQuery } = setup({
-        isOrganizationsEnabled: true,
         apiKeys: [buildApiKey({ projectId: null })],
         projects: [buildProject()],
         role: "owner"
@@ -264,7 +243,6 @@ describe(ApiKeysPage.name, () => {
     it("keeps the project column once a key is limited to a project", () => {
       const projects = [buildProject({ name: "default" })];
       const { ApiKeyList, useProjectsQuery } = setup({
-        isOrganizationsEnabled: true,
         apiKeys: [buildApiKey({ projectId: null }), buildApiKey({ projectId: projects[0].id })],
         projects,
         role: "owner"
@@ -277,7 +255,6 @@ describe(ApiKeysPage.name, () => {
     it("offers no project choice when creating a key", async () => {
       const projects = [buildProject({ name: "default" })];
       const { user, CreateApiKeyDialog } = setup({
-        isOrganizationsEnabled: true,
         apiKeys: [buildApiKey({ projectId: projects[0].id })],
         projects,
         role: "owner"
@@ -289,7 +266,7 @@ describe(ApiKeysPage.name, () => {
     });
 
     it("names no team to the list or to a new key", async () => {
-      const { user, ApiKeyList, CreateApiKeyDialog } = setup({ isOrganizationsEnabled: true, role: "owner", organizationName: "Personal" });
+      const { user, ApiKeyList, CreateApiKeyDialog } = setup({ role: "owner", organizationName: "Personal" });
 
       await user.click(screen.getByRole("button", { name: "Create new key" }));
 
@@ -313,7 +290,6 @@ describe(ApiKeysPage.name, () => {
       isLoadingApiKeys?: boolean;
       isApiKeysError?: boolean;
       isRevoking?: boolean;
-      isOrganizationsEnabled?: boolean;
       isProjectsUiEnabled?: boolean;
       projects?: ProjectOutput[];
       isLoadingProjects?: boolean;
@@ -353,7 +329,6 @@ describe(ApiKeysPage.name, () => {
       })
     );
     const useSnackbar: typeof DEPENDENCIES.useSnackbar = () => Object.assign(mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>(), { enqueueSnackbar });
-    const useFlag: typeof DEPENDENCIES.useFlag = flag => flag === "organizations" && (input.isOrganizationsEnabled ?? false);
     const useProjectsUi: typeof DEPENDENCIES.useProjectsUi = () =>
       mock<ReturnType<typeof DEPENDENCIES.useProjectsUi>>({ isEnabled: input.isProjectsUiEnabled ?? false });
     const useActiveOrganization: typeof DEPENDENCIES.useActiveOrganization = () =>
@@ -383,7 +358,6 @@ describe(ApiKeysPage.name, () => {
             useUserApiKeys,
             useDeleteApiKey,
             useSnackbar,
-            useFlag,
             useActiveOrganization,
             useProjectsUi,
             useProjectsQuery,

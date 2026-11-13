@@ -10,16 +10,6 @@ import { act, renderHook } from "@testing-library/react";
 import { buildProject } from "@tests/seeders/project";
 
 describe(useProjectAccess.name, () => {
-  it("allows everything and reads nothing while organizations are off", () => {
-    const { result, useProjectsQuery } = setup({ isOrganizationsEnabled: false, role: "viewer", projects: [] });
-
-    expect(result.current.isLoading).toBe(false);
-    expect(result.current.hasNoProjects).toBe(false);
-    expect(result.current.canManageDeployments("storefront")).toBe(true);
-    expect(result.current.canDeployAnywhere).toBe(true);
-    expect(useProjectsQuery).toHaveBeenCalledWith({ enabled: false });
-  });
-
   it("allows everything in an organization that does not use projects", () => {
     const { result, useProjectsQuery } = setup({ projectsEnabled: false, role: "member" });
 
@@ -159,7 +149,6 @@ describe(useProjectAccess.name, () => {
 
   function setup(input: {
     role: OrganizationRole;
-    isOrganizationsEnabled?: boolean;
     projectsEnabled?: boolean;
     isLoadingOrganization?: boolean;
     isLoadingProjects?: boolean;
@@ -179,7 +168,6 @@ describe(useProjectAccess.name, () => {
           })
     );
     const dependencies: typeof DEPENDENCIES = {
-      useFlag: flag => flag === "organizations" && (input.isOrganizationsEnabled ?? true),
       useActiveOrganization: () =>
         mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
           activeOrganization: { id: "org-1", name: "Acme Corp", slug: "acme-corp", type: "team", role: input.role, isActive: true, createdAt: "" },

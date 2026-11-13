@@ -1,11 +1,10 @@
 import { useMemo } from "react";
 
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
-import { useFlag } from "@src/hooks/useFlag";
 import { useProjectsQuery } from "@src/queries/useProjectsQuery";
 import type { OrganizationRole } from "@src/types/organization";
 
-export const DEPENDENCIES = { useFlag, useActiveOrganization, useProjectsQuery };
+export const DEPENDENCIES = { useActiveOrganization, useProjectsQuery };
 
 export interface ProjectAccess {
   /** The caller's rights are still being read, and every check answers no until they are. */
@@ -50,15 +49,13 @@ const AWAITING_ACCESS: ProjectAccess = {
 /** What the caller may do in each project: owners and admins everything, anyone else what the project list says of each project it reaches. */
 export function useProjectAccess(dependencies: typeof DEPENDENCIES = DEPENDENCIES): ProjectAccess {
   const d = dependencies;
-  const isOrganizationsEnabled = d.useFlag("organizations");
   const { activeOrganization, isLoading: isLoadingOrganization, projectsEnabled } = d.useActiveOrganization();
   const role = activeOrganization?.role;
-  const isRestricted = isOrganizationsEnabled && projectsEnabled && !!role && !UNRESTRICTED_ROLES.has(role);
+  const isRestricted = projectsEnabled && !!role && !UNRESTRICTED_ROLES.has(role);
   const projectsQuery = d.useProjectsQuery({ enabled: isRestricted });
   const refetchProjects = projectsQuery.refetch;
 
   return useMemo(() => {
-    if (!isOrganizationsEnabled) return UNRESTRICTED;
     if (isLoadingOrganization) return AWAITING_ACCESS;
     if (!isRestricted) return UNRESTRICTED;
     if (projectsQuery.isLoading) return AWAITING_ACCESS;
@@ -75,5 +72,5 @@ export function useProjectAccess(dependencies: typeof DEPENDENCIES = DEPENDENCIE
       isError: false,
       retry: NOTHING_TO_RETRY
     };
-  }, [isOrganizationsEnabled, isLoadingOrganization, isRestricted, projectsQuery.isLoading, projectsQuery.data, projectsQuery.isError, refetchProjects]);
+  }, [isLoadingOrganization, isRestricted, projectsQuery.isLoading, projectsQuery.data, projectsQuery.isError, refetchProjects]);
 }

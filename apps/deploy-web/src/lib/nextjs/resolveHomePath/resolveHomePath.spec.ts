@@ -8,27 +8,21 @@ import type { AppTypedContext } from "../defineServerSideProps/defineServerSideP
 import { resolveHomePath } from "./resolveHomePath";
 
 describe(resolveHomePath.name, () => {
-  it("lands a signed-in user on Projects when the intent-first onboarding and organizations are on", async () => {
-    const { context, featureFlagService } = setup({ isSignedIn: true, enabledFlags: ["onboarding_intent_first", "organizations"] });
+  it("lands a signed-in user on Projects when the intent-first onboarding is on", async () => {
+    const { context, featureFlagService } = setup({ isSignedIn: true, enabledFlags: ["onboarding_intent_first"] });
 
     expect(await resolveHomePath(context)).toBe("/projects");
     expect(featureFlagService.isEnabledForCtx).toHaveBeenCalledWith("onboarding_intent_first", context, { userId: "user-1" });
   });
 
   it("keeps the Deployments list while the intent-first onboarding is off", async () => {
-    const { context } = setup({ isSignedIn: true, enabledFlags: ["organizations"] });
-
-    expect(await resolveHomePath(context)).toBe("/deployments");
-  });
-
-  it("keeps the Deployments list while organizations are off, since Projects would not be found", async () => {
-    const { context } = setup({ isSignedIn: true, enabledFlags: ["onboarding_intent_first"] });
+    const { context } = setup({ isSignedIn: true, enabledFlags: [] });
 
     expect(await resolveHomePath(context)).toBe("/deployments");
   });
 
   it("sends a signed-out visitor to the Deployments list without checking flags", async () => {
-    const { context, featureFlagService } = setup({ isSignedIn: false, enabledFlags: ["onboarding_intent_first", "organizations"] });
+    const { context, featureFlagService } = setup({ isSignedIn: false, enabledFlags: ["onboarding_intent_first"] });
 
     expect(await resolveHomePath(context)).toBe("/deployments");
     expect(featureFlagService.isEnabledForCtx).not.toHaveBeenCalled();

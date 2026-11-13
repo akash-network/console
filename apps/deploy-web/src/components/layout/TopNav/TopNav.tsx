@@ -83,20 +83,18 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
   const isAuthenticated = !!user?.userId;
   const pathname = d.usePathname();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const isOrganizationsEnabled = d.useFlag("organizations");
   const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false);
-  const openCreateOrganization = isOrganizationsEnabled ? () => setIsCreateOrganizationOpen(true) : undefined;
+  const openCreateOrganization = () => setIsCreateOrganizationOpen(true);
   const openWhatsNew = d.useOpenWhatsNew();
-  const replayWhatsNew = isOrganizationsEnabled ? () => openWhatsNew("account_menu") : undefined;
+  const replayWhatsNew = () => openWhatsNew("account_menu");
   const { projectsEnabled } = d.useActiveOrganization();
   const isFeedbackLoopEnabled = d.useFlag("user_feedback_loop");
   const [isSendFeedbackOpen, setIsSendFeedbackOpen] = useState(false);
   const openSendFeedback = isFeedbackLoopEnabled && isAuthenticated ? () => setIsSendFeedbackOpen(true) : undefined;
 
-  const projectsLink: TopNavLink[] =
-    isOrganizationsEnabled && projectsEnabled
-      ? [{ title: "Projects", url: UrlService.projects(), isActive: isRouteActive(pathname, "/projects"), icon: LayoutGrid }]
-      : [];
+  const projectsLink: TopNavLink[] = projectsEnabled
+    ? [{ title: "Projects", url: UrlService.projects(), isActive: isRouteActive(pathname, "/projects"), icon: LayoutGrid }]
+    : [];
   const navLinks: TopNavLink[] = [
     ...projectsLink,
     { title: "Deployments", url: UrlService.deploymentList(), isActive: isRouteActive(pathname, "/deployments", "/new-deployment"), icon: Cloud },
@@ -115,7 +113,6 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
   const isSettingsActive = settingsLinks.some(link => link.isActive);
   const showNavLinks = isAuthenticated && !minimal;
   const isCommandMenuEnabled = d.useFlag("ui_command_menu");
-  const showOrganizationSwitcher = isAuthenticated && !!openCreateOrganization;
   const createOrganizationFromSwitcher = minimal ? undefined : openCreateOrganization;
   const { open: openAssistant } = d.useAssistantPanel();
   const showAssistantLauncher = showNavLinks && isFeedbackLoopEnabled;
@@ -173,7 +170,7 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
 
           {showNavLinks && <d.ActivityBell />}
 
-          {showOrganizationSwitcher && <d.OrganizationSwitcher onCreateOrganization={createOrganizationFromSwitcher} />}
+          {isAuthenticated && <d.OrganizationSwitcher onCreateOrganization={createOrganizationFromSwitcher} />}
 
           <div className={cn({ "hidden md:block": showNavLinks })}>
             <d.TopNavAccountMenu
@@ -199,7 +196,7 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
                     </Link>
                   </SheetTitle>
                 </div>
-                {showOrganizationSwitcher && (
+                {isAuthenticated && (
                   <div className="border-b border-border p-3 empty:hidden">
                     <d.OrganizationSwitcher layout="sheet" onCreateOrganization={openCreateOrganization} onNavigate={() => setIsMobileNavOpen(false)} />
                   </div>
@@ -254,7 +251,7 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
 
       {isSendFeedbackOpen && <d.SendFeedbackDialog onClose={() => setIsSendFeedbackOpen(false)} />}
 
-      {showOrganizationSwitcher && !minimal && <d.WhatsNewAutoOpen />}
+      {isAuthenticated && !minimal && <d.WhatsNewAutoOpen />}
     </header>
   );
 }

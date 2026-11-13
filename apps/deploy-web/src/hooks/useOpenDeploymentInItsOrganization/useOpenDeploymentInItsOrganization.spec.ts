@@ -44,6 +44,12 @@ describe(useOpenDeploymentInItsOrganization.name, () => {
     expect(switchOrganization).toHaveBeenCalledWith("org-2", { destination: "/deployments/100" });
   });
 
+  it("looks the deployment up once the active organization cannot read it", () => {
+    const { useDeploymentLocationQuery } = setup({ locatedIn: "org-2" });
+
+    expect(useDeploymentLocationQuery).toHaveBeenCalledWith("100", { enabled: true });
+  });
+
   it("stays put while the active organization can read the deployment, since another owner may share the dseq", () => {
     const { switchOrganization, useDeploymentLocationQuery } = setup({ locatedIn: "org-2", isMissingHere: false });
 
@@ -69,12 +75,6 @@ describe(useOpenDeploymentInItsOrganization.name, () => {
     expect(switchOrganization).not.toHaveBeenCalled();
   });
 
-  it("asks nothing while organizations are off", () => {
-    const { useDeploymentLocationQuery } = setup({ locatedIn: undefined, isOrganizationsEnabled: false });
-
-    expect(useDeploymentLocationQuery).toHaveBeenCalledWith("100", { enabled: false });
-  });
-
   it("asks nothing before an organization is active", () => {
     const { useDeploymentLocationQuery, switchOrganization } = setup({ locatedIn: "org-2", hasActiveOrganization: false });
 
@@ -82,13 +82,7 @@ describe(useOpenDeploymentInItsOrganization.name, () => {
     expect(switchOrganization).not.toHaveBeenCalled();
   });
 
-  function setup(input: {
-    locatedIn: string | undefined;
-    isOrganizationsEnabled?: boolean;
-    hasActiveOrganization?: boolean;
-    isMissingHere?: boolean;
-    query?: string;
-  }) {
+  function setup(input: { locatedIn: string | undefined; hasActiveOrganization?: boolean; isMissingHere?: boolean; query?: string }) {
     const switchOrganization = vi.fn(() => true);
     const useDeploymentLocationQuery = vi.fn<typeof DEPENDENCIES.useDeploymentLocationQuery>(() =>
       mock<ReturnType<typeof DEPENDENCIES.useDeploymentLocationQuery>>({
@@ -96,7 +90,6 @@ describe(useOpenDeploymentInItsOrganization.name, () => {
       })
     );
     const dependencies: typeof DEPENDENCIES = {
-      useFlag: () => input.isOrganizationsEnabled ?? true,
       useActiveOrganization: () =>
         mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
           organizations: [PERSONAL, TEAM],

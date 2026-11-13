@@ -19,13 +19,12 @@ import { deploymentLabelOf } from "@src/components/activity/activityLabels/activ
 import { ReceivedInvitationList } from "@src/components/organizations/ReceivedInvitationList/ReceivedInvitationList";
 import { useServices } from "@src/context/ServicesProvider";
 import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
-import { useFlag } from "@src/hooks/useFlag";
 import { useUser } from "@src/hooks/useUser";
 import { useReceivedInvitationsQuery } from "@src/queries/useInvitationQueries";
 import { useActivityFeedQuery } from "@src/queries/useLatestActivitiesQuery";
 import { UrlService } from "@src/utils/urlUtils";
 
-export const DEPENDENCIES = { useUser, useFlag, useActivityFeedQuery, useReceivedInvitationsQuery, useDeploymentNames, useQueryClient, ReceivedInvitationList };
+export const DEPENDENCIES = { useUser, useActivityFeedQuery, useReceivedInvitationsQuery, useDeploymentNames, useQueryClient, ReceivedInvitationList };
 
 const MAX_LISTED_ENTRIES = 10;
 
@@ -38,8 +37,7 @@ export function ActivityBell({ dependencies: d = DEPENDENCIES }: { dependencies?
   const { api } = useServices();
   const queryClient = d.useQueryClient();
   const { data: feed, isError } = d.useActivityFeedQuery({ enabled: isShown });
-  const isOrganizationsEnabled = d.useFlag("organizations");
-  const { data: invitations = [] } = d.useReceivedInvitationsQuery({ enabled: isShown && isOrganizationsEnabled });
+  const { data: invitations = [] } = d.useReceivedInvitationsQuery({ enabled: isShown });
   const activities = feed?.activities ?? [];
   const unseenCount = feed?.unseenCount ?? 0;
   const attentionCount = unseenCount + invitations.length;

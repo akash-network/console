@@ -63,13 +63,6 @@ describe(OrganizationSettingsPage.name, () => {
     expect(OrganizationNameSetting).not.toHaveBeenCalled();
   });
 
-  it("sends everyone away while organizations are off", () => {
-    const { replace, OrganizationNameSetting } = setup({ isEnabled: false });
-
-    expect(replace).toHaveBeenCalledWith("/deployments");
-    expect(OrganizationNameSetting).not.toHaveBeenCalled();
-  });
-
   it("sends the user away when no organization could be loaded", () => {
     const { replace } = setup({ hasOrganization: false, hasNoOrganizations: true });
 
@@ -84,7 +77,7 @@ describe(OrganizationSettingsPage.name, () => {
     expect(Layout.mock.lastCall?.[0]).toEqual(expect.objectContaining({ isLoading: true }));
   });
 
-  function setup(input: { role?: OrganizationRole; type?: OrganizationType; isEnabled?: boolean; hasOrganization?: boolean; hasNoOrganizations?: boolean }) {
+  function setup(input: { role?: OrganizationRole; type?: OrganizationType; hasOrganization?: boolean; hasNoOrganizations?: boolean }) {
     const organization: OrganizationOutput = {
       id: "org-2",
       name: "Acme Corp",
@@ -112,7 +105,6 @@ describe(OrganizationSettingsPage.name, () => {
       AdminAccessRequestNotice,
       LeaveOrganizationSetting,
       DeleteTeamSetting,
-      useFlag: () => input.isEnabled ?? true,
       useActiveOrganization: () =>
         mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
           activeOrganization: input.hasOrganization ?? true ? organization : undefined,

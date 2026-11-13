@@ -13,7 +13,6 @@ import { MemberRoster } from "@src/components/organizations/MemberRoster/MemberR
 import { canManageMembers, hasMembersPage } from "@src/components/organizations/organizationAccess";
 import { PendingInvitationList } from "@src/components/organizations/PendingInvitationList/PendingInvitationList";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
-import { useFlag } from "@src/hooks/useFlag";
 import { useUser } from "@src/hooks/useUser";
 import { useOrganizationInvitationsQuery } from "@src/queries/useOrganizationInvitationsQueries";
 import { useOrganizationMembersQuery } from "@src/queries/useOrganizationMembersQueries";
@@ -27,7 +26,6 @@ export const DEPENDENCIES = {
   PendingInvitationList,
   InviteMembersDialog,
   AdminAccessRequestNotice,
-  useFlag,
   useActiveOrganization,
   useUser,
   useRouter,
@@ -40,13 +38,12 @@ type Props = {
 };
 
 export function MembersPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
-  const isEnabled = d.useFlag("organizations");
   const { activeOrganization, isError: hasNoOrganizations } = d.useActiveOrganization();
   const { user } = d.useUser();
   const router = d.useRouter();
   const [isInviting, setIsInviting] = useState(false);
-  const organization = isEnabled && activeOrganization && hasMembersPage(activeOrganization.type) ? activeOrganization : undefined;
-  const isUnavailable = !isEnabled || hasNoOrganizations || (!!activeOrganization && !organization);
+  const organization = activeOrganization && hasMembersPage(activeOrganization.type) ? activeOrganization : undefined;
+  const isUnavailable = hasNoOrganizations || (!!activeOrganization && !organization);
   const canManage = !!organization && canManageMembers(organization.role);
   const members = d.useOrganizationMembersQuery({ enabled: !!organization });
   const invitations = d.useOrganizationInvitationsQuery({ enabled: canManage });

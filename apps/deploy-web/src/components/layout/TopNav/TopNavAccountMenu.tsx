@@ -30,10 +30,8 @@ interface Props {
   variant?: "dropdown" | "inline";
   /** Called after an inline item is selected so the surrounding sheet can close. */
   onNavigate?: () => void;
-  /** Adds the "Create organization" entry; absent while organizations are not enabled for the user. */
-  onCreateOrganization?: () => void;
-  /** Adds the "What's new" entry that replays the latest release announcement. */
-  onOpenWhatsNew?: () => void;
+  onCreateOrganization: () => void;
+  onOpenWhatsNew: () => void;
   /** Adds the "Send feedback" entry; absent while the feedback loop is not enabled for the user. */
   onSendFeedback?: () => void;
 }
@@ -55,7 +53,7 @@ export function TopNavAccountMenu({
   onCreateOrganization,
   onOpenWhatsNew,
   onSendFeedback
-}: Props = {}) {
+}: Props) {
   const { user, isLoading } = d.useCustomUser();
   const username = user?.username;
   const router = d.useRouter();
@@ -85,12 +83,10 @@ export function TopNavAccountMenu({
           {profileLink.title}
         </button>
 
-        {onCreateOrganization && (
-          <button type="button" className={inlineItemClasses()} onClick={handle({ title: "Create organization", icon: Plus, onClick: onCreateOrganization })}>
-            <Plus className="h-5 w-5 shrink-0" />
-            Create organization
-          </button>
-        )}
+        <button type="button" className={inlineItemClasses()} onClick={handle({ title: "Create organization", icon: Plus, onClick: onCreateOrganization })}>
+          <Plus className="h-5 w-5 shrink-0" />
+          Create organization
+        </button>
 
         <div className="flex items-center justify-between gap-2 rounded-md py-2 pl-3 pr-1 text-sm text-muted-foreground">
           <span className="flex items-center gap-3">
@@ -100,12 +96,10 @@ export function TopNavAccountMenu({
           <d.ThemeToggle />
         </div>
 
-        {onOpenWhatsNew && (
-          <button type="button" className={inlineItemClasses()} onClick={handle({ title: "What's new", icon: Sparkles, onClick: onOpenWhatsNew })}>
-            <Sparkles className="h-5 w-5 shrink-0" />
-            What&apos;s new
-          </button>
-        )}
+        <button type="button" className={inlineItemClasses()} onClick={handle({ title: "What's new", icon: Sparkles, onClick: onOpenWhatsNew })}>
+          <Sparkles className="h-5 w-5 shrink-0" />
+          What&apos;s new
+        </button>
 
         {onSendFeedback && (
           <button type="button" className={inlineItemClasses()} onClick={handle({ title: "Send feedback", icon: MessageSquareText, onClick: onSendFeedback })}>
@@ -163,11 +157,9 @@ export function TopNavAccountMenu({
                 <CustomDropdownLinkItem onClick={profileLink.onClick} icon={<profileLink.icon />}>
                   {profileLink.title}
                 </CustomDropdownLinkItem>
-                {onCreateOrganization && (
-                  <CustomDropdownLinkItem onClick={onCreateOrganization} icon={<Plus className="h-4 w-4" />}>
-                    Create organization
-                  </CustomDropdownLinkItem>
-                )}
+                <CustomDropdownLinkItem onClick={onCreateOrganization} icon={<Plus className="h-4 w-4" />}>
+                  Create organization
+                </CustomDropdownLinkItem>
                 <div className="relative flex items-center justify-between gap-3 py-1 pl-8 pr-2 text-sm">
                   <span className="absolute left-2 flex h-4 w-4 items-center justify-center">
                     <SunMoon className="h-4 w-4" />
@@ -175,11 +167,9 @@ export function TopNavAccountMenu({
                   <span>Theme</span>
                   <d.ThemeToggle />
                 </div>
-                {onOpenWhatsNew && (
-                  <CustomDropdownLinkItem onClick={onOpenWhatsNew} icon={<Sparkles className="h-4 w-4" />}>
-                    What&apos;s new
-                  </CustomDropdownLinkItem>
-                )}
+                <CustomDropdownLinkItem onClick={onOpenWhatsNew} icon={<Sparkles className="h-4 w-4" />}>
+                  What&apos;s new
+                </CustomDropdownLinkItem>
                 {onSendFeedback && (
                   <CustomDropdownLinkItem onClick={onSendFeedback} icon={<MessageSquareText className="h-4 w-4" />}>
                     Send feedback

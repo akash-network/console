@@ -13,13 +13,6 @@ import { act, render } from "@testing-library/react";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(WhatsNewHost.name, () => {
-  it("renders nothing while organizations are off", () => {
-    const { WhatsNewModal, SpotlightTour } = setup({ isOrganizationsEnabled: false });
-
-    expect(WhatsNewModal).not.toHaveBeenCalled();
-    expect(SpotlightTour).not.toHaveBeenCalled();
-  });
-
   it("keeps the announcement and the tour closed until something opens them", () => {
     const { modalProps, tourProps } = setup();
 
@@ -110,7 +103,6 @@ describe(WhatsNewHost.name, () => {
 
   function setup(
     input: {
-      isOrganizationsEnabled?: boolean;
       organizationType?: OrganizationType;
       role?: OrganizationRole;
       pathname?: string;
@@ -125,7 +117,6 @@ describe(WhatsNewHost.name, () => {
     const SpotlightTour = vi.fn<typeof DEPENDENCIES.SpotlightTour>(() => null);
     const role = "role" in input ? input.role : "owner";
     const dependencies: typeof DEPENDENCIES = {
-      useFlag: flag => flag === "organizations" && (input.isOrganizationsEnabled ?? true),
       useActiveOrganization: () =>
         mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
           activeOrganization: role ? mock<OrganizationOutput>({ role, type: input.organizationType ?? "team" }) : undefined

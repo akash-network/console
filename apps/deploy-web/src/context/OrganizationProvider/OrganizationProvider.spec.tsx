@@ -22,15 +22,6 @@ import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 const ACTIVE_ORGANIZATION_COOKIE_NAME = getActiveOrganizationCookieName(window.location);
 
 describe(OrganizationProvider.name, () => {
-  it("exposes no organization while the feature is off", () => {
-    const { result, organizationsQuery } = setup({ isEnabled: false });
-
-    expect(result.current.organizations).toEqual([]);
-    expect(result.current.activeOrganization).toBeUndefined();
-    expect(result.current.projectsEnabled).toBe(false);
-    expect(organizationsQuery).toHaveBeenCalledWith({ enabled: false });
-  });
-
   it("only loads the memberships of a signed-in user", () => {
     const { organizationsQuery } = setup({ hasUser: false });
 
@@ -60,12 +51,6 @@ describe(OrganizationProvider.name, () => {
     expect(tabOrganization.organizationId).toBe("org-1");
   });
 
-  it("names no organization while the feature is off", () => {
-    const { tabOrganization } = setup({ isEnabled: false });
-
-    expect(tabOrganization.organizationId).toBeUndefined();
-  });
-
   it("is loading until the first memberships arrive", () => {
     const { result } = setup({ organizations: undefined, isQueryLoading: true });
 
@@ -86,15 +71,6 @@ describe(OrganizationProvider.name, () => {
     const { result } = setup({ organizations: undefined, isQueryLoading: true });
 
     expect(result.current.projectsEnabled).toBe(false);
-  });
-
-  it("is loading while the feature flags have not answered, since the organizations flag may still turn on", () => {
-    const { result: waiting } = setup({ isEnabled: false, areFeatureFlagsReady: false });
-    const { result: answered } = setup({ isEnabled: false, areFeatureFlagsReady: true });
-
-    expect(waiting.current.isLoading).toBe(true);
-    expect(waiting.current.activeOrganization).toBeUndefined();
-    expect(answered.current.isLoading).toBe(false);
   });
 
   it("reports memberships that could not be loaded", () => {
@@ -495,22 +471,14 @@ describe(OrganizationProvider.name, () => {
 
       expect(router.replace).toHaveBeenCalledOnce();
     });
-
-    it("does nothing while the feature is off", () => {
-      const { router } = setup({ isEnabled: false, asPath: "/deployments?org=acme-corp", query: { org: "acme-corp" } });
-
-      expect(router.replace).not.toHaveBeenCalled();
-    });
   });
 
   function setup(input: {
-    isEnabled?: boolean;
     hasUser?: boolean;
     activeId?: string;
     organizations?: OrganizationOutput[] | undefined;
     isQueryLoading?: boolean;
     isQueryError?: boolean;
-    areFeatureFlagsReady?: boolean;
     asPath?: string;
     query?: NextRouter["query"];
     isRouterReady?: boolean;
@@ -561,8 +529,6 @@ describe(OrganizationProvider.name, () => {
     let coveringCount = 0;
 
     const dependencies: typeof DEPENDENCIES = {
-      useFlag: () => input.isEnabled ?? true,
-      useFeatureFlagsReady: () => input.areFeatureFlagsReady ?? true,
       useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: input.hasUser === false ? undefined : { id: "user-1", userId: "auth0|user-1" } }),
       useOrganizationsQuery: input.loadsMembershipsFromApi ? useMembershipsFromApi : organizationsQuery,
       useRouter: () => router,

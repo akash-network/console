@@ -18,13 +18,6 @@ import { accountActionGatesFor } from "@tests/unit/accountActionGates";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(ProjectsPage.name, () => {
-  it("is not found while organizations are off", () => {
-    setup({ isOrganizationsEnabled: false, projects: [project({ name: "storefront" })] });
-
-    expect(screen.getByText("not found")).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Projects" })).not.toBeInTheDocument();
-  });
-
   it("is not found while the projects experience is off", () => {
     setup({ projectsEnabled: false, projects: [project({ name: "storefront" })] });
 
@@ -235,7 +228,6 @@ describe(ProjectsPage.name, () => {
   });
 
   function setup(input: {
-    isOrganizationsEnabled?: boolean;
     projects: Project[];
     activities?: OrganizationActivity[];
     isLoading?: boolean;
@@ -253,7 +245,6 @@ describe(ProjectsPage.name, () => {
     const Layout = vi.fn<typeof DEPENDENCIES.Layout>(({ children }) => <>{children}</>);
 
     const dependencies = MockComponents(DEPENDENCIES, {
-      useFlag: flag => flag === "organizations" && (input.isOrganizationsEnabled ?? true),
       useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push }),
       useActiveOrganization: () =>
         mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({

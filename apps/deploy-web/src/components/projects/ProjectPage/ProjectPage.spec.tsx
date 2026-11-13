@@ -13,13 +13,6 @@ import { buildProject } from "@tests/seeders/project";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(ProjectPage.name, () => {
-  it("is not found while organizations are off", () => {
-    const { DeploymentsList } = setup({ isOrganizationsEnabled: false });
-
-    expect(screen.getByText("not found")).toBeInTheDocument();
-    expect(DeploymentsList).not.toHaveBeenCalled();
-  });
-
   it("waits for the projects before deciding the project exists", () => {
     const { Layout } = setup({ isLoading: true });
 
@@ -132,7 +125,6 @@ describe(ProjectPage.name, () => {
   });
 
   function setup(input: {
-    isOrganizationsEnabled?: boolean;
     isLoading?: boolean;
     isError?: boolean;
     projectId?: string;
@@ -180,7 +172,6 @@ describe(ProjectPage.name, () => {
     const ProjectMembersPreview = vi.fn<typeof DEPENDENCIES.ProjectMembersPreview>(() => <></>);
     const RecentActivityFeed = vi.fn<typeof DEPENDENCIES.RecentActivityFeed>(() => <></>);
     const dependencies = MockComponents(DEPENDENCIES, {
-      useFlag: flag => flag === "organizations" && (input.isOrganizationsEnabled ?? true),
       useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push }),
       useActiveOrganization: () =>
         mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({

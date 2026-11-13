@@ -14,14 +14,6 @@ describe(useProjectsUi.name, () => {
     expect(result.current).toEqual({ isEnabled: true, canManageProjects: false, canChangeDeployments: true, organizationName: "Acme Corp" });
   });
 
-  it("keeps projects off, and every deployment action on, while organizations are off", () => {
-    const { result } = setup({ isOrganizationsEnabled: false, role: "viewer" });
-
-    expect(result.current.isEnabled).toBe(false);
-    expect(result.current.canManageProjects).toBe(false);
-    expect(result.current.canChangeDeployments).toBe(true);
-  });
-
   it("keeps projects off for an organization that does not use them", () => {
     const { result } = setup({ projectsEnabled: false, role: "owner" });
 
@@ -55,9 +47,8 @@ describe(useProjectsUi.name, () => {
     expect(result.current.canChangeDeployments).toBe(true);
   });
 
-  function setup(input: { isOrganizationsEnabled?: boolean; projectsEnabled?: boolean; role: OrganizationRole | undefined }) {
+  function setup(input: { projectsEnabled?: boolean; role: OrganizationRole | undefined }) {
     const dependencies: typeof DEPENDENCIES = {
-      useFlag: flag => flag === "organizations" && (input.isOrganizationsEnabled ?? true),
       useActiveOrganization: () =>
         mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
           projectsEnabled: input.projectsEnabled ?? true,
