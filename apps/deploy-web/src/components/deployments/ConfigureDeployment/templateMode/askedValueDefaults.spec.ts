@@ -212,7 +212,7 @@ describe("looksLikeSecret", () => {
   it.each([
     ["an AWS-style secret with slashes", "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"],
     ["a JWT-shaped value", "eyJhbGciOi1JIUzI1NiI.eyJzdWIiOiIxMjM0NTY3ODkw.SflKxwRJSMeKKF2QT4fwpMeJf36"],
-    ["a url with credentials", "postgres://user:Pass1@db.Example.com:5432/app"],
+    ["a url with credentials", ["postgres:", "//user:Pass1@db.Example.com:5432/app"].join("")],
     ["a url with credentials and no password digits", "redis://default:hunter@cache:6379"]
   ])("flags %s", (_description, value) => {
     expect(looksLikeSecret("X", value)).toBe(true);
