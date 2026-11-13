@@ -44,7 +44,17 @@ describe(AuthPage.name, () => {
     expect(screen.queryByText(/Sign-in with your provider did not complete/)).not.toBeInTheDocument();
   });
 
-  function setup(input: { authParam?: string; tab?: string; error?: string }) {
+  it("passes the referral code to the passwordless form", () => {
+    const { dependencies } = setup({ referralCode: "friendcode" });
+    expect(dependencies.PasswordlessAuth).toHaveBeenCalledWith({ referralCode: "friendcode" }, {});
+  });
+
+  it("passes the referral code to the password form", () => {
+    const { dependencies } = setup({ authParam: "password", referralCode: "friendcode" });
+    expect(dependencies.PasswordAuth).toHaveBeenCalledWith({ referralCode: "friendcode" }, {});
+  });
+
+  function setup(input: { authParam?: string; tab?: string; error?: string; referralCode?: string }) {
     const params = new URLSearchParams();
     if (input.authParam) params.set("auth", input.authParam);
     if (input.tab) params.set("tab", input.tab);
@@ -59,7 +69,7 @@ describe(AuthPage.name, () => {
       useRouter: (() => ({ replace, pathname: "/login" })) as never,
       useSearchParams: (() => params) as never
     };
-    render(<AuthPage dependencies={dependencies} />);
-    return { ...input, replace };
+    render(<AuthPage referralCode={input.referralCode} dependencies={dependencies} />);
+    return { ...input, replace, dependencies };
   }
 });

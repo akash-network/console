@@ -15,6 +15,7 @@ import { useUser } from "@src/hooks/useUser";
 import { EmailCodeStart } from "../EmailCodeStart/EmailCodeStart";
 import { EmailCodeVerify } from "../EmailCodeVerify/EmailCodeVerify";
 import { OAuthRow } from "../OAuthRow/OAuthRow";
+import { ReferralWelcome, TrialCreditsNotice, useSignUpTrialOffer } from "../SignUpTrialOffer/SignUpTrialOffer";
 import type { PassedFlowProps } from "./withPersistedPasswordlessFlow";
 import { withPersistedPasswordlessFlow } from "./withPersistedPasswordlessFlow";
 
@@ -24,19 +25,24 @@ export const DEPENDENCIES = {
   EmailCodeVerify,
   Link,
   OAuthRow,
+  ReferralWelcome,
+  TrialCreditsNotice,
   Turnstile: ClientOnlyTurnstile,
   useReturnTo,
   useRouter,
   useSearchParams,
+  useSignUpTrialOffer,
   useUser
 };
 
 interface Props extends PassedFlowProps {
+  referralCode?: string;
   dependencies?: typeof DEPENDENCIES;
 }
 
 export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: Props) {
   const { publicConfig, analyticsService } = useServices();
+  const trialOffer = d.useSignUpTrialOffer(props.referralCode);
   const { navigateBack } = d.useReturnTo({ defaultReturnTo: "/" });
   const { checkSession, user, error } = d.useUser();
   const router = d.useRouter();
@@ -150,11 +156,10 @@ export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: P
 
   return (
     <>
+      {screen === "entry" && <d.ReferralWelcome offer={trialOffer} />}
       <div className="flex w-full flex-col items-center gap-2 text-center">
         <h1 className="text-[30px] leading-9 text-neutral-950 dark:text-neutral-50">{screen === "verify" ? "Check your email" : "Start deploying"}</h1>
-        {screen === "entry" && (
-          <p className="text-sm leading-5 text-neutral-500 dark:text-neutral-400">$1 credit to deploy your first container. No card required.</p>
-        )}
+        {screen === "entry" && <d.TrialCreditsNotice offer={trialOffer} />}
       </div>
       {screen === "entry" && (
         <>

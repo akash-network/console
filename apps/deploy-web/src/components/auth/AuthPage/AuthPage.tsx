@@ -24,10 +24,11 @@ export const DEPENDENCIES = {
 };
 
 interface Props {
+  referralCode?: string;
   dependencies?: typeof DEPENDENCIES;
 }
 
-export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
+export function AuthPage({ referralCode, dependencies: d = DEPENDENCIES }: Props = {}) {
   const router = d.useRouter();
   const searchParams = d.useSearchParams();
   const forcePassword = searchParams.get("auth") === "password";
@@ -54,7 +55,7 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
             <AlertDescription>Sign-in with your provider did not complete. Please try again or use another sign-in method.</AlertDescription>
           </Alert>
         )}
-        {showPasswordless ? <d.PasswordlessAuth /> : <d.PasswordAuth />}
+        {showPasswordless ? <d.PasswordlessAuth referralCode={referralCode} /> : <d.PasswordAuth referralCode={referralCode} />}
       </div>
     </d.AuthLayout>
   );

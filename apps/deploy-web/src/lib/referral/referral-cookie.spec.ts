@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizeReferralCode, readReferralCode, REFERRAL_COOKIE_NAME } from "./referral-cookie";
+import { normalizeReferralCode, readReferralCode, readSignUpReferralCode, REFERRAL_COOKIE_NAME } from "./referral-cookie";
 
 describe(normalizeReferralCode.name, () => {
   it("lowercases and trims a valid code", () => {
@@ -55,5 +55,23 @@ describe(readReferralCode.name, () => {
 
   it("returns undefined when the cookie value is invalid", () => {
     expect(readReferralCode({ [REFERRAL_COOKIE_NAME]: "bad space" })).toBeUndefined();
+  });
+});
+
+describe(readSignUpReferralCode.name, () => {
+  it("prefers the code on the link over the stored cookie", () => {
+    expect(readSignUpReferralCode("NewCode", { [REFERRAL_COOKIE_NAME]: "oldcode" })).toBe("newcode");
+  });
+
+  it("reads the first code when the link repeats the parameter", () => {
+    expect(readSignUpReferralCode(["first", "second"], {})).toBe("first");
+  });
+
+  it("falls back to the stored cookie when the link has no valid code", () => {
+    expect(readSignUpReferralCode("bad space", { [REFERRAL_COOKIE_NAME]: "oldcode" })).toBe("oldcode");
+  });
+
+  it("returns undefined when neither the link nor the cookie has a code", () => {
+    expect(readSignUpReferralCode(undefined, {})).toBeUndefined();
   });
 });

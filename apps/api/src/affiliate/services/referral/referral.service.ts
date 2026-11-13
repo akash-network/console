@@ -13,6 +13,7 @@ const CENTS_PER_DOLLAR = 100;
 
 export type AttributeReferralInput = { referredUserId: string; code: string };
 export type Referral = { trialCreditsUsd: number };
+export type ReferralCodeCheck = { valid: false } | { valid: true; trialCreditsUsd: number };
 
 @singleton()
 export class ReferralService {
@@ -51,6 +52,15 @@ export class ReferralService {
 
     this.analyticsService.track(referredUserId, "referral_signup", { affiliate_id: affiliate.id, affiliate_code: affiliate.code });
     this.logger.info({ event: "REFERRAL_ATTRIBUTED", referredUserId, affiliateId: affiliate.id, code: affiliate.code });
+  }
+
+  async checkCode(code: string): Promise<ReferralCodeCheck> {
+    const affiliate = await this.affiliateService.findActiveByCode(code);
+    if (!affiliate || !this.featureFlagsService.isEnabledForSubject(FeatureFlags.AFFILIATE_PROGRAM, affiliate.userId)) {
+      return { valid: false };
+    }
+
+    return { valid: true, trialCreditsUsd: this.billingConfig.REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT / MICRO_DENOM_PER_UNIT };
   }
 
   async getTrialDeploymentLimit(userId: string): Promise<number | undefined> {

@@ -12,3 +12,8 @@ export function normalizeReferralCode(raw: string | null | undefined): string | 
 export function readReferralCode(cookies: Partial<Record<string, string>>): string | undefined {
   return normalizeReferralCode(cookies[REFERRAL_COOKIE_NAME]);
 }
+
+export function readSignUpReferralCode(refQuery: string | string[] | undefined, cookies: Partial<Record<string, string>>): string | undefined {
+  const linkCode = normalizeReferralCode(Array.isArray(refQuery) ? refQuery[0] : refQuery);
+  return linkCode ?? readReferralCode(cookies);
+}
