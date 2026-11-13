@@ -554,6 +554,23 @@ describe(SessionService.name, () => {
       expect(error).toMatchObject({ code: "rate_limited", retryAfter: 42 });
     });
 
+    it("replaces an auth0 action refusal's reason code with a generic message", async () => {
+      const { service, externalHttpClient } = setup();
+      externalHttpClient.post.mockResolvedValueOnce({
+        status: 400,
+        data: { error: "extensibility_error", error_description: "action.domain_blacklist.domain_blocked_by_console" },
+        headers: {}
+      });
+
+      const result = await service.startEmailCode({ email: "user@blocked.example" });
+
+      const error = expectErr(result);
+      expect(error).toMatchObject({
+        code: "action_refused",
+        message: "Unable to create account. Please try again or use a different email."
+      });
+    });
+
     it("maps other 4xx/5xx to unknown", async () => {
       const { service, externalHttpClient } = setup();
       externalHttpClient.post.mockResolvedValueOnce({
@@ -640,6 +657,23 @@ describe(SessionService.name, () => {
       expect(result.ok).toBe(false);
       const error = expectErr(result);
       expect(error).toMatchObject({ code: "rate_limited", retryAfter: 30 });
+    });
+
+    it("replaces an auth0 action refusal's reason code with a generic message", async () => {
+      const { service, externalHttpClient } = setup();
+      externalHttpClient.post.mockResolvedValueOnce({
+        status: 400,
+        data: { error: "extensibility_error", error_description: "action.domain_blacklist.domain_blocked_by_console" },
+        headers: {}
+      });
+
+      const result = await service.verifyEmailCode({ email: "user@blocked.example", code: "123456" });
+
+      const error = expectErr(result);
+      expect(error).toMatchObject({
+        code: "action_refused",
+        message: "Unable to create account. Please try again or use a different email."
+      });
     });
 
     it("maps other failures to unknown", async () => {
