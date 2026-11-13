@@ -15,6 +15,7 @@ import { seedOrganization, seedOrganizationMember } from "@test/seeders/db/organ
 import { seedPaymentCredit } from "@test/seeders/db/payment-credit.seeder";
 import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { deleteCompletedJobs, expectJobCompleted, findJobRows, makeJobDue, useJobWorkers } from "@test/services/job-queue-harness";
+import { holdTransaction, waitForLockWait } from "@test/services/lock-wait";
 
 const jobWorkers = useJobWorkers(() => [container.resolve(SyncAffiliateCommissionHandler)]);
 
@@ -160,6 +161,26 @@ describe(SyncAffiliateCommissionHandler.name, () => {
     await container.resolve(AffiliateRepository).revokeIfActive(affiliate.id, { revokedAt: new Date(), revokedBy: "ops@akash.network" });
 
     await releaseCommissionOf(payment.id);
+
+    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id)).resolves.toMatchObject({
+      status: "canceled",
+      amount: 500,
+      amountRefunded: 500
+    });
+    expect(topUpWallet).not.toHaveBeenCalled();
+  });
+
+  it("cancels the held commission when the affiliate's wallet is locked for abuse while its release runs", async () => {
+    const { payment, affiliateWallet, topUpWallet, syncCommissionOf, releaseCommissionOf } = await setup();
+    await syncCommissionOf(payment.id);
+    const abuseLock = holdTransaction(() => container.resolve(UserWalletRepository).lockForAbuse(affiliateWallet.id, "trial_abuse"));
+    await abuseLock.held;
+
+    const release = releaseCommissionOf(payment.id);
+    await waitForLockWait('select %from "user_wallets"%for update');
+    abuseLock.release();
+    await abuseLock.committed;
+    await release;
 
     await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id)).resolves.toMatchObject({
       status: "canceled",

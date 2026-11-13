@@ -237,10 +237,16 @@ export class AffiliateCommissionService {
 
     const affiliate = await this.affiliateRepository.findOneBy({ userId: affiliateUserId });
     if (!affiliate || affiliate.revokedAt) return "affiliate_revoked";
-    if (await this.#isWalletAbuseLocked(affiliateUserId)) return "affiliate_abuse_locked";
+    if (await this.#isWalletAbuseLockedAtCredit(affiliateUserId)) return "affiliate_abuse_locked";
     if (releasedAmount <= 0) return "nothing_left_to_grant";
 
     return undefined;
+  }
+
+  /** Holds the wallet row the credit also takes, so the wallet cannot change between this read and the credit. */
+  async #isWalletAbuseLockedAtCredit(userId: string): Promise<boolean> {
+    const wallet = await this.userWalletRepository.findOneByAndLock({ userId });
+    return !!wallet?.abuseLockedAt;
   }
 
   async #cancel(payment: StripeTransactionOutput, commission: StripeTransactionOutput, reason: CancelReason | "refund" | "dispute_lost"): Promise<void> {
