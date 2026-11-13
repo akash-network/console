@@ -1,6 +1,6 @@
 import type { CreateLogger } from "@akashnetwork/logging";
 import { PostgresError } from "postgres";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AffiliateRepository } from "@src/affiliate/repositories/affiliate/affiliate.repository";
@@ -519,6 +519,9 @@ describe(AffiliateService.name, () => {
 
     it("passes the first instant of the current UTC month as the month boundary", async () => {
       vi.useFakeTimers();
+      onTestFinished(() => {
+        vi.useRealTimers();
+      });
       vi.setSystemTime(new Date("2024-06-15T18:30:00Z"));
       const active = createAffiliate({ revokedAt: null });
       const { service, affiliateRepository, stripeTransactionRepository } = setup();
@@ -527,7 +530,6 @@ describe(AffiliateService.name, () => {
       await service.getProfile(active.userId);
 
       expect(stripeTransactionRepository.sumAffiliateCommissionNet).toHaveBeenCalledWith(active.userId, new Date("2024-06-01T00:00:00.000Z"));
-      vi.useRealTimers();
     });
 
     it("maps each commission row to its gross and reversed usd amounts without the referred user's identity", async () => {
@@ -592,6 +594,9 @@ describe(AffiliateService.name, () => {
 
     it("dates a held commission's release the hold length after it was recorded", async () => {
       vi.useFakeTimers();
+      onTestFinished(() => {
+        vi.useRealTimers();
+      });
       vi.setSystemTime(new Date("2024-06-15T00:00:00Z"));
       const active = createAffiliate({ revokedAt: null });
       const { service, affiliateRepository, stripeTransactionRepository } = setup({ billingConfig: { AFFILIATE_COMMISSION_HOLD_SECONDS: 86_400 } });
@@ -603,11 +608,13 @@ describe(AffiliateService.name, () => {
       const profile = await service.getProfile(active.userId);
 
       expect(profile?.commissions).toMatchObject([{ status: "on_hold", releasesAt: "2024-06-15T12:00:00.000Z" }]);
-      vi.useRealTimers();
     });
 
     it("gives a held commission whose release date has passed no release date", async () => {
       vi.useFakeTimers();
+      onTestFinished(() => {
+        vi.useRealTimers();
+      });
       vi.setSystemTime(new Date("2024-06-15T12:00:00Z"));
       const active = createAffiliate({ revokedAt: null });
       const { service, affiliateRepository, stripeTransactionRepository } = setup({ billingConfig: { AFFILIATE_COMMISSION_HOLD_SECONDS: 86_400 } });
@@ -619,7 +626,6 @@ describe(AffiliateService.name, () => {
       const profile = await service.getProfile(active.userId);
 
       expect(profile?.commissions).toMatchObject([{ status: "on_hold", releasesAt: null }]);
-      vi.useRealTimers();
     });
 
     it("converts the credited net sum from cents to usd for the affiliate's user id", async () => {
@@ -636,6 +642,9 @@ describe(AffiliateService.name, () => {
 
     it("sums what is on hold net of refunds and picks the earliest release still ahead, skipping held commissions past their date", async () => {
       vi.useFakeTimers();
+      onTestFinished(() => {
+        vi.useRealTimers();
+      });
       vi.setSystemTime(new Date("2024-06-15T00:00:00Z"));
       const active = createAffiliate({ revokedAt: null });
       const { service, affiliateRepository, stripeTransactionRepository } = setup({ billingConfig: { AFFILIATE_COMMISSION_HOLD_SECONDS: 86_400 } });
@@ -650,11 +659,13 @@ describe(AffiliateService.name, () => {
 
       expect(stripeTransactionRepository.findHeldAffiliateCommissions).toHaveBeenCalledWith(active.userId);
       expect(profile?.stats).toMatchObject({ onHoldUsd: 18, nextRelease: { releasesAt: "2024-06-15T06:00:00.000Z", amountUsd: 10 } });
-      vi.useRealTimers();
     });
 
     it("has no next release when every held commission is past its release date", async () => {
       vi.useFakeTimers();
+      onTestFinished(() => {
+        vi.useRealTimers();
+      });
       vi.setSystemTime(new Date("2024-06-15T00:00:00Z"));
       const active = createAffiliate({ revokedAt: null });
       const { service, affiliateRepository, stripeTransactionRepository } = setup({ billingConfig: { AFFILIATE_COMMISSION_HOLD_SECONDS: 86_400 } });
@@ -666,7 +677,6 @@ describe(AffiliateService.name, () => {
       const profile = await service.getProfile(active.userId);
 
       expect(profile?.stats).toMatchObject({ onHoldUsd: 3, nextRelease: null });
-      vi.useRealTimers();
     });
 
     it("returns an empty commissions list when the affiliate has none", async () => {

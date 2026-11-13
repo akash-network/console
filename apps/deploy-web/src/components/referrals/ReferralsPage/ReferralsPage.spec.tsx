@@ -1,3 +1,4 @@
+import { format } from "date-fns";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -9,6 +10,13 @@ import { DEPENDENCIES, ReferralsPage } from "./ReferralsPage";
 import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
+
+const COMMISSION_CREATED_AT = "2024-06-10T12:00:00.000Z";
+const COMMISSION_SETTLED_AT = "2024-07-10T12:00:00.000Z";
+const NEXT_RELEASE_AT = "2024-11-13T12:00:00.000Z";
+const COMMISSION_CREATED_ON = format(new Date(COMMISSION_CREATED_AT), "MMM d, yyyy");
+const COMMISSION_SETTLED_ON = format(new Date(COMMISSION_SETTLED_AT), "MMM d");
+const NEXT_RELEASE_ON = format(new Date(NEXT_RELEASE_AT), "MMM d");
 
 describe(ReferralsPage.name, () => {
   it("redirects to billing and renders nothing when the affiliate program is off", () => {
@@ -151,7 +159,7 @@ describe(ReferralsPage.name, () => {
           payingUsers: 3,
           creditedUsd: 10.5,
           onHoldUsd: 26,
-          nextRelease: { releasesAt: "2024-11-13T12:00:00.000Z", amountUsd: 11 }
+          nextRelease: { releasesAt: NEXT_RELEASE_AT, amountUsd: 11 }
         })
       })
     });
@@ -159,7 +167,7 @@ describe(ReferralsPage.name, () => {
     expect(tile("Sign-ups")).toHaveTextContent(/^Sign-ups8$/);
     expect(tile("Paying")).toHaveTextContent(/^Paying338% of sign-ups$/);
     expect(tile("Credited")).toHaveTextContent(/^Credited10\.50in your personal balance$/);
-    expect(tile("On hold")).toHaveTextContent(/^On hold26\.00next 11\.00 on Nov 13$/);
+    expect(tile("On hold")).toHaveTextContent(new RegExp(`^On hold26\\.00next 11\\.00 on ${NEXT_RELEASE_ON}$`));
   });
 
   it("invites a new affiliate to share and explains the hold when nothing is due for release", () => {
@@ -199,45 +207,45 @@ describe(ReferralsPage.name, () => {
   it("shows a held commission net of refunds with its release date", () => {
     setup({
       profile: buildProfile({
-        commissions: [buildCommission({ status: "on_hold", amountUsd: 10, reversedUsd: 2, paymentUsd: 200, releasesAt: "2024-07-10T12:00:00.000Z" })]
+        commissions: [buildCommission({ status: "on_hold", amountUsd: 10, reversedUsd: 2, paymentUsd: 200, releasesAt: COMMISSION_SETTLED_AT })]
       })
     });
 
-    expect(cells("Jun 10, 2024")).toEqual(["Jun 10, 2024", "200.00", "+8.00", "On hold until Jul 10"]);
+    expect(cells(COMMISSION_CREATED_ON)).toEqual([COMMISSION_CREATED_ON, "200.00", "+8.00", `On hold until ${COMMISSION_SETTLED_ON}`]);
   });
 
   it("shows a held commission past its release date as on hold with no date", () => {
     setup({ profile: buildProfile({ commissions: [buildCommission({ status: "on_hold", releasesAt: null })] }) });
 
-    expect(cells("Jun 10, 2024")[3]).toBe("On hold");
+    expect(cells(COMMISSION_CREATED_ON)[3]).toBe("On hold");
   });
 
   it("shows a credited commission with its credit date and what was taken back", () => {
     setup({
       profile: buildProfile({
-        commissions: [buildCommission({ status: "credited", amountUsd: 5, reversedUsd: 1.5, creditedAt: "2024-07-10T12:00:00.000Z" })]
+        commissions: [buildCommission({ status: "credited", amountUsd: 5, reversedUsd: 1.5, creditedAt: COMMISSION_SETTLED_AT })]
       })
     });
 
-    expect(cells("Jun 10, 2024").slice(2)).toEqual(["+5.00-1.50 taken back", "Credited on Jul 10"]);
+    expect(cells(COMMISSION_CREATED_ON).slice(2)).toEqual(["+5.00-1.50 taken back", `Credited on ${COMMISSION_SETTLED_ON}`]);
   });
 
   it("shows a credited commission without a credit date as credited", () => {
     setup({ profile: buildProfile({ commissions: [buildCommission({ status: "credited", creditedAt: null })] }) });
 
-    expect(cells("Jun 10, 2024").slice(2)).toEqual(["+5.00", "Credited"]);
+    expect(cells(COMMISSION_CREATED_ON).slice(2)).toEqual(["+5.00", "Credited"]);
   });
 
   it("shows a canceled commission's amount without counting it as money in", () => {
     setup({ profile: buildProfile({ commissions: [buildCommission({ status: "canceled", amountUsd: 5, reversedUsd: 5 })] }) });
 
-    expect(cells("Jun 10, 2024").slice(2)).toEqual(["5.00", "Canceled"]);
+    expect(cells(COMMISSION_CREATED_ON).slice(2)).toEqual(["5.00", "Canceled"]);
   });
 
   it("shows a reversed commission with what was taken back", () => {
     setup({ profile: buildProfile({ commissions: [buildCommission({ status: "reversed", amountUsd: 5, reversedUsd: 5 })] }) });
 
-    expect(cells("Jun 10, 2024").slice(2)).toEqual(["+5.00-5.00 taken back", "Reversed"]);
+    expect(cells(COMMISSION_CREATED_ON).slice(2)).toEqual(["+5.00-5.00 taken back", "Reversed"]);
   });
 
   it("tones each commission status by what it means for the affiliate", () => {
@@ -265,7 +273,7 @@ describe(ReferralsPage.name, () => {
   it("says when the payment behind a commission is not available", () => {
     setup({ profile: buildProfile({ commissions: [buildCommission({ paymentUsd: null })] }) });
 
-    expect(cells("Jun 10, 2024")[1]).toBe("Not available");
+    expect(cells(COMMISSION_CREATED_ON)[1]).toBe("Not available");
   });
 
   it("states how long commission is held under the history", () => {
@@ -319,7 +327,7 @@ describe(ReferralsPage.name, () => {
   function buildCommission(overrides: Partial<AffiliateProfile["commissions"][number]> = {}): AffiliateProfile["commissions"][number] {
     return {
       id: "commission-1",
-      createdAt: "2024-06-10T12:00:00.000Z",
+      createdAt: COMMISSION_CREATED_AT,
       amountUsd: 5,
       reversedUsd: 0,
       status: "credited",
