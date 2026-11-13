@@ -10,6 +10,8 @@ import { TemplateVersionRepository } from "@src/template-marketplace/repositorie
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { UserTemplateRepository } from "@src/user/repositories/user-template/user-template.repository";
 
+import { fileIntoPersonalOrganization } from "@test/seeders/db/organization.seeder";
+
 describe("User templates", () => {
   const userRepository = container.resolve(UserRepository);
   const userTemplateRepository = container.resolve(UserTemplateRepository);
@@ -110,6 +112,7 @@ describe("User templates", () => {
       const { user, token } = await setup();
       const template = buildTemplate();
       const id = await userTemplateRepository.createTemplate(user.userId!, template);
+      await fileIntoPersonalOrganization(user);
       expect(await findStoredTemplate(id)).toMatchObject({ currentVersionId: null });
 
       const response = await saveTemplate(token, { ...template, id });

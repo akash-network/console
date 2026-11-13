@@ -1,7 +1,6 @@
 import { container } from "tsyringe";
 
 import { createRoute } from "@src/core/lib/create-route/create-route";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 import { ProjectBudgetController } from "@src/organization/controllers/project-budget/project-budget.controller";
@@ -27,7 +26,6 @@ const listProjectBudgetsRoute = createRoute({
   summary: "List the project budgets of the active organization the caller can read",
   tags: ["Projects"],
   security: SECURITY_BEARER_OR_API_KEY,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: { query: ListProjectBudgetsQuerySchema },
   responses: {
     200: { description: "The budgets with this month's committed spend", content: { "application/json": { schema: ListProjectBudgetsResponseSchema } } },
@@ -47,7 +45,6 @@ const createProjectBudgetRoute = createRoute({
   summary: "Set a monthly budget for a project of the active organization",
   tags: ["Projects"],
   security: SECURITY_BEARER_OR_API_KEY,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: {
     body: { required: true, content: { "application/json": { schema: CreateProjectBudgetRequestSchema } } }
   },
@@ -74,7 +71,6 @@ const updateProjectBudgetRoute = createRoute({
   summary: "Change a project's monthly budget",
   tags: ["Projects"],
   security: SECURITY_BEARER_OR_API_KEY,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: {
     params: ProjectBudgetParamsSchema,
     body: { required: true, content: { "application/json": { schema: UpdateProjectBudgetRequestSchema } } }
@@ -102,7 +98,6 @@ const deleteProjectBudgetRoute = createRoute({
   summary: "Remove a project's monthly budget",
   tags: ["Projects"],
   security: SECURITY_BEARER_OR_API_KEY,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: { params: ProjectBudgetParamsSchema },
   responses: {
     204: { description: "The budget is removed" },

@@ -26,9 +26,9 @@ import { createOrganizationContext, createProjectsScope } from "@test/seeders/or
 import { createUser } from "@test/seeders/user.seeder";
 
 describe(DeploymentListService.name, () => {
-  describe("outside organization mode", () => {
+  describe("outside an organization context", () => {
     it("lists the caller's wallet as before, with no project on any deployment", async () => {
-      const { service, deploymentReaderService, deploymentSettingRepository, user, walletPage } = setup({ context: { mode: "legacy" } });
+      const { service, deploymentReaderService, deploymentSettingRepository, user, walletPage } = setup({ withoutContext: true });
 
       const page = await service.list(query({ state: "closed", reverse: true, search: "web", skip: 5, limit: 10, projectId: faker.string.uuid() }));
 
@@ -42,12 +42,6 @@ describe(DeploymentListService.name, () => {
         limit: 10
       });
       expect(deploymentSettingRepository.accessibleBy).not.toHaveBeenCalled();
-    });
-
-    it("lists the caller's wallet for a request running in no organization", async () => {
-      const { service, walletPage } = setup({ withoutContext: true });
-
-      await expect(service.list(query())).resolves.toBe(walletPage);
     });
   });
 

@@ -1,12 +1,11 @@
 import { DrizzleAbility } from "@akashnetwork/drizzle-ability";
-import { type AnyAbility, subject } from "@casl/ability";
+import type { AnyAbility } from "@casl/ability";
 import type { DBQueryConfig } from "drizzle-orm";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { PgTable, PgTableWithColumns } from "drizzle-orm/pg-core";
 import type { SQL } from "drizzle-orm/sql/sql";
 import { PostgresError } from "postgres";
 
-import { ShadowedAbility } from "@src/auth/services/ability/shadowed-ability";
 import type { ApiPgDatabase, ApiPgTables, ApiTransaction, TxService } from "@src/core";
 
 export type AbilityParams = [AnyAbility, Parameters<AnyAbility["can"]>[0]];
@@ -85,7 +84,6 @@ export abstract class BaseRepository<
       where: this.whereAccessibleBy(eq(this.table.id, id))
     });
     if (!item) return undefined;
-    this.compareWithShadow([item]);
     return this.toOutput(item);
   }
 
@@ -94,7 +92,6 @@ export abstract class BaseRepository<
       where: this.queryToWhere(query)
     });
     if (!item) return undefined;
-    this.compareWithShadow([item]);
     return this.toOutput(item);
   }
 
@@ -108,7 +105,6 @@ export abstract class BaseRepository<
       .limit(1)
       .for(strength);
     if (!items || items.length === 0) return undefined;
-    this.compareWithShadow(items);
     return this.toOutput(items[0]);
   }
 
@@ -131,10 +127,6 @@ export abstract class BaseRepository<
 
     const items = await this.queryCursor.findMany(params);
 
-    if (!params.columns) {
-      this.compareWithShadow(items);
-    }
-
     return this.toOutputList(items);
   }
 
@@ -149,7 +141,6 @@ export abstract class BaseRepository<
 
     while (hasNextPage) {
       const rows = await this.queryCursor.findMany({ ...params, offset });
-      this.compareWithShadow(rows);
       const items = this.toOutputList(rows);
       offset += items.length;
       hasNextPage = items.length === params.limit;
@@ -232,7 +223,6 @@ export abstract class BaseRepository<
     if (options?.returning) {
       const [item] = await cursor.returning();
       if (!item) return undefined;
-      this.compareWithShadow([item]);
       return this.toOutput(item);
     }
 
@@ -250,17 +240,6 @@ export abstract class BaseRepository<
       : undefined;
 
     return this.whereAccessibleBy(where);
-  }
-
-  /** Legacy filters pick the rows, so asking the shadowed ability about each one is what reports the rows organization rules would hide. */
-  protected compareWithShadow(rows: Array<Partial<T["$inferSelect"]>>) {
-    const [ability, action] = this.#abilityParams ?? [];
-
-    if (!(ability instanceof ShadowedAbility)) return;
-
-    for (const row of rows) {
-      ability.can(action, subject(this.entityName, { ...row }));
-    }
   }
 
   /** Drizzle builds the SET clause from schema property names, so a raw column key such as updated_at is dropped without an error. */

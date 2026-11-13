@@ -15,7 +15,7 @@ import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
 import { createApiKey } from "@test/seeders/api-key.seeder";
-import { findJobRows } from "@test/services/job-queue-harness";
+import { findJobRows, runAsUser } from "@test/services/job-queue-harness";
 
 const OBFUSCATED_API_KEY_PATTERN = /^ac\.sk\.test\.[A-Za-z0-9]{6}\*{3}[A-Za-z0-9]{6}$/;
 const FULL_API_KEY_PATTERN = /^ac\.sk\.test\.[A-Za-z0-9]{64}$/;
@@ -58,13 +58,15 @@ describe("API Keys", () => {
         userId: user1.id,
         name: "Test key 1"
       });
-      await apiKeyRepository.create({
-        ...key1,
-        createdAt: new Date(key1.createdAt),
-        updatedAt: new Date(key1.updatedAt),
-        expiresAt: key1.expiresAt ? new Date(key1.expiresAt) : null,
-        lastUsedAt: key1.lastUsedAt ? new Date(key1.lastUsedAt) : null
-      });
+      await runAsUser(user1, async () =>
+        apiKeyRepository.create({
+          ...key1,
+          createdAt: new Date(key1.createdAt),
+          updatedAt: new Date(key1.updatedAt),
+          expiresAt: key1.expiresAt ? new Date(key1.expiresAt) : null,
+          lastUsedAt: key1.lastUsedAt ? new Date(key1.lastUsedAt) : null
+        })
+      );
 
       const [response, nonOwnerResponse] = await Promise.all([
         app.request("/v1/api-keys", {
@@ -104,20 +106,24 @@ describe("API Keys", () => {
       });
 
       await Promise.all([
-        apiKeyRepository.create({
-          ...key1,
-          createdAt: new Date(key1.createdAt),
-          updatedAt: new Date(key1.updatedAt),
-          expiresAt: key1.expiresAt ? new Date(key1.expiresAt) : null,
-          lastUsedAt: key1.lastUsedAt ? new Date(key1.lastUsedAt) : null
-        }),
-        apiKeyRepository.create({
-          ...key2,
-          createdAt: new Date(key2.createdAt),
-          updatedAt: new Date(key2.updatedAt),
-          expiresAt: key2.expiresAt ? new Date(key2.expiresAt) : null,
-          lastUsedAt: key2.lastUsedAt ? new Date(key2.lastUsedAt) : null
-        })
+        runAsUser(user, async () =>
+          apiKeyRepository.create({
+            ...key1,
+            createdAt: new Date(key1.createdAt),
+            updatedAt: new Date(key1.updatedAt),
+            expiresAt: key1.expiresAt ? new Date(key1.expiresAt) : null,
+            lastUsedAt: key1.lastUsedAt ? new Date(key1.lastUsedAt) : null
+          })
+        ),
+        runAsUser(user, async () =>
+          apiKeyRepository.create({
+            ...key2,
+            createdAt: new Date(key2.createdAt),
+            updatedAt: new Date(key2.updatedAt),
+            expiresAt: key2.expiresAt ? new Date(key2.expiresAt) : null,
+            lastUsedAt: key2.lastUsedAt ? new Date(key2.lastUsedAt) : null
+          })
+        )
       ]);
 
       const response = await app.request("/v1/api-keys", {
@@ -162,12 +168,14 @@ describe("API Keys", () => {
       const hashedKey = await apiKeyGenerator.hashApiKey(apiKey);
       const obfuscatedKey = apiKeyGenerator.obfuscateApiKey(apiKey);
 
-      const createdKey = await apiKeyRepository.create({
-        userId: user.id,
-        hashedKey,
-        keyFormat: obfuscatedKey,
-        name: "Test key"
-      });
+      const createdKey = await runAsUser(user, async () =>
+        apiKeyRepository.create({
+          userId: user.id,
+          hashedKey,
+          keyFormat: obfuscatedKey,
+          name: "Test key"
+        })
+      );
 
       const response = await app.request(`/v1/api-keys/${createdKey.id}`, {
         headers: { authorization: `Bearer ${token}` }
@@ -204,12 +212,14 @@ describe("API Keys", () => {
     it("refuses a request authenticated with an API key and creates no key", async () => {
       const { user, apiKeyGenerator } = await setup();
       const callerKey = apiKeyGenerator.generateApiKey();
-      await apiKeyRepository.create({
-        userId: user.id,
-        hashedKey: apiKeyGenerator.hashApiKeySha256(callerKey),
-        keyFormat: apiKeyGenerator.obfuscateApiKey(callerKey),
-        name: "Caller key"
-      });
+      await runAsUser(user, async () =>
+        apiKeyRepository.create({
+          userId: user.id,
+          hashedKey: apiKeyGenerator.hashApiKeySha256(callerKey),
+          keyFormat: apiKeyGenerator.obfuscateApiKey(callerKey),
+          name: "Caller key"
+        })
+      );
 
       const response = await app.request("/v1/api-keys", {
         method: "POST",
@@ -457,12 +467,14 @@ describe("API Keys", () => {
       const hashedKey = await apiKeyGenerator.hashApiKey(apiKey);
       const obfuscatedKey = apiKeyGenerator.obfuscateApiKey(apiKey);
 
-      const createdKey = await apiKeyRepository.create({
-        userId: user.id,
-        hashedKey,
-        keyFormat: obfuscatedKey,
-        name: "Test key"
-      });
+      const createdKey = await runAsUser(user, async () =>
+        apiKeyRepository.create({
+          userId: user.id,
+          hashedKey,
+          keyFormat: obfuscatedKey,
+          name: "Test key"
+        })
+      );
 
       const response = await app.request(`/v1/api-keys/${createdKey.id}`, {
         method: "PATCH",
@@ -494,12 +506,14 @@ describe("API Keys", () => {
     it("refuses a name holding a null character and keeps the old one", async () => {
       const { token, user, apiKeyGenerator } = await setup();
       const apiKey = apiKeyGenerator.generateApiKey();
-      const createdKey = await apiKeyRepository.create({
-        userId: user.id,
-        hashedKey: await apiKeyGenerator.hashApiKey(apiKey),
-        keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey),
-        name: "Test key"
-      });
+      const createdKey = await runAsUser(user, async () =>
+        apiKeyRepository.create({
+          userId: user.id,
+          hashedKey: await apiKeyGenerator.hashApiKey(apiKey),
+          keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey),
+          name: "Test key"
+        })
+      );
 
       const response = await app.request(`/v1/api-keys/${createdKey.id}`, {
         method: "PATCH",
@@ -528,12 +542,14 @@ describe("API Keys", () => {
       const hashedKey = await apiKeyGenerator.hashApiKey(apiKey);
       const obfuscatedKey = apiKeyGenerator.obfuscateApiKey(apiKey);
 
-      const createdKey = await apiKeyRepository.create({
-        userId: user.id,
-        hashedKey,
-        keyFormat: obfuscatedKey,
-        name: "Test key"
-      });
+      const createdKey = await runAsUser(user, async () =>
+        apiKeyRepository.create({
+          userId: user.id,
+          hashedKey,
+          keyFormat: obfuscatedKey,
+          name: "Test key"
+        })
+      );
 
       const response = await app.request(`/v1/api-keys/${createdKey.id}`, {
         method: "DELETE",

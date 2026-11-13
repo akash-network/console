@@ -43,7 +43,6 @@ export class PaymentMethodRepository extends OrgScopedRepository<Table, PaymentM
       .select()
       .from(this.table)
       .where(this.whereAccessibleBy(ownedBy(this.table, owner)));
-    this.compareWithShadow(paymentMethods);
 
     return this.toOutputList(paymentMethods);
   }

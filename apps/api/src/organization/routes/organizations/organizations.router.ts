@@ -1,7 +1,6 @@
 import { container } from "tsyringe";
 
 import { createRoute } from "@src/core/lib/create-route/create-route";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER, SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 import { OrganizationController } from "@src/organization/controllers/organization/organization.controller";
@@ -23,7 +22,6 @@ const listOrganizationsRoute = createRoute({
   summary: "List the organizations the caller belongs to, marking the one this request ran in; an API key lists only the organization it acts in",
   tags: ["Organizations"],
   security: SECURITY_BEARER_OR_API_KEY,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   responses: {
     200: {
       description: "The caller's organizations, or only the API key's organization",
@@ -46,7 +44,6 @@ const createOrganizationRoute = createRoute({
   summary: "Create a team organization owned by the caller, with its default project and a wallet ready to fund",
   tags: ["Organizations"],
   security: SECURITY_BEARER,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: {
     body: { required: true, content: { "application/json": { schema: CreateOrganizationRequestSchema } } }
   },
@@ -75,7 +72,6 @@ const updateOrganizationRoute = createRoute({
   summary: "Rename the active organization",
   tags: ["Organizations"],
   security: SECURITY_BEARER_OR_API_KEY,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: {
     params: OrganizationParamsSchema,
     body: { required: true, content: { "application/json": { schema: UpdateOrganizationRequestSchema } } }
@@ -104,7 +100,6 @@ const deleteOrganizationRoute = createRoute({
   summary: "Delete the active team organization, forfeiting its remaining credits, once none of its deployments is running",
   tags: ["Organizations"],
   security: SECURITY_BEARER,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: {
     params: OrganizationParamsSchema,
     query: DeleteOrganizationQuerySchema
@@ -140,7 +135,6 @@ const deleteOrganizationMembershipRoute = createRoute({
   summary: "Leave the active team organization, which ends the caller's membership the way removing a member does",
   tags: ["Organizations"],
   security: SECURITY_BEARER,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: {
     params: OrganizationParamsSchema
   },
@@ -171,7 +165,6 @@ const createOrganizationAdminAccessRequestRoute = createRoute({
   summary: "Ask the owners of the active team organization to make the caller an admin, which emails each owner at most once a day",
   tags: ["Organizations"],
   security: SECURITY_BEARER,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: {
     params: OrganizationParamsSchema
   },

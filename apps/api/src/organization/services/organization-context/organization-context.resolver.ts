@@ -8,8 +8,6 @@ import type { ApiKeyOutput } from "@src/auth/repositories/api-key/api-key.reposi
 import { cacheRegistry, nominalEntrySizing } from "@src/caching/cache-registry";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { ORGANIZATION_FORBIDDEN_ERROR_CODE } from "@src/core/repositories/org-scoped.repository";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import type { ProjectRole } from "@src/organization/model-schemas/project-member/project-member.schema";
 import {
@@ -18,7 +16,7 @@ import {
 } from "@src/organization/repositories/organization-member/organization-member.repository";
 import { type ProjectGrantOfUser, ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
-import type { AuthorizationMode, OrganizationContext, ProjectScope } from "@src/organization/types/organization-context";
+import type { OrganizationContext, ProjectScope } from "@src/organization/types/organization-context";
 import type { UserOutput } from "@src/user/repositories/user/user.repository";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { AccountStatusGuard } from "@src/user/services/account-status-guard/account-status-guard.service";
@@ -78,7 +76,6 @@ export class OrganizationContextResolver {
   });
 
   constructor(
-    private readonly featureFlagsService: FeatureFlagsService,
     private readonly organizationMemberRepository: OrganizationMemberRepository,
     private readonly projectRepository: ProjectRepository,
     private readonly personalOrganizationService: PersonalOrganizationService,
@@ -91,15 +88,7 @@ export class OrganizationContextResolver {
     cacheRegistry.register("OrganizationContextResolver#personalMemberships", this.#personalMemberships);
   }
 
-  async resolve(request: OrganizationContextRequest): Promise<OrganizationContext | undefined> {
-    const isOrganizationsOn = this.featureFlagsService.isEnabled(FeatureFlags.ORGANIZATIONS, { userId: request.user.id });
-    const mode: AuthorizationMode =
-      isOrganizationsOn || this.featureFlagsService.isEnabled(FeatureFlags.ORGANIZATIONS_ENFORCE, { userId: request.user.id }) ? "organization" : "legacy";
-
-    if (!isOrganizationsOn) {
-      return await this.#resolvePersonalContext(request, mode);
-    }
-
+  async resolve(request: OrganizationContextRequest): Promise<OrganizationContext> {
     const membership = await this.#withPersonalDefaultProjectRestored(
       request.user,
       await this.#resolveMembership(request.user, request.apiKey, normalizeHeader(request.organizationHeader))
@@ -113,47 +102,12 @@ export class OrganizationContextResolver {
     const projectHeader = normalizeHeader(request.projectHeader);
     const projectScope = projectHeader ? await this.#narrowToRequestedProject(keyScope, organization.id, projectHeader) : keyScope;
 
-    return { organizationId: organization.id, organizationType: organization.type, role, projectScope, mode };
+    return { organizationId: organization.id, organizationType: organization.type, role, projectScope };
   }
 
   /** Work bound to one organization, such as a job queued for a member, resolves as a key bound to it does: a member who left is refused, and nothing is remembered as last used. */
-  async resolveBoundTo(user: OrganizationContextRequest["user"], organizationId: string): Promise<OrganizationContext | undefined> {
+  async resolveBoundTo(user: OrganizationContextRequest["user"], organizationId: string): Promise<OrganizationContext> {
     return await this.resolve({ user, apiKey: { organizationId, projectId: null } });
-  }
-
-  async #resolvePersonalContext({ user, apiKey }: OrganizationContextRequest, mode: AuthorizationMode): Promise<OrganizationContext | undefined> {
-    const membership = await this.#personalMembershipUnlessUnavailable(user, mode, apiKey);
-
-    if (!membership) return undefined;
-
-    const { organization } = membership;
-
-    if (apiKey?.organizationId && apiKey.organizationId !== organization.id) {
-      throw createError(403, "The API key belongs to an organization this request cannot run in", { errorCode: ORGANIZATION_FORBIDDEN_ERROR_CODE });
-    }
-
-    if (apiKey?.projectId && mode === "legacy") {
-      throw createError(403, "The API key is limited to a project this request cannot be limited to", { errorCode: PROJECT_FORBIDDEN_ERROR_CODE });
-    }
-
-    const projectScope: ProjectScope = apiKey?.projectId ? narrowTo({ kind: "all" }, apiKey.projectId) : { kind: "all" };
-
-    return { organizationId: organization.id, organizationType: organization.type, role: "owner", projectScope, mode };
-  }
-
-  async #personalMembershipUnlessUnavailable(
-    user: OrganizationContextRequest["user"],
-    mode: AuthorizationMode,
-    apiKey: OrganizationContextRequest["apiKey"]
-  ): Promise<MembershipWithProjectAccess | undefined> {
-    try {
-      return await this.#personalMembership(user);
-    } catch (error) {
-      if (mode === "organization" || apiKey?.organizationId || apiKey?.projectId) throw error;
-
-      this.#logger.error({ event: "PERSONAL_ORGANIZATION_CONTEXT_UNAVAILABLE", userId: user.id, error });
-      return undefined;
-    }
   }
 
   /** A terminated user lands on their personal organization rather than the team they used last, which would refuse every request of theirs. */

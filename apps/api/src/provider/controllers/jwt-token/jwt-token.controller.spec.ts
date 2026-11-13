@@ -257,10 +257,6 @@ describe(JwtTokenController.name, () => {
         name: "in their personal organization",
         organizationContext: createOrganizationContext({ organizationType: "personal", projectScope: { kind: "all" } })
       },
-      {
-        name: "while organizations are off for them",
-        organizationContext: createOrganizationContext({ organizationType: "personal", projectScope: { kind: "all" }, mode: "legacy" })
-      },
       { name: "without an organization", organizationContext: undefined }
     ])("grants a caller $name a token of any lifetime", async ({ organizationContext }) => {
       const user = createUser();

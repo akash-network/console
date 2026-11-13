@@ -48,7 +48,7 @@ describe(requireFeatureFlag.name, () => {
 
     await request(GUARDED_PATH);
 
-    expect(featureFlagsService.isEnabled).toHaveBeenCalledWith(FeatureFlags.ORGANIZATIONS);
+    expect(featureFlagsService.isEnabled).toHaveBeenCalledWith(FeatureFlags.TEMPLATE_MARKETPLACE);
   });
 
   function setup(input: { flagOn: boolean }) {
@@ -58,7 +58,7 @@ describe(requireFeatureFlag.name, () => {
 
     const app = new Hono();
     app.notFound(c => c.text(NOT_FOUND_BODY, 404));
-    app.use(GUARDED_PATH, requireFeatureFlag(FeatureFlags.ORGANIZATIONS));
+    app.use(GUARDED_PATH, requireFeatureFlag(FeatureFlags.TEMPLATE_MARKETPLACE));
     app.get(GUARDED_PATH, c => c.text(GUARDED_BODY));
 
     return { featureFlagsService, request: (path: string) => app.request(path) };

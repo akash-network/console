@@ -230,7 +230,6 @@ describe(ActivityService.name, () => {
         "the user's account is terminated",
         { access: createError(403, "Your account has been terminated", { errorCode: ACCOUNT_TERMINATED_ERROR_CODE }), projectId: faker.string.uuid() }
       ],
-      ["no organization context resolves for the user", { access: "no_context" as const, projectId: faker.string.uuid() }],
       ["the member cannot see the alert's project", { access: projectScopeOf([faker.string.uuid()]), projectId: faker.string.uuid() }],
       ["the alert is in no project and the member reaches only some", { access: projectScopeOf([faker.string.uuid()]), projectId: null }]
     ])("writes nothing and says so when %s", async (_, { access, projectId }) => {
@@ -575,8 +574,8 @@ describe(ActivityService.name, () => {
       expect(readRepository.findPage).toHaveBeenCalledWith({ limit: 21, after: position, status: "failed", type: "deployment_close", feed: undefined });
     });
 
-    it("reads only the feed of the organization the request runs in, in organization mode", async () => {
-      const { service, readRepository, organizationContext } = setup({ requestContext: { mode: "organization", organizationType: "team" } });
+    it("reads only the feed of the organization the request runs in", async () => {
+      const { service, readRepository, organizationContext } = setup({ requestContext: { organizationType: "team" } });
       readRepository.findPage.mockResolvedValue([]);
 
       await service.list({ limit: 20 });
@@ -584,18 +583,9 @@ describe(ActivityService.name, () => {
       expect(readRepository.findPage).toHaveBeenCalledWith(expect.objectContaining({ feed: organizationContext }));
     });
 
-    it("reads the user's whole feed for a request on the legacy rules", async () => {
-      const { service, readRepository } = setup({ requestContext: { mode: "legacy", organizationType: "personal" } });
-      readRepository.findPage.mockResolvedValue([]);
-
-      await service.list({ limit: 20 });
-
-      expect(readRepository.findPage).toHaveBeenCalledWith(expect.objectContaining({ feed: undefined }));
-    });
-
     it("reads the whole feed of the organization an API key bound to no project runs in", async () => {
       const { service, readRepository, organizationContext } = setup({
-        requestContext: { mode: "organization", organizationType: "team", projectScope: projectScopeOf([faker.string.uuid()]) },
+        requestContext: { organizationType: "team", projectScope: projectScopeOf([faker.string.uuid()]) },
         apiKey: { projectId: null }
       });
       readRepository.findPage.mockResolvedValue([]);
@@ -607,7 +597,7 @@ describe(ActivityService.name, () => {
 
     it("reads only what concerns the deployments of the projects a project-bound API key still reaches", async () => {
       const { service, readRepository, organizationContext } = setup({
-        requestContext: { mode: "organization", organizationType: "team", projectScope: projectScopeOf([]) },
+        requestContext: { organizationType: "team", projectScope: projectScopeOf([]) },
         apiKey: { projectId: faker.string.uuid() }
       });
       readRepository.findPage.mockResolvedValue([]);
@@ -620,7 +610,7 @@ describe(ActivityService.name, () => {
     it("reads only what concerns the key's own project when the request reaches every project", async () => {
       const keyProjectId = faker.string.uuid();
       const { service, readRepository, organizationContext } = setup({
-        requestContext: { mode: "organization", organizationType: "team", projectScope: { kind: "all" } },
+        requestContext: { organizationType: "team", projectScope: { kind: "all" } },
         apiKey: { projectId: keyProjectId }
       });
       readRepository.findPage.mockResolvedValue([]);
@@ -628,18 +618,6 @@ describe(ActivityService.name, () => {
       await service.list({ limit: 20 });
 
       expect(readRepository.findPage).toHaveBeenCalledWith(expect.objectContaining({ feed: { ...organizationContext, projectIds: [keyProjectId] } }));
-    });
-
-    it("reads the user's whole feed for an API key on the legacy rules", async () => {
-      const { service, readRepository } = setup({
-        requestContext: { mode: "legacy", organizationType: "personal" },
-        apiKey: { projectId: faker.string.uuid() }
-      });
-      readRepository.findPage.mockResolvedValue([]);
-
-      await service.list({ limit: 20 });
-
-      expect(readRepository.findPage).toHaveBeenCalledWith(expect.objectContaining({ feed: undefined }));
     });
 
     it("refuses a cursor it cannot read before querying", async () => {
@@ -663,7 +641,7 @@ describe(ActivityService.name, () => {
     });
 
     it("reads among all of a signed-in user's activities, whichever organization the request runs in", async () => {
-      const { service, readRepository } = setup({ requestContext: { mode: "organization", organizationType: "team" } });
+      const { service, readRepository } = setup({ requestContext: { organizationType: "team" } });
       const activity = createActivity();
       readRepository.findByIdListedIn.mockResolvedValue(activity);
 
@@ -674,7 +652,7 @@ describe(ActivityService.name, () => {
 
     it("reads only within the feed of the organization an API key runs in", async () => {
       const { service, readRepository, organizationContext } = setup({
-        requestContext: { mode: "organization", organizationType: "team" },
+        requestContext: { organizationType: "team" },
         apiKey: { projectId: null }
       });
       const activity = createActivity();
@@ -688,7 +666,7 @@ describe(ActivityService.name, () => {
     it("reads only what concerns the deployments of a project-bound API key's project", async () => {
       const projectId = faker.string.uuid();
       const { service, readRepository, organizationContext } = setup({
-        requestContext: { mode: "organization", organizationType: "team", projectScope: projectScopeOf([projectId]) },
+        requestContext: { organizationType: "team", projectScope: projectScopeOf([projectId]) },
         apiKey: { projectId }
       });
       const activity = createActivity();
@@ -710,8 +688,8 @@ describe(ActivityService.name, () => {
       expect(readRepository.countUnseen).toHaveBeenCalledWith(undefined);
     });
 
-    it("counts only the unseen activities of the organization the request runs in, in organization mode", async () => {
-      const { service, readRepository, organizationContext } = setup({ requestContext: { mode: "organization", organizationType: "personal" } });
+    it("counts only the unseen activities of the organization the request runs in", async () => {
+      const { service, readRepository, organizationContext } = setup({ requestContext: { organizationType: "personal" } });
       readRepository.countUnseen.mockResolvedValue(2);
 
       expect(await service.countUnseen()).toBe(2);
@@ -731,8 +709,8 @@ describe(ActivityService.name, () => {
       expect(updateRepository.markSeen).toHaveBeenCalledWith(selection, undefined);
     });
 
-    it("marks seen and counts only within the organization the request runs in, in organization mode", async () => {
-      const { service, updateRepository, readRepository, organizationContext } = setup({ requestContext: { mode: "organization", organizationType: "team" } });
+    it("marks seen and counts only within the organization the request runs in", async () => {
+      const { service, updateRepository, readRepository, organizationContext } = setup({ requestContext: { organizationType: "team" } });
       readRepository.countUnseen.mockResolvedValue(0);
       const selection = { upTo: "2026-10-26T10:00:00.000Z" };
 
@@ -745,7 +723,7 @@ describe(ActivityService.name, () => {
     it("marks seen and counts only what concerns the deployments of a project-bound API key's project", async () => {
       const projectId = faker.string.uuid();
       const { service, updateRepository, readRepository, organizationContext } = setup({
-        requestContext: { mode: "organization", organizationType: "team", projectScope: projectScopeOf([projectId]) },
+        requestContext: { organizationType: "team", projectScope: projectScopeOf([projectId]) },
         apiKey: { projectId }
       });
       readRepository.countUnseen.mockResolvedValue(0);
@@ -793,9 +771,9 @@ describe(ActivityService.name, () => {
 
   function setup(
     input: {
-      access?: ProjectScope | "not_a_member" | "no_context" | Error;
+      access?: ProjectScope | "not_a_member" | Error;
       userExists?: boolean;
-      requestContext?: Pick<OrganizationContext, "mode" | "organizationType"> & Partial<Pick<OrganizationContext, "projectScope">>;
+      requestContext?: Pick<OrganizationContext, "organizationType"> & Partial<Pick<OrganizationContext, "projectScope">>;
       apiKey?: Pick<ApiKeyOutput, "projectId">;
     } = {}
   ) {
@@ -822,8 +800,6 @@ describe(ActivityService.name, () => {
       organizationContextResolver.resolveBoundTo.mockRejectedValue(
         createError(403, "Not a member of this organization", { errorCode: ORGANIZATION_FORBIDDEN_ERROR_CODE })
       );
-    } else if (access === "no_context") {
-      organizationContextResolver.resolveBoundTo.mockResolvedValue(undefined);
     } else if (access instanceof Error) {
       organizationContextResolver.resolveBoundTo.mockRejectedValue(access);
     } else {

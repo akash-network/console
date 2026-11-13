@@ -11,8 +11,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ActivityRepository } from "@src/activity/repositories/activity/activity.repository";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { type ApiPgDatabase, type EnqueueOptions, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { LEASE_CLOSED_BEFORE_MANIFEST_ERROR_CODE } from "@src/deployment/services/lease/lease.service";
 import { ACCESS_REVOKED_ERROR_CODE } from "@src/deployment/services/member-deployment-access/member-deployment-access.service";
 import { pendingLeaseActivityOf } from "@src/deployment/utils/lease-activity/lease-activity";
@@ -179,7 +177,6 @@ describe(CreateLeaseHandler.name, () => {
   });
 
   async function setup(input: { inTeam?: boolean; revoke?: Revocation; leaseOnChain?: "active" | "closed" } = {}) {
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.ORGANIZATIONS_ENFORCE);
     const { enqueue, startWorkers } = await jobWorkers();
     const activityRepository = container.resolve(ActivityRepository);
     const team = input.inTeam ? await seedTeamDeployment() : undefined;

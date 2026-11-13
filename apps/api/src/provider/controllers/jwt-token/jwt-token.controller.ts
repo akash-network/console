@@ -69,7 +69,7 @@ function holdsRevocableAccess(organizationContext: OrganizationContext | undefin
 }
 
 function isLimitedToProjects(organizationContext: OrganizationContext | undefined): boolean {
-  return organizationContext?.mode === "organization" && organizationContext.projectScope.kind === "projects";
+  return organizationContext?.projectScope.kind === "projects";
 }
 
 type DeploymentGrant = { dseq: string; scope: unknown };

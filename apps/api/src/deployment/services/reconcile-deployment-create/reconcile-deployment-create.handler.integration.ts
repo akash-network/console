@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ActivityStatus } from "@src/activity/model-schemas";
 import { ActivityRepository } from "@src/activity/repositories/activity/activity.repository";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
+import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import { JOB_NAME } from "@src/core";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { CreateDeploymentHandler } from "@src/deployment/services/create-deployment/create-deployment.handler";
@@ -125,6 +126,7 @@ describe(ReconcileDeploymentCreateHandler.name, () => {
     const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
     const { user, address: owner } = await seedUserWithWallet();
     vi.spyOn(container.resolve(ManagedSignerService), "assertCanBroadcast").mockResolvedValue(undefined);
+    answerAktPrice();
     const { accepted } = await runAsUser(user, () => container.resolve(DeploymentWriterService).acceptCreate({ userId: user.id, sdl: SDL }));
     const { dseq } = accepted;
     const setting = await deploymentSettingRepository.findOneBy({ userId: user.id, dseq });
@@ -157,9 +159,22 @@ describe(ReconcileDeploymentCreateHandler.name, () => {
       findActivity: async () => await activityRepository.findById(activity.id),
       findSetting: async () => await deploymentSettingRepository.findOneBy({ userId: user.id, dseq }),
       findCompensation: async () => {
-        const [compensation] = await findJobRows(DeleteUnbackedDeploymentSetting[JOB_NAME], { singletonKey: `deleteUnbackedDeploymentSetting.${user.id}.${dseq}` });
+        const [compensation] = await findJobRows(DeleteUnbackedDeploymentSetting[JOB_NAME], {
+          singletonKey: `deleteUnbackedDeploymentSetting.${user.id}.${dseq}`
+        });
         return compensation;
       }
     };
+  }
+
+  function answerAktPrice() {
+    vi.spyOn(container.resolve(DenomExchangeService), "getExchangeRateToUSD").mockResolvedValue({
+      price: 2,
+      volume: 0,
+      marketCap: 0,
+      marketCapRank: 0,
+      priceChange24h: 0,
+      priceChangePercentage24: 0
+    });
   }
 });

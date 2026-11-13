@@ -11,7 +11,6 @@ import { mock } from "vitest-mock-extended";
 import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
-import { AuthService } from "@src/auth/services/auth.service";
 import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { STANDARD_TOP_UP_MIN_AMOUNT_USD } from "@src/billing/config";
@@ -19,8 +18,6 @@ import type { WalletListOutputResponse } from "@src/billing/http-schemas/wallet.
 import { BILLING_CONFIG } from "@src/billing/providers";
 import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import { type ApiPgDatabase, CORE_CONFIG, POSTGRES_DB, resolveTable } from "@src/core";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories";
@@ -200,15 +197,6 @@ describe("Organization trial", () => {
     );
   }
 
-  function enableOrganizationsFor(userIds: string[]) {
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation((flag, context) => {
-      if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
-      if (flag !== FeatureFlags.ORGANIZATIONS) return true;
-
-      return userIds.includes(context?.userId ?? container.resolve(AuthService).safeCurrentUser?.id ?? "");
-    });
-  }
-
   async function setupTrialUser() {
     nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .get(/\/cosmos\/feegrant\/v1beta1\/allowances\/.*/)
@@ -227,7 +215,6 @@ describe("Organization trial", () => {
       .select()
       .from(organizations)
       .where(and(eq(organizations.createdByUserId, user.id), eq(organizations.type, "personal")));
-    enableOrganizationsFor([user.id]);
 
     return { user: user as { id: string }, wallet, personal, authorization: `Bearer ${token}` };
   }
@@ -248,7 +235,6 @@ describe("Organization trial", () => {
     vi.spyOn(container.resolve(Auth0Service), "getUser").mockImplementation(async userId =>
       userId === externalUserId ? mock<GetUsers200ResponseOneOfInner>({ user_id: userId, email: user.email!, email_verified: true }) : null
     );
-    enableOrganizationsFor([user.id]);
 
     return { user, personal, team, teamWallet, authorization: `Bearer ${token}` };
   }

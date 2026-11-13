@@ -29,7 +29,7 @@ class ProjectFilingRepository extends ExposedProjectMemberRepository {
 }
 
 describe(OrgScopedRepository.name, () => {
-  describe("in organization mode", () => {
+  describe("within an organization context", () => {
     it.each(scopedOperations())("narrows %s to the active organization", async (_, operation) => {
       const context = createOrganizationContext();
       const { repository, executedQueries, runInContext } = setup({ context, inTransaction: true });
@@ -177,7 +177,7 @@ describe(OrgScopedRepository.name, () => {
 
     it("keeps the project an insert names", async () => {
       const projectId = faker.string.uuid();
-      const { repository, executedQueries, runInContext } = setup({ context: createOrganizationContext({ mode: "legacy" }), filesIntoProjects: true });
+      const { repository, executedQueries, runInContext } = setup({ context: createOrganizationContext(), filesIntoProjects: true });
 
       await runInContext(() => repository.create(createProjectMemberInput({ projectId })));
 
@@ -227,42 +227,6 @@ describe(OrgScopedRepository.name, () => {
       const { repository } = setup({});
 
       expect(() => repository.requireWrittenRow(undefined)).toThrow(expect.objectContaining({ status: 403, errorCode: ORGANIZATION_FORBIDDEN_ERROR_CODE }));
-    });
-  });
-
-  describe("in legacy mode", () => {
-    it("leaves reads to the user-keyed rules", async () => {
-      const { repository, executedQueries, runInContext } = setup({ context: createOrganizationContext({ mode: "legacy" }) });
-
-      await runInContext(() => repository.find({ userId: faker.string.uuid() }));
-
-      expect(executedQueries).toEqual([expect.objectContaining({ query: expect.not.stringMatching(ORGANIZATION_PREDICATE) })]);
-    });
-
-    it("still attributes inserts to the active organization", async () => {
-      const context = createOrganizationContext({ mode: "legacy" });
-      const { repository, executedQueries, runInContext } = setup({ context });
-
-      await runInContext(() => repository.create(createProjectMemberInput()));
-
-      expect(executedQueries).toEqual([expect.objectContaining({ params: expect.arrayContaining([context.organizationId]) })]);
-    });
-
-    it("rejects an insert naming another organization", async () => {
-      const { repository, runInContext } = setup({ context: createOrganizationContext({ mode: "legacy" }) });
-
-      await expect(runInContext(() => repository.create(createProjectMemberInput({ organizationId: faker.string.uuid() })))).rejects.toMatchObject({
-        status: 403
-      });
-    });
-
-    it("rejects an update that sets the organization of a row", async () => {
-      const { repository, executedQueries, runInContext } = setup({ context: createOrganizationContext({ mode: "legacy" }) });
-
-      await expect(runInContext(() => repository.updateManyById([faker.string.uuid()], { organizationId: faker.string.uuid() }))).rejects.toMatchObject({
-        status: 403
-      });
-      expect(executedQueries).toEqual([]);
     });
   });
 

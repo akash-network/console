@@ -13,6 +13,7 @@ import { CORE_CONFIG } from "@src/core";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { MAX_DEPLOYMENT_NAME_LENGTH } from "@src/deployment/utils/deployment-name/deployment-name";
+import { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import { app } from "@src/rest-app";
 import { deploymentVersion, marketVersion } from "@src/utils/constants";
 
@@ -34,6 +35,7 @@ const STORED_SDL = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world
 
 describe("PATCH /v1/deployments/{dseq} route wiring", () => {
   const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+  const personalOrganizationService = container.resolve(PersonalOrganizationService);
 
   beforeAll(async () => {
     await startJobQueues();
@@ -375,6 +377,8 @@ describe("PATCH /v1/deployments/{dseq} route wiring", () => {
     } else if (input.recordsName) {
       await deploymentSettingRepository.create({ userId: user.id, dseq: DSEQ, name: input.recordsName });
     }
+
+    await personalOrganizationService.adoptUserRows(user, await personalOrganizationService.ensureForUser(user));
 
     return { user, apiKey, sentManifests, broadcastMessages };
   }

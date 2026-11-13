@@ -8,8 +8,6 @@ import type { ApiKeyExpiryReminderScheduler } from "@src/auth/services/api-key-e
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { TxService } from "@src/core";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { ProjectOutput, ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import { ApiKeyService } from "./api-key.service";
@@ -102,11 +100,10 @@ describe(ApiKeyService.name, () => {
 
     it("binds the key to a reachable project of the active organization", async () => {
       const project = createProject();
-      const { service, apiKeyRepository, projectRepository, featureFlagsService, ability, user } = setup({ project });
+      const { service, apiKeyRepository, projectRepository, ability } = setup({ project });
 
       await service.create({ name: "ci", projectId: project.id });
 
-      expect(featureFlagsService.isEnabled).toHaveBeenCalledWith(FeatureFlags.ORGANIZATIONS, { userId: user.id });
       expect(projectRepository.accessibleBy).toHaveBeenCalledWith(ability, "read");
       expect(projectRepository.findOneBy).toHaveBeenCalledWith({ id: project.id, deletedAt: null });
       expect(apiKeyRepository.create).toHaveBeenCalledWith(expect.objectContaining({ projectId: project.id }));
@@ -143,21 +140,12 @@ describe(ApiKeyService.name, () => {
       expect(apiKeyRepository.create).not.toHaveBeenCalled();
     });
 
-    it("rejects a project while organizations are off for the caller", async () => {
+    it("rejects a project for a request without an organization context", async () => {
       const project = createProject();
-      const { service, apiKeyRepository, projectRepository } = setup({ project, organizationsOn: false });
+      const { service, apiKeyRepository, projectRepository } = setup({ project, organizationContext: null });
 
       await expect(service.create({ name: "ci", projectId: project.id })).rejects.toMatchObject({ status: 404 });
       expect(projectRepository.findOneBy).not.toHaveBeenCalled();
-      expect(apiKeyRepository.create).not.toHaveBeenCalled();
-    });
-
-    it("rejects a project for a request without an organization context", async () => {
-      const project = createProject();
-      const { service, apiKeyRepository, featureFlagsService } = setup({ project, organizationContext: null });
-
-      await expect(service.create({ name: "ci", projectId: project.id })).rejects.toMatchObject({ status: 404 });
-      expect(featureFlagsService.isEnabled).not.toHaveBeenCalled();
       expect(apiKeyRepository.create).not.toHaveBeenCalled();
     });
   });
@@ -192,7 +180,6 @@ describe(ApiKeyService.name, () => {
     input: {
       project?: ProjectOutput;
       organizationContext?: OrganizationContext | null;
-      organizationsOn?: boolean;
     } = {}
   ) {
     const user = createUser();
@@ -212,7 +199,6 @@ describe(ApiKeyService.name, () => {
     const executionContextService = mock<ExecutionContextService>({
       get: vi.fn().mockImplementation(key => (key === "ORGANIZATION_CONTEXT" ? organizationContext : undefined))
     });
-    const featureFlagsService = mock<FeatureFlagsService>({ isEnabled: vi.fn().mockReturnValue(input.organizationsOn ?? true) });
     const txService = mock<TxService>({ transaction: vi.fn(cb => cb()) });
     const expiryReminderScheduler = mock<ApiKeyExpiryReminderScheduler>();
     const service = new ApiKeyService(
@@ -221,7 +207,6 @@ describe(ApiKeyService.name, () => {
       authService,
       apiKeyGenerator,
       executionContextService,
-      featureFlagsService,
       txService,
       expiryReminderScheduler
     );
@@ -230,7 +215,6 @@ describe(ApiKeyService.name, () => {
       service,
       apiKeyRepository,
       projectRepository,
-      featureFlagsService,
       txService,
       expiryReminderScheduler,
       ability: authService.ability,

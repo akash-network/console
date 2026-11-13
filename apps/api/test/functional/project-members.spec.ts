@@ -8,8 +8,6 @@ import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-gener
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { OrganizationRole, ProjectAccess } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import type { ProjectRole } from "@src/organization/model-schemas/project-member/project-member.schema";
 import { app } from "@src/rest-app";
@@ -143,14 +141,6 @@ describe("Project members", () => {
       const response = await actAs(caller)(`/v1/projects/${project.id}/members`);
 
       expect(response.status).toBe(403);
-    });
-
-    it("answers like an unknown path while organizations are off for the caller", async () => {
-      const { project, owner, actAs } = await setup({ organizationsOn: false });
-
-      const response = await actAs(owner)(`/v1/projects/${project.id}/members`);
-
-      expect(response.status).toBe(404);
     });
   });
 
@@ -288,19 +278,6 @@ describe("Project members", () => {
       });
 
       expect(response.status).toBe(400);
-    });
-
-    it("answers like an unknown path while organizations are off for the caller", async () => {
-      const { project, owner, actAs, addMember } = await setup({ organizationsOn: false });
-      const grantee = await addMember("member");
-
-      const response = await actAs(owner)("/v1/project-members", {
-        method: "POST",
-        body: { data: { projectId: project.id, userId: grantee.id, role: "member" } }
-      });
-
-      expect(response.status).toBe(404);
-      expect(await grantsOf(grantee.id)).toEqual([]);
     });
   });
 
@@ -734,7 +711,7 @@ describe("Project members", () => {
     return { userId: `auth0|${faker.string.alphanumeric(24)}`, username: `user-${faker.string.alphanumeric(12)}`, email: faker.internet.email() };
   }
 
-  async function setup(input: { organizationsOn?: boolean } = {}) {
+  async function setup() {
     const { user: owner, organization: team, project: defaultProject } = await seedOrganizationWithOwner({ user: createSignedUpUserInput() });
     const project = await seedProject({ organizationId: team.id });
     const tokens = new Map<string, string>();
@@ -742,12 +719,6 @@ describe("Project members", () => {
     vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(
       async header => tokens.get(header.replace(/^Bearer +/i, "")) ?? null
     );
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => {
-      if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
-      if (flag !== FeatureFlags.ORGANIZATIONS) return true;
-
-      return input.organizationsOn !== false;
-    });
 
     const signIn = (user: UserOutput) => {
       const token = faker.string.alphanumeric(40);

@@ -6,10 +6,9 @@ export function createOrganizationContext({
   organizationId = faker.string.uuid(),
   organizationType = "team",
   role = "owner",
-  projectScope = { kind: "all" },
-  mode = "organization"
+  projectScope = { kind: "all" }
 }: Partial<OrganizationContext> = {}): OrganizationContext {
-  return { organizationId, organizationType, role, projectScope, mode };
+  return { organizationId, organizationType, role, projectScope };
 }
 
 export function createProjectsScope(

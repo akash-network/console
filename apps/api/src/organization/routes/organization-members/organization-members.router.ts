@@ -1,7 +1,6 @@
 import { container } from "tsyringe";
 
 import { createRoute } from "@src/core/lib/create-route/create-route";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER, SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 import { OrganizationMemberController } from "@src/organization/controllers/organization-member/organization-member.controller";
@@ -37,7 +36,6 @@ const listOrganizationMembersRoute = createRoute({
   summary: "List the members of the active organization",
   tags: ["Organizations"],
   security: SECURITY_BEARER_OR_API_KEY,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   responses: {
     200: { description: "The organization's members", content: { "application/json": { schema: ListOrganizationMembersResponseSchema } } },
     400: { description: "The organization header names another organization than the API key's (`organization_mismatch`)" },
@@ -57,7 +55,6 @@ const listOrganizationMemberProjectGrantsRoute = createRoute({
   summary: "List the project grants of a member of the active organization, for an owner or admin editing them",
   tags: ["Organizations"],
   security: SECURITY_BEARER_OR_API_KEY,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: {
     params: OrganizationMemberParamsSchema
   },
@@ -84,7 +81,6 @@ const updateOrganizationMemberRoute = createRoute({
   description: "Making someone an owner requires a signed-in Console session.",
   tags: ["Organizations"],
   security: SECURITY_BEARER_OR_API_KEY,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: {
     params: OrganizationMemberParamsSchema,
     body: { required: true, content: { "application/json": { schema: UpdateOrganizationMemberRequestSchema } } }
@@ -117,7 +113,6 @@ const deleteOrganizationMemberRoute = createRoute({
   summary: "Remove a member from the active organization",
   tags: ["Organizations"],
   security: SECURITY_BEARER_OR_API_KEY,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: {
     params: OrganizationMemberParamsSchema
   },
@@ -146,7 +141,6 @@ const transferOrganizationOwnershipRoute = createRoute({
   description: "Requires a signed-in Console session. A request authenticated with an API key is refused.",
   tags: ["Organizations"],
   security: SECURITY_BEARER,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: {
     params: OrganizationMemberParamsSchema
   },

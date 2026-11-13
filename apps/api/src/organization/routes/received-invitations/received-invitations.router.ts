@@ -1,7 +1,6 @@
 import { container } from "tsyringe";
 
 import { createRoute } from "@src/core/lib/create-route/create-route";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER } from "@src/core/services/openapi-docs/openapi-security";
 import { InvitationController } from "@src/organization/controllers/invitation/invitation.controller";
@@ -30,7 +29,6 @@ const listReceivedInvitationsRoute = createRoute({
   description: "An account whose email is not verified receives none, since anyone can sign up with an address they do not own.",
   tags: ["Organizations"],
   security: SECURITY_BEARER,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   responses: {
     200: { description: "The invitations the caller can still accept", content: { "application/json": { schema: ListReceivedInvitationsResponseSchema } } },
     401: { description: "Unauthorized" },
@@ -49,7 +47,6 @@ const acceptReceivedInvitationRoute = createRoute({
   summary: "Join the organization of an invitation sent to the caller's verified email, without the token of its link",
   tags: ["Organizations"],
   security: SECURITY_BEARER,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: {
     params: ReceivedInvitationParamsSchema
   },
@@ -77,7 +74,6 @@ const declineReceivedInvitationRoute = createRoute({
   description: "Declining an invitation twice changes nothing. The team's activity shows the invited address, not the account that declined.",
   tags: ["Organizations"],
   security: SECURITY_BEARER,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: {
     params: ReceivedInvitationParamsSchema
   },

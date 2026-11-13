@@ -23,10 +23,10 @@ probeRouter.openapi(
     method: "post",
     path: PROBE_PATH,
     operationId: "createFeatureFlagGateProbe",
-    summary: "Test-only route behind the organizations flag",
+    summary: "Test-only route behind the template marketplace flag",
     tags: ["Test"],
     security: SECURITY_BEARER_OR_API_KEY,
-    featureFlag: FeatureFlags.ORGANIZATIONS,
+    featureFlag: FeatureFlags.TEMPLATE_MARKETPLACE,
     request: {
       body: {
         required: true,
@@ -91,7 +91,7 @@ describe("Route behind a feature flag", () => {
   });
 
   it("answers like an unknown path to an anonymous caller the flag is off for", async () => {
-    enableOrganizationsFlagOnlyFor(faker.string.uuid());
+    enableFlagOnlyFor(faker.string.uuid());
 
     const response = await probe({}, validBody());
 
@@ -152,14 +152,14 @@ describe("Route behind a feature flag", () => {
       header.replace(/^Bearer +/i, "") === bearerToken ? user.userId! : null
     );
     const apiKey = await seedApiKey(user.id);
-    enableOrganizationsFlagOnlyFor(input.flagOn ? user.id : faker.string.uuid());
+    enableFlagOnlyFor(input.flagOn ? user.id : faker.string.uuid());
 
     return { user, bearer: `Bearer ${bearerToken}`, apiKey };
   }
 
-  function enableOrganizationsFlagOnlyFor(userId: string) {
+  function enableFlagOnlyFor(userId: string) {
     vi.spyOn(featureFlagsService, "isEnabled").mockImplementation(
-      flag => flag !== FeatureFlags.ORGANIZATIONS || container.resolve(AuthService).safeCurrentUser?.id === userId
+      flag => flag !== FeatureFlags.TEMPLATE_MARKETPLACE || container.resolve(AuthService).safeCurrentUser?.id === userId
     );
   }
 

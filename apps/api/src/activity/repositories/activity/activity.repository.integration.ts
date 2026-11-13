@@ -5,11 +5,13 @@ import { describe, expect, it } from "vitest";
 import { deploymentCloseDedupeKeyOf } from "@src/activity/lib/dedupe-key/dedupe-key";
 import type { ActivityInitiator, ActivityMeta, ActivityStatus, ActivityType, AlertActivityType } from "@src/activity/model-schemas";
 import { AbilityService } from "@src/auth/services/ability/ability.service";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { type ActivityFeed, ActivityRepository, isDedupeKeyTaken, isUnknownUser, type PendingActivitySummary } from "./activity.repository";
 
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { seedOrganization, seedOrganizationWithOwner, seedProject } from "@test/seeders/db/organization.seeder";
+import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 
 describe(ActivityRepository.name, () => {
   const OWNER = "akash1personal";
@@ -588,10 +590,16 @@ describe(ActivityRepository.name, () => {
     const repository = container.resolve(ActivityRepository);
     const userRepository = container.resolve(UserRepository);
     const abilityService = container.resolve(AbilityService);
+    const executionContextService = container.resolve(ExecutionContextService);
 
     async function createUser() {
       const user = await userRepository.create({ userId: faker.string.uuid() });
-      return { id: user.id, ability: abilityService.getAbilityFor("REGULAR_USER", user) };
+      const ability = await executionContextService.runWithContext(async () => {
+        executionContextService.set("ORGANIZATION_CONTEXT", createOrganizationContext());
+        return abilityService.getAbilityFor("REGULAR_USER", user);
+      });
+
+      return { id: user.id, ability };
     }
 
     async function seed(

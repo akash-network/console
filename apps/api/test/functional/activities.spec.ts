@@ -7,8 +7,6 @@ import { ActivityRepository } from "@src/activity/repositories/activity/activity
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { systemClosedActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { app } from "@src/rest-app";
@@ -123,7 +121,6 @@ describe("Activities", () => {
       const { user, token } = await setup();
       const { organization: team } = await seedOrganizationWithOwner();
       await seedOrganizationMember({ organizationId: team.id, userId: user.id });
-      vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.ORGANIZATIONS_ENFORCE);
       const teamClose = await activityRepository.create({
         ...systemClosedActivityOf({ userId: user.id, owner: createAkashAddress(), dseq: "1004", reason: "runtime_limit_reached" }),
         organizationId: team.id
@@ -474,7 +471,6 @@ describe("Activities", () => {
     const { organization: team, project, user: owner } = await seedOrganizationWithOwner();
     const otherProject = await seedProject({ organizationId: team.id });
     await seedOrganizationMember({ organizationId: team.id, userId, role });
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.ORGANIZATIONS_ENFORCE);
 
     return { personal, team, project, otherProject, owner };
   }

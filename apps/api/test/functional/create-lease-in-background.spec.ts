@@ -8,15 +8,13 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 
 import { ActivityRepository } from "@src/activity/repositories/activity/activity.repository";
 import { startJobQueues } from "@src/app/providers/jobs.provider";
-import { AuthService } from "@src/auth/services/auth.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { type ApiPgDatabase, CORE_CONFIG, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { CreateLeaseHandler } from "@src/deployment/services/create-lease/create-lease.handler";
 import { CreateLease, createLeaseKeyFor } from "@src/deployment/services/create-lease/create-lease.job";
 import { ReconcileLeaseCreate } from "@src/deployment/services/reconcile-lease-create/reconcile-lease-create.job";
+import { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { app } from "@src/rest-app";
 import { deploymentVersion, marketVersion } from "@src/utils/constants";
@@ -193,7 +191,6 @@ describe("POST /v1/leases?async=true", () => {
       });
       const provider = createAkashAddress();
       const authorization = signIn(caller.userId!);
-      enableOrganizationsFor(caller.id);
       mockChain({ owner: teamWallet.address, dseq, provider });
       const { signerService, providerService } = stubSignerAndProviders();
 
@@ -239,15 +236,6 @@ describe("POST /v1/leases?async=true", () => {
 
       return `Bearer ${token}`;
     }
-
-    function enableOrganizationsFor(userId: string) {
-      vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation((flag, context) => {
-        if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
-        if (flag !== FeatureFlags.ORGANIZATIONS) return true;
-
-        return (context?.userId ?? container.resolve(AuthService).safeCurrentUser?.id) === userId;
-      });
-    }
   });
 
   async function setup(input: { bidState?: Bid["bid"]["state"]; recordsDefinition?: boolean } = {}) {
@@ -255,6 +243,8 @@ describe("POST /v1/leases?async=true", () => {
     const dseq = createDseq();
     const provider = createAkashAddress();
     if (input.recordsDefinition ?? true) await seedDeploymentSetting({ userId: user.id, dseq, sdl: HELLO_WORLD_SDL, manifestVersion: "AAAA" });
+    const personalOrganizationService = container.resolve(PersonalOrganizationService);
+    await personalOrganizationService.adoptUserRows(user, await personalOrganizationService.ensureForUser(user));
     const token = faker.string.alphanumeric(40);
     vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(async header =>
       header.replace(/^Bearer +/i, "") === token ? user.userId! : null

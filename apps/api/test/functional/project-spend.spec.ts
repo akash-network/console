@@ -5,8 +5,6 @@ import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { ListProjectSpendResponse } from "@src/organization/http-schemas/project-spend.schema";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { app, initDb } from "@src/rest-app";
@@ -221,14 +219,6 @@ describe("Project spend", () => {
       ]);
       expect(data.total?.committedUsd).toBe(1.5);
     });
-
-    it("answers 404 while organizations are off for the caller", async () => {
-      const { owner, actAs } = await setup({ organizationsOn: false });
-
-      const response = await actAs(owner)(`/v1/project-spend?${RANGE}`);
-
-      expect(response.status).toBe(404);
-    });
   });
 
   async function seedChainDays() {
@@ -337,7 +327,7 @@ describe("Project spend", () => {
     return { userId: `auth0|${faker.string.alphanumeric(24)}`, username: `user-${faker.string.alphanumeric(12)}`, email: faker.internet.email() };
   }
 
-  async function setup(input: { organizationsOn?: boolean; hasSpendHistory?: boolean } = {}) {
+  async function setup(input: { hasSpendHistory?: boolean } = {}) {
     const { user: owner, organization: team, project: defaultProject } = await seedOrganizationWithOwner({ user: createSignedUpUserInput() });
     const staging = await seedProject({ organizationId: team.id, createdAt: new Date(Date.now() + 1000) });
     const address = createAkashAddress();
@@ -354,12 +344,6 @@ describe("Project spend", () => {
     vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(
       async header => tokens.get(header.replace(/^Bearer +/i, "")) ?? null
     );
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => {
-      if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
-      if (flag !== FeatureFlags.ORGANIZATIONS) return true;
-
-      return input.organizationsOn !== false;
-    });
 
     const actAs = (user: UserOutput) => {
       const token = faker.string.alphanumeric(40);

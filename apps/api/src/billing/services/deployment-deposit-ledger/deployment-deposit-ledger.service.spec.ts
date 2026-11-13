@@ -17,11 +17,9 @@ import { ReconcileDeploymentDeposit } from "@src/billing/services/reconcile-depl
 import type { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import type { CreateLogger, JobQueueService } from "@src/core";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
-import { FeatureFlags, type FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
-import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { TxService } from "@src/core/services/tx/tx.service";
 import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
-import type { OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
+import type { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import type { ProjectOutput, ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import {
   type ProjectBudgetEnforcementService,
@@ -29,7 +27,7 @@ import {
 } from "@src/organization/services/project-budget-enforcement/project-budget-enforcement.service";
 import type { ProjectScope } from "@src/organization/types/organization-context";
 import type { UserOutput } from "@src/user/repositories";
-import { DeploymentDepositLedgerService, type PendingDeposits } from "./deployment-deposit-ledger.service";
+import { DeploymentDepositLedgerService } from "./deployment-deposit-ledger.service";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createOrganization } from "@test/seeders/organization.seeder";
@@ -49,7 +47,7 @@ describe(DeploymentDepositLedgerService.name, () => {
     ])("records nothing and reads no wallet for $case", async ({ message }) => {
       const { service, userWalletRepository, projectBudgetEnforcementService } = setup();
 
-      expect(await service.recordPending(1, [message()])).toEqual({ recorded: [], awaitingPrice: [] });
+      expect(await service.recordPending(1, [message()])).toEqual({ recorded: [] });
       expect(userWalletRepository.findById).not.toHaveBeenCalled();
       expect(projectBudgetEnforcementService.enforce).not.toHaveBeenCalled();
     });
@@ -76,7 +74,7 @@ describe(DeploymentDepositLedgerService.name, () => {
       expect(deploymentSettingRepository.findProjectIdsInOrganizationByDseqs).toHaveBeenCalledWith(wallet.organizationId, ["101"]);
       expect(projectBudgetEnforcementService.enforce).toHaveBeenCalledWith([row], expect.any(Function));
       expect(deploymentDepositRepository.createMany).toHaveBeenCalledWith([row]);
-      expect(recorded).toEqual({ recorded: [row], awaitingPrice: [] });
+      expect(recorded).toEqual({ recorded: [row] });
     });
 
     it("records the signed-in member as the actor of a request, whoever the signer names", async () => {
@@ -323,7 +321,7 @@ describe(DeploymentDepositLedgerService.name, () => {
         case: "scheduling the check of the pending rows",
         fail: (mocks: ReturnType<typeof setup>) => mocks.jobQueueService.enqueue.mockRejectedValue(new Error("down"))
       }
-    ])("refuses the signing when $case fails in organization mode", async ({ fail }) => {
+    ])("refuses the signing when $case fails", async ({ fail }) => {
       const mocks = setup();
       fail(mocks);
 
@@ -362,9 +360,7 @@ describe(DeploymentDepositLedgerService.name, () => {
     });
 
     it("refuses a deposit, inside the budgets' transaction, once the organization it is recorded in was deleted", async () => {
-      const { service, wallet, organizationRepository, deploymentDepositRepository, projectBudgetEnforcementService, jobQueueService } = setup({
-        walletOrganizationType: "team"
-      });
+      const { service, wallet, organizationRepository, deploymentDepositRepository, projectBudgetEnforcementService, jobQueueService } = setup();
       organizationRepository.findById.mockResolvedValue(createOrganization({ id: wallet.organizationId!, deletedAt: new Date() }));
 
       await expect(service.recordPending(wallet.id, [createMessage({ owner: wallet.address!, dseq: "14", denom: "uact" })])).rejects.toMatchObject({
@@ -393,7 +389,7 @@ describe(DeploymentDepositLedgerService.name, () => {
       const { service, wallet, projectBudgetEnforcementService } = setup();
       projectBudgetEnforcementService.enforce.mockResolvedValue(undefined);
 
-      expect(await service.recordPending(wallet.id, [createMessage({ owner: wallet.address!, dseq: "13" })])).toEqual({ recorded: [], awaitingPrice: [] });
+      expect(await service.recordPending(wallet.id, [createMessage({ owner: wallet.address!, dseq: "13" })])).toEqual({ recorded: [] });
     });
 
     describe("for a caller limited to some projects", () => {
@@ -470,148 +466,22 @@ describe(DeploymentDepositLedgerService.name, () => {
       const wallet = createUserWallet({ organizationId: null });
       userWalletRepository.findById.mockResolvedValue(wallet);
 
-      expect(await service.recordPending(wallet.id, [depositMessage({ owner: wallet.address!, dseq: "14" })])).toEqual({ recorded: [], awaitingPrice: [] });
+      expect(await service.recordPending(wallet.id, [depositMessage({ owner: wallet.address!, dseq: "14" })])).toEqual({ recorded: [] });
       expect(projectBudgetEnforcementService.enforce).not.toHaveBeenCalled();
       expect(logger.debug).toHaveBeenCalledWith({ event: "DEPLOYMENT_DEPOSIT_RECORD_SKIPPED", walletId: wallet.id, reason: "wallet_without_organization" });
     });
 
-    describe("for a request in legacy mode", () => {
-      it("records the deposits without budgets", async () => {
-        const { service, wallet, deploymentDepositRepository, projectBudgetEnforcementService } = setup({ mode: "legacy" });
-
-        await service.recordPending(wallet.id, [depositMessage({ owner: wallet.address!, dseq: "21" })]);
-
-        expect(projectBudgetEnforcementService.enforce).not.toHaveBeenCalled();
-        expect(deploymentDepositRepository.createMany).toHaveBeenCalledWith([expect.objectContaining({ dseq: "21" })]);
-      });
-
-      it("records a deposit into another owner's deployment as unassigned and ignores a message it does not read", async () => {
-        const { service, wallet, deploymentDepositRepository, deploymentSettingRepository } = setup({ mode: "legacy" });
-        const otherOwner = createAkashAddress();
-
-        await service.recordPending(wallet.id, [depositMessage({ owner: otherOwner, dseq: "26" }), { typeUrl: "/cosmos.bank.v1beta1.MsgSend", value: {} }]);
-
-        expect(deploymentSettingRepository.findProjectIdsInOrganizationByDseqs).toHaveBeenCalledWith(wallet.organizationId, []);
-        expect(deploymentDepositRepository.createMany).toHaveBeenCalledWith([expect.objectContaining({ owner: otherOwner, projectId: null })]);
-      });
-
-      it("records the well-formed deposits and leaves a malformed message to the chain", async () => {
-        const { service, wallet, deploymentDepositRepository } = setup({ mode: "legacy" });
-
-        await service.recordPending(wallet.id, [
-          depositMessage({ owner: wallet.address!, dseq: "22" }),
-          createMessage({ owner: wallet.address!, dseq: "23", amount: "-1" })
-        ]);
-
-        expect(deploymentDepositRepository.createMany).toHaveBeenCalledWith([expect.objectContaining({ dseq: "22" })]);
-      });
-
-      it("records nothing and reads no wallet when only a malformed message moves funds", async () => {
-        const { service, wallet, userWalletRepository } = setup({ mode: "legacy" });
-
-        expect(await service.recordPending(wallet.id, [createMessage({ owner: wallet.address!, dseq: "24", amount: "-1" })])).toEqual({
-          recorded: [],
-          awaitingPrice: []
-        });
-        expect(userWalletRepository.findById).not.toHaveBeenCalled();
-      });
-
-      it.each([
-        {
-          case: "the wallet cannot be read",
-          fail: (mocks: ReturnType<typeof setup>) => mocks.userWalletRepository.findById.mockRejectedValue(new Error("down"))
-        },
-        {
-          case: "the rows cannot be written",
-          fail: (mocks: ReturnType<typeof setup>) => mocks.deploymentDepositRepository.createMany.mockRejectedValue(new Error("down"))
-        },
-        {
-          case: "their check cannot be scheduled",
-          fail: (mocks: ReturnType<typeof setup>) => mocks.jobQueueService.enqueue.mockRejectedValue(new Error("down"))
-        }
-      ])("logs and lets the signer go on when $case", async ({ fail }) => {
-        const mocks = setup({ mode: "legacy" });
-        fail(mocks);
-
-        expect(await mocks.service.recordPending(mocks.wallet.id, [createMessage({ owner: mocks.wallet.address!, dseq: "25" })])).toEqual({
-          recorded: [],
-          awaitingPrice: []
-        });
-        expect(mocks.logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_DEPOSIT_RECORD_FAILED", walletId: mocks.wallet.id }));
-      });
-
-      it("schedules a check against the chain index for the rows it records, in the same transaction", async () => {
-        const { service, wallet, deploymentDepositRepository, jobQueueService, txService } = setup({ mode: "legacy" });
-        const recorded = createDeposit();
-        deploymentDepositRepository.createMany.mockResolvedValue([recorded]);
-
-        await service.recordPending(wallet.id, [createMessage({ owner: wallet.address!, dseq: "28", amount: "5000000", denom: "uact" })]);
-
-        expect(jobQueueService.enqueue).toHaveBeenCalledWith(new ReconcileDeploymentDeposit({ depositIds: [recorded.id] }), {
-          singletonKey: `ReconcileDeploymentDeposit.unsettled.${recorded.id}`,
-          startAfter: expect.any(String)
-        });
-        expect(deploymentDepositRepository.createMany.mock.invocationCallOrder[0]).toBeGreaterThan(txService.transaction.mock.invocationCallOrder[0]);
-      });
-
-      it("holds an akt deposit for pricing after the broadcast, reading no price before signing", async () => {
-        const { service, wallet, denomExchangeService, deploymentDepositRepository, jobQueueService } = setup({ mode: "legacy" });
-
-        const pending = await service.recordPending(wallet.id, [createMessage({ owner: wallet.address!, dseq: "27", denom: "uakt" })]);
-
-        expect(denomExchangeService.getExchangeRateToUSD).not.toHaveBeenCalled();
-        expect(deploymentDepositRepository.createMany).toHaveBeenCalledWith([]);
-        expect(jobQueueService.enqueue).not.toHaveBeenCalled();
-        expect(pending.awaitingPrice).toEqual([expect.objectContaining({ dseq: "27", denom: "uakt" })]);
-      });
-    });
-
     describe("for a job", () => {
-      it.each<{ case: string; enabledFlags: FeatureFlagValue[]; asksOwnerFlag: boolean }>([
-        { case: "organizations are enforced for everyone", enabledFlags: [FeatureFlags.ORGANIZATIONS_ENFORCE], asksOwnerFlag: false },
-        { case: "organizations are on for the wallet's owner", enabledFlags: [FeatureFlags.ORGANIZATIONS], asksOwnerFlag: true }
-      ])("holds the deposits to budgets while $case", async ({ enabledFlags, asksOwnerFlag }) => {
-        const { service, wallet, featureFlagsService, projectBudgetEnforcementService } = setup({ mode: "job", enabledFlags });
+      it("holds the deposits to budgets", async () => {
+        const { service, wallet, projectBudgetEnforcementService } = setup({ isJob: true });
 
         await service.recordPending(wallet.id, [depositMessage({ owner: wallet.address!, dseq: "31" })]);
 
-        const ownerFlagCheck = [FeatureFlags.ORGANIZATIONS, { userId: wallet.userId }];
-        expect(projectBudgetEnforcementService.enforce).toHaveBeenCalledTimes(1);
-        expect(featureFlagsService.isEnabled.mock.calls).toEqual([[FeatureFlags.ORGANIZATIONS_ENFORCE], ...[ownerFlagCheck].slice(0, Number(asksOwnerFlag))]);
-      });
-
-      it("records the deposits without budgets and logs a failure while organizations are off for the owner of a personal wallet", async () => {
-        const { service, wallet, projectBudgetEnforcementService, deploymentDepositRepository, organizationRepository, logger } = setup({ mode: "job" });
-        deploymentDepositRepository.createMany.mockRejectedValue(new Error("down"));
-
-        expect(await service.recordPending(wallet.id, [depositMessage({ owner: wallet.address!, dseq: "32" })])).toEqual({ recorded: [], awaitingPrice: [] });
-        expect(organizationRepository.findById).toHaveBeenCalledWith(wallet.organizationId);
-        expect(projectBudgetEnforcementService.enforce).not.toHaveBeenCalled();
-        expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_DEPOSIT_RECORD_FAILED" }));
-      });
-
-      it("holds a team organization's wallet to budgets with every organization flag off", async () => {
-        const { service, wallet, featureFlagsService, projectBudgetEnforcementService } = setup({ mode: "job", walletOrganizationType: "team" });
-        const refusal = new ProjectBudgetExceededError(["38"], ["project-1"]);
-        projectBudgetEnforcementService.enforce.mockRejectedValueOnce(refusal);
-
-        await expect(service.recordPending(wallet.id, [depositMessage({ owner: wallet.address!, dseq: "38" })])).rejects.toBe(refusal);
-        await expect(service.assertWithinBudgets(wallet.id, [depositMessage({ owner: wallet.address!, dseq: "38" })])).resolves.toBeUndefined();
-        expect(projectBudgetEnforcementService.enforce).toHaveBeenCalledTimes(2);
-        expect(featureFlagsService.isEnabled).not.toHaveBeenCalledWith(FeatureFlags.ORGANIZATIONS, expect.anything());
-      });
-
-      it("holds a wallet whose organization cannot be found to budgets with every organization flag off", async () => {
-        const { service, wallet, organizationRepository, projectBudgetEnforcementService } = setup({ mode: "job" });
-        organizationRepository.findById.mockResolvedValue(undefined);
-
-        await service.recordPending(wallet.id, [depositMessage({ owner: wallet.address!, dseq: "39" })]);
-
         expect(projectBudgetEnforcementService.enforce).toHaveBeenCalledTimes(1);
       });
 
-      it("refuses a message it cannot read for a team organization's wallet with every organization flag off", async () => {
-        const { service, wallet } = setup({ mode: "job", walletOrganizationType: "team" });
+      it("refuses a message it cannot read", async () => {
+        const { service, wallet } = setup({ isJob: true });
 
         await expect(service.recordPending(wallet.id, [{ typeUrl: "/cosmos.bank.v1beta1.MsgSend", value: {} }])).rejects.toMatchObject({
           status: 400,
@@ -619,15 +489,9 @@ describe(DeploymentDepositLedgerService.name, () => {
         });
       });
 
-      it.each([
-        { case: "the wallet", fail: (mocks: ReturnType<typeof setup>) => mocks.userWalletRepository.findById.mockRejectedValue(new Error("down")) },
-        {
-          case: "the wallet's organization",
-          fail: (mocks: ReturnType<typeof setup>) => mocks.organizationRepository.findById.mockRejectedValue(new Error("down"))
-        }
-      ])("refuses the signing when $case cannot be read", async ({ fail }) => {
-        const mocks = setup({ mode: "job" });
-        fail(mocks);
+      it("refuses the signing when the wallet cannot be read", async () => {
+        const mocks = setup({ isJob: true });
+        mocks.userWalletRepository.findById.mockRejectedValue(new Error("down"));
 
         await expect(mocks.service.recordPending(mocks.wallet.id, [depositMessage({ owner: mocks.wallet.address!, dseq: "36" })])).rejects.toThrow("down");
         await expect(mocks.service.assertWithinBudgets(mocks.wallet.id, [depositMessage({ owner: mocks.wallet.address!, dseq: "36" })])).rejects.toThrow(
@@ -636,7 +500,7 @@ describe(DeploymentDepositLedgerService.name, () => {
         expect(mocks.projectBudgetEnforcementService.enforce).not.toHaveBeenCalled();
       });
 
-      it("refuses a request whose wallet cannot be read in organization mode", async () => {
+      it("refuses a request whose wallet cannot be read", async () => {
         const { service, wallet, userWalletRepository } = setup();
         userWalletRepository.findById.mockRejectedValue(new Error("down"));
 
@@ -644,7 +508,7 @@ describe(DeploymentDepositLedgerService.name, () => {
       });
 
       it("records no actor", async () => {
-        const { service, wallet, projectBudgetEnforcementService } = setup({ mode: "job", enabledFlags: [FeatureFlags.ORGANIZATIONS_ENFORCE] });
+        const { service, wallet, projectBudgetEnforcementService } = setup({ isJob: true });
 
         await service.recordPending(wallet.id, [depositMessage({ owner: wallet.address!, dseq: "34" })]);
 
@@ -652,7 +516,7 @@ describe(DeploymentDepositLedgerService.name, () => {
       });
 
       it("records the member it signs for as the actor", async () => {
-        const { service, wallet, projectBudgetEnforcementService } = setup({ mode: "job", enabledFlags: [FeatureFlags.ORGANIZATIONS_ENFORCE] });
+        const { service, wallet, projectBudgetEnforcementService } = setup({ isJob: true });
         const actorUserId = faker.string.uuid();
 
         await service.recordPending(wallet.id, [createMessage({ owner: wallet.address!, dseq: "38" })], { actorUserId });
@@ -660,8 +524,8 @@ describe(DeploymentDepositLedgerService.name, () => {
         expect(projectBudgetEnforcementService.enforce).toHaveBeenCalledWith([expect.objectContaining({ actorUserId })], expect.any(Function));
       });
 
-      it("holds the deposits to the flags of the wallet's owner outside any execution context", async () => {
-        const { service, wallet, projectBudgetEnforcementService } = setup({ mode: "job", hasContext: false, enabledFlags: [FeatureFlags.ORGANIZATIONS] });
+      it("holds the deposits to budgets outside any execution context", async () => {
+        const { service, wallet, projectBudgetEnforcementService } = setup({ isJob: true, hasContext: false });
 
         await service.recordPending(wallet.id, [depositMessage({ owner: wallet.address!, dseq: "35" })]);
 
@@ -700,18 +564,10 @@ describe(DeploymentDepositLedgerService.name, () => {
       });
     });
 
-    it.each([
-      { case: "for a request in legacy mode", input: { mode: "legacy" as const }, messages: (owner: string) => [createMessage({ owner, dseq: "45" })] },
-      {
-        case: "for a job while organizations are off for the wallet's owner",
-        input: { mode: "job" as const },
-        messages: (owner: string) => [createMessage({ owner, dseq: "46" })]
-      },
-      { case: "when no message moves funds", input: {}, messages: () => [closeMessage("47")] }
-    ])("judges nothing $case", async ({ input, messages }) => {
-      const { service, wallet, projectBudgetEnforcementService } = setup(input);
+    it("judges nothing when no message moves funds", async () => {
+      const { service, wallet, projectBudgetEnforcementService } = setup();
 
-      await service.assertWithinBudgets(wallet.id, messages(wallet.address!));
+      await service.assertWithinBudgets(wallet.id, [closeMessage("47")]);
 
       expect(projectBudgetEnforcementService.enforce).not.toHaveBeenCalled();
     });
@@ -728,130 +584,76 @@ describe(DeploymentDepositLedgerService.name, () => {
   });
 
   describe("recordLanded", () => {
-    it("confirms the pending rows and records the akt deposits priced at the current rate, with no check to schedule", async () => {
-      const { service, deploymentDepositRepository, denomExchangeService, jobQueueService } = setup();
-      denomExchangeService.getExchangeRateToUSD.mockResolvedValue(rateOf(2.5));
+    it("confirms the pending rows, with no check to schedule", async () => {
+      const { service, deploymentDepositRepository, jobQueueService } = setup();
       const recorded = [createDeposit(), createDeposit()];
-      const awaiting = createUnpriced({ amount: "3000000" });
 
-      await service.recordLanded({ recorded, awaitingPrice: [awaiting] }, { code: 0, hash: "ABC" });
+      await service.recordLanded({ recorded }, { code: 0, hash: "ABC" });
 
       expect(deploymentDepositRepository.settlePending).toHaveBeenCalledWith(
         recorded.map(({ id }) => id),
         { status: "confirmed", txHash: "ABC" }
       );
-      expect(deploymentDepositRepository.createMany).toHaveBeenCalledWith([{ ...awaiting, status: "confirmed", txHash: "ABC", amountCents: 750 }]);
+      expect(deploymentDepositRepository.createMany).not.toHaveBeenCalled();
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
 
-    it("dates an akt deposit priced after the broadcast by when signing started", async () => {
-      vi.useFakeTimers();
-      try {
-        const { service, wallet, deploymentDepositRepository } = setup({ mode: "legacy" });
-        const signingStartedAt = new Date("2026-10-11T10:00:00.000Z");
-        vi.setSystemTime(signingStartedAt);
-        const pending = await service.recordPending(wallet.id, [createMessage({ owner: wallet.address!, dseq: "71", denom: "uakt" })]);
-        vi.setSystemTime(new Date("2026-10-11T10:03:00.000Z"));
-
-        await service.recordLanded(pending, { code: 0, hash: "ABC" });
-
-        expect(deploymentDepositRepository.createMany).toHaveBeenLastCalledWith([expect.objectContaining({ dseq: "71", createdAt: signingStartedAt })]);
-      } finally {
-        vi.useRealTimers();
-      }
-    });
-
-    it("voids the pending rows of a transaction the chain refused and records none of the akt deposits", async () => {
-      const { service, deploymentDepositRepository, denomExchangeService } = setup();
+    it("voids the pending rows of a transaction the chain refused", async () => {
+      const { service, deploymentDepositRepository } = setup();
       const recorded = [createDeposit()];
 
-      await service.recordLanded({ recorded, awaitingPrice: [createUnpriced()] }, { code: 5, hash: "DEF" });
+      await service.recordLanded({ recorded }, { code: 5, hash: "DEF" });
 
       expect(deploymentDepositRepository.settlePending).toHaveBeenCalledWith([recorded[0].id], { status: "void", txHash: "DEF" });
-      expect(deploymentDepositRepository.createMany).not.toHaveBeenCalled();
-      expect(denomExchangeService.getExchangeRateToUSD).not.toHaveBeenCalled();
     });
 
     it("writes nothing when the transaction moved no funds", async () => {
       const { service, deploymentDepositRepository } = setup();
 
-      await service.recordLanded({ recorded: [], awaitingPrice: [] }, { code: 0, hash: "ABC" });
+      await service.recordLanded({ recorded: [] }, { code: 0, hash: "ABC" });
 
       expect(deploymentDepositRepository.settlePending).not.toHaveBeenCalled();
-      expect(deploymentDepositRepository.createMany).not.toHaveBeenCalled();
     });
 
-    it.each([
-      { case: "no akt price", price: 0 },
-      { case: "a price that is not a number", price: Number.NaN }
-    ])("leaves out akt deposits when the rate gives $case instead of counting them as nothing", async ({ price }) => {
-      const { service, deploymentDepositRepository, denomExchangeService, logger } = setup();
-      denomExchangeService.getExchangeRateToUSD.mockResolvedValue(rateOf(price));
-
-      await service.recordLanded({ recorded: [], awaitingPrice: [createUnpriced({ dseq: "1" })] }, { code: 0, hash: "ABC" });
-
-      expect(deploymentDepositRepository.createMany).toHaveBeenCalledWith([]);
-      expect(logger.warn).toHaveBeenCalledWith({ event: "DEPLOYMENT_DEPOSIT_UNPRICED", dseqs: ["1"] });
-    });
-
-    it("leaves out a deposit in a denom it cannot price and records the rest", async () => {
-      const { service, deploymentDepositRepository, logger } = setup();
-
-      await service.recordLanded(
-        { recorded: [], awaitingPrice: [createUnpriced({ dseq: "1" }), createUnpriced({ dseq: "2", denom: "ibc/unknown" })] },
-        { code: 0, hash: "ABC" }
-      );
-
-      expect(deploymentDepositRepository.createMany).toHaveBeenCalledWith([expect.objectContaining({ dseq: "1", amountCents: 100 })]);
-      expect(logger.warn).toHaveBeenCalledWith({ event: "DEPLOYMENT_DEPOSIT_UNPRICED", dseqs: ["2"] });
-    });
-
-    it("logs a failed settlement or write instead of failing a transaction that already landed", async () => {
+    it("logs a failed settlement instead of failing a transaction that already landed", async () => {
       const { service, deploymentDepositRepository, logger } = setup();
       const error = new Error("database unavailable");
       deploymentDepositRepository.settlePending.mockRejectedValue(error);
-      deploymentDepositRepository.createMany.mockRejectedValue(error);
 
-      await expect(service.recordLanded({ recorded: [createDeposit()], awaitingPrice: [createUnpriced()] }, { code: 0, hash: "ABC" })).resolves.toBeUndefined();
+      await expect(service.recordLanded({ recorded: [createDeposit()] }, { code: 0, hash: "ABC" })).resolves.toBeUndefined();
 
       expect(logger.error).toHaveBeenCalledWith({ event: "DEPLOYMENT_DEPOSIT_SETTLE_FAILED", status: "confirmed", txHash: "ABC", error });
-      expect(logger.error).toHaveBeenCalledWith({ event: "DEPLOYMENT_DEPOSIT_RECORD_FAILED", txHash: "ABC", error });
     });
   });
 
   describe("recordFailed", () => {
-    it("voids the rows of a transaction proven not to land and records none of the akt deposits", async () => {
+    it("voids the rows of a transaction proven not to land", async () => {
       const { service, deploymentDepositRepository, jobQueueService } = setup();
       const recorded = [createDeposit()];
 
-      await service.recordFailed({ recorded, awaitingPrice: [createUnpriced()] }, new TxNotIncludedError("ABC"));
+      await service.recordFailed({ recorded }, new TxNotIncludedError("ABC"));
 
       expect(deploymentDepositRepository.settlePending).toHaveBeenCalledWith([recorded[0].id], { status: "void", txHash: undefined });
-      expect(deploymentDepositRepository.createMany).not.toHaveBeenCalled();
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
 
-    it("writes an undecided transaction's akt rows with their own check, then keeps every row pending under its hash with a check by that hash", async () => {
+    it("keeps the rows of an undecided transaction pending under its hash, with a check by that hash", async () => {
       const { service, deploymentDepositRepository, jobQueueService, txService } = setup();
-      const recorded = [createDeposit()];
-      const lateRow = createDeposit();
-      deploymentDepositRepository.createMany.mockResolvedValue([lateRow]);
+      const recorded = [createDeposit(), createDeposit()];
       const before = Date.now();
 
-      await service.recordFailed({ recorded, awaitingPrice: [createUnpriced()] }, new TxOutcomeUnknownError("ABC"));
+      await service.recordFailed({ recorded }, new TxOutcomeUnknownError("ABC"));
 
-      expect(deploymentDepositRepository.createMany).toHaveBeenCalledWith([expect.objectContaining({ status: "pending", amountCents: 100 })]);
       expect(jobQueueService.enqueue.mock.calls).toEqual([
-        [
-          new ReconcileDeploymentDeposit({ depositIds: [lateRow.id] }),
-          { singletonKey: `ReconcileDeploymentDeposit.unsettled.${lateRow.id}`, startAfter: expect.any(String) }
-        ],
         [new ReconcileDeploymentDeposit({ txHash: "ABC" }), { singletonKey: "ReconcileDeploymentDeposit.ABC", startAfter: expect.any(String) }]
       ]);
-      expect(deploymentDepositRepository.attachTxHash).toHaveBeenCalledWith([recorded[0].id, lateRow.id], "ABC");
-      expect(txService.transaction).toHaveBeenCalledTimes(2);
-      expect(deploymentDepositRepository.attachTxHash.mock.invocationCallOrder[0]).toBeGreaterThan(txService.transaction.mock.invocationCallOrder[1]);
-      const { startAfter } = jobQueueService.enqueue.mock.calls[1][1]!;
+      expect(deploymentDepositRepository.attachTxHash).toHaveBeenCalledWith(
+        recorded.map(({ id }) => id),
+        "ABC"
+      );
+      expect(deploymentDepositRepository.settlePending).not.toHaveBeenCalled();
+      expect(deploymentDepositRepository.attachTxHash.mock.invocationCallOrder[0]).toBeGreaterThan(txService.transaction.mock.invocationCallOrder[0]);
+      const { startAfter } = jobQueueService.enqueue.mock.calls[0][1]!;
       expect(Date.parse(startAfter as string) - before).toBeGreaterThanOrEqual(5 * 60_000);
       expect(Date.parse(startAfter as string) - before).toBeLessThan(6 * 60_000);
     });
@@ -859,7 +661,7 @@ describe(DeploymentDepositLedgerService.name, () => {
     it("leaves undecided rows the signer gave no hash for to the checks written with them", async () => {
       const { service, deploymentDepositRepository, jobQueueService } = setup();
 
-      await service.recordFailed({ recorded: [createDeposit(), createDeposit()], awaitingPrice: [] }, new TxOutcomeUnknownError());
+      await service.recordFailed({ recorded: [createDeposit(), createDeposit()] }, new TxOutcomeUnknownError());
 
       expect(deploymentDepositRepository.attachTxHash).not.toHaveBeenCalled();
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
@@ -870,7 +672,7 @@ describe(DeploymentDepositLedgerService.name, () => {
       const error = new Error("queue unavailable");
       jobQueueService.enqueue.mockRejectedValue(error);
 
-      await expect(service.recordFailed({ recorded: [createDeposit()], awaitingPrice: [] }, new TxOutcomeUnknownError("ABC"))).resolves.toBeUndefined();
+      await expect(service.recordFailed({ recorded: [createDeposit()] }, new TxOutcomeUnknownError("ABC"))).resolves.toBeUndefined();
 
       expect(logger.error).toHaveBeenCalledWith({ event: "DEPLOYMENT_DEPOSIT_RECONCILE_SCHEDULE_FAILED", txHash: "ABC", error });
     });
@@ -878,7 +680,7 @@ describe(DeploymentDepositLedgerService.name, () => {
     it("schedules nothing when the transaction moved no funds", async () => {
       const { service, deploymentDepositRepository, jobQueueService } = setup();
 
-      await service.recordFailed({ recorded: [], awaitingPrice: [] }, new TxOutcomeUnknownError("ABC"));
+      await service.recordFailed({ recorded: [] }, new TxOutcomeUnknownError("ABC"));
 
       expect(deploymentDepositRepository.attachTxHash).not.toHaveBeenCalled();
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
@@ -914,41 +716,24 @@ describe(DeploymentDepositLedgerService.name, () => {
     return mock<DeploymentDepositOutput>({ id: faker.string.uuid() });
   }
 
-  function createUnpriced(overrides: Partial<PendingDeposits["awaitingPrice"][number]> = {}): PendingDeposits["awaitingPrice"][number] {
-    return {
-      kind: "top_up",
-      owner: createAkashAddress(),
-      dseq: faker.string.numeric(8),
-      amount: "500000",
-      denom: "uakt",
-      organizationId: faker.string.uuid(),
-      projectId: null,
-      actorUserId: null,
-      createdAt: new Date(),
-      ...overrides
-    };
-  }
-
   function rateOf(price: number): Awaited<ReturnType<DenomExchangeService["getExchangeRateToUSD"]>> {
     return { price, volume: 0, marketCap: 0, marketCapRank: 0, priceChange24h: 0, priceChangePercentage24: 0 };
   }
 
   function setup(
     input: {
-      mode?: "organization" | "legacy" | "job";
+      isJob?: boolean;
       hasContext?: boolean;
-      enabledFlags?: FeatureFlagValue[];
-      walletOrganizationType?: OrganizationOutput["type"];
       projectScope?: ProjectScope;
     } = {}
   ) {
     const wallet = createUserWallet({ organizationId: faker.string.uuid() });
     const currentUser: UserOutput = createUser();
-    const mode = input.mode ?? "organization";
-    const organizationContext =
-      mode === "job" ? undefined : createOrganizationContext({ organizationId: wallet.organizationId!, mode, projectScope: input.projectScope });
+    const organizationContext = input.isJob
+      ? undefined
+      : createOrganizationContext({ organizationId: wallet.organizationId!, projectScope: input.projectScope });
     const organizationRepository = mock<OrganizationRepository>({
-      findById: vi.fn().mockResolvedValue(createOrganization({ id: wallet.organizationId!, type: input.walletOrganizationType ?? "personal" }))
+      findById: vi.fn().mockResolvedValue(createOrganization({ id: wallet.organizationId!, type: "personal" }))
     });
     const userWalletRepository = mock<UserWalletRepository>({ findById: vi.fn().mockResolvedValue(wallet) });
     const deploymentDepositRepository = mock<DeploymentDepositRepository>({
@@ -964,7 +749,6 @@ describe(DeploymentDepositLedgerService.name, () => {
       hasContext: vi.fn().mockReturnValue(input.hasContext ?? true),
       get: vi.fn((key: string) => ({ ORGANIZATION_CONTEXT: organizationContext, CURRENT_USER: currentUser })[key]) as ExecutionContextService["get"]
     });
-    const featureFlagsService = mock<FeatureFlagsService>({ isEnabled: vi.fn((flag: FeatureFlagValue) => !!input.enabledFlags?.includes(flag)) });
     const projectBudgetEnforcementService = mock<ProjectBudgetEnforcementService>({
       enforce: vi.fn(async (_deposits, record) => await record?.()) as ProjectBudgetEnforcementService["enforce"]
     });
@@ -980,7 +764,6 @@ describe(DeploymentDepositLedgerService.name, () => {
       jobQueueService,
       txService,
       executionContextService,
-      featureFlagsService,
       projectBudgetEnforcementService,
       new Registry([
         [`/${MsgCreateDeployment.$type}`, MsgCreateDeployment as unknown as GeneratedType],
@@ -1001,7 +784,6 @@ describe(DeploymentDepositLedgerService.name, () => {
       denomExchangeService,
       jobQueueService,
       txService,
-      featureFlagsService,
       projectBudgetEnforcementService,
       logger
     };

@@ -6,12 +6,9 @@ export type ProjectScope =
   | { kind: "all" }
   | { kind: "projects"; projectIds: readonly string[]; writableProjectIds: readonly string[]; adminProjectIds: readonly string[] };
 
-export type AuthorizationMode = "organization" | "legacy";
-
 export interface OrganizationContext {
   organizationId: string;
   organizationType: OrganizationType;
   role: OrganizationRole;
   projectScope: ProjectScope;
-  mode: AuthorizationMode;
 }

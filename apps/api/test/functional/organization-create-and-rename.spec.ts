@@ -7,10 +7,8 @@ import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
-import { AuthService } from "@src/auth/services/auth.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { MAX_ORGANIZATION_NAME_LENGTH } from "@src/organization/model-schemas/organization/organization.schema";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
@@ -187,15 +185,6 @@ describe("Organization creation and renaming", () => {
       expect(await readOrganizationTypesCreatedBy(user.id)).toEqual(["personal"]);
     });
 
-    it("answers like an unknown path while organizations are off for the caller", async () => {
-      const { user, bearer } = await setupCaller({ organizationsOn: false });
-
-      const response = await createOrganization({ authorization: bearer }, { name: "Acme Corp" });
-
-      expect(response.status).toBe(404);
-      expect(await readOrganizationTypesCreatedBy(user.id)).toEqual(["personal"]);
-    });
-
     it("answers unauthorized to an anonymous caller", async () => {
       vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockReturnValue(true);
 
@@ -314,15 +303,6 @@ describe("Organization creation and renaming", () => {
       expect(response.status).toBe(409);
       expect(await response.json()).toMatchObject({ code: "organization_name_taken" });
     });
-
-    it("answers like an unknown path while organizations are off for the caller", async () => {
-      const { team, bearer } = await setupCaller({ teamRole: "owner", organizationsOn: false });
-
-      const response = await renameOrganization(team.id, { authorization: bearer, "x-organization-id": team.id }, { name: "Acme Labs" });
-
-      expect(response.status).toBe(404);
-      expect(await readOrganizationName(team.id)).toBe(team.name);
-    });
   });
 
   async function createOrganization(headers: Record<string, string>, data: { name: string }) {
@@ -392,15 +372,6 @@ describe("Organization creation and renaming", () => {
     return `Bearer ${token}`;
   }
 
-  function enableOrganizationsFor(userIds: string[]) {
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation((flag, context) => {
-      if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
-      if (flag !== FeatureFlags.ORGANIZATIONS) return true;
-
-      return userIds.includes(context?.userId ?? container.resolve(AuthService).safeCurrentUser?.id ?? "");
-    });
-  }
-
   async function seedApiKey(input: { userId: string; organizationId: string; projectId?: string }) {
     const apiKeyGenerator = container.resolve(ApiKeyGeneratorService);
     const apiKey = apiKeyGenerator.generateApiKey();
@@ -414,7 +385,7 @@ describe("Organization creation and renaming", () => {
     return apiKey;
   }
 
-  async function setupCaller(input: { organizationsOn?: boolean; teamRole?: OrganizationRole }) {
+  async function setupCaller(input: { teamRole?: OrganizationRole }) {
     const {
       user,
       organization: personal,
@@ -426,7 +397,6 @@ describe("Organization creation and renaming", () => {
     const { organization: team } = await seedOrganizationWithOwner();
     await seedOrganizationMember({ organizationId: team.id, userId: user.id, role: input.teamRole ?? "member" });
     const bearer = signIn(user.userId!);
-    enableOrganizationsFor(input.organizationsOn === false ? [] : [user.id]);
 
     return { user, personal, personalProject, team, bearer };
   }

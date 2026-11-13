@@ -96,30 +96,6 @@ const ORGANIZATION_WIDE_ROLE_RULES: Partial<Record<OrganizationRole, (conditions
 
 export const SUPER_USER_RULES: AbilityRule[] = [{ action: "manage", subject: "all" }];
 
-export function legacyRules(user: RuleUser): AbilityRule[] {
-  if (!hasEveryId(user.id)) {
-    return [];
-  }
-
-  return [
-    ...userKeyedRules(user),
-    { action: ["read", "sign"], subject: "UserWallet", conditions: { userId: user.id } },
-    { action: "manage", subject: "WalletSetting", conditions: { userId: user.id } },
-    { action: ["create", "read", "delete"], subject: "StripePayment" },
-    { action: "manage", subject: "PaymentMethod", conditions: { userId: user.id } },
-    { action: "manage", subject: "DeploymentSetting", conditions: { userId: user.id } },
-    { action: "manage", subject: "ApiKey", conditions: { userId: user.id } },
-    { action: "manage", subject: "Alert", conditions: { userId: user.id } },
-    { action: "manage", subject: "NotificationChannel", conditions: { userId: user.id } },
-    ...authoredTemplateRules(user)
-  ];
-}
-
-/** Templates name their author by the Auth0 subject rather than the user id. */
-function authoredTemplateRules({ userId }: RuleUser): AbilityRule[] {
-  return hasEveryId(userId) ? [{ action: "manage", subject: "Template", conditions: { userId } }] : [];
-}
-
 export function organizationRules(user: RuleUser, context: OrganizationContext, apiKey?: Pick<ApiKeyOutput, "projectId">): AbilityRule[] {
   if (!hasEveryId(user.id, context.organizationId)) {
     return [];

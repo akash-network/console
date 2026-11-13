@@ -7,8 +7,6 @@ import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.reposit
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { JOB_NAME } from "@src/core";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { AdminAccessRequestEmailJob } from "@src/organization/services/admin-access-request-email/admin-access-request-email.handler";
 import { app } from "@src/rest-app";
@@ -92,14 +90,6 @@ describe("Requesting admin access to an organization", () => {
       expect(response.status).toBe(403);
       expect(await response.json()).toMatchObject({ code: "session_required" });
     });
-
-    it("answers like an unknown path while organizations are off for the caller", async () => {
-      const { requestAdminAccess } = await setup({ organizationsOn: false });
-
-      const response = await requestAdminAccess();
-
-      expect(response.status).toBe(404);
-    });
   });
 
   async function seedApiKey(userId: string, organizationId: string) {
@@ -116,7 +106,7 @@ describe("Requesting admin access to an organization", () => {
     return apiKey;
   }
 
-  async function setup(input: { memberRole?: OrganizationRole; organizationsOn?: boolean }) {
+  async function setup(input: { memberRole?: OrganizationRole }) {
     const signedInUser = () => ({ userId: `auth0|${faker.string.alphanumeric(24)}`, username: `user-${faker.string.alphanumeric(12)}` });
     const { user: owner, organization: team } = await seedOrganizationWithOwner({ user: signedInUser() });
     const secondOwner = await seedUser(signedInUser());
@@ -130,12 +120,6 @@ describe("Requesting admin access to an organization", () => {
     vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(async header =>
       header.replace(/^Bearer +/i, "") === token ? member.userId! : null
     );
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => {
-      if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
-      if (flag !== FeatureFlags.ORGANIZATIONS) return true;
-
-      return input.organizationsOn !== false;
-    });
 
     async function request(path: string, headers: Record<string, string> = {}) {
       return await app.request(path, { method: "POST", headers: { authorization: `Bearer ${token}`, ...headers } });

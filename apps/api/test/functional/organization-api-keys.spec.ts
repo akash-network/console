@@ -6,12 +6,9 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
-import { AuthService } from "@src/auth/services/auth.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { app } from "@src/rest-app";
 
@@ -94,21 +91,13 @@ describe("Organization API keys", () => {
       expect(grantedResponse.status).toBe(201);
     });
 
-    it("binds a key to the personal organization while organizations are off for the caller", async () => {
-      const { personal, bearer } = await setup({ organizationsOn: false });
+    it("binds a key to the personal organization when the request names no organization", async () => {
+      const { personal, bearer } = await setup({});
 
       const response = await createKey({ authorization: bearer }, {});
 
       expect(response.status).toBe(201);
       expect(await response.json()).toMatchObject({ data: { organizationId: personal.id, projectId: null } });
-    });
-
-    it("rejects a project while organizations are off for the caller", async () => {
-      const { personalProject, bearer } = await setup({ organizationsOn: false });
-
-      const response = await createKey({ authorization: bearer }, { projectId: personalProject.id });
-
-      expect(response.status).toBe(404);
     });
   });
 
@@ -126,17 +115,6 @@ describe("Organization API keys", () => {
       expect(await response.json()).toEqual({
         data: [expect.objectContaining({ id: teamKey.key.id, organizationId: team.id, projectId: null })]
       });
-    });
-
-    it("lists every key of the caller while organizations are off for the caller", async () => {
-      const { user, personal, team, bearer } = await setup({ organizationsOn: false });
-      const keys = await Promise.all([seedApiKey({ userId: user.id, organizationId: personal.id }), seedApiKey({ userId: user.id, organizationId: team.id })]);
-
-      const response = await listKeys({ authorization: bearer });
-      const { data } = (await response.json()) as { data: { id: string }[] };
-
-      expect(response.status).toBe(200);
-      expect(data.map(({ id }) => id).sort()).toEqual(keys.map(({ key }) => key.id).sort());
     });
   });
 
@@ -219,42 +197,22 @@ describe("Organization API keys", () => {
     });
   });
 
-  describe("a key while organizations are off for its owner", () => {
-    it("is rejected when bound to a team organization", async () => {
-      const { user, team } = await setup({ organizationsOn: false });
-      const { apiKey } = await seedApiKey({ userId: user.id, organizationId: team.id });
-
-      const response = await listKeys({ "x-api-key": apiKey });
-
-      expect(response.status).toBe(403);
-      expect(await response.json()).toMatchObject({ code: "organization_forbidden" });
-    });
-
-    it("is rejected when bound to a team organization once enforcement is on", async () => {
-      const { user, team } = await setup({ organizationsOn: false, enforceOn: true });
-      const { apiKey } = await seedApiKey({ userId: user.id, organizationId: team.id });
-
-      const response = await listKeys({ "x-api-key": apiKey });
-
-      expect(response.status).toBe(403);
-      expect(await response.json()).toMatchObject({ code: "organization_forbidden" });
-    });
-
+  describe("a key of the personal organization", () => {
     it("keeps working when bound to the personal organization or to none", async () => {
-      const { user, personal } = await setup({ organizationsOn: false });
-      const [{ apiKey: personalKey }, { apiKey: legacyKey }] = await Promise.all([
+      const { user, personal } = await setup({});
+      const [{ apiKey: personalKey }, { apiKey: unboundKey }] = await Promise.all([
         seedApiKey({ userId: user.id, organizationId: personal.id }),
         seedApiKey({ userId: user.id, organizationId: null })
       ]);
 
-      const [personalResponse, legacyResponse] = await Promise.all([listKeys({ "x-api-key": personalKey }), listKeys({ "x-api-key": legacyKey })]);
+      const [personalResponse, unboundResponse] = await Promise.all([listKeys({ "x-api-key": personalKey }), listKeys({ "x-api-key": unboundKey })]);
 
       expect(personalResponse.status).toBe(200);
-      expect(legacyResponse.status).toBe(200);
+      expect(unboundResponse.status).toBe(200);
     });
 
-    it("reaches only the project it is bound to once enforcement is on", async () => {
-      const { user, personal, personalProject } = await setup({ organizationsOn: false, enforceOn: true });
+    it("reaches only the project it is bound to", async () => {
+      const { user, personal, personalProject } = await setup({});
       const ciProject = await seedProject({ organizationId: personal.id });
       const [inProject, outsideProject] = await Promise.all([
         seedDeploymentSetting({ userId: user.id, organizationId: personal.id, projectId: ciProject.id, autoTopUpEnabled: false }),
@@ -269,25 +227,6 @@ describe("Organization API keys", () => {
 
       expect(inProjectResponse.status).toBe(200);
       expect(outsideProjectResponse.status).toBe(404);
-    });
-
-    it("is rejected when bound to a project while enforcement is off", async () => {
-      const { user, personal, personalProject } = await setup({ organizationsOn: false });
-      const ciProject = await seedProject({ organizationId: personal.id });
-      const [inProject, outsideProject] = await Promise.all([
-        seedDeploymentSetting({ userId: user.id, organizationId: personal.id, projectId: ciProject.id, autoTopUpEnabled: false }),
-        seedDeploymentSetting({ userId: user.id, organizationId: personal.id, projectId: personalProject.id, autoTopUpEnabled: false })
-      ]);
-      const { apiKey } = await seedApiKey({ userId: user.id, organizationId: personal.id, projectId: ciProject.id });
-
-      const [inProjectResponse, outsideProjectResponse] = await Promise.all([
-        getDeploymentSetting(inProject, { "x-api-key": apiKey }),
-        getDeploymentSetting(outsideProject, { "x-api-key": apiKey })
-      ]);
-
-      expect(inProjectResponse.status).toBe(403);
-      expect(outsideProjectResponse.status).toBe(403);
-      expect(await outsideProjectResponse.json()).toMatchObject({ code: "project_forbidden" });
     });
   });
 
@@ -380,16 +319,7 @@ describe("Organization API keys", () => {
     return `Bearer ${token}`;
   }
 
-  function enableOrganizationsFor(userIds: string[], isEnforced: boolean) {
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation((flag, context) => {
-      if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return isEnforced;
-      if (flag !== FeatureFlags.ORGANIZATIONS) return true;
-
-      return userIds.includes(context?.userId ?? container.resolve(AuthService).safeCurrentUser?.id ?? "");
-    });
-  }
-
-  async function setup(input: { organizationsOn?: boolean; enforceOn?: boolean; teamRole?: OrganizationRole }) {
+  async function setup(input: { teamRole?: OrganizationRole }) {
     const {
       user,
       organization: personal,
@@ -401,7 +331,6 @@ describe("Organization API keys", () => {
     const { user: teamOwner, organization: team, project: teamProject } = await seedOrganizationWithOwner();
     const membership = await seedOrganizationMember({ organizationId: team.id, userId: user.id, role: input.teamRole ?? "admin" });
     const bearer = signIn(user.userId!);
-    enableOrganizationsFor(input.organizationsOn === false ? [] : [user.id], !!input.enforceOn);
 
     return { user, personal, personalProject, team, teamOwner, teamProject, membership, bearer };
   }

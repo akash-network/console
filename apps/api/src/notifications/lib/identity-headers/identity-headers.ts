@@ -32,19 +32,10 @@ export function accountEmailHeaders({ email, verifiedEmail }: { email?: string |
   return { [NOTIFICATIONS_IDENTITY_HEADERS.userEmail]: email, [NOTIFICATIONS_IDENTITY_HEADERS.userEmailVerified]: "false" };
 }
 
-/** The role and project scope travel only when organization rules are authoritative, which is how the notifications service tells the two modes apart. */
 export function organizationIdentityHeaders(context: OrganizationContext): Record<string, string> {
-  const headers = {
-    [NOTIFICATIONS_IDENTITY_HEADERS.organizationId]: context.organizationId,
-    [NOTIFICATIONS_IDENTITY_HEADERS.organizationType]: context.organizationType
-  };
-
-  if (context.mode === "legacy") {
-    return headers;
-  }
-
   return {
-    ...headers,
+    [NOTIFICATIONS_IDENTITY_HEADERS.organizationId]: context.organizationId,
+    [NOTIFICATIONS_IDENTITY_HEADERS.organizationType]: context.organizationType,
     [NOTIFICATIONS_IDENTITY_HEADERS.organizationRole]: context.role,
     [NOTIFICATIONS_IDENTITY_HEADERS.projectScope]: JSON.stringify(context.projectScope)
   };

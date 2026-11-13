@@ -14,8 +14,6 @@ import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-au
 import { BILLING_CONFIG } from "@src/billing/providers";
 import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import { type ApiPgDatabase, CORE_CONFIG, POSTGRES_DB, resolveTable } from "@src/core";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { NOTIFICATIONS_CONFIG } from "@src/notifications/providers/notifications-config.provider";
 import { app } from "@src/rest-app";
 
@@ -751,7 +749,6 @@ describe("Cross-team access", () => {
     vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(
       async header => sessions.get(header.replace(/^Bearer +/i, "")) ?? null
     );
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.ORGANIZATIONS_ENFORCE);
 
     const { ids: team, ownerCredentials: owner } = await seedTeam(sessions);
     const { ids: otherTeam, ownerCredentials: otherOwner } = await seedTeam(sessions);

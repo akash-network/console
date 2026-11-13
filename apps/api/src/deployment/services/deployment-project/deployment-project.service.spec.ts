@@ -16,7 +16,7 @@ import { MOVE_DEPLOYMENT_ALERTS_RETRY_OPTIONS, MoveDeploymentAlertsJob } from "@
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import type { ProjectOutput, ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import type { OrganizationActivityService } from "@src/organization/services/organization-activity/organization-activity.service";
-import type { AuthorizationMode, ProjectScope } from "@src/organization/types/organization-context";
+import type { ProjectScope } from "@src/organization/types/organization-context";
 import { DeploymentProjectService, PROJECT_REQUIRED_ERROR_CODE } from "./deployment-project.service";
 
 import { createOrganizationContext, createProjectsScope } from "@test/seeders/organization-context.seeder";
@@ -24,14 +24,6 @@ import { createUser } from "@test/seeders/user.seeder";
 
 describe(DeploymentProjectService.name, () => {
   describe("resolveFilingProject", () => {
-    it("ignores the requested project outside organization mode", async () => {
-      const { service, projectRepository } = setup({ mode: "legacy" });
-
-      await expect(service.resolveFilingProject(faker.string.uuid())).resolves.toBeUndefined();
-
-      expect(projectRepository.findOneBy).not.toHaveBeenCalled();
-    });
-
     it("ignores the requested project for a request running in no organization", async () => {
       const { service, projectRepository } = setup({ withoutContext: true });
 
@@ -246,8 +238,8 @@ describe(DeploymentProjectService.name, () => {
       expect(txService.transaction).not.toHaveBeenCalled();
     });
 
-    it("refuses with 403 outside organization mode", async () => {
-      const { service, txService, deployment, target } = setup({ mode: "legacy" });
+    it("refuses with 403 outside an organization context", async () => {
+      const { service, txService, deployment, target } = setup({ withoutContext: true });
 
       await expect(service.move(deployment.dseq, target.id)).rejects.toMatchObject({
         status: 403,
@@ -329,7 +321,6 @@ describe(DeploymentProjectService.name, () => {
   });
 
   function setup(input?: {
-    mode?: AuthorizationMode;
     role?: OrganizationRole;
     scopedProjectIds?: string[];
     projectScope?: ProjectScope;
@@ -337,7 +328,7 @@ describe(DeploymentProjectService.name, () => {
     withoutContext?: boolean;
   }) {
     const user = createUser();
-    const context = createOrganizationContext({ role: input?.role ?? "owner", mode: input?.mode ?? "organization", projectScope: input?.projectScope });
+    const context = createOrganizationContext({ role: input?.role ?? "owner", projectScope: input?.projectScope });
     const projectConditions = input?.scopedProjectIds ? { projectId: { $in: input.scopedProjectIds } } : {};
     const ability = createMongoAbility<MongoAbility>([
       { action: "create", subject: "DeploymentSetting", conditions: { organizationId: context.organizationId, userId: user.id, ...projectConditions } },

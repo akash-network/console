@@ -7,8 +7,6 @@ import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.reposit
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
 import { app } from "@src/rest-app";
@@ -97,15 +95,6 @@ describe("Leaving an organization", () => {
       expect(await response.json()).toMatchObject({ code: "session_required" });
       expect(await memberRepository.findById(membership.id)).toBeDefined();
     });
-
-    it("answers like an unknown path while organizations are off for the caller", async () => {
-      const { member, membership, leave } = await setup({ organizationsOn: false });
-
-      const response = await leave(member);
-
-      expect(response.status).toBe(404);
-      expect(await memberRepository.findById(membership.id)).toBeDefined();
-    });
   });
 
   async function seedApiKey(userId: string, organizationId: string) {
@@ -122,7 +111,7 @@ describe("Leaving an organization", () => {
     return apiKey;
   }
 
-  async function setup(input: { memberRole?: OrganizationRole; organizationsOn?: boolean }) {
+  async function setup(input: { memberRole?: OrganizationRole }) {
     const tokens = new Map<string, string>();
     const signedInUser = () => ({ userId: `auth0|${faker.string.alphanumeric(24)}`, username: `user-${faker.string.alphanumeric(12)}` });
     const { user: owner, organization: team, membership: ownerMembership } = await seedOrganizationWithOwner({ user: signedInUser() });
@@ -138,12 +127,6 @@ describe("Leaving an organization", () => {
     vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(
       async header => externalUserIdByToken.get(header.replace(/^Bearer +/i, "")) ?? null
     );
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => {
-      if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
-      if (flag !== FeatureFlags.ORGANIZATIONS) return true;
-
-      return input.organizationsOn !== false;
-    });
 
     async function request(user: Pick<UserOutput, "id">, path: string, headers: Record<string, string> = {}, method = "GET") {
       return await app.request(path, { method, headers: { authorization: `Bearer ${tokens.get(user.id)}`, ...headers } });

@@ -1,4 +1,4 @@
-import { ForbiddenError } from "@casl/ability";
+import { createMongoAbility, ForbiddenError } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import { hoursToMilliseconds } from "date-fns";
 import { and, eq, inArray, sql } from "drizzle-orm";
@@ -2844,7 +2844,7 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
-  describe("in organization mode", () => {
+  describe("within an organization context", () => {
     it("refuses to overwrite the definition another organization holds under the same dseq and user", async () => {
       const { deploymentSettingRepository, runInOrganization, active, foreignSetting } = await setupOrganizations();
 
@@ -3293,7 +3293,7 @@ describe(DeploymentSettingRepository.name, () => {
       expect(filed).toEqual({ key: { userId: member.id, dseq: teamDeployment.dseq }, isFiled: true });
     });
 
-    it("keeps the key it is given outside organization mode", async () => {
+    it("keeps the key it is given outside an organization context", async () => {
       const { deploymentSettingRepository, teamDeployment } = await setupTeamDeployment();
       const key = { userId: (await seedUser()).id, dseq: teamDeployment.dseq };
 
@@ -3528,7 +3528,7 @@ describe(DeploymentSettingRepository.name, () => {
       expect(await deploymentSettingRepository.findById(ownDeployment.id)).toMatchObject({ closed: true });
     });
 
-    describe("in legacy mode", () => {
+    describe("in the member's personal organization", () => {
       it("refuses to write a definition onto the team's row", async () => {
         const { deploymentSettingRepository, member, teamDeployment, runInPersonalOrganization } = await setupMemberOfTeam();
 
@@ -3597,10 +3597,7 @@ describe(DeploymentSettingRepository.name, () => {
 
     function runInPersonalOrganization<R>(run: () => Promise<R>) {
       return executionContextService.runWithContext(async () => {
-        executionContextService.set(
-          "ORGANIZATION_CONTEXT",
-          createOrganizationContext({ organizationId: personal.id, organizationType: "personal", mode: "legacy" })
-        );
+        executionContextService.set("ORGANIZATION_CONTEXT", createOrganizationContext({ organizationId: personal.id, organizationType: "personal" }));
         return await run();
       });
     }
@@ -3697,7 +3694,6 @@ describe(DeploymentSettingRepository.name, () => {
   async function setup() {
     const userRepository = container.resolve(UserRepository);
     const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
-    const abilityService = container.resolve(AbilityService);
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
     const deploymentSettingsTable = resolveTable("DeploymentSettings");
     const userWalletsTable = resolveTable("UserWallets");
@@ -3718,7 +3714,7 @@ describe(DeploymentSettingRepository.name, () => {
     const trialWallet = await createWallet(trialUser.id, true);
 
     function abilityFor(owner: UserOutput) {
-      return abilityService.getAbilityFor("REGULAR_USER", owner);
+      return createMongoAbility([{ action: "manage", subject: "DeploymentSetting", conditions: { userId: owner.id } }]);
     }
 
     async function createDefinition({ manifestVersion, sealedSecrets = null }: { manifestVersion: string; sealedSecrets?: string | null }) {

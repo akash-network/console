@@ -27,7 +27,7 @@ export const UNINDEXED_DEPLOYMENT_GRACE_MINUTES = 10;
 
 const CHAIN_READ_CONCURRENCY = 20;
 
-/** Lists a caller's deployments: by their wallet outside organization mode, by the projects they reach within it. */
+/** Lists a caller's deployments: by their wallet outside an organization context, by the projects they reach within one. */
 @singleton()
 export class DeploymentListService {
   readonly #logger: ReturnType<CreateLogger>;
@@ -45,7 +45,7 @@ export class DeploymentListService {
   }
 
   async list(query: ListDeploymentsQuery): Promise<DeploymentListPage> {
-    const context = this.#organizationModeContext();
+    const context = this.#requestOrganizationContext();
 
     if (!context) {
       return await this.#listWallet(query);
@@ -133,10 +133,8 @@ export class DeploymentListService {
     });
   }
 
-  #organizationModeContext(): OrganizationContext | undefined {
-    const context = this.executionContextService.hasContext() ? this.executionContextService.get("ORGANIZATION_CONTEXT") : undefined;
-
-    return context?.mode === "organization" ? context : undefined;
+  #requestOrganizationContext(): OrganizationContext | undefined {
+    return this.executionContextService.hasContext() ? this.executionContextService.get("ORGANIZATION_CONTEXT") : undefined;
   }
 }
 

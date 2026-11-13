@@ -1,7 +1,6 @@
 import { container } from "tsyringe";
 
 import { createRoute } from "@src/core/lib/create-route/create-route";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 import { OrganizationInvitationController } from "@src/organization/controllers/organization-invitation/organization-invitation.controller";
@@ -42,7 +41,6 @@ const listOrganizationInvitationsRoute = createRoute({
   summary: "List the pending invitations of the active organization",
   tags: ["Organizations"],
   security: SECURITY_BEARER_OR_API_KEY,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   responses: {
     200: { description: "The pending invitations", content: { "application/json": { schema: ListOrganizationInvitationsResponseSchema } } },
     401: { description: "Unauthorized" },
@@ -62,7 +60,6 @@ const createOrganizationInvitationsRoute = createRoute({
   description: "Inviting someone as an owner, or renewing an expired owner invitation, requires a signed-in Console session.",
   tags: ["Organizations"],
   security: SECURITY_BEARER_OR_API_KEY,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: {
     body: { required: true, content: { "application/json": { schema: CreateOrganizationInvitationsRequestSchema } } }
   },
@@ -99,7 +96,6 @@ const resendOrganizationInvitationRoute = createRoute({
   description: "An invitation to become an owner can only be resent from a signed-in Console session.",
   tags: ["Organizations"],
   security: SECURITY_BEARER_OR_API_KEY,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: {
     params: OrganizationInvitationParamsSchema
   },
@@ -124,7 +120,6 @@ const createOrganizationInvitationLinkRoute = createRoute({
   description: "A link to an invitation to become an owner can only be issued from a signed-in Console session.",
   tags: ["Organizations"],
   security: SECURITY_BEARER_OR_API_KEY,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: {
     params: OrganizationInvitationParamsSchema
   },
@@ -147,7 +142,6 @@ const deleteOrganizationInvitationRoute = createRoute({
   summary: "Revoke a pending invitation of the active organization",
   tags: ["Organizations"],
   security: SECURITY_BEARER_OR_API_KEY,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: {
     params: OrganizationInvitationParamsSchema
   },

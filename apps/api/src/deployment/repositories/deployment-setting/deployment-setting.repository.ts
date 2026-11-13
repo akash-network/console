@@ -227,11 +227,6 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     return true;
   }
 
-  /** The columns both rule sets condition on, selected by partial reads so their rows can be shadow-compared. */
-  get #ruleColumns() {
-    return { userId: this.table.userId, organizationId: this.table.organizationId, projectId: this.table.projectId };
-  }
-
   /**
    * Applies the auto top-up default here rather than as a column default, so every row is written by
    * code that can be read and tested. The column is NOT NULL with no database default on purpose: it
@@ -263,11 +258,10 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     }
 
     const rows = await this.cursor
-      .select({ dseq: this.table.dseq, name: this.table.name, ...this.#ruleColumns })
+      .select({ dseq: this.table.dseq, name: this.table.name })
       .from(this.table)
       .where(this.whereAccessibleBy(and(this.#filedFor(wallet), inArray(this.table.dseq, dseqs))))
       .orderBy(...this.#lastFiledFirst);
-    this.compareWithShadow(rows);
 
     return new Map(rows.map(row => [row.dseq, row.name]));
   }
@@ -290,13 +284,11 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
           closed: this.table.closed,
           runtimeLimitHours: this.table.runtimeLimitHours,
           runtimeEndsAt: this.table.runtimeEndsAt
-        },
-        ...this.#ruleColumns
+        }
       })
       .from(this.table)
       .where(this.whereAccessibleBy(and(this.#filedFor(wallet), inArray(this.table.dseq, dseqs))))
       .orderBy(...this.#lastFiledFirst);
-    this.compareWithShadow(rows);
 
     return new Map(rows.map(({ dseq, setting }) => [dseq, setting]));
   }
@@ -322,11 +314,10 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     }
 
     const rows = await this.cursor
-      .select({ dseq: this.table.dseq, isInDeletedProject: sql<boolean>`${Projects.deletedAt} is not null`, ...this.#ruleColumns })
+      .select({ dseq: this.table.dseq, isInDeletedProject: sql<boolean>`${Projects.deletedAt} is not null`, projectId: this.table.projectId })
       .from(this.table)
       .leftJoin(Projects, eq(Projects.id, this.table.projectId))
       .where(this.whereAccessibleBy(and(this.#filedFor(wallet), inArray(this.table.dseq, dseqs))));
-    this.compareWithShadow(rows);
 
     return new Map(rows.map(row => [row.dseq, row.isInDeletedProject ? null : row.projectId]));
   }
@@ -343,7 +334,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
         owner: sql<string>`${UserWallets.address}`,
         name: this.table.name,
         isRecent: sql<boolean>`coalesce(${this.table.createdAt} > now() - make_interval(mins => ${recentMinutes}), false)`,
-        ...this.#ruleColumns
+        projectId: this.table.projectId
       })
       .from(this.table)
       .leftJoin(TeamOrganizations, isFiledInTeam)
@@ -351,7 +342,6 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
       .leftJoin(Projects, eq(Projects.id, this.table.projectId))
       .where(this.#whereReachable(query, eq(this.table.closed, false)))
       .limit(limit);
-    this.compareWithShadow(rows);
 
     return rows.map(({ id, dseq, owner, projectId, name, isRecent }) => ({ id, dseq, owner, projectId, name, isRecent }));
   }
@@ -376,7 +366,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
             runtimeLimitHours: this.table.runtimeLimitHours,
             runtimeEndsAt: this.table.runtimeEndsAt
           },
-          ...this.#ruleColumns
+          projectId: this.table.projectId
         })
         .from(this.table)
         .leftJoin(TeamOrganizations, isFiledInTeam)
@@ -394,7 +384,6 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
         .leftJoin(Projects, eq(Projects.id, this.table.projectId))
         .where(where)
     ]);
-    this.compareWithShadow(rows);
 
     return { deployments: rows.map(({ id, dseq, owner, projectId, setting }) => ({ id, dseq, owner, projectId, setting })), total };
   }
@@ -416,10 +405,9 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
   /** Under the same double scoping as {@link findNamesByDseqs}; the null-name condition is what lets the partial index on named rows serve it. */
   async findDseqsByNameContaining({ wallet, text }: { wallet: DeploymentWallet; text: string }): Promise<string[]> {
     const rows = await this.cursor
-      .select({ dseq: this.table.dseq, ...this.#ruleColumns })
+      .select({ dseq: this.table.dseq })
       .from(this.table)
       .where(this.whereAccessibleBy(and(this.#filedFor(wallet), isNotNull(this.table.name), ilike(this.table.name, containsPattern(text)))));
-    this.compareWithShadow(rows);
 
     return rows.map(row => row.dseq);
   }
@@ -466,7 +454,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     }
 
     const rows = await this.cursor
-      .select({ dseq: this.table.dseq, detectedGpus: this.table.detectedGpus, offeredGpus: this.table.offeredGpus, ...this.#ruleColumns })
+      .select({ dseq: this.table.dseq, detectedGpus: this.table.detectedGpus, offeredGpus: this.table.offeredGpus })
       .from(this.table)
       .where(
         this.whereAccessibleBy(
@@ -474,8 +462,6 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
         )
       )
       .orderBy(...this.#lastFiledFirst);
-
-    this.compareWithShadow(rows);
 
     return new Map(rows.map(row => [row.dseq, { readings: row.detectedGpus ?? [], offers: row.offeredGpus ?? [] }]));
   }
@@ -487,10 +473,9 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     }
 
     const rows = await this.cursor
-      .select({ id: this.table.id, detectedGpus: this.table.detectedGpus, offeredGpus: this.table.offeredGpus, ...this.#ruleColumns })
+      .select({ id: this.table.id, detectedGpus: this.table.detectedGpus, offeredGpus: this.table.offeredGpus })
       .from(this.table)
       .where(this.whereAccessibleBy(and(inArray(this.table.id, ids), or(isNotNull(this.table.detectedGpus), isNotNull(this.table.offeredGpus)))));
-    this.compareWithShadow(rows);
 
     return new Map(rows.map(row => [row.id, { readings: row.detectedGpus ?? [], offers: row.offeredGpus ?? [] }]));
   }
@@ -570,7 +555,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
       .where(this.whereAccessibleBy(and(this.#filedFor(wallet), inArray(this.table.dseq, [...dseqs]))));
   }
 
-  /** In organization mode a deployment keeps the row it was first filed under, so a key naming another member resolves to that row. */
+  /** Within an organization a deployment keeps the row it was first filed under, so a key naming another member resolves to that row. */
   async findFiledKey(key: { userId: string; dseq: string }): Promise<{ key: { userId: FilerId; dseq: string }; isFiled: boolean }> {
     if (!this.scopedOrganizationId) return { key, isFiled: false };
 
@@ -1401,7 +1386,6 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
       .returning();
 
     if (!row) return undefined;
-    this.compareWithShadow([row]);
 
     return this.toOutput(row);
   }

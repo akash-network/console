@@ -486,86 +486,23 @@ describe("Marketplace template writes", () => {
   });
 
   describe("outside the active organization", () => {
-    it.each<[string, (id: string) => { path: string; method: string; body?: unknown }, number]>([
-      ["a settings change", id => ({ path: `/v1/user-templates/${id}`, method: "PATCH", body: { data: { title: "Renamed" } } }), 200],
-      ["a delete", id => ({ path: `/v1/user-templates/${id}`, method: "DELETE" }), 204],
-      [
-        "a new version",
-        id => ({ path: `/v1/user-templates/${id}/versions`, method: "POST", body: { data: { sdl: buildSdl({ count: 3 }), askedValues: [], baseVersion: 1 } } }),
-        201
-      ]
-    ])("allows %s in legacy mode on the caller's personal template only", async (_case, requestFor, allowedStatus) => {
-      const { team, project, owner, actAs } = await setup({ isOrganizationsOn: false });
-      const {
-        user: author,
-        organization: personal,
-        project: personalProject
-      } = await seedOrganizationWithOwner({
-        type: "personal",
-        user: createSignedUpUserInput()
-      });
-      await seedOrganizationMember({ organizationId: team.id, userId: author.id, role: "member" });
-      await seedProjectMember({ organizationId: team.id, projectId: project.id, userId: author.id, role: "member" });
-      const personalTemplate = await seedTemplate({ author, organizationId: personal.id, projectId: personalProject.id });
-      const teamTemplates = await Promise.all([
-        seedTemplate({ author, organizationId: team.id, projectId: project.id }),
-        seedTemplate({ author: owner, organizationId: team.id, projectId: project.id })
-      ]);
-      const asAuthor = actAs(author);
-      const statuses: number[] = [];
-
-      for (const { id } of [personalTemplate, ...teamTemplates]) {
-        const { path, ...init } = requestFor(id);
-        statuses.push((await asAuthor(path, init)).status);
-      }
-
-      expect(statuses).toEqual([allowedStatus, 403, 404]);
-      expect(await Promise.all(teamTemplates.map(({ id }) => storedTemplate(id)))).toEqual(teamTemplates);
-      expect(await Promise.all(teamTemplates.map(async ({ id }) => (await versionsOf(id)).length))).toEqual([1, 1]);
-    });
-
-    it("offers an edit in legacy mode on the caller's personal template only, not their team template", async () => {
-      const { team, project, actAs } = await setup({ isOrganizationsOn: false });
-      const {
-        user: author,
-        organization: personal,
-        project: personalProject
-      } = await seedOrganizationWithOwner({
-        type: "personal",
-        user: createSignedUpUserInput()
-      });
-      await seedOrganizationMember({ organizationId: team.id, userId: author.id, role: "member" });
-      const templates = [
-        await seedTemplate({ author, organizationId: personal.id, projectId: personalProject.id }),
-        await seedTemplate({ author, organizationId: team.id, projectId: project.id })
-      ];
-      const asAuthor = actAs(author);
-
-      const responses = await Promise.all(templates.map(({ id }) => asAuthor(`/v1/user-templates/${id}`)));
-
-      expect(responses.map(({ status }) => status)).toEqual([200, 200]);
-      expect(await Promise.all(responses.map(response => response.json()))).toEqual([
-        { data: expect.objectContaining({ id: templates[0].id, canEdit: true }) },
-        { data: expect.objectContaining({ id: templates[1].id, canEdit: false }) }
-      ]);
-    });
-
     it("tells the author to switch to the template's organization", async () => {
-      const { team, project, actAs } = await setup({ isOrganizationsOn: false });
-      const { user: author } = await seedOrganizationWithOwner({ type: "personal", user: createSignedUpUserInput() });
-      const template = await seedTemplate({ author, organizationId: team.id, projectId: project.id });
+      const { team, project, actAs } = await setup();
+      const { user: author, organization: personal } = await seedOrganizationWithOwner({ type: "personal", user: createSignedUpUserInput() });
+      await seedOrganizationMember({ organizationId: team.id, userId: author.id, role: "member" });
+      const template = await seedTemplate({ author, organizationId: team.id, projectId: project.id, visibility: "public" });
 
-      const response = await actAs(author)(`/v1/user-templates/${template.id}`, { method: "DELETE" });
+      const response = await actAs(author, { organizationId: personal.id })(`/v1/user-templates/${template.id}`, { method: "DELETE" });
 
       expect(response.status).toBe(403);
       expect(await response.json()).toMatchObject({ code: "organization_forbidden", message: "Switch to the template's organization to change it" });
     });
 
-    it("refuses changing a template filed in no organization", async () => {
-      const { actAs } = await setup({ isOrganizationsOn: false });
-      const { user: author } = await seedOrganizationWithOwner({ type: "personal", user: createSignedUpUserInput() });
+    it("refuses changing a template filed in no organization as one the caller cannot read", async () => {
+      const { actAs } = await setup();
+      const { user: author, organization: personal } = await seedOrganizationWithOwner({ type: "personal", user: createSignedUpUserInput() });
       const template = await seedTemplate({ author });
-      const asAuthor = actAs(author);
+      const asAuthor = actAs(author, { organizationId: personal.id });
 
       const responses = await Promise.all([
         asAuthor(`/v1/user-templates/${template.id}`, { method: "PATCH", body: { data: { title: "Renamed" } } }),
@@ -576,7 +513,7 @@ describe("Marketplace template writes", () => {
         })
       ]);
 
-      expect(responses.map(({ status }) => status)).toEqual([403, 403, 403]);
+      expect(responses.map(({ status }) => status)).toEqual([404, 404, 404]);
       expect(await storedTemplate(template.id)).toEqual(template);
       expect(await versionsOf(template.id)).toHaveLength(1);
     });
@@ -1244,20 +1181,15 @@ describe("Marketplace template writes", () => {
     return { userId: `auth0|${faker.string.alphanumeric(24)}`, username: `user-${faker.string.alphanumeric(12)}` };
   }
 
-  async function setup({ isMarketplaceOn = true, isOrganizationsOn = true }: { isMarketplaceOn?: boolean; isOrganizationsOn?: boolean } = {}) {
+  async function setup({ isMarketplaceOn = true }: { isMarketplaceOn?: boolean } = {}) {
     const { user: owner, organization: team } = await seedOrganizationWithOwner({ user: createSignedUpUserInput() });
     const project = await seedProject({ organizationId: team.id });
     const tokens = new Map<string, string>();
-    const disabledFlags: string[] = [
-      FeatureFlags.ORGANIZATIONS_ENFORCE,
-      ...(isMarketplaceOn ? [] : [FeatureFlags.TEMPLATE_MARKETPLACE]),
-      ...(isOrganizationsOn ? [] : [FeatureFlags.ORGANIZATIONS])
-    ];
 
     vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(
       async header => tokens.get(header.replace(/^Bearer +/i, "")) ?? null
     );
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => !disabledFlags.includes(flag));
+    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => isMarketplaceOn || flag !== FeatureFlags.TEMPLATE_MARKETPLACE);
 
     const request = (path: string, headers: Record<string, string>, init: { method?: string; body?: unknown }) =>
       app.request(path, {

@@ -1,7 +1,6 @@
 import { container } from "tsyringe";
 
 import { createRoute } from "@src/core/lib/create-route/create-route";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER, SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { InvitationController } from "@src/organization/controllers/invitation/invitation.controller";
@@ -47,7 +46,6 @@ const acceptInvitationRoute = createRoute({
   summary: "Join the organization of an invitation with the role and project access it grants",
   tags: ["Organizations"],
   security: SECURITY_BEARER,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: {
     body: { required: true, content: { "application/json": { schema: AcceptInvitationRequestSchema } } }
   },

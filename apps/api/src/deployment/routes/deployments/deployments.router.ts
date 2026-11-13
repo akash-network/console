@@ -2,7 +2,6 @@ import { z } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
 import { createRoute } from "@src/core/lib/create-route/create-route";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER_OR_API_KEY, SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { CREATE_DEPLOYMENT_BODY_LIMIT_BYTES } from "@src/deployment/config/sdl-secrets.config";
@@ -915,7 +914,6 @@ const updateDeploymentProjectRoute = createRoute({
   summary: "Move a deployment to another project of the active organization",
   tags: ["Deployments"],
   security: SECURITY_BEARER_OR_API_KEY,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: {
     params: DeploymentProjectParamsSchema,
     body: { required: true, content: { "application/json": { schema: UpdateDeploymentProjectRequestSchema } } }
@@ -941,7 +939,6 @@ const getDeploymentLocationRoute = createRoute({
   summary: "Find the organization and project a deployment is filed into, among the caller's organizations",
   tags: ["Deployments"],
   security: SECURITY_BEARER_OR_API_KEY,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: { params: DeploymentProjectParamsSchema },
   responses: {
     200: { description: "Where the deployment is filed", content: { "application/json": { schema: GetDeploymentLocationResponseSchema } } },

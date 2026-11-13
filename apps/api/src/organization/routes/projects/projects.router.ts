@@ -1,7 +1,6 @@
 import { container } from "tsyringe";
 
 import { createRoute } from "@src/core/lib/create-route/create-route";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 import { ProjectController } from "@src/organization/controllers/project/project.controller";
@@ -26,7 +25,6 @@ const listProjectsRoute = createRoute({
   summary: "List the projects of the active organization the caller can reach",
   tags: ["Projects"],
   security: SECURITY_BEARER_OR_API_KEY,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   responses: {
     200: { description: "The projects, most recently active first", content: { "application/json": { schema: ListProjectsResponseSchema } } },
     401: UNAUTHORIZED
@@ -44,7 +42,6 @@ const createProjectRoute = createRoute({
   summary: "Create a project in the active organization",
   tags: ["Projects"],
   security: SECURITY_BEARER_OR_API_KEY,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: {
     body: { required: true, content: { "application/json": { schema: CreateProjectRequestSchema } } }
   },
@@ -70,7 +67,6 @@ const getProjectRoute = createRoute({
   summary: "Get a project of the active organization",
   tags: ["Projects"],
   security: SECURITY_BEARER_OR_API_KEY,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: { params: ProjectParamsSchema },
   responses: {
     200: { description: "The project", content: { "application/json": { schema: ProjectResponseSchema } } },
@@ -93,7 +89,6 @@ const updateProjectRoute = createRoute({
   summary: "Rename a project or change its description",
   tags: ["Projects"],
   security: SECURITY_BEARER_OR_API_KEY,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: {
     params: ProjectParamsSchema,
     body: { required: true, content: { "application/json": { schema: UpdateProjectRequestSchema } } }
@@ -122,7 +117,6 @@ const deleteProjectRoute = createRoute({
   summary: "Delete a project that holds no open deployment",
   tags: ["Projects"],
   security: SECURITY_BEARER_OR_API_KEY,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: { params: ProjectParamsSchema },
   responses: {
     204: { description: "The project is deleted" },

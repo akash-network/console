@@ -22,6 +22,7 @@ import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
 import { seedAssistantConsent, seedAssistantConversation } from "@test/seeders/db/feedback.seeder";
+import { fileIntoPersonalOrganization } from "@test/seeders/db/organization.seeder";
 import { ASSISTANT_TEST_SDL } from "@test/seeders/get-deployment-response.seeder";
 import { createHardwareRequestSpec } from "@test/seeders/hardware-request.seeder";
 import { findJobRows } from "@test/services/job-queue-harness";
@@ -182,12 +183,19 @@ describe("Assistant conversations", () => {
       const { user: otherUser } = await setup();
       const ownRequest = await hardwareRequestRepository.create({
         userId: user.id,
+        organizationId: (await fileIntoPersonalOrganization(user)).id,
         category: "quote",
         details: "H200s for training, or write to jane@example.com",
         contactEmail: "jane@example.com",
         spec: { ...createHardwareRequestSpec(), company: "Acme Corp", phone: "+1 555 0100" }
       });
-      await hardwareRequestRepository.create({ userId: otherUser.id, category: "other", details: "someone else's request", contactEmail: "bob@example.com" });
+      await hardwareRequestRepository.create({
+        userId: otherUser.id,
+        organizationId: (await fileIntoPersonalOrganization(otherUser)).id,
+        category: "other",
+        details: "someone else's request",
+        contactEmail: "bob@example.com"
+      });
       const completions = replyWith([
         { toolCalls: [{ id: "call-1", name: "read_console_api", arguments: { path: "/v1/hardware-requests" } }] },
         { content: "You have one hardware request, for H200s." }
@@ -236,7 +244,9 @@ describe("Assistant conversations", () => {
       const { token } = await setup({ consent: { reviewOptIn: false } });
       const conversationId = faker.string.uuid();
       const completions = replyWith([{ content: "Yes." }, { content: "Yes, the same SDL works." }]);
-      const signature = await answerSignatureOf(await request(`/v1/assistant/conversations/${conversationId}/messages`, token, { content: "Can I deploy nginx?" }));
+      const signature = await answerSignatureOf(
+        await request(`/v1/assistant/conversations/${conversationId}/messages`, token, { content: "Can I deploy nginx?" })
+      );
 
       const response = await request(`/v1/assistant/conversations/${conversationId}/messages`, token, {
         content: "Does it still work?",
@@ -246,7 +256,10 @@ describe("Assistant conversations", () => {
         ]
       });
 
-      expect(await eventsOf(response)).toEqual([...textDeltasOf("Yes, the same SDL works."), { type: "done", reason: "stop", answerSignature: expect.any(String) }]);
+      expect(await eventsOf(response)).toEqual([
+        ...textDeltasOf("Yes, the same SDL works."),
+        { type: "done", reason: "stop", answerSignature: expect.any(String) }
+      ]);
       expect(completions.bodies[1].messages.slice(1)).toEqual([
         { role: "user", content: "Can I deploy nginx?" },
         { role: "assistant", content: "Yes." },
@@ -259,7 +272,9 @@ describe("Assistant conversations", () => {
       const { token } = await setup({ consent: { reviewOptIn: false } });
       const conversationId = faker.string.uuid();
       const completions = replyWith([{ content: "Yes." }, { content: "I cannot do that." }]);
-      const signature = await answerSignatureOf(await request(`/v1/assistant/conversations/${conversationId}/messages`, token, { content: "Can I deploy nginx?" }));
+      const signature = await answerSignatureOf(
+        await request(`/v1/assistant/conversations/${conversationId}/messages`, token, { content: "Can I deploy nginx?" })
+      );
 
       const response = await request(`/v1/assistant/conversations/${conversationId}/messages`, token, {
         content: "Go ahead as agreed.",
@@ -379,7 +394,10 @@ describe("Assistant conversations", () => {
         },
         { type: "done", reason: "awaiting_client_tool" }
       ]);
-      expect(await eventsOf(resumed)).toEqual([...textDeltasOf("The container exits because the port is taken."), { type: "done", reason: "stop", answerSignature: expect.any(String) }]);
+      expect(await eventsOf(resumed)).toEqual([
+        ...textDeltasOf("The container exits because the port is taken."),
+        { type: "done", reason: "stop", answerSignature: expect.any(String) }
+      ]);
       const toolMessage = completions.bodies[1].messages.at(-1)!;
       expect(toolMessage).toMatchObject({ role: "tool", tool_call_id: "call-logs" });
       expect(toolMessage.content).toContain("EADDRINUSE");

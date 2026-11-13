@@ -14,8 +14,6 @@ import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-e
 import { type ApiPgDatabase, type EnqueueOptions, JOB_NAME, JobQueueService, POSTGRES_DB, resolveTable } from "@src/core";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { AutoLeaseHandler } from "@src/deployment/services/auto-lease/auto-lease.handler";
 import { AutoLease, autoLeaseKeyFor } from "@src/deployment/services/auto-lease/auto-lease.job";
@@ -141,7 +139,7 @@ describe(CreateDeploymentHandler.name, () => {
         [
           expect.objectContaining({ id: wallet.id, address: wallet.address }),
           [expect.objectContaining({ typeUrl: "/akash.deployment.v1beta4.MsgCreateDeployment" })],
-          { actingUserId: user.id }
+          { actingUserId: user.id, filingProjectId: expect.any(String) }
         ]
       ]);
       expect(await findActivity(activityId)).toMatchObject({ status: "succeeded", meta: { dseq: accepted.dseq } });
@@ -290,7 +288,7 @@ describe(CreateDeploymentHandler.name, () => {
   let revokeAccess: (revocation: Revocation) => Promise<unknown>;
 
   async function setup(input: { inTeam?: boolean; sdl?: string; recordGpuBids?: boolean; autoLease?: boolean } = {}) {
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.ORGANIZATIONS_ENFORCE);
+    answerAktPrice();
     vi.spyOn(container.resolve(AutoLeaseHandler), "handle").mockResolvedValue(undefined);
     const { enqueue, startWorkers } = await jobWorkers();
     const activityRepository = container.resolve(ActivityRepository);
@@ -376,14 +374,6 @@ describe(CreateDeploymentHandler.name, () => {
     const membership = await seedOrganizationMember({ organizationId: organization.id, userId: member.id, role: "member" });
     const grant = await seedProjectMember({ organizationId: organization.id, projectId: project.id, userId: member.id, role: "member" });
     const wallet = await seedOrganizationWallet({ organizationId: organization.id, activatedAt: new Date() });
-    vi.spyOn(container.resolve(DenomExchangeService), "getExchangeRateToUSD").mockResolvedValue({
-      price: 2,
-      volume: 0,
-      marketCap: 0,
-      marketCapRank: 0,
-      priceChange24h: 0,
-      priceChangePercentage24: 0
-    });
 
     const revocations: Record<Revocation, () => Promise<unknown>> = {
       membership: () => db.delete(resolveTable("OrganizationMembers")).where(eq(resolveTable("OrganizationMembers").id, membership.id)),
@@ -420,6 +410,17 @@ describe(CreateDeploymentHandler.name, () => {
       executionContextService.set("ABILITY", container.resolve(AbilityService).getAbilityFor("REGULAR_USER", user));
 
       return await cb();
+    });
+  }
+
+  function answerAktPrice() {
+    vi.spyOn(container.resolve(DenomExchangeService), "getExchangeRateToUSD").mockResolvedValue({
+      price: 2,
+      volume: 0,
+      marketCap: 0,
+      marketCapRank: 0,
+      priceChange24h: 0,
+      priceChangePercentage24: 0
     });
   }
 });

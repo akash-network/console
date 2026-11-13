@@ -8,8 +8,6 @@ import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.reposit
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { BILLING_CONFIG } from "@src/billing/providers";
 import { type ApiPgDatabase, CORE_CONFIG, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { CloseDeploymentAcceptedResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { CloseDeploymentHandler } from "@src/deployment/services/close-deployment/close-deployment.handler";
 import { CloseDeployment, closeDeploymentKeyFor } from "@src/deployment/services/close-deployment/close-deployment.job";
@@ -87,7 +85,6 @@ describe("Background close of a team deployment", () => {
   });
 
   async function setup() {
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.ORGANIZATIONS_ENFORCE);
     const { organization } = await seedOrganizationWithOwner();
     const project = await seedProject({ organizationId: organization.id });
     const member = await seedUser();

@@ -4,7 +4,6 @@ import nock from "nock";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { AuthService } from "@src/auth/services/auth.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
@@ -232,13 +231,7 @@ describe("Billing details", () => {
     vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(
       async received => tokens.get(received.replace(/^Bearer +/i, "")) ?? null
     );
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation((flag, context) => {
-      if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
-      if (flag === FeatureFlags.INVOICES) return input.invoicesEnabled ?? true;
-      if (flag !== FeatureFlags.ORGANIZATIONS) return true;
-
-      return tokenByUserId.has(context?.userId ?? container.resolve(AuthService).safeCurrentUser?.id ?? "");
-    });
+    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.INVOICES || (input.invoicesEnabled ?? true));
 
     const headersOf = (user: { id: string }) => ({ authorization: `Bearer ${tokenByUserId.get(user.id)}`, "x-organization-id": organization.id });
     const memberWith = async (role: OrganizationRole) => {

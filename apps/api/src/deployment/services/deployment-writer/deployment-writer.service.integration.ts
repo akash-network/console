@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
+import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import type { ApiPgDatabase, JobPermissions } from "@src/core";
 import { JOB_NAME, JobQueueService, POSTGRES_DB, resolveTable, TxService } from "@src/core";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
@@ -349,6 +350,7 @@ describe(DeploymentWriterService.name, () => {
     }
 
     async function setup(input: { owner?: "user" | "organization"; sealedFor?: "member" | "team" } = {}) {
+      answerAktPrice();
       await jobWorkers();
       await warmSealingKeyAsBootWould();
 
@@ -466,7 +468,6 @@ describe(DeploymentWriterService.name, () => {
         retry_delay: APPLY_DEPLOYMENT_UPDATE_RETRY_OPTIONS.retryDelay,
         retry_delay_max: APPLY_DEPLOYMENT_UPDATE_RETRY_OPTIONS.retryDelayMax
       });
-      expect(apply.data).not.toHaveProperty("organizationId");
       expect(check.data).toMatchObject({ owner: wallet.address, dseq, manifestVersion: accepted.manifestVersion, updateJobId: expect.any(String) });
     });
 
@@ -529,6 +530,7 @@ describe(DeploymentWriterService.name, () => {
     });
 
     async function setup(input: { filedInOrganization?: boolean; name?: string } = {}) {
+      answerAktPrice();
       await jobWorkers();
       const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
       const activitiesTable = resolveTable("Activities");
@@ -716,6 +718,7 @@ describe(DeploymentWriterService.name, () => {
   }
 
   async function setup() {
+    answerAktPrice();
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
     const txService = container.resolve(TxService);
     const deploymentSettingsTable = resolveTable("DeploymentSettings");
@@ -838,5 +841,16 @@ describe(DeploymentWriterService.name, () => {
       countSettings,
       countCompensations
     };
+  }
+
+  function answerAktPrice() {
+    vi.spyOn(container.resolve(DenomExchangeService), "getExchangeRateToUSD").mockResolvedValue({
+      price: 2,
+      volume: 0,
+      marketCap: 0,
+      marketCapRank: 0,
+      priceChange24h: 0,
+      priceChangePercentage24: 0
+    });
   }
 });

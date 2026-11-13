@@ -25,7 +25,7 @@ type OrganizationAttributed = { organizationId?: string | null };
 
 type ProjectAttributed = { projectId?: string | null };
 
-/** Narrows queries to the active organization in organization mode and holds writes to it in any mode; `unscoped` is the only way out. */
+/** Narrows queries and holds writes to the active organization; `unscoped` is the only way out. */
 export abstract class OrgScopedRepository<
   T extends OrganizationScopedTable,
   Input extends BaseRecordInput<string | number>,
@@ -61,11 +61,9 @@ export abstract class OrgScopedRepository<
     return await super.create(await this.attributeToOrganization(input));
   }
 
-  /** The organization a scoped query is narrowed to, absent outside organization mode and on an unscoped repository. */
+  /** The organization a scoped query is narrowed to, absent outside a request's organization and on an unscoped repository. */
   protected get scopedOrganizationId(): string | undefined {
-    const context = this.#organizationContext;
-
-    return context?.mode === "organization" ? context.organizationId : undefined;
+    return this.#organizationContext?.organizationId;
   }
 
   protected whereInOrganization(where: SQL | undefined): SQL | undefined {

@@ -5,7 +5,8 @@ import { container } from "tsyringe";
 import type { ApiPgDatabase, ApiPgTables } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
 import { DEFAULT_PROJECT_NAME, DEFAULT_PROJECT_SLUG } from "@src/organization/model-schemas/project/project.schema";
-import type { UserInput } from "@src/user/repositories";
+import { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
+import type { UserInput, UserOutput } from "@src/user/repositories";
 import { createOrganizationSlug, createProjectName, createProjectSlug } from "../organization.seeder";
 import { seedUser } from "./user-with-wallet.seeder";
 
@@ -114,4 +115,13 @@ export async function seedOrganizationWithOwner({ user: userOverrides, ...overri
   });
 
   return { user, organization, membership, project };
+}
+
+/** Files the user's rows that name no organization into their personal organization, as the rollout backfill did for every user. */
+export async function fileIntoPersonalOrganization(user: Pick<UserOutput, "id" | "userId" | "username">) {
+  const personalOrganizationService = container.resolve(PersonalOrganizationService);
+  const organization = await personalOrganizationService.ensureForUser(user);
+  await personalOrganizationService.adoptUserRows(user, organization);
+
+  return organization;
 }

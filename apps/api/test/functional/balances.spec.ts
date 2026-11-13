@@ -177,7 +177,7 @@ describe("Balances", () => {
     vi.spyOn(apiKeyRepository, "updateHash").mockResolvedValue(undefined as any);
 
     vi.spyOn(userWalletRepository, "accessibleBy").mockReturnValue(userWalletRepository);
-    vi.spyOn(userWalletRepository, "findOneByUserId").mockImplementation(async id => {
+    vi.spyOn(userWalletRepository, "findOneUsedBy").mockImplementation(async id => {
       if (id === userWithId.id) {
         return input.walletNotFound ? undefined : wallet;
       }

@@ -7,8 +7,6 @@ import { ApiKeyExpiryReminderScheduler } from "@src/auth/services/api-key-expiry
 import { AuthService } from "@src/auth/services/auth.service";
 import { TxService } from "@src/core";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import { ApiKeyGeneratorService } from "./api-key-generator.service";
 
@@ -20,7 +18,6 @@ export class ApiKeyService {
     private readonly authService: AuthService,
     private readonly apiKeyGenerator: ApiKeyGeneratorService,
     private readonly executionContextService: ExecutionContextService,
-    private readonly featureFlagsService: FeatureFlagsService,
     private readonly txService: TxService,
     private readonly expiryReminderScheduler: ApiKeyExpiryReminderScheduler
   ) {}
@@ -96,7 +93,7 @@ export class ApiKeyService {
   async #isBindable(projectId: string): Promise<boolean> {
     const context = this.executionContextService.get("ORGANIZATION_CONTEXT");
 
-    if (!context || !this.featureFlagsService.isEnabled(FeatureFlags.ORGANIZATIONS, { userId: this.authService.currentUser.id })) return false;
+    if (!context) return false;
     if (context.projectScope.kind === "projects" && !context.projectScope.projectIds.includes(projectId)) return false;
 
     return !!(await this.projectRepository.accessibleBy(this.authService.ability, "read").findOneBy({ id: projectId, deletedAt: null }));

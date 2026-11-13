@@ -41,9 +41,9 @@ export class DeploymentProjectService {
     private readonly jobQueueService: JobQueueService
   ) {}
 
-  /** Undefined outside organization mode, where the requested project is ignored and the row is filed the way every other write is. */
+  /** Undefined outside an organization context, where the requested project is ignored and the row is filed the way every other write is. */
   async resolveFilingProject(requestedProjectId?: string, subjectType: ProjectFiledSubject = "DeploymentSetting"): Promise<string | undefined> {
-    const context = this.#organizationModeContext();
+    const context = this.#requestOrganizationContext();
 
     if (!context) return undefined;
 
@@ -157,14 +157,12 @@ export class DeploymentProjectService {
     return { organizationId, projectIds: projectScope.kind === "projects" ? projectScope.projectIds : undefined };
   }
 
-  #organizationModeContext(): OrganizationContext | undefined {
-    const context = this.executionContextService.hasContext() ? this.executionContextService.get("ORGANIZATION_CONTEXT") : undefined;
-
-    return context?.mode === "organization" ? context : undefined;
+  #requestOrganizationContext(): OrganizationContext | undefined {
+    return this.executionContextService.hasContext() ? this.executionContextService.get("ORGANIZATION_CONTEXT") : undefined;
   }
 
   #requireOrganizationContext(): OrganizationContext {
-    const context = this.#organizationModeContext();
+    const context = this.#requestOrganizationContext();
 
     if (!context) {
       throw createError(403, "Deployments are filed into projects of an organization and this request runs in none");

@@ -11,8 +11,6 @@ import { deploymentCloseDedupeKeyOf } from "@src/activity/lib/dedupe-key/dedupe-
 import { ActivityRepository } from "@src/activity/repositories/activity/activity.repository";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { type ApiPgDatabase, type EnqueueOptions, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { ACCESS_REVOKED_ERROR_CODE } from "@src/deployment/services/member-deployment-access/member-deployment-access.service";
@@ -111,7 +109,6 @@ describe(CloseDeploymentHandler.name, () => {
   });
 
   async function setup(input: { batchId?: string; inTeam?: boolean; revoke?: Revocation; onChain?: "active" | "closed" } = {}) {
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.ORGANIZATIONS_ENFORCE);
     const { enqueue, startWorkers } = await jobWorkers();
     const activityRepository = container.resolve(ActivityRepository);
     const team = input.inTeam ? await seedTeamDeployment() : undefined;

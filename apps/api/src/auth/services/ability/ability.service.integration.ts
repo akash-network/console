@@ -77,13 +77,6 @@ describe(AbilityService.name, () => {
       ).rejects.toThrow(ForbiddenError);
     });
 
-    it("keeps filtering by user in legacy mode", async () => {
-      const { readableIds, member, organization, memberLegacyRow } = await setup();
-      const ability = await abilityFor(member, { organizationId: organization.id, role: "owner", projectScope: { kind: "all" }, mode: "legacy" });
-
-      expect(await readableIds(ability)).toEqual([memberLegacyRow.id]);
-    });
-
     async function setup() {
       const repository = container.resolve(DeploymentSettingRepository);
       const owner = await seedUser();
@@ -96,14 +89,14 @@ describe(AbilityService.name, () => {
       const otherOrganization = await seedOrganization({ createdByUserId: owner.id });
       const otherProject = await seedProject({ organizationId: otherOrganization.id, createdByUserId: owner.id });
       const otherOrganizationRow = await seedDeploymentSetting({ userId: owner.id, organizationId: otherOrganization.id, projectId: otherProject.id });
-      const memberLegacyRow = await seedDeploymentSetting({ userId: member.id });
+      await seedDeploymentSetting({ userId: member.id });
 
       async function readableIds(ability: AnyAbility) {
         const rows = await repository.accessibleBy(ability, "read").find();
         return rows.map(row => row.id).sort();
       }
 
-      return { readableIds, repository, member, organization, projects, rowsByProject, otherOrganization, otherOrganizationRow, memberLegacyRow };
+      return { readableIds, repository, member, organization, projects, rowsByProject, otherOrganization, otherOrganizationRow };
     }
   });
 
@@ -139,9 +132,9 @@ describe(AbilityService.name, () => {
       await expect(repository.accessibleBy(ability, "create").create({ organizationId: organization.id, userId: newOwner.id, role: "owner" })).rejects.toThrow(
         ForbiddenError
       );
-      await expect(repository.accessibleBy(ability, "create").create({ organizationId: organization.id, userId: newMember.id, role: "member" })).resolves.toMatchObject(
-        { role: "member" }
-      );
+      await expect(
+        repository.accessibleBy(ability, "create").create({ organizationId: organization.id, userId: newMember.id, role: "member" })
+      ).resolves.toMatchObject({ role: "member" });
     });
 
     it("lets an owner change another owner", async () => {

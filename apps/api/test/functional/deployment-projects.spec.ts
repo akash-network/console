@@ -14,7 +14,6 @@ import { ActivityInstrumentationService } from "@src/activity/services/activity-
 import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
-import { AuthService } from "@src/auth/services/auth.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { EnableDeploymentAlertCommand } from "@src/billing/commands/enable-deployment-alert.command";
 import { FundDeploymentCommand } from "@src/billing/commands/fund-deployment.command";
@@ -389,20 +388,6 @@ describe("Deployment projects", () => {
 
       expect(response.status).toBe(403);
       expect(await deploymentRowsOf(caller.id)).toEqual([]);
-    });
-
-    it("ignores the project it names while organizations are off, filing into the personal default project and its feed", async () => {
-      const { request, otherProject, caller } = await setupCaller({ role: "owner", organizationsOn: false });
-
-      const response = await request("/v1/deployments", { method: "POST", body: { data: { sdl: SDL, name: "web", projectId: otherProject.id } } });
-      const { data } = (await response.json()) as { data: { dseq: string } };
-      const personalDefault = await personalDefaultProjectOf(caller.id);
-
-      expect(response.status).toBe(201);
-      expect(await deploymentRow(caller.id, data.dseq)).toMatchObject({ organizationId: personalDefault.organizationId, projectId: personalDefault.id });
-      expect(await activitiesOfProject(personalDefault.id)).toEqual([
-        expect.objectContaining({ type: "deployment_created", actorUserId: caller.id, payload: { dseq: data.dseq, name: "web" } })
-      ]);
     });
 
     it("answers 400 for a project id that is not a uuid", async () => {
@@ -802,16 +787,6 @@ describe("Deployment projects", () => {
       expect(response.status).toBe(404);
       expect(await deploymentRow(stranger.id, deployment.dseq)).toMatchObject({ projectId: foreignProject.id });
     });
-
-    it("answers like an unknown path while organizations are off for the caller", async () => {
-      const { request, team, defaultProject, otherProject, owner } = await setupCaller({ role: "owner", organizationsOn: false });
-      const deployment = await seedDeploymentSetting({ userId: owner.id, organizationId: team.id, projectId: defaultProject.id });
-
-      const response = await request(`/v1/deployments/${deployment.dseq}/project`, { method: "PATCH", body: { data: { projectId: otherProject.id } } });
-
-      expect(response.status).toBe(404);
-      expect(await deploymentRow(owner.id, deployment.dseq)).toMatchObject({ projectId: defaultProject.id });
-    });
   });
 
   describe("GET /v1/deployment-locations/{dseq}", () => {
@@ -874,15 +849,6 @@ describe("Deployment projects", () => {
       const deployment = await seedDeploymentSetting({ userId: owner.id, organizationId: team.id, projectId: defaultProject.id });
 
       const response = await request(`/v1/deployment-locations/${deployment.dseq}`, { headers: { "x-project-id": otherProject.id } });
-
-      expect(response.status).toBe(404);
-    });
-
-    it("answers like an unknown path while organizations are off for the caller", async () => {
-      const { request, team, defaultProject, owner } = await setupCaller({ role: "owner", organizationsOn: false });
-      const deployment = await seedDeploymentSetting({ userId: owner.id, organizationId: team.id, projectId: defaultProject.id });
-
-      const response = await request(`/v1/deployment-locations/${deployment.dseq}`);
 
       expect(response.status).toBe(404);
     });
@@ -956,19 +922,6 @@ describe("Deployment projects", () => {
     return await container.resolve<ApiPgDatabase>(POSTGRES_DB).select().from(settings).where(eq(settings.userId, userId));
   }
 
-  async function personalDefaultProjectOf(userId: string) {
-    const [members, organizations, projects] = [resolveTable("OrganizationMembers"), resolveTable("Organizations"), resolveTable("Projects")];
-    const [{ project }] = await container
-      .resolve<ApiPgDatabase>(POSTGRES_DB)
-      .select({ project: projects })
-      .from(members)
-      .innerJoin(organizations, and(eq(organizations.id, members.organizationId), eq(organizations.type, "personal")))
-      .innerJoin(projects, and(eq(projects.organizationId, organizations.id), eq(projects.isDefault, true)))
-      .where(eq(members.userId, userId));
-
-    return project;
-  }
-
   async function activitiesOfProject(projectId: string) {
     const activities = resolveTable("OrganizationActivities");
 
@@ -988,14 +941,8 @@ describe("Deployment projects", () => {
     return `Bearer ${token}`;
   }
 
-  function enableOrganizationsFor(userIds: string[], { isMarketplaceOn = true }: { isMarketplaceOn?: boolean } = {}) {
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation((flag, context) => {
-      if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
-      if (flag === FeatureFlags.TEMPLATE_MARKETPLACE) return isMarketplaceOn;
-      if (flag !== FeatureFlags.ORGANIZATIONS) return true;
-
-      return userIds.includes(context?.userId ?? container.resolve(AuthService).safeCurrentUser?.id ?? "");
-    });
+  function turnTemplateMarketplace({ isMarketplaceOn = true }: { isMarketplaceOn?: boolean }) {
+    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.TEMPLATE_MARKETPLACE || isMarketplaceOn);
   }
 
   function stubSigner() {
@@ -1088,13 +1035,7 @@ describe("Deployment projects", () => {
     return versions;
   }
 
-  async function setupCaller(input: {
-    role: OrganizationRole;
-    organizationsOn?: boolean;
-    grants?: Array<"default" | "other">;
-    invitedWith?: ProjectAccess;
-    isMarketplaceOn?: boolean;
-  }) {
+  async function setupCaller(input: { role: OrganizationRole; grants?: Array<"default" | "other">; invitedWith?: ProjectAccess; isMarketplaceOn?: boolean }) {
     const { user: owner, organization: team, project: defaultProject } = await seedOrganizationWithOwner({ user: createSignedUpUserInput() });
     const otherProject = await seedProject({ organizationId: team.id });
     const caller =
@@ -1119,7 +1060,7 @@ describe("Deployment projects", () => {
     }
     const teamWallet = await seedWallets({ userId: caller.id, organizationId: team.id });
     const authorization = signIn(caller.userId!);
-    enableOrganizationsFor(input.organizationsOn === false ? [] : [caller.id], { isMarketplaceOn: input.isMarketplaceOn });
+    turnTemplateMarketplace({ isMarketplaceOn: input.isMarketplaceOn });
     const { signer, signedIndexes, reloadTargets } = stubSigner();
 
     const request = (requestPath: string, init: { method?: string; body?: unknown; organizationHeader?: boolean; headers?: Record<string, string> } = {}) =>

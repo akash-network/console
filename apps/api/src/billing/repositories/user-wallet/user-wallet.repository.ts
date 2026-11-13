@@ -153,7 +153,6 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
       .returning();
 
     if (!claimed) return undefined;
-    this.compareWithShadow([claimed]);
 
     return this.toOutput(claimed);
   }
@@ -323,7 +322,6 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
 
     const userWallet = await this.cursor.query.UserWallets.findFirst({ where: this.whereAccessibleBy(eq(this.table.userId, userId)) });
     if (!userWallet) return undefined;
-    this.compareWithShadow([userWallet]);
 
     return this.toOutput(userWallet);
   }
@@ -331,12 +329,11 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
   async findOneByOrganizationId(organizationId: string) {
     const wallet = await this.cursor.query.UserWallets.findFirst({ where: this.whereAccessibleBy(eq(this.table.organizationId, organizationId)) });
     if (!wallet) return undefined;
-    this.compareWithShadow([wallet]);
 
     return this.toOutput(wallet);
   }
 
-  /** The wallet a user acts through: the active organization's in organization mode, only for the user the request is authenticated as, and the user's own otherwise. */
+  /** The wallet a user acts through: the active organization's, only for the user the request is authenticated as, and the user's own otherwise. */
   @Trace()
   async findOneUsedBy(userId: string) {
     const organizationId = this.scopedOrganizationId;
@@ -358,7 +355,6 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
   async findOneByAddress(address: string) {
     const userWallet = await this.cursor.query.UserWallets.findFirst({ where: this.whereAccessibleBy(eq(this.table.address, address)) });
     if (!userWallet) return undefined;
-    this.compareWithShadow([userWallet]);
 
     return this.toOutput(userWallet);
   }
@@ -366,7 +362,7 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
   async findByAddresses(addresses: string[]) {
     if (addresses.length === 0) return [];
 
-    return this.#comparedList(await this.cursor.query.UserWallets.findMany({ where: this.whereAccessibleBy(inArray(this.table.address, addresses)) }));
+    return this.toOutputList(await this.cursor.query.UserWallets.findMany({ where: this.whereAccessibleBy(inArray(this.table.address, addresses)) }));
   }
 
   /** Keyset-paged on the primary key and projected to what a close needs, because a sweep reads every managed wallet to find the few that own an orphan. */
@@ -396,7 +392,7 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
 
   async findByUserId(userId: UserWalletOutput["userId"] | UserWalletOutput["userId"][]) {
     const where = Array.isArray(userId) ? inArray(this.table.userId, userId as string[]) : eq(this.table.userId, userId as string);
-    return this.#comparedList(await this.cursor.query.UserWallets.findMany({ where: this.whereAccessibleBy(where) }));
+    return this.toOutputList(await this.cursor.query.UserWallets.findMany({ where: this.whereAccessibleBy(where) }));
   }
 
   /** Users who paid for their own wallet; a team that paid counts in {@link payingTeamCount} instead, never once per member. */
@@ -414,12 +410,6 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
       .from(this.table)
       .where(this.unscoped("platform-statistics").whereAccessibleBy(and(isNull(this.table.userId), isNotNull(this.table.activatedAt))));
     return payingTeamCount;
-  }
-
-  #comparedList(rows: DbUserWalletOutput[]) {
-    this.compareWithShadow(rows);
-
-    return this.toOutputList(rows);
   }
 
   protected toOutput(dbOutput: DbUserWalletOutput): UserWalletOutput {

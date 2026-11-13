@@ -1666,7 +1666,7 @@ describe(ManagedSignerService.name, () => {
 
   describe("executeDerivedTx", () => {
     it("records the deposits pending before signing and settles them with the landed transaction", async () => {
-      const deposits = { recorded: [mock<DeploymentDepositOutput>({ id: faker.string.uuid() })], awaitingPrice: [] };
+      const deposits = { recorded: [mock<DeploymentDepositOutput>({ id: faker.string.uuid() })] };
       const tx = { code: 0, hash: "TX-HASH", rawLog: "[]" };
       const { service, depositLedger, txManagerService } = setup({ signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue(tx) });
       depositLedger.recordPending.mockResolvedValue(deposits);
@@ -1684,7 +1684,7 @@ describe(ManagedSignerService.name, () => {
     });
 
     it("hands the signer's own error to the ledger before mapping it for the caller", async () => {
-      const deposits = { recorded: [mock<DeploymentDepositOutput>({ id: faker.string.uuid() })], awaitingPrice: [] };
+      const deposits = { recorded: [mock<DeploymentDepositOutput>({ id: faker.string.uuid() })] };
       const signerError = new Error("signer timed out");
       const appError = createError(504, "still processing");
       const { service, depositLedger } = setup({
@@ -1880,8 +1880,8 @@ describe(ManagedSignerService.name, () => {
       expect(deploymentSettingRepository.accessibleBy).not.toHaveBeenCalled();
     });
 
-    it("checks nothing in legacy mode", async () => {
-      const { service, deploymentSettingRepository } = setupForTeam({ organizationContext: { ...projectScoped, mode: "legacy" } });
+    it("checks nothing outside an organization context", async () => {
+      const { service, deploymentSettingRepository } = setupForTeam();
 
       await service.executeDerivedDecodedTxByUserId("member-1", [closeMessageFor(123)]);
 
@@ -1935,8 +1935,8 @@ describe(ManagedSignerService.name, () => {
       await expect(service.isDeploymentInProjectScope(wallet, "123", "read")).resolves.toBe(false);
     });
 
-    it("reaches every deployment outside organization mode", async () => {
-      const { service, deploymentSettingRepository, wallet } = setupForTeam({ organizationContext: { ...projectScoped, mode: "legacy" } });
+    it("reaches every deployment outside an organization context", async () => {
+      const { service, deploymentSettingRepository, wallet } = setupForTeam();
 
       await expect(service.isDeploymentInProjectScope(wallet, "123", "read")).resolves.toBe(true);
       expect(deploymentSettingRepository.findFiledRowsOfWallet).not.toHaveBeenCalled();
@@ -2652,7 +2652,7 @@ describe(ManagedSignerService.name, () => {
         get: vi.fn((key: string) => executionStorage[key]) as ExecutionContextService["get"]
       }),
       depositLedger: mock<DeploymentDepositLedgerService>({
-        recordPending: vi.fn().mockResolvedValue({ recorded: [], awaitingPrice: [] })
+        recordPending: vi.fn().mockResolvedValue({ recorded: [] })
       }),
       deploymentOrganizationActivityService: mock<DeploymentOrganizationActivityService>({
         recordClosed: vi.fn()
