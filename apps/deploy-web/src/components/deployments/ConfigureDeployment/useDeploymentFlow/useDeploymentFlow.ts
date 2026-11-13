@@ -11,7 +11,7 @@ import { useMarkActivityOutcomes } from "@src/hooks/useHandledActivityOutcomes/u
 import { type HeldActivityEvent, useHoldActivityEvents } from "@src/hooks/useHeldActivityEvents/useHeldActivityEvents";
 import { useRecordOneClickDeploy } from "@src/hooks/useOneClickDeploys/useOneClickDeploys";
 import { QueryKeys } from "@src/queries/queryKeys";
-import { PENDING_ACTIVITY_POLL_MS, useLatestActivitiesQuery } from "@src/queries/useLatestActivitiesQuery";
+import { type Activity, PENDING_ACTIVITY_POLL_MS, useLatestActivitiesQuery } from "@src/queries/useLatestActivitiesQuery";
 import { BID_POLL_INTERVAL, useListBids } from "@src/queries/useListBids";
 import { SKIP_REPORTING_REFUSED_INPUT } from "@src/services/query-error-policy/query-error-policy";
 import { settingsIdAtom } from "@src/store/settingsStore";
@@ -27,6 +27,7 @@ import { isEmptyServicesPatch, servicesPatchBetween } from "@src/utils/sdl/sdlSe
 import { sealSdlSecrets } from "@src/utils/sdl/sealSdlSecrets";
 import { hasSdlReference } from "@src/utils/sdl/storedDefinition";
 import { hardcodedTemplates } from "@src/utils/templates";
+import { wait } from "@src/utils/timer";
 import { UrlService } from "@src/utils/urlUtils";
 import { isWalletProvisioning, WALLET_PROVISIONING_ERROR_CODE, walletProvisioningRetry } from "@src/utils/walletProvisioning";
 import { aggregateDeploymentResources } from "../DeploymentResourceSummary/deploymentResources";
@@ -170,6 +171,9 @@ export const DEPLOY_SUCCESS_DWELL_MS = 1200;
 /** Must stay above the second or so the api takes to hand a lease to the background, and below the 5 s or more it needs to create one during the request. */
 const BACKGROUND_HANDOFF_WAIT_MS = 3000;
 
+/** Must outlast the api's create retries and their reconcile, which keep a create pending for up to about 50 minutes. */
+const MAX_DISCARDED_CREATE_WAIT_MS = 60 * 60 * 1000;
+
 /** Retry is offered once this passes, so it must stay well above the 5 s or more the api needs to create a lease during the request. */
 const SLOW_DEPLOY_TIMEOUT_MS = 30 * 1000;
 
@@ -242,10 +246,29 @@ export function useDeploymentFlow({ intent, pendingCreate }: UseDeploymentFlowIn
   const createDeployment = api.v1.createDeployment.useMutation({
     ...walletProvisioningRetry,
     meta: SKIP_REPORTING_REFUSED_CREATE,
-    onSuccess: function closeWhatADiscardedCreateOpened(result) {
-      if (discardedRef.current && !acceptedActivityIdOf(result.data)) closeDeployment.mutate(closeRequestFor(result.data.dseq, true));
+    onSuccess: function closeWhatADiscardedCreateOpens(result) {
+      if (!discardedRef.current) return;
+      const activityId = acceptedActivityIdOf(result.data);
+      if (activityId) void closeOnceQueuedCreateSucceeds(result.data.dseq, activityId);
+      else closeDeployment.mutate(closeRequestFor(result.data.dseq, true));
     }
   });
+  /** The api can only close a deployment once its queued create lands on chain, and the page is usually gone by then. */
+  async function closeOnceQueuedCreateSucceeds(createdDseq: string, activityId: string) {
+    const giveUpAt = Date.now() + MAX_DISCARDED_CREATE_WAIT_MS;
+    while (Date.now() < giveUpAt) {
+      const status = await readActivityStatus(activityId);
+      if (status === "succeeded") closeDeployment.mutate(closeRequestFor(createdDseq, true));
+      if (status === "succeeded" || status === "failed") return;
+      await wait(PENDING_ACTIVITY_POLL_MS);
+    }
+  }
+  function readActivityStatus(activityId: string): Promise<Activity["status"] | undefined> {
+    return queryClient.fetchQuery({ ...api.v1.getActivity.queryOptions({ id: activityId }), staleTime: 0 }).then(
+      ({ data }) => data.status,
+      () => undefined
+    );
+  }
   const closeDeployment = api.v1.closeDeployment.useMutation({
     onSettled: function refreshListsAfterADiscardedClose() {
       if (discardedRef.current) invalidateClosedDeploymentCaches();

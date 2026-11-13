@@ -1,7 +1,7 @@
 import type { PropsWithChildren } from "react";
 import { ApiError } from "@akashnetwork/openapi-sdk";
 import { createStore, Provider as JotaiStoreProvider } from "jotai";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
 
 import { QueryKeys } from "@src/queries/queryKeys";
@@ -3110,11 +3110,99 @@ describe(useDeploymentFlow.name, () => {
     });
 
     it("leaves a create that was never discarded to the attempt that made it", () => {
-      const { services, closeDeployment } = setup({ createMutate: vi.fn() });
+      const { services, closeDeployment, queryClient } = setup({ createMutate: vi.fn() });
 
-      act(() => hookOptionsOf(services.api.v1.createDeployment.useMutation).onSuccess?.({ data: { dseq: "999", manifest: "m" } }));
+      act(() => hookOptionsOf(services.api.v1.createDeployment.useMutation).onSuccess?.({ data: { dseq: "999", manifest: "m", activityId: "activity-9" } }));
 
       expect(closeDeployment.mutate).not.toHaveBeenCalled();
+      expect(queryClient.fetchQuery).not.toHaveBeenCalled();
+    });
+
+    describe("when the api queues the create the page discarded", () => {
+      it("closes the deployment once its create succeeds, even once the page is gone", async () => {
+        const { answerDiscardedCreate, closeDeployment, queryClient, services } = discardCreateInFlight({
+          reads: [queuedCreateStatus("pending"), queuedCreateStatus("succeeded")]
+        });
+
+        await answerDiscardedCreate();
+        expect(closeDeployment.mutate).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(5_000);
+
+        expect(services.api.v1.getActivity.queryOptions).toHaveBeenCalledWith({ id: "activity-9" });
+        expect(queryClient.fetchQuery).toHaveBeenCalledWith(expect.objectContaining({ staleTime: 0 }));
+        expect(closeDeployment.mutate).toHaveBeenCalledTimes(1);
+        expect(closeDeployment.mutate).toHaveBeenCalledWith({ dseq: "999", async: "true" });
+      });
+
+      it("stops reading the create once it succeeds", async () => {
+        const { answerDiscardedCreate, closeDeployment, queryClient } = discardCreateInFlight({ reads: [queuedCreateStatus("succeeded")] });
+
+        await answerDiscardedCreate();
+        await vi.advanceTimersByTimeAsync(60_000);
+
+        expect(queryClient.fetchQuery).toHaveBeenCalledTimes(1);
+        expect(closeDeployment.mutate).toHaveBeenCalledTimes(1);
+      });
+
+      it("closes nothing when its create fails, since no deployment was opened", async () => {
+        const { answerDiscardedCreate, closeDeployment, queryClient } = discardCreateInFlight({ reads: [queuedCreateStatus("failed")] });
+
+        await answerDiscardedCreate();
+        await vi.advanceTimersByTimeAsync(60_000);
+
+        expect(queryClient.fetchQuery).toHaveBeenCalledTimes(1);
+        expect(closeDeployment.mutate).not.toHaveBeenCalled();
+      });
+
+      it("keeps waiting through a read that fails", async () => {
+        const { answerDiscardedCreate, closeDeployment } = discardCreateInFlight({
+          reads: [new Error("network down"), queuedCreateStatus("succeeded")]
+        });
+
+        await answerDiscardedCreate();
+        await vi.advanceTimersByTimeAsync(5_000);
+
+        expect(closeDeployment.mutate).toHaveBeenCalledWith({ dseq: "999", async: "true" });
+      });
+
+      it("stops waiting on a create that is still pending after an hour", async () => {
+        const { answerDiscardedCreate, closeDeployment, queryClient } = discardCreateInFlight({ reads: [] });
+
+        await answerDiscardedCreate();
+        await vi.advanceTimersByTimeAsync(60 * 60 * 1000);
+        const readsWithinTheHour = queryClient.fetchQuery.mock.calls.length;
+        await vi.advanceTimersByTimeAsync(60_000);
+
+        expect(readsWithinTheHour).toBeGreaterThan(1);
+        expect(queryClient.fetchQuery).toHaveBeenCalledTimes(readsWithinTheHour);
+        expect(closeDeployment.mutate).not.toHaveBeenCalled();
+      });
+
+      function discardCreateInFlight(input: { reads: Array<{ data: Activity } | Error> }) {
+        vi.useFakeTimers();
+        onTestFinished(() => {
+          vi.useRealTimers();
+        });
+        const view = setup({ createMutate: vi.fn() });
+        const reads = [...input.reads];
+        view.queryClient.fetchQuery.mockImplementation(async () => {
+          const read = reads.shift() ?? queuedCreateStatus("pending");
+          if (read instanceof Error) throw read;
+          return read;
+        });
+        act(() => view.result.current.actions.requestQuotes("sdl"));
+        act(() => view.result.current.actions.discard());
+        view.unmount();
+        const answerDiscardedCreate = async () => {
+          hookOptionsOf(view.services.api.v1.createDeployment.useMutation).onSuccess?.({ data: { dseq: "999", manifest: "m", activityId: "activity-9" } });
+          await vi.advanceTimersByTimeAsync(0);
+        };
+        return { ...view, answerDiscardedCreate };
+      }
+
+      function queuedCreateStatus(status: Activity["status"]) {
+        return { data: buildActivity({ id: "activity-9", type: "deployment_create", status, meta: { dseq: "999" } }) };
+      }
     });
 
     it("drops a create queued behind a close", () => {
@@ -4232,14 +4320,17 @@ describe(useDeploymentFlow.name, () => {
       expect(createMutate).toHaveBeenCalledTimes(2);
     });
 
-    it("leaves a background create alone when the page is discarded", async () => {
-      const { result, closeMutate, services, accept } = await setupBackgroundCreate({});
-      act(() => accept());
+    it("leaves a background create alone when the page is discarded after the api accepted it", async () => {
+      const { result, closeMutate, services, queryClient, accept } = await setupBackgroundCreate({});
+      act(() => {
+        hookOptionsOf(services.api.v1.createDeployment.useMutation).onSuccess?.({ data: { dseq: "1000", manifest: "m", activityId: "activity-1" } });
+        accept();
+      });
 
       act(() => result.current.actions.discard());
-      act(() => hookOptionsOf(services.api.v1.createDeployment.useMutation).onSuccess?.({ data: { dseq: "1000", manifest: "m", activityId: "activity-1" } }));
 
       expect(closeMutate).not.toHaveBeenCalled();
+      expect(queryClient.fetchQuery).not.toHaveBeenCalled();
     });
   });
 
