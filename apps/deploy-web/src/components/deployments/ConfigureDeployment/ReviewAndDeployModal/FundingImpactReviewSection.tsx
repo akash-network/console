@@ -10,11 +10,8 @@ import { UsdValue } from "@src/components/billing-usage/UsdValue/UsdValue";
 import { useAddCredits } from "@src/hooks/useAddCredits";
 import { UrlService } from "@src/utils/urlUtils";
 import type { FundingImpact } from "./useFundingImpact";
-import { useFundingImpact } from "./useFundingImpact";
-import type { ReviewRow } from "./useReviewRows";
 
 export const DEPENDENCIES = {
-  useFundingImpact,
   useAddCredits,
   BalanceBreakdownBar,
   UsdValue,
@@ -25,7 +22,7 @@ export const DEPENDENCIES = {
 const ADD_CREDITS_DESCRIPTION = "Add credits to keep this deployment funded and running.";
 
 type Props = {
-  rows: ReviewRow[];
+  impact: FundingImpact;
   runtimeLimitHours: number | undefined;
   dependencies?: typeof DEPENDENCIES;
 };
@@ -36,6 +33,8 @@ type Badge = { label: string; tone: "warning" | "neutral" };
 
 type StateActions = {
   addCredits: ReactNode;
+  /** The trial credit already covers the deployment, so buying credits must not outrank confirming it. */
+  addCreditsSecondary: ReactNode;
   /** Opens in a new tab so the review modal, and the bids it is holding, survive the detour to Billing. */
   setUpAutoTopUp: ReactNode;
 };
@@ -57,8 +56,7 @@ const BADGE_TONES: Record<Badge["tone"], string> = {
  * of, and whether it triggers an automatic credit purchase. Purely informative — it never blocks the
  * deploy, and it renders nothing at all when the estimate can't be made.
  */
-export const FundingImpactReviewSection: FC<Props> = ({ rows, runtimeLimitHours, dependencies: d = DEPENDENCIES }) => {
-  const impact = d.useFundingImpact({ rows, runtimeLimitHours });
+export const FundingImpactReviewSection: FC<Props> = ({ impact, runtimeLimitHours, dependencies: d = DEPENDENCIES }) => {
   const openAddCredits = d.useAddCredits();
   const [isExpanded, setIsExpanded] = useState(false);
   const usd = (value: number) => <d.UsdValue value={value} />;
@@ -87,23 +85,26 @@ export const FundingImpactReviewSection: FC<Props> = ({ rows, runtimeLimitHours,
   }
 
   const badge = STATE_BADGES[impact.state];
+  const renderAddCredits = (variant: "default" | "outline") => (
+    <Button
+      size="sm"
+      variant={variant}
+      onClick={() =>
+        openAddCredits({
+          initialTab: "purchase",
+          description: ADD_CREDITS_DESCRIPTION,
+          context: "review_funding_impact",
+          deploymentDailyCostUsd: impact.dailyCostUsd,
+          suggestFirstDeployment: false
+        })
+      }
+    >
+      Add Credits
+    </Button>
+  );
   const actions: StateActions = {
-    addCredits: (
-      <Button
-        size="sm"
-        onClick={() =>
-          openAddCredits({
-            initialTab: "purchase",
-            description: ADD_CREDITS_DESCRIPTION,
-            context: "review_funding_impact",
-            deploymentDailyCostUsd: impact.dailyCostUsd,
-            suggestFirstDeployment: false
-          })
-        }
-      >
-        Add Credits
-      </Button>
-    ),
+    addCredits: renderAddCredits("default"),
+    addCreditsSecondary: renderAddCredits("outline"),
     setUpAutoTopUp: (
       <Button size="sm" asChild>
         <d.Link href={UrlService.billing({ setupAutoTopUp: true })} target="_blank" rel="noopener noreferrer">
@@ -196,9 +197,10 @@ function renderStateDetails(impact: VisibleImpact, usd: (value: number) => React
       return (
         <Callout tone="neutral">
           <span className="flex-1">
-            Trial deployments are closed automatically after {impact.trialDurationHours} hours. Add funds to activate your account and keep deployments running.
+            Trial deployments are closed automatically after {impact.trialDurationHours} hours. Add credits whenever you want to keep deployments running
+            longer.
           </span>
-          {actions.addCredits}
+          {actions.addCreditsSecondary}
         </Callout>
       );
     case "no-payment-method":

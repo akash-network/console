@@ -13,7 +13,7 @@ import {
   Snackbar,
   Spinner
 } from "@akashnetwork/ui/components";
-import { ArrowRight, LoaderCircle, Rocket } from "lucide-react";
+import { ArrowRight, CircleCheck, LoaderCircle, Rocket } from "lucide-react";
 import { useSnackbar } from "notistack";
 
 import { PricePerTimeUnit } from "@src/components/shared/PricePerTimeUnit";
@@ -27,6 +27,8 @@ import { useTrialGate } from "../ConfigurationPane/HardwareSection/useTrialGate/
 import { useDeploymentHasGpu } from "../DeploymentResourceSummary/useDeploymentResourceSummary";
 import { FundingImpactReviewSection } from "./FundingImpactReviewSection";
 import { RuntimeLimitReviewSection } from "./RuntimeLimitReviewSection";
+import type { FundingImpactState } from "./useFundingImpact";
+import { useFundingImpact } from "./useFundingImpact";
 import type { ReviewRow } from "./useReviewRows";
 import { useReviewRows } from "./useReviewRows";
 
@@ -34,6 +36,7 @@ export const DEPENDENCIES = {
   useReviewRows,
   PricePerTimeUnit,
   useDeploymentHasGpu,
+  useFundingImpact,
   FundingImpactReviewSection,
   RuntimeLimitReviewSection,
   useFlag,
@@ -56,7 +59,8 @@ interface Props {
   runtimeLimitHours: number | undefined;
   onRuntimeLimitHoursChange: (value: number | undefined) => void;
   onConfirm: () => void;
-  onBack: () => void;
+  /** Receives the funding state the review showed, or null while it was still unknown. */
+  onBack: (fundingState: FundingImpactState | null) => void;
   /** Re-sends the deploy for the same deployment and never creates another, since the slow request may still lease this one. */
   onRetryDeploy: () => void;
   onBackToBids: () => void;
@@ -115,6 +119,9 @@ export const ReviewAndDeployModal: FC<Props> = ({
    */
   const [isRuntimeLimitOn, setIsRuntimeLimitOn] = useState(runtimeLimitHours !== undefined);
   const isRuntimeLimitIncomplete = isRuntimeLimitOffered && isRuntimeLimitOn && runtimeLimitHours === undefined;
+  const fundingImpact = d.useFundingImpact({ rows, runtimeLimitHours: effectiveRuntimeLimitHours });
+  const isCoveredByTrial = fundingImpact.kind === "visible" && fundingImpact.state === "trial";
+  const goBack = () => onBack(fundingImpact.kind === "visible" ? fundingImpact.state : null);
   /**
    * Only deployable once every placement is selected and still has a live (priced) bid: a closed or stale
    * bid leaves a row unpriced and would fail at create-lease.
@@ -175,7 +182,7 @@ export const ReviewAndDeployModal: FC<Props> = ({
   };
 
   return (
-    <DialogV2 open={open} onOpenChange={isOpen => (!isOpen ? onBack() : undefined)}>
+    <DialogV2 open={open} onOpenChange={isOpen => (!isOpen ? goBack() : undefined)}>
       <DialogV2Content className="max-w-2xl" onEscapeKeyDown={preventDefault} onInteractOutside={preventDefault} hideCloseButton>
         <DialogV2Header>
           <DialogV2Title>Review and deploy</DialogV2Title>
@@ -183,6 +190,8 @@ export const ReviewAndDeployModal: FC<Props> = ({
         </DialogV2Header>
 
         <DialogV2Body className="space-y-4">
+          {isCoveredByTrial && <TrialCoverageNotice trialDurationHours={fundingImpact.trialDurationHours} />}
+
           <ul className="divide-y">
             {rows.map((row, index) => (
               <li key={row.placementId} className="flex items-center gap-4 py-4 first:pt-0">
@@ -223,7 +232,7 @@ export const ReviewAndDeployModal: FC<Props> = ({
             <TotalPrice rows={rows} showAsHourly={showAsHourly} PricePerTimeUnit={d.PricePerTimeUnit} />
           </div>
 
-          <d.FundingImpactReviewSection rows={rows} runtimeLimitHours={effectiveRuntimeLimitHours} />
+          <d.FundingImpactReviewSection impact={fundingImpact} runtimeLimitHours={effectiveRuntimeLimitHours} />
 
           {isRuntimeLimitOffered && (
             <d.RuntimeLimitReviewSection
@@ -240,7 +249,7 @@ export const ReviewAndDeployModal: FC<Props> = ({
           <TakingLongFooter onRetryDeploy={onRetryDeploy} onBackToBids={onBackToBids} />
         ) : (
           <DialogV2Footer>
-            <Button variant="ghost" onClick={onBack} disabled={updateSetting.isPending || isDeploying}>
+            <Button variant="ghost" onClick={goBack} disabled={updateSetting.isPending || isDeploying}>
               Back to marketplace
             </Button>
             {isDeploying ? (
@@ -260,6 +269,20 @@ export const ReviewAndDeployModal: FC<Props> = ({
     </DialogV2>
   );
 };
+
+function TrialCoverageNotice({ trialDurationHours }: { trialDurationHours: number }) {
+  return (
+    <div className="flex items-start gap-3 rounded-lg border border-success/40 bg-success/5 p-4">
+      <CircleCheck className="mt-0.5 h-5 w-5 shrink-0 text-success" aria-hidden="true" />
+      <div className="space-y-1">
+        <p className="text-sm font-medium">Covered by your free trial credit</p>
+        <p className="text-sm text-muted-foreground">
+          Confirming uses trial credit and needs no payment. Trial deployments close automatically after {trialDurationHours} hours.
+        </p>
+      </div>
+    </div>
+  );
+}
 
 function TakingLongFooter({ onRetryDeploy, onBackToBids }: { onRetryDeploy: () => void; onBackToBids: () => void }) {
   return (

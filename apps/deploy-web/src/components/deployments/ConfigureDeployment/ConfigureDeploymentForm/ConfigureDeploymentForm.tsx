@@ -43,6 +43,7 @@ import type { NeedsFundsVariant } from "../needsFundsVariant/needsFundsVariant";
 import { canRetryRefusedDeploy, needsFundsVariantOf } from "../needsFundsVariant/needsFundsVariant";
 import { PlacementManagerProvider } from "../PlacementManagerProvider/PlacementManagerProvider";
 import { ReviewAndDeployModal } from "../ReviewAndDeployModal/ReviewAndDeployModal";
+import type { FundingImpactState } from "../ReviewAndDeployModal/useFundingImpact";
 import { SdlImportChangesBanner } from "../SdlImportChangesBanner/SdlImportChangesBanner";
 import { SdlImportExport } from "../SdlImportExport/SdlImportExport";
 import { firstBidReadyServiceId, nextSelectedServiceId, nextUndoneServiceId, resolveSelectedPlacement } from "../serviceSelection/serviceSelection";
@@ -209,6 +210,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
 
   const placementsWithBids = d.usePlacementsWithBids({ enabled: flow.phase === "quoting", dseq: flow.dseq, sdl: liveSdl, placements });
   const [isReviewOpen, setReviewOpen] = useState(false);
+  const reviewOpenedAt = useRef<number | null>(null);
   const allPlacementsHaveBids = placements.length > 0 && placements.every(placement => placementsWithBids.has(placement.id));
   const lastToastedDeployError = useRef(flow.deployError);
   const lastToastedFlowError = useRef<typeof flow.error>(undefined);
@@ -422,11 +424,19 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
       placementCount: placements.length,
       selectionCount: Object.keys(selections).length
     });
+    reviewOpenedAt.current = Date.now();
     setReviewOpen(true);
   }
 
-  function closeReview() {
-    analyticsService.track("review_deploy_dismissed", { category: "deployments", dseq: flow.dseq });
+  function closeReview(fundingState: FundingImpactState | null) {
+    analyticsService.track("review_deploy_dismissed", {
+      category: "deployments",
+      dseq: flow.dseq,
+      isTrialing,
+      fundingState,
+      fitsAvailableCredit: fundingState === null ? null : fundingState !== "not-enough-available",
+      secondsOpen: reviewOpenedAt.current === null ? null : Math.round((Date.now() - reviewOpenedAt.current) / 1000)
+    });
     setReviewOpen(false);
   }
 
