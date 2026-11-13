@@ -646,6 +646,22 @@ describe(ConfigureDeployment.name, () => {
       expectTheTemplateFallback({ ConfigureDeploymentForm, enqueueSnackbar });
     });
 
+    it("keeps the fallback form free of a template that loads after it failed", () => {
+      const { ConfigureDeploymentForm, router, rerenderWithMarketplaceTemplate } = setup({
+        userTemplateId: "tpl-9",
+        isTemplateMarketplaceEnabled: true,
+        marketplaceTemplate: { isError: true }
+      });
+
+      rerenderWithMarketplaceTemplate({ isSuccess: true, data: deployableTemplate() });
+
+      const props = ConfigureDeploymentForm.mock.lastCall?.[0];
+      expect(props?.templateSource).toBeUndefined();
+      expect(props?.intent).not.toHaveProperty("templateVersionId");
+      expect(props?.intent).not.toHaveProperty("templateVersion");
+      expect(router.replace).not.toHaveBeenCalled();
+    });
+
     it("falls back to a default deployment when the named version's template cannot be read", () => {
       const { ConfigureDeploymentForm, enqueueSnackbar } = setup({
         userTemplateId: "tpl-9",

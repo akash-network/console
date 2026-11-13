@@ -1,3 +1,4 @@
+import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 
 import type { EnvironmentVariableType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
@@ -63,9 +64,10 @@ describe("askedValueAnswers", () => {
     });
 
     it("reads a secret the deployer typed", () => {
-      const values = setup([{ title: "vllm", env: [{ key: "HF_TOKEN", value: "hf_abc", isSecret: true }] }]);
+      const typedSecret = faker.string.alphanumeric(24);
+      const values = setup([{ title: "vllm", env: [{ key: "HF_TOKEN", value: typedSecret, isSecret: true }] }]);
 
-      expect(answerOf(values, secret())).toEqual({ value: "hf_abc", isPresent: true });
+      expect(answerOf(values, secret())).toEqual({ value: typedSecret, isPresent: true });
     });
 
     it("reads a plain row as written, even one spelling a reference", () => {
@@ -130,6 +132,7 @@ describe("askedValueAnswers", () => {
     });
 
     it("keeps a secret answer marked secret, even on a row the template left empty", () => {
+      const typedSecret = faker.string.alphanumeric(24);
       const values = setup([
         { title: "vllm", env: [{ key: "HF_TOKEN", value: "ac-secret://HF_TOKEN", isSecret: true }] },
         { title: "webui", env: [{ key: "HF_TOKEN", value: "" }] }
@@ -143,10 +146,10 @@ describe("askedValueAnswers", () => {
             { service: "webui", env: "HF_TOKEN" }
           ]
         }),
-        "hf_abc"
+        typedSecret
       );
 
-      expect(envOf(answered)).toEqual([[{ key: "HF_TOKEN", value: "hf_abc", isSecret: true }], [{ key: "HF_TOKEN", value: "hf_abc", isSecret: true }]]);
+      expect(envOf(answered)).toEqual([[{ key: "HF_TOKEN", value: typedSecret, isSecret: true }], [{ key: "HF_TOKEN", value: typedSecret, isSecret: true }]]);
     });
 
     it("changes nothing for an absent variable", () => {
@@ -240,6 +243,9 @@ describe("askedValueAnswers", () => {
       { name: "one of the choices", askedValue: choice(), value: "qwen", issue: undefined },
       { name: "a required empty choice", askedValue: choice({ required: true }), value: "", issue: "Enter a value for Model to continue." },
       { name: "a required unset yes/no, which shows No", askedValue: boolean({ required: true }), value: "", issue: undefined },
+      { name: "a yes/no set to true", askedValue: boolean(), value: "true", issue: undefined },
+      { name: "a yes/no set to false", askedValue: boolean(), value: "false", issue: undefined },
+      { name: "a yes/no that is neither true nor false", askedValue: boolean(), value: "yes", issue: "Pick Yes or No." },
       {
         name: "a secret still holding its reference",
         askedValue: secret(),
@@ -252,7 +258,7 @@ describe("askedValueAnswers", () => {
         value: "ac-secret://HF_TOKEN",
         issue: "Enter a value for Hugging Face token to continue."
       },
-      { name: "a typed secret", askedValue: secret(), value: "hf_abc", issue: undefined }
+      { name: "a typed secret", askedValue: secret(), value: faker.string.alphanumeric(24), issue: undefined }
     ])("reports $name", ({ askedValue, value, issue }) => {
       const values = setup([{ title: "vllm", env: [{ key: askedValue.bindings[0].env, value, isSecret: askedValue.type === "secret" }] }]);
 

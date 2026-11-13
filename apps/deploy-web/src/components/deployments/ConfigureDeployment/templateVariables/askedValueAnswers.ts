@@ -120,6 +120,8 @@ function constraintIssueOf(askedValue: TemplateAskedValue, value: string): strin
       return textIssueOf(askedValue, value);
     case "choice":
       return askedValue.choices.includes(value) ? undefined : "Pick one of the choices.";
+    case "boolean":
+      return value === "true" || value === "false" ? undefined : "Pick Yes or No.";
     default:
       return undefined;
   }

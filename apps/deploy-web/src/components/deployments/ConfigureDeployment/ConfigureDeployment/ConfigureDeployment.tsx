@@ -154,10 +154,12 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({
   const fetchedUserTemplateId = isAwaitingDraft || versionedTemplate ? undefined : intent.userTemplateId;
   const templateQuery = d.usePublicTemplate(fetchedTemplateId);
   const userTemplateQuery = d.useUserTemplate(fetchedUserTemplateId);
-  const templateSource = versionedTemplate?.source;
+  const [hasFallenBackToForm, setHasFallenBackToForm] = useState(false);
+  const loadedTemplateSource = versionedTemplate?.source;
+  const templateSource = hasFallenBackToForm ? undefined : loadedTemplateSource;
   const { enqueueSnackbar } = d.useSnackbar();
   const templateVersion = intent.templateVersion ?? versionedTemplate?.pinnedVersion;
-  usePinTemplateVersionInUrl({ d, intent, draft, versionedTemplate });
+  usePinTemplateVersionInUrl({ d, intent, draft, versionedTemplate: hasFallenBackToForm ? undefined : versionedTemplate });
 
   const isFetchingTemplate = !!fetchedTemplateId || !!fetchedUserTemplateId || !!versionedTemplate;
   const isTemplateLoading =
@@ -167,13 +169,12 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({
     (!!fetchedUserTemplateId && (userTemplateQuery.isError || (userTemplateQuery.isSuccess && !userTemplateQuery.data?.sdl))) ||
     !!versionedTemplate?.hasFailed;
 
-  const fetchedSdl = fetchedTemplateId ? templateQuery.data?.deploy : versionedTemplate ? templateSource?.version.sdl : userTemplateQuery.data?.sdl;
-  const fetchedName = fetchedTemplateId ? templateQuery.data?.name : versionedTemplate ? templateSource?.template.title : userTemplateQuery.data?.title;
+  const fetchedSdl = fetchedTemplateId ? templateQuery.data?.deploy : versionedTemplate ? loadedTemplateSource?.version.sdl : userTemplateQuery.data?.sdl;
+  const fetchedName = fetchedTemplateId ? templateQuery.data?.name : versionedTemplate ? loadedTemplateSource?.template.title : userTemplateQuery.data?.title;
   const carriedInSdl = intent.vm || intent.exampleImage ? undefined : deploySdl?.content;
   const initialSdl = draft.persistedSdl ?? hardcodedTemplate?.content ?? (isFetchingTemplate ? fetchedSdl : carriedInSdl);
   const initialName = draft.persistedName ?? hardcodedTemplate?.name ?? (isFetchingTemplate ? fetchedName : undefined);
   const isStartingFromDefault = hasTemplateFailed && !initialSdl;
-  const [hasFallenBackToForm, setHasFallenBackToForm] = useState(false);
   if (isStartingFromDefault && !hasFallenBackToForm) setHasFallenBackToForm(true);
 
   useEffect(
