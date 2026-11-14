@@ -3,7 +3,13 @@ import "@hono/zod-openapi";
 import { describe, expect, it } from "vitest";
 
 import { MAX_SUBMITTED_SDL_LENGTH } from "@src/deployment/config/sdl.config";
-import { ListDeploymentsQuerySchema, ListWithResourcesParamsSchema, PatchDeploymentRequestSchema, UpdateDeploymentRequestSchema } from "./deployment.schema";
+import {
+  CreateDeploymentRequestSchema,
+  ListDeploymentsQuerySchema,
+  ListWithResourcesParamsSchema,
+  PatchDeploymentRequestSchema,
+  UpdateDeploymentRequestSchema
+} from "./deployment.schema";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 
@@ -20,7 +26,46 @@ describe("UpdateDeploymentRequestSchema", () => {
   });
 });
 
+describe("CreateDeploymentRequestSchema", () => {
+  describe("the variables secretEnv names", () => {
+    it("keeps the names it was given", () => {
+      expect(parse({ secretEnv: ["API_KEY", "my.var"] }).data?.data.secretEnv).toEqual(["API_KEY", "my.var"]);
+    });
+
+    it("keeps an empty list apart from a request that carries none", () => {
+      expect(parse({ secretEnv: [] }).data?.data.secretEnv).toEqual([]);
+      expect(parse({}).data?.data.secretEnv).toBeUndefined();
+    });
+
+    it.each(["A=B", "MY VAR", "1VAR", ""])("refuses %j, which no env variable is named", name => {
+      expect(parse({ secretEnv: [name] }).success).toBe(false);
+    });
+  });
+
+  function parse(rest: Record<string, unknown>) {
+    return CreateDeploymentRequestSchema.safeParse({ data: { sdl: "version: '2.0'", ...rest } });
+  }
+});
+
 describe("PatchDeploymentRequestSchema", () => {
+  describe("the variables secretEnv names", () => {
+    it("keeps the names it was given beside a patch that writes them", () => {
+      expect(parse({ web: { env: { API_KEY: "x" } } }, { secretEnv: ["API_KEY"] }).data?.data.secretEnv).toEqual(["API_KEY"]);
+    });
+
+    it("keeps an empty list beside a patch that writes something", () => {
+      expect(parse({ web: { env: { API_KEY: "x" } } }, { secretEnv: [] }).data?.data.secretEnv).toEqual([]);
+    });
+
+    it("refuses a name no env variable carries", () => {
+      expect(parse({ web: { env: { API_KEY: "x" } } }, { secretEnv: ["A=B"] }).success).toBe(false);
+    });
+
+    it("refuses a list in place of a service patch, which names values the patch never writes", () => {
+      expect(parse({ web: {} }, { secretEnv: ["API_KEY"] }).success).toBe(false);
+    });
+  });
+
   describe("a patch that would write nothing", () => {
     it("refuses a body naming no service", () => {
       expect(parse({}).success).toBe(false);

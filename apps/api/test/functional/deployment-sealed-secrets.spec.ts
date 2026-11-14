@@ -548,7 +548,27 @@ describe("Deployment sealed secrets", () => {
     expect(response.status).toBe(200);
     const createBody = (JSON.parse(document) as OpenApiPaths).paths["/v1/deployments"].post.requestBody.content["application/json"].schema.properties.data
       .properties;
-    expect(Object.keys(createBody)).toEqual(["sdl", "name", "sealedSecrets", "inheritSecretsFrom", "deposit", "runtimeLimitHours", "projectId", "templateId"]);
+    expect(Object.keys(createBody)).toEqual([
+      "sdl",
+      "name",
+      "sealedSecrets",
+      "secretEnv",
+      "inheritSecretsFrom",
+      "deposit",
+      "runtimeLimitHours",
+      "projectId",
+      "templateId"
+    ]);
+  });
+
+  it("describes secretEnv on both routes that accept it, as needing no client-side encryption", async () => {
+    const response = await app.request("/v1/doc?scope=console");
+    const paths = (JSON.parse(await response.text()) as OpenApiPaths).paths;
+
+    const createSecretEnv = paths["/v1/deployments"].post.requestBody.content["application/json"].schema.properties.data.properties.secretEnv;
+    const patchSecretEnv = paths["/v1/deployments/{dseq}"].patch.requestBody.content["application/json"].schema.properties.data.properties.secretEnv;
+    expect(createSecretEnv).toMatchObject({ description: expect.stringContaining("no client-side encryption") });
+    expect(patchSecretEnv).toMatchObject({ description: expect.stringContaining("no client-side encryption") });
   });
 
   it("describes the seal on both routes that accept one, so neither reads as create-only", async () => {
@@ -614,6 +634,92 @@ describe("Deployment sealed secrets", () => {
     expect(setting!.sdl).toContain("LOG_LEVEL=ac-secret://s0_e0");
     expect(setting!.sdl).not.toContain("LOG_LEVEL=debug");
     await expect(openStoredToken(user, setting!.dseq, setting!.sealedSecrets!)).resolves.toEqual({ s0_e0: "debug" });
+  });
+
+  describe("when the request names its secret env variables in secretEnv", () => {
+    it("seals the named value and stores every other env value as submitted", async () => {
+      const { apiKey, user } = await persistedUser();
+      const token = randomUUID();
+
+      const response = await postDeployment(apiKey, sdlWith({ web: [`API_TOKEN=${token}`, "LOG_LEVEL=debug"] }), undefined, undefined, {
+        secretEnv: ["API_TOKEN"]
+      });
+
+      expect(response.status).toBe(201);
+      const setting = await settingOf(user, response);
+      expect(setting!.sdl).toContain("API_TOKEN=ac-secret://s0_e0");
+      expect(setting!.sdl).toContain("LOG_LEVEL=debug");
+      expect(JSON.stringify(setting)).not.toContain(token);
+      await expect(openStoredToken(user, setting!.dseq, setting!.sealedSecrets!)).resolves.toEqual({ s0_e0: token });
+    });
+
+    it("commits the manifest version of the submitted document, whichever values it sealed", async () => {
+      const { apiKey } = await persistedUser();
+      const submitted = sdlWith({ web: [`API_TOKEN=${randomUUID()}`, "LOG_LEVEL=debug"], worker: [`API_TOKEN=${randomUUID()}`, "RETRIES=3"] });
+
+      const response = await postDeployment(apiKey, submitted, undefined, undefined, { secretEnv: ["API_TOKEN"] });
+
+      expect(response.status).toBe(201);
+      expect(broadcastHash()).toEqual(await manifestVersionOf(submitted));
+    });
+
+    it("keeps every env value readable for an empty list, without reaching the key service", async () => {
+      const { apiKey, user } = await persistedUser();
+
+      const response = await postDeployment(apiKey, sdlWith({ web: ["LOG_LEVEL=debug", "RETRIES=3"] }), undefined, undefined, { secretEnv: [] });
+
+      expect(response.status).toBe(201);
+      expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
+      const setting = await settingOf(user, response);
+      expect(setting!.sdl).toContain("LOG_LEVEL=debug");
+      expect(setting!.sdl).toContain("RETRIES=3");
+      expect(setting!.sealedSecrets).toBeNull();
+    });
+
+    it("seals a registry credential even for an empty list", async () => {
+      const { apiKey, user } = await persistedUser();
+      const [username, password] = [faker.string.alphanumeric(10), randomUUID()];
+
+      const response = await postDeployment(
+        apiKey,
+        sdlWith({ web: ["LOG_LEVEL=debug"] }, { web: { host: REGISTRY_HOST, username, password } }),
+        undefined,
+        undefined,
+        {
+          secretEnv: []
+        }
+      );
+
+      expect(response.status).toBe(201);
+      const setting = await settingOf(user, response);
+      expect(setting!.sdl).toContain("LOG_LEVEL=debug");
+      expect(setting!.sdl).not.toContain(password);
+      await expect(openStoredToken(user, setting!.dseq, setting!.sealedSecrets!)).resolves.toEqual({ s0_c_username: username, s0_c_password: password });
+    });
+
+    it("refuses a name no service sets, recording nothing and broadcasting nothing", async () => {
+      const { apiKey, user } = await persistedUser();
+      const token = randomUUID();
+
+      const response = await postDeployment(apiKey, sdlWith({ web: [`API_TOKEN=${token}`] }), undefined, undefined, { secretEnv: ["API_TOKN"] });
+      const body = await response.text();
+
+      expect(response.status).toBe(400);
+      expect(JSON.parse(body)).toMatchObject({ message: expect.stringContaining('"API_TOKN" is listed in secretEnv') });
+      expect(body).not.toContain(token);
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id })).toBeUndefined();
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+    });
+
+    it("refuses a name that could not be an env variable, before anything is recorded", async () => {
+      const { apiKey, user } = await persistedUser();
+
+      const response = await postDeployment(apiKey, sdlWith({ web: ["API_TOKEN=value"] }), undefined, undefined, { secretEnv: ["API_TOKEN=value"] });
+
+      expect(response.status).toBe(400);
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id })).toBeUndefined();
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+    });
   });
 
   it("creates a deployment with nothing to seal without reaching the key service", async () => {
@@ -949,12 +1055,18 @@ describe("Deployment sealed secrets", () => {
       .encrypt(publicKey);
   }
 
-  async function postDeployment(apiKey: string, sdl: string, secrets?: Record<string, string>, seal?: string, options?: { inheritSecretsFrom?: string }) {
+  async function postDeployment(
+    apiKey: string,
+    sdl: string,
+    secrets?: Record<string, string>,
+    seal?: string,
+    options?: { inheritSecretsFrom?: string; secretEnv?: string[] }
+  ) {
     const sealedSecrets = seal ?? (secrets ? await sealFor(knownUsers[knownApiKeys[apiKey].userId], secrets) : undefined);
 
     return await app.request("/v1/deployments", {
       method: "POST",
-      body: JSON.stringify({ data: { sdl, sealedSecrets, inheritSecretsFrom: options?.inheritSecretsFrom } }),
+      body: JSON.stringify({ data: { sdl, sealedSecrets, inheritSecretsFrom: options?.inheritSecretsFrom, secretEnv: options?.secretEnv } }),
       headers: new Headers({ "Content-Type": "application/json", "x-api-key": apiKey })
     });
   }

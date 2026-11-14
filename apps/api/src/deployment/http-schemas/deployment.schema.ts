@@ -200,6 +200,11 @@ export const GetDeploymentParamsSchema = z.object({
 /** Every reader treats an empty seal as no seal, so accepting one would take a request the caller meant as a secret write and silently do nothing. */
 const SealedSecretsSchema = z.string().min(1);
 
+/** Kubernetes' own env var name grammar, which the SDL accepts and a stored `NAME=value` entry can round-trip. */
+const ENV_VARIABLE_NAME = /^[-._a-zA-Z][-._a-zA-Z0-9]*$/;
+
+const SecretEnvSchema = z.array(z.string().regex(ENV_VARIABLE_NAME));
+
 const MAX_TEMPLATE_ID_LENGTH = 255;
 
 /** Trimmed before it is measured, so a name of nothing but spaces is refused rather than stored as a blank one. */
@@ -215,6 +220,11 @@ export const CreateDeploymentRequestSchema = z.object({
     sealedSecrets: SealedSecretsSchema.optional().openapi({
       description:
         "Compact JWE sealing a flat name-to-value map of the secrets this SDL references, encrypted to the console's public sealing key. Fetch that key and the claims to sign from GET /v1/sdl-secrets-context. Values are never returned by any endpoint once sealed."
+    }),
+    secretEnv: SecretEnvSchema.optional().openapi({
+      description:
+        "Names of the environment variables whose values are secret, in every service the SDL declares. The console seals each named value, which no endpoint returns afterwards, and stores every other env value as submitted, so it stays readable. An empty list keeps every env value readable. Omit it and the console seals every env value, unless the request carries `sealedSecrets`. Registry credentials are sealed either way. Needs no client-side encryption.",
+      example: ["API_KEY", "DATABASE_URL"]
     }),
     inheritSecretsFrom: DseqSchema.optional().openapi({
       description:
@@ -348,12 +358,9 @@ export const UpdateDeploymentRequestSchema = z.object({
 type SdlExposeNode = NonNullable<SDLInput["services"][string]["expose"]>[number];
 type SdlNextCase = NonNullable<NonNullable<SdlExposeNode["http_options"]>["next_cases"]>[number];
 
-/** Kubernetes' own env var name grammar, which the SDL accepts and a stored `NAME=value` entry can round-trip. */
-const ENV_VARIABLE_NAME = /^[-._a-zA-Z][-._a-zA-Z0-9]*$/;
-
 const PatchEnvSchema = z.record(z.string().regex(ENV_VARIABLE_NAME), z.string().nullable()).openapi({
   description:
-    "Merged into the service's env, keyed by environment variable name. A null value removes the variable. A patched variable is re-appended, so the order of the stored env list may change. Written values are sealed unless the request carries `sealedSecrets`."
+    "Merged into the service's env, keyed by environment variable name. A null value removes the variable. A patched variable is re-appended, so the order of the stored env list may change. Every written value is sealed unless the request says which are secret with `secretEnv`, or carries `sealedSecrets`."
 });
 
 /** Every one of these is a uint32 by the time it reaches the provider. */
@@ -478,7 +485,12 @@ export const PatchDeploymentRequestSchema = z.object({
       }),
       sealedSecrets: SealedSecretsSchema.optional().openapi({
         description:
-          "Compact JWE sealing a flat name-to-value map, as on create, but holding only the names this patch replaces. Omitted names keep the values the deployment already stores. Its presence also says which values are secret, as on create: a patch carrying a seal stores the env values it writes as submitted, while one carrying none seals them. A seal of an empty map is how a caller writes plain variables without replacing any secret."
+          "Compact JWE sealing a flat name-to-value map, as on create, but holding only the names this patch replaces. Omitted names keep the values the deployment already stores. Its presence also says which values are secret, as on create: a patch carrying a seal stores the env values it writes as submitted, while one carrying none seals them, unless `secretEnv` says which are secret."
+      }),
+      secretEnv: SecretEnvSchema.optional().openapi({
+        description:
+          "Names of the environment variables this patch writes whose values are secret, in every service it patches. The console seals each named value, which no endpoint returns afterwards, and stores every other value the patch writes as submitted, so it stays readable. An empty list keeps every written value readable. Omit it and the console seals every value the patch writes, unless the patch carries `sealedSecrets`. Variables the patch does not write keep what they hold. Needs no client-side encryption.",
+        example: ["API_KEY"]
       }),
       ifManifestVersion: z.string().min(1).max(MAX_MANIFEST_VERSION_LENGTH).optional().openapi({
         description:

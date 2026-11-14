@@ -508,6 +508,47 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     });
   });
 
+  describe("a patch that names its secret env variables in secretEnv", () => {
+    it("seals the named value it writes and stores the other written value as submitted", async () => {
+      const held = randomUUID();
+      const written = randomUUID();
+      const { apiKey, user } = await setup({ env: ["API_TOKEN=ac-secret://s0_e0", "LOG_LEVEL=debug"], secrets: { s0_e0: held } });
+
+      const response = await patch(apiKey, { services: { web: { env: { DATABASE_URL: written, LOG_LEVEL: "trace" } } }, secretEnv: ["DATABASE_URL"] });
+
+      expect(response.status).toBe(200);
+      const setting = await settingOf(user);
+      expect(setting?.sdl).toContain("LOG_LEVEL=trace");
+      expect(JSON.stringify(setting)).not.toContain(written);
+      const stored = await openStored(user);
+      expect(Object.values(stored)).toEqual(expect.arrayContaining([held, written]));
+      expect(Object.values(stored)).not.toContain("trace");
+    });
+
+    it("keeps every written value readable for an empty list", async () => {
+      const held = randomUUID();
+      const { apiKey, user } = await setup({ env: ["API_TOKEN=ac-secret://s0_e0", "LOG_LEVEL=debug"], secrets: { s0_e0: held } });
+
+      const response = await patch(apiKey, { services: { web: { env: { LOG_LEVEL: "trace" } } }, secretEnv: [] });
+
+      expect(response.status).toBe(200);
+      expect((await settingOf(user))?.sdl).toContain("LOG_LEVEL=trace");
+      await expect(openStored(user)).resolves.toEqual({ s0_e0: held });
+    });
+
+    it("answers 400 naming a variable the patch does not write, and persists nothing", async () => {
+      const { apiKey, user } = await setup({ env: ["API_TOKEN=ac-secret://s0_e0", "LOG_LEVEL=debug"], secrets: { s0_e0: randomUUID() } });
+      const before = await settingOf(user);
+
+      const response = await patch(apiKey, { services: { web: { env: { LOG_LEVEL: "trace" } } }, secretEnv: ["API_TOKEN"] });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ message: expect.stringContaining('"API_TOKEN" is listed in secretEnv') });
+      expect(await settingOf(user)).toEqual(before);
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+    });
+  });
+
   describe("moving an exposed port", () => {
     it("sends a lease provider a manifest reaching the endpoint on its new external port", async () => {
       const { apiKey, secrets } = await setup({ expose: PUBLIC_ENDPOINT_ON_PORT_3000 });

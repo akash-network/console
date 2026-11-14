@@ -77,7 +77,7 @@ import { type ResolvedSdl, SdlService } from "@src/deployment/services/sdl/sdl.s
 import { SdlPatchService } from "@src/deployment/services/sdl-patch/sdl-patch.service";
 import { MAX_ECHOED_REFERENCE_LENGTH, SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { SdlSecretsService, unreferencedNameError } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
-import { SdlSecretsDerivationService } from "@src/deployment/services/sdl-secrets-derivation/sdl-secrets-derivation.service";
+import { SdlSecretsDerivationService, type SealedEnv } from "@src/deployment/services/sdl-secrets-derivation/sdl-secrets-derivation.service";
 import { SdlSecretsInheritanceService } from "@src/deployment/services/sdl-secrets-inheritance/sdl-secrets-inheritance.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import { UserGpuBidCheckService } from "@src/deployment/services/user-gpu-bid-check/user-gpu-bid-check.service";
@@ -163,18 +163,11 @@ function filingOf(accepted: AcceptedDeploymentCreate, definition: DeploymentSett
   return { actingUserId: accepted.userId, filingProjectId: definition.projectId ?? undefined };
 }
 
-/** What becomes of the values a submitted document carries in the clear. There is no longer a way to say "dropped": every writer can seal, so a value is never lost to be safe. */
 /** Who a close is made for: the console on its own, with its reason, or the member acting through the wallet. */
 export type CloseRequest = ConsoleClose | MemberClose;
 
 /** `assertMayStillSign` runs only once the chain shows the deployment still open, so a close an earlier attempt landed needs no signature to settle. */
 type MemberClose = { actingUserId: string; assertMayStillSign?: () => Promise<void> };
-
-type StoredSdlValues =
-  /** Every one of them is sealed and referenced, because nothing in the request said which are secret. */
-  | "every-value-sealed"
-  /** Only a registry credential is, a seal having already said which of the rest are secret. */
-  | "only-credentials-sealed";
 
 /** A background job cannot find an organization's wallet from the user who asked for it, so its payload names the wallet. */
 function organizationWalletOf(wallet: WalletInitialized): { walletId?: number } {
@@ -186,8 +179,11 @@ function teamIdOf(wallet: WalletInitialized): string | null {
   return wallet.userId === null ? wallet.organizationId : null;
 }
 
-function storedValuesFor(input: { sealedSecrets?: string }): StoredSdlValues {
-  return input.sealedSecrets ? "only-credentials-sealed" : "every-value-sealed";
+/** A request that says nothing has every env value sealed, because nothing told the console which are secret; a seal says so by implication, and `secretEnv` outranks it by naming them. */
+function sealedEnvOf(input: { sealedSecrets?: string; secretEnv?: string[] }): SealedEnv {
+  if (input.secretEnv) return new Set(input.secretEnv);
+
+  return input.sealedSecrets ? new Set() : "every-value";
 }
 
 /**
@@ -248,7 +244,7 @@ type PatchWrite = {
 };
 
 function isRenameOnly(input: PatchDeploymentRequest["data"]): input is PatchDeploymentRequest["data"] & { name: string } {
-  return input.name !== undefined && !assignsAnyServiceField(input.services) && !input.sealedSecrets;
+  return input.name !== undefined && !assignsAnyServiceField(input.services) && !input.sealedSecrets && !input.secretEnv?.length;
 }
 
 @singleton()
@@ -366,7 +362,7 @@ export class DeploymentWriterService {
     input: CreateDeploymentRequest["data"] & { userId: string }
   ): Promise<{ accepted: AcceptedDeploymentCreate; manifest: string; organizationId: string | null }> {
     /** SDL for storage ONLY, and the values taken out of it. Never stands in for the submitted document anywhere a hash is taken. */
-    const { sdl, storedDocument, derived } = this.#storedSdlOf(input.sdl, storedValuesFor(input));
+    const { sdl, storedDocument, derived } = this.#storedSdlOf(input.sdl, sealedEnvOf(input));
 
     const templateVersionId = await this.#deployableTemplateVersionIdOf(input);
     const projectId = await this.deploymentProjectService.resolveFilingProject(input.projectId);
@@ -656,7 +652,7 @@ export class DeploymentWriterService {
   }
 
   /** `dseq` is a log field only, so a create can run this before minting one and still say which request it refused. */
-  #storedSdlOf(submittedSdl: string, values: StoredSdlValues, dseq?: string): { sdl: string; storedDocument: SDLInput; derived: SdlSecrets } {
+  #storedSdlOf(submittedSdl: string, sealedEnv: SealedEnv, dseq?: string): { sdl: string; storedDocument: SDLInput; derived: SdlSecrets } {
     const parsed = parseSdlForStorage(submittedSdl);
 
     if (parsed.document === null) {
@@ -667,7 +663,7 @@ export class DeploymentWriterService {
       throw this.#rejectUnstorableSdl("expands-too-large", { dseq, length: submittedSdl.length });
     }
 
-    const derived = this.#takeValuesOutOf(parsed.document, values);
+    const derived = this.#takeValuesOutOf(parsed.document, { sealedEnv });
     const { sdl, length } = sdlForStorage(parsed, SDL_MAX_LENGTH);
 
     if (sdl === null) {
@@ -678,8 +674,16 @@ export class DeploymentWriterService {
   }
 
   /** Runs before the document is measured, so that what the size guard bounds is exactly what gets stored. */
-  #takeValuesOutOf(document: SDLInput, values: StoredSdlValues): SdlSecrets {
-    return this.sdlSecretsDerivationService.derive(document, { includeEnvValues: values === "every-value-sealed" });
+  #takeValuesOutOf(document: SDLInput, options: { sealedEnv: SealedEnv; onlyAt?: ReadonlySet<string> }): SdlSecrets {
+    const [unsetVariable] = this.sdlSecretsDerivationService.unsetEnvVariablesOf(document, options);
+
+    if (unsetVariable !== undefined) {
+      const echoed = unsetVariable.slice(0, MAX_ECHOED_REFERENCE_LENGTH);
+
+      throw createError(400, `"${echoed}" is listed in secretEnv, but the request sets no environment variable of that name`);
+    }
+
+    return this.sdlSecretsDerivationService.derive(document, options);
   }
 
   /** The one set of values the deployment's token carries, overlaid as inherited, then supplied, then derived, refusing only a supplied name the console also derived because both were chosen for this request. */
@@ -922,7 +926,7 @@ export class DeploymentWriterService {
 
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
     const filedUserId = await this.signerService.filedUserIdOf(wallet, userId, dseq);
-    const { sdl, storedDocument, derived } = this.#storedSdlOf(input.sdl, storedValuesFor(input), dseq);
+    const { sdl, storedDocument, derived } = this.#storedSdlOf(input.sdl, sealedEnvOf(input), dseq);
     const supplied = input.sealedSecrets ? await this.#receiveSecrets(input, {}) : {};
     const stored = this.#storedSecretsOf({ inherited: {}, supplied, derived }, storedDocument);
 
@@ -1099,8 +1103,7 @@ export class DeploymentWriterService {
       name: { from: stored.name, to: input.name },
       services: { before: servicesBefore, after: document.services, patched: Object.keys(input.services ?? {}) }
     });
-    const callerSaidWhichValuesAreSecret = !!input.sealedSecrets;
-    const derived = this.sdlSecretsDerivationService.derive(document, { includeEnvValues: !callerSaidWhichValuesAreSecret, onlyAt: written });
+    const derived = this.#takeValuesOutOf(document, { sealedEnv: sealedEnvOf(input), onlyAt: written });
     const patchedSdl = this.#serialize(parsed, { userId, dseq });
 
     const [supplied, held] = await Promise.all([
@@ -1201,7 +1204,7 @@ export class DeploymentWriterService {
     input: CreateDeploymentDefinitionRequest["data"],
     ability: AnyAbility
   ): Promise<CreateDeploymentDefinitionResponse["data"]> {
-    const { sdl, storedDocument, derived } = this.#storedSdlOf(input.sdl, storedValuesFor(input), dseq);
+    const { sdl, storedDocument, derived } = this.#storedSdlOf(input.sdl, sealedEnvOf(input), dseq);
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
     const filedUserId = await this.signerService.filedUserIdOf(wallet, userId, dseq);
     await this.#assertNoDefinitionRecorded({ userId: filedUserId, dseq }, ability);

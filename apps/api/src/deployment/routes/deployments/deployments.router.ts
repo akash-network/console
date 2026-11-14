@@ -206,7 +206,7 @@ const postRoute = createRoute({
     },
     400: {
       description:
-        "The SDL leaves a secret reference with no value from either `sealedSecrets` or the deployment named by `inheritSecretsFrom`, supplies a name no service references, would carry more secrets than one deployment may hold, or carries a `sealedSecrets` value that is malformed, tampered with, expired or not a flat object of string values. With `code` `project_required`, a project is needed",
+        "The SDL leaves a secret reference with no value from either `sealedSecrets` or the deployment named by `inheritSecretsFrom`, supplies a name no service references, would carry more secrets than one deployment may hold, names a variable in `secretEnv` that no service sets, or carries a `sealedSecrets` value that is malformed, tampered with, expired or not a flat object of string values. With `code` `project_required`, a project is needed",
       content: {
         "application/json": {
           schema: ErrorResponseSchema
@@ -483,7 +483,7 @@ const patchRoute = createRoute({
     },
     400: {
       description:
-        "The patch names a service, port or volume the stored SDL does not declare, supplies a secret name it does not reference, leaves a reference with no value, moves a container port onto one the service already exposes, or moves a port in a way that would change its endpoint kind",
+        "The patch names a service, port or volume the stored SDL does not declare, supplies a secret name it does not reference, leaves a reference with no value, names a variable in `secretEnv` it does not write, moves a container port onto one the service already exposes, or moves a port in a way that would change its endpoint kind",
       content: {
         "application/json": {
           schema: ErrorResponseSchema
