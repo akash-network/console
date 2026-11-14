@@ -11,6 +11,7 @@ type AssistantMessageInsert = ApiPgTables["AssistantMessages"]["$inferInsert"];
 type AssistantConsentInsert = ApiPgTables["AssistantConsents"]["$inferInsert"];
 type AssistantProblemReportInsert = ApiPgTables["AssistantProblemReports"]["$inferInsert"];
 type AssistantTurnTraceInsert = ApiPgTables["AssistantTurnTraces"]["$inferInsert"];
+type AssistantUserBlockInsert = ApiPgTables["AssistantUserBlocks"]["$inferInsert"];
 
 function db() {
   return container.resolve<ApiPgDatabase>(POSTGRES_DB);
@@ -92,4 +93,13 @@ export async function seedAssistantTurnTrace(overrides: Partial<AssistantTurnTra
     .returning();
 
   return trace;
+}
+
+export async function seedAssistantUserBlock(overrides: Partial<AssistantUserBlockInsert> & Pick<AssistantUserBlockInsert, "userId">) {
+  const [block] = await db()
+    .insert(resolveTable("AssistantUserBlocks"))
+    .values({ source: "admin", blockedUntil: null, ...overrides })
+    .returning();
+
+  return block;
 }

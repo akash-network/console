@@ -168,6 +168,67 @@ describe(AssistantUserUsageRepository.name, () => {
     });
   });
 
+  describe("countFlaggedTurn", () => {
+    it("counts the flagged turns of the day the messages were sent on", async () => {
+      const { repository, userId } = await setup();
+      await repository.countMessage(userId, new Date("2026-11-04T12:00:00.000Z"));
+
+      expect(await repository.countFlaggedTurn(userId, "2026-11-04")).toBe(1);
+      expect(await repository.countFlaggedTurn(userId, "2026-11-04")).toBe(2);
+    });
+
+    it("counts nothing for a day the user has no row for", async () => {
+      const { repository, userId } = await setup();
+      await repository.countMessage(userId, new Date("2026-11-03T12:00:00.000Z"));
+
+      expect(await repository.countFlaggedTurn(userId, "2026-11-04")).toBe(0);
+      expect(await repository.countFlaggedTurn((await seedUser()).id, "2026-11-04")).toBe(0);
+    });
+
+    it("starts the flagged turn count over when a problem report opens a new UTC day", async () => {
+      const { repository, userId } = await setup();
+      await repository.countMessage(userId, new Date("2026-11-04T23:59:00.000Z"));
+      await repository.countFlaggedTurn(userId, "2026-11-04");
+      await repository.countFlaggedTurn(userId, "2026-11-04");
+      await repository.countProblemReport(userId, new Date("2026-11-05T00:00:00.000Z"));
+      await repository.countMessage(userId, new Date("2026-11-05T00:01:00.000Z"));
+
+      expect(await repository.countFlaggedTurn(userId, "2026-11-05")).toBe(1);
+    });
+
+    it("keeps the flagged turn count when a problem report of the same day follows", async () => {
+      const { repository, userId } = await setup();
+      await repository.countMessage(userId, new Date("2026-11-04T12:00:00.000Z"));
+      await repository.countFlaggedTurn(userId, "2026-11-04");
+      await repository.countProblemReport(userId, new Date("2026-11-04T12:00:10.000Z"));
+
+      expect(await repository.countFlaggedTurn(userId, "2026-11-04")).toBe(2);
+    });
+
+    it("starts the flagged turn count over on a new UTC day", async () => {
+      const { repository, userId } = await setup();
+      await repository.countMessage(userId, new Date("2026-11-04T23:59:00.000Z"));
+      await repository.countFlaggedTurn(userId, "2026-11-04");
+      await repository.countFlaggedTurn(userId, "2026-11-04");
+      await repository.countMessage(userId, new Date("2026-11-04T23:59:30.000Z"));
+
+      expect(await repository.countFlaggedTurn(userId, "2026-11-04")).toBe(3);
+
+      await repository.countMessage(userId, new Date("2026-11-05T00:00:00.000Z"));
+
+      expect(await repository.countFlaggedTurn(userId, "2026-11-05")).toBe(1);
+    });
+
+    it("never hands two concurrent flagged turns the same count", async () => {
+      const { repository, userId } = await setup();
+      await repository.countMessage(userId, new Date("2026-11-04T12:00:00.000Z"));
+
+      const counts = await Promise.all(Array.from({ length: 5 }, () => repository.countFlaggedTurn(userId, "2026-11-04")));
+
+      expect(counts.sort()).toEqual([1, 2, 3, 4, 5]);
+    });
+  });
+
   describe("dayTokenCountOf", () => {
     it("returns the tokens the user used on the given day", async () => {
       const { repository, userId } = await setup();

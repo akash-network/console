@@ -3,7 +3,12 @@ import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { TxService } from "@src/core/services";
-import type { AssistantTurnOutcome, AssistantTurnRating, TracedCard } from "@src/feedback/model-schemas/assistant-turn-trace/assistant-turn-trace.schema";
+import type {
+  AssistantTurnFlag,
+  AssistantTurnOutcome,
+  AssistantTurnRating,
+  TracedCard
+} from "@src/feedback/model-schemas/assistant-turn-trace/assistant-turn-trace.schema";
 
 type Table = ApiPgTables["AssistantTurnTraces"];
 export type AssistantTurnTraceInput = Table["$inferInsert"];
@@ -45,6 +50,10 @@ export class AssistantTurnTraceRepository {
   /** Leaves cards alone, since decisions on them can be recorded while the turn is still streaming. */
   async finish(id: string, result: AssistantTurnTraceResult): Promise<void> {
     await this.#cursor.update(this.table).set(result).where(eq(this.table.id, id));
+  }
+
+  async flag(id: string, flag: AssistantTurnFlag): Promise<void> {
+    await this.#cursor.update(this.table).set({ flag }).where(eq(this.table.id, id));
   }
 
   async recordCardDecision(input: { userId: string; conversationId: string; proposalId: string; decision: string }): Promise<boolean> {

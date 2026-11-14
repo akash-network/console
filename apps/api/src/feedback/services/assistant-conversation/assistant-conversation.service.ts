@@ -19,13 +19,13 @@ import type {
   StartAssistantConversationResponse,
   SubmitClientToolResultsRequest
 } from "@src/feedback/http-schemas/assistant-conversation.schema";
-import { ASSISTANT_ERROR_CODES, assistantUnavailable } from "@src/feedback/lib/assistant-errors/assistant-errors";
+import { ASSISTANT_ERROR_CODES, assistantBlocked, assistantUnavailable } from "@src/feedback/lib/assistant-errors/assistant-errors";
 import { ACTION_RESULT_TOOL_NAME, historyFromClient, historyFromStored, recentActionsOf } from "@src/feedback/lib/assistant-history/assistant-history";
 import { ASSISTANT_PROMPT_VERSION } from "@src/feedback/lib/assistant-prompt-version/assistant-prompt-version";
 import { buildAssistantSystemPrompt } from "@src/feedback/lib/assistant-system-prompt/assistant-system-prompt";
 import { AssistantTurnTraceBuilder, writeTraceQuietly } from "@src/feedback/lib/assistant-turn-trace/assistant-turn-trace";
 import { countRedactions, redactSecrets } from "@src/feedback/lib/redact-secrets/redact-secrets";
-import type { AssistantConversationContext } from "@src/feedback/model-schemas";
+import type { AssistantConversationContext, AssistantTurnOutcome } from "@src/feedback/model-schemas";
 import { FEEDBACK_CONFIG, type FeedbackConfig } from "@src/feedback/providers/config.provider";
 import { type AssistantConsentOutput, AssistantConsentRepository } from "@src/feedback/repositories/assistant-consent/assistant-consent.repository";
 import {
@@ -39,9 +39,11 @@ import { AssistantTurnTraceRepository } from "@src/feedback/repositories/assista
 import { AkashMlClient, type ChatMessage } from "@src/feedback/services/akashml-client/akashml.client";
 import { AssistantAnswerSigner } from "@src/feedback/services/assistant-answer-signer/assistant-answer-signer.service";
 import { AssistantLimitsService } from "@src/feedback/services/assistant-limits/assistant-limits.service";
+import { AssistantMessageFlagger } from "@src/feedback/services/assistant-message-flagger/assistant-message-flagger.service";
 import { toolContentOf, truncated } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
 import { AssistantTranscriptService } from "@src/feedback/services/assistant-transcript/assistant-transcript.service";
 import { AssistantTurnService, type EmitAssistantEvent } from "@src/feedback/services/assistant-turn/assistant-turn.service";
+import { AssistantUserBlockService } from "@src/feedback/services/assistant-user-block/assistant-user-block.service";
 import { ClassifyConversation, classifyConversationOptionsFor } from "@src/feedback/services/classify-conversation/classify-conversation.handler";
 
 /** Logs matter most at their end, so a long excerpt keeps its last lines. */
@@ -58,6 +60,10 @@ type ClientHistory = SendAssistantMessageRequest["data"]["history"];
 
 function dayOf(date: Date): string {
   return date.toISOString().slice(0, 10);
+}
+
+function userContentsOf(messages: ChatMessage[]): string[] {
+  return messages.flatMap(message => (message.role === "user" ? [message.content] : []));
 }
 
 const CLIENT_READ_SUBJECTS: Record<string, string> = { read_logs: "logs", read_events: "events", read_configure_form: "the configure form" };
@@ -91,6 +97,8 @@ export class AssistantConversationService {
     private readonly limitsService: AssistantLimitsService,
     private readonly transcriptService: AssistantTranscriptService,
     private readonly turnService: AssistantTurnService,
+    private readonly messageFlagger: AssistantMessageFlagger,
+    private readonly userBlockService: AssistantUserBlockService,
     private readonly jobQueueService: JobQueueService,
     private readonly txService: TxService,
     @inject(FEEDBACK_CONFIG) private readonly config: FeedbackConfig,
@@ -136,15 +144,18 @@ export class AssistantConversationService {
     ];
 
     const redactedSecretCount = countRedactions(content, userMessage);
+    const userId = this.authService.currentUser.id;
     const organizationId = this.#currentOrganizationId();
     const page = context?.page ?? conversation?.context.page ?? null;
 
     return async (emit, signal) => {
+      const sentAt = new Date();
+      const flag = this.messageFlagger.flag({ message: userMessage, earlierUserMessages: userContentsOf(earlier) });
       if (redactedSecretCount > 0) await emit({ type: "secret_redacted", count: redactedSecretCount });
-      await this.turnService.run(
+      const turnId = await this.turnService.run(
         {
           conversationId,
-          userId: this.authService.currentUser.id,
+          userId,
           organizationId,
           page,
           stored,
@@ -157,6 +168,7 @@ export class AssistantConversationService {
         emit,
         signal
       );
+      await this.userBlockService.recordFlag({ userId, turnId, sentAt, flag: await flag });
     };
   }
 
@@ -204,8 +216,8 @@ export class AssistantConversationService {
       }
     }
 
-    return (emit, signal) =>
-      this.turnService.run(
+    return async (emit, signal) => {
+      await this.turnService.run(
         {
           conversationId,
           userId,
@@ -221,6 +233,7 @@ export class AssistantConversationService {
         emit,
         signal
       );
+    };
   }
 
   /** Ends a stored conversation once, so the daily count and the classification job never double. */
@@ -292,6 +305,7 @@ export class AssistantConversationService {
   async #admit(countedMessage?: CountedMessage): Promise<{ consent: AssistantConsentOutput; isTrialing: boolean | null }> {
     const consent = await this.#currentConsent();
     if (!this.akashMlClient.isAvailable() || !this.answerSigner.isConfigured()) throw assistantUnavailable();
+    await this.#assertNotBlocked(countedMessage);
 
     const isTrialing = await this.#isTrialing();
     if (countedMessage) await this.#countMessage(countedMessage, isTrialing);
@@ -317,16 +331,24 @@ export class AssistantConversationService {
     return verified.map(({ role, content }) => ({ role, content }));
   }
 
+  /** Runs before the message is counted, so a blocked user's attempts never use up their limits. */
+  async #assertNotBlocked(countedMessage: CountedMessage | undefined): Promise<void> {
+    if (!(await this.userBlockService.isBlocked(this.authService.currentUser.id))) return;
+
+    if (countedMessage) await this.#traceRefusedTurn(countedMessage, "blocked");
+    throw assistantBlocked();
+  }
+
   async #countMessage(countedMessage: CountedMessage, isTrialing: boolean | null): Promise<void> {
     try {
       await this.limitsService.countMessage(this.authService.currentUser.id, isTrialing);
     } catch (error) {
-      if (isHttpError(error) && error.status === 429) await this.#traceLimitedTurn(countedMessage);
+      if (isHttpError(error) && error.status === 429) await this.#traceRefusedTurn(countedMessage, "limited");
       throw error;
     }
   }
 
-  async #traceLimitedTurn({ conversationId, page }: CountedMessage): Promise<void> {
+  async #traceRefusedTurn({ conversationId, page }: CountedMessage, outcome: Extract<AssistantTurnOutcome, "limited" | "blocked">): Promise<void> {
     const refusedAt = new Date();
     const trace = new AssistantTurnTraceBuilder({
       conversationId,
@@ -338,7 +360,7 @@ export class AssistantConversationService {
       startedAt: refusedAt
     });
 
-    await writeTraceQuietly(this.#logger, () => this.assistantTurnTraceRepository.create(trace.finish("limited", refusedAt)));
+    await writeTraceQuietly(this.#logger, () => this.assistantTurnTraceRepository.create(trace.finish(outcome, refusedAt)));
   }
 
   async #currentConsent(): Promise<AssistantConsentOutput> {

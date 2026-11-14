@@ -37,6 +37,7 @@ export class AssistantUserUsageRepository {
           dayMessageCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayMessageCount} + 1 ELSE 1 END`,
           dayTokenCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayTokenCount} ELSE 0 END`,
           dayProblemReportCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayProblemReportCount} ELSE 0 END`,
+          dayFlaggedTurnCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayFlaggedTurnCount} ELSE 0 END`,
           day: sql`excluded.day`,
           minuteMessageCount: sql`CASE WHEN ${withinMinute} THEN ${this.table.minuteMessageCount} + 1 ELSE 1 END`,
           minuteStartedAt: sql`CASE WHEN ${withinMinute} THEN ${this.table.minuteStartedAt} ELSE excluded.minute_started_at END`,
@@ -63,6 +64,7 @@ export class AssistantUserUsageRepository {
           dayProblemReportCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayProblemReportCount} + 1 ELSE 1 END`,
           dayMessageCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayMessageCount} ELSE 0 END`,
           dayTokenCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayTokenCount} ELSE 0 END`,
+          dayFlaggedTurnCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayFlaggedTurnCount} ELSE 0 END`,
           day: sql`excluded.day`,
           updatedAt: sql`now()`
         }
@@ -87,5 +89,16 @@ export class AssistantUserUsageRepository {
       .update(this.table)
       .set({ dayTokenCount: sql`${this.table.dayTokenCount} + ${tokens}`, updatedAt: sql`now()` })
       .where(and(eq(this.table.userId, userId), eq(this.table.day, day)));
+  }
+
+  /** Counts in one statement on the row of the given day, so concurrent turns never read the same count and a stale day counts nothing. */
+  async countFlaggedTurn(userId: string, day: string): Promise<number> {
+    const [usage] = await this.#cursor
+      .update(this.table)
+      .set({ dayFlaggedTurnCount: sql`${this.table.dayFlaggedTurnCount} + 1`, updatedAt: sql`now()` })
+      .where(and(eq(this.table.userId, userId), eq(this.table.day, day)))
+      .returning({ dayFlaggedTurnCount: this.table.dayFlaggedTurnCount });
+
+    return usage?.dayFlaggedTurnCount ?? 0;
   }
 }

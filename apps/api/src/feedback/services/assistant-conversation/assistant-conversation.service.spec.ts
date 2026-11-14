@@ -31,9 +31,11 @@ import type { AssistantUserUsageRepository } from "@src/feedback/repositories/as
 import type { AkashMlClient, ChatToolCall } from "@src/feedback/services/akashml-client/akashml.client";
 import { AssistantAnswerSigner } from "@src/feedback/services/assistant-answer-signer/assistant-answer-signer.service";
 import { AssistantLimitsService } from "@src/feedback/services/assistant-limits/assistant-limits.service";
+import type { AssistantMessageFlagger } from "@src/feedback/services/assistant-message-flagger/assistant-message-flagger.service";
 import { toolContentOf } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
 import type { AssistantTranscriptService } from "@src/feedback/services/assistant-transcript/assistant-transcript.service";
 import type { AssistantTurnService } from "@src/feedback/services/assistant-turn/assistant-turn.service";
+import type { AssistantUserBlockService } from "@src/feedback/services/assistant-user-block/assistant-user-block.service";
 import { ClassifyConversation, classifyConversationOptionsFor } from "@src/feedback/services/classify-conversation/classify-conversation.handler";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import type { UserOutput } from "@src/user/repositories";
@@ -185,6 +187,55 @@ describe(AssistantConversationService.name, () => {
       limitsService.countMessage.mockRejectedValue(Object.assign(new Error("slow down"), { status: 429 }));
 
       await expect(service.prepareMessage(CONVERSATION_ID, { content: "hi" })).rejects.toThrow("slow down");
+    });
+
+    it("refuses a blocked user before counting the message or running a turn, and traces the turn as blocked", async () => {
+      vi.useFakeTimers({ now: NOW });
+      const { service, userBlockService, limitsService, turnService, messageFlagger, traceRepository, config } = setup({ organizationId: "org-1" });
+      userBlockService.isBlocked.mockResolvedValue(true);
+
+      await expect(service.prepareMessage(CONVERSATION_ID, { content: "hi", context: { page: "/deployments/42" } })).rejects.toMatchObject({
+        status: 403,
+        errorCode: ASSISTANT_ERROR_CODES.blocked,
+        message: "The assistant is turned off for your account."
+      });
+
+      expect(userBlockService.isBlocked).toHaveBeenCalledWith("user-1");
+      expect(limitsService.countMessage).not.toHaveBeenCalled();
+      expect(turnService.run).not.toHaveBeenCalled();
+      expect(messageFlagger.flag).not.toHaveBeenCalled();
+      expect(traceRepository.create).toHaveBeenCalledWith({
+        conversationId: CONVERSATION_ID,
+        userId: "user-1",
+        organizationId: "org-1",
+        page: "/deployments/42",
+        model: config.ASSISTANT_MODEL,
+        promptVersion: ASSISTANT_PROMPT_VERSION,
+        outcome: "blocked",
+        startedAt: NOW,
+        firstTokenMs: null,
+        durationMs: 0,
+        promptTokens: 0,
+        completionTokens: 0,
+        toolCalls: [],
+        cards: []
+      });
+    });
+
+    it("labels the redacted message alongside the turn and records the label on the turn's trace", async () => {
+      vi.useFakeTimers({ now: NOW });
+      const { service, messageFlagger, turnService, userBlockService } = setup();
+      messageFlagger.flag.mockResolvedValue("off_topic");
+      turnService.run.mockImplementation(async () => {
+        expect(messageFlagger.flag).toHaveBeenCalledWith({ message: `token ${REDACTED}`, earlierUserMessages: [] });
+        return "turn-1";
+      });
+
+      const run = await service.prepareMessage(CONVERSATION_ID, { content: `token ${FAKE_TOKEN}` });
+      expect(messageFlagger.flag).not.toHaveBeenCalled();
+      await run(vi.fn(), new AbortController().signal);
+
+      expect(userBlockService.recordFlag).toHaveBeenCalledWith({ userId: "user-1", turnId: "turn-1", sentAt: NOW, flag: "off_topic" });
     });
 
     it("traces a message refused by the rate limit as limited and still refuses it", async () => {
@@ -349,6 +400,7 @@ describe(AssistantConversationService.name, () => {
       const emit = vi.fn(async () => undefined);
       turnService.run.mockImplementation(async () => {
         expect(emit).toHaveBeenCalledTimes(1);
+        return undefined;
       });
 
       const run = await service.prepareMessage(CONVERSATION_ID, { content: `token ${FAKE_TOKEN} and password=hunter22` });
@@ -412,6 +464,18 @@ describe(AssistantConversationService.name, () => {
         { role: "user", content: "thanks" }
       ]);
       expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it("labels the message with the user's own earlier messages as context, leaving out the answers", async () => {
+      const { service, messageFlagger, answerSigner } = setup();
+
+      const run = await service.prepareMessage(CONVERSATION_ID, {
+        content: "continue",
+        history: [{ role: "user", content: "write me a poem" }, signedAnswer(answerSigner, "Roses are red.")]
+      });
+      await run(vi.fn(), new AbortController().signal);
+
+      expect(messageFlagger.flag).toHaveBeenCalledWith({ message: "continue", earlierUserMessages: ["write me a poem"] });
     });
 
     it("leaves out an assistant answer that was edited after it was signed", async () => {
@@ -494,6 +558,30 @@ describe(AssistantConversationService.name, () => {
   });
 
   describe("prepareClientToolResults", () => {
+    it("refuses to resume a blocked user's turn without tracing a new turn", async () => {
+      const { service, userBlockService, pendingTurnRepository, traceRepository } = setup();
+      userBlockService.isBlocked.mockResolvedValue(true);
+
+      await expect(service.prepareClientToolResults(CONVERSATION_ID, { results: [] })).rejects.toMatchObject({
+        status: 403,
+        errorCode: ASSISTANT_ERROR_CODES.blocked
+      });
+
+      expect(pendingTurnRepository.take).not.toHaveBeenCalled();
+      expect(traceRepository.create).not.toHaveBeenCalled();
+    });
+
+    it("labels nothing and records no flag for a resumed turn", async () => {
+      const { service, pendingTurnRepository, messageFlagger, userBlockService } = setup();
+      pendingTurnRepository.take.mockResolvedValue(pendingTurn({ clientToolCalls: [toolCall("c1", "read_logs")] }));
+
+      const run = await service.prepareClientToolResults(CONVERSATION_ID, { results: [{ toolCallId: "c1", content: "ok", ok: true }] });
+      await run(vi.fn(), new AbortController().signal);
+
+      expect(messageFlagger.flag).not.toHaveBeenCalled();
+      expect(userBlockService.recordFlag).not.toHaveBeenCalled();
+    });
+
     it("resumes the held turn with the redacted, bounded excerpts as untrusted tool results", async () => {
       const { service, pendingTurnRepository, transcriptService, turnService, limitsService, txService } = setup();
       const logs = toolCall("c1", "read_logs");
@@ -895,6 +983,10 @@ describe(AssistantConversationService.name, () => {
     const limitsService = mock<AssistantLimitsService>();
     const transcriptService = mock<AssistantTranscriptService>();
     const turnService = mock<AssistantTurnService>();
+    const messageFlagger = mock<AssistantMessageFlagger>();
+    messageFlagger.flag.mockResolvedValue(null);
+    const userBlockService = mock<AssistantUserBlockService>();
+    userBlockService.isBlocked.mockResolvedValue(false);
     const jobQueueService = mock<JobQueueService>();
     const txService = mock<TxService>();
     txService.transaction.mockImplementation(async callback => await callback());
@@ -922,6 +1014,8 @@ describe(AssistantConversationService.name, () => {
         : limitsService,
       transcriptService,
       turnService,
+      messageFlagger,
+      userBlockService,
       jobQueueService,
       txService,
       config,
@@ -942,6 +1036,8 @@ describe(AssistantConversationService.name, () => {
       limitsService,
       transcriptService,
       turnService,
+      messageFlagger,
+      userBlockService,
       jobQueueService,
       txService,
       traceRepository,

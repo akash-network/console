@@ -12,7 +12,8 @@ export const ASSISTANT_ERROR_CODES = {
   proposalNotFound: "assistant_proposal_not_found",
   turnNotFound: "assistant_turn_not_found",
   historyUnverified: "assistant_history_unverified",
-  reportLimit: "assistant_report_limit"
+  reportLimit: "assistant_report_limit",
+  blocked: "assistant_blocked"
 } as const;
 
 export function assistantDailyLimitReached() {
@@ -21,4 +22,8 @@ export function assistantDailyLimitReached() {
 
 export function assistantUnavailable() {
   return createError(503, "The assistant is unavailable right now. Ask on Discord for live help.", { errorCode: ASSISTANT_ERROR_CODES.unavailable });
+}
+
+export function assistantBlocked() {
+  return createError(403, "The assistant is turned off for your account.", { errorCode: ASSISTANT_ERROR_CODES.blocked });
 }

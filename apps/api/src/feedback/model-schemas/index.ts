@@ -10,3 +10,4 @@ export * from "./assistant-daily-token-usage/assistant-daily-token-usage.schema"
 export * from "./assistant-pending-turn/assistant-pending-turn.schema";
 export * from "./assistant-turn-trace/assistant-turn-trace.schema";
 export * from "./assistant-problem-report/assistant-problem-report.schema";
+export * from "./assistant-user-block/assistant-user-block.schema";

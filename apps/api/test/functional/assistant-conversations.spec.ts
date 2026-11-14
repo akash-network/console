@@ -20,12 +20,13 @@ import { AssistantAnswerSigner } from "@src/feedback/services/assistant-answer-s
 import { DAILY_PROBLEM_REPORT_LIMIT } from "@src/feedback/services/assistant-problem-report/assistant-problem-report.service";
 import { ClassifyConversation } from "@src/feedback/services/classify-conversation/classify-conversation.handler";
 import { ClassifyProblemReport } from "@src/feedback/services/classify-problem-report/classify-problem-report.handler";
+import { NotifyAssistantUserBlock } from "@src/feedback/services/notify-assistant-user-block/notify-assistant-user-block.handler";
 import { NotifyProblemReport } from "@src/feedback/services/notify-problem-report/notify-problem-report.handler";
 import { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
-import { seedAssistantConsent, seedAssistantConversation, seedAssistantTurnTrace } from "@test/seeders/db/feedback.seeder";
+import { seedAssistantConsent, seedAssistantConversation, seedAssistantTurnTrace, seedAssistantUserBlock } from "@test/seeders/db/feedback.seeder";
 import { fileIntoPersonalOrganization } from "@test/seeders/db/organization.seeder";
 import { ASSISTANT_TEST_SDL } from "@test/seeders/get-deployment-response.seeder";
 import { createHardwareRequestSpec } from "@test/seeders/hardware-request.seeder";
@@ -33,6 +34,8 @@ import { findJobRows } from "@test/services/job-queue-harness";
 
 const COPY_VERSION = "2026-11-01";
 const FAKE_TOKEN = `ghp_${"Z9y8X7w6V5".repeat(3)}`;
+
+type CompletionRequestBody = { stream?: boolean; response_format?: { json_schema?: { name?: string } } };
 
 type CompletionReply = { content?: string | null; toolCalls?: { id: string; name: string; arguments: Record<string, unknown> }[] };
 
@@ -144,6 +147,73 @@ describe("Assistant conversations", () => {
 
       expect(response.status).toBe(429);
       expect(await response.json()).toMatchObject({ code: "assistant_rate_limited" });
+    });
+
+    it("refuses a blocked user's message before any model call and traces it as blocked", async () => {
+      const { user, token } = await setup({ consent: { reviewOptIn: false } });
+      await seedAssistantUserBlock({ userId: user.id, source: "admin", blockedUntil: null });
+      const conversationId = faker.string.uuid();
+
+      const response = await request(`/v1/assistant/conversations/${conversationId}/messages`, token, { content: "Hi" });
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ code: "assistant_blocked", message: "The assistant is turned off for your account." });
+      expect(await tracesOf(conversationId)).toEqual([expect.objectContaining({ outcome: "blocked", flag: null })]);
+    });
+
+    it("labels each message on its turn's trace and turns the assistant off once the user reaches the day's flagged turn limit", async () => {
+      const { user, token } = await setup({ consent: { reviewOptIn: false }, flag: "off_topic" });
+      const day = new Date().toISOString().slice(0, 10);
+      await db.insert(resolveTable("AssistantUserUsage")).values({
+        userId: user.id,
+        day,
+        minuteStartedAt: new Date(),
+        dayFlaggedTurnCount: config.ASSISTANT_DAILY_FLAGGED_TURN_LIMIT - 1
+      });
+      replyWith([{ content: "I can only help with Akash." }]);
+      const conversationId = faker.string.uuid();
+
+      const answered = await request(`/v1/assistant/conversations/${conversationId}/messages`, token, { content: "Write me a poem" });
+      expect((await eventsOf(answered)).at(-1)).toMatchObject({ type: "done", reason: "stop" });
+      const refused = await request(`/v1/assistant/conversations/${conversationId}/messages`, token, { content: "Another poem" });
+
+      expect(refused.status).toBe(403);
+      expect(await refused.json()).toMatchObject({ code: "assistant_blocked" });
+      expect((await tracesOf(conversationId)).map(({ outcome, flag }) => ({ outcome, flag }))).toEqual(
+        expect.arrayContaining([
+          { outcome: "answered", flag: "off_topic" },
+          { outcome: "blocked", flag: null }
+        ])
+      );
+      const blocks = await db
+        .select()
+        .from(resolveTable("AssistantUserBlocks"))
+        .where(eq(resolveTable("AssistantUserBlocks").userId, user.id));
+      expect(blocks).toEqual([
+        expect.objectContaining({
+          source: "automatic",
+          flaggedTurnCount: config.ASSISTANT_DAILY_FLAGGED_TURN_LIMIT,
+          blockedUntil: new Date(`${nextDayOf(day)}T00:00:00.000Z`),
+          liftedAt: null
+        })
+      ]);
+      expect(await findJobRows(NotifyAssistantUserBlock[JOB_NAME], { data: { blockId: blocks[0].id } })).toHaveLength(1);
+    });
+
+    it("answers a message whose label could not be read and counts nothing", async () => {
+      const { user, token } = await setup({ consent: { reviewOptIn: false }, flag: "not-a-label" });
+      replyWith([{ content: "Hello." }]);
+      const conversationId = faker.string.uuid();
+
+      const response = await request(`/v1/assistant/conversations/${conversationId}/messages`, token, { content: "Hi" });
+
+      expect((await eventsOf(response)).at(-1)).toMatchObject({ type: "done", reason: "stop" });
+      expect(await tracesOf(conversationId)).toEqual([expect.objectContaining({ outcome: "answered", flag: null })]);
+      const usage = await db
+        .select()
+        .from(resolveTable("AssistantUserUsage"))
+        .where(eq(resolveTable("AssistantUserUsage").userId, user.id));
+      expect(usage).toEqual([expect.objectContaining({ dayFlaggedTurnCount: 0 })]);
     });
 
     it("streams the answer after running a server tool, and stores the redacted transcript", async () => {
@@ -722,18 +792,20 @@ describe("Assistant conversations", () => {
     const scope = nock(config.AKASHML_API_URL);
 
     for (const reply of replies) {
-      scope.post("/chat/completions").reply(
-        200,
-        (_uri, body) => {
-          bodies.push(body as (typeof bodies)[number]);
+      scope
+        .post("/chat/completions", (body: CompletionRequestBody) => body.stream === true)
+        .reply(
+          200,
+          (_uri, body) => {
+            bodies.push(body as (typeof bodies)[number]);
 
-          return streamedChunksOf(reply)
-            .map(chunk => `data: ${JSON.stringify(chunk)}\n\n`)
-            .concat("data: [DONE]\n\n")
-            .join("");
-        },
-        { "Content-Type": "text/event-stream" }
-      );
+            return streamedChunksOf(reply)
+              .map(chunk => `data: ${JSON.stringify(chunk)}\n\n`)
+              .concat("data: [DONE]\n\n")
+              .join("");
+          },
+          { "Content-Type": "text/event-stream" }
+        );
     }
 
     return { bodies };
@@ -762,6 +834,19 @@ describe("Assistant conversations", () => {
     ];
   }
 
+  async function tracesOf(conversationId: string) {
+    const table = resolveTable("AssistantTurnTraces");
+
+    return await db.select().from(table).where(eq(table.conversationId, conversationId));
+  }
+
+  function nextDayOf(day: string): string {
+    const next = new Date(`${day}T00:00:00.000Z`);
+    next.setUTCDate(next.getUTCDate() + 1);
+
+    return next.toISOString().slice(0, 10);
+  }
+
   async function countsToday() {
     const table = resolveTable("AssistantConversationDailyCounts");
     const [counts] = await db
@@ -780,7 +865,7 @@ describe("Assistant conversations", () => {
     return (await countsToday()).unresolvedCount;
   }
 
-  async function setup(input: { flagOn?: boolean; consent?: { reviewOptIn: boolean }; available?: boolean } = {}) {
+  async function setup(input: { flagOn?: boolean; consent?: { reviewOptIn: boolean }; available?: boolean; flag?: string } = {}) {
     const user = await userRepository.create({ userId: faker.string.uuid(), username: `user-${faker.string.alphanumeric(12)}`, email: faker.internet.email() });
     const token = faker.string.alphanumeric(40);
     if (input.consent) await seedAssistantConsent({ userId: user.id, copyVersion: COPY_VERSION, reviewOptIn: input.consent.reviewOptIn });
@@ -796,6 +881,10 @@ describe("Assistant conversations", () => {
       flag => flag === FeatureFlags.USER_FEEDBACK_LOOP && input.flagOn !== false
     );
     vi.spyOn(container.resolve(AkashMlClient), "isAvailable").mockReturnValue(input.available !== false);
+    nock(config.AKASHML_API_URL)
+      .post("/chat/completions", (body: CompletionRequestBody) => body.response_format?.json_schema?.name === "assistant_message_flag")
+      .reply(200, { choices: [{ message: { content: JSON.stringify({ label: input.flag ?? "on_topic" }) }, finish_reason: "stop" }] })
+      .persist();
 
     return { user, token };
   }

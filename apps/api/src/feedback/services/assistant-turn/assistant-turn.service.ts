@@ -181,7 +181,8 @@ export class AssistantTurnService {
     this.#logger = createLogger({ context: AssistantTurnService.name });
   }
 
-  async run(turn: AssistantTurn, emitEvent: EmitAssistantEvent, signal: AbortSignal): Promise<void> {
+  /** Answers the id of the turn's trace, or undefined when it could not be written. */
+  async run(turn: AssistantTurn, emitEvent: EmitAssistantEvent, signal: AbortSignal): Promise<string | undefined> {
     const trace = this.#startTrace(turn);
     let outcome: AssistantTurnOutcome = "failed";
 
@@ -190,6 +191,8 @@ export class AssistantTurnService {
     } finally {
       await this.#finishTrace(trace, outcome);
     }
+
+    return await trace.provisionalId;
   }
 
   async #runTurn(turn: AssistantTurn, trace: TurnTrace, emitEvent: EmitAssistantEvent, signal: AbortSignal): Promise<AssistantTurnOutcome> {
