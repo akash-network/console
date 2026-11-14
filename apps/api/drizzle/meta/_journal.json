@@ -974,6 +974,13 @@
       "when": 1794673427879,
       "tag": "0138_organization_required_on_owned_records",
       "breakpoints": true
+    },
+    {
+      "idx": 139,
+      "version": "7",
+      "when": 1794692173082,
+      "tag": "0139_affiliate_commission_dispute_funds_withdrawn",
+      "breakpoints": true
     }
   ]
 }

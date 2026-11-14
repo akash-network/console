@@ -70,6 +70,16 @@ describe(StripeWebhookService.name, () => {
       expect(stripeTransaction.recordDisputeOpened).toHaveBeenCalledWith(event);
     });
 
+    it("routes charge.dispute.funds_withdrawn to recordDisputeFundsWithdrawn", async () => {
+      const { service, event, stripeTransaction } = setup("charge.dispute.funds_withdrawn");
+
+      await service.routeStripeEvent("sig", "body");
+
+      expect(stripeTransaction.recordDisputeFundsWithdrawn).toHaveBeenCalledWith(event);
+      expect(stripeTransaction.recordDisputeOpened).not.toHaveBeenCalled();
+      expect(stripeTransaction.recordDisputeClosed).not.toHaveBeenCalled();
+    });
+
     it("routes charge.dispute.closed to recordDisputeClosed", async () => {
       const { service, event, stripeTransaction } = setup("charge.dispute.closed");
 

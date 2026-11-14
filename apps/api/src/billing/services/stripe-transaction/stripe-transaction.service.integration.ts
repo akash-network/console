@@ -24,6 +24,7 @@ import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import type { TimerService } from "@src/core/services/timer/timer.service";
+import { TxService } from "@src/core/services/tx/tx.service";
 import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import type { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
@@ -44,6 +45,7 @@ import { waitForLockWait } from "@test/services/lock-wait";
  */
 describe(StripeTransactionService.name, () => {
   const DISPUTE_OPENED_AT = 1791400000;
+  const DISPUTE_FUNDS_WITHDRAWN_AT = 1791400060;
   const DISPUTE_CLOSED_AT = 1791460000;
 
   describe("settlePaymentIntent", () => {
@@ -2195,6 +2197,108 @@ describe(StripeTransactionService.name, () => {
     });
   });
 
+  describe("recordDisputeFundsWithdrawn", () => {
+    it("records the withdrawal on the card payment and queues its affiliate commission sync, leaving the payer's balance alone", async () => {
+      const { service, stripeTransactionRepository, refillService, jobQueueService, logger } = setup();
+      const payment = generateDatabaseStripeTransaction({ type: "payment_intent", status: "succeeded", stripeChargeId: "ch_123" });
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(payment);
+
+      await service.recordDisputeFundsWithdrawn(createChargeDisputeFundsWithdrawnEvent({ id: "dp_123", charge: "ch_123", status: "needs_response" }));
+
+      expect(stripeTransactionRepository.findOneByAndLock).toHaveBeenCalledWith({ stripeChargeId: "ch_123" });
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(payment.id, {
+        disputeFundsWithdrawnAt: new Date(DISPUTE_FUNDS_WITHDRAWN_AT * 1000)
+      });
+      expect(jobQueueService.enqueue).toHaveBeenCalledExactlyOnceWith(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "dispute" }));
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "CHARGE_DISPUTE_FUNDS_WITHDRAWN",
+        chargeId: "ch_123",
+        disputeId: "dp_123",
+        transactionId: payment.id,
+        userId: payment.userId
+      });
+    });
+
+    it("ignores a withdrawal on a charge with no recorded transaction", async () => {
+      const { service, stripeTransactionRepository, jobQueueService, logger } = setup();
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(undefined);
+
+      await service.recordDisputeFundsWithdrawn(createChargeDisputeFundsWithdrawnEvent({ id: "dp_123", charge: "ch_unknown", status: "needs_response" }));
+
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith({
+        event: "CHARGE_DISPUTE_NO_TRANSACTION",
+        chargeId: "ch_unknown",
+        disputeId: "dp_123",
+        status: "needs_response"
+      });
+    });
+
+    it.each([
+      ["the same withdrawal delivered again", DISPUTE_FUNDS_WITHDRAWN_AT],
+      ["a withdrawal older than the recorded one", DISPUTE_FUNDS_WITHDRAWN_AT - 60]
+    ])("neither records nor queues anything for %s", async (_case, created) => {
+      const { service, stripeTransactionRepository, jobQueueService, logger } = setup();
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(
+        generateDatabaseStripeTransaction({
+          type: "payment_intent",
+          status: "succeeded",
+          disputeFundsWithdrawnAt: new Date(DISPUTE_FUNDS_WITHDRAWN_AT * 1000)
+        })
+      );
+
+      await service.recordDisputeFundsWithdrawn(createChargeDisputeFundsWithdrawnEvent({ id: "dp_123", charge: "ch_123", status: "needs_response" }, created));
+
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "CHARGE_DISPUTE_FUNDS_WITHDRAWN" }));
+    });
+
+    it("records a withdrawal that follows the one already recorded", async () => {
+      const { service, stripeTransactionRepository, jobQueueService } = setup();
+      const payment = generateDatabaseStripeTransaction({
+        type: "payment_intent",
+        status: "succeeded",
+        disputeFundsWithdrawnAt: new Date(DISPUTE_FUNDS_WITHDRAWN_AT * 1000)
+      });
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(payment);
+
+      await service.recordDisputeFundsWithdrawn(
+        createChargeDisputeFundsWithdrawnEvent({ id: "dp_456", charge: "ch_123", status: "needs_response" }, DISPUTE_FUNDS_WITHDRAWN_AT + 60)
+      );
+
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(payment.id, {
+        disputeFundsWithdrawnAt: new Date((DISPUTE_FUNDS_WITHDRAWN_AT + 60) * 1000)
+      });
+      expect(jobQueueService.enqueue).toHaveBeenCalledExactlyOnceWith(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "dispute" }));
+    });
+
+    it.each(["coupon_claim", "manual_credit"] as const)("records the withdrawal without queuing an affiliate commission sync for a %s charge", async type => {
+      const { service, stripeTransactionRepository, jobQueueService } = setup();
+      const transaction = generateDatabaseStripeTransaction({ type, status: "succeeded", stripeChargeId: "ch_123" });
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(transaction);
+
+      await service.recordDisputeFundsWithdrawn(createChargeDisputeFundsWithdrawnEvent({ id: "dp_123", charge: "ch_123", status: "needs_response" }));
+
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(transaction.id, { disputeFundsWithdrawnAt: expect.any(Date) });
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("fails the delivery when the affiliate commission sync cannot be queued, so Stripe retries it", async () => {
+      const { service, stripeTransactionRepository, jobQueueService } = setup();
+      const error = new Error("Queue SyncAffiliateCommission does not exist");
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(generateDatabaseStripeTransaction({ type: "payment_intent", status: "succeeded" }));
+      jobQueueService.enqueue.mockRejectedValue(error);
+
+      await expect(
+        service.recordDisputeFundsWithdrawn(createChargeDisputeFundsWithdrawnEvent({ id: "dp_123", charge: "ch_123", status: "needs_response" }))
+      ).rejects.toBe(error);
+    });
+  });
+
   describe("recordDisputeClosed", () => {
     it("records the lost dispute on the card payment and queues its affiliate commission sync, leaving the payer's balance alone", async () => {
       const { service, stripeTransactionRepository, refillService, jobQueueService, logger } = setup();
@@ -2390,6 +2494,18 @@ describe(StripeTransactionService.name, () => {
       expect(jobQueueService.enqueue).toHaveBeenCalledExactlyOnceWith(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "dispute" }));
     });
 
+    it("asks Stripe about the other disputes on the charge before locking the payment", async () => {
+      const { service, stripe, stripeTransactionRepository } = setup();
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(
+        generateDatabaseStripeTransaction({ type: "payment_intent", status: "succeeded", stripeChargeId: "ch_123" })
+      );
+      const disputesList = vi.spyOn(stripe.disputes, "list").mockResolvedValue(disputeListOf([{ id: "dp_123", status: "won" }]));
+
+      await service.recordDisputeClosed(createChargeDisputeClosedEvent({ id: "dp_123", charge: "ch_123", status: "won" }));
+
+      expect(disputesList.mock.invocationCallOrder[0]).toBeLessThan(stripeTransactionRepository.findOneByAndLock.mock.invocationCallOrder[0]);
+    });
+
     it("looks up the other disputes under the id of a charge Stripe sent expanded", async () => {
       const { service, stripe, stripeTransactionRepository } = setup();
       stripeTransactionRepository.findOneByAndLock.mockResolvedValue(
@@ -2495,6 +2611,7 @@ describe(StripeTransactionService.name, () => {
       organizationRepository,
       featureFlagsService,
       paymentCreditService,
+      container.resolve(TxService),
       () => logger
     );
 
@@ -2648,6 +2765,18 @@ describe(StripeTransactionService.name, () => {
       created,
       data: { object: dispute as Stripe.Dispute }
     } as Stripe.ChargeDisputeCreatedEvent;
+  }
+
+  function createChargeDisputeFundsWithdrawnEvent(
+    dispute: Pick<Stripe.Dispute, "id" | "charge" | "status">,
+    created = DISPUTE_FUNDS_WITHDRAWN_AT
+  ): Stripe.ChargeDisputeFundsWithdrawnEvent {
+    return {
+      id: "evt_123",
+      type: "charge.dispute.funds_withdrawn",
+      created,
+      data: { object: dispute as Stripe.Dispute }
+    } as Stripe.ChargeDisputeFundsWithdrawnEvent;
   }
 
   function createChargeDisputeClosedEvent(

@@ -54,6 +54,7 @@ export const StripeTransactions = pgTable(
     /** Kept next to `dispute_closed_at` instead of being cleared, because Stripe can deliver the closing event before the opening one. */
     disputeOpenedAt: timestamp("dispute_opened_at", { withTimezone: true }),
     disputeClosedAt: timestamp("dispute_closed_at", { withTimezone: true }),
+    disputeFundsWithdrawnAt: timestamp("dispute_funds_withdrawn_at", { withTimezone: true }),
     disputeLostAt: timestamp("dispute_lost_at", { withTimezone: true }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull()
@@ -76,8 +77,11 @@ export const StripeTransactions = pgTable(
     oneFirstPurchaseBonusPerUser: uniqueIndex(ONE_FIRST_PURCHASE_BONUS_PER_USER_INDEX)
       .on(table.userId)
       .where(sql`${table.bonusAmount} > 0`),
-    /** At most one commission row per source payment, so a commission sync can never double-grant it. */
+    /** At most one commission row per source payment that is not taken back in full, so a commission sync can never double-grant it. */
     sourceTransactionIdUnique: uniqueIndex("stripe_transactions_source_transaction_id_unique")
+      .on(table.sourceTransactionId)
+      .where(sql`${table.sourceTransactionId} IS NOT NULL AND ${table.status} <> 'refunded'`),
+    sourceTransactionIdIdx: index("stripe_transactions_source_transaction_id_idx")
       .on(table.sourceTransactionId)
       .where(sql`${table.sourceTransactionId} IS NOT NULL`),
     userIdIdx: index("stripe_transactions_user_id_idx").on(table.userId),
