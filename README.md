@@ -200,10 +200,10 @@ Due to the extensive time required to index Akash from block #1, it's recommende
 
 ### Available Backups
 
-- **Mainnet Database (~30 GB):** [console-akash-mainnet.sql.gz](https://storage.googleapis.com/console-postgresql-backups/console-akash-mainnet.sql.gz)
+- **Mainnet Database (~150 GB, February 2025):** [console-akash-mainnet.sql.gz](https://storage.googleapis.com/console-postgresql-backups/console-akash-mainnet.sql.gz)
   - Suitable for scenarios requiring complete data.
-- **Sandbox Database (< 300 MB):** [console-akash-sandbox.sql.gz](https://storage.googleapis.com/console-postgresql-backups/console-akash-sandbox.sql.gz)
-  - Ideal for most development needs, although it may lack recent chain updates.
+- **Sandbox Database (~34 MB):** [console-akash-sandbox.sql.gz](https://storage.googleapis.com/console-postgresql-backups/console-akash-sandbox.sql.gz)
+  - Ideal for most development needs. It leaves out transaction, message and event history. See [`packages/docker`](./packages/docker/README.md) for how it is produced.
 
 ### Restoration Steps
 
