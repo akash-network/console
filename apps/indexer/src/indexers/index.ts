@@ -8,6 +8,7 @@ import { BmeIndexer } from "./bmeIndexer";
 import type { Indexer } from "./indexer";
 import { MessageAddressesIndexer } from "./messageAddressesIndexer";
 import { SinkIndexer } from "./sinkIndexer";
+import { StakingUnbondingIndexer } from "./stakingUnbondingIndexer";
 import { ValidatorIndexer } from "./validatorIndexer";
 
 const validatorIndexer = new ValidatorIndexer();
@@ -17,7 +18,9 @@ const readBlockResults = createBlockResultsReader({
   downloadBlockResults: async height => (await nodeAccessor.getBlockResult(height)).result,
   cacheBlockResults: (height, blockResults) => blockResultsDb.put(blockHeightToKey(height), JSON.stringify(blockResults))
 });
-const customIndexers = [new AkashStatsIndexer(), new BmeIndexer(), new SinkIndexer(readBlockResults)].filter(x => activeChain.customIndexers.includes(x.name));
+const customIndexers = [new AkashStatsIndexer(), new BmeIndexer(), new SinkIndexer(readBlockResults), new StakingUnbondingIndexer()].filter(x =>
+  activeChain.customIndexers.includes(x.name)
+);
 
 export const indexers: Indexer[] = activeChain.startHeight
   ? [...customIndexers, messageAddressesIndexer]

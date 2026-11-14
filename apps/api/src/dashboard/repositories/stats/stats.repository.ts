@@ -74,7 +74,55 @@ export type SinkTransferRow = {
   statusUpdatedAt: Date;
 };
 
+export type SinkUnbondingSeries = "unbondStarted" | "unbondCompleting" | "cancelled" | "sentToSolana" | "sentBySendersWhoUnbonded";
+
+export type SinkUnbondingDailyAmountRow = {
+  series: SinkUnbondingSeries;
+  date: string;
+  amountUakt: number;
+};
+
+export type SinkUnbondingSummaryRow = {
+  unbondingUakt: number;
+  unbondingDelegators: number;
+  senders: number;
+  sendersWhoUnbonded: number;
+  sentUakt: number;
+  sentBySendersWhoUnbondedUakt: number;
+};
+
 type SinkDashboardPeriod = "now" | "compare" | "second_compare";
+
+/** The chain merges unbondings of the same delegation started in the same block into one entry, and a cancellation names that entry by its creation height. */
+const SINK_UNBONDING_CTES = `WITH unbond_entries AS (
+          SELECT u."delegator", u."validator", u."height", u."completion_time", SUM(u."amount") AS "amount"
+          FROM "staking_unbonding" u
+          WHERE u."type" = 'unbond'
+          GROUP BY u."delegator", u."validator", u."height", u."completion_time"
+        ), cancellations AS (
+          SELECT c."delegator", c."validator", c."creation_height", c."height", c."amount"
+          FROM "staking_unbonding" c
+          WHERE c."type" = 'cancel'
+        ), cancelled_by_entry AS (
+          SELECT c."delegator", c."validator", c."creation_height", SUM(c."amount") AS "amount"
+          FROM cancellations c
+          GROUP BY c."delegator", c."validator", c."creation_height"
+        ), net_entries AS (
+          SELECT
+            e.*,
+            e."amount" - COALESCE(c."amount", 0) AS "netAmount"
+          FROM unbond_entries e
+          LEFT JOIN cancelled_by_entry c
+            ON c."delegator" = e."delegator" AND c."validator" = e."validator" AND c."creation_height" = e."height"
+        ), unbonders AS (
+          SELECT DISTINCT e."delegator" FROM unbond_entries e
+        ), counted_transfers AS (
+          SELECT t."owner", t."amount", t."height", t."owner" IN (SELECT d."delegator" FROM unbonders d) AS "byUnbonder"
+          FROM "sink_transfer" t
+          WHERE t."status" NOT IN ('voided', 'refund_pending', 'refunded')
+        )`;
+
+const UTC_DAY = (column: string) => `to_char(${column} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`;
 
 const SINK_TRANSFER_ORDER: Record<SinkTransferSort, string> = {
   latest: `t."height" DESC, t."sequence" DESC`,
@@ -458,6 +506,63 @@ export class StatsRepository {
     );
 
     return count;
+  }
+
+  async findSinkUnbondingDailyAmounts(): Promise<SinkUnbondingDailyAmountRow[]> {
+    return this.#chainDb.query<SinkUnbondingDailyAmountRow>(
+      `/* dashboard-stats:sink-unbondings-daily */ ${SINK_UNBONDING_CTES}
+        SELECT 'unbondStarted' AS "series", ${UTC_DAY(`b."datetime"`)} AS "date", SUM(e."amount")::float AS "amountUakt"
+        FROM unbond_entries e
+        INNER JOIN "block" b ON b."height" = e."height"
+        GROUP BY 2
+        UNION ALL
+        SELECT 'unbondCompleting', ${UTC_DAY(`e."completion_time"`)}, SUM(e."netAmount")::float
+        FROM net_entries e
+        GROUP BY 2
+        UNION ALL
+        SELECT 'cancelled', ${UTC_DAY(`b."datetime"`)}, SUM(c."amount")::float
+        FROM cancellations c
+        INNER JOIN "block" b ON b."height" = c."height"
+        GROUP BY 2
+        UNION ALL
+        SELECT 'sentToSolana', ${UTC_DAY(`b."datetime"`)}, SUM(t."amount")::float
+        FROM counted_transfers t
+        INNER JOIN "block" b ON b."height" = t."height"
+        GROUP BY 2
+        UNION ALL
+        SELECT 'sentBySendersWhoUnbonded', ${UTC_DAY(`b."datetime"`)}, SUM(t."amount")::float
+        FROM counted_transfers t
+        INNER JOIN "block" b ON b."height" = t."height"
+        WHERE t."byUnbonder"
+        GROUP BY 2`,
+      { type: QueryTypes.SELECT }
+    );
+  }
+
+  async findSinkUnbondingSummary(): Promise<SinkUnbondingSummaryRow> {
+    const [summary] = await this.#chainDb.query<SinkUnbondingSummaryRow>(
+      `/* dashboard-stats:sink-unbondings-summary */ ${SINK_UNBONDING_CTES}, latest AS (
+          SELECT b."datetime"
+          FROM "block" b
+          WHERE b."isProcessed" = true
+          ORDER BY b."height" DESC
+          LIMIT 1
+        ), still_unbonding AS (
+          SELECT e.*
+          FROM net_entries e
+          WHERE e."completion_time" > (SELECT latest."datetime" FROM latest) AND e."netAmount" > 0
+        )
+        SELECT
+          COALESCE((SELECT SUM(e."netAmount") FROM still_unbonding e), 0)::float AS "unbondingUakt",
+          (SELECT COUNT(DISTINCT e."delegator") FROM still_unbonding e)::int AS "unbondingDelegators",
+          (SELECT COUNT(DISTINCT t."owner") FROM counted_transfers t)::int AS "senders",
+          (SELECT COUNT(DISTINCT t."owner") FROM counted_transfers t WHERE t."byUnbonder")::int AS "sendersWhoUnbonded",
+          COALESCE((SELECT SUM(t."amount") FROM counted_transfers t), 0)::float AS "sentUakt",
+          COALESCE((SELECT SUM(t."amount") FROM counted_transfers t WHERE t."byUnbonder"), 0)::float AS "sentBySendersWhoUnbondedUakt"`,
+      { type: QueryTypes.SELECT }
+    );
+
+    return summary;
   }
 
   async findClosedLeases(owner: string, query: { dseq?: string; startDate: Date; endDate: Date }, options: { limit: number }) {

@@ -784,3 +784,27 @@ export const sinkTransfer = pgTable(
     })
   ]
 );
+
+export const stakingUnbonding = pgTable(
+  "staking_unbonding",
+  {
+    transaction_event_id: uuid().primaryKey().notNull(),
+    height: integer().notNull(),
+    type: varchar({ length: 255 }).notNull(),
+    delegator: varchar({ length: 255 }).notNull(),
+    validator: varchar({ length: 255 }).notNull(),
+    amount: numeric({ precision: 30, scale: 0 }).notNull(),
+    completion_time: timestamp({ withTimezone: true, mode: "string" }),
+    creation_height: integer()
+  },
+  table => [
+    index("staking_unbonding_height").using("btree", table.height.asc().nullsLast().op("int4_ops")),
+    index("staking_unbonding_delegator").using("btree", table.delegator.asc().nullsLast().op("text_ops")),
+    index("staking_unbonding_completion_time").using("btree", table.completion_time.asc().nullsLast().op("timestamptz_ops")),
+    foreignKey({
+      columns: [table.height],
+      foreignColumns: [block.height],
+      name: "staking_unbonding_height_fkey"
+    })
+  ]
+);

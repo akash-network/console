@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { CHAIN_DB } from "@src/chain";
 import { StatsRepository } from "./stats.repository";
 
-import { createAkashBlock, createDay, createSinkTotalsSnapshot, createSinkTransfer } from "@test/seeders";
+import { createAkashBlock, createDay, createSinkTotalsSnapshot, createSinkTransfer, createStakingUnbonding } from "@test/seeders";
 
 describe(StatsRepository.name, () => {
   describe("findSinkDailyTotals", () => {
@@ -275,6 +275,103 @@ describe(StatsRepository.name, () => {
     });
   });
 
+  describe("findSinkUnbondingDailyAmounts", () => {
+    it("returns per UTC day the AKT that started unbonding, completes unbonding net of cancellations, was cancelled and was sent to Solana", async () => {
+      const { repository } = await setup();
+      await createUnbondingsAndTransfers();
+
+      const rows = await repository.findSinkUnbondingDailyAmounts();
+
+      expect(sortRows(rows)).toEqual(
+        sortRows([
+          { series: "unbondStarted", date: "2026-11-01", amountUakt: 950 },
+          { series: "unbondStarted", date: "2026-11-02", amountUakt: 80 },
+          { series: "unbondCompleting", date: "2026-11-05", amountUakt: 500 },
+          { series: "unbondCompleting", date: "2026-11-22", amountUakt: 420 },
+          { series: "unbondCompleting", date: "2026-11-23", amountUakt: 0 },
+          { series: "cancelled", date: "2026-11-02", amountUakt: 30 },
+          { series: "cancelled", date: "2026-11-03", amountUakt: 80 },
+          { series: "sentToSolana", date: "2026-11-12", amountUakt: 220 },
+          { series: "sentBySendersWhoUnbonded", date: "2026-11-12", amountUakt: 160 }
+        ])
+      );
+    });
+
+    it("returns nothing when no unbonding or transfer is indexed yet", async () => {
+      const { repository } = await setup();
+
+      expect(await repository.findSinkUnbondingDailyAmounts()).toEqual([]);
+    });
+  });
+
+  describe("findSinkUnbondingSummary", () => {
+    it("returns the AKT still unbonding as of the latest processed block and how many senders also unbonded", async () => {
+      const { repository } = await setup();
+      await createUnbondingsAndTransfers();
+
+      const summary = await repository.findSinkUnbondingSummary();
+
+      expect(summary).toEqual({
+        unbondingUakt: 420,
+        unbondingDelegators: 2,
+        senders: 3,
+        sendersWhoUnbonded: 2,
+        sentUakt: 220,
+        sentBySendersWhoUnbondedUakt: 160
+      });
+    });
+
+    it("returns zeros when no unbonding or transfer is indexed yet", async () => {
+      const { repository } = await setup();
+
+      expect(await repository.findSinkUnbondingSummary()).toEqual({
+        unbondingUakt: 0,
+        unbondingDelegators: 0,
+        senders: 0,
+        sendersWhoUnbonded: 0,
+        sentUakt: 0,
+        sentBySendersWhoUnbondedUakt: 0
+      });
+    });
+  });
+
+  async function createUnbondingsAndTransfers() {
+    const validator = "akashvaloper1validator";
+    const completesAfterLatestBlock = new Date("2026-11-22T10:00:00Z");
+    await createAkashBlock({ height: 10, datetime: new Date("2026-11-01T10:00:00Z"), isProcessed: true });
+    await createAkashBlock({ height: 20, datetime: new Date("2026-11-02T09:00:00Z"), isProcessed: true });
+    await createAkashBlock({ height: 25, datetime: new Date("2026-11-03T09:00:00Z"), isProcessed: true });
+    await createAkashBlock({ height: 30, datetime: new Date("2026-11-12T08:00:00Z"), isProcessed: true });
+    await createAkashBlock({ height: 40, datetime: new Date("2026-11-12T20:00:00Z"), isProcessed: true });
+    await createAkashBlock({ height: 50, datetime: new Date("2026-11-30T00:00:00Z"), isProcessed: false });
+
+    await createStakingUnbonding({ height: 10, delegator: "akash1alice", validator, amount: "100", completionTime: completesAfterLatestBlock });
+    await createStakingUnbonding({ height: 10, delegator: "akash1alice", validator, amount: "50", completionTime: completesAfterLatestBlock });
+    await createStakingUnbonding({ height: 20, type: "cancel", delegator: "akash1alice", validator, amount: "30", creationHeight: 10 });
+    await createStakingUnbonding({ height: 10, delegator: "akash1bob", validator, amount: "300", completionTime: new Date("2026-11-22T12:00:00Z") });
+    await createStakingUnbonding({ height: 10, delegator: "akash1carol", validator, amount: "450", completionTime: new Date("2026-11-05T10:00:00Z") });
+    await createStakingUnbonding({
+      height: 10,
+      delegator: "akash1carol",
+      validator: "akashvaloper1other",
+      amount: "50",
+      completionTime: new Date("2026-11-05T11:00:00Z")
+    });
+    await createStakingUnbonding({ height: 20, delegator: "akash1eve", validator, amount: "80", completionTime: new Date("2026-11-23T09:00:00Z") });
+    await createStakingUnbonding({ height: 25, type: "cancel", delegator: "akash1eve", validator, amount: "80", creationHeight: 20 });
+
+    await createSinkTransfer({ height: 30, sequence: 1, owner: "akash1alice", amount: "120", status: "minted" });
+    await createSinkTransfer({ height: 30, sequence: 2, owner: "akash1carol", amount: "40", status: "pending" });
+    await createSinkTransfer({ height: 30, sequence: 3, owner: "akash1frank", amount: "60", status: "minted" });
+    await createSinkTransfer({ height: 30, sequence: 4, owner: "akash1dave", amount: "999", status: "voided" });
+    await createSinkTransfer({ height: 40, sequence: 1, owner: "akash1bob", amount: "70", status: "refunded" });
+    await createSinkTransfer({ height: 40, sequence: 2, owner: "akash1bob", amount: "75", status: "refund_pending" });
+  }
+
+  function sortRows<T extends { series: string; date: string }>(rows: T[]) {
+    return [...rows].sort((a, b) => `${a.series}${a.date}`.localeCompare(`${b.series}${b.date}`));
+  }
+
   async function createTransfers() {
     const firstBlockDate = new Date("2026-11-11T10:00:00Z");
     const mintBlockDate = new Date("2026-11-11T10:03:00Z");
@@ -348,7 +445,7 @@ describe(StatsRepository.name, () => {
   async function setup() {
     const chainDb = container.resolve(CHAIN_DB);
     await chainDb.authenticate();
-    await chainDb.query('TRUNCATE "sink_transfer", "sink_totals_snapshot", "block", "day" CASCADE');
+    await chainDb.query('TRUNCATE "staking_unbonding", "sink_transfer", "sink_totals_snapshot", "block", "day" CASCADE');
 
     return { repository: container.resolve(StatsRepository) };
   }

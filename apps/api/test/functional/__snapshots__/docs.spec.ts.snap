@@ -28870,6 +28870,110 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/sink/unbondings": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "daily": {
+                      "items": {
+                        "properties": {
+                          "cancelledUakt": {
+                            "description": "AKT whose unbonding was cancelled on this day",
+                            "type": "number",
+                          },
+                          "date": {
+                            "description": "UTC day, YYYY-MM-DD",
+                            "type": "string",
+                          },
+                          "sentBySendersWhoUnbondedUakt": {
+                            "description": "Part of the AKT sent to Solana on this day by addresses that also unbonded",
+                            "type": "number",
+                          },
+                          "sentToSolanaUakt": {
+                            "description": "AKT sent to Solana on this day, excluding voided and refunded transfers",
+                            "type": "number",
+                          },
+                          "unbondCompletingUakt": {
+                            "description": "AKT whose unbonding completes on this day, net of cancellations",
+                            "type": "number",
+                          },
+                          "unbondStartedUakt": {
+                            "description": "AKT that started unbonding on this day",
+                            "type": "number",
+                          },
+                        },
+                        "required": [
+                          "date",
+                          "unbondStartedUakt",
+                          "unbondCompletingUakt",
+                          "cancelledUakt",
+                          "sentToSolanaUakt",
+                          "sentBySendersWhoUnbondedUakt",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    "summary": {
+                      "properties": {
+                        "senders": {
+                          "description": "Addresses that sent AKT to Solana",
+                          "type": "number",
+                        },
+                        "sendersWhoUnbonded": {
+                          "description": "Addresses that sent AKT to Solana and also unbonded",
+                          "type": "number",
+                        },
+                        "sentBySendersWhoUnbondedUakt": {
+                          "description": "AKT sent to Solana by addresses that also unbonded",
+                          "type": "number",
+                        },
+                        "sentUakt": {
+                          "description": "AKT sent to Solana, excluding voided and refunded transfers",
+                          "type": "number",
+                        },
+                        "unbondingDelegators": {
+                          "description": "Delegators with AKT still unbonding",
+                          "type": "number",
+                        },
+                        "unbondingUakt": {
+                          "description": "AKT still unbonding, net of cancellations",
+                          "type": "number",
+                        },
+                      },
+                      "required": [
+                        "unbondingUakt",
+                        "unbondingDelegators",
+                        "senders",
+                        "sendersWhoUnbonded",
+                        "sentUakt",
+                        "sentBySendersWhoUnbondedUakt",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "summary",
+                    "daily",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Returns the daily unbonding and sink amounts and how many sink senders also unbonded",
+          },
+        },
+        "security": [],
+        "summary": "Get the staking unbondings alongside the AKT sent to Solana through the sink module",
+        "tags": [
+          "Analytics",
+        ],
+      },
+    },
     "/v1/spend-rate": {
       "get": {
         "operationId": "getSpendRate",

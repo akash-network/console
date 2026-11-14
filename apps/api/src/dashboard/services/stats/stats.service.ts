@@ -20,8 +20,9 @@ import {
 import { MarketDataParams } from "@src/dashboard/http-schemas/market-data/market-data.schema";
 import type { SinkDashboardDataResponse, SinkPeriodData } from "@src/dashboard/http-schemas/sink-dashboard-data/sink-dashboard-data.schema";
 import type { SinkTransfersQuery, SinkTransfersResponse, SinkTransferStatus } from "@src/dashboard/http-schemas/sink-transfers/sink-transfers.schema";
+import type { SinkUnbondingsDay, SinkUnbondingsResponse } from "@src/dashboard/http-schemas/sink-unbondings/sink-unbondings.schema";
 import { StatsRepository } from "@src/dashboard/repositories/stats";
-import type { SinkDashboardTotalsRow, SinkTotalsRow } from "@src/dashboard/repositories/stats/stats.repository";
+import type { SinkDashboardTotalsRow, SinkTotalsRow, SinkUnbondingDailyAmountRow } from "@src/dashboard/repositories/stats/stats.repository";
 import { ProviderCapacityStats, StatsItem } from "@src/types/provider";
 import { forEachInChunks } from "@src/utils/array/array";
 import { createLoggingExecutor } from "@src/utils/logging";
@@ -301,6 +302,13 @@ export class StatsService {
         statusUpdatedAt: transfer.statusUpdatedAt.toISOString()
       }))
     };
+  }
+
+  @Memoize({ ttlInSeconds: minutesToSeconds(1) })
+  async getSinkUnbondings(): Promise<SinkUnbondingsResponse> {
+    const [summary, dailyAmounts] = await Promise.all([this.statsRepository.findSinkUnbondingSummary(), this.statsRepository.findSinkUnbondingDailyAmounts()]);
+
+    return { summary, daily: toSinkUnbondingDays(dailyAmounts) };
   }
 
   private async getBlockGraphData(
@@ -721,6 +729,45 @@ function toSinkPeriodData(totals: SinkDashboardTotalsRow, previousTotals: SinkDa
     uniqueSenders: totals.uniqueSenders,
     medianSecondsToMint: totals.medianSecondsToMint
   };
+}
+
+const SINK_UNBONDING_DAY_KEYS: Record<SinkUnbondingDailyAmountRow["series"], Exclude<keyof SinkUnbondingsDay, "date">> = {
+  unbondStarted: "unbondStartedUakt",
+  unbondCompleting: "unbondCompletingUakt",
+  cancelled: "cancelledUakt",
+  sentToSolana: "sentToSolanaUakt",
+  sentBySendersWhoUnbonded: "sentBySendersWhoUnbondedUakt"
+};
+
+function toSinkUnbondingDays(dailyAmounts: SinkUnbondingDailyAmountRow[]): SinkUnbondingsDay[] {
+  if (!dailyAmounts.length) return [];
+
+  const dates = dailyAmounts.map(row => row.date).sort();
+  const days = eachUtcDay(dates[0], dates[dates.length - 1]).map(date => ({
+    date,
+    unbondStartedUakt: 0,
+    unbondCompletingUakt: 0,
+    cancelledUakt: 0,
+    sentToSolanaUakt: 0,
+    sentBySendersWhoUnbondedUakt: 0
+  }));
+  const daysByDate = new Map(days.map(day => [day.date, day]));
+
+  for (const row of dailyAmounts) {
+    const day = daysByDate.get(row.date);
+    if (day) day[SINK_UNBONDING_DAY_KEYS[row.series]] += row.amountUakt;
+  }
+
+  return days;
+}
+
+function eachUtcDay(firstDate: string, lastDate: string): string[] {
+  const dates: string[] = [];
+  for (const day = new Date(`${firstDate}T00:00:00Z`); day.toISOString().slice(0, 10) <= lastDate; day.setUTCDate(day.getUTCDate() + 1)) {
+    dates.push(day.toISOString().slice(0, 10));
+  }
+
+  return dates;
 }
 
 function buildStatItem(active: number, pending: number, available: number): StatsItem {

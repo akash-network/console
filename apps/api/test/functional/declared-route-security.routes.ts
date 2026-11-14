@@ -58,6 +58,7 @@ export const ROUTES_OPEN_WITHOUT_SIGN_IN = [
   "GET /v1/providers/:providerAddress/active-leases-graph-data",
   "GET /v1/sink/dashboard-data",
   "GET /v1/sink/transfers",
+  "GET /v1/sink/unbondings",
   "GET /v1/swagger",
   "GET /v1/templates-list",
   "GET /v1/templates-list.json",

@@ -21160,6 +21160,110 @@
         }
       }
     },
+    "/v1/sink/unbondings": {
+      "get": {
+        "summary": "Get the staking unbondings alongside the AKT sent to Solana through the sink module",
+        "tags": [
+          "Analytics"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Returns the daily unbonding and sink amounts and how many sink senders also unbonded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "summary": {
+                      "type": "object",
+                      "properties": {
+                        "unbondingUakt": {
+                          "type": "number",
+                          "description": "AKT still unbonding, net of cancellations"
+                        },
+                        "unbondingDelegators": {
+                          "type": "number",
+                          "description": "Delegators with AKT still unbonding"
+                        },
+                        "senders": {
+                          "type": "number",
+                          "description": "Addresses that sent AKT to Solana"
+                        },
+                        "sendersWhoUnbonded": {
+                          "type": "number",
+                          "description": "Addresses that sent AKT to Solana and also unbonded"
+                        },
+                        "sentUakt": {
+                          "type": "number",
+                          "description": "AKT sent to Solana, excluding voided and refunded transfers"
+                        },
+                        "sentBySendersWhoUnbondedUakt": {
+                          "type": "number",
+                          "description": "AKT sent to Solana by addresses that also unbonded"
+                        }
+                      },
+                      "required": [
+                        "unbondingUakt",
+                        "unbondingDelegators",
+                        "senders",
+                        "sendersWhoUnbonded",
+                        "sentUakt",
+                        "sentBySendersWhoUnbondedUakt"
+                      ]
+                    },
+                    "daily": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "date": {
+                            "type": "string",
+                            "description": "UTC day, YYYY-MM-DD"
+                          },
+                          "unbondStartedUakt": {
+                            "type": "number",
+                            "description": "AKT that started unbonding on this day"
+                          },
+                          "unbondCompletingUakt": {
+                            "type": "number",
+                            "description": "AKT whose unbonding completes on this day, net of cancellations"
+                          },
+                          "cancelledUakt": {
+                            "type": "number",
+                            "description": "AKT whose unbonding was cancelled on this day"
+                          },
+                          "sentToSolanaUakt": {
+                            "type": "number",
+                            "description": "AKT sent to Solana on this day, excluding voided and refunded transfers"
+                          },
+                          "sentBySendersWhoUnbondedUakt": {
+                            "type": "number",
+                            "description": "Part of the AKT sent to Solana on this day by addresses that also unbonded"
+                          }
+                        },
+                        "required": [
+                          "date",
+                          "unbondStartedUakt",
+                          "unbondCompletingUakt",
+                          "cancelledUakt",
+                          "sentToSolanaUakt",
+                          "sentBySendersWhoUnbondedUakt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "summary",
+                    "daily"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/dashboard-data": {
       "get": {
         "tags": [

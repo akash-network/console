@@ -16,6 +16,7 @@ export { BmeRawEvent } from "./bmeRawEvent";
 export { BmeStatusChange } from "./bmeStatusChange";
 export { SinkTotalsSnapshot } from "./sinkTotalsSnapshot";
 export { SinkTransfer } from "./sinkTransfer";
+export { StakingUnbonding } from "./stakingUnbonding";
 
 // Overrides
 export { AkashBlock } from "./akashBlock";
