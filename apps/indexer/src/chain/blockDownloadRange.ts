@@ -14,11 +14,7 @@ export function getBlockDownloadRange(input: {
   keepCache: boolean;
   chainStartHeight: number | undefined;
 }): BlockDownloadRange | null {
-  let startHeight = input.keepCache ? input.latestHeightInCache + 1 : input.latestInsertedHeight + 1;
-
-  if (input.latestInsertedHeight === 0) {
-    startHeight = input.chainStartHeight || 1;
-  }
+  let startHeight = getFirstHeightToDownload(input);
 
   if (input.missingBlock) {
     startHeight = Math.min(input.missingBlock, input.latestBlockToDownload);
@@ -27,4 +23,16 @@ export function getBlockDownloadRange(input: {
   if (startHeight > input.latestBlockToDownload) return null;
 
   return { startHeight, endHeight: Math.min(input.latestBlockToDownload, startHeight + MAX_DOWNLOAD_GROUP_SIZE) };
+}
+
+function getFirstHeightToDownload(input: {
+  latestInsertedHeight: number;
+  latestHeightInCache: number;
+  keepCache: boolean;
+  chainStartHeight: number | undefined;
+}) {
+  if (input.keepCache && input.latestHeightInCache > 0) return input.latestHeightInCache + 1;
+  if (input.latestInsertedHeight === 0) return input.chainStartHeight || 1;
+
+  return input.keepCache ? 1 : input.latestInsertedHeight + 1;
 }
