@@ -6,8 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
 
+import { SKIP_REPORTING_PASSWORDLESS_OUTCOME } from "@src/components/auth/PasswordlessAuth/passwordlessRefusal";
 import { RemoteApiError } from "@src/components/shared/RemoteApiError/RemoteApiError";
-import { SKIP_REPORTING_CAPTCHA_OUTCOME } from "@src/components/turnstile/CaptchaChallengeError";
 import { useServices } from "@src/context/ServicesProvider";
 import { trackEmailSignInFailure } from "../emailSignInFailure/emailSignInFailure";
 import { markCodeSent } from "../PasswordlessAuth/withPersistedPasswordlessFlow";
@@ -42,7 +42,7 @@ export function EmailCodeStart({ dependencies: d = DEPENDENCIES, ...props }: Pro
   const { authService, analyticsService } = useServices();
 
   const startMutation = d.useMutation({
-    meta: SKIP_REPORTING_CAPTCHA_OUTCOME,
+    meta: SKIP_REPORTING_PASSWORDLESS_OUTCOME,
     async mutationFn(input: { email: string }) {
       const captchaToken = await props.getCaptchaToken();
       analyticsService.track("email_login_init");
