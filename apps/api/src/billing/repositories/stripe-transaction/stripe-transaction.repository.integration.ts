@@ -672,6 +672,86 @@ describe(StripeTransactionRepository.name, () => {
 
       expect(result.map(row => row.id)).toEqual([commission.id]);
     });
+
+    it("returns when the release credit landed and the amount of the card payment the commission was earned on", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestCommission, createTestTransaction } = setup();
+      const affiliate = await createTestUser();
+      const payment = await createTestTransaction({ amount: 20000 });
+      const commission = await createTestCommission(affiliate.id, { sourceTransactionId: payment.id });
+      const credit = await seedPaymentCredit({ transactionId: commission.id, status: "landed" });
+
+      const [result] = await stripeTransactionRepository.findAffiliateCommissions(affiliate.id);
+
+      expect(result).toMatchObject({ id: commission.id, creditedAt: credit.createdAt, paymentAmount: 20000 });
+    });
+
+    it("leaves the credit date and payment amount empty without a landed credit or a source payment", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestCommission } = setup();
+      const affiliate = await createTestUser();
+      const commission = await createTestCommission(affiliate.id, { status: "pending" });
+      await seedPaymentCredit({ transactionId: commission.id, status: "pending" });
+
+      const [result] = await stripeTransactionRepository.findAffiliateCommissions(affiliate.id);
+
+      expect(result).toMatchObject({ id: commission.id, creditedAt: null, paymentAmount: null });
+    });
+  });
+
+  describe("sumCreditedAffiliateCommissionNet", () => {
+    it("sums the net of the user's credited and reversed commissions, leaving out held and canceled ones", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestCommission, createTestTransaction } = setup();
+      const affiliate = await createTestUser();
+      await createTestCommission(affiliate.id, { amount: 500, amountRefunded: 100, status: "succeeded" });
+      await createTestCommission(affiliate.id, { amount: 300, amountRefunded: 100, status: "refunded" });
+      await createTestCommission(affiliate.id, { amount: 700, status: "pending" });
+      await createTestCommission(affiliate.id, { amount: 900, status: "canceled" });
+      await createTestCommission((await createTestUser()).id, { amount: 400 });
+      await createTestTransaction({ userId: affiliate.id, amount: 10000 });
+
+      await expect(stripeTransactionRepository.sumCreditedAffiliateCommissionNet(affiliate.id)).resolves.toBe(600);
+    });
+
+    it("sums the commissions filed under the affiliate's personal organization while one of their teams is active", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestCommission } = setup();
+      const affiliate = await createTestUser();
+      const personalOrganization = await seedOrganization({ type: "personal", createdByUserId: affiliate.id });
+      const { organization: team } = await seedOrganizationWithOwner();
+      await createTestCommission(affiliate.id, { amount: 500, organizationId: personalOrganization.id });
+
+      await expect(
+        inOrganization({ user: affiliate, organizationId: team.id }, () => stripeTransactionRepository.sumCreditedAffiliateCommissionNet(affiliate.id))
+      ).resolves.toBe(500);
+    });
+  });
+
+  describe("findHeldAffiliateCommissions", () => {
+    it("returns only the user's held commissions, oldest first", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestCommission } = setup();
+      const affiliate = await createTestUser();
+      const newer = await createTestCommission(affiliate.id, { status: "pending", createdAt: new Date("2024-02-01T00:00:00Z") });
+      const older = await createTestCommission(affiliate.id, { status: "pending", createdAt: new Date("2024-01-01T00:00:00Z") });
+      await createTestCommission(affiliate.id, { status: "succeeded" });
+      await createTestCommission(affiliate.id, { status: "canceled" });
+      await createTestCommission((await createTestUser()).id, { status: "pending" });
+
+      const result = await stripeTransactionRepository.findHeldAffiliateCommissions(affiliate.id);
+
+      expect(result.map(row => row.id)).toEqual([older.id, newer.id]);
+    });
+
+    it("lists the held commissions filed under the affiliate's personal organization while one of their teams is active", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestCommission } = setup();
+      const affiliate = await createTestUser();
+      const personalOrganization = await seedOrganization({ type: "personal", createdByUserId: affiliate.id });
+      const { organization: team } = await seedOrganizationWithOwner();
+      const commission = await createTestCommission(affiliate.id, { status: "pending", organizationId: personalOrganization.id });
+
+      const result = await inOrganization({ user: affiliate, organizationId: team.id }, () =>
+        stripeTransactionRepository.findHeldAffiliateCommissions(affiliate.id)
+      );
+
+      expect(result.map(row => row.id)).toEqual([commission.id]);
+    });
   });
 
   let cleanup: () => Promise<void>;

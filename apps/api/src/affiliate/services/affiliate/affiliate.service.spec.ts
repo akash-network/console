@@ -1,12 +1,12 @@
 import type { CreateLogger } from "@akashnetwork/logging";
 import { PostgresError } from "postgres";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AffiliateRepository } from "@src/affiliate/repositories/affiliate/affiliate.repository";
 import type { ReferralRepository } from "@src/affiliate/repositories/referral/referral.repository";
 import type { BillingConfig } from "@src/billing/providers";
-import type { StripeTransactionRepository } from "@src/billing/repositories";
+import type { AffiliateCommissionEntry, StripeTransactionRepository } from "@src/billing/repositories";
 import type { UserRepository } from "@src/user/repositories";
 import { AffiliateService } from "./affiliate.service";
 
@@ -480,6 +480,16 @@ describe(AffiliateService.name, () => {
       expect(profile?.terms.referralTrialCreditsUsd).toBe(7.5);
     });
 
+    it("states the hold length in whole days, rounding a partial day up", async () => {
+      const active = createAffiliate({ revokedAt: null });
+      const { service, affiliateRepository } = setup({ billingConfig: { AFFILIATE_COMMISSION_HOLD_SECONDS: 86_401 } });
+      affiliateRepository.findByUserId.mockResolvedValue(active);
+
+      const profile = await service.getProfile(active.userId);
+
+      expect(profile?.terms.commissionHoldDays).toBe(2);
+    });
+
     it("counts signups and paying users from the referral repository for the affiliate's own id", async () => {
       const active = createAffiliate({ revokedAt: null });
       const { service, affiliateRepository, referralRepository } = setup();
@@ -509,6 +519,9 @@ describe(AffiliateService.name, () => {
 
     it("passes the first instant of the current UTC month as the month boundary", async () => {
       vi.useFakeTimers();
+      onTestFinished(() => {
+        vi.useRealTimers();
+      });
       vi.setSystemTime(new Date("2024-06-15T18:30:00Z"));
       const active = createAffiliate({ revokedAt: null });
       const { service, affiliateRepository, stripeTransactionRepository } = setup();
@@ -517,25 +530,153 @@ describe(AffiliateService.name, () => {
       await service.getProfile(active.userId);
 
       expect(stripeTransactionRepository.sumAffiliateCommissionNet).toHaveBeenCalledWith(active.userId, new Date("2024-06-01T00:00:00.000Z"));
-      vi.useRealTimers();
     });
 
     it("maps each commission row to its gross and reversed usd amounts without the referred user's identity", async () => {
       const active = createAffiliate({ revokedAt: null });
       const { service, affiliateRepository, stripeTransactionRepository } = setup();
       affiliateRepository.findByUserId.mockResolvedValue(active);
-      const commission = generateDatabaseStripeTransaction({
+      const commission = createCommissionEntry({
         id: "commission-1",
+        status: "succeeded",
         createdAt: new Date("2024-06-10T12:00:00Z"),
         amount: 500,
-        amountRefunded: 150
+        amountRefunded: 150,
+        creditedAt: new Date("2024-07-10T12:00:00Z"),
+        paymentAmount: 10000
       });
       stripeTransactionRepository.findAffiliateCommissions.mockResolvedValue([commission]);
 
       const profile = await service.getProfile(active.userId);
 
       expect(stripeTransactionRepository.findAffiliateCommissions).toHaveBeenCalledWith(active.userId);
-      expect(profile?.commissions).toEqual([{ id: "commission-1", createdAt: "2024-06-10T12:00:00.000Z", amountUsd: 5, reversedUsd: 1.5 }]);
+      expect(profile?.commissions).toEqual([
+        {
+          id: "commission-1",
+          createdAt: "2024-06-10T12:00:00.000Z",
+          amountUsd: 5,
+          reversedUsd: 1.5,
+          status: "credited",
+          releasesAt: null,
+          creditedAt: "2024-07-10T12:00:00.000Z",
+          paymentUsd: 100
+        }
+      ]);
+    });
+
+    it("labels canceled and fully reversed commissions and leaves their dates and missing payment empty", async () => {
+      const active = createAffiliate({ revokedAt: null });
+      const { service, affiliateRepository, stripeTransactionRepository } = setup();
+      affiliateRepository.findByUserId.mockResolvedValue(active);
+      stripeTransactionRepository.findAffiliateCommissions.mockResolvedValue([
+        createCommissionEntry({ status: "canceled", paymentAmount: null }),
+        createCommissionEntry({ status: "refunded", paymentAmount: null })
+      ]);
+
+      const profile = await service.getProfile(active.userId);
+
+      expect(profile?.commissions).toMatchObject([
+        { status: "canceled", releasesAt: null, creditedAt: null, paymentUsd: null },
+        { status: "reversed", releasesAt: null, creditedAt: null, paymentUsd: null }
+      ]);
+    });
+
+    it("leaves out a commission row in a status a commission never takes", async () => {
+      const active = createAffiliate({ revokedAt: null });
+      const { service, affiliateRepository, stripeTransactionRepository } = setup();
+      affiliateRepository.findByUserId.mockResolvedValue(active);
+      stripeTransactionRepository.findAffiliateCommissions.mockResolvedValue([createCommissionEntry({ status: "failed" })]);
+
+      const profile = await service.getProfile(active.userId);
+
+      expect(profile?.commissions).toEqual([]);
+    });
+
+    it("dates a held commission's release the hold length after it was recorded", async () => {
+      vi.useFakeTimers();
+      onTestFinished(() => {
+        vi.useRealTimers();
+      });
+      vi.setSystemTime(new Date("2024-06-15T00:00:00Z"));
+      const active = createAffiliate({ revokedAt: null });
+      const { service, affiliateRepository, stripeTransactionRepository } = setup({ billingConfig: { AFFILIATE_COMMISSION_HOLD_SECONDS: 86_400 } });
+      affiliateRepository.findByUserId.mockResolvedValue(active);
+      stripeTransactionRepository.findAffiliateCommissions.mockResolvedValue([
+        createCommissionEntry({ status: "pending", createdAt: new Date("2024-06-14T12:00:00Z") })
+      ]);
+
+      const profile = await service.getProfile(active.userId);
+
+      expect(profile?.commissions).toMatchObject([{ status: "on_hold", releasesAt: "2024-06-15T12:00:00.000Z" }]);
+    });
+
+    it("gives a held commission whose release date has passed no release date", async () => {
+      vi.useFakeTimers();
+      onTestFinished(() => {
+        vi.useRealTimers();
+      });
+      vi.setSystemTime(new Date("2024-06-15T12:00:00Z"));
+      const active = createAffiliate({ revokedAt: null });
+      const { service, affiliateRepository, stripeTransactionRepository } = setup({ billingConfig: { AFFILIATE_COMMISSION_HOLD_SECONDS: 86_400 } });
+      affiliateRepository.findByUserId.mockResolvedValue(active);
+      stripeTransactionRepository.findAffiliateCommissions.mockResolvedValue([
+        createCommissionEntry({ status: "pending", createdAt: new Date("2024-06-14T12:00:00Z") })
+      ]);
+
+      const profile = await service.getProfile(active.userId);
+
+      expect(profile?.commissions).toMatchObject([{ status: "on_hold", releasesAt: null }]);
+    });
+
+    it("converts the credited net sum from cents to usd for the affiliate's user id", async () => {
+      const active = createAffiliate({ revokedAt: null });
+      const { service, affiliateRepository, stripeTransactionRepository } = setup();
+      affiliateRepository.findByUserId.mockResolvedValue(active);
+      stripeTransactionRepository.sumCreditedAffiliateCommissionNet.mockResolvedValue(1050);
+
+      const profile = await service.getProfile(active.userId);
+
+      expect(stripeTransactionRepository.sumCreditedAffiliateCommissionNet).toHaveBeenCalledWith(active.userId);
+      expect(profile?.stats.creditedUsd).toBe(10.5);
+    });
+
+    it("sums what is on hold net of refunds and picks the earliest release still ahead, skipping held commissions past their date", async () => {
+      vi.useFakeTimers();
+      onTestFinished(() => {
+        vi.useRealTimers();
+      });
+      vi.setSystemTime(new Date("2024-06-15T00:00:00Z"));
+      const active = createAffiliate({ revokedAt: null });
+      const { service, affiliateRepository, stripeTransactionRepository } = setup({ billingConfig: { AFFILIATE_COMMISSION_HOLD_SECONDS: 86_400 } });
+      affiliateRepository.findByUserId.mockResolvedValue(active);
+      stripeTransactionRepository.findHeldAffiliateCommissions.mockResolvedValue([
+        generateDatabaseStripeTransaction({ status: "pending", createdAt: new Date("2024-06-13T00:00:00Z"), amount: 300, amountRefunded: 0 }),
+        generateDatabaseStripeTransaction({ status: "pending", createdAt: new Date("2024-06-14T06:00:00Z"), amount: 1100, amountRefunded: 100 }),
+        generateDatabaseStripeTransaction({ status: "pending", createdAt: new Date("2024-06-14T18:00:00Z"), amount: 500, amountRefunded: 0 })
+      ]);
+
+      const profile = await service.getProfile(active.userId);
+
+      expect(stripeTransactionRepository.findHeldAffiliateCommissions).toHaveBeenCalledWith(active.userId);
+      expect(profile?.stats).toMatchObject({ onHoldUsd: 18, nextRelease: { releasesAt: "2024-06-15T06:00:00.000Z", amountUsd: 10 } });
+    });
+
+    it("has no next release when every held commission is past its release date", async () => {
+      vi.useFakeTimers();
+      onTestFinished(() => {
+        vi.useRealTimers();
+      });
+      vi.setSystemTime(new Date("2024-06-15T00:00:00Z"));
+      const active = createAffiliate({ revokedAt: null });
+      const { service, affiliateRepository, stripeTransactionRepository } = setup({ billingConfig: { AFFILIATE_COMMISSION_HOLD_SECONDS: 86_400 } });
+      affiliateRepository.findByUserId.mockResolvedValue(active);
+      stripeTransactionRepository.findHeldAffiliateCommissions.mockResolvedValue([
+        generateDatabaseStripeTransaction({ status: "pending", createdAt: new Date("2024-06-14T00:00:00Z"), amount: 300, amountRefunded: 0 })
+      ]);
+
+      const profile = await service.getProfile(active.userId);
+
+      expect(profile?.stats).toMatchObject({ onHoldUsd: 3, nextRelease: null });
     });
 
     it("returns an empty commissions list when the affiliate has none", async () => {
@@ -555,6 +696,10 @@ describe(AffiliateService.name, () => {
 
     expect(createLogger).toHaveBeenCalledWith({ context: AffiliateService.name });
   });
+
+  function createCommissionEntry(overrides: Partial<AffiliateCommissionEntry> = {}): AffiliateCommissionEntry {
+    return { ...generateDatabaseStripeTransaction({ type: "affiliate_commission" }), creditedAt: null, paymentAmount: 10000, ...overrides };
+  }
 
   function createUniqueViolation(constraintName: string) {
     const driverError = Object.assign(Object.create(PostgresError.prototype), {
@@ -581,9 +726,15 @@ describe(AffiliateService.name, () => {
     const stripeTransactionRepository = mock<StripeTransactionRepository>();
     stripeTransactionRepository.sumAffiliateCommissionNet.mockResolvedValue(0);
     stripeTransactionRepository.findAffiliateCommissions.mockResolvedValue([]);
+    stripeTransactionRepository.sumCreditedAffiliateCommissionNet.mockResolvedValue(0);
+    stripeTransactionRepository.findHeldAffiliateCommissions.mockResolvedValue([]);
     const userRepository = mock<UserRepository>();
     userRepository.findById.mockImplementation(async id => createUser({ id }));
-    const billingConfig = mock<BillingConfig>({ REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT: 5_000_000, ...input.billingConfig });
+    const billingConfig = mock<BillingConfig>({
+      REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT: 5_000_000,
+      AFFILIATE_COMMISSION_HOLD_SECONDS: 2_592_000,
+      ...input.billingConfig
+    });
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 

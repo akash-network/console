@@ -15983,18 +15983,37 @@ export interface operations {
                 commissionPercent: number;
                 commissionMonths: number;
                 referralTrialCreditsUsd: number;
+                /** @description How many days each commission stays on hold before it is credited. */
+                commissionHoldDays: number;
               };
               stats: {
                 signups: number;
                 payingUsers: number;
                 totalCommissionUsd: number;
                 monthCommissionUsd: number;
+                /** @description Commission credited to the personal balance, net of what was taken back. */
+                creditedUsd: number;
+                /** @description Commission still on hold, net of refunds during the hold. */
+                onHoldUsd: number;
+                /** @description The next held commission due for release, null when none has a release date ahead. */
+                nextRelease: {
+                  releasesAt: string;
+                  amountUsd: number;
+                } | null;
               };
               commissions: {
                 id: string;
                 createdAt: string;
                 amountUsd: number;
                 reversedUsd: number;
+                /** @enum {string} */
+                status: "on_hold" | "credited" | "canceled" | "reversed";
+                /** @description When a held commission is due for release, null once that date has passed or when it is not on hold. */
+                releasesAt: string | null;
+                /** @description When the commission was credited to the personal balance. */
+                creditedAt: string | null;
+                /** @description The card payment the commission was earned on. */
+                paymentUsd: number | null;
               }[];
             } | null;
           };

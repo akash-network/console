@@ -2955,11 +2955,35 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "createdAt": {
                                 "type": "string",
                               },
+                              "creditedAt": {
+                                "description": "When the commission was credited to the personal balance.",
+                                "nullable": true,
+                                "type": "string",
+                              },
                               "id": {
+                                "type": "string",
+                              },
+                              "paymentUsd": {
+                                "description": "The card payment the commission was earned on.",
+                                "nullable": true,
+                                "type": "number",
+                              },
+                              "releasesAt": {
+                                "description": "When a held commission is due for release, null once that date has passed or when it is not on hold.",
+                                "nullable": true,
                                 "type": "string",
                               },
                               "reversedUsd": {
                                 "type": "number",
+                              },
+                              "status": {
+                                "enum": [
+                                  "on_hold",
+                                  "credited",
+                                  "canceled",
+                                  "reversed",
+                                ],
+                                "type": "string",
                               },
                             },
                             "required": [
@@ -2967,6 +2991,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "createdAt",
                               "amountUsd",
                               "reversedUsd",
+                              "status",
+                              "releasesAt",
+                              "creditedAt",
+                              "paymentUsd",
                             ],
                             "type": "object",
                           },
@@ -2974,7 +3002,32 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         },
                         "stats": {
                           "properties": {
+                            "creditedUsd": {
+                              "description": "Commission credited to the personal balance, net of what was taken back.",
+                              "type": "number",
+                            },
                             "monthCommissionUsd": {
+                              "type": "number",
+                            },
+                            "nextRelease": {
+                              "description": "The next held commission due for release, null when none has a release date ahead.",
+                              "nullable": true,
+                              "properties": {
+                                "amountUsd": {
+                                  "type": "number",
+                                },
+                                "releasesAt": {
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "releasesAt",
+                                "amountUsd",
+                              ],
+                              "type": "object",
+                            },
+                            "onHoldUsd": {
+                              "description": "Commission still on hold, net of refunds during the hold.",
                               "type": "number",
                             },
                             "payingUsers": {
@@ -2992,11 +3045,18 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "payingUsers",
                             "totalCommissionUsd",
                             "monthCommissionUsd",
+                            "creditedUsd",
+                            "onHoldUsd",
+                            "nextRelease",
                           ],
                           "type": "object",
                         },
                         "terms": {
                           "properties": {
+                            "commissionHoldDays": {
+                              "description": "How many days each commission stays on hold before it is credited.",
+                              "type": "number",
+                            },
                             "commissionMonths": {
                               "type": "number",
                             },
@@ -3011,6 +3071,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "commissionPercent",
                             "commissionMonths",
                             "referralTrialCreditsUsd",
+                            "commissionHoldDays",
                           ],
                           "type": "object",
                         },

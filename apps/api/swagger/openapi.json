@@ -29220,12 +29220,17 @@
                             },
                             "referralTrialCreditsUsd": {
                               "type": "number"
+                            },
+                            "commissionHoldDays": {
+                              "type": "number",
+                              "description": "How many days each commission stays on hold before it is credited."
                             }
                           },
                           "required": [
                             "commissionPercent",
                             "commissionMonths",
-                            "referralTrialCreditsUsd"
+                            "referralTrialCreditsUsd",
+                            "commissionHoldDays"
                           ]
                         },
                         "stats": {
@@ -29242,13 +29247,41 @@
                             },
                             "monthCommissionUsd": {
                               "type": "number"
+                            },
+                            "creditedUsd": {
+                              "type": "number",
+                              "description": "Commission credited to the personal balance, net of what was taken back."
+                            },
+                            "onHoldUsd": {
+                              "type": "number",
+                              "description": "Commission still on hold, net of refunds during the hold."
+                            },
+                            "nextRelease": {
+                              "type": "object",
+                              "nullable": true,
+                              "properties": {
+                                "releasesAt": {
+                                  "type": "string"
+                                },
+                                "amountUsd": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "releasesAt",
+                                "amountUsd"
+                              ],
+                              "description": "The next held commission due for release, null when none has a release date ahead."
                             }
                           },
                           "required": [
                             "signups",
                             "payingUsers",
                             "totalCommissionUsd",
-                            "monthCommissionUsd"
+                            "monthCommissionUsd",
+                            "creditedUsd",
+                            "onHoldUsd",
+                            "nextRelease"
                           ]
                         },
                         "commissions": {
@@ -29267,13 +29300,41 @@
                               },
                               "reversedUsd": {
                                 "type": "number"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "on_hold",
+                                  "credited",
+                                  "canceled",
+                                  "reversed"
+                                ]
+                              },
+                              "releasesAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "When a held commission is due for release, null once that date has passed or when it is not on hold."
+                              },
+                              "creditedAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "When the commission was credited to the personal balance."
+                              },
+                              "paymentUsd": {
+                                "type": "number",
+                                "nullable": true,
+                                "description": "The card payment the commission was earned on."
                               }
                             },
                             "required": [
                               "id",
                               "createdAt",
                               "amountUsd",
-                              "reversedUsd"
+                              "reversedUsd",
+                              "status",
+                              "releasesAt",
+                              "creditedAt",
+                              "paymentUsd"
                             ]
                           }
                         }
