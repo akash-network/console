@@ -5,6 +5,8 @@ set -euo pipefail
 
 OUTPUT_FILE="${OUTPUT_FILE:-console-akash-sandbox.sql.gz}"
 RECENT_BLOCKS="${RECENT_BLOCKS:-50000}"
+SNAPSHOT_ATTEMPTS="${SNAPSHOT_ATTEMPTS:-30}"
+SNAPSHOT_RETRY_SECONDS="${SNAPSHOT_RETRY_SECONDS:-10}"
 
 HISTORY_TABLES=(transaction_event_attribute transaction_event message addressReference transaction block)
 
@@ -52,15 +54,52 @@ kept_blocks_sql="
      or b.height in ($block_references_sql)
   order by b.height"
 
+snapshot_dir=$(mktemp -d)
+mkfifo "$snapshot_dir/requests" "$snapshot_dir/replies"
+psql -X -q -At -v ON_ERROR_STOP=1 < "$snapshot_dir/requests" > "$snapshot_dir/replies" &
+snapshot_session_pid=$!
+exec 3> "$snapshot_dir/requests" 4< "$snapshot_dir/replies"
+
+close_snapshot_session() {
+  exec 3>&- 4<&-
+  wait "$snapshot_session_pid" 2> /dev/null || true
+  rm -rf "$snapshot_dir"
+}
+trap close_snapshot_session EXIT
+
+# A block the indexer has stored but not processed would be skipped after restore, losing its deployment and lease changes.
+snapshot_id=""
+for attempt in $(seq 1 "$SNAPSHOT_ATTEMPTS"); do
+  echo 'begin isolation level repeatable read read only;' >&3
+  echo 'select pg_export_snapshot() || '"' '"' || count(*) from public.block where not "isProcessed";' >&3
+  read -r exported_snapshot unprocessed_blocks <&4
+  if [ "$unprocessed_blocks" -eq 0 ]; then
+    snapshot_id="$exported_snapshot"
+    break
+  fi
+  echo "SEED_DUMP: $unprocessed_blocks unprocessed blocks (attempt $attempt/$SNAPSHOT_ATTEMPTS), retrying in ${SNAPSHOT_RETRY_SECONDS}s"
+  echo 'rollback;' >&3
+  sleep "$SNAPSHOT_RETRY_SECONDS"
+done
+
+if [ -z "$snapshot_id" ]; then
+  echo "SEED_DUMP: The indexer kept unprocessed blocks through every attempt."
+  exit 1
+fi
+
 echo "SEED_DUMP: Dumping \"$PGDATABASE\" to $OUTPUT_FILE"
 
 {
-  pg_dump --no-owner --no-acl --section=pre-data
-  pg_dump --no-owner --no-acl --section=data "${exclude_args[@]}"
+  pg_dump --no-owner --no-acl --snapshot="$snapshot_id" --section=pre-data
+  pg_dump --no-owner --no-acl --snapshot="$snapshot_id" --section=data "${exclude_args[@]}"
   printf 'COPY public.block FROM stdin;\n'
-  psql -X -v ON_ERROR_STOP=1 -c "COPY ($kept_blocks_sql) TO STDOUT"
+  psql -X -q -v ON_ERROR_STOP=1 \
+    -c 'begin isolation level repeatable read read only' \
+    -c "set transaction snapshot '$snapshot_id'" \
+    -c "COPY ($kept_blocks_sql) TO STDOUT" \
+    -c 'commit'
   printf '\\.\n\n'
-  pg_dump --no-owner --no-acl --section=post-data
+  pg_dump --no-owner --no-acl --snapshot="$snapshot_id" --section=post-data
 } | gzip > "$OUTPUT_FILE.partial"
 
 mv "$OUTPUT_FILE.partial" "$OUTPUT_FILE"

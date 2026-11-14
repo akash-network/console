@@ -35,7 +35,7 @@ createdb seed_check
 echo "SEED_VERIFY: Restoring $SEED_FILE"
 gunzip -c "$SEED_FILE" | psql -X -q -v ON_ERROR_STOP=1 -d seed_check > /dev/null
 
-read -r deployments_missing_block leases_missing_block providers cpu_rows_with_arch tip_height < <(psql -X -At -F ' ' -v ON_ERROR_STOP=1 -d seed_check -c '
+read -r deployments_missing_block leases_missing_block unprocessed_blocks providers cpu_rows_with_arch tip_height < <(psql -X -At -F ' ' -v ON_ERROR_STOP=1 -d seed_check -c '
   select
     (select count(*) from public.deployment d
       where not exists (select 1 from public.block b where b.height = d."createdHeight")
@@ -43,6 +43,7 @@ read -r deployments_missing_block leases_missing_block providers cpu_rows_with_a
     (select count(*) from public.lease l
       where not exists (select 1 from public.block b where b.height = l."createdHeight")
          or (l."closedHeight" is not null and not exists (select 1 from public.block b where b.height = l."closedHeight"))),
+    (select count(*) from public.block where not "isProcessed"),
     (select count(*) from public.provider),
     (select count(*) from public."providerSnapshotNodeCPU" where arch is not null),
     (select coalesce(max(height), 0) from public.block)')
@@ -50,6 +51,7 @@ read -r deployments_missing_block leases_missing_block providers cpu_rows_with_a
 echo "SEED_VERIFY: tip=$tip_height providers=$providers cpu_rows_with_arch=$cpu_rows_with_arch"
 [ "$deployments_missing_block" -eq 0 ] || fail "$deployments_missing_block deployments point at blocks missing from the seed."
 [ "$leases_missing_block" -eq 0 ] || fail "$leases_missing_block leases point at blocks missing from the seed."
+[ "$unprocessed_blocks" -eq 0 ] || fail "Seed has $unprocessed_blocks unprocessed blocks."
 [ "$providers" -gt 0 ] || fail "Seed has no providers."
 [ "$cpu_rows_with_arch" -gt 0 ] || fail "Seed has no provider CPU rows with arch."
 [ "$tip_height" -gt 0 ] || fail "Seed has no blocks."
