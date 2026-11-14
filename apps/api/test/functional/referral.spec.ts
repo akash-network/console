@@ -10,7 +10,7 @@ import { UserWalletRepository } from "@src/billing/repositories";
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
-import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { seedOwnWalletOf } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe("GET /v1/referral", () => {
   const userRepository = container.resolve(UserRepository);
@@ -89,7 +89,7 @@ describe("GET /v1/referral", () => {
       approvedBy: "ops@akash.network"
     });
     await referralRepository.createIfAbsent({ referredUserId: user.id, affiliateId: affiliate.id });
-    const wallet = await userWalletRepository.create({ userId: user.id, address: createAkashAddress() });
+    const wallet = await seedOwnWalletOf(user.id);
     await userWalletRepository.updateById(wallet.id, { activatedAt: new Date() });
 
     const response = await request(token);
