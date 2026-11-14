@@ -4,6 +4,7 @@ import { mock } from "vitest-mock-extended";
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
+import type { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import type { UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
 import { billingOwnerOfCustomer, PayerService } from "./payer.service";
@@ -90,38 +91,29 @@ describe(PayerService.name, () => {
       expect(billingOwnerOfCustomer(owner!)).toEqual({ organizationId: team.id });
     });
 
-    it("falls back to the user linked to the customer, with the user's personal organization", async () => {
+    it("falls back to the user linked to the customer, with the personal organization it provisions for them", async () => {
       const user = createUser({ stripeCustomerId: "cus_user" });
       const personalOrganization = createOrganization({ type: "personal", createdByUserId: user.id });
-      const { service, organizationRepository, userRepository } = setup({ user });
+      const { service, organizationRepository, userRepository, personalOrganizationService } = setup({ user });
       organizationRepository.findOneBy.mockResolvedValue(undefined);
       userRepository.findOneBy.mockResolvedValue(user);
-      organizationRepository.findPersonalByUserId.mockResolvedValue(personalOrganization);
+      personalOrganizationService.ensureForUser.mockResolvedValue(personalOrganization);
 
       const owner = await service.findByStripeCustomerId("cus_user");
 
       expect(userRepository.findOneBy).toHaveBeenCalledWith({ stripeCustomerId: "cus_user" });
-      expect(organizationRepository.findPersonalByUserId).toHaveBeenCalledWith(user.id);
+      expect(personalOrganizationService.ensureForUser).toHaveBeenCalledWith(user);
       expect(owner).toEqual({ user, personalOrganizationId: personalOrganization.id });
       expect(billingOwnerOfCustomer(owner!)).toEqual({ userId: user.id });
     });
 
-    it("resolves a user who has no personal organization yet", async () => {
-      const user = createUser({ stripeCustomerId: "cus_user" });
-      const { service, organizationRepository, userRepository } = setup({ user });
-      userRepository.findOneBy.mockResolvedValue(user);
-      organizationRepository.findPersonalByUserId.mockResolvedValue(undefined);
-
-      expect(await service.findByStripeCustomerId("cus_user")).toEqual({ user, personalOrganizationId: undefined });
-    });
-
     it("returns nothing for an unknown customer", async () => {
-      const { service, organizationRepository, userRepository } = setup({ user: createUser() });
+      const { service, organizationRepository, userRepository, personalOrganizationService } = setup({ user: createUser() });
       organizationRepository.findOneBy.mockResolvedValue(undefined);
       userRepository.findOneBy.mockResolvedValue(undefined);
 
       expect(await service.findByStripeCustomerId("cus_unknown")).toBeUndefined();
-      expect(organizationRepository.findPersonalByUserId).not.toHaveBeenCalled();
+      expect(personalOrganizationService.ensureForUser).not.toHaveBeenCalled();
     });
   });
 
@@ -133,8 +125,9 @@ describe(PayerService.name, () => {
     );
     const organizationRepository = mock<OrganizationRepository>();
     const userRepository = mock<UserRepository>();
-    const service = new PayerService(authService, executionContextService, organizationRepository, userRepository);
+    const personalOrganizationService = mock<PersonalOrganizationService>();
+    const service = new PayerService(authService, executionContextService, organizationRepository, userRepository, personalOrganizationService);
 
-    return { service, organizationRepository, userRepository };
+    return { service, organizationRepository, userRepository, personalOrganizationService };
   }
 });

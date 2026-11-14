@@ -25,6 +25,7 @@ import type { FeatureFlagsService } from "@src/core/services/feature-flags/featu
 import type { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import type { TimerService } from "@src/core/services/timer/timer.service";
 import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
+import type { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { AUTO_RECHARGE_METADATA_KEY, REFUND_BEFORE_CREDIT_ERROR_CODE, StripeTransactionService } from "./stripe-transaction.service";
 
@@ -1364,7 +1365,7 @@ describe(StripeTransactionService.name, () => {
     });
 
     it("keeps resolving a customer created before team organizations paid through its user", async () => {
-      const { service, userRepository, organizationRepository, stripeTransactionRepository, refillService } = setup();
+      const { service, userRepository, organizationRepository, personalOrganizationService, stripeTransactionRepository, refillService } = setup();
       const user = createTestUser();
       const personalOrganization = createOrganization({ type: "personal", createdByUserId: user.id });
       const transaction = generateDatabaseStripeTransaction({
@@ -1374,7 +1375,7 @@ describe(StripeTransactionService.name, () => {
         organizationId: personalOrganization.id
       });
       organizationRepository.findOneBy.mockResolvedValue(undefined);
-      organizationRepository.findPersonalByUserId.mockResolvedValue(personalOrganization);
+      personalOrganizationService.ensureForUser.mockResolvedValue(personalOrganization);
       userRepository.findOneBy.mockResolvedValue(user);
       stripeTransactionRepository.findOneByAndLock.mockResolvedValue(transaction);
 
@@ -1997,7 +1998,12 @@ describe(StripeTransactionService.name, () => {
       await settlePersisted(purchase, { stripePaymentIntentId: paymentIntentId, chargeId });
       await service.failPaymentIntent(createPaymentIntentFailedEvent({ id: paymentIntentId, metadata: { internal_transaction_id: purchase.id } }));
 
-      await service.applyRefund({ chargeId, amountRefunded: purchase.amount, fullyRefunded: true, customerOwner: { user: person } });
+      await service.applyRefund({
+        chargeId,
+        amountRefunded: purchase.amount,
+        fullyRefunded: true,
+        customerOwner: { user: person, personalOrganizationId: purchase.organizationId }
+      });
 
       expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(purchase.amount, expect.objectContaining({ userId: person.id }), {
         currency: "usd",
@@ -2445,7 +2451,15 @@ describe(StripeTransactionService.name, () => {
     firstPurchaseBonusService.recordGrant.mockImplementation(async (_transaction, bonusCents) => bonusCents);
     const userRepository = mock<UserRepository>();
     const organizationRepository = mock<OrganizationRepository>();
-    const payerService = new PayerService(mock<AuthService>(), mock<ExecutionContextService>(), organizationRepository, userRepository);
+    const personalOrganizationService = mock<PersonalOrganizationService>();
+    personalOrganizationService.ensureForUser.mockImplementation(async user => createOrganization({ type: "personal", createdByUserId: user.id }));
+    const payerService = new PayerService(
+      mock<AuthService>(),
+      mock<ExecutionContextService>(),
+      organizationRepository,
+      userRepository,
+      personalOrganizationService
+    );
     const domainEventsService = mock<DomainEventsService>();
     const jobQueueService = mock<JobQueueService>();
     const analyticsService = mock<AnalyticsService>();
@@ -2536,6 +2550,7 @@ describe(StripeTransactionService.name, () => {
       firstPurchaseBonusService,
       userRepository,
       organizationRepository,
+      personalOrganizationService,
       domainEventsService,
       jobQueueService,
       analyticsService,

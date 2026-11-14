@@ -17,6 +17,8 @@ import type { FeatureFlagsService } from "@src/core/services/feature-flags/featu
 import type { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import type { TxService } from "@src/core/services/tx/tx.service";
 import type { OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
+import type { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
+import type { UserRepository } from "@src/user/repositories/user/user.repository";
 import { AffiliateCommissionService } from "./affiliate-commission.service";
 import { SyncAffiliateCommission } from "./sync-affiliate-commission.job";
 
@@ -25,6 +27,7 @@ import { generateDatabaseStripeTransaction } from "@test/seeders/database-stripe
 import { createOrganization } from "@test/seeders/organization.seeder";
 import { createPaymentCredit } from "@test/seeders/payment-credit.seeder";
 import { createReferral } from "@test/seeders/referral.seeder";
+import { createUser } from "@test/seeders/user.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 const HOLD_SECONDS = 30 * 24 * 60 * 60;
@@ -297,10 +300,21 @@ describe(AffiliateCommissionService.name, () => {
       expect(logger.debug).toHaveBeenCalledWith({ event: "AFFILIATE_COMMISSION_SKIPPED", transactionId: payment.id, reason: "not_referred" });
     });
 
-    it("records no commission for an affiliate who has no personal organization to file it into", async () => {
-      const { service, payment, stripeTransactionRepository } = setup({ affiliateHasPersonalOrganization: false });
+    it("files the commission into the personal organization it provisions for the affiliate", async () => {
+      const { service, payment, affiliateUser, affiliatePersonalOrganization, personalOrganizationService, stripeTransactionRepository } = setup();
 
-      await expect(service.syncCommission(payment.id, "settlement")).rejects.toThrow(/has no personal organization/);
+      await service.syncCommission(payment.id, "settlement");
+
+      expect(personalOrganizationService.ensureForUser).toHaveBeenCalledWith(affiliateUser);
+      expect(stripeTransactionRepository.createAffiliateCommission).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: affiliateUser.id, organizationId: affiliatePersonalOrganization.id })
+      );
+    });
+
+    it("records no commission for an affiliate whose user account is gone", async () => {
+      const { service, payment, stripeTransactionRepository } = setup({ isAffiliateUserGone: true });
+
+      await expect(service.syncCommission(payment.id, "settlement")).rejects.toThrow(/has no user account/);
       expect(stripeTransactionRepository.createAffiliateCommission).not.toHaveBeenCalled();
     });
 
@@ -1301,7 +1315,7 @@ describe(AffiliateCommissionService.name, () => {
       hasCommission?: boolean;
       paymentOrganization?: OrganizationOutput;
       isOrganizationGone?: boolean;
-      affiliateHasPersonalOrganization?: boolean;
+      isAffiliateUserGone?: boolean;
       commissionAmount?: number;
       isAffiliateAccountGone?: boolean;
       commissionAmountRefunded?: number;
@@ -1366,7 +1380,11 @@ describe(AffiliateCommissionService.name, () => {
 
     const organizationRepository = mock<OrganizationRepository>();
     organizationRepository.findById.mockResolvedValue(input.isOrganizationGone ? undefined : paymentOrganization);
-    organizationRepository.findPersonalByUserId.mockResolvedValue(input.affiliateHasPersonalOrganization === false ? undefined : affiliatePersonalOrganization);
+    const affiliateUser = createUser({ id: affiliate.userId });
+    const userRepository = mock<UserRepository>();
+    userRepository.findById.mockResolvedValue(input.isAffiliateUserGone ? undefined : affiliateUser);
+    const personalOrganizationService = mock<PersonalOrganizationService>();
+    personalOrganizationService.ensureForUser.mockResolvedValue(affiliatePersonalOrganization);
     const userWalletRepository = mock<UserWalletRepository>();
     userWalletRepository.findOneByUserId.mockResolvedValue(input.affiliateHasWallet === false ? undefined : affiliateWallet);
 
@@ -1397,6 +1415,8 @@ describe(AffiliateCommissionService.name, () => {
       paymentMethodRepository,
       paymentCreditRepository,
       organizationRepository,
+      userRepository,
+      personalOrganizationService,
       userWalletRepository,
       refillService,
       featureFlagsService,
@@ -1412,6 +1432,8 @@ describe(AffiliateCommissionService.name, () => {
       payment,
       affiliate,
       affiliatePersonalOrganization,
+      affiliateUser,
+      personalOrganizationService,
       referral,
       commission,
       stripeTransactionRepository,

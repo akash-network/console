@@ -5,11 +5,12 @@ import { AuthService } from "@src/auth/services/auth.service";
 import type { BillingOwner } from "@src/billing/lib/billing-owner/billing-owner";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { type OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
+import { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import { type UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
 import { assertIsPayingPayer, type Payer, type PayingPayer } from "./payer";
 
 /** The owner of a Stripe customer as a webhook finds it, without anyone acting. */
-export type StripeCustomerOwner = { team: OrganizationOutput } | { user: UserOutput; personalOrganizationId?: string };
+export type StripeCustomerOwner = { team: OrganizationOutput } | { user: UserOutput; personalOrganizationId: string };
 
 export function billingOwnerOfCustomer(customerOwner: StripeCustomerOwner): BillingOwner {
   return "team" in customerOwner ? { organizationId: customerOwner.team.id } : { userId: customerOwner.user.id };
@@ -21,7 +22,8 @@ export class PayerService {
     private readonly authService: AuthService,
     private readonly executionContextService: ExecutionContextService,
     private readonly organizationRepository: OrganizationRepository,
-    private readonly userRepository: UserRepository
+    private readonly userRepository: UserRepository,
+    private readonly personalOrganizationService: PersonalOrganizationService
   ) {}
 
   /** A personal organization keeps paying with its owner's Stripe customer. */
@@ -46,7 +48,7 @@ export class PayerService {
     return payer;
   }
 
-  /** Falls back to the user link, which every customer created before team organizations paid still carries. */
+  /** Falls back to the user link, which every customer created before team organizations paid still carries, provisioning the personal organization a user who has not signed in since may still lack. */
   async findByStripeCustomerId(customerId: string): Promise<StripeCustomerOwner | undefined> {
     const team = await this.organizationRepository.findOneBy({ stripeCustomerId: customerId, type: "team" });
 
@@ -56,8 +58,8 @@ export class PayerService {
 
     if (!user) return undefined;
 
-    const personalOrganization = await this.organizationRepository.findPersonalByUserId(user.id);
+    const personalOrganization = await this.personalOrganizationService.ensureForUser(user);
 
-    return { user, personalOrganizationId: personalOrganization?.id };
+    return { user, personalOrganizationId: personalOrganization.id };
   }
 }

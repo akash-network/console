@@ -321,7 +321,10 @@ describe(PaymentMethodService.name, () => {
 
     it("marks the payment method as validated when the intent succeeded", async () => {
       const { service, stripe, paymentMethodRepository, payerService } = setup();
-      payerService.findByStripeCustomerId.mockResolvedValue({ user: createUser({ id: "user_123", stripeCustomerId: CUSTOMER_ID }) });
+      payerService.findByStripeCustomerId.mockResolvedValue({
+        user: createUser({ id: "user_123", stripeCustomerId: CUSTOMER_ID }),
+        personalOrganizationId: "personal-organization-1"
+      });
       vi.spyOn(stripe.paymentIntents, "retrieve").mockResolvedValue(givenPaymentIntent({ status: "succeeded" }));
 
       const result = await service.validatePaymentMethodAfter3DS(CUSTOMER_ID, PAYMENT_METHOD_ID, PAYMENT_INTENT_ID);
@@ -333,7 +336,10 @@ describe(PaymentMethodService.name, () => {
 
     it("marks the payment method as validated when the intent requires capture", async () => {
       const { service, stripe, paymentMethodRepository, payerService } = setup();
-      payerService.findByStripeCustomerId.mockResolvedValue({ user: createUser({ id: "user_123", stripeCustomerId: CUSTOMER_ID }) });
+      payerService.findByStripeCustomerId.mockResolvedValue({
+        user: createUser({ id: "user_123", stripeCustomerId: CUSTOMER_ID }),
+        personalOrganizationId: "personal-organization-1"
+      });
       vi.spyOn(stripe.paymentIntents, "retrieve").mockResolvedValue(givenPaymentIntent({ status: "requires_capture" }));
 
       const result = await service.validatePaymentMethodAfter3DS(CUSTOMER_ID, PAYMENT_METHOD_ID, PAYMENT_INTENT_ID);
@@ -365,7 +371,10 @@ describe(PaymentMethodService.name, () => {
 
     it("propagates the failure when persisting the validation throws", async () => {
       const { service, stripe, paymentMethodRepository, payerService } = setup();
-      payerService.findByStripeCustomerId.mockResolvedValue({ user: createUser({ id: "user_123", stripeCustomerId: CUSTOMER_ID }) });
+      payerService.findByStripeCustomerId.mockResolvedValue({
+        user: createUser({ id: "user_123", stripeCustomerId: CUSTOMER_ID }),
+        personalOrganizationId: "personal-organization-1"
+      });
       paymentMethodRepository.markAsValidated.mockRejectedValue(new Error("db unavailable"));
       vi.spyOn(stripe.paymentIntents, "retrieve").mockResolvedValue(givenPaymentIntent({ status: "succeeded" }));
 

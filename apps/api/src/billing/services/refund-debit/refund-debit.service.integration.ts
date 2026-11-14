@@ -175,7 +175,7 @@ describe(RefundDebitService.name, () => {
         paymentIntentId: payment.stripePaymentIntentId ?? undefined,
         amountRefunded,
         fullyRefunded: amountRefunded === paidCents,
-        customerOwner: { user }
+        customerOwner: { user, personalOrganizationId: payment.organizationId }
       });
     const findDebits = () => container.resolve(RefundDebitRepository).findRefundedBeyond(payment.id, 0);
 
