@@ -75,7 +75,7 @@ To build and push a new Docker image for the `my-app` application:
 
 Produces `console-akash-sandbox.sql.gz`, the backup `console:dev` imports into a fresh Postgres volume.
 
-- `dump-sandbox-seed.sh` dumps the sandbox indexer database without chain history (transactions, messages, events and address references). It keeps the latest `RECENT_BLOCKS` blocks plus every block that deployments, leases, providers, days and the BME and sink tables point at.
+- `dump-sandbox-seed.sh` dumps the sandbox indexer database without chain history (transactions, messages, events and address references). The result is about 34 MB. It keeps the latest `RECENT_BLOCKS` blocks plus every block that deployments, leases, providers, days and the BME and sink tables point at.
 - `verify-sandbox-seed.sh <seed>` restores the seed into a throwaway Postgres and fails unless it imports cleanly, every deployment and lease keeps its block, and provider CPU rows carry `arch`.
 - `publish-sandbox-seed.sh <seed>` refuses to upload when the source database lacks indexer migrations that exist on `main`, then uploads to the public bucket.
 
