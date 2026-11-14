@@ -7350,6 +7350,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/affiliates/me/referrals": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List the people the caller referred */
+    get: operations["listAffiliateReferrals"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/referral": {
     parameters: {
       query?: never;
@@ -15992,6 +16009,77 @@ export interface operations {
       };
       /** @description Unauthorized */
       401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  listAffiliateReferrals: {
+    parameters: {
+      query?: {
+        /** @description Referrals per page, at most 100. */
+        limit?: number;
+        /** @description How many of the newest referrals to skip. */
+        offset?: number;
+      };
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The caller's referrals, newest first, shown by a short code only */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** @description Newest first. */
+              referrals: {
+                /** @description A short code that tells the affiliate's referrals apart without identifying anyone. */
+                code: string;
+                joinedAt: string;
+                /**
+                 * @description `paying` once a card payment settled, `on_trial` while the free trial runs, `inactive` otherwise.
+                 * @enum {string}
+                 */
+                status: "on_trial" | "paying" | "inactive";
+                /** @description When payments by this referral stop earning commission. */
+                commissionEndsAt: string;
+                /** @description Months left before commissionEndsAt, a partial month counted as one, 0 once it has passed. */
+                commissionMonthsLeft: number;
+                /** @description What the referral paid by card, net of refunds and lost disputes, teams they created included. */
+                paidUsd: number;
+                /** @description Commission earned on those payments, held or credited, net of what was taken back. */
+                earnedUsd: number;
+              }[];
+              pagination: {
+                total: number;
+                limit: number;
+                offset: number;
+              };
+            };
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller is not an approved affiliate */
+      404: {
         headers: {
           [name: string]: unknown;
         };
