@@ -12473,12 +12473,12 @@ export interface operations {
                  */
                 cpu: number;
                 /**
-                 * @description Memory, as a number and a unit.
+                 * @description Memory, as a number and a unit, from 1Mi to 2Ti.
                  * @example 512Mi
                  */
                 memory: string;
                 /**
-                 * @description Ephemeral disk, as a number and a unit.
+                 * @description Ephemeral disk, as a number and a unit, from 5Mi to 32Ti.
                  * @example 1Gi
                  */
                 storage: string;

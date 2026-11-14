@@ -131,6 +131,44 @@ describe("CreateDeploymentRequestSchema", () => {
       );
     });
 
+    it.each([
+      ["memory", "1023Ki", "Must be from 1Mi to 2Ti"],
+      ["memory", "2.001Ti", "Must be from 1Mi to 2Ti"],
+      ["storage", "4Mi", "Must be from 5Mi to 32Ti"],
+      ["storage", "33Ti", "Must be from 5Mi to 32Ti"]
+    ])("refuses %s of %j, outside what the chain takes for one replica", (field, size, message) => {
+      const result = parse({ sdl: undefined, service: { ...service, resources: { ...service.resources, [field]: size } } });
+
+      expect(result.success).toBe(false);
+      expect((result as { error: { issues: unknown[] } }).error.issues).toEqual([
+        expect.objectContaining({ message, path: ["data", "service", "resources", field] })
+      ]);
+    });
+
+    it.each([
+      ["memory", "1Mi"],
+      ["memory", "2Ti"],
+      ["memory", "1049k"],
+      ["storage", "5Mi"],
+      ["storage", "32Ti"],
+      ["storage", "6M"]
+    ])("accepts %s of %j", (field, size) => {
+      expect(parse({ sdl: undefined, service: { ...service, resources: { ...service.resources, [field]: size } } }).success).toBe(true);
+    });
+
+    it("refuses a size with an unknown unit on its unit alone", () => {
+      const result = parse({ sdl: undefined, service: { ...service, resources: { ...service.resources, memory: "512MB" } } });
+
+      expect((result as { error: { issues: unknown[] } }).error.issues).toEqual([
+        expect.objectContaining({ message: "Must be a number followed by one of the units k, Ki, M, Mi, G, Gi, T or Ti" })
+      ]);
+    });
+
+    it("refuses more gpus than the chain takes for one replica", () => {
+      expect(parse({ sdl: undefined, service: { ...service, resources: { ...service.resources, gpu: { units: 25 } } } }).success).toBe(false);
+      expect(parse({ sdl: undefined, service: { ...service, resources: { ...service.resources, gpu: { units: 24 } } } }).success).toBe(true);
+    });
+
     it.each([0.01, 384])("accepts %j cpu", cpu => {
       expect(parse({ sdl: undefined, service: { ...service, resources: { ...service.resources, cpu } } }).success).toBe(true);
     });

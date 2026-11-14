@@ -8483,13 +8483,13 @@
                               "memory": {
                                 "type": "string",
                                 "pattern": "^\\d+(\\.\\d+)?(k|Ki|M|Mi|G|Gi|T|Ti)$",
-                                "description": "Memory, as a number and a unit.",
+                                "description": "Memory, as a number and a unit, from 1Mi to 2Ti.",
                                 "example": "512Mi"
                               },
                               "storage": {
                                 "type": "string",
                                 "pattern": "^\\d+(\\.\\d+)?(k|Ki|M|Mi|G|Gi|T|Ti)$",
-                                "description": "Ephemeral disk, as a number and a unit.",
+                                "description": "Ephemeral disk, as a number and a unit, from 5Mi to 32Ti.",
                                 "example": "1Gi"
                               },
                               "gpu": {
@@ -8498,6 +8498,7 @@
                                   "units": {
                                     "type": "integer",
                                     "minimum": 1,
+                                    "maximum": 24,
                                     "description": "Number of GPUs."
                                   },
                                   "model": {

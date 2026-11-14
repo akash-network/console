@@ -467,13 +467,47 @@ export const PatchServiceSchema = z
 
 const RESOURCE_SIZE = /^\d+(\.\d+)?(k|Ki|M|Mi|G|Gi|T|Ti)$/;
 
-/** Refused here because the SDL grammar reads a size with a unit it does not know as a count of bytes. */
-const ResourceSizeSchema = z.string().regex(RESOURCE_SIZE, "Must be a number followed by one of the units k, Ki, M, Mi, G, Gi, T or Ti");
+const BYTES_PER_SIZE_UNIT: Record<string, number> = {
+  k: 1000,
+  Ki: 1024,
+  M: 1000 ** 2,
+  Mi: 1024 ** 2,
+  G: 1000 ** 3,
+  Gi: 1024 ** 3,
+  T: 1000 ** 4,
+  Ti: 1024 ** 4
+};
+
+function bytesOf(size: string): number | undefined {
+  const match = RESOURCE_SIZE.exec(size);
+
+  return match ? parseFloat(size) * BYTES_PER_SIZE_UNIT[match[2]] : undefined;
+}
+
+/** Refused here because the SDL grammar reads a size with a unit it does not know as a count of bytes, and the chain only refuses an out-of-range one once the create transaction reaches it. */
+function resourceSizeSchema(min: string, max: string) {
+  const [minBytes, maxBytes] = [bytesOf(min)!, bytesOf(max)!];
+
+  return z
+    .string()
+    .regex(RESOURCE_SIZE, "Must be a number followed by one of the units k, Ki, M, Mi, G, Gi, T or Ti")
+    .refine(size => isBetween(bytesOf(size), minBytes, maxBytes), { message: `Must be from ${min} to ${max}` });
+}
+
+function isBetween(bytes: number | undefined, minBytes: number, maxBytes: number): boolean {
+  return bytes === undefined || (bytes >= minBytes && bytes <= maxBytes);
+}
 
 /** The chain's per-replica bounds, which also keep the number out of the exponent notation the SDL grammar cannot read. */
 const MIN_CPU_UNITS = 0.01;
 
 const MAX_CPU_UNITS = 384;
+
+const MAX_GPU_UNITS = 24;
+
+const [MIN_MEMORY, MAX_MEMORY] = ["1Mi", "2Ti"];
+
+const [MIN_STORAGE, MAX_STORAGE] = ["5Mi", "32Ti"];
 
 const ServicePortSchema = z.object({
   port: PortNumberSchema.openapi({ description: "Container port the workload listens on." }),
@@ -501,11 +535,17 @@ export const CreateDeploymentServiceSchema = z.object({
       .min(MIN_CPU_UNITS)
       .max(MAX_CPU_UNITS)
       .openapi({ description: `CPU units, from ${MIN_CPU_UNITS} to ${MAX_CPU_UNITS}. 0.5 is half a core.`, example: 0.5 }),
-    memory: ResourceSizeSchema.openapi({ description: "Memory, as a number and a unit.", example: "512Mi" }),
-    storage: ResourceSizeSchema.openapi({ description: "Ephemeral disk, as a number and a unit.", example: "1Gi" }),
+    memory: resourceSizeSchema(MIN_MEMORY, MAX_MEMORY).openapi({
+      description: `Memory, as a number and a unit, from ${MIN_MEMORY} to ${MAX_MEMORY}.`,
+      example: "512Mi"
+    }),
+    storage: resourceSizeSchema(MIN_STORAGE, MAX_STORAGE).openapi({
+      description: `Ephemeral disk, as a number and a unit, from ${MIN_STORAGE} to ${MAX_STORAGE}.`,
+      example: "1Gi"
+    }),
     gpu: z
       .object({
-        units: z.number().int().min(1).openapi({ description: "Number of GPUs." }),
+        units: z.number().int().min(1).max(MAX_GPU_UNITS).openapi({ description: "Number of GPUs." }),
         model: z.string().min(1).optional().openapi({ description: "NVIDIA model key, such as `rtx4090` or `h100`. Omit it to take any NVIDIA GPU." })
       })
       .optional()

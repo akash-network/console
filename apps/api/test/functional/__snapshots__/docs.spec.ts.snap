@@ -10056,6 +10056,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                   },
                                   "units": {
                                     "description": "Number of GPUs.",
+                                    "maximum": 24,
                                     "minimum": 1,
                                     "type": "integer",
                                   },
@@ -10066,13 +10067,13 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                 "type": "object",
                               },
                               "memory": {
-                                "description": "Memory, as a number and a unit.",
+                                "description": "Memory, as a number and a unit, from 1Mi to 2Ti.",
                                 "example": "512Mi",
                                 "pattern": "^\\d+(\\.\\d+)?(k|Ki|M|Mi|G|Gi|T|Ti)$",
                                 "type": "string",
                               },
                               "storage": {
-                                "description": "Ephemeral disk, as a number and a unit.",
+                                "description": "Ephemeral disk, as a number and a unit, from 5Mi to 32Ti.",
                                 "example": "1Gi",
                                 "pattern": "^\\d+(\\.\\d+)?(k|Ki|M|Mi|G|Gi|T|Ti)$",
                                 "type": "string",
