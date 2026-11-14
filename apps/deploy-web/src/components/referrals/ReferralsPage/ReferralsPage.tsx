@@ -27,6 +27,7 @@ import { useSnackbar } from "notistack";
 import Layout from "@src/components/layout/Layout";
 import { SettingsLayout } from "@src/components/layout/SettingsLayout/SettingsLayout";
 import { SettingsSection } from "@src/components/layout/SettingsSection/SettingsSection";
+import { ReferredPeopleList } from "@src/components/referrals/ReferredPeopleList/ReferredPeopleList";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import type { AffiliateProfile } from "@src/queries/useAffiliateProfileQuery";
@@ -38,6 +39,7 @@ export const DEPENDENCIES = {
   NextSeo,
   SettingsLayout,
   SettingsSection,
+  ReferredPeopleList,
   Card,
   FormattedNumber,
   useFlag,
@@ -128,6 +130,7 @@ export function ReferralsPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
             )}
             <ShareCard profile={profile} dependencies={d} />
             <StatTiles profile={profile} usd={usd} dependencies={d} />
+            <d.ReferredPeopleList commissionMonths={profile.terms.commissionMonths} />
             <CommissionHistory profile={profile} usd={usd} dependencies={d} />
           </>
         ) : (
