@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import { addDays, subDays } from "date-fns";
+import { addDays, subDays, subSeconds } from "date-fns";
 import { eq } from "drizzle-orm";
 import nock from "nock";
 import stripe from "stripe";
@@ -75,7 +75,22 @@ describe("Stripe webhook", () => {
       type
     });
 
+  const DISPUTE_OPENED_AT = 1791400000;
   const DISPUTE_CLOSED_AT = 1791460000;
+
+  const generateDisputeCreatedPayload = (chargeId: string, status: "needs_response" | "prevented" = "needs_response") =>
+    JSON.stringify({
+      created: DISPUTE_OPENED_AT,
+      data: {
+        object: {
+          id: `dp_${faker.string.alphanumeric(24)}`,
+          object: "dispute",
+          charge: chargeId,
+          status
+        }
+      },
+      type: "charge.dispute.created"
+    });
 
   const generateDisputeClosedPayload = (chargeId: string, status: "lost" | "won") =>
     JSON.stringify({
@@ -90,6 +105,17 @@ describe("Stripe webhook", () => {
       },
       type: "charge.dispute.closed"
     });
+
+  const mockDisputesOf = (chargeId: string, disputes: { id: string; status: stripe.Dispute.Status }[] = []) =>
+    nock("https://api.stripe.com")
+      .get("/v1/disputes")
+      .query({ charge: chargeId, limit: "100" })
+      .reply(200, {
+        object: "list",
+        url: "/v1/disputes",
+        has_more: false,
+        data: disputes.map(dispute => ({ object: "dispute", charge: chargeId, ...dispute }))
+      });
 
   const getWebhookResponse = async (payload: string) => {
     const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -1061,21 +1087,163 @@ describe("Stripe webhook", () => {
         expect(payerWallet?.deploymentAllowance).toBe(`${billingConfig.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT}.00`);
       });
 
-      it("keeps the referring affiliate's commission when Console wins the dispute", async () => {
+      it("keeps the referring affiliate's credited commission when Console wins the dispute", async () => {
         const chargeId = `ch_${faker.string.alphanumeric(24)}`;
 
         const { user } = await setup();
-        const { payment } = await seedCommissionedPayment({ payerId: user.id, chargeId, amount: 10000, commission: 500 });
+        const { payment, affiliateUser } = await seedCommissionedPayment({ payerId: user.id, chargeId, amount: 10000, commission: 500 });
+        mockDisputesOf(chargeId);
 
         const response = await getWebhookResponse(generateDisputeClosedPayload(chargeId, "won"));
+        await processAffiliateCommissionSyncOf(payment.id, "dispute");
 
         const undisputedPayment = await stripeTransactionRepository.findById(payment.id);
         const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+        const affiliateWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, affiliateUser.id) });
 
         expect(response.status).toBe(200);
-        expect(undisputedPayment?.disputeLostAt).toBeNull();
+        expect(undisputedPayment).toMatchObject({ disputeClosedAt: new Date(DISPUTE_CLOSED_AT * 1000), disputeLostAt: null });
         expect(commission).toMatchObject({ status: "succeeded", amountRefunded: 0 });
+        expect(affiliateWallet?.deploymentAllowance).toBe(`${500 * 10000}.00`);
+      });
+
+      it("credits the referring affiliate's commission held past its hold once Console wins the dispute", async () => {
+        const chargeId = `ch_${faker.string.alphanumeric(24)}`;
+
+        const { user } = await setup();
+        const { payment, affiliateUser } = await seedCommissionedPayment({
+          payerId: user.id,
+          chargeId,
+          amount: 10000,
+          commission: 500,
+          commissionStatus: "pending",
+          commissionHeldSince: subSeconds(new Date(), billingConfig.AFFILIATE_COMMISSION_HOLD_SECONDS + 60)
+        });
+        await getWebhookResponse(generateDisputeCreatedPayload(chargeId));
+        mockDisputesOf(chargeId);
+
+        const response = await getWebhookResponse(generateDisputeClosedPayload(chargeId, "won"));
+        await processAffiliateCommissionSyncOf(payment.id, "dispute");
+
+        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+        const affiliateWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, affiliateUser.id) });
+
+        expect(response.status).toBe(200);
+        expect(commission).toMatchObject({ status: "succeeded", amount: 500, amountRefunded: 0 });
+        expect(affiliateWallet?.deploymentAllowance).toBe(`${500 * 10000}.00`);
+      });
+
+      it("keeps the referring affiliate's commission held past its hold when Console wins one dispute while another on the payment is open", async () => {
+        const chargeId = `ch_${faker.string.alphanumeric(24)}`;
+
+        const { user } = await setup();
+        const { payment, affiliateUser } = await seedCommissionedPayment({
+          payerId: user.id,
+          chargeId,
+          amount: 10000,
+          commission: 500,
+          commissionStatus: "pending",
+          commissionHeldSince: subSeconds(new Date(), billingConfig.AFFILIATE_COMMISSION_HOLD_SECONDS + 60)
+        });
+        await getWebhookResponse(generateDisputeCreatedPayload(chargeId));
+        const disputesLookup = mockDisputesOf(chargeId, [{ id: `dp_${faker.string.alphanumeric(24)}`, status: "needs_response" }]);
+
+        const response = await getWebhookResponse(generateDisputeClosedPayload(chargeId, "won"));
+        const { enqueue } = await affiliateCommissionWorkers();
+        await enqueue(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "release" }));
+        await processAffiliateCommissionSyncOf(payment.id, "release");
+
+        const disputedPayment = await stripeTransactionRepository.findById(payment.id);
+        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+        const affiliateWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, affiliateUser.id) });
+
+        expect(response.status).toBe(200);
+        expect(disputesLookup.isDone()).toBe(true);
+        expect(disputedPayment).toMatchObject({ disputeOpenedAt: new Date(DISPUTE_OPENED_AT * 1000), disputeClosedAt: null });
+        expect(commission).toMatchObject({ status: "pending", amount: 500, amountRefunded: 0 });
+        expect(affiliateWallet?.deploymentAllowance).toBe("0.00");
+      });
+    });
+
+    describe("charge.dispute.created", () => {
+      it("records the dispute on the referred payment without touching the affiliate's held commission or any balance", async () => {
+        const chargeId = `ch_${faker.string.alphanumeric(24)}`;
+
+        const { user } = await setup();
+        const { payment, affiliateUser } = await seedCommissionedPayment({
+          payerId: user.id,
+          chargeId,
+          amount: 10000,
+          commission: 500,
+          commissionStatus: "pending"
+        });
+
+        const response = await getWebhookResponse(generateDisputeCreatedPayload(chargeId));
+
+        const disputedPayment = await stripeTransactionRepository.findById(payment.id);
+        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+        const affiliateWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, affiliateUser.id) });
+        const payerWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
+
+        expect(response.status).toBe(200);
+        expect(disputedPayment).toMatchObject({ disputeOpenedAt: new Date(DISPUTE_OPENED_AT * 1000), disputeClosedAt: null, disputeLostAt: null });
+        expect(commission).toMatchObject({ status: "pending", amount: 500, amountRefunded: 0 });
+        expect(affiliateWallet?.deploymentAllowance).toBe("0.00");
+        expect(payerWallet?.deploymentAllowance).toBe(`${billingConfig.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT}.00`);
         await expect(findJobRows(SyncAffiliateCommission[JOB_NAME], { data: { transactionId: payment.id } })).resolves.toEqual([]);
+      });
+
+      it("keeps the referring affiliate's commission held when its hold ends while the payment is disputed", async () => {
+        const chargeId = `ch_${faker.string.alphanumeric(24)}`;
+
+        const { user } = await setup();
+        const { payment, affiliateUser } = await seedCommissionedPayment({
+          payerId: user.id,
+          chargeId,
+          amount: 10000,
+          commission: 500,
+          commissionStatus: "pending"
+        });
+
+        const response = await getWebhookResponse(generateDisputeCreatedPayload(chargeId));
+        const { enqueue } = await affiliateCommissionWorkers();
+        await enqueue(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "release" }));
+        await processAffiliateCommissionSyncOf(payment.id, "release");
+
+        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+        const affiliateWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, affiliateUser.id) });
+
+        expect(response.status).toBe(200);
+        expect(commission).toMatchObject({ status: "pending", amount: 500, amountRefunded: 0 });
+        expect(affiliateWallet?.deploymentAllowance).toBe("0.00");
+      });
+
+      it("credits the referring affiliate's commission at the end of its hold when the dispute was prevented", async () => {
+        const chargeId = `ch_${faker.string.alphanumeric(24)}`;
+
+        const { user } = await setup();
+        const { payment, affiliateUser } = await seedCommissionedPayment({
+          payerId: user.id,
+          chargeId,
+          amount: 10000,
+          commission: 500,
+          commissionStatus: "pending",
+          commissionHeldSince: subSeconds(new Date(), billingConfig.AFFILIATE_COMMISSION_HOLD_SECONDS + 60)
+        });
+
+        const response = await getWebhookResponse(generateDisputeCreatedPayload(chargeId, "prevented"));
+        const { enqueue } = await affiliateCommissionWorkers();
+        await enqueue(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "release" }));
+        await processAffiliateCommissionSyncOf(payment.id, "release");
+
+        const preventedPayment = await stripeTransactionRepository.findById(payment.id);
+        const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
+        const affiliateWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, affiliateUser.id) });
+
+        expect(response.status).toBe(200);
+        expect(preventedPayment).toMatchObject({ disputeOpenedAt: null, disputeClosedAt: null });
+        expect(commission).toMatchObject({ status: "succeeded", amount: 500, amountRefunded: 0 });
+        expect(affiliateWallet?.deploymentAllowance).toBe(`${500 * 10000}.00`);
       });
     });
 
@@ -1258,6 +1426,7 @@ describe("Stripe webhook", () => {
     amount: number;
     commission: number;
     commissionStatus?: "pending" | "succeeded";
+    commissionHeldSince?: Date;
   }) {
     const { affiliateUser, affiliateWallet } = await seedReferringAffiliate(input.payerId);
     const payment = await stripeTransactionRepository.create({
@@ -1275,7 +1444,10 @@ describe("Stripe webhook", () => {
       sourceTransactionId: payment.id
     });
     const isCredited = (input.commissionStatus ?? "succeeded") === "succeeded";
-    await stripeTransactionRepository.updateById(commission.id, { status: input.commissionStatus ?? "succeeded" });
+    await stripeTransactionRepository.updateById(commission.id, {
+      status: input.commissionStatus ?? "succeeded",
+      ...(input.commissionHeldSince && { createdAt: input.commissionHeldSince })
+    });
     await container.resolve(UserWalletRepository).updateById(affiliateWallet.id, { deploymentAllowance: isCredited ? input.commission * 10000 : 0 });
 
     return { payment, affiliateUser };

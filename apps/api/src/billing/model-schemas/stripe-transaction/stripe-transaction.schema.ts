@@ -49,6 +49,9 @@ export const StripeTransactions = pgTable(
     description: varchar("description", { length: 500 }),
     errorMessage: varchar("error_message", { length: 1000 }),
     sourceTransactionId: uuid("source_transaction_id").references((): AnyPgColumn => StripeTransactions.id, { onDelete: "set null" }),
+    /** Kept next to `dispute_closed_at` instead of being cleared, because Stripe can deliver the closing event before the opening one. */
+    disputeOpenedAt: timestamp("dispute_opened_at", { withTimezone: true }),
+    disputeClosedAt: timestamp("dispute_closed_at", { withTimezone: true }),
     disputeLostAt: timestamp("dispute_lost_at", { withTimezone: true }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull()

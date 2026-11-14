@@ -1,0 +1,2 @@
+ALTER TABLE "stripe_transactions" ADD COLUMN "dispute_opened_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "stripe_transactions" ADD COLUMN "dispute_closed_at" timestamp with time zone;
