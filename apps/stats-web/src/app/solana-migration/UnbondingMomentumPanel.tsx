@@ -14,7 +14,8 @@ import type { SinkUnbondings } from "@/types";
 const CHART_HEIGHT = 260;
 const CHART_PADDING = { top: 12, right: 56, bottom: 22, left: 4 };
 const AXIS_LABEL_STYLE = { font: "400 10px var(--font-geist-mono), monospace" };
-const TOOLTIP_WIDTH = 260;
+const MIN_TOOLTIP_WIDTH = 236;
+const TOOLTIP_GAP = 8;
 const MIN_DATE_LABEL_SPACING = 90;
 const MAX_DATE_LABELS = 7;
 const MAX_BAR_RADIUS = 2;
@@ -177,13 +178,16 @@ function UnbondingBarChart({ bars, seriesLabel, now }: { bars: UnbondingBar[]; s
 }
 
 function UnbondingTooltip({ bar, width, seriesLabel, now }: { bar: FittedUnbondingBar; width: number; seriesLabel: string; now: number }) {
-  const anchorX = bar.slotX + bar.slotWidth;
   const isToday = !bar.isUpcoming && now - bar.time < 24 * 60 * 60 * 1000;
+  const opensLeft = bar.slotX + bar.slotWidth / 2 > width / 2;
 
   return (
     <div
-      className="pointer-events-none absolute top-3 rounded-md border border-border-strong bg-popover px-2.5 py-2 shadow-[0_4px_32px_rgba(0,0,0,0.5)]"
-      style={{ left: anchorX > width - TOOLTIP_WIDTH - 20 ? bar.slotX - TOOLTIP_WIDTH + 12 : anchorX + 8, width: TOOLTIP_WIDTH - 24 }}
+      className={cn(
+        "pointer-events-none absolute top-3 w-max rounded-md border border-border-strong bg-popover px-2.5 py-2 shadow-[0_4px_32px_rgba(0,0,0,0.5)]",
+        opensLeft && "-translate-x-full"
+      )}
+      style={{ left: opensLeft ? bar.slotX - TOOLTIP_GAP : bar.slotX + bar.slotWidth + TOOLTIP_GAP, minWidth: MIN_TOOLTIP_WIDTH }}
     >
       <div className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted-foreground">
         {formatLongDate(bar.time)}
