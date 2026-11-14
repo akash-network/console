@@ -12468,7 +12468,7 @@ export interface operations {
               image: string;
               resources: {
                 /**
-                 * @description CPU units. 0.5 is half a core.
+                 * @description CPU units, from 0.01 to 384. 0.5 is half a core.
                  * @example 0.5
                  */
                 cpu: number;

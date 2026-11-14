@@ -8475,9 +8475,9 @@
                             "properties": {
                               "cpu": {
                                 "type": "number",
-                                "minimum": 0,
-                                "exclusiveMinimum": true,
-                                "description": "CPU units. 0.5 is half a core.",
+                                "minimum": 0.01,
+                                "maximum": 384,
+                                "description": "CPU units, from 0.01 to 384. 0.5 is half a core.",
                                 "example": 0.5
                               },
                               "memory": {

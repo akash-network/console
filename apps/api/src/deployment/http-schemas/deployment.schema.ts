@@ -205,6 +205,17 @@ const ENV_VARIABLE_NAME = /^[-._a-zA-Z][-._a-zA-Z0-9]*$/;
 
 const SecretEnvSchema = z.array(z.string().regex(ENV_VARIABLE_NAME));
 
+/** zod leaves a `__proto__` key out of the record it parses, so a request naming one is refused rather than applied without it. */
+function survivesRecordParsing(key: string): boolean {
+  return key !== "__proto__";
+}
+
+const DROPPED_RECORD_KEY = { message: "__proto__ cannot be used as a name" };
+
+const RecordKeySchema = z.string().refine(survivesRecordParsing, DROPPED_RECORD_KEY);
+
+const EnvVariableKeySchema = z.string().regex(ENV_VARIABLE_NAME).refine(survivesRecordParsing, DROPPED_RECORD_KEY);
+
 const MAX_TEMPLATE_ID_LENGTH = 255;
 
 /** Trimmed before it is measured, so a name of nothing but spaces is refused rather than stored as a blank one. */
@@ -358,7 +369,7 @@ export const UpdateDeploymentRequestSchema = z.object({
 type SdlExposeNode = NonNullable<SDLInput["services"][string]["expose"]>[number];
 type SdlNextCase = NonNullable<NonNullable<SdlExposeNode["http_options"]>["next_cases"]>[number];
 
-const PatchEnvSchema = z.record(z.string().regex(ENV_VARIABLE_NAME), z.string().nullable()).openapi({
+const PatchEnvSchema = z.record(EnvVariableKeySchema, z.string().nullable()).openapi({
   description:
     "Merged into the service's env, keyed by environment variable name. A null value removes the variable. A patched variable is re-appended, so the order of the stored env list may change. Every written value is sealed unless the request says which are secret with `secretEnv`, or carries `sealedSecrets`."
 });
@@ -444,11 +455,11 @@ export const PatchServiceSchema = z
       .object({ host: z.string(), username: z.string(), password: z.string() })
       .nullable()
       .openapi({ description: "Private registry pull credentials. Null clears them." }),
-    expose: z.record(z.string(), PatchExposeSchema).openapi({
+    expose: z.record(RecordKeySchema, PatchExposeSchema).openapi({
       description:
         "Keyed by the container port the stored SDL declares. Port numbers, hosts and http options are patchable; protocol, routing, endpoint kind and count are fixed at create. A random-port endpoint whose numbers change gets a new public port from the provider, and so can the service's other random-port endpoints when a container port move reorders them."
     }),
-    storage: z.record(z.string(), z.object({ mount: z.string(), readOnly: z.boolean() }).partial()).openapi({
+    storage: z.record(RecordKeySchema, z.object({ mount: z.string(), readOnly: z.boolean() }).partial()).openapi({
       description: "Keyed by volume name. Mount point and read-only flag only — sizes are fixed at create."
     })
   })
@@ -458,6 +469,11 @@ const RESOURCE_SIZE = /^\d+(\.\d+)?(k|Ki|M|Mi|G|Gi|T|Ti)$/;
 
 /** Refused here because the SDL grammar reads a size with a unit it does not know as a count of bytes. */
 const ResourceSizeSchema = z.string().regex(RESOURCE_SIZE, "Must be a number followed by one of the units k, Ki, M, Mi, G, Gi, T or Ti");
+
+/** The chain's per-replica bounds, which also keep the number out of the exponent notation the SDL grammar cannot read. */
+const MIN_CPU_UNITS = 0.01;
+
+const MAX_CPU_UNITS = 384;
 
 const ServicePortSchema = z.object({
   port: PortNumberSchema.openapi({ description: "Container port the workload listens on." }),
@@ -480,7 +496,11 @@ function listsEachPortOnce(ports: ServicePort[]): boolean {
 export const CreateDeploymentServiceSchema = z.object({
   image: z.string().min(1).openapi({ description: "Container image, with its tag.", example: "nginx:1.27.2" }),
   resources: z.object({
-    cpu: z.number().positive().openapi({ description: "CPU units. 0.5 is half a core.", example: 0.5 }),
+    cpu: z
+      .number()
+      .min(MIN_CPU_UNITS)
+      .max(MAX_CPU_UNITS)
+      .openapi({ description: `CPU units, from ${MIN_CPU_UNITS} to ${MAX_CPU_UNITS}. 0.5 is half a core.`, example: 0.5 }),
     memory: ResourceSizeSchema.openapi({ description: "Memory, as a number and a unit.", example: "512Mi" }),
     storage: ResourceSizeSchema.openapi({ description: "Ephemeral disk, as a number and a unit.", example: "1Gi" }),
     gpu: z
@@ -496,7 +516,7 @@ export const CreateDeploymentServiceSchema = z.object({
     .refine(listsEachPortOnce, { message: "Each port, and each port an endpoint is reached on, can be listed once" })
     .openapi({ description: "Ports to publish. Every one is reachable from the internet, and a deployment needs at least one." }),
   env: z
-    .record(z.string().regex(ENV_VARIABLE_NAME), z.string())
+    .record(EnvVariableKeySchema, z.string())
     .optional()
     .openapi({ description: "Environment variables, keyed by name. `secretEnv` says which values are secret, as it does for an SDL." })
 });
@@ -521,7 +541,7 @@ export const CreateDeploymentRequestSchema = z.object({
     service: CreateDeploymentServiceSchema.optional().openapi({
       description: `Creates a deployment without an SDL: the console writes the SDL of one service named \`${GENERATED_SERVICE_NAME}\` from these inputs and stores it, so the deployment reads, patches and redeploys like any other. Address the service as \`${GENERATED_SERVICE_NAME}\` in PATCH /v1/deployments/{dseq}.`
     }),
-    overrides: z.record(z.string(), PatchServiceSchema).optional().openapi({
+    overrides: z.record(RecordKeySchema, PatchServiceSchema).optional().openapi({
       description:
         "Changes to the SDL of the template named by `templateId`, keyed by service name, in the shape of `services` in PATCH /v1/deployments/{dseq}. Only for a deployment created from `templateId` without `sdl`."
     })
@@ -550,7 +570,7 @@ export const PatchDeploymentRequestSchema = z.object({
   data: z
     .object({
       services: z
-        .record(z.string(), PatchServiceSchema)
+        .record(RecordKeySchema, PatchServiceSchema)
         .refine(services => Object.keys(services).length > 0, { message: "At least one service must be patched" })
         .optional()
         .openapi({

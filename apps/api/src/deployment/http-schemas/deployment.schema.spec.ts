@@ -121,6 +121,39 @@ describe("CreateDeploymentRequestSchema", () => {
     it("refuses an env variable no container could be given", () => {
       expect(parse({ sdl: undefined, service: { ...service, env: { "MY VAR": "x" } } }).success).toBe(false);
     });
+
+    it.each([0, 0.009, 0.0000001, 384.001, 1e21])("refuses %j cpu, outside what the chain takes for one replica", cpu => {
+      const result = parse({ sdl: undefined, service: { ...service, resources: { ...service.resources, cpu } } });
+
+      expect(result.success).toBe(false);
+      expect((result as { error: { issues: unknown[] } }).error.issues).toContainEqual(
+        expect.objectContaining({ path: ["data", "service", "resources", "cpu"] })
+      );
+    });
+
+    it.each([0.01, 384])("accepts %j cpu", cpu => {
+      expect(parse({ sdl: undefined, service: { ...service, resources: { ...service.resources, cpu } } }).success).toBe(true);
+    });
+
+    it("refuses an env variable named __proto__ rather than creating the deployment without it", () => {
+      const env = JSON.parse('{ "__proto__": "V", "NORMAL": "kept" }');
+
+      const result = parse({ sdl: undefined, service: { ...service, env } });
+
+      expect(result.success).toBe(false);
+      expect((result as { error: { issues: unknown[] } }).error.issues).toContainEqual(
+        expect.objectContaining({ message: "__proto__ cannot be used as a name", path: ["data", "service", "env", "__proto__"] })
+      );
+    });
+
+    it("refuses overrides for a service named __proto__ rather than ignoring them", () => {
+      const result = parse({ sdl: undefined, templateId: "nginx", overrides: JSON.parse('{ "__proto__": { "image": "nginx:1.27.2" } }') });
+
+      expect(result.success).toBe(false);
+      expect((result as { error: { issues: unknown[] } }).error.issues).toContainEqual(
+        expect.objectContaining({ message: "__proto__ cannot be used as a name", path: ["data", "overrides", "__proto__"] })
+      );
+    });
   });
 
   function parse(rest: Record<string, unknown>) {
@@ -237,6 +270,30 @@ describe("PatchDeploymentRequestSchema", () => {
 
     it("refuses a name opening with a digit", () => {
       expect(parse({ web: { env: { "1VAR": "x" } } }).success).toBe(false);
+    });
+  });
+
+  describe("names zod would leave out of the parsed patch", () => {
+    it.each([
+      ["a service", '{ "__proto__": { "image": "nginx:1.27.2" }, "web": { "image": "nginx:1.27.2" } }', ["data", "services", "__proto__"]],
+      ["an env variable", '{ "web": { "env": { "__proto__": "V", "NORMAL": "kept" } } }', ["data", "services", "web", "env", "__proto__"]],
+      [
+        "an exposed port",
+        '{ "web": { "image": "nginx:1.27.2", "expose": { "__proto__": { "as": 8080 } } } }',
+        ["data", "services", "web", "expose", "__proto__"]
+      ],
+      [
+        "a volume",
+        '{ "web": { "image": "nginx:1.27.2", "storage": { "__proto__": { "readOnly": true } } } }',
+        ["data", "services", "web", "storage", "__proto__"]
+      ]
+    ])("refuses %s named __proto__", (_, services, path) => {
+      const result = parse(JSON.parse(services));
+
+      expect(result.success).toBe(false);
+      expect((result as { error: { issues: unknown[] } }).error.issues).toContainEqual(
+        expect.objectContaining({ message: "__proto__ cannot be used as a name", path })
+      );
     });
   });
 
