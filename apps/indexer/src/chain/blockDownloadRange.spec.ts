@@ -81,6 +81,30 @@ describe(getBlockDownloadRange.name, () => {
     it("returns nothing when the cache is past the latest block", () => {
       expect(getBlockDownloadRange(input({ keepCache: true, latestInsertedHeight: 50, latestHeightInCache: 106, latestBlockToDownload: 105 }))).toBeNull();
     });
+
+    it("returns nothing when the database is empty and the cache already reaches the latest block", () => {
+      const range = getBlockDownloadRange(
+        input({ keepCache: true, latestInsertedHeight: 0, chainStartHeight: 1, latestHeightInCache: 5000, latestBlockToDownload: 5000 })
+      );
+
+      expect(range).toBeNull();
+    });
+
+    it("downloads from the first height above the cache when the database is empty", () => {
+      const range = getBlockDownloadRange(
+        input({ keepCache: true, latestInsertedHeight: 0, chainStartHeight: 1, latestHeightInCache: 100, latestBlockToDownload: 105 })
+      );
+
+      expect(range).toEqual({ startHeight: 101, endHeight: 105 });
+    });
+
+    it("starts from the chain start height when both the database and the cache are empty", () => {
+      const range = getBlockDownloadRange(
+        input({ keepCache: true, latestInsertedHeight: 0, chainStartHeight: 50, latestHeightInCache: 0, latestBlockToDownload: 60 })
+      );
+
+      expect(range).toEqual({ startHeight: 50, endHeight: 60 });
+    });
   });
 
   function input(overrides: Partial<Parameters<typeof getBlockDownloadRange>[0]>) {
