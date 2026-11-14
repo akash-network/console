@@ -18,6 +18,7 @@ import { toStorableText, toStorableVarchar } from "@src/shared/utils/chain-strin
 import { env } from "@src/shared/utils/env";
 import { getTransactionHash } from "@src/shared/utils/hash";
 import * as benchmark from "../shared/utils/benchmark";
+import { getBlockDownloadRange } from "./blockDownloadRange";
 import {
   blockHeightToKey,
   blockResultsDb,
@@ -106,35 +107,28 @@ export async function syncBlocks(): Promise<void> {
   const latestInsertedHeight = ((await Block.max("height")) as number) || 0;
   const latestHeightInCache = await getLatestHeightInCache();
 
-  if (latestHeightInCache >= latestBlockToDownload) {
+  const downloadRange = getBlockDownloadRange({
+    latestInsertedHeight,
+    latestHeightInCache,
+    latestBlockToDownload,
+    missingBlock,
+    keepCache: env.KEEP_CACHE,
+    chainStartHeight: activeChain.startHeight
+  });
+  missingBlock = null;
+
+  if (!downloadRange) {
     console.log("No blocks to download");
   } else {
-    let startHeight = !env.KEEP_CACHE ? latestInsertedHeight + 1 : Math.max(latestHeightInCache, 1);
-
-    // If database is empty
-    if (latestInsertedHeight === 0) {
-      console.log("Starting from scratch");
-      startHeight = activeChain.startHeight || 1;
-    }
-
-    // If there was a missing block
-    if (missingBlock) {
-      startHeight = Math.min(missingBlock, latestBlockToDownload);
-      missingBlock = null;
-    }
-
-    const maxDownloadGroupSize = 1_000;
-    if (latestBlockToDownload - startHeight > maxDownloadGroupSize) {
-      console.log("Limiting download to " + maxDownloadGroupSize + " blocks");
-      latestBlockToDownload = startHeight + maxDownloadGroupSize;
-    }
+    const { startHeight, endHeight } = downloadRange;
+    latestBlockToDownload = endHeight;
 
     console.log("Starting download at block #" + startHeight);
-    console.log("Will end download at block #" + latestBlockToDownload);
-    console.log(latestBlockToDownload - startHeight + 1 + " blocks to download");
+    console.log("Will end download at block #" + endHeight);
+    console.log(endHeight - startHeight + 1 + " blocks to download");
 
     await benchmark.measureAsync("downloadBlocks", async () => {
-      await downloadBlocks(startHeight, latestBlockToDownload);
+      await downloadBlocks(startHeight, endHeight);
     });
   }
 
