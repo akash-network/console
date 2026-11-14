@@ -28,3 +28,10 @@ function displaysAsNoCredit(amountUsd: number): boolean {
 export function canRetryRefusedDeploy({ shortfall, balanceUsd }: { shortfall?: DepositShortfall; balanceUsd?: number }): boolean {
   return !!shortfall && balanceUsd !== undefined && balanceUsd >= shortfall.requiredAmountUsd;
 }
+
+type RefusedDeployFunds = { variant: NeedsFundsVariant; shortfall?: DepositShortfall; balanceUsd?: number };
+
+/** No configuration fits a trial credit under the deployment minimum, so asking again is refused again until the balance grows. */
+export function isHeldForTrialCredit({ variant, shortfall, balanceUsd }: RefusedDeployFunds): boolean {
+  return variant.name !== "not_enough_balance" && !canRetryRefusedDeploy({ shortfall, balanceUsd });
+}

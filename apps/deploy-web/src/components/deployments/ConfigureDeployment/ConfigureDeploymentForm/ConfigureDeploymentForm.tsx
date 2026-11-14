@@ -39,7 +39,7 @@ import type { InheritedSecrets } from "../InheritedSecretsProvider/InheritedSecr
 import { InheritedSecretsProvider } from "../InheritedSecretsProvider/InheritedSecretsProvider";
 import { NeedsFundsAlert } from "../NeedsFundsAlert/NeedsFundsAlert";
 import type { NeedsFundsVariant } from "../needsFundsVariant/needsFundsVariant";
-import { canRetryRefusedDeploy, needsFundsVariantOf } from "../needsFundsVariant/needsFundsVariant";
+import { canRetryRefusedDeploy, isHeldForTrialCredit, needsFundsVariantOf } from "../needsFundsVariant/needsFundsVariant";
 import { PlacementManagerProvider } from "../PlacementManagerProvider/PlacementManagerProvider";
 import { ReviewAndDeployModal } from "../ReviewAndDeployModal/ReviewAndDeployModal";
 import type { FundingImpactState } from "../ReviewAndDeployModal/useFundingImpact";
@@ -90,6 +90,7 @@ export const DEPENDENCIES = {
 const REFUSAL_TOAST_DURATION_MS = 10000;
 
 const NEEDS_FUNDS_CONTEXT = "configure_quotes_needs_funds";
+const HELD_FOR_CREDIT_REASON = "Add credits to deploy";
 
 const NO_ASKED_VALUES: TemplateAskedValue[] = [];
 
@@ -259,12 +260,16 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   const deployBalanceUsd = d.useWalletBalance().balance?.totalDeploymentGrantsUSD;
   const minimumDepositUsd = d.useDeploymentFundingConfigQuery().data?.defaultDepositUsd;
   const [fundsRefusal, setFundsRefusal] = useState<FundsRefusal>();
-  const fundsRefusalOnPage =
-    isRefusedForFunds && fundsRefusal && fundsRefusal.error === flow.error && fundsRefusal.deploymentName === typedDeploymentName ? fundsRefusal : undefined;
-  const shownFundsRefusal = fundsRefusalOnPage && {
-    ...fundsRefusalOnPage,
-    variant: needsFundsVariantOfRefusal(fundsRefusalOnPage.error, { isTrialing, deployBalanceUsd, minimumDepositUsd })
+  const refusedForFunds = isRefusedForFunds ? flow.error : undefined;
+  const refusal: ShownFundsRefusal | undefined = refusedForFunds && {
+    error: refusedForFunds,
+    variant: needsFundsVariantOfRefusal(refusedForFunds, { isTrialing, deployBalanceUsd, minimumDepositUsd })
   };
+  const heldForCredit =
+    refusal && isHeldForTrialCredit({ variant: refusal.variant, shortfall: refusal.error.shortfall, balanceUsd: deployBalanceUsd }) ? refusal : undefined;
+  const isRefusalUnedited = fundsRefusal?.error === refusedForFunds && fundsRefusal?.deploymentName === typedDeploymentName;
+  const shownFundsRefusal = heldForCredit ?? (isRefusalUnedited ? refusal : undefined);
+  const blockedReason = variablesBlockedReason ?? (heldForCredit && HELD_FOR_CREDIT_REASON);
 
   useEffect(
     function dismissFundsRefusalOnEdit() {
@@ -337,6 +342,10 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
       variant: variant.name,
       ...shortfallPropertiesOf(error)
     });
+    openAddCreditsToDeploy();
+  }
+
+  function openAddCreditsToDeploy() {
     openAddCredits({
       initialTab: "purchase",
       description: "Add credits to your balance to deploy.",
@@ -345,6 +354,15 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
       onCreditsAdded: requestQuotesAgainAfterCredits,
       suggestFirstDeployment: false
     });
+  }
+
+  function reportBlockedAttempt() {
+    if (variablesBlockedReason || !heldForCredit) {
+      revealVariableIssues();
+      return;
+    }
+    analyticsService.track("configure_choose_provider_blocked", { category: "deployments", reasons: [heldForCredit.variant.name] });
+    openAddCreditsToDeploy();
   }
 
   function retryRefusedDeploy({ variant }: ShownFundsRefusal) {
@@ -549,8 +567,8 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
                   onReset={resetConfiguration}
                   onDiscard={discardDeployment}
                   editorHeader={variablesCard}
-                  blockedReason={variablesBlockedReason}
-                  onBlockedAttempt={revealVariableIssues}
+                  blockedReason={blockedReason}
+                  onBlockedAttempt={reportBlockedAttempt}
                 />
               ) : (
                 <>
@@ -563,8 +581,8 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
                         deploymentName={typedDeploymentName}
                         onDeploy={() => openReview(flow.selections)}
                         allPlacementsHaveBids={allPlacementsHaveBids}
-                        blockedReason={variablesBlockedReason}
-                        onBlockedAttempt={revealVariableIssues}
+                        blockedReason={blockedReason}
+                        onBlockedAttempt={reportBlockedAttempt}
                       />
                     </div>
                   </div>
@@ -629,7 +647,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
 
 type FundsRefusal = { error: FlowError; deploymentName: string };
 
-type ShownFundsRefusal = FundsRefusal & { variant: NeedsFundsVariant };
+type ShownFundsRefusal = { error: FlowError; variant: NeedsFundsVariant };
 
 type DeployFunds = { isTrialing: boolean; deployBalanceUsd?: number; minimumDepositUsd?: number };
 
