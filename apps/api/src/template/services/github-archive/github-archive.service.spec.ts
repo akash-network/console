@@ -1,5 +1,5 @@
 import { gzipSync } from "node:zlib";
-import tar from "tar";
+import { Header, ReadEntry } from "tar";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -87,6 +87,24 @@ describe(GitHubArchiveService.name, () => {
       expect(await reader.readFile("readme.md")).toBe("# Hello");
       expect(await reader.readFile("image.png")).toBe("binary data");
       expect(await reader.readFile("src/index.ts")).toBe("code");
+    });
+
+    it("warns with the path of a file whose entry stream fails", async () => {
+      const { service, logger, installArchive } = setup();
+      await installArchive({ "root/readme.md": "# Hello" });
+      const streamError = new Error("entry stream failed");
+      vi.spyOn(ReadEntry.prototype, "write").mockImplementationOnce(function (this: ReadEntry) {
+        this.emit("error", streamError);
+        return false;
+      });
+
+      await service.getArchive("owner", "repo", "ref");
+
+      expect(logger.warn).toHaveBeenCalledWith({
+        event: "ARCHIVE_READ_STREAM_ERROR",
+        relativePath: "readme.md",
+        error: streamError
+      });
     });
   });
 
@@ -431,7 +449,7 @@ describe(GitHubArchiveService.name, () => {
 
     function addEntry(path: string, type: "Directory" | "File", content?: string) {
       const buf = content ? Buffer.from(content) : Buffer.alloc(0);
-      const header = new tar.Header({
+      const header = new Header({
         path,
         type,
         mode: type === "Directory" ? 0o755 : 0o644,
@@ -442,8 +460,9 @@ describe(GitHubArchiveService.name, () => {
         uname: "",
         gname: ""
       });
-      header.encode();
-      blocks.push(header.block);
+      const headerBlock = Buffer.alloc(512);
+      header.encode(headerBlock);
+      blocks.push(headerBlock);
 
       if (buf.length > 0) {
         const padded = Buffer.alloc(Math.ceil(buf.length / 512) * 512);
