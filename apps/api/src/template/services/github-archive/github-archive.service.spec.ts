@@ -1,5 +1,5 @@
 import { gzipSync } from "node:zlib";
-import { Header } from "tar";
+import { Header, ReadEntry } from "tar";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -87,6 +87,24 @@ describe(GitHubArchiveService.name, () => {
       expect(await reader.readFile("readme.md")).toBe("# Hello");
       expect(await reader.readFile("image.png")).toBe("binary data");
       expect(await reader.readFile("src/index.ts")).toBe("code");
+    });
+
+    it("warns with the path of a file whose entry stream fails", async () => {
+      const { service, logger, installArchive } = setup();
+      await installArchive({ "root/readme.md": "# Hello" });
+      const streamError = new Error("entry stream failed");
+      vi.spyOn(ReadEntry.prototype, "write").mockImplementationOnce(function (this: ReadEntry) {
+        this.emit("error", streamError);
+        return false;
+      });
+
+      await service.getArchive("owner", "repo", "ref");
+
+      expect(logger.warn).toHaveBeenCalledWith({
+        event: "ARCHIVE_READ_STREAM_ERROR",
+        relativePath: "readme.md",
+        error: streamError
+      });
     });
   });
 
