@@ -106,12 +106,13 @@ export class ReferralRepository extends BaseRepository<Table, ReferralInput, Ref
     }));
   }
 
+  /** A lost dispute hands the whole payment back without touching `amountRefunded`, so the payment counts as nothing paid. */
   #paidCentsOfReferredUser() {
     return this.cursor
       .select({ total: sql`coalesce(sum(${ReferredPayments.amount} - ${ReferredPayments.amountRefunded}), 0)` })
       .from(ReferredPayments)
       .leftJoin(ReferredPaymentOrganizations, eq(ReferredPaymentOrganizations.id, ReferredPayments.organizationId))
-      .where(this.#isSettledPaymentOfReferredUser());
+      .where(and(this.#isSettledPaymentOfReferredUser(), isNull(ReferredPayments.disputeLostAt)));
   }
 
   #earnedCentsOnReferredUser(affiliateUserId: string) {

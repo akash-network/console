@@ -7,12 +7,11 @@ import { AffiliateRepository } from "@src/affiliate/repositories/affiliate/affil
 import { ReferralRepository } from "@src/affiliate/repositories/referral/referral.repository";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { StripeTransactionRepository } from "@src/billing/repositories";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
 import { seedOrganization, seedOrganizationMember } from "@test/seeders/db/organization.seeder";
+import { seedPersonalOrganizationIdOf } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe("GET /v1/affiliates/me/referrals", () => {
   const userRepository = container.resolve(UserRepository);
@@ -53,6 +52,15 @@ describe("GET /v1/affiliates/me/referrals", () => {
     expect(await response.json()).toEqual({ data: { referrals: [], pagination: { total: 0, limit: 20, offset: 0 } } });
   });
 
+  it("returns 400 for an offset too large to page by", async () => {
+    const { token, user } = await setup();
+    await approveAffiliate(user.id);
+
+    const response = await request(token, { query: "?offset=99999999999999999999" });
+
+    expect(response.status).toBe(400);
+  });
+
   it("lists the affiliate's referrals newest first with what they paid and what it earned, teams they created included", async () => {
     const { token, user } = await setup();
     const affiliate = await approveAffiliate(user.id);
@@ -63,6 +71,7 @@ describe("GET /v1/affiliates/me/referrals", () => {
     const team = await seedOrganization({ type: "team", createdByUserId: payingUser.id });
     const payment = await stripeTransactionRepository.create({
       userId: payingUser.id,
+      organizationId: await seedPersonalOrganizationIdOf(payingUser.id),
       type: "payment_intent",
       status: "succeeded",
       amount: 20000,
@@ -78,6 +87,7 @@ describe("GET /v1/affiliates/me/referrals", () => {
     });
     await stripeTransactionRepository.create({
       userId: user.id,
+      organizationId: await seedPersonalOrganizationIdOf(user.id),
       type: "affiliate_commission",
       status: "pending",
       amount: 1000,
@@ -105,7 +115,7 @@ describe("GET /v1/affiliates/me/referrals", () => {
   });
 
   it("lists the referrals while one of the affiliate's teams is active", async () => {
-    const { token, user } = await setup({ hasOrganizations: true });
+    const { token, user } = await setup();
     const affiliate = await approveAffiliate(user.id);
     const team = await seedOrganization({ type: "team", createdByUserId: user.id });
     await seedOrganizationMember({ organizationId: team.id, userId: user.id, role: "owner" });
@@ -174,7 +184,7 @@ describe("GET /v1/affiliates/me/referrals", () => {
     });
   }
 
-  async function setup(input: { hasOrganizations?: boolean } = {}) {
+  async function setup() {
     const user = await userRepository.create({ userId: faker.string.uuid() });
     const token = faker.string.alphanumeric(40);
     const otherTokens = vi.isMockFunction(userAuthTokenService.getValidUserId)
@@ -184,12 +194,6 @@ describe("GET /v1/affiliates/me/referrals", () => {
     vi.spyOn(userAuthTokenService, "getValidUserId").mockImplementation(async header =>
       header.replace(/^Bearer +/i, "") === token ? user.userId! : (await otherTokens?.(header)) ?? null
     );
-
-    if (input.hasOrganizations) {
-      const featureFlagsService = container.resolve(FeatureFlagsService);
-      const isEnabled = FeatureFlagsService.prototype.isEnabled.bind(featureFlagsService);
-      vi.spyOn(featureFlagsService, "isEnabled").mockImplementation((flag, context) => flag === FeatureFlags.ORGANIZATIONS || isEnabled(flag, context));
-    }
 
     return { user, token };
   }
