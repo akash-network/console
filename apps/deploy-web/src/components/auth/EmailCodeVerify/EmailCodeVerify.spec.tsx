@@ -1,4 +1,6 @@
 import { forwardRef, useImperativeHandle } from "react";
+import type { InternalAxiosRequestConfig } from "axios";
+import { AxiosError } from "axios";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -47,6 +49,53 @@ describe(EmailCodeVerify.name, () => {
     await vi.waitFor(() => {
       expect(reset).toHaveBeenCalled();
     });
+  });
+
+  it("tracks why the code was not accepted, without the address or the code", async () => {
+    const { authService, analyticsService, captureOnComplete } = setup();
+    authService.verifyEmailCode.mockRejectedValue(apiError({ status: 400, code: "expired_code" }));
+
+    await act(async () => {
+      captureOnComplete()?.("135790");
+    });
+
+    await vi.waitFor(() => {
+      expect(analyticsService.track).toHaveBeenCalledWith("email_login_failed", { category: "user", step: "verify_code", reason: "expired_code" });
+    });
+    const tracked = JSON.stringify(analyticsService.track.mock.calls);
+    expect(tracked).not.toContain("example.com");
+    expect(tracked).not.toContain("135790");
+  });
+
+  it("tracks why the code could not be sent again, without the address", async () => {
+    const { authService, analyticsService } = setup();
+    authService.startEmailCode.mockRejectedValue(apiError({ status: 429, code: "rate_limited" }));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(RESEND_COOLDOWN_SEC * 1000);
+    });
+    await act(async () => {
+      await userEvent.click(screen.getByRole("button", { name: /resend code/i }));
+    });
+
+    await vi.waitFor(() => {
+      expect(analyticsService.track).toHaveBeenCalledWith("email_login_failed", { category: "user", step: "resend_code", reason: "rate_limited" });
+    });
+    expect(JSON.stringify(analyticsService.track.mock.calls)).not.toContain("example.com");
+  });
+
+  it("does not track a failure when the code is accepted", async () => {
+    const { authService, analyticsService, onVerified, captureOnComplete } = setup();
+    authService.verifyEmailCode.mockResolvedValue(undefined);
+
+    await act(async () => {
+      captureOnComplete()?.("123456");
+    });
+
+    await vi.waitFor(() => {
+      expect(onVerified).toHaveBeenCalled();
+    });
+    expect(analyticsService.track).not.toHaveBeenCalled();
   });
 
   it("calls onEditEmail and tracks wrong_email_clk when 'Wrong email? Edit' is clicked", async () => {
@@ -230,5 +279,15 @@ describe(EmailCodeVerify.name, () => {
       captureOnComplete: () => capturedOnComplete,
       getVerifyDisabled: () => capturedDisabled
     };
+  }
+
+  function apiError(input: { status: number; code: string }) {
+    return new AxiosError("Request failed", String(input.status), undefined, undefined, {
+      status: input.status,
+      statusText: "Request failed",
+      data: { code: input.code },
+      headers: {},
+      config: mock<InternalAxiosRequestConfig>()
+    });
   }
 });

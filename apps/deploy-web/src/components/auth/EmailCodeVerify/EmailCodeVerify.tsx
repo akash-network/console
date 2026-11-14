@@ -7,6 +7,7 @@ import { useMutation } from "@tanstack/react-query";
 import { RemoteApiError } from "@src/components/shared/RemoteApiError/RemoteApiError";
 import { SKIP_REPORTING_CAPTCHA_OUTCOME } from "@src/components/turnstile/CaptchaChallengeError";
 import { useServices } from "@src/context/ServicesProvider";
+import { trackEmailSignInFailure } from "../emailSignInFailure/emailSignInFailure";
 import { markCodeSent, readCodeSentAt } from "../PasswordlessAuth/withPersistedPasswordlessFlow";
 import type { VerificationCodeInputRef } from "./VerificationCodeInput";
 import { VerificationCodeInput } from "./VerificationCodeInput";
@@ -51,7 +52,8 @@ export function EmailCodeVerify({ dependencies: d = DEPENDENCIES, ...props }: Pr
     async onSuccess() {
       await props.onVerified();
     },
-    onError: function resetVerifyInput() {
+    onError(error) {
+      trackEmailSignInFailure(analyticsService, "verify_code", error);
       verifyInputRef.current?.reset();
     }
   });
@@ -68,6 +70,9 @@ export function EmailCodeVerify({ dependencies: d = DEPENDENCIES, ...props }: Pr
     onSuccess() {
       d.markCodeSent();
       setResendCooldownSec(RESEND_COOLDOWN_SEC);
+    },
+    onError(error) {
+      trackEmailSignInFailure(analyticsService, "resend_code", error);
     }
   });
 

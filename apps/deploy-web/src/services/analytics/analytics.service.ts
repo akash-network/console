@@ -33,6 +33,7 @@ type AnalyticsTarget = "Amplitude" | "GA";
 export type AnalyticsEvent =
   | "social_login_init"
   | "email_login_init"
+  | "email_login_failed"
   | "terms_link_clk"
   | "privacy_policy_link_clk"
   | "wrong_email_clk"

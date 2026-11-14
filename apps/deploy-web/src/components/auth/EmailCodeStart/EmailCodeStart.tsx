@@ -9,6 +9,7 @@ import { z } from "zod";
 import { RemoteApiError } from "@src/components/shared/RemoteApiError/RemoteApiError";
 import { SKIP_REPORTING_CAPTCHA_OUTCOME } from "@src/components/turnstile/CaptchaChallengeError";
 import { useServices } from "@src/context/ServicesProvider";
+import { trackEmailSignInFailure } from "../emailSignInFailure/emailSignInFailure";
 import { markCodeSent } from "../PasswordlessAuth/withPersistedPasswordlessFlow";
 
 /** Single-field passwordless entry form: blocks submission unless the input is a syntactically valid email. */
@@ -50,6 +51,9 @@ export function EmailCodeStart({ dependencies: d = DEPENDENCIES, ...props }: Pro
     onSuccess(_data, variables) {
       d.markCodeSent();
       props.onStarted(variables.email);
+    },
+    onError(error) {
+      trackEmailSignInFailure(analyticsService, "send_code", error);
     }
   });
 
