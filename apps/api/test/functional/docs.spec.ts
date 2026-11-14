@@ -41,7 +41,9 @@ const UNRELEASED_FEEDBACK_ROUTES = [
   "POST /v1/assistant/conversations/{id}/messages",
   "POST /v1/assistant/conversations/{id}/client-tool-results",
   "POST /v1/assistant/conversations/{id}/end",
-  "POST /v1/assistant/conversations/{id}/action-results"
+  "POST /v1/assistant/conversations/{id}/action-results",
+  "PUT /v1/assistant/conversations/{id}/turns/{turnId}/rating",
+  "POST /v1/assistant/conversations/{id}/problem-reports"
 ];
 const UNRELEASED_TEMPLATE_MARKETPLACE_ROUTES = [
   "DELETE /v1/user-templates/{id}",

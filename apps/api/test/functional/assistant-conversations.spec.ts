@@ -596,7 +596,7 @@ describe("Assistant conversations", () => {
       });
 
       expect(response.status).toBe(201);
-      const { data } = await response.json();
+      const { data } = (await response.json()) as { data: { id: string } };
       expect(await problemReportOf(data.id)).toMatchObject({
         userId: user.id,
         conversationId,
@@ -623,7 +623,11 @@ describe("Assistant conversations", () => {
       });
 
       expect(response.status).toBe(201);
-      expect(await problemReportOf((await response.json()).data.id)).toMatchObject({ conversationId: conversation.id, transcript: null, note: null });
+      expect(await problemReportOf(((await response.json()) as { data: { id: string } }).data.id)).toMatchObject({
+        conversationId: conversation.id,
+        transcript: null,
+        note: null
+      });
     });
 
     it("refuses a history whose answer was changed after the API signed it", async () => {
