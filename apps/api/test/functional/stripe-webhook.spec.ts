@@ -8,6 +8,8 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { AffiliateRepository } from "@src/affiliate/repositories/affiliate/affiliate.repository";
 import { ReferralRepository } from "@src/affiliate/repositories/referral/referral.repository";
+import { ReverseDeletedPaymentCommissionHandler } from "@src/affiliate/services/affiliate-commission/reverse-deleted-payment-commission.handler";
+import { ReverseDeletedPaymentCommission } from "@src/affiliate/services/affiliate-commission/reverse-deleted-payment-commission.job";
 import { SyncAffiliateCommissionHandler } from "@src/affiliate/services/affiliate-commission/sync-affiliate-commission.handler";
 import { type AffiliateCommissionSyncTrigger, SyncAffiliateCommission } from "@src/affiliate/services/affiliate-commission/sync-affiliate-commission.job";
 import { startJobQueues } from "@src/app/providers/jobs.provider";
@@ -25,7 +27,10 @@ import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder"
 import { seedPaymentCredit } from "@test/seeders/db/payment-credit.seeder";
 import { deleteCompletedJobs, expectJobCompleted, findJobRows, makeJobDue, useJobWorkers } from "@test/services/job-queue-harness";
 
-const affiliateCommissionWorkers = useJobWorkers(() => [container.resolve(SyncAffiliateCommissionHandler)]);
+const affiliateCommissionWorkers = useJobWorkers(() => [
+  container.resolve(SyncAffiliateCommissionHandler),
+  container.resolve(ReverseDeletedPaymentCommissionHandler)
+]);
 
 describe("Stripe webhook", () => {
   const userWalletsTable = resolveTable("UserWallets");
@@ -37,12 +42,13 @@ describe("Stripe webhook", () => {
   const billingConfig = container.resolve<BillingConfig>(BILLING_CONFIG);
   const userRepository = container.resolve(UserRepository);
 
-  const generateChargeRefundedPayload = (chargeId: string, customerId: string, amountRefunded: number, previousAmountRefunded = 0) =>
+  const generateChargeRefundedPayload = (chargeId: string, customerId: string, amountRefunded: number, previousAmountRefunded = 0, chargeAmount?: number) =>
     JSON.stringify({
       data: {
         object: {
           id: chargeId,
           customer: customerId,
+          amount: chargeAmount,
           amount_refunded: amountRefunded,
           refunded: amountRefunded > 0
         },
@@ -1061,9 +1067,87 @@ describe("Stripe webhook", () => {
         expect(commission).toMatchObject({ status: "succeeded", amount: 500, amountRefunded: 200 });
         expect(affiliateWallet?.deploymentAllowance).toBe(`${(500 - 200) * 10000}.00`);
       });
+
+      it("takes back the referring affiliate's credited commission on the refunded part of a payment whose payer deleted their account", async () => {
+        const chargeId = `ch_${faker.string.alphanumeric(24)}`;
+
+        const { user, stripeCustomerId } = await setup();
+        const { affiliateUser, commission: credited } = await seedCommissionedPayment({ payerId: user.id, chargeId, amount: 10000, commission: 500 });
+        await userRepository.deleteById(user.id);
+
+        const response = await getWebhookResponse(generateChargeRefundedPayload(chargeId, stripeCustomerId, 4000, 0, 10000));
+        await processCommissionReversalOfDeletedPayment(chargeId);
+
+        const commission = await stripeTransactionRepository.findById(credited.id);
+        const affiliateWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, affiliateUser.id) });
+
+        expect(response.status).toBe(200);
+        expect(commission).toMatchObject({ status: "succeeded", amount: 500, amountRefunded: 200, sourceTransactionId: null });
+        expect(affiliateWallet?.deploymentAllowance).toBe(`${(500 - 200) * 10000}.00`);
+      });
+
+      it("cancels the referring affiliate's held commission when a payment whose payer deleted their account is fully refunded", async () => {
+        const chargeId = `ch_${faker.string.alphanumeric(24)}`;
+
+        const { user, stripeCustomerId } = await setup();
+        const { affiliateUser, commission: held } = await seedCommissionedPayment({
+          payerId: user.id,
+          chargeId,
+          amount: 10000,
+          commission: 500,
+          commissionStatus: "pending"
+        });
+        await userRepository.deleteById(user.id);
+
+        const response = await getWebhookResponse(generateChargeRefundedPayload(chargeId, stripeCustomerId, 10000, 0, 10000));
+        await processCommissionReversalOfDeletedPayment(chargeId);
+
+        const commission = await stripeTransactionRepository.findById(held.id);
+        const affiliateWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, affiliateUser.id) });
+
+        expect(response.status).toBe(200);
+        expect(commission).toMatchObject({ status: "canceled", amount: 500, amountRefunded: 500 });
+        expect(affiliateWallet?.deploymentAllowance).toBe("0.00");
+      });
     });
 
     describe("charge.dispute.closed", () => {
+      it("takes back the referring affiliate's whole credited commission when Console loses a dispute over a payment whose payer deleted their account", async () => {
+        const chargeId = `ch_${faker.string.alphanumeric(24)}`;
+
+        const { user } = await setup();
+        const { affiliateUser, commission: credited } = await seedCommissionedPayment({ payerId: user.id, chargeId, amount: 10000, commission: 500 });
+        await userRepository.deleteById(user.id);
+
+        const response = await getWebhookResponse(generateDisputeClosedPayload(chargeId, "lost"));
+        await processCommissionReversalOfDeletedPayment(chargeId);
+
+        const commission = await stripeTransactionRepository.findById(credited.id);
+        const affiliateWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, affiliateUser.id) });
+
+        expect(response.status).toBe(200);
+        expect(commission).toMatchObject({ status: "refunded", amount: 500, amountRefunded: 500, sourceTransactionId: null });
+        expect(affiliateWallet?.deploymentAllowance).toBe("0.00");
+      });
+
+      it("keeps the referring affiliate's credited commission when Console wins a dispute over a payment whose payer deleted their account", async () => {
+        const chargeId = `ch_${faker.string.alphanumeric(24)}`;
+
+        const { user } = await setup();
+        const { affiliateUser, commission: credited } = await seedCommissionedPayment({ payerId: user.id, chargeId, amount: 10000, commission: 500 });
+        await userRepository.deleteById(user.id);
+
+        const response = await getWebhookResponse(generateDisputeClosedPayload(chargeId, "won"));
+
+        const commission = await stripeTransactionRepository.findById(credited.id);
+        const affiliateWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, affiliateUser.id) });
+
+        expect(response.status).toBe(200);
+        await expect(findJobRows(ReverseDeletedPaymentCommission[JOB_NAME], { data: { stripeChargeId: chargeId } })).resolves.toEqual([]);
+        expect(commission).toMatchObject({ status: "succeeded", amount: 500, amountRefunded: 0 });
+        expect(affiliateWallet?.deploymentAllowance).toBe(`${500 * 10000}.00`);
+      });
+
       it("cancels the referring affiliate's held commission when Console loses a dispute over the referred payment", async () => {
         const chargeId = `ch_${faker.string.alphanumeric(24)}`;
 
@@ -1528,7 +1612,8 @@ describe("Stripe webhook", () => {
     const commission = await stripeTransactionRepository.createAffiliateCommission({
       userId: affiliateUser.id,
       amount: input.commission,
-      sourceTransactionId: payment.id
+      sourceTransactionId: payment.id,
+      sourceStripeChargeId: input.chargeId
     });
     const isCredited = (input.commissionStatus ?? "succeeded") === "succeeded";
     await stripeTransactionRepository.updateById(commission.id, {
@@ -1544,6 +1629,12 @@ describe("Stripe webhook", () => {
     const { startWorkers } = await affiliateCommissionWorkers();
     await startWorkers();
     await expectJobCompleted(SyncAffiliateCommission[JOB_NAME], { data: { transactionId, trigger } });
+  }
+
+  async function processCommissionReversalOfDeletedPayment(stripeChargeId: string) {
+    const { startWorkers } = await affiliateCommissionWorkers();
+    await startWorkers();
+    await expectJobCompleted(ReverseDeletedPaymentCommission[JOB_NAME], { data: { stripeChargeId } });
   }
 
   async function releaseAffiliateCommissionOf(transactionId: string) {

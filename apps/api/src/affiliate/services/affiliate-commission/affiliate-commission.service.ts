@@ -13,6 +13,7 @@ import {
   UserWalletRepository
 } from "@src/billing/repositories";
 import { type PaymentCreditOutput, PaymentCreditRepository } from "@src/billing/repositories/payment-credit/payment-credit.repository";
+import { PaymentCreditService } from "@src/billing/services/payment-credit/payment-credit.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { isUniqueViolation } from "@src/core/repositories/base.repository";
@@ -22,6 +23,7 @@ import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-fl
 import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import { TxService } from "@src/core/services/tx/tx.service";
 import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
+import type { DeletedPaymentReversal } from "./reverse-deleted-payment-commission.job";
 import { type AffiliateCommissionSyncTrigger, SyncAffiliateCommission } from "./sync-affiliate-commission.job";
 
 type SkipReason =
@@ -37,6 +39,10 @@ type SkipReason =
 
 type CancelReason = Extract<SkipReason, "program_disabled" | "affiliate_revoked" | "affiliate_abuse_locked" | "nothing_left_to_grant">;
 
+type ReversalReason = "dispute_lost" | "dispute_funds_withdrawn" | "refund";
+
+type Reversal = { commission: StripeTransactionOutput & { userId: string }; amountCents: number; totalReversedCents: number; shortfallCents: number };
+
 const UNCREDITED_COMMISSION_STATUSES = new Set<StripeTransactionOutput["status"]>(["pending", "canceled"]);
 
 @singleton()
@@ -49,6 +55,7 @@ export class AffiliateCommissionService {
     private readonly affiliateRepository: AffiliateRepository,
     private readonly paymentMethodRepository: PaymentMethodRepository,
     private readonly paymentCreditRepository: PaymentCreditRepository,
+    private readonly paymentCreditService: PaymentCreditService,
     private readonly organizationRepository: OrganizationRepository,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly refillService: RefillService,
@@ -75,13 +82,70 @@ export class AffiliateCommissionService {
       if (!commission) {
         if (trigger === "settlement") await this.#hold(payment);
       } else if (releaseCredit?.transactionId === commission.id && UNCREDITED_COMMISSION_STATUSES.has(commission.status)) {
-        await this.#recoverLandedRelease(payment, commission, releaseCredit, trigger);
+        await this.#reconcileReversal(payment, await this.#recordLandedRelease(commission, releaseCredit, trigger));
       } else if (commission.status === "pending") {
         await (this.#isReleaseDue(payment, commission, trigger) ? this.#release(payment, commission) : this.#reconcileHeld(payment, commission));
       } else {
         await this.#reconcileReversal(payment, commission);
       }
     });
+  }
+
+  /** A payment row goes with its payer's account, so the charge is all that still tells what the payer paid on it. */
+  async reverseCommissionsOfDeletedPayment(stripeChargeId: string, reversal: DeletedPaymentReversal): Promise<void> {
+    const releaseCredits = await this.#findReleaseCreditsOfDeletedPayment(stripeChargeId);
+
+    await this.txService.transaction(async () => {
+      const commissions = await this.stripeTransactionRepository.findAffiliateCommissionsOfDeletedPaymentAndLock(stripeChargeId);
+
+      for (const commission of commissions) {
+        await this.#reverseCommissionOfDeletedPayment(commission, releaseCredits.get(commission.id), reversal);
+      }
+    });
+  }
+
+  /** Reads before taking the commission row locks, like `#findReleaseCredit`, so a credit only counts for a commission that is still uncredited once locked. */
+  async #findReleaseCreditsOfDeletedPayment(stripeChargeId: string): Promise<Map<string, PaymentCreditOutput>> {
+    const commissions = await this.stripeTransactionRepository.find({
+      type: "affiliate_commission",
+      sourceStripeChargeId: stripeChargeId,
+      sourceTransactionId: null
+    });
+    const releaseCredits = new Map<string, PaymentCreditOutput>();
+
+    for (const commission of commissions) {
+      const releaseCredit = await this.#findSettledReleaseCredit(commission.id);
+      if (releaseCredit) releaseCredits.set(commission.id, releaseCredit);
+    }
+
+    return releaseCredits;
+  }
+
+  /** No release retries once the payment is gone, so a credit a failed release left pending is settled here, and throws while its outcome is still unknown. */
+  async #findSettledReleaseCredit(commissionId: string): Promise<PaymentCreditOutput | undefined> {
+    const hasLanded = await this.paymentCreditService.hasLanded(commissionId);
+    return hasLanded ? this.paymentCreditRepository.findByTransactionId(commissionId) : undefined;
+  }
+
+  async #reverseCommissionOfDeletedPayment(
+    commission: StripeTransactionOutput,
+    releaseCredit: PaymentCreditOutput | undefined,
+    reversal: DeletedPaymentReversal
+  ): Promise<void> {
+    const keptAmount = reversal.reason === "dispute_lost" ? 0 : this.#shareStillPaid(commission.amount, reversal);
+
+    if (releaseCredit && UNCREDITED_COMMISSION_STATUSES.has(commission.status)) {
+      return this.#takeBackCredited(await this.#recordLandedRelease(commission, releaseCredit, reversal.reason), keptAmount, reversal.reason);
+    }
+
+    await (commission.status === "pending"
+      ? this.#shrinkHeld(commission, keptAmount, reversal.reason)
+      : this.#takeBackCredited(commission, keptAmount, reversal.reason));
+  }
+
+  async #takeBackCredited(commission: StripeTransactionOutput, keptAmount: number, reason: ReversalReason): Promise<void> {
+    const reversal = await this.#takeBack(commission, keptAmount);
+    if (reversal) this.#reportReversal(reversal, { reason, referredUserId: null });
   }
 
   /** Reads before taking the payment row lock, because the credit repository takes its own pool connection and syncs queued on that lock each hold one. */
@@ -97,12 +161,11 @@ export class AffiliateCommissionService {
   }
 
   /** A release whose credit landed on its own connection before its transaction rolled back leaves the row pending, or canceled by a refund that read no credit yet, so the row is recorded as credited before any refund is taken back from it. */
-  async #recoverLandedRelease(
-    payment: StripeTransactionOutput,
+  async #recordLandedRelease(
     commission: StripeTransactionOutput,
     credit: PaymentCreditOutput,
-    trigger: AffiliateCommissionSyncTrigger
-  ): Promise<void> {
+    trigger: AffiliateCommissionSyncTrigger | DeletedPaymentReversal["reason"]
+  ): Promise<StripeTransactionOutput> {
     if (credit.status !== "landed") throw new Error(`The release credit of affiliate commission ${commission.id} is still in flight`);
 
     const credited = { ...commission, status: "succeeded" as const, amountRefunded: commission.amount - credit.amount };
@@ -110,12 +173,12 @@ export class AffiliateCommissionService {
     this.#logger.warn({
       event: "AFFILIATE_COMMISSION_RELEASE_RECOVERED",
       commissionId: commission.id,
-      sourceTransactionId: payment.id,
+      sourceTransactionId: commission.sourceTransactionId,
       amountCents: credit.amount,
       trigger
     });
 
-    await this.#reconcileReversal(payment, credited);
+    return credited;
   }
 
   /** Records the commission without crediting it and schedules its release in the same transaction, so a refund or a lost dispute during the hold only ever edits a row. */
@@ -137,7 +200,8 @@ export class AffiliateCommissionService {
       organizationId: await this.#findPersonalOrganizationId(affiliate.userId),
       amount,
       amountRefunded: amount - keptAmount,
-      sourceTransactionId: payment.id
+      sourceTransactionId: payment.id,
+      sourceStripeChargeId: payment.stripeChargeId
     });
     if (!commission) return;
 
@@ -205,7 +269,7 @@ export class AffiliateCommissionService {
 
     const releasedAmount = Math.min(commission.amount - commission.amountRefunded, this.#keptCommission(commission.amount, payment));
     const cancelReason = await this.#findCancelReason(affiliateUserId, releasedAmount);
-    if (cancelReason) return this.#cancel(payment, commission, cancelReason);
+    if (cancelReason) return this.#cancel(commission, cancelReason);
 
     await this.stripeTransactionRepository.updateById(commission.id, { status: "succeeded", amountRefunded: commission.amount - releasedAmount });
     await this.refillService.topUpWallet(
@@ -249,25 +313,28 @@ export class AffiliateCommissionService {
     return !!wallet?.abuseLockedAt;
   }
 
-  async #cancel(payment: StripeTransactionOutput, commission: StripeTransactionOutput, reason: CancelReason | "refund" | "dispute_lost"): Promise<void> {
+  async #cancel(commission: StripeTransactionOutput, reason: CancelReason | "refund" | "dispute_lost"): Promise<void> {
     await this.stripeTransactionRepository.updateById(commission.id, { status: "canceled", amountRefunded: commission.amount });
 
     if (commission.userId) {
       this.analyticsService.track(commission.userId, "affiliate_commission_canceled", {
         amount_cents: commission.amount - commission.amountRefunded,
-        source_transaction_id: payment.id,
+        source_transaction_id: commission.sourceTransactionId,
         reason
       });
     }
-    this.#logger.info({ event: "AFFILIATE_COMMISSION_CANCELED", commissionId: commission.id, sourceTransactionId: payment.id, reason });
+    this.#logger.info({ event: "AFFILIATE_COMMISSION_CANCELED", commissionId: commission.id, sourceTransactionId: commission.sourceTransactionId, reason });
+  }
+
+  async #reconcileHeld(payment: StripeTransactionOutput, commission: StripeTransactionOutput): Promise<void> {
+    await this.#shrinkHeld(commission, this.#keptCommission(commission.amount, payment), payment.disputeLostAt ? "dispute_lost" : "refund");
   }
 
   /** A held commission was never credited, so a refund only shrinks what the release will credit, and a full one cancels it. */
-  async #reconcileHeld(payment: StripeTransactionOutput, commission: StripeTransactionOutput): Promise<void> {
-    const keptAmount = Math.min(commission.amount - commission.amountRefunded, this.#keptCommission(commission.amount, payment));
-    const reason = payment.disputeLostAt ? "dispute_lost" : "refund";
+  async #shrinkHeld(commission: StripeTransactionOutput, keptOfWholeCommission: number, reason: "refund" | "dispute_lost"): Promise<void> {
+    const keptAmount = Math.min(commission.amount - commission.amountRefunded, keptOfWholeCommission);
 
-    if (keptAmount <= 0) return this.#cancel(payment, commission, reason);
+    if (keptAmount <= 0) return this.#cancel(commission, reason);
 
     const amountRefunded = commission.amount - keptAmount;
     if (amountRefunded === commission.amountRefunded) return;
@@ -276,7 +343,7 @@ export class AffiliateCommissionService {
     this.#logger.info({
       event: "AFFILIATE_COMMISSION_HOLD_REDUCED",
       commissionId: commission.id,
-      sourceTransactionId: payment.id,
+      sourceTransactionId: commission.sourceTransactionId,
       amountCents: keptAmount,
       reason
     });
@@ -325,6 +392,7 @@ export class AffiliateCommissionService {
     amount: number;
     amountRefunded: number;
     sourceTransactionId: string;
+    sourceStripeChargeId: string | null;
     createdAt?: Date;
   }): Promise<StripeTransactionOutput | undefined> {
     try {
@@ -340,43 +408,56 @@ export class AffiliateCommissionService {
   /** Recomputes what the commission should be from what the payer still paid, so a redelivered refund or a repeated sync takes back nothing twice. */
   async #reconcileReversal(payment: StripeTransactionOutput, commission: StripeTransactionOutput): Promise<void> {
     const hasWithdrawnDisputeFunds = this.#hasWithdrawnDisputeFunds(payment);
-    const keptAmount = hasWithdrawnDisputeFunds ? 0 : this.#keptCommission(commission.amount, payment);
-    const targetReversed = Math.min(commission.amount, Math.max(commission.amountRefunded, commission.amount - keptAmount));
-    const delta = targetReversed - commission.amountRefunded;
+    const reversal = await this.#takeBack(commission, hasWithdrawnDisputeFunds ? 0 : this.#keptCommission(commission.amount, payment));
+    if (!reversal) return;
+
+    if (hasWithdrawnDisputeFunds) await this.#holdUntilDisputeIsDecided(payment, reversal.commission, reversal.amountCents - reversal.shortfallCents);
+
+    this.#reportReversal(reversal, { reason: this.#findReversalReason(payment), referredUserId: await this.#findReferredUserId(payment) });
+  }
+
+  async #takeBack(commission: StripeTransactionOutput, keptAmount: number): Promise<Reversal | undefined> {
+    const totalReversedCents = Math.min(commission.amount, Math.max(commission.amountRefunded, commission.amount - keptAmount));
+    const amountCents = totalReversedCents - commission.amountRefunded;
     const affiliateUserId = commission.userId;
-    if (delta <= 0 || !affiliateUserId) return;
+    if (amountCents <= 0 || !affiliateUserId) return undefined;
 
     await this.stripeTransactionRepository.updateById(commission.id, {
-      amountRefunded: targetReversed,
-      ...(targetReversed >= commission.amount ? { status: "refunded" } : {})
+      amountRefunded: totalReversedCents,
+      ...(totalReversedCents >= commission.amount ? { status: "refunded" } : {})
     });
     const { shortfallCents } = await this.refillService.reduceWalletBalance(
-      delta,
+      amountCents,
       { userId: affiliateUserId, organizationId: commission.organizationId },
-      { currency: "usd", transactionId: commission.id, refundedBefore: commission.amountRefunded, refundedAfter: targetReversed }
+      { currency: "usd", transactionId: commission.id, refundedBefore: commission.amountRefunded, refundedAfter: totalReversedCents }
     );
-    if (hasWithdrawnDisputeFunds) await this.#holdUntilDisputeIsDecided(payment, { ...commission, userId: affiliateUserId }, delta - shortfallCents);
 
-    const reason = this.#findReversalReason(payment);
-    this.analyticsService.track(affiliateUserId, "affiliate_commission_reversed", {
-      amount_cents: delta,
-      source_transaction_id: payment.id,
-      referred_user_id: await this.#findReferredUserId(payment),
+    return { commission: { ...commission, userId: affiliateUserId }, amountCents, totalReversedCents, shortfallCents };
+  }
+
+  #reportReversal(
+    { commission, amountCents, totalReversedCents, shortfallCents }: Reversal,
+    { reason, referredUserId }: { reason: ReversalReason; referredUserId: string | null }
+  ): void {
+    this.analyticsService.track(commission.userId, "affiliate_commission_reversed", {
+      amount_cents: amountCents,
+      source_transaction_id: commission.sourceTransactionId,
+      referred_user_id: referredUserId,
       reason
     });
     this.#logger.info({
       event: "AFFILIATE_COMMISSION_REVERSED",
       commissionId: commission.id,
-      affiliateUserId,
-      sourceTransactionId: payment.id,
-      amountCents: delta,
-      totalReversedCents: targetReversed,
+      affiliateUserId: commission.userId,
+      sourceTransactionId: commission.sourceTransactionId,
+      amountCents,
+      totalReversedCents,
       shortfallCents,
       reason
     });
   }
 
-  #findReversalReason(payment: StripeTransactionOutput): "dispute_lost" | "dispute_funds_withdrawn" | "refund" {
+  #findReversalReason(payment: StripeTransactionOutput): ReversalReason {
     if (payment.disputeLostAt) return "dispute_lost";
 
     return this.#hasWithdrawnDisputeFunds(payment) ? "dispute_funds_withdrawn" : "refund";
@@ -396,6 +477,7 @@ export class AffiliateCommissionService {
       amount: reversed.amount,
       amountRefunded: reversed.amount - takenBackAmount,
       sourceTransactionId: payment.id,
+      sourceStripeChargeId: payment.stripeChargeId,
       createdAt: reversed.createdAt
     });
     if (!held) return;
@@ -412,8 +494,11 @@ export class AffiliateCommissionService {
 
   /** Scales the commission by the share of the payment the payer still paid, so a refund never takes back more than its share whatever rate the commission was granted at. */
   #keptCommission(commissionAmount: number, payment: StripeTransactionOutput): number {
-    const netPaid = payment.disputeLostAt ? 0 : payment.amount - payment.amountRefunded;
-    return Math.floor((commissionAmount * netPaid) / payment.amount);
+    return payment.disputeLostAt ? 0 : this.#shareStillPaid(commissionAmount, payment);
+  }
+
+  #shareStillPaid(commissionAmount: number, paid: { amount: number; amountRefunded: number }): number {
+    return Math.floor((commissionAmount * (paid.amount - paid.amountRefunded)) / paid.amount);
   }
 
   #skip(transactionId: string, reason: SkipReason): void {

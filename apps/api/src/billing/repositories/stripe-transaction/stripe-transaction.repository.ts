@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, exists, gt, gte, inArray, isNotNull, lt, lte, ne, notInArray, or, SQL, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, exists, gt, gte, inArray, isNotNull, isNull, lt, lte, ne, notInArray, or, SQL, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
@@ -365,6 +365,7 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
     amount: number;
     amountRefunded?: number;
     sourceTransactionId: string;
+    sourceStripeChargeId?: string | null;
     createdAt?: Date;
   }): Promise<StripeTransactionOutput> {
     return this.create({
@@ -377,6 +378,7 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
       amount: input.amount,
       amountRefunded: input.amountRefunded ?? 0,
       sourceTransactionId: input.sourceTransactionId,
+      sourceStripeChargeId: input.sourceStripeChargeId,
       ...(input.createdAt && { createdAt: input.createdAt })
     });
   }
@@ -406,6 +408,25 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
     this.compareWithShadow(items);
 
     return this.toOutput(items[0]);
+  }
+
+  /** A payment row goes with its payer's account and leaves its commissions without a source, so they are found by the charge they were earned on. */
+  async findAffiliateCommissionsOfDeletedPaymentAndLock(stripeChargeId: string): Promise<StripeTransactionOutput[]> {
+    const items = await this.txManager
+      .getPgTx()
+      ?.select()
+      .from(this.table)
+      .where(
+        this.whereAccessibleBy(
+          and(eq(this.table.sourceStripeChargeId, stripeChargeId), isNull(this.table.sourceTransactionId), eq(this.table.type, "affiliate_commission"))
+        )
+      )
+      .orderBy(asc(this.table.createdAt), asc(this.table.id))
+      .for("no key update");
+    if (!items || items.length === 0) return [];
+    this.compareWithShadow(items);
+
+    return this.toOutputList(items);
   }
 
   #isAffiliateCommissionOf(sourceTransactionId: string): SQL | undefined {

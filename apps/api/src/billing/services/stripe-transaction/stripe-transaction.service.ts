@@ -5,6 +5,10 @@ import createError, { isHttpError } from "http-errors";
 import Stripe from "stripe";
 import { inject, singleton } from "tsyringe";
 
+import {
+  type DeletedPaymentReversal,
+  ReverseDeletedPaymentCommission
+} from "@src/affiliate/services/affiliate-commission/reverse-deleted-payment-commission.job";
 import { type AffiliateCommissionSyncTrigger, SyncAffiliateCommission } from "@src/affiliate/services/affiliate-commission/sync-affiliate-commission.job";
 import { FundDrainingDeploymentsCommand } from "@src/billing/commands/fund-draining-deployments.command";
 import { IssueCardPaymentInvoiceCommand } from "@src/billing/commands/issue-card-payment-invoice.command";
@@ -623,6 +627,11 @@ export class StripeTransactionService {
     await this.jobQueueService.enqueue(new SyncAffiliateCommission({ transactionId: transaction.id, trigger }));
   }
 
+  /** A payment row goes with its payer's account, while a commission earned on it stays and still has to follow what happens to the charge. */
+  async #queueCommissionReversalOfDeletedPayment(stripeChargeId: string, reversal: DeletedPaymentReversal): Promise<void> {
+    await this.jobQueueService.enqueue(new ReverseDeletedPaymentCommission({ stripeChargeId, reversal }));
+  }
+
   async settlePaymentIntent(event: Stripe.PaymentIntentSucceededEvent): Promise<SettlementOutcome> {
     const paymentIntent = event.data.object;
     const customerId = paymentIntent.customer as string;
@@ -1000,6 +1009,7 @@ export class StripeTransactionService {
     const customerOwner = await this.payerService.findByStripeCustomerId(customerId);
     if (!customerOwner) {
       this.loggerService.error({ event: "CHARGE_REFUNDED_USER_NOT_FOUND", customerId, chargeId: charge.id });
+      await this.#queueCommissionReversalOfDeletedPayment(charge.id, { reason: "refund", amount: charge.amount, amountRefunded: charge.amount_refunded });
       return;
     }
 
@@ -1201,11 +1211,14 @@ export class StripeTransactionService {
   @WithTransaction()
   async recordDisputeClosed(event: Stripe.ChargeDisputeClosedEvent): Promise<void> {
     const dispute = event.data.object;
+    const isLost = dispute.status === "lost";
     const transaction = await this.#findDisputedTransactionAndLock(dispute);
-    if (!transaction) return;
+    if (!transaction) {
+      if (isLost) await this.#queueCommissionReversalOfDeletedPayment(this.#chargeIdOf(dispute), { reason: "dispute_lost" });
+      return;
+    }
 
     const closedAt = new Date(event.created * 1000);
-    const isLost = dispute.status === "lost";
     const isAlreadyRecorded = isLost ? !!transaction.disputeLostAt : !!transaction.disputeClosedAt && transaction.disputeClosedAt >= closedAt;
     if (isAlreadyRecorded) return;
 

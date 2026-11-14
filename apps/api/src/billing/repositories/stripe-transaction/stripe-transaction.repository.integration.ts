@@ -503,6 +503,31 @@ describe(StripeTransactionRepository.name, () => {
     });
   });
 
+  describe("createAffiliateCommission (source charge)", () => {
+    it("keeps the charge the commission was earned on, and no charge when the payment has none", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestTransaction } = setup();
+      const affiliate = await createTestUser();
+      const stripeChargeId = `ch_${faker.string.alphanumeric(24)}`;
+      const sourcePayment = await createTestTransaction({ stripeChargeId });
+      const otherPayment = await createTestTransaction();
+
+      const withCharge = await stripeTransactionRepository.createAffiliateCommission({
+        userId: affiliate.id,
+        amount: 500,
+        sourceTransactionId: sourcePayment.id,
+        sourceStripeChargeId: stripeChargeId
+      });
+      const withoutCharge = await stripeTransactionRepository.createAffiliateCommission({
+        userId: affiliate.id,
+        amount: 500,
+        sourceTransactionId: otherPayment.id
+      });
+
+      expect(withCharge.sourceStripeChargeId).toBe(stripeChargeId);
+      expect(withoutCharge.sourceStripeChargeId).toBeNull();
+    });
+  });
+
   describe("findAffiliateCommissionBySource", () => {
     it("finds the commission row created for the given source transaction", async () => {
       const { stripeTransactionRepository, createTestUser, createTestTransaction } = setup();
@@ -650,6 +675,93 @@ describe(StripeTransactionRepository.name, () => {
       });
 
       expect(credit).toMatchObject({ transactionId: commission.id, status: "landed" });
+    });
+  });
+
+  describe("findAffiliateCommissionsOfDeletedPaymentAndLock", () => {
+    it("finds the commissions earned on a charge whose payment row is gone, oldest first", async () => {
+      const { stripeTransactionRepository, userRepository, txService, createTestUser, createTestTransaction } = setup();
+      const affiliate = await createTestUser();
+      const payer = await createTestUser();
+      const stripeChargeId = `ch_${faker.string.alphanumeric(24)}`;
+      const sourcePayment = await createTestTransaction({ userId: payer.id, stripeChargeId });
+      const earlier = await stripeTransactionRepository.createAffiliateCommission({
+        userId: affiliate.id,
+        amount: 500,
+        sourceTransactionId: sourcePayment.id,
+        sourceStripeChargeId: stripeChargeId,
+        createdAt: new Date("2026-02-01T00:00:00Z")
+      });
+      await stripeTransactionRepository.updateById(earlier.id, { status: "refunded", amountRefunded: 500 });
+      const later = await stripeTransactionRepository.createAffiliateCommission({
+        userId: affiliate.id,
+        amount: 500,
+        sourceTransactionId: sourcePayment.id,
+        sourceStripeChargeId: stripeChargeId,
+        createdAt: new Date("2026-03-01T00:00:00Z")
+      });
+      await userRepository.deleteById(payer.id);
+
+      const found = await txService.transaction(async () => stripeTransactionRepository.findAffiliateCommissionsOfDeletedPaymentAndLock(stripeChargeId));
+
+      expect(found.map(commission => commission.id)).toEqual([earlier.id, later.id]);
+      expect(found[1]).toMatchObject({ sourceTransactionId: null, sourceStripeChargeId: stripeChargeId, amount: 500 });
+    });
+
+    it("leaves out the commission of a payment that still exists", async () => {
+      const { stripeTransactionRepository, txService, createTestUser, createTestTransaction } = setup();
+      const affiliate = await createTestUser();
+      const stripeChargeId = `ch_${faker.string.alphanumeric(24)}`;
+      const sourcePayment = await createTestTransaction({ stripeChargeId });
+      await stripeTransactionRepository.createAffiliateCommission({
+        userId: affiliate.id,
+        amount: 500,
+        sourceTransactionId: sourcePayment.id,
+        sourceStripeChargeId: stripeChargeId
+      });
+
+      const found = await txService.transaction(async () => stripeTransactionRepository.findAffiliateCommissionsOfDeletedPaymentAndLock(stripeChargeId));
+
+      expect(found).toEqual([]);
+    });
+
+    it("leaves out commissions earned on another charge and rows that are not commissions", async () => {
+      const { stripeTransactionRepository, txService, createTestUser, createTestCommission } = setup();
+      const affiliate = await createTestUser();
+      const stripeChargeId = `ch_${faker.string.alphanumeric(24)}`;
+      const commission = await createTestCommission(affiliate.id, { sourceStripeChargeId: stripeChargeId });
+      await createTestCommission(affiliate.id, { sourceStripeChargeId: `ch_${faker.string.alphanumeric(24)}` });
+      await createTestCommission(affiliate.id, { type: "manual_credit", sourceStripeChargeId: stripeChargeId });
+
+      const found = await txService.transaction(async () => stripeTransactionRepository.findAffiliateCommissionsOfDeletedPaymentAndLock(stripeChargeId));
+
+      expect(found.map(row => row.id)).toEqual([commission.id]);
+    });
+
+    it("returns nothing outside of a transaction", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestCommission } = setup();
+      const affiliate = await createTestUser();
+      const stripeChargeId = `ch_${faker.string.alphanumeric(24)}`;
+      await createTestCommission(affiliate.id, { sourceStripeChargeId: stripeChargeId });
+
+      const found = await stripeTransactionRepository.findAffiliateCommissionsOfDeletedPaymentAndLock(stripeChargeId);
+
+      expect(found).toEqual([]);
+    });
+
+    it("lets another connection record a refund debit for a commission while it is locked", async () => {
+      const { stripeTransactionRepository, txService, createTestUser, createTestCommission } = setup();
+      const affiliate = await createTestUser();
+      const stripeChargeId = `ch_${faker.string.alphanumeric(24)}`;
+      const commission = await createTestCommission(affiliate.id, { sourceStripeChargeId: stripeChargeId });
+      const refundDebitRepository = container.resolve(RefundDebitRepository);
+
+      await txService.transaction(async () => {
+        await stripeTransactionRepository.findAffiliateCommissionsOfDeletedPaymentAndLock(stripeChargeId);
+        await refundDebitRepository.createPending({ transactionId: commission.id, amountRefunded: 200, address: createAkashAddress(), amount: 200 });
+      });
+
+      await expect(refundDebitRepository.findRefundedBeyond(commission.id, 0)).resolves.toMatchObject([{ transactionId: commission.id, amountRefunded: 200 }]);
     });
   });
 

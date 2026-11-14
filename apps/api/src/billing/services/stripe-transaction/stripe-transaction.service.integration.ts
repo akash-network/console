@@ -7,6 +7,7 @@ import { container } from "tsyringe";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { ReverseDeletedPaymentCommission } from "@src/affiliate/services/affiliate-commission/reverse-deleted-payment-commission.job";
 import { SyncAffiliateCommission } from "@src/affiliate/services/affiliate-commission/sync-affiliate-commission.job";
 import type { AuthService } from "@src/auth/services/auth.service";
 import { FundDrainingDeploymentsCommand } from "@src/billing/commands/fund-draining-deployments.command";
@@ -1769,14 +1770,18 @@ describe(StripeTransactionService.name, () => {
       expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
     });
 
-    it("returns early when user is not found", async () => {
-      const { service, userRepository, refillService } = setup();
+    it("moves no balance when the payer is not found and queues the reversal of the commission earned on the charge", async () => {
+      const { service, userRepository, refillService, jobQueueService, logger } = setup();
       userRepository.findOneBy.mockResolvedValue(undefined);
 
-      await service.refundCharge(createChargeRefundedEvent({ id: "ch_123", customer: "cus_unknown", amount_refunded: 5000, refunded: true }));
+      await service.refundCharge(createChargeRefundedEvent({ id: "ch_123", customer: "cus_unknown", amount: 10000, amount_refunded: 4000, refunded: false }));
 
       expect(userRepository.findOneBy).toHaveBeenCalledWith({ stripeCustomerId: "cus_unknown" });
       expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith({ event: "CHARGE_REFUNDED_USER_NOT_FOUND", customerId: "cus_unknown", chargeId: "ch_123" });
+      expect(jobQueueService.enqueue).toHaveBeenCalledExactlyOnceWith(
+        new ReverseDeletedPaymentCommission({ stripeChargeId: "ch_123", reversal: { reason: "refund", amount: 10000, amountRefunded: 4000 } })
+      );
     });
 
     it("returns early when transaction is not found", async () => {
@@ -2332,15 +2337,38 @@ describe(StripeTransactionService.name, () => {
       }
     );
 
-    it("ignores a closed dispute on a charge with no recorded transaction", async () => {
+    it("queues the reversal of the commission earned on a charge with no recorded transaction when its dispute is lost", async () => {
       const { service, stripeTransactionRepository, jobQueueService, logger } = setup();
       stripeTransactionRepository.findOneByAndLock.mockResolvedValue(undefined);
 
       await service.recordDisputeClosed(createChargeDisputeClosedEvent({ id: "dp_123", charge: "ch_unknown", status: "lost" }));
 
       expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
-      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).toHaveBeenCalledExactlyOnceWith(
+        new ReverseDeletedPaymentCommission({ stripeChargeId: "ch_unknown", reversal: { reason: "dispute_lost" } })
+      );
       expect(logger.warn).toHaveBeenCalledWith({ event: "CHARGE_DISPUTE_NO_TRANSACTION", chargeId: "ch_unknown", disputeId: "dp_123", status: "lost" });
+    });
+
+    it("queues the reversal under the id of a charge Stripe sent expanded", async () => {
+      const { service, stripeTransactionRepository, jobQueueService } = setup();
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(undefined);
+
+      await service.recordDisputeClosed(createChargeDisputeClosedEvent({ id: "dp_123", charge: mock<Stripe.Charge>({ id: "ch_unknown" }), status: "lost" }));
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledExactlyOnceWith(
+        new ReverseDeletedPaymentCommission({ stripeChargeId: "ch_unknown", reversal: { reason: "dispute_lost" } })
+      );
+    });
+
+    it.each(["won", "warning_closed"] as const)("queues nothing for a dispute closed as %s on a charge with no recorded transaction", async status => {
+      const { service, stripeTransactionRepository, jobQueueService, logger } = setup();
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(undefined);
+
+      await service.recordDisputeClosed(createChargeDisputeClosedEvent({ id: "dp_123", charge: "ch_unknown", status }));
+
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith({ event: "CHARGE_DISPUTE_NO_TRANSACTION", chargeId: "ch_unknown", disputeId: "dp_123", status });
     });
 
     it("neither records nor queues anything again when the lost dispute is already recorded", async () => {
@@ -2687,6 +2715,7 @@ describe(StripeTransactionService.name, () => {
   function createChargeRefundedEvent(params: {
     id: string;
     customer: string | null;
+    amount?: number;
     amount_refunded: number;
     refunded: boolean;
     payment_intent?: string | null;
@@ -2698,6 +2727,7 @@ describe(StripeTransactionService.name, () => {
         object: {
           id: params.id,
           customer: params.customer,
+          amount: params.amount,
           amount_refunded: params.amount_refunded,
           refunded: params.refunded,
           payment_intent: params.payment_intent ?? null
