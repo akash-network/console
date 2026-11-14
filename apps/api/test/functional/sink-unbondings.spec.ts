@@ -1,6 +1,7 @@
 import { container } from "tsyringe";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import type { SinkUnbondingsResponse } from "@src/dashboard/http-schemas/sink-unbondings/sink-unbondings.schema";
 import { app, initDb } from "@src/rest-app";
 
 import { createAkashBlock, createSinkTransfer, createStakingUnbonding } from "@test/seeders";
@@ -31,7 +32,7 @@ describe("Sink unbondings", () => {
       const response = await app.request("/v1/sink/unbondings");
 
       expect(response.status).toBe(200);
-      const body = await response.json();
+      const body = (await response.json()) as SinkUnbondingsResponse;
       expect(body.summary).toEqual({
         unbondingUakt: 300000000,
         unbondingDelegators: 1,
