@@ -8,12 +8,11 @@ import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-gener
 import { NOTIFICATIONS_CONFIG } from "@src/notifications/providers/notifications-config.provider";
 import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import { ProjectRepository } from "@src/organization/repositories/project/project.repository";
-import { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import { app } from "@src/rest-app";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createDseq, seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
-import { seedOrganization, seedOrganizationMember, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
+import { fileIntoPersonalOrganization, seedOrganization, seedOrganizationMember, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe("Notifications proxy", () => {
@@ -200,8 +199,7 @@ describe("Notifications proxy", () => {
 
   async function setup() {
     const { user, address } = await seedUserWithWallet();
-    const personalOrganizationService = container.resolve(PersonalOrganizationService);
-    await personalOrganizationService.adoptUserRows(user, await personalOrganizationService.ensureForUser(user));
+    await fileIntoPersonalOrganization(user);
     const apiKey = await persistApiKeyFor(user.id);
 
     return { user, address, apiKey };

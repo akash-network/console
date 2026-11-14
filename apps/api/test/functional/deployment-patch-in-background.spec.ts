@@ -36,7 +36,13 @@ import { registerFakeSdlSecretsKms, warmSealingKeyAsBootWould } from "@test/mock
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createApiKey } from "@test/seeders/api-key.seeder";
 import { createDseq, seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
-import { seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
+import {
+  fileIntoPersonalOrganization,
+  seedOrganizationMember,
+  seedOrganizationWithOwner,
+  seedProject,
+  seedProjectMember
+} from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { createDeployment } from "@test/seeders/deployment.seeder";
 import { createDeploymentInfoGroupsFromSdl, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
@@ -349,7 +355,7 @@ describe("PATCH /v1/deployments/{dseq}?async=true", () => {
       manifestVersion: await recordedVersionFor(STORED_SDL, secrets),
       sealedSecrets
     });
-    await container.resolve(PersonalOrganizationService).adoptUserRows(dbUser, personalOrganization);
+    await fileIntoPersonalOrganization(dbUser);
 
     return { user, wallet: wallets[0], apiKey, broadcast };
   }

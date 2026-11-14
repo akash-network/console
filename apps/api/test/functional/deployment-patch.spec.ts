@@ -33,6 +33,7 @@ import { deploymentVersion, marketVersion } from "@src/utils/constants";
 import { registerFakeSdlSecretsKms, SDL_SECRETS_KID, warmSealingKeyAsBootWould } from "@test/mocks/sdl-secrets-kms.mock";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createApiKey } from "@test/seeders/api-key.seeder";
+import { fileIntoPersonalOrganization } from "@test/seeders/db/organization.seeder";
 import { createDeployment } from "@test/seeders/deployment.seeder";
 import { createDeploymentInfoGroupsFromSdl, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { createManyLeaseApiResponses } from "@test/seeders/lease-api-response.seeder";
@@ -867,7 +868,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
       await deploymentSettingRepository.createDefaultIfMissing({ userId: user.id, dseq: DSEQ });
     }
 
-    await personalOrganizationService.adoptUserRows(dbUser, personalOrganization);
+    await fileIntoPersonalOrganization(dbUser);
 
     kmsClient.asymmetricDecrypt.mockClear();
 

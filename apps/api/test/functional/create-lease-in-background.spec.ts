@@ -14,7 +14,6 @@ import { type ApiPgDatabase, CORE_CONFIG, JOB_NAME, POSTGRES_DB, resolveTable } 
 import { CreateLeaseHandler } from "@src/deployment/services/create-lease/create-lease.handler";
 import { CreateLease, createLeaseKeyFor } from "@src/deployment/services/create-lease/create-lease.job";
 import { ReconcileLeaseCreate } from "@src/deployment/services/reconcile-lease-create/reconcile-lease-create.job";
-import { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { app } from "@src/rest-app";
 import { deploymentVersion, marketVersion } from "@src/utils/constants";
@@ -22,7 +21,13 @@ import { deploymentVersion, marketVersion } from "@src/utils/constants";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createBid } from "@test/seeders/bid.seeder";
 import { createDseq, seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
-import { seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
+import {
+  fileIntoPersonalOrganization,
+  seedOrganizationMember,
+  seedOrganizationWithOwner,
+  seedProject,
+  seedProjectMember
+} from "@test/seeders/db/organization.seeder";
 import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
@@ -243,8 +248,7 @@ describe("POST /v1/leases?async=true", () => {
     const dseq = createDseq();
     const provider = createAkashAddress();
     if (input.recordsDefinition ?? true) await seedDeploymentSetting({ userId: user.id, dseq, sdl: HELLO_WORLD_SDL, manifestVersion: "AAAA" });
-    const personalOrganizationService = container.resolve(PersonalOrganizationService);
-    await personalOrganizationService.adoptUserRows(user, await personalOrganizationService.ensureForUser(user));
+    await fileIntoPersonalOrganization(user);
     const token = faker.string.alphanumeric(40);
     vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(async header =>
       header.replace(/^Bearer +/i, "") === token ? user.userId! : null
