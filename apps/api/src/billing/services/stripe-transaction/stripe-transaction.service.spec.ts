@@ -17,6 +17,7 @@ import type { DomainEventsService } from "@src/core/services/domain-events/domai
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import type { TimerService } from "@src/core/services/timer/timer.service";
+import type { TxService } from "@src/core/services/tx/tx.service";
 import type { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import { StripeTransactionService } from "./stripe-transaction.service";
 
@@ -625,6 +626,8 @@ describe(StripeTransactionService.name, () => {
 
     const stripe = new Stripe(`sk_test_${faker.string.alphanumeric(32)}`, { apiVersion: "2025-10-29.clover", httpClient: Stripe.createFetchHttpClient() });
 
+    const txService = mock<TxService>();
+    txService.transaction.mockImplementation(async callback => await callback());
     const service = new StripeTransactionService(
       stripe,
       stripeTransactionRepository,
@@ -638,6 +641,7 @@ describe(StripeTransactionService.name, () => {
       mock<OrganizationRepository>(),
       mock<FeatureFlagsService>(),
       mock<PaymentCreditService>(),
+      txService,
       () => logger
     );
 

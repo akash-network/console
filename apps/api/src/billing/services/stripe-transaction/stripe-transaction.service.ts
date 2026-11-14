@@ -34,6 +34,7 @@ import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import { TimerService } from "@src/core/services/timer/timer.service";
+import { TxService } from "@src/core/services/tx/tx.service";
 import { type OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 
 /**
@@ -150,6 +151,7 @@ export class StripeTransactionService {
     private readonly organizationRepository: OrganizationRepository,
     private readonly featureFlagsService: FeatureFlagsService,
     private readonly paymentCreditService: PaymentCreditService,
+    private readonly txService: TxService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.loggerService = createLogger({ context: StripeTransactionService.name });
@@ -1198,8 +1200,16 @@ export class StripeTransactionService {
   }
 
   /** Leaves the payer's own balance as it is: the outcome is recorded only so the affiliate commission on this charge is released or taken back. */
-  @WithTransaction()
   async recordDisputeClosed(event: Stripe.ChargeDisputeClosedEvent): Promise<void> {
+    const dispute = event.data.object;
+    const isLost = dispute.status === "lost";
+    const hasAnotherUndecidedDispute = !isLost && (await this.#hasAnotherUndecidedDispute(dispute));
+
+    await this.txService.transaction(async () => this.#recordDisputeClose(event, hasAnotherUndecidedDispute));
+  }
+
+  /** Takes the outcome of the charge's other disputes as already asked of Stripe, so the payment row lock is never held across a Stripe call. */
+  async #recordDisputeClose(event: Stripe.ChargeDisputeClosedEvent, hasAnotherUndecidedDispute: boolean): Promise<void> {
     const dispute = event.data.object;
     const transaction = await this.#findDisputedTransactionAndLock(dispute);
     if (!transaction) return;
@@ -1209,7 +1219,7 @@ export class StripeTransactionService {
     const isAlreadyRecorded = isLost ? !!transaction.disputeLostAt : !!transaction.disputeClosedAt && transaction.disputeClosedAt >= closedAt;
     if (isAlreadyRecorded) return;
 
-    if (!isLost && (await this.#hasAnotherUndecidedDispute(dispute))) {
+    if (hasAnotherUndecidedDispute) {
       this.loggerService.info({
         event: "CHARGE_DISPUTE_CLOSED_WITH_ANOTHER_OPEN",
         chargeId: transaction.stripeChargeId,

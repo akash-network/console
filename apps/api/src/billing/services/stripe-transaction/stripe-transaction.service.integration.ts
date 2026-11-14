@@ -24,6 +24,7 @@ import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import type { TimerService } from "@src/core/services/timer/timer.service";
+import { TxService } from "@src/core/services/tx/tx.service";
 import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import type { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
@@ -2493,6 +2494,18 @@ describe(StripeTransactionService.name, () => {
       expect(jobQueueService.enqueue).toHaveBeenCalledExactlyOnceWith(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "dispute" }));
     });
 
+    it("asks Stripe about the other disputes on the charge before locking the payment", async () => {
+      const { service, stripe, stripeTransactionRepository } = setup();
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(
+        generateDatabaseStripeTransaction({ type: "payment_intent", status: "succeeded", stripeChargeId: "ch_123" })
+      );
+      const disputesList = vi.spyOn(stripe.disputes, "list").mockResolvedValue(disputeListOf([{ id: "dp_123", status: "won" }]));
+
+      await service.recordDisputeClosed(createChargeDisputeClosedEvent({ id: "dp_123", charge: "ch_123", status: "won" }));
+
+      expect(disputesList.mock.invocationCallOrder[0]).toBeLessThan(stripeTransactionRepository.findOneByAndLock.mock.invocationCallOrder[0]);
+    });
+
     it("looks up the other disputes under the id of a charge Stripe sent expanded", async () => {
       const { service, stripe, stripeTransactionRepository } = setup();
       stripeTransactionRepository.findOneByAndLock.mockResolvedValue(
@@ -2598,6 +2611,7 @@ describe(StripeTransactionService.name, () => {
       organizationRepository,
       featureFlagsService,
       paymentCreditService,
+      container.resolve(TxService),
       () => logger
     );
 

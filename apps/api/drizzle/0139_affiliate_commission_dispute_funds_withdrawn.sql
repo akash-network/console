@@ -1,3 +1,4 @@
 DROP INDEX "stripe_transactions_source_transaction_id_unique";--> statement-breakpoint
 ALTER TABLE "stripe_transactions" ADD COLUMN "dispute_funds_withdrawn_at" timestamp with time zone;--> statement-breakpoint
+CREATE INDEX "stripe_transactions_source_transaction_id_idx" ON "stripe_transactions" USING btree ("source_transaction_id") WHERE "stripe_transactions"."source_transaction_id" IS NOT NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX "stripe_transactions_source_transaction_id_unique" ON "stripe_transactions" USING btree ("source_transaction_id") WHERE "stripe_transactions"."source_transaction_id" IS NOT NULL AND "stripe_transactions"."status" <> 'refunded';

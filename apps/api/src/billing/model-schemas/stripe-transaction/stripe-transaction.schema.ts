@@ -81,6 +81,9 @@ export const StripeTransactions = pgTable(
     sourceTransactionIdUnique: uniqueIndex("stripe_transactions_source_transaction_id_unique")
       .on(table.sourceTransactionId)
       .where(sql`${table.sourceTransactionId} IS NOT NULL AND ${table.status} <> 'refunded'`),
+    sourceTransactionIdIdx: index("stripe_transactions_source_transaction_id_idx")
+      .on(table.sourceTransactionId)
+      .where(sql`${table.sourceTransactionId} IS NOT NULL`),
     userIdIdx: index("stripe_transactions_user_id_idx").on(table.userId),
     organizationIdIdx: index("stripe_transactions_organization_id_idx").on(table.organizationId),
     stripePaymentIntentIdIdx: index("stripe_transactions_stripe_payment_intent_id_idx").on(table.stripePaymentIntentId),
