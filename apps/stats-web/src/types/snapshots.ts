@@ -173,3 +173,26 @@ export type SinkTransfer = {
   statusHeight: number;
   statusUpdatedAt: string;
 };
+
+export type SinkUnbondingsSummary = {
+  unbondingUakt: number;
+  unbondingDelegators: number;
+  senders: number;
+  sendersWhoUnbonded: number;
+  sentUakt: number;
+  sentBySendersWhoUnbondedUakt: number;
+};
+
+export type SinkUnbondingsDay = {
+  date: string;
+  unbondStartedUakt: number;
+  unbondCompletingUakt: number;
+  cancelledUakt: number;
+  sentToSolanaUakt: number;
+  sentBySendersWhoUnbondedUakt: number;
+};
+
+export type SinkUnbondings = {
+  summary: SinkUnbondingsSummary;
+  daily: SinkUnbondingsDay[];
+};

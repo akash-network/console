@@ -4,6 +4,8 @@ import { StatsCard } from "../(home)/StatsCard";
 import { MigrationTransfersPanel } from "./MigrationTransfersPanel";
 import type { MigrationCard } from "./solanaMigrationModel";
 import { MIGRATION_HERO_METRICS, toMigrationActivityCards, toMigrationStateCards, toMigrationSummaryCards } from "./solanaMigrationModel";
+import { toUnbondingCards } from "./unbondingMomentumModel";
+import { UnbondingMomentumPanel } from "./UnbondingMomentumPanel";
 
 import { LoadError, Panel } from "@/components/stats/Panel";
 import { usePricing } from "@/context/PricingProvider";
@@ -11,7 +13,7 @@ import { useGraphSeries } from "@/hooks/useGraphSeries";
 import { useNow } from "@/hooks/useNow";
 import { formatAgo } from "@/lib/statsFormat/statsFormat";
 import { cn } from "@/lib/utils";
-import { useSinkDashboardData } from "@/queries";
+import { useSinkDashboardData, useSinkUnbondings } from "@/queries";
 
 const MIGRATION_REFRESH_INTERVAL_MS = 60_000;
 const [MIGRATED_AKT, DAILY_MIGRATED_AKT, TRANSFERS, DAILY_TRANSFERS] = MIGRATION_HERO_METRICS;
@@ -19,6 +21,7 @@ const [MIGRATED_AKT, DAILY_MIGRATED_AKT, TRANSFERS, DAILY_TRANSFERS] = MIGRATION
 export const SolanaMigrationContainer: React.FunctionComponent = () => {
   const now = useNow(MIGRATION_REFRESH_INTERVAL_MS);
   const { data, isError, refetch } = useSinkDashboardData({ refetchInterval: MIGRATION_REFRESH_INTERVAL_MS });
+  const unbondings = useSinkUnbondings({ refetchInterval: MIGRATION_REFRESH_INTERVAL_MS });
   const { price } = usePricing();
   const seriesByMetric = {
     [MIGRATED_AKT.key]: useGraphSeries(MIGRATED_AKT.key, MIGRATED_AKT.scale),
@@ -51,6 +54,10 @@ export const SolanaMigrationContainer: React.FunctionComponent = () => {
           <MigrationCardGrid cards={toMigrationStateCards(data)} />
         </>
       )}
+
+      <h2 className="pt-4 font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-faint">Unstaking</h2>
+      <MigrationCardGrid cards={toUnbondingCards(unbondings.data, price, now)} />
+      <UnbondingMomentumPanel data={unbondings.data} isError={unbondings.isError} onRetry={() => unbondings.refetch()} now={now} />
 
       <h2 className="pt-4 font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-faint">Individual transfers</h2>
       <div className="grid gap-4 xl:grid-cols-4">
