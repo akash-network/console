@@ -3,6 +3,7 @@ import { inject, singleton } from "tsyringe";
 import { ReferralRepository } from "@src/affiliate/repositories/referral/referral.repository";
 import { AffiliateService } from "@src/affiliate/services/affiliate/affiliate.service";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import { UserWalletRepository } from "@src/billing/repositories/user-wallet/user-wallet.repository";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
@@ -28,6 +29,7 @@ export class ReferralService {
     private readonly analyticsService: AnalyticsService,
     private readonly featureFlagsService: FeatureFlagsService,
     private readonly userRepository: UserRepository,
+    private readonly userWalletRepository: UserWalletRepository,
     @InjectBillingConfig() private readonly billingConfig: BillingConfig,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -85,16 +87,20 @@ export class ReferralService {
     await this.referralRepository.updateById(referral.id, { trialCreditsCents: Math.round(deploymentLimit / (MICRO_DENOM_PER_UNIT / CENTS_PER_DOLLAR)) });
   }
 
+  /** Reads the wallet before the referral, since a trial grant commits both together and a referral read after it always shows what was granted. */
   async getReferral(userId: string): Promise<Referral | null> {
+    const isTrialActivated = await this.#isTrialActivated(userId);
     const referral = await this.referralRepository.findByReferredUserId(userId);
     if (!referral) return null;
+    if (referral.trialCreditsCents != null) return { trialCreditsUsd: referral.trialCreditsCents / CENTS_PER_DOLLAR };
+    if (isTrialActivated) return null;
 
-    const trialCreditsUsd =
-      referral.trialCreditsCents != null
-        ? referral.trialCreditsCents / CENTS_PER_DOLLAR
-        : this.billingConfig.REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT / MICRO_DENOM_PER_UNIT;
+    return { trialCreditsUsd: this.billingConfig.REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT / MICRO_DENOM_PER_UNIT };
+  }
 
-    return { trialCreditsUsd };
+  async #isTrialActivated(userId: string): Promise<boolean> {
+    const wallet = await this.userWalletRepository.unscoped("referral-trial").findOneByUserId(userId);
+    return !!wallet?.activatedAt;
   }
 }
 

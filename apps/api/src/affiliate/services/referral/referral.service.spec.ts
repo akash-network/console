@@ -5,6 +5,7 @@ import { mock } from "vitest-mock-extended";
 import type { ReferralRepository } from "@src/affiliate/repositories/referral/referral.repository";
 import type { AffiliateService } from "@src/affiliate/services/affiliate/affiliate.service";
 import type { BillingConfig } from "@src/billing/providers";
+import type { UserWalletRepository } from "@src/billing/repositories/user-wallet/user-wallet.repository";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
@@ -14,6 +15,7 @@ import { ReferralService } from "./referral.service";
 import { createAffiliate } from "@test/seeders/affiliate.seeder";
 import { createReferral } from "@test/seeders/referral.seeder";
 import { createUser } from "@test/seeders/user.seeder";
+import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(ReferralService.name, () => {
   describe("attribute", () => {
@@ -250,12 +252,67 @@ describe(ReferralService.name, () => {
 
     it("falls back to the configured referral trial amount before the trial is granted", async () => {
       const referral = createReferral({ referredUserId: "referred-user-id", trialCreditsCents: null });
-      const { service, referralRepository, billingConfig } = setup();
+      const { service, referralRepository, userWalletRepository, billingConfig } = setup();
       referralRepository.findByReferredUserId.mockResolvedValue(referral);
+      userWalletRepository.findOneByUserId.mockResolvedValue(createUserWallet({ userId: "referred-user-id", activatedAt: null }));
 
       const result = await service.getReferral("referred-user-id");
 
       expect(result).toEqual({ trialCreditsUsd: billingConfig.REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT / 1_000_000 });
+    });
+
+    it("falls back to the configured referral trial amount when the user has no wallet yet", async () => {
+      const referral = createReferral({ referredUserId: "referred-user-id", trialCreditsCents: null });
+      const { service, referralRepository, userWalletRepository } = setup();
+      referralRepository.findByReferredUserId.mockResolvedValue(referral);
+      userWalletRepository.findOneByUserId.mockResolvedValue(undefined);
+
+      const result = await service.getReferral("referred-user-id");
+
+      expect(result).toEqual({ trialCreditsUsd: 5 });
+    });
+
+    it("returns null when the wallet was activated without the referral trial", async () => {
+      const referral = createReferral({ referredUserId: "referred-user-id", trialCreditsCents: null });
+      const { service, referralRepository, userWalletRepository } = setup();
+      referralRepository.findByReferredUserId.mockResolvedValue(referral);
+      userWalletRepository.findOneByUserId.mockResolvedValue(createUserWallet({ userId: "referred-user-id", activatedAt: new Date() }));
+
+      const result = await service.getReferral("referred-user-id");
+
+      expect(result).toBeNull();
+      expect(userWalletRepository.unscoped).toHaveBeenCalledWith("referral-trial");
+      expect(userWalletRepository.findOneByUserId).toHaveBeenCalledWith("referred-user-id");
+    });
+
+    it("returns the recorded trial credits when the wallet is already activated", async () => {
+      const referral = createReferral({ referredUserId: "referred-user-id", trialCreditsCents: 500 });
+      const { service, referralRepository, userWalletRepository } = setup();
+      referralRepository.findByReferredUserId.mockResolvedValue(referral);
+      userWalletRepository.findOneByUserId.mockResolvedValue(createUserWallet({ userId: "referred-user-id", activatedAt: new Date() }));
+
+      const result = await service.getReferral("referred-user-id");
+
+      expect(result).toEqual({ trialCreditsUsd: 5 });
+    });
+
+    it("returns the granted trial credits when the trial is activated between its two reads", async () => {
+      const { service, referralRepository, userWalletRepository } = setup();
+      let isActivationCommitted = false;
+      userWalletRepository.findOneByUserId.mockImplementation(async () => {
+        const wallet = createUserWallet({ userId: "referred-user-id", activatedAt: isActivationCommitted ? new Date() : null });
+        isActivationCommitted = true;
+        return wallet;
+      });
+      referralRepository.findByReferredUserId.mockImplementation(async () => {
+        const referral = createReferral({ referredUserId: "referred-user-id", trialCreditsCents: isActivationCommitted ? 500 : null });
+        isActivationCommitted = true;
+        return referral;
+      });
+
+      const result = await service.getReferral("referred-user-id");
+
+      expect(result).toEqual({ trialCreditsUsd: 5 });
     });
   });
 
@@ -272,6 +329,8 @@ describe(ReferralService.name, () => {
     const featureFlagsService = mock<FeatureFlagsService>();
     const userRepository = mock<UserRepository>();
     featureFlagsService.isEnabled.mockReturnValue(true);
+    const userWalletRepository = mock<UserWalletRepository>();
+    userWalletRepository.unscoped.mockReturnValue(userWalletRepository);
     const billingConfig = mock<BillingConfig>({ REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT: 5_000_000 });
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
@@ -282,10 +341,22 @@ describe(ReferralService.name, () => {
       analyticsService,
       featureFlagsService,
       userRepository,
+      userWalletRepository,
       billingConfig,
       createLogger
     );
 
-    return { service, referralRepository, affiliateService, analyticsService, featureFlagsService, userRepository, billingConfig, logger, createLogger };
+    return {
+      service,
+      referralRepository,
+      affiliateService,
+      analyticsService,
+      featureFlagsService,
+      userRepository,
+      userWalletRepository,
+      billingConfig,
+      logger,
+      createLogger
+    };
   }
 });

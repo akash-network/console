@@ -517,6 +517,65 @@ describe(WalletInitializerService.name, () => {
 
       await expect(di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id)).rejects.toThrow(TRIAL_BLOCKED_DOMAIN_MESSAGE);
     });
+
+    it("refuses a held trial of a referred user and records no referral trial", async () => {
+      const user = createUser({ emailVerified: true });
+      const di = setup({
+        user,
+        isTrialHeld: true,
+        referralTrialDeploymentLimit: 5_000_000,
+        getOrCreateWallet: vi.fn().mockResolvedValue({ wallet: createUserWallet({ userId: user.id, activatedAt: null }) })
+      });
+
+      await expect(di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id)).rejects.toMatchObject({
+        status: 400,
+        message: TRIAL_UNAVAILABLE_MESSAGE
+      });
+      expect(di.resolve(ManagedUserWalletService).createAndAuthorizeTrialSpending).not.toHaveBeenCalled();
+      expect(di.resolve(ReferralService).recordTrialGranted).not.toHaveBeenCalled();
+    });
+
+    it("does not activate a trial for a suspended referred user", async () => {
+      const user = createUser({ emailVerified: true, accountStatus: "suspended" });
+      const di = setup({
+        user,
+        referralTrialDeploymentLimit: 5_000_000,
+        getOrCreateWallet: vi.fn().mockResolvedValue({ wallet: createUserWallet({ userId: user.id, activatedAt: null }) })
+      });
+
+      await expect(di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id)).rejects.toMatchObject({
+        status: 403,
+        errorCode: "account_suspended"
+      });
+      expect(di.resolve(ManagedUserWalletService).createAndAuthorizeTrialSpending).not.toHaveBeenCalled();
+      expect(di.resolve(ReferralService).recordTrialGranted).not.toHaveBeenCalled();
+    });
+
+    it("activates a referred user's wallet locked like any other user's without granting or recording the referral trial", async () => {
+      const user = createUser({ emailVerified: true });
+      const wallet = createUserWallet({ userId: user.id, activatedAt: null });
+      const activateLockedForAbuse = vi.fn(async (_id: number, reason: string) => ({
+        ...wallet,
+        isTrialing: false,
+        activatedAt: new Date(),
+        abuseLockedReason: reason
+      }));
+      const di = setup({
+        user,
+        isRefusedAfterDeletion: true,
+        referralTrialDeploymentLimit: 5_000_000,
+        getOrCreateWallet: vi.fn().mockResolvedValue({ wallet, isNew: false }),
+        activateLockedForAbuse
+      });
+
+      const result = await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id);
+
+      expect(activateLockedForAbuse).toHaveBeenCalledWith(wallet.id, DELETED_TRIAL_ACCOUNT_LOCK_REASON);
+      expect(result).toMatchObject({ id: wallet.id, isTrialing: false });
+      expect(di.resolve(ReferralService).getTrialDeploymentLimit).not.toHaveBeenCalled();
+      expect(di.resolve(ReferralService).recordTrialGranted).not.toHaveBeenCalled();
+      expect(di.resolve(ManagedUserWalletService).createAndAuthorizeTrialSpending).not.toHaveBeenCalled();
+    });
   });
 
   describe("ensureWallet", () => {

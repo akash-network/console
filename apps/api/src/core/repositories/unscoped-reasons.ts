@@ -27,6 +27,7 @@ export const UNSCOPED_REASONS = [
   "personal-organization-provisioning",
   "platform-statistics",
   "public-templates",
+  "referral-trial",
   "template-readers",
   "template-writers",
   "wallet-provisioning"

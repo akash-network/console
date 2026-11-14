@@ -387,6 +387,16 @@ describe(TrialValidationService.name, () => {
       });
     });
 
+    it("applies the same caps to a trial granted a larger deployment allowance", async () => {
+      const wallet = createUserWallet({ isTrialing: true, deploymentAllowance: 5_000_000 });
+      const { service } = setupResources({ maxCpu: 4, maxMemoryGi: 16 });
+
+      await expect(service.validateDeploymentResources([createDeploymentMessageWithResources([[{ cpuMillis: 16_000 }]])], wallet)).rejects.toMatchObject({
+        status: 403,
+        message: expect.stringContaining("limited to 4 CPU")
+      });
+    });
+
     it("multiplies resources by the replica count", async () => {
       const wallet = createUserWallet({ isTrialing: true });
       const { service } = setupResources({ maxCpu: 4, maxMemoryGi: 16 });
