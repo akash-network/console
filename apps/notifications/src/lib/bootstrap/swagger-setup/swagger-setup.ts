@@ -4,6 +4,7 @@ import type { INestApplication } from "@nestjs/common";
 import { DocumentBuilder } from "@nestjs/swagger";
 import { SwaggerModule } from "@nestjs/swagger";
 import fs from "fs";
+import { createRequire } from "module";
 import { patchNestJsSwagger } from "nestjs-zod";
 import path from "path";
 
@@ -16,6 +17,15 @@ const SCOPES: { scope: SwaggerScope; mountPath: string; fileName: string }[] = [
 ];
 
 export type SwaggerModuleAPI = Pick<typeof SwaggerModule, "setup" | "createDocument">;
+
+type SchemaObjectFactoryClass = NonNullable<Parameters<typeof patchNestJsSwagger>[0]>;
+
+/** @nestjs/swagger 11.4.3+ blocks the deep import nestjs-zod 4 makes for this class, so it is loaded by file path instead. */
+function loadSchemaObjectFactory(): SchemaObjectFactoryClass {
+  const requireFromHere = createRequire(__filename);
+  const swaggerDistDir = path.dirname(requireFromHere.resolve("@nestjs/swagger"));
+  return requireFromHere(path.join(swaggerDistDir, "services", "schema-object-factory.js")).SchemaObjectFactory;
+}
 
 export class SwaggerSetup {
   static serveSwagger(app: INestApplication): void {
@@ -63,7 +73,7 @@ export class SwaggerSetup {
   }
 
   private createSwaggerDocument(scope: SwaggerScope) {
-    this.patchSwagger();
+    this.patchSwagger(loadSchemaObjectFactory());
 
     const builder = new this.documentBuilder()
       .setTitle(scope === "public" ? "NotificationsAPI" : "NotificationsAPI (Internal)")

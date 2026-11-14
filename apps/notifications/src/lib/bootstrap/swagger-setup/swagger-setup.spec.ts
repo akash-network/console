@@ -55,6 +55,16 @@ describe("SwaggerSetup", () => {
   });
 
   describe("createSwaggerDocument (via serveSwagger)", () => {
+    it("patches the installed swagger SchemaObjectFactory for zod DTOs", () => {
+      const { swaggerSetup, patchSwagger } = setup();
+
+      swaggerSetup.serveSwagger();
+
+      const [schemaObjectFactory] = vi.mocked(patchSwagger).mock.calls[0];
+      expect(schemaObjectFactory?.name).toBe("SchemaObjectFactory");
+      expect(schemaObjectFactory?.prototype.exploreModelSchema).toEqual(expect.any(Function));
+    });
+
     it("filters /internal/ paths out of the public document factory", () => {
       const { swaggerSetup, swaggerModule } = setup({
         documentPaths: { "/v1/things": pathItem(), "/internal/users/{userId}/purge": pathItem() }
