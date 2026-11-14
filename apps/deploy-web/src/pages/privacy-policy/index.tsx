@@ -81,6 +81,34 @@ export function PrivacyPolicy() {
         </ul>
 
         <Title subTitle className="my-4">
+          AI assistant and feedback
+        </Title>
+
+        <p>
+          Akash Console has an in-app AI assistant, and asks for your feedback through a rating card after a deployment and a feedback form. When you use the
+          assistant, it processes your messages and the account, deployment and billing details it looks up to answer you.
+        </p>
+        <p>We use these AI services to process this data:</p>
+        <ul className="list-disc py-4 pl-8">
+          <li>AkashML, Akash&apos;s own AI inference service, runs the assistant and sorts feedback and saved conversations into topics.</li>
+          <li>TypeSafe may also be used to sort feedback and saved conversations into topics.</li>
+        </ul>
+        <p>Secrets in environment variables and SDL are removed before anything is sent to these services or stored.</p>
+        <p>We store:</p>
+        <ul className="list-disc py-4 pl-8">
+          <li>Your assistant conversations, only if you let the Akash team review them, or when you send us a problem report about one.</li>
+          <li>The feedback you submit.</li>
+          <li>
+            For every assistant answer, a usage record that does not contain the text of your messages or of the answer. We keep these records for 90 days.
+          </li>
+        </ul>
+        <p>
+          Stored conversations are deleted automatically 12 months after their last message, and feedback 12 months after you send it. You can delete your saved
+          conversations at any time in your account settings, under Privacy. Deleting your account deletes your conversations, feedback and usage records.
+        </p>
+        <p>We do not use your conversations or feedback to train AI models.</p>
+
+        <Title subTitle className="my-4">
           Log Files
         </Title>
 

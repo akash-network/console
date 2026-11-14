@@ -39,7 +39,11 @@ describe("DeploymentOutcomeCard", () => {
   it("links the consent line to the privacy policy", () => {
     setup({ outcome: "live" });
 
-    expect(screen.getByText(/Sent to the Akash team with this deployment's details, and sorted into topics by TypeSafe/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Sent to the Akash team with this deployment's details\. AI services we use \(AkashML, and in some cases TypeSafe\) sort it into topics\./
+      )
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Privacy policy" })).toHaveAttribute("href", "/privacy-policy");
   });
 

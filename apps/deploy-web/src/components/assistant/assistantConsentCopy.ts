@@ -1,6 +1,6 @@
 /** Changing any of this copy means bumping `version`, which asks every user to agree again. */
 export const ASSISTANT_CONSENT_COPY = {
-  version: "2026-11-draft-2",
+  version: "2026-11-draft-3",
   title: "Before we start",
   intro: "The assistant answers using your account, so here's what happens with your data.",
   points: [
@@ -10,7 +10,7 @@ export const ASSISTANT_CONSENT_COPY = {
   ],
   reviewOptInLabel: "Let the Akash team review my conversations to improve Console",
   reviewOptInDescription:
-    "Optional. Saved conversations are sorted into topics by TypeSafe, an AI service we use for this. Without this, your conversations aren't saved. You can change it anytime in Settings."
+    "Optional. Saved conversations are sorted into topics by AI services we use (AkashML, and in some cases TypeSafe). Without this, your conversations aren't saved. You can change it anytime in Settings."
 } as const;
 
 export const ASSISTANT_CONSENT_COPY_VERSION = ASSISTANT_CONSENT_COPY.version;
