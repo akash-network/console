@@ -142,8 +142,8 @@ export async function makeJobDue(jobName: string, selector: JobSelector = {}): P
 /** Lets a fixture be built through the ability-scoped services a request uses, with the user's rows filed in their personal organization as every user's are. */
 export async function runAsUser<T>(user: UserOutput, cb: () => Promise<T>): Promise<T> {
   const executionContextService = container.resolve(ExecutionContextService);
-  await fileIntoPersonalOrganization(user);
-  const organizationContext = await container.resolve(OrganizationContextResolver).resolve({ user });
+  const personalOrganization = await fileIntoPersonalOrganization(user);
+  const organizationContext = await container.resolve(OrganizationContextResolver).resolveBoundTo(user, personalOrganization.id);
 
   return await executionContextService.runWithContext(async () => {
     executionContextService.set("CURRENT_USER", user);
