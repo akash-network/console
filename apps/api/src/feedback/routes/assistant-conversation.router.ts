@@ -7,9 +7,14 @@ import { SECURITY_BEARER } from "@src/core/services/openapi-docs/openapi-securit
 import { AssistantConversationController } from "../controllers/assistant-conversation/assistant-conversation.controller";
 import {
   AssistantStreamEventSchema,
+  AssistantTurnParamsSchema,
   ConversationIdParamsSchema,
+  CreateAssistantProblemReportRequestSchema,
+  CreateAssistantProblemReportResponseSchema,
   EndAssistantConversationRequestSchema,
   EndAssistantConversationResponseSchema,
+  RateAssistantTurnRequestSchema,
+  RateAssistantTurnResponseSchema,
   RecordAssistantActionResultRequestSchema,
   RecordAssistantActionResultResponseSchema,
   SendAssistantMessageRequestSchema,
@@ -170,4 +175,56 @@ assistantConversationRouter.openapi(recordAssistantActionResultRoute, async func
   const { id } = c.req.valid("param");
   const { data } = c.req.valid("json");
   return c.json(await container.resolve(AssistantConversationController).recordActionResult(id, data), 200);
+});
+
+const rateAssistantTurnRoute = createRoute({
+  method: "put",
+  operationId: "updateAssistantTurnRating",
+  path: "/v1/assistant/conversations/{id}/turns/{turnId}/rating",
+  summary: "Rate one assistant answer up or down, or clear its rating",
+  tags: ["Assistant"],
+  security: SECURITY_BEARER,
+  featureFlag: FeatureFlags.USER_FEEDBACK_LOOP,
+  request: {
+    params: AssistantTurnParamsSchema,
+    body: { required: true, content: { "application/json": { schema: RateAssistantTurnRequestSchema } } }
+  },
+  responses: {
+    200: { description: "The rating the turn now has", content: { "application/json": { schema: RateAssistantTurnResponseSchema } } },
+    400: { description: "Invalid request body" },
+    401: UNAUTHORIZED,
+    404: { description: "`assistant_turn_not_found` when the user has no such turn in this conversation" }
+  }
+});
+
+assistantConversationRouter.openapi(rateAssistantTurnRoute, async function routeRateAssistantTurn(c) {
+  const { id, turnId } = c.req.valid("param");
+  const { data } = c.req.valid("json");
+  return c.json(await container.resolve(AssistantConversationController).rateTurn(id, turnId, data), 200);
+});
+
+const createAssistantProblemReportRoute = createRoute({
+  method: "post",
+  operationId: "createAssistantProblemReport",
+  path: "/v1/assistant/conversations/{id}/problem-reports",
+  summary: "Report a problem with the assistant's answers in this conversation",
+  tags: ["Assistant"],
+  security: SECURITY_BEARER,
+  featureFlag: FeatureFlags.USER_FEEDBACK_LOOP,
+  request: {
+    params: ConversationIdParamsSchema,
+    body: { required: true, content: { "application/json": { schema: CreateAssistantProblemReportRequestSchema } } }
+  },
+  responses: {
+    201: { description: "The report", content: { "application/json": { schema: CreateAssistantProblemReportResponseSchema } } },
+    400: { description: "Invalid request body, or `assistant_history_unverified` when an assistant message in `history` fails its signature check" },
+    401: UNAUTHORIZED,
+    429: { description: "`assistant_report_limit` when the user sent too many reports today" }
+  }
+});
+
+assistantConversationRouter.openapi(createAssistantProblemReportRoute, async function routeCreateAssistantProblemReport(c) {
+  const { id } = c.req.valid("param");
+  const { data } = c.req.valid("json");
+  return c.json(await container.resolve(AssistantConversationController).reportProblem(id, data), 201);
 });

@@ -38,7 +38,7 @@ describe(AssistantTurnTraceRepository.name, () => {
 
       await repository.create(trace);
 
-      expect(await findByConversation(trace.conversationId)).toEqual([{ id: expect.any(String), ...trace }]);
+      expect(await findByConversation(trace.conversationId)).toEqual([{ id: expect.any(String), ...trace, rating: null }]);
     });
 
     it("defaults tokens, tool calls and cards to empty", async () => {
@@ -210,6 +210,62 @@ describe(AssistantTurnTraceRepository.name, () => {
 
       const outcomes = Object.fromEntries((await findByConversation(conversationId)).map(trace => [trace.id, trace.outcome]));
       expect(outcomes).toEqual({ [abandonedId]: "failed", [runningId]: "running", [answeredId]: "answered" });
+    });
+  });
+
+  describe("rate", () => {
+    it("sets and then clears the rating of the user's own turn in the conversation", async () => {
+      const { repository, userId, findByConversation } = await setup();
+      const conversationId = faker.string.uuid();
+      const id = await repository.start(traceOf({ userId, conversationId }));
+      const otherId = await repository.start(traceOf({ userId, conversationId }));
+
+      expect(await repository.rate({ id, userId, conversationId, rating: "down" })).toBe(true);
+      expect(Object.fromEntries((await findByConversation(conversationId)).map(trace => [trace.id, trace.rating]))).toEqual({ [id]: "down", [otherId]: null });
+
+      expect(await repository.rate({ id, userId, conversationId, rating: null })).toBe(true);
+      expect((await findByConversation(conversationId)).every(trace => trace.rating === null)).toBe(true);
+    });
+
+    it("rates nothing for another user's turn or a turn of another conversation", async () => {
+      const { repository, userId, findByConversation } = await setup();
+      const other = await seedUser();
+      const conversationId = faker.string.uuid();
+      const id = await repository.start(traceOf({ userId, conversationId }));
+
+      expect(await repository.rate({ id, userId: other.id, conversationId, rating: "up" })).toBe(false);
+      expect(await repository.rate({ id, userId, conversationId: faker.string.uuid(), rating: "up" })).toBe(false);
+      expect((await findByConversation(conversationId))[0].rating).toBeNull();
+    });
+  });
+
+  describe("findTurnOf", () => {
+    it("answers the outcome and model of the user's own turn in the conversation", async () => {
+      const { repository, userId } = await setup();
+      const conversationId = faker.string.uuid();
+      const id = await repository.start({ ...traceOf({ userId, conversationId }), outcome: "fallback" });
+
+      expect(await repository.findTurnOf({ id, userId, conversationId })).toEqual({ id, outcome: "fallback", model: "assistant-model" });
+    });
+
+    it("answers nothing for another user's turn or a turn of another conversation", async () => {
+      const { repository, userId } = await setup();
+      const other = await seedUser();
+      const conversationId = faker.string.uuid();
+      const id = await repository.start(traceOf({ userId, conversationId }));
+
+      expect(await repository.findTurnOf({ id, userId: other.id, conversationId })).toBeUndefined();
+      expect(await repository.findTurnOf({ id, userId, conversationId: faker.string.uuid() })).toBeUndefined();
+    });
+  });
+
+  describe("findTurnById", () => {
+    it("answers the outcome and model of a turn, or nothing when it is gone", async () => {
+      const { repository, userId } = await setup();
+      const id = await repository.start({ ...traceOf({ userId, conversationId: faker.string.uuid() }), outcome: "timed_out" });
+
+      expect(await repository.findTurnById(id)).toEqual({ id, outcome: "timed_out", model: "assistant-model" });
+      expect(await repository.findTurnById(faker.string.uuid())).toBeUndefined();
     });
   });
 

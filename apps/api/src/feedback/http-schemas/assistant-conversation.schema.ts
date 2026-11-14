@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
 import { MAX_CONSENT_COPY_VERSION_LENGTH } from "@src/feedback/model-schemas/assistant-consent/assistant-consent.schema";
+import { assistantTurnRatingEnum } from "@src/feedback/model-schemas/assistant-turn-trace/assistant-turn-trace.schema";
 import { ASSISTANT_ACTION_TYPES, AssistantActionSchema, AssistantDiagnosisSchema, AssistantDseqSchema } from "./assistant-action.schema";
 
 export const MAX_ASSISTANT_MESSAGE_LENGTH = 4_000;
@@ -8,6 +9,7 @@ export const MAX_ASSISTANT_HISTORY_MESSAGES = 20;
 export const MAX_ASSISTANT_HISTORY_MESSAGE_LENGTH = 8_000;
 export const MAX_CLIENT_TOOL_RESULT_LENGTH = 16_000;
 export const MAX_CLIENT_TOOL_RESULTS = 5;
+export const MAX_PROBLEM_REPORT_NOTE_LENGTH = 2_000;
 
 const MAX_PAGE_LENGTH = 300;
 const MAX_ACTION_ERROR_LENGTH = 500;
@@ -22,6 +24,20 @@ const ConversationContextSchema = z.object({
 });
 
 export const ConversationIdParamsSchema = z.object({ id: z.string().uuid() });
+
+export const AssistantTurnParamsSchema = z.object({ id: z.string().uuid(), turnId: z.string().uuid() });
+
+const ClientHistorySchema = z
+  .array(
+    z.object({
+      role: z.enum(["user", "assistant"]),
+      content: z.string().max(MAX_ASSISTANT_HISTORY_MESSAGE_LENGTH),
+      signature: z.string().max(128).optional().openapi({
+        description: "The `answerSignature` the API sent with this answer"
+      })
+    })
+  )
+  .max(MAX_ASSISTANT_HISTORY_MESSAGES);
 
 export const StartAssistantConversationRequestSchema = z.object({
   data: z.object({
@@ -43,19 +59,10 @@ export const StartAssistantConversationResponseSchema = z.object({
 export const SendAssistantMessageRequestSchema = z.object({
   data: z.object({
     content: z.string().trim().min(1).max(MAX_ASSISTANT_MESSAGE_LENGTH),
-    history: z
-      .array(
-        z.object({
-          role: z.enum(["user", "assistant"]),
-          content: z.string().max(MAX_ASSISTANT_HISTORY_MESSAGE_LENGTH),
-          signature: z.string().max(128).optional().openapi({
-            description: "The `answerSignature` the API sent with this answer. An assistant message without a valid one is left out."
-          })
-        })
-      )
-      .max(MAX_ASSISTANT_HISTORY_MESSAGES)
-      .optional()
-      .openapi({ description: "The earlier messages of a conversation the API does not store, oldest first. Ignored for a stored conversation." }),
+    history: ClientHistorySchema.optional().openapi({
+      description:
+        "The earlier messages of a conversation the API does not store, oldest first. An assistant message without a valid signature is left out. Ignored for a stored conversation."
+    }),
     context: ConversationContextSchema.optional()
   })
 });
@@ -95,6 +102,37 @@ export const RecordAssistantActionResultRequestSchema = z.object({
 
 export const RecordAssistantActionResultResponseSchema = z.object({
   data: z.object({ recorded: z.boolean().openapi({ description: "False for a conversation the API does not store" }) })
+});
+
+export const RateAssistantTurnRequestSchema = z.object({
+  data: z.object({
+    rating: z.enum(assistantTurnRatingEnum.enumValues).nullable().openapi({ description: "`null` clears the rating" })
+  })
+});
+
+export const RateAssistantTurnResponseSchema = z.object({
+  data: z.object({ turnId: z.string().uuid(), rating: z.enum(assistantTurnRatingEnum.enumValues).nullable() })
+});
+
+export const CreateAssistantProblemReportRequestSchema = z.object({
+  data: z.object({
+    turnId: z.string().uuid().optional().openapi({ description: "The `turnId` of the answer the user reported, from its `done` event" }),
+    note: z.string().trim().max(MAX_PROBLEM_REPORT_NOTE_LENGTH).optional(),
+    copyVersion: z
+      .string()
+      .trim()
+      .min(1)
+      .max(MAX_CONSENT_COPY_VERSION_LENGTH)
+      .openapi({ description: "The version of the report consent line the client showed" }),
+    history: ClientHistorySchema.optional().openapi({
+      description:
+        "The messages of a conversation the API does not store, oldest first. Every assistant message needs its valid signature. Ignored for a stored conversation."
+    })
+  })
+});
+
+export const CreateAssistantProblemReportResponseSchema = z.object({
+  data: z.object({ id: z.string().uuid() })
 });
 
 export const ASSISTANT_LIVE_HELP_REASONS = ["provider_side_issue", "not_supported_here", "no_confident_answer", "user_asked_for_a_person"] as const;
@@ -151,7 +189,8 @@ export const AssistantStreamEventSchema = z
         .optional()
         .openapi({
           description: `Signs the answer's text so far, up to its first ${MAX_ASSISTANT_HISTORY_MESSAGE_LENGTH} characters, which is all the client sends back with this answer in \`history\``
-        })
+        }),
+      turnId: z.string().uuid().optional().openapi({ description: "Identifies this turn, to rate it or report a problem with it" })
     }),
     z.object({ type: z.literal("error"), code: z.enum(ASSISTANT_STREAM_ERROR_CODES), message: z.string() })
   ])
@@ -167,5 +206,9 @@ export type EndAssistantConversationRequest = z.infer<typeof EndAssistantConvers
 export type EndAssistantConversationResponse = z.infer<typeof EndAssistantConversationResponseSchema>;
 export type RecordAssistantActionResultRequest = z.infer<typeof RecordAssistantActionResultRequestSchema>;
 export type RecordAssistantActionResultResponse = z.infer<typeof RecordAssistantActionResultResponseSchema>;
+export type RateAssistantTurnRequest = z.infer<typeof RateAssistantTurnRequestSchema>;
+export type RateAssistantTurnResponse = z.infer<typeof RateAssistantTurnResponseSchema>;
+export type CreateAssistantProblemReportRequest = z.infer<typeof CreateAssistantProblemReportRequestSchema>;
+export type CreateAssistantProblemReportResponse = z.infer<typeof CreateAssistantProblemReportResponseSchema>;
 export type AssistantStreamEvent = z.infer<typeof AssistantStreamEventSchema>;
 export type AssistantLiveHelpReason = (typeof ASSISTANT_LIVE_HELP_REASONS)[number];

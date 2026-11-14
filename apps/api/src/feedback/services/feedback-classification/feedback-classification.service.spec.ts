@@ -12,6 +12,10 @@ import {
 } from "@src/feedback/lib/feedback-classification-prompt/feedback-classification-prompt";
 import type { AssistantConversationRepository } from "@src/feedback/repositories/assistant-conversation/assistant-conversation.repository";
 import type { AssistantMessageOutput, AssistantMessageRepository } from "@src/feedback/repositories/assistant-message/assistant-message.repository";
+import type {
+  AssistantProblemReportOutput,
+  AssistantProblemReportRepository
+} from "@src/feedback/repositories/assistant-problem-report/assistant-problem-report.repository";
 import type { FeedbackSubmissionRepository } from "@src/feedback/repositories/feedback-submission/feedback-submission.repository";
 import type { FeedbackThemeRepository } from "@src/feedback/repositories/feedback-theme/feedback-theme.repository";
 import { type AkashMlClient, AkashMlOutputError } from "@src/feedback/services/akashml-client/akashml.client";
@@ -19,9 +23,10 @@ import type { FeedbackJevClassifierService } from "@src/feedback/services/feedba
 import type { FeedbackThemeAssignmentService } from "@src/feedback/services/feedback-theme-assignment/feedback-theme-assignment.service";
 import type { FeedbackThemeScoreService } from "@src/feedback/services/feedback-theme-score/feedback-theme-score.service";
 import { TypeSafeOutputError } from "@src/feedback/services/typesafe-client/typesafe.client";
-import { FeedbackClassificationService, MAX_CLASSIFICATION_ATTEMPTS } from "./feedback-classification.service";
+import { FeedbackClassificationService, MAX_CLASSIFICATION_ATTEMPTS, PROBLEM_REPORT_NOTE_PREFIX } from "./feedback-classification.service";
 
 import { createAssistantConversation } from "@test/seeders/assistant-conversation.seeder";
+import { createAssistantProblemReport } from "@test/seeders/assistant-problem-report.seeder";
 import { createFeedbackSubmission } from "@test/seeders/feedback-submission.seeder";
 
 const CLASSIFICATION: FeedbackClassification = { type: "bug", summary: "Logs page stays empty", sentimentScore: -0.5, endedStuck: true };
@@ -374,10 +379,126 @@ describe(FeedbackClassificationService.name, () => {
     }
   });
 
+  describe("classifyProblemReport", () => {
+    it("classifies an unstored conversation's report from its transcript followed by the note, and files it under its theme", async () => {
+      const problemReport = createAssistantProblemReport({
+        note: "The answer named a GPU nobody offers",
+        transcript: [
+          { role: "user", content: "why no bids" },
+          { role: "assistant", content: "pick an H200" }
+        ]
+      });
+      const { service, akashMlClient, assistantMessageRepository, assistantProblemReportRepository, feedbackThemeAssignmentService, feedbackThemeRepository } =
+        setup({ problemReport });
+      feedbackThemeAssignmentService.findMatch.mockResolvedValue({ themeId: "theme-1" });
+      feedbackThemeAssignmentService.themeIdFor.mockResolvedValue("theme-1");
+
+      await service.classifyProblemReport(problemReport.id);
+
+      expect(assistantMessageRepository.findAllOf).not.toHaveBeenCalled();
+      expect(akashMlClient.completeJson).toHaveBeenCalledWith({
+        model: "classifier-model",
+        messages: buildConversationClassificationMessages({
+          status: "unresolved",
+          resolvedByUser: null,
+          context: { isTrialing: null },
+          messages: [
+            { role: "user", content: "why no bids" },
+            { role: "assistant", content: "pick an H200" },
+            { role: "user", content: `${PROBLEM_REPORT_NOTE_PREFIX}The answer named a GPU nobody offers` }
+          ]
+        }),
+        schema: FEEDBACK_CLASSIFICATION_SCHEMA,
+        temperature: 0
+      });
+      expect(assistantProblemReportRepository.updateById).toHaveBeenCalledWith(problemReport.id, {
+        classificationType: "bug",
+        classificationSummary: "Logs page stays empty",
+        sentimentScore: -0.5,
+        endedStuck: true,
+        classifiedAt: expect.any(Date),
+        themeId: "theme-1"
+      });
+      expect(feedbackThemeRepository.refreshCounts).toHaveBeenCalledWith(["theme-1"]);
+    });
+
+    it("reads a stored conversation's report from the stored messages", async () => {
+      const problemReport = createAssistantProblemReport({ transcript: null });
+      const messages = [storedMessage("user", "why no bids"), storedMessage("assistant", "check the price")];
+      const { service, akashMlClient, assistantMessageRepository } = setup({ problemReport, messages });
+
+      await service.classifyProblemReport(problemReport.id);
+
+      expect(assistantMessageRepository.findAllOf).toHaveBeenCalledWith(problemReport.conversationId);
+      expect(akashMlClient.completeJson).toHaveBeenCalledWith(
+        expect.objectContaining({
+          messages: buildConversationClassificationMessages({ status: "unresolved", resolvedByUser: null, context: { isTrialing: null }, messages })
+        })
+      );
+    });
+
+    it("settles a report holding no user text without asking the model", async () => {
+      const problemReport = createAssistantProblemReport({ transcript: [{ role: "assistant", content: "hi" }] });
+      const { service, akashMlClient, assistantProblemReportRepository } = setup({ problemReport });
+
+      await service.classifyProblemReport(problemReport.id);
+
+      expect(akashMlClient.completeJson).not.toHaveBeenCalled();
+      expect(assistantProblemReportRepository.updateById).toHaveBeenCalledWith(problemReport.id, {
+        classificationType: null,
+        classificationSummary: null,
+        sentimentScore: 0,
+        endedStuck: null,
+        classifiedAt: expect.any(Date),
+        themeId: null
+      });
+    });
+
+    it("counts an unusable answer against the report", async () => {
+      const problemReport = createAssistantProblemReport({ note: "wrong answer", transcript: [] });
+      const { service, akashMlClient, assistantProblemReportRepository } = setup({ problemReport });
+      akashMlClient.completeJson.mockRejectedValue(new AkashMlOutputError("AkashML answered without a JSON object"));
+      assistantProblemReportRepository.recordFailedClassification.mockResolvedValue({ attempts: MAX_CLASSIFICATION_ATTEMPTS, abandoned: true });
+
+      await service.classifyProblemReport(problemReport.id);
+
+      expect(assistantProblemReportRepository.recordFailedClassification).toHaveBeenCalledWith(problemReport.id, MAX_CLASSIFICATION_ATTEMPTS);
+    });
+
+    it("defers a report while the model is unavailable", async () => {
+      const problemReport = createAssistantProblemReport({ note: "wrong answer" });
+      const { service, assistantMessageRepository, logger } = setup({ problemReport, isAvailable: false });
+
+      await service.classifyProblemReport(problemReport.id);
+
+      expect(assistantMessageRepository.findAllOf).not.toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith({ event: "FEEDBACK_CLASSIFICATION_DEFERRED", reason: "model_unavailable", problemReportId: problemReport.id });
+    });
+
+    it.each([
+      { name: "a deleted report", problemReport: undefined },
+      { name: "a classified report", problemReport: createAssistantProblemReport({ classifiedAt: new Date() }) },
+      { name: "a report given up on", problemReport: createAssistantProblemReport({ classificationFailedAt: new Date() }) }
+    ])("skips $name", async ({ problemReport }) => {
+      const { service, assistantMessageRepository, akashMlClient, logger } = setup({ problemReport });
+
+      await service.classifyProblemReport(problemReport?.id ?? "missing");
+
+      expect(assistantMessageRepository.findAllOf).not.toHaveBeenCalled();
+      expect(akashMlClient.completeJson).not.toHaveBeenCalled();
+      expect(logger.info).not.toHaveBeenCalled();
+    });
+
+    function storedMessage(role: AssistantMessageOutput["role"], content: string): AssistantMessageOutput {
+      return { id: crypto.randomUUID(), conversationId: "c", role, content, toolName: null, toolPayload: null, createdAt: new Date() };
+    }
+  });
+
   function setup(input: {
     submission?: ReturnType<typeof createFeedbackSubmission>;
     conversation?: ReturnType<typeof createAssistantConversation>;
     messages?: AssistantMessageOutput[];
+    problemReport?: AssistantProblemReportOutput;
     isAvailable?: boolean;
     engine?: "akashml" | "jev";
     isJevAvailable?: boolean;
@@ -388,6 +509,8 @@ describe(FeedbackClassificationService.name, () => {
     assistantConversationRepository.findById.mockResolvedValue(input.conversation);
     const assistantMessageRepository = mock<AssistantMessageRepository>();
     assistantMessageRepository.findAllOf.mockResolvedValue(input.messages ?? []);
+    const assistantProblemReportRepository = mock<AssistantProblemReportRepository>();
+    assistantProblemReportRepository.findById.mockResolvedValue(input.problemReport);
     const feedbackThemeRepository = mock<FeedbackThemeRepository>();
     const feedbackThemeAssignmentService = mock<FeedbackThemeAssignmentService>();
     const feedbackThemeScoreService = mock<FeedbackThemeScoreService>();
@@ -407,6 +530,7 @@ describe(FeedbackClassificationService.name, () => {
       feedbackSubmissionRepository,
       assistantConversationRepository,
       assistantMessageRepository,
+      assistantProblemReportRepository,
       feedbackThemeRepository,
       feedbackThemeAssignmentService,
       feedbackThemeScoreService,
@@ -422,6 +546,7 @@ describe(FeedbackClassificationService.name, () => {
       feedbackSubmissionRepository,
       assistantConversationRepository,
       assistantMessageRepository,
+      assistantProblemReportRepository,
       feedbackThemeRepository,
       feedbackThemeAssignmentService,
       feedbackThemeScoreService,

@@ -219,7 +219,7 @@ export class AssistantTurnService {
             ? { outcome: "answered", finishReason: completion.finishReason }
             : await this.#answerNow(turn, messages, answer, abort, trace.builder, emit);
           await this.#recordAnswer(turn, answer);
-          await this.#done(turn, shownText(), ending.finishReason === "length" ? "length" : "stop", emit);
+          await this.#done(turn, trace, shownText(), ending.finishReason === "length" ? "length" : "stop", emit);
           return ending.outcome;
         }
 
@@ -229,13 +229,13 @@ export class AssistantTurnService {
         if (clientToolCalls.length > 0) {
           await this.#pause(turn, messages, clientToolCalls, round + 1, shownText());
           await this.#recordAnswer(turn, answer);
-          await this.#done(turn, shownText(), "awaiting_client_tool", emit);
+          await this.#done(turn, trace, shownText(), "awaiting_client_tool", emit);
           return "awaiting_browser";
         }
       }
     } catch (error) {
       if (signal.aborted) return "cancelled";
-      if (deadline.aborted) return await this.#endTimedOutTurn(turn, messages, { streamedText, shownText }, round, emit);
+      if (deadline.aborted) return await this.#endTimedOutTurn(turn, trace, messages, { streamedText, shownText }, round, emit);
 
       return await this.#endFailedTurn(error, emit);
     }
@@ -297,6 +297,7 @@ export class AssistantTurnService {
   /** A turn that runs out of time still answers with what it read, since an error would hide reads the user already saw as chips. */
   async #endTimedOutTurn(
     turn: AssistantTurn,
+    trace: TurnTrace,
     messages: ChatMessage[],
     { streamedText, shownText }: ShownText,
     round: number,
@@ -307,15 +308,23 @@ export class AssistantTurnService {
     const streamedBefore = streamedText();
     await textDeltaEmitter(emit, streamedBefore.length > 0)(fallback);
     await this.#recordAnswer(turn, streamedBefore ? [streamedBefore, fallback] : [fallback]);
-    await this.#done(turn, shownText(), "stop", emit);
+    await this.#done(turn, trace, shownText(), "stop", emit);
     return "timed_out";
   }
 
-  async #done(turn: AssistantTurn, shownText: string, reason: "stop" | "length" | "awaiting_client_tool", emit: EmitAssistantEvent): Promise<void> {
-    if (!shownText.trim()) return await emit({ type: "done", reason });
+  async #done(
+    turn: AssistantTurn,
+    trace: TurnTrace,
+    shownText: string,
+    reason: "stop" | "length" | "awaiting_client_tool",
+    emit: EmitAssistantEvent
+  ): Promise<void> {
+    const turnId = await trace.provisionalId;
+    const done = { type: "done" as const, reason, ...(turnId && { turnId }) };
+    if (!shownText.trim()) return await emit(done);
 
     const answerSignature = this.answerSigner.sign({ userId: turn.userId, conversationId: turn.conversationId, text: shownText });
-    await emit({ type: "done", reason, answerSignature });
+    await emit({ ...done, answerSignature });
   }
 
   async #complete(

@@ -5,11 +5,13 @@ import { type CreateLogger, type EnqueueOptions, type Job, JOB_NAME, type JobHan
 import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import { AssistantConversationRepository } from "@src/feedback/repositories/assistant-conversation/assistant-conversation.repository";
 import { AssistantPendingTurnRepository } from "@src/feedback/repositories/assistant-pending-turn/assistant-pending-turn.repository";
+import { AssistantProblemReportRepository } from "@src/feedback/repositories/assistant-problem-report/assistant-problem-report.repository";
 import { AssistantTurnTraceRepository } from "@src/feedback/repositories/assistant-turn-trace/assistant-turn-trace.repository";
 import { FeedbackSubmissionRepository } from "@src/feedback/repositories/feedback-submission/feedback-submission.repository";
 import { AkashMlClient } from "@src/feedback/services/akashml-client/akashml.client";
 import { ClassifyConversation, classifyConversationOptionsFor } from "@src/feedback/services/classify-conversation/classify-conversation.handler";
 import { ClassifyFeedback, classifyFeedbackOptionsFor } from "@src/feedback/services/classify-feedback/classify-feedback.handler";
+import { ClassifyProblemReport, classifyProblemReportOptionsFor } from "@src/feedback/services/classify-problem-report/classify-problem-report.handler";
 import { FeedbackThemeScoreService } from "@src/feedback/services/feedback-theme-score/feedback-theme-score.service";
 
 export const SWEEP_FEEDBACK_INTERVAL_IN_HOURS = 1;
@@ -45,6 +47,7 @@ export class SweepFeedbackHandler implements JobHandler<SweepFeedback> {
     private readonly jobQueueService: JobQueueService,
     private readonly feedbackSubmissionRepository: FeedbackSubmissionRepository,
     private readonly assistantConversationRepository: AssistantConversationRepository,
+    private readonly assistantProblemReportRepository: AssistantProblemReportRepository,
     private readonly akashMlClient: AkashMlClient,
     private readonly feedbackThemeScoreService: FeedbackThemeScoreService,
     private readonly assistantPendingTurnRepository: AssistantPendingTurnRepository,
@@ -71,7 +74,7 @@ export class SweepFeedbackHandler implements JobHandler<SweepFeedback> {
     this.#logger.info({ event: "FEEDBACK_SWEPT", backfilled, rescored, expiredPendingTurns, deletedTurnTraces, abandonedTurnTraces });
   }
 
-  async #enqueueUnclassified(now: Date): Promise<{ submissions: number; conversations: number }> {
+  async #enqueueUnclassified(now: Date): Promise<{ submissions: number; conversations: number; problemReports: number }> {
     const submissionIds = await this.feedbackSubmissionRepository.findUnclassifiedIds(BACKFILL_BATCH_SIZE);
     for (const feedbackSubmissionId of submissionIds) {
       await this.jobQueueService.enqueue(new ClassifyFeedback({ feedbackSubmissionId }), classifyFeedbackOptionsFor(feedbackSubmissionId));
@@ -82,6 +85,11 @@ export class SweepFeedbackHandler implements JobHandler<SweepFeedback> {
       await this.jobQueueService.enqueue(new ClassifyConversation({ conversationId }), classifyConversationOptionsFor(conversationId));
     }
 
-    return { submissions: submissionIds.length, conversations: conversationIds.length };
+    const problemReportIds = await this.assistantProblemReportRepository.findUnclassifiedIds(BACKFILL_BATCH_SIZE);
+    for (const problemReportId of problemReportIds) {
+      await this.jobQueueService.enqueue(new ClassifyProblemReport({ problemReportId }), classifyProblemReportOptionsFor(problemReportId));
+    }
+
+    return { submissions: submissionIds.length, conversations: conversationIds.length, problemReports: problemReportIds.length };
   }
 }

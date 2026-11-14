@@ -4,6 +4,7 @@ import { mock } from "vitest-mock-extended";
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { TxService } from "@src/core/services/tx/tx.service";
 import type { AssistantConversationRepository } from "@src/feedback/repositories/assistant-conversation/assistant-conversation.repository";
+import type { AssistantProblemReportRepository } from "@src/feedback/repositories/assistant-problem-report/assistant-problem-report.repository";
 import type { AssistantTurnTraceRepository } from "@src/feedback/repositories/assistant-turn-trace/assistant-turn-trace.repository";
 import type { FeedbackSubmissionRepository } from "@src/feedback/repositories/feedback-submission/feedback-submission.repository";
 import type { FeedbackThemeRepository } from "@src/feedback/repositories/feedback-theme/feedback-theme.repository";
@@ -22,6 +23,19 @@ describe(FeedbackErasureService.name, () => {
       expect(assistantConversationRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "delete");
       expect(assistantConversationRepository.deleteAllOf).toHaveBeenCalledWith(user.id);
       expect(feedbackThemeRepository.refreshCounts).toHaveBeenCalledWith(["theme-1", "theme-2"]);
+    });
+
+    it("deletes the user's problem reports as their ability allows and recounts the themes they fed", async () => {
+      const { service, user, authService, assistantProblemReportRepository, feedbackThemeRepository } = setup({
+        deletedConversations: { deletedCount: 1, themeIds: ["theme-1"] },
+        deletedReportThemeIds: ["theme-3"]
+      });
+
+      await service.eraseOwnConversations();
+
+      expect(assistantProblemReportRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "delete");
+      expect(assistantProblemReportRepository.deleteAllOf).toHaveBeenCalledWith(user.id);
+      expect(feedbackThemeRepository.refreshCounts).toHaveBeenCalledWith(["theme-1", "theme-3"]);
     });
 
     it("erases the user's turn traces with their conversations", async () => {
@@ -59,10 +73,11 @@ describe(FeedbackErasureService.name, () => {
   });
 
   describe("eraseAccountFeedback", () => {
-    it("deletes the account's submissions and conversations and recounts every theme they fed", async () => {
-      const { service, assistantConversationRepository, feedbackSubmissionRepository, feedbackThemeRepository } = setup({
+    it("deletes the account's submissions, conversations and problem reports and recounts every theme they fed", async () => {
+      const { service, assistantConversationRepository, assistantProblemReportRepository, feedbackSubmissionRepository, feedbackThemeRepository } = setup({
         deletedSubmissionThemeIds: ["theme-1"],
-        deletedConversations: { deletedCount: 1, themeIds: ["theme-2"] }
+        deletedConversations: { deletedCount: 1, themeIds: ["theme-2"] },
+        deletedReportThemeIds: ["theme-3"]
       });
 
       await service.eraseAccountFeedback("user-1");
@@ -70,7 +85,9 @@ describe(FeedbackErasureService.name, () => {
       expect(feedbackSubmissionRepository.deleteAllOf).toHaveBeenCalledWith("user-1");
       expect(assistantConversationRepository.deleteAllOf).toHaveBeenCalledWith("user-1");
       expect(assistantConversationRepository.accessibleBy).not.toHaveBeenCalled();
-      expect(feedbackThemeRepository.refreshCounts).toHaveBeenCalledWith(["theme-1", "theme-2"]);
+      expect(assistantProblemReportRepository.deleteAllOf).toHaveBeenCalledWith("user-1");
+      expect(assistantProblemReportRepository.accessibleBy).not.toHaveBeenCalled();
+      expect(feedbackThemeRepository.refreshCounts).toHaveBeenCalledWith(["theme-1", "theme-2", "theme-3"]);
     });
 
     it("erases turn traces when the account's feedback is erased", async () => {
@@ -100,13 +117,18 @@ describe(FeedbackErasureService.name, () => {
     });
   });
 
-  function setup(input: { deletedSubmissionThemeIds?: string[]; deletedConversations?: { deletedCount: number; themeIds: string[] } } = {}) {
+  function setup(
+    input: { deletedSubmissionThemeIds?: string[]; deletedConversations?: { deletedCount: number; themeIds: string[] }; deletedReportThemeIds?: string[] } = {}
+  ) {
     const user = createUser();
     const feedbackSubmissionRepository = mock<FeedbackSubmissionRepository>();
     feedbackSubmissionRepository.deleteAllOf.mockResolvedValue(input.deletedSubmissionThemeIds ?? []);
     const assistantConversationRepository = mock<AssistantConversationRepository>();
     assistantConversationRepository.accessibleBy.mockReturnValue(assistantConversationRepository);
     assistantConversationRepository.deleteAllOf.mockResolvedValue(input.deletedConversations ?? { deletedCount: 0, themeIds: [] });
+    const assistantProblemReportRepository = mock<AssistantProblemReportRepository>();
+    assistantProblemReportRepository.accessibleBy.mockReturnValue(assistantProblemReportRepository);
+    assistantProblemReportRepository.deleteAllOf.mockResolvedValue(input.deletedReportThemeIds ?? []);
     const feedbackThemeRepository = mock<FeedbackThemeRepository>();
     const assistantTurnTraceRepository = mock<AssistantTurnTraceRepository>();
     const authService = mock<AuthService>({ currentUser: user });
@@ -116,6 +138,7 @@ describe(FeedbackErasureService.name, () => {
     const service = new FeedbackErasureService(
       feedbackSubmissionRepository,
       assistantConversationRepository,
+      assistantProblemReportRepository,
       feedbackThemeRepository,
       assistantTurnTraceRepository,
       authService,
@@ -129,6 +152,7 @@ describe(FeedbackErasureService.name, () => {
       txService,
       feedbackSubmissionRepository,
       assistantConversationRepository,
+      assistantProblemReportRepository,
       feedbackThemeRepository,
       assistantTurnTraceRepository
     };

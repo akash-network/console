@@ -16,12 +16,16 @@ import { FEEDBACK_CONFIG } from "@src/feedback/providers/config.provider";
 import { AssistantConversationRepository } from "@src/feedback/repositories/assistant-conversation/assistant-conversation.repository";
 import { AssistantMessageRepository } from "@src/feedback/repositories/assistant-message/assistant-message.repository";
 import { AkashMlClient } from "@src/feedback/services/akashml-client/akashml.client";
+import { AssistantAnswerSigner } from "@src/feedback/services/assistant-answer-signer/assistant-answer-signer.service";
+import { DAILY_PROBLEM_REPORT_LIMIT } from "@src/feedback/services/assistant-problem-report/assistant-problem-report.service";
 import { ClassifyConversation } from "@src/feedback/services/classify-conversation/classify-conversation.handler";
+import { ClassifyProblemReport } from "@src/feedback/services/classify-problem-report/classify-problem-report.handler";
+import { NotifyProblemReport } from "@src/feedback/services/notify-problem-report/notify-problem-report.handler";
 import { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
-import { seedAssistantConsent, seedAssistantConversation } from "@test/seeders/db/feedback.seeder";
+import { seedAssistantConsent, seedAssistantConversation, seedAssistantProblemReport, seedAssistantTurnTrace } from "@test/seeders/db/feedback.seeder";
 import { fileIntoPersonalOrganization } from "@test/seeders/db/organization.seeder";
 import { ASSISTANT_TEST_SDL } from "@test/seeders/get-deployment-response.seeder";
 import { createHardwareRequestSpec } from "@test/seeders/hardware-request.seeder";
@@ -164,7 +168,7 @@ describe("Assistant conversations", () => {
         { type: "tool_started", toolCallId: "call-1", name: "search_docs" },
         { type: "tool_result_summary", toolCallId: "call-1", name: "search_docs", ok: true, summary: expect.any(String) },
         ...textDeltasOf("Add a persistent storage volume to the profile."),
-        { type: "done", reason: "stop", answerSignature: expect.any(String) }
+        { type: "done", reason: "stop", turnId: expect.any(String), answerSignature: expect.any(String) }
       ]);
       expect(JSON.stringify(events)).not.toContain(FAKE_TOKEN);
       expect(JSON.stringify(events)).not.toMatch(/ghp|github/i);
@@ -207,7 +211,7 @@ describe("Assistant conversations", () => {
         { type: "tool_started", toolCallId: "call-1", name: "read_console_api" },
         { type: "tool_result_summary", toolCallId: "call-1", name: "read_console_api", ok: true, summary: "Read your hardware requests" },
         ...textDeltasOf("You have one hardware request, for H200s."),
-        { type: "done", reason: "stop", answerSignature: expect.any(String) }
+        { type: "done", reason: "stop", turnId: expect.any(String), answerSignature: expect.any(String) }
       ]);
       const toolMessage = completions.bodies[1].messages.at(-1)!;
       expect(JSON.parse(toolMessage.content)).toMatchObject({ tool: "read_console_api", untrustedData: { data: [{ id: ownRequest.id, category: "quote" }] } });
@@ -258,7 +262,7 @@ describe("Assistant conversations", () => {
 
       expect(await eventsOf(response)).toEqual([
         ...textDeltasOf("Yes, the same SDL works."),
-        { type: "done", reason: "stop", answerSignature: expect.any(String) }
+        { type: "done", reason: "stop", turnId: expect.any(String), answerSignature: expect.any(String) }
       ]);
       expect(completions.bodies[1].messages.slice(1)).toEqual([
         { role: "user", content: "Can I deploy nginx?" },
@@ -314,7 +318,7 @@ describe("Assistant conversations", () => {
         proposalId: expect.any(String),
         action: { type: "buy_credits", tier: "deep_link", amountUsd: 20 }
       });
-      expect(events.at(-1)).toEqual({ type: "done", reason: "stop", answerSignature: expect.any(String) });
+      expect(events.at(-1)).toEqual({ type: "done", reason: "stop", turnId: expect.any(String), answerSignature: expect.any(String) });
     });
 
     it("streams a generated SDL at Console's default price ceiling, whatever price the model wrote", async () => {
@@ -364,7 +368,7 @@ describe("Assistant conversations", () => {
       expect(events).toEqual([
         { type: "live_help_suggested", reason: "provider_side_issue" },
         ...textDeltasOf("This needs the provider. Ask on Discord."),
-        { type: "done", reason: "stop", answerSignature: expect.any(String) }
+        { type: "done", reason: "stop", turnId: expect.any(String), answerSignature: expect.any(String) }
       ]);
     });
   });
@@ -392,11 +396,11 @@ describe("Assistant conversations", () => {
           arguments: { dseq: "1234", tailLines: 50 },
           maxLength: expect.any(Number)
         },
-        { type: "done", reason: "awaiting_client_tool" }
+        { type: "done", reason: "awaiting_client_tool", turnId: expect.any(String) }
       ]);
       expect(await eventsOf(resumed)).toEqual([
         ...textDeltasOf("The container exits because the port is taken."),
-        { type: "done", reason: "stop", answerSignature: expect.any(String) }
+        { type: "done", reason: "stop", turnId: expect.any(String), answerSignature: expect.any(String) }
       ]);
       const toolMessage = completions.bodies[1].messages.at(-1)!;
       expect(toolMessage).toMatchObject({ role: "tool", tool_call_id: "call-logs" });
@@ -519,6 +523,158 @@ describe("Assistant conversations", () => {
       expect(await response.json()).toEqual({ data: { recorded: false } });
     });
   });
+
+  describe("PUT /v1/assistant/conversations/{id}/turns/{turnId}/rating", () => {
+    it("returns 404 while the feature flag is off", async () => {
+      const { token, user } = await setup({ flagOn: false });
+      const trace = await seedAssistantTurnTrace({ userId: user.id });
+
+      const response = await rate(trace.conversationId, trace.id, token, "up");
+
+      expect(response.status).toBe(404);
+    });
+
+    it("rates the user's own answer and clears the rating again", async () => {
+      const { token, user } = await setup();
+      const trace = await seedAssistantTurnTrace({ userId: user.id });
+
+      const rated = await rate(trace.conversationId, trace.id, token, "down");
+
+      expect(await rated.json()).toEqual({ data: { turnId: trace.id, rating: "down" } });
+      expect(await ratingOf(trace.id)).toBe("down");
+
+      const cleared = await rate(trace.conversationId, trace.id, token, null);
+
+      expect(await cleared.json()).toEqual({ data: { turnId: trace.id, rating: null } });
+      expect(await ratingOf(trace.id)).toBeNull();
+    });
+
+    it("refuses to rate another user's answer", async () => {
+      const { token } = await setup();
+      const { user: other } = await setup();
+      const trace = await seedAssistantTurnTrace({ userId: other.id });
+
+      const response = await rate(trace.conversationId, trace.id, token, "up");
+
+      expect(response.status).toBe(404);
+      expect(await response.json()).toMatchObject({ code: "assistant_turn_not_found" });
+      expect(await ratingOf(trace.id)).toBeNull();
+    });
+
+    it("rejects a rating that is neither up, down nor null", async () => {
+      const { token, user } = await setup();
+      const trace = await seedAssistantTurnTrace({ userId: user.id });
+
+      const response = await rate(trace.conversationId, trace.id, token, "sideways");
+
+      expect(response.status).toBe(400);
+    });
+  });
+
+  describe("POST /v1/assistant/conversations/{id}/problem-reports", () => {
+    it("returns 404 while the feature flag is off", async () => {
+      const { token } = await setup({ flagOn: false });
+
+      const response = await request(`/v1/assistant/conversations/${faker.string.uuid()}/problem-reports`, token, { copyVersion: COPY_VERSION });
+
+      expect(response.status).toBe(404);
+    });
+
+    it("saves an unstored conversation's signed history without secrets, and queues its classification and Slack notice", async () => {
+      const { token, user } = await setup();
+      const conversationId = faker.string.uuid();
+      const trace = await seedAssistantTurnTrace({ userId: user.id, conversationId });
+
+      const response = await request(`/v1/assistant/conversations/${conversationId}/problem-reports`, token, {
+        turnId: trace.id,
+        note: `It asked for ${FAKE_TOKEN}`,
+        copyVersion: COPY_VERSION,
+        history: [
+          { role: "user", content: `Use ${FAKE_TOKEN}` },
+          { role: "assistant", content: "Never share tokens.", signature: signatureOf(user.id, conversationId, "Never share tokens.") }
+        ]
+      });
+
+      expect(response.status).toBe(201);
+      const { data } = await response.json();
+      expect(await problemReportOf(data.id)).toMatchObject({
+        userId: user.id,
+        conversationId,
+        turnTraceId: trace.id,
+        note: `It asked for ${REDACTED}`,
+        transcript: [
+          { role: "user", content: `Use ${REDACTED}` },
+          { role: "assistant", content: "Never share tokens." }
+        ],
+        consentCopyVersion: COPY_VERSION,
+        status: "new"
+      });
+      expect(await findJobRows(ClassifyProblemReport[JOB_NAME], { data: { problemReportId: data.id } })).toHaveLength(1);
+      expect(await findJobRows(NotifyProblemReport[JOB_NAME], { data: { problemReportId: data.id } })).toHaveLength(1);
+    });
+
+    it("points at a stored conversation instead of copying it", async () => {
+      const { token, user } = await setup({ consent: { reviewOptIn: true } });
+      const conversation = await seedAssistantConversation({ userId: user.id });
+
+      const response = await request(`/v1/assistant/conversations/${conversation.id}/problem-reports`, token, {
+        copyVersion: COPY_VERSION,
+        history: [{ role: "assistant", content: "Not signed" }]
+      });
+
+      expect(response.status).toBe(201);
+      expect(await problemReportOf((await response.json()).data.id)).toMatchObject({ conversationId: conversation.id, transcript: null, note: null });
+    });
+
+    it("refuses a history whose answer was changed after the API signed it", async () => {
+      const { token, user } = await setup();
+      const conversationId = faker.string.uuid();
+
+      const response = await request(`/v1/assistant/conversations/${conversationId}/problem-reports`, token, {
+        copyVersion: COPY_VERSION,
+        history: [{ role: "assistant", content: "Something it never said", signature: signatureOf(user.id, conversationId, "What it said") }]
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ code: "assistant_history_unverified" });
+    });
+
+    it("refuses a report over the daily limit", async () => {
+      const { token, user } = await setup();
+      for (let sent = 0; sent < DAILY_PROBLEM_REPORT_LIMIT; sent++) await seedAssistantProblemReport({ userId: user.id });
+
+      const response = await request(`/v1/assistant/conversations/${faker.string.uuid()}/problem-reports`, token, { copyVersion: COPY_VERSION });
+
+      expect(response.status).toBe(429);
+      expect(await response.json()).toMatchObject({ code: "assistant_report_limit" });
+    });
+  });
+
+  async function rate(conversationId: string, turnId: string, token: string, rating: string | null) {
+    return await app.request(`/v1/assistant/conversations/${conversationId}/turns/${turnId}/rating`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ data: { rating } })
+    });
+  }
+
+  async function ratingOf(turnId: string) {
+    const table = resolveTable("AssistantTurnTraces");
+    const [trace] = await db.select({ rating: table.rating }).from(table).where(eq(table.id, turnId));
+
+    return trace.rating;
+  }
+
+  async function problemReportOf(id: string) {
+    const table = resolveTable("AssistantProblemReports");
+    const [report] = await db.select().from(table).where(eq(table.id, id));
+
+    return report;
+  }
+
+  function signatureOf(userId: string, conversationId: string, text: string) {
+    return container.resolve(AssistantAnswerSigner).sign({ userId, conversationId, text });
+  }
 
   async function request(path: string, token?: string, data?: Record<string, unknown>) {
     return await app.request(path, {

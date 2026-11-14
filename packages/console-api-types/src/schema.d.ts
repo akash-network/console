@@ -8278,6 +8278,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/assistant/conversations/{id}/turns/{turnId}/rating": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Rate one assistant answer up or down, or clear its rating */
+    put: operations["updateAssistantTurnRating"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/assistant/conversations/{id}/problem-reports": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Report a problem with the assistant's answers in this conversation */
+    post: operations["createAssistantProblemReport"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -20929,12 +20963,12 @@ export interface operations {
         "application/json": {
           data: {
             content: string;
-            /** @description The earlier messages of a conversation the API does not store, oldest first. Ignored for a stored conversation. */
+            /** @description The earlier messages of a conversation the API does not store, oldest first. An assistant message without a valid signature is left out. Ignored for a stored conversation. */
             history?: {
               /** @enum {string} */
               role: "user" | "assistant";
               content: string;
-              /** @description The `answerSignature` the API sent with this answer. An assistant message without a valid one is left out. */
+              /** @description The `answerSignature` the API sent with this answer */
               signature?: string;
             }[];
             context?: {
@@ -21390,6 +21424,11 @@ export interface operations {
                 reason: "stop" | "length" | "awaiting_client_tool";
                 /** @description Signs the answer's text so far, up to its first 8000 characters, which is all the client sends back with this answer in `history` */
                 answerSignature?: string;
+                /**
+                 * Format: uuid
+                 * @description Identifies this turn, to rate it or report a problem with it
+                 */
+                turnId?: string;
               }
             | {
                 /** @enum {string} */
@@ -21907,6 +21946,11 @@ export interface operations {
                 reason: "stop" | "length" | "awaiting_client_tool";
                 /** @description Signs the answer's text so far, up to its first 8000 characters, which is all the client sends back with this answer in `history` */
                 answerSignature?: string;
+                /**
+                 * Format: uuid
+                 * @description Identifies this turn, to rate it or report a problem with it
+                 */
+                turnId?: string;
               }
             | {
                 /** @enum {string} */
@@ -22089,6 +22133,150 @@ export interface operations {
       };
       /** @description `assistant_proposal_not_found` when the stored conversation holds no such proposal */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  updateAssistantTurnRating: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+        turnId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data: {
+            /**
+             * @description `null` clears the rating
+             * @enum {string|null}
+             */
+            rating: "up" | "down" | null;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description The rating the turn now has */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              turnId: string;
+              /** @enum {string|null} */
+              rating: "up" | "down" | null;
+            };
+          };
+        };
+      };
+      /** @description Invalid request body */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description `assistant_turn_not_found` when the user has no such turn in this conversation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  createAssistantProblemReport: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data: {
+            /**
+             * Format: uuid
+             * @description The `turnId` of the answer the user reported, from its `done` event
+             */
+            turnId?: string;
+            note?: string;
+            /** @description The version of the report consent line the client showed */
+            copyVersion: string;
+            /** @description The messages of a conversation the API does not store, oldest first. Every assistant message needs its valid signature. Ignored for a stored conversation. */
+            history?: {
+              /** @enum {string} */
+              role: "user" | "assistant";
+              content: string;
+              /** @description The `answerSignature` the API sent with this answer */
+              signature?: string;
+            }[];
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description The report */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+            };
+          };
+        };
+      };
+      /** @description Invalid request body, or `assistant_history_unverified` when an assistant message in `history` fails its signature check */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description `assistant_report_limit` when the user sent too many reports today */
+      429: {
         headers: {
           [name: string]: unknown;
         };

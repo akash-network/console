@@ -832,6 +832,28 @@ describe(AssistantConversationService.name, () => {
     });
   });
 
+  describe("rateTurn", () => {
+    const TURN_ID = "0e9d1c52-3f2a-4f7e-8b6c-5a4d3c2b1a00";
+
+    it.each(["up", "down", null] as const)("sets the rating of the user's own turn to %s", async rating => {
+      const { service, traceRepository } = setup();
+      traceRepository.rate.mockResolvedValue(true);
+
+      expect(await service.rateTurn(CONVERSATION_ID, TURN_ID, { rating })).toEqual({ turnId: TURN_ID, rating });
+      expect(traceRepository.rate).toHaveBeenCalledWith({ id: TURN_ID, userId: "user-1", conversationId: CONVERSATION_ID, rating });
+    });
+
+    it("answers 404 when the user has no such turn in the conversation", async () => {
+      const { service, traceRepository } = setup();
+      traceRepository.rate.mockResolvedValue(false);
+
+      await expect(service.rateTurn(CONVERSATION_ID, TURN_ID, { rating: "up" })).rejects.toMatchObject({
+        status: 404,
+        errorCode: "assistant_turn_not_found"
+      });
+    });
+  });
+
   function pendingTurn(state: Partial<AssistantPendingTurnOutput["state"]>): AssistantPendingTurnOutput {
     return {
       conversationId: CONVERSATION_ID,

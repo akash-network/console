@@ -883,6 +883,22 @@ export const operations = {
       pathParams: ["id"],
       queryParams: [],
       hasBody: true
+    },
+    updateAssistantTurnRating: {
+      path: "/v1/assistant/conversations/{id}/turns/{turnId}/rating",
+      method: "put",
+      operationId: "updateAssistantTurnRating",
+      pathParams: ["id", "turnId"],
+      queryParams: [],
+      hasBody: true
+    },
+    createAssistantProblemReport: {
+      path: "/v1/assistant/conversations/{id}/problem-reports",
+      method: "post",
+      operationId: "createAssistantProblemReport",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: true
     }
   },
   v2: {

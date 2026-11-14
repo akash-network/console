@@ -36,6 +36,8 @@ import { RecordUserGpuBidsHandler } from "@src/deployment/services/record-user-g
 import { ScreenUserGpuDeploymentHandler } from "@src/deployment/services/screen-user-gpu-deployment/screen-user-gpu-deployment.handler";
 import { ClassifyConversationHandler } from "@src/feedback/services/classify-conversation/classify-conversation.handler";
 import { ClassifyFeedbackHandler } from "@src/feedback/services/classify-feedback/classify-feedback.handler";
+import { ClassifyProblemReportHandler } from "@src/feedback/services/classify-problem-report/classify-problem-report.handler";
+import { NotifyProblemReportHandler } from "@src/feedback/services/notify-problem-report/notify-problem-report.handler";
 import { SweepFeedbackHandler } from "@src/feedback/services/sweep-feedback/sweep-feedback.handler";
 import { HardwareRequestAcceptedNoticeHandler } from "@src/hardware-request/services/hardware-request-accepted-notice/hardware-request-accepted-notice.handler";
 import { HardwareRequestApprovalRequestHandler } from "@src/hardware-request/services/hardware-request-approval-request/hardware-request-approval-request.handler";
@@ -162,6 +164,8 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(RecordUnmetGpuScreeningHandler),
     container.resolve(ClassifyFeedbackHandler),
     container.resolve(ClassifyConversationHandler),
+    container.resolve(ClassifyProblemReportHandler),
+    container.resolve(NotifyProblemReportHandler),
     container.resolve(SweepFeedbackHandler),
     container.resolve(SyncAffiliateCommissionHandler),
     container.resolve(ReverseDeletedPaymentCommissionHandler)

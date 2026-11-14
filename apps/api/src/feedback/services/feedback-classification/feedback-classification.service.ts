@@ -5,6 +5,7 @@ import { TxService } from "@src/core/services/tx/tx.service";
 import {
   buildClassificationMessages,
   classifyWithoutText,
+  type ConversationToClassify,
   FEEDBACK_CLASSIFICATION_SCHEMA,
   type FeedbackClassification,
   hasTextToClassify,
@@ -15,6 +16,10 @@ import type { FailedClassification } from "@src/feedback/model-schemas";
 import { FEEDBACK_CONFIG, type FeedbackConfig } from "@src/feedback/providers/config.provider";
 import { AssistantConversationRepository } from "@src/feedback/repositories/assistant-conversation/assistant-conversation.repository";
 import { AssistantMessageRepository } from "@src/feedback/repositories/assistant-message/assistant-message.repository";
+import {
+  type AssistantProblemReportOutput,
+  AssistantProblemReportRepository
+} from "@src/feedback/repositories/assistant-problem-report/assistant-problem-report.repository";
 import { FeedbackSubmissionRepository } from "@src/feedback/repositories/feedback-submission/feedback-submission.repository";
 import { FeedbackThemeRepository } from "@src/feedback/repositories/feedback-theme/feedback-theme.repository";
 import { AkashMlClient, AkashMlOutputError, type ChatMessage } from "@src/feedback/services/akashml-client/akashml.client";
@@ -39,6 +44,7 @@ interface ClassificationTarget {
 }
 
 export const MAX_CLASSIFICATION_ATTEMPTS = 5;
+export const PROBLEM_REPORT_NOTE_PREFIX = "Reported a problem with the assistant: ";
 
 function itemToMatchOf(classification: FeedbackClassification): ItemToMatch | null {
   return classification.type && classification.summary ? { type: classification.type, summary: classification.summary } : null;
@@ -53,6 +59,7 @@ export class FeedbackClassificationService {
     private readonly feedbackSubmissionRepository: FeedbackSubmissionRepository,
     private readonly assistantConversationRepository: AssistantConversationRepository,
     private readonly assistantMessageRepository: AssistantMessageRepository,
+    private readonly assistantProblemReportRepository: AssistantProblemReportRepository,
     private readonly feedbackThemeRepository: FeedbackThemeRepository,
     private readonly feedbackThemeAssignmentService: FeedbackThemeAssignmentService,
     private readonly feedbackThemeScoreService: FeedbackThemeScoreService,
@@ -104,6 +111,35 @@ export class FeedbackClassificationService {
     }
 
     await this.#classifyWithModel({ conversation: { ...conversation, messages } }, target);
+  }
+
+  /** A report reads as the conversation it points at followed by the user's note, so it lands in the same themes as conversations do. */
+  async classifyProblemReport(problemReportId: string): Promise<void> {
+    const report = await this.assistantProblemReportRepository.findById(problemReportId);
+    if (!report || report.classifiedAt || report.classificationFailedAt) return;
+
+    const target: ClassificationTarget = {
+      logContext: { problemReportId },
+      save: fields => this.assistantProblemReportRepository.updateById(problemReportId, fields),
+      recordFailure: maxAttempts => this.assistantProblemReportRepository.recordFailedClassification(problemReportId, maxAttempts)
+    };
+    if (!this.#isModelAvailable(target)) return;
+
+    const conversation = await this.#reportedConversationOf(report);
+
+    if (!conversation.messages.some(({ role }) => role === "user")) {
+      await this.#store(classifyWithoutText(null), null, target);
+      return;
+    }
+
+    await this.#classifyWithModel({ conversation }, target);
+  }
+
+  async #reportedConversationOf(report: AssistantProblemReportOutput): Promise<ConversationToClassify> {
+    const messages = report.transcript ?? (await this.assistantMessageRepository.findAllOf(report.conversationId));
+    const note = report.note ? [{ role: "user" as const, content: `${PROBLEM_REPORT_NOTE_PREFIX}${report.note}` }] : [];
+
+    return { status: "unresolved", resolvedByUser: null, context: { isTrialing: null }, messages: [...messages, ...note] };
   }
 
   #isModelAvailable(target: ClassificationTarget): boolean {

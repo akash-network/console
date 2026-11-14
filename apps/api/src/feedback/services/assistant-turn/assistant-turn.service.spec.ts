@@ -106,7 +106,7 @@ describe(AssistantTurnService.name, () => {
 
     expect(events).toEqual([
       { type: "text_delta", text: "Your deployment is live." },
-      { type: "done", reason: "stop", answerSignature: expect.any(String) }
+      { type: "done", reason: "stop", turnId: "trace-1", answerSignature: expect.any(String) }
     ]);
     expect(akashMlClient.streamChatCompletion).toHaveBeenCalledWith(
       {
@@ -164,7 +164,7 @@ describe(AssistantTurnService.name, () => {
       { type: "tool_result_summary", toolCallId: "c1", name: "get_deployment", ok: true, summary: "Read deployment 42" },
       { type: "text_delta", text: "\n\nIt is " },
       { type: "text_delta", text: "running." },
-      { type: "done", reason: "stop", answerSignature: expect.any(String) }
+      { type: "done", reason: "stop", turnId: "trace-1", answerSignature: expect.any(String) }
     ]);
     expect(transcriptService.record).toHaveBeenLastCalledWith("conversation-1", { role: "assistant", content: "Let me check.\n\nIt is running." });
   });
@@ -217,7 +217,7 @@ describe(AssistantTurnService.name, () => {
     const { akashMlClient, run } = setup();
     akashMlClient.streamChatCompletion.mockImplementation(streamed({ content: "Your deployment", finishReason: "length" }));
 
-    expect((await run({})).at(-1)).toEqual({ type: "done", reason: "length", answerSignature: expect.any(String) });
+    expect((await run({})).at(-1)).toEqual({ type: "done", reason: "length", turnId: "trace-1", answerSignature: expect.any(String) });
   });
 
   it("asks once more without tools when the model ends the turn with no visible answer, and stores that answer", async () => {
@@ -234,7 +234,7 @@ describe(AssistantTurnService.name, () => {
       tool_choice: "none"
     });
     expect(events.at(-2)).toEqual({ type: "text_delta", text: "\n\nIt closed with no bids. Ask me why." });
-    expect(events.at(-1)).toEqual({ type: "done", reason: "stop", answerSignature: expect.any(String) });
+    expect(events.at(-1)).toEqual({ type: "done", reason: "stop", turnId: "trace-1", answerSignature: expect.any(String) });
     expect(transcriptService.record).toHaveBeenCalledWith("conversation-1", { role: "assistant", content: "  \n\nIt closed with no bids. Ask me why." });
     expect(logger.info).toHaveBeenCalledWith({ event: "ASSISTANT_EMPTY_ANSWER_RECOVERED", recoveredBy: "answer_now" });
   });
@@ -258,7 +258,7 @@ describe(AssistantTurnService.name, () => {
     expect(akashMlClient.streamChatCompletion).toHaveBeenCalledTimes(3);
     expect(events.slice(-2)).toEqual([
       { type: "text_delta", text: answer },
-      { type: "done", reason: "stop", answerSignature: expect.any(String) }
+      { type: "done", reason: "stop", turnId: "trace-1", answerSignature: expect.any(String) }
     ]);
     expect(transcriptService.record).toHaveBeenLastCalledWith("conversation-1", { role: "assistant", content: answer });
     expect(logger.info).toHaveBeenCalledWith({ event: "ASSISTANT_EMPTY_ANSWER_RECOVERED", recoveredBy: "fallback" });
@@ -396,7 +396,7 @@ describe(AssistantTurnService.name, () => {
       { type: "tool_started", toolCallId: "c1", name: "get_deployment" },
       { type: "tool_result_summary", toolCallId: "c1", name: "get_deployment", ok: true, summary: "Read deployment 42" },
       { type: "text_delta", text: "\n\nIt is running." },
-      { type: "done", reason: "stop", answerSignature: expect.any(String) }
+      { type: "done", reason: "stop", turnId: "trace-1", answerSignature: expect.any(String) }
     ]);
     expect(akashMlClient.streamChatCompletion.mock.calls[1][0].messages).toEqual([
       { role: "user", content: "hi" },
@@ -443,7 +443,7 @@ describe(AssistantTurnService.name, () => {
       { type: "tool_result_summary", toolCallId: deployment.id, name: "get_deployment", ok: true, summary: "Read deployment 42" },
       { type: "tool_result_summary", toolCallId: bids.id, name: "get_bids", ok: true, summary: "Read bids" },
       { type: "text_delta", text: "It is running." },
-      { type: "done", reason: "stop", answerSignature: expect.any(String) }
+      { type: "done", reason: "stop", turnId: "trace-1", answerSignature: expect.any(String) }
     ]);
   });
 
@@ -649,7 +649,7 @@ describe(AssistantTurnService.name, () => {
     expect(events).toEqual([
       { type: "live_help_suggested", reason: "provider_side_issue" },
       { type: "text_delta", text: "Ask on Discord. What were you trying to do?" },
-      { type: "done", reason: "stop", answerSignature: expect.any(String) }
+      { type: "done", reason: "stop", turnId: "trace-1", answerSignature: expect.any(String) }
     ]);
     expect(akashMlClient.streamChatCompletion.mock.calls[1][0].messages).toContainEqual({ role: "tool", tool_call_id: "c1", content: '{"shownToUser":true}' });
     expect(transcriptService.record).toHaveBeenCalledWith("conversation-1", {
@@ -689,7 +689,7 @@ describe(AssistantTurnService.name, () => {
       { type: "client_tool_request", toolCallId: "c1", name: "read_logs", arguments: { dseq: "42", tailLines: 100 }, maxLength: 16_000 },
       { type: "tool_started", toolCallId: "c2", name: "get_deployment" },
       { type: "tool_result_summary", toolCallId: "c2", name: "get_deployment", ok: true, summary: "Read deployment 42" },
-      { type: "done", reason: "awaiting_client_tool", answerSignature: expect.any(String) }
+      { type: "done", reason: "awaiting_client_tool", turnId: "trace-1", answerSignature: expect.any(String) }
     ]);
     expect(pendingTurnRepository.hold).toHaveBeenCalledWith({
       conversationId: "conversation-1",
@@ -731,7 +731,7 @@ describe(AssistantTurnService.name, () => {
     expect(events.at(-2)).toEqual({ type: "text_delta", text: "\n\nstill checking" });
     expect(akashMlClient.streamChatCompletion.mock.calls.map(([request]) => request.tool_choice)).toEqual([...Array(MAX_TOOL_ROUNDS).fill("auto"), "none"]);
     expect(toolRunner.run).toHaveBeenCalledTimes(MAX_TOOL_ROUNDS);
-    expect(events.at(-1)).toEqual({ type: "done", reason: "stop", answerSignature: expect.any(String) });
+    expect(events.at(-1)).toEqual({ type: "done", reason: "stop", turnId: "trace-1", answerSignature: expect.any(String) });
   });
 
   it("counts the rounds a resumed turn already used", async () => {
@@ -834,7 +834,7 @@ describe(AssistantTurnService.name, () => {
     const fallback = "I read your deployments, but could not finish my answer. Next step: ask again in a shorter question, or ask on Discord for live help.";
     expect(events.slice(-2)).toEqual([
       { type: "text_delta", text: `\n\n${fallback}` },
-      { type: "done", reason: "stop", answerSignature: expect.any(String) }
+      { type: "done", reason: "stop", turnId: "trace-1", answerSignature: expect.any(String) }
     ]);
     expect(logger.warn).toHaveBeenCalledWith({ event: "ASSISTANT_TURN_TIMED_OUT", round: 1, timeoutMs: TURN_TIMEOUT_MS });
     expect(transcriptService.record).toHaveBeenLastCalledWith("conversation-1", { role: "assistant", content: `Let me check.\n\n${fallback}` });
@@ -859,7 +859,7 @@ describe(AssistantTurnService.name, () => {
       { type: "text_delta", text: "Your deployment " },
       { type: "text_delta", text: "is " },
       { type: "text_delta", text: `\n\n${fallback}` },
-      { type: "done", reason: "stop", answerSignature: expect.any(String) }
+      { type: "done", reason: "stop", turnId: "trace-1", answerSignature: expect.any(String) }
     ]);
     expect(transcriptService.record).toHaveBeenLastCalledWith("conversation-1", { role: "assistant", content: `Your deployment is \n\n${fallback}` });
   });
@@ -872,7 +872,7 @@ describe(AssistantTurnService.name, () => {
 
     expect(await run({ stored: true })).toEqual([
       { type: "text_delta", text: fallback },
-      { type: "done", reason: "stop", answerSignature: expect.any(String) }
+      { type: "done", reason: "stop", turnId: "trace-1", answerSignature: expect.any(String) }
     ]);
     expect(transcriptService.record).toHaveBeenLastCalledWith("conversation-1", { role: "assistant", content: fallback });
   });
@@ -886,6 +886,7 @@ describe(AssistantTurnService.name, () => {
     expect(events.at(-1)).toEqual({
       type: "done",
       reason: "stop",
+      turnId: "trace-1",
       answerSignature: signer.sign({ userId: "user-1", conversationId: "conversation-1", text: "Hello world" })
     });
   });
@@ -902,6 +903,7 @@ describe(AssistantTurnService.name, () => {
       {
         type: "done",
         reason: "stop",
+        turnId: "trace-1",
         answerSignature: signer.sign({ userId: "user-1", conversationId: "conversation-1", text: "Reading your logs.\n\nThe port is wrong." })
       }
     ]);
@@ -930,6 +932,7 @@ describe(AssistantTurnService.name, () => {
     expect(events.at(-1)).toEqual({
       type: "done",
       reason: "awaiting_client_tool",
+      turnId: "trace-1",
       answerSignature: signer.sign({ userId: "user-1", conversationId: "conversation-1", text: "Checking.\n\nReading logs." })
     });
   });
@@ -946,6 +949,7 @@ describe(AssistantTurnService.name, () => {
     expect(events.at(-1)).toEqual({
       type: "done",
       reason: "awaiting_client_tool",
+      turnId: "trace-1",
       answerSignature: signer.sign({ userId: "user-1", conversationId: "conversation-1", text: "Checking." })
     });
   });
@@ -968,6 +972,7 @@ describe(AssistantTurnService.name, () => {
     expect(events.at(-1)).toEqual({
       type: "done",
       reason: "stop",
+      turnId: "trace-1",
       answerSignature: signer.sign({ userId: "user-1", conversationId: "conversation-1", text: streamedText })
     });
   });
@@ -989,6 +994,7 @@ describe(AssistantTurnService.name, () => {
     expect(events.at(-1)).toEqual({
       type: "done",
       reason: "stop",
+      turnId: "trace-1",
       answerSignature: signer.sign({ userId: "user-1", conversationId: "conversation-1", text: `Reading your logs.\n\nThe port \n\n${fallback}` })
     });
   });
@@ -1010,6 +1016,7 @@ describe(AssistantTurnService.name, () => {
       {
         type: "done",
         reason: "stop",
+        turnId: "trace-1",
         answerSignature: signer.sign({ userId: "user-1", conversationId: "conversation-1", text: `Reading your logs.\n\n${fallback}` })
       }
     ]);
@@ -1024,7 +1031,7 @@ describe(AssistantTurnService.name, () => {
 
     const events = await run({});
 
-    expect(events.at(-1)).toEqual({ type: "done", reason: "awaiting_client_tool" });
+    expect(events.at(-1)).toEqual({ type: "done", reason: "awaiting_client_tool", turnId: "trace-1" });
     expect(pendingTurnRepository.hold).toHaveBeenCalledWith(expect.objectContaining({ state: expect.objectContaining({ shownText: "  " }) }));
   });
 
@@ -1153,7 +1160,7 @@ describe(AssistantTurnService.name, () => {
 
     const events = await run({});
 
-    expect(events.at(-1)).toEqual({ type: "done", reason: "stop", answerSignature: expect.any(String) });
+    expect(events.at(-1)).toEqual({ type: "done", reason: "stop", turnId: "trace-1", answerSignature: expect.any(String) });
     expect(traceRepository.finish).toHaveBeenCalledTimes(1);
     expect(traceRepository.finish.mock.calls[0][1]).toMatchObject({
       outcome: "timed_out",
@@ -1318,7 +1325,7 @@ describe(AssistantTurnService.name, () => {
     const events = await run({});
 
     expect(events).toContainEqual({ type: "action_proposal", proposalId: "p1", action });
-    expect(events.at(-1)).toEqual({ type: "done", reason: "stop", answerSignature: expect.any(String) });
+    expect(events.at(-1)).toEqual({ type: "done", reason: "stop", turnId: "trace-1", answerSignature: expect.any(String) });
     expect(logger.warn).toHaveBeenCalledWith({ event: "ASSISTANT_TURN_TRACE_FAILED", error });
     expect(traceRepository.finish).toHaveBeenCalledWith("trace-1", expect.objectContaining({ outcome: "answered" }));
   });
@@ -1356,11 +1363,11 @@ describe(AssistantTurnService.name, () => {
 
     await service.run(assistantTurn(), emit, new AbortController().signal);
 
-    expect(emit).toHaveBeenLastCalledWith({ type: "done", reason: "stop", answerSignature: expect.any(String) });
+    expect(emit).toHaveBeenLastCalledWith({ type: "done", reason: "stop", turnId: "trace-1", answerSignature: expect.any(String) });
     expect(traceRepository.finish.mock.invocationCallOrder[0]).toBeGreaterThan(emit.mock.invocationCallOrder.at(-1)!);
   });
 
-  it("still answers and logs ASSISTANT_TURN_TRACE_FAILED when the trace cannot be written", async () => {
+  it("still answers without a turn id and logs ASSISTANT_TURN_TRACE_FAILED when the trace cannot be written", async () => {
     const { akashMlClient, traceRepository, logger, run } = setup();
     const error = new Error("db down");
     akashMlClient.streamChatCompletion.mockImplementation(streamed({ content: "Your deployment is live." }));
@@ -1385,7 +1392,7 @@ describe(AssistantTurnService.name, () => {
 
     const events = await run({});
 
-    expect(events.at(-1)).toEqual({ type: "done", reason: "stop", answerSignature: expect.any(String) });
+    expect(events.at(-1)).toEqual({ type: "done", reason: "stop", turnId: "trace-1", answerSignature: expect.any(String) });
     expect(logger.warn).toHaveBeenCalledWith({ event: "ASSISTANT_TURN_TRACE_FAILED", error });
     expect(traceRepository.create).not.toHaveBeenCalled();
   });

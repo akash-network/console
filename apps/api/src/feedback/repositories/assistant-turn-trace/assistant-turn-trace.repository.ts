@@ -1,9 +1,9 @@
-import { and, eq, lt, sql } from "drizzle-orm";
+import { and, eq, lt, type SQL, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { TxService } from "@src/core/services";
-import type { TracedCard } from "@src/feedback/model-schemas/assistant-turn-trace/assistant-turn-trace.schema";
+import type { AssistantTurnOutcome, AssistantTurnRating, TracedCard } from "@src/feedback/model-schemas/assistant-turn-trace/assistant-turn-trace.schema";
 
 type Table = ApiPgTables["AssistantTurnTraces"];
 export type AssistantTurnTraceInput = Table["$inferInsert"];
@@ -11,6 +11,7 @@ export type AssistantTurnTraceResult = Pick<
   Required<AssistantTurnTraceInput>,
   "outcome" | "firstTokenMs" | "durationMs" | "promptTokens" | "completionTokens" | "toolCalls"
 >;
+export type ReportedTurn = { id: string; outcome: AssistantTurnOutcome; model: string };
 
 @singleton()
 export class AssistantTurnTraceRepository {
@@ -68,6 +69,32 @@ export class AssistantTurnTraceRepository {
       .returning({ id: this.table.id });
 
     return updated.length > 0;
+  }
+
+  async rate(input: { id: string; userId: string; conversationId: string; rating: AssistantTurnRating | null }): Promise<boolean> {
+    const rated = await this.#cursor
+      .update(this.table)
+      .set({ rating: input.rating })
+      .where(and(eq(this.table.id, input.id), eq(this.table.userId, input.userId), eq(this.table.conversationId, input.conversationId)))
+      .returning({ id: this.table.id });
+
+    return rated.length > 0;
+  }
+
+  async findTurnOf(input: { id: string; userId: string; conversationId: string }): Promise<ReportedTurn | undefined> {
+    return await this.#findTurnWhere(
+      and(eq(this.table.id, input.id), eq(this.table.userId, input.userId), eq(this.table.conversationId, input.conversationId))
+    );
+  }
+
+  async findTurnById(id: string): Promise<ReportedTurn | undefined> {
+    return await this.#findTurnWhere(eq(this.table.id, id));
+  }
+
+  async #findTurnWhere(where: SQL | undefined): Promise<ReportedTurn | undefined> {
+    const [turn] = await this.#cursor.select({ id: this.table.id, outcome: this.table.outcome, model: this.table.model }).from(this.table).where(where);
+
+    return turn;
   }
 
   async markAbandoned(startedBefore: Date): Promise<number> {

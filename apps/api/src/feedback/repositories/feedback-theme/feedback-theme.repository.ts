@@ -42,13 +42,14 @@ export class FeedbackThemeRepository extends BaseRepository<Table, FeedbackTheme
     return new FeedbackThemeRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
   }
 
-  /** Recounts the themes from the submissions and conversations still attached to them, so deleted items stop counting. */
+  /** Recounts the themes from the submissions, conversations and problem reports still attached to them, so deleted items stop counting. */
   async refreshCounts(themeIds: string[]): Promise<void> {
     const uniqueThemeIds = [...new Set(themeIds)];
     if (uniqueThemeIds.length === 0) return;
 
     const submissions = resolveTable("FeedbackSubmissions");
     const conversations = resolveTable("AssistantConversations");
+    const reports = resolveTable("AssistantProblemReports");
 
     await this.cursor.execute(sql`
       UPDATE ${this.table}
@@ -70,6 +71,8 @@ export class FeedbackThemeRepository extends BaseRepository<Table, FeedbackTheme
           SELECT ${submissions.themeId} AS theme_id, ${submissions.userId} AS user_id, ${submissions.createdAt} AS seen_at FROM ${submissions}
           UNION ALL
           SELECT ${conversations.themeId}, ${conversations.userId}, ${conversations.startedAt} FROM ${conversations}
+          UNION ALL
+          SELECT ${reports.themeId}, ${reports.userId}, ${reports.createdAt} FROM ${reports}
         ) AS item ON item.theme_id = theme.id
         WHERE theme.id IN ${uniqueThemeIds}
         GROUP BY theme.id
@@ -120,6 +123,7 @@ export class FeedbackThemeRepository extends BaseRepository<Table, FeedbackTheme
 
     const submissions = resolveTable("FeedbackSubmissions");
     const conversations = resolveTable("AssistantConversations");
+    const reports = resolveTable("AssistantProblemReports");
     const users = resolveTable("Users");
     const wallets = resolveTable("UserWallets");
 
@@ -158,6 +162,18 @@ export class FeedbackThemeRepository extends BaseRepository<Table, FeedbackTheme
           false
         FROM ${conversations}
         WHERE ${conversations.themeId} IN ${themeIds}
+        UNION ALL
+        SELECT
+          ${reports.themeId},
+          ${reports.userId},
+          ${reports.organizationId},
+          ${reports.createdAt},
+          NULL::int,
+          ${reports.sentimentScore},
+          ${reports.endedStuck},
+          false
+        FROM ${reports}
+        WHERE ${reports.themeId} IN ${themeIds}
       ) AS item
       LEFT JOIN ${users} ON ${users.id} = item.user_id
       LEFT JOIN ${wallets} AS personal_wallet ON personal_wallet.user_id = item.user_id

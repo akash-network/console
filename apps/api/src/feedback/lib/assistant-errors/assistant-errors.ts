@@ -9,7 +9,10 @@ export const ASSISTANT_ERROR_CODES = {
   conversationEnded: "assistant_conversation_ended",
   noPendingToolRequest: "assistant_no_pending_tool_request",
   toolResultsMismatch: "assistant_tool_results_mismatch",
-  proposalNotFound: "assistant_proposal_not_found"
+  proposalNotFound: "assistant_proposal_not_found",
+  turnNotFound: "assistant_turn_not_found",
+  historyUnverified: "assistant_history_unverified",
+  reportLimit: "assistant_report_limit"
 } as const;
 
 export function assistantDailyLimitReached() {
