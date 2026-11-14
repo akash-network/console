@@ -12,7 +12,6 @@ export type FeatureFlag =
   | "ui_configure_two_panel"
   | "account_deletion"
   | "ui_command_menu"
-  | "organizations"
   | "invoices"
   | "onboarding_intent_first"
   | "gpu_quote_requests"

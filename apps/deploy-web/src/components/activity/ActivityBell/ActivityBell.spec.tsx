@@ -55,11 +55,10 @@ describe(ActivityBell.name, () => {
   });
 
   it.each([
-    { case: "a signed-in user with organizations on", isSignedIn: true, isOrganizationsEnabled: true, enabled: true },
-    { case: "a signed-in user with organizations off", isSignedIn: true, isOrganizationsEnabled: false, enabled: false },
-    { case: "a signed-out visitor", isSignedIn: false, isOrganizationsEnabled: true, enabled: false }
-  ])("asks for invitations only for $case", ({ isSignedIn, isOrganizationsEnabled, enabled }) => {
-    const { useReceivedInvitationsQuery } = setup({ isSignedIn, isOrganizationsEnabled });
+    { case: "a signed-in user", isSignedIn: true, enabled: true },
+    { case: "a signed-out visitor", isSignedIn: false, enabled: false }
+  ])("asks for invitations only for $case", ({ isSignedIn, enabled }) => {
+    const { useReceivedInvitationsQuery } = setup({ isSignedIn });
 
     expect(useReceivedInvitationsQuery).toHaveBeenCalledWith({ enabled });
   });
@@ -362,7 +361,6 @@ describe(ActivityBell.name, () => {
 
       const dependencies: typeof DEPENDENCIES = {
         useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: buildUser() }),
-        useFlag: () => false,
         useActivityFeedQuery: DEPENDENCIES.useActivityFeedQuery,
         useReceivedInvitationsQuery: () => receivedInvitationsQueryOf([]),
         useDeploymentNames: () => mock<ReturnType<typeof DEPENDENCIES.useDeploymentNames>>({ getDeploymentName: () => null, isLoading: false }),
@@ -419,7 +417,6 @@ describe(ActivityBell.name, () => {
     feed?: "loading" | "failed";
     isRefreshFailing?: boolean;
     invitations?: ReceivedInvitationOutput[];
-    isOrganizationsEnabled?: boolean;
   }) {
     const markSeen = vi.fn();
     const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
@@ -442,7 +439,6 @@ describe(ActivityBell.name, () => {
 
     const dependencies: typeof DEPENDENCIES = {
       useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: input.isSignedIn === false ? undefined : buildUser() }),
-      useFlag: () => input.isOrganizationsEnabled ?? true,
       useActivityFeedQuery,
       useReceivedInvitationsQuery,
       useDeploymentNames,

@@ -15,7 +15,6 @@ import { AccountMutationGate } from "@src/components/user/AccountActionGate/Acco
 import { API_REFERENCE_URL } from "@src/config/agent-setup.config";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useServices } from "@src/context/ServicesProvider";
-import { useFlag } from "@src/hooks/useFlag";
 import { useProjectsUi } from "@src/hooks/useProjectsUi/useProjectsUi";
 import { useDeleteApiKey, useUserApiKeys } from "@src/queries/useApiKeysQuery";
 import { useProjectsQuery } from "@src/queries/useProjectsQuery";
@@ -33,7 +32,6 @@ export const DEPENDENCIES = {
   useUserApiKeys,
   useDeleteApiKey,
   useSnackbar,
-  useFlag,
   useActiveOrganization,
   useProjectsUi,
   useProjectsQuery,
@@ -49,12 +47,11 @@ export function ApiKeysPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
   const { enqueueSnackbar } = d.useSnackbar();
   const [isCreatingKey, setIsCreatingKey] = useState(false);
   const [apiKeyToRevoke, setApiKeyToRevoke] = useState<ApiKeyResponse | null>(null);
-  const isOrganizationsEnabled = d.useFlag("organizations");
   const { isEnabled: isProjectsUiEnabled } = d.useProjectsUi();
   const { activeOrganization } = d.useActiveOrganization();
   const { data: apiKeys, isLoading: isLoadingApiKeys, isError } = d.useUserApiKeys();
   const hasProjectBoundKey = !!apiKeys?.some(apiKey => apiKey.projectId);
-  const showsProjects = isProjectsUiEnabled || (isOrganizationsEnabled && hasProjectBoundKey);
+  const showsProjects = isProjectsUiEnabled || hasProjectBoundKey;
   const { data: projects, isLoading: isLoadingProjects } = d.useProjectsQuery({ enabled: showsProjects });
   const isLoading = isLoadingApiKeys || isLoadingProjects;
   const listedProjects = showsProjects ? projects : undefined;

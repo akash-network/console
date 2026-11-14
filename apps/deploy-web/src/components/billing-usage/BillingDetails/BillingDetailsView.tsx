@@ -36,10 +36,8 @@ export const BillingDetailsView: FC<Props> = ({ dependencies: d = DEPENDENCIES }
 
 const BillingDetailsCard: FC<Required<Props>> = ({ dependencies: d }) => {
   const { data: billingDetails, isLoading, isError } = d.useBillingDetailsQuery();
-  const isOrganizationsEnabled = d.useFlag("organizations");
   const { activeOrganization } = d.useActiveOrganization();
-  const organization = isOrganizationsEnabled ? activeOrganization : undefined;
-  const canEdit = !organization || canManageBilling(organization.role);
+  const canEdit = !activeOrganization || canManageBilling(activeOrganization.role);
   const [isEditing, setIsEditing] = useState(false);
   const hasDetails = !!(billingDetails?.legalName || billingDetails?.companyName || billingDetails?.address || billingDetails?.taxId);
 

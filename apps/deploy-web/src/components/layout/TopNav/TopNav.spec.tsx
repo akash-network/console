@@ -146,8 +146,8 @@ describe(TopNav.name, () => {
     expect(screen.getByRole("link", { name: "Providers" })).not.toHaveAttribute("aria-current");
   });
 
-  it("leads with Projects once organizations are on and the organization uses projects", () => {
-    setup({ isAuthenticated: true, isOrganizationsEnabled: true, projectsEnabled: true, pathname: "/projects/p1" });
+  it("leads with Projects when the organization uses projects", () => {
+    setup({ isAuthenticated: true, projectsEnabled: true, pathname: "/projects/p1" });
 
     const links = screen.getByRole("navigation", { name: "Primary" }).querySelectorAll("a");
     expect(links[0]).toHaveTextContent("Projects");
@@ -155,14 +155,8 @@ describe(TopNav.name, () => {
     expect(links[0]).toHaveAttribute("aria-current", "page");
   });
 
-  it("leaves Projects out while organizations are off", () => {
-    setup({ isAuthenticated: true, isOrganizationsEnabled: false, projectsEnabled: true });
-
-    expect(screen.queryByRole("link", { name: "Projects" })).not.toBeInTheDocument();
-  });
-
   it("leaves Projects out for an organization that does not use projects", () => {
-    setup({ isAuthenticated: true, isOrganizationsEnabled: true, projectsEnabled: false });
+    setup({ isAuthenticated: true, projectsEnabled: false });
 
     expect(screen.queryByRole("link", { name: "Projects" })).not.toBeInTheDocument();
   });
@@ -180,48 +174,41 @@ describe(TopNav.name, () => {
   });
 
   describe("organizations", () => {
-    it("leaves the switcher and the create entry out while organizations are off", () => {
-      const { accountMenu, organizationSwitcher } = setup({ isAuthenticated: true, isOrganizationsEnabled: false });
-
-      expect(organizationSwitcher).not.toHaveBeenCalled();
-      expect(accountMenu.mock.calls[0][0]).toEqual(expect.objectContaining({ onCreateOrganization: undefined }));
-    });
-
-    it("adds the switcher to the header for a signed-in user when organizations are on", () => {
-      const { organizationSwitcher } = setup({ isAuthenticated: true, isOrganizationsEnabled: true });
+    it("adds the switcher to the header for a signed-in user", () => {
+      const { organizationSwitcher } = setup({ isAuthenticated: true });
 
       expect(organizationSwitcher).toHaveBeenCalled();
       expect(organizationSwitcher.mock.calls[0][0]).not.toHaveProperty("layout");
     });
 
     it("keeps the switcher in the reduced onboarding header, on phones too", () => {
-      const { organizationSwitcher } = setup({ isAuthenticated: true, isOrganizationsEnabled: true, minimal: true });
+      const { organizationSwitcher } = setup({ isAuthenticated: true, minimal: true });
 
       expect(organizationSwitcher).toHaveBeenCalledOnce();
       expect(screen.getByRole("button", { name: "Switch organization" }).closest(".hidden")).toBeNull();
     });
 
     it("leaves organization creation out of the onboarding header's switcher so it only shows to team members", () => {
-      const { organizationSwitcher } = setup({ isAuthenticated: true, isOrganizationsEnabled: true, minimal: true });
+      const { organizationSwitcher } = setup({ isAuthenticated: true, minimal: true });
 
       expect(organizationSwitcher.mock.calls[0][0]).toEqual(expect.objectContaining({ onCreateOrganization: undefined }));
     });
 
     it("keeps the header switcher visible at every width, next to the copy in the mobile menu", () => {
-      const { organizationSwitcher } = setup({ isAuthenticated: true, isOrganizationsEnabled: true });
+      const { organizationSwitcher } = setup({ isAuthenticated: true });
 
       expect(screen.getByRole("button", { name: "Switch organization" }).closest(".hidden")).toBeNull();
       expect(organizationSwitcher.mock.calls[0][0]).not.toHaveProperty("layout");
     });
 
     it("leaves the switcher out for a signed-out visitor", () => {
-      const { organizationSwitcher } = setup({ isAuthenticated: false, isOrganizationsEnabled: true });
+      const { organizationSwitcher } = setup({ isAuthenticated: false });
 
       expect(organizationSwitcher).not.toHaveBeenCalled();
     });
 
     it("puts the switcher at the top of the mobile menu", async () => {
-      const { organizationSwitcher } = setup({ isAuthenticated: true, isOrganizationsEnabled: true });
+      const { organizationSwitcher } = setup({ isAuthenticated: true });
 
       await userEvent.click(screen.getByRole("button", { name: "Open navigation menu" }));
 
@@ -231,7 +218,7 @@ describe(TopNav.name, () => {
     });
 
     it("opens the create organization dialog from the account menu and closes it again", async () => {
-      const { accountMenu } = setup({ isAuthenticated: true, isOrganizationsEnabled: true });
+      const { accountMenu } = setup({ isAuthenticated: true });
 
       act(() => accountMenu.mock.calls[0][0]?.onCreateOrganization?.());
 
@@ -241,7 +228,7 @@ describe(TopNav.name, () => {
     });
 
     it("opens the create organization dialog from the switcher", () => {
-      const { organizationSwitcher } = setup({ isAuthenticated: true, isOrganizationsEnabled: true });
+      const { organizationSwitcher } = setup({ isAuthenticated: true });
 
       act(() => organizationSwitcher.mock.calls[0][0].onCreateOrganization?.());
 
@@ -249,7 +236,7 @@ describe(TopNav.name, () => {
     });
 
     it("replays the release announcement from the account menu", () => {
-      const { accountMenu, openWhatsNew } = setup({ isAuthenticated: true, isOrganizationsEnabled: true });
+      const { accountMenu, openWhatsNew } = setup({ isAuthenticated: true });
 
       act(() => accountMenu.mock.calls[0][0]?.onOpenWhatsNew?.());
 
@@ -257,7 +244,7 @@ describe(TopNav.name, () => {
     });
 
     it("offers What's new in the mobile menu's account items", async () => {
-      const { accountMenu, openWhatsNew } = setup({ isAuthenticated: true, isOrganizationsEnabled: true });
+      const { accountMenu, openWhatsNew } = setup({ isAuthenticated: true });
 
       await userEvent.click(screen.getByRole("button", { name: "Open navigation menu" }));
       const inlineMenuProps = accountMenu.mock.calls.find(call => call[0]?.variant === "inline")?.[0];
@@ -266,22 +253,15 @@ describe(TopNav.name, () => {
       expect(openWhatsNew).toHaveBeenCalledWith("account_menu");
     });
 
-    it("leaves What's new out of the account menu while organizations are off", () => {
-      const { accountMenu } = setup({ isAuthenticated: true, isOrganizationsEnabled: false });
-
-      expect(accountMenu.mock.calls[0][0]).toEqual(expect.objectContaining({ onOpenWhatsNew: undefined }));
-    });
-
     it("lets the release announce itself from the full header of a signed-in user", () => {
-      const { whatsNewAutoOpen } = setup({ isAuthenticated: true, isOrganizationsEnabled: true });
+      const { whatsNewAutoOpen } = setup({ isAuthenticated: true });
 
       expect(whatsNewAutoOpen).toHaveBeenCalled();
     });
 
     it.each([
-      { case: "while organizations are off", isAuthenticated: true, isOrganizationsEnabled: false, minimal: false },
-      { case: "to a signed-out visitor", isAuthenticated: false, isOrganizationsEnabled: true, minimal: false },
-      { case: "during onboarding", isAuthenticated: true, isOrganizationsEnabled: true, minimal: true }
+      { case: "to a signed-out visitor", isAuthenticated: false, minimal: false },
+      { case: "during onboarding", isAuthenticated: true, minimal: true }
     ])("keeps the release from announcing itself $case", input => {
       const { whatsNewAutoOpen } = setup(input);
 
@@ -337,7 +317,6 @@ describe(TopNav.name, () => {
     minimal?: boolean;
     pathname?: string;
     isCommandMenuEnabled?: boolean;
-    isOrganizationsEnabled?: boolean;
     projectsEnabled?: boolean;
     isFeedbackLoopEnabled?: boolean;
     isAffiliateProgramEnabled?: boolean;
@@ -348,7 +327,6 @@ describe(TopNav.name, () => {
     const whatsNewAutoOpen = vi.fn<typeof DEPENDENCIES.WhatsNewAutoOpen>(() => null);
     const enabledFlags = {
       ui_command_menu: input.isCommandMenuEnabled ?? false,
-      organizations: input.isOrganizationsEnabled ?? false,
       user_feedback_loop: input.isFeedbackLoopEnabled ?? false,
       affiliate_program: input.isAffiliateProgramEnabled ?? false
     };

@@ -14,7 +14,6 @@ import { NotFoundPage } from "@src/components/shared/NotFoundPage/NotFoundPage";
 import { AccountSpendGate } from "@src/components/user/AccountActionGate/AccountActionGate";
 import { TOUR_TARGET } from "@src/components/whats-new/tourTargets";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
-import { useFlag } from "@src/hooks/useFlag";
 import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
 import { useOrganizationActivitiesQuery } from "@src/queries/useOrganizationActivitiesQuery";
 import { useProjectsQuery } from "@src/queries/useProjectsQuery";
@@ -29,7 +28,6 @@ import { SectionLabel } from "../SectionLabel/SectionLabel";
 import styles from "./ProjectsPage.module.css";
 
 export const DEPENDENCIES = {
-  useFlag,
   useRouter,
   useActiveOrganization,
   useProjectsQuery,
@@ -51,10 +49,8 @@ interface Props {
 
 /** An organization's projects as folders, most recently active first, next to what happened lately. */
 export function ProjectsPage({ dependencies: d = DEPENDENCIES }: Props) {
-  const isOrganizationsEnabled = d.useFlag("organizations");
   const { isLoading, projectsEnabled } = d.useActiveOrganization();
 
-  if (!isOrganizationsEnabled) return <d.NotFoundPage />;
   if (isLoading) return <d.Layout background="dots" isLoading disableContainer />;
   if (!projectsEnabled) return <d.NotFoundPage />;
   return <ProjectsPageContent dependencies={d} />;

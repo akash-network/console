@@ -25,14 +25,12 @@ export const DEPENDENCIES = { usePathname, useFlag, useActiveOrganization, useAf
  */
 export function useSettingsNavLinks({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES } = {}): SettingsNavLink[] {
   const pathname = d.usePathname();
-  const isOrganizationsEnabled = d.useFlag("organizations");
   const isAffiliateProgramEnabled = d.useFlag("affiliate_program");
   const { activeOrganization } = d.useActiveOrganization();
   const { data: affiliateProfile } = d.useAffiliateProfileQuery({ enabled: isAffiliateProgramEnabled });
-  const organization = isOrganizationsEnabled ? activeOrganization : undefined;
-  const showsGeneral = !!organization && hasGeneralSettingsPage(organization.type);
-  const showsMembers = !!organization && hasMembersPage(organization.type);
-  const showsBillingAndUsage = !organization || canViewBillingAndUsage(organization.role);
+  const showsGeneral = !!activeOrganization && hasGeneralSettingsPage(activeOrganization.type);
+  const showsMembers = !!activeOrganization && hasMembersPage(activeOrganization.type);
+  const showsBillingAndUsage = !activeOrganization || canViewBillingAndUsage(activeOrganization.role);
   const showsGpuRequests = d.useFlag("gpu_quote_requests");
   const showsReferrals = isAffiliateProgramEnabled && !!affiliateProfile;
 

@@ -60,16 +60,6 @@ describe(TransactionInvoiceButton.name, () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("ignores the team role while organizations are turned off", () => {
-    setup({
-      transaction: createMockTransaction({ type: "payment_intent", status: "succeeded", stripeInvoiceId: null }),
-      role: "admin",
-      isOrganizationsEnabled: false
-    });
-
-    expect(screen.getByRole("button", { name: "Get invoice" })).toBeInTheDocument();
-  });
-
   it("saves the invoice PDF in place, named after the payment date, without opening a tab", async () => {
     const created = new Date(2026, 9, 14, 12);
     const { transaction, mutateAsync, savedFiles, open, resolveInvoice } = setup({
@@ -106,13 +96,7 @@ describe(TransactionInvoiceButton.name, () => {
     expect(screen.getByRole("status")).toBeInTheDocument();
   });
 
-  function setup(input: {
-    transaction: ReturnType<typeof createMockTransaction>;
-    role?: OrganizationRole;
-    isInvoicesEnabled?: boolean;
-    isOrganizationsEnabled?: boolean;
-    isPending?: boolean;
-  }) {
+  function setup(input: { transaction: ReturnType<typeof createMockTransaction>; role?: OrganizationRole; isInvoicesEnabled?: boolean; isPending?: boolean }) {
     const activeOrganization: OrganizationOutput | undefined = input.role
       ? { id: "org-1", name: "Acme", slug: "acme", type: "team", role: input.role, isActive: true, hasPaymentMethod: true, createdAt: "2026-01-01T00:00:00Z" }
       : undefined;
@@ -125,7 +109,7 @@ describe(TransactionInvoiceButton.name, () => {
 
     const dependencies: typeof DEPENDENCIES = {
       useTransactionInvoiceMutation: () => mock<InvoiceMutation>({ mutateAsync, isPending: input.isPending ?? false }),
-      useFlag: flag => ({ invoices: input.isInvoicesEnabled ?? true, organizations: input.isOrganizationsEnabled ?? true })[flag as string] ?? false,
+      useFlag: flag => flag === "invoices" && (input.isInvoicesEnabled ?? true),
       useActiveOrganization: () => mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({ activeOrganization }),
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar })
     };

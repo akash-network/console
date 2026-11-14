@@ -8,9 +8,7 @@ import { useRouter } from "next/router";
 import { useSnackbar } from "notistack";
 
 import { BootLoading } from "@src/context/BootLoadingProvider/BootLoadingProvider";
-import { useFeatureFlagsReady } from "@src/context/FlagProvider/FlagProvider";
 import { useServices } from "@src/context/ServicesProvider";
-import { useFlag } from "@src/hooks/useFlag";
 import { useUser } from "@src/hooks/useUser";
 import { serializeActiveOrganizationCookie } from "@src/lib/active-organization/active-organization-cookie";
 import {
@@ -23,7 +21,7 @@ import { resetOrganizationScopedState } from "@src/store/organizationScopedState
 import type { OrganizationOutput } from "@src/types/organization";
 import { resolveOrganizationSwitchDestination } from "./organizationSwitchDestination";
 
-export const DEPENDENCIES = { useFlag, useFeatureFlagsReady, useUser, useOrganizationsQuery, useRouter, useQueryClient, useStore, useSnackbar, BootLoading };
+export const DEPENDENCIES = { useUser, useOrganizationsQuery, useRouter, useQueryClient, useStore, useSnackbar, BootLoading };
 
 export type SwitchOrganizationOptions = {
   /** Where to land after the switch instead of the page rule, e.g. the members page of a just-created organization. */
@@ -55,8 +53,6 @@ const WITHOUT_ORGANIZATIONS: ActiveOrganization = {
   projectsEnabled: false
 };
 
-const AWAITING_FEATURE_FLAGS: ActiveOrganization = { ...WITHOUT_ORGANIZATIONS, isLoading: true };
-
 const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 const OrganizationContext = React.createContext<ActiveOrganization>(WITHOUT_ORGANIZATIONS);
@@ -67,15 +63,13 @@ type Props = {
 };
 
 export function OrganizationProvider({ children, dependencies: d = DEPENDENCIES }: Props) {
-  const isEnabled = d.useFlag("organizations");
-  const areFeatureFlagsReady = d.useFeatureFlagsReady();
   const { user } = d.useUser();
   const router = d.useRouter();
   const queryClient = d.useQueryClient();
   const store = d.useStore();
   const { enqueueSnackbar } = d.useSnackbar();
   const { staleOrganizationRecovery, tabOrganization } = useServices();
-  const { data: loadedOrganizations, isLoading, isError } = d.useOrganizationsQuery({ enabled: isEnabled && !!user?.id });
+  const { data: loadedOrganizations, isLoading, isError } = d.useOrganizationsQuery({ enabled: !!user?.id });
   const [knownOrganizations, setKnownOrganizations] = useState<OrganizationOutput[]>([]);
   const [pendingSwitch, setPendingSwitch] = useState<PendingSwitch>();
   const [organizationScopeKey, setOrganizationScopeKey] = useState(0);
@@ -153,7 +147,7 @@ export function OrganizationProvider({ children, dependencies: d = DEPENDENCIES 
 
   useEffect(
     function applyOrganizationDeepLink() {
-      if (!isEnabled || !router.isReady || !loadedOrganizations || isAwaitingMemberships) return;
+      if (!router.isReady || !loadedOrganizations || isAwaitingMemberships) return;
 
       const requested = router.query[ACTIVE_ORGANIZATION_QUERY_PARAM];
       if (requested === undefined) {
@@ -181,21 +175,20 @@ export function OrganizationProvider({ children, dependencies: d = DEPENDENCIES 
         router.replace(urlWithoutParam, undefined, { shallow: true });
       }
     },
-    [isEnabled, router, loadedOrganizations, isAwaitingMemberships, switchOrganization, enqueueSnackbar]
+    [router, loadedOrganizations, isAwaitingMemberships, switchOrganization, enqueueSnackbar]
   );
 
-  const value = useMemo<ActiveOrganization>(() => {
-    if (!isEnabled) return areFeatureFlagsReady ? WITHOUT_ORGANIZATIONS : AWAITING_FEATURE_FLAGS;
-
-    return {
+  const value = useMemo<ActiveOrganization>(
+    () => ({
       organizations,
       activeOrganization,
       isLoading: isLoading && organizations.length === 0,
       isError: isError && organizations.length === 0,
       switchOrganization,
       projectsEnabled: !!activeOrganization
-    };
-  }, [isEnabled, areFeatureFlagsReady, organizations, activeOrganization, isLoading, isError, switchOrganization]);
+    }),
+    [organizations, activeOrganization, isLoading, isError, switchOrganization]
+  );
 
   useIsomorphicLayoutEffect(
     function actInTheShownOrganizationBeforeEffectsCallTheApi() {
@@ -204,7 +197,7 @@ export function OrganizationProvider({ children, dependencies: d = DEPENDENCIES 
     [tabOrganization, value.activeOrganization?.id]
   );
 
-  const isOpeningRequestedOrganization = isEnabled && isLoading && router.query[ACTIVE_ORGANIZATION_QUERY_PARAM] !== undefined;
+  const isOpeningRequestedOrganization = isLoading && router.query[ACTIVE_ORGANIZATION_QUERY_PARAM] !== undefined;
 
   return (
     <OrganizationContext.Provider value={value}>

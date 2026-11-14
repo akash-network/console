@@ -18,25 +18,18 @@ describe(useAccountDeletionEligibilityQuery.name, () => {
       teamsDeletedWithAccount: [{ id: "org-9", name: "Globex", activeDeploymentCount: 0, forfeitableBalanceUsd: 12.5 }],
       teamsToTransfer: []
     };
-    const { result, getAccountDeletionEligibility } = setup({ enabled: true, eligibility });
+    const { result, getAccountDeletionEligibility } = setup({ eligibility });
 
     await waitFor(() => expect(result.current.data).toEqual(eligibility));
     expect(getAccountDeletionEligibility).toHaveBeenCalledOnce();
   });
 
-  it("does not load while disabled", () => {
-    const { result, getAccountDeletionEligibility } = setup({ enabled: false });
-
-    expect(result.current.fetchStatus).toBe("idle");
-    expect(getAccountDeletionEligibility).not.toHaveBeenCalled();
-  });
-
-  function setup(input: { enabled: boolean; eligibility?: unknown }) {
+  function setup(input: { eligibility?: unknown }) {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const getAccountDeletionEligibility = vi.fn().mockResolvedValue({ data: input.eligibility });
     const api = createProxy({ v1: { getAccountDeletionEligibility } }) as unknown as ApiService;
 
-    const { result } = setupQuery(() => useAccountDeletionEligibilityQuery({ enabled: input.enabled }), {
+    const { result } = setupQuery(() => useAccountDeletionEligibilityQuery(), {
       services: { api: () => api, queryClient: () => queryClient }
     });
 

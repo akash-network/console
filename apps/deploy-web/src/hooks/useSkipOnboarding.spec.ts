@@ -25,31 +25,14 @@ describe(useSkipOnboarding.name, () => {
     expect(push).toHaveBeenCalledWith("/new-deployment");
   });
 
-  it("lands on Projects when the intent-first onboarding and organizations are on", async () => {
-    const { result, push } = setup({ enabledFlags: ["onboarding_intent_first", "organizations"] });
-
-    await act(async () => {
-      await result.current.skip("picker");
-    });
-
-    expect(push).toHaveBeenCalledWith("/projects");
-  });
-
-  it("keeps landing on the new-deployment page while organizations are off", async () => {
+  it("lands on Projects when the intent-first onboarding is on", async () => {
     const { result, push } = setup({ enabledFlags: ["onboarding_intent_first"] });
 
     await act(async () => {
       await result.current.skip("picker");
     });
 
-    expect(push).toHaveBeenCalledWith("/new-deployment");
-  });
-
-  it("reads both flags on every render so a flag flip keeps the hook order", () => {
-    const { useFlag } = setup({ enabledFlags: [] });
-
-    expect(useFlag).toHaveBeenCalledWith("onboarding_intent_first");
-    expect(useFlag).toHaveBeenCalledWith("organizations");
+    expect(push).toHaveBeenCalledWith("/projects");
   });
 
   it("forwards the auto_deploy source to analytics", async () => {

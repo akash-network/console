@@ -108,12 +108,6 @@ describe("BillingDetailsView", () => {
     expect(screen.getByText("Only owners and billing members can change these details.")).toBeInTheDocument();
   });
 
-  it("lets anyone edit while organizations are off for them", () => {
-    setup({ billingDetails: SAVED, role: "admin", isOrganizationsEnabled: false });
-
-    expect(screen.getByRole("button", { name: "Edit details" })).toBeInTheDocument();
-  });
-
   it("lets anyone edit when no organization is active", () => {
     setup({ billingDetails: SAVED, role: null });
 
@@ -132,7 +126,6 @@ describe("BillingDetailsView", () => {
     isLoading?: boolean;
     isError?: boolean;
     role?: OrganizationRole | null;
-    isOrganizationsEnabled?: boolean;
     isInvoicesEnabled?: boolean;
   }) {
     const activeOrganization: OrganizationOutput | undefined =
@@ -159,7 +152,7 @@ describe("BillingDetailsView", () => {
 
     const dependencies: typeof DEPENDENCIES = {
       useBillingDetailsQuery,
-      useFlag: flag => (flag === "invoices" ? input.isInvoicesEnabled ?? true : input.isOrganizationsEnabled ?? true),
+      useFlag: flag => flag === "invoices" && (input.isInvoicesEnabled ?? true),
       useActiveOrganization: () => mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({ activeOrganization }),
       BillingDetailsDialog
     };

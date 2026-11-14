@@ -14,7 +14,6 @@ import { canRenameOrganization, canTransferOwnership, hasGeneralSettingsPage } f
 import { ORGANIZATION_NAME_DESCRIPTION, OrganizationNameSetting } from "@src/components/organizations/OrganizationNameSetting/OrganizationNameSetting";
 import { OwnershipTransferSetting } from "@src/components/organizations/OwnershipTransferSetting/OwnershipTransferSetting";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
-import { useFlag } from "@src/hooks/useFlag";
 import { UrlService } from "@src/utils/urlUtils";
 
 export const DEPENDENCIES = {
@@ -26,7 +25,6 @@ export const DEPENDENCIES = {
   AdminAccessRequestNotice,
   LeaveOrganizationSetting,
   DeleteTeamSetting,
-  useFlag,
   useActiveOrganization,
   useRouter
 };
@@ -36,11 +34,10 @@ type Props = {
 };
 
 export function OrganizationSettingsPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
-  const isEnabled = d.useFlag("organizations");
   const { activeOrganization, isError: hasNoOrganizations } = d.useActiveOrganization();
   const router = d.useRouter();
-  const organization = isEnabled && activeOrganization && hasGeneralSettingsPage(activeOrganization.type) ? activeOrganization : undefined;
-  const isUnavailable = !isEnabled || hasNoOrganizations || (!!activeOrganization && !organization);
+  const organization = activeOrganization && hasGeneralSettingsPage(activeOrganization.type) ? activeOrganization : undefined;
+  const isUnavailable = hasNoOrganizations || (!!activeOrganization && !organization);
 
   useEffect(
     function leaveWhenOrganizationHasNoSettings() {

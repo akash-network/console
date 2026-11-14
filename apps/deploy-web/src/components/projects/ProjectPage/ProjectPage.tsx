@@ -9,7 +9,6 @@ import Layout from "@src/components/layout/Layout";
 import { canManageProjects, hasMembersPage } from "@src/components/organizations/organizationAccess";
 import { NotFoundPage } from "@src/components/shared/NotFoundPage/NotFoundPage";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
-import { useFlag } from "@src/hooks/useFlag";
 import { useOrganizationActivitiesQuery } from "@src/queries/useOrganizationActivitiesQuery";
 import { useProjectsQuery } from "@src/queries/useProjectsQuery";
 import type { ProjectRecord } from "@src/types/project";
@@ -21,7 +20,6 @@ import { ProjectSwitcher } from "../ProjectSwitcher/ProjectSwitcher";
 import { RecentActivityFeed } from "../RecentActivityFeed/RecentActivityFeed";
 
 export const DEPENDENCIES = {
-  useFlag,
   useRouter,
   useActiveOrganization,
   useProjectsQuery,
@@ -43,10 +41,8 @@ interface Props {
 
 /** One project: its deployments, who was granted it and what happened in it. A project the caller cannot see reads as one that does not exist. */
 export function ProjectPage({ projectId, dependencies: d = DEPENDENCIES }: Props) {
-  const isOrganizationsEnabled = d.useFlag("organizations");
   const { isLoading, projectsEnabled } = d.useActiveOrganization();
 
-  if (!isOrganizationsEnabled) return <d.NotFoundPage />;
   if (isLoading) return <d.Layout background="dots" isLoading disableContainer />;
   if (!projectsEnabled) return <d.NotFoundPage />;
   return <ProjectPageContent projectId={projectId} dependencies={d} />;

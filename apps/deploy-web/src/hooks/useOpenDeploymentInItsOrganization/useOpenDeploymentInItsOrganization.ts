@@ -1,11 +1,10 @@
 import { useEffect, useRef } from "react";
 
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
-import { useFlag } from "@src/hooks/useFlag";
 import { useDeploymentLocationQuery } from "@src/queries/useDeploymentProjectQueries";
 import { UrlService } from "@src/utils/urlUtils";
 
-export const DEPENDENCIES = { useFlag, useActiveOrganization, useDeploymentLocationQuery };
+export const DEPENDENCIES = { useActiveOrganization, useDeploymentLocationQuery };
 
 interface Input {
   dseq: string;
@@ -18,9 +17,8 @@ interface Input {
 /** A link to a deployment of another of the user's organizations switches to that organization instead of reading as not found. */
 export function useOpenDeploymentInItsOrganization({ dseq, isMissingHere, query }: Input, dependencies: typeof DEPENDENCIES = DEPENDENCIES): void {
   const d = dependencies;
-  const isOrganizationsEnabled = d.useFlag("organizations");
   const { organizations, activeOrganization, switchOrganization } = d.useActiveOrganization();
-  const { data: location } = d.useDeploymentLocationQuery(dseq, { enabled: isOrganizationsEnabled && !!activeOrganization && isMissingHere });
+  const { data: location } = d.useDeploymentLocationQuery(dseq, { enabled: !!activeOrganization && isMissingHere });
   const hasSwitched = useRef(false);
 
   const owningOrganizationId = location?.organizationId;

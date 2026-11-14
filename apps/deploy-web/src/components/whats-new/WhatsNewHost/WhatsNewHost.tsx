@@ -6,7 +6,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { canManageProjects } from "@src/components/organizations/organizationAccess";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useServices } from "@src/context/ServicesProvider";
-import { useFlag } from "@src/hooks/useFlag";
 import { whatsNewViewAtom } from "@src/store/whatsNewStore";
 import { UrlService } from "@src/utils/urlUtils";
 import { organizationsRelease } from "../organizationsRelease";
@@ -15,18 +14,12 @@ import type { TourOutcome } from "../SpotlightTour/SpotlightTour";
 import { SpotlightTour } from "../SpotlightTour/SpotlightTour";
 import { WhatsNewModal } from "../WhatsNewModal/WhatsNewModal";
 
-export const DEPENDENCIES = { useFlag, useActiveOrganization, useRouter, usePathname, WhatsNewModal, SpotlightTour };
+export const DEPENDENCIES = { useActiveOrganization, useRouter, usePathname, WhatsNewModal, SpotlightTour };
 
 type Props = { dependencies?: typeof DEPENDENCIES };
 
 /** Mounted above the pages so the tour survives the navigation its steps trigger. */
 export function WhatsNewHost({ dependencies: d = DEPENDENCIES }: Props) {
-  const isOrganizationsEnabled = d.useFlag("organizations");
-  if (!isOrganizationsEnabled) return null;
-  return <WhatsNewHostContent dependencies={d} />;
-}
-
-function WhatsNewHostContent({ dependencies: d }: Required<Props>) {
   const [view, setView] = useAtom(whatsNewViewAtom);
   const [tourOrigin, setTourOrigin] = useState<Box | null>(null);
   const { activeOrganization } = d.useActiveOrganization();

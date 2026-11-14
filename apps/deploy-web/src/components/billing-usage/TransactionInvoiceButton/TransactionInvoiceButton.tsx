@@ -20,10 +20,8 @@ type Props = {
 
 export const TransactionInvoiceButton: FC<Props> = ({ transaction, dependencies: d = DEPENDENCIES }) => {
   const isInvoicesEnabled = d.useFlag("invoices");
-  const isOrganizationsEnabled = d.useFlag("organizations");
   const { activeOrganization } = d.useActiveOrganization();
-  const organization = isOrganizationsEnabled ? activeOrganization : undefined;
-  const canIssueInvoice = !organization || canManageBilling(organization.role);
+  const canIssueInvoice = !activeOrganization || canManageBilling(activeOrganization.role);
   const isCardPayment = transaction.type === "payment_intent";
   const hasInvoice = !!transaction.stripeInvoiceId;
   const canGetNewInvoice = transaction.status === "succeeded" && canIssueInvoice;

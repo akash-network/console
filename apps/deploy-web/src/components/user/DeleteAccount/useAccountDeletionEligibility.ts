@@ -1,11 +1,10 @@
 import { roundUsdToCentPrecision } from "@src/components/billing-usage/UsdValue/UsdValue";
 import { useWallet } from "@src/context/WalletProvider";
-import { useFlag } from "@src/hooks/useFlag";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { useAccountDeletionEligibilityQuery } from "@src/queries/useAccountDeletionEligibilityQuery";
 import { useBalances } from "@src/queries/useBalancesQuery";
 
-export const DEPENDENCIES = { useWallet, useBalances, useWalletBalance, useFlag, useAccountDeletionEligibilityQuery };
+export const DEPENDENCIES = { useWallet, useBalances, useWalletBalance, useAccountDeletionEligibilityQuery };
 
 /** The API rounds the balance to cents, so anything rounding below one leaves nothing to forfeit. */
 const SMALLEST_FORFEITABLE_BALANCE_USD = 0.01;
@@ -27,13 +26,12 @@ export type WalletDeletionEligibility =
 
 type ServerEligibility = NonNullable<ReturnType<typeof useAccountDeletionEligibilityQuery>["data"]>;
 
-/** With organizations on, the API tells which teams go with the account and which need a new owner; if it can't answer, the wallet still tells what the account alone forfeits. */
+/** The API tells which teams go with the account and which need a new owner; if it can't answer, the wallet still tells what the account alone forfeits. */
 export function useAccountDeletionEligibility(dependencies: typeof DEPENDENCIES = DEPENDENCIES): AccountDeletionEligibility {
-  const isOrganizationsEnabled = dependencies.useFlag("organizations");
-  const serverEligibility = dependencies.useAccountDeletionEligibilityQuery({ enabled: isOrganizationsEnabled });
+  const serverEligibility = dependencies.useAccountDeletionEligibilityQuery();
   const walletEligibility = useWalletDeletionEligibility(dependencies);
 
-  if (!isOrganizationsEnabled || serverEligibility.isError) return withoutTeams(walletEligibility);
+  if (serverEligibility.isError) return withoutTeams(walletEligibility);
   if (!serverEligibility.data) return { status: "loading" };
 
   return eligibilityFromServer(serverEligibility.data);

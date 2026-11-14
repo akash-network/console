@@ -80,13 +80,6 @@ describe(MembersPage.name, () => {
     expect(useOrganizationMembersQuery).toHaveBeenCalledWith({ enabled: false });
   });
 
-  it("sends everyone away while organizations are off", () => {
-    const { replace, MemberRoster } = setup({ isEnabled: false });
-
-    expect(replace).toHaveBeenCalledWith("/deployments");
-    expect(MemberRoster).not.toHaveBeenCalled();
-  });
-
   it("sends the user away when no organization could be loaded", () => {
     const { replace, MemberRoster } = setup({ hasOrganization: false, hasNoOrganizations: true });
 
@@ -105,7 +98,6 @@ describe(MembersPage.name, () => {
   function setup(input: {
     role?: OrganizationRole;
     type?: OrganizationType;
-    isEnabled?: boolean;
     hasOrganization?: boolean;
     hasNoOrganizations?: boolean;
     members?: OrganizationMemberOutput[];
@@ -155,7 +147,6 @@ describe(MembersPage.name, () => {
       PendingInvitationList,
       InviteMembersDialog,
       AdminAccessRequestNotice,
-      useFlag: () => input.isEnabled ?? true,
       useActiveOrganization: () =>
         mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
           activeOrganization: input.hasOrganization ?? true ? organization : undefined,
