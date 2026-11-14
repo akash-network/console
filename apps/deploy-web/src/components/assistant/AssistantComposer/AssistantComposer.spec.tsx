@@ -51,9 +51,21 @@ describe("AssistantComposer", () => {
     expect(onSend).toHaveBeenCalledTimes(1);
   });
 
-  function setup(input: { initialValue?: string }) {
+  it("keeps the box and the button disabled and sends nothing while the composer is disabled", async () => {
+    const { onSend } = setup({ initialValue: "Hello", isDisabled: true });
+    const box = screen.getByRole("textbox", { name: "Message the assistant" });
+
+    expect(box).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+    fireEvent.keyDown(box, { key: "Enter" });
+    fireEvent.submit(box.closest("form")!);
+
+    expect(onSend).not.toHaveBeenCalled();
+  });
+
+  function setup(input: { initialValue?: string; isDisabled?: boolean }) {
     const onSend = vi.fn();
-    const view = render(<AssistantComposer initialValue={input.initialValue} isSending={false} onSend={onSend} />);
+    const view = render(<AssistantComposer initialValue={input.initialValue} isSending={false} isDisabled={input.isDisabled} onSend={onSend} />);
     return { onSend, rerender: view.rerender };
   }
 });

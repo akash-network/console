@@ -25,7 +25,7 @@ export const DEPENDENCIES = {
   useCreateAssistantProblemReportMutation
 };
 
-export type AssistantProblem = "consent" | "unavailable" | "rate_limited" | "daily_limit" | "error";
+export type AssistantProblem = "consent" | "unavailable" | "rate_limited" | "daily_limit" | "blocked" | "error";
 
 type StartedConversation = { id: string; stored: boolean };
 
@@ -40,8 +40,14 @@ export function problemOfError(error: unknown): AssistantProblem {
   if (code && CONSENT_ERROR_CODES.includes(code)) return "consent";
   if (code === "assistant_rate_limited") return "rate_limited";
   if (code === "assistant_daily_limit") return "daily_limit";
+  if (code === "assistant_blocked") return "blocked";
   if (code === "assistant_unavailable" || (isApiError(error) && error.status === HTTP_SERVICE_UNAVAILABLE)) return "unavailable";
   return "error";
+}
+
+/** A block outlasts a new conversation, so starting over never offers a composer the api would refuse. */
+function keepBlocked(problem: AssistantProblem | null): AssistantProblem | null {
+  return problem === "blocked" ? problem : null;
 }
 
 export function problemOfStreamError(code: AssistantStreamErrorCode): AssistantProblem {
@@ -160,7 +166,7 @@ export function useAssistantConversation({ context }: { context: AssistantContex
     abortControllerRef.current?.abort();
     forgetConversation();
     setMessages([]);
-    setProblem(null);
+    setProblem(keepBlocked);
     setEndedAs(null);
   };
 

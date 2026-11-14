@@ -176,10 +176,16 @@ describe("AssistantPanel", () => {
     expect(dependencies.AssistantConsentCard).not.toHaveBeenCalled();
     expect(dependencies.AssistantTranscript).toHaveBeenCalledWith(expect.objectContaining({ conversation }), expect.anything());
     expect(dependencies.AssistantComposer).toHaveBeenCalledWith(
-      expect.objectContaining({ initialValue: "Why no bids?", isSending: false, onSend: conversation.send }),
+      expect.objectContaining({ initialValue: "Why no bids?", isSending: false, isDisabled: false, onSend: conversation.send }),
       expect.anything()
     );
     expect(screen.getByText("Ask about your deployments, bids, logs, or billing. The assistant reads your account to answer.")).toBeInTheDocument();
+  });
+
+  it("disables the composer once the assistant is turned off for the account", () => {
+    const { dependencies } = setup({ consent: CURRENT_CONSENT, problem: "blocked", hasMessages: true });
+
+    expect(dependencies.AssistantComposer).toHaveBeenCalledWith(expect.objectContaining({ isDisabled: true }), expect.anything());
   });
 
   it("asks the question at once, with an empty composer, when the user opened it from a button that asks", () => {

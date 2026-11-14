@@ -213,6 +213,18 @@ describe(useAssistantConversation.name, () => {
     expect(startConversation).toHaveBeenCalledTimes(2);
   });
 
+  it("stays blocked after starting over when the api turned the assistant off for the account", async () => {
+    const { result, assistantConversation } = setup({});
+    assistantConversation.sendMessage.mockImplementationOnce(() => failingStream(new ApiError(403, { code: "assistant_blocked" }, "blocked")));
+    await act(() => result.current.send("Question"));
+    expect(result.current.problem).toBe("blocked");
+
+    act(() => result.current.startOver());
+
+    expect(result.current.messages).toEqual([]);
+    expect(result.current.problem).toBe("blocked");
+  });
+
   it("clears a problem on request", async () => {
     const { result } = setup({ startError: new ApiError(429, { code: "assistant_rate_limited" }, "slow") });
     await act(() => result.current.send("Hi"));
@@ -413,6 +425,7 @@ describe(useAssistantConversation.name, () => {
       expect(problemOfError(new ApiError(409, { code: "assistant_consent_required" }, "x"))).toBe("consent");
       expect(problemOfError(new ApiError(429, { code: "assistant_rate_limited" }, "x"))).toBe("rate_limited");
       expect(problemOfError(new ApiError(429, { code: "assistant_daily_limit" }, "x"))).toBe("daily_limit");
+      expect(problemOfError(new ApiError(403, { code: "assistant_blocked" }, "x"))).toBe("blocked");
       expect(problemOfError(new ApiError(503, { code: "assistant_unavailable" }, "x"))).toBe("unavailable");
       expect(problemOfError(new ApiError(503, "Service Unavailable", "x"))).toBe("unavailable");
       expect(problemOfError(new ApiError(500, { code: "internal" }, "x"))).toBe("error");
