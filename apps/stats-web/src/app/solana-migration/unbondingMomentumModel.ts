@@ -99,13 +99,13 @@ export type FittedUnbondingBar = UnbondingBar & {
   barWidth: number;
   unbondingY: number;
   sentY: number;
-  sentByUnstakersY: number;
   slotX: number;
   slotWidth: number;
 };
 
-/** Each day holds the unbonding bar and the sent bar side by side, with a gap between bars and between days. */
-const BAR_GAP = 2;
+/** The gap between a day's two bars shrinks with the slot so a long series never pushes bars into the next day. */
+const MAX_BAR_GAP = 2;
+const MAX_BAR_GAP_RATIO = 0.2;
 const DAY_GAP_RATIO = 0.3;
 
 const MAX_TICK_INTERVALS = 4;
@@ -127,7 +127,9 @@ export function fitUnbondingBars(bars: UnbondingBar[], width: number, height: nu
   const max = ticks[ticks.length - 1];
   const yOf = (value: number) => (max > 0 ? baseline - (value / max) * (baseline - padding.top) : baseline);
   const slotWidth = bars.length ? innerWidth / bars.length : 0;
-  const barWidth = Math.max(1, (slotWidth * (1 - DAY_GAP_RATIO) - BAR_GAP) / 2);
+  const pairWidth = slotWidth * (1 - DAY_GAP_RATIO);
+  const barGap = Math.min(MAX_BAR_GAP, pairWidth * MAX_BAR_GAP_RATIO);
+  const barWidth = (pairWidth - barGap) / 2;
 
   const fitted: FittedUnbondingBar[] = bars.map((bar, index) => {
     const slotX = padding.left + index * slotWidth;
@@ -138,11 +140,10 @@ export function fitUnbondingBars(bars: UnbondingBar[], width: number, height: nu
       slotX,
       slotWidth,
       unbondingX,
-      sentX: unbondingX + barWidth + BAR_GAP,
+      sentX: unbondingX + barWidth + barGap,
       barWidth,
       unbondingY: yOf(bar.unbondingAkt),
-      sentY: yOf(bar.sentAkt),
-      sentByUnstakersY: yOf(bar.sentByUnstakersAkt)
+      sentY: yOf(bar.sentAkt)
     };
   });
 

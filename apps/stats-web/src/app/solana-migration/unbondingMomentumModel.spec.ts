@@ -152,19 +152,18 @@ describe("unbondingMomentumModel", () => {
       expect(fitted.ticks).toEqual([0, 25, 50, 75, 100]);
       expect(fitted.baseline).toBe(100);
       expect(
-        fitted.bars.map(({ slotX, slotWidth, unbondingX, sentX, barWidth, unbondingY, sentY, sentByUnstakersY }) => ({
+        fitted.bars.map(({ slotX, slotWidth, unbondingX, sentX, barWidth, unbondingY, sentY }) => ({
           slotX,
           slotWidth,
           unbondingX,
           sentX,
           barWidth,
           unbondingY,
-          sentY,
-          sentByUnstakersY
+          sentY
         }))
       ).toEqual([
-        { slotX: 10, slotWidth: 50, unbondingX: 17.5, sentX: 36, barWidth: 16.5, unbondingY: 10, sentY: 55, sentByUnstakersY: 77.5 },
-        { slotX: 60, slotWidth: 50, unbondingX: 67.5, sentX: 86, barWidth: 16.5, unbondingY: 100, sentY: 82, sentByUnstakersY: 100 }
+        { slotX: 10, slotWidth: 50, unbondingX: 17.5, sentX: 36, barWidth: 16.5, unbondingY: 10, sentY: 55 },
+        { slotX: 60, slotWidth: 50, unbondingX: 67.5, sentX: 86, barWidth: 16.5, unbondingY: 100, sentY: 82 }
       ]);
     });
 
@@ -175,15 +174,20 @@ describe("unbondingMomentumModel", () => {
       expect([fitted.bars[0].unbondingY, fitted.bars[0].sentY, fitted.yOf(0)]).toEqual([100, 100, 100]);
     });
 
-    it("keeps bars at least one pixel wide on a crowded chart", () => {
+    it("shrinks the gap between a day's bars so a crowded chart keeps each day inside its own slot", () => {
       const fitted = fitUnbondingBars(
         Array.from({ length: 200 }, () => bar({ unbondingAkt: 1 })),
         120,
         110,
         PADDING
       );
+      const [first, second] = fitted.bars;
 
-      expect(fitted.bars[0].barWidth).toBe(1);
+      expect(first.slotWidth).toBeCloseTo(0.5);
+      expect(first.unbondingX).toBeCloseTo(10.075);
+      expect(first.barWidth).toBeCloseTo(0.14);
+      expect(first.sentX).toBeCloseTo(10.285);
+      expect(first.sentX + first.barWidth).toBeLessThan(second.unbondingX);
     });
 
     it("rounds the scale up to the next round step", () => {
