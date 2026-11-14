@@ -3,7 +3,7 @@ import { LRUCache } from "lru-cache";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { createGunzip } from "node:zlib";
-import tar from "tar";
+import { Parser, type ReadEntry } from "tar";
 
 import type { CreateLogger } from "@src/core";
 import type { CacheLimits } from "../../../caching/cache-registry.ts";
@@ -205,8 +205,8 @@ export class GitHubArchiveService {
     let rootDetected = false;
     let retainedBytes = 0;
 
-    const parser = new tar.Parse({
-      onentry: (entry: tar.ReadEntry) => {
+    const parser = new Parser({
+      onReadEntry: (entry: ReadEntry) => {
         if (!rootDetected) {
           const slashIndex = entry.path.indexOf("/");
           rootPrefix = slashIndex !== -1 ? entry.path.slice(0, slashIndex + 1) : "";
@@ -246,7 +246,7 @@ export class GitHubArchiveService {
           retainedBytes += content.byteLength;
           files.set(relativePath, content.toString("utf-8"));
         });
-        entry.on("error", (error: Error) => {
+        entry.on("error", error => {
           this.#logger.warn({
             event: "ARCHIVE_READ_STREAM_ERROR",
             relativePath,

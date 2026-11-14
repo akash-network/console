@@ -113,7 +113,7 @@ describe(checkSdlImport.name, () => {
   });
 
   it("refuses yaml too deeply nested to read", () => {
-    expect(checkSdlImport("[".repeat(100_000))).toEqual({ status: "invalid", reason: "This SDL couldn't be read. Check it and try again." });
+    expect(checkSdlImport("[".repeat(100_000))).toEqual({ status: "invalid", reason: "Line 1: nesting exceeded maxDepth (100)" });
   });
 
   it("reads the sdl into the form when asked to", () => {
