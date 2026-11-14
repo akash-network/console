@@ -32,7 +32,7 @@ import {
   CreateDeploymentAcceptedResponse,
   CreateDeploymentDefinitionRequest,
   CreateDeploymentDefinitionResponse,
-  CreateDeploymentRequest,
+  CreateDeploymentInput,
   CreateDeploymentResponse,
   DeploymentResponse,
   PatchDeploymentAcceptedResponse,
@@ -288,7 +288,7 @@ export class DeploymentWriterService {
     this.logger = createLogger({ context: DeploymentWriterService.name });
   }
 
-  public async create(input: CreateDeploymentRequest["data"] & CreateDeploymentRequester): Promise<CreateDeploymentResponse["data"]> {
+  public async create(input: CreateDeploymentInput & CreateDeploymentRequester): Promise<CreateDeploymentResponse["data"]> {
     const { accepted, manifest, organizationId } = await this.acceptCreate(input);
     const signTx = await this.#createOnChainRecordingOutcome(accepted, organizationId);
     if (input.recordGpuBids) await this.userGpuBidCheckService.scheduleFor(accepted);
@@ -297,7 +297,7 @@ export class DeploymentWriterService {
   }
 
   /** Refusals answer before anything is recorded; a create that passes them is queued in the same transaction as its pending activity and a later check on it, so the activity settles even if the create job is lost. */
-  public async createInBackground(input: CreateDeploymentRequest["data"] & CreateDeploymentRequester): Promise<CreateDeploymentAcceptedResponse["data"]> {
+  public async createInBackground(input: CreateDeploymentInput & CreateDeploymentRequester): Promise<CreateDeploymentAcceptedResponse["data"]> {
     const { accepted, manifest, organizationId } = await this.acceptCreate(input);
 
     const activityId = await this.txService.transaction(async () => {
@@ -359,7 +359,7 @@ export class DeploymentWriterService {
 
   /** The dseq is minted once everything that can refuse the submitted document has run, because the token written below names it and a client sealing beforehand cannot; a refusal that needs the resolved document (a sealed registry password below the schema's minimum, say) can only come after it, and spends a dseq nothing is written under. */
   public async acceptCreate(
-    input: CreateDeploymentRequest["data"] & { userId: string }
+    input: CreateDeploymentInput & { userId: string }
   ): Promise<{ accepted: AcceptedDeploymentCreate; manifest: string; organizationId: string | null }> {
     /** SDL for storage ONLY, and the values taken out of it. Never stands in for the submitted document anywhere a hash is taken. */
     const { sdl, storedDocument, derived } = this.#storedSdlOf(input.sdl, sealedEnvOf(input));
@@ -419,7 +419,7 @@ export class DeploymentWriterService {
     };
   }
 
-  async #deployableTemplateVersionIdOf(input: Pick<CreateDeploymentRequest["data"], "templateId" | "templateVersionId"> & { userId: string }) {
+  async #deployableTemplateVersionIdOf(input: Pick<CreateDeploymentInput, "templateId" | "templateVersionId"> & { userId: string }) {
     if (!input.templateVersionId || !this.featureFlagsService.isEnabled(FeatureFlags.TEMPLATE_MARKETPLACE, { userId: input.userId })) return undefined;
     if (input.templateId) throw createError(400, "Name either templateId or templateVersionId, not both");
 
@@ -1418,7 +1418,7 @@ export class DeploymentWriterService {
   }
 
   /** Reports through the same channel every other reference mistake uses, so a missing value reads identically whether the intake or substitution found it. */
-  async #receiveSecrets(input: Pick<CreateDeploymentRequest["data"], "sdl" | "sealedSecrets">, inherited: SdlSecrets): Promise<SdlSecrets> {
+  async #receiveSecrets(input: Pick<CreateDeploymentInput, "sdl" | "sealedSecrets">, inherited: SdlSecrets): Promise<SdlSecrets> {
     const parsed = this.sdlService.parse(input.sdl);
 
     if (!parsed.ok) {

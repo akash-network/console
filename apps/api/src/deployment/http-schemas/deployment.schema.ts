@@ -3,7 +3,7 @@ import { DeploymentInfoSchema } from "@akashnetwork/http-sdk";
 import { z } from "@hono/zod-openapi";
 
 import { SignTxResponseOutputSchema } from "@src/billing/http-schemas/tx.schema";
-import { MAX_MANIFEST_VERSION_LENGTH, MAX_SUBMITTED_SDL_LENGTH } from "@src/deployment/config/sdl.config";
+import { GENERATED_SERVICE_NAME, MAX_MANIFEST_VERSION_LENGTH, MAX_SUBMITTED_SDL_LENGTH } from "@src/deployment/config/sdl.config";
 import { MAX_DEPLOYMENT_NAME_LENGTH } from "@src/deployment/utils/deployment-name/deployment-name";
 import { TemplateIdSchema } from "@src/template/http-schemas/template.schema";
 import { openApiExampleAddress } from "@src/utils/constants";
@@ -210,50 +210,50 @@ const MAX_TEMPLATE_ID_LENGTH = 255;
 /** Trimmed before it is measured, so a name of nothing but spaces is refused rather than stored as a blank one. */
 const DeploymentNameSchema = z.string().trim().min(1).max(MAX_DEPLOYMENT_NAME_LENGTH);
 
-export const CreateDeploymentRequestSchema = z.object({
-  data: z.object({
-    sdl: z.string().max(MAX_SUBMITTED_SDL_LENGTH),
-    name: DeploymentNameSchema.optional().openapi({
-      description:
-        "Name for this deployment, shown wherever it is listed. Omit it and the console names the deployment after the services the SDL declares, joined with `+`."
+const SubmittedSdlSchema = z.string().max(MAX_SUBMITTED_SDL_LENGTH);
+
+const CreateDeploymentFieldsSchema = z.object({
+  sdl: SubmittedSdlSchema,
+  name: DeploymentNameSchema.optional().openapi({
+    description:
+      "Name for this deployment, shown wherever it is listed. Omit it and the console names the deployment after the services the SDL declares, joined with `+`."
+  }),
+  sealedSecrets: SealedSecretsSchema.optional().openapi({
+    description:
+      "Compact JWE sealing a flat name-to-value map of the secrets this SDL references, encrypted to the console's public sealing key. Fetch that key and the claims to sign from GET /v1/sdl-secrets-context. Values are never returned by any endpoint once sealed."
+  }),
+  secretEnv: SecretEnvSchema.optional().openapi({
+    description:
+      "Names of the environment variables whose values are secret, in every service the SDL declares. The console seals each named value, which no endpoint returns afterwards, and stores every other env value as submitted, so it stays readable. An empty list keeps every env value readable. Omit it and the console seals every env value, unless the request carries `sealedSecrets`. Registry credentials are sealed either way. Needs no client-side encryption.",
+    example: ["API_KEY", "DATABASE_URL"]
+  }),
+  inheritSecretsFrom: DseqSchema.optional().openapi({
+    description:
+      "Dseq of a deployment you can change, under the same owner as this one, whose stored secrets this deployment starts from, for redeploying an SDL without re-entering its values. The source may be closed. A name also present in `sealedSecrets` takes precedence over the inherited one."
+  }),
+  deposit: z.number().optional().openapi({
+    deprecated: true,
+    description: "Deprecated and ignored. The platform funds every deployment automatically from your account credits."
+  }),
+  runtimeLimitHours: z
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_RUNTIME_LIMIT_INCREMENT_HOURS)
+    .optional()
+    .openapi({
+      description: `Optional runtime limit in hours (1 to ${MAX_RUNTIME_LIMIT_INCREMENT_HOURS}), counted from lease start. Automatic funding keeps the deployment running until the limit, then the deployment is closed automatically and unused funds are returned. Extend a limit with PATCH /v2/deployment-settings/{dseq}. Omit for always-on funding.`
     }),
-    sealedSecrets: SealedSecretsSchema.optional().openapi({
-      description:
-        "Compact JWE sealing a flat name-to-value map of the secrets this SDL references, encrypted to the console's public sealing key. Fetch that key and the claims to sign from GET /v1/sdl-secrets-context. Values are never returned by any endpoint once sealed."
-    }),
-    secretEnv: SecretEnvSchema.optional().openapi({
-      description:
-        "Names of the environment variables whose values are secret, in every service the SDL declares. The console seals each named value, which no endpoint returns afterwards, and stores every other env value as submitted, so it stays readable. An empty list keeps every env value readable. Omit it and the console seals every env value, unless the request carries `sealedSecrets`. Registry credentials are sealed either way. Needs no client-side encryption.",
-      example: ["API_KEY", "DATABASE_URL"]
-    }),
-    inheritSecretsFrom: DseqSchema.optional().openapi({
-      description:
-        "Dseq of a deployment you can change, under the same owner as this one, whose stored secrets this deployment starts from, for redeploying an SDL without re-entering its values. The source may be closed. A name also present in `sealedSecrets` takes precedence over the inherited one."
-    }),
-    deposit: z.number().optional().openapi({
-      deprecated: true,
-      description: "Deprecated and ignored. The platform funds every deployment automatically from your account credits."
-    }),
-    runtimeLimitHours: z
-      .number()
-      .int()
-      .min(1)
-      .max(MAX_RUNTIME_LIMIT_INCREMENT_HOURS)
-      .optional()
-      .openapi({
-        description: `Optional runtime limit in hours (1 to ${MAX_RUNTIME_LIMIT_INCREMENT_HOURS}), counted from lease start. Automatic funding keeps the deployment running until the limit, then the deployment is closed automatically and unused funds are returned. Extend a limit with PATCH /v2/deployment-settings/{dseq}. Omit for always-on funding.`
-      }),
-    projectId: z.string().uuid().optional().openapi({
-      description: "Project to file the deployment in."
-    }),
-    templateId: TemplateIdSchema.max(MAX_TEMPLATE_ID_LENGTH).optional().openapi({
-      description:
-        "ID of the gallery template the SDL came from, as listed by GET /v1/templates. Console links the deployment to that template's guide. Not checked against the gallery."
-    }),
-    templateVersionId: z.string().uuid().optional().openapi({
-      description:
-        "ID of the template version the SDL came from. Readers of the template may name its current version and its editors any version. Cannot be combined with `templateId`."
-    })
+  projectId: z.string().uuid().optional().openapi({
+    description: "Project to file the deployment in."
+  }),
+  templateId: TemplateIdSchema.max(MAX_TEMPLATE_ID_LENGTH).optional().openapi({
+    description:
+      "ID of a gallery template, as listed by GET /v1/templates-list. Sent with `sdl`, it names the template the SDL came from: the console links the deployment to that template's guide and does not check the ID against the gallery. Sent without `sdl`, the console deploys the template's own SDL, with `overrides` applied, and answers 404 for an ID the gallery does not list."
+  }),
+  templateVersionId: z.string().uuid().optional().openapi({
+    description:
+      "ID of the template version the SDL came from. Readers of the template may name its current version and its editors any version. Cannot be combined with `templateId`."
   })
 });
 
@@ -454,6 +454,84 @@ export const PatchServiceSchema = z
   })
   .partial();
 
+const RESOURCE_SIZE = /^\d+(\.\d+)?(k|Ki|M|Mi|G|Gi|T|Ti)$/;
+
+/** Refused here because the SDL grammar reads a size with a unit it does not know as a count of bytes. */
+const ResourceSizeSchema = z.string().regex(RESOURCE_SIZE, "Must be a number followed by one of the units k, Ki, M, Mi, G, Gi, T or Ti");
+
+const ServicePortSchema = z.object({
+  port: PortNumberSchema.openapi({ description: "Container port the workload listens on." }),
+  as: PortNumberSchema.optional().openapi({
+    description:
+      "Port the endpoint is reached on. Defaults to `port`. A port reached on 80 gets a hostname from the provider; any other port is reached on the provider's host through a port the provider picks."
+  })
+});
+
+type ServicePort = z.infer<typeof ServicePortSchema>;
+
+/** A later patch addresses an endpoint by its container port, and a provider builds one port per external port, so neither can repeat. */
+function listsEachPortOnce(ports: ServicePort[]): boolean {
+  const containerPorts = ports.map(({ port }) => port);
+  const externalPorts = ports.map(({ port, as }) => as ?? port);
+
+  return new Set(containerPorts).size === ports.length && new Set(externalPorts).size === ports.length;
+}
+
+export const CreateDeploymentServiceSchema = z.object({
+  image: z.string().min(1).openapi({ description: "Container image, with its tag.", example: "nginx:1.27.2" }),
+  resources: z.object({
+    cpu: z.number().positive().openapi({ description: "CPU units. 0.5 is half a core.", example: 0.5 }),
+    memory: ResourceSizeSchema.openapi({ description: "Memory, as a number and a unit.", example: "512Mi" }),
+    storage: ResourceSizeSchema.openapi({ description: "Ephemeral disk, as a number and a unit.", example: "1Gi" }),
+    gpu: z
+      .object({
+        units: z.number().int().min(1).openapi({ description: "Number of GPUs." }),
+        model: z.string().min(1).optional().openapi({ description: "NVIDIA model key, such as `rtx4090` or `h100`. Omit it to take any NVIDIA GPU." })
+      })
+      .optional()
+  }),
+  ports: z
+    .array(ServicePortSchema)
+    .min(1)
+    .refine(listsEachPortOnce, { message: "Each port, and each port an endpoint is reached on, can be listed once" })
+    .openapi({ description: "Ports to publish. Every one is reachable from the internet, and a deployment needs at least one." }),
+  env: z
+    .record(z.string().regex(ENV_VARIABLE_NAME), z.string())
+    .optional()
+    .openapi({ description: "Environment variables, keyed by name. `secretEnv` says which values are secret, as it does for an SDL." })
+});
+
+type CreateDeploymentSource = { sdl?: string; service?: object; overrides?: object; templateId?: string; templateVersionId?: string };
+
+/** One of `sdl`, `service` and a `templateId` sent on its own says what to deploy, so a request naming two or none is refused rather than guessed at. */
+function sourceRefusalOf(data: CreateDeploymentSource): string | undefined {
+  if (data.service && data.sdl !== undefined) return "Send either sdl or service, not both";
+  if (data.service && (data.templateId || data.templateVersionId)) return "service cannot be combined with templateId or templateVersionId";
+  if (data.overrides && (data.sdl !== undefined || !data.templateId)) return "overrides apply only to a deployment created from templateId without sdl";
+  if (data.sdl === undefined && !data.service && !data.templateId) return "Send one of sdl, service or templateId";
+
+  return undefined;
+}
+
+export const CreateDeploymentRequestSchema = z.object({
+  data: CreateDeploymentFieldsSchema.extend({
+    sdl: SubmittedSdlSchema.optional().openapi({
+      description: "SDL to deploy. Send exactly one of `sdl`, `service`, or `templateId` without `sdl`."
+    }),
+    service: CreateDeploymentServiceSchema.optional().openapi({
+      description: `Creates a deployment without an SDL: the console writes the SDL of one service named \`${GENERATED_SERVICE_NAME}\` from these inputs and stores it, so the deployment reads, patches and redeploys like any other. Address the service as \`${GENERATED_SERVICE_NAME}\` in PATCH /v1/deployments/{dseq}.`
+    }),
+    overrides: z.record(z.string(), PatchServiceSchema).optional().openapi({
+      description:
+        "Changes to the SDL of the template named by `templateId`, keyed by service name, in the shape of `services` in PATCH /v1/deployments/{dseq}. Only for a deployment created from `templateId` without `sdl`."
+    })
+  }).superRefine((data, context) => {
+    const message = sourceRefusalOf(data);
+
+    if (message) context.addIssue({ code: z.ZodIssueCode.custom, message });
+  })
+});
+
 export const UpdateDeploymentResponseSchema = z.object({
   data: DeploymentResponseSchema
 });
@@ -535,7 +613,7 @@ export const CreateDeploymentDefinitionParamsSchema = z.object({
 });
 
 export const CreateDeploymentDefinitionRequestSchema = z.object({
-  data: CreateDeploymentRequestSchema.shape.data.pick({ sdl: true, sealedSecrets: true })
+  data: CreateDeploymentFieldsSchema.pick({ sdl: true, sealedSecrets: true })
 });
 
 export const CreateDeploymentDefinitionResponseSchema = z.object({
@@ -769,6 +847,9 @@ export type CreateLeaseResponse = z.infer<typeof CreateLeaseResponseSchema>;
 export type ConsoleSettings = z.infer<typeof ConsoleSettingsSchema>;
 export type GetDeploymentResponse = z.infer<typeof GetDeploymentResponseSchema>;
 export type CreateDeploymentRequest = z.infer<typeof CreateDeploymentRequestSchema>;
+export type CreateDeploymentService = z.infer<typeof CreateDeploymentServiceSchema>;
+/** A create once its source has been turned into the SDL it deploys, which is the only form the rest of a create knows. */
+export type CreateDeploymentInput = Omit<CreateDeploymentRequest["data"], "sdl" | "service" | "overrides"> & { sdl: string };
 export type CreateDeploymentResponse = z.infer<typeof CreateDeploymentResponseSchema>;
 export type CreateDeploymentQuery = z.infer<typeof CreateDeploymentQuerySchema>;
 export type CreateDeploymentAcceptedResponse = z.infer<typeof CreateDeploymentAcceptedResponseSchema>;
