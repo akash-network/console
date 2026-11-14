@@ -425,7 +425,6 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
       .orderBy(asc(this.table.createdAt), asc(this.table.id))
       .for("no key update");
     if (!items || items.length === 0) return [];
-    this.compareWithShadow(items);
 
     return this.toOutputList(items);
   }

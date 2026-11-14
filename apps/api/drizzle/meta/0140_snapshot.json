@@ -1,6 +1,6 @@
 {
-  "id": "60992590-7a83-4299-96cc-af8400fbb6c8",
-  "prevId": "830cbbce-d29a-4f06-a46d-31f2749bf2ae",
+  "id": "e8a68433-9dee-4882-a26d-2d97c23354cc",
+  "prevId": "043fb6a6-4eb0-4521-9c0f-a7a0e166a2d3",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -702,6 +702,22 @@
           ],
           "isUnique": true,
           "where": "\"stripe_transactions\".\"source_transaction_id\" IS NOT NULL AND \"stripe_transactions\".\"status\" <> 'refunded'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "stripe_transactions_source_transaction_id_idx": {
+          "name": "stripe_transactions_source_transaction_id_idx",
+          "columns": [
+            {
+              "expression": "source_transaction_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"stripe_transactions\".\"source_transaction_id\" IS NOT NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}

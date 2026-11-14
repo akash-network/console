@@ -1155,6 +1155,7 @@ describe("Stripe webhook", () => {
         const { user } = await setup();
         const { affiliateUser, commission: credited } = await seedCommissionedPayment({ payerId: user.id, chargeId, amount: 10000, commission: 500 });
         await userRepository.deleteById(user.id);
+        mockDisputesOf(chargeId);
 
         const response = await getWebhookResponse(generateDisputeClosedPayload(chargeId, "won"));
 

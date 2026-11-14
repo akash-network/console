@@ -18,7 +18,7 @@ import { SyncAffiliateCommissionHandler } from "./sync-affiliate-commission.hand
 import { SyncAffiliateCommission } from "./sync-affiliate-commission.job";
 
 import { seedPaymentCredit } from "@test/seeders/db/payment-credit.seeder";
-import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationIdOf, seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { deleteCompletedJobs, expectJobCompleted, makeJobDue, useJobWorkers } from "@test/services/job-queue-harness";
 
 const jobWorkers = useJobWorkers(() => [container.resolve(SyncAffiliateCommissionHandler), container.resolve(ReverseDeletedPaymentCommissionHandler)]);
@@ -29,7 +29,9 @@ describe(ReverseDeletedPaymentCommissionHandler.name, () => {
   });
 
   it("takes back the commission on the refunded part of a payment whose payer deleted their account, run the way a worker runs it", async () => {
-    const { payment, affiliateUser, reduceWalletBalance, creditCommissionOf, deletePayer, reverseCommissionOf } = await setup({ paymentAmount: 10000 });
+    const { affiliateWallet, payment, affiliateUser, reduceWalletBalance, creditCommissionOf, deletePayer, reverseCommissionOf } = await setup({
+      paymentAmount: 10000
+    });
     const commission = await creditCommissionOf(payment.id);
     await deletePayer();
 
@@ -44,13 +46,15 @@ describe(ReverseDeletedPaymentCommissionHandler.name, () => {
     });
     expect(reduceWalletBalance).toHaveBeenCalledExactlyOnceWith(
       200,
-      { userId: affiliateUser.id, organizationId: null },
+      { userId: affiliateUser.id, organizationId: affiliateWallet.organizationId },
       { currency: "usd", transactionId: commission.id, refundedBefore: 0, refundedAfter: 200 }
     );
   });
 
   it("takes back the whole commission when the dispute on a deleted payer's payment is lost", async () => {
-    const { payment, affiliateUser, reduceWalletBalance, creditCommissionOf, deletePayer, reverseCommissionOf } = await setup({ paymentAmount: 10000 });
+    const { affiliateWallet, payment, affiliateUser, reduceWalletBalance, creditCommissionOf, deletePayer, reverseCommissionOf } = await setup({
+      paymentAmount: 10000
+    });
     const commission = await creditCommissionOf(payment.id);
     await deletePayer();
 
@@ -63,7 +67,7 @@ describe(ReverseDeletedPaymentCommissionHandler.name, () => {
     });
     expect(reduceWalletBalance).toHaveBeenCalledExactlyOnceWith(
       500,
-      { userId: affiliateUser.id, organizationId: null },
+      { userId: affiliateUser.id, organizationId: affiliateWallet.organizationId },
       { currency: "usd", transactionId: commission.id, refundedBefore: 0, refundedAfter: 500 }
     );
   });
@@ -98,7 +102,9 @@ describe(ReverseDeletedPaymentCommissionHandler.name, () => {
   });
 
   it("takes a refund back from a commission still on hold whose release credit landed before its sync rolled back", async () => {
-    const { payment, affiliateUser, reduceWalletBalance, holdCommissionOf, deletePayer, reverseCommissionOf } = await setup({ paymentAmount: 10000 });
+    const { affiliateWallet, payment, affiliateUser, reduceWalletBalance, holdCommissionOf, deletePayer, reverseCommissionOf } = await setup({
+      paymentAmount: 10000
+    });
     const held = await holdCommissionOf(payment.id);
     await seedPaymentCredit({ transactionId: held.id, status: "landed", amount: 500, bonusAmount: 0 });
     await deletePayer();
@@ -112,13 +118,15 @@ describe(ReverseDeletedPaymentCommissionHandler.name, () => {
     });
     expect(reduceWalletBalance).toHaveBeenCalledExactlyOnceWith(
       200,
-      { userId: affiliateUser.id, organizationId: null },
+      { userId: affiliateUser.id, organizationId: affiliateWallet.organizationId },
       { currency: "usd", transactionId: held.id, refundedBefore: 0, refundedAfter: 200 }
     );
   });
 
   it("takes a refund back from a commission still on hold whose pending release credit turns out to have landed", async () => {
-    const { payment, affiliateUser, reduceWalletBalance, holdCommissionOf, deletePayer, reverseCommissionOf } = await setup({ paymentAmount: 10000 });
+    const { affiliateWallet, payment, affiliateUser, reduceWalletBalance, holdCommissionOf, deletePayer, reverseCommissionOf } = await setup({
+      paymentAmount: 10000
+    });
     const held = await holdCommissionOf(payment.id);
     const { txHash } = await seedPaymentCredit({ transactionId: held.id, status: "pending", amount: 500, bonusAmount: 0 });
     vi.spyOn(container.resolve(TxPresenceService), "findTx").mockResolvedValue({ hash: txHash!, code: COSMOS_TX_CODE_OK, height: 1, rawLog: "" });
@@ -134,7 +142,7 @@ describe(ReverseDeletedPaymentCommissionHandler.name, () => {
     await expect(container.resolve(PaymentCreditRepository).findByTransactionId(held.id)).resolves.toMatchObject({ status: "landed" });
     expect(reduceWalletBalance).toHaveBeenCalledExactlyOnceWith(
       200,
-      { userId: affiliateUser.id, organizationId: null },
+      { userId: affiliateUser.id, organizationId: affiliateWallet.organizationId },
       { currency: "usd", transactionId: held.id, refundedBefore: 0, refundedAfter: 200 }
     );
   });
@@ -186,6 +194,7 @@ describe(ReverseDeletedPaymentCommissionHandler.name, () => {
     const stripeChargeId = `ch_${faker.string.alphanumeric(24)}`;
     const createdPayment = await stripeTransactionRepository.create({
       userId: payer.id,
+      organizationId: await seedPersonalOrganizationIdOf(payer.id),
       type: "payment_intent",
       status: "succeeded",
       amount: input.paymentAmount ?? 10000,
@@ -228,6 +237,7 @@ describe(ReverseDeletedPaymentCommissionHandler.name, () => {
     return {
       payer,
       affiliate,
+      affiliateWallet,
       affiliateUser,
       payment,
       topUpWallet,

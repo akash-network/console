@@ -562,12 +562,14 @@ describe(StripeTransactionRepository.name, () => {
 
       const withCharge = await stripeTransactionRepository.createAffiliateCommission({
         userId: affiliate.id,
+        organizationId: await seedPersonalOrganizationIdOf(affiliate.id),
         amount: 500,
         sourceTransactionId: sourcePayment.id,
         sourceStripeChargeId: stripeChargeId
       });
       const withoutCharge = await stripeTransactionRepository.createAffiliateCommission({
         userId: affiliate.id,
+        organizationId: await seedPersonalOrganizationIdOf(affiliate.id),
         amount: 500,
         sourceTransactionId: otherPayment.id
       });
@@ -747,6 +749,7 @@ describe(StripeTransactionRepository.name, () => {
       const sourcePayment = await createTestTransaction({ userId: payer.id, stripeChargeId });
       const earlier = await stripeTransactionRepository.createAffiliateCommission({
         userId: affiliate.id,
+        organizationId: await seedPersonalOrganizationIdOf(affiliate.id),
         amount: 500,
         sourceTransactionId: sourcePayment.id,
         sourceStripeChargeId: stripeChargeId,
@@ -755,6 +758,7 @@ describe(StripeTransactionRepository.name, () => {
       await stripeTransactionRepository.updateById(earlier.id, { status: "refunded", amountRefunded: 500 });
       const later = await stripeTransactionRepository.createAffiliateCommission({
         userId: affiliate.id,
+        organizationId: await seedPersonalOrganizationIdOf(affiliate.id),
         amount: 500,
         sourceTransactionId: sourcePayment.id,
         sourceStripeChargeId: stripeChargeId,
@@ -775,6 +779,7 @@ describe(StripeTransactionRepository.name, () => {
       const sourcePayment = await createTestTransaction({ stripeChargeId });
       await stripeTransactionRepository.createAffiliateCommission({
         userId: affiliate.id,
+        organizationId: await seedPersonalOrganizationIdOf(affiliate.id),
         amount: 500,
         sourceTransactionId: sourcePayment.id,
         sourceStripeChargeId: stripeChargeId
