@@ -1,0 +1,71 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: sandbox-seed-dump
+spec:
+  schedule: "0 6 * * 1"
+  timeZone: Etc/UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 3600
+      template:
+        spec:
+          serviceAccountName: sandbox-seed-dump
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            runAsGroup: 999
+            fsGroup: 999
+          initContainers:
+            - name: dump-and-verify
+              image: postgres:14.18
+              command: ["bash", "-c", "bash /scripts/dump-sandbox-seed.sh && bash /scripts/verify-sandbox-seed.sh \"$OUTPUT_FILE\""]
+              env:
+                - name: OUTPUT_FILE
+                  value: /work/console-akash-sandbox.sql.gz
+                - name: TMPDIR
+                  value: /work
+              envFrom:
+                - secretRef:
+                    name: sandbox-seed-dump-db
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: 512Mi
+                limits:
+                  memory: 1Gi
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                - name: work
+                  mountPath: /work
+          containers:
+            - name: publish
+              image: gcr.io/google.com/cloudsdktool/google-cloud-cli:slim
+              command: ["bash", "/scripts/publish-sandbox-seed.sh", "/work/console-akash-sandbox.sql.gz"]
+              env:
+                - name: CLOUDSDK_CONFIG
+                  value: /work/gcloud
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  memory: 512Mi
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                - name: work
+                  mountPath: /work
+          volumes:
+            - name: scripts
+              configMap:
+                name: sandbox-seed-scripts
+            - name: work
+              emptyDir:
+                sizeLimit: 5Gi
