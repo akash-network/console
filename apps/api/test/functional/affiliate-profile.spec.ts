@@ -7,8 +7,6 @@ import { AffiliateRepository } from "@src/affiliate/repositories/affiliate/affil
 import { ReferralRepository } from "@src/affiliate/repositories/referral/referral.repository";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { StripeTransactionRepository } from "@src/billing/repositories";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
@@ -156,7 +154,7 @@ describe("GET /v1/affiliates/me", () => {
   });
 
   it("returns the earnings filed under the affiliate's personal organization while one of their teams is active", async () => {
-    const { token, user } = await setup({ hasOrganizations: true });
+    const { token, user } = await setup();
     await affiliateRepository.create({
       userId: user.id,
       code: faker.string.alpha({ length: 8, casing: "lower" }),
@@ -232,7 +230,7 @@ describe("GET /v1/affiliates/me", () => {
     });
   }
 
-  async function setup(input: { hasOrganizations?: boolean } = {}) {
+  async function setup() {
     const user = await userRepository.create({ userId: faker.string.uuid() });
     const token = faker.string.alphanumeric(40);
     const otherTokens = vi.isMockFunction(userAuthTokenService.getValidUserId)
@@ -242,12 +240,6 @@ describe("GET /v1/affiliates/me", () => {
     vi.spyOn(userAuthTokenService, "getValidUserId").mockImplementation(async header =>
       header.replace(/^Bearer +/i, "") === token ? user.userId! : (await otherTokens?.(header)) ?? null
     );
-
-    if (input.hasOrganizations) {
-      const featureFlagsService = container.resolve(FeatureFlagsService);
-      const isEnabled = FeatureFlagsService.prototype.isEnabled.bind(featureFlagsService);
-      vi.spyOn(featureFlagsService, "isEnabled").mockImplementation((flag, context) => flag === FeatureFlags.ORGANIZATIONS || isEnabled(flag, context));
-    }
 
     return { user, token };
   }

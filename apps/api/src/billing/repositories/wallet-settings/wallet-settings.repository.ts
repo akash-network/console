@@ -64,7 +64,6 @@ export class WalletSettingRepository extends OrgScopedRepository<Table, WalletSe
       .where(this.whereAccessibleBy(ownedBy(this.table, { userId })))
       .limit(1);
     if (!setting) return undefined;
-    this.compareWithShadow([setting]);
 
     return this.toOutput(setting);
   }
@@ -101,7 +100,6 @@ export class WalletSettingRepository extends OrgScopedRepository<Table, WalletSe
     });
 
     if (!walletSetting) return undefined;
-    this.compareWithShadow([walletSetting]);
 
     return walletSetting;
   }

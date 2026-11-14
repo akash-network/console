@@ -5,12 +5,9 @@ import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
-import { AuthService } from "@src/auth/services/auth.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { type ApiPgDatabase, CORE_CONFIG, POSTGRES_DB, resolveTable } from "@src/core";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
-import type { GetSpendRateResponse, GetWeeklyDeploymentCostResponse } from "@src/deployment/http-schemas/deployment.schema";
+import type { GetSpendRateResponse } from "@src/deployment/http-schemas/deployment.schema";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { app, initDb } from "@src/rest-app";
 
@@ -69,15 +66,13 @@ describe("Spend figures by project access", () => {
       expect(response.status).toBe(403);
     });
 
-    it("answers a personal organization the weekly cost it answered while organizations were off", async () => {
+    it("answers a personal organization the weekly cost of every deployment it holds", async () => {
       const personal = await setupPersonal();
-      const before = (await (await personal.request("/v1/weekly-cost", { organizationsOn: false })).json()) as GetWeeklyDeploymentCostResponse;
 
-      const response = await personal.request("/v1/weekly-cost", { organizationsOn: true });
+      const response = await personal.request("/v1/weekly-cost");
 
       expect(response.status).toBe(200);
-      expect(await response.json()).toEqual(before);
-      expect(before).toEqual({ data: { weeklyCost: sumOf(WEEKLY_COSTS_BY_PROJECT.slice(0, 2)) } });
+      expect(await response.json()).toEqual({ data: { weeklyCost: sumOf(WEEKLY_COSTS_BY_PROJECT.slice(0, 2)) } });
     });
   });
 
@@ -117,15 +112,13 @@ describe("Spend figures by project access", () => {
       expect(response.status).toBe(403);
     });
 
-    it("answers a personal organization the spend rate it answered while organizations were off", async () => {
+    it("answers a personal organization the spend rate of every deployment it holds", async () => {
       const personal = await setupPersonal();
-      const before = (await (await personal.request("/v1/spend-rate", { organizationsOn: false })).json()) as GetSpendRateResponse;
 
-      const response = await personal.request("/v1/spend-rate", { organizationsOn: true });
+      const response = await personal.request("/v1/spend-rate");
 
       expect(response.status).toBe(200);
-      expect(sortedByDseq(((await response.json()) as GetSpendRateResponse).data.deployments)).toEqual(sortedByDseq(before.data.deployments));
-      expect(before.data.deployments.map(({ dseq }) => dseq).sort()).toEqual([...personal.dseqs].sort());
+      expect(await spentDseqsOf(response)).toEqual([...personal.dseqs].sort());
     });
   });
 
@@ -133,10 +126,6 @@ describe("Spend figures by project access", () => {
     const { data } = (await response.json()) as GetSpendRateResponse;
 
     return data.deployments.map(({ dseq }) => dseq).sort();
-  }
-
-  function sortedByDseq(deployments: GetSpendRateResponse["data"]["deployments"]) {
-    return [...deployments].sort((a, b) => a.dseq.localeCompare(b.dseq));
   }
 
   function sumOf(amounts: number[]) {
@@ -158,15 +147,6 @@ describe("Spend figures by project access", () => {
     );
 
     return `Bearer ${token}`;
-  }
-
-  function setOrganizationsFor(userIds: string[]) {
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation((flag, context) => {
-      if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
-      if (flag !== FeatureFlags.ORGANIZATIONS) return true;
-
-      return userIds.includes(context?.userId ?? container.resolve(AuthService).safeCurrentUser?.id ?? "");
-    });
   }
 
   async function seedApiKey(input: { userId: string; organizationId: string; projectId: string }) {
@@ -270,7 +250,6 @@ describe("Spend figures by project access", () => {
       projectIds: projects.map(({ id }) => id)
     });
     const authorization = signIn(caller.userId!);
-    setOrganizationsFor([caller.id]);
 
     const request = (path: string) => app.request(path, { headers: { authorization, "x-organization-id": team.id } });
     const requestWithKeyBoundTo = async (projectIndex: number, path: string) => {
@@ -294,11 +273,7 @@ describe("Spend figures by project access", () => {
     });
     const authorization = signIn(user.userId!);
 
-    const request = (path: string, options: { organizationsOn: boolean }) => {
-      setOrganizationsFor(options.organizationsOn ? [user.id] : []);
-
-      return app.request(path, { headers: { authorization } });
-    };
+    const request = (path: string) => app.request(path, { headers: { authorization } });
 
     return { request, dseqs };
   }

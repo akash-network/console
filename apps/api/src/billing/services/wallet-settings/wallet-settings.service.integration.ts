@@ -16,8 +16,11 @@ import type { WalletReloadJobService } from "@src/billing/services/wallet-reload
 import { TxService } from "@src/core";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { OrganizationContextResolver } from "@src/organization/services/organization-context/organization-context.resolver";
 import { WalletSettingService } from "./wallet-settings.service";
 
+import { fileIntoPersonalOrganization } from "@test/seeders/db/organization.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { seedWalletSetting } from "@test/seeders/db/wallet-setting.seeder";
 import { createOrganization } from "@test/seeders/organization.seeder";
@@ -284,11 +287,11 @@ describe(WalletSettingService.name, () => {
 
     describe("when two saves overlap", () => {
       it("turns Auto Recharge on once for an existing setting", async () => {
-        const { user, walletReloadJobService, analyticsService, service } = await setupPersisted({ settingExists: true });
+        const { user, walletReloadJobService, analyticsService, service, inRequest } = await setupPersisted({ settingExists: true });
 
         await Promise.all([
-          service.upsertWalletSetting(user.id, { autoReloadEnabled: true }),
-          service.upsertWalletSetting(user.id, { autoReloadEnabled: true })
+          inRequest(() => service.upsertWalletSetting(user.id, { autoReloadEnabled: true })),
+          inRequest(() => service.upsertWalletSetting(user.id, { autoReloadEnabled: true }))
         ]);
 
         expect(analyticsService.track).toHaveBeenCalledTimes(1);
@@ -297,11 +300,11 @@ describe(WalletSettingService.name, () => {
       });
 
       it("turns Auto Recharge on once for a first setting", async () => {
-        const { user, walletReloadJobService, analyticsService, service } = await setupPersisted({ settingExists: false });
+        const { user, walletReloadJobService, analyticsService, service, inRequest } = await setupPersisted({ settingExists: false });
 
         const saved = await Promise.all([
-          service.upsertWalletSetting(user.id, { autoReloadEnabled: true }),
-          service.upsertWalletSetting(user.id, { autoReloadEnabled: true })
+          inRequest(() => service.upsertWalletSetting(user.id, { autoReloadEnabled: true })),
+          inRequest(() => service.upsertWalletSetting(user.id, { autoReloadEnabled: true }))
         ]);
 
         expect(saved.map(setting => setting.autoReloadEnabled)).toEqual([true, true]);
@@ -421,8 +424,17 @@ describe(WalletSettingService.name, () => {
     if (input.settingExists) {
       await seedWalletSetting({ userId: user.id, walletId: wallet.id, autoReloadEnabled: false });
     }
+    await fileIntoPersonalOrganization(user);
+    const organizationContext = await container.resolve(OrganizationContextResolver).resolve({ user });
+    const executionContextService = container.resolve(ExecutionContextService);
+    const inRequest = <T>(run: () => Promise<T>) =>
+      executionContextService.runWithContext(async () => {
+        executionContextService.set("CURRENT_USER", user);
+        executionContextService.set("ORGANIZATION_CONTEXT", organizationContext);
+        return await run();
+      });
     const authService = mock<AuthService>({ currentUser: user });
-    authService.ability = container.resolve(AbilityService).getAbilityFor("REGULAR_USER", user);
+    authService.ability = await inRequest(async () => container.resolve(AbilityService).getAbilityFor("REGULAR_USER", user));
     const paymentMethodService = mock<PaymentMethodService>({
       getDefaultPaymentMethod: vi.fn().mockResolvedValue({ ...generatePaymentMethod(), validated: true } as PaymentMethod)
     });
@@ -447,7 +459,7 @@ describe(WalletSettingService.name, () => {
       vi.fn<CreateLogger>(() => mock<ReturnType<CreateLogger>>())
     );
 
-    return { user, walletReloadJobService, analyticsService, service };
+    return { user, walletReloadJobService, analyticsService, service, inRequest };
   }
 });
 

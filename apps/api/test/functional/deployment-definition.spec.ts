@@ -33,6 +33,7 @@ import { createManyLeaseApiResponses } from "@test/seeders/lease-api-response.se
 import { createLeaseStatus } from "@test/seeders/lease-status.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
+import { runAsUser } from "@test/services/job-queue-harness";
 
 const { publicKey } = registerFakeSdlSecretsKms();
 
@@ -177,7 +178,7 @@ describe("Deployment definitions", () => {
     it("fills a row the console keeps without a definition, keeping its name", async () => {
       const sdl = sdlWithEnv(["LOG_LEVEL=debug"]);
       const { apiKey, user } = await setup({ runs: { sdl } });
-      await deploymentSettingRepository.upsertName({ userId: user.id, dseq: DSEQ, name: "web" });
+      await runAsUser(user, () => deploymentSettingRepository.upsertName({ userId: user.id, dseq: DSEQ, name: "web" }));
 
       const response = await record(apiKey, { sdl });
 

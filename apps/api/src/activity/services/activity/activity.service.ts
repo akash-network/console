@@ -219,10 +219,9 @@ export class ActivityService {
     return await this.countUnseen();
   }
 
-  /** Narrowed only in organization mode, like every organization-scoped read, so a user on the legacy rules keeps their whole feed. */
   get #activeFeed(): ActivityFeed | undefined {
     const context = this.executionContextService.get("ORGANIZATION_CONTEXT");
-    if (context?.mode !== "organization") return undefined;
+    if (!context) return undefined;
 
     const keyProjectId = this.executionContextService.get("CURRENT_API_KEY")?.projectId;
     if (!keyProjectId) return context;

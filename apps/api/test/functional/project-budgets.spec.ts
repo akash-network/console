@@ -9,14 +9,11 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
-import { AuthService } from "@src/auth/services/auth.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { BILLING_CONFIG } from "@src/billing/providers";
 import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import type { ApiPgDatabase } from "@src/core";
 import { CORE_CONFIG, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import type { ListProjectBudgetsResponse, ProjectBudgetResponse } from "@src/organization/http-schemas/project-budget.schema";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
@@ -173,19 +170,6 @@ describe("Project budgets", () => {
 
       expect(responses.map(({ status }) => status)).toEqual([400, 400]);
     });
-
-    it("answers 404 on every budget route while organizations are off for the caller", async () => {
-      const { project, owner, actAs } = await setupTeam({ organizationsOn: false });
-
-      const responses = await Promise.all([
-        actAs(owner)("/v1/project-budgets"),
-        actAs(owner)("/v1/project-budgets", { method: "POST", body: { data: { projectId: project.id, monthlyAmountUsd: 10 } } }),
-        actAs(owner)(`/v1/project-budgets/${faker.string.uuid()}`, { method: "PATCH", body: { data: { stopTopUps: true } } }),
-        actAs(owner)(`/v1/project-budgets/${faker.string.uuid()}`, { method: "DELETE" })
-      ]);
-
-      expect(responses.map(({ status }) => status)).toEqual([404, 404, 404, 404]);
-    });
   });
 
   describe("POST /v1/deployments into a budgeted project", () => {
@@ -214,17 +198,6 @@ describe("Project budgets", () => {
       const responses = await Promise.all([createDeployment(), createDeployment()]);
 
       expect(responses.map(({ status }) => status).sort()).toEqual([201, 403]);
-    });
-
-    it("checks nothing while organizations are off for the user", async () => {
-      const { createDeployment, budgetOn, defaultProject, organizationId, createDepositCents } = await setupSigner({ organizationsOn: false });
-      await budgetOn(defaultProject.id, { monthlyAmountCents: Math.floor(createDepositCents / 2) });
-
-      const response = await createDeployment();
-
-      expect(response.status).toBe(201);
-      expect(await alertsFor(defaultProject.id)).toEqual([]);
-      expect(await findDeploymentDepositsOf(organizationId)).toEqual([expect.objectContaining({ status: "confirmed" })]);
     });
   });
 
@@ -257,7 +230,7 @@ describe("Project budgets", () => {
     return { userId: `auth0|${faker.string.alphanumeric(24)}`, username: `user-${faker.string.alphanumeric(12)}`, email: faker.internet.email() };
   }
 
-  async function setupTeam(input: { organizationsOn?: boolean } = {}) {
+  async function setupTeam() {
     const { user: owner, organization: team } = await seedOrganizationWithOwner({ user: createSignedUpUserInput() });
     const project = await seedProject({ organizationId: team.id });
     const otherProject = await seedProject({ organizationId: team.id });
@@ -266,12 +239,6 @@ describe("Project budgets", () => {
     vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(
       async header => tokens.get(header.replace(/^Bearer +/i, "")) ?? null
     );
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => {
-      if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
-      if (flag !== FeatureFlags.ORGANIZATIONS) return true;
-
-      return input.organizationsOn !== false;
-    });
 
     const actAs = (user: UserOutput) => {
       const token = faker.string.alphanumeric(40);
@@ -313,18 +280,12 @@ describe("Project budgets", () => {
       });
   }
 
-  async function setupSigner(input: { organizationsOn?: boolean } = {}) {
+  async function setupSigner() {
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
     answerSigner();
     const { user, token, wallet } = await walletService.createUserAndWallet();
     const { organizationId, defaultProject } = await personalOrganizationOf(user.id);
 
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation((flag, context) => {
-      if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
-      if (flag !== FeatureFlags.ORGANIZATIONS) return true;
-
-      return input.organizationsOn !== false && (context?.userId ?? container.resolve(AuthService).safeCurrentUser?.id) === user.id;
-    });
     vi.spyOn(container.resolve(DenomExchangeService), "getExchangeRateToUSD").mockResolvedValue({
       price: AKT_PRICE_USD,
       volume: 0,

@@ -5,10 +5,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
-import { AuthService } from "@src/auth/services/auth.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { app } from "@src/rest-app";
@@ -71,7 +69,6 @@ describe("Organizations", () => {
     it("gives a caller without any organization their personal one", async () => {
       const user = await seedUser({ userId: `auth0|${faker.string.alphanumeric(24)}`, username: `user-${faker.string.alphanumeric(12)}` });
       const bearer = signIn(user.userId!);
-      enableOrganizationsFor([user.id]);
 
       const response = await listOrganizations({ authorization: bearer });
 
@@ -79,14 +76,6 @@ describe("Organizations", () => {
       expect(await response.json()).toEqual({
         data: [expect.objectContaining({ type: "personal", role: "owner", isActive: true, name: user.username })]
       });
-    });
-
-    it("answers like an unknown path while organizations are off for the caller", async () => {
-      const { bearer } = await setupCaller({ organizationsOn: false });
-
-      const response = await listOrganizations({ authorization: bearer });
-
-      expect(response.status).toBe(404);
     });
 
     it("answers unauthorized to an anonymous caller", async () => {
@@ -167,17 +156,6 @@ describe("Organizations", () => {
 
       expect(response.status).toBe(200);
       await vi.waitFor(async () => expect((await userRepository.findById(user.id))?.lastUsedOrganizationId).toBe(team.id));
-    });
-
-    it("is ignored while organizations are off for the caller", async () => {
-      const { bearer } = await setupCaller({ organizationsOn: false });
-      const { organization: foreign } = await seedOrganizationWithOwner();
-
-      const response = await app.request("/v1/api-keys", {
-        headers: { authorization: bearer, "x-organization-id": foreign.id, "x-project-id": faker.string.uuid() }
-      });
-
-      expect(response.status).toBe(200);
     });
   });
 
@@ -316,15 +294,6 @@ describe("Organizations", () => {
     return `Bearer ${token}`;
   }
 
-  function enableOrganizationsFor(userIds: string[]) {
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation((flag, context) => {
-      if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
-      if (flag !== FeatureFlags.ORGANIZATIONS) return true;
-
-      return userIds.includes(context?.userId ?? container.resolve(AuthService).safeCurrentUser?.id ?? "");
-    });
-  }
-
   async function seedApiKey(input: { userId: string; organizationId: string }) {
     const apiKeyGenerator = container.resolve(ApiKeyGeneratorService);
     const apiKey = apiKeyGenerator.generateApiKey();
@@ -338,7 +307,7 @@ describe("Organizations", () => {
     return apiKey;
   }
 
-  async function setupCaller(input: { organizationsOn?: boolean; teamRole?: OrganizationRole }) {
+  async function setupCaller(input: { teamRole?: OrganizationRole }) {
     const {
       user,
       organization: personal,
@@ -350,7 +319,6 @@ describe("Organizations", () => {
     const { organization: team } = await seedOrganizationWithOwner();
     await seedOrganizationMember({ organizationId: team.id, userId: user.id, role: input.teamRole ?? "member" });
     const bearer = signIn(user.userId!);
-    enableOrganizationsFor(input.organizationsOn === false ? [] : [user.id]);
 
     return { user, personal, personalProject, team, bearer };
   }

@@ -11,8 +11,6 @@ import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-gener
 import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { OrganizationInvitationInput } from "@src/organization/repositories/organization-invitation/organization-invitation.repository";
 import { app } from "@src/rest-app";
 import type { UserOutput } from "@src/user/repositories";
@@ -37,7 +35,7 @@ describe("Received invitations", () => {
 
   describe("GET /v1/received-invitations", () => {
     it("lists the open invitations sent to the caller's verified email, newest first", async () => {
-      const { organization, owner, invite, seedInvitee, request } = await setup({});
+      const { organization, owner, invite, seedInvitee, request } = await setup();
       const invitee = await seedInvitee();
       const { organization: otherTeam } = await seedOrganizationWithOwner();
       const older = await invite({ email: invitee.email!, role: "admin", createdAt: addDays(new Date(), -2) });
@@ -72,7 +70,7 @@ describe("Received invitations", () => {
     });
 
     it("lists nothing for a caller whose email Auth0 has not verified", async () => {
-      const { invite, seedInvitee, request } = await setup({});
+      const { invite, seedInvitee, request } = await setup();
       const invitee = await seedInvitee({ auth0: { emailVerified: false } });
       await invite({ email: invitee.email! });
 
@@ -83,7 +81,7 @@ describe("Received invitations", () => {
     });
 
     it("leaves out an invitation to a team the caller already belongs to", async () => {
-      const { organization, invite, seedInvitee, request } = await setup({});
+      const { organization, invite, seedInvitee, request } = await setup();
       const invitee = await seedInvitee();
       await seedOrganizationMember({ organizationId: organization.id, userId: invitee.id });
       await invite({ email: invitee.email! });
@@ -95,7 +93,7 @@ describe("Received invitations", () => {
     });
 
     it("refuses an API key", async () => {
-      const { invite, seedInvitee, seedApiKey, request } = await setup({});
+      const { invite, seedInvitee, seedApiKey, request } = await setup();
       const invitee = await seedInvitee();
       await invite({ email: invitee.email! });
 
@@ -106,26 +104,17 @@ describe("Received invitations", () => {
     });
 
     it("refuses a signed-out caller", async () => {
-      const { request } = await setup({});
+      const { request } = await setup();
 
       const response = await request("/v1/received-invitations", { method: "GET" });
 
       expect(response.status).toBe(401);
     });
-
-    it("answers like an unknown path while organizations are off for the caller", async () => {
-      const { seedInvitee, request } = await setup({ organizationsOn: false });
-      const invitee = await seedInvitee();
-
-      const response = await request("/v1/received-invitations", { method: "GET", asUser: invitee });
-
-      expect(response.status).toBe(404);
-    });
   });
 
   describe("POST /v1/received-invitations/{id}/accept", () => {
     it("joins the invitee with the invited role and project access and makes the organization their last used one", async () => {
-      const { organization, project, invite, seedInvitee, request, membershipsOf, grantsOf, userOf, invitationOf } = await setup({});
+      const { organization, project, invite, seedInvitee, request, membershipsOf, grantsOf, userOf, invitationOf } = await setup();
       const invitee = await seedInvitee();
       const invitation = await invite({ email: invitee.email!, role: "member", projectGrants: [{ projectId: project.id, role: "viewer" }] });
 
@@ -140,7 +129,7 @@ describe("Received invitations", () => {
     });
 
     it("refuses with 410 an invitation whose inviter no longer belongs to the organization and leaves it pending", async () => {
-      const { invite, seedInvitee, request, membershipsOf, invitationOf } = await setup({});
+      const { invite, seedInvitee, request, membershipsOf, invitationOf } = await setup();
       const formerAdmin = await seedInvitee();
       const invitee = await seedInvitee();
       const invitation = await invite({ email: invitee.email!, role: "admin", invitedByUserId: formerAdmin.id });
@@ -154,7 +143,7 @@ describe("Received invitations", () => {
     });
 
     it("joins through the address Auth0 verified for the caller", async () => {
-      const { organization, invite, seedInvitee, request, membershipsOf } = await setup({});
+      const { organization, invite, seedInvitee, request, membershipsOf } = await setup();
       const invitee = await seedInvitee({ emailVerified: false, auth0: { email: "Jane.Doe@Example.com" } });
       const invitation = await invite({ email: "jane.doe@example.com" });
 
@@ -178,7 +167,7 @@ describe("Received invitations", () => {
         invitation: {}
       }
     ])("answers not found for an invitation $case and leaves it pending", async ({ invitee: inviteeOverrides, invitation: overrides }) => {
-      const { invite, seedInvitee, request, membershipsOf, invitationOf } = await setup({});
+      const { invite, seedInvitee, request, membershipsOf, invitationOf } = await setup();
       const invitee = await seedInvitee(inviteeOverrides);
       const invitation = await invite({ email: invitee.email!, ...overrides });
 
@@ -194,7 +183,7 @@ describe("Received invitations", () => {
       { case: "revoked", invitation: { status: "revoked" as const, revokedAt: new Date() }, code: "invitation_revoked" },
       { case: "declined", invitation: { status: "declined" as const, declinedAt: new Date() }, code: "invitation_declined" }
     ])("explains that the invitation is $case", async ({ invitation: overrides, code }) => {
-      const { invite, seedInvitee, request, membershipsOf } = await setup({});
+      const { invite, seedInvitee, request, membershipsOf } = await setup();
       const invitee = await seedInvitee();
       const invitation = await invite({ email: invitee.email!, ...overrides });
 
@@ -206,7 +195,7 @@ describe("Received invitations", () => {
     });
 
     it("refuses an API key and writes nothing", async () => {
-      const { invite, seedInvitee, seedApiKey, request, membershipsOf, invitationOf } = await setup({});
+      const { invite, seedInvitee, seedApiKey, request, membershipsOf, invitationOf } = await setup();
       const invitee = await seedInvitee();
       const invitation = await invite({ email: invitee.email! });
 
@@ -219,7 +208,7 @@ describe("Received invitations", () => {
     });
 
     it("rejects an id that is not a uuid", async () => {
-      const { seedInvitee, request } = await setup({});
+      const { seedInvitee, request } = await setup();
       const invitee = await seedInvitee();
 
       const response = await request("/v1/received-invitations/not-a-uuid/accept", { asUser: invitee });
@@ -230,7 +219,7 @@ describe("Received invitations", () => {
 
   describe("POST /v1/received-invitations/{id}/decline", () => {
     it("declines the invitation and tells the team which address declined, without naming the account", async () => {
-      const { organization, invite, seedInvitee, request, membershipsOf, invitationOf, teamActivities } = await setup({});
+      const { organization, invite, seedInvitee, request, membershipsOf, invitationOf, teamActivities } = await setup();
       const invitee = await seedInvitee();
       const invitation = await invite({ email: invitee.email!, role: "admin" });
 
@@ -245,7 +234,7 @@ describe("Received invitations", () => {
     });
 
     it("records one decline when the invitee declines twice", async () => {
-      const { organization, invite, seedInvitee, request, teamActivities } = await setup({});
+      const { organization, invite, seedInvitee, request, teamActivities } = await setup();
       const invitee = await seedInvitee();
       const invitation = await invite({ email: invitee.email! });
 
@@ -257,7 +246,7 @@ describe("Received invitations", () => {
     });
 
     it("refuses an invitation the invitee already accepted", async () => {
-      const { invite, seedInvitee, request, invitationOf } = await setup({});
+      const { invite, seedInvitee, request, invitationOf } = await setup();
       const invitee = await seedInvitee();
       const invitation = await invite({ email: invitee.email!, status: "accepted", acceptedByUserId: invitee.id, acceptedAt: new Date() });
 
@@ -269,7 +258,7 @@ describe("Received invitations", () => {
     });
 
     it("answers not found for an invitation sent to an address Auth0 has not verified for the caller and leaves it pending", async () => {
-      const { organization, invite, seedInvitee, request, invitationOf, teamActivities } = await setup({});
+      const { organization, invite, seedInvitee, request, invitationOf, teamActivities } = await setup();
       const invitee = await seedInvitee({ auth0: { emailVerified: false } });
       const invitation = await invite({ email: invitee.email! });
 
@@ -281,7 +270,7 @@ describe("Received invitations", () => {
     });
 
     it("refuses an API key and writes nothing", async () => {
-      const { invite, seedInvitee, seedApiKey, request, invitationOf } = await setup({});
+      const { invite, seedInvitee, seedApiKey, request, invitationOf } = await setup();
       const invitee = await seedInvitee();
       const invitation = await invite({ email: invitee.email! });
 
@@ -293,7 +282,7 @@ describe("Received invitations", () => {
     });
   });
 
-  async function setup(input: { organizationsOn?: boolean }) {
+  async function setup() {
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
     const OrganizationMembers = resolveTable("OrganizationMembers");
     const OrganizationInvitations = resolveTable("OrganizationInvitations");
@@ -316,12 +305,6 @@ describe("Received invitations", () => {
       const auth0User = auth0UserByUserId.get(userId);
 
       return auth0User ? mock<GetUsers200ResponseOneOfInner>({ user_id: userId, ...auth0User }) : null;
-    });
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => {
-      if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
-      if (flag !== FeatureFlags.ORGANIZATIONS) return true;
-
-      return input.organizationsOn !== false;
     });
 
     async function seedInvitee(overrides: { emailVerified?: boolean; auth0?: { email?: string; emailVerified?: boolean } } = {}) {

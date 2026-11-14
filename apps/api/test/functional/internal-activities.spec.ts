@@ -5,8 +5,6 @@ import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import { deploymentCloseDedupeKeyOf } from "@src/activity/lib/dedupe-key/dedupe-key";
 import { ActivityRepository } from "@src/activity/repositories/activity/activity.repository";
 import { CORE_CONFIG } from "@src/core/providers/config.provider";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { systemClosedActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 import { app } from "@src/rest-app";
 
@@ -74,7 +72,9 @@ describe("POST /internal/activities", () => {
     const response = await addAlert(alert);
 
     expect(response.status).toBe(204);
-    expect(await activityRepository.find({ userId: user.id })).toEqual([expect.objectContaining({ meta: { alertId: alert.meta.alertId, summary: alert.meta.summary } })]);
+    expect(await activityRepository.find({ userId: user.id })).toEqual([
+      expect.objectContaining({ meta: { alertId: alert.meta.alertId, summary: alert.meta.summary } })
+    ]);
   });
 
   it("adds a team alert to the feed of the member who set it while they can see its project", async () => {
@@ -128,16 +128,6 @@ describe("POST /internal/activities", () => {
 
     expect(response.status).toBe(204);
     expect(await activityRepository.find({ userId: owner.id })).toEqual([]);
-  });
-
-  it("writes nothing for a team member while organizations are off for them", async () => {
-    const { team, project, alertFor } = await setupTeam({ organizationsOn: false });
-    const member = await seedTeamMember({ organizationId: team.id, grantedProjectIds: [project.id] });
-
-    const response = await addAlert(alertFor(member.id, { projectId: project.id }));
-
-    expect(response.status).toBe(204);
-    expect(await activityRepository.find({ userId: member.id })).toEqual([]);
   });
 
   it("keeps one entry when the same alert is sent again", async () => {
@@ -259,8 +249,7 @@ describe("POST /internal/activities", () => {
     return member;
   }
 
-  async function setupTeam({ organizationsOn = true, ...organization }: { deletedAt?: Date; organizationsOn?: boolean } = {}) {
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => organizationsOn && flag !== FeatureFlags.ORGANIZATIONS_ENFORCE);
+  async function setupTeam(organization: { deletedAt?: Date } = {}) {
     const { user: owner, organization: team, project } = await seedOrganizationWithOwner(organization);
 
     return {

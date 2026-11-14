@@ -24,7 +24,7 @@ export class PayerService {
     private readonly userRepository: UserRepository
   ) {}
 
-  /** A personal organization keeps paying with its owner's Stripe customer, so legacy and organization modes bill the same customer. */
+  /** A personal organization keeps paying with its owner's Stripe customer. */
   async getCurrentPayer(): Promise<Payer> {
     const user = this.authService.currentUser;
     const context = this.executionContextService.get("ORGANIZATION_CONTEXT");

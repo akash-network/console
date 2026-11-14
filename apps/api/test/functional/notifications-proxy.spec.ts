@@ -5,17 +5,14 @@ import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { NOTIFICATIONS_CONFIG } from "@src/notifications/providers/notifications-config.provider";
 import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import { ProjectRepository } from "@src/organization/repositories/project/project.repository";
-import { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import { app } from "@src/rest-app";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createDseq, seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
-import { seedOrganization, seedOrganizationMember, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
+import { fileIntoPersonalOrganization, seedOrganization, seedOrganizationMember, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe("Notifications proxy", () => {
@@ -37,11 +34,9 @@ describe("Notifications proxy", () => {
         "x-api-key": apiKey,
         "x-user-id": faker.string.uuid(),
         "x-owner-address": createAkashAddress(),
-        "x-organization-id": faker.string.uuid(),
         "x-organization-type": "team",
-        "x-organization-role": "owner",
-        "x-project-scope": "all",
-        "x-project-id": faker.string.uuid()
+        "x-organization-role": "viewer",
+        "x-project-scope": JSON.stringify({ kind: "projects", grants: [] })
       }
     });
 
@@ -50,32 +45,15 @@ describe("Notifications proxy", () => {
       "x-user-id": user.id,
       "x-owner-address": address,
       "x-organization-id": await personalOrganizationIdOf(user.id),
-      "x-organization-type": "personal"
-    });
-    expect(forwarded.headers()).not.toHaveProperty("x-organization-role");
-    expect(forwarded.headers()).not.toHaveProperty("x-project-scope");
-    expect(forwarded.headers()).not.toHaveProperty("x-project-id");
-  });
-
-  it("mints the caller's role and project scope while organization rules apply", async () => {
-    const { apiKey, user } = await setup();
-    enableOrganizations();
-    const forwarded = interceptNotifications("get", "/v1/alerts");
-
-    const response = await app.request("/v1/alerts", { headers: { "x-api-key": apiKey } });
-
-    expect(response.status).toBe(200);
-    expect(forwarded.headers()).toMatchObject({
-      "x-user-id": user.id,
-      "x-organization-id": await personalOrganizationIdOf(user.id),
+      "x-organization-type": "personal",
       "x-organization-role": "owner",
       "x-project-scope": JSON.stringify({ kind: "all" })
     });
+    expect(forwarded.headers()).not.toHaveProperty("x-project-id");
   });
 
   it("mints the project of the deployment whose alerts it writes", async () => {
     const { apiKey, user } = await setup();
-    enableOrganizations();
     await app.request("/v1/alerts", { headers: { "x-api-key": apiKey } });
     const organizationId = await personalOrganizationIdOf(user.id);
     const project = await container.resolve(ProjectRepository).findDefaultByOrganizationId(organizationId);
@@ -96,7 +74,6 @@ describe("Notifications proxy", () => {
   it("refuses an organization the caller does not belong to", async () => {
     const { user } = await setup();
     const apiKey = await persistApiKeyFor(user.id, (await seedOrganization()).id);
-    enableOrganizations();
     const forwarded = interceptNotifications("get", "/v1/alerts");
 
     const response = await app.request("/v1/alerts", { headers: { "x-api-key": apiKey } });
@@ -110,7 +87,6 @@ describe("Notifications proxy", () => {
     const organization = await seedOrganization();
     await seedOrganizationMember({ organizationId: organization.id, userId: user.id, role: "billing" });
     const apiKey = await persistApiKeyFor(user.id, organization.id);
-    enableOrganizations();
     const forwarded = interceptNotifications("get", "/v1/alerts");
 
     const response = await app.request("/v1/alerts", { headers: { "x-api-key": apiKey } });
@@ -130,7 +106,6 @@ describe("Notifications proxy", () => {
     await seedDeploymentSetting({ userId: user.id, dseq: grantedDseq, organizationId: organization.id, projectId: grantedProject.id });
     await seedDeploymentSetting({ userId: user.id, dseq: otherDseq, organizationId: organization.id, projectId: otherProject.id });
     const apiKey = await persistApiKeyFor(user.id, organization.id);
-    enableOrganizations();
     const grantedRead = interceptNotifications("get", `/v1/deployment-alerts/${grantedDseq}`);
     const otherRead = interceptNotifications("get", `/v1/deployment-alerts/${otherDseq}`);
 
@@ -153,7 +128,6 @@ describe("Notifications proxy", () => {
     const { organization, project, deploymentDseq, apiKeyOfProjectRole } = await setupTeamWithDeployment();
     const writerApiKey = await apiKeyOfProjectRole("member");
     const viewerApiKey = await apiKeyOfProjectRole("viewer");
-    enableOrganizations();
     const forwarded = interceptNotifications("post", `/v1/deployment-alerts/${deploymentDseq}`);
     const alertRequest = (apiKey: string) =>
       app.request(`/v1/deployment-alerts/${deploymentDseq}`, {
@@ -188,10 +162,6 @@ describe("Notifications proxy", () => {
     }
 
     return { organization, project, deploymentDseq, apiKeyOfProjectRole };
-  }
-
-  function enableOrganizations() {
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.ORGANIZATIONS_ENFORCE);
   }
 
   async function personalOrganizationIdOf(userId: string) {
@@ -229,8 +199,7 @@ describe("Notifications proxy", () => {
 
   async function setup() {
     const { user, address } = await seedUserWithWallet();
-    const personalOrganizationService = container.resolve(PersonalOrganizationService);
-    await personalOrganizationService.adoptUserRows(user, await personalOrganizationService.ensureForUser(user));
+    await fileIntoPersonalOrganization(user);
     const apiKey = await persistApiKeyFor(user.id);
 
     return { user, address, apiKey };

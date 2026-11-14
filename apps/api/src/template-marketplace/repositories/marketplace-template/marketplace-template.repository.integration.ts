@@ -7,7 +7,6 @@ import { describe, expect, it } from "vitest";
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
-import type { AuthorizationMode } from "@src/organization/types/organization-context";
 import { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
 import type { TemplateModerationStatus, TemplateVisibility } from "@src/user/model-schemas/template/template.schema";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
@@ -261,7 +260,7 @@ describe(MarketplaceTemplateRepository.name, () => {
       expect(limited.map(({ id }) => id)).toEqual([newest.id]);
     });
 
-    it("holds to the organization asked for in legacy mode, whatever the rules reach", async () => {
+    it("holds to the organization asked for outside an organization context, whatever the rules reach", async () => {
       const { repository, organization, project } = await setup();
       const other = await seedOrganization();
       const [own] = await Promise.all([
@@ -271,7 +270,7 @@ describe(MarketplaceTemplateRepository.name, () => {
       ]);
       const readable = repository.accessibleBy(abilityOf([{ action: "manage", subject: "all" }]), "read");
 
-      const listed = await runInOrganization(organization.id, () => readable.listInOrganization({ organizationId: organization.id, limit: 200 }), "legacy");
+      const listed = await readable.listInOrganization({ organizationId: organization.id, limit: 200 });
 
       expect(listed.map(({ id }) => id)).toEqual([own.id]);
     });
@@ -424,11 +423,11 @@ describe(MarketplaceTemplateRepository.name, () => {
     return createMongoAbility<MongoAbility>(rules);
   }
 
-  async function runInOrganization<R>(organizationId: string, run: () => Promise<R>, mode: AuthorizationMode = "organization") {
+  async function runInOrganization<R>(organizationId: string, run: () => Promise<R>) {
     const executionContextService = container.resolve(ExecutionContextService);
 
     return await executionContextService.runWithContext(async () => {
-      executionContextService.set("ORGANIZATION_CONTEXT", createOrganizationContext({ organizationId, mode }));
+      executionContextService.set("ORGANIZATION_CONTEXT", createOrganizationContext({ organizationId }));
       return await run();
     });
   }

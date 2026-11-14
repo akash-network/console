@@ -7,14 +7,11 @@ import { container } from "tsyringe";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { startJobQueues } from "@src/app/providers/jobs.provider";
-import { AuthService } from "@src/auth/services/auth.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { BILLING_CONFIG } from "@src/billing/providers";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { type ApiPgDatabase, CORE_CONFIG, POSTGRES_DB, resolveTable } from "@src/core";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { app } from "@src/rest-app";
 
@@ -73,24 +70,6 @@ describe("Organization billing", () => {
       expect(customerNamed.isDone()).toBe(true);
       expect(await findOrganization(team.id)).toMatchObject({ stripeCustomerId: teamCustomerId });
       expect(await findUser(owner.id)).toMatchObject({ stripeCustomerId: null });
-    });
-
-    it("keeps setting up the member's own customer while organizations are off for them", async () => {
-      const { owner, team, headersOf } = await setup({ organizationsOn: false });
-      const userCustomerId = `cus_${faker.string.alphanumeric(14)}`;
-      nock(STRIPE_API)
-        .post("/v1/customers", body => body["metadata[userId]"] === owner.id)
-        .matchHeader("idempotency-key", `create-customer:${owner.id}`)
-        .reply(200, { id: userCustomerId, object: "customer" });
-      nock(STRIPE_API)
-        .post("/v1/setup_intents", body => body.customer === userCustomerId)
-        .reply(200, { id: "seti_1", object: "setup_intent", client_secret: "seti_secret" });
-
-      const response = await app.request("/v1/stripe/payment-methods/setup", { method: "POST", headers: headersOf(owner) });
-
-      expect(response.status).toBe(200);
-      expect(await findUser(owner.id)).toMatchObject({ stripeCustomerId: userCustomerId });
-      expect(await findOrganization(team.id)).toMatchObject({ stripeCustomerId: null });
     });
 
     it("allows a card and Link on the setup intent when no payment methods are asked for", async () => {
@@ -368,18 +347,6 @@ describe("Organization billing", () => {
       ]);
     });
 
-    it("keeps listing the user's own transactions while organizations are off for them", async () => {
-      const { owner, team, headersOf } = await setup({ organizationsOn: false });
-      const ownTransaction = await seedTransaction({ userId: owner.id, organizationId: null, status: "succeeded" });
-      await seedTransaction({ userId: owner.id, organizationId: team.id, status: "succeeded" });
-
-      const response = await app.request("/v1/stripe/transactions", { headers: headersOf(owner) });
-
-      expect(response.status).toBe(200);
-      const { data } = (await response.json()) as { data: { transactions: { id: string }[] } };
-      expect(data.transactions.map(({ id }) => id)).toEqual([ownTransaction.id]);
-    });
-
     it("refuses a member, who may not read the team's billing", async () => {
       const { headersOf, memberWith } = await setup();
       const member = await memberWith("member");
@@ -546,15 +513,12 @@ describe("Organization billing", () => {
     return user;
   }
 
-  async function setup(input: { organizationsOn?: boolean } = {}) {
+  async function setup() {
     const { user: owner, organization: team } = await seedOrganizationWithOwner({ user: { userId: faker.string.uuid() } });
     const tokens = new Map<string, string>();
-    const enabledUserIds: string[] = [];
-
     const authenticate = (user: { id: string; userId: string | null }) => {
       const token = faker.string.alphanumeric(40);
       tokens.set(token, user.userId!);
-      if (input.organizationsOn !== false) enabledUserIds.push(user.id);
       return token;
     };
     const ownerToken = authenticate(owner);
@@ -562,12 +526,6 @@ describe("Organization billing", () => {
     vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(
       async received => tokens.get(received.replace(/^Bearer +/i, "")) ?? null
     );
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation((flag, context) => {
-      if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
-      if (flag !== FeatureFlags.ORGANIZATIONS) return true;
-
-      return enabledUserIds.includes(context?.userId ?? container.resolve(AuthService).safeCurrentUser?.id ?? "");
-    });
 
     const tokenByUserId = new Map<string, string>([[owner.id, ownerToken]]);
     const headersOf = (user: { id: string }) => ({ authorization: `Bearer ${tokenByUserId.get(user.id)}`, "x-organization-id": team.id });

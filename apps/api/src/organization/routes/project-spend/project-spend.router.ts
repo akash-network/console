@@ -1,7 +1,6 @@
 import { container } from "tsyringe";
 
 import { createRoute } from "@src/core/lib/create-route/create-route";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 import { ProjectSpendController } from "@src/organization/controllers/project-spend/project-spend.controller";
@@ -17,7 +16,6 @@ const listProjectSpendRoute = createRoute({
   summary: "Report the active organization's spend per project over a date range",
   tags: ["Projects"],
   security: SECURITY_BEARER_OR_API_KEY,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: { query: ListProjectSpendQuerySchema },
   responses: {
     200: {
@@ -41,7 +39,6 @@ const listDeploymentSpendRoute = createRoute({
   summary: "Report what the active organization's deployments consumed over a date range, per deployment and per project and day",
   tags: ["Projects"],
   security: SECURITY_BEARER_OR_API_KEY,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: { query: ListDeploymentSpendQuerySchema },
   responses: {
     200: {

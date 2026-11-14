@@ -264,7 +264,7 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
     return this.#toFullOutput(item, item.user?.username);
   }
 
-  /** Public templates are readable by anyone; a private one only by its author, inside the active organization in organization mode and within the rules attached. */
+  /** Public templates are readable by anyone; a private one only by its author, inside the active organization and within the rules attached. */
   #readableBy(readerUserId: string) {
     return or(eq(this.table.isPublic, true), this.#privateTemplatesOf(readerUserId));
   }

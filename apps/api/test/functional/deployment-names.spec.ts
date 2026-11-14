@@ -8,6 +8,7 @@ import { MAX_DEPLOYMENT_NAMES_PER_REQUEST } from "@src/deployment/http-schemas/d
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { app } from "@src/rest-app";
 
+import { fileIntoPersonalOrganization } from "@test/seeders/db/organization.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe("GET /v1/deployment-names", () => {
@@ -138,10 +139,12 @@ describe("GET /v1/deployment-names", () => {
   async function setup() {
     const { user } = await seedUserWithWallet({ isTrialing: false, activatedAt: new Date() });
     const apiKey = await persistApiKeyFor(user.id);
+    await fileIntoPersonalOrganization(user);
 
     async function recordName(name: string) {
       const dseq = someDseq();
       await deploymentSettingRepository.create({ userId: user.id, dseq, name });
+      await fileIntoPersonalOrganization(user);
 
       return dseq;
     }
@@ -149,6 +152,7 @@ describe("GET /v1/deployment-names", () => {
     async function recordUnnamed() {
       const dseq = someDseq();
       await deploymentSettingRepository.create({ userId: user.id, dseq });
+      await fileIntoPersonalOrganization(user);
 
       return dseq;
     }

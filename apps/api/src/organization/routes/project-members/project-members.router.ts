@@ -1,7 +1,6 @@
 import { container } from "tsyringe";
 
 import { createRoute } from "@src/core/lib/create-route/create-route";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 import { ProjectMemberController } from "@src/organization/controllers/project-member/project-member.controller";
@@ -27,7 +26,6 @@ const listProjectMembersRoute = createRoute({
   summary: "List who was granted access to a project",
   tags: ["Projects"],
   security: SECURITY_BEARER_OR_API_KEY,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: { params: ProjectParamsSchema },
   responses: {
     200: { description: "The project's grants", content: { "application/json": { schema: ListProjectMembersResponseSchema } } },
@@ -51,7 +49,6 @@ const createProjectMemberRoute = createRoute({
   summary: "Grant a member or viewer of the active organization a role on a project",
   tags: ["Projects"],
   security: SECURITY_BEARER_OR_API_KEY,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: {
     body: { required: true, content: { "application/json": { schema: CreateProjectMemberRequestSchema } } }
   },
@@ -81,7 +78,6 @@ const updateProjectMemberRoute = createRoute({
   summary: "Change the project role a grant gives",
   tags: ["Projects"],
   security: SECURITY_BEARER_OR_API_KEY,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: {
     params: ProjectMemberParamsSchema,
     body: { required: true, content: { "application/json": { schema: UpdateProjectMemberRequestSchema } } }
@@ -109,7 +105,6 @@ const deleteProjectMemberRoute = createRoute({
   summary: "Revoke a grant, effective from the member's next request",
   tags: ["Projects"],
   security: SECURITY_BEARER_OR_API_KEY,
-  featureFlag: FeatureFlags.ORGANIZATIONS,
   request: { params: ProjectMemberParamsSchema },
   responses: {
     204: { description: "The grant is revoked" },

@@ -25,7 +25,7 @@ import type { OrganizationRole } from "@src/organization/model-schemas/organizat
 import type { ProjectRole } from "@src/organization/model-schemas/project-member/project-member.schema";
 import type { ProjectScope } from "@src/organization/types/organization-context";
 import { Templates } from "@src/user/model-schemas";
-import { type AbilityRule, enabledRules, legacyRules, ORGANIZATION_LEVEL_SUBJECTS, organizationRules } from "./ability-rules";
+import { type AbilityRule, enabledRules, ORGANIZATION_LEVEL_SUBJECTS, organizationRules } from "./ability-rules";
 
 import { createOrganizationContext, createProjectsScope } from "@test/seeders/organization-context.seeder";
 import { createUser } from "@test/seeders/user.seeder";
@@ -179,50 +179,6 @@ const SUBJECT_TABLES: Record<string, PgTableWithColumns<any>> = {
 };
 
 describe("ability rules", () => {
-  describe(legacyRules.name, () => {
-    it("reproduces the rules regular users had before organizations", () => {
-      const user = createUser();
-
-      const rules = legacyRules(user);
-
-      expect(rules).toHaveLength(19);
-      expect(rules).toEqual(
-        expect.arrayContaining([
-          { action: ["read", "sign"], subject: "UserWallet", conditions: { userId: user.id } },
-          { action: "manage", subject: "WalletSetting", conditions: { userId: user.id } },
-          { action: "read", subject: "User", conditions: { id: user.id } },
-          { action: ["create", "read", "delete"], subject: "StripePayment" },
-          { action: "manage", subject: "PaymentMethod", conditions: { userId: user.id } },
-          { action: "manage", subject: "DeploymentSetting", conditions: { userId: user.id } },
-          { action: "read", subject: "LeaseGpu", conditions: { userId: user.id } },
-          { action: "manage", subject: "ApiKey", conditions: { userId: user.id } },
-          { action: "manage", subject: "Alert", conditions: { userId: user.id } },
-          { action: "manage", subject: "NotificationChannel", conditions: { userId: user.id } },
-          { action: ["create", "read"], subject: "HardwareRequest", conditions: { userId: user.id } },
-          { action: ["read", "update"], subject: "Activity", conditions: { userId: user.id } },
-          { action: "manage", subject: "FavoriteProvider", conditions: { userId: user.id } },
-          { action: "manage", subject: "ConfigureDraft", conditions: { userId: user.id } },
-          { action: ["create", "read"], subject: "FeedbackSubmission", conditions: { userId: user.id } },
-          { action: ["create", "read"], subject: "AssistantConsent", conditions: { userId: user.id } },
-          { action: ["create", "read", "update", "delete"], subject: "AssistantConversation", conditions: { userId: user.id } },
-          { action: "read", subject: "Affiliate", conditions: { userId: user.id } },
-          { action: "manage", subject: "Template", conditions: { userId: user.userId } }
-        ])
-      );
-    });
-
-    it("keys no template rule on a user without an Auth0 subject", () => {
-      const rules = legacyRules(createUser({ userId: null }));
-
-      expect(rules.map(({ subject }) => subject)).not.toContain("Template");
-      expect(rules).toHaveLength(18);
-    });
-
-    it("grants nothing to a user without an id", () => {
-      expect(legacyRules(createUser({ id: "" }))).toEqual([]);
-    });
-  });
-
   describe(organizationRules.name, () => {
     it.each(ROLES)("grants the %s role exactly its actions on rows inside its scope", role => {
       const { ability, organizationId, grantedProjectId, user } = setup({ role });
@@ -450,22 +406,19 @@ describe("ability rules", () => {
 
     it.each(ROLES)("keeps user-keyed subjects on the user id for the %s role", role => {
       const { user, context } = setup({ role });
-      const userKeyedSubjects = [
-        "User",
-        "LeaseGpu",
-        "HardwareRequest",
-        "Activity",
-        "FavoriteProvider",
-        "ConfigureDraft",
-        "FeedbackSubmission",
-        "AssistantConsent",
-        "AssistantConversation",
-        "Affiliate"
+      const userKeyedRules = [
+        { action: "read", subject: "User", conditions: { id: user.id } },
+        { action: "read", subject: "LeaseGpu", conditions: { userId: user.id } },
+        { action: ["create", "read"], subject: "HardwareRequest", conditions: { userId: user.id } },
+        { action: ["read", "update"], subject: "Activity", conditions: { userId: user.id } },
+        { action: "manage", subject: "FavoriteProvider", conditions: { userId: user.id } },
+        { action: "manage", subject: "ConfigureDraft", conditions: { userId: user.id } },
+        { action: ["create", "read"], subject: "FeedbackSubmission", conditions: { userId: user.id } },
+        { action: ["create", "read"], subject: "AssistantConsent", conditions: { userId: user.id } },
+        { action: ["create", "read", "update", "delete"], subject: "AssistantConversation", conditions: { userId: user.id } },
+        { action: "read", subject: "Affiliate", conditions: { userId: user.id } }
       ];
 
-      const userKeyedRules = legacyRules(user).filter(rule => userKeyedSubjects.includes(rule.subject as string));
-
-      expect(userKeyedRules).toHaveLength(10);
       expect(organizationRules(user, context)).toEqual(expect.arrayContaining(userKeyedRules));
     });
 
@@ -623,13 +576,6 @@ describe("ability rules", () => {
       const rules = organizationRules(user, context);
 
       expect(rules.filter(rule => rule.action === "publish")).toEqual(role === "owner" || role === "admin" ? [] : [refusal]);
-    });
-
-    it("keeps the author's legacy rule covering publish", () => {
-      const user = createUser();
-      const ability = createMongoAbility(legacyRules(user));
-
-      expect(ability.can("publish", subject("Template", { userId: user.userId }))).toBe(true);
     });
 
     it.each(["member", "viewer", "billing"] as const)("turns the organization-wide read of the %s role into a query on the template table", role => {

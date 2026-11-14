@@ -60,9 +60,6 @@ export class SpendRateService {
   #readsOrganizationSpend(): boolean {
     const organizationContext = this.executionContextService.get("ORGANIZATION_CONTEXT");
 
-    return (
-      organizationContext?.mode === "organization" &&
-      this.authService.ability.can("read", subject("OrganizationSpend", { organizationId: organizationContext.organizationId }))
-    );
+    return !!organizationContext && this.authService.ability.can("read", subject("OrganizationSpend", { organizationId: organizationContext.organizationId }));
   }
 }

@@ -23,7 +23,7 @@ describe(UserWalletRepository.name, () => {
       const { userWalletRepository, executionContextService, user, wallet } = await setup();
 
       const result = await executionContextService.runWithContext(async () => {
-        executionContextService.set("ORGANIZATION_CONTEXT", createOrganizationContext({ mode: "organization" }));
+        executionContextService.set("ORGANIZATION_CONTEXT", createOrganizationContext());
         return await userWalletRepository.getOrCreate({ userId: user.id });
       });
 
@@ -342,18 +342,7 @@ describe(UserWalletRepository.name, () => {
       await expect(userWalletRepository.findOneUsedBy(user.id)).resolves.toMatchObject({ id: wallet.id });
     });
 
-    it("finds the user's own wallet in legacy mode, whichever organization is active", async () => {
-      const { userWalletRepository, wallet, user } = await setup();
-      const { organization: team } = await seedOrganizationWithOwner();
-
-      const found = await inOrganization({ user, organizationId: team.id, organizationType: "team", mode: "legacy" }, () =>
-        userWalletRepository.findOneUsedBy(user.id)
-      );
-
-      expect(found).toMatchObject({ id: wallet.id });
-    });
-
-    it("finds the active team organization's wallet in organization mode", async () => {
+    it("finds the active team organization's wallet", async () => {
       const { userWalletRepository, user } = await setup();
       const { organization: team, user: teamOwner } = await seedOrganizationWithOwner();
       const { wallet: teamWallet } = await userWalletRepository.getOrCreateForOrganization({ organizationId: team.id, createdByUserId: teamOwner.id });
@@ -374,7 +363,7 @@ describe(UserWalletRepository.name, () => {
       expect(found).toBeUndefined();
     });
 
-    it("finds the personal wallet when the personal organization is active in organization mode", async () => {
+    it("finds the personal wallet when the personal organization is active", async () => {
       const { userWalletRepository, wallet, user } = await setup();
       const personal = await container.resolve(PersonalOrganizationService).ensureForUser(user);
       await container.resolve(PersonalOrganizationService).adoptUserRows(user, personal);

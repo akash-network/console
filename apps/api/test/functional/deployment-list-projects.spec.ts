@@ -6,12 +6,9 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
-import { AuthService } from "@src/auth/services/auth.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import type { ApiPgDatabase } from "@src/core";
 import { CORE_CONFIG, POSTGRES_DB, resolveTable } from "@src/core";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { app, initDb } from "@src/rest-app";
 import { deploymentVersion, marketVersion } from "@src/utils/constants";
@@ -305,17 +302,6 @@ describe("Deployment list by project", () => {
       expect(status).toBe(200);
       expect(body.data.deployments.map(item => [item.deployment.id.dseq, item.projectId])).toEqual([[closed.dseq, null]]);
     });
-
-    it("lists the wallet as before while organizations are off for the caller, ignoring a project and adding none", async () => {
-      const { request, defaultProject, otherProject, deploy } = await setupCaller({ role: "owner", organizationsOn: false });
-      const own = await deploy({ projectId: defaultProject.id });
-
-      const { status, body } = await list(request, `/v1/deployments?projectId=${otherProject.id}`);
-
-      expect(status).toBe(200);
-      expect(dseqsOf(body)).toEqual([own.dseq]);
-      expect(body.data.deployments[0]).not.toHaveProperty("projectId");
-    });
   });
 
   async function list(request: SendRequest, requestPath: string, { chainUnavailable = true }: { chainUnavailable?: boolean } = {}) {
@@ -364,20 +350,11 @@ describe("Deployment list by project", () => {
     return `Bearer ${token}`;
   }
 
-  function enableOrganizationsFor(userIds: string[]) {
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation((flag, context) => {
-      if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
-      if (flag !== FeatureFlags.ORGANIZATIONS) return true;
-
-      return userIds.includes(context?.userId ?? container.resolve(AuthService).safeCurrentUser?.id ?? "");
-    });
-  }
-
   function createSignedUpUserInput() {
     return { userId: `auth0|${faker.string.alphanumeric(24)}`, username: `user-${faker.string.alphanumeric(12)}` };
   }
 
-  async function setupCaller(input: { role: OrganizationRole; organizationsOn?: boolean; grants?: Array<"default" | "other"> }) {
+  async function setupCaller(input: { role: OrganizationRole; grants?: Array<"default" | "other"> }) {
     const { user: owner, organization: team, project: defaultProject } = await seedOrganizationWithOwner({ user: createSignedUpUserInput() });
     const otherProject = await seedProject({ organizationId: team.id });
     const caller = input.role === "owner" ? owner : await seedUser(createSignedUpUserInput());
@@ -389,10 +366,9 @@ describe("Deployment list by project", () => {
     }
     const colleague = await seedUser(createSignedUpUserInput());
     await seedOrganizationMember({ organizationId: team.id, userId: colleague.id, role: "admin" });
-    const walletAddress = input.organizationsOn === false ? await seedWallet(caller.id) : await seedWallet(null, team.id);
+    const walletAddress = await seedWallet(null, team.id);
     const deployers = { caller: caller.id, colleague: colleague.id };
     const authorization = signIn(caller.userId!);
-    enableOrganizationsFor(input.organizationsOn === false ? [] : [caller.id]);
     let nextDseq = faker.number.int({ min: 1_000_000, max: 9_000_000 });
 
     async function deploy({
@@ -446,7 +422,6 @@ describe("Deployment list by project", () => {
     const { user, organization, project } = await seedOrganizationWithOwner({ type: "personal", user: createSignedUpUserInput() });
     const address = await seedWallet(user.id, organization.id);
     const authorization = signIn(user.userId!);
-    enableOrganizationsFor([user.id]);
     const request: SendRequest = requestPath => app.request(requestPath, { method: "GET", headers: { authorization, "content-type": "application/json" } });
 
     return { request, user, address, organization, project };

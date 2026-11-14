@@ -9,13 +9,10 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
-import { AuthService } from "@src/auth/services/auth.service";
 import type { WalletListOutputResponse } from "@src/billing/http-schemas/wallet.schema";
 import { BILLING_CONFIG } from "@src/billing/providers";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { type ApiPgDatabase, CORE_CONFIG, POSTGRES_DB, resolveTable } from "@src/core";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { GetSpendRateResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
@@ -63,14 +60,6 @@ describe("Organization wallet", () => {
 
       expect(body.data).toEqual([expect.objectContaining({ id: wallet.id, userId: user.id, address: wallet.address, isTrialing: true })]);
     });
-
-    it("keeps listing the member's own wallet while organizations are off for them", async () => {
-      const { user, token, wallet, team } = await setup({ organizationsOn: false });
-
-      const body = await listWallets(user.id, { authorization: `Bearer ${token}`, "x-organization-id": team.id });
-
-      expect(body.data).toEqual([expect.objectContaining({ id: wallet.id, address: wallet.address })]);
-    });
   });
 
   describe("GET /v1/balances", () => {
@@ -82,16 +71,6 @@ describe("Organization wallet", () => {
 
       expect(response.status).toBe(200);
       expect(await response.json()).toMatchObject({ data: { deployments: 7000000 } });
-    });
-
-    it("reads the member's own balances while organizations are off for them", async () => {
-      const { token, team, teamWallet, wallet } = await setup({ organizationsOn: false });
-      answerDeploymentEscrow({ [teamWallet.address]: "7000000", [wallet.address]: "1000000" });
-
-      const response = await app.request("/v1/balances", { headers: { authorization: `Bearer ${token}`, "x-organization-id": team.id } });
-
-      expect(response.status).toBe(200);
-      expect(await response.json()).toMatchObject({ data: { deployments: 1000000 } });
     });
   });
 
@@ -150,15 +129,6 @@ describe("Organization wallet", () => {
       expect(response.status).toBe(403);
       expect(await response.json()).toMatchObject({ code: "project_forbidden" });
       expect(signedIndexes).toEqual([]);
-    });
-
-    it("signs with the member's own derivation index while organizations are off for them", async () => {
-      const { token, team, wallet, signedIndexes } = await setupDeployed({ organizationsOn: false });
-
-      const response = await closeDeployment("123", { authorization: `Bearer ${token}`, "x-organization-id": team.id });
-
-      expect(response.status).toBe(200);
-      expect(signedIndexes).toEqual([wallet.id]);
     });
   });
 
@@ -312,14 +282,6 @@ describe("Organization wallet", () => {
       expect(response.status).toBe(201);
     });
 
-    it("grants a token meant to outlive an hour while organizations are off for the caller", async () => {
-      const { token, team } = await setup({ organizationsOn: false });
-
-      const response = await requestProviderToken(deploymentLeases("123", ["shell"]), { authorization: `Bearer ${token}`, "x-organization-id": team.id }, 7200);
-
-      expect(response.status).toBe(201);
-    });
-
     it("grants a viewer a token that reads the status, events and logs of a deployment in their project", async () => {
       const { token, team } = await setupFiledDeployments({ role: "viewer" });
       const leases = deploymentLeases("123", ["status", "events", "logs"]);
@@ -451,7 +413,7 @@ describe("Organization wallet", () => {
     }
   }
 
-  async function setup(input: { organizationsOn?: boolean; role?: OrganizationRole } = {}) {
+  async function setup(input: { role?: OrganizationRole } = {}) {
     nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .get(/\/cosmos\/feegrant\/v1beta1\/allowances\/.*/)
       .once()
@@ -482,8 +444,6 @@ describe("Organization wallet", () => {
       .reply(200, createFeeAllowanceResponse({ amount: "5000000" }))
       .get(/\/cosmos\/authz\/v1beta1\/grants\?.*/)
       .reply(200, createDeploymentGrantResponseSeed({ amount: "5000000", grantType: "/akash.escrow.v1.DepositAuthorization" }));
-
-    enableOrganizationsFor(input.organizationsOn === false ? [] : [user.id]);
 
     const findRowsOf = async (organizationId: string, dseq: string) => {
       const settings = resolveTable("DeploymentSettings");
@@ -536,7 +496,7 @@ describe("Organization wallet", () => {
     return { ...context, granted, other };
   }
 
-  async function setupDeployed(input: { organizationsOn?: boolean; role?: OrganizationRole } = {}) {
+  async function setupDeployed(input: { role?: OrganizationRole } = {}) {
     const context = await setup(input);
     const restApi = nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL).persist();
 
@@ -607,15 +567,6 @@ describe("Organization wallet", () => {
       method: "POST",
       body: JSON.stringify({ data: { sdl: HELLO_WORLD_SDL, inheritSecretsFrom: source } }),
       headers: { "Content-Type": "application/json", ...headers }
-    });
-  }
-
-  function enableOrganizationsFor(userIds: string[]) {
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation((flag, context) => {
-      if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
-      if (flag !== FeatureFlags.ORGANIZATIONS) return true;
-
-      return userIds.includes(context?.userId ?? container.resolve(AuthService).safeCurrentUser?.id ?? "");
     });
   }
 });

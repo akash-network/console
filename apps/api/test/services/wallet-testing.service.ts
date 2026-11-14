@@ -14,6 +14,7 @@ import { WalletInitializerService } from "@src/billing/services";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
+import { OrganizationContextResolver } from "@src/organization/services/organization-context/organization-context.resolver";
 import { type UserOutput, UserRepository } from "@src/user/repositories";
 
 export class WalletTestingService<T extends Hono<any>> {
@@ -36,10 +37,12 @@ export class WalletTestingService<T extends Hono<any>> {
   private async createWallet(user: UserOutput) {
     vi.spyOn(container.resolve(DomainEventsService), "publish").mockResolvedValue(null);
 
+    const organizationContext = await container.resolve(OrganizationContextResolver).resolve({ user });
+
     return container.resolve(ExecutionContextService).runWithContext(async () => {
       container.resolve(AuthService).currentUser = user;
-      const role = "REGULAR_USER";
-      container.resolve(AuthService).ability = container.resolve(AbilityService).getAbilityFor(role, user);
+      container.resolve(ExecutionContextService).set("ORGANIZATION_CONTEXT", organizationContext);
+      container.resolve(AuthService).ability = container.resolve(AbilityService).getAbilityFor("REGULAR_USER", user);
       return await container.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id);
     });
   }

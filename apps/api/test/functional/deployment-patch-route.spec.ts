@@ -18,6 +18,7 @@ import { deploymentVersion, marketVersion } from "@src/utils/constants";
 
 import { registerFakeSdlSecretsKms, warmSealingKeyAsBootWould } from "@test/mocks/sdl-secrets-kms.mock";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { fileIntoPersonalOrganization } from "@test/seeders/db/organization.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
 import { createDeploymentInfoErrorSeed, createDeploymentInfoGroupsFromSdl, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
@@ -375,6 +376,8 @@ describe("PATCH /v1/deployments/{dseq} route wiring", () => {
     } else if (input.recordsName) {
       await deploymentSettingRepository.create({ userId: user.id, dseq: DSEQ, name: input.recordsName });
     }
+
+    await fileIntoPersonalOrganization(user);
 
     return { user, apiKey, sentManifests, broadcastMessages };
   }

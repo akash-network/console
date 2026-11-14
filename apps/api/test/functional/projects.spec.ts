@@ -3,12 +3,9 @@ import { and, eq, isNull } from "drizzle-orm";
 import { container } from "tsyringe";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
-import { AuthService } from "@src/auth/services/auth.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { ORGANIZATION_CONFIG } from "@src/organization/providers/config.provider";
 import { app } from "@src/rest-app";
@@ -159,14 +156,6 @@ describe("Projects", () => {
       expect(response.status).toBe(200);
       expect(idsOf(await response.json())).toEqual([granted.id]);
     });
-
-    it("answers like an unknown path while organizations are off for the caller", async () => {
-      const { request } = await setupCaller({ role: "owner", organizationsOn: false });
-
-      const response = await request("/v1/projects");
-
-      expect(response.status).toBe(404);
-    });
   });
 
   describe("POST /v1/projects", () => {
@@ -283,14 +272,6 @@ describe("Projects", () => {
       expect(response.status).toBe(201);
       expect(await response.json()).toMatchObject({ data: { description: "Storefront\r\n\tand checkout" } });
     });
-
-    it("answers like an unknown path while organizations are off for the caller", async () => {
-      const { request } = await setupCaller({ role: "owner", organizationsOn: false });
-
-      const response = await request("/v1/projects", { method: "POST", body: { data: { name: "web" } } });
-
-      expect(response.status).toBe(404);
-    });
   });
 
   describe("GET /v1/projects/{id}", () => {
@@ -323,14 +304,6 @@ describe("Projects", () => {
       const responses = await Promise.all([foreign, deleted, notGranted].map(({ id }) => request(`/v1/projects/${id}`)));
 
       expect(responses.map(({ status }) => status)).toEqual([404, 404, 404]);
-    });
-
-    it("answers like an unknown path while organizations are off for the caller", async () => {
-      const { request, defaultProject } = await setupCaller({ role: "owner", organizationsOn: false });
-
-      const response = await request(`/v1/projects/${defaultProject.id}`);
-
-      expect(response.status).toBe(404);
     });
   });
 
@@ -393,14 +366,6 @@ describe("Projects", () => {
       expect(response.status).toBe(400);
       expect(await response.json()).toMatchObject({ code: "validation_error" });
       expect(await projectRow(project.id)).toMatchObject({ name: project.name, description: "Old" });
-    });
-
-    it("answers like an unknown path while organizations are off for the caller", async () => {
-      const { request, defaultProject } = await setupCaller({ role: "owner", organizationsOn: false });
-
-      const response = await request(`/v1/projects/${defaultProject.id}`, { method: "PATCH", body: { data: { name: "renamed" } } });
-
-      expect(response.status).toBe(404);
     });
   });
 
@@ -506,16 +471,6 @@ describe("Projects", () => {
       expect(await deploymentSettingRow(own.id)).toMatchObject({ closed: true });
       expect(await deploymentSettingRow(foreign.id)).toMatchObject({ closed: false });
     });
-
-    it("answers like an unknown path while organizations are off for the caller", async () => {
-      const { request, team } = await setupCaller({ role: "owner", organizationsOn: false });
-      const project = await seedProject({ organizationId: team.id });
-
-      const response = await request(`/v1/projects/${project.id}`, { method: "DELETE" });
-
-      expect(response.status).toBe(404);
-      expect(await projectRow(project.id)).toMatchObject({ deletedAt: null });
-    });
   });
 
   function idsOf(body: unknown) {
@@ -610,27 +565,17 @@ describe("Projects", () => {
     return `Bearer ${token}`;
   }
 
-  function enableOrganizationsFor(userIds: string[]) {
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation((flag, context) => {
-      if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
-      if (flag !== FeatureFlags.ORGANIZATIONS) return true;
-
-      return userIds.includes(context?.userId ?? container.resolve(AuthService).safeCurrentUser?.id ?? "");
-    });
-  }
-
   function createSignedUpUserInput() {
     return { userId: `auth0|${faker.string.alphanumeric(24)}`, username: `user-${faker.string.alphanumeric(12)}` };
   }
 
-  async function setupCaller(input: { role: OrganizationRole; organizationsOn?: boolean }) {
+  async function setupCaller(input: { role: OrganizationRole }) {
     const { user: owner, organization: team, project: defaultProject } = await seedOrganizationWithOwner({ user: createSignedUpUserInput() });
     const caller = input.role === "owner" ? owner : await seedUser(createSignedUpUserInput());
     if (input.role !== "owner") {
       await seedOrganizationMember({ organizationId: team.id, userId: caller.id, role: input.role });
     }
     const authorization = signIn(caller.userId!);
-    enableOrganizationsFor(input.organizationsOn === false ? [] : [caller.id]);
 
     const request = (path: string, init: { method?: string; body?: unknown } = {}) =>
       app.request(path, {

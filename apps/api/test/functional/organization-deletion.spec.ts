@@ -7,14 +7,11 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
-import { AuthService } from "@src/auth/services/auth.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { DeploymentDepositRepository } from "@src/billing/repositories/deployment-deposit/deployment-deposit.repository";
 import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import { type ApiPgDatabase, CORE_CONFIG, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { createInvitationToken, hashInvitationToken } from "@src/organization/lib/invitation-token/invitation-token";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { TeamOrganizationDeleted } from "@src/organization/services/team-organization-deleted/team-organization-deleted.handler";
@@ -250,15 +247,6 @@ describe("Organization deletion", () => {
       expect(response.status).toBe(404);
       expect(await rowsOf("Organizations", team.id)).toEqual([expect.objectContaining({ deletedAt: null })]);
     });
-
-    it("answers like an unknown path while organizations are off for the caller", async () => {
-      const { team, owner, deleteTeam } = await setup({ organizationsOn: false });
-
-      const response = await deleteTeam(owner);
-
-      expect(response.status).toBe(404);
-      expect(await rowsOf("Organizations", team.id)).toEqual([expect.objectContaining({ deletedAt: null })]);
-    });
   });
 
   async function rowsOf(table: "Organizations" | "StripeTransactions" | "DeploymentSettings" | "WalletSetting" | "OrganizationInvitations", id: string) {
@@ -329,7 +317,6 @@ describe("Organization deletion", () => {
   async function setup(
     input: {
       memberRole?: OrganizationRole;
-      organizationsOn?: boolean;
       walletAddress?: string;
       deployments?: ReturnType<typeof createDeploymentInfoSeed>[];
       balanceUakt?: string;
@@ -344,8 +331,6 @@ describe("Organization deletion", () => {
       .insert(resolveTable("UserWallets"))
       .values({ userId: null, organizationId: team.id, address: input.walletAddress ?? createAkashAddress(), isTrialing: false, activatedAt: new Date() })
       .returning();
-    const enabledUserIds = input.organizationsOn === false ? [] : [owner.id, member.id];
-
     for (const user of [owner, member]) {
       tokens.set(user.id, faker.string.alphanumeric(40));
     }
@@ -353,12 +338,6 @@ describe("Organization deletion", () => {
     vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(
       async header => externalUserIdByToken.get(header.replace(/^Bearer +/i, "")) ?? null
     );
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation((flag, context) => {
-      if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
-      if (flag !== FeatureFlags.ORGANIZATIONS) return true;
-
-      return enabledUserIds.includes(context?.userId ?? container.resolve(AuthService).safeCurrentUser?.id ?? "");
-    });
     vi.spyOn(container.resolve(DenomExchangeService), "getExchangeRateToUSD").mockResolvedValue({
       price: 1,
       volume: 0,

@@ -466,7 +466,7 @@ export class ManagedSignerService {
   #isLimitedToProjects(): boolean {
     const organizationContext = this.executionContextService.hasContext() ? this.executionContextService.get("ORGANIZATION_CONTEXT") : undefined;
 
-    return organizationContext?.mode === "organization" && organizationContext.projectScope.kind === "projects";
+    return organizationContext?.projectScope.kind === "projects";
   }
 
   /**

@@ -4,8 +4,6 @@ import { mock } from "vitest-mock-extended";
 
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import { ORGANIZATION_FORBIDDEN_ERROR_CODE } from "@src/core/repositories/org-scoped.repository";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { OrganizationRole, ProjectAccess } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import type {
   MembershipWithProjectAccess,
@@ -28,158 +26,10 @@ import { createOrganization, createProject } from "@test/seeders/organization.se
 import { createUser } from "@test/seeders/user.seeder";
 
 describe(OrganizationContextResolver.name, () => {
-  describe("when organizations are off for the user", () => {
-    it("resolves the personal organization as its owner reaching every project, whatever the headers name", async () => {
-      const { resolver, personal, team, projectRepository, organizationMemberRepository, user } = setup({ organizationsOn: false, teamRole: "viewer" });
-
-      const context = await resolver.resolve({
-        user,
-        organizationHeader: team.organization.id,
-        projectHeader: faker.string.uuid()
-      });
-
-      expect(context).toEqual({
-        organizationId: personal.organization.id,
-        organizationType: "personal",
-        role: "owner",
-        projectScope: { kind: "all" },
-        mode: "legacy"
-      });
-      expect(organizationMemberRepository.findActiveMembership).toHaveBeenCalledTimes(1);
-      expect(projectRepository.findActive).not.toHaveBeenCalled();
-    });
-
-    it("rejects an API key bound to another organization than the personal one", async () => {
-      const { resolver, team, user } = setup({ organizationsOn: false });
-
-      const resolution = resolver.resolve({ user, apiKey: { organizationId: team.organization.id, projectId: null } });
-
-      await expect(resolution).rejects.toMatchObject({
-        status: 403,
-        errorCode: ORGANIZATION_FORBIDDEN_ERROR_CODE,
-        message: "The API key belongs to an organization this request cannot run in"
-      });
-    });
-
-    it("rejects an API key bound to another organization than the personal one once enforcement is on", async () => {
-      const { resolver, team, user } = setup({ organizationsOn: false, enforceOn: true });
-
-      const resolution = resolver.resolve({ user, apiKey: { organizationId: team.organization.id, projectId: faker.string.uuid() } });
-
-      await expect(resolution).rejects.toMatchObject({ status: 403, errorCode: ORGANIZATION_FORBIDDEN_ERROR_CODE });
-    });
-
-    it("reaches every project of the personal organization with an API key bound to it or to no organization", async () => {
-      const { resolver, personal, user } = setup({ organizationsOn: false });
-
-      const [boundToPersonal, boundToNone] = await Promise.all([
-        resolver.resolve({ user, apiKey: { organizationId: personal.organization.id, projectId: null } }),
-        resolver.resolve({ user, apiKey: { organizationId: null, projectId: null } })
-      ]);
-
-      expect(boundToPersonal).toEqual({
-        organizationId: personal.organization.id,
-        organizationType: "personal",
-        role: "owner",
-        projectScope: { kind: "all" },
-        mode: "legacy"
-      });
-      expect(boundToNone).toEqual(boundToPersonal);
-    });
-
-    it("narrows every project down to the one an API key is bound to once enforcement is on", async () => {
-      const { resolver, personal, user } = setup({ organizationsOn: false, enforceOn: true });
-      const projectId = faker.string.uuid();
-
-      const context = await resolver.resolve({ user, apiKey: { organizationId: personal.organization.id, projectId } });
-
-      expect(context).toMatchObject({
-        organizationId: personal.organization.id,
-        projectScope: { kind: "projects", projectIds: [projectId] },
-        mode: "organization"
-      });
-    });
-
-    it("rejects an API key bound to a project while enforcement is off", async () => {
-      const { resolver, personal, user } = setup({ organizationsOn: false });
-
-      const resolution = resolver.resolve({ user, apiKey: { organizationId: personal.organization.id, projectId: faker.string.uuid() } });
-
-      await expect(resolution).rejects.toMatchObject({
-        status: 403,
-        errorCode: PROJECT_FORBIDDEN_ERROR_CODE,
-        message: "The API key is limited to a project this request cannot be limited to"
-      });
-    });
-
-    it("leaves the request without an organization context when the personal organization cannot be resolved", async () => {
-      const { resolver, personalOrganizationService, user, logger } = setup({ organizationsOn: false, withoutPersonalMembership: true });
-      const error = new Error("insert failed");
-      personalOrganizationService.ensureForUser.mockRejectedValue(error);
-
-      const [context, unboundKeyContext] = await Promise.all([
-        resolver.resolve({ user }),
-        resolver.resolve({ user, apiKey: { organizationId: null, projectId: null } })
-      ]);
-
-      expect(context).toBeUndefined();
-      expect(unboundKeyContext).toBeUndefined();
-      expect(logger.error).toHaveBeenCalledWith({ event: "PERSONAL_ORGANIZATION_CONTEXT_UNAVAILABLE", userId: user.id, error });
-    });
-
-    it("fails an API key request bound to an organization or a project when the personal organization cannot be resolved", async () => {
-      const { resolver, personalOrganizationService, team, user } = setup({ organizationsOn: false, withoutPersonalMembership: true });
-      const error = new Error("insert failed");
-      personalOrganizationService.ensureForUser.mockRejectedValue(error);
-
-      await expect(resolver.resolve({ user, apiKey: { organizationId: team.organization.id, projectId: null } })).rejects.toBe(error);
-      await expect(resolver.resolve({ user, apiKey: { organizationId: null, projectId: faker.string.uuid() } })).rejects.toBe(error);
-    });
-
-    it("fails the request when the personal organization cannot be resolved once enforcement is on", async () => {
-      const { resolver, personalOrganizationService, user } = setup({ organizationsOn: false, enforceOn: true, withoutPersonalMembership: true });
-      const error = new Error("insert failed");
-      personalOrganizationService.ensureForUser.mockRejectedValue(error);
-
-      await expect(resolver.resolve({ user })).rejects.toBe(error);
-    });
-
-    it("creates the personal organization of a user who has none yet", async () => {
-      const { resolver, personalOrganizationService, user } = setup({ organizationsOn: false, withoutPersonalMembership: true });
-      const created = createOrganization({ type: "personal", createdByUserId: user.id });
-      personalOrganizationService.ensureForUser.mockResolvedValue(created);
-
-      const context = await resolver.resolve({ user });
-
-      expect(personalOrganizationService.ensureForUser).toHaveBeenCalledWith(user);
-      expect(context).toMatchObject({ organizationId: created.id, organizationType: "personal", role: "owner" });
-    });
-
-    it("runs in organization mode once enforcement is on for everyone", async () => {
-      const { resolver, user, featureFlagsService } = setup({ organizationsOn: false, enforceOn: true });
-
-      const context = await resolver.resolve({ user });
-
-      expect(context?.mode).toBe("organization");
-      expect(featureFlagsService.isEnabled).toHaveBeenCalledWith(FeatureFlags.ORGANIZATIONS_ENFORCE, { userId: user.id });
-    });
-  });
-
   it("logs under its own name", () => {
     const { createLogger } = setup({});
 
     expect(createLogger).toHaveBeenCalledWith({ context: OrganizationContextResolver.name });
-  });
-
-  describe("when organizations are on for the user", () => {
-    it("runs in organization mode", async () => {
-      const { resolver, user, featureFlagsService } = setup({});
-
-      const context = await resolver.resolve({ user });
-
-      expect(context?.mode).toBe("organization");
-      expect(featureFlagsService.isEnabled).toHaveBeenCalledWith(FeatureFlags.ORGANIZATIONS, { userId: user.id });
-    });
   });
 
   describe("with an API key", () => {
@@ -192,8 +42,7 @@ describe(OrganizationContextResolver.name, () => {
         organizationId: team.organization.id,
         organizationType: "team",
         role: "admin",
-        projectScope: { kind: "all" },
-        mode: "organization"
+        projectScope: { kind: "all" }
       });
     });
 
@@ -304,8 +153,7 @@ describe(OrganizationContextResolver.name, () => {
         organizationId: personal.organization.id,
         organizationType: "personal",
         role: "owner",
-        projectScope: { kind: "all" },
-        mode: "organization"
+        projectScope: { kind: "all" }
       });
     });
 
@@ -337,8 +185,7 @@ describe(OrganizationContextResolver.name, () => {
         organizationId: team.organization.id,
         organizationType: "team",
         role: "member",
-        projectScope: { kind: "projects", projectIds: grantedProjectIds, writableProjectIds: grantedProjectIds, adminProjectIds: [] },
-        mode: "organization"
+        projectScope: { kind: "projects", projectIds: grantedProjectIds, writableProjectIds: grantedProjectIds, adminProjectIds: [] }
       });
     });
 
@@ -346,12 +193,6 @@ describe(OrganizationContextResolver.name, () => {
       const { resolver, user } = setup({});
 
       await expect(resolver.resolveBoundTo(user, faker.string.uuid())).rejects.toMatchObject({ status: 403, errorCode: ORGANIZATION_FORBIDDEN_ERROR_CODE });
-    });
-
-    it("rejects a team while organizations are off for the member", async () => {
-      const { resolver, team, user } = setup({ organizationsOn: false });
-
-      await expect(resolver.resolveBoundTo(user, team.organization.id)).rejects.toMatchObject({ status: 403, errorCode: ORGANIZATION_FORBIDDEN_ERROR_CODE });
     });
 
     it("leaves the last used organization alone", async () => {
@@ -428,8 +269,7 @@ describe(OrganizationContextResolver.name, () => {
         organizationId: team.organization.id,
         organizationType: "team",
         role: "billing",
-        projectScope: { kind: "projects", projectIds: [], writableProjectIds: [], adminProjectIds: [] },
-        mode: "organization"
+        projectScope: { kind: "projects", projectIds: [], writableProjectIds: [], adminProjectIds: [] }
       });
       expect(organizationMemberRepository.findActiveMembership).toHaveBeenCalledWith(user.id, { idOrSlug: team.organization.id });
     });
@@ -628,7 +468,7 @@ describe(OrganizationContextResolver.name, () => {
     });
 
     it("restores the default project of a personal organization it finds, once per user", async () => {
-      const { resolver, personal, user, personalOrganizationService } = setup({ organizationsOn: false });
+      const { resolver, personal, user, personalOrganizationService } = setup({});
 
       await resolver.resolve({ user });
       await resolver.resolve({ user });
@@ -638,7 +478,7 @@ describe(OrganizationContextResolver.name, () => {
     });
 
     it("leaves the default project to the provisioning of a personal organization it has to create", async () => {
-      const { resolver, personalOrganizationService, user } = setup({ organizationsOn: false, withoutPersonalMembership: true });
+      const { resolver, personalOrganizationService, user } = setup({ withoutPersonalMembership: true });
       personalOrganizationService.ensureForUser.mockResolvedValue(createOrganization({ type: "personal", createdByUserId: user.id }));
 
       await resolver.resolve({ user });
@@ -646,16 +486,24 @@ describe(OrganizationContextResolver.name, () => {
       expect(personalOrganizationService.restoreDefaultProject).not.toHaveBeenCalled();
     });
 
-    it("fails the request when the default project cannot be restored once enforcement is on", async () => {
-      const { resolver, personalOrganizationService, user } = setup({ organizationsOn: false, enforceOn: true });
+    it("fails the request when the default project cannot be restored", async () => {
+      const { resolver, personalOrganizationService, user } = setup({});
       const error = new Error("database unavailable");
       personalOrganizationService.restoreDefaultProject.mockRejectedValue(error);
 
       await expect(resolver.resolve({ user })).rejects.toBe(error);
     });
 
+    it("fails the request when the personal organization cannot be created", async () => {
+      const { resolver, personalOrganizationService, user } = setup({ withoutPersonalMembership: true });
+      const error = new Error("insert failed");
+      personalOrganizationService.ensureForUser.mockRejectedValue(error);
+
+      await expect(resolver.resolve({ user })).rejects.toBe(error);
+    });
+
     it("creates the personal organization once per user", async () => {
-      const { resolver, personalOrganizationService, user } = setup({ organizationsOn: false, withoutPersonalMembership: true });
+      const { resolver, personalOrganizationService, user } = setup({ withoutPersonalMembership: true });
       const created = createOrganization({ type: "personal", createdByUserId: user.id });
       personalOrganizationService.ensureForUser.mockResolvedValue(created);
 
@@ -882,8 +730,6 @@ describe(OrganizationContextResolver.name, () => {
   });
 
   function setup(input: {
-    organizationsOn?: boolean;
-    enforceOn?: boolean;
     teamRole?: OrganizationRole;
     projectAccess?: ProjectAccess;
     liveProjectIds?: string[];
@@ -905,11 +751,6 @@ describe(OrganizationContextResolver.name, () => {
     };
     const memberships = input.withoutPersonalMembership ? [team] : [personal, team];
 
-    const featureFlagsService = mock<FeatureFlagsService>({
-      isEnabled: vi.fn(flag =>
-        flag === FeatureFlags.ORGANIZATIONS ? input.organizationsOn ?? true : flag === FeatureFlags.ORGANIZATIONS_ENFORCE && !!input.enforceOn
-      )
-    });
     const organizationMemberRepository = mock<OrganizationMemberRepository>({
       findActiveMembership: vi.fn(async (_userId, lookup) =>
         memberships.find(({ organization }) => {
@@ -932,7 +773,6 @@ describe(OrganizationContextResolver.name, () => {
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
     const resolver = new OrganizationContextResolver(
-      featureFlagsService,
       organizationMemberRepository,
       projectRepository,
       personalOrganizationService,
@@ -946,7 +786,6 @@ describe(OrganizationContextResolver.name, () => {
       user,
       personal,
       team,
-      featureFlagsService,
       organizationMemberRepository,
       projectRepository,
       personalOrganizationService,

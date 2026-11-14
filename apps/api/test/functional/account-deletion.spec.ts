@@ -11,15 +11,12 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
-import { AuthService } from "@src/auth/services/auth.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { BILLING_CONFIG } from "@src/billing/providers";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import { type ApiPgDatabase, CORE_CONFIG, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { NOTIFICATIONS_CONFIG } from "@src/notifications/providers/notifications-config.provider";
 import { TeamOrganizationDeleted } from "@src/organization/services/team-organization-deleted/team-organization-deleted.handler";
 import { app } from "@src/rest-app";
@@ -271,12 +268,6 @@ describe("Account deletion", () => {
       };
       const ownerToken = tokenOf(owner);
       vi.spyOn(userAuthTokenService, "getValidUserId").mockImplementation(async header => tokens.get(header.replace(/^Bearer +/i, "")) ?? null);
-      vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation((flag, context) => {
-        if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
-        if (flag !== FeatureFlags.ORGANIZATIONS) return true;
-
-        return (context?.userId ?? container.resolve(AuthService).safeCurrentUser?.id) === owner.id;
-      });
 
       const headersOf = (user: { id: string }) => ({ authorization: `Bearer ${user.id === owner.id ? ownerToken : ""}`, "x-organization-id": team.id });
       const seedTransaction = async (input: { userId: string; status: "pending" | "succeeded"; stripeChargeId?: string }) => {
@@ -382,14 +373,6 @@ describe("Account deletion", () => {
       expect(((await response.json()) as ErrorBody).code).toBe("session_required");
     });
 
-    it("answers like an unknown path while organizations are off for the caller", async () => {
-      const { request } = await setupSoleOwner({ organizationsOn: false });
-
-      const response = await request("GET", "/v1/user/me/deletion-eligibility");
-
-      expect(response.status).toBe(404);
-    });
-
     it("deletes the team along with the account once the owner acknowledged forfeiting both balances at once", async () => {
       const { owner, soleTeam, request } = await setupSoleOwner({ teamBalanceUakt: "12500000" });
       const sentNotifications = interceptNotifications();
@@ -419,7 +402,7 @@ describe("Account deletion", () => {
       expect(await tokenRepository.findByUserId(owner.id)).toBeUndefined();
     });
 
-    async function setupSoleOwner(input: { teamBalanceUakt?: string; teamDeployments?: number; withSharedTeam?: boolean; organizationsOn?: boolean } = {}) {
+    async function setupSoleOwner(input: { teamBalanceUakt?: string; teamDeployments?: number; withSharedTeam?: boolean } = {}) {
       const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
       const { user: owner, organization: soleTeam } = await seedOrganizationWithOwner({
         user: { userId: `auth0|${faker.string.alphanumeric(24)}`, email: faker.internet.email() }
@@ -432,11 +415,6 @@ describe("Account deletion", () => {
       const token = faker.string.alphanumeric(40);
 
       vi.spyOn(userAuthTokenService, "getValidUserId").mockImplementation(async header => (header.replace(/^Bearer +/i, "") === token ? owner.userId! : null));
-      vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => {
-        if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
-
-        return flag !== FeatureFlags.ORGANIZATIONS || input.organizationsOn !== false;
-      });
       vi.spyOn(container.resolve(DenomExchangeService), "getExchangeRateToUSD").mockResolvedValue({
         price: 1,
         volume: 0,

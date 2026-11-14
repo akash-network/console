@@ -8,8 +8,6 @@ import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.reposit
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { JOB_NAME } from "@src/core";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { hashInvitationToken } from "@src/organization/lib/invitation-token/invitation-token";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
@@ -90,14 +88,6 @@ describe("Organization invitations", () => {
       const response = await request("GET", "/v1/organization-invitations", { asUser: caller, organizationId: organization.id });
 
       expect(response.status).toBe(403);
-    });
-
-    it("answers like an unknown path while organizations are off for the caller", async () => {
-      const { organization, owner, request } = await setup({ callerRole: "owner", organizationsOn: false });
-
-      const response = await request("GET", "/v1/organization-invitations", { asUser: owner, organizationId: organization.id });
-
-      expect(response.status).toBe(404);
     });
   });
 
@@ -475,19 +465,6 @@ describe("Organization invitations", () => {
         INVITATION_EMAIL_LIMITS.perAddress
       );
     });
-
-    it("answers like an unknown path while organizations are off for the caller", async () => {
-      const { organization, owner, request } = await setup({ callerRole: "owner", organizationsOn: false });
-
-      const response = await request("POST", "/v1/organization-invitations", {
-        asUser: owner,
-        organizationId: organization.id,
-        body: { data: { emails: ["jane@example.com"], role: "member", projectAccess: "all" } }
-      });
-
-      expect(response.status).toBe(404);
-      expect(await invitationRepository.count({ organizationId: organization.id })).toBe(0);
-    });
   });
 
   describe("POST /v1/organization-invitations/{id}/resend", () => {
@@ -784,7 +761,7 @@ describe("Organization invitations", () => {
     return url.replace(`${deployWebBaseUrl}/invitations#token=`, "");
   }
 
-  async function setup(input: { callerRole: OrganizationRole; targetRole?: OrganizationRole; organizationsOn?: boolean }) {
+  async function setup(input: { callerRole: OrganizationRole; targetRole?: OrganizationRole }) {
     const externalUserIdByToken = new Map<string, string>();
     const tokenByUserId = new Map<string, string>();
     const owner = await seedSignedInUser();
@@ -802,12 +779,6 @@ describe("Organization invitations", () => {
     vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(
       async header => externalUserIdByToken.get(header.replace(/^Bearer +/i, "")) ?? null
     );
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => {
-      if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
-      if (flag !== FeatureFlags.ORGANIZATIONS) return true;
-
-      return input.organizationsOn !== false;
-    });
 
     async function seedSignedInUser() {
       const user = await seedUser({

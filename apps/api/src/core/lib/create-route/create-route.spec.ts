@@ -230,7 +230,7 @@ describe(createRoute.name, () => {
       const { route, ctx, next, notFound } = setup({
         method: "post",
         path: "/test",
-        featureFlag: FeatureFlags.ORGANIZATIONS,
+        featureFlag: FeatureFlags.TEMPLATE_MARKETPLACE,
         featureFlagOn: false,
         request: {
           body: {
@@ -257,14 +257,14 @@ describe(createRoute.name, () => {
       const { route, ctx, next, notFound, featureFlagsService } = setup({
         method: "get",
         path: "/test",
-        featureFlag: FeatureFlags.ORGANIZATIONS,
+        featureFlag: FeatureFlags.TEMPLATE_MARKETPLACE,
         featureFlagOn: true
       });
 
       const middlewares = route.middleware as MiddlewareHandler[];
       await middlewares[0](ctx, next);
 
-      expect(featureFlagsService.isEnabled).toHaveBeenCalledWith(FeatureFlags.ORGANIZATIONS);
+      expect(featureFlagsService.isEnabled).toHaveBeenCalledWith(FeatureFlags.TEMPLATE_MARKETPLACE);
       expect(next).toHaveBeenCalled();
       expect(notFound).not.toHaveBeenCalled();
     });
@@ -282,23 +282,6 @@ describe(createRoute.name, () => {
       });
 
       expect(stripHiddenOperations({ "/gated-resources": { get: { operationId: "listGatedResources", responses: {} } } })).toEqual({});
-    });
-
-    it("publishes the route in the served OpenAPI docs when its flag is published", () => {
-      const operations = { "/team-resources": { get: { operationId: "listTeamResources", responses: {} } } };
-
-      createRoute({
-        method: "get",
-        path: "/team-resources",
-        operationId: "listTeamResources",
-        summary: "Test",
-        tags: ["Test"],
-        security: SECURITY_NONE,
-        featureFlag: FeatureFlags.ORGANIZATIONS,
-        responses: { 200: { description: "OK" } }
-      });
-
-      expect(stripHiddenOperations(operations)).toEqual(operations);
     });
 
     it("leaves a route without an operationId out of the served OpenAPI docs under its method and path", () => {
@@ -359,7 +342,7 @@ describe(createRoute.name, () => {
         method: "get",
         path: "/test",
         security: SECURITY_BEARER,
-        featureFlag: FeatureFlags.ORGANIZATIONS,
+        featureFlag: FeatureFlags.TEMPLATE_MARKETPLACE,
         featureFlagOn: false
       });
 

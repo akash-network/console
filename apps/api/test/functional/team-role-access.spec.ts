@@ -9,8 +9,6 @@ import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-gener
 import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { type ApiPgDatabase, CORE_CONFIG, POSTGRES_DB, resolveTable } from "@src/core";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { NOTIFICATIONS_CONFIG } from "@src/notifications/providers/notifications-config.provider";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { app } from "@src/rest-app";
@@ -623,7 +621,6 @@ describe("Team role access", () => {
     vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(
       async header => sessions.get(header.replace(/^Bearer +/i, "")) ?? null
     );
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.ORGANIZATIONS_ENFORCE);
     vi.spyOn(container.resolve(Auth0Service), "getUser").mockResolvedValue(null);
     answerNotifications();
 

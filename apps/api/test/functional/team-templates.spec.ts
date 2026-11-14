@@ -8,8 +8,6 @@ import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-gener
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import type { ProjectRole } from "@src/organization/model-schemas/project-member/project-member.schema";
 import { app } from "@src/rest-app";
@@ -229,7 +227,6 @@ describe("Templates in organizations", () => {
     vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(
       async header => tokens.get(header.replace(/^Bearer +/i, "")) ?? null
     );
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.ORGANIZATIONS_ENFORCE);
 
     const actAs = (user: UserOutput, { inTeam = true }: { inTeam?: boolean } = {}) => {
       const token = faker.string.alphanumeric(40);

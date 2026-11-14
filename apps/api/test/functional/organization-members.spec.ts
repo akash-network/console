@@ -5,8 +5,6 @@ import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { OrganizationRole, ProjectAccess } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { type OrganizationMemberOutput, OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
 import { app } from "@src/rest-app";
@@ -70,14 +68,6 @@ describe("Organization members", () => {
       const response = await request("GET", "/v1/organization-members", { asUser: owner, organizationId: organization.id });
 
       expect(await response.json()).toMatchObject({ data: expect.arrayContaining([expect.objectContaining({ userId: target.id, projectCount: 1 })]) });
-    });
-
-    it("answers like an unknown path while organizations are off for the caller", async () => {
-      const { organization, owner, request } = await setup({ callerRole: "owner", organizationsOn: false });
-
-      const response = await request("GET", "/v1/organization-members", { asUser: owner, organizationId: organization.id });
-
-      expect(response.status).toBe(404);
     });
   });
 
@@ -478,17 +468,6 @@ describe("Organization members", () => {
 
       expect(response.status).toBe(404);
     });
-
-    it("answers like an unknown path while organizations are off for the caller", async () => {
-      const { organization, owner, target, membershipOf, request } = await setup({ callerRole: "owner", targetRole: "member", organizationsOn: false });
-
-      const response = await request("GET", `/v1/organization-members/${membershipOf(target).id}/project-grants`, {
-        asUser: owner,
-        organizationId: organization.id
-      });
-
-      expect(response.status).toBe(404);
-    });
   });
 
   describe("DELETE /v1/organization-members/{id}", () => {
@@ -598,24 +577,7 @@ describe("Organization members", () => {
     });
   });
 
-  it.each([
-    ["PATCH", "/v1/organization-members/{id}"],
-    ["DELETE", "/v1/organization-members/{id}"],
-    ["POST", "/v1/organization-members/{id}/ownership-transfer"]
-  ])("answers %s %s like an unknown path while organizations are off for the caller", async (method, path) => {
-    const { organization, owner, target, membershipOf, request } = await setup({ callerRole: "owner", targetRole: "member", organizationsOn: false });
-
-    const response = await request(method, path.replace("{id}", membershipOf(target).id), {
-      asUser: owner,
-      organizationId: organization.id,
-      body: { data: { role: "admin" } }
-    });
-
-    expect(response.status).toBe(404);
-    expect(await memberRepository.findById(membershipOf(target).id)).toMatchObject({ role: "member" });
-  });
-
-  async function setup(input: { callerRole: OrganizationRole; targetRole?: OrganizationRole; organizationsOn?: boolean }) {
+  async function setup(input: { callerRole: OrganizationRole; targetRole?: OrganizationRole }) {
     const externalUserIdByToken = new Map<string, string>();
     const tokenByUserId = new Map<string, string>();
     const memberships = new Map<string, OrganizationMemberOutput>();
@@ -634,12 +596,6 @@ describe("Organization members", () => {
     vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(
       async header => externalUserIdByToken.get(header.replace(/^Bearer +/i, "")) ?? null
     );
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => {
-      if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
-      if (flag !== FeatureFlags.ORGANIZATIONS) return true;
-
-      return input.organizationsOn !== false;
-    });
 
     async function seedSignedInUser() {
       const user = await seedUser({ userId: `auth0|${faker.string.alphanumeric(24)}`, username: `user-${faker.string.alphanumeric(12)}` });

@@ -12,6 +12,7 @@ import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { ABUSE_LOCK_REASON, DELETED_TRIAL_ACCOUNT_LOCK_REASON } from "@src/workload-abuse/lib/abuse-lock-reason/abuse-lock-reason";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { fileIntoPersonalOrganization } from "@test/seeders/db/organization.seeder";
 
 describe("Get Wallet List", () => {
   const userRepository = container.resolve(UserRepository);
@@ -105,6 +106,7 @@ describe("Get Wallet List", () => {
       abuseLockedReason: input.abuseLockedReason ?? null
     });
 
+    await fileIntoPersonalOrganization(user);
     vi.spyOn(userAuthTokenService, "getValidUserId").mockResolvedValue(user.userId);
 
     return { user, token };

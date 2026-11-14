@@ -158,18 +158,6 @@ describe(SpendRateService.name, () => {
       expect(weeklyCost).toBe(10);
     });
 
-    it("leaves the organization spend right unconsulted while organizations are off", async () => {
-      const { service, wallet, signerService } = setup({
-        context: createOrganizationContext({ role: "owner", mode: "legacy" }),
-        autoTopUpDseqs: ["1", "2"]
-      });
-
-      const weeklyCost = await service.findWeeklyCostByUserId(wallet.userId);
-
-      expect(weeklyCost).toBe(20);
-      expect(signerService.filterDeploymentsInProjectScope).toHaveBeenCalledWith(wallet, ["1", "2"], "read");
-    });
-
     it("leaves the organization spend right unconsulted for a request without an organization context", async () => {
       const { service, wallet, signerService } = setup({ withoutContext: true, autoTopUpDseqs: ["1", "2"] });
 

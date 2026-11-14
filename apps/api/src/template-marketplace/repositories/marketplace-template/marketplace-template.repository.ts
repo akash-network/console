@@ -121,7 +121,6 @@ export class MarketplaceTemplateRepository extends OrgScopedRepository<Table, Pa
     await this.unscoped("template-writers").deleteById(id);
   }
 
-  /** Names the organization in every mode, since legacy rules on templates are keyed on their author and reach every organization. */
   async listInOrganization({ organizationId, visibility, projectId, limit }: UserTemplateListFilter): Promise<UserTemplateListRow[]> {
     return await this.cursor
       .select({

@@ -23,6 +23,7 @@ import { DeploymentSettingRepository } from "@src/deployment/repositories/deploy
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
+import { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { app } from "@src/rest-app";
 import type { UserOutput } from "@src/user/repositories";
@@ -32,6 +33,7 @@ import { deploymentVersion, marketVersion } from "@src/utils/constants";
 import { registerFakeSdlSecretsKms, SDL_SECRETS_KID, warmSealingKeyAsBootWould } from "@test/mocks/sdl-secrets-kms.mock";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createApiKey } from "@test/seeders/api-key.seeder";
+import { fileIntoPersonalOrganization } from "@test/seeders/db/organization.seeder";
 import { createDeployment } from "@test/seeders/deployment.seeder";
 import { createDeploymentInfoGroupsFromSdl, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { createManyLeaseApiResponses } from "@test/seeders/lease-api-response.seeder";
@@ -93,6 +95,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
   const signerService = container.resolve(ManagedSignerService);
   const providerService = container.resolve(ProviderService);
   const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+  const personalOrganizationService = container.resolve(PersonalOrganizationService);
 
   beforeAll(async () => {
     await startJobQueues();
@@ -812,10 +815,11 @@ describe("PATCH /v1/deployments/{dseq}", () => {
 
   async function setup(input: { secrets?: Record<string, string>; env?: string[]; record?: boolean; expose?: { port: number; as: number } } = {}) {
     const dbUser = await userRepository.create({ userId: faker.string.uuid() });
+    const personalOrganization = await personalOrganizationService.ensureForUser(dbUser);
     const apiKey = faker.string.alphanumeric(24);
     const user = createUser({ id: dbUser.id, userId: dbUser.userId ?? undefined });
     const address = createAkashAddress();
-    const wallets = [createUserWallet({ userId: dbUser.id, address })];
+    const wallets = [createUserWallet({ userId: dbUser.id, address, organizationId: personalOrganization.id })];
     const apiKeys: Record<string, ReturnType<typeof createApiKey>> = { [apiKey]: createApiKey({ userId: dbUser.id }) };
 
     vi.spyOn(userRepository, "findById").mockImplementation(async id =>
@@ -863,6 +867,8 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     } else {
       await deploymentSettingRepository.createDefaultIfMissing({ userId: user.id, dseq: DSEQ });
     }
+
+    await fileIntoPersonalOrganization(dbUser);
 
     kmsClient.asymmetricDecrypt.mockClear();
 

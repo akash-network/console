@@ -44,6 +44,8 @@ import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-
 import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import { failedCloseActivityOf, systemClosedActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 import { MAX_DEPLOYMENT_NAME_LENGTH } from "@src/deployment/utils/deployment-name/deployment-name";
+import { ProjectRepository } from "@src/organization/repositories/project/project.repository";
+import { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { app } from "@src/rest-app";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
@@ -73,7 +75,7 @@ import { createLeaseStatus } from "@test/seeders/lease-status.seeder";
 import { createProvider } from "@test/seeders/provider.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
-import { findJobRows, type JobRow } from "@test/services/job-queue-harness";
+import { findJobRows, type JobRow, runAsUser } from "@test/services/job-queue-harness";
 
 const OVERSIZED_FILLER = "z".repeat(4096);
 const HELLO_WORLD_SDL = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
@@ -189,33 +191,15 @@ describe("Deployments API", () => {
     nock.cleanAll();
   });
 
-  async function mockUser() {
-    const userId = faker.string.uuid();
-    const userApiKeySecret = faker.word.noun();
-    const user = createUser({ userId });
-    const apiKey = createApiKey({ userId });
-    const wallets = [createUserWallet({ userId, address: "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm" })];
-
-    currentUser = user;
-    knownUsers[userId] = user;
-    knownApiKeys[userApiKeySecret] = apiKey;
-    knownWallets[user.id] = wallets;
-    allWallets.push(...wallets);
-
-    return { user, userApiKeySecret, wallets };
-  }
-
-  /**
-   * Persists a real user row, which every create and every SDL update needs: creating or updating a
-   * deployment now records what that deployment is, and that record is FK-bound to the user. `mockUser`
-   * fakes the user, and only suits paths that never record a definition.
-   */
   async function mockPersistedUser({ address = "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm", isTrialing }: { address?: string; isTrialing?: boolean } = {}) {
     const dbUser = await userRepository.create({ userId: faker.string.uuid() });
+    const organization = await container.resolve(PersonalOrganizationService).ensureForUser(dbUser);
     const userApiKeySecret = faker.word.noun();
     const user = createUser({ id: dbUser.id, userId: dbUser.userId ?? undefined });
     const apiKey = createApiKey({ userId: dbUser.id });
-    const wallets = [createUserWallet({ userId: dbUser.id, address, isTrialing })];
+    const defaultProject = await container.resolve(ProjectRepository).findDefaultByOrganizationId(organization.id);
+    const filing = { organizationId: organization.id, projectId: defaultProject!.id };
+    const wallets = [createUserWallet({ userId: dbUser.id, organizationId: organization.id, address, isTrialing })];
 
     currentUser = user;
     knownUsers[dbUser.id] = user;
@@ -223,7 +207,7 @@ describe("Deployments API", () => {
     knownWallets[dbUser.id] = wallets;
     allWallets.push(...wallets);
 
-    return { user, userApiKeySecret, wallets };
+    return { user, userApiKeySecret, wallets, filing };
   }
 
   async function runAsWorker(handler: CreateDeploymentHandler, job: JobRow<JobPayload<CreateDeployment>>) {
@@ -377,7 +361,7 @@ describe("Deployments API", () => {
   describe("GET /v1/deployments", () => {
     it("returns deployment by dseq", async () => {
       const dseq = "1234";
-      const { userApiKeySecret, wallets } = await mockUser();
+      const { userApiKeySecret, wallets } = await mockPersistedUser();
       await setupDeploymentInfoMock(wallets, dseq);
 
       const response = await app.request(`/v1/deployments/${dseq}`, {
@@ -398,10 +382,15 @@ describe("Deployments API", () => {
 
     it("returns the gpus the console read for the lease it read them from", async () => {
       const dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false });
-      const { userApiKeySecret, user, wallets } = await mockPersistedUser();
+      const { userApiKeySecret, user, wallets, filing } = await mockPersistedUser();
       const { leases } = await setupDeploymentInfoMock(wallets, dseq);
       const { id } = leases[0].lease;
-      await seedDeploymentSetting({ userId: user.id, dseq, detectedGpus: [createLeaseGpuReading({ gseq: id.gseq, oseq: id.oseq, provider: id.provider })] });
+      await seedDeploymentSetting({
+        userId: user.id,
+        ...filing,
+        dseq,
+        detectedGpus: [createLeaseGpuReading({ gseq: id.gseq, oseq: id.oseq, provider: id.provider })]
+      });
 
       const response = await app.request(`/v1/deployments/${dseq}`, {
         method: "GET",
@@ -423,11 +412,12 @@ describe("Deployments API", () => {
 
     it("returns the gpus the lease's bid offered for the lease it was recorded for", async () => {
       const dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false });
-      const { userApiKeySecret, user, wallets } = await mockPersistedUser();
+      const { userApiKeySecret, user, wallets, filing } = await mockPersistedUser();
       const { leases } = await setupDeploymentInfoMock(wallets, dseq);
       const { id } = leases[0].lease;
       await seedDeploymentSetting({
         userId: user.id,
+        ...filing,
         dseq,
         offeredGpus: [
           createLeaseGpuOffer({
@@ -486,7 +476,7 @@ describe("Deployments API", () => {
       const { userApiKeySecret, user, wallets } = await mockPersistedUser();
       await setupDeploymentInfoMock(wallets, dseq);
       const sdl = `version: '2.0' # ${faker.string.uuid()}`;
-      await container.resolve(DeploymentSettingRepository).upsertDefinition({ userId: user.id, dseq, sdl, manifestVersion: "BAUG" });
+      await runAsUser(user, () => container.resolve(DeploymentSettingRepository).upsertDefinition({ userId: user.id, dseq, sdl, manifestVersion: "BAUG" }));
 
       const response = await app.request(`/v1/deployments/${dseq}`, {
         method: "GET",
@@ -502,9 +492,11 @@ describe("Deployments API", () => {
       const dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false });
       const { userApiKeySecret, user, wallets } = await mockPersistedUser();
       await setupDeploymentInfoMock(wallets, dseq);
-      await container
-        .resolve(DeploymentSettingRepository)
-        .upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG", templateId: "akash-network-awesome-akash-sdxl" });
+      await runAsUser(user, () =>
+        container
+          .resolve(DeploymentSettingRepository)
+          .upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG", templateId: "akash-network-awesome-akash-sdxl" })
+      );
 
       const response = await app.request(`/v1/deployments/${dseq}`, {
         method: "GET",
@@ -572,10 +564,12 @@ describe("Deployments API", () => {
       const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
       const first = await mockPersistedUser();
       const firstSdl = `version: '2.0' # ${faker.string.uuid()}`;
-      await deploymentSettingRepository.upsertDefinition({ userId: first.user.id, dseq, sdl: firstSdl, manifestVersion: "BAUG" });
+      await runAsUser(first.user, () => deploymentSettingRepository.upsertDefinition({ userId: first.user.id, dseq, sdl: firstSdl, manifestVersion: "BAUG" }));
       const second = await mockPersistedUser();
       const secondSdl = `version: '2.0' # ${faker.string.uuid()}`;
-      await deploymentSettingRepository.upsertDefinition({ userId: second.user.id, dseq, sdl: secondSdl, manifestVersion: "BAUH" });
+      await runAsUser(second.user, () =>
+        deploymentSettingRepository.upsertDefinition({ userId: second.user.id, dseq, sdl: secondSdl, manifestVersion: "BAUH" })
+      );
       await setupDeploymentInfoMock(second.wallets, dseq);
 
       const readAs = async (apiKey: string) => {
@@ -594,9 +588,9 @@ describe("Deployments API", () => {
       const dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false });
       const { userApiKeySecret, user, wallets } = await mockPersistedUser();
       await setupDeploymentInfoMock(wallets, dseq);
-      await container
-        .resolve(DeploymentSettingRepository)
-        .upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG", name: "web" });
+      await runAsUser(user, () =>
+        container.resolve(DeploymentSettingRepository).upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG", name: "web" })
+      );
 
       const response = await app.request(`/v1/deployments/${dseq}`, {
         method: "GET",
@@ -612,7 +606,7 @@ describe("Deployments API", () => {
       const dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false });
       const { userApiKeySecret, user, wallets } = await mockPersistedUser();
       await setupDeploymentInfoMock(wallets, dseq);
-      await container.resolve(DeploymentSettingRepository).create({ userId: user.id, dseq, name: "named only" });
+      await runAsUser(user, () => container.resolve(DeploymentSettingRepository).create({ userId: user.id, dseq, name: "named only" }));
 
       const response = await app.request(`/v1/deployments/${dseq}`, {
         method: "GET",
@@ -642,7 +636,7 @@ describe("Deployments API", () => {
 
     it("returns 404 for an error in deployment info", async () => {
       const dseq = "1234";
-      const { userApiKeySecret, wallets } = await mockUser();
+      const { userApiKeySecret, wallets } = await mockPersistedUser();
       await setupDeploymentInfoMock(wallets, dseq, createDeploymentInfoErrorSeed());
 
       const response = await app.request(`/v1/deployments/${dseq}`, {
@@ -677,7 +671,7 @@ describe("Deployments API", () => {
     });
 
     it("returns 400 for invalid dseq 'undefined'", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
 
       const response = await app.request("/v1/deployments/undefined", {
         method: "GET",
@@ -690,7 +684,7 @@ describe("Deployments API", () => {
     });
 
     it("returns 400 for invalid dseq with non-numeric characters", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
 
       const response = await app.request("/v1/deployments/abc123", {
         method: "GET",
@@ -703,7 +697,7 @@ describe("Deployments API", () => {
     });
 
     it("returns the first page of deployments when skip and limit are not provided", async () => {
-      const { userApiKeySecret, wallets } = await mockUser();
+      const { userApiKeySecret, wallets } = await mockPersistedUser();
       const deployments = setupDeploymentListMock(wallets, 2);
 
       nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
@@ -746,8 +740,10 @@ describe("Deployments API", () => {
       const deployments = setupDeploymentListMock(wallets, 2);
       const [named, unnamed] = (deployments as DeploymentInfo[]).map(({ deployment }) => deployment.id.dseq);
       const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
-      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq: named, sdl: "version: '2.0'", manifestVersion: "BAUG", name: "web" });
-      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq: unnamed, sdl: "version: '2.0'", manifestVersion: "BAUG" });
+      await runAsUser(user, async () => {
+        await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq: named, sdl: "version: '2.0'", manifestVersion: "BAUG", name: "web" });
+        await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq: unnamed, sdl: "version: '2.0'", manifestVersion: "BAUG" });
+      });
 
       nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
         .persist()
@@ -767,7 +763,7 @@ describe("Deployments API", () => {
     });
 
     it("returns paginated list of deployments when skip and limit are provided", async () => {
-      const { userApiKeySecret, wallets } = await mockUser();
+      const { userApiKeySecret, wallets } = await mockPersistedUser();
       const deployments = setupDeploymentListMock(wallets, 2, "active");
 
       nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
@@ -806,7 +802,7 @@ describe("Deployments API", () => {
     });
 
     it("reports no further page when the chain offers no cursor, however many it says there are", async () => {
-      const { userApiKeySecret, wallets } = await mockUser();
+      const { userApiKeySecret, wallets } = await mockPersistedUser();
       const deployments = setupDeploymentListMock(wallets, 2, "active");
 
       nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
@@ -825,7 +821,7 @@ describe("Deployments API", () => {
     });
 
     it("asks the chain for a page no larger than the cap when the request names no limit", async () => {
-      const { userApiKeySecret, wallets } = await mockUser();
+      const { userApiKeySecret, wallets } = await mockPersistedUser();
       const deployments = setupDeploymentListMock(wallets, 1, "active");
       const requestedUris: string[] = [];
 
@@ -928,8 +924,10 @@ describe("Deployments API", () => {
       const { userApiKeySecret, user, address, chainRequests } = await setupArchive();
       const [named, otherNamed] = await seedClosedDeployments(address, 3);
       const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
-      await deploymentSettingRepository.upsertName({ userId: user.id, dseq: named.dseq, name: "my-web-app" });
-      await deploymentSettingRepository.upsertName({ userId: user.id, dseq: otherNamed.dseq, name: "database" });
+      await runAsUser(user, async () => {
+        await deploymentSettingRepository.upsertName({ userId: user.id, dseq: named.dseq, name: "my-web-app" });
+        await deploymentSettingRepository.upsertName({ userId: user.id, dseq: otherNamed.dseq, name: "database" });
+      });
 
       const response = await app.request("/v1/deployments?state=closed&search=WEB", {
         method: "GET",
@@ -974,7 +972,7 @@ describe("Deployments API", () => {
         }))
       );
       const sought = String(firstDseq + MAX_SEARCHABLE_DEPLOYMENTS);
-      await container.resolve(DeploymentSettingRepository).upsertName({ userId: user.id, dseq: sought, name: "needle" });
+      await runAsUser(user, () => container.resolve(DeploymentSettingRepository).upsertName({ userId: user.id, dseq: sought, name: "needle" }));
 
       const response = await app.request("/v1/deployments?state=closed&search=needle", {
         method: "GET",
@@ -1019,7 +1017,7 @@ describe("Deployments API", () => {
     }
 
     it("returns each listed deployment's resource groups", async () => {
-      const { userApiKeySecret, wallets } = await mockUser();
+      const { userApiKeySecret, wallets } = await mockPersistedUser();
       const address = wallets[0].address!;
       const dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false });
       const groups = [createDeploymentInfoGroupSeed({ owner: address, dseq })];
@@ -1049,8 +1047,10 @@ describe("Deployments API", () => {
       const deployments = setupDeploymentListMock(wallets, 1);
       const dseq = (deployments as DeploymentInfo[])[0].deployment.id.dseq;
       const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
-      await deploymentSettingRepository.create({ userId: user.id, dseq, runtimeLimitHours: 5 });
-      await deploymentSettingRepository.upsertName({ userId: user.id, dseq, name: "web" });
+      await runAsUser(user, async () => {
+        await deploymentSettingRepository.create({ userId: user.id, dseq, runtimeLimitHours: 5 });
+        await deploymentSettingRepository.upsertName({ userId: user.id, dseq, name: "web" });
+      });
 
       nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
         .persist()
@@ -1126,14 +1126,16 @@ describe("Deployments API", () => {
       const deployments = setupDeploymentListMock(wallets, 2);
       const [matching, other] = (deployments as DeploymentInfo[]).map(({ deployment }) => deployment.id.dseq);
       const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
-      await deploymentSettingRepository.upsertDefinition({
-        userId: user.id,
-        dseq: matching,
-        sdl: "version: '2.0'",
-        manifestVersion: "BAUG",
-        name: "my-web-app"
+      await runAsUser(user, async () => {
+        await deploymentSettingRepository.upsertDefinition({
+          userId: user.id,
+          dseq: matching,
+          sdl: "version: '2.0'",
+          manifestVersion: "BAUG",
+          name: "my-web-app"
+        });
+        await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq: other, sdl: "version: '2.0'", manifestVersion: "BAUG", name: "database" });
       });
-      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq: other, sdl: "version: '2.0'", manifestVersion: "BAUG", name: "database" });
 
       nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
         .persist()
@@ -1175,9 +1177,11 @@ describe("Deployments API", () => {
       const { userApiKeySecret, user, wallets } = await mockPersistedUser();
       const deployments = setupDeploymentListMock(wallets, 2);
       const [, onSecondPage] = (deployments as DeploymentInfo[]).map(({ deployment }) => deployment.id.dseq);
-      await container
-        .resolve(DeploymentSettingRepository)
-        .upsertDefinition({ userId: user.id, dseq: onSecondPage, sdl: "version: '2.0'", manifestVersion: "BAUG", name: "web" });
+      await runAsUser(user, () =>
+        container
+          .resolve(DeploymentSettingRepository)
+          .upsertDefinition({ userId: user.id, dseq: onSecondPage, sdl: "version: '2.0'", manifestVersion: "BAUG", name: "web" })
+      );
 
       nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
         .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
@@ -1200,9 +1204,11 @@ describe("Deployments API", () => {
       const deployments = setupDeploymentListMock(wallets, 3);
       const dseqs = (deployments as DeploymentInfo[]).map(({ deployment }) => deployment.id.dseq);
       const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
-      for (const dseq of dseqs) {
-        await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG", name: `web-${dseq}` });
-      }
+      await runAsUser(user, async () => {
+        for (const dseq of dseqs) {
+          await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG", name: `web-${dseq}` });
+        }
+      });
 
       nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
         .persist()
@@ -1242,7 +1248,7 @@ describe("Deployments API", () => {
     });
 
     it("returns 400 for a search longer than a deployment name may be", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
 
       const response = await app.request(`/v1/deployments?search=${"a".repeat(MAX_DEPLOYMENT_NAME_LENGTH + 1)}`, {
         method: "GET",
@@ -1253,7 +1259,7 @@ describe("Deployments API", () => {
     });
 
     it("returns 400 for a state the chain does not hold deployments in", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
 
       const response = await app.request("/v1/deployments?state=paused", {
         method: "GET",
@@ -1264,7 +1270,7 @@ describe("Deployments API", () => {
     });
 
     it("returns 400 for a page larger than the cap", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
 
       const response = await app.request(`/v1/deployments?limit=${deploymentListMaxLimit + 1}`, {
         method: "GET",
@@ -1275,7 +1281,7 @@ describe("Deployments API", () => {
     });
 
     it("returns 400 if skip is negative", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
 
       const response = await app.request("/v1/deployments?skip=-1&limit=10", {
         method: "GET",
@@ -1286,7 +1292,7 @@ describe("Deployments API", () => {
     });
 
     it("returns 400 if limit is less than 1", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
 
       const response = await app.request("/v1/deployments?skip=0&limit=0", {
         method: "GET",
@@ -1297,7 +1303,7 @@ describe("Deployments API", () => {
     });
 
     it("filters deployments by status", async () => {
-      const { userApiKeySecret, wallets } = await mockUser();
+      const { userApiKeySecret, wallets } = await mockPersistedUser();
       const deployments = setupDeploymentListMock(wallets, 1, "active");
 
       nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
@@ -1540,7 +1546,7 @@ describe("Deployments API", () => {
     });
 
     it("returns 400 for an async value other than true or false", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
 
       const response = await app.request("/v1/deployments?async=yes", {
         method: "POST",
@@ -1567,7 +1573,7 @@ describe("Deployments API", () => {
     });
 
     it("returns 400 for an SDL invalid in a meaningful way", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/invalid-sdl.yml"), "utf8");
 
       const response = await app.request("/v1/deployments", {
@@ -1587,7 +1593,7 @@ describe("Deployments API", () => {
     });
 
     it("returns 400 if the SDL sent is invalid", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
 
       const response = await app.request("/v1/deployments", {
         method: "POST",
@@ -1606,7 +1612,7 @@ describe("Deployments API", () => {
     });
 
     it("returns 400 for an SDL holding more than one YAML document", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
 
       const response = await app.request("/v1/deployments", {
         method: "POST",
@@ -1619,7 +1625,7 @@ describe("Deployments API", () => {
     });
 
     it("returns 400 naming the value when the SDL gives a memory size without a unit", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8").replace("size: 512Mi", 'size: "1073741824"');
 
       const response = await app.request("/v1/deployments", {
@@ -1764,7 +1770,7 @@ describe("Deployments API", () => {
     });
 
     it("returns 400 for a non-integer runtime limit", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 
       const response = await app.request("/v1/deployments", {
@@ -1782,7 +1788,7 @@ describe("Deployments API", () => {
     });
 
     it("returns 400 for a runtime limit above the 48 hour cap", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 
       const response = await app.request("/v1/deployments", {
@@ -1800,7 +1806,7 @@ describe("Deployments API", () => {
     });
 
     it.each([0, -1])("returns 400 for a runtime limit of %s hours", async runtimeLimitHours => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 
       const response = await app.request("/v1/deployments", {
@@ -1952,7 +1958,7 @@ describe("Deployments API", () => {
     });
 
     it("returns 400 for a name of nothing but spaces", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
 
       const response = await postDeployment(userApiKeySecret, { name: "   " });
 
@@ -1960,7 +1966,7 @@ describe("Deployments API", () => {
     });
 
     it("returns 400 for a name longer than a deployment may carry", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
 
       const response = await postDeployment(userApiKeySecret, { name: "n".repeat(MAX_DEPLOYMENT_NAME_LENGTH + 1) });
 
@@ -1980,7 +1986,7 @@ describe("Deployments API", () => {
     });
 
     it("returns 400 for a template id carrying a path separator", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
 
       const response = await postDeployment(userApiKeySecret, { templateId: "akash-network/awesome-akash" });
 
@@ -2379,7 +2385,7 @@ describe("Deployments API", () => {
     });
 
     it("should close a deployment successfully", async () => {
-      const { userApiKeySecret, wallets } = await mockUser();
+      const { userApiKeySecret, wallets } = await mockPersistedUser();
       const dseq = "1234";
       await setupDeploymentInfoMock(wallets, dseq);
 
@@ -2407,7 +2413,7 @@ describe("Deployments API", () => {
     });
 
     it("should return 404 if deployment does not exist", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
       const dseq = "1234";
 
       vi.spyOn(deploymentReaderService, "findByWalletAndDseqWithoutProviderStatus").mockRejectedValueOnce(new NotFound("Deployment not found"));
@@ -2444,7 +2450,7 @@ describe("Deployments API", () => {
     });
 
     it("should return 400 for invalid dseq 'undefined'", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
 
       const response = await app.request("/v1/deployments/undefined", {
         method: "DELETE",
@@ -2457,7 +2463,7 @@ describe("Deployments API", () => {
     });
 
     it("should return 400 for invalid dseq with non-numeric characters", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
 
       const response = await app.request("/v1/deployments/abc123", {
         method: "DELETE",
@@ -2470,7 +2476,7 @@ describe("Deployments API", () => {
     });
 
     it("should return 400 for negative dseq", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
 
       const response = await app.request("/v1/deployments/-123", {
         method: "DELETE",
@@ -2486,7 +2492,7 @@ describe("Deployments API", () => {
 
   describe("POST /v1/deployments/{dseq}/deposit", () => {
     it("should deposit into a deployment successfully", async () => {
-      const { userApiKeySecret, wallets } = await mockUser();
+      const { userApiKeySecret, wallets } = await mockPersistedUser();
       const dseq = "1234";
       await setupDeploymentInfoMock(wallets, dseq);
 
@@ -2514,7 +2520,7 @@ describe("Deployments API", () => {
     });
 
     it("should return 404 if deployment does not exist", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
       const dseq = "1234";
 
       vi.spyOn(deploymentReaderService, "findByWalletAndDseqWithoutProviderStatus").mockRejectedValueOnce(new NotFound("Deployment not found"));
@@ -2563,7 +2569,7 @@ describe("Deployments API", () => {
     });
 
     it("should return 400 if deposit amount is not provided", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
       const dseq = "1234";
 
       const response = await app.request(`/v1/deposit-deployment`, {
@@ -2580,7 +2586,7 @@ describe("Deployments API", () => {
     });
 
     it.each([0, -1, 0.0000001])("answers 400 without signing for a deposit of %s", async deposit => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
       const executeTx = vi.spyOn(signerService, "executeDerivedDecodedTxByUserId");
 
       const response = await app.request("/v1/deposit-deployment", {
@@ -2595,7 +2601,7 @@ describe("Deployments API", () => {
     });
 
     it("signs a deposit of the smallest amount the chain denominates", async () => {
-      const { userApiKeySecret, wallets } = await mockUser();
+      const { userApiKeySecret, wallets } = await mockPersistedUser();
       await setupDeploymentInfoMock(wallets, "1234");
       const executeTx = vi
         .spyOn(signerService, "executeDerivedDecodedTxByUserId")
@@ -2740,7 +2746,9 @@ describe("Deployments API", () => {
       await setupDeploymentInfoMock(wallets, dseq);
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
       const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
-      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: yml, manifestVersion: "BAUG", name: input.recordedName });
+      await runAsUser(user, () =>
+        deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: yml, manifestVersion: "BAUG", name: input.recordedName })
+      );
 
       const response = await app.request(`/v1/deployments/${dseq}`, {
         method: "PUT",
@@ -2754,7 +2762,7 @@ describe("Deployments API", () => {
     }
 
     it("should return 404 if deployment does not exist", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
       const dseq = "1234";
 
       vi.spyOn(deploymentReaderService, "findWithGroupSpecsByWalletAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
@@ -2803,7 +2811,7 @@ describe("Deployments API", () => {
     });
 
     it("should return 400 if SDL is invalid", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
       const dseq = "1234";
 
       const response = await app.request(`/v1/deployments/${dseq}`, {
@@ -2824,7 +2832,7 @@ describe("Deployments API", () => {
     it("replaces the sdl and the manifest version an earlier write recorded", async () => {
       const { userApiKeySecret, user, dseq } = await setupUpdatableDeployment();
       const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
-      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "AAAA" });
+      await runAsUser(user, () => deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "AAAA" }));
 
       const response = await putDeployment({ userApiKeySecret, dseq, sdlMock: "hello-world-sdl.yml" });
 
@@ -3168,13 +3176,9 @@ describe("Deployments API", () => {
       const repository = container.resolve(DeploymentSettingRepository);
       const stored = await repository.findOneBy({ userId: user.id, dseq });
       const tampered = tamper(stored!.sealedSecrets!);
-      await repository.upsertDefinition({
-        userId: user.id,
-        dseq,
-        sdl: stored!.sdl!,
-        manifestVersion: stored!.manifestVersion!,
-        sealedSecrets: tampered
-      });
+      await runAsUser(user, () =>
+        repository.upsertDefinition({ userId: user.id, dseq, sdl: stored!.sdl!, manifestVersion: stored!.manifestVersion!, sealedSecrets: tampered })
+      );
       mockLeaseChain({ wallets, dseq });
 
       const response = await postLeases({ userApiKeySecret, dseq, manifest: CLIENT_MANIFEST });
@@ -3309,10 +3313,12 @@ describe("Deployments API", () => {
       return segments.join(".");
     }
 
-    async function recordDefinition({ user, dseq, sdl, secrets }: { user: { id: string }; dseq: string; sdl: string; secrets?: Record<string, string> }) {
+    async function recordDefinition({ user, dseq, sdl, secrets }: { user: UserOutput; dseq: string; sdl: string; secrets?: Record<string, string> }) {
       const sealedSecrets = secrets ? await sealForStorage(user, dseq, secrets) : null;
 
-      await container.resolve(DeploymentSettingRepository).upsertDefinition({ userId: user.id, dseq, sdl, manifestVersion: "AAAA", sealedSecrets });
+      await runAsUser(user, () =>
+        container.resolve(DeploymentSettingRepository).upsertDefinition({ userId: user.id, dseq, sdl, manifestVersion: "AAAA", sealedSecrets })
+      );
     }
 
     async function sealForStorage(user: { id: string }, dseq: string, secrets: Record<string, string>) {
@@ -3398,7 +3404,7 @@ describe("Deployments API", () => {
   describe("GET /v1/addresses/{address}/deployments/{skip}/{limit}", () => {
     it("returns deployment by dseq", async () => {
       const dseq = "1234";
-      const { userApiKeySecret, wallets } = await mockUser();
+      const { userApiKeySecret, wallets } = await mockPersistedUser();
       await setupDeploymentInfoMock(wallets, dseq);
 
       const response = await app.request(`/v1/addresses/${wallets[0].address}/deployments/0/1?status=active`, {
@@ -3430,7 +3436,7 @@ describe("Deployments API", () => {
   describe("GET /v1/deployment/{owner}/{dseq}", () => {
     it("returns deployment by owner and dseq", async () => {
       const dseq = "1234";
-      const { userApiKeySecret, wallets } = await mockUser();
+      const { userApiKeySecret, wallets } = await mockPersistedUser();
       await setupDeploymentInfoMock(wallets, dseq);
 
       const response = await app.request(`/v1/deployment/${wallets[0].address}/${dseq}`, {
@@ -3446,7 +3452,7 @@ describe("Deployments API", () => {
 
     it("returns 404 when deployment is not found", async () => {
       const dseq = "1234";
-      const { userApiKeySecret, wallets } = await mockUser();
+      const { userApiKeySecret, wallets } = await mockPersistedUser();
       await setupDeploymentInfoMock(wallets, dseq);
 
       const response = await app.request(`/v1/deployment/${wallets[0].address}/9876`, {
@@ -3458,7 +3464,7 @@ describe("Deployments API", () => {
     });
 
     it("returns 400 when owner is not a valid akash address", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
 
       const response = await app.request(`/v1/deployment/invalid/1234`, {
         method: "GET",

@@ -8,8 +8,6 @@ import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.reposit
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { createInvitationToken, hashInvitationToken } from "@src/organization/lib/invitation-token/invitation-token";
 import type { OrganizationInvitationInput } from "@src/organization/repositories/organization-invitation/organization-invitation.repository";
 import { app } from "@src/rest-app";
@@ -35,7 +33,7 @@ describe("Invitations", () => {
 
   describe("POST /v1/invitations/preview", () => {
     it("shows a signed-out visitor who invited them, to which organization and as what", async () => {
-      const { organization, owner, invite, request } = await setup({ organizationsOn: false });
+      const { organization, owner, invite, request } = await setup();
       const { token, invitation } = await invite({ email: "jane@example.com", role: "admin" });
 
       const response = await request("/v1/invitations/preview", { body: { data: { token } } });
@@ -60,7 +58,7 @@ describe("Invitations", () => {
       { status: "accepted", invitation: { status: "accepted" as const, acceptedAt: new Date() } },
       { status: "declined", invitation: { status: "declined" as const, declinedAt: new Date() } }
     ])("tells the visitor the invitation is $status", async ({ status, invitation }) => {
-      const { invite, request } = await setup({});
+      const { invite, request } = await setup();
       const { token } = await invite(invitation);
 
       const response = await request("/v1/invitations/preview", { body: { data: { token } } });
@@ -70,7 +68,7 @@ describe("Invitations", () => {
     });
 
     it("answers not found for a token no invitation carries", async () => {
-      const { request } = await setup({});
+      const { request } = await setup();
 
       const response = await request("/v1/invitations/preview", { body: { data: { token: createInvitationToken() } } });
 
@@ -79,7 +77,7 @@ describe("Invitations", () => {
     });
 
     it("answers not found for an invitation of a deleted organization", async () => {
-      const { invite, organization, request } = await setup({});
+      const { invite, organization, request } = await setup();
       const { token } = await invite({});
       const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
       const Organizations = resolveTable("Organizations");
@@ -91,7 +89,7 @@ describe("Invitations", () => {
     });
 
     it("rejects a token that is not an invitation token", async () => {
-      const { request } = await setup({});
+      const { request } = await setup();
 
       const response = await request("/v1/invitations/preview", { body: { data: { token: "not-a-token" } } });
 
@@ -102,7 +100,7 @@ describe("Invitations", () => {
 
   describe("POST /v1/invitations/accept", () => {
     it("joins the invitee with the invited role and project access and makes the organization their last used one", async () => {
-      const { organization, project, invite, seedInvitee, request, membershipsOf, grantsOf, userOf } = await setup({});
+      const { organization, project, invite, seedInvitee, request, membershipsOf, grantsOf, userOf } = await setup();
       const invitee = await seedInvitee({ email: `Jane.${faker.string.alphanumeric(8)}@Example.com` });
       const { token, invitation } = await invite({
         email: invitee.email!.toLowerCase(),
@@ -132,7 +130,7 @@ describe("Invitations", () => {
     });
 
     it("asks an invitee signed in with another email to confirm, then lets them join", async () => {
-      const { invite, seedInvitee, request, membershipsOf } = await setup({});
+      const { invite, seedInvitee, request, membershipsOf } = await setup();
       const invitee = await seedInvitee();
       const { token } = await invite({ email: "jane@example.com", role: "member" });
 
@@ -152,7 +150,7 @@ describe("Invitations", () => {
       { case: "revoked", invitation: { status: "revoked" as const, revokedAt: new Date() }, status: 410, code: "invitation_revoked" },
       { case: "declined", invitation: { status: "declined" as const, declinedAt: new Date() }, status: 410, code: "invitation_declined" }
     ])("explains that the invitation is $case", async ({ invitation, status, code }) => {
-      const { invite, seedInvitee, request, membershipsOf } = await setup({});
+      const { invite, seedInvitee, request, membershipsOf } = await setup();
       const invitee = await seedInvitee();
       const { token } = await invite({ email: invitee.email!, ...invitation });
 
@@ -164,7 +162,7 @@ describe("Invitations", () => {
     });
 
     it("refuses an invitation someone else already accepted", async () => {
-      const { invite, seedInvitee, request, membershipsOf } = await setup({});
+      const { invite, seedInvitee, request, membershipsOf } = await setup();
       const [winner, invitee] = await Promise.all([seedInvitee(), seedInvitee()]);
       const { token } = await invite({ email: invitee.email!, status: "accepted", acceptedByUserId: winner.id, acceptedAt: new Date() });
 
@@ -176,7 +174,7 @@ describe("Invitations", () => {
     });
 
     it("lets the invitee join on the invitation of an admin who still belongs to the organization", async () => {
-      const { organization, invite, seedInvitee, request, membershipsOf } = await setup({});
+      const { organization, invite, seedInvitee, request, membershipsOf } = await setup();
       const admin = await seedInvitee();
       await seedOrganizationMember({ organizationId: organization.id, userId: admin.id, role: "admin" });
       const invitee = await seedInvitee();
@@ -193,7 +191,7 @@ describe("Invitations", () => {
       { case: "who is now a member", inviterRole: "member" as const, role: "admin" as const },
       { case: "who is now an admin, to an owner invitation", inviterRole: "admin" as const, role: "owner" as const }
     ])("refuses with 410 the invitation of an inviter $case and leaves it pending", async ({ inviterRole, role }) => {
-      const { organization, invite, seedInvitee, request, membershipsOf } = await setup({});
+      const { organization, invite, seedInvitee, request, membershipsOf } = await setup();
       const inviter = await seedInvitee();
       if (inviterRole) await seedOrganizationMember({ organizationId: organization.id, userId: inviter.id, role: inviterRole });
       const invitee = await seedInvitee();
@@ -208,7 +206,7 @@ describe("Invitations", () => {
     });
 
     it("refuses with 410 a link its maker kept after leaving the organization, even to the maker", async () => {
-      const { organization, invite, seedInvitee, request, membershipsOf } = await setup({});
+      const { organization, invite, seedInvitee, request, membershipsOf } = await setup();
       const formerAdmin = await seedInvitee();
       const { token } = await invite({ email: faker.internet.email().toLowerCase(), role: "admin", invitedByUserId: formerAdmin.id });
 
@@ -221,7 +219,7 @@ describe("Invitations", () => {
     });
 
     it("answers the organization again when the invitee accepts twice", async () => {
-      const { organization, invite, seedInvitee, request, membershipsOf } = await setup({});
+      const { organization, invite, seedInvitee, request, membershipsOf } = await setup();
       const invitee = await seedInvitee();
       const { token } = await invite({ email: invitee.email!, role: "admin" });
 
@@ -234,7 +232,7 @@ describe("Invitations", () => {
     });
 
     it("lets exactly one of two users racing the same link join", async () => {
-      const { organization, invite, seedInvitee, request } = await setup({});
+      const { organization, invite, seedInvitee, request } = await setup();
       const invitees = await Promise.all([seedInvitee(), seedInvitee()]);
       const { token } = await invite({ email: "jane@example.com", role: "member" });
 
@@ -247,7 +245,7 @@ describe("Invitations", () => {
     });
 
     it("keeps one membership when the invitee submits the acceptance twice at once", async () => {
-      const { invite, seedInvitee, request, membershipsOf } = await setup({});
+      const { invite, seedInvitee, request, membershipsOf } = await setup();
       const invitee = await seedInvitee();
       const { token } = await invite({ email: invitee.email!, role: "member" });
 
@@ -258,7 +256,7 @@ describe("Invitations", () => {
     });
 
     it("lets a member of another team organization join while working in it", async () => {
-      const { organization, invite, seedInvitee, request, membershipsOf } = await setup({});
+      const { organization, invite, seedInvitee, request, membershipsOf } = await setup();
       const invitee = await seedInvitee();
       const { organization: otherTeam } = await seedOrganizationWithOwner();
       await seedOrganizationMember({ organizationId: otherTeam.id, userId: invitee.id, role: "member" });
@@ -272,7 +270,7 @@ describe("Invitations", () => {
     });
 
     it("lets an invitee join a team named, whatever its case, like a team they already belong to", async () => {
-      const { organization, invite, seedInvitee, request, membershipsOf } = await setup({});
+      const { organization, invite, seedInvitee, request, membershipsOf } = await setup();
       const invitee = await seedInvitee();
       const { organization: ownTeam } = await seedOrganizationWithOwner({ name: organization.name.toUpperCase() });
       await seedOrganizationMember({ organizationId: ownTeam.id, userId: invitee.id, role: "member" });
@@ -285,7 +283,7 @@ describe("Invitations", () => {
     });
 
     it("refuses a member who confirmed another address and leaves the invitation pending", async () => {
-      const { organization, invite, seedInvitee, request, membershipsOf } = await setup({});
+      const { organization, invite, seedInvitee, request, membershipsOf } = await setup();
       const member = await seedInvitee();
       await seedOrganizationMember({ organizationId: organization.id, userId: member.id, role: "viewer" });
       const { token, invitation } = await invite({ email: "jane@example.com", role: "admin" });
@@ -299,7 +297,7 @@ describe("Invitations", () => {
     });
 
     it("refuses an API key and writes nothing", async () => {
-      const { invite, seedInvitee, seedApiKey, request, membershipsOf, userOf } = await setup({});
+      const { invite, seedInvitee, seedApiKey, request, membershipsOf, userOf } = await setup();
       const invitee = await seedInvitee();
       const apiKey = await seedApiKey(invitee);
       const { token, invitation } = await invite({ email: invitee.email!, role: "admin" });
@@ -314,7 +312,7 @@ describe("Invitations", () => {
     });
 
     it("asks an invitee whose matching email is not verified to confirm", async () => {
-      const { invite, seedInvitee, request, membershipsOf } = await setup({});
+      const { invite, seedInvitee, request, membershipsOf } = await setup();
       const invitee = await seedInvitee({ emailVerified: false });
       const { token } = await invite({ email: invitee.email!, role: "member" });
 
@@ -326,7 +324,7 @@ describe("Invitations", () => {
     });
 
     it("refuses a signed-out caller", async () => {
-      const { invite, request } = await setup({});
+      const { invite, request } = await setup();
       const { token } = await invite({});
 
       const response = await request("/v1/invitations/accept", { body: { data: { token } } });
@@ -334,19 +332,8 @@ describe("Invitations", () => {
       expect(response.status).toBe(401);
     });
 
-    it("answers like an unknown path while organizations are off for the caller", async () => {
-      const { invite, seedInvitee, request, membershipsOf } = await setup({ organizationsOn: false });
-      const invitee = await seedInvitee();
-      const { token } = await invite({ email: invitee.email! });
-
-      const response = await request("/v1/invitations/accept", { asUser: invitee, body: { data: { token } } });
-
-      expect(response.status).toBe(404);
-      expect(await membershipsOf(invitee)).toEqual([]);
-    });
-
     it("rejects a token that is not an invitation token", async () => {
-      const { seedInvitee, request } = await setup({});
+      const { seedInvitee, request } = await setup();
       const invitee = await seedInvitee();
 
       const response = await request("/v1/invitations/accept", { asUser: invitee, body: { data: { token: `${createInvitationToken()}=` } } });
@@ -371,7 +358,7 @@ describe("Invitations", () => {
     return members.filter(member => member.role === role).length;
   }
 
-  async function setup(input: { organizationsOn?: boolean }) {
+  async function setup() {
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
     const OrganizationMembers = resolveTable("OrganizationMembers");
     const ProjectMembers = resolveTable("ProjectMembers");
@@ -387,12 +374,6 @@ describe("Invitations", () => {
     vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(
       async header => externalUserIdByToken.get(header.replace(/^Bearer +/i, "")) ?? null
     );
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => {
-      if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
-      if (flag !== FeatureFlags.ORGANIZATIONS) return true;
-
-      return input.organizationsOn !== false;
-    });
 
     async function seedInvitee(overrides: { email?: string; emailVerified?: boolean } = {}) {
       const user = await seedUser({

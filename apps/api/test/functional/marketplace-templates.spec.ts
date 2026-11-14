@@ -506,12 +506,11 @@ describe("Marketplace templates", () => {
     const { user: owner, organization: team } = await seedOrganizationWithOwner({ user: createSignedUpUserInput() });
     const project = await seedProject({ organizationId: team.id });
     const tokens = new Map<string, string>();
-    const disabledFlags: string[] = [FeatureFlags.ORGANIZATIONS_ENFORCE, ...(isMarketplaceOn ? [] : [FeatureFlags.TEMPLATE_MARKETPLACE])];
 
     vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(
       async header => tokens.get(header.replace(/^Bearer +/i, "")) ?? null
     );
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => !disabledFlags.includes(flag));
+    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => isMarketplaceOn || flag !== FeatureFlags.TEMPLATE_MARKETPLACE);
 
     const read = (path: string) => app.request(path);
 

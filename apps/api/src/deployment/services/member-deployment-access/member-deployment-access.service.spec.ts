@@ -108,13 +108,6 @@ describe(MemberDeploymentAccessService.name, () => {
       await expect(service.assertMayStillSign({ userId: member.id, walletId: 7, dseq: "100" })).rejects.toMatchObject(REVOKED);
     });
 
-    it("refuses a member for whom no context resolves", async () => {
-      const { service, organizationContextResolver, member } = setup();
-      organizationContextResolver.resolveBoundTo.mockResolvedValue(undefined);
-
-      await expect(service.assertMayStillSign({ userId: member.id, walletId: 7, dseq: "100" })).rejects.toMatchObject(REVOKED);
-    });
-
     it("passes on any other failure to resolve the member's context, so the job retries it", async () => {
       const { service, organizationContextResolver, member } = setup();
       const outage = createError(503, "Database unavailable");

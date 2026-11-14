@@ -150,21 +150,8 @@ describe("createProxy", () => {
     expect(forwardedHeaders(fetchMock)).not.toHaveProperty("x-user-email");
   });
 
-  it("mints only the organization to stamp while legacy rules apply", async () => {
-    const organizationContext = createOrganizationContext({ mode: "legacy" });
-    const { handler, context, fetchMock } = setupProxyTest({ method: "GET", organizationContext });
-
-    await handler(context);
-
-    const headers = forwardedHeaders(fetchMock);
-    expect(headers["x-organization-id"]).toBe(organizationContext.organizationId);
-    expect(headers).not.toHaveProperty("x-organization-role");
-    expect(headers).not.toHaveProperty("x-project-scope");
-  });
-
-  it("mints the organization, role and project scope while organization rules apply", async () => {
+  it("mints the organization, role and project scope", async () => {
     const organizationContext = createOrganizationContext({
-      mode: "organization",
       role: "member",
       projectScope: createProjectsScope([faker.string.uuid()])
     });
@@ -180,7 +167,7 @@ describe("createProxy", () => {
   });
 
   it("mints the project of a deployment filed in the active organization when writing its alerts", async () => {
-    const organizationContext = createOrganizationContext({ mode: "organization" });
+    const organizationContext = createOrganizationContext({});
     const projectId = faker.string.uuid();
     const { handler, context, fetchMock, deploymentSettingRepository } = setupProxyTest({
       path: "/v1/deployment-alerts/1234",
@@ -197,7 +184,7 @@ describe("createProxy", () => {
   it("mints no project for a deployment filed in no project", async () => {
     const { handler, context, fetchMock } = setupProxyTest({
       path: "/v1/deployment-alerts/1234",
-      organizationContext: createOrganizationContext({ mode: "organization" }),
+      organizationContext: createOrganizationContext({}),
       filedProjectId: null
     });
 
@@ -209,7 +196,7 @@ describe("createProxy", () => {
   it("mints no project for a deployment the active organization holds no row for", async () => {
     const { handler, context, fetchMock } = setupProxyTest({
       path: "/v1/deployment-alerts/1234",
-      organizationContext: createOrganizationContext({ mode: "organization" })
+      organizationContext: createOrganizationContext({})
     });
 
     await handler(context);
@@ -218,7 +205,7 @@ describe("createProxy", () => {
   });
 
   it("looks up no project when reading deployment alerts or writing other alerts", async () => {
-    const organizationContext = createOrganizationContext({ mode: "organization" });
+    const organizationContext = createOrganizationContext({});
     const filedProjectId = faker.string.uuid();
     const read = setupProxyTest({ method: "GET", path: "/v1/deployment-alerts/1234", organizationContext, filedProjectId });
     const write = setupProxyTest({ path: "/v1/alerts", organizationContext, filedProjectId });
@@ -374,7 +361,7 @@ describe("createProxy", () => {
     });
 
     function memberContext(projectIds: string[], levels?: { writableProjectIds?: string[] }): OrganizationContext {
-      return createOrganizationContext({ mode: "organization", role: "member", projectScope: createProjectsScope(projectIds, levels) });
+      return createOrganizationContext({ role: "member", projectScope: createProjectsScope(projectIds, levels) });
     }
   });
 
@@ -497,7 +484,6 @@ describe("createProxy", () => {
       organizationType: "team",
       role: "owner",
       projectScope: { kind: "all" },
-      mode: "organization",
       ...overrides
     };
   }

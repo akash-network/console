@@ -26,8 +26,6 @@ import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-e
 import { type CreateLogger, JOB_NAME, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { ORGANIZATION_FORBIDDEN_ERROR_CODE } from "@src/core/repositories/org-scoped.repository";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { TxService } from "@src/core/services/tx/tx.service";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
@@ -60,15 +58,15 @@ type ParsedDeposits = { deposits: SignedDeposit[]; isMalformed: boolean; hasUnsu
 
 type OrganizationWallet = UserWalletOutput & { organizationId: string };
 
-/** `createdAt` is when signing started, kept for a row written after the broadcast so the chain index is matched against the right window. */
+/** `createdAt` is when signing started, so the chain index is matched against the right window. */
 type UnpricedDeposit = Omit<DeploymentDepositInput, "amountCents"> & { createdAt: Date };
 
-/** Rows written before signing, and deposits whose price is only read once the outcome is known, so pricing never delays the signer. */
-export type PendingDeposits = { recorded: DeploymentDepositOutput[]; awaitingPrice: UnpricedDeposit[] };
+/** Rows written before signing, settled once the outcome is known. */
+export type PendingDeposits = { recorded: DeploymentDepositOutput[] };
 
 type SignedTx = { code: number; hash: string };
 
-const NO_PENDING_DEPOSITS: PendingDeposits = { recorded: [], awaitingPrice: [] };
+const NO_PENDING_DEPOSITS: PendingDeposits = { recorded: [] };
 
 const USD_PEGGED_DENOMS: readonly string[] = ["uact", "uusdc"];
 
@@ -96,7 +94,6 @@ export class DeploymentDepositLedgerService {
     private readonly jobQueueService: JobQueueService,
     private readonly txService: TxService,
     private readonly executionContextService: ExecutionContextService,
-    private readonly featureFlagsService: FeatureFlagsService,
     private readonly projectBudgetEnforcementService: ProjectBudgetEnforcementService,
     @InjectTypeRegistry() private readonly registry: Registry,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
@@ -110,60 +107,44 @@ export class DeploymentDepositLedgerService {
     if (isEmpty(parsed)) return NO_PENDING_DEPOSITS;
 
     const signingStartedAt = new Date();
-
-    if (this.#isLegacyRequest()) {
-      return await this.#recordBestEffort(walletId, () => this.#findWallet(walletId), parsed.deposits, options, signingStartedAt);
-    }
-
     const wallet = await this.#findWallet(walletId);
 
     if (!wallet) return NO_PENDING_DEPOSITS;
 
-    if (!(await this.#budgetsApplyTo(wallet))) {
-      return await this.#recordBestEffort(walletId, async () => wallet, parsed.deposits, options, signingStartedAt);
-    }
-
     const rows = await this.#pricedRowsOf(wallet, judgeable(parsed, wallet), options, signingStartedAt);
     const recorded = await this.projectBudgetEnforcementService.enforce(rows, () => this.#writePending(rows));
 
-    return { recorded: recorded ?? [], awaitingPrice: [] };
+    return { recorded: recorded ?? [] };
   }
 
   /** Refuses before anything is written, for a caller that records a deployment ahead of signing it. */
   async assertWithinBudgets(walletId: number, messages: readonly EncodeObject[], options: DepositRecordingOptions = {}): Promise<void> {
     const parsed = this.#parse(messages);
 
-    if (isEmpty(parsed) || this.#isLegacyRequest()) return;
+    if (isEmpty(parsed)) return;
 
     const wallet = await this.#findWallet(walletId);
 
-    if (!wallet || !(await this.#budgetsApplyTo(wallet))) return;
+    if (!wallet) return;
 
     await this.projectBudgetEnforcementService.enforce(await this.#pricedRowsOf(wallet, judgeable(parsed, wallet), options, new Date()));
   }
 
-  async recordLanded({ recorded, awaitingPrice }: PendingDeposits, tx: SignedTx): Promise<void> {
-    const isConfirmed = tx.code === COSMOS_TX_CODE_OK;
-    await this.#settle(recorded, isConfirmed ? "confirmed" : "void", tx.hash);
-
-    if (isConfirmed) {
-      await this.#recordPriced(awaitingPrice, { status: "confirmed", txHash: tx.hash });
-    }
+  async recordLanded({ recorded }: PendingDeposits, tx: SignedTx): Promise<void> {
+    await this.#settle(recorded, tx.code === COSMOS_TX_CODE_OK ? "confirmed" : "void", tx.hash);
   }
 
   /** Only a failure that proves nothing landed voids the rows; one the signer could not decide keeps them pending until a check settles them. */
-  async recordFailed({ recorded, awaitingPrice }: PendingDeposits, error: unknown): Promise<void> {
+  async recordFailed({ recorded }: PendingDeposits, error: unknown): Promise<void> {
     if (!isUnknownTxOutcome(error)) {
       await this.#settle(recorded, "void");
       return;
     }
 
-    const undecided = [...recorded, ...(await this.#recordPriced(awaitingPrice, { status: "pending" }))];
-
-    if (!undecided.length || !error.txHash) return;
+    if (!recorded.length || !error.txHash) return;
 
     try {
-      await this.#checkByHash(undecided, error.txHash);
+      await this.#checkByHash(recorded, error.txHash);
     } catch (reconcileError) {
       this.logger.error({ event: "DEPLOYMENT_DEPOSIT_RECONCILE_SCHEDULE_FAILED", txHash: error.txHash, error: reconcileError });
     }
@@ -189,54 +170,6 @@ export class DeploymentDepositLedgerService {
       return { typeUrl: message.typeUrl, value: this.registry.decode({ typeUrl: message.typeUrl, value: this.registry.encode(message) }) } as T;
     } catch {
       return undefined;
-    }
-  }
-
-  /** Never throws: no budget can apply on this path, so a row it failed to write must not stop the signer; akt is priced after the broadcast. */
-  async #recordBestEffort(
-    walletId: number,
-    findWallet: () => Promise<OrganizationWallet | undefined>,
-    deposits: SignedDeposit[],
-    options: DepositRecordingOptions,
-    signingStartedAt: Date
-  ): Promise<PendingDeposits> {
-    if (!deposits.length) return NO_PENDING_DEPOSITS;
-
-    try {
-      const wallet = await findWallet();
-
-      if (!wallet) return NO_PENDING_DEPOSITS;
-
-      const unpriced = await this.#unpricedRowsOf(wallet, deposits, options, signingStartedAt);
-      const exact = unpriced.filter(({ denom }) => USD_PEGGED_DENOMS.includes(denom));
-
-      const recorded = await this.txService.transaction(() => this.#writePending(exact.map(row => ({ ...row, amountCents: dollarPeggedCents(row.amount) }))));
-
-      return { recorded, awaitingPrice: unpriced.filter(row => !exact.includes(row)) };
-    } catch (error) {
-      this.logger.error({ event: "DEPLOYMENT_DEPOSIT_RECORD_FAILED", walletId, error });
-      return NO_PENDING_DEPOSITS;
-    }
-  }
-
-  /** Never throws: the outcome is already known, and a deposit that cannot be priced is left out rather than counted as nothing. */
-  async #recordPriced(deposits: UnpricedDeposit[], outcome: Pick<DeploymentDepositInput, "status" | "txHash">): Promise<DeploymentDepositOutput[]> {
-    if (!deposits.length) return [];
-
-    try {
-      const priced = await Promise.all(deposits.map(async deposit => ({ ...deposit, ...outcome, amountCents: await this.#aktCents(deposit) })));
-      const pricedRows = priced.filter((row): row is typeof row & { amountCents: number } => row.amountCents !== undefined);
-
-      if (pricedRows.length < priced.length) {
-        this.logger.warn({ event: "DEPLOYMENT_DEPOSIT_UNPRICED", dseqs: priced.filter(row => row.amountCents === undefined).map(({ dseq }) => dseq) });
-      }
-
-      return outcome.status === "pending"
-        ? await this.txService.transaction(() => this.#writePending(pricedRows))
-        : await this.deploymentDepositRepository.createMany(pricedRows);
-    } catch (error) {
-      this.logger.error({ event: "DEPLOYMENT_DEPOSIT_RECORD_FAILED", txHash: outcome.txHash, error });
-      return [];
     }
   }
 
@@ -317,27 +250,6 @@ export class DeploymentDepositLedgerService {
     return (await this.projectRepository.findDefaultByOrganizationId(organizationId))?.id ?? null;
   }
 
-  #isLegacyRequest(): boolean {
-    return this.#requestContext()?.mode === "legacy";
-  }
-
-  /** A request holds budgets in organization mode; a job holds them for a team's wallet always and for a personal one by its owner's flags. */
-  async #budgetsApplyTo(wallet: OrganizationWallet): Promise<boolean> {
-    const context = this.#requestContext();
-
-    if (context) return context.mode === "organization";
-
-    return (
-      this.featureFlagsService.isEnabled(FeatureFlags.ORGANIZATIONS_ENFORCE) ||
-      (await this.#isTeamWallet(wallet)) ||
-      this.featureFlagsService.isEnabled(FeatureFlags.ORGANIZATIONS, { userId: wallet.userId ?? undefined })
-    );
-  }
-
-  async #isTeamWallet({ organizationId }: OrganizationWallet): Promise<boolean> {
-    return (await this.organizationRepository.findById(organizationId))?.type !== "personal";
-  }
-
   #requestContext() {
     return this.executionContextService.hasContext() ? this.executionContextService.get("ORGANIZATION_CONTEXT") : undefined;
   }
@@ -366,9 +278,7 @@ export class DeploymentDepositLedgerService {
     return cents;
   }
 
-  async #aktCents({ amount, denom }: UnpricedDeposit): Promise<number | undefined> {
-    if (denom !== AKT_DENOM) return undefined;
-
+  async #aktCents({ amount }: UnpricedDeposit): Promise<number | undefined> {
     const { price } = await this.denomExchangeService.getExchangeRateToUSD("akt");
 
     return Number.isFinite(price) && price > 0 ? Math.round((Number(amount) * price) / Number(MICRO_UNITS_PER_CENT)) : undefined;

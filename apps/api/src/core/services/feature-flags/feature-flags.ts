@@ -6,8 +6,6 @@ export const FeatureFlags = {
   FAIR_USE_POLICY_GATE: "fair_use_policy_gate",
   BLOCKED_EMAIL_DOMAIN_ENFORCEMENT: "blocked_email_domain_enforcement",
   ACCOUNT_DELETION: "account_deletion",
-  ORGANIZATIONS: "organizations",
-  ORGANIZATIONS_ENFORCE: "organizations_enforce",
   INVOICES: "invoices",
   BACKGROUND_AUTO_LEASE: "background_auto_lease",
   TEAM_DATA_KEYS: "team_data_keys",

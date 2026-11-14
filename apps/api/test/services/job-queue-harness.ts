@@ -7,7 +7,10 @@ import type { ApiPgDatabase } from "@src/core";
 import { type EnqueueOptions, type Job, type JobHandler, JobQueueService, POSTGRES_DB } from "@src/core";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { OrganizationContextResolver } from "@src/organization/services/organization-context/organization-context.resolver";
 import type { UserOutput } from "@src/user/repositories";
+
+import { fileIntoPersonalOrganization } from "@test/seeders/db/organization.seeder";
 
 const WORKER_OPTIONS = { concurrency: 1, pollingIntervalSeconds: 0.5 };
 
@@ -136,14 +139,16 @@ export async function makeJobDue(jobName: string, selector: JobSelector = {}): P
   await db().execute(sql`update ${jobTable()} set start_after = now() where name = ${jobName} ${selectorFilter(selector)}`);
 }
 
-/** Lets a fixture be built through the ability-scoped services a request uses, which the worker's own empty ability would refuse. */
+/** Lets a fixture be built through the ability-scoped services a request uses, with the user's rows filed in their personal organization as every user's are. */
 export async function runAsUser<T>(user: UserOutput, cb: () => Promise<T>): Promise<T> {
   const executionContextService = container.resolve(ExecutionContextService);
-  const ability = container.resolve(AbilityService).getAbilityFor("REGULAR_USER", user);
+  const personalOrganization = await fileIntoPersonalOrganization(user);
+  const organizationContext = await container.resolve(OrganizationContextResolver).resolveBoundTo(user, personalOrganization.id);
 
   return await executionContextService.runWithContext(async () => {
     executionContextService.set("CURRENT_USER", user);
-    executionContextService.set("ABILITY", ability);
+    executionContextService.set("ORGANIZATION_CONTEXT", organizationContext);
+    executionContextService.set("ABILITY", container.resolve(AbilityService).getAbilityFor("REGULAR_USER", user));
 
     return await cb();
   });

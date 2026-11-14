@@ -59,14 +59,8 @@ describe(accountEmailHeaders.name, () => {
 });
 
 describe(organizationIdentityHeaders.name, () => {
-  it("names only the organization while legacy rules apply", () => {
-    const context = createOrganizationContext({ mode: "legacy" });
-
-    expect(organizationIdentityHeaders(context)).toEqual({ "x-organization-id": context.organizationId, "x-organization-type": context.organizationType });
-  });
-
-  it("names the organization, role and project scope while organization rules apply", () => {
-    const context = createOrganizationContext({ mode: "organization", role: "viewer", projectScope: createProjectsScope([faker.string.uuid()]) });
+  it("names the organization, role and project scope", () => {
+    const context = createOrganizationContext({ role: "viewer", projectScope: createProjectsScope([faker.string.uuid()]) });
 
     expect(organizationIdentityHeaders(context)).toEqual({
       "x-organization-id": context.organizationId,
@@ -77,6 +71,6 @@ describe(organizationIdentityHeaders.name, () => {
   });
 
   function createOrganizationContext(overrides: Partial<OrganizationContext>): OrganizationContext {
-    return { organizationId: faker.string.uuid(), organizationType: "team", role: "owner", projectScope: { kind: "all" }, mode: "organization", ...overrides };
+    return { organizationId: faker.string.uuid(), organizationType: "team", role: "owner", projectScope: { kind: "all" }, ...overrides };
   }
 });

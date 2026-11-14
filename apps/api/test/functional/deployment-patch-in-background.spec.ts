@@ -17,8 +17,6 @@ import { BlockHttpService } from "@src/chain/services/block-http/block-http.serv
 import type { ApiPgDatabase } from "@src/core";
 import { CORE_CONFIG, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { ApplyDeploymentUpdateHandler } from "@src/deployment/services/apply-deployment-update/apply-deployment-update.handler";
@@ -28,6 +26,7 @@ import { ReconcileDeploymentUpdate } from "@src/deployment/services/reconcile-de
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
+import { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories";
@@ -37,7 +36,13 @@ import { registerFakeSdlSecretsKms, warmSealingKeyAsBootWould } from "@test/mock
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createApiKey } from "@test/seeders/api-key.seeder";
 import { createDseq, seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
-import { seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
+import {
+  fileIntoPersonalOrganization,
+  seedOrganizationMember,
+  seedOrganizationWithOwner,
+  seedProject,
+  seedProjectMember
+} from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { createDeployment } from "@test/seeders/deployment.seeder";
 import { createDeploymentInfoGroupsFromSdl, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
@@ -299,10 +304,11 @@ describe("PATCH /v1/deployments/{dseq}?async=true", () => {
 
   async function setup() {
     const dbUser = await userRepository.create({ userId: faker.string.uuid() });
+    const personalOrganization = await container.resolve(PersonalOrganizationService).ensureForUser(dbUser);
     const apiKey = faker.string.alphanumeric(24);
     const user = createUser({ id: dbUser.id, userId: dbUser.userId ?? undefined });
     const address = createAkashAddress();
-    const wallets = [createUserWallet({ userId: dbUser.id, address })];
+    const wallets = [createUserWallet({ userId: dbUser.id, address, organizationId: personalOrganization.id })];
     const apiKeys: Record<string, ReturnType<typeof createApiKey>> = { [apiKey]: createApiKey({ userId: dbUser.id }) };
 
     vi.spyOn(userRepository, "findById").mockImplementation(async id =>
@@ -349,6 +355,7 @@ describe("PATCH /v1/deployments/{dseq}?async=true", () => {
       manifestVersion: await recordedVersionFor(STORED_SDL, secrets),
       sealedSecrets
     });
+    await fileIntoPersonalOrganization(dbUser);
 
     return { user, wallet: wallets[0], apiKey, broadcast };
   }
@@ -404,7 +411,6 @@ describe("PATCH /v1/deployments/{dseq}?async=true", () => {
       .mockResolvedValue({ code: 0, hash: "tx-hash", transactionHash: "tx-hash", rawLog: "" });
     const pushManifest = vi.spyOn(providerService, "sendManifest").mockResolvedValue(true);
     vi.spyOn(providerService, "toProviderAuth").mockResolvedValue({ type: "jwt", token: "provider-token" });
-    enableOrganizationsFor(caller.id);
     const authorization = signIn(caller.userId!);
 
     const request = (path: string, data: Record<string, unknown>) =>
@@ -459,14 +465,5 @@ describe("PATCH /v1/deployments/{dseq}?async=true", () => {
     );
 
     return `Bearer ${token}`;
-  }
-
-  function enableOrganizationsFor(userId: string) {
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation((flag, context) => {
-      if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
-      if (flag !== FeatureFlags.ORGANIZATIONS) return true;
-
-      return (context?.userId ?? container.resolve(AuthService).safeCurrentUser?.id) === userId;
-    });
   }
 });

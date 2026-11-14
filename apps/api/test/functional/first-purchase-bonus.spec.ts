@@ -10,19 +10,17 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
-import { AuthService } from "@src/auth/services/auth.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { BILLING_CONFIG } from "@src/billing/providers";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { type ApiPgDatabase, CORE_CONFIG, POSTGRES_DB, resolveTable } from "@src/core";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { app } from "@src/rest-app";
 import type { UserOutput } from "@src/user/repositories";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { fileIntoPersonalOrganization } from "@test/seeders/db/organization.seeder";
 import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
@@ -85,8 +83,8 @@ describe("First-purchase bonus", () => {
       expect(nextPurchase).toMatchObject({ status: "succeeded", bonusAmount: 0 });
     });
 
-    it("grants a single-account user's first purchase the bonus once while organizations are off", async () => {
-      const { person, buyAsUser, eligibilityIn } = await setup({ organizationsOn: false });
+    it("grants a single-account user's first purchase the bonus once", async () => {
+      const { person, buyAsUser, eligibilityIn } = await setup();
 
       const before = await eligibilityIn(person);
       const firstPurchase = await buyAsUser(person);
@@ -100,7 +98,7 @@ describe("First-purchase bonus", () => {
     });
 
     it("keeps the bonus open for 7 days after a small first purchase on a single-account user's own account", async () => {
-      const { person, buyAsUser, eligibilityIn } = await setup({ organizationsOn: false });
+      const { person, buyAsUser, eligibilityIn } = await setup();
 
       const smallPurchase = await buyAsUser(person, SMALL_AMOUNT_USD);
       const eligibility = await eligibilityIn(person);
@@ -190,29 +188,21 @@ describe("First-purchase bonus", () => {
     return await db.query.StripeTransactions.findFirst({ where: eq(resolveTable("StripeTransactions").id, id) });
   }
 
-  async function setup(input: { organizationsOn?: boolean } = {}) {
+  async function setup() {
     const tokens = new Map<string, string>();
     const tokenByUserId = new Map<string, string>();
-    const enabledUserIds: string[] = [];
     const customerByOwnerId = new Map<string, string>();
 
     vi.spyOn(container.resolve(DomainEventsService), "publish").mockResolvedValue(null);
     vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(
       async received => tokens.get(received.replace(/^Bearer +/i, "")) ?? null
     );
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation((flag, context) => {
-      if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
-      if (flag !== FeatureFlags.ORGANIZATIONS) return true;
-
-      return enabledUserIds.includes(context?.userId ?? container.resolve(AuthService).safeCurrentUser?.id ?? "");
-    });
 
     const signUp = async () => {
       const user = await seedUser({ userId: faker.string.uuid(), stripeCustomerId: `cus_${faker.string.alphanumeric(14)}` });
       const token = faker.string.alphanumeric(40);
       tokens.set(token, user.userId!);
       tokenByUserId.set(user.id, token);
-      if (input.organizationsOn !== false) enabledUserIds.push(user.id);
       customerByOwnerId.set(user.id, user.stripeCustomerId!);
 
       return user;
@@ -345,6 +335,7 @@ describe("First-purchase bonus", () => {
         .insert(resolveTable("UserWallets"))
         .values({ userId: buyer.id, address: createAkashAddress(), isTrialing: false, activatedAt: new Date() })
         .onConflictDoNothing();
+      await fileIntoPersonalOrganization(buyer);
 
       return await buy(buyer, { customerId: customerByOwnerId.get(buyer.id)! }, amountUsd);
     };
