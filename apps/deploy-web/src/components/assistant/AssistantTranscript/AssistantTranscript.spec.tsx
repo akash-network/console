@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { AssistantAction, AssistantLiveHelpReason } from "@src/types/assistant";
+import type { AssistantAction, AssistantLiveHelpReason, AssistantTurnRating } from "@src/types/assistant";
 import type { AssistantTranscriptMessage } from "../transcriptModel/transcriptModel";
 import { createTranscriptMessage } from "../transcriptModel/transcriptModel";
 import type { AssistantConversation } from "../useAssistantConversation/useAssistantConversation";
@@ -243,6 +243,42 @@ describe("AssistantTranscript", () => {
     expect(DiscordHelpCard).toHaveBeenCalled();
   });
 
+  it("offers rating and reporting under each finished answer the api traced", () => {
+    const { AssistantAnswerFeedback } = setup({
+      messages: [
+        createTranscriptMessage("1", "user", "Why no bids?"),
+        message("2", { text: "No provider has 8 GPUs free.", conversationId: "c-1", turnId: "turn-1" }),
+        message("3", { text: "Untraced answer.", conversationId: "c-1" })
+      ]
+    });
+
+    expect(screen.getAllByTestId("answer-feedback")).toHaveLength(1);
+    expect(AssistantAnswerFeedback).toHaveBeenCalledWith(expect.objectContaining({ message: expect.objectContaining({ id: "2" }) }), expect.anything());
+  });
+
+  it("holds the rating back while the answer is still streaming", () => {
+    setup({
+      isAnswering: true,
+      messages: [
+        message("1", { text: "Earlier answer.", conversationId: "c-1", turnId: "turn-1" }),
+        message("2", { text: "Still writ", conversationId: "c-1", turnId: "turn-paused" })
+      ]
+    });
+
+    expect(screen.getAllByTestId("answer-feedback")).toHaveLength(1);
+    expect(screen.getByTestId("answer-feedback")).toHaveTextContent("1");
+  });
+
+  it("rates and reports the answer the feedback belongs to", async () => {
+    const { conversation } = setup({ messages: [message("2", { text: "Answer.", conversationId: "c-1", turnId: "turn-1" })] });
+
+    await userEvent.click(screen.getByRole("button", { name: "rate down" }));
+    await userEvent.click(screen.getByRole("button", { name: "report" }));
+
+    expect(conversation.rate).toHaveBeenCalledWith("2", "down");
+    expect(conversation.reportProblem).toHaveBeenCalledWith("2", "wrong GPU");
+  });
+
   function message(id: string, input: Partial<AssistantTranscriptMessage>): AssistantTranscriptMessage {
     return { ...createTranscriptMessage(id, "assistant"), ...input };
   }
@@ -263,11 +299,26 @@ describe("AssistantTranscript", () => {
       send: vi.fn(),
       end: vi.fn(),
       startOver: vi.fn(),
+      rate: vi.fn(),
+      reportProblem: vi.fn(async () => undefined),
       ...input
     });
     const ActionCard = vi.fn(({ proposalId }: { proposalId: string }) => <p>card {proposalId}</p>);
     const DiagnosisBlock = vi.fn(({ children }: { children: ReactNode }) => <div data-testid="diagnosis">{children}</div>);
     const DiscordHelpCard = vi.fn((_props: { reason?: AssistantLiveHelpReason | null }) => <p>discord card</p>);
+    const AssistantAnswerFeedback = vi.fn(
+      (props: { message: AssistantTranscriptMessage; onRate: (rating: AssistantTurnRating) => void; onReport: (note: string) => Promise<void> }) => (
+        <div data-testid="answer-feedback">
+          {props.message.id}
+          <button type="button" onClick={() => props.onRate("down")}>
+            rate down
+          </button>
+          <button type="button" onClick={() => props.onReport("wrong GPU")}>
+            report
+          </button>
+        </div>
+      )
+    );
 
     render(
       <AssistantTranscript
@@ -276,11 +327,12 @@ describe("AssistantTranscript", () => {
           ...DEPENDENCIES,
           ActionCard: ActionCard as unknown as typeof DEPENDENCIES.ActionCard,
           DiagnosisBlock: DiagnosisBlock as unknown as typeof DEPENDENCIES.DiagnosisBlock,
-          DiscordHelpCard
+          DiscordHelpCard,
+          AssistantAnswerFeedback: AssistantAnswerFeedback as unknown as typeof DEPENDENCIES.AssistantAnswerFeedback
         }}
       />
     );
 
-    return { conversation, ActionCard, DiagnosisBlock, DiscordHelpCard };
+    return { conversation, ActionCard, DiagnosisBlock, DiscordHelpCard, AssistantAnswerFeedback };
   }
 });

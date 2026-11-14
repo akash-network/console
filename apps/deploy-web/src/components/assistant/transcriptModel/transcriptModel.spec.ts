@@ -5,6 +5,7 @@ import type { AssistantReadChip, AssistantTranscriptMessage } from "./transcript
 import {
   applyAssistantEvent,
   applyTurnEvent,
+  canGiveFeedbackOn,
   createTranscriptMessage,
   historyOf,
   MAX_HISTORY_MESSAGES,
@@ -186,6 +187,59 @@ describe("transcriptModel", () => {
       const message = events.reduce(applyAssistantEvent, answer());
 
       expect(message).toEqual(answer({ text: "Reading the logs. It ran out", signature: null }));
+    });
+
+    it("keeps the turn the api traced when the answer is done, and the resumed stream's turn over the paused one's", () => {
+      const events: AssistantStreamEvent[] = [
+        { type: "text_delta", text: "Reading the logs." },
+        { type: "done", reason: "awaiting_client_tool", turnId: "turn-paused" },
+        { type: "text_delta", text: " It ran out of memory." },
+        { type: "done", reason: "stop", answerSignature: "sig-1", turnId: "turn-resumed" }
+      ];
+
+      const message = events.reduce(applyAssistantEvent, answer());
+
+      expect(message).toEqual(answer({ text: "Reading the logs. It ran out of memory.", signature: "sig-1", turnId: "turn-resumed" }));
+    });
+
+    it("keeps the earlier turn when a done event carries none", () => {
+      const message = applyAssistantEvent(answer({ text: "Hi", turnId: "turn-1" }), { type: "done", reason: "stop", answerSignature: "sig-2" });
+
+      expect(message).toEqual(answer({ text: "Hi", turnId: "turn-1", signature: "sig-2" }));
+    });
+  });
+
+  describe(createTranscriptMessage.name, () => {
+    it("starts unrated, unreported and outside any conversation or turn", () => {
+      expect(createTranscriptMessage("m-1", "assistant", "Hi")).toEqual({
+        id: "m-1",
+        role: "assistant",
+        text: "Hi",
+        reads: [],
+        proposals: [],
+        liveHelpReason: null,
+        redactedSecretCount: 0,
+        signature: null,
+        conversationId: null,
+        turnId: null,
+        rating: null,
+        reported: false
+      });
+    });
+  });
+
+  describe(canGiveFeedbackOn.name, () => {
+    it("allows feedback on an answer with text, a conversation and a turn", () => {
+      expect(canGiveFeedbackOn(answer({ text: "Hi", conversationId: "c-1", turnId: "turn-1" }))).toBe(true);
+    });
+
+    it.each([
+      { name: "a question", message: { role: "user" as const, text: "Hi", conversationId: "c-1", turnId: "turn-1" } },
+      { name: "an answer without a turn", message: { text: "Hi", conversationId: "c-1" } },
+      { name: "an answer outside a conversation", message: { text: "Hi", turnId: "turn-1" } },
+      { name: "an answer without text", message: { text: "  ", conversationId: "c-1", turnId: "turn-1" } }
+    ])("allows none on $name", ({ message }) => {
+      expect(canGiveFeedbackOn(answer(message))).toBe(false);
     });
   });
 

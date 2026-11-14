@@ -4,7 +4,8 @@ import type {
   AssistantDiagnosis,
   AssistantHistoryMessage,
   AssistantLiveHelpReason,
-  AssistantStreamEvent
+  AssistantStreamEvent,
+  AssistantTurnRating
 } from "@src/types/assistant";
 
 export interface AssistantReadChip {
@@ -35,6 +36,10 @@ export interface AssistantTranscriptMessage {
   redactedSecretCount: number;
   /** Signs only the text up to the last `done`, so any later text drops it until the next `done` signs the whole answer. */
   signature: string | null;
+  conversationId: string | null;
+  turnId: string | null;
+  rating: AssistantTurnRating;
+  reported: boolean;
 }
 
 export interface AssistantTurnMessageIds {
@@ -70,7 +75,20 @@ const FAILED_READ_LABELS: Record<string, string> = {
 const UNKNOWN_FAILED_READ_LABEL = "Could not finish a check";
 
 export function createTranscriptMessage(id: string, role: AssistantTranscriptMessage["role"], text = ""): AssistantTranscriptMessage {
-  return { id, role, text, reads: [], proposals: [], liveHelpReason: null, redactedSecretCount: 0, signature: null };
+  return {
+    id,
+    role,
+    text,
+    reads: [],
+    proposals: [],
+    liveHelpReason: null,
+    redactedSecretCount: 0,
+    signature: null,
+    conversationId: null,
+    turnId: null,
+    rating: null,
+    reported: false
+  };
 }
 
 /** A redaction is about what the user sent, so it marks the question; every other event builds the answer. */
@@ -110,7 +128,12 @@ export function applyAssistantEvent(message: AssistantTranscriptMessage, event: 
     case "live_help_suggested":
       return { ...message, liveHelpReason: event.reason };
     case "done":
-      return event.answerSignature ? { ...message, signature: event.answerSignature } : message;
+      if (!event.answerSignature && !event.turnId) return message;
+      return {
+        ...message,
+        ...(event.answerSignature && { signature: event.answerSignature }),
+        ...(event.turnId && { turnId: event.turnId })
+      };
     default:
       return message;
   }
@@ -149,6 +172,13 @@ export function historyOf(messages: AssistantTranscriptMessage[]): AssistantHist
 function historyMessageOf(message: AssistantTranscriptMessage): AssistantHistoryMessage {
   const content = message.text.slice(0, MAX_HISTORY_MESSAGE_LENGTH);
   return message.role === "assistant" && message.signature ? { role: message.role, content, signature: message.signature } : { role: message.role, content };
+}
+
+export type AssistantRatableMessage = AssistantTranscriptMessage & { conversationId: string; turnId: string };
+
+/** Rating and reporting point at the turn the api traced, so an answer the api gave no turn id offers neither. */
+export function canGiveFeedbackOn(message: AssistantTranscriptMessage): message is AssistantRatableMessage {
+  return message.role === "assistant" && !!message.turnId && !!message.conversationId && message.text.trim().length > 0;
 }
 
 /** A proposal shows as its action card, so it gets no read chip. */

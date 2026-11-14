@@ -2,15 +2,28 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { extractApiErrorCode, isApiError } from "@akashnetwork/openapi-sdk";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { useEndAssistantConversationMutation, useStartAssistantConversationMutation } from "@src/queries/useAssistantQueries";
-import type { AssistantContext, AssistantStreamErrorCode, AssistantStreamEvent } from "@src/types/assistant";
+import {
+  useCreateAssistantProblemReportMutation,
+  useEndAssistantConversationMutation,
+  useRateAssistantTurnMutation,
+  useStartAssistantConversationMutation
+} from "@src/queries/useAssistantQueries";
+import type { AssistantContext, AssistantStreamErrorCode, AssistantStreamEvent, AssistantTurnRating } from "@src/types/assistant";
 import { ASSISTANT_CONSENT_COPY_VERSION } from "../assistantConsentCopy";
+import { ASSISTANT_REPORT_CONSENT_COPY_VERSION } from "../assistantReportConsentCopy";
 import { runAssistantTurn } from "../runAssistantTurn/runAssistantTurn";
 import type { AssistantTranscriptMessage } from "../transcriptModel/transcriptModel";
-import { applyTurnEvent, createTranscriptMessage, historyOf } from "../transcriptModel/transcriptModel";
+import { applyTurnEvent, canGiveFeedbackOn, createTranscriptMessage, historyOf } from "../transcriptModel/transcriptModel";
 import { useAssistantClientTools } from "../useAssistantClientTools/useAssistantClientTools";
 
-export const DEPENDENCIES = { useServices, useAssistantClientTools, useStartAssistantConversationMutation, useEndAssistantConversationMutation };
+export const DEPENDENCIES = {
+  useServices,
+  useAssistantClientTools,
+  useStartAssistantConversationMutation,
+  useEndAssistantConversationMutation,
+  useRateAssistantTurnMutation,
+  useCreateAssistantProblemReportMutation
+};
 
 export type AssistantProblem = "consent" | "unavailable" | "rate_limited" | "daily_limit" | "error";
 
@@ -41,6 +54,8 @@ export function useAssistantConversation({ context }: { context: AssistantContex
   const runClientTool = d.useAssistantClientTools();
   const { mutateAsync: startConversation } = d.useStartAssistantConversationMutation();
   const { mutateAsync: endConversation } = d.useEndAssistantConversationMutation();
+  const { mutateAsync: rateTurn } = d.useRateAssistantTurnMutation();
+  const { mutateAsync: createProblemReport } = d.useCreateAssistantProblemReportMutation();
   const [messages, setMessages] = useState<AssistantTranscriptMessage[]>([]);
   const [isAnswering, setIsAnswering] = useState(false);
   const [problem, setProblem] = useState<AssistantProblem | null>(null);
@@ -67,6 +82,9 @@ export function useAssistantConversation({ context }: { context: AssistantContex
     return data;
   };
 
+  const updateMessage = (messageId: string, change: Partial<AssistantTranscriptMessage>) =>
+    setMessages(previous => previous.map(message => (message.id === messageId ? { ...message, ...change } : message)));
+
   const forgetConversation = () => {
     conversationRef.current = null;
     setConversation(null);
@@ -81,6 +99,8 @@ export function useAssistantConversation({ context }: { context: AssistantContex
     canRestart: boolean;
   }) => {
     const current = await ensureConversation();
+    updateMessage(input.questionId, { conversationId: current.id });
+    updateMessage(input.answerId, { conversationId: current.id });
     const applyToTurn = (event: AssistantStreamEvent) => setMessages(previous => applyTurnEvent(previous, input, event));
 
     try {
@@ -145,6 +165,37 @@ export function useAssistantConversation({ context }: { context: AssistantContex
 
   const clearProblem = useCallback(() => setProblem(null), []);
 
+  /** Shows the new rating at once and puts the old one back if the api refuses it. */
+  const rate = async (messageId: string, rating: AssistantTurnRating) => {
+    const message = messagesRef.current.find(({ id }) => id === messageId);
+    if (!message || !canGiveFeedbackOn(message)) return;
+
+    updateMessage(messageId, { rating });
+    try {
+      await rateTurn({ id: message.conversationId, turnId: message.turnId, data: { rating } });
+    } catch {
+      updateMessage(messageId, { rating: message.rating });
+    }
+  };
+
+  /** The api verifies each answer's signature against the conversation it was given in, so only that conversation's messages go along. */
+  const reportProblem = async (messageId: string, note: string) => {
+    const message = messagesRef.current.find(({ id }) => id === messageId);
+    if (!message || !canGiveFeedbackOn(message)) return;
+
+    const conversationMessages = messagesRef.current.filter(({ conversationId }) => conversationId === message.conversationId);
+    await createProblemReport({
+      id: message.conversationId,
+      data: {
+        turnId: message.turnId,
+        note: note.trim() || undefined,
+        copyVersion: ASSISTANT_REPORT_CONSENT_COPY_VERSION,
+        history: historyOf(conversationMessages)
+      }
+    });
+    updateMessage(messageId, { reported: true });
+  };
+
   return {
     messages,
     isAnswering,
@@ -157,7 +208,9 @@ export function useAssistantConversation({ context }: { context: AssistantContex
     send,
     end,
     startOver,
-    clearProblem
+    clearProblem,
+    rate,
+    reportProblem
   };
 }
 

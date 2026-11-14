@@ -4,8 +4,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   useAssistantPrivacyQuery,
+  useCreateAssistantProblemReportMutation,
   useDeleteAssistantConversationsMutation,
   useEndAssistantConversationMutation,
+  useRateAssistantTurnMutation,
   useRecordAssistantActionResultMutation,
   useStartAssistantConversationMutation,
   useUpdateAssistantConsentMutation
@@ -76,6 +78,17 @@ describe("useAssistantQueries", () => {
       await act(() => record.result.current.mutateAsync(body));
       expect(record.createAssistantActionResult).toHaveBeenCalledWith(body);
     });
+
+    it("rate a turn and report a problem with a conversation", async () => {
+      const rate = setup({ useHook: () => useRateAssistantTurnMutation() });
+      await act(() => rate.result.current.mutateAsync({ id: "c-1", turnId: "turn-1", data: { rating: "down" } }));
+      expect(rate.updateAssistantTurnRating).toHaveBeenCalledWith({ id: "c-1", turnId: "turn-1", data: { rating: "down" } });
+
+      const report = setup({ useHook: () => useCreateAssistantProblemReportMutation() });
+      const body = { id: "c-1", data: { turnId: "turn-1", note: "Wrong GPU", copyVersion: "v1", history: [] } };
+      await act(() => report.result.current.mutateAsync(body));
+      expect(report.createAssistantProblemReport).toHaveBeenCalledWith(body);
+    });
   });
 
   function setup<T>(input: { useHook: () => T }) {
@@ -86,6 +99,8 @@ describe("useAssistantQueries", () => {
     const createAssistantConversation = vi.fn().mockResolvedValue({ data: { id: "c-1", stored: false } });
     const endAssistantConversation = vi.fn().mockResolvedValue({ data: { id: "c-1", status: "resolved" } });
     const createAssistantActionResult = vi.fn().mockResolvedValue({ data: { recorded: true } });
+    const updateAssistantTurnRating = vi.fn().mockResolvedValue({ data: { turnId: "turn-1", rating: "down" } });
+    const createAssistantProblemReport = vi.fn().mockResolvedValue({ data: { id: "report-1" } });
     const api = createProxy({
       v1: {
         getAssistantConsent,
@@ -93,7 +108,9 @@ describe("useAssistantQueries", () => {
         deleteAssistantConversations,
         createAssistantConversation,
         endAssistantConversation,
-        createAssistantActionResult
+        createAssistantActionResult,
+        updateAssistantTurnRating,
+        createAssistantProblemReport
       }
     }) as unknown as ApiService;
 
@@ -108,7 +125,9 @@ describe("useAssistantQueries", () => {
       deleteAssistantConversations,
       createAssistantConversation,
       endAssistantConversation,
-      createAssistantActionResult
+      createAssistantActionResult,
+      updateAssistantTurnRating,
+      createAssistantProblemReport
     };
   }
 });

@@ -5,6 +5,7 @@ import { mock } from "vitest-mock-extended";
 import type { AssistantConversationClient } from "@src/services/assistant-conversation/assistant-conversation-client";
 import type { AssistantClientToolRequest, AssistantContext, AssistantStreamEvent } from "@src/types/assistant";
 import { ASSISTANT_CONSENT_COPY_VERSION } from "../assistantConsentCopy";
+import { ASSISTANT_REPORT_CONSENT_COPY_VERSION } from "../assistantReportConsentCopy";
 import { DEPENDENCIES, problemOfError, problemOfStreamError, useAssistantConversation } from "./useAssistantConversation";
 
 import { act, renderHook, waitFor } from "@testing-library/react";
@@ -236,6 +237,111 @@ describe(useAssistantConversation.name, () => {
     expect(signal?.aborted).toBe(true);
   });
 
+  describe("rate", () => {
+    it("shows the rating of an answer at once and saves it on the answer's turn", async () => {
+      const { result, rateTurn } = setup({ turns: [answerOf("Your lease is active.", "sig-1", "turn-1")] });
+      await act(() => result.current.send("Is my app up?"));
+      const answerId = result.current.messages[1].id;
+
+      await act(() => result.current.rate(answerId, "down"));
+
+      expect(rateTurn).toHaveBeenCalledWith({ id: "c-1", turnId: "turn-1", data: { rating: "down" } });
+      expect(result.current.messages[1].rating).toBe("down");
+    });
+
+    it("puts the earlier rating back when the api refuses the new one", async () => {
+      const { result, rateTurn } = setup({ turns: [answerOf("Your lease is active.", "sig-1", "turn-1")] });
+      await act(() => result.current.send("Is my app up?"));
+      const answerId = result.current.messages[1].id;
+      await act(() => result.current.rate(answerId, "up"));
+      rateTurn.mockRejectedValueOnce(new ApiError(500, "error", "x"));
+
+      await act(() => result.current.rate(answerId, null));
+
+      expect(result.current.messages[1].rating).toBe("up");
+    });
+
+    it("rates nothing for an answer the api gave no turn", async () => {
+      const { result, rateTurn } = setup({ turns: [answerOf("Your lease is active.", "sig-1")] });
+      await act(() => result.current.send("Is my app up?"));
+
+      await act(() => result.current.rate(result.current.messages[1].id, "up"));
+      await act(() => result.current.rate("missing", "up"));
+
+      expect(rateTurn).not.toHaveBeenCalled();
+      expect(result.current.messages[1].rating).toBeNull();
+    });
+  });
+
+  describe("reportProblem", () => {
+    it("sends the note, the report consent version and the signed messages of the reported answer's conversation, then marks it reported", async () => {
+      const { result, createProblemReport } = setup({ turns: [answerOf("First answer", "sig-1", "turn-1"), answerOf("Second answer", "sig-2", "turn-2")] });
+      await act(() => result.current.send("First question"));
+      await act(() => result.current.send("Second question"));
+
+      await act(() => result.current.reportProblem(result.current.messages[1].id, "  It named the wrong GPU  "));
+
+      expect(createProblemReport).toHaveBeenCalledWith({
+        id: "c-1",
+        data: {
+          turnId: "turn-1",
+          note: "It named the wrong GPU",
+          copyVersion: ASSISTANT_REPORT_CONSENT_COPY_VERSION,
+          history: [
+            { role: "user", content: "First question" },
+            { role: "assistant", content: "First answer", signature: "sig-1" },
+            { role: "user", content: "Second question" },
+            { role: "assistant", content: "Second answer", signature: "sig-2" }
+          ]
+        }
+      });
+      expect(result.current.messages.map(({ reported }) => reported)).toEqual([false, true, false, false]);
+    });
+
+    it("leaves the note out when the user wrote none, and the messages of an earlier conversation", async () => {
+      const { result, createProblemReport, assistantConversation } = setup({
+        turns: [answerOf("Old answer", "sig-1", "turn-1"), answerOf("New answer", "sig-2", "turn-2")]
+      });
+      await act(() => result.current.send("Old question"));
+      assistantConversation.sendMessage.mockImplementationOnce(() => failingStream(new ApiError(409, { code: "assistant_conversation_ended" }, "ended")));
+      await act(() => result.current.send("New question"));
+
+      await act(() => result.current.reportProblem(result.current.messages[3].id, "   "));
+
+      expect(createProblemReport).toHaveBeenCalledWith({
+        id: "c-2",
+        data: {
+          turnId: "turn-2",
+          note: undefined,
+          copyVersion: ASSISTANT_REPORT_CONSENT_COPY_VERSION,
+          history: [
+            { role: "user", content: "New question" },
+            { role: "assistant", content: "New answer", signature: "sig-2" }
+          ]
+        }
+      });
+    });
+
+    it("passes a refusal on to the caller and leaves the answer unreported", async () => {
+      const error = new ApiError(429, { code: "assistant_report_limit" }, "x");
+      const { result } = setup({ turns: [answerOf("Your lease is active.", "sig-1", "turn-1")], reportError: error });
+      await act(() => result.current.send("Is my app up?"));
+
+      await expect(act(() => result.current.reportProblem(result.current.messages[1].id, ""))).rejects.toBe(error);
+
+      expect(result.current.messages[1].reported).toBe(false);
+    });
+
+    it("reports nothing for an answer the api gave no turn", async () => {
+      const { result, createProblemReport } = setup({ turns: [answerOf("Your lease is active.")] });
+      await act(() => result.current.send("Is my app up?"));
+
+      await act(() => result.current.reportProblem(result.current.messages[1].id, "wrong"));
+
+      expect(createProblemReport).not.toHaveBeenCalled();
+    });
+  });
+
   describe(problemOfError.name, () => {
     it("maps each refusal to the problem the panel shows", () => {
       expect(problemOfError(new ApiError(409, { code: "assistant_consent_required" }, "x"))).toBe("consent");
@@ -255,10 +361,10 @@ describe(useAssistantConversation.name, () => {
     });
   });
 
-  function answerOf(text: string, answerSignature?: string): AssistantStreamEvent[] {
+  function answerOf(text: string, answerSignature?: string, turnId?: string): AssistantStreamEvent[] {
     return [
       { type: "text_delta", text },
-      { type: "done", reason: "stop", answerSignature }
+      { type: "done", reason: "stop", answerSignature, turnId }
     ];
   }
 
@@ -286,6 +392,8 @@ describe(useAssistantConversation.name, () => {
     resumed?: AssistantStreamEvent[][];
     stored?: boolean;
     startError?: unknown;
+    rateError?: unknown;
+    reportError?: unknown;
     context?: AssistantContext;
   }) {
     const turns = [...(input.turns ?? [])];
@@ -299,6 +407,14 @@ describe(useAssistantConversation.name, () => {
       return { data: { id: `c-${++conversationCount}`, stored: input.stored ?? false } };
     });
     const endConversation = vi.fn(async () => ({ data: { id: "c-1", status: "resolved" as const } }));
+    const rateTurn = vi.fn(async () => {
+      if (input.rateError) throw input.rateError;
+      return { data: { turnId: "turn-1", rating: null } };
+    });
+    const createProblemReport = vi.fn(async () => {
+      if (input.reportError) throw input.reportError;
+      return { data: { id: "report-1" } };
+    });
     const runClientTool = vi.fn(async (request: AssistantClientToolRequest) => ({ toolCallId: request.toolCallId, ok: true, content: "logs" }));
     const container = Object.assign(mock<Container>(), { assistantConversation });
     const dependencies: typeof DEPENDENCIES = {
@@ -308,12 +424,15 @@ describe(useAssistantConversation.name, () => {
       useStartAssistantConversationMutation: () =>
         mock<ReturnType<typeof DEPENDENCIES.useStartAssistantConversationMutation>>({ mutateAsync: startConversation as never }),
       useEndAssistantConversationMutation: () =>
-        mock<ReturnType<typeof DEPENDENCIES.useEndAssistantConversationMutation>>({ mutateAsync: endConversation as never })
+        mock<ReturnType<typeof DEPENDENCIES.useEndAssistantConversationMutation>>({ mutateAsync: endConversation as never }),
+      useRateAssistantTurnMutation: () => mock<ReturnType<typeof DEPENDENCIES.useRateAssistantTurnMutation>>({ mutateAsync: rateTurn as never }),
+      useCreateAssistantProblemReportMutation: () =>
+        mock<ReturnType<typeof DEPENDENCIES.useCreateAssistantProblemReportMutation>>({ mutateAsync: createProblemReport as never })
     };
 
     const context = input.context ?? { page: "/deployments/42", dseq: "42" };
     const hook = renderHook(() => useAssistantConversation({ context }, dependencies));
 
-    return { ...hook, assistantConversation, startConversation, endConversation, runClientTool };
+    return { ...hook, assistantConversation, startConversation, endConversation, rateTurn, createProblemReport, runClientTool };
   }
 });
