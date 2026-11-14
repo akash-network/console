@@ -11,7 +11,7 @@ export const ListAffiliateReferralsQuerySchema = z.object({
     .max(MAX_REFERRAL_PAGE_LIMIT)
     .default(DEFAULT_REFERRAL_PAGE_LIMIT)
     .openapi({ description: `Referrals per page, at most ${MAX_REFERRAL_PAGE_LIMIT}.` }),
-  offset: z.coerce.number().int().min(0).default(0).openapi({ description: "How many of the newest referrals to skip." })
+  offset: z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER).default(0).openapi({ description: "How many of the newest referrals to skip." })
 });
 
 const AffiliateReferralSchema = z.object({
@@ -22,7 +22,7 @@ const AffiliateReferralSchema = z.object({
   }),
   commissionEndsAt: z.string().openapi({ description: "When payments by this referral stop earning commission." }),
   commissionMonthsLeft: z.number().int().openapi({ description: "Months left before commissionEndsAt, a partial month counted as one, 0 once it has passed." }),
-  paidUsd: z.number().openapi({ description: "What the referral paid by card, net of refunds, teams they created included." }),
+  paidUsd: z.number().openapi({ description: "What the referral paid by card, net of refunds and lost disputes, teams they created included." }),
   earnedUsd: z.number().openapi({ description: "Commission earned on those payments, held or credited, net of what was taken back." })
 });
 

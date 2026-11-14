@@ -3135,6 +3135,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "schema": {
               "default": 0,
               "description": "How many of the newest referrals to skip.",
+              "maximum": 9007199254740991,
               "minimum": 0,
               "nullable": true,
               "type": "integer",
@@ -3198,7 +3199,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                 "type": "string",
                               },
                               "paidUsd": {
-                                "description": "What the referral paid by card, net of refunds, teams they created included.",
+                                "description": "What the referral paid by card, net of refunds and lost disputes, teams they created included.",
                                 "type": "number",
                               },
                               "status": {

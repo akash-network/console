@@ -29396,6 +29396,7 @@
               "type": "integer",
               "nullable": true,
               "minimum": 0,
+              "maximum": 9007199254740991,
               "default": 0,
               "description": "How many of the newest referrals to skip."
             },
@@ -29452,7 +29453,7 @@
                               },
                               "paidUsd": {
                                 "type": "number",
-                                "description": "What the referral paid by card, net of refunds, teams they created included."
+                                "description": "What the referral paid by card, net of refunds and lost disputes, teams they created included."
                               },
                               "earnedUsd": {
                                 "type": "number",

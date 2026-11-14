@@ -187,6 +187,17 @@ describe(ReferralRepository.name, () => {
       expect(summary).toMatchObject({ hasPaid: true, paidCents: 17000 });
     });
 
+    it("counts a payment lost in a dispute as nothing paid, while the referral still shows as having paid", async () => {
+      const { repository, affiliate } = await setup();
+      const referral = await referUser(affiliate.id);
+      await seedPayment(referral.referredUserId, "succeeded", { amount: 10000, disputeLostAt: new Date() });
+      await seedPayment(referral.referredUserId, "succeeded", { amount: 3000 });
+
+      const [summary] = await repository.findSummariesByAffiliate({ affiliateId: affiliate.id, affiliateUserId: affiliate.userId }, { limit: 20, offset: 0 });
+
+      expect(summary).toMatchObject({ hasPaid: true, paidCents: 3000 });
+    });
+
     it("sums the affiliate's held and credited commission on the referral's payments, net of what was taken back", async () => {
       const { repository, affiliate } = await setup();
       const referral = await referUser(affiliate.id);
@@ -253,7 +264,7 @@ describe(ReferralRepository.name, () => {
   async function seedPayment(
     userId: string,
     status: "succeeded" | "refunded" | "failed",
-    options: { organizationId?: string; amount?: number; amountRefunded?: number } = {}
+    options: { organizationId?: string; amount?: number; amountRefunded?: number; disputeLostAt?: Date } = {}
   ) {
     return container.resolve(StripeTransactionRepository).create({
       userId,
@@ -262,6 +273,7 @@ describe(ReferralRepository.name, () => {
       status,
       amount: options.amount ?? faker.number.int({ min: 1000, max: 100000 }),
       amountRefunded: options.amountRefunded ?? 0,
+      disputeLostAt: options.disputeLostAt,
       currency: "usd"
     });
   }

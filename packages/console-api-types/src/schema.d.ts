@@ -16057,7 +16057,7 @@ export interface operations {
                 commissionEndsAt: string;
                 /** @description Months left before commissionEndsAt, a partial month counted as one, 0 once it has passed. */
                 commissionMonthsLeft: number;
-                /** @description What the referral paid by card, net of refunds, teams they created included. */
+                /** @description What the referral paid by card, net of refunds and lost disputes, teams they created included. */
                 paidUsd: number;
                 /** @description Commission earned on those payments, held or credited, net of what was taken back. */
                 earnedUsd: number;

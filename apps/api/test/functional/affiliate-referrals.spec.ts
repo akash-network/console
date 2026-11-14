@@ -53,6 +53,15 @@ describe("GET /v1/affiliates/me/referrals", () => {
     expect(await response.json()).toEqual({ data: { referrals: [], pagination: { total: 0, limit: 20, offset: 0 } } });
   });
 
+  it("returns 400 for an offset too large to page by", async () => {
+    const { token, user } = await setup();
+    await approveAffiliate(user.id);
+
+    const response = await request(token, { query: "?offset=99999999999999999999" });
+
+    expect(response.status).toBe(400);
+  });
+
   it("lists the affiliate's referrals newest first with what they paid and what it earned, teams they created included", async () => {
     const { token, user } = await setup();
     const affiliate = await approveAffiliate(user.id);
