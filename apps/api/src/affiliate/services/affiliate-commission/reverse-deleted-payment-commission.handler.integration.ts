@@ -94,6 +94,26 @@ describe(ReverseDeletedPaymentCommissionHandler.name, () => {
     expect(topUpWallet).not.toHaveBeenCalled();
   });
 
+  it("takes a refund back from a commission still on hold whose release credit landed before its sync rolled back", async () => {
+    const { payment, affiliateUser, reduceWalletBalance, holdCommissionOf, deletePayer, reverseCommissionOf } = await setup({ paymentAmount: 10000 });
+    const held = await holdCommissionOf(payment.id);
+    await seedPaymentCredit({ transactionId: held.id, status: "landed", amount: 500, bonusAmount: 0 });
+    await deletePayer();
+
+    await reverseCommissionOf(payment.stripeChargeId, { reason: "refund", amount: 10000, amountRefunded: 4000 });
+
+    await expect(container.resolve(StripeTransactionRepository).findById(held.id)).resolves.toMatchObject({
+      status: "succeeded",
+      amount: 500,
+      amountRefunded: 200
+    });
+    expect(reduceWalletBalance).toHaveBeenCalledExactlyOnceWith(
+      200,
+      { userId: affiliateUser.id, organizationId: null },
+      { currency: "usd", transactionId: held.id, refundedBefore: 0, refundedAfter: 200 }
+    );
+  });
+
   it("leaves the commission of a payment that still exists to the payment's own sync", async () => {
     const { payment, reduceWalletBalance, creditCommissionOf, reverseCommissionOf } = await setup({ paymentAmount: 10000 });
     const commission = await creditCommissionOf(payment.id);

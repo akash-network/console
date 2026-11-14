@@ -80,7 +80,7 @@ export class AffiliateCommissionService {
       if (!commission) {
         if (trigger === "settlement") await this.#hold(payment);
       } else if (releaseCredit?.transactionId === commission.id && UNCREDITED_COMMISSION_STATUSES.has(commission.status)) {
-        await this.#recoverLandedRelease(payment, commission, releaseCredit, trigger);
+        await this.#reconcileReversal(payment, await this.#recordLandedRelease(commission, releaseCredit, trigger));
       } else if (commission.status === "pending") {
         await (this.#isReleaseDue(payment, commission, trigger) ? this.#release(payment, commission) : this.#reconcileHeld(payment, commission));
       } else {
@@ -91,16 +91,48 @@ export class AffiliateCommissionService {
 
   /** A payment row goes with its payer's account, so the charge is all that still tells what the payer paid on it. */
   async reverseCommissionsOfDeletedPayment(stripeChargeId: string, reversal: DeletedPaymentReversal): Promise<void> {
+    const releaseCredits = await this.#findReleaseCreditsOfDeletedPayment(stripeChargeId);
+
     await this.txService.transaction(async () => {
       const commissions = await this.stripeTransactionRepository.findAffiliateCommissionsOfDeletedPaymentAndLock(stripeChargeId);
 
       for (const commission of commissions) {
-        const keptAmount = reversal.reason === "dispute_lost" ? 0 : this.#shareStillPaid(commission.amount, reversal);
-        await (commission.status === "pending"
-          ? this.#shrinkHeld(commission, keptAmount, reversal.reason)
-          : this.#takeBackCredited(commission, keptAmount, reversal.reason));
+        await this.#reverseCommissionOfDeletedPayment(commission, releaseCredits.get(commission.id), reversal);
       }
     });
+  }
+
+  /** Reads before taking the commission row locks, like `#findReleaseCredit`, so a credit only counts for a commission that is still uncredited once locked. */
+  async #findReleaseCreditsOfDeletedPayment(stripeChargeId: string): Promise<Map<string, PaymentCreditOutput>> {
+    const commissions = await this.stripeTransactionRepository.find({
+      type: "affiliate_commission",
+      sourceStripeChargeId: stripeChargeId,
+      sourceTransactionId: null
+    });
+    const releaseCredits = new Map<string, PaymentCreditOutput>();
+
+    for (const commission of commissions) {
+      const releaseCredit = await this.paymentCreditRepository.findByTransactionId(commission.id);
+      if (releaseCredit) releaseCredits.set(commission.id, releaseCredit);
+    }
+
+    return releaseCredits;
+  }
+
+  async #reverseCommissionOfDeletedPayment(
+    commission: StripeTransactionOutput,
+    releaseCredit: PaymentCreditOutput | undefined,
+    reversal: DeletedPaymentReversal
+  ): Promise<void> {
+    const keptAmount = reversal.reason === "dispute_lost" ? 0 : this.#shareStillPaid(commission.amount, reversal);
+
+    if (releaseCredit && UNCREDITED_COMMISSION_STATUSES.has(commission.status)) {
+      return this.#takeBackCredited(await this.#recordLandedRelease(commission, releaseCredit, reversal.reason), keptAmount, reversal.reason);
+    }
+
+    await (commission.status === "pending"
+      ? this.#shrinkHeld(commission, keptAmount, reversal.reason)
+      : this.#takeBackCredited(commission, keptAmount, reversal.reason));
   }
 
   async #takeBackCredited(commission: StripeTransactionOutput, keptAmount: number, reason: ReversalReason): Promise<void> {
@@ -121,12 +153,11 @@ export class AffiliateCommissionService {
   }
 
   /** A release whose credit landed on its own connection before its transaction rolled back leaves the row pending, or canceled by a refund that read no credit yet, so the row is recorded as credited before any refund is taken back from it. */
-  async #recoverLandedRelease(
-    payment: StripeTransactionOutput,
+  async #recordLandedRelease(
     commission: StripeTransactionOutput,
     credit: PaymentCreditOutput,
-    trigger: AffiliateCommissionSyncTrigger
-  ): Promise<void> {
+    trigger: AffiliateCommissionSyncTrigger | DeletedPaymentReversal["reason"]
+  ): Promise<StripeTransactionOutput> {
     if (credit.status !== "landed") throw new Error(`The release credit of affiliate commission ${commission.id} is still in flight`);
 
     const credited = { ...commission, status: "succeeded" as const, amountRefunded: commission.amount - credit.amount };
@@ -134,12 +165,12 @@ export class AffiliateCommissionService {
     this.#logger.warn({
       event: "AFFILIATE_COMMISSION_RELEASE_RECOVERED",
       commissionId: commission.id,
-      sourceTransactionId: payment.id,
+      sourceTransactionId: commission.sourceTransactionId,
       amountCents: credit.amount,
       trigger
     });
 
-    await this.#reconcileReversal(payment, credited);
+    return credited;
   }
 
   /** Records the commission without crediting it and schedules its release in the same transaction, so a refund or a lost dispute during the hold only ever edits a row. */

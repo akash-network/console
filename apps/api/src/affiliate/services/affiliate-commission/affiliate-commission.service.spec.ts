@@ -1739,6 +1739,137 @@ describe(AffiliateCommissionService.name, () => {
       expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
     });
 
+    it("takes a refund back from a held commission whose release credit landed before its sync rolled back", async () => {
+      const { service, affiliate, orphanedCommissions, stripeTransactionRepository, refillService, analyticsService, logger } = setup({
+        orphanedCommissions: [{ status: "pending", amount: 500, releaseCredit: { status: "landed", amount: 500 } }]
+      });
+      const [commission] = orphanedCommissions;
+
+      await service.reverseCommissionsOfDeletedPayment(commission.sourceStripeChargeId!, { reason: "refund", amount: 10000, amountRefunded: 4000 });
+
+      expect(stripeTransactionRepository.find).toHaveBeenCalledExactlyOnceWith({
+        type: "affiliate_commission",
+        sourceStripeChargeId: commission.sourceStripeChargeId,
+        sourceTransactionId: null
+      });
+      expect(stripeTransactionRepository.updateById.mock.calls).toEqual([
+        [commission.id, { status: "succeeded", amountRefunded: 0 }],
+        [commission.id, { amountRefunded: 200 }]
+      ]);
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledExactlyOnceWith(
+        200,
+        { userId: affiliate.userId, organizationId: commission.organizationId },
+        { currency: "usd", transactionId: commission.id, refundedBefore: 0, refundedAfter: 200 }
+      );
+      expect(analyticsService.track).toHaveBeenCalledExactlyOnceWith(
+        affiliate.userId,
+        "affiliate_commission_reversed",
+        expect.objectContaining({ amount_cents: 200, reason: "refund" })
+      );
+      expect(logger.warn).toHaveBeenCalledExactlyOnceWith({
+        event: "AFFILIATE_COMMISSION_RELEASE_RECOVERED",
+        commissionId: commission.id,
+        sourceTransactionId: null,
+        amountCents: 500,
+        trigger: "refund"
+      });
+    });
+
+    it("takes back only what was credited when a refund had shrunk the hold before its release landed", async () => {
+      const { service, orphanedCommissions, stripeTransactionRepository, refillService } = setup({
+        orphanedCommissions: [{ status: "pending", amount: 500, amountRefunded: 200, releaseCredit: { status: "landed", amount: 300 } }]
+      });
+      const [commission] = orphanedCommissions;
+
+      await service.reverseCommissionsOfDeletedPayment(commission.sourceStripeChargeId!, { reason: "refund", amount: 10000, amountRefunded: 10000 });
+
+      expect(stripeTransactionRepository.updateById.mock.calls).toEqual([
+        [commission.id, { status: "succeeded", amountRefunded: 200 }],
+        [commission.id, { amountRefunded: 500, status: "refunded" }]
+      ]);
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledExactlyOnceWith(300, expect.anything(), {
+        currency: "usd",
+        transactionId: commission.id,
+        refundedBefore: 200,
+        refundedAfter: 500
+      });
+    });
+
+    it("takes back the whole credit of a canceled commission whose release had landed when the dispute is lost", async () => {
+      const { service, orphanedCommissions, stripeTransactionRepository, refillService, logger } = setup({
+        orphanedCommissions: [{ status: "canceled", amount: 500, amountRefunded: 500, releaseCredit: { status: "landed", amount: 500 } }]
+      });
+      const [commission] = orphanedCommissions;
+
+      await service.reverseCommissionsOfDeletedPayment(commission.sourceStripeChargeId!, { reason: "dispute_lost" });
+
+      expect(stripeTransactionRepository.updateById.mock.calls).toEqual([
+        [commission.id, { status: "succeeded", amountRefunded: 0 }],
+        [commission.id, { amountRefunded: 500, status: "refunded" }]
+      ]);
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledExactlyOnceWith(500, expect.anything(), {
+        currency: "usd",
+        transactionId: commission.id,
+        refundedBefore: 0,
+        refundedAfter: 500
+      });
+      expect(logger.warn).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ event: "AFFILIATE_COMMISSION_RELEASE_RECOVERED", trigger: "dispute_lost" })
+      );
+    });
+
+    it("leaves a canceled commission that was never credited alone", async () => {
+      const { service, orphanedCommissions, stripeTransactionRepository, refillService, logger } = setup({
+        orphanedCommissions: [{ status: "canceled", amount: 500, amountRefunded: 500 }]
+      });
+
+      await service.reverseCommissionsOfDeletedPayment(orphanedCommissions[0].sourceStripeChargeId!, { reason: "dispute_lost" });
+
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it("does not record the release again for a commission already credited", async () => {
+      const { service, orphanedCommissions, stripeTransactionRepository, refillService, logger } = setup({
+        orphanedCommissions: [{ status: "succeeded", amount: 500, amountRefunded: 200, releaseCredit: { status: "landed", amount: 500 } }]
+      });
+
+      await service.reverseCommissionsOfDeletedPayment(orphanedCommissions[0].sourceStripeChargeId!, { reason: "refund", amount: 10000, amountRefunded: 4000 });
+
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it("throws so the job retries while the release credit of a held commission is still in flight", async () => {
+      const { service, orphanedCommissions, stripeTransactionRepository, refillService } = setup({
+        orphanedCommissions: [{ status: "pending", amount: 500, releaseCredit: { status: "pending", amount: 500 } }]
+      });
+
+      await expect(service.reverseCommissionsOfDeletedPayment(orphanedCommissions[0].sourceStripeChargeId!, { reason: "dispute_lost" })).rejects.toThrow(
+        "still in flight"
+      );
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+    });
+
+    it("reads the release credits before taking the commission locks", async () => {
+      const { service, orphanedCommissions, stripeTransactionRepository, paymentCreditRepository } = setup({
+        orphanedCommissions: [
+          { status: "pending", amount: 500 },
+          { status: "pending", amount: 500, releaseCredit: { status: "landed", amount: 500 } }
+        ]
+      });
+
+      await service.reverseCommissionsOfDeletedPayment(orphanedCommissions[0].sourceStripeChargeId!, { reason: "dispute_lost" });
+
+      expect(paymentCreditRepository.findByTransactionId.mock.calls).toEqual(orphanedCommissions.map(commission => [commission.id]));
+      expect(paymentCreditRepository.findByTransactionId.mock.invocationCallOrder[1]).toBeLessThan(
+        stripeTransactionRepository.findAffiliateCommissionsOfDeletedPaymentAndLock.mock.invocationCallOrder[0]
+      );
+    });
+
     it("does nothing when no commission was earned on the charge", async () => {
       const { service, stripeTransactionRepository, refillService, analyticsService } = setup({ orphanedCommissions: [] });
 
@@ -1784,7 +1915,7 @@ describe(AffiliateCommissionService.name, () => {
       releaseCredit?: { status: PaymentCreditOutput["status"]; amount: number };
       holdSeconds?: number;
       shortfallCents?: number;
-      orphanedCommissions?: Partial<StripeTransactionOutput>[];
+      orphanedCommissions?: Array<Partial<StripeTransactionOutput> & { releaseCredit?: { status: PaymentCreditOutput["status"]; amount: number } }>;
     } = {}
   ) {
     const affiliate = createAffiliate({ revokedAt: input.affiliateRevokedAt ?? null });
@@ -1814,17 +1945,21 @@ describe(AffiliateCommissionService.name, () => {
       createdAt: input.commissionCreatedAt ?? new Date()
     });
     const affiliateWallet = createUserWallet({ userId: affiliate.userId, abuseLockedAt: input.affiliateAbuseLockedAt ?? null });
-    const orphanedCommissions = (input.orphanedCommissions ?? []).map(overrides =>
-      generateDatabaseStripeTransaction({
+    const orphans = (input.orphanedCommissions ?? []).map(({ releaseCredit, ...overrides }) => {
+      const orphanedCommission = generateDatabaseStripeTransaction({
         userId: affiliate.userId,
         type: "affiliate_commission",
         sourceTransactionId: null,
         sourceStripeChargeId: payment.stripeChargeId,
         ...overrides
-      })
-    );
+      });
+
+      return { orphanedCommission, releaseCredit: releaseCredit && createPaymentCredit({ transactionId: orphanedCommission.id, ...releaseCredit }) };
+    });
+    const orphanedCommissions = orphans.map(orphan => orphan.orphanedCommission);
 
     const stripeTransactionRepository = mock<StripeTransactionRepository>();
+    stripeTransactionRepository.find.mockResolvedValue(orphanedCommissions);
     stripeTransactionRepository.findAffiliateCommissionsOfDeletedPaymentAndLock.mockResolvedValue(orphanedCommissions);
     stripeTransactionRepository.findOneByAndLock.mockResolvedValue(payment);
     stripeTransactionRepository.findAffiliateCommissionBySourceAndLock.mockResolvedValue(input.hasCommission ? commission : undefined);
@@ -1839,8 +1974,13 @@ describe(AffiliateCommissionService.name, () => {
     const paymentCreditRepository = mock<PaymentCreditRepository>();
     const paymentCredit =
       input.hasPaymentCredit === false ? undefined : createPaymentCredit({ transactionId: payment.id, status: input.paymentCreditStatus ?? "landed" });
-    const releaseCredit = input.releaseCredit && createPaymentCredit({ transactionId: commission.id, ...input.releaseCredit });
-    paymentCreditRepository.findByTransactionId.mockImplementation(async transactionId => (transactionId === commission.id ? releaseCredit : paymentCredit));
+    const releaseCredits = new Map([
+      [commission.id, input.releaseCredit && createPaymentCredit({ transactionId: commission.id, ...input.releaseCredit })],
+      ...orphans.map(orphan => [orphan.orphanedCommission.id, orphan.releaseCredit] as const)
+    ]);
+    paymentCreditRepository.findByTransactionId.mockImplementation(async transactionId =>
+      releaseCredits.has(transactionId) ? releaseCredits.get(transactionId) : paymentCredit
+    );
     stripeTransactionRepository.findAffiliateCommissionBySource.mockResolvedValue(input.hasCommission ? commission : undefined);
 
     const paymentMethodRepository = mock<PaymentMethodRepository>();
