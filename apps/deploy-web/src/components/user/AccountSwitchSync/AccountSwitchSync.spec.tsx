@@ -1,3 +1,4 @@
+import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -62,6 +63,13 @@ describe(AccountSwitchSync.name, () => {
     expect(reload).not.toHaveBeenCalled();
   });
 
+  it("resolves no browser-only service while rendering on the server", () => {
+    const { signedInUserChannelFactory, windowLocationFactory } = setup({ userId: "user-a", renderOnServer: true });
+
+    expect(signedInUserChannelFactory).not.toHaveBeenCalled();
+    expect(windowLocationFactory).not.toHaveBeenCalled();
+  });
+
   it("stops listening on unmount", () => {
     const { signedInUserChannel, unmount } = setup({ userId: "user-a" });
     const unsubscribe = signedInUserChannel.subscribe.mock.results[0].value;
@@ -71,7 +79,7 @@ describe(AccountSwitchSync.name, () => {
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
-  function setup(input: { userId: string | undefined }) {
+  function setup(input: { userId: string | undefined; renderOnServer?: boolean }) {
     const listeners: Array<(userId: string) => void> = [];
     const signedInUserChannel = mock<SignedInUserChannel>();
     signedInUserChannel.subscribe.mockImplementation(listener => {
@@ -82,25 +90,34 @@ describe(AccountSwitchSync.name, () => {
     });
     const reload = vi.fn();
     const windowLocation = mock<Location>({ reload });
+    const signedInUserChannelFactory = vi.fn(() => signedInUserChannel);
+    const windowLocationFactory = vi.fn(() => windowLocation);
     const renderAs = (userId: string | undefined) => {
       const useUser: typeof DEPENDENCIES.useUser = () =>
         mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: userId ? mock<CustomUserProfile>({ id: userId }) : undefined });
 
       return (
-        <TestContainerProvider services={{ signedInUserChannel: () => signedInUserChannel, windowLocation: () => windowLocation }}>
+        <TestContainerProvider services={{ signedInUserChannel: signedInUserChannelFactory, windowLocation: windowLocationFactory }}>
           <AccountSwitchSync dependencies={{ useUser }} />
         </TestContainerProvider>
       );
     };
 
-    const { rerender, unmount } = render(renderAs(input.userId));
+    const { rerender, unmount } = input.renderOnServer ? renderOnServer(renderAs(input.userId)) : render(renderAs(input.userId));
 
     return {
       signedInUserChannel,
+      signedInUserChannelFactory,
+      windowLocationFactory,
       reload,
       unmount,
       rerenderAs: (userId: string) => rerender(renderAs(userId)),
       announceFromAnotherTab: (userId: string) => listeners.forEach(listener => listener(userId))
     };
+  }
+
+  function renderOnServer(tree: React.ReactElement) {
+    renderToString(tree);
+    return { rerender: vi.fn(), unmount: vi.fn() };
   }
 });

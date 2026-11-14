@@ -16,25 +16,26 @@ interface Props {
  */
 export function AccountSwitchSync({ dependencies: d = DEPENDENCIES }: Props = {}) {
   const { user } = d.useUser();
-  const { signedInUserChannel, windowLocation } = useServices();
+  const services = useServices();
   const userId = user?.id;
 
   useEffect(
     function announceSignedInUser() {
-      if (userId) signedInUserChannel.announce(userId);
+      if (userId) services.signedInUserChannel.announce(userId);
     },
-    [signedInUserChannel, userId]
+    [services, userId]
   );
 
   useEffect(
     function reloadWhenAnotherTabSignsInAsSomeoneElse() {
       if (!userId) return;
 
+      const { signedInUserChannel, windowLocation } = services;
       return signedInUserChannel.subscribe(announcedUserId => {
         if (announcedUserId !== userId) windowLocation.reload();
       });
     },
-    [signedInUserChannel, windowLocation, userId]
+    [services, userId]
   );
 
   return null;
