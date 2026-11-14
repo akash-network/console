@@ -9816,6 +9816,154 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "minLength": 1,
                         "type": "string",
                       },
+                      "overrides": {
+                        "additionalProperties": {
+                          "properties": {
+                            "args": {
+                              "items": {
+                                "type": "string",
+                              },
+                              "nullable": true,
+                              "type": "array",
+                            },
+                            "command": {
+                              "items": {
+                                "type": "string",
+                              },
+                              "nullable": true,
+                              "type": "array",
+                            },
+                            "credentials": {
+                              "description": "Private registry pull credentials. Null clears them.",
+                              "nullable": true,
+                              "properties": {
+                                "host": {
+                                  "type": "string",
+                                },
+                                "password": {
+                                  "type": "string",
+                                },
+                                "username": {
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "host",
+                                "username",
+                                "password",
+                              ],
+                              "type": "object",
+                            },
+                            "env": {
+                              "additionalProperties": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "description": "Merged into the service's env, keyed by environment variable name. A null value removes the variable. A patched variable is re-appended, so the order of the stored env list may change. Every written value is sealed unless the request says which are secret with \`secretEnv\`, or carries \`sealedSecrets\`.",
+                              "type": "object",
+                            },
+                            "expose": {
+                              "additionalProperties": {
+                                "properties": {
+                                  "accept": {
+                                    "description": "Custom domains. Replaces the existing list. Emptying it is rejected by providers that do not generate a hostname of their own, which leaves the patch recorded but undeployed.",
+                                    "items": {
+                                      "type": "string",
+                                    },
+                                    "type": "array",
+                                  },
+                                  "as": {
+                                    "description": "Moves the port the endpoint is reached on. Refused when it would change the endpoint's kind (a public TCP endpoint moving onto or off port 80), onto a port another endpoint of the service uses, and on an endpoint reached through a leased IP.",
+                                    "maximum": 65535,
+                                    "minimum": 1,
+                                    "type": "integer",
+                                  },
+                                  "httpOptions": {
+                                    "properties": {
+                                      "maxBodySize": {
+                                        "maximum": 104857600,
+                                        "minimum": 1,
+                                        "type": "integer",
+                                      },
+                                      "nextCases": {
+                                        "description": "Conditions the proxy retries on. Replaces the existing list; "off" disables retrying and stands alone.",
+                                        "items": {
+                                          "enum": [
+                                            "error",
+                                            "timeout",
+                                            "500",
+                                            "502",
+                                            "503",
+                                            "504",
+                                            "403",
+                                            "404",
+                                            "429",
+                                            "off",
+                                          ],
+                                          "type": "string",
+                                        },
+                                        "minItems": 1,
+                                        "type": "array",
+                                      },
+                                      "nextTimeout": {
+                                        "maximum": 4294967295,
+                                        "minimum": 0,
+                                        "type": "integer",
+                                      },
+                                      "nextTries": {
+                                        "maximum": 4294967295,
+                                        "minimum": 0,
+                                        "type": "integer",
+                                      },
+                                      "readTimeout": {
+                                        "maximum": 4294967295,
+                                        "minimum": 1,
+                                        "type": "integer",
+                                      },
+                                      "sendTimeout": {
+                                        "maximum": 4294967295,
+                                        "minimum": 1,
+                                        "type": "integer",
+                                      },
+                                    },
+                                    "type": "object",
+                                  },
+                                  "port": {
+                                    "description": "Moves the container port the workload listens on. The entry is still addressed by the port it declares today. Refused onto a port the service already exposes, and on an endpoint reached through a leased IP.",
+                                    "maximum": 65535,
+                                    "minimum": 1,
+                                    "type": "integer",
+                                  },
+                                },
+                                "type": "object",
+                              },
+                              "description": "Keyed by the container port the stored SDL declares. Port numbers, hosts and http options are patchable; protocol, routing, endpoint kind and count are fixed at create. A random-port endpoint whose numbers change gets a new public port from the provider, and so can the service's other random-port endpoints when a container port move reorders them.",
+                              "type": "object",
+                            },
+                            "image": {
+                              "type": "string",
+                            },
+                            "storage": {
+                              "additionalProperties": {
+                                "properties": {
+                                  "mount": {
+                                    "type": "string",
+                                  },
+                                  "readOnly": {
+                                    "type": "boolean",
+                                  },
+                                },
+                                "type": "object",
+                              },
+                              "description": "Keyed by volume name. Mount point and read-only flag only — sizes are fixed at create.",
+                              "type": "object",
+                            },
+                          },
+                          "type": "object",
+                        },
+                        "description": "Changes to the SDL of the template named by \`templateId\`, keyed by service name, in the shape of \`services\` in PATCH /v1/deployments/{dseq}. Only for a deployment created from \`templateId\` without \`sdl\`.",
+                        "type": "object",
+                      },
                       "projectId": {
                         "description": "Project to file the deployment in.",
                         "format": "uuid",
@@ -9828,6 +9976,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "type": "integer",
                       },
                       "sdl": {
+                        "description": "SDL to deploy. Send exactly one of \`sdl\`, \`service\`, or \`templateId\` without \`sdl\`.",
                         "maxLength": 524288,
                         "type": "string",
                       },
@@ -9848,16 +9997,109 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         },
                         "type": "array",
                       },
+                      "service": {
+                        "description": "Creates a deployment without an SDL: the console writes the SDL of one service named \`app\` from these inputs and stores it, so the deployment reads, patches and redeploys like any other. Address the service as \`app\` in PATCH /v1/deployments/{dseq}.",
+                        "properties": {
+                          "env": {
+                            "additionalProperties": {
+                              "type": "string",
+                            },
+                            "description": "Environment variables, keyed by name. \`secretEnv\` says which values are secret, as it does for an SDL.",
+                            "type": "object",
+                          },
+                          "image": {
+                            "description": "Container image, with its tag.",
+                            "example": "nginx:1.27.2",
+                            "minLength": 1,
+                            "type": "string",
+                          },
+                          "ports": {
+                            "description": "Ports to publish. Every one is reachable from the internet, and a deployment needs at least one.",
+                            "items": {
+                              "properties": {
+                                "as": {
+                                  "description": "Port the endpoint is reached on. Defaults to \`port\`. A port reached on 80 gets a hostname from the provider; any other port is reached on the provider's host through a port the provider picks.",
+                                  "maximum": 65535,
+                                  "minimum": 1,
+                                  "type": "integer",
+                                },
+                                "port": {
+                                  "description": "Container port the workload listens on.",
+                                  "maximum": 65535,
+                                  "minimum": 1,
+                                  "type": "integer",
+                                },
+                              },
+                              "required": [
+                                "port",
+                              ],
+                              "type": "object",
+                            },
+                            "minItems": 1,
+                            "type": "array",
+                          },
+                          "resources": {
+                            "properties": {
+                              "cpu": {
+                                "description": "CPU units. 0.5 is half a core.",
+                                "example": 0.5,
+                                "exclusiveMinimum": true,
+                                "minimum": 0,
+                                "type": "number",
+                              },
+                              "gpu": {
+                                "properties": {
+                                  "model": {
+                                    "description": "NVIDIA model key, such as \`rtx4090\` or \`h100\`. Omit it to take any NVIDIA GPU.",
+                                    "minLength": 1,
+                                    "type": "string",
+                                  },
+                                  "units": {
+                                    "description": "Number of GPUs.",
+                                    "minimum": 1,
+                                    "type": "integer",
+                                  },
+                                },
+                                "required": [
+                                  "units",
+                                ],
+                                "type": "object",
+                              },
+                              "memory": {
+                                "description": "Memory, as a number and a unit.",
+                                "example": "512Mi",
+                                "pattern": "^\\d+(\\.\\d+)?(k|Ki|M|Mi|G|Gi|T|Ti)$",
+                                "type": "string",
+                              },
+                              "storage": {
+                                "description": "Ephemeral disk, as a number and a unit.",
+                                "example": "1Gi",
+                                "pattern": "^\\d+(\\.\\d+)?(k|Ki|M|Mi|G|Gi|T|Ti)$",
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "cpu",
+                              "memory",
+                              "storage",
+                            ],
+                            "type": "object",
+                          },
+                        },
+                        "required": [
+                          "image",
+                          "resources",
+                          "ports",
+                        ],
+                        "type": "object",
+                      },
                       "templateId": {
-                        "description": "ID of the gallery template the SDL came from, as listed by GET /v1/templates. Console links the deployment to that template's guide. Not checked against the gallery.",
+                        "description": "ID of a gallery template, as listed by GET /v1/templates-list. Sent with \`sdl\`, it names the template the SDL came from: the console links the deployment to that template's guide and does not check the ID against the gallery. Sent without \`sdl\`, the console deploys the template's own SDL, with \`overrides\` applied, and answers 404 for an ID the gallery does not list.",
                         "maxLength": 255,
                         "pattern": "^[^/\\\\]+$",
                         "type": "string",
                       },
                     },
-                    "required": [
-                      "sdl",
-                    ],
                     "type": "object",
                   },
                 },
@@ -9990,7 +10232,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "The SDL leaves a secret reference with no value from either \`sealedSecrets\` or the deployment named by \`inheritSecretsFrom\`, supplies a name no service references, would carry more secrets than one deployment may hold, names a variable in \`secretEnv\` that no service sets, or carries a \`sealedSecrets\` value that is malformed, tampered with, expired or not a flat object of string values. With \`code\` \`project_required\`, a project is needed",
+            "description": "The SDL leaves a secret reference with no value from either \`sealedSecrets\` or the deployment named by \`inheritSecretsFrom\`, supplies a name no service references, would carry more secrets than one deployment may hold, names a variable in \`secretEnv\` that no service sets, or carries a \`sealedSecrets\` value that is malformed, tampered with, expired or not a flat object of string values. Also returned when the request names no source or more than one of \`sdl\`, \`service\` and \`templateId\` without \`sdl\`, or when \`overrides\` name a service or a port the template does not declare. With \`code\` \`project_required\`, a project is needed",
           },
           "403": {
             "content": {
@@ -10050,7 +10292,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "No deployment you can change matches \`inheritSecretsFrom\`. Deliberately says nothing about whether that deployment exists. Also returned for an unknown \`projectId\`",
+            "description": "No deployment you can change matches \`inheritSecretsFrom\`. Deliberately says nothing about whether that deployment exists. Also returned for an unknown \`projectId\`, and for a \`templateId\` sent without \`sdl\` that the gallery does not list",
           },
           "409": {
             "content": {

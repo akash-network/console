@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { MAX_SUBMITTED_SDL_LENGTH } from "@src/deployment/config/sdl.config";
 import {
+  CreateDeploymentDefinitionRequestSchema,
   CreateDeploymentRequestSchema,
   ListDeploymentsQuerySchema,
   ListWithResourcesParamsSchema,
@@ -42,9 +43,96 @@ describe("CreateDeploymentRequestSchema", () => {
     });
   });
 
+  describe("what the request says to deploy", () => {
+    const service = { image: "nginx:1.27.2", resources: { cpu: 0.5, memory: "512Mi", storage: "1Gi" }, ports: [{ port: 80 }] };
+    const overrides = { web: { env: { LOG_LEVEL: "debug" } } };
+
+    it("accepts an sdl, with or without the template it came from", () => {
+      expect(parse({}).success).toBe(true);
+      expect(parse({ templateId: "nginx" }).success).toBe(true);
+    });
+
+    it("accepts a service in place of an sdl", () => {
+      expect(parse({ sdl: undefined, service }).data?.data.service).toEqual(service);
+    });
+
+    it("accepts a template on its own, with or without overrides", () => {
+      expect(parse({ sdl: undefined, templateId: "nginx" }).success).toBe(true);
+      expect(parse({ sdl: undefined, templateId: "nginx", overrides }).data?.data.overrides).toEqual(overrides);
+    });
+
+    it.each([
+      ["nothing to deploy", { sdl: undefined }, "Send one of sdl, service or templateId"],
+      ["only a template version", { sdl: undefined, templateVersionId: "0f2d8a52-62f2-4c8f-8f0b-3f1f0c9d2a11" }, "Send one of sdl, service or templateId"],
+      ["an sdl beside a service", { service }, "Send either sdl or service, not both"],
+      ["an empty sdl beside a service", { sdl: "", service }, "Send either sdl or service, not both"],
+      ["a service beside a template", { sdl: undefined, service, templateId: "nginx" }, "service cannot be combined with templateId or templateVersionId"],
+      [
+        "a service beside a template version",
+        { sdl: undefined, service, templateVersionId: "0f2d8a52-62f2-4c8f-8f0b-3f1f0c9d2a11" },
+        "service cannot be combined with templateId or templateVersionId"
+      ],
+      ["overrides beside an sdl", { templateId: "nginx", overrides }, "overrides apply only to a deployment created from templateId without sdl"],
+      ["overrides without a template", { sdl: undefined, overrides }, "overrides apply only to a deployment created from templateId without sdl"]
+    ])("refuses %s", (_, rest, message) => {
+      const result = parse(rest);
+
+      expect(result.success).toBe(false);
+      expect((result as { error: { issues: unknown[] } }).error.issues).toContainEqual(expect.objectContaining({ code: "custom", message, path: ["data"] }));
+    });
+
+    it.each(["512", "512MB", "half", "1.5 Gi", ""])("refuses %j as a memory size", memory => {
+      expect(parse({ sdl: undefined, service: { ...service, resources: { ...service.resources, memory } } }).success).toBe(false);
+    });
+
+    it.each(["256Mi", "1.5Gi", "500M", "2T"])("accepts %j as a storage size", storage => {
+      expect(parse({ sdl: undefined, service: { ...service, resources: { ...service.resources, storage } } }).success).toBe(true);
+    });
+
+    it("refuses a service that publishes no port", () => {
+      expect(parse({ sdl: undefined, service: { ...service, ports: [] } }).success).toBe(false);
+    });
+
+    it.each([
+      [
+        "a container port listed twice",
+        [
+          { port: 8080, as: 80 },
+          { port: 8080, as: 8081 }
+        ]
+      ],
+      ["two ports reached on the same port", [{ port: 3000, as: 80 }, { port: 80 }]]
+    ])("refuses %s", (_, ports) => {
+      expect(parse({ sdl: undefined, service: { ...service, ports } }).success).toBe(false);
+    });
+
+    it("accepts ports that differ in both the port they listen on and the port they are reached on", () => {
+      expect(parse({ sdl: undefined, service: { ...service, ports: [{ port: 3000, as: 80 }, { port: 9090 }] } }).success).toBe(true);
+    });
+
+    it.each([
+      ["no gpu at all", { units: 0 }],
+      ["a fraction of a gpu", { units: 0.5 }],
+      ["an empty model", { units: 1, model: "" }]
+    ])("refuses a gpu request for %s", (_, gpu) => {
+      expect(parse({ sdl: undefined, service: { ...service, resources: { ...service.resources, gpu } } }).success).toBe(false);
+    });
+
+    it("refuses an env variable no container could be given", () => {
+      expect(parse({ sdl: undefined, service: { ...service, env: { "MY VAR": "x" } } }).success).toBe(false);
+    });
+  });
+
   function parse(rest: Record<string, unknown>) {
     return CreateDeploymentRequestSchema.safeParse({ data: { sdl: "version: '2.0'", ...rest } });
   }
+});
+
+describe("CreateDeploymentDefinitionRequestSchema", () => {
+  it("still requires the sdl a definition is recorded from", () => {
+    expect(CreateDeploymentDefinitionRequestSchema.safeParse({ data: {} }).success).toBe(false);
+    expect(CreateDeploymentDefinitionRequestSchema.safeParse({ data: { sdl: "version: '2.0'" } }).success).toBe(true);
+  });
 });
 
 describe("PatchDeploymentRequestSchema", () => {

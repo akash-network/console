@@ -12359,7 +12359,8 @@ export interface operations {
       content: {
         "application/json": {
           data: {
-            sdl: string;
+            /** @description SDL to deploy. Send exactly one of `sdl`, `service`, or `templateId` without `sdl`. */
+            sdl?: string;
             /** @description Name for this deployment, shown wherever it is listed. Omit it and the console names the deployment after the services the SDL declares, joined with `+`. */
             name?: string;
             /** @description Compact JWE sealing a flat name-to-value map of the secrets this SDL references, encrypted to the console's public sealing key. Fetch that key and the claims to sign from GET /v1/sdl-secrets-context. Values are never returned by any endpoint once sealed. */
@@ -12386,13 +12387,100 @@ export interface operations {
              * @description Project to file the deployment in.
              */
             projectId?: string;
-            /** @description ID of the gallery template the SDL came from, as listed by GET /v1/templates. Console links the deployment to that template's guide. Not checked against the gallery. */
+            /** @description ID of a gallery template, as listed by GET /v1/templates-list. Sent with `sdl`, it names the template the SDL came from: the console links the deployment to that template's guide and does not check the ID against the gallery. Sent without `sdl`, the console deploys the template's own SDL, with `overrides` applied, and answers 404 for an ID the gallery does not list. */
             templateId?: string;
             /**
              * Format: uuid
              * @description ID of the template version the SDL came from. Readers of the template may name its current version and its editors any version. Cannot be combined with `templateId`.
              */
             templateVersionId?: string;
+            /** @description Creates a deployment without an SDL: the console writes the SDL of one service named `app` from these inputs and stores it, so the deployment reads, patches and redeploys like any other. Address the service as `app` in PATCH /v1/deployments/{dseq}. */
+            service?: {
+              /**
+               * @description Container image, with its tag.
+               * @example nginx:1.27.2
+               */
+              image: string;
+              resources: {
+                /**
+                 * @description CPU units. 0.5 is half a core.
+                 * @example 0.5
+                 */
+                cpu: number;
+                /**
+                 * @description Memory, as a number and a unit.
+                 * @example 512Mi
+                 */
+                memory: string;
+                /**
+                 * @description Ephemeral disk, as a number and a unit.
+                 * @example 1Gi
+                 */
+                storage: string;
+                gpu?: {
+                  /** @description Number of GPUs. */
+                  units: number;
+                  /** @description NVIDIA model key, such as `rtx4090` or `h100`. Omit it to take any NVIDIA GPU. */
+                  model?: string;
+                };
+              };
+              /** @description Ports to publish. Every one is reachable from the internet, and a deployment needs at least one. */
+              ports: {
+                /** @description Container port the workload listens on. */
+                port: number;
+                /** @description Port the endpoint is reached on. Defaults to `port`. A port reached on 80 gets a hostname from the provider; any other port is reached on the provider's host through a port the provider picks. */
+                as?: number;
+              }[];
+              /** @description Environment variables, keyed by name. `secretEnv` says which values are secret, as it does for an SDL. */
+              env?: {
+                [key: string]: string;
+              };
+            };
+            /** @description Changes to the SDL of the template named by `templateId`, keyed by service name, in the shape of `services` in PATCH /v1/deployments/{dseq}. Only for a deployment created from `templateId` without `sdl`. */
+            overrides?: {
+              [key: string]: {
+                image?: string;
+                command?: string[] | null;
+                args?: string[] | null;
+                /** @description Merged into the service's env, keyed by environment variable name. A null value removes the variable. A patched variable is re-appended, so the order of the stored env list may change. Every written value is sealed unless the request says which are secret with `secretEnv`, or carries `sealedSecrets`. */
+                env?: {
+                  [key: string]: string | null;
+                };
+                /** @description Private registry pull credentials. Null clears them. */
+                credentials?: {
+                  host: string;
+                  username: string;
+                  password: string;
+                } | null;
+                /** @description Keyed by the container port the stored SDL declares. Port numbers, hosts and http options are patchable; protocol, routing, endpoint kind and count are fixed at create. A random-port endpoint whose numbers change gets a new public port from the provider, and so can the service's other random-port endpoints when a container port move reorders them. */
+                expose?: {
+                  [key: string]: {
+                    /** @description Moves the container port the workload listens on. The entry is still addressed by the port it declares today. Refused onto a port the service already exposes, and on an endpoint reached through a leased IP. */
+                    port?: number;
+                    /** @description Moves the port the endpoint is reached on. Refused when it would change the endpoint's kind (a public TCP endpoint moving onto or off port 80), onto a port another endpoint of the service uses, and on an endpoint reached through a leased IP. */
+                    as?: number;
+                    /** @description Custom domains. Replaces the existing list. Emptying it is rejected by providers that do not generate a hostname of their own, which leaves the patch recorded but undeployed. */
+                    accept?: string[];
+                    httpOptions?: {
+                      maxBodySize?: number;
+                      readTimeout?: number;
+                      sendTimeout?: number;
+                      nextTries?: number;
+                      nextTimeout?: number;
+                      /** @description Conditions the proxy retries on. Replaces the existing list; "off" disables retrying and stands alone. */
+                      nextCases?: ("error" | "timeout" | "500" | "502" | "503" | "504" | "403" | "404" | "429" | "off")[];
+                    };
+                  };
+                };
+                /** @description Keyed by volume name. Mount point and read-only flag only — sizes are fixed at create. */
+                storage?: {
+                  [key: string]: {
+                    mount?: string;
+                    readOnly?: boolean;
+                  };
+                };
+              };
+            };
           };
         };
       };
@@ -12438,7 +12526,7 @@ export interface operations {
           };
         };
       };
-      /** @description The SDL leaves a secret reference with no value from either `sealedSecrets` or the deployment named by `inheritSecretsFrom`, supplies a name no service references, would carry more secrets than one deployment may hold, names a variable in `secretEnv` that no service sets, or carries a `sealedSecrets` value that is malformed, tampered with, expired or not a flat object of string values. With `code` `project_required`, a project is needed */
+      /** @description The SDL leaves a secret reference with no value from either `sealedSecrets` or the deployment named by `inheritSecretsFrom`, supplies a name no service references, would carry more secrets than one deployment may hold, names a variable in `secretEnv` that no service sets, or carries a `sealedSecrets` value that is malformed, tampered with, expired or not a flat object of string values. Also returned when the request names no source or more than one of `sdl`, `service` and `templateId` without `sdl`, or when `overrides` name a service or a port the template does not declare. With `code` `project_required`, a project is needed */
       400: {
         headers: {
           [name: string]: unknown;
@@ -12466,7 +12554,7 @@ export interface operations {
           };
         };
       };
-      /** @description No deployment you can change matches `inheritSecretsFrom`. Deliberately says nothing about whether that deployment exists. Also returned for an unknown `projectId` */
+      /** @description No deployment you can change matches `inheritSecretsFrom`. Deliberately says nothing about whether that deployment exists. Also returned for an unknown `projectId`, and for a `templateId` sent without `sdl` that the gallery does not list */
       404: {
         headers: {
           [name: string]: unknown;

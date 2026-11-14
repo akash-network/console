@@ -8,3 +8,6 @@ export const MAX_SUBMITTED_SDL_LENGTH = DEFAULT_BODY_LIMIT_BYTES;
 
 /** Matches the `manifest_version` column, so a client-supplied expectation cannot reach a query unbounded. */
 export const MAX_MANIFEST_VERSION_LENGTH = 64;
+
+/** Published in the API reference as the name a later patch addresses the service by, so changing it breaks callers that created a deployment without an SDL. */
+export const GENERATED_SERVICE_NAME = "app";
