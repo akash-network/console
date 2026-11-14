@@ -76,7 +76,7 @@
     "highlight.js": "~11.8.0",
     "jose": "^4.15.9",
     "jotai": "^2.9.2",
-    "js-yaml": "^4.1.0",
+    "js-yaml": "^4.3.2",
     "jszip": "^3.10.1",
     "lodash": "^4.17.21",
     "lucide-react": "^1.18.0",
