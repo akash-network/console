@@ -2,6 +2,7 @@ import { useCallback, useEffect } from "react";
 import { UserProvider } from "@auth0/nextjs-auth0/client";
 
 import { AccountStatusSync } from "@src/components/user/AccountStatusSync/AccountStatusSync";
+import { AccountSwitchSync } from "@src/components/user/AccountSwitchSync/AccountSwitchSync";
 import { SessionExpirySync } from "@src/components/user/SessionExpirySync/SessionExpirySync";
 import { UserInitLoader } from "@src/components/user/UserInitLoader";
 import { useServices } from "@src/context/ServicesProvider";
@@ -26,6 +27,7 @@ export const UserProviders: FCWithChildren = ({ children }) => {
     <UserProvider fetcher={getProfile}>
       <SessionExpirySync />
       <AccountStatusSync />
+      <AccountSwitchSync />
       <UserInitLoader>
         <UserTracker>{children}</UserTracker>
       </UserInitLoader>
