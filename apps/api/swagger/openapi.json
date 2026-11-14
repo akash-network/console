@@ -8403,7 +8403,8 @@
                     "properties": {
                       "sdl": {
                         "type": "string",
-                        "maxLength": 524288
+                        "maxLength": 524288,
+                        "description": "SDL to deploy. Send exactly one of `sdl`, `service`, or `templateId` without `sdl`."
                       },
                       "name": {
                         "type": "string",
@@ -8453,17 +8454,258 @@
                         "type": "string",
                         "maxLength": 255,
                         "pattern": "^[^/\\\\]+$",
-                        "description": "ID of the gallery template the SDL came from, as listed by GET /v1/templates. Console links the deployment to that template's guide. Not checked against the gallery."
+                        "description": "ID of a gallery template, as listed by GET /v1/templates-list. Sent with `sdl`, it names the template the SDL came from: the console links the deployment to that template's guide and does not check the ID against the gallery. Sent without `sdl`, the console deploys the template's own SDL, with `overrides` applied, and answers 404 for an ID the gallery does not list."
                       },
                       "templateVersionId": {
                         "type": "string",
                         "format": "uuid",
                         "description": "ID of the template version the SDL came from. Readers of the template may name its current version and its editors any version. Cannot be combined with `templateId`."
+                      },
+                      "service": {
+                        "type": "object",
+                        "properties": {
+                          "image": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Container image, with its tag.",
+                            "example": "nginx:1.27.2"
+                          },
+                          "resources": {
+                            "type": "object",
+                            "properties": {
+                              "cpu": {
+                                "type": "number",
+                                "minimum": 0,
+                                "exclusiveMinimum": true,
+                                "description": "CPU units. 0.5 is half a core.",
+                                "example": 0.5
+                              },
+                              "memory": {
+                                "type": "string",
+                                "pattern": "^\\d+(\\.\\d+)?(k|Ki|M|Mi|G|Gi|T|Ti)$",
+                                "description": "Memory, as a number and a unit.",
+                                "example": "512Mi"
+                              },
+                              "storage": {
+                                "type": "string",
+                                "pattern": "^\\d+(\\.\\d+)?(k|Ki|M|Mi|G|Gi|T|Ti)$",
+                                "description": "Ephemeral disk, as a number and a unit.",
+                                "example": "1Gi"
+                              },
+                              "gpu": {
+                                "type": "object",
+                                "properties": {
+                                  "units": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "description": "Number of GPUs."
+                                  },
+                                  "model": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "description": "NVIDIA model key, such as `rtx4090` or `h100`. Omit it to take any NVIDIA GPU."
+                                  }
+                                },
+                                "required": [
+                                  "units"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "cpu",
+                              "memory",
+                              "storage"
+                            ]
+                          },
+                          "ports": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "port": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 65535,
+                                  "description": "Container port the workload listens on."
+                                },
+                                "as": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 65535,
+                                  "description": "Port the endpoint is reached on. Defaults to `port`. A port reached on 80 gets a hostname from the provider; any other port is reached on the provider's host through a port the provider picks."
+                                }
+                              },
+                              "required": [
+                                "port"
+                              ]
+                            },
+                            "minItems": 1,
+                            "description": "Ports to publish. Every one is reachable from the internet, and a deployment needs at least one."
+                          },
+                          "env": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "string"
+                            },
+                            "description": "Environment variables, keyed by name. `secretEnv` says which values are secret, as it does for an SDL."
+                          }
+                        },
+                        "required": [
+                          "image",
+                          "resources",
+                          "ports"
+                        ],
+                        "description": "Creates a deployment without an SDL: the console writes the SDL of one service named `app` from these inputs and stores it, so the deployment reads, patches and redeploys like any other. Address the service as `app` in PATCH /v1/deployments/{dseq}."
+                      },
+                      "overrides": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "object",
+                          "properties": {
+                            "image": {
+                              "type": "string"
+                            },
+                            "command": {
+                              "type": "array",
+                              "nullable": true,
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "args": {
+                              "type": "array",
+                              "nullable": true,
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "env": {
+                              "type": "object",
+                              "additionalProperties": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "description": "Merged into the service's env, keyed by environment variable name. A null value removes the variable. A patched variable is re-appended, so the order of the stored env list may change. Every written value is sealed unless the request says which are secret with `secretEnv`, or carries `sealedSecrets`."
+                            },
+                            "credentials": {
+                              "type": "object",
+                              "nullable": true,
+                              "properties": {
+                                "host": {
+                                  "type": "string"
+                                },
+                                "username": {
+                                  "type": "string"
+                                },
+                                "password": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "host",
+                                "username",
+                                "password"
+                              ],
+                              "description": "Private registry pull credentials. Null clears them."
+                            },
+                            "expose": {
+                              "type": "object",
+                              "additionalProperties": {
+                                "type": "object",
+                                "properties": {
+                                  "port": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 65535,
+                                    "description": "Moves the container port the workload listens on. The entry is still addressed by the port it declares today. Refused onto a port the service already exposes, and on an endpoint reached through a leased IP."
+                                  },
+                                  "as": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 65535,
+                                    "description": "Moves the port the endpoint is reached on. Refused when it would change the endpoint's kind (a public TCP endpoint moving onto or off port 80), onto a port another endpoint of the service uses, and on an endpoint reached through a leased IP."
+                                  },
+                                  "accept": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    },
+                                    "description": "Custom domains. Replaces the existing list. Emptying it is rejected by providers that do not generate a hostname of their own, which leaves the patch recorded but undeployed."
+                                  },
+                                  "httpOptions": {
+                                    "type": "object",
+                                    "properties": {
+                                      "maxBodySize": {
+                                        "type": "integer",
+                                        "minimum": 1,
+                                        "maximum": 104857600
+                                      },
+                                      "readTimeout": {
+                                        "type": "integer",
+                                        "minimum": 1,
+                                        "maximum": 4294967295
+                                      },
+                                      "sendTimeout": {
+                                        "type": "integer",
+                                        "minimum": 1,
+                                        "maximum": 4294967295
+                                      },
+                                      "nextTries": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 4294967295
+                                      },
+                                      "nextTimeout": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 4294967295
+                                      },
+                                      "nextCases": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string",
+                                          "enum": [
+                                            "error",
+                                            "timeout",
+                                            "500",
+                                            "502",
+                                            "503",
+                                            "504",
+                                            "403",
+                                            "404",
+                                            "429",
+                                            "off"
+                                          ]
+                                        },
+                                        "minItems": 1,
+                                        "description": "Conditions the proxy retries on. Replaces the existing list; \"off\" disables retrying and stands alone."
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "description": "Keyed by the container port the stored SDL declares. Port numbers, hosts and http options are patchable; protocol, routing, endpoint kind and count are fixed at create. A random-port endpoint whose numbers change gets a new public port from the provider, and so can the service's other random-port endpoints when a container port move reorders them."
+                            },
+                            "storage": {
+                              "type": "object",
+                              "additionalProperties": {
+                                "type": "object",
+                                "properties": {
+                                  "mount": {
+                                    "type": "string"
+                                  },
+                                  "readOnly": {
+                                    "type": "boolean"
+                                  }
+                                }
+                              },
+                              "description": "Keyed by volume name. Mount point and read-only flag only — sizes are fixed at create."
+                            }
+                          }
+                        },
+                        "description": "Changes to the SDL of the template named by `templateId`, keyed by service name, in the shape of `services` in PATCH /v1/deployments/{dseq}. Only for a deployment created from `templateId` without `sdl`."
                       }
-                    },
-                    "required": [
-                      "sdl"
-                    ]
+                    }
                   }
                 },
                 "required": [
@@ -8567,7 +8809,7 @@
             }
           },
           "400": {
-            "description": "The SDL leaves a secret reference with no value from either `sealedSecrets` or the deployment named by `inheritSecretsFrom`, supplies a name no service references, would carry more secrets than one deployment may hold, names a variable in `secretEnv` that no service sets, or carries a `sealedSecrets` value that is malformed, tampered with, expired or not a flat object of string values. With `code` `project_required`, a project is needed",
+            "description": "The SDL leaves a secret reference with no value from either `sealedSecrets` or the deployment named by `inheritSecretsFrom`, supplies a name no service references, would carry more secrets than one deployment may hold, names a variable in `secretEnv` that no service sets, or carries a `sealedSecrets` value that is malformed, tampered with, expired or not a flat object of string values. Also returned when the request names no source or more than one of `sdl`, `service` and `templateId` without `sdl`, or when `overrides` name a service or a port the template does not declare. With `code` `project_required`, a project is needed",
             "content": {
               "application/json": {
                 "schema": {
@@ -8627,7 +8869,7 @@
             }
           },
           "404": {
-            "description": "No deployment you can change matches `inheritSecretsFrom`. Deliberately says nothing about whether that deployment exists. Also returned for an unknown `projectId`",
+            "description": "No deployment you can change matches `inheritSecretsFrom`. Deliberately says nothing about whether that deployment exists. Also returned for an unknown `projectId`, and for a `templateId` sent without `sdl` that the gallery does not list",
             "content": {
               "application/json": {
                 "schema": {
