@@ -62,10 +62,14 @@ describe(getBlockDownloadRange.name, () => {
   });
 
   describe("when the cache is kept between runs", () => {
-    it("downloads from the top of the cache", () => {
+    it("downloads from the first height above the cache", () => {
       const range = getBlockDownloadRange(input({ keepCache: true, latestInsertedHeight: 50, latestHeightInCache: 100, latestBlockToDownload: 105 }));
 
-      expect(range).toEqual({ startHeight: 100, endHeight: 105 });
+      expect(range).toEqual({ startHeight: 101, endHeight: 105 });
+    });
+
+    it("returns nothing when the cache already reaches the latest block", () => {
+      expect(getBlockDownloadRange(input({ keepCache: true, latestInsertedHeight: 50, latestHeightInCache: 105, latestBlockToDownload: 105 }))).toBeNull();
     });
 
     it("starts from the first block when the cache is empty", () => {
