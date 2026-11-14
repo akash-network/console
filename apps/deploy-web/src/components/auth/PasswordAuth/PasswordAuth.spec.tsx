@@ -11,6 +11,7 @@ import type { AnalyticsService } from "@src/services/analytics/analytics.service
 import type { AuthService } from "@src/services/auth/auth/auth.service";
 import type { SignInForm, SignInFormValues } from "../SignInForm/SignInForm";
 import type { SignUpForm, SignUpFormValues } from "../SignUpForm/SignUpForm";
+import type { SignUpTrialOffer } from "../SignUpTrialOffer/SignUpTrialOffer";
 import { DEPENDENCIES, PasswordAuth } from "./PasswordAuth";
 
 import { act, render, screen } from "@testing-library/react";
@@ -317,15 +318,33 @@ describe(PasswordAuth.name, () => {
     });
   });
 
-  describe("$1 credit subtext", () => {
-    it("renders when the login/signup view is active", () => {
+  describe("trial credit subtext", () => {
+    it("renders the standard trial credits without a referral welcome when the login/signup view is active", () => {
       setup();
-      expect(screen.getByText(/\$1 credit to deploy your first container/i)).toBeInTheDocument();
+
+      expect(screen.getByText("$1 credit to deploy your first container. No card required.")).toBeInTheDocument();
+      expect(screen.queryByText("You were referred to Akash Console")).not.toBeInTheDocument();
     });
 
     it("does not render in the forgot-password view", () => {
-      setup({ searchParams: { tab: "forgot-password" } });
-      expect(screen.queryByText(/\$1 credit to deploy your first container/i)).not.toBeInTheDocument();
+      setup({ searchParams: { tab: "forgot-password" }, trialOffer: { isReferred: true, trialCreditsUsd: 5 } });
+
+      expect(screen.queryByText(/to deploy your first container/i)).not.toBeInTheDocument();
+      expect(screen.queryByText("You were referred to Akash Console")).not.toBeInTheDocument();
+    });
+
+    it("checks the referral code it was given", () => {
+      const { useSignUpTrialOffer } = setup({ referralCode: "friendcode" });
+
+      expect(useSignUpTrialOffer).toHaveBeenCalledWith("friendcode");
+    });
+
+    it("welcomes a referred visitor with the referral trial credits", () => {
+      setup({ searchParams: { tab: "signup" }, trialOffer: { isReferred: true, trialCreditsUsd: 5 } });
+
+      expect(screen.getByText("You were referred to Akash Console")).toBeInTheDocument();
+      expect(screen.getByText("Create your account to start with $5 in free credits.")).toBeInTheDocument();
+      expect(screen.getByText("$5 in credits to deploy your first containers. No card required.")).toBeInTheDocument();
     });
   });
 
@@ -336,9 +355,12 @@ describe(PasswordAuth.name, () => {
         returnTo?: string;
         from?: string;
       };
+      referralCode?: string;
+      trialOffer?: SignUpTrialOffer;
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
   ) {
+    const useSignUpTrialOffer = vi.fn<typeof DEPENDENCIES.useSignUpTrialOffer>(() => input.trialOffer ?? { isReferred: false, trialCreditsUsd: 1 });
     const authService = mock<AuthService>();
     let setRouterPageParams: (params: URLSearchParams) => void = () => {};
     const router = mock<NextRouter>({
@@ -385,8 +407,12 @@ describe(PasswordAuth.name, () => {
     render(
       <TestContainerProvider services={{ authService: () => authService, analyticsService: () => analyticsService }}>
         <PasswordAuth
+          referralCode={input.referralCode}
           dependencies={{
             ...MockComponents(DEPENDENCIES),
+            ReferralWelcome: DEPENDENCIES.ReferralWelcome,
+            TrialCreditsNotice: DEPENDENCIES.TrialCreditsNotice,
+            useSignUpTrialOffer,
             useUser,
             useSearchParams,
             useRouter: () => router,
@@ -400,6 +426,7 @@ describe(PasswordAuth.name, () => {
 
     return {
       authService,
+      useSignUpTrialOffer,
       analyticsService,
       router,
       checkSession,

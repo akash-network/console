@@ -18,6 +18,7 @@ type ReferredUser = Pick<UserOutput, "id" | "email" | "lastFingerprint">;
 
 export type AttributeReferralInput = { referredUser: ReferredUser; code: string };
 export type Referral = { trialCreditsUsd: number };
+export type ReferralCodeCheck = { valid: false } | { valid: true; trialCreditsUsd: number };
 
 @singleton()
 export class ReferralService {
@@ -73,6 +74,15 @@ export class ReferralService {
       isPresentAndEqual(referredUser.lastFingerprint, affiliateUser.lastFingerprint) ||
       isPresentAndEqual(normalizeEmailAddress(referredUser.email), normalizeEmailAddress(affiliateUser.email))
     );
+  }
+
+  async checkCode(code: string): Promise<ReferralCodeCheck> {
+    const affiliate = await this.affiliateService.findActiveByCode(code);
+    if (!affiliate || !this.featureFlagsService.isEnabledForSubject(FeatureFlags.AFFILIATE_PROGRAM, affiliate.userId)) {
+      return { valid: false };
+    }
+
+    return { valid: true, trialCreditsUsd: this.billingConfig.REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT / MICRO_DENOM_PER_UNIT };
   }
 
   async getTrialDeploymentLimit(userId: string): Promise<number | undefined> {

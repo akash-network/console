@@ -5,6 +5,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { TurnstileRef } from "@src/components/turnstile/Turnstile";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
+import type { SignUpTrialOffer } from "../SignUpTrialOffer/SignUpTrialOffer";
 import { DEPENDENCIES, PasswordlessAuth } from "./PasswordlessAuth";
 
 import { act, render, screen } from "@testing-library/react";
@@ -199,9 +200,32 @@ describe(PasswordlessAuth.name, () => {
     expect(abandonPendingChallenge).toHaveBeenCalled();
   });
 
-  it("shows the $1 credit subtext", () => {
+  it("shows the standard trial credit subtext without a referral welcome", () => {
     setup();
-    expect(screen.getByText(/\$1 credit to deploy your first container/i)).toBeInTheDocument();
+
+    expect(screen.getByText("$1 credit to deploy your first container. No card required.")).toBeInTheDocument();
+    expect(screen.queryByText("You were referred to Akash Console")).not.toBeInTheDocument();
+  });
+
+  it("checks the referral code it was given", () => {
+    const { useSignUpTrialOffer } = setup({ referralCode: "friendcode" });
+
+    expect(useSignUpTrialOffer).toHaveBeenCalledWith("friendcode");
+  });
+
+  it("welcomes a referred visitor with the referral trial credits", () => {
+    setup({ trialOffer: { isReferred: true, trialCreditsUsd: 5 } });
+
+    expect(screen.getByText("You were referred to Akash Console")).toBeInTheDocument();
+    expect(screen.getByText("Create your account to start with $5 in free credits.")).toBeInTheDocument();
+    expect(screen.getByText("$5 in credits to deploy your first containers. No card required.")).toBeInTheDocument();
+  });
+
+  it("hides the referral welcome and the trial credits on the verify screen", () => {
+    setup({ step: "verify", initialEmail: "user@example.com", trialOffer: { isReferred: true, trialCreditsUsd: 5 } });
+
+    expect(screen.queryByText("You were referred to Akash Console")).not.toBeInTheDocument();
+    expect(screen.queryByText(/to deploy your first container/i)).not.toBeInTheDocument();
   });
 
   it("tracks terms_link_clk when the Terms link is clicked", async () => {
@@ -230,9 +254,12 @@ describe(PasswordlessAuth.name, () => {
        * settles, "errored" keeps the stale user but surfaces an error (transient re-fetch failure).
        */
       sessionRevalidation?: "valid" | "expired" | "pending" | "errored";
+      referralCode?: string;
+      trialOffer?: SignUpTrialOffer;
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
   ) {
+    const useSignUpTrialOffer = vi.fn<typeof DEPENDENCIES.useSignUpTrialOffer>(() => input.trialOffer ?? { isReferred: false, trialCreditsUsd: 1 });
     const analyticsService = mock<AnalyticsService>();
     const onEmailChange = vi.fn();
     const onFlowReset = vi.fn();
@@ -290,8 +317,12 @@ describe(PasswordlessAuth.name, () => {
           initialEmail={input.initialEmail ?? ""}
           onEmailChange={onEmailChange}
           onFlowReset={onFlowReset}
+          referralCode={input.referralCode}
           dependencies={{
             ...MockComponents(DEPENDENCIES),
+            ReferralWelcome: DEPENDENCIES.ReferralWelcome,
+            TrialCreditsNotice: DEPENDENCIES.TrialCreditsNotice,
+            useSignUpTrialOffer,
             useUser,
             useReturnTo,
             useRouter,
@@ -305,6 +336,7 @@ describe(PasswordlessAuth.name, () => {
 
     return {
       analyticsService,
+      useSignUpTrialOffer,
       onEmailChange,
       onFlowReset,
       checkSession,
