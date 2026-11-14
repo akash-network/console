@@ -29,6 +29,7 @@
     "@hono/node-server": "^1.19.0",
     "@hono/otel": "~0.4.0",
     "@hono/zod-openapi": "^0.18.4",
+    "effect": "^4.1.2",
     "hono": "4.6.12",
     "lru-cache": "^11.0.2",
     "ws": "^7.5.9",
