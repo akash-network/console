@@ -127,7 +127,7 @@ async function seed(options: SeedOptions): Promise<void> {
 
     if (parsed.document === null) throw new Error("The rehearsal SDL did not parse");
 
-    const secrets = derivationService.derive(parsed.document, { includeEnvValues: true });
+    const secrets = derivationService.derive(parsed.document, { sealedEnv: "every-value" });
     const { sdl } = sdlForStorage(parsed, SDL_MAX_LENGTH);
 
     if (sdl === null) throw new Error("The rehearsal SDL is too large to store");

@@ -11611,7 +11611,7 @@ export interface operations {
                 image?: string;
                 command?: string[] | null;
                 args?: string[] | null;
-                /** @description Merged into the service's env, keyed by environment variable name. A null value removes the variable. A patched variable is re-appended, so the order of the stored env list may change. Written values are sealed unless the request carries `sealedSecrets`. */
+                /** @description Merged into the service's env, keyed by environment variable name. A null value removes the variable. A patched variable is re-appended, so the order of the stored env list may change. Every written value is sealed unless the request says which are secret with `secretEnv`, or carries `sealedSecrets`. */
                 env?: {
                   [key: string]: string | null;
                 };
@@ -11652,8 +11652,15 @@ export interface operations {
             };
             /** @description Renames the deployment. Supplied on its own it is the only patch that touches no definition, so it works on a deployment the console holds no SDL for and sends neither a deployment update nor a manifest. */
             name?: string;
-            /** @description Compact JWE sealing a flat name-to-value map, as on create, but holding only the names this patch replaces. Omitted names keep the values the deployment already stores. Its presence also says which values are secret, as on create: a patch carrying a seal stores the env values it writes as submitted, while one carrying none seals them. A seal of an empty map is how a caller writes plain variables without replacing any secret. */
+            /** @description Compact JWE sealing a flat name-to-value map, as on create, but holding only the names this patch replaces. Omitted names keep the values the deployment already stores. Its presence also says which values are secret, as on create: a patch carrying a seal stores the env values it writes as submitted, while one carrying none seals them, unless `secretEnv` says which are secret. */
             sealedSecrets?: string;
+            /**
+             * @description Names of the environment variables this patch writes whose values are secret, in every service it patches. The console seals each named value, which no endpoint returns afterwards, and stores every other value the patch writes as submitted, so it stays readable. An empty list keeps every written value readable. Omit it and the console seals every value the patch writes, unless the patch carries `sealedSecrets`. Variables the patch does not write keep what they hold. Needs no client-side encryption.
+             * @example [
+             *       "API_KEY"
+             *     ]
+             */
+            secretEnv?: string[];
             /** @description Base64 manifest version this patch expects to be current. Rejected with 409 if the deployment has moved on, unless it moved on to the version this very patch produces, which makes a retry of it succeed. Omitting this does not turn the guard off: the patch is then guarded on the version it read for itself, so a concurrent patch still answers 409 rather than overwriting it. */
             ifManifestVersion?: string;
           };
@@ -11831,7 +11838,7 @@ export interface operations {
           };
         };
       };
-      /** @description The patch names a service, port or volume the stored SDL does not declare, supplies a secret name it does not reference, leaves a reference with no value, moves a container port onto one the service already exposes, or moves a port in a way that would change its endpoint kind */
+      /** @description The patch names a service, port or volume the stored SDL does not declare, supplies a secret name it does not reference, leaves a reference with no value, names a variable in `secretEnv` it does not write, moves a container port onto one the service already exposes, or moves a port in a way that would change its endpoint kind */
       400: {
         headers: {
           [name: string]: unknown;
@@ -12422,6 +12429,14 @@ export interface operations {
             name?: string;
             /** @description Compact JWE sealing a flat name-to-value map of the secrets this SDL references, encrypted to the console's public sealing key. Fetch that key and the claims to sign from GET /v1/sdl-secrets-context. Values are never returned by any endpoint once sealed. */
             sealedSecrets?: string;
+            /**
+             * @description Names of the environment variables whose values are secret, in every service the SDL declares. The console seals each named value, which no endpoint returns afterwards, and stores every other env value as submitted, so it stays readable. An empty list keeps every env value readable. Omit it and the console seals every env value, unless the request carries `sealedSecrets`. Registry credentials are sealed either way. Needs no client-side encryption.
+             * @example [
+             *       "API_KEY",
+             *       "DATABASE_URL"
+             *     ]
+             */
+            secretEnv?: string[];
             /** @description Dseq of a deployment you can change, under the same owner as this one, whose stored secrets this deployment starts from, for redeploying an SDL without re-entering its values. The source may be closed. A name also present in `sealedSecrets` takes precedence over the inherited one. */
             inheritSecretsFrom?: string;
             /**
@@ -12488,7 +12503,7 @@ export interface operations {
           };
         };
       };
-      /** @description The SDL leaves a secret reference with no value from either `sealedSecrets` or the deployment named by `inheritSecretsFrom`, supplies a name no service references, would carry more secrets than one deployment may hold, or carries a `sealedSecrets` value that is malformed, tampered with, expired or not a flat object of string values. With `code` `project_required`, a project is needed */
+      /** @description The SDL leaves a secret reference with no value from either `sealedSecrets` or the deployment named by `inheritSecretsFrom`, supplies a name no service references, would carry more secrets than one deployment may hold, names a variable in `secretEnv` that no service sets, or carries a `sealedSecrets` value that is malformed, tampered with, expired or not a flat object of string values. With `code` `project_required`, a project is needed */
       400: {
         headers: {
           [name: string]: unknown;
@@ -20846,7 +20861,7 @@ export interface operations {
                           image?: string;
                           command?: string[] | null;
                           args?: string[] | null;
-                          /** @description Merged into the service's env, keyed by environment variable name. A null value removes the variable. A patched variable is re-appended, so the order of the stored env list may change. Written values are sealed unless the request carries `sealedSecrets`. */
+                          /** @description Merged into the service's env, keyed by environment variable name. A null value removes the variable. A patched variable is re-appended, so the order of the stored env list may change. Every written value is sealed unless the request says which are secret with `secretEnv`, or carries `sealedSecrets`. */
                           env?: {
                             [key: string]: string | null;
                           };
@@ -21363,7 +21378,7 @@ export interface operations {
                           image?: string;
                           command?: string[] | null;
                           args?: string[] | null;
-                          /** @description Merged into the service's env, keyed by environment variable name. A null value removes the variable. A patched variable is re-appended, so the order of the stored env list may change. Written values are sealed unless the request carries `sealedSecrets`. */
+                          /** @description Merged into the service's env, keyed by environment variable name. A null value removes the variable. A patched variable is re-appended, so the order of the stored env list may change. Every written value is sealed unless the request says which are secret with `secretEnv`, or carries `sealedSecrets`. */
                           env?: {
                             [key: string]: string | null;
                           };
