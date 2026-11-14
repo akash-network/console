@@ -981,6 +981,174 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(flow.actions.requestQuotesAgain).not.toHaveBeenCalled();
   });
 
+  describe("when a trial is refused for credit below the deployment minimum", () => {
+    const TRIAL_BELOW_MINIMUM = {
+      initialSdl: undefined,
+      phase: "error",
+      flowError: { message: "Not enough balance", kind: "needs-funds", shortfall: { requiredAmountUsd: 0.5, availableAmountUsd: 0.43 } },
+      isTrialing: true,
+      deployBalanceUsd: 0.43,
+      minimumDepositUsd: 0.5,
+      Workspace: TemplateProbeWorkspace,
+      Header: TemplateProbeHeader
+    } satisfies Parameters<typeof setup>[0];
+
+    it.each([
+      { layout: "two panel", twoPanel: true },
+      { layout: "three pane", twoPanel: false }
+    ])("holds the next request back and opens Add credits instead ($layout layout)", async ({ twoPanel }) => {
+      const { openAddCredits, analyticsService, flow, requestQuotes } = setup({ ...TRIAL_BELOW_MINIMUM, twoPanel });
+
+      expect(screen.getByTestId("blocked-reason")).toHaveTextContent("Add credits to deploy");
+
+      await userEvent.click(screen.getByRole("button", { name: "request bids" }));
+
+      expect(openAddCredits).toHaveBeenCalledTimes(1);
+      expect(openAddCredits).toHaveBeenCalledWith(
+        expect.objectContaining({
+          initialTab: "purchase",
+          context: "configure_quotes_needs_funds",
+          nextStepLabel: "Continue to deploy",
+          suggestFirstDeployment: false
+        })
+      );
+      expect(analyticsService.track).toHaveBeenCalledWith("configure_choose_provider_blocked", {
+        category: "deployments",
+        reasons: ["trial_credit_below_minimum"]
+      });
+      expect(analyticsService.track).not.toHaveBeenCalledWith("configure_needs_funds_add_credits_clicked", expect.anything());
+      expect(requestQuotes).not.toHaveBeenCalled();
+      expect(flow.actions.requestQuotesAgain).not.toHaveBeenCalled();
+    });
+
+    it("holds the next request back for a trial whose credit is used up", async () => {
+      const { analyticsService } = setup({
+        ...TRIAL_BELOW_MINIMUM,
+        flowError: { message: "Not enough balance", kind: "needs-funds", shortfall: { requiredAmountUsd: 0.5, availableAmountUsd: 0 } },
+        deployBalanceUsd: 0
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "request bids" }));
+
+      expect(screen.getByTestId("blocked-reason")).toHaveTextContent("Add credits to deploy");
+      expect(analyticsService.track).toHaveBeenCalledWith("configure_choose_provider_blocked", { category: "deployments", reasons: ["trial_credit_used_up"] });
+    });
+
+    it("sends the held request once credits land, so the user goes on to quotes without another click", async () => {
+      const { flow, openAddCredits } = setup(TRIAL_BELOW_MINIMUM);
+      await userEvent.click(screen.getByRole("button", { name: "request bids" }));
+
+      act(() => creditsAddedCallbackOf(openAddCredits)());
+
+      expect(flow.actions.requestQuotesAgain).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the credit left and the minimum on the page after the user edits the deployment", async () => {
+      setup({ ...TRIAL_BELOW_MINIMUM, Panes: SdlProbePanes });
+
+      await userEvent.click(screen.getByRole("button", { name: "change image" }));
+
+      expect(screen.getByRole("alert")).toHaveTextContent("You have $0.43 of free trial credit left, and every deployment needs at least $0.50 up front");
+      expect(screen.getByTestId("blocked-reason")).toHaveTextContent("Add credits to deploy");
+    });
+
+    it("keeps the credit left and the minimum on the page after the user renames the deployment", () => {
+      const { naming, rerenderWith } = setup({ ...TRIAL_BELOW_MINIMUM, initialName: "my-app" });
+      naming.typedName = "my-other-app";
+      rerenderWith({});
+
+      expect(screen.getByRole("alert")).toHaveTextContent("Your free trial credit is below the deployment minimum");
+      expect(screen.getByTestId("blocked-reason")).toHaveTextContent("Add credits to deploy");
+    });
+
+    it("lets the next request through once the balance covers the refused deploy, without a reload", () => {
+      const { rerenderWith } = setup(TRIAL_BELOW_MINIMUM);
+
+      rerenderWith({ deployBalanceUsd: 20.43 });
+
+      expect(screen.getByTestId("blocked-reason")).toBeEmptyDOMElement();
+      expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+    });
+
+    it("takes the refusal down once the balance covers a deployment the user edited while held", async () => {
+      const { rerenderWith } = setup({ ...TRIAL_BELOW_MINIMUM, Panes: SdlProbePanes });
+      await userEvent.click(screen.getByRole("button", { name: "change image" }));
+
+      rerenderWith({ deployBalanceUsd: 20.43 });
+
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      expect(screen.getByTestId("blocked-reason")).toBeEmptyDOMElement();
+    });
+
+    it("lets the next request through once the trial ends, when the refusal reported no amounts", () => {
+      const { rerenderWith } = setup({ ...TRIAL_BELOW_MINIMUM, flowError: { message: "Not enough balance", kind: "needs-funds" } });
+      expect(screen.getByTestId("blocked-reason")).toHaveTextContent("Add credits to deploy");
+
+      rerenderWith({ isTrialing: false });
+
+      expect(screen.getByTestId("blocked-reason")).toBeEmptyDOMElement();
+    });
+
+    it("lets the next request through once the request is sent again", () => {
+      const { flow, rerenderWith } = setup(TRIAL_BELOW_MINIMUM);
+      flow.phase = "creating";
+      flow.error = undefined;
+      rerenderWith({});
+
+      expect(screen.getByTestId("blocked-reason")).toBeEmptyDOMElement();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("asks for the empty required variables first", async () => {
+      const { openAddCredits, analyticsService } = setup({
+        ...TRIAL_BELOW_MINIMUM,
+        initialSdl: TEMPLATE_SDL,
+        templateSource: templateSourceOf(),
+        Panes: TemplateProbePanes
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "request bids" }));
+
+      expect(screen.getByTestId("blocked-reason")).toHaveTextContent("2 required fields are empty");
+      expect(screen.getByText("Enter a value for Admin email to continue.")).toBeInTheDocument();
+      expect(openAddCredits).not.toHaveBeenCalled();
+      expect(analyticsService.track).not.toHaveBeenCalledWith("configure_choose_provider_blocked", expect.anything());
+    });
+  });
+
+  it.each([
+    {
+      account: "a paid account short of the deposit",
+      isTrialing: false,
+      deployBalanceUsd: 0.12,
+      flowError: { message: "Not enough balance", kind: "needs-funds", shortfall: { requiredAmountUsd: 0.5, availableAmountUsd: 0.12 } }
+    },
+    {
+      account: "a trial refused for something other than its credit",
+      isTrialing: true,
+      deployBalanceUsd: 20,
+      flowError: { message: "GPU interconnect not available on free trial: Add funds to unlock GPU interconnect", kind: "needs-funds" }
+    },
+    {
+      account: "a trial below the minimum whose request failed for another reason",
+      isTrialing: true,
+      deployBalanceUsd: 0.12,
+      flowError: { message: "Invalid SDL", kind: "create" }
+    }
+  ] as const)("leaves the next request open to $account", ({ isTrialing, deployBalanceUsd, flowError }) => {
+    setup({
+      initialSdl: undefined,
+      phase: "error",
+      flowError,
+      isTrialing,
+      deployBalanceUsd,
+      minimumDepositUsd: 0.5,
+      Header: TemplateProbeHeader
+    });
+
+    expect(screen.getByTestId("blocked-reason")).toBeEmptyDOMElement();
+  });
+
   it("closes the review modal when it is dismissed via Back", async () => {
     setup({ initialSdl: VALID_SDL, Panes: ProviderSelectProbePanes });
 
@@ -1835,15 +2003,12 @@ describe(ConfigureDeploymentForm.name, () => {
       usePublishConfigureForm,
       useFlag: () => false,
       useAddCredits: () => openAddCredits,
-      useWallet: () => Object.assign(mock<ReturnType<typeof DEPENDENCIES.useWallet>>(), { isTrialing: input.isTrialing ?? false }),
-      useWalletBalance: () =>
-        Object.assign(mock<ReturnType<typeof DEPENDENCIES.useWalletBalance>>(), {
-          balance: input.deployBalanceUsd === undefined ? null : mock<WalletBalance>({ totalDeploymentGrantsUSD: input.deployBalanceUsd })
-        }),
+      useWallet: walletWith(input.isTrialing ?? false),
+      useWalletBalance: walletBalanceWith(input.deployBalanceUsd),
       useDeploymentFundingConfigQuery: fundingConfigQueryWith(input.minimumDepositUsd)
     };
 
-    const formWithFlags = (flags: { twoPanel: boolean; minimumDepositUsd?: number }) => (
+    const formWithFlags = (flags: { twoPanel: boolean; minimumDepositUsd?: number; isTrialing: boolean; deployBalanceUsd?: number }) => (
       <ConfigureDeploymentForm
         initialSdl={input.initialSdl}
         initialName={input.initialName}
@@ -1860,11 +2025,18 @@ describe(ConfigureDeploymentForm.name, () => {
         dependencies={{
           ...dependencies,
           useFlag: flag => flag === "ui_configure_two_panel" && flags.twoPanel,
-          useDeploymentFundingConfigQuery: fundingConfigQueryWith(flags.minimumDepositUsd)
+          useDeploymentFundingConfigQuery: fundingConfigQueryWith(flags.minimumDepositUsd),
+          useWallet: walletWith(flags.isTrialing),
+          useWalletBalance: walletBalanceWith(flags.deployBalanceUsd)
         }}
       />
     );
-    const initialFlags = { twoPanel: input.twoPanel ?? false, minimumDepositUsd: input.minimumDepositUsd };
+    const initialFlags = {
+      twoPanel: input.twoPanel ?? false,
+      minimumDepositUsd: input.minimumDepositUsd,
+      isTrialing: input.isTrialing ?? false,
+      deployBalanceUsd: input.deployBalanceUsd
+    };
     const { rerender, unmount } = render(formWithFlags(initialFlags));
 
     return {
@@ -2028,6 +2200,17 @@ function fundingConfigQueryWith(minimumDepositUsd: number | undefined): typeof D
   return () =>
     Object.assign(mock<ReturnType<typeof DEPENDENCIES.useDeploymentFundingConfigQuery>>(), {
       data: minimumDepositUsd === undefined ? undefined : { targetRunwayHours: 48, balanceHeadroomUsd: 5, defaultDepositUsd: minimumDepositUsd }
+    });
+}
+
+function walletWith(isTrialing: boolean): typeof DEPENDENCIES.useWallet {
+  return () => Object.assign(mock<ReturnType<typeof DEPENDENCIES.useWallet>>(), { isTrialing });
+}
+
+function walletBalanceWith(deployBalanceUsd: number | undefined): typeof DEPENDENCIES.useWalletBalance {
+  return () =>
+    Object.assign(mock<ReturnType<typeof DEPENDENCIES.useWalletBalance>>(), {
+      balance: deployBalanceUsd === undefined ? null : mock<WalletBalance>({ totalDeploymentGrantsUSD: deployBalanceUsd })
     });
 }
 

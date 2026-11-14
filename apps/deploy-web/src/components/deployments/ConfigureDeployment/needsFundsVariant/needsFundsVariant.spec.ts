@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { canRetryRefusedDeploy, needsFundsVariantOf } from "./needsFundsVariant";
+import { canRetryRefusedDeploy, isHeldForTrialCredit, needsFundsVariantOf } from "./needsFundsVariant";
 
 describe(needsFundsVariantOf.name, () => {
   it("says the free trial credit is used up when a trial has nothing left", () => {
@@ -63,5 +63,33 @@ describe(canRetryRefusedDeploy.name, () => {
 
   it("offers no retry for a refusal that reported no amounts", () => {
     expect(canRetryRefusedDeploy({ balanceUsd: 20 })).toBe(false);
+  });
+});
+
+describe(isHeldForTrialCredit.name, () => {
+  const shortfall = { requiredAmountUsd: 0.5, availableAmountUsd: 0.43 };
+
+  it("holds a trial whose credit is below the minimum while the balance still falls short", () => {
+    const variant = { name: "trial_credit_below_minimum", availableAmountUsd: 0.43, minimumDepositUsd: 0.5 } as const;
+
+    expect(isHeldForTrialCredit({ variant, shortfall, balanceUsd: 0.43 })).toBe(true);
+  });
+
+  it("holds a trial whose credit is used up while the balance still falls short", () => {
+    expect(
+      isHeldForTrialCredit({ variant: { name: "trial_credit_used_up" }, shortfall: { requiredAmountUsd: 0.5, availableAmountUsd: 0 }, balanceUsd: 0 })
+    ).toBe(true);
+  });
+
+  it("holds a trial whose refusal reported no amounts, since nothing tells when the balance covers it", () => {
+    expect(isHeldForTrialCredit({ variant: { name: "trial_credit_used_up" }, balanceUsd: 0 })).toBe(true);
+  });
+
+  it("releases a trial once the balance covers what the refused deploy needed", () => {
+    expect(isHeldForTrialCredit({ variant: { name: "trial_credit_used_up" }, shortfall, balanceUsd: 0.5 })).toBe(false);
+  });
+
+  it("never holds a balance that merely falls short, since a smaller deployment can still fit it", () => {
+    expect(isHeldForTrialCredit({ variant: { name: "not_enough_balance" }, shortfall, balanceUsd: 0.12 })).toBe(false);
   });
 });
