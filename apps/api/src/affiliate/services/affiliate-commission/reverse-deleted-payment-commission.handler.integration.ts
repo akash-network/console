@@ -6,9 +6,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AffiliateRepository } from "@src/affiliate/repositories/affiliate/affiliate.repository";
 import { ReferralRepository } from "@src/affiliate/repositories/referral/referral.repository";
 import { StripeTransactionRepository } from "@src/billing/repositories";
+import { PaymentCreditRepository } from "@src/billing/repositories/payment-credit/payment-credit.repository";
 import { RefillService } from "@src/billing/services/refill/refill.service";
+import { TxPresenceService } from "@src/chain/services/tx-presence/tx-presence.service";
 import { JOB_NAME } from "@src/core";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
+import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
 import { ReverseDeletedPaymentCommissionHandler } from "./reverse-deleted-payment-commission.handler";
 import { type DeletedPaymentReversal, ReverseDeletedPaymentCommission } from "./reverse-deleted-payment-commission.job";
 import { SyncAffiliateCommissionHandler } from "./sync-affiliate-commission.handler";
@@ -112,6 +115,46 @@ describe(ReverseDeletedPaymentCommissionHandler.name, () => {
       { userId: affiliateUser.id, organizationId: null },
       { currency: "usd", transactionId: held.id, refundedBefore: 0, refundedAfter: 200 }
     );
+  });
+
+  it("takes a refund back from a commission still on hold whose pending release credit turns out to have landed", async () => {
+    const { payment, affiliateUser, reduceWalletBalance, holdCommissionOf, deletePayer, reverseCommissionOf } = await setup({ paymentAmount: 10000 });
+    const held = await holdCommissionOf(payment.id);
+    const { txHash } = await seedPaymentCredit({ transactionId: held.id, status: "pending", amount: 500, bonusAmount: 0 });
+    vi.spyOn(container.resolve(TxPresenceService), "findTx").mockResolvedValue({ hash: txHash!, code: COSMOS_TX_CODE_OK, height: 1, rawLog: "" });
+    await deletePayer();
+
+    await reverseCommissionOf(payment.stripeChargeId, { reason: "refund", amount: 10000, amountRefunded: 4000 });
+
+    await expect(container.resolve(StripeTransactionRepository).findById(held.id)).resolves.toMatchObject({
+      status: "succeeded",
+      amount: 500,
+      amountRefunded: 200
+    });
+    await expect(container.resolve(PaymentCreditRepository).findByTransactionId(held.id)).resolves.toMatchObject({ status: "landed" });
+    expect(reduceWalletBalance).toHaveBeenCalledExactlyOnceWith(
+      200,
+      { userId: affiliateUser.id, organizationId: null },
+      { currency: "usd", transactionId: held.id, refundedBefore: 0, refundedAfter: 200 }
+    );
+  });
+
+  it("cancels a commission still on hold without a debit when its pending release credit failed on chain", async () => {
+    const { payment, reduceWalletBalance, holdCommissionOf, deletePayer, reverseCommissionOf } = await setup({ paymentAmount: 10000 });
+    const held = await holdCommissionOf(payment.id);
+    const { txHash } = await seedPaymentCredit({ transactionId: held.id, status: "pending", amount: 500, bonusAmount: 0 });
+    vi.spyOn(container.resolve(TxPresenceService), "findTx").mockResolvedValue({ hash: txHash!, code: 5, height: 1, rawLog: "insufficient funds" });
+    await deletePayer();
+
+    await reverseCommissionOf(payment.stripeChargeId, { reason: "dispute_lost" });
+
+    await expect(container.resolve(StripeTransactionRepository).findById(held.id)).resolves.toMatchObject({
+      status: "canceled",
+      amount: 500,
+      amountRefunded: 500
+    });
+    await expect(container.resolve(PaymentCreditRepository).findByTransactionId(held.id)).resolves.toBeUndefined();
+    expect(reduceWalletBalance).not.toHaveBeenCalled();
   });
 
   it("leaves the commission of a payment that still exists to the payment's own sync", async () => {

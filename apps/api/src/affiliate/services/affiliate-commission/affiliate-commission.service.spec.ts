@@ -1,6 +1,7 @@
 import type { CreateLogger } from "@akashnetwork/logging";
 import { faker } from "@faker-js/faker";
 import { addSeconds, subSeconds } from "date-fns";
+import createHttpError from "http-errors";
 import { PostgresError } from "postgres";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -10,6 +11,7 @@ import type { ReferralOutput, ReferralRepository } from "@src/affiliate/reposito
 import type { BillingConfig } from "@src/billing/providers";
 import type { PaymentMethodRepository, StripeTransactionOutput, StripeTransactionRepository, UserWalletRepository } from "@src/billing/repositories";
 import type { PaymentCreditOutput, PaymentCreditRepository } from "@src/billing/repositories/payment-credit/payment-credit.repository";
+import type { PaymentCreditService } from "@src/billing/services/payment-credit/payment-credit.service";
 import type { RefillService } from "@src/billing/services/refill/refill.service";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
@@ -1842,30 +1844,48 @@ describe(AffiliateCommissionService.name, () => {
       expect(logger.warn).not.toHaveBeenCalled();
     });
 
-    it("throws so the job retries while the release credit of a held commission is still in flight", async () => {
-      const { service, orphanedCommissions, stripeTransactionRepository, refillService } = setup({
+    it("throws so the job retries while the outcome of a held commission's release credit is unknown", async () => {
+      const { service, orphanedCommissions, stripeTransactionRepository, paymentCreditService, refillService } = setup({
         orphanedCommissions: [{ status: "pending", amount: 500, releaseCredit: { status: "pending", amount: 500 } }]
       });
+      paymentCreditService.hasLanded.mockRejectedValue(createHttpError(503, "The payment's credit may still be landing"));
 
       await expect(service.reverseCommissionsOfDeletedPayment(orphanedCommissions[0].sourceStripeChargeId!, { reason: "dispute_lost" })).rejects.toThrow(
-        "still in flight"
+        "may still be landing"
       );
+      expect(stripeTransactionRepository.findAffiliateCommissionsOfDeletedPaymentAndLock).not.toHaveBeenCalled();
       expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
       expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
     });
 
-    it("reads the release credits before taking the commission locks", async () => {
-      const { service, orphanedCommissions, stripeTransactionRepository, paymentCreditRepository } = setup({
+    it("cancels a held commission without a debit when the release credit a failed release left behind never landed", async () => {
+      const { service, orphanedCommissions, stripeTransactionRepository, refillService, logger } = setup({
+        orphanedCommissions: [{ status: "pending", amount: 500, releaseCredit: { status: "pending", amount: 500 } }]
+      });
+      const [commission] = orphanedCommissions;
+
+      await service.reverseCommissionsOfDeletedPayment(commission.sourceStripeChargeId!, { reason: "dispute_lost" });
+
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledExactlyOnceWith(commission.id, { status: "canceled", amountRefunded: 500 });
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it("settles each release credit, then reads the landed ones, before taking the commission locks", async () => {
+      const { service, orphanedCommissions, stripeTransactionRepository, paymentCreditRepository, paymentCreditService } = setup({
         orphanedCommissions: [
           { status: "pending", amount: 500 },
           { status: "pending", amount: 500, releaseCredit: { status: "landed", amount: 500 } }
         ]
       });
+      const [, credited] = orphanedCommissions;
 
-      await service.reverseCommissionsOfDeletedPayment(orphanedCommissions[0].sourceStripeChargeId!, { reason: "dispute_lost" });
+      await service.reverseCommissionsOfDeletedPayment(credited.sourceStripeChargeId!, { reason: "dispute_lost" });
 
-      expect(paymentCreditRepository.findByTransactionId.mock.calls).toEqual(orphanedCommissions.map(commission => [commission.id]));
-      expect(paymentCreditRepository.findByTransactionId.mock.invocationCallOrder[1]).toBeLessThan(
+      expect(paymentCreditService.hasLanded.mock.calls).toEqual(orphanedCommissions.map(commission => [commission.id]));
+      expect(paymentCreditRepository.findByTransactionId.mock.calls).toEqual([[credited.id]]);
+      expect(paymentCreditService.hasLanded.mock.invocationCallOrder[1]).toBeLessThan(paymentCreditRepository.findByTransactionId.mock.invocationCallOrder[0]);
+      expect(paymentCreditRepository.findByTransactionId.mock.invocationCallOrder[0]).toBeLessThan(
         stripeTransactionRepository.findAffiliateCommissionsOfDeletedPaymentAndLock.mock.invocationCallOrder[0]
       );
     });
@@ -1983,6 +2003,9 @@ describe(AffiliateCommissionService.name, () => {
     );
     stripeTransactionRepository.findAffiliateCommissionBySource.mockResolvedValue(input.hasCommission ? commission : undefined);
 
+    const paymentCreditService = mock<PaymentCreditService>();
+    paymentCreditService.hasLanded.mockImplementation(async transactionId => releaseCredits.get(transactionId)?.status === "landed");
+
     const paymentMethodRepository = mock<PaymentMethodRepository>();
     paymentMethodRepository.hasSharedFingerprint.mockResolvedValue(input.sharesPaymentMethod ?? false);
 
@@ -2023,6 +2046,7 @@ describe(AffiliateCommissionService.name, () => {
       affiliateRepository,
       paymentMethodRepository,
       paymentCreditRepository,
+      paymentCreditService,
       organizationRepository,
       userWalletRepository,
       refillService,
@@ -2047,6 +2071,7 @@ describe(AffiliateCommissionService.name, () => {
       affiliateRepository,
       paymentMethodRepository,
       paymentCreditRepository,
+      paymentCreditService,
       organizationRepository,
       userWalletRepository,
       refillService,

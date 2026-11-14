@@ -13,6 +13,7 @@ import {
   UserWalletRepository
 } from "@src/billing/repositories";
 import { type PaymentCreditOutput, PaymentCreditRepository } from "@src/billing/repositories/payment-credit/payment-credit.repository";
+import { PaymentCreditService } from "@src/billing/services/payment-credit/payment-credit.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { isUniqueViolation } from "@src/core/repositories/base.repository";
@@ -54,6 +55,7 @@ export class AffiliateCommissionService {
     private readonly affiliateRepository: AffiliateRepository,
     private readonly paymentMethodRepository: PaymentMethodRepository,
     private readonly paymentCreditRepository: PaymentCreditRepository,
+    private readonly paymentCreditService: PaymentCreditService,
     private readonly organizationRepository: OrganizationRepository,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly refillService: RefillService,
@@ -112,11 +114,17 @@ export class AffiliateCommissionService {
     const releaseCredits = new Map<string, PaymentCreditOutput>();
 
     for (const commission of commissions) {
-      const releaseCredit = await this.paymentCreditRepository.findByTransactionId(commission.id);
+      const releaseCredit = await this.#findSettledReleaseCredit(commission.id);
       if (releaseCredit) releaseCredits.set(commission.id, releaseCredit);
     }
 
     return releaseCredits;
+  }
+
+  /** No release retries once the payment is gone, so a credit a failed release left pending is settled here, and throws while its outcome is still unknown. */
+  async #findSettledReleaseCredit(commissionId: string): Promise<PaymentCreditOutput | undefined> {
+    const hasLanded = await this.paymentCreditService.hasLanded(commissionId);
+    return hasLanded ? this.paymentCreditRepository.findByTransactionId(commissionId) : undefined;
   }
 
   async #reverseCommissionOfDeletedPayment(
