@@ -7,11 +7,15 @@ import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.p
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import { type UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
+import { normalizeEmailAddress } from "@src/workload-abuse/lib/email-domain/email-domain";
 
 const MICRO_DENOM_PER_UNIT = 1_000_000;
 const CENTS_PER_DOLLAR = 100;
 
-export type AttributeReferralInput = { referredUserId: string; code: string };
+type ReferredUser = Pick<UserOutput, "id" | "email" | "lastFingerprint">;
+
+export type AttributeReferralInput = { referredUser: ReferredUser; code: string };
 export type Referral = { trialCreditsUsd: number };
 
 @singleton()
@@ -23,13 +27,14 @@ export class ReferralService {
     private readonly affiliateService: AffiliateService,
     private readonly analyticsService: AnalyticsService,
     private readonly featureFlagsService: FeatureFlagsService,
+    private readonly userRepository: UserRepository,
     @InjectBillingConfig() private readonly billingConfig: BillingConfig,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: ReferralService.name });
   }
 
-  async attribute({ referredUserId, code }: AttributeReferralInput): Promise<void> {
+  async attribute({ referredUser, code }: AttributeReferralInput): Promise<void> {
     const affiliate = await this.affiliateService.findActiveByCode(code);
     if (!affiliate) {
       this.logger.debug({ event: "REFERRAL_CODE_IGNORED", code, reason: "unknown_or_revoked" });
@@ -41,16 +46,31 @@ export class ReferralService {
       return;
     }
 
-    if (affiliate.userId === referredUserId) {
+    if (affiliate.userId === referredUser.id) {
       this.logger.debug({ event: "REFERRAL_CODE_IGNORED", code, reason: "self_referral" });
       return;
     }
 
-    const referral = await this.referralRepository.createIfAbsent({ referredUserId, affiliateId: affiliate.id });
+    if (await this.#isSameAccountHolderAs(affiliate.userId, referredUser)) {
+      this.logger.info({ event: "REFERRAL_CODE_IGNORED", code, reason: "same_account_holder", referredUserId: referredUser.id, affiliateId: affiliate.id });
+      return;
+    }
+
+    const referral = await this.referralRepository.createIfAbsent({ referredUserId: referredUser.id, affiliateId: affiliate.id });
     if (!referral) return;
 
-    this.analyticsService.track(referredUserId, "referral_signup", { affiliate_id: affiliate.id, affiliate_code: affiliate.code });
-    this.logger.info({ event: "REFERRAL_ATTRIBUTED", referredUserId, affiliateId: affiliate.id, code: affiliate.code });
+    this.analyticsService.track(referredUser.id, "referral_signup", { affiliate_id: affiliate.id, affiliate_code: affiliate.code });
+    this.logger.info({ event: "REFERRAL_ATTRIBUTED", referredUserId: referredUser.id, affiliateId: affiliate.id, code: affiliate.code });
+  }
+
+  async #isSameAccountHolderAs(affiliateUserId: string, referredUser: ReferredUser): Promise<boolean> {
+    const affiliateUser = await this.userRepository.findById(affiliateUserId);
+    if (!affiliateUser) return false;
+
+    return (
+      isPresentAndEqual(referredUser.lastFingerprint, affiliateUser.lastFingerprint) ||
+      isPresentAndEqual(normalizeEmailAddress(referredUser.email), normalizeEmailAddress(affiliateUser.email))
+    );
   }
 
   async getTrialDeploymentLimit(userId: string): Promise<number | undefined> {
@@ -76,4 +96,8 @@ export class ReferralService {
 
     return { trialCreditsUsd };
   }
+}
+
+function isPresentAndEqual(value: string | null | undefined, other: string | null | undefined): boolean {
+  return !!value && value === other;
 }

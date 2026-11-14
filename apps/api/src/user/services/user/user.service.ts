@@ -101,7 +101,7 @@ export class UserService {
     await this.ensureDataKeyBestEffort(user.id);
 
     if (wasInserted && data.referralCode) {
-      await this.referralService.attribute({ referredUserId: user.id, code: data.referralCode }).catch(error => {
+      await this.referralService.attribute({ referredUser: user, code: data.referralCode }).catch(error => {
         this.logger.error({ event: "FAILED_TO_ATTRIBUTE_REFERRAL", id: user.id, error });
       });
     }

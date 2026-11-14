@@ -206,7 +206,7 @@ describe(UserService.name, () => {
 
       await service.registerUser(createRegisterInput({ referralCode: "friendcode" }));
 
-      expect(referralService.attribute).toHaveBeenCalledWith({ referredUserId: user.id, code: "friendcode" });
+      expect(referralService.attribute).toHaveBeenCalledWith({ referredUser: user, code: "friendcode" });
     });
 
     it("does not attribute a referral when the user already existed", async () => {

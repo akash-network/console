@@ -14,14 +14,18 @@ import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 import type { RegisterUserResponse } from "@src/user/routes/register-user/register-user.router";
 
+type Device = { ip: string; userAgent: string };
+
 describe("POST /v1/register-user referral attribution", () => {
   const userRepository = container.resolve(UserRepository);
   const affiliateRepository = container.resolve(AffiliateRepository);
   const referralRepository = container.resolve(ReferralRepository);
   const userAuthTokenService = container.resolve(UserAuthTokenService);
+  const logins = new Map<string, { externalUserId: string; email: string }>();
 
   afterEach(() => {
     vi.restoreAllMocks();
+    logins.clear();
   });
 
   afterAll(async () => {
@@ -88,37 +92,94 @@ describe("POST /v1/register-user referral attribution", () => {
     await expect(referralRepository.findByReferredUserId(body.data.id)).resolves.toBeUndefined();
   });
 
-  function stubToken() {
+  it("does not link a sign-up whose email is a variant of the affiliate's", async () => {
+    const affiliateEmail = faker.internet.email().toLowerCase();
+    const affiliate = await seedAffiliate({ email: affiliateEmail });
+    const { token } = stubToken({ email: affiliateEmail.replace("@", "+second@") });
+
+    const response = await register({ token, referralCode: affiliate.code });
+    const body = (await response.json()) as RegisterUserResponse;
+
+    expect(response.status).toBe(200);
+    await expect(referralRepository.findByReferredUserId(body.data.id)).resolves.toBeUndefined();
+  });
+
+  it("does not link a sign-up from the affiliate's own device", async () => {
+    const device = { ip: faker.internet.ipv4(), userAgent: faker.internet.userAgent() };
+    const affiliate = await registerAffiliate(device);
+    const { token } = stubToken();
+
+    const response = await register({ token, referralCode: affiliate.code, device });
+    const body = (await response.json()) as RegisterUserResponse;
+
+    expect(response.status).toBe(200);
+    await expect(referralRepository.findByReferredUserId(body.data.id)).resolves.toBeUndefined();
+  });
+
+  it("links a sign-up from another device to the affiliate", async () => {
+    const affiliate = await registerAffiliate({ ip: faker.internet.ipv4(), userAgent: "affiliate-browser" });
+    const { token } = stubToken();
+
+    const response = await register({ token, referralCode: affiliate.code, device: { ip: faker.internet.ipv4(), userAgent: "friend-browser" } });
+    const body = (await response.json()) as RegisterUserResponse;
+
+    expect(response.status).toBe(200);
+    await expect(referralRepository.findByReferredUserId(body.data.id)).resolves.toMatchObject({ affiliateId: affiliate.id });
+  });
+
+  function stubToken(input?: { email?: string }) {
     const externalUserId = faker.string.uuid();
     const token = faker.string.alphanumeric(40);
+    logins.set(token, { externalUserId, email: input?.email ?? faker.internet.email() });
 
-    vi.spyOn(userAuthTokenService, "getValidUserId").mockImplementation(async header => (header.replace(/^Bearer +/i, "") === token ? externalUserId : null));
-    vi.spyOn(container.resolve(Auth0Service), "getUser").mockImplementation(async userId =>
-      userId === externalUserId ? mock<GetUsers200ResponseOneOfInner>({ user_id: userId, email: faker.internet.email(), email_verified: true }) : null
-    );
+    vi.spyOn(userAuthTokenService, "getValidUserId").mockImplementation(async header => logins.get(header.replace(/^Bearer +/i, ""))?.externalUserId ?? null);
+    vi.spyOn(container.resolve(Auth0Service), "getUser").mockImplementation(async userId => {
+      const login = [...logins.values()].find(candidate => candidate.externalUserId === userId);
+      return login ? mock<GetUsers200ResponseOneOfInner>({ user_id: userId, email: login.email, email_verified: true }) : null;
+    });
 
     return { token, externalUserId };
   }
 
-  async function seedAffiliate() {
-    const owner = await userRepository.create({ userId: faker.string.uuid() });
+  async function seedAffiliate(input?: { email?: string }) {
+    const owner = await userRepository.create({ userId: faker.string.uuid(), email: input?.email });
 
+    return approveAffiliate(owner.id);
+  }
+
+  async function registerAffiliate(device: Device) {
+    const { token } = stubToken();
+    const response = await register({ token, device });
+    const body = (await response.json()) as RegisterUserResponse;
+
+    return approveAffiliate(body.data.id);
+  }
+
+  function approveAffiliate(userId: string) {
     return affiliateRepository.create({
-      userId: owner.id,
+      userId,
       code: faker.string.alpha({ length: 8, casing: "lower" }),
       approvedAt: new Date(),
       approvedBy: "ops@akash.network"
     });
   }
 
-  function register({ token, referralCode }: { token: string; referralCode?: string }) {
-    return app.request("/v1/register-user", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
-      body: JSON.stringify({
-        wantedUsername: faker.internet.userName(),
-        ...(referralCode ? { referralCode } : {})
-      })
-    });
+  function register({ token, referralCode, device }: { token: string; referralCode?: string; device?: Device }) {
+    return app.request(
+      "/v1/register-user",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          authorization: `Bearer ${token}`,
+          ...(device ? { "cf-connecting-ip": device.ip, "User-Agent": device.userAgent } : {})
+        },
+        body: JSON.stringify({
+          wantedUsername: faker.internet.userName(),
+          ...(referralCode ? { referralCode } : {})
+        })
+      },
+      device ? { incoming: { socket: { remoteAddress: device.ip, remotePort: 443, remoteFamily: "IPv4" } } } : undefined
+    );
   }
 });

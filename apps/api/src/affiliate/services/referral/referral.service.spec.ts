@@ -8,10 +8,12 @@ import type { BillingConfig } from "@src/billing/providers";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import type { UserRepository } from "@src/user/repositories/user/user.repository";
 import { ReferralService } from "./referral.service";
 
 import { createAffiliate } from "@test/seeders/affiliate.seeder";
 import { createReferral } from "@test/seeders/referral.seeder";
+import { createUser } from "@test/seeders/user.seeder";
 
 describe(ReferralService.name, () => {
   describe("attribute", () => {
@@ -20,7 +22,7 @@ describe(ReferralService.name, () => {
       const { service, affiliateService, featureFlagsService } = setup();
       affiliateService.findActiveByCode.mockResolvedValue(affiliate);
 
-      await service.attribute({ referredUserId: "referred-user-id", code: "friendcode" });
+      await service.attribute({ referredUser: createUser({ id: "referred-user-id" }), code: "friendcode" });
 
       expect(featureFlagsService.isEnabled).toHaveBeenCalledWith(FeatureFlags.AFFILIATE_PROGRAM, { userId: affiliate.userId });
     });
@@ -31,7 +33,7 @@ describe(ReferralService.name, () => {
       affiliateService.findActiveByCode.mockResolvedValue(affiliate);
       featureFlagsService.isEnabled.mockReturnValue(false);
 
-      await service.attribute({ referredUserId: "referred-user-id", code: "friendcode" });
+      await service.attribute({ referredUser: createUser({ id: "referred-user-id" }), code: "friendcode" });
 
       expect(referralRepository.createIfAbsent).not.toHaveBeenCalled();
       expect(analyticsService.track).not.toHaveBeenCalled();
@@ -42,7 +44,7 @@ describe(ReferralService.name, () => {
       const { service, affiliateService, referralRepository, logger } = setup();
       affiliateService.findActiveByCode.mockResolvedValue(undefined);
 
-      await service.attribute({ referredUserId: "referred-user-id", code: "bad-code" });
+      await service.attribute({ referredUser: createUser({ id: "referred-user-id" }), code: "bad-code" });
 
       expect(referralRepository.createIfAbsent).not.toHaveBeenCalled();
       expect(logger.debug).toHaveBeenCalledWith({ event: "REFERRAL_CODE_IGNORED", code: "bad-code", reason: "unknown_or_revoked" });
@@ -53,7 +55,7 @@ describe(ReferralService.name, () => {
       const { service, affiliateService, referralRepository, logger } = setup();
       affiliateService.findActiveByCode.mockResolvedValue(affiliate);
 
-      await service.attribute({ referredUserId: "referred-user-id", code: affiliate.code });
+      await service.attribute({ referredUser: createUser({ id: "referred-user-id" }), code: affiliate.code });
 
       expect(referralRepository.createIfAbsent).not.toHaveBeenCalled();
       expect(logger.debug).toHaveBeenCalledWith({ event: "REFERRAL_CODE_IGNORED", code: affiliate.code, reason: "self_referral" });
@@ -66,7 +68,7 @@ describe(ReferralService.name, () => {
       affiliateService.findActiveByCode.mockResolvedValue(affiliate);
       referralRepository.createIfAbsent.mockResolvedValue(referral);
 
-      await service.attribute({ referredUserId: "referred-user-id", code: "friendcode" });
+      await service.attribute({ referredUser: createUser({ id: "referred-user-id" }), code: "friendcode" });
 
       expect(referralRepository.createIfAbsent).toHaveBeenCalledWith({ referredUserId: "referred-user-id", affiliateId: affiliate.id });
       expect(analyticsService.track).toHaveBeenCalledWith("referred-user-id", "referral_signup", {
@@ -87,10 +89,90 @@ describe(ReferralService.name, () => {
       affiliateService.findActiveByCode.mockResolvedValue(affiliate);
       referralRepository.createIfAbsent.mockResolvedValue(undefined);
 
-      await service.attribute({ referredUserId: "referred-user-id", code: "friendcode" });
+      await service.attribute({ referredUser: createUser({ id: "referred-user-id" }), code: "friendcode" });
 
       expect(analyticsService.track).not.toHaveBeenCalled();
       expect(logger.info).not.toHaveBeenCalled();
+    });
+
+    it("logs REFERRAL_CODE_IGNORED and inserts nothing when the referred account shares the affiliate's device", async () => {
+      const affiliate = createAffiliate({ code: "friendcode" });
+      const referredUser = createUser({ id: "referred-user-id", lastFingerprint: "shared-fingerprint" });
+      const { service, affiliateService, referralRepository, userRepository, analyticsService, logger } = setup();
+      affiliateService.findActiveByCode.mockResolvedValue(affiliate);
+      userRepository.findById.mockResolvedValue(createUser({ id: affiliate.userId, lastFingerprint: "shared-fingerprint" }));
+
+      await service.attribute({ referredUser, code: "friendcode" });
+
+      expect(userRepository.findById).toHaveBeenCalledWith(affiliate.userId);
+      expect(referralRepository.createIfAbsent).not.toHaveBeenCalled();
+      expect(analyticsService.track).not.toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "REFERRAL_CODE_IGNORED",
+        code: "friendcode",
+        reason: "same_account_holder",
+        referredUserId: "referred-user-id",
+        affiliateId: affiliate.id
+      });
+    });
+
+    it("inserts nothing when the referred account's email is a variant of the affiliate's", async () => {
+      const affiliate = createAffiliate({ code: "friendcode" });
+      const referredUser = createUser({ id: "referred-user-id", email: "Jane+second@Example.com" });
+      const { service, affiliateService, referralRepository, userRepository } = setup();
+      affiliateService.findActiveByCode.mockResolvedValue(affiliate);
+      userRepository.findById.mockResolvedValue(createUser({ id: affiliate.userId, email: "jane@example.com" }));
+
+      await service.attribute({ referredUser, code: "friendcode" });
+
+      expect(referralRepository.createIfAbsent).not.toHaveBeenCalled();
+    });
+
+    it("creates the referral when the referred account belongs to someone other than the affiliate", async () => {
+      const affiliate = createAffiliate({ code: "friendcode" });
+      const referredUser = createUser({ id: "referred-user-id", email: "sam@example.com", lastFingerprint: "referred-fingerprint" });
+      const { service, affiliateService, referralRepository, userRepository } = setup();
+      affiliateService.findActiveByCode.mockResolvedValue(affiliate);
+      userRepository.findById.mockResolvedValue(createUser({ id: affiliate.userId, email: "jane@example.com", lastFingerprint: "affiliate-fingerprint" }));
+
+      await service.attribute({ referredUser, code: "friendcode" });
+
+      expect(referralRepository.createIfAbsent).toHaveBeenCalledWith({ referredUserId: "referred-user-id", affiliateId: affiliate.id });
+    });
+
+    it("creates the referral when neither account has a device on record", async () => {
+      const affiliate = createAffiliate({ code: "friendcode" });
+      const referredUser = createUser({ id: "referred-user-id", email: "sam@example.com", lastFingerprint: null });
+      const { service, affiliateService, referralRepository, userRepository } = setup();
+      affiliateService.findActiveByCode.mockResolvedValue(affiliate);
+      userRepository.findById.mockResolvedValue(createUser({ id: affiliate.userId, email: "jane@example.com", lastFingerprint: null }));
+
+      await service.attribute({ referredUser, code: "friendcode" });
+
+      expect(referralRepository.createIfAbsent).toHaveBeenCalledWith({ referredUserId: "referred-user-id", affiliateId: affiliate.id });
+    });
+
+    it("creates the referral when neither account has an email on record", async () => {
+      const affiliate = createAffiliate({ code: "friendcode" });
+      const referredUser = createUser({ id: "referred-user-id", email: null, lastFingerprint: "referred-fingerprint" });
+      const { service, affiliateService, referralRepository, userRepository } = setup();
+      affiliateService.findActiveByCode.mockResolvedValue(affiliate);
+      userRepository.findById.mockResolvedValue(createUser({ id: affiliate.userId, email: null, lastFingerprint: "affiliate-fingerprint" }));
+
+      await service.attribute({ referredUser, code: "friendcode" });
+
+      expect(referralRepository.createIfAbsent).toHaveBeenCalledWith({ referredUserId: "referred-user-id", affiliateId: affiliate.id });
+    });
+
+    it("creates the referral when the affiliate's account is not found", async () => {
+      const affiliate = createAffiliate({ code: "friendcode" });
+      const { service, affiliateService, referralRepository, userRepository } = setup();
+      affiliateService.findActiveByCode.mockResolvedValue(affiliate);
+      userRepository.findById.mockResolvedValue(undefined);
+
+      await service.attribute({ referredUser: createUser({ id: "referred-user-id" }), code: "friendcode" });
+
+      expect(referralRepository.createIfAbsent).toHaveBeenCalledWith({ referredUserId: "referred-user-id", affiliateId: affiliate.id });
     });
   });
 
@@ -188,13 +270,22 @@ describe(ReferralService.name, () => {
     const affiliateService = mock<AffiliateService>();
     const analyticsService = mock<AnalyticsService>();
     const featureFlagsService = mock<FeatureFlagsService>();
+    const userRepository = mock<UserRepository>();
     featureFlagsService.isEnabled.mockReturnValue(true);
     const billingConfig = mock<BillingConfig>({ REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT: 5_000_000 });
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
-    const service = new ReferralService(referralRepository, affiliateService, analyticsService, featureFlagsService, billingConfig, createLogger);
+    const service = new ReferralService(
+      referralRepository,
+      affiliateService,
+      analyticsService,
+      featureFlagsService,
+      userRepository,
+      billingConfig,
+      createLogger
+    );
 
-    return { service, referralRepository, affiliateService, analyticsService, featureFlagsService, billingConfig, logger, createLogger };
+    return { service, referralRepository, affiliateService, analyticsService, featureFlagsService, userRepository, billingConfig, logger, createLogger };
   }
 });
