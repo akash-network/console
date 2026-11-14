@@ -22,6 +22,7 @@ describe("envSchema", () => {
       ASSISTANT_USER_DAILY_TOKENS: 2_000_000,
       ASSISTANT_TRIAL_USER_DAILY_TOKENS: 500_000,
       ASSISTANT_DAILY_TOKEN_BUDGET: 20_000_000,
+      FEEDBACK_RETENTION_DAYS: 365,
       ASSISTANT_SUPPORT_URL: "https://discord.gg/akash",
       ASSISTANT_HISTORY_SIGNING_KEY: undefined
     });
@@ -46,6 +47,7 @@ describe("envSchema", () => {
         ASSISTANT_USER_DAILY_TOKENS: "",
         ASSISTANT_TRIAL_USER_DAILY_TOKENS: "",
         ASSISTANT_DAILY_TOKEN_BUDGET: "",
+        FEEDBACK_RETENTION_DAYS: "",
         ASSISTANT_SUPPORT_URL: "",
         ASSISTANT_HISTORY_SIGNING_KEY: ""
       })
@@ -71,6 +73,7 @@ describe("envSchema", () => {
         ASSISTANT_USER_DAILY_TOKENS: "4000",
         ASSISTANT_TRIAL_USER_DAILY_TOKENS: "2000",
         ASSISTANT_DAILY_TOKEN_BUDGET: "1000",
+        FEEDBACK_RETENTION_DAYS: "30",
         ASSISTANT_SUPPORT_URL: "https://support.example.com",
         ASSISTANT_HISTORY_SIGNING_KEY: "k".repeat(32)
       })
@@ -91,6 +94,7 @@ describe("envSchema", () => {
       ASSISTANT_USER_DAILY_TOKENS: 4000,
       ASSISTANT_TRIAL_USER_DAILY_TOKENS: 2000,
       ASSISTANT_DAILY_TOKEN_BUDGET: 1000,
+      FEEDBACK_RETENTION_DAYS: 30,
       ASSISTANT_SUPPORT_URL: "https://support.example.com",
       ASSISTANT_HISTORY_SIGNING_KEY: "k".repeat(32)
     });
@@ -112,6 +116,8 @@ describe("envSchema", () => {
     { ASSISTANT_MESSAGES_PER_DAY: "1.5" },
     { ASSISTANT_USER_DAILY_TOKENS: "0" },
     { ASSISTANT_TRIAL_USER_DAILY_TOKENS: "-1" },
+    { FEEDBACK_RETENTION_DAYS: "0" },
+    { FEEDBACK_RETENTION_DAYS: "90.5" },
     { ASSISTANT_REASONING_EFFORT: "none" },
     { ASSISTANT_HISTORY_SIGNING_KEY: "k".repeat(31) },
     { FEEDBACK_THEME_SCORE_WEIGHTS: "{not json" },

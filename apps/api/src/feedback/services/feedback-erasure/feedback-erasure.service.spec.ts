@@ -3,6 +3,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { TxService } from "@src/core/services/tx/tx.service";
+import type { DeletedClassifiedItems } from "@src/feedback/model-schemas";
 import type { AssistantConversationRepository } from "@src/feedback/repositories/assistant-conversation/assistant-conversation.repository";
 import type { AssistantTurnTraceRepository } from "@src/feedback/repositories/assistant-turn-trace/assistant-turn-trace.repository";
 import type { FeedbackSubmissionRepository } from "@src/feedback/repositories/feedback-submission/feedback-submission.repository";
@@ -100,13 +101,58 @@ describe(FeedbackErasureService.name, () => {
     });
   });
 
-  function setup(input: { deletedSubmissionThemeIds?: string[]; deletedConversations?: { deletedCount: number; themeIds: string[] } } = {}) {
+  describe("eraseExpired", () => {
+    it("deletes a bounded batch of inactive conversations and old submissions, recounts every theme they fed and answers how many went", async () => {
+      const { service, assistantConversationRepository, feedbackSubmissionRepository, feedbackThemeRepository } = setup({
+        inactiveConversations: { deletedCount: 2, themeIds: ["theme-1"] },
+        expiredSubmissions: { deletedCount: 3, themeIds: ["theme-2", "theme-3"] }
+      });
+      const cutoff = new Date("2025-11-14T12:00:00.000Z");
+
+      expect(await service.eraseExpired(cutoff, 50)).toEqual({ conversations: 2, submissions: 3 });
+      expect(assistantConversationRepository.deleteInactiveBefore).toHaveBeenCalledWith(cutoff, 50);
+      expect(feedbackSubmissionRepository.deleteCreatedBefore).toHaveBeenCalledWith(cutoff, 50);
+      expect(feedbackThemeRepository.refreshCounts).toHaveBeenCalledWith(["theme-1", "theme-2", "theme-3"]);
+    });
+
+    it("leaves turn traces to their own retention", async () => {
+      const { service, assistantTurnTraceRepository } = setup();
+
+      await service.eraseExpired(new Date(), 50);
+
+      expect(assistantTurnTraceRepository.deleteAllOf).not.toHaveBeenCalled();
+    });
+
+    it("deletes and recounts inside one transaction", async () => {
+      const { service, txService, feedbackThemeRepository } = setup();
+      txService.transaction.mockImplementation(async cb => {
+        const result = await cb();
+        expect(feedbackThemeRepository.refreshCounts).toHaveBeenCalled();
+        return result;
+      });
+
+      await service.eraseExpired(new Date(), 50);
+
+      expect(txService.transaction).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  function setup(
+    input: {
+      deletedSubmissionThemeIds?: string[];
+      deletedConversations?: DeletedClassifiedItems;
+      inactiveConversations?: DeletedClassifiedItems;
+      expiredSubmissions?: DeletedClassifiedItems;
+    } = {}
+  ) {
     const user = createUser();
     const feedbackSubmissionRepository = mock<FeedbackSubmissionRepository>();
     feedbackSubmissionRepository.deleteAllOf.mockResolvedValue(input.deletedSubmissionThemeIds ?? []);
+    feedbackSubmissionRepository.deleteCreatedBefore.mockResolvedValue(input.expiredSubmissions ?? { deletedCount: 0, themeIds: [] });
     const assistantConversationRepository = mock<AssistantConversationRepository>();
     assistantConversationRepository.accessibleBy.mockReturnValue(assistantConversationRepository);
     assistantConversationRepository.deleteAllOf.mockResolvedValue(input.deletedConversations ?? { deletedCount: 0, themeIds: [] });
+    assistantConversationRepository.deleteInactiveBefore.mockResolvedValue(input.inactiveConversations ?? { deletedCount: 0, themeIds: [] });
     const feedbackThemeRepository = mock<FeedbackThemeRepository>();
     const assistantTurnTraceRepository = mock<AssistantTurnTraceRepository>();
     const authService = mock<AuthService>({ currentUser: user });
