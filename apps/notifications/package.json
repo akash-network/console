@@ -55,7 +55,7 @@
     "@nestjs/config": "^4.0.3",
     "@nestjs/core": "^11.1.13",
     "@nestjs/platform-express": "^11.1.13",
-    "@nestjs/swagger": "^11.2.6",
+    "@nestjs/swagger": "11.4.2",
     "@novu/api": "^0.6.2",
     "@ucast/core": "^1.10.2",
     "@ucast/js": "^3.0.4",
