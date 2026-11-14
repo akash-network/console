@@ -40,7 +40,7 @@ import { type AcceptedDeploymentCreate, DeploymentWriterService, type SavedPatch
 import { registerFakeSdlSecretsKms, warmSealingKeyAsBootWould } from "@test/mocks/sdl-secrets-kms.mock";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createDseq, seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
-import { seedOrganization, seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
+import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 import { expectJobCompleted, findJobRows, type JobRow, makeJobDue, runAsUser, useJobWorkers } from "@test/services/job-queue-harness";
@@ -472,7 +472,7 @@ describe(DeploymentWriterService.name, () => {
     });
 
     it("names the organization the deployment is filed in on its apply", async () => {
-      const { patchInBackground, organizationId } = await setup({ filedInOrganization: true });
+      const { patchInBackground, organizationId } = await setup();
 
       const accepted = await patchInBackground();
 
@@ -481,7 +481,7 @@ describe(DeploymentWriterService.name, () => {
     });
 
     it("records what it changed on its pending activity, on its apply and in the feed of the organization the deployment is filed in", async () => {
-      const { user, dseq, patchInBackground, findActivities, findTeamActivities } = await setup({ filedInOrganization: true, name: "web-update" });
+      const { user, dseq, patchInBackground, findActivities, findTeamActivities } = await setup({ name: "web-update" });
       const changes = { services: [{ service: "web", image: "nginx:1.27" }] };
 
       const accepted = await patchInBackground();
@@ -496,7 +496,7 @@ describe(DeploymentWriterService.name, () => {
     });
 
     it("records a rename of a named deployment in the member's feed and in the organization's", async () => {
-      const { user, dseq, rename, findActivities, findTeamActivities } = await setup({ filedInOrganization: true, name: "web-update" });
+      const { user, dseq, rename, findActivities, findTeamActivities } = await setup({ name: "web-update" });
 
       await rename("web-renamed");
 
@@ -529,7 +529,7 @@ describe(DeploymentWriterService.name, () => {
       expect(await findJobRows(ApplyDeploymentUpdate[JOB_NAME], { singletonKey: applyDeploymentUpdateKeyFor({ walletId: wallet.id, dseq }) })).toEqual([]);
     });
 
-    async function setup(input: { filedInOrganization?: boolean; name?: string } = {}) {
+    async function setup(input: { name?: string } = {}) {
       answerAktPrice();
       await jobWorkers();
       const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
@@ -541,7 +541,7 @@ describe(DeploymentWriterService.name, () => {
       const { user, wallet, address } = await seedUserWithWallet();
       const dseq = createDseq();
       const storedVersion = await savedVersionOf(SDL, {});
-      const organizationId = input.filedInOrganization ? (await seedOrganization({ type: "personal", createdByUserId: user.id })).id : undefined;
+      const organizationId = wallet.organizationId!;
       await seedDeploymentSetting({
         userId: user.id,
         organizationId,

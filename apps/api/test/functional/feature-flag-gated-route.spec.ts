@@ -15,6 +15,8 @@ import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/open
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
+import { seedPersonalOrganizationIdOf } from "@test/seeders/db/user-with-wallet.seeder";
+
 const PROBE_PATH = "/v1/feature-flag-gate-probes";
 
 const probeRouter = new OpenApiHonoHandler();
@@ -168,6 +170,7 @@ describe("Route behind a feature flag", () => {
     const apiKey = apiKeyGenerator.generateApiKey();
     await container.resolve(ApiKeyRepository).create({
       userId,
+      organizationId: await seedPersonalOrganizationIdOf(userId),
       hashedKey: apiKeyGenerator.hashApiKeySha256(apiKey),
       keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey),
       name: "ci"

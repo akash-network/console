@@ -15,8 +15,7 @@ import { PersonalOrganizationService } from "./personal-organization.service";
 
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { seedOrganization, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
-import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
-import { seedWalletSetting } from "@test/seeders/db/wallet-setting.seeder";
+import { seedPersonalOrganizationIdOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe(PersonalOrganizationService.name, () => {
   describe("ensureForUser", () => {
@@ -83,40 +82,24 @@ describe(PersonalOrganizationService.name, () => {
   });
 
   describe("adoptUserRows", () => {
-    it("files the user's rows into the organization, deployments and templates into its default project, without touching anyone else's", async () => {
-      const { service, user, projectRepository, seedOwnedRows, readOrganizationIds } = await setup();
+    it("files the user's deployments and templates that are in no project into the default project, without touching anyone else's", async () => {
+      const { service, user, projectRepository, seedRowsInNoProject, readProjectIds } = await setup();
       const stranger = await setup();
-      const rows = await seedOwnedRows(user);
-      const strangerRows = await stranger.seedOwnedRows(stranger.user);
+      const rows = await seedRowsInNoProject(user);
+      const strangerRows = await stranger.seedRowsInNoProject(stranger.user);
       const organization = await service.ensureForUser(user);
       const project = await projectRepository.findDefaultByOrganizationId(organization.id);
 
       const counts = await service.adoptUserRows(user, organization);
 
-      expect(counts).toEqual({ userWallets: 1, walletSettings: 1, paymentMethods: 1, stripeTransactions: 1, deploymentSettings: 1, apiKeys: 1, templates: 1 });
-      expect(await readOrganizationIds(rows)).toEqual({
-        userWallets: { organizationId: organization.id, createdByUserId: user.id },
-        walletSettings: { organizationId: organization.id },
-        paymentMethods: { organizationId: organization.id },
-        stripeTransactions: { organizationId: organization.id },
-        deploymentSettings: { organizationId: organization.id, projectId: project?.id },
-        apiKeys: { organizationId: organization.id, projectId: null },
-        templates: { organizationId: organization.id, projectId: project?.id }
-      });
-      expect(await readOrganizationIds(strangerRows)).toEqual({
-        userWallets: { organizationId: null, createdByUserId: null },
-        walletSettings: { organizationId: null },
-        paymentMethods: { organizationId: null },
-        stripeTransactions: { organizationId: null },
-        deploymentSettings: { organizationId: null, projectId: null },
-        apiKeys: { organizationId: null, projectId: null },
-        templates: { organizationId: null, projectId: null }
-      });
+      expect(counts).toEqual({ userWallets: 0, walletSettings: 0, paymentMethods: 0, stripeTransactions: 0, deploymentSettings: 1, apiKeys: 0, templates: 1 });
+      expect(await readProjectIds(rows)).toEqual({ deploymentSettings: project?.id, templates: project?.id });
+      expect(await readProjectIds(strangerRows)).toEqual({ deploymentSettings: null, templates: null });
     });
 
     it("adopts nothing the second time", async () => {
-      const { service, user, seedOwnedRows } = await setup();
-      await seedOwnedRows(user);
+      const { service, user, seedRowsInNoProject } = await setup();
+      await seedRowsInNoProject(user);
       const organization = await service.ensureForUser(user);
       await service.adoptUserRows(user, organization);
 
@@ -164,80 +147,32 @@ describe(PersonalOrganizationService.name, () => {
     const organizationMemberRepository = container.resolve(OrganizationMemberRepository);
     const projectRepository = container.resolve(ProjectRepository);
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
-    const { user, wallet } = await seedUserWithWallet({ user: { userId: faker.string.uuid(), username: `user-${faker.string.alphanumeric(10)}` } });
+    const user = await seedUser({ userId: faker.string.uuid(), username: `user-${faker.string.alphanumeric(10)}` });
 
-    async function seedOwnedRows(owner: UserOutput) {
-      const walletSetting = await seedWalletSetting({ userId: owner.id, walletId: wallet.id });
-      const [paymentMethod] = await db
-        .insert(resolveTable("PaymentMethods"))
-        .values({ userId: owner.id, fingerprint: faker.string.uuid(), paymentMethodId: faker.string.uuid() })
-        .returning();
-      const [stripeTransaction] = await db
-        .insert(resolveTable("StripeTransactions"))
-        .values({ userId: owner.id, type: "payment_intent", amount: 1000 })
-        .returning();
-      const deploymentSetting = await seedDeploymentSetting({ userId: owner.id });
-      const [apiKey] = await db
-        .insert(resolveTable("ApiKeys"))
-        .values({ userId: owner.id, hashedKey: faker.string.alphanumeric(64), keyFormat: "ac.sk.test.x", name: "key" })
-        .returning();
+    async function seedRowsInNoProject(owner: UserOutput) {
+      const organizationId = await seedPersonalOrganizationIdOf(owner.id);
+      const deploymentSetting = await seedDeploymentSetting({ userId: owner.id, organizationId });
       const [template] = await db
         .insert(resolveTable("Templates"))
-        .values({ userId: owner.userId as string, title: "template", cpu: 1, ram: 1, storage: 1, sdl: "version: '2.0'" })
+        .values({ userId: owner.userId as string, organizationId, title: "template", cpu: 1, ram: 1, storage: 1, sdl: "version: '2.0'" })
         .returning();
 
-      return {
-        userWallets: wallet.id,
-        walletSettings: walletSetting.id,
-        paymentMethods: paymentMethod.id,
-        stripeTransactions: stripeTransaction.id,
-        deploymentSettings: deploymentSetting.id,
-        apiKeys: apiKey.id,
-        templates: template.id
-      };
+      return { deploymentSettings: deploymentSetting.id, templates: template.id };
     }
 
-    async function readOrganizationIds(rows: Awaited<ReturnType<typeof seedOwnedRows>>) {
-      const [userWallets] = await db
-        .select()
-        .from(resolveTable("UserWallets"))
-        .where(eq(resolveTable("UserWallets").id, rows.userWallets));
-      const [walletSettings] = await db
-        .select()
-        .from(resolveTable("WalletSetting"))
-        .where(eq(resolveTable("WalletSetting").id, rows.walletSettings));
-      const [paymentMethods] = await db
-        .select()
-        .from(resolveTable("PaymentMethods"))
-        .where(eq(resolveTable("PaymentMethods").id, rows.paymentMethods));
-      const [stripeTransactions] = await db
-        .select()
-        .from(resolveTable("StripeTransactions"))
-        .where(eq(resolveTable("StripeTransactions").id, rows.stripeTransactions));
+    async function readProjectIds(rows: Awaited<ReturnType<typeof seedRowsInNoProject>>) {
       const [deploymentSettings] = await db
         .select()
         .from(resolveTable("DeploymentSettings"))
         .where(eq(resolveTable("DeploymentSettings").id, rows.deploymentSettings));
-      const [apiKeys] = await db
-        .select()
-        .from(resolveTable("ApiKeys"))
-        .where(eq(resolveTable("ApiKeys").id, rows.apiKeys));
       const [templates] = await db
         .select()
         .from(resolveTable("Templates"))
         .where(eq(resolveTable("Templates").id, rows.templates));
 
-      return {
-        userWallets: { organizationId: userWallets.organizationId, createdByUserId: userWallets.createdByUserId },
-        walletSettings: { organizationId: walletSettings.organizationId },
-        paymentMethods: { organizationId: paymentMethods.organizationId },
-        stripeTransactions: { organizationId: stripeTransactions.organizationId },
-        deploymentSettings: { organizationId: deploymentSettings.organizationId, projectId: deploymentSettings.projectId },
-        apiKeys: { organizationId: apiKeys.organizationId, projectId: apiKeys.projectId },
-        templates: { organizationId: templates.organizationId, projectId: templates.projectId }
-      };
+      return { deploymentSettings: deploymentSettings.projectId, templates: templates.projectId };
     }
 
-    return { service, user, db, organizationRepository, organizationMemberRepository, projectRepository, seedOwnedRows, readOrganizationIds };
+    return { service, user, db, organizationRepository, organizationMemberRepository, projectRepository, seedRowsInNoProject, readProjectIds };
   }
 });

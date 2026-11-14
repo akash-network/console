@@ -31,13 +31,17 @@ describe(MarketplaceTemplateRepository.name, () => {
       });
     });
 
-    it("names neither author nor publisher for a template filed in no organization whose author is gone", async () => {
-      const { repository } = await setup();
-      const template = await seedTemplate({ visibility: "public" });
+    it("names no author for a template whose author is gone, still naming its publisher", async () => {
+      const { repository, organization, project } = await setup();
+      const template = await seedTemplate({ organizationId: organization.id, projectId: project.id, visibility: "public" });
 
       const found = await repository.findReadable(template.id);
 
-      expect(found).toMatchObject({ id: template.id, authorUsername: null, publisher: null });
+      expect(found).toMatchObject({
+        id: template.id,
+        authorUsername: null,
+        publisher: { name: organization.name, slug: organization.slug, type: organization.type }
+      });
     });
 
     it("keeps private and organization templates from a reader without rules", async () => {
@@ -370,7 +374,16 @@ describe(MarketplaceTemplateRepository.name, () => {
     const [template] = await container
       .resolve<ApiPgDatabase>(POSTGRES_DB)
       .insert(resolveTable("Templates"))
-      .values({ ...values, isPublic: input.visibility === "public", title: faker.lorem.words(3), sdl: "version: '2.0'", cpu: 1000, ram: 1024, storage: 1024 })
+      .values({
+        ...values,
+        organizationId: values.organizationId ?? (await seedOrganization()).id,
+        isPublic: input.visibility === "public",
+        title: faker.lorem.words(3),
+        sdl: "version: '2.0'",
+        cpu: 1000,
+        ram: 1024,
+        storage: 1024
+      })
       .returning();
 
     if (!updatedAt) return template;

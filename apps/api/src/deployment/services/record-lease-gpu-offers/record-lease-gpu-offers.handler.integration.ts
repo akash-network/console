@@ -106,7 +106,7 @@ describe(RecordLeaseGpuOffersHandler.name, () => {
     const deploymentSettingsTable = resolveTable("DeploymentSettings");
     const { user, wallet, address } = await seedUserWithWallet();
     const dseq = createDseq();
-    const organizationId = input.filedInTeam ? await seedTeamOfMember(user.id) : null;
+    const organizationId = input.filedInTeam ? await seedTeamOfMember(user.id) : undefined;
     if (!input.withoutSetting) await seedDeploymentSetting({ userId: user.id, dseq, sdl: null, organizationId });
 
     const bid: Bid = createBid({ owner: address, dseq, gseq: 1, oseq: 1, provider: PROVIDER, bseq: 0 });

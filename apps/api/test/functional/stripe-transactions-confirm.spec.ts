@@ -11,8 +11,7 @@ import { app } from "@src/rest-app";
 import { AccountStatusEventRepository } from "@src/user/repositories/account-status-event/account-status-event.repository";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
-import { createAkashAddress } from "@test/seeders/akash-address.seeder";
-import { fileIntoPersonalOrganization } from "@test/seeders/db/organization.seeder";
+import { seedOwnWalletOf, seedPersonalOrganizationIdOf } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe("Stripe transactions confirm", () => {
   const userRepository = container.resolve(UserRepository);
@@ -59,13 +58,13 @@ describe("Stripe transactions confirm", () => {
     });
 
     it("replays an already-credited attempt without creating another payment intent", async () => {
-      const { user, organization, token, stripeCustomerId, paymentMethodId } = await setup();
+      const { user, token, stripeCustomerId, paymentMethodId, organizationId } = await setup();
       const clientKey = faker.string.uuid();
       const namespacedKey = `topup_${user.id}_${clientKey}`;
 
       const creditedTransaction = await stripeTransactionRepository.create({
         userId: user.id,
-        organizationId: organization.id,
+        organizationId,
         type: "payment_intent",
         status: "succeeded",
         amount: 2000,
@@ -98,12 +97,12 @@ describe("Stripe transactions confirm", () => {
     });
 
     it("rejects a replayed key whose amount changed with a definitive idempotency_key_mismatch code", async () => {
-      const { user, organization, token, stripeCustomerId, paymentMethodId } = await setup();
+      const { user, token, stripeCustomerId, paymentMethodId, organizationId } = await setup();
       const clientKey = faker.string.uuid();
 
       await stripeTransactionRepository.create({
         userId: user.id,
-        organizationId: organization.id,
+        organizationId,
         type: "payment_intent",
         status: "created",
         amount: 2000,
@@ -207,14 +206,13 @@ describe("Stripe transactions confirm", () => {
       userId: faker.string.uuid(),
       stripeCustomerId: input.hasStripeCustomer === false ? undefined : stripeCustomerId
     });
-    const wallet = await userWalletRepository.create({ userId: user.id, address: createAkashAddress() });
+    const wallet = await seedOwnWalletOf(user.id);
     await userWalletRepository.updateById(wallet.id, { activatedAt: new Date(), isTrialing: false });
-    const organization = await fileIntoPersonalOrganization(user);
     const token = faker.string.alphanumeric(40);
     const paymentMethodId = `pm_${faker.string.alphanumeric(24)}`;
 
     vi.spyOn(userAuthTokenService, "getValidUserId").mockImplementation(async received => (received.replace(/^Bearer +/i, "") === token ? user.userId! : null));
 
-    return { user, organization, token, stripeCustomerId, paymentMethodId };
+    return { user, token, stripeCustomerId, paymentMethodId, organizationId: await seedPersonalOrganizationIdOf(user.id) };
   }
 });

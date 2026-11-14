@@ -19,7 +19,9 @@ export const WalletSetting = pgTable(
       .notNull(),
     /** Null for a team organization's row whose member has deleted their account. */
     userId: uuid("user_id").references(() => Users.id, { onDelete: "cascade" }),
-    organizationId: uuid("organization_id").references(() => Organizations.id),
+    organizationId: uuid("organization_id")
+      .references(() => Organizations.id)
+      .notNull(),
     autoReloadEnabled: boolean("auto_reload_enabled").default(false).notNull(),
     /**
      * Defaults to the predicted-spend rule so rows that predate this column keep the behavior their owner

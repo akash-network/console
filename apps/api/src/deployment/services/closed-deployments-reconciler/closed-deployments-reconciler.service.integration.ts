@@ -21,6 +21,7 @@ import { ClosedDeploymentsReconcilerService } from "./closed-deployments-reconci
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
+import { seedPersonalOrganizationOf } from "@test/seeders/db/user-with-wallet.seeder";
 import { createDeployment } from "@test/seeders/deployment.seeder";
 import { createDeploymentInfoErrorSeed, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 
@@ -195,8 +196,11 @@ describe(ClosedDeploymentsReconcilerService.name, () => {
     const graceInMinutes = container.resolve(DeploymentConfigService).get("UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN");
 
     const user = await userRepository.create({ userId: faker.string.uuid() });
+    const personal = await seedPersonalOrganizationOf(user);
     const address = createAkashAddress();
-    await db.insert(userWalletsTable).values({ userId: user.id, address, deploymentAllowance: "0", feeAllowance: "0", isTrialing: false });
+    await db
+      .insert(userWalletsTable)
+      .values({ userId: user.id, organizationId: personal.id, address, deploymentAllowance: "0", feeAllowance: "0", isTrialing: false });
     const { organization: team } = await seedOrganizationWithOwner();
     await seedOrganizationMember({ organizationId: team.id, userId: user.id });
     const teamAddress = createAkashAddress();
@@ -228,7 +232,7 @@ describe(ClosedDeploymentsReconcilerService.name, () => {
         .insert(deploymentSettingsTable)
         .values({
           userId: user.id,
-          organizationId: input.inTeam ? team.id : null,
+          organizationId: input.inTeam ? team.id : personal.id,
           dseq: input.padDseq ? `000${dseq}` : dseq,
           autoTopUpEnabled: input.autoTopUpEnabled,
           createdAt: subMinutes(new Date(), input.recordedMinutesAgo ?? 0)

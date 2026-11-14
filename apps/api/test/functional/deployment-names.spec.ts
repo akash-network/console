@@ -8,8 +8,7 @@ import { MAX_DEPLOYMENT_NAMES_PER_REQUEST } from "@src/deployment/http-schemas/d
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { app } from "@src/rest-app";
 
-import { fileIntoPersonalOrganization } from "@test/seeders/db/organization.seeder";
-import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationIdOf, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe("GET /v1/deployment-names", () => {
   const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
@@ -122,12 +121,13 @@ describe("GET /v1/deployment-names", () => {
     return app.request(`/v1/deployment-names${query.size > 0 ? `?${query}` : ""}`, { method: "GET", headers });
   }
 
-  async function persistApiKeyFor(userId: string) {
+  async function persistApiKeyFor(userId: string, organizationId: string) {
     const apiKeyGenerator = container.resolve(ApiKeyGeneratorService);
     const apiKey = apiKeyGenerator.generateApiKey();
 
     await container.resolve(ApiKeyRepository).create({
       userId,
+      organizationId,
       name: faker.company.name(),
       hashedKey: apiKeyGenerator.hashApiKeySha256(apiKey),
       keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey)
@@ -138,21 +138,19 @@ describe("GET /v1/deployment-names", () => {
 
   async function setup() {
     const { user } = await seedUserWithWallet({ isTrialing: false, activatedAt: new Date() });
-    const apiKey = await persistApiKeyFor(user.id);
-    await fileIntoPersonalOrganization(user);
+    const organizationId = await seedPersonalOrganizationIdOf(user.id);
+    const apiKey = await persistApiKeyFor(user.id, organizationId);
 
     async function recordName(name: string) {
       const dseq = someDseq();
-      await deploymentSettingRepository.create({ userId: user.id, dseq, name });
-      await fileIntoPersonalOrganization(user);
+      await deploymentSettingRepository.create({ userId: user.id, organizationId, dseq, name });
 
       return dseq;
     }
 
     async function recordUnnamed() {
       const dseq = someDseq();
-      await deploymentSettingRepository.create({ userId: user.id, dseq });
-      await fileIntoPersonalOrganization(user);
+      await deploymentSettingRepository.create({ userId: user.id, organizationId, dseq });
 
       return dseq;
     }

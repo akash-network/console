@@ -77,10 +77,9 @@ describe(MarketplaceTemplateService.name, () => {
       });
     });
 
-    it.each<[string, string | null, string | null]>([
+    it.each<[string, string, string | null]>([
       ["another organization is active", faker.string.uuid(), faker.string.uuid()],
-      ["no organization is active", faker.string.uuid(), null],
-      ["the template is filed in no organization", null, faker.string.uuid()]
+      ["no organization is active", faker.string.uuid(), null]
     ])("withholds the project when %s", async (_case, organizationId, activeOrganizationId) => {
       const template = createTemplateRow({ organizationId });
       const { service } = setup({ template, activeOrganizationId });
@@ -267,9 +266,8 @@ describe(MarketplaceTemplateService.name, () => {
       expect(results.map(({ canEdit }) => canEdit)).toEqual([true, false]);
     });
 
-    it.each<[string, string | null, string | null]>([
+    it.each<[string, string, string | null]>([
       ["a template of another organization", faker.string.uuid(), faker.string.uuid()],
-      ["a template filed in no organization", null, faker.string.uuid()],
       ["a request without an active organization", faker.string.uuid(), null]
     ])("offers no edit on %s even when the author's rule allows it", async (_case, organizationId, activeOrganizationId) => {
       const userId = faker.string.uuid();

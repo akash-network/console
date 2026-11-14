@@ -16,7 +16,7 @@ import { ActivateTrialHandler } from "./activate-trial.handler";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedOrganization, seedOrganizationMember } from "@test/seeders/db/organization.seeder";
-import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 
 const DEPLOYMENT_LIMIT = 7_000_000;
@@ -89,6 +89,7 @@ describe(ActivateTrialHandler.name, () => {
     const userWalletsTable = resolveTable("UserWallets");
 
     const user = await seedUser({ email: "trial@example.com", emailVerified: input.emailVerified ?? true });
+    await seedPersonalOrganizationOf(user);
     const address = createAkashAddress();
 
     const walletManager = container.resolve(ManagedUserWalletService);

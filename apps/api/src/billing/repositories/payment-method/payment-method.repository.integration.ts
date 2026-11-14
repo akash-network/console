@@ -6,13 +6,18 @@ import { TxService } from "@src/core/services";
 import { PaymentMethodRepository } from "./payment-method.repository";
 
 import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
-import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationIdOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe(PaymentMethodRepository.name, () => {
   describe("upsert", () => {
     it("makes a member's first card in a team the team's default although the member has a default card of their own", async () => {
       const { repository, member, team } = await setup();
-      const own = await repository.upsert({ userId: member.id, owner: { userId: member.id }, ...card() });
+      const own = await repository.upsert({
+        userId: member.id,
+        organizationId: await seedPersonalOrganizationIdOf(member.id),
+        owner: { userId: member.id },
+        ...card()
+      });
 
       const teamCard = await repository.upsert({ userId: member.id, organizationId: team.id, owner: { organizationId: team.id }, ...card() });
 
@@ -33,8 +38,18 @@ describe(PaymentMethodRepository.name, () => {
   describe("markAsDefault", () => {
     it("moves a user's own default without touching the default of a team the user added a card to", async () => {
       const { repository, member, team } = await setup();
-      const first = await repository.upsert({ userId: member.id, owner: { userId: member.id }, ...card() });
-      const second = await repository.upsert({ userId: member.id, owner: { userId: member.id }, ...card() });
+      const first = await repository.upsert({
+        userId: member.id,
+        organizationId: await seedPersonalOrganizationIdOf(member.id),
+        owner: { userId: member.id },
+        ...card()
+      });
+      const second = await repository.upsert({
+        userId: member.id,
+        organizationId: await seedPersonalOrganizationIdOf(member.id),
+        owner: { userId: member.id },
+        ...card()
+      });
       const teamCard = await repository.upsert({ userId: member.id, organizationId: team.id, owner: { organizationId: team.id }, ...card() });
 
       const marked = await repository.markAsDefault(second.paymentMethod.paymentMethodId, { userId: member.id });
@@ -55,7 +70,12 @@ describe(PaymentMethodRepository.name, () => {
   describe("createAsDefault", () => {
     it("makes a new team card the team's default without touching the member's own default", async () => {
       const { repository, member, team } = await setup();
-      const own = await repository.upsert({ userId: member.id, owner: { userId: member.id }, ...card() });
+      const own = await repository.upsert({
+        userId: member.id,
+        organizationId: await seedPersonalOrganizationIdOf(member.id),
+        owner: { userId: member.id },
+        ...card()
+      });
       const firstTeamCard = await repository.upsert({ userId: member.id, organizationId: team.id, owner: { organizationId: team.id }, ...card() });
 
       const created = await container
@@ -71,14 +91,19 @@ describe(PaymentMethodRepository.name, () => {
   describe("findByOwner", () => {
     it("leaves a card not yet filed under any organization out of a team's cards", async () => {
       const { repository, member, team } = await setup();
-      await repository.upsert({ userId: member.id, owner: { userId: member.id }, ...card() });
+      await repository.upsert({ userId: member.id, organizationId: await seedPersonalOrganizationIdOf(member.id), owner: { userId: member.id }, ...card() });
 
       expect(await repository.findByOwner({ organizationId: team.id })).toEqual([]);
     });
 
     it("reads a team's cards whoever added them, and a user's own cards without the ones the user added for a team", async () => {
       const { repository, member, owner, team } = await setup();
-      const own = await repository.upsert({ userId: member.id, owner: { userId: member.id }, ...card() });
+      const own = await repository.upsert({
+        userId: member.id,
+        organizationId: await seedPersonalOrganizationIdOf(member.id),
+        owner: { userId: member.id },
+        ...card()
+      });
       const byMember = await repository.upsert({ userId: member.id, organizationId: team.id, owner: { organizationId: team.id }, ...card() });
       const byOwner = await repository.upsert({ userId: owner.id, organizationId: team.id, owner: { organizationId: team.id }, ...card() });
 
@@ -93,7 +118,12 @@ describe(PaymentMethodRepository.name, () => {
   describe("findDefaultByOwner", () => {
     it("reads the team's default apart from the member's own", async () => {
       const { repository, member, team } = await setup();
-      const own = await repository.upsert({ userId: member.id, owner: { userId: member.id }, ...card() });
+      const own = await repository.upsert({
+        userId: member.id,
+        organizationId: await seedPersonalOrganizationIdOf(member.id),
+        owner: { userId: member.id },
+        ...card()
+      });
       const teamCard = await repository.upsert({ userId: member.id, organizationId: team.id, owner: { organizationId: team.id }, ...card() });
 
       expect(await repository.findDefaultByOwner({ organizationId: team.id })).toMatchObject({ id: teamCard.paymentMethod.id });
@@ -129,7 +159,7 @@ describe(PaymentMethodRepository.name, () => {
   describe("countByOwner", () => {
     it("counts a team's cards apart from its members' own", async () => {
       const { repository, member, team } = await setup();
-      await repository.upsert({ userId: member.id, owner: { userId: member.id }, ...card() });
+      await repository.upsert({ userId: member.id, organizationId: await seedPersonalOrganizationIdOf(member.id), owner: { userId: member.id }, ...card() });
       await repository.upsert({ userId: member.id, organizationId: team.id, owner: { organizationId: team.id }, ...card() });
       await repository.upsert({ userId: member.id, organizationId: team.id, owner: { organizationId: team.id }, ...card() });
 
@@ -156,9 +186,14 @@ describe(PaymentMethodRepository.name, () => {
       const payer = await seedUser();
       const other = await seedUser();
       const shared = card();
-      await repository.create({ userId: payer.id, ...card() });
-      await repository.create({ userId: payer.id, ...shared });
-      await repository.create({ userId: other.id, ...shared, paymentMethodId: card().paymentMethodId });
+      await repository.create({ userId: payer.id, organizationId: await seedPersonalOrganizationIdOf(payer.id), ...card() });
+      await repository.create({ userId: payer.id, organizationId: await seedPersonalOrganizationIdOf(payer.id), ...shared });
+      await repository.create({
+        userId: other.id,
+        organizationId: await seedPersonalOrganizationIdOf(other.id),
+        ...shared,
+        paymentMethodId: card().paymentMethodId
+      });
 
       expect(await repository.hasSharedFingerprint({ userId: payer.id, organizationId: null }, other.id)).toBe(true);
     });
@@ -167,7 +202,7 @@ describe(PaymentMethodRepository.name, () => {
       const { repository, team, owner, member } = await setup();
       const payer = await seedUser();
       const shared = card();
-      await repository.create({ userId: payer.id, ...shared });
+      await repository.create({ userId: payer.id, organizationId: await seedPersonalOrganizationIdOf(payer.id), ...shared });
       await repository.create({ userId: owner.id, organizationId: team.id, ...shared, paymentMethodId: card().paymentMethodId });
 
       expect(await repository.hasSharedFingerprint({ userId: payer.id, organizationId: null }, member.id)).toBe(true);
@@ -178,7 +213,12 @@ describe(PaymentMethodRepository.name, () => {
       const other = await seedUser();
       const shared = card();
       await repository.create({ userId: owner.id, organizationId: team.id, ...shared });
-      await repository.create({ userId: other.id, ...shared, paymentMethodId: card().paymentMethodId });
+      await repository.create({
+        userId: other.id,
+        organizationId: await seedPersonalOrganizationIdOf(other.id),
+        ...shared,
+        paymentMethodId: card().paymentMethodId
+      });
 
       expect(await repository.hasSharedFingerprint({ userId: member.id, organizationId: team.id }, other.id)).toBe(true);
     });
@@ -188,9 +228,9 @@ describe(PaymentMethodRepository.name, () => {
       const payer = await seedUser();
       const other = await seedUser();
       const shared = card();
-      await repository.create({ userId: payer.id, ...shared });
+      await repository.create({ userId: payer.id, organizationId: await seedPersonalOrganizationIdOf(payer.id), ...shared });
       await repository.create({ userId: owner.id, organizationId: team.id, ...shared, paymentMethodId: card().paymentMethodId });
-      await repository.create({ userId: other.id, ...card() });
+      await repository.create({ userId: other.id, organizationId: await seedPersonalOrganizationIdOf(other.id), ...card() });
 
       expect(await repository.hasSharedFingerprint({ userId: payer.id, organizationId: null }, other.id)).toBe(false);
     });
@@ -199,7 +239,7 @@ describe(PaymentMethodRepository.name, () => {
       const { repository } = await setup();
       const payer = await seedUser();
       const other = await seedUser();
-      await repository.create({ userId: payer.id, ...card() });
+      await repository.create({ userId: payer.id, organizationId: await seedPersonalOrganizationIdOf(payer.id), ...card() });
 
       expect(await repository.hasSharedFingerprint({ userId: payer.id, organizationId: null }, other.id)).toBe(false);
     });

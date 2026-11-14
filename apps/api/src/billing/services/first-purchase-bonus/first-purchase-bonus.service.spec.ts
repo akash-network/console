@@ -142,16 +142,6 @@ describe(FirstPurchaseBonusService.name, () => {
       expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction).toHaveBeenCalledWith({ userId: transaction.userId }, expect.anything());
     });
 
-    it("checks the person's own purchases without locking an organization for a transaction filed under none", async () => {
-      const { service, stripeTransactionRepository, organizationRepository } = setup();
-      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", organizationId: null });
-
-      await service.getEligibleBonusAmount(transaction, 10000);
-
-      expect(organizationRepository.findOneByAndLock).not.toHaveBeenCalled();
-      expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction).toHaveBeenCalledWith({ userId: transaction.userId }, expect.anything());
-    });
-
     it("locks the paying organization, then the person, before checking eligibility", async () => {
       const team = createOrganization({ type: "team" });
       const { service, stripeTransactionRepository, userRepository, organizationRepository } = setup({ organization: team });
@@ -338,7 +328,7 @@ describe(FirstPurchaseBonusService.name, () => {
   describe("findWindowOpenedBy", () => {
     it("opens the window until 7 days after a personal account's first card payment by a person who never received the bonus", async () => {
       const { service } = setup();
-      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", organizationId: null, createdAt: FIRST_PAYMENT_AT });
+      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", createdAt: FIRST_PAYMENT_AT });
 
       const opened = await service.findWindowOpenedBy(transaction);
 
@@ -346,12 +336,11 @@ describe(FirstPurchaseBonusService.name, () => {
     });
 
     it("checks the person's own purchases at the time they paid, leaving the settling payment out", async () => {
-      const { service, stripeTransactionRepository, organizationRepository } = setup();
-      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", organizationId: null, createdAt: FIRST_PAYMENT_AT });
+      const { service, stripeTransactionRepository } = setup();
+      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", createdAt: FIRST_PAYMENT_AT });
 
       await service.findWindowOpenedBy(transaction);
 
-      expect(organizationRepository.findOneByAndLock).not.toHaveBeenCalled();
       expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction).toHaveBeenCalledWith(
         { userId: transaction.userId },
         { excludeId: transaction.id }
@@ -389,7 +378,7 @@ describe(FirstPurchaseBonusService.name, () => {
 
     it("throws when the user row cannot be locked", async () => {
       const { service, stripeTransactionRepository } = setup({ userLockable: false });
-      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", organizationId: null, createdAt: FIRST_PAYMENT_AT });
+      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", createdAt: FIRST_PAYMENT_AT });
 
       await expect(service.findWindowOpenedBy(transaction)).rejects.toMatchObject({
         status: 500,
@@ -420,7 +409,7 @@ describe(FirstPurchaseBonusService.name, () => {
 
     it("opens no window for a payment that is not a card payment", async () => {
       const { service, stripeTransactionRepository } = setup();
-      const transaction = generateDatabaseStripeTransaction({ type: "coupon_claim", organizationId: null, createdAt: FIRST_PAYMENT_AT });
+      const transaction = generateDatabaseStripeTransaction({ type: "coupon_claim", createdAt: FIRST_PAYMENT_AT });
 
       await expect(service.findWindowOpenedBy(transaction)).resolves.toBeUndefined();
       expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction).not.toHaveBeenCalled();
@@ -428,7 +417,7 @@ describe(FirstPurchaseBonusService.name, () => {
 
     it("opens no window for a payment whose buyer has deleted their account", async () => {
       const { service, stripeTransactionRepository } = setup();
-      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", userId: null, organizationId: null, createdAt: FIRST_PAYMENT_AT });
+      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", userId: null, createdAt: FIRST_PAYMENT_AT });
 
       await expect(service.findWindowOpenedBy(transaction)).resolves.toBeUndefined();
       expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction).not.toHaveBeenCalled();
@@ -436,21 +425,21 @@ describe(FirstPurchaseBonusService.name, () => {
 
     it("opens no window for a payment made while the window of an earlier first payment is open", async () => {
       const { service } = setup({ firstPaymentAt: FIRST_PAYMENT_AT });
-      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", organizationId: null, createdAt: INSIDE_WINDOW });
+      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", createdAt: INSIDE_WINDOW });
 
       await expect(service.findWindowOpenedBy(transaction)).resolves.toBeUndefined();
     });
 
     it("opens no window for a payment made after the window of an earlier first payment closed", async () => {
       const { service } = setup({ firstPaymentAt: FIRST_PAYMENT_AT });
-      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", organizationId: null, createdAt: AFTER_WINDOW });
+      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", createdAt: AFTER_WINDOW });
 
       await expect(service.findWindowOpenedBy(transaction)).resolves.toBeUndefined();
     });
 
     it("opens no window for a small first purchase on the personal account of a person who received the bonus on a team", async () => {
       const { service } = setup({ personHasBonus: true });
-      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", organizationId: null, createdAt: FIRST_PAYMENT_AT });
+      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", createdAt: FIRST_PAYMENT_AT });
 
       await expect(service.findWindowOpenedBy(transaction)).resolves.toBeUndefined();
     });

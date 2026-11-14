@@ -22,6 +22,8 @@ import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-fl
 import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import { TxService } from "@src/core/services/tx/tx.service";
 import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
+import { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
+import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { type AffiliateCommissionSyncTrigger, SyncAffiliateCommission } from "./sync-affiliate-commission.job";
 
 type SkipReason =
@@ -50,6 +52,8 @@ export class AffiliateCommissionService {
     private readonly paymentMethodRepository: PaymentMethodRepository,
     private readonly paymentCreditRepository: PaymentCreditRepository,
     private readonly organizationRepository: OrganizationRepository,
+    private readonly userRepository: UserRepository,
+    private readonly personalOrganizationService: PersonalOrganizationService,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly refillService: RefillService,
     private readonly featureFlagsService: FeatureFlagsService,
@@ -275,9 +279,12 @@ export class AffiliateCommissionService {
     return organization?.createdByUserId ?? null;
   }
 
-  async #findPersonalOrganizationId(userId: string): Promise<string | null> {
-    const organization = await this.organizationRepository.findPersonalByUserId(userId);
-    return organization?.id ?? null;
+  /** An affiliate who has not signed in since organizations launched has no personal organization until one is provisioned. */
+  async #findPersonalOrganizationId(userId: string): Promise<string> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) throw new Error(`Affiliate ${userId} has no user account to file the commission for`);
+
+    return (await this.personalOrganizationService.ensureForUser(user)).id;
   }
 
   async #findSkipReason(
@@ -306,7 +313,7 @@ export class AffiliateCommissionService {
   /** The payment row lock already serializes syncs, so a unique violation here means a commission landed outside that lock and must not be credited twice. */
   async #recordCommission(input: {
     userId: string;
-    organizationId: string | null;
+    organizationId: string;
     amount: number;
     amountRefunded: number;
     sourceTransactionId: string;

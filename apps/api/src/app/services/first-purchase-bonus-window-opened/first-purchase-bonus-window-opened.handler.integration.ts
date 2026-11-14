@@ -16,7 +16,7 @@ import { FirstPurchaseBonusWindowReminderJob } from "../first-purchase-bonus-win
 import { FirstPurchaseBonusWindowOpenedHandler } from "./first-purchase-bonus-window-opened.handler";
 
 import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
-import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationIdOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 
 const NOTIFICATION_PATH = "/internal/v1/jobs/notification";
@@ -154,6 +154,7 @@ describe(FirstPurchaseBonusWindowOpenedHandler.name, () => {
     async function payOnPersonalAccount({ createdAt }: { createdAt: Date }) {
       return await container.resolve(StripeTransactionRepository).create({
         userId: person.id,
+        organizationId: await seedPersonalOrganizationIdOf(person.id),
         type: "payment_intent",
         status: "succeeded",
         amount: SMALL_PURCHASE_CENTS,

@@ -13,7 +13,9 @@ export const PaymentMethods = pgTable(
       .default(sql`uuid_generate_v4()`),
     /** Null for a team organization's row whose member has deleted their account. */
     userId: uuid("user_id").references(() => Users.id, { onDelete: "cascade" }),
-    organizationId: uuid("organization_id").references(() => Organizations.id),
+    organizationId: uuid("organization_id")
+      .references(() => Organizations.id)
+      .notNull(),
     fingerprint: varchar("fingerprint", { length: 255 }).notNull(),
     paymentMethodId: varchar("payment_method_id", { length: 255 }).notNull(),
     isValidated: boolean("is_validated").default(false).notNull(),

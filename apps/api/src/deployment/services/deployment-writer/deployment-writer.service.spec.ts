@@ -4470,16 +4470,6 @@ describe(DeploymentWriterService.name, () => {
         );
       });
 
-      it("names no organization in the apply of a deployment filed before organizations", async () => {
-        const { service, ability, jobQueueService } = setup({ organizationId: null });
-
-        await service.patchInBackgroundByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
-
-        const [applyJob] = jobQueueService.enqueue.mock.calls[0];
-        expect(applyJob.data).not.toHaveProperty("organizationId", expect.anything());
-        expect(applyJob.data).toMatchObject({ walletId: 7 });
-      });
-
       describe("a deployment of an organization's wallet", () => {
         const organizationWallet: WalletInitialized = { ...wallet, id: 42, address: "akash1team", userId: null, organizationId: "organization-1" };
 
@@ -4677,7 +4667,7 @@ describe(DeploymentWriterService.name, () => {
       isTrialing?: boolean;
       onChainGroupSpecs?: OnChainGroupSpec[];
       replacedBy?: string;
-      organizationId?: string | null;
+      organizationId?: string;
       storedName?: string | null;
     }) {
       const manifestVersion = new Uint8Array([1, 2, 3]);
@@ -4699,7 +4689,7 @@ describe(DeploymentWriterService.name, () => {
       const deploymentSettingRepository = mock<DeploymentSettingRepository>();
       const scoped = mock<DeploymentSettingRepository>();
       const storedVersion = input?.storedVersion === undefined ? STORED_VERSION : input.storedVersion;
-      const organizationId = input?.organizationId === undefined ? "personal-organization-1" : input.organizationId;
+      const organizationId = input?.organizationId ?? "personal-organization-1";
       scoped.findOneBy.mockResolvedValue(
         hasSetting
           ? mock<DeploymentSettingsOutput>({
@@ -5463,7 +5453,7 @@ describe(DeploymentWriterService.name, () => {
     const definition = mock<DeploymentSettingsOutput>({
       id: DEPLOYMENT_SETTING_ID,
       userId: input?.definitionFiledBy ?? "user-1",
-      organizationId: null,
+      organizationId: "personal-organization-1",
       dseq: ACCEPTED_DSEQ,
       projectId: input?.filingProjectId ?? null,
       manifestVersion: input?.recordedVersion === undefined ? RECORDED_VERSION : input.recordedVersion,

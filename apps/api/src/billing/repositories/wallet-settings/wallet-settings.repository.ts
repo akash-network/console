@@ -4,13 +4,13 @@ import { singleton } from "tsyringe";
 import { ownedBy } from "@src/billing/lib/billing-owner/billing-owner";
 import type { WalletBillingTarget } from "@src/billing/lib/wallet-billing-target/wallet-billing-target";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
-import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
+import { type OrganizationFiledOnWrite, OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
 import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { writtenForTeamBy } from "@src/organization/lib/team-records/team-records";
 
 type Table = ApiPgTables["WalletSetting"];
-type DbWalletSettingInput = ApiPgTables["WalletSetting"]["$inferInsert"];
+type DbWalletSettingInput = OrganizationFiledOnWrite<ApiPgTables["WalletSetting"]["$inferInsert"]>;
 type DbWalletSettingOutput = ApiPgTables["WalletSetting"]["$inferSelect"];
 
 export type WalletSettingInput = Partial<DbWalletSettingInput>;
@@ -74,7 +74,7 @@ export class WalletSettingRepository extends OrgScopedRepository<Table, WalletSe
 
   /** Returns nothing when the wallet already has a setting, because a failed insert would abort the caller's transaction. */
   async createUnlessExists(input: DbWalletSettingInput): Promise<WalletSettingOutput | undefined> {
-    const values = await this.attributeToOrganization(input);
+    const values = await this.attributeToRequiredOrganization(input);
     this.ability?.throwUnlessCanExecute(values);
     const [created] = await this.cursor.insert(this.table).values(values).onConflictDoNothing({ target: this.table.walletId }).returning();
 

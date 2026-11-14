@@ -8,7 +8,7 @@ import { TxService } from "@src/core/services/tx/tx.service";
 import { FirstPurchaseBonusService } from "./first-purchase-bonus.service";
 
 import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
-import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationIdOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 
 const QUALIFYING_AMOUNT_CENTS = 100_00;
 const SMALL_AMOUNT_CENTS = 20_00;
@@ -43,7 +43,14 @@ describe(FirstPurchaseBonusService.name, () => {
       const { stripeTransactionRepository, pendingPurchase, eligibleBonus } = setup();
       const person = await seedUser();
       const { organization: team } = await seedOrganizationWithOwner();
-      await stripeTransactionRepository.create({ userId: person.id, type: "payment_intent", status: "succeeded", amount: SMALL_AMOUNT_CENTS, currency: "usd" });
+      await stripeTransactionRepository.create({
+        userId: person.id,
+        organizationId: await seedPersonalOrganizationIdOf(person.id),
+        type: "payment_intent",
+        status: "succeeded",
+        amount: SMALL_AMOUNT_CENTS,
+        currency: "usd"
+      });
       const purchase = await pendingPurchase(person.id, team.id);
 
       await expect(eligibleBonus(purchase)).resolves.toEqual({ bonusCents: QUALIFYING_AMOUNT_CENTS / 10, window: null });
@@ -74,6 +81,7 @@ describe(FirstPurchaseBonusService.name, () => {
         const person = await seedUser();
         await stripeTransactionRepository.create({
           userId: person.id,
+          organizationId: await seedPersonalOrganizationIdOf(person.id),
           type: "payment_intent",
           status: "refunded",
           amount: SMALL_AMOUNT_CENTS,
@@ -184,10 +192,10 @@ describe(FirstPurchaseBonusService.name, () => {
     const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
     const txService = container.resolve(TxService);
 
-    const pendingPurchase = (userId: string, organizationId: string | null, createdAt?: Date) =>
+    const pendingPurchase = async (userId: string, organizationId: string | null, createdAt?: Date) =>
       stripeTransactionRepository.create({
         userId,
-        organizationId,
+        organizationId: organizationId ?? (await seedPersonalOrganizationIdOf(userId)),
         type: "payment_intent",
         status: "pending",
         amount: QUALIFYING_AMOUNT_CENTS,
@@ -195,10 +203,10 @@ describe(FirstPurchaseBonusService.name, () => {
         createdAt
       });
 
-    const smallFirstPurchase = (userId: string, organizationId: string | null) =>
+    const smallFirstPurchase = async (userId: string, organizationId: string | null) =>
       stripeTransactionRepository.create({
         userId,
-        organizationId,
+        organizationId: organizationId ?? (await seedPersonalOrganizationIdOf(userId)),
         type: "payment_intent",
         status: "succeeded",
         amount: SMALL_AMOUNT_CENTS,
@@ -224,8 +232,15 @@ describe(FirstPurchaseBonusService.name, () => {
 
     const eligibleBonus = (purchase: StripeTransactionOutput) => txService.transaction(() => service.getEligibleBonusAmount(purchase, QUALIFYING_AMOUNT_CENTS));
 
-    const pendingSmallPurchase = (userId: string) =>
-      stripeTransactionRepository.create({ userId, type: "payment_intent", status: "pending", amount: SMALL_AMOUNT_CENTS, currency: "usd" });
+    const pendingSmallPurchase = async (userId: string) =>
+      stripeTransactionRepository.create({
+        userId,
+        organizationId: await seedPersonalOrganizationIdOf(userId),
+        type: "payment_intent",
+        status: "pending",
+        amount: SMALL_AMOUNT_CENTS,
+        currency: "usd"
+      });
 
     const openWindowsConcurrently = (purchases: StripeTransactionOutput[]) =>
       Promise.all(

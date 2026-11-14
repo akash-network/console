@@ -23,6 +23,7 @@ import { UserRepository } from "@src/user/repositories";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { seedPaymentCredit } from "@test/seeders/db/payment-credit.seeder";
+import { seedPersonalOrganizationIdOf } from "@test/seeders/db/user-with-wallet.seeder";
 import { expectJobCompleted, findJobRows, makeJobDue, useJobWorkers } from "@test/services/job-queue-harness";
 
 const affiliateCommissionWorkers = useJobWorkers(() => [container.resolve(SyncAffiliateCommissionHandler)]);
@@ -186,6 +187,7 @@ describe("Stripe webhook", () => {
         const { affiliateUser } = await seedReferringAffiliate(user.id);
         const payment = await stripeTransactionRepository.create({
           userId: user.id,
+          organizationId: await seedPersonalOrganizationIdOf(user.id),
           type: "payment_intent",
           status: "created",
           amount,
@@ -251,6 +253,7 @@ describe("Stripe webhook", () => {
 
         await stripeTransactionRepository.create({
           userId: user.id,
+          organizationId: await seedPersonalOrganizationIdOf(user.id),
           type: "payment_intent",
           status: "created",
           amount,
@@ -311,6 +314,7 @@ describe("Stripe webhook", () => {
         // Create a transaction record first (simulating what createPaymentIntent does)
         await stripeTransactionRepository.create({
           userId: user.id,
+          organizationId: await seedPersonalOrganizationIdOf(user.id),
           type: "payment_intent",
           status: "created",
           amount,
@@ -379,6 +383,7 @@ describe("Stripe webhook", () => {
 
         await stripeTransactionRepository.create({
           userId: user.id,
+          organizationId: await seedPersonalOrganizationIdOf(user.id),
           type: "payment_intent",
           status: "created",
           amount,
@@ -430,6 +435,7 @@ describe("Stripe webhook", () => {
 
         await stripeTransactionRepository.create({
           userId: user.id,
+          organizationId: await seedPersonalOrganizationIdOf(user.id),
           type: "payment_intent",
           status: "created",
           amount,
@@ -480,6 +486,7 @@ describe("Stripe webhook", () => {
 
         await stripeTransactionRepository.create({
           userId: user.id,
+          organizationId: await seedPersonalOrganizationIdOf(user.id),
           type: "payment_intent",
           status: "succeeded",
           amount: 2000,
@@ -490,6 +497,7 @@ describe("Stripe webhook", () => {
 
         await stripeTransactionRepository.create({
           userId: user.id,
+          organizationId: await seedPersonalOrganizationIdOf(user.id),
           type: "payment_intent",
           status: "created",
           amount,
@@ -536,6 +544,7 @@ describe("Stripe webhook", () => {
         const { user, stripeCustomerId } = await setup();
         await stripeTransactionRepository.create({
           userId: user.id,
+          organizationId: await seedPersonalOrganizationIdOf(user.id),
           type: "payment_intent",
           status: "created",
           amount: 2000,
@@ -558,6 +567,7 @@ describe("Stripe webhook", () => {
         const { user, stripeCustomerId } = await setup();
         await stripeTransactionRepository.create({
           userId: user.id,
+          organizationId: await seedPersonalOrganizationIdOf(user.id),
           type: "payment_intent",
           status: "succeeded",
           amount: 2000,
@@ -567,6 +577,7 @@ describe("Stripe webhook", () => {
         });
         await stripeTransactionRepository.create({
           userId: user.id,
+          organizationId: await seedPersonalOrganizationIdOf(user.id),
           type: "payment_intent",
           status: "created",
           amount: 2000,
@@ -590,6 +601,7 @@ describe("Stripe webhook", () => {
         for (const paymentIntentId of paymentIntentIds) {
           await stripeTransactionRepository.create({
             userId: user.id,
+            organizationId: await seedPersonalOrganizationIdOf(user.id),
             type: "payment_intent",
             status: "created",
             amount,
@@ -653,6 +665,7 @@ describe("Stripe webhook", () => {
         // Coupon claim redeemed via invoice
         await stripeTransactionRepository.create({
           userId: user.id,
+          organizationId: await seedPersonalOrganizationIdOf(user.id),
           type: "coupon_claim",
           status: "created",
           amount: couponAmount,
@@ -684,6 +697,7 @@ describe("Stripe webhook", () => {
         // A later first real purchase still earns the bonus - the coupon did not consume eligibility
         await stripeTransactionRepository.create({
           userId: user.id,
+          organizationId: await seedPersonalOrganizationIdOf(user.id),
           type: "payment_intent",
           status: "created",
           amount: purchaseAmount,
@@ -814,6 +828,7 @@ describe("Stripe webhook", () => {
 
         const topUp = await stripeTransactionRepository.create({
           userId: user.id,
+          organizationId: await seedPersonalOrganizationIdOf(user.id),
           type: "payment_intent",
           status: "created",
           amount,
@@ -857,6 +872,7 @@ describe("Stripe webhook", () => {
 
         await stripeTransactionRepository.create({
           userId: user.id,
+          organizationId: await seedPersonalOrganizationIdOf(user.id),
           type: "payment_intent",
           status: "succeeded",
           amount,
@@ -892,6 +908,7 @@ describe("Stripe webhook", () => {
 
         await stripeTransactionRepository.create({
           userId: user.id,
+          organizationId: await seedPersonalOrganizationIdOf(user.id),
           type: "payment_intent",
           status: "succeeded",
           amount,
@@ -923,6 +940,7 @@ describe("Stripe webhook", () => {
         // Create a succeeded transaction
         await stripeTransactionRepository.create({
           userId: user.id,
+          organizationId: await seedPersonalOrganizationIdOf(user.id),
           type: "payment_intent",
           status: "succeeded",
           amount,
@@ -953,6 +971,7 @@ describe("Stripe webhook", () => {
 
         await stripeTransactionRepository.create({
           userId: user.id,
+          organizationId: await seedPersonalOrganizationIdOf(user.id),
           type: "payment_intent",
           status: "succeeded",
           amount: totalAmount,
@@ -1257,6 +1276,7 @@ describe("Stripe webhook", () => {
         // The admin app pre-creates the pending row (direct DB write) before marking the invoice paid
         await stripeTransactionRepository.create({
           userId: user.id,
+          organizationId: await seedPersonalOrganizationIdOf(user.id),
           type: "manual_credit",
           status: "pending",
           amount,
@@ -1288,6 +1308,7 @@ describe("Stripe webhook", () => {
 
         await stripeTransactionRepository.create({
           userId: user.id,
+          organizationId: await seedPersonalOrganizationIdOf(user.id),
           type: "manual_credit",
           status: "pending",
           amount,
@@ -1431,6 +1452,7 @@ describe("Stripe webhook", () => {
     const { affiliateUser, affiliateWallet } = await seedReferringAffiliate(input.payerId);
     const payment = await stripeTransactionRepository.create({
       userId: input.payerId,
+      organizationId: await seedPersonalOrganizationIdOf(input.payerId),
       type: "payment_intent",
       status: "succeeded",
       amount: input.amount,
@@ -1440,6 +1462,7 @@ describe("Stripe webhook", () => {
     });
     const commission = await stripeTransactionRepository.createAffiliateCommission({
       userId: affiliateUser.id,
+      organizationId: await seedPersonalOrganizationIdOf(affiliateUser.id),
       amount: input.commission,
       sourceTransactionId: payment.id
     });
@@ -1497,11 +1520,11 @@ describe("Stripe webhook", () => {
     const user = await userRepository.create({});
     const stripeCustomerId = `cus_${faker.string.alphanumeric(14)}`;
     await userRepository.updateById(user.id, { stripeCustomerId });
-    const wallet = await userWalletRepository.create({
-      userId: user.id,
-      address: createAkashAddress()
-    });
+    await seedPersonalOrganizationIdOf(user.id);
+    const { wallet: createdWallet } = await userWalletRepository.getOrCreate({ userId: user.id });
+    const wallet = { ...createdWallet, address: createAkashAddress() };
     await userWalletRepository.updateById(wallet.id, {
+      address: wallet.address,
       isTrialing: true,
       deploymentAllowance: billingConfig.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT,
       feeAllowance: billingConfig.TRIAL_FEES_ALLOWANCE_AMOUNT

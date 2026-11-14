@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, numeric, pgTable, serial, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, check, numeric, pgTable, serial, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
 // eslint-disable-next-line import-x/no-cycle
 import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
@@ -34,7 +34,12 @@ export const UserWallets = pgTable(
   table => ({
     organizationIdUnique: uniqueIndex("user_wallets_organization_id_unique")
       .on(table.organizationId)
-      .where(sql`${table.organizationId} IS NOT NULL`)
+      .where(sql`${table.organizationId} IS NOT NULL`),
+    /** Account deletion keeps the wallet row with neither owner nor organization, so only a wallet that still has an owner must have an organization. */
+    organizationIdRequiredWhileOwned: check(
+      "user_wallets_organization_id_required_while_owned",
+      sql`${table.organizationId} IS NOT NULL OR ${table.userId} IS NULL`
+    )
   })
 );
 

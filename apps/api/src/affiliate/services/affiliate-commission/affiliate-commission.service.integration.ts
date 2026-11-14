@@ -8,12 +8,14 @@ import { ReferralRepository } from "@src/affiliate/repositories/referral/referra
 import { StripeTransactionRepository } from "@src/billing/repositories";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { JOB_NAME } from "@src/core";
+import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import { AffiliateCommissionService } from "./affiliate-commission.service";
 import { SyncAffiliateCommissionHandler } from "./sync-affiliate-commission.handler";
 import { SyncAffiliateCommission } from "./sync-affiliate-commission.job";
 
+import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedPaymentCredit } from "@test/seeders/db/payment-credit.seeder";
-import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationIdOf, seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 
 const jobWorkers = useJobWorkers(() => [container.resolve(SyncAffiliateCommissionHandler)]);
@@ -51,12 +53,24 @@ describe(AffiliateCommissionService.name, () => {
       expect(commissions).toEqual([expect.objectContaining({ userId: affiliateUser.id, status: "succeeded", amount: 500, amountRefunded: 0 })]);
       expect(topUpWallet).toHaveBeenCalledTimes(1);
     });
+
+    it("files the commission of an affiliate who has no personal organization yet into the one it provisions", async () => {
+      const { service, payment, affiliateUser } = await setup({ affiliateHasPersonalOrganization: false });
+
+      await service.syncCommission(payment.id, "settlement");
+
+      const personalOrganization = await container.resolve(OrganizationRepository).findPersonalByUserId(affiliateUser.id);
+      const commissions = await container.resolve(StripeTransactionRepository).find({ sourceTransactionId: payment.id });
+      expect(personalOrganization).toBeDefined();
+      expect(commissions).toEqual([expect.objectContaining({ userId: affiliateUser.id, organizationId: personalOrganization?.id, status: "pending" })]);
+    });
   });
 
-  async function setup() {
+  async function setup(input: { affiliateHasPersonalOrganization?: boolean } = {}) {
     await jobWorkers();
     const payer = await seedUser();
-    const { user: affiliateUser, wallet: affiliateWallet, address } = await seedUserWithWallet();
+    const { affiliateUser, toppedUpWallet } =
+      input.affiliateHasPersonalOrganization === false ? await seedAffiliateWithoutWallet() : await seedAffiliateWithWallet();
     const affiliate = await container.resolve(AffiliateRepository).create({
       userId: affiliateUser.id,
       code: faker.string.alpha({ length: 8, casing: "lower" }),
@@ -66,6 +80,7 @@ describe(AffiliateCommissionService.name, () => {
     await container.resolve(ReferralRepository).createIfAbsent({ referredUserId: payer.id, affiliateId: affiliate.id });
     const payment = await container.resolve(StripeTransactionRepository).create({
       userId: payer.id,
+      organizationId: await seedPersonalOrganizationIdOf(payer.id),
       type: "payment_intent",
       status: "succeeded",
       amount: 10000,
@@ -74,9 +89,19 @@ describe(AffiliateCommissionService.name, () => {
     await seedPaymentCredit({ transactionId: payment.id });
     const topUpWallet = vi.spyOn(container.resolve(RefillService), "topUpWallet").mockImplementation(async () => {
       await delay(200);
-      return { walletId: affiliateWallet.id, address };
+      return toppedUpWallet;
     });
 
     return { service: container.resolve(AffiliateCommissionService), payment, affiliateUser, topUpWallet };
+  }
+
+  async function seedAffiliateWithWallet() {
+    const { user, wallet, address } = await seedUserWithWallet();
+
+    return { affiliateUser: user, toppedUpWallet: { walletId: wallet.id, address } };
+  }
+
+  async function seedAffiliateWithoutWallet() {
+    return { affiliateUser: await seedUser(), toppedUpWallet: { walletId: faker.number.int({ min: 1, max: 1_000_000 }), address: createAkashAddress() } };
   }
 });

@@ -631,14 +631,6 @@ describe(TemplateWriterService.name, () => {
       expectNothingWritten(repository);
     });
 
-    it("refuses a template filed in no organization", async () => {
-      const template = createTemplateRow({ organizationId: null });
-      const { service, repository } = setup({ template, activeOrganizationId: null });
-
-      await expect(write(service, template.id)).rejects.toMatchObject({ status: 403, message: SWITCH_ORGANIZATION_MESSAGE });
-      expectNothingWritten(repository);
-    });
-
     it("refuses a caller whose rules do not reach the template", async () => {
       const template = createTemplateRow();
       const { service, repository, txService } = setup({

@@ -23,7 +23,7 @@ import { CloseUnreachableProviderDeploymentHandler } from "./close-unreachable-p
 import { createAkashAddress, createDeployment, createDeploymentGroup, createLease, createProvider } from "@test/seeders";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
-import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 import { interceptNotifications } from "@test/services/notifications-intercept";
 
@@ -247,14 +247,14 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
 
     const owner = createAkashAddress();
     const user = await container.resolve(UserRepository).create({ userId: faker.string.uuid(), email: "owner@example.com" });
-    const { wallet, teamOwners } = input.inTeam
+    const { wallet, organizationId, teamOwners } = input.inTeam
       ? await seedTeamWallet(owner, { memberId: input.filerLeftTeam ? undefined : user.id, ownerCount: input.teamOwnerCount ?? 1 })
-      : { wallet: await seedPersonalWallet(user.id, owner), teamOwners: [] };
+      : { ...(await seedPersonalWallet(user, owner)), teamOwners: [] };
 
     const darkProvider = await createProvider();
     const deployment = await createDeployment({ owner, dseq: faker.string.numeric(10) });
 
-    const teamSetting = input.inTeam && (await seedDeploymentSetting({ userId: user.id, organizationId: wallet.organizationId, dseq: deployment.dseq }));
+    const teamSetting = input.inTeam && (await seedDeploymentSetting({ userId: user.id, organizationId, dseq: deployment.dseq }));
 
     if (input.filerDeletedAccount) {
       await deleteAccount(user);
@@ -324,12 +324,13 @@ async function deleteAccount(user: UserOutput) {
   await container.resolve(UserRepository).deleteById(user.id);
 }
 
-async function seedPersonalWallet(userId: string, address: string) {
+async function seedPersonalWallet(user: UserOutput, address: string) {
   const userWalletRepository = container.resolve(UserWalletRepository);
-  const { wallet } = await userWalletRepository.getOrCreate({ userId });
+  const { id: organizationId } = await seedPersonalOrganizationOf(user);
+  const { wallet } = await userWalletRepository.getOrCreate({ userId: user.id });
   await userWalletRepository.updateById(wallet.id, { address });
 
-  return wallet;
+  return { wallet, organizationId };
 }
 
 async function seedTeamWallet(address: string, { memberId, ownerCount }: { memberId?: string; ownerCount: number }) {
@@ -352,7 +353,7 @@ async function seedTeamWallet(address: string, { memberId, ownerCount }: { membe
     .values({ userId: null, organizationId: organization.id, address, isTrialing: false })
     .returning();
 
-  return { wallet, teamOwners };
+  return { wallet, organizationId: organization.id, teamOwners };
 }
 
 async function seedLease(deployment: { id: string; owner: string; dseq: string }, providerAddress: string, gseq: number, closedHeight?: number) {

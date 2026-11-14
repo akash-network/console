@@ -16,7 +16,7 @@ import { JOB_NAME } from "@src/core";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { REFUND_DEBIT_UNDECIDED_ERROR_CODE, RefundDebitService } from "./refund-debit.service";
 
-import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationIdOf, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { deleteQueuedJobs, useJobWorkers } from "@test/services/job-queue-harness";
 
 const CHECK = ReconcileDeploymentAllowance[JOB_NAME];
@@ -144,6 +144,7 @@ describe(RefundDebitService.name, () => {
     const chargeId = `ch_${faker.string.alphanumeric(24)}`;
     const payment = await container.resolve(StripeTransactionRepository).create({
       userId: user.id,
+      organizationId: await seedPersonalOrganizationIdOf(user.id),
       type: "payment_intent",
       status: "succeeded",
       amount: paidCents,
@@ -174,7 +175,7 @@ describe(RefundDebitService.name, () => {
         paymentIntentId: payment.stripePaymentIntentId ?? undefined,
         amountRefunded,
         fullyRefunded: amountRefunded === paidCents,
-        customerOwner: { user }
+        customerOwner: { user, personalOrganizationId: payment.organizationId }
       });
     const findDebits = () => container.resolve(RefundDebitRepository).findRefundedBeyond(payment.id, 0);
 

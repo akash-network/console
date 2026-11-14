@@ -1,10 +1,16 @@
 import { faker } from "@faker-js/faker";
 import { hash } from "bcryptjs";
+import { sql } from "drizzle-orm";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it } from "vitest";
 
+import type { ApiPgDatabase } from "@src/core";
+import { POSTGRES_DB } from "@src/core";
+import { getPostgresError } from "@src/core/repositories/base.repository";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { ApiKeyRepository } from "./api-key.repository";
+
+import { seedPersonalOrganizationIdOf } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe(ApiKeyRepository.name, () => {
   describe("findBcryptKeysByKeyFormat", () => {
@@ -16,6 +22,7 @@ describe(ApiKeyRepository.name, () => {
 
       const apiKey = await apiKeyRepository.create({
         userId: user.id,
+        organizationId: await seedPersonalOrganizationIdOf(user.id),
         name: faker.company.name(),
         hashedKey: bcryptHash,
         keyFormat
@@ -35,6 +42,7 @@ describe(ApiKeyRepository.name, () => {
 
       await apiKeyRepository.create({
         userId: user.id,
+        organizationId: await seedPersonalOrganizationIdOf(user.id),
         name: faker.company.name(),
         hashedKey: sha256Hash,
         keyFormat
@@ -52,6 +60,7 @@ describe(ApiKeyRepository.name, () => {
 
       await apiKeyRepository.create({
         userId: user.id,
+        organizationId: await seedPersonalOrganizationIdOf(user.id),
         name: faker.company.name(),
         hashedKey: bcryptHash,
         keyFormat: `ac.sk.test.aaaaaa***bbbbbb`
@@ -80,6 +89,7 @@ describe(ApiKeyRepository.name, () => {
 
       const apiKey = await apiKeyRepository.create({
         userId: user.id,
+        organizationId: await seedPersonalOrganizationIdOf(user.id),
         name: faker.company.name(),
         hashedKey: bcryptHash,
         keyFormat: `ac.sk.test.abc123***def456`
@@ -98,6 +108,7 @@ describe(ApiKeyRepository.name, () => {
 
       const apiKey = await apiKeyRepository.create({
         userId: user.id,
+        organizationId: await seedPersonalOrganizationIdOf(user.id),
         name: faker.company.name(),
         hashedKey: existingHash,
         keyFormat: `ac.sk.test.abc123***def456`
@@ -119,6 +130,7 @@ describe(ApiKeyRepository.name, () => {
 
       const apiKey = await apiKeyRepository.create({
         userId: user.id,
+        organizationId: await seedPersonalOrganizationIdOf(user.id),
         name: faker.company.name(),
         hashedKey: faker.string.hexadecimal({ length: 64, prefix: "" }),
         keyFormat: `ac.sk.test.abc123***def456`,
@@ -137,6 +149,7 @@ describe(ApiKeyRepository.name, () => {
 
       const apiKey = await apiKeyRepository.create({
         userId: user.id,
+        organizationId: await seedPersonalOrganizationIdOf(user.id),
         name: faker.company.name(),
         hashedKey: faker.string.hexadecimal({ length: 64, prefix: "" }),
         keyFormat: `ac.sk.test.abc123***def456`,
@@ -157,6 +170,7 @@ describe(ApiKeyRepository.name, () => {
 
       const apiKey = await apiKeyRepository.create({
         userId: user.id,
+        organizationId: await seedPersonalOrganizationIdOf(user.id),
         name: faker.company.name(),
         hashedKey: faker.string.hexadecimal({ length: 64, prefix: "" }),
         keyFormat: `ac.sk.test.abc123***def456`
@@ -166,6 +180,36 @@ describe(ApiKeyRepository.name, () => {
 
       const updated = await apiKeyRepository.findById(apiKey.id);
       expect(updated?.lastUsedAt).not.toBeNull();
+    });
+  });
+
+  describe("organization constraints", () => {
+    it("refuses a key that belongs to no organization", async () => {
+      const { createTestUser, insertApiKey } = setup();
+      const user = await createTestUser();
+
+      const error = await insertApiKey({ userId: user.id, organizationId: null, projectId: null }).catch((caught: unknown) => caught);
+
+      expect(getPostgresError(error)).toMatchObject({ code: "23502", column_name: "organization_id" });
+    });
+
+    it("refuses a key that belongs to an organization that does not exist", async () => {
+      const { createTestUser, insertApiKey } = setup();
+      const user = await createTestUser();
+
+      const error = await insertApiKey({ userId: user.id, organizationId: faker.string.uuid(), projectId: null }).catch((caught: unknown) => caught);
+
+      expect(getPostgresError(error)?.constraint_name).toBe("api_keys_organization_id_organizations_id_fk");
+    });
+
+    it("refuses a key bound to a project its organization does not have", async () => {
+      const { createTestUser, insertApiKey } = setup();
+      const user = await createTestUser();
+      const organizationId = await seedPersonalOrganizationIdOf(user.id);
+
+      const error = await insertApiKey({ userId: user.id, organizationId, projectId: faker.string.uuid() }).catch((caught: unknown) => caught);
+
+      expect(getPostgresError(error)?.constraint_name).toBe("api_keys_organization_id_project_id_fk");
     });
   });
 
@@ -209,6 +253,13 @@ describe(ApiKeyRepository.name, () => {
       return user;
     }
 
-    return { apiKeyRepository, createTestUser };
+    async function insertApiKey({ userId, organizationId, projectId }: { userId: string; organizationId: string | null; projectId: string | null }) {
+      await container.resolve<ApiPgDatabase>(POSTGRES_DB).execute(sql`
+        insert into api_keys (user_id, organization_id, project_id, hashed_key, key_format, name)
+        values (${userId}, ${organizationId}, ${projectId}, ${faker.string.alphanumeric(64)}, ${faker.string.alphanumeric(12)}, ${faker.word.noun()})
+      `);
+    }
+
+    return { apiKeyRepository, createTestUser, insertApiKey };
   }
 });

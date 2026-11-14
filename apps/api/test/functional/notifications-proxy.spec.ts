@@ -182,7 +182,7 @@ describe("Notifications proxy", () => {
     return { headers: () => forwarded ?? {}, reached: () => forwarded !== undefined };
   }
 
-  async function persistApiKeyFor(userId: string, organizationId?: string) {
+  async function persistApiKeyFor(userId: string, organizationId: string) {
     const apiKeyGenerator = container.resolve(ApiKeyGeneratorService);
     const apiKey = apiKeyGenerator.generateApiKey();
 
@@ -199,8 +199,8 @@ describe("Notifications proxy", () => {
 
   async function setup() {
     const { user, address } = await seedUserWithWallet();
-    await fileIntoPersonalOrganization(user);
-    const apiKey = await persistApiKeyFor(user.id);
+    const personalOrganization = await fileIntoPersonalOrganization(user);
+    const apiKey = await persistApiKeyFor(user.id, personalOrganization.id);
 
     return { user, address, apiKey };
   }

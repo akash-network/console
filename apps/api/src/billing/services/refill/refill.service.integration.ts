@@ -19,7 +19,7 @@ import { OrganizationRepository } from "@src/organization/repositories/organizat
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
-import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationIdOf, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { deleteQueuedJobs, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 import { holdTransaction, waitForLockWait } from "@test/services/lock-wait";
 
@@ -149,17 +149,27 @@ describe(RefillService.name, () => {
     });
 
     const creditInFlight = async ({ address = wallet.address! }: { address?: string } = {}) => {
-      const payment = await container
-        .resolve(StripeTransactionRepository)
-        .create({ userId: user.id, type: "payment_intent", status: "pending", amount: 50_00, currency: "usd" });
+      const payment = await container.resolve(StripeTransactionRepository).create({
+        userId: user.id,
+        organizationId: await seedPersonalOrganizationIdOf(user.id),
+        type: "payment_intent",
+        status: "pending",
+        amount: 50_00,
+        currency: "usd"
+      });
       await container.resolve(PaymentCreditRepository).createPending({ transactionId: payment.id, address, amount: 50_00, bonusAmount: 0 });
 
       return { transactionId: payment.id };
     };
 
-    const refundedPayment = await container
-      .resolve(StripeTransactionRepository)
-      .create({ userId: user.id, type: "payment_intent", status: "succeeded", amount: 50_00, currency: "usd" });
+    const refundedPayment = await container.resolve(StripeTransactionRepository).create({
+      userId: user.id,
+      organizationId: await seedPersonalOrganizationIdOf(user.id),
+      type: "payment_intent",
+      status: "succeeded",
+      amount: 50_00,
+      currency: "usd"
+    });
     const refund = () =>
       container
         .resolve(RefillService)

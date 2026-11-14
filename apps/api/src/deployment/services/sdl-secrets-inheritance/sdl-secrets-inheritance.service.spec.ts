@@ -16,6 +16,7 @@ import { SdlSecretsInheritanceService } from "./sdl-secrets-inheritance.service"
 const SOURCE = { userId: "user-1", dseq: "1420000000001" };
 const REQUEST = { wallet: { userId: SOURCE.userId, organizationId: null }, dseq: SOURCE.dseq };
 const TOKEN = "stored.token.aaa.bbb.ccc";
+const SOURCE_ORGANIZATION_ID = "organization-1";
 
 describe(SdlSecretsInheritanceService.name, () => {
   it("returns the values the source deployment's token opens to", async () => {
@@ -30,7 +31,7 @@ describe(SdlSecretsInheritanceService.name, () => {
 
     await service.open(REQUEST);
 
-    expect(sdlSecretsService.openStored).toHaveBeenCalledWith({ ...SOURCE, organizationId: null, sealedSecrets: TOKEN });
+    expect(sdlSecretsService.openStored).toHaveBeenCalledWith({ ...SOURCE, organizationId: SOURCE_ORGANIZATION_ID, sealedSecrets: TOKEN });
   });
 
   it("finds the source through the wallet that owns it, only where the caller may change it", async () => {
@@ -275,7 +276,9 @@ describe(SdlSecretsInheritanceService.name, () => {
 
   function setup(input?: { setting?: DeploymentSettingsOutput; opened?: SdlSecrets; openStoredError?: Error }) {
     const setting =
-      "setting" in (input ?? {}) ? input!.setting : mock<DeploymentSettingsOutput>({ sealedSecrets: TOKEN, userId: SOURCE.userId, organizationId: null });
+      "setting" in (input ?? {})
+        ? input!.setting
+        : mock<DeploymentSettingsOutput>({ sealedSecrets: TOKEN, userId: SOURCE.userId, organizationId: SOURCE_ORGANIZATION_ID });
 
     const scoped = mock<DeploymentSettingRepository>();
     scoped.findOneOfWallet.mockResolvedValue(setting);

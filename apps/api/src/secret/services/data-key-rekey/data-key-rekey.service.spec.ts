@@ -36,7 +36,7 @@ function tokenSealedForTeam(organizationId: string) {
 }
 
 function deploymentSealedUnder(kid: string, dseq = String(1000 + Math.floor(Math.random() * 9000))): DeploymentStoredSecretsOfUser {
-  return { id: randomUUID(), dseq, organizationId: null, sealedSecrets: tokenUnder(kid), updatedAt: new Date() };
+  return { id: randomUUID(), dseq, organizationId: randomUUID(), sealedSecrets: tokenUnder(kid), updatedAt: new Date() };
 }
 
 describe(DataKeyRekeyService.name, () => {
@@ -94,7 +94,12 @@ describe(DataKeyRekeyService.name, () => {
 
       const report = (await service.rekeyUser({ userId: USER_ID, dryRun: false })).unwrap();
 
-      expect(sdlSecretsService.openStored).toHaveBeenCalledWith({ userId: USER_ID, organizationId: null, dseq: "100", sealedSecrets: first.sealedSecrets });
+      expect(sdlSecretsService.openStored).toHaveBeenCalledWith({
+        userId: USER_ID,
+        organizationId: first.organizationId,
+        dseq: "100",
+        sealedSecrets: first.sealedSecrets
+      });
       expect(sdlSecretsService.sealForStorage).toHaveBeenCalledWith({ userId: USER_ID, dseq: "100", secrets: TWO_SECRETS });
       expect(deploymentSettingRepository.resealIfUnchanged).toHaveBeenCalledWith(first.id, first.sealedSecrets, resealedTokens()[0]);
       expect(report).toMatchObject({ deploymentsResealed: 2, secretsResealed: 4, activeDataKeyId: REPLACEMENT_KEY_ID, retiredDataKeyId: ACTIVE_KEY_ID });
@@ -288,7 +293,7 @@ describe(DataKeyRekeyService.name, () => {
       const unreadable: DeploymentStoredSecretsOfUser = {
         id: randomUUID(),
         dseq: "555",
-        organizationId: null,
+        organizationId: randomUUID(),
         sealedSecrets: "not-a-token",
         updatedAt: new Date()
       };

@@ -15,7 +15,7 @@ import { AccountStatusGuard } from "@src/user/services/account-status-guard/acco
 import { CouponRedemptionService } from "./coupon-redemption.service";
 
 import { seedOrganization } from "@test/seeders/db/organization.seeder";
-import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationIdOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { createTestCoupon, createTestInvoice, createTestPromotionCode } from "@test/seeders/stripe-test-data.seeder";
 
 describe(CouponRedemptionService.name, () => {
@@ -147,7 +147,7 @@ describe(CouponRedemptionService.name, () => {
         .insert(transactions)
         .values({
           userId: user.id,
-          organizationId: payer.organizationId,
+          organizationId: payer.organizationId ?? (await seedPersonalOrganizationIdOf(user.id)),
           type: "coupon_claim",
           status: "pending",
           amount: 1000,

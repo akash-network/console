@@ -18,6 +18,7 @@ import { averageBlockCountInAnHour } from "@src/utils/constants";
 import { TopUpManagedDeploymentsService } from "./top-up-managed-deployments.service";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { seedPersonalOrganizationIdOf } from "@test/seeders/db/user-with-wallet.seeder";
 import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { createLeaseApiResponse } from "@test/seeders/lease-api-response.seeder";
 import { findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
@@ -713,6 +714,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
         .insert(userWalletsTable)
         .values({
           userId: user.id,
+          organizationId: await seedPersonalOrganizationIdOf(user.id),
           address,
           deploymentAllowance: input?.deploymentAllowance ?? "10000000",
           feeAllowance: "5000000",
@@ -732,6 +734,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
         .insert(deploymentSettingsTable)
         .values({
           userId,
+          organizationId: await seedPersonalOrganizationIdOf(userId),
           dseq,
           autoTopUpEnabled: overrides?.autoTopUpEnabled ?? true,
           closed: overrides?.closed ?? false,

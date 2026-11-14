@@ -644,7 +644,7 @@ describe(StripeTransactionService.name, () => {
     stripeTransactionRepository.create.mockImplementation(async input => ({
       id: "test-transaction-id",
       userId: input.userId ?? null,
-      organizationId: input.organizationId ?? null,
+      organizationId: input.organizationId ?? "organization-1",
       type: input.type,
       status: input.status ?? "created",
       amount: input.amount,

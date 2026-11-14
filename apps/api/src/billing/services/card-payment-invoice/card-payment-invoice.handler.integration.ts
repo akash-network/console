@@ -9,7 +9,7 @@ import type { ApiPgDatabase } from "@src/core";
 import { JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { CardPaymentInvoiceHandler } from "./card-payment-invoice.handler";
 
-import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationIdOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { expectJobCompleted, useJobWorkers } from "@test/services/job-queue-harness";
 
 const STRIPE_API = "https://api.stripe.com";
@@ -59,7 +59,15 @@ describe(CardPaymentInvoiceHandler.name, () => {
     const customerId = `cus_${faker.string.alphanumeric(14)}`;
     const [transaction] = await db
       .insert(table)
-      .values({ userId: user.id, type: "payment_intent", status: "succeeded", amount: 2500, currency: "usd", stripePaymentIntentId: paymentIntentId })
+      .values({
+        userId: user.id,
+        organizationId: await seedPersonalOrganizationIdOf(user.id),
+        type: "payment_intent",
+        status: "succeeded",
+        amount: 2500,
+        currency: "usd",
+        stripePaymentIntentId: paymentIntentId
+      })
       .returning();
 
     const findTransaction = async (id: string) => await db.query.StripeTransactions.findFirst({ where: eq(table.id, id) });

@@ -28,6 +28,8 @@ import { SecretCipherService } from "@src/secret/services/secret-cipher/secret-c
 import { UserRepository } from "@src/user/repositories";
 import { DataKeyRekeyService, MIN_RETIREMENT_AGE_BEFORE_DELETE_MS } from "./data-key-rekey.service";
 
+import { seedPersonalOrganizationIdOf } from "@test/seeders/db/user-with-wallet.seeder";
+
 const PROJECT = "console-dev-mock";
 const LOCATION = "global";
 const KEY_RING = "console-api";
@@ -209,7 +211,13 @@ describe(`${DataKeyRekeyService.name} against Cloud KMS`, () => {
 
     async function sealNewDeployment(userId: string, dseq: string, secrets: SdlSecrets) {
       const sealedSecrets = await inRequest(async () => await sdlSecretsService.sealForStorage({ userId, dseq, secrets }));
-      await deploymentSettingRepository.create({ userId, dseq, autoTopUpEnabled: false, sealedSecrets });
+      await deploymentSettingRepository.create({
+        userId,
+        organizationId: await seedPersonalOrganizationIdOf(userId),
+        dseq,
+        autoTopUpEnabled: false,
+        sealedSecrets
+      });
     }
 
     async function seedUser(secretsByDseq: Record<string, SdlSecrets>) {

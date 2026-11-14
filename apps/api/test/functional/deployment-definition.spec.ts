@@ -27,13 +27,14 @@ import { deploymentVersion, marketVersion } from "@src/utils/constants";
 import { registerFakeSdlSecretsKms, SDL_SECRETS_KID, warmSealingKeyAsBootWould } from "@test/mocks/sdl-secrets-kms.mock";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createApiKey } from "@test/seeders/api-key.seeder";
+import { seedPersonalOrganizationIdOf } from "@test/seeders/db/user-with-wallet.seeder";
 import { createDeployment } from "@test/seeders/deployment.seeder";
 import { createDeploymentInfoGroupsFromSdl, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { createManyLeaseApiResponses } from "@test/seeders/lease-api-response.seeder";
 import { createLeaseStatus } from "@test/seeders/lease-status.seeder";
+import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
-import { runAsUser } from "@test/services/job-queue-harness";
 
 const { publicKey } = registerFakeSdlSecretsKms();
 
@@ -165,8 +166,10 @@ describe("Deployment definitions", () => {
 
     it("refuses to record over a definition the console already holds, leaving it as it was", async () => {
       const sdl = sdlWithEnv(["LOG_LEVEL=debug"]);
-      const { apiKey, user } = await setup({ runs: { sdl } });
-      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq: DSEQ, sdl: "version: '2.0'", manifestVersion: "AAAA" });
+      const { apiKey, user, organizationId } = await setup({ runs: { sdl } });
+      await inPersonalOrganization(organizationId, () =>
+        deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq: DSEQ, sdl: "version: '2.0'", manifestVersion: "AAAA" })
+      );
 
       const response = await record(apiKey, { sdl });
 
@@ -177,8 +180,8 @@ describe("Deployment definitions", () => {
 
     it("fills a row the console keeps without a definition, keeping its name", async () => {
       const sdl = sdlWithEnv(["LOG_LEVEL=debug"]);
-      const { apiKey, user } = await setup({ runs: { sdl } });
-      await runAsUser(user, () => deploymentSettingRepository.upsertName({ userId: user.id, dseq: DSEQ, name: "web" }));
+      const { apiKey, user, organizationId } = await setup({ runs: { sdl } });
+      await inPersonalOrganization(organizationId, () => deploymentSettingRepository.upsertName({ userId: user.id, dseq: DSEQ, name: "web" }));
 
       const response = await record(apiKey, { sdl });
 
@@ -286,6 +289,16 @@ describe("Deployment definitions", () => {
     return Buffer.from(resolved.value.manifestVersion).toString("base64");
   }
 
+  async function inPersonalOrganization<T>(organizationId: string, write: () => Promise<T>) {
+    const executionContextService = container.resolve(ExecutionContextService);
+
+    return await executionContextService.runWithContext(async () => {
+      executionContextService.set("ORGANIZATION_CONTEXT", createOrganizationContext({ organizationId, organizationType: "personal" }));
+
+      return await write();
+    });
+  }
+
   async function settingOf(user: UserOutput) {
     return await deploymentSettingRepository.findOneBy({ userId: user.id, dseq: DSEQ });
   }
@@ -338,11 +351,12 @@ describe("Deployment definitions", () => {
 
   async function setup(input: { runs: { sdl: string; secrets?: Record<string, string>; state?: "active" | "closed" } }) {
     const dbUser = await userRepository.create({ userId: faker.string.uuid() });
+    const organizationId = await seedPersonalOrganizationIdOf(dbUser.id);
     const apiKey = faker.string.alphanumeric(24);
     const user = createUser({ id: dbUser.id, userId: dbUser.userId ?? undefined });
     const address = createAkashAddress();
-    const wallets = [createUserWallet({ userId: dbUser.id, address })];
-    const apiKeys: Record<string, ReturnType<typeof createApiKey>> = { [apiKey]: createApiKey({ userId: dbUser.id }) };
+    const wallets = [createUserWallet({ userId: dbUser.id, organizationId, address })];
+    const apiKeys: Record<string, ReturnType<typeof createApiKey>> = { [apiKey]: createApiKey({ userId: dbUser.id, organizationId }) };
 
     vi.spyOn(userRepository, "findById").mockImplementation(async id =>
       id === dbUser.id ? { ...user, trial: false, userWallets: { isTrialing: false } } : undefined
@@ -368,6 +382,6 @@ describe("Deployment definitions", () => {
 
     await mockChain(address, input.runs);
 
-    return { user, apiKey, address };
+    return { user, apiKey, address, organizationId };
   }
 });

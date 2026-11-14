@@ -15,6 +15,7 @@ import { type StripeTransactionInput, StripeTransactionRepository } from "./stri
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedOrganization, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { seedPaymentCredit } from "@test/seeders/db/payment-credit.seeder";
+import { seedPersonalOrganizationIdOf } from "@test/seeders/db/user-with-wallet.seeder";
 import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 
 describe(StripeTransactionRepository.name, () => {
@@ -64,6 +65,7 @@ describe(StripeTransactionRepository.name, () => {
 
       await stripeTransactionRepository.create({
         userId: user.id,
+        organizationId: await seedPersonalOrganizationIdOf(user.id),
         type: "manual_credit",
         status: "pending",
         amount: 50000,
@@ -74,6 +76,7 @@ describe(StripeTransactionRepository.name, () => {
       await expect(
         stripeTransactionRepository.create({
           userId: user.id,
+          organizationId: await seedPersonalOrganizationIdOf(user.id),
           type: "manual_credit",
           status: "pending",
           amount: 99999,
@@ -89,6 +92,7 @@ describe(StripeTransactionRepository.name, () => {
 
       const first = await stripeTransactionRepository.create({
         userId: user.id,
+        organizationId: await seedPersonalOrganizationIdOf(user.id),
         type: "payment_intent",
         status: "succeeded",
         amount: 1000,
@@ -98,6 +102,7 @@ describe(StripeTransactionRepository.name, () => {
 
       const second = await stripeTransactionRepository.create({
         userId: user.id,
+        organizationId: await seedPersonalOrganizationIdOf(user.id),
         type: "payment_intent",
         status: "succeeded",
         amount: 2000,
@@ -114,8 +119,9 @@ describe(StripeTransactionRepository.name, () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const user = await createTestUser();
       const key = `topup_${user.id}_${faker.string.uuid()}`;
+      const organizationId = await seedPersonalOrganizationIdOf(user.id);
 
-      const result = await stripeTransactionRepository.findOrCreateByIdempotencyKey(keyedTransactionInput(user.id, key));
+      const result = await stripeTransactionRepository.findOrCreateByIdempotencyKey(keyedTransactionInput(user.id, organizationId, key));
 
       expect(result.isNew).toBe(true);
       expect(result.transaction.stripeIdempotencyKey).toBe(key);
@@ -126,9 +132,10 @@ describe(StripeTransactionRepository.name, () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const user = await createTestUser();
       const key = `topup_${user.id}_${faker.string.uuid()}`;
+      const organizationId = await seedPersonalOrganizationIdOf(user.id);
 
-      const first = await stripeTransactionRepository.findOrCreateByIdempotencyKey(keyedTransactionInput(user.id, key));
-      const second = await stripeTransactionRepository.findOrCreateByIdempotencyKey(keyedTransactionInput(user.id, key));
+      const first = await stripeTransactionRepository.findOrCreateByIdempotencyKey(keyedTransactionInput(user.id, organizationId, key));
+      const second = await stripeTransactionRepository.findOrCreateByIdempotencyKey(keyedTransactionInput(user.id, organizationId, key));
 
       expect(second.isNew).toBe(false);
       expect(second.transaction.id).toBe(first.transaction.id);
@@ -139,10 +146,11 @@ describe(StripeTransactionRepository.name, () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const user = await createTestUser();
       const key = `topup_${user.id}_${faker.string.uuid()}`;
+      const organizationId = await seedPersonalOrganizationIdOf(user.id);
 
       const [first, second] = await Promise.all([
-        stripeTransactionRepository.findOrCreateByIdempotencyKey(keyedTransactionInput(user.id, key)),
-        stripeTransactionRepository.findOrCreateByIdempotencyKey(keyedTransactionInput(user.id, key))
+        stripeTransactionRepository.findOrCreateByIdempotencyKey(keyedTransactionInput(user.id, organizationId, key)),
+        stripeTransactionRepository.findOrCreateByIdempotencyKey(keyedTransactionInput(user.id, organizationId, key))
       ]);
 
       expect(first.transaction.id).toBe(second.transaction.id);
@@ -159,9 +167,14 @@ describe(StripeTransactionRepository.name, () => {
       expect(first.id).not.toBe(second.id);
     });
 
-    function keyedTransactionInput(userId: string, stripeIdempotencyKey: string): StripeTransactionInput & { stripeIdempotencyKey: string } {
+    function keyedTransactionInput(
+      userId: string,
+      organizationId: string,
+      stripeIdempotencyKey: string
+    ): StripeTransactionInput & { stripeIdempotencyKey: string } {
       return {
         userId,
+        organizationId,
         type: "payment_intent",
         status: "created",
         amount: 10000,
@@ -238,9 +251,9 @@ describe(StripeTransactionRepository.name, () => {
     it("returns the user's transactions newest first", async () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const user = await createTestUser();
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), amount: 1000, createdAt: new Date("2024-01-01T00:00:00Z") });
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), amount: 3000, createdAt: new Date("2024-03-01T00:00:00Z") });
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), amount: 2000, createdAt: new Date("2024-02-01T00:00:00Z") });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), amount: 1000, createdAt: new Date("2024-01-01T00:00:00Z") });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), amount: 3000, createdAt: new Date("2024-03-01T00:00:00Z") });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), amount: 2000, createdAt: new Date("2024-02-01T00:00:00Z") });
 
       const result = await stripeTransactionRepository.findByOwner({ owner: { userId: user.id } });
 
@@ -250,9 +263,9 @@ describe(StripeTransactionRepository.name, () => {
     it("paginates with limit and offset", async () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const user = await createTestUser();
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), amount: 1000, createdAt: new Date("2024-01-01T00:00:00Z") });
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), amount: 3000, createdAt: new Date("2024-03-01T00:00:00Z") });
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), amount: 2000, createdAt: new Date("2024-02-01T00:00:00Z") });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), amount: 1000, createdAt: new Date("2024-01-01T00:00:00Z") });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), amount: 3000, createdAt: new Date("2024-03-01T00:00:00Z") });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), amount: 2000, createdAt: new Date("2024-02-01T00:00:00Z") });
 
       const firstPage = await stripeTransactionRepository.findByOwner({ owner: { userId: user.id }, limit: 2, offset: 0 });
       const secondPage = await stripeTransactionRepository.findByOwner({ owner: { userId: user.id }, limit: 2, offset: 2 });
@@ -265,8 +278,8 @@ describe(StripeTransactionRepository.name, () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const user = await createTestUser();
       const otherUser = await createTestUser();
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), amount: 1000 });
-      await stripeTransactionRepository.create({ ...transactionInput(otherUser.id), amount: 2000 });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), amount: 1000 });
+      await stripeTransactionRepository.create({ ...(await transactionInput(otherUser.id)), amount: 2000 });
 
       const result = await stripeTransactionRepository.findByOwner({ owner: { userId: user.id } });
 
@@ -278,8 +291,8 @@ describe(StripeTransactionRepository.name, () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const { organization: team } = await seedOrganizationWithOwner();
       const user = await createTestUser();
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), amount: 1000 });
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), organizationId: team.id, amount: 2000 });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), amount: 1000 });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), organizationId: team.id, amount: 2000 });
 
       const teamTransactions = await stripeTransactionRepository.findByOwner({ owner: { organizationId: team.id } });
       const ownTransactions = await stripeTransactionRepository.findByOwner({ owner: { userId: user.id } });
@@ -294,8 +307,8 @@ describe(StripeTransactionRepository.name, () => {
     it("counts all of the user's transactions when no date range is given", async () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const user = await createTestUser();
-      await stripeTransactionRepository.create({ ...transactionInput(user.id) });
-      await stripeTransactionRepository.create({ ...transactionInput(user.id) });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)) });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)) });
 
       expect(await stripeTransactionRepository.countByOwner({ userId: user.id })).toBe(2);
     });
@@ -305,11 +318,11 @@ describe(StripeTransactionRepository.name, () => {
       const user = await createTestUser();
       const startDate = new Date("2024-06-01T00:00:00Z");
       const endDate = new Date("2024-06-30T23:59:59Z");
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: startDate });
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: new Date("2024-06-15T12:00:00Z") });
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: endDate });
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: new Date("2024-05-31T23:59:59Z") });
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: new Date("2024-07-01T00:00:00Z") });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), createdAt: startDate });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), createdAt: new Date("2024-06-15T12:00:00Z") });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), createdAt: endDate });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), createdAt: new Date("2024-05-31T23:59:59Z") });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), createdAt: new Date("2024-07-01T00:00:00Z") });
 
       expect(await stripeTransactionRepository.countByOwner({ userId: user.id }, { startDate, endDate })).toBe(3);
     });
@@ -329,8 +342,8 @@ describe(StripeTransactionRepository.name, () => {
     ])("answers $expected when an earlier payment_intent is $status", async ({ status, expected }) => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const user = await createTestUser();
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), status, createdAt: earlier });
-      const transaction = await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: current });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), status, createdAt: earlier });
+      const transaction = await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), createdAt: current });
 
       await expect(stripeTransactionRepository.hasCompletedPaidTransactionBefore(transaction.id)).resolves.toBe(expected);
     });
@@ -338,7 +351,7 @@ describe(StripeTransactionRepository.name, () => {
     it("answers false for a first purchase, which is not its own predecessor", async () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const user = await createTestUser();
-      const transaction = await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: current });
+      const transaction = await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), createdAt: current });
 
       await expect(stripeTransactionRepository.hasCompletedPaidTransactionBefore(transaction.id)).resolves.toBe(false);
     });
@@ -346,8 +359,8 @@ describe(StripeTransactionRepository.name, () => {
     it("ignores a purchase made after the given transaction", async () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const user = await createTestUser();
-      const transaction = await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: current });
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: later });
+      const transaction = await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), createdAt: current });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), createdAt: later });
 
       await expect(stripeTransactionRepository.hasCompletedPaidTransactionBefore(transaction.id)).resolves.toBe(false);
     });
@@ -355,8 +368,8 @@ describe(StripeTransactionRepository.name, () => {
     it.each([["manual_credit" as const], ["coupon_claim" as const]])("does not count an earlier %s as a purchase", async type => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const user = await createTestUser();
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), type, createdAt: earlier });
-      const transaction = await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: current });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), type, createdAt: earlier });
+      const transaction = await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), createdAt: current });
 
       await expect(stripeTransactionRepository.hasCompletedPaidTransactionBefore(transaction.id)).resolves.toBe(false);
     });
@@ -365,8 +378,8 @@ describe(StripeTransactionRepository.name, () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const user = await createTestUser();
       const otherUser = await createTestUser();
-      await stripeTransactionRepository.create({ ...transactionInput(otherUser.id), createdAt: earlier });
-      const transaction = await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: current });
+      await stripeTransactionRepository.create({ ...(await transactionInput(otherUser.id)), createdAt: earlier });
+      const transaction = await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), createdAt: current });
 
       await expect(stripeTransactionRepository.hasCompletedPaidTransactionBefore(transaction.id)).resolves.toBe(false);
     });
@@ -374,7 +387,7 @@ describe(StripeTransactionRepository.name, () => {
     it("answers false for an unknown transaction", async () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const user = await createTestUser();
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: earlier });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), createdAt: earlier });
 
       await expect(stripeTransactionRepository.hasCompletedPaidTransactionBefore(faker.string.uuid())).resolves.toBe(false);
     });
@@ -388,6 +401,7 @@ describe(StripeTransactionRepository.name, () => {
 
       const commission = await stripeTransactionRepository.createAffiliateCommission({
         userId: affiliate.id,
+        organizationId: await seedPersonalOrganizationIdOf(affiliate.id),
         amount: 500,
         sourceTransactionId: sourcePayment.id
       });
@@ -411,6 +425,7 @@ describe(StripeTransactionRepository.name, () => {
 
       const commission = await stripeTransactionRepository.createAffiliateCommission({
         userId: affiliate.id,
+        organizationId: await seedPersonalOrganizationIdOf(affiliate.id),
         amount: 500,
         amountRefunded: 200,
         sourceTransactionId: sourcePayment.id
@@ -423,10 +438,20 @@ describe(StripeTransactionRepository.name, () => {
       const { stripeTransactionRepository, createTestUser, createTestTransaction } = setup();
       const affiliate = await createTestUser();
       const sourcePayment = await createTestTransaction();
-      await stripeTransactionRepository.createAffiliateCommission({ userId: affiliate.id, amount: 500, sourceTransactionId: sourcePayment.id });
+      await stripeTransactionRepository.createAffiliateCommission({
+        userId: affiliate.id,
+        organizationId: await seedPersonalOrganizationIdOf(affiliate.id),
+        amount: 500,
+        sourceTransactionId: sourcePayment.id
+      });
 
       await expect(
-        stripeTransactionRepository.createAffiliateCommission({ userId: affiliate.id, amount: 500, sourceTransactionId: sourcePayment.id })
+        stripeTransactionRepository.createAffiliateCommission({
+          userId: affiliate.id,
+          organizationId: await seedPersonalOrganizationIdOf(affiliate.id),
+          amount: 500,
+          sourceTransactionId: sourcePayment.id
+        })
       ).rejects.toThrow();
     });
 
@@ -436,6 +461,7 @@ describe(StripeTransactionRepository.name, () => {
       const referredUser = await createTestUser();
       const sourcePayment = await stripeTransactionRepository.create({
         userId: referredUser.id,
+        organizationId: await seedPersonalOrganizationIdOf(referredUser.id),
         type: "payment_intent",
         status: "succeeded",
         amount: 10000,
@@ -443,6 +469,7 @@ describe(StripeTransactionRepository.name, () => {
       });
       const commission = await stripeTransactionRepository.createAffiliateCommission({
         userId: affiliate.id,
+        organizationId: await seedPersonalOrganizationIdOf(affiliate.id),
         amount: 500,
         sourceTransactionId: sourcePayment.id
       });
@@ -463,6 +490,7 @@ describe(StripeTransactionRepository.name, () => {
       const sourcePayment = await createTestTransaction();
       const created = await stripeTransactionRepository.createAffiliateCommission({
         userId: affiliate.id,
+        organizationId: await seedPersonalOrganizationIdOf(affiliate.id),
         amount: 500,
         sourceTransactionId: sourcePayment.id
       });
@@ -489,6 +517,7 @@ describe(StripeTransactionRepository.name, () => {
       const sourcePayment = await createTestTransaction();
       const created = await stripeTransactionRepository.createAffiliateCommission({
         userId: affiliate.id,
+        organizationId: await seedPersonalOrganizationIdOf(affiliate.id),
         amount: 500,
         sourceTransactionId: sourcePayment.id
       });
@@ -503,7 +532,12 @@ describe(StripeTransactionRepository.name, () => {
       const { stripeTransactionRepository, createTestUser, createTestTransaction } = setup();
       const affiliate = await createTestUser();
       const sourcePayment = await createTestTransaction();
-      await stripeTransactionRepository.createAffiliateCommission({ userId: affiliate.id, amount: 500, sourceTransactionId: sourcePayment.id });
+      await stripeTransactionRepository.createAffiliateCommission({
+        userId: affiliate.id,
+        organizationId: await seedPersonalOrganizationIdOf(affiliate.id),
+        amount: 500,
+        sourceTransactionId: sourcePayment.id
+      });
 
       const found = await stripeTransactionRepository.findAffiliateCommissionBySourceAndLock(sourcePayment.id);
 
@@ -516,6 +550,7 @@ describe(StripeTransactionRepository.name, () => {
       const sourcePayment = await createTestTransaction();
       const commission = await stripeTransactionRepository.createAffiliateCommission({
         userId: affiliate.id,
+        organizationId: await seedPersonalOrganizationIdOf(affiliate.id),
         amount: 500,
         sourceTransactionId: sourcePayment.id
       });
@@ -535,6 +570,7 @@ describe(StripeTransactionRepository.name, () => {
       const sourcePayment = await createTestTransaction();
       const commission = await stripeTransactionRepository.createAffiliateCommission({
         userId: affiliate.id,
+        organizationId: await seedPersonalOrganizationIdOf(affiliate.id),
         amount: 500,
         sourceTransactionId: sourcePayment.id
       });
@@ -759,9 +795,10 @@ describe(StripeTransactionRepository.name, () => {
     await cleanup?.();
   });
 
-  function transactionInput(userId: string): StripeTransactionInput {
+  async function transactionInput(userId: string): Promise<StripeTransactionInput> {
     return {
       userId,
+      organizationId: await seedPersonalOrganizationIdOf(userId),
       type: "payment_intent",
       status: "succeeded",
       amount: faker.number.int({ min: 1000, max: 100000 }),
@@ -776,6 +813,7 @@ describe(StripeTransactionRepository.name, () => {
       const user = await createTestUser();
       const ownClaim = await stripeTransactionRepository.create({
         userId: user.id,
+        organizationId: await seedPersonalOrganizationIdOf(user.id),
         type: "coupon_claim",
         status: "succeeded",
         amount: 1000,
@@ -823,9 +861,30 @@ describe(StripeTransactionRepository.name, () => {
     it("ignores another coupon, another person and a claim that never went through", async () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const [user, otherUser] = await Promise.all([createTestUser(), createTestUser()]);
-      await stripeTransactionRepository.create({ userId: user.id, type: "coupon_claim", status: "succeeded", amount: 1000, stripeCouponId: "coupon_2" });
-      await stripeTransactionRepository.create({ userId: otherUser.id, type: "coupon_claim", status: "succeeded", amount: 1000, stripeCouponId: "coupon_1" });
-      await stripeTransactionRepository.create({ userId: user.id, type: "coupon_claim", status: "failed", amount: 1000, stripeCouponId: "coupon_1" });
+      await stripeTransactionRepository.create({
+        userId: user.id,
+        organizationId: await seedPersonalOrganizationIdOf(user.id),
+        type: "coupon_claim",
+        status: "succeeded",
+        amount: 1000,
+        stripeCouponId: "coupon_2"
+      });
+      await stripeTransactionRepository.create({
+        userId: otherUser.id,
+        organizationId: await seedPersonalOrganizationIdOf(otherUser.id),
+        type: "coupon_claim",
+        status: "succeeded",
+        amount: 1000,
+        stripeCouponId: "coupon_1"
+      });
+      await stripeTransactionRepository.create({
+        userId: user.id,
+        organizationId: await seedPersonalOrganizationIdOf(user.id),
+        type: "coupon_claim",
+        status: "failed",
+        amount: 1000,
+        stripeCouponId: "coupon_1"
+      });
 
       expect(await stripeTransactionRepository.findCouponClaims({ userId: user.id, couponId: "coupon_1" })).toEqual([]);
     });
@@ -834,7 +893,15 @@ describe(StripeTransactionRepository.name, () => {
       await container
         .resolve<ApiPgDatabase>(POSTGRES_DB)
         .insert(resolveTable("StripeTransactions"))
-        .values({ ...input, type: "coupon_claim", status: "pending", amount: 1000, stripeCouponId: "coupon_1", createdAt: sql`now() - interval '2 hours'` });
+        .values({
+          ...input,
+          organizationId: await seedPersonalOrganizationIdOf(input.userId),
+          type: "coupon_claim",
+          status: "pending",
+          amount: 1000,
+          stripeCouponId: "coupon_1",
+          createdAt: sql`now() - interval '2 hours'`
+        });
     }
   });
 
@@ -848,7 +915,7 @@ describe(StripeTransactionRepository.name, () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const { organization: team } = await seedOrganizationWithOwner();
       const user = await createTestUser();
-      const purchase = await stripeTransactionRepository.create({ ...transactionInput(user.id), organizationId: team.id, status });
+      const purchase = await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), organizationId: team.id, status });
 
       const earliest = await stripeTransactionRepository.findEarliestCompletedPaidTransaction({ organizationId: team.id });
 
@@ -858,15 +925,15 @@ describe(StripeTransactionRepository.name, () => {
     it("finds the earliest of the owner's purchases with its time and amount, even when it was refunded", async () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const user = await createTestUser();
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: new Date("2026-01-03T00:00:00Z") });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), createdAt: new Date("2026-01-03T00:00:00Z") });
       const first = await stripeTransactionRepository.create({
-        ...transactionInput(user.id),
+        ...(await transactionInput(user.id)),
         status: "refunded",
         amount: 2000,
         amountRefunded: 2000,
         createdAt: new Date("2026-01-01T00:00:00Z")
       });
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: new Date("2026-01-02T00:00:00Z") });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), createdAt: new Date("2026-01-02T00:00:00Z") });
 
       await expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction({ userId: user.id })).resolves.toEqual({
         id: first.id,
@@ -878,8 +945,8 @@ describe(StripeTransactionRepository.name, () => {
     it("leaves out the transaction it is told to exclude", async () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const user = await createTestUser();
-      const excluded = await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: new Date("2026-01-01T00:00:00Z") });
-      const next = await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: new Date("2026-01-02T00:00:00Z") });
+      const excluded = await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), createdAt: new Date("2026-01-01T00:00:00Z") });
+      const next = await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), createdAt: new Date("2026-01-02T00:00:00Z") });
 
       const earliest = await stripeTransactionRepository.findEarliestCompletedPaidTransaction({ userId: user.id }, { excludeId: excluded.id });
 
@@ -889,7 +956,7 @@ describe(StripeTransactionRepository.name, () => {
     it("finds nothing when the only purchase is the excluded one", async () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const user = await createTestUser();
-      const excluded = await stripeTransactionRepository.create(transactionInput(user.id));
+      const excluded = await stripeTransactionRepository.create(await transactionInput(user.id));
 
       await expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction({ userId: user.id }, { excludeId: excluded.id })).resolves.toBeUndefined();
     });
@@ -897,7 +964,7 @@ describe(StripeTransactionRepository.name, () => {
     it("never counts a coupon claim", async () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const user = await createTestUser();
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), type: "coupon_claim" });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), type: "coupon_claim" });
 
       await expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction({ userId: user.id })).resolves.toBeUndefined();
     });
@@ -906,35 +973,11 @@ describe(StripeTransactionRepository.name, () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const [{ organization: team }, { organization: otherTeam }] = await Promise.all([seedOrganizationWithOwner(), seedOrganizationWithOwner()]);
       const user = await createTestUser();
-      const purchase = await stripeTransactionRepository.create({ ...transactionInput(user.id), organizationId: team.id });
+      const purchase = await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), organizationId: team.id });
 
       await expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction({ organizationId: team.id })).resolves.toMatchObject({ id: purchase.id });
       await expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction({ organizationId: otherTeam.id })).resolves.toBeUndefined();
       await expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction({ userId: user.id })).resolves.toBeUndefined();
-    });
-
-    it("finds the user's own purchases, whether or not they are filed under an organization", async () => {
-      const { stripeTransactionRepository, createTestUser } = setup();
-      const [filedUser, unfiledUser] = await Promise.all([createTestUser(), createTestUser()]);
-      const { organization: personal } = await seedOrganizationWithOwner({ type: "personal" });
-      const filed = await stripeTransactionRepository.create({ ...transactionInput(filedUser.id), organizationId: personal.id });
-      const unfiled = await stripeTransactionRepository.create(transactionInput(unfiledUser.id));
-
-      await expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction({ userId: filedUser.id })).resolves.toMatchObject({ id: filed.id });
-      await expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction({ userId: unfiledUser.id })).resolves.toMatchObject({ id: unfiled.id });
-    });
-
-    it("finds a purchase not yet filed into any organization while the person's organization is active", async () => {
-      const { stripeTransactionRepository, createTestUser } = setup();
-      const user = await createTestUser();
-      const { organization: personal } = await seedOrganizationWithOwner({ type: "personal" });
-      const purchase = await stripeTransactionRepository.create(transactionInput(user.id));
-
-      const earliest = await inOrganization({ user, organizationId: personal.id }, () =>
-        stripeTransactionRepository.findEarliestCompletedPaidTransaction({ userId: user.id })
-      );
-
-      expect(earliest?.id).toBe(purchase.id);
     });
   });
 
@@ -946,7 +989,7 @@ describe(StripeTransactionRepository.name, () => {
     ])("answers $expected for a purchase of $amount cents against a 10000 cents minimum", async ({ amount, expected }) => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const user = await createTestUser();
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), amount });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), amount });
 
       await expect(stripeTransactionRepository.hasCompletedPaidTransactionOfAtLeast({ userId: user.id }, 10000)).resolves.toBe(expected);
     });
@@ -959,7 +1002,7 @@ describe(StripeTransactionRepository.name, () => {
     ])("answers $expected for a large payment_intent in $status", async ({ status, expected }) => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const user = await createTestUser();
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), amount: 10000, status });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), amount: 10000, status });
 
       await expect(stripeTransactionRepository.hasCompletedPaidTransactionOfAtLeast({ userId: user.id }, 10000)).resolves.toBe(expected);
     });
@@ -967,7 +1010,7 @@ describe(StripeTransactionRepository.name, () => {
     it("never counts a coupon claim", async () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const user = await createTestUser();
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), type: "coupon_claim", amount: 10000 });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), type: "coupon_claim", amount: 10000 });
 
       await expect(stripeTransactionRepository.hasCompletedPaidTransactionOfAtLeast({ userId: user.id }, 10000)).resolves.toBe(false);
     });
@@ -976,7 +1019,7 @@ describe(StripeTransactionRepository.name, () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const { organization: team } = await seedOrganizationWithOwner();
       const user = await createTestUser();
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), organizationId: team.id, amount: 10000 });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), organizationId: team.id, amount: 10000 });
 
       await expect(stripeTransactionRepository.hasCompletedPaidTransactionOfAtLeast({ organizationId: team.id }, 10000)).resolves.toBe(true);
       await expect(stripeTransactionRepository.hasCompletedPaidTransactionOfAtLeast({ userId: user.id }, 10000)).resolves.toBe(false);
@@ -987,7 +1030,7 @@ describe(StripeTransactionRepository.name, () => {
     it.each(["succeeded" as const, "refunded" as const])("counts a bonus the person received on a purchase now %s", async status => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const user = await createTestUser();
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), status, bonusAmount: 1000 });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), status, bonusAmount: 1000 });
 
       await expect(stripeTransactionRepository.hasReceivedFirstPurchaseBonus(user.id)).resolves.toBe(true);
     });
@@ -995,8 +1038,8 @@ describe(StripeTransactionRepository.name, () => {
     it("ignores purchases that carried no bonus and bonuses of other people", async () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const [user, otherUser] = await Promise.all([createTestUser(), createTestUser()]);
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), bonusAmount: 0 });
-      await stripeTransactionRepository.create({ ...transactionInput(otherUser.id), bonusAmount: 1000 });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), bonusAmount: 0 });
+      await stripeTransactionRepository.create({ ...(await transactionInput(otherUser.id)), bonusAmount: 1000 });
 
       await expect(stripeTransactionRepository.hasReceivedFirstPurchaseBonus(user.id)).resolves.toBe(false);
     });
@@ -1005,7 +1048,7 @@ describe(StripeTransactionRepository.name, () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const [{ organization: team }, { organization: otherTeam }] = await Promise.all([seedOrganizationWithOwner(), seedOrganizationWithOwner()]);
       const user = await createTestUser();
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), organizationId: team.id, bonusAmount: 1000 });
+      await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), organizationId: team.id, bonusAmount: 1000 });
 
       const hasBonus = await inOrganization({ user, organizationId: otherTeam.id }, () => stripeTransactionRepository.hasReceivedFirstPurchaseBonus(user.id));
 
@@ -1015,7 +1058,7 @@ describe(StripeTransactionRepository.name, () => {
     it("counts a bonus credited on chain for a purchase whose settlement has not committed", async () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const user = await createTestUser();
-      const purchase = await stripeTransactionRepository.create({ ...transactionInput(user.id), status: "pending", amount: 10000 });
+      const purchase = await stripeTransactionRepository.create({ ...(await transactionInput(user.id)), status: "pending", amount: 10000 });
       await container
         .resolve(PaymentCreditRepository)
         .createPending({ transactionId: purchase.id, address: createAkashAddress(), amount: 11000, bonusAmount: 1000 });
@@ -1027,8 +1070,8 @@ describe(StripeTransactionRepository.name, () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const user = await createTestUser();
       const [settling, unrewarded] = await Promise.all([
-        stripeTransactionRepository.create({ ...transactionInput(user.id), status: "pending" }),
-        stripeTransactionRepository.create({ ...transactionInput(user.id), status: "pending" })
+        stripeTransactionRepository.create({ ...(await transactionInput(user.id)), status: "pending" }),
+        stripeTransactionRepository.create({ ...(await transactionInput(user.id)), status: "pending" })
       ]);
       const paymentCreditRepository = container.resolve(PaymentCreditRepository);
       await paymentCreditRepository.createPending({ transactionId: settling.id, address: createAkashAddress(), amount: 11000, bonusAmount: 1000 });
@@ -1042,8 +1085,8 @@ describe(StripeTransactionRepository.name, () => {
     it("records the bonus of a person who holds none, whoever else holds one", async () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const [person, otherPerson] = await Promise.all([createTestUser(), createTestUser()]);
-      await stripeTransactionRepository.create({ ...transactionInput(otherPerson.id), bonusAmount: 1000 });
-      const purchase = await stripeTransactionRepository.create({ ...transactionInput(person.id) });
+      await stripeTransactionRepository.create({ ...(await transactionInput(otherPerson.id)), bonusAmount: 1000 });
+      const purchase = await stripeTransactionRepository.create({ ...(await transactionInput(person.id)) });
 
       const isRecorded = await stripeTransactionRepository.recordFirstPurchaseBonus(purchase.id, 1000);
 
@@ -1055,8 +1098,8 @@ describe(StripeTransactionRepository.name, () => {
       const { stripeTransactionRepository, txService, createTestUser } = setup();
       const [{ organization: team }, { organization: otherTeam }] = await Promise.all([seedOrganizationWithOwner(), seedOrganizationWithOwner()]);
       const person = await createTestUser();
-      await stripeTransactionRepository.create({ ...transactionInput(person.id), organizationId: team.id, status: "refunded", bonusAmount: 1000 });
-      const purchase = await stripeTransactionRepository.create({ ...transactionInput(person.id), organizationId: otherTeam.id, status: "pending" });
+      await stripeTransactionRepository.create({ ...(await transactionInput(person.id)), organizationId: team.id, status: "refunded", bonusAmount: 1000 });
+      const purchase = await stripeTransactionRepository.create({ ...(await transactionInput(person.id)), organizationId: otherTeam.id, status: "pending" });
 
       const isRecorded = await txService.transaction(async () => {
         const recorded = await stripeTransactionRepository.recordFirstPurchaseBonus(purchase.id, 1000);
@@ -1071,7 +1114,7 @@ describe(StripeTransactionRepository.name, () => {
     it("lets the bonuses of members who deleted their account sit side by side", async () => {
       const { stripeTransactionRepository } = setup();
       const { organization: team, user: member } = await seedOrganizationWithOwner();
-      const detachedRecord = { ...transactionInput(member.id), userId: null, organizationId: team.id };
+      const detachedRecord = { ...(await transactionInput(member.id)), userId: null, organizationId: team.id };
       await stripeTransactionRepository.create({ ...detachedRecord, bonusAmount: 1000 });
       const purchase = await stripeTransactionRepository.create(detachedRecord);
 
@@ -1080,7 +1123,7 @@ describe(StripeTransactionRepository.name, () => {
 
     it("rethrows a failure other than the person already holding a bonus", async () => {
       const { stripeTransactionRepository, createTestUser } = setup();
-      const purchase = await stripeTransactionRepository.create({ ...transactionInput((await createTestUser()).id) });
+      const purchase = await stripeTransactionRepository.create(await transactionInput((await createTestUser()).id));
 
       await expect(stripeTransactionRepository.recordFirstPurchaseBonus(purchase.id, 2 ** 31)).rejects.toThrow();
     });
@@ -1107,7 +1150,14 @@ describe(StripeTransactionRepository.name, () => {
       const { stripeTransactionRepository, createUserOnDomain } = setup();
       const domain = uniqueDomain();
       const user = await createUserOnDomain(domain);
-      await stripeTransactionRepository.create({ userId: user.id, type: "payment_intent", status, amount: 1000, currency: "usd" });
+      await stripeTransactionRepository.create({
+        userId: user.id,
+        organizationId: await seedPersonalOrganizationIdOf(user.id),
+        type: "payment_intent",
+        status,
+        amount: 1000,
+        currency: "usd"
+      });
 
       await expect(stripeTransactionRepository.hasPaidUserWithEmailDomain(domain)).resolves.toBe(expected);
     });
@@ -1116,7 +1166,14 @@ describe(StripeTransactionRepository.name, () => {
       const { stripeTransactionRepository, createUserOnDomain } = setup();
       const domain = uniqueDomain();
       const user = await createUserOnDomain(domain);
-      await stripeTransactionRepository.create({ userId: user.id, type, status: "succeeded", amount: 1000, currency: "usd" });
+      await stripeTransactionRepository.create({
+        userId: user.id,
+        organizationId: await seedPersonalOrganizationIdOf(user.id),
+        type,
+        status: "succeeded",
+        amount: 1000,
+        currency: "usd"
+      });
 
       await expect(stripeTransactionRepository.hasPaidUserWithEmailDomain(domain)).resolves.toBe(false);
     });
@@ -1127,7 +1184,14 @@ describe(StripeTransactionRepository.name, () => {
       const lookalikes = [`x${domain}`, `${domain}.attacker.net`];
       for (const lookalike of lookalikes) {
         const user = await createUserOnDomain(lookalike);
-        await stripeTransactionRepository.create({ userId: user.id, type: "payment_intent", status: "succeeded", amount: 1000, currency: "usd" });
+        await stripeTransactionRepository.create({
+          userId: user.id,
+          organizationId: await seedPersonalOrganizationIdOf(user.id),
+          type: "payment_intent",
+          status: "succeeded",
+          amount: 1000,
+          currency: "usd"
+        });
       }
 
       await expect(stripeTransactionRepository.hasPaidUserWithEmailDomain(domain)).resolves.toBe(false);
@@ -1137,7 +1201,14 @@ describe(StripeTransactionRepository.name, () => {
       const { stripeTransactionRepository, createUserOnDomain } = setup();
       const domain = uniqueDomain();
       const user = await createUserOnDomain(`eu.mail.${domain}`);
-      await stripeTransactionRepository.create({ userId: user.id, type: "payment_intent", status: "succeeded", amount: 1000, currency: "usd" });
+      await stripeTransactionRepository.create({
+        userId: user.id,
+        organizationId: await seedPersonalOrganizationIdOf(user.id),
+        type: "payment_intent",
+        status: "succeeded",
+        amount: 1000,
+        currency: "usd"
+      });
 
       await expect(stripeTransactionRepository.hasPaidUserWithEmailDomain(domain)).resolves.toBe(true);
     });
@@ -1146,7 +1217,14 @@ describe(StripeTransactionRepository.name, () => {
       const { stripeTransactionRepository, createUserOnDomain } = setup();
       const domain = uniqueDomain();
       const user = await createUserOnDomain(domain.toUpperCase());
-      await stripeTransactionRepository.create({ userId: user.id, type: "payment_intent", status: "succeeded", amount: 1000, currency: "usd" });
+      await stripeTransactionRepository.create({
+        userId: user.id,
+        organizationId: await seedPersonalOrganizationIdOf(user.id),
+        type: "payment_intent",
+        status: "succeeded",
+        amount: 1000,
+        currency: "usd"
+      });
 
       await expect(stripeTransactionRepository.hasPaidUserWithEmailDomain(domain)).resolves.toBe(true);
     });
@@ -1194,8 +1272,11 @@ describe(StripeTransactionRepository.name, () => {
     }
 
     async function createTestTransaction(overrides: Partial<StripeTransactionInput> = {}) {
+      const userId = overrides.userId ?? (await getTestUserId());
+
       return stripeTransactionRepository.create({
-        userId: await getTestUserId(),
+        userId,
+        organizationId: await seedPersonalOrganizationIdOf(userId),
         type: "payment_intent",
         status: "succeeded",
         amount: faker.number.int({ min: 1000, max: 100000 }),
@@ -1213,6 +1294,7 @@ describe(StripeTransactionRepository.name, () => {
     async function createTestCommission(userId: string, overrides: Partial<StripeTransactionInput> = {}) {
       return stripeTransactionRepository.create({
         userId,
+        organizationId: await seedPersonalOrganizationIdOf(userId),
         type: "affiliate_commission",
         status: "succeeded",
         amount: faker.number.int({ min: 100, max: 1000 }),

@@ -146,7 +146,7 @@ describe(DetectLeaseGpusHandler.name, () => {
     const deploymentSettingsTable = resolveTable("DeploymentSettings");
     const { user, wallet, address } = await seedUserWithWallet();
     const dseq = createDseq();
-    const organizationId = input.filedInTeam ? await seedTeamOfMember(user.id) : null;
+    const organizationId = input.filedInTeam ? await seedTeamOfMember(user.id) : undefined;
     if (!input.withoutSetting) await seedDeploymentSetting({ userId: user.id, dseq, sdl: null, organizationId });
 
     const config = container.resolve(DeploymentConfigService);

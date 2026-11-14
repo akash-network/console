@@ -5,8 +5,8 @@ import { describe, expect, it } from "vitest";
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 import { HardwareRequestAccountService } from "./hardware-request-account.service";
 
-import { seedOrganization, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
-import { seedOrganizationWallet, seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
+import { seedOrganizationWallet, seedPersonalOrganizationIdOf, seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe(HardwareRequestAccountService.name, () => {
   it("calls a team with its own card paying, whatever the requester's own card", async () => {
@@ -20,7 +20,7 @@ describe(HardwareRequestAccountService.name, () => {
   it("leaves the requester's own card out of a team's account type", async () => {
     const { service } = setup();
     const { organization: team, user } = await seedOrganizationWithOwner();
-    await seedCard({ userId: user.id, organizationId: null });
+    await seedCard({ userId: user.id, organizationId: await seedPersonalOrganizationIdOf(user.id) });
     await seedOrganizationWallet({ organizationId: team.id, isTrialing: true });
 
     await expect(service.findAccountType({ userId: user.id, organizationId: team.id })).resolves.toBe("trial");
@@ -36,11 +36,11 @@ describe(HardwareRequestAccountService.name, () => {
 
   it("reads a personal organization's account type from its owner's card", async () => {
     const { service } = setup();
-    const { user } = await seedUserWithWallet({ isTrialing: true });
-    const personal = await seedOrganization({ type: "personal", createdByUserId: user.id });
-    await seedCard({ userId: user.id, organizationId: null });
+    const { user, wallet } = await seedUserWithWallet({ isTrialing: true });
+    const personalOrganizationId = wallet.organizationId!;
+    await seedCard({ userId: user.id, organizationId: personalOrganizationId });
 
-    await expect(service.findAccountType({ userId: user.id, organizationId: personal.id })).resolves.toBe("paying");
+    await expect(service.findAccountType({ userId: user.id, organizationId: personalOrganizationId })).resolves.toBe("paying");
   });
 
   it.each([
@@ -66,7 +66,7 @@ describe(HardwareRequestAccountService.name, () => {
     await expect(service.findAccountType({ userId: null, organizationId: null })).resolves.toBe("no_account");
   });
 
-  async function seedCard(owner: { userId: string; organizationId: string | null }) {
+  async function seedCard(owner: { userId: string; organizationId: string }) {
     await container
       .resolve<ApiPgDatabase>(POSTGRES_DB)
       .insert(resolveTable("PaymentMethods"))

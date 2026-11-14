@@ -5,12 +5,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { app } from "@src/rest-app";
 import { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
+import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { UserTemplateRepository } from "@src/user/repositories/user-template/user-template.repository";
 
-import { fileIntoPersonalOrganization } from "@test/seeders/db/organization.seeder";
+import { seedPersonalOrganizationIdOf } from "@test/seeders/db/user-with-wallet.seeder";
+import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 
 describe("User templates", () => {
   const userRepository = container.resolve(UserRepository);
@@ -111,8 +114,7 @@ describe("User templates", () => {
     it("records a version when a template written without one is saved again with the same sdl", async () => {
       const { user, token } = await setup();
       const template = buildTemplate();
-      const id = await userTemplateRepository.createTemplate(user.userId!, template);
-      await fileIntoPersonalOrganization(user);
+      const id = await createTemplateWithoutVersion(user, template);
       expect(await findStoredTemplate(id)).toMatchObject({ currentVersionId: null });
 
       const response = await saveTemplate(token, { ...template, id });
@@ -191,6 +193,17 @@ describe("User templates", () => {
       isPublic: false,
       ...overrides
     };
+  }
+
+  async function createTemplateWithoutVersion(user: UserOutput, template: ReturnType<typeof buildTemplate>) {
+    const organizationId = await seedPersonalOrganizationIdOf(user.id);
+    const executionContextService = container.resolve(ExecutionContextService);
+
+    return await executionContextService.runWithContext(async () => {
+      executionContextService.set("ORGANIZATION_CONTEXT", createOrganizationContext({ organizationId, organizationType: "personal" }));
+
+      return await userTemplateRepository.createTemplate(user.userId!, template);
+    });
   }
 
   async function setStoredState(id: string, state: { sdl?: string; visibility?: "private" | "organization" | "public"; isListed?: boolean }) {

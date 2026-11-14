@@ -6,13 +6,13 @@ import { describe, expect, it } from "vitest";
 
 import { StripeTransactionRepository } from "@src/billing/repositories/stripe-transaction/stripe-transaction.repository";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
-import { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import { type UserOutput, UserRepository } from "@src/user/repositories";
 import { UserWalletRepository } from "./user-wallet.repository";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
+import { seedPersonalOrganizationOf } from "@test/seeders/db/user-with-wallet.seeder";
 import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 
 const RECOVERY_WINDOWS = { confirmWindowMinutes: 30, resendCooldownHours: 168 };
@@ -271,6 +271,7 @@ describe(UserWalletRepository.name, () => {
       const { organization, user } = await seedOrganizationWithOwner();
       const { wallet: teamWallet } = await userWalletRepository.getOrCreateForOrganization({ organizationId: organization.id, createdByUserId: user.id });
       await container.resolve(UserRepository).deleteById(deletedUser.id);
+      await userWalletRepository.detachFromOrganization(ownerless.id);
       for (const id of [ownerless.id, teamWallet.id]) {
         await userWalletRepository.updateById(id, { activatedAt: new Date(), feeAllowance: 0, address: createAkashAddress() });
       }
@@ -311,6 +312,7 @@ describe(UserWalletRepository.name, () => {
       await userWalletRepository.updateById(pastTrial.id, { activatedAt: subDays(new Date(), 31), isTrialing: true });
       await userWalletRepository.updateById(ownerless.id, { activatedAt: new Date(), isTrialing: false });
       await container.resolve(UserRepository).deleteById(deletedUser.id);
+      await userWalletRepository.detachFromOrganization(ownerless.id);
       await userWalletRepository.updateById(unfundedTeam.id, { activatedAt: null });
 
       const { userRepository, wallet: terminated, user: terminatedUser } = await setup();
@@ -365,8 +367,7 @@ describe(UserWalletRepository.name, () => {
 
     it("finds the personal wallet when the personal organization is active", async () => {
       const { userWalletRepository, wallet, user } = await setup();
-      const personal = await container.resolve(PersonalOrganizationService).ensureForUser(user);
-      await container.resolve(PersonalOrganizationService).adoptUserRows(user, personal);
+      const personal = await seedPersonalOrganizationOf(user);
 
       const found = await inOrganization({ user, organizationId: personal.id, organizationType: "personal" }, () =>
         userWalletRepository.findOneUsedBy(user.id)
@@ -390,14 +391,26 @@ describe(UserWalletRepository.name, () => {
   });
 
   describe("detachFromOrganization", () => {
-    it("keeps the wallet row with its id and address once its organization lets go of it", async () => {
-      const { userWalletRepository, wallet, user } = await setup();
-      const personal = await container.resolve(PersonalOrganizationService).ensureForUser(user);
-      await container.resolve(PersonalOrganizationService).adoptUserRows(user, personal);
+    it("keeps the wallet row with its id and address once its deleted owner's organization lets go of it", async () => {
+      const { userRepository, userWalletRepository, wallet, user } = await setup();
+      await userRepository.deleteById(user.id);
 
       await userWalletRepository.detachFromOrganization(wallet.id);
 
-      await expect(userWalletRepository.findById(wallet.id)).resolves.toMatchObject({ id: wallet.id, address: wallet.address, organizationId: null });
+      await expect(userWalletRepository.findById(wallet.id)).resolves.toMatchObject({
+        id: wallet.id,
+        address: wallet.address,
+        userId: null,
+        organizationId: null
+      });
+    });
+
+    it("refuses to let go of a wallet whose owner still has an account", async () => {
+      const { userWalletRepository, wallet } = await setup();
+
+      await expect(userWalletRepository.detachFromOrganization(wallet.id)).rejects.toMatchObject({
+        cause: { constraint_name: "user_wallets_organization_id_required_while_owned" }
+      });
     });
   });
 
@@ -440,7 +453,14 @@ describe(UserWalletRepository.name, () => {
     it("excludes a wallet whose owner has ever paid", async () => {
       const { domain, createWalletOnDomain, userWalletRepository, stripeTransactionRepository } = await setupDomain();
       const paid = await createWalletOnDomain({});
-      await stripeTransactionRepository.create({ userId: paid.userId, type: "payment_intent", status: "succeeded", amount: 1000, currency: "usd" });
+      await stripeTransactionRepository.create({
+        userId: paid.userId,
+        organizationId: paid.organizationId!,
+        type: "payment_intent",
+        status: "succeeded",
+        amount: 1000,
+        currency: "usd"
+      });
       const trigger = await createWalletOnDomain({});
 
       const lockable = await userWalletRepository.findLockableTrialWalletsByEmailDomain(domain, { excludeWalletId: trigger.id, limit: 10 });
@@ -451,7 +471,14 @@ describe(UserWalletRepository.name, () => {
     it("still returns a wallet whose owner only ever received a manual credit", async () => {
       const { domain, createWalletOnDomain, userWalletRepository, stripeTransactionRepository } = await setupDomain();
       const comped = await createWalletOnDomain({});
-      await stripeTransactionRepository.create({ userId: comped.userId, type: "manual_credit", status: "succeeded", amount: 1000, currency: "usd" });
+      await stripeTransactionRepository.create({
+        userId: comped.userId,
+        organizationId: comped.organizationId!,
+        type: "manual_credit",
+        status: "succeeded",
+        amount: 1000,
+        currency: "usd"
+      });
       const trigger = await createWalletOnDomain({});
 
       const lockable = await userWalletRepository.findLockableTrialWalletsByEmailDomain(domain, { excludeWalletId: trigger.id, limit: 10 });
@@ -556,7 +583,7 @@ describe(UserWalletRepository.name, () => {
 
     async function createWallet(input: { withAddress?: boolean } = {}) {
       const user = await userRepository.create({ userId: faker.string.uuid() });
-      return await userWalletRepository.create({ userId: user.id, address: input.withAddress === false ? undefined : createAkashAddress() });
+      return await createOwnWallet(user, input.withAddress === false ? undefined : createAkashAddress());
     }
 
     async function collectYielded(wallets: { id: number }[], batchSize: number) {
@@ -581,12 +608,20 @@ describe(UserWalletRepository.name, () => {
 
     async function createWalletOnDomain(overrides: Parameters<UserWalletRepository["updateById"]>[1], onDomain = domain) {
       const user = await userRepository.create({ userId: faker.string.uuid(), email: `${faker.string.alphanumeric(10)}@${onDomain}` });
-      const created = await userWalletRepository.create({ userId: user.id, address: createAkashAddress() });
+      const created = await createOwnWallet(user, createAkashAddress());
       const wallet = await userWalletRepository.updateById(created.id, { isTrialing: true, abuseLockedAt: null, ...overrides }, { returning: true });
       return { ...wallet, userId: user.id };
     }
 
     return { domain, createWalletOnDomain, userRepository, userWalletRepository, stripeTransactionRepository };
+  }
+
+  async function createOwnWallet(user: UserOutput, address: string | undefined) {
+    const userWalletRepository = container.resolve(UserWalletRepository);
+    await seedPersonalOrganizationOf(user);
+    const { wallet } = await userWalletRepository.getOrCreate({ userId: user.id });
+
+    return address ? await userWalletRepository.updateById(wallet.id, { address }, { returning: true }) : wallet;
   }
 
   async function inOrganization<R>(context: Partial<OrganizationContext> & { user: UserOutput }, run: () => Promise<R>): Promise<R> {
@@ -605,7 +640,7 @@ describe(UserWalletRepository.name, () => {
     const userWalletRepository = container.resolve(UserWalletRepository);
 
     const user = await userRepository.create({ userId: faker.string.uuid() });
-    const created = await userWalletRepository.create({ userId: user.id, address: createAkashAddress() });
+    const created = await createOwnWallet(user, createAkashAddress());
     const wallet = await userWalletRepository.updateById(
       created.id,
       {

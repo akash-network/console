@@ -42,14 +42,6 @@ describe(DeploymentOrganizationActivityService.name, () => {
       expect(logger.error).not.toHaveBeenCalled();
     });
 
-    it("files nothing for a deployment not yet filed into an organization", async () => {
-      const { service, organizationActivityService, key } = setup({ filedIn: null });
-
-      await service.recordCreated(key, faker.string.uuid());
-
-      expect(organizationActivityService.recordForDeployment).not.toHaveBeenCalled();
-    });
-
     it("logs a failure to file the creation rather than raising it", async () => {
       const { service, organizationActivityService, logger, key } = setup();
       const error = new Error("database unavailable");
@@ -151,14 +143,6 @@ describe(DeploymentOrganizationActivityService.name, () => {
       });
     });
 
-    it("files nothing for a deployment not yet filed into an organization", async () => {
-      const { service, organizationActivityService, key } = setup({ filedIn: null });
-
-      await service.recordRenamed(key, faker.string.uuid(), { from: "web", to: "web-update" });
-
-      expect(organizationActivityService.recordForDeployment).not.toHaveBeenCalled();
-    });
-
     it("logs a failure to file the rename rather than raising it", async () => {
       const { service, organizationActivityService, logger, key } = setup();
       const error = new Error("database unavailable");
@@ -178,13 +162,13 @@ describe(DeploymentOrganizationActivityService.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: DeploymentOrganizationActivityService.name });
   });
 
-  function setup(input?: { deployment?: null; filedIn?: null }) {
+  function setup(input?: { deployment?: null }) {
     const wallet = { userId: null, organizationId: faker.string.uuid() };
     const key = { wallet, dseq: faker.string.numeric(8) };
     const deployment = mock<DeploymentSettingsOutput>({
       userId: faker.string.uuid(),
       dseq: key.dseq,
-      organizationId: input?.filedIn === null ? null : wallet.organizationId,
+      organizationId: wallet.organizationId,
       projectId: faker.string.uuid(),
       name: faker.word.noun()
     });

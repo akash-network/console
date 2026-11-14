@@ -8,8 +8,7 @@ import type { GetSpendRateResponse } from "@src/deployment/http-schemas/deployme
 import { app, initDb } from "@src/rest-app";
 
 import { createAkashAddress, createDeployment, createDeploymentGroup, createLease, createProvider } from "@test/seeders";
-import { fileIntoPersonalOrganization } from "@test/seeders/db/organization.seeder";
-import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationIdOf, seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe("GET /v1/spend-rate", () => {
   afterAll(async () => {
@@ -91,7 +90,6 @@ describe("GET /v1/spend-rate", () => {
   it("answers 403 for a wallet not yet given an address", async () => {
     const { user } = await seedUserWithWallet({ address: null });
     const apiKey = await persistApiKeyFor(user.id);
-    await fileIntoPersonalOrganization(user);
 
     const response = await getSpendRate(apiKey);
 
@@ -111,6 +109,7 @@ describe("GET /v1/spend-rate", () => {
 
     await container.resolve(ApiKeyRepository).create({
       userId,
+      organizationId: await seedPersonalOrganizationIdOf(userId),
       name: faker.company.name(),
       hashedKey: apiKeyGenerator.hashApiKeySha256(apiKey),
       keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey)
@@ -147,7 +146,6 @@ describe("GET /v1/spend-rate", () => {
     await initDb();
     const { user, address } = await seedUserWithWallet({ isTrialing: false, activatedAt: new Date() });
     const apiKey = await persistApiKeyFor(user.id);
-    await fileIntoPersonalOrganization(user);
 
     return { user, address, apiKey };
   }

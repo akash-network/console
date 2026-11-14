@@ -1180,7 +1180,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     templateId?: string;
     templateVersionId?: string;
   }): Promise<string> {
-    const values = await this.attributeToOrganization({
+    const values = await this.attributeToRequiredOrganization({
       userId,
       dseq,
       autoTopUpEnabled: AUTO_TOP_UP_ENABLED_BY_DEFAULT,
@@ -1267,7 +1267,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     sealedSecrets: string | null;
     closed: boolean;
   }): Promise<string | undefined> {
-    const values = await this.attributeToOrganization({
+    const values = await this.attributeToRequiredOrganization({
       userId,
       dseq,
       autoTopUpEnabled: closed ? false : AUTO_TOP_UP_ENABLED_BY_DEFAULT,
@@ -1305,7 +1305,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
    * a browser. Keyed on (dseq, userId) with the caller's own id, so it can only ever write the caller's own row.
    */
   async upsertName({ userId, dseq, name }: { userId: string; dseq: string; name: string }): Promise<string | null> {
-    const values = await this.attributeToOrganization({ userId, dseq, autoTopUpEnabled: AUTO_TOP_UP_ENABLED_BY_DEFAULT, name });
+    const values = await this.attributeToRequiredOrganization({ userId, dseq, autoTopUpEnabled: AUTO_TOP_UP_ENABLED_BY_DEFAULT, name });
     const upsert = (cursor: ApiPgDatabase | ApiTransaction) =>
       cursor
         .insert(this.table)
@@ -1323,7 +1323,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
   async createDefaultIfMissing({ userId, dseq, organizationId, projectId }: DeploymentSettingOwner): Promise<boolean> {
     const rows = await this.cursor
       .insert(this.table)
-      .values(await this.attributeToOrganization({ userId, dseq, organizationId, projectId, autoTopUpEnabled: AUTO_TOP_UP_ENABLED_BY_DEFAULT }))
+      .values(await this.attributeToRequiredOrganization({ userId, dseq, organizationId, projectId, autoTopUpEnabled: AUTO_TOP_UP_ENABLED_BY_DEFAULT }))
       .onConflictDoNothing({ target: [this.table.dseq, this.table.userId] })
       .returning({ id: this.table.id });
 
@@ -1470,7 +1470,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     if ("orphanId" in claim) return await this.#claimProviderUnreachableNotificationOfOrphan(claim);
 
     const { userId, dseq, organizationId, downSinceMarker } = claim;
-    const values = await this.attributeToOrganization({
+    const values = await this.attributeToRequiredOrganization({
       userId,
       dseq,
       organizationId,
@@ -1529,7 +1529,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     if ("orphanId" in close) return await this.#markOrphanClosed(close);
 
     const { userId, dseq, organizationId, consoleCloseReason } = close;
-    const values = await this.attributeToOrganization({ userId, dseq, organizationId, autoTopUpEnabled: false, closed: true, consoleCloseReason });
+    const values = await this.attributeToRequiredOrganization({ userId, dseq, organizationId, autoTopUpEnabled: false, closed: true, consoleCloseReason });
 
     await this.cursor
       .insert(this.table)

@@ -25,12 +25,13 @@ import type { FeatureFlagsService } from "@src/core/services/feature-flags/featu
 import type { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import type { TimerService } from "@src/core/services/timer/timer.service";
 import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
+import type { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { AUTO_RECHARGE_METADATA_KEY, REFUND_BEFORE_CREDIT_ERROR_CODE, StripeTransactionService } from "./stripe-transaction.service";
 
 import { generateDatabaseStripeTransaction } from "@test/seeders/database-stripe-transaction.seeder";
 import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
-import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationIdOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { createOrganization } from "@test/seeders/organization.seeder";
 import { createTestUser } from "@test/seeders/user-test.seeder";
 import { waitForLockWait } from "@test/services/lock-wait";
@@ -90,7 +91,7 @@ describe(StripeTransactionService.name, () => {
       });
       expect(refillService.topUpWallet).toHaveBeenCalledWith(
         amount,
-        { userId: mockUser.id, organizationId: null },
+        { userId: mockUser.id, organizationId: internalTransaction.organizationId },
         {
           endTrial: undefined,
           payment: {
@@ -357,7 +358,7 @@ describe(StripeTransactionService.name, () => {
       expect(firstPurchaseBonusService.recordGrant).toHaveBeenCalledWith(internalTransaction, bonusAmount);
       expect(refillService.topUpWallet).toHaveBeenCalledWith(
         amount + bonusAmount,
-        { userId: mockUser.id, organizationId: null },
+        { userId: mockUser.id, organizationId: internalTransaction.organizationId },
         {
           endTrial: undefined,
           payment: {
@@ -399,7 +400,11 @@ describe(StripeTransactionService.name, () => {
         internalTransaction.id,
         expect.not.objectContaining({ bonusAmount: expect.anything() })
       );
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, { userId: mockUser.id, organizationId: null }, expect.anything());
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(
+        amount,
+        { userId: mockUser.id, organizationId: internalTransaction.organizationId },
+        expect.anything()
+      );
       expect(firstPurchaseBonusService.trackBonusGranted).not.toHaveBeenCalled();
       expect(outcome.bonusGrant).toBeUndefined();
     });
@@ -429,7 +434,7 @@ describe(StripeTransactionService.name, () => {
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(internalTransaction.id, expect.objectContaining({ status: "succeeded" }));
       expect(refillService.topUpWallet).toHaveBeenCalledWith(
         amount,
-        { userId: mockUser.id, organizationId: null },
+        { userId: mockUser.id, organizationId: internalTransaction.organizationId },
         {
           endTrial: undefined,
           payment: {
@@ -571,7 +576,7 @@ describe(StripeTransactionService.name, () => {
       });
       expect(refillService.topUpWallet).toHaveBeenCalledWith(
         amount,
-        { userId: mockUser.id, organizationId: null },
+        { userId: mockUser.id, organizationId: internalTransaction.organizationId },
         {
           endTrial: undefined,
           payment: expect.objectContaining({ transactionId: internalTransaction.id, isAutoRecharge: true })
@@ -810,7 +815,7 @@ describe(StripeTransactionService.name, () => {
       });
       expect(refillService.topUpWallet).toHaveBeenCalledWith(
         transactionAmount,
-        { userId: mockUser.id, organizationId: null },
+        { userId: mockUser.id, organizationId: internalTransaction.organizationId },
         {
           endTrial: undefined,
           payment: {
@@ -926,7 +931,7 @@ describe(StripeTransactionService.name, () => {
       });
       expect(refillService.topUpWallet).toHaveBeenCalledWith(
         transactionAmount,
-        { userId: mockUser.id, organizationId: null },
+        { userId: mockUser.id, organizationId: internalTransaction.organizationId },
         {
           endTrial: undefined,
           payment: {
@@ -964,7 +969,7 @@ describe(StripeTransactionService.name, () => {
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(transaction.id, expect.objectContaining({ status: "succeeded" }));
       expect(refillService.topUpWallet).toHaveBeenCalledWith(
         amount,
-        { userId: mockUser.id, organizationId: null },
+        { userId: mockUser.id, organizationId: transaction.organizationId },
         {
           endTrial: false,
           payment: {
@@ -1005,7 +1010,7 @@ describe(StripeTransactionService.name, () => {
       expect(domainEventsService.publish).toHaveBeenCalledTimes(1);
       expect(refillService.topUpWallet).toHaveBeenCalledWith(
         amount,
-        { userId: mockUser.id, organizationId: null },
+        { userId: mockUser.id, organizationId: pendingTransaction.organizationId },
         {
           endTrial: false,
           payment: {
@@ -1360,7 +1365,7 @@ describe(StripeTransactionService.name, () => {
     });
 
     it("keeps resolving a customer created before team organizations paid through its user", async () => {
-      const { service, userRepository, organizationRepository, stripeTransactionRepository, refillService } = setup();
+      const { service, userRepository, organizationRepository, personalOrganizationService, stripeTransactionRepository, refillService } = setup();
       const user = createTestUser();
       const personalOrganization = createOrganization({ type: "personal", createdByUserId: user.id });
       const transaction = generateDatabaseStripeTransaction({
@@ -1370,7 +1375,7 @@ describe(StripeTransactionService.name, () => {
         organizationId: personalOrganization.id
       });
       organizationRepository.findOneBy.mockResolvedValue(undefined);
-      organizationRepository.findPersonalByUserId.mockResolvedValue(personalOrganization);
+      personalOrganizationService.ensureForUser.mockResolvedValue(personalOrganization);
       userRepository.findOneBy.mockResolvedValue(user);
       stripeTransactionRepository.findOneByAndLock.mockResolvedValue(transaction);
 
@@ -1666,9 +1671,8 @@ describe(StripeTransactionService.name, () => {
       const transactionId = "tx-123";
 
       userRepository.findOneBy.mockResolvedValue(mockUser);
-      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(
-        generateDatabaseStripeTransaction({ id: transactionId, status: "succeeded", amountRefunded: 0 })
-      );
+      const transaction = generateDatabaseStripeTransaction({ id: transactionId, status: "succeeded", amountRefunded: 0 });
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(transaction);
       refillService.reduceWalletBalance.mockResolvedValue({ shortfallCents: 0 });
 
       await service.refundCharge(createChargeRefundedEvent({ id: chargeId, customer: mockUser.stripeCustomerId!, amount_refunded: 5000, refunded: true }));
@@ -1678,7 +1682,7 @@ describe(StripeTransactionService.name, () => {
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(transactionId, { amountRefunded: 5000, status: "refunded" });
       expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(
         5000,
-        { userId: mockUser.id, organizationId: null },
+        { userId: mockUser.id, organizationId: transaction.organizationId },
         { currency: "usd", transactionId, refundedBefore: 0, refundedAfter: 5000 }
       );
     });
@@ -1689,16 +1693,15 @@ describe(StripeTransactionService.name, () => {
       const transactionId = "tx-123";
 
       userRepository.findOneBy.mockResolvedValue(mockUser);
-      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(
-        generateDatabaseStripeTransaction({ id: transactionId, status: "succeeded", amountRefunded: 3000 })
-      );
+      const transaction = generateDatabaseStripeTransaction({ id: transactionId, status: "succeeded", amountRefunded: 3000 });
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(transaction);
       refillService.reduceWalletBalance.mockResolvedValue({ shortfallCents: 0 });
 
       await service.refundCharge(createChargeRefundedEvent({ id: "ch_123", customer: mockUser.stripeCustomerId!, amount_refunded: 8000, refunded: false }));
 
       expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(
         5000,
-        { userId: mockUser.id, organizationId: null },
+        { userId: mockUser.id, organizationId: transaction.organizationId },
         { currency: "usd", transactionId, refundedBefore: 3000, refundedAfter: 8000 }
       );
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(transactionId, { amountRefunded: 8000 });
@@ -1836,6 +1839,7 @@ describe(StripeTransactionService.name, () => {
       const chargeId = `ch_${faker.string.alphanumeric(24)}`;
       const purchase = await persistedTransactions.create({
         userId: person.id,
+        organizationId: await seedPersonalOrganizationIdOf(person.id),
         type: "payment_intent",
         status: "requires_action",
         amount: 2000,
@@ -1879,15 +1883,14 @@ describe(StripeTransactionService.name, () => {
       const transactionId = "tx-123";
 
       userRepository.findOneBy.mockResolvedValue(mockUser);
-      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(
-        generateDatabaseStripeTransaction({ id: transactionId, status: "succeeded", amount: 10000, amountRefunded: 0, bonusAmount: 1000 })
-      );
+      const transaction = generateDatabaseStripeTransaction({ id: transactionId, status: "succeeded", amount: 10000, amountRefunded: 0, bonusAmount: 1000 });
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(transaction);
 
       await service.refundCharge(createChargeRefundedEvent({ id: "ch_123", customer: mockUser.stripeCustomerId!, amount_refunded: 10000, refunded: true }));
 
       expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(
         11000,
-        { userId: mockUser.id, organizationId: null },
+        { userId: mockUser.id, organizationId: transaction.organizationId },
         { currency: "usd", transactionId, refundedBefore: 0, refundedAfter: 10000 }
       );
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(transactionId, { amountRefunded: 10000, status: "refunded" });
@@ -1899,15 +1902,14 @@ describe(StripeTransactionService.name, () => {
       const transactionId = "tx-123";
 
       userRepository.findOneBy.mockResolvedValue(mockUser);
-      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(
-        generateDatabaseStripeTransaction({ id: transactionId, status: "refunded", amount: 10000, amountRefunded: 9000, bonusAmount: 1000 })
-      );
+      const transaction = generateDatabaseStripeTransaction({ id: transactionId, status: "refunded", amount: 10000, amountRefunded: 9000, bonusAmount: 1000 });
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(transaction);
 
       await service.refundCharge(createChargeRefundedEvent({ id: "ch_123", customer: mockUser.stripeCustomerId!, amount_refunded: 10000, refunded: true }));
 
       expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(
         1000,
-        { userId: mockUser.id, organizationId: null },
+        { userId: mockUser.id, organizationId: transaction.organizationId },
         { currency: "usd", transactionId, refundedBefore: 9000, refundedAfter: 10000 }
       );
     });
@@ -1918,15 +1920,14 @@ describe(StripeTransactionService.name, () => {
       const transactionId = "tx-123";
 
       userRepository.findOneBy.mockResolvedValue(mockUser);
-      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(
-        generateDatabaseStripeTransaction({ id: transactionId, status: "succeeded", amount: 10000, amountRefunded: 0, bonusAmount: 1000 })
-      );
+      const transaction = generateDatabaseStripeTransaction({ id: transactionId, status: "succeeded", amount: 10000, amountRefunded: 0, bonusAmount: 1000 });
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(transaction);
 
       await service.refundCharge(createChargeRefundedEvent({ id: "ch_123", customer: mockUser.stripeCustomerId!, amount_refunded: 4000, refunded: false }));
 
       expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(
         4000,
-        { userId: mockUser.id, organizationId: null },
+        { userId: mockUser.id, organizationId: transaction.organizationId },
         { currency: "usd", transactionId, refundedBefore: 0, refundedAfter: 4000 }
       );
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(transactionId, { amountRefunded: 4000 });
@@ -1937,7 +1938,13 @@ describe(StripeTransactionService.name, () => {
     it("opens the bonus window for 7 days after the account's first card payment", async () => {
       const { persistedTransactions, settlePersisted } = setup({ persistTransactions: true });
       const person = await seedUser();
-      const purchase = await persistedTransactions.create({ userId: person.id, type: "payment_intent", status: "pending", amount: 2000 });
+      const purchase = await persistedTransactions.create({
+        userId: person.id,
+        organizationId: await seedPersonalOrganizationIdOf(person.id),
+        type: "payment_intent",
+        status: "pending",
+        amount: 2000
+      });
 
       const { bonusWindowOpened } = await settlePersisted(purchase);
 
@@ -1947,8 +1954,21 @@ describe(StripeTransactionService.name, () => {
     it("opens no bonus window for a payment that follows the account's first card payment", async () => {
       const { persistedTransactions, settlePersisted } = setup({ persistTransactions: true });
       const person = await seedUser();
-      await persistedTransactions.create({ userId: person.id, type: "payment_intent", status: "succeeded", amount: 2000, createdAt: subDays(new Date(), 1) });
-      const purchase = await persistedTransactions.create({ userId: person.id, type: "payment_intent", status: "pending", amount: 2000 });
+      await persistedTransactions.create({
+        userId: person.id,
+        organizationId: await seedPersonalOrganizationIdOf(person.id),
+        type: "payment_intent",
+        status: "succeeded",
+        amount: 2000,
+        createdAt: subDays(new Date(), 1)
+      });
+      const purchase = await persistedTransactions.create({
+        userId: person.id,
+        organizationId: await seedPersonalOrganizationIdOf(person.id),
+        type: "payment_intent",
+        status: "pending",
+        amount: 2000
+      });
 
       const { bonusWindowOpened } = await settlePersisted(purchase);
 
@@ -1978,7 +1998,12 @@ describe(StripeTransactionService.name, () => {
       await settlePersisted(purchase, { stripePaymentIntentId: paymentIntentId, chargeId });
       await service.failPaymentIntent(createPaymentIntentFailedEvent({ id: paymentIntentId, metadata: { internal_transaction_id: purchase.id } }));
 
-      await service.applyRefund({ chargeId, amountRefunded: purchase.amount, fullyRefunded: true, customerOwner: { user: person } });
+      await service.applyRefund({
+        chargeId,
+        amountRefunded: purchase.amount,
+        fullyRefunded: true,
+        customerOwner: { user: person, personalOrganizationId: purchase.organizationId }
+      });
 
       expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(purchase.amount, expect.objectContaining({ userId: person.id }), {
         currency: "usd",
@@ -2022,6 +2047,7 @@ describe(StripeTransactionService.name, () => {
       const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
       const purchase = await persistedTransactions.create({
         userId: person.id,
+        organizationId: await seedPersonalOrganizationIdOf(person.id),
         type: "payment_intent",
         status: "requires_action",
         amount: 2000,
@@ -2425,7 +2451,15 @@ describe(StripeTransactionService.name, () => {
     firstPurchaseBonusService.recordGrant.mockImplementation(async (_transaction, bonusCents) => bonusCents);
     const userRepository = mock<UserRepository>();
     const organizationRepository = mock<OrganizationRepository>();
-    const payerService = new PayerService(mock<AuthService>(), mock<ExecutionContextService>(), organizationRepository, userRepository);
+    const personalOrganizationService = mock<PersonalOrganizationService>();
+    personalOrganizationService.ensureForUser.mockImplementation(async user => createOrganization({ type: "personal", createdByUserId: user.id }));
+    const payerService = new PayerService(
+      mock<AuthService>(),
+      mock<ExecutionContextService>(),
+      organizationRepository,
+      userRepository,
+      personalOrganizationService
+    );
     const domainEventsService = mock<DomainEventsService>();
     const jobQueueService = mock<JobQueueService>();
     const analyticsService = mock<AnalyticsService>();
@@ -2516,6 +2550,7 @@ describe(StripeTransactionService.name, () => {
       firstPurchaseBonusService,
       userRepository,
       organizationRepository,
+      personalOrganizationService,
       domainEventsService,
       jobQueueService,
       analyticsService,

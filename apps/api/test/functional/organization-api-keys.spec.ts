@@ -142,20 +142,6 @@ describe("Organization API keys", () => {
       expect(await walletAddressesOf(ownerResponse)).toEqual([teamWallet.address]);
       expect(await walletAddressesOf(otherMemberResponse)).toEqual([]);
     });
-
-    it("acts in its owner's personal organization when it was created before organizations", async () => {
-      const { user, personal, team, teamOwner } = await setup({});
-      const [personalWallet] = await Promise.all([seedWallet(user.id, personal.id), seedWallet(null, team.id)]);
-      const { apiKey } = await seedApiKey({ userId: user.id, organizationId: null });
-
-      const [personalResponse, teamResponse] = await Promise.all([
-        listWallets(user.id, { "x-api-key": apiKey }),
-        listWallets(teamOwner.id, { "x-api-key": apiKey })
-      ]);
-
-      expect(await walletAddressesOf(personalResponse)).toEqual([personalWallet.address]);
-      expect(await walletAddressesOf(teamResponse)).toEqual([]);
-    });
   });
 
   describe("an admin's key bound to a project", () => {
@@ -198,17 +184,13 @@ describe("Organization API keys", () => {
   });
 
   describe("a key of the personal organization", () => {
-    it("keeps working when bound to the personal organization or to none", async () => {
+    it("keeps working when bound to the personal organization", async () => {
       const { user, personal } = await setup({});
-      const [{ apiKey: personalKey }, { apiKey: unboundKey }] = await Promise.all([
-        seedApiKey({ userId: user.id, organizationId: personal.id }),
-        seedApiKey({ userId: user.id, organizationId: null })
-      ]);
+      const { apiKey } = await seedApiKey({ userId: user.id, organizationId: personal.id });
 
-      const [personalResponse, unboundResponse] = await Promise.all([listKeys({ "x-api-key": personalKey }), listKeys({ "x-api-key": unboundKey })]);
+      const response = await listKeys({ "x-api-key": apiKey });
 
-      expect(personalResponse.status).toBe(200);
-      expect(unboundResponse.status).toBe(200);
+      expect(response.status).toBe(200);
     });
 
     it("reaches only the project it is bound to", async () => {
@@ -297,7 +279,7 @@ describe("Organization API keys", () => {
     return wallet;
   }
 
-  async function seedApiKey(input: { userId: string; organizationId: string | null; projectId?: string }) {
+  async function seedApiKey(input: { userId: string; organizationId: string; projectId?: string }) {
     const apiKeyGenerator = container.resolve(ApiKeyGeneratorService);
     const apiKey = apiKeyGenerator.generateApiKey();
     const key = await container.resolve(ApiKeyRepository).create({

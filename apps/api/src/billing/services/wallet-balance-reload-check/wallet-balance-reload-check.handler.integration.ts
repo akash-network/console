@@ -16,7 +16,7 @@ import type { ApiPgDatabase } from "@src/core";
 import { JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 
 import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
-import { seedOrganizationWallet, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedOrganizationWallet, seedPersonalOrganizationIdOf, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { seedWalletSetting } from "@test/seeders/db/wallet-setting.seeder";
 import { expectJobCompleted, useJobWorkers } from "@test/services/job-queue-harness";
 
@@ -127,7 +127,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     const paymentMethodId = `pm_${faker.string.alphanumeric(12)}`;
     await db.insert(resolveTable("PaymentMethods")).values({
       userId: user.id,
-      organizationId: team?.id,
+      organizationId: team?.id ?? (await seedPersonalOrganizationIdOf(user.id)),
       paymentMethodId,
       fingerprint: `fp_${faker.string.alphanumeric(12)}`,
       isDefault: true,

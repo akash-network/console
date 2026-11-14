@@ -16,7 +16,7 @@ import type { AccountStatusEventInput } from "@src/user/repositories/account-sta
 import { AccountStatusEventRepository } from "@src/user/repositories/account-status-event/account-status-event.repository";
 import type { UserInput, UserOutput } from "@src/user/repositories/user/user.repository";
 
-import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedPersonalOrganizationIdOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe("Account status", () => {
   beforeAll(async () => {
@@ -144,6 +144,7 @@ describe("Account status", () => {
     const apiKey = apiKeyGenerator.generateApiKey();
     await container.resolve(ApiKeyRepository).create({
       userId,
+      organizationId: await seedPersonalOrganizationIdOf(userId),
       hashedKey: await apiKeyGenerator.hashApiKey(apiKey),
       keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey),
       name: "ci"

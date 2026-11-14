@@ -15,6 +15,7 @@ import {
 import { TemplateUsageService } from "./template-usage.service";
 
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
+import { seedOrganization } from "@test/seeders/db/organization.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 
@@ -27,7 +28,7 @@ describe(TemplateUsageService.name, () => {
     it("commits the caller's transaction when the insert fails inside it", async () => {
       const { service, txService, repository } = setup();
       const callersEvent = buildCallersEvent();
-      const deployWithUnknownUser = buildDefinition({ userId: faker.string.uuid() });
+      const deployWithUnknownUser = await buildDefinition({ userId: faker.string.uuid() });
 
       await txService.transaction(async () => {
         await service.recordDeployed(deployWithUnknownUser, { isTrialing: false });
@@ -40,7 +41,7 @@ describe(TemplateUsageService.name, () => {
 
     it("keeps the deploy recorded when the caller's transaction rolls back", async () => {
       const { service, txService } = setup();
-      const definition = buildDefinition({ userId: null });
+      const definition = await buildDefinition({ userId: null });
       const rollback = new Error("rolled back");
 
       await expect(
@@ -119,10 +120,10 @@ describe(TemplateUsageService.name, () => {
     return txService.getPgTx() ?? container.resolve<ApiPgDatabase>(POSTGRES_DB);
   }
 
-  function buildDefinition(overrides: { userId: string | null }) {
+  async function buildDefinition(overrides: { userId: string | null }) {
     return {
       id: faker.string.uuid(),
-      organizationId: null,
+      organizationId: (await seedOrganization()).id,
       dseq: faker.string.numeric(10),
       templateId: "hello-world",
       templateVersionId: null,

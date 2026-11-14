@@ -12,7 +12,7 @@ import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { ABUSE_LOCK_REASON, DELETED_TRIAL_ACCOUNT_LOCK_REASON } from "@src/workload-abuse/lib/abuse-lock-reason/abuse-lock-reason";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
-import { fileIntoPersonalOrganization } from "@test/seeders/db/organization.seeder";
+import { seedPersonalOrganizationOf } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe("Get Wallet List", () => {
   const userRepository = container.resolve(UserRepository);
@@ -97,6 +97,7 @@ describe("Get Wallet List", () => {
   async function setup(input: { isTrialing: boolean; activatedAt: Date; abuseLockedReason?: string }) {
     const user = await userRepository.create({ userId: faker.string.uuid() });
     const token = faker.string.alphanumeric(40);
+    await seedPersonalOrganizationOf(user);
     const { wallet } = await userWalletRepository.getOrCreate({ userId: user.id });
     await userWalletRepository.updateById(wallet.id, {
       address: createAkashAddress(),
@@ -106,7 +107,6 @@ describe("Get Wallet List", () => {
       abuseLockedReason: input.abuseLockedReason ?? null
     });
 
-    await fileIntoPersonalOrganization(user);
     vi.spyOn(userAuthTokenService, "getValidUserId").mockResolvedValue(user.userId);
 
     return { user, token };

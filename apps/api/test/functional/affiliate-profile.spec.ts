@@ -12,6 +12,7 @@ import { UserRepository } from "@src/user/repositories/user/user.repository";
 
 import { seedOrganization, seedOrganizationMember } from "@test/seeders/db/organization.seeder";
 import { seedPaymentCredit } from "@test/seeders/db/payment-credit.seeder";
+import { seedPersonalOrganizationIdOf } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe("GET /v1/affiliates/me", () => {
   const userRepository = container.resolve(UserRepository);
@@ -92,9 +93,17 @@ describe("GET /v1/affiliates/me", () => {
     });
     const referredUser = await userRepository.create({ userId: faker.string.uuid() });
     await referralRepository.createIfAbsent({ referredUserId: referredUser.id, affiliateId: affiliate.id });
-    await stripeTransactionRepository.create({ userId: referredUser.id, type: "payment_intent", status: "succeeded", amount: 10000, currency: "usd" });
+    await stripeTransactionRepository.create({
+      userId: referredUser.id,
+      organizationId: await seedPersonalOrganizationIdOf(referredUser.id),
+      type: "payment_intent",
+      status: "succeeded",
+      amount: 10000,
+      currency: "usd"
+    });
     await stripeTransactionRepository.create({
       userId: user.id,
+      organizationId: await seedPersonalOrganizationIdOf(user.id),
       type: "affiliate_commission",
       status: "succeeded",
       amount: 500,
@@ -119,10 +128,19 @@ describe("GET /v1/affiliates/me", () => {
       approvedAt: new Date(),
       approvedBy: "ops@akash.network"
     });
-    const payment = await stripeTransactionRepository.create({ userId: user.id, type: "payment_intent", status: "succeeded", amount: 20000, currency: "usd" });
+    const organizationId = await seedPersonalOrganizationIdOf(user.id);
+    const payment = await stripeTransactionRepository.create({
+      userId: user.id,
+      organizationId,
+      type: "payment_intent",
+      status: "succeeded",
+      amount: 20000,
+      currency: "usd"
+    });
     const heldAt = new Date();
     await stripeTransactionRepository.create({
       userId: user.id,
+      organizationId,
       type: "affiliate_commission",
       status: "pending",
       amount: 1000,
@@ -132,6 +150,7 @@ describe("GET /v1/affiliates/me", () => {
     });
     const credited = await stripeTransactionRepository.create({
       userId: user.id,
+      organizationId,
       type: "affiliate_commission",
       status: "succeeded",
       amount: 250,
@@ -193,8 +212,22 @@ describe("GET /v1/affiliates/me", () => {
     });
     const referredUser = await userRepository.create({ userId: faker.string.uuid(), email: "referred-user@example.com" });
     await referralRepository.createIfAbsent({ referredUserId: referredUser.id, affiliateId: affiliate.id });
-    await stripeTransactionRepository.create({ userId: referredUser.id, type: "payment_intent", status: "succeeded", amount: 10000, currency: "usd" });
-    await stripeTransactionRepository.create({ userId: user.id, type: "affiliate_commission", status: "succeeded", amount: 500, currency: "usd" });
+    await stripeTransactionRepository.create({
+      userId: referredUser.id,
+      organizationId: await seedPersonalOrganizationIdOf(referredUser.id),
+      type: "payment_intent",
+      status: "succeeded",
+      amount: 10000,
+      currency: "usd"
+    });
+    await stripeTransactionRepository.create({
+      userId: user.id,
+      organizationId: await seedPersonalOrganizationIdOf(user.id),
+      type: "affiliate_commission",
+      status: "succeeded",
+      amount: 500,
+      currency: "usd"
+    });
 
     const response = await request(token);
     const rawBody = await response.text();

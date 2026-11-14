@@ -15,7 +15,9 @@ export const ApiKeys = pgTable(
     userId: uuid("user_id")
       .references(() => Users.id, { onDelete: "cascade" })
       .notNull(),
-    organizationId: uuid("organization_id").references(() => Organizations.id),
+    organizationId: uuid("organization_id")
+      .references(() => Organizations.id)
+      .notNull(),
     projectId: uuid("project_id"),
     hashedKey: varchar("hashed_key").notNull().unique(),
     keyFormat: varchar("key_format").notNull(),
