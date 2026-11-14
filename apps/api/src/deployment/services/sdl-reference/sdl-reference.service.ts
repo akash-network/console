@@ -71,6 +71,8 @@ export interface SdlReferenceSlot {
   value: string;
   /** Whether a value here may be quoted back to the caller, which a private registry credential never may: A1 makes it a secret whatever it holds. */
   valueIsAlwaysSecret: boolean;
+  /** Absent for a registry credential, which no variable names. */
+  envVariable?: string;
   replace(resolved: string): void;
 }
 
@@ -151,6 +153,7 @@ function envSlotsOf({ serviceName, serviceIndex }: ServiceLocation, service: SDL
       position: `e${index}`,
       value: declaration.value,
       valueIsAlwaysSecret: false,
+      envVariable: declaration.key,
       replace: (resolved: string) => {
         env[index] = `${declaration.key}=${resolved}`;
       }

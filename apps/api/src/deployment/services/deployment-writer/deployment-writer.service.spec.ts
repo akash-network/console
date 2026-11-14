@@ -50,7 +50,7 @@ import {
 } from "@src/deployment/services/reconcile-deployment-update/reconcile-deployment-update.job";
 import type { GenerateResolvedManifestResult, SdlManifest, SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlPatchService } from "@src/deployment/services/sdl-patch/sdl-patch.service";
-import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
+import { MAX_ECHOED_REFERENCE_LENGTH, SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import type { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import { SdlSecretsDerivationService } from "@src/deployment/services/sdl-secrets-derivation/sdl-secrets-derivation.service";
 import type { SdlSecretsInheritanceService } from "@src/deployment/services/sdl-secrets-inheritance/sdl-secrets-inheritance.service";
@@ -143,6 +143,13 @@ const SDL_WITH_SECRETS = sdlAround(`    credentials:
       password: ${REGISTRY_PASSWORD}
     env:
       - API_TOKEN=${ENV_VALUE}
+`);
+
+const READABLE_ENV_VALUE = faker.string.alphanumeric(12);
+
+const SDL_WITH_A_SECRET_AND_A_READABLE_ENV_VALUE = sdlAround(`    env:
+      - API_TOKEN=${ENV_VALUE}
+      - LOG_LEVEL=${READABLE_ENV_VALUE}
 `);
 
 const SDL_ALIASING_ONE_SCALAR = sdlAround(`    args:
@@ -951,6 +958,70 @@ describe(DeploymentWriterService.name, () => {
       await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 });
 
       expect(recordedSdlOf(deploymentSettingRepository)).toContain(`API_TOKEN=${ENV_VALUE}`);
+    });
+
+    it("records a variable named in secretEnv as a reference and every other env value as it arrived", async () => {
+      const { service, deploymentSettingRepository } = setup();
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_A_SECRET_AND_A_READABLE_ENV_VALUE, secretEnv: ["API_TOKEN"], deposit: 5 });
+
+      expect(recordedSdlOf(deploymentSettingRepository)).toContain("API_TOKEN=ac-secret://s0_e0");
+      expect(recordedSdlOf(deploymentSettingRepository)).toContain(`LOG_LEVEL=${READABLE_ENV_VALUE}`);
+    });
+
+    it("seals the value of the variable named in secretEnv and no other env value", async () => {
+      const { service, storedSecrets } = setup();
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_A_SECRET_AND_A_READABLE_ENV_VALUE, secretEnv: ["API_TOKEN"], deposit: 5 });
+
+      expect(storedSecrets()).toEqual({ s0_e0: ENV_VALUE });
+    });
+
+    it("records every env value as it arrived when secretEnv names none, sealing the registry credentials alone", async () => {
+      const { service, deploymentSettingRepository, storedSecrets } = setup();
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, secretEnv: [], deposit: 5 });
+
+      expect(recordedSdlOf(deploymentSettingRepository)).toContain(`API_TOKEN=${ENV_VALUE}`);
+      expect(storedSecrets()).toEqual({ s0_c_username: REGISTRY_USERNAME, s0_c_password: REGISTRY_PASSWORD });
+    });
+
+    it("seals a variable named in secretEnv even when a seal arrives beside it", async () => {
+      const { service, deploymentSettingRepository } = setup();
+
+      await service.create({
+        userId: "user-1",
+        sdl: SDL_WITH_A_SECRET_AND_A_READABLE_ENV_VALUE,
+        secretEnv: ["API_TOKEN"],
+        sealedSecrets: SEAL,
+        deposit: 5
+      });
+
+      expect(recordedSdlOf(deploymentSettingRepository)).not.toContain(ENV_VALUE);
+      expect(recordedSdlOf(deploymentSettingRepository)).toContain(`LOG_LEVEL=${READABLE_ENV_VALUE}`);
+    });
+
+    it("answers 400 for a variable named in secretEnv that no service sets, recording and broadcasting nothing", async () => {
+      const { service, deploymentSettingRepository, signerService } = setup();
+
+      await expect(
+        service.create({ userId: "user-1", sdl: SDL_WITH_A_SECRET_AND_A_READABLE_ENV_VALUE, secretEnv: ["API_TOKEN", "API_TOKN"], deposit: 5 })
+      ).rejects.toMatchObject({
+        status: 400,
+        message: '"API_TOKN" is listed in secretEnv, but the request sets no environment variable of that name'
+      });
+
+      expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+    });
+
+    it("echoes no more of an unset secretEnv name than the error handler may log", async () => {
+      const { service } = setup();
+      const unsetVariable = "V".repeat(MAX_ECHOED_REFERENCE_LENGTH + 1);
+
+      const thrown = await service.create({ userId: "user-1", sdl: SDL_WITHOUT_SECRETS, secretEnv: [unsetVariable], deposit: 5 }).catch(error => error);
+
+      expect(thrown.message).toContain(`"${"V".repeat(MAX_ECHOED_REFERENCE_LENGTH)}" is listed in secretEnv`);
     });
 
     it.each([
@@ -3485,6 +3556,61 @@ describe(DeploymentWriterService.name, () => {
       });
     });
 
+    describe("a patch that names in secretEnv which written values are secret", () => {
+      it("seals the written variable it names and leaves the other written value readable", async () => {
+        const { service, ability, sealedFor, deploymentSettingRepository } = setup({ sdl: STORED_SDL_WITH_PLAINTEXT, held: { s0_e0: "token" } });
+
+        await service.patchByUserIdAndDseq(
+          "user-1",
+          "1234",
+          { services: { worker: { env: { LOG_LEVEL: "trace", API_KEY: "written-key" } } }, secretEnv: ["API_KEY"] },
+          ability
+        );
+
+        const [{ sdl }] = vi.mocked(deploymentSettingRepository.replaceDefinitionIfVersionMatches).mock.calls[0];
+        expect(sdl).toContain("LOG_LEVEL=trace");
+        expect(sdl).not.toContain("written-key");
+        expect(sealedFor()).toEqual({ s0_e0: "token", s1_e1: "written-key" });
+      });
+
+      it("leaves every written value readable when it names none", async () => {
+        const { service, ability, sealedFor, deploymentSettingRepository } = setup({ sdl: STORED_SDL_WITH_PLAINTEXT, held: { s0_e0: "token" } });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { worker: { env: { LOG_LEVEL: "trace" } } }, secretEnv: [] }, ability);
+
+        const [{ sdl }] = vi.mocked(deploymentSettingRepository.replaceDefinitionIfVersionMatches).mock.calls[0];
+        expect(sdl).toContain("LOG_LEVEL=trace");
+        expect(sealedFor()).toEqual({ s0_e0: "token" });
+      });
+
+      it("seals the written variable it names even when a seal arrives beside it", async () => {
+        const { service, ability, deploymentSettingRepository } = setup({ sdl: STORED_SDL_WITH_PLAINTEXT, held: { s0_e0: "token" } });
+
+        await service.patchByUserIdAndDseq(
+          "user-1",
+          "1234",
+          { services: { worker: { env: { LOG_LEVEL: "trace" } } }, secretEnv: ["LOG_LEVEL"], sealedSecrets: CLIENT_SEAL },
+          ability
+        );
+
+        const [{ sdl }] = vi.mocked(deploymentSettingRepository.replaceDefinitionIfVersionMatches).mock.calls[0];
+        expect(sdl).not.toContain("LOG_LEVEL=trace");
+      });
+
+      it("answers 400 for a variable the patch does not write, though the stored sdl sets it", async () => {
+        const { service, ability, deploymentSettingRepository } = setup({ sdl: STORED_SDL_WITH_PLAINTEXT, held: { s0_e0: "token" } });
+
+        await expect(
+          service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "nginx:1.27" } }, secretEnv: ["LOG_LEVEL"] }, ability)
+        ).rejects.toMatchObject({
+          status: 400,
+          message: '"LOG_LEVEL" is listed in secretEnv, but the request sets no environment variable of that name'
+        });
+
+        expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).not.toHaveBeenCalled();
+      });
+    });
+
     describe("the name a re-supplied value ends up stored under", () => {
       it("gives a patched variable a different derived name, since names need only be unique", async () => {
         const { service, ability, sealedFor } = setup({ held: { s0_e0: "token", s0_e1: "kept" } });
@@ -4251,6 +4377,24 @@ describe(DeploymentWriterService.name, () => {
 
         expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).toHaveBeenCalledWith(expect.objectContaining({ name: "renamed" }));
         expect(deploymentSettingRepository.upsertName).not.toHaveBeenCalled();
+      });
+
+      it("refuses a variable named in secretEnv beside the empty entries rather than renaming and dropping it", async () => {
+        const { service, ability, deploymentSettingRepository } = setup();
+
+        await expect(
+          service.patchByUserIdAndDseq("user-1", "1234", { name: "renamed", services: { web: {} }, secretEnv: ["API_TOKEN"] }, ability)
+        ).rejects.toMatchObject({ status: 400 });
+
+        expect(deploymentSettingRepository.upsertName).not.toHaveBeenCalled();
+      });
+
+      it("still renames without reading a stored definition when secretEnv names no variable", async () => {
+        const { service, ability, deploymentSettingRepository } = setup({ setting: undefined });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { name: "renamed", secretEnv: [] }, ability);
+
+        expect(deploymentSettingRepository.upsertName).toHaveBeenCalledWith({ userId: "user-1", dseq: "1234", name: "renamed" });
       });
 
       it("counts an empty array as a value, so clearing a command rewrites the definition rather than renaming", async () => {

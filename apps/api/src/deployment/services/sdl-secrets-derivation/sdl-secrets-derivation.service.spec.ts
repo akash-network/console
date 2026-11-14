@@ -13,13 +13,13 @@ const REGISTRY_HOST = "registry.example.test";
 const REGISTRY_EMAIL = "ops@example.test";
 
 describe(SdlSecretsDerivationService.name, () => {
-  describe("when no seal said which values are secret", () => {
+  describe("when every env value is sealed", () => {
     it("takes an env value out and leaves a reference where it stood", () => {
       const { service } = setup();
       const token = faker.string.alphanumeric(24);
       const document = documentWith({ web: { env: [`API_TOKEN=${token}`] } });
 
-      const secrets = service.derive(document, { includeEnvValues: true });
+      const secrets = service.derive(document, { sealedEnv: "every-value" });
 
       expect(secrets).toEqual({ s0_e0: token });
       expect(document.services.web.env).toEqual(["API_TOKEN=ac-secret://s0_e0"]);
@@ -32,7 +32,7 @@ describe(SdlSecretsDerivationService.name, () => {
         worker: { env: [`C=${faker.string.alphanumeric(8)}`] }
       });
 
-      service.derive(document, { includeEnvValues: true });
+      service.derive(document, { sealedEnv: "every-value" });
 
       expect(document.services.web.env).toEqual(["A=ac-secret://s0_e0", "B=ac-secret://s0_e1"]);
       expect(document.services.worker.env).toEqual(["C=ac-secret://s1_e0"]);
@@ -43,7 +43,7 @@ describe(SdlSecretsDerivationService.name, () => {
       const [web, worker] = [faker.string.alphanumeric(16), faker.string.alphanumeric(16)];
 
       const secrets = service.derive(documentWith({ web: { env: [`PASSWORD=${web}`] }, worker: { env: [`PASSWORD=${worker}`] } }), {
-        includeEnvValues: true
+        sealedEnv: "every-value"
       });
 
       expect(secrets).toEqual({ s0_e0: web, s1_e0: worker });
@@ -54,7 +54,7 @@ describe(SdlSecretsDerivationService.name, () => {
       const [username, password] = [faker.string.alphanumeric(10), faker.internet.password()];
       const document = documentWith({ web: { credentials: { host: REGISTRY_HOST, email: REGISTRY_EMAIL, username, password } } });
 
-      const secrets = service.derive(document, { includeEnvValues: true });
+      const secrets = service.derive(document, { sealedEnv: "every-value" });
 
       expect(secrets).toEqual({ s0_c_username: username, s0_c_password: password });
       expect(document.services.web.credentials).toEqual({
@@ -69,7 +69,7 @@ describe(SdlSecretsDerivationService.name, () => {
       const { service } = setup();
       const document = documentWith({ web: { env: ["EXPLICITLY_EMPTY=", "INHERITED_FROM_HOST"] } });
 
-      const secrets = service.derive(document, { includeEnvValues: true });
+      const secrets = service.derive(document, { sealedEnv: "every-value" });
 
       expect(secrets).toEqual({ s0_e0: "" });
       expect(document.services.web.env).toEqual(["EXPLICITLY_EMPTY=ac-secret://s0_e0", "INHERITED_FROM_HOST"]);
@@ -79,7 +79,7 @@ describe(SdlSecretsDerivationService.name, () => {
       const { service } = setup();
       const document = documentWith({ web: { env: ["API_TOKEN=ac-secret://API_TOKEN", `LOG_LEVEL=${faker.string.alphanumeric(5)}`] } });
 
-      const secrets = service.derive(document, { includeEnvValues: true });
+      const secrets = service.derive(document, { sealedEnv: "every-value" });
 
       expect(Object.keys(secrets)).toEqual(["s0_e1"]);
       expect(document.services.web.env![0]).toBe("API_TOKEN=ac-secret://API_TOKEN");
@@ -88,23 +88,23 @@ describe(SdlSecretsDerivationService.name, () => {
     it("takes nothing from a document that carries no env and no credentials", () => {
       const { service } = setup();
 
-      expect(service.derive(documentWith({ web: {} }), { includeEnvValues: true })).toEqual({});
+      expect(service.derive(documentWith({ web: {} }), { sealedEnv: "every-value" })).toEqual({});
     });
 
     it.each([{ env: null }, {}])("leaves the service declaring %j untouched", overrides => {
       const { service } = setup();
 
-      expect(service.derive(documentWith({ web: overrides }), { includeEnvValues: true })).toEqual({});
+      expect(service.derive(documentWith({ web: overrides }), { sealedEnv: "every-value" })).toEqual({});
     });
   });
 
-  describe("when a seal already said which values are secret", () => {
+  describe("when no env variable is named secret", () => {
     it("leaves every env value exactly as submitted", () => {
       const { service } = setup();
       const token = faker.string.alphanumeric(24);
       const document = documentWith({ web: { env: [`API_TOKEN=${token}`] } });
 
-      const secrets = service.derive(document, { includeEnvValues: false });
+      const secrets = service.derive(document, { sealedEnv: new Set() });
 
       expect(secrets).toEqual({});
       expect(document.services.web.env).toEqual([`API_TOKEN=${token}`]);
@@ -117,7 +117,7 @@ describe(SdlSecretsDerivationService.name, () => {
         web: { env: [`LOG_LEVEL=${faker.string.alphanumeric(5)}`], credentials: { host: REGISTRY_HOST, username, password } }
       });
 
-      const secrets = service.derive(document, { includeEnvValues: false });
+      const secrets = service.derive(document, { sealedEnv: new Set() });
 
       expect(secrets).toEqual({ s0_c_username: username, s0_c_password: password });
       expect(document.services.web.credentials!.password).toBe("ac-secret://s0_c_password");
@@ -129,7 +129,7 @@ describe(SdlSecretsDerivationService.name, () => {
       const worker = { host: "other-registry.example.test", username: faker.string.alphanumeric(10), password: faker.internet.password() };
       const document = documentWith({ web: { credentials: web }, worker: { credentials: worker } });
 
-      const secrets = service.derive(document, { includeEnvValues: false });
+      const secrets = service.derive(document, { sealedEnv: new Set() });
 
       expect(secrets).toEqual({
         s0_c_username: web.username,
@@ -147,7 +147,127 @@ describe(SdlSecretsDerivationService.name, () => {
         web: { credentials: { host: REGISTRY_HOST, username: "ac-secret://REG_USER", password: "ac-secret://REG_PASS" } }
       });
 
-      expect(service.derive(document, { includeEnvValues: false })).toEqual({});
+      expect(service.derive(document, { sealedEnv: new Set() })).toEqual({});
+    });
+  });
+
+  describe("when some env variables are named secret", () => {
+    it("takes the value of a named variable out and leaves every other value as submitted", () => {
+      const { service } = setup();
+      const [token, logLevel] = [faker.string.alphanumeric(24), faker.string.alphanumeric(5)];
+      const document = documentWith({ web: { env: [`LOG_LEVEL=${logLevel}`, `API_TOKEN=${token}`] } });
+
+      const secrets = service.derive(document, { sealedEnv: new Set(["API_TOKEN"]) });
+
+      expect(secrets).toEqual({ s0_e1: token });
+      expect(document.services.web.env).toEqual([`LOG_LEVEL=${logLevel}`, "API_TOKEN=ac-secret://s0_e1"]);
+    });
+
+    it("takes a named variable out of every service that sets it", () => {
+      const { service } = setup();
+      const [web, worker] = [faker.string.alphanumeric(16), faker.string.alphanumeric(16)];
+      const document = documentWith({ web: { env: [`PASSWORD=${web}`] }, worker: { env: ["MODE=batch", `PASSWORD=${worker}`] } });
+
+      const secrets = service.derive(document, { sealedEnv: new Set(["PASSWORD"]) });
+
+      expect(secrets).toEqual({ s0_e0: web, s1_e1: worker });
+      expect(document.services.worker.env).toEqual(["MODE=batch", "PASSWORD=ac-secret://s1_e1"]);
+    });
+
+    it("matches a variable by its whole name, in the case it was written", () => {
+      const { service } = setup();
+      const document = documentWith({ web: { env: ["API_TOKEN_TTL=60", "api_token=lower"] } });
+
+      expect(service.derive(document, { sealedEnv: new Set(["API_TOKEN"]) })).toEqual({});
+      expect(document.services.web.env).toEqual(["API_TOKEN_TTL=60", "api_token=lower"]);
+    });
+
+    it("still takes a registry credential, which no variable names", () => {
+      const { service } = setup();
+      const [username, password] = [faker.string.alphanumeric(10), faker.internet.password()];
+      const document = documentWith({ web: { env: ["MODE=batch"], credentials: { host: REGISTRY_HOST, username, password } } });
+
+      const secrets = service.derive(document, { sealedEnv: new Set(["API_TOKEN"]) });
+
+      expect(secrets).toEqual({ s0_c_username: username, s0_c_password: password });
+      expect(document.services.web.env).toEqual(["MODE=batch"]);
+    });
+
+    it("leaves a named variable that already names a secret alone", () => {
+      const { service } = setup();
+      const document = documentWith({ web: { env: ["API_TOKEN=ac-secret://API_TOKEN"] } });
+
+      expect(service.derive(document, { sealedEnv: new Set(["API_TOKEN"]) })).toEqual({});
+      expect(document.services.web.env).toEqual(["API_TOKEN=ac-secret://API_TOKEN"]);
+    });
+
+    it("takes a named variable only at a position the caller bounds it to", () => {
+      const { service } = setup();
+      const document = documentWith({ web: { env: ["API_TOKEN=stored"] }, worker: { env: ["API_TOKEN=written"] } });
+
+      const secrets = service.derive(document, { sealedEnv: new Set(["API_TOKEN"]), onlyAt: new Set(["/services/worker/env/0"]) });
+
+      expect(secrets).toEqual({ s1_e0: "written" });
+      expect(document.services.web.env).toEqual(["API_TOKEN=stored"]);
+    });
+  });
+
+  describe("unsetEnvVariablesOf", () => {
+    it("reports no variable when every env value is sealed", () => {
+      const { service } = setup();
+
+      expect(service.unsetEnvVariablesOf(documentWith({ web: {} }), { sealedEnv: "every-value" })).toEqual([]);
+    });
+
+    it("reports no variable when none is named", () => {
+      const { service } = setup();
+
+      expect(service.unsetEnvVariablesOf(documentWith({ web: { env: ["A=one"] } }), { sealedEnv: new Set() })).toEqual([]);
+    });
+
+    it("reports no variable when a service sets each one named", () => {
+      const { service } = setup();
+      const document = documentWith({ web: { env: ["A=one"] }, worker: { env: ["B=two"] } });
+
+      expect(service.unsetEnvVariablesOf(document, { sealedEnv: new Set(["A", "B"]) })).toEqual([]);
+    });
+
+    it("reports each named variable that no service sets, in the order they were named", () => {
+      const { service } = setup();
+      const document = documentWith({ web: { env: ["A=one"] } });
+
+      expect(service.unsetEnvVariablesOf(document, { sealedEnv: new Set(["MISSPELT", "A", "ABSENT"]) })).toEqual(["MISSPELT", "ABSENT"]);
+    });
+
+    it("counts a variable that already names a secret as set", () => {
+      const { service } = setup();
+      const document = documentWith({ web: { env: ["A=ac-secret://A"] } });
+
+      expect(service.unsetEnvVariablesOf(document, { sealedEnv: new Set(["A"]) })).toEqual([]);
+    });
+
+    it("does not count a variable the service only inherits from its host", () => {
+      const { service } = setup();
+      const document = documentWith({ web: { env: ["INHERITED_FROM_HOST"] } });
+
+      expect(service.unsetEnvVariablesOf(document, { sealedEnv: new Set(["INHERITED_FROM_HOST"]) })).toEqual(["INHERITED_FROM_HOST"]);
+    });
+
+    it("reports a variable set only at a position outside the caller's bound", () => {
+      const { service } = setup();
+      const document = documentWith({ web: { env: ["A=stored", "B=written"] } });
+      const onlyAt = new Set(["/services/web/env/1"]);
+
+      expect(service.unsetEnvVariablesOf(document, { sealedEnv: new Set(["A", "B"]), onlyAt })).toEqual(["A"]);
+    });
+
+    it("leaves the document as it was given", () => {
+      const { service } = setup();
+      const document = documentWith({ web: { env: ["A=one"] } });
+
+      service.unsetEnvVariablesOf(document, { sealedEnv: new Set(["A"]) });
+
+      expect(document.services.web.env).toEqual(["A=one"]);
     });
   });
 
@@ -156,7 +276,7 @@ describe(SdlSecretsDerivationService.name, () => {
       const { service } = setup();
       const document = documentWith({ web: { env: [`T=${value}`] } });
 
-      expect(service.derive(document, { includeEnvValues: true })).toEqual({});
+      expect(service.derive(document, { sealedEnv: "every-value" })).toEqual({});
       expect(document.services.web.env).toEqual([`T=${value}`]);
     });
 
@@ -166,7 +286,7 @@ describe(SdlSecretsDerivationService.name, () => {
         const { service } = setup();
         const document = documentWith({ web: { env: [`T=${value}`] } });
 
-        expect(service.derive(document, { includeEnvValues: true })).toEqual({ s0_e0: value });
+        expect(service.derive(document, { sealedEnv: "every-value" })).toEqual({ s0_e0: value });
         expect(document.services.web.env).toEqual(["T=ac-secret://s0_e0"]);
       }
     );
@@ -175,7 +295,7 @@ describe(SdlSecretsDerivationService.name, () => {
       const { service } = setup();
       const document = documentWith({ web: { env: ["T=ac-secret://T"] }, worker: { env: ["T=ac-secret://T"] } });
 
-      expect(service.derive(document, { includeEnvValues: true })).toEqual({});
+      expect(service.derive(document, { sealedEnv: "every-value" })).toEqual({});
       expect(document.services.web.env).toEqual(["T=ac-secret://T"]);
       expect(document.services.worker.env).toEqual(["T=ac-secret://T"]);
     });
@@ -185,7 +305,7 @@ describe(SdlSecretsDerivationService.name, () => {
       const url = `postgres://u:${faker.internet.password()}@h:5432/db?ssl=true&a=b`;
       const document = documentWith({ web: { env: [`DATABASE_URL=${url}`] } });
 
-      expect(service.derive(document, { includeEnvValues: true })).toEqual({ s0_e0: url });
+      expect(service.derive(document, { sealedEnv: "every-value" })).toEqual({ s0_e0: url });
       expect(document.services.web.env).toEqual(["DATABASE_URL=ac-secret://s0_e0"]);
     });
   });
@@ -196,7 +316,7 @@ describe(SdlSecretsDerivationService.name, () => {
       const token = faker.string.alphanumeric(12);
       const document = yaml.raw<SDLInput>(sdlSharingOneListBetweenEnvAndArgs(`API_TOKEN=${token}`));
 
-      const secrets = service.derive(document, { includeEnvValues: true });
+      const secrets = service.derive(document, { sealedEnv: "every-value" });
 
       expect(secrets).toEqual({ s0_e0: token });
       expect(document.services.web.env).toEqual(["API_TOKEN=ac-secret://s0_e0"]);
@@ -208,7 +328,7 @@ describe(SdlSecretsDerivationService.name, () => {
       const token = faker.string.alphanumeric(12);
       const document = documentWith({ web: { env: [`API_TOKEN=${token}`], args: [`--token=${token}`] } });
 
-      service.derive(document, { includeEnvValues: true });
+      service.derive(document, { sealedEnv: "every-value" });
 
       expect(document.services.web.env).toEqual(["API_TOKEN=ac-secret://s0_e0"]);
       expect(document.services.web.args).toEqual([`--token=${token}`]);
@@ -221,7 +341,7 @@ describe(SdlSecretsDerivationService.name, () => {
       const password = faker.internet.password();
       const document = yaml.raw<SDLInput>(sdlSharingCredentials(password));
 
-      const secrets = service.derive(document, { includeEnvValues: false });
+      const secrets = service.derive(document, { sealedEnv: new Set() });
 
       expect(Object.keys(secrets)).toEqual(["s0_c_username", "s0_c_password"]);
       expect(secrets.s0_c_password).toBe(password);
@@ -234,7 +354,7 @@ describe(SdlSecretsDerivationService.name, () => {
       const token = faker.string.alphanumeric(20);
       const document = yaml.raw<SDLInput>(sdlSharingEnv(`API_TOKEN=${token}`));
 
-      const secrets = service.derive(document, { includeEnvValues: true });
+      const secrets = service.derive(document, { sealedEnv: "every-value" });
 
       expect(secrets).toEqual({ s0_e0: token });
       expect(document.services.web.env).toEqual(["API_TOKEN=ac-secret://s0_e0"]);
@@ -247,7 +367,7 @@ describe(SdlSecretsDerivationService.name, () => {
       const { service } = setup();
       const document = documentWith({ web: { env: ["A=plain", "B=ac-secret://s0_e0"] } });
 
-      const secrets = service.derive(document, { includeEnvValues: true });
+      const secrets = service.derive(document, { sealedEnv: "every-value" });
 
       expect(Object.keys(secrets)).not.toContain("s0_e0");
     });
@@ -256,7 +376,7 @@ describe(SdlSecretsDerivationService.name, () => {
       const { service } = setup();
       const document = documentWith({ web: { env: ["A=plain", "B=ac-secret://s0_e0"] } });
 
-      const secrets = service.derive(document, { includeEnvValues: true });
+      const secrets = service.derive(document, { sealedEnv: "every-value" });
 
       expect(document.services.web.env).toEqual(["A=ac-secret://s0_e0_2", "B=ac-secret://s0_e0"]);
       expect(secrets).toEqual({ s0_e0_2: "plain" });
@@ -266,7 +386,7 @@ describe(SdlSecretsDerivationService.name, () => {
       const { service } = setup();
       const document = documentWith({ web: { env: ["A=plain", "B=ac-secret://s0_e0", "C=ac-secret://s0_e0_2"] } });
 
-      const secrets = service.derive(document, { includeEnvValues: true });
+      const secrets = service.derive(document, { sealedEnv: "every-value" });
 
       expect(secrets).toEqual({ s0_e0_3: "plain" });
       expect(document.services.web.env).toEqual(["A=ac-secret://s0_e0_3", "B=ac-secret://s0_e0", "C=ac-secret://s0_e0_2"]);
@@ -276,7 +396,7 @@ describe(SdlSecretsDerivationService.name, () => {
       const { service } = setup();
       const document = documentWith({ web: { env: ["B=ac-secret://s0_e1", "C=plain"] } });
 
-      const secrets = service.derive(document, { includeEnvValues: true });
+      const secrets = service.derive(document, { sealedEnv: "every-value" });
 
       expect(secrets).toEqual({ s0_e1_2: "plain" });
       expect(document.services.web.env).toEqual(["B=ac-secret://s0_e1", "C=ac-secret://s0_e1_2"]);
@@ -286,7 +406,7 @@ describe(SdlSecretsDerivationService.name, () => {
       const { service, sdlReferenceService } = setup();
       const document = documentWith({ web: { env: ["A=ac-secret://s0_e0", "B=resupplied"] } });
 
-      const secrets = service.derive(document, { includeEnvValues: true });
+      const secrets = service.derive(document, { sealedEnv: "every-value" });
 
       expect(Object.keys(secrets)).toHaveLength(1);
       expect(Object.keys(secrets)[0]).not.toBe("s0_e0");
@@ -299,7 +419,7 @@ describe(SdlSecretsDerivationService.name, () => {
         web: { env: ["A=ac-secret://MY_TOKEN"], credentials: { host: REGISTRY_HOST, username: "u", password: "p" } }
       });
 
-      const secrets = service.derive(document, { includeEnvValues: false });
+      const secrets = service.derive(document, { sealedEnv: new Set() });
 
       expect(Object.keys(secrets).sort()).toEqual(["s0_c_password", "s0_c_username"]);
       expect(document.services.web.env).toEqual(["A=ac-secret://MY_TOKEN"]);
@@ -311,7 +431,7 @@ describe(SdlSecretsDerivationService.name, () => {
         web: { env: ["A=ac-secret://s0_c_username"], credentials: { host: REGISTRY_HOST, username: "u", password: "p" } }
       });
 
-      const secrets = service.derive(document, { includeEnvValues: false });
+      const secrets = service.derive(document, { sealedEnv: new Set() });
 
       expect(Object.keys(secrets)).not.toContain("s0_c_username");
       expect(document.services.web.env).toEqual(["A=ac-secret://s0_c_username"]);
@@ -321,7 +441,7 @@ describe(SdlSecretsDerivationService.name, () => {
       const { service } = setup();
       const document = documentWith({ web: { env: ["A=first", "B=second", "C=ac-secret://s0_e0", "D=ac-secret://s0_e1"] } });
 
-      const secrets = service.derive(document, { includeEnvValues: true });
+      const secrets = service.derive(document, { sealedEnv: "every-value" });
 
       expect(Object.keys(secrets)).toHaveLength(2);
       expect(new Set(Object.values(secrets))).toEqual(new Set(["first", "second"]));
@@ -333,7 +453,7 @@ describe(SdlSecretsDerivationService.name, () => {
         web: { credentials: { host: REGISTRY_HOST, username: "ac-secret://s0_c_password", password: "plain" } }
       });
 
-      const secrets = service.derive(document, { includeEnvValues: false });
+      const secrets = service.derive(document, { sealedEnv: new Set() });
 
       expect(Object.keys(secrets)).toEqual(["s0_c_password_2"]);
       expect(document.services.web.credentials).toMatchObject({
@@ -346,7 +466,7 @@ describe(SdlSecretsDerivationService.name, () => {
       const { service, sdlReferenceService } = setup();
       const document = documentWith({ web: { env: ["A=plain", "B=ac-secret://s0_e0"] } });
 
-      const secrets = service.derive(document, { includeEnvValues: true });
+      const secrets = service.derive(document, { sealedEnv: "every-value" });
 
       expect(sdlReferenceService.validate(document)).toEqual([]);
       expect(Object.keys(secrets).every(name => name.length <= MAX_SDL_REFERENCE_NAME_LENGTH)).toBe(true);
@@ -358,7 +478,7 @@ describe(SdlSecretsDerivationService.name, () => {
       const { service } = setup();
       const document = documentWith({ web: { env: ["A=one", "B=two"] } });
 
-      const secrets = service.derive(document, { includeEnvValues: true, onlyAt: new Set(["/services/web/env/1"]) });
+      const secrets = service.derive(document, { sealedEnv: "every-value", onlyAt: new Set(["/services/web/env/1"]) });
 
       expect(secrets).toEqual({ s0_e1: "two" });
       expect(document.services.web.env).toEqual(["A=one", "B=ac-secret://s0_e1"]);
@@ -368,7 +488,7 @@ describe(SdlSecretsDerivationService.name, () => {
       const { service } = setup();
       const document = documentWith({ web: { env: ["A=one"] }, worker: { env: ["B=two"] } });
 
-      const secrets = service.derive(document, { includeEnvValues: true, onlyAt: new Set(["/services/web/env/0"]) });
+      const secrets = service.derive(document, { sealedEnv: "every-value", onlyAt: new Set(["/services/web/env/0"]) });
 
       expect(secrets).toEqual({ s0_e0: "one" });
       expect(document.services.worker.env).toEqual(["B=two"]);
@@ -378,7 +498,7 @@ describe(SdlSecretsDerivationService.name, () => {
       const { service } = setup();
       const document = documentWith({ web: { credentials: { host: REGISTRY_HOST, username: "u", password: "p" } } });
 
-      const secrets = service.derive(document, { includeEnvValues: false, onlyAt: new Set(["/services/web/credentials/password"]) });
+      const secrets = service.derive(document, { sealedEnv: new Set(), onlyAt: new Set(["/services/web/credentials/password"]) });
 
       expect(Object.keys(secrets)).toEqual(["s0_c_password"]);
       expect(document.services.web.credentials).toMatchObject({ username: "u" });
@@ -388,7 +508,7 @@ describe(SdlSecretsDerivationService.name, () => {
       const { service } = setup();
       const document = documentWith({ web: { env: ["A=one"] } });
 
-      expect(service.derive(document, { includeEnvValues: true, onlyAt: new Set() })).toEqual({});
+      expect(service.derive(document, { sealedEnv: "every-value", onlyAt: new Set() })).toEqual({});
       expect(document.services.web.env).toEqual(["A=one"]);
     });
 
@@ -396,7 +516,7 @@ describe(SdlSecretsDerivationService.name, () => {
       const { service } = setup();
       const document = documentWith({ web: { env: ["A=one"] }, worker: { env: ["B=two"] } });
 
-      expect(service.derive(document, { includeEnvValues: true })).toEqual({ s0_e0: "one", s1_e0: "two" });
+      expect(service.derive(document, { sealedEnv: "every-value" })).toEqual({ s0_e0: "one", s1_e0: "two" });
     });
   });
 
@@ -408,7 +528,7 @@ describe(SdlSecretsDerivationService.name, () => {
         "a-service-name-the-grammar-would-refuse.42": { env: [`B=${faker.string.alphanumeric(8)}`] }
       });
 
-      const secrets = service.derive(document, { includeEnvValues: true });
+      const secrets = service.derive(document, { sealedEnv: "every-value" });
 
       expect(Object.keys(secrets)).toHaveLength(4);
       Object.keys(secrets).forEach(name => expect(isSdlReference(`ac-secret://${name}`)).toBe(true));
@@ -418,7 +538,7 @@ describe(SdlSecretsDerivationService.name, () => {
       const { service } = setup();
       const document = documentWith({ web: { env: Array.from({ length: 5000 }, (_, index) => `SETTING_${index}=v`) } });
 
-      const secrets = service.derive(document, { includeEnvValues: true });
+      const secrets = service.derive(document, { sealedEnv: "every-value" });
       const longest = Object.keys(secrets).reduce((longestSoFar, name) => Math.max(longestSoFar, name.length), 0);
 
       expect(Object.keys(secrets)).toHaveLength(5000);
@@ -431,7 +551,7 @@ describe(SdlSecretsDerivationService.name, () => {
       const { service } = setup();
       const document = documentWith({ web: { env: Array.from({ length: 200 }, (_, index) => `SETTING_${index}=${faker.string.alphanumeric(48)}`) } });
 
-      service.derive(document, { includeEnvValues: true });
+      service.derive(document, { sealedEnv: "every-value" });
 
       expect(dump(document, { lineWidth: -1 }).length).toBeLessThan(SDL_MAX_LENGTH / 4);
     });
@@ -440,7 +560,7 @@ describe(SdlSecretsDerivationService.name, () => {
       const { service } = setup();
       const document = documentWith({ web: { env: Array.from({ length: 3000 }, (_, index) => `SETTING_${index}=${faker.string.alphanumeric(6)}`) } });
 
-      service.derive(document, { includeEnvValues: true });
+      service.derive(document, { sealedEnv: "every-value" });
 
       expect(dump(document, { lineWidth: -1 }).length).toBeLessThan(SDL_MAX_LENGTH);
     });
@@ -456,7 +576,7 @@ describe(SdlSecretsDerivationService.name, () => {
     ];
     const rewritten = documentWith({ web: { env: values.map((value, index) => `V${index}=${value}`) } });
 
-    const secrets = service.derive(rewritten, { includeEnvValues: true });
+    const secrets = service.derive(rewritten, { sealedEnv: "every-value" });
     const reparsed = yaml.raw<SDLInput>(dump(rewritten, { lineWidth: -1 }));
 
     expect(sdlReferenceService.substitute(reparsed, { secrets })).toEqual([]);
@@ -475,7 +595,7 @@ describe(SdlSecretsDerivationService.name, () => {
     const submitted = documentWith(services);
     const rewritten = documentWith(services);
 
-    const secrets = service.derive(rewritten, { includeEnvValues: true });
+    const secrets = service.derive(rewritten, { sealedEnv: "every-value" });
 
     expect(sdlReferenceService.substitute(rewritten, { secrets })).toEqual([]);
     expect(rewritten).toEqual(submitted);
