@@ -228,7 +228,10 @@ export class SessionService {
   /**
    * This method calls idempotent API call to create a local user in the database.
    */
-  async createLocalUser(session: Session, browser: { timezone?: string; referralCode?: string } = {}): Promise<{ userSettings: UserSettings; isNewUser: boolean }> {
+  async createLocalUser(
+    session: Session,
+    browser: { timezone?: string; referralCode?: string } = {}
+  ): Promise<{ userSettings: UserSettings; isNewUser: boolean }> {
     const user_metadata = session.user["https://console.akash.network/user_metadata"];
     const headers: Record<string, string> = {
       Authorization: `Bearer ${session.accessToken}`
@@ -321,7 +324,7 @@ export class SessionService {
   }): Promise<
     Result<
       Session,
-      | { code: "invalid_code"; message: string; cause: unknown }
+      | { code: "invalid_code" | "expired_code"; message: string; cause: unknown }
       | { code: "rate_limited"; message: string; retryAfter: number; cause: unknown }
       | { code: "action_refused"; message: string; cause: unknown }
       | { code: "unknown"; message: string; cause: unknown }
@@ -356,7 +359,7 @@ export class SessionService {
     if (tokenResponse.status >= 400) {
       if (tokenResponse.data?.error === "invalid_grant") {
         return Err({
-          code: "invalid_code",
+          code: isExpiredCodeRefusal(tokenResponse) ? "expired_code" : "invalid_code",
           message: tokenResponse.data.error_description,
           cause: extractResponseDetails(tokenResponse)
         });
@@ -442,6 +445,11 @@ const ACTION_REFUSED_MESSAGE = "Unable to create account. Please try again or us
 /** Auth0 reports an Action refusal with the Action's admin-facing reason code as `error_description`, e.g. `action.domain_blacklist.domain_blocked_by_console`. */
 function isAuth0ActionRefusal(response: AxiosResponse) {
   return response.data?.error === "extensibility_error";
+}
+
+/** Auth0 reports a wrong and an expired code under the same `invalid_grant` error, so only the description tells them apart. */
+function isExpiredCodeRefusal(response: AxiosResponse) {
+  return /expired/i.test(response.data?.error_description);
 }
 
 function notServerError(status: number) {

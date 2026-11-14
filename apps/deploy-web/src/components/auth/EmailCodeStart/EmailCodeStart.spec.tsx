@@ -1,3 +1,5 @@
+import type { InternalAxiosRequestConfig } from "axios";
+import { AxiosError } from "axios";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -61,6 +63,32 @@ describe(EmailCodeStart.name, () => {
     expect(authService.startEmailCode).not.toHaveBeenCalled();
   });
 
+  it("tracks why the code could not be sent, without the address", async () => {
+    const { authService, analyticsService } = setup();
+    authService.startEmailCode.mockRejectedValue(apiError({ status: 400, code: "action_refused" }));
+
+    await userEvent.type(screen.getByLabelText("Email"), "alice@example.com");
+    await userEvent.click(screen.getByRole("button", { name: /continue with email/i }));
+
+    await vi.waitFor(() => {
+      expect(analyticsService.track).toHaveBeenCalledWith("email_login_failed", { category: "user", step: "send_code", reason: "refused_by_policy" });
+    });
+    expect(JSON.stringify(analyticsService.track.mock.calls)).not.toContain("example.com");
+  });
+
+  it("does not track a failed send when the code is sent", async () => {
+    const { authService, analyticsService, onStarted } = setup();
+    authService.startEmailCode.mockResolvedValue(undefined);
+
+    await userEvent.type(screen.getByLabelText("Email"), "alice@example.com");
+    await userEvent.click(screen.getByRole("button", { name: /continue with email/i }));
+
+    await vi.waitFor(() => {
+      expect(onStarted).toHaveBeenCalled();
+    });
+    expect(analyticsService.track).not.toHaveBeenCalledWith("email_login_failed", expect.anything());
+  });
+
   it("keeps the label visible and shows a loading indicator while the code is being sent", async () => {
     const { authService } = setup();
     authService.startEmailCode.mockReturnValue(new Promise<void>(() => {}));
@@ -107,5 +135,15 @@ describe(EmailCodeStart.name, () => {
     );
 
     return { authService, analyticsService, onStarted, getCaptchaToken, markCodeSent };
+  }
+
+  function apiError(input: { status: number; code: string }) {
+    return new AxiosError("Request failed", String(input.status), undefined, undefined, {
+      status: input.status,
+      statusText: "Request failed",
+      data: { code: input.code },
+      headers: {},
+      config: mock<InternalAxiosRequestConfig>()
+    });
   }
 });

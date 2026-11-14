@@ -642,6 +642,30 @@ describe(SessionService.name, () => {
       expect(error).toMatchObject({ code: "invalid_code" });
     });
 
+    it("maps invalid_grant for a code that ran out to expired_code", async () => {
+      const { service, externalHttpClient } = setup();
+      externalHttpClient.post.mockResolvedValueOnce({
+        status: 403,
+        data: { error: "invalid_grant", error_description: "The verification code has expired. Please try to login again." },
+        headers: {}
+      });
+
+      const result = await service.verifyEmailCode({ email: "user@example.com", code: "123456" });
+
+      const error = expectErr(result);
+      expect(error).toMatchObject({ code: "expired_code", message: "The verification code has expired. Please try to login again." });
+    });
+
+    it("maps invalid_grant without a description to invalid_code", async () => {
+      const { service, externalHttpClient } = setup();
+      externalHttpClient.post.mockResolvedValueOnce({ status: 403, data: { error: "invalid_grant" }, headers: {} });
+
+      const result = await service.verifyEmailCode({ email: "user@example.com", code: "123456" });
+
+      const error = expectErr(result);
+      expect(error).toMatchObject({ code: "invalid_code" });
+    });
+
     it("maps 429 to rate_limited with retryAfter", async () => {
       const { service, externalHttpClient } = setup();
       const nowSec = 1_700_000_000;
