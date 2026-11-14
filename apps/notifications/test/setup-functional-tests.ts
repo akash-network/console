@@ -11,7 +11,7 @@ if (!testPath) {
   process.exit(1);
 }
 
-const EXCLUSIONS = ["http-tools.spec.ts"];
+const EXCLUSIONS = ["http-tools.spec.ts", "swagger.spec.ts"];
 
 if (!EXCLUSIONS.some(path => testPath.endsWith(path))) {
   const dbService = new TestDatabaseService(testPath);

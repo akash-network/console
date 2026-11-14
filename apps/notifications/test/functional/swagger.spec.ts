@@ -2,7 +2,7 @@ import { Body, Controller, type INestApplication, Module, Post } from "@nestjs/c
 import { Test } from "@nestjs/testing";
 import { createZodDto } from "nestjs-zod";
 import request from "supertest";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
 import { z } from "zod";
 
 import { SwaggerSetup } from "@src/lib/bootstrap/swagger-setup/swagger-setup";
@@ -40,6 +40,7 @@ describe("Swagger", () => {
     const app: INestApplication = module.createNestApplication();
 
     SwaggerSetup.serveSwagger(app);
+    onTestFinished(() => app.close());
     await app.init();
 
     return { app };
