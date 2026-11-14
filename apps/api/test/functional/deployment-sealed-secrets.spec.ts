@@ -558,7 +558,9 @@ describe("Deployment sealed secrets", () => {
       "deposit",
       "runtimeLimitHours",
       "projectId",
-      "templateId"
+      "templateId",
+      "service",
+      "overrides"
     ]);
   });
 

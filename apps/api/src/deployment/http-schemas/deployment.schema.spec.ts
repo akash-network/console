@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { MAX_SUBMITTED_SDL_LENGTH } from "@src/deployment/config/sdl.config";
 import {
+  CreateDeploymentDefinitionRequestSchema,
   CreateDeploymentRequestSchema,
   ListDeploymentsQuerySchema,
   ListWithResourcesParamsSchema,
@@ -42,9 +43,167 @@ describe("CreateDeploymentRequestSchema", () => {
     });
   });
 
+  describe("what the request says to deploy", () => {
+    const service = { image: "nginx:1.27.2", resources: { cpu: 0.5, memory: "512Mi", storage: "1Gi" }, ports: [{ port: 80 }] };
+    const overrides = { web: { env: { LOG_LEVEL: "debug" } } };
+
+    it("accepts an sdl, with or without the template it came from", () => {
+      expect(parse({}).success).toBe(true);
+      expect(parse({ templateId: "nginx" }).success).toBe(true);
+    });
+
+    it("accepts a service in place of an sdl", () => {
+      expect(parse({ sdl: undefined, service }).data?.data.service).toEqual(service);
+    });
+
+    it("accepts a template on its own, with or without overrides", () => {
+      expect(parse({ sdl: undefined, templateId: "nginx" }).success).toBe(true);
+      expect(parse({ sdl: undefined, templateId: "nginx", overrides }).data?.data.overrides).toEqual(overrides);
+    });
+
+    it.each([
+      ["nothing to deploy", { sdl: undefined }, "Send one of sdl, service or templateId"],
+      ["only a template version", { sdl: undefined, templateVersionId: "0f2d8a52-62f2-4c8f-8f0b-3f1f0c9d2a11" }, "Send one of sdl, service or templateId"],
+      ["an sdl beside a service", { service }, "Send either sdl or service, not both"],
+      ["an empty sdl beside a service", { sdl: "", service }, "Send either sdl or service, not both"],
+      ["a service beside a template", { sdl: undefined, service, templateId: "nginx" }, "service cannot be combined with templateId or templateVersionId"],
+      [
+        "a service beside a template version",
+        { sdl: undefined, service, templateVersionId: "0f2d8a52-62f2-4c8f-8f0b-3f1f0c9d2a11" },
+        "service cannot be combined with templateId or templateVersionId"
+      ],
+      ["overrides beside an sdl", { templateId: "nginx", overrides }, "overrides apply only to a deployment created from templateId without sdl"],
+      ["overrides without a template", { sdl: undefined, overrides }, "overrides apply only to a deployment created from templateId without sdl"]
+    ])("refuses %s", (_, rest, message) => {
+      const result = parse(rest);
+
+      expect(result.success).toBe(false);
+      expect((result as { error: { issues: unknown[] } }).error.issues).toContainEqual(expect.objectContaining({ code: "custom", message, path: ["data"] }));
+    });
+
+    it.each(["512", "512MB", "half", "1.5 Gi", ""])("refuses %j as a memory size", memory => {
+      expect(parse({ sdl: undefined, service: { ...service, resources: { ...service.resources, memory } } }).success).toBe(false);
+    });
+
+    it.each(["256Mi", "1.5Gi", "500M", "2T"])("accepts %j as a storage size", storage => {
+      expect(parse({ sdl: undefined, service: { ...service, resources: { ...service.resources, storage } } }).success).toBe(true);
+    });
+
+    it("refuses a service that publishes no port", () => {
+      expect(parse({ sdl: undefined, service: { ...service, ports: [] } }).success).toBe(false);
+    });
+
+    it.each([
+      [
+        "a container port listed twice",
+        [
+          { port: 8080, as: 80 },
+          { port: 8080, as: 8081 }
+        ]
+      ],
+      ["two ports reached on the same port", [{ port: 3000, as: 80 }, { port: 80 }]]
+    ])("refuses %s", (_, ports) => {
+      expect(parse({ sdl: undefined, service: { ...service, ports } }).success).toBe(false);
+    });
+
+    it("accepts ports that differ in both the port they listen on and the port they are reached on", () => {
+      expect(parse({ sdl: undefined, service: { ...service, ports: [{ port: 3000, as: 80 }, { port: 9090 }] } }).success).toBe(true);
+    });
+
+    it.each([
+      ["no gpu at all", { units: 0 }],
+      ["a fraction of a gpu", { units: 0.5 }],
+      ["an empty model", { units: 1, model: "" }]
+    ])("refuses a gpu request for %s", (_, gpu) => {
+      expect(parse({ sdl: undefined, service: { ...service, resources: { ...service.resources, gpu } } }).success).toBe(false);
+    });
+
+    it("refuses an env variable no container could be given", () => {
+      expect(parse({ sdl: undefined, service: { ...service, env: { "MY VAR": "x" } } }).success).toBe(false);
+    });
+
+    it.each([0, 0.009, 0.0000001, 384.001, 1e21])("refuses %j cpu, outside what the chain takes for one replica", cpu => {
+      const result = parse({ sdl: undefined, service: { ...service, resources: { ...service.resources, cpu } } });
+
+      expect(result.success).toBe(false);
+      expect((result as { error: { issues: unknown[] } }).error.issues).toContainEqual(
+        expect.objectContaining({ path: ["data", "service", "resources", "cpu"] })
+      );
+    });
+
+    it.each([
+      ["memory", "1023Ki", "Must be from 1Mi to 2Ti"],
+      ["memory", "2.001Ti", "Must be from 1Mi to 2Ti"],
+      ["storage", "4Mi", "Must be from 5Mi to 32Ti"],
+      ["storage", "33Ti", "Must be from 5Mi to 32Ti"]
+    ])("refuses %s of %j, outside what the chain takes for one replica", (field, size, message) => {
+      const result = parse({ sdl: undefined, service: { ...service, resources: { ...service.resources, [field]: size } } });
+
+      expect(result.success).toBe(false);
+      expect((result as { error: { issues: unknown[] } }).error.issues).toEqual([
+        expect.objectContaining({ message, path: ["data", "service", "resources", field] })
+      ]);
+    });
+
+    it.each([
+      ["memory", "1Mi"],
+      ["memory", "2Ti"],
+      ["memory", "1049k"],
+      ["storage", "5Mi"],
+      ["storage", "32Ti"],
+      ["storage", "6M"]
+    ])("accepts %s of %j", (field, size) => {
+      expect(parse({ sdl: undefined, service: { ...service, resources: { ...service.resources, [field]: size } } }).success).toBe(true);
+    });
+
+    it("refuses a size with an unknown unit on its unit alone", () => {
+      const result = parse({ sdl: undefined, service: { ...service, resources: { ...service.resources, memory: "512MB" } } });
+
+      expect((result as { error: { issues: unknown[] } }).error.issues).toEqual([
+        expect.objectContaining({ message: "Must be a number followed by one of the units k, Ki, M, Mi, G, Gi, T or Ti" })
+      ]);
+    });
+
+    it("refuses more gpus than the chain takes for one replica", () => {
+      expect(parse({ sdl: undefined, service: { ...service, resources: { ...service.resources, gpu: { units: 25 } } } }).success).toBe(false);
+      expect(parse({ sdl: undefined, service: { ...service, resources: { ...service.resources, gpu: { units: 24 } } } }).success).toBe(true);
+    });
+
+    it.each([0.01, 384])("accepts %j cpu", cpu => {
+      expect(parse({ sdl: undefined, service: { ...service, resources: { ...service.resources, cpu } } }).success).toBe(true);
+    });
+
+    it("refuses an env variable named __proto__ rather than creating the deployment without it", () => {
+      const env = JSON.parse('{ "__proto__": "V", "NORMAL": "kept" }');
+
+      const result = parse({ sdl: undefined, service: { ...service, env } });
+
+      expect(result.success).toBe(false);
+      expect((result as { error: { issues: unknown[] } }).error.issues).toContainEqual(
+        expect.objectContaining({ message: "__proto__ cannot be used as a name", path: ["data", "service", "env", "__proto__"] })
+      );
+    });
+
+    it("refuses overrides for a service named __proto__ rather than ignoring them", () => {
+      const result = parse({ sdl: undefined, templateId: "nginx", overrides: JSON.parse('{ "__proto__": { "image": "nginx:1.27.2" } }') });
+
+      expect(result.success).toBe(false);
+      expect((result as { error: { issues: unknown[] } }).error.issues).toContainEqual(
+        expect.objectContaining({ message: "__proto__ cannot be used as a name", path: ["data", "overrides", "__proto__"] })
+      );
+    });
+  });
+
   function parse(rest: Record<string, unknown>) {
     return CreateDeploymentRequestSchema.safeParse({ data: { sdl: "version: '2.0'", ...rest } });
   }
+});
+
+describe("CreateDeploymentDefinitionRequestSchema", () => {
+  it("still requires the sdl a definition is recorded from", () => {
+    expect(CreateDeploymentDefinitionRequestSchema.safeParse({ data: {} }).success).toBe(false);
+    expect(CreateDeploymentDefinitionRequestSchema.safeParse({ data: { sdl: "version: '2.0'" } }).success).toBe(true);
+  });
 });
 
 describe("PatchDeploymentRequestSchema", () => {
@@ -149,6 +308,30 @@ describe("PatchDeploymentRequestSchema", () => {
 
     it("refuses a name opening with a digit", () => {
       expect(parse({ web: { env: { "1VAR": "x" } } }).success).toBe(false);
+    });
+  });
+
+  describe("names zod would leave out of the parsed patch", () => {
+    it.each([
+      ["a service", '{ "__proto__": { "image": "nginx:1.27.2" }, "web": { "image": "nginx:1.27.2" } }', ["data", "services", "__proto__"]],
+      ["an env variable", '{ "web": { "env": { "__proto__": "V", "NORMAL": "kept" } } }', ["data", "services", "web", "env", "__proto__"]],
+      [
+        "an exposed port",
+        '{ "web": { "image": "nginx:1.27.2", "expose": { "__proto__": { "as": 8080 } } } }',
+        ["data", "services", "web", "expose", "__proto__"]
+      ],
+      [
+        "a volume",
+        '{ "web": { "image": "nginx:1.27.2", "storage": { "__proto__": { "readOnly": true } } } }',
+        ["data", "services", "web", "storage", "__proto__"]
+      ]
+    ])("refuses %s named __proto__", (_, services, path) => {
+      const result = parse(JSON.parse(services));
+
+      expect(result.success).toBe(false);
+      expect((result as { error: { issues: unknown[] } }).error.issues).toContainEqual(
+        expect.objectContaining({ message: "__proto__ cannot be used as a name", path })
+      );
     });
   });
 

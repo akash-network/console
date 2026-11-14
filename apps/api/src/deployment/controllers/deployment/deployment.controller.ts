@@ -41,6 +41,7 @@ import {
 import type { GetDeploymentInfoResponse } from "@src/deployment/http-schemas/deployment-rpc.schema";
 import { DeploymentListService } from "@src/deployment/services/deployment-list/deployment-list.service";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
+import { DeploymentSdlSourceService } from "@src/deployment/services/deployment-sdl-source/deployment-sdl-source.service";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import { SpendRateService } from "@src/deployment/services/spend-rate/spend-rate.service";
 
@@ -52,7 +53,8 @@ export class DeploymentController {
     private readonly authService: AuthService,
     private readonly featureFlagsService: FeatureFlagsService,
     private readonly spendRateService: SpendRateService,
-    private readonly deploymentListService: DeploymentListService
+    private readonly deploymentListService: DeploymentListService,
+    private readonly deploymentSdlSourceService: DeploymentSdlSourceService
   ) {}
 
   @Protected([
@@ -84,13 +86,15 @@ export class DeploymentController {
   ): Promise<CreateDeploymentResponse | CreateDeploymentAcceptedResponse> {
     const userId = this.authService.currentUser.id;
     const recordGpuBids = origin.authMethod === "bearer";
+    const { service, overrides, ...fields } = input;
+    const create = { ...fields, sdl: await this.deploymentSdlSourceService.resolve(input), userId, recordGpuBids };
 
     if (query.async) {
       const autoLease = !!query.autoLease && recordGpuBids && this.featureFlagsService.isEnabled(FeatureFlags.BACKGROUND_AUTO_LEASE, { userId });
-      return { data: await this.deploymentWriterService.createInBackground({ ...input, userId, recordGpuBids, autoLease }) };
+      return { data: await this.deploymentWriterService.createInBackground({ ...create, autoLease }) };
     }
 
-    return { data: await this.deploymentWriterService.create({ ...input, userId, recordGpuBids }) };
+    return { data: await this.deploymentWriterService.create(create) };
   }
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
