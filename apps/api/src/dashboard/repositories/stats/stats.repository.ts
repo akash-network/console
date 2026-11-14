@@ -103,15 +103,17 @@ const SINK_UNBONDING_CTES = `WITH unbond_entries AS (
           SELECT c."delegator", c."validator", c."creation_height", c."height", c."amount"
           FROM "staking_unbonding" c
           WHERE c."type" = 'cancel'
+        ), cancelled_by_entry AS (
+          SELECT c."delegator", c."validator", c."creation_height", SUM(c."amount") AS "amount"
+          FROM cancellations c
+          GROUP BY c."delegator", c."validator", c."creation_height"
         ), net_entries AS (
           SELECT
             e.*,
-            e."amount" - COALESCE((
-              SELECT SUM(c."amount")
-              FROM cancellations c
-              WHERE c."delegator" = e."delegator" AND c."validator" = e."validator" AND c."creation_height" = e."height"
-            ), 0) AS "netAmount"
+            e."amount" - COALESCE(c."amount", 0) AS "netAmount"
           FROM unbond_entries e
+          LEFT JOIN cancelled_by_entry c
+            ON c."delegator" = e."delegator" AND c."validator" = e."validator" AND c."creation_height" = e."height"
         ), unbonders AS (
           SELECT DISTINCT e."delegator" FROM unbond_entries e
         ), counted_transfers AS (
