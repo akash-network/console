@@ -91,14 +91,18 @@ describe(redactSecrets.name, () => {
   });
 
   it.each([
-    { case: "an escaped quote", text: String.raw`{"password":"first\"remaining-secret","port":8080}`, expected: `{"password":"${REDACTED}","port":8080}` },
-    { case: "an escaped backslash before the closing quote", text: String.raw`{"token":"abc\\","port":8080}`, expected: `{"token":"${REDACTED}","port":8080}` }
-  ])("replaces the whole quoted secret value holding $case", ({ text, expected }) => {
+    { case: "JSON", text: String.raw`{"password":"first\"remaining-secret","port":8080}`, expected: `{"password":"${REDACTED}` },
+    { case: "an escaped backslash", text: String.raw`{"token":"abc\\","port":8080}`, expected: `{"token":"${REDACTED}` },
+    { case: "a second secret after it", text: String.raw`password="abc\" api_key="z9Xk2mP4qR7s"`, expected: `password="${REDACTED}` },
+    { case: "a second secret opening with a space", text: String.raw`password="x\" api_key=" z9Xk2mP4qR7s"`, expected: `password="${REDACTED}` },
+    { case: "punctuation after it", text: String.raw`password="p\"w0rd".`, expected: `password="${REDACTED}` },
+    { case: "a following line", text: String.raw`password="p\"w0rd"` + "\nport=8080", expected: `password="${REDACTED}\nport=8080` }
+  ])("replaces the rest of the line after a quoted secret holding an escaped quote in $case", ({ text, expected }) => {
     expect(redactSecrets(text)).toBe(expected);
   });
 
-  it("replaces the next secret after a value whose escaped quote never closes", () => {
-    expect(redactSecrets(String.raw`password="abc\" api_key="z9Xk2mP4qR7s"`)).toBe(`password="${REDACTED}" api_key="${REDACTED}"`);
+  it("keeps a later escaped quote out of an earlier quoted secret", () => {
+    expect(redactSecrets(String.raw`{"password":"x","note":"say \"hi\""}`)).toBe(String.raw`{"password":"${REDACTED}","note":"say \"hi\""}`);
   });
 
   it("closes a quoted secret value followed by punctuation at its own quote", () => {
