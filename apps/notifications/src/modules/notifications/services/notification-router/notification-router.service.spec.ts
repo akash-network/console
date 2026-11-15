@@ -143,7 +143,7 @@ describe(NotificationRouterService.name, () => {
 
     it("adds nothing to the activity feed when the email could not be sent", async () => {
       const { service, emailSenderService, notificationChannelRepository, activityFeedService } = await setup();
-      const error = new Error("Novu is unavailable");
+      const error = new Error("SendGrid is unavailable");
       const notificationCommand = createAlertCommand({
         type: "wallet_balance_alert",
         alertId: faker.string.uuid(),

@@ -185,7 +185,7 @@ describe(AddressConfirmationService.name, () => {
 
     it("logs an email that fails and goes on with the next address", async () => {
       const { service, emailSenderService, loggerService, channel, requester } = setup();
-      const error = new Error("Novu is unavailable");
+      const error = new Error("SendGrid is unavailable");
       emailSenderService.send.mockRejectedValueOnce(error);
 
       await service.requestConfirmations(channel, ["first@example.com", "second@example.com"], requester);
