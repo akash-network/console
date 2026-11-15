@@ -1,5 +1,5 @@
 {
-  "id": "7f4e42d3-0cac-4717-911f-8a445e7cc7f8",
+  "id": "00636b5c-4440-4221-b52b-d02b6ca2f47d",
   "prevId": "e8a68433-9dee-4882-a26d-2d97c23354cc",
   "version": "7",
   "dialect": "postgresql",
@@ -6732,6 +6732,13 @@
         },
         "day_token_count": {
           "name": "day_token_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "day_problem_report_count": {
+          "name": "day_problem_report_count",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,

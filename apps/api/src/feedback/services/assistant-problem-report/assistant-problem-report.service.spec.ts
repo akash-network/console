@@ -11,11 +11,12 @@ import { REDACTED } from "@src/feedback/lib/redact-secrets/redact-secrets";
 import type { AssistantConversationRepository } from "@src/feedback/repositories/assistant-conversation/assistant-conversation.repository";
 import type { AssistantProblemReportRepository } from "@src/feedback/repositories/assistant-problem-report/assistant-problem-report.repository";
 import type { AssistantTurnTraceRepository } from "@src/feedback/repositories/assistant-turn-trace/assistant-turn-trace.repository";
+import type { AssistantUserUsageRepository } from "@src/feedback/repositories/assistant-user-usage/assistant-user-usage.repository";
 import { AssistantAnswerSigner } from "@src/feedback/services/assistant-answer-signer/assistant-answer-signer.service";
 import { ClassifyProblemReport, classifyProblemReportOptionsFor } from "@src/feedback/services/classify-problem-report/classify-problem-report.handler";
 import { NotifyProblemReport } from "@src/feedback/services/notify-problem-report/notify-problem-report.handler";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
-import type { UserOutput, UserRepository } from "@src/user/repositories";
+import type { UserOutput } from "@src/user/repositories";
 import { AssistantProblemReportService, DAILY_PROBLEM_REPORT_LIMIT } from "./assistant-problem-report.service";
 
 import { createAssistantConversation } from "@test/seeders/assistant-conversation.seeder";
@@ -126,18 +127,18 @@ describe(AssistantProblemReportService.name, () => {
       ).rejects.toMatchObject({ status: 400 });
     });
 
-    it("saves the report, queues its classification and its Slack notice in one transaction, under the locked user", async () => {
-      const { service, txService, userRepository, problemReportRepository, jobQueueService, authService } = setup();
+    it("counts the report, saves it, and queues its classification and its Slack notice in one transaction", async () => {
+      const { service, txService, usageRepository, problemReportRepository, jobQueueService, authService } = setup();
       txService.transaction.mockImplementation(async cb => {
-        expect(userRepository.findOneByAndLock).not.toHaveBeenCalled();
+        expect(usageRepository.countProblemReport).not.toHaveBeenCalled();
         const result = await cb();
+        expect(usageRepository.countProblemReport).toHaveBeenCalledTimes(1);
         expect(jobQueueService.enqueue).toHaveBeenCalledTimes(2);
         return result;
       });
 
       await service.create(CONVERSATION_ID, { copyVersion: COPY_VERSION });
 
-      expect(userRepository.findOneByAndLock).toHaveBeenCalledWith({ id: "user-1" }, { strength: "no key update" });
       expect(problemReportRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "create");
       expect(jobQueueService.enqueue.mock.calls).toEqual([
         [new ClassifyProblemReport({ problemReportId: "report-1" }), classifyProblemReportOptionsFor("report-1")],
@@ -146,20 +147,21 @@ describe(AssistantProblemReportService.name, () => {
       expect(txService.transaction).toHaveBeenCalledTimes(1);
     });
 
-    it("counts the reports the user sent over the last day", async () => {
-      const { service, problemReportRepository } = setup();
+    it("counts the report against the user's current day", async () => {
+      const { service, usageRepository } = setup();
       const before = Date.now();
 
       await service.create(CONVERSATION_ID, { copyVersion: COPY_VERSION });
 
-      const [userId, since] = problemReportRepository.countSince.mock.calls[0];
+      const after = Date.now();
+      const [userId, sentAt] = usageRepository.countProblemReport.mock.calls[0];
       expect(userId).toBe("user-1");
-      expect(before - since.getTime()).toBeGreaterThanOrEqual(24 * 60 * 60 * 1000);
-      expect(Date.now() - since.getTime()).toBeLessThan(24 * 60 * 60 * 1000 + 60_000);
+      expect(sentAt.getTime()).toBeGreaterThanOrEqual(before);
+      expect(sentAt.getTime()).toBeLessThanOrEqual(after);
     });
 
-    it("accepts the last report under the daily limit", async () => {
-      const { service, problemReportRepository } = setup({ sentToday: DAILY_PROBLEM_REPORT_LIMIT - 1 });
+    it("accepts the report that reaches the daily limit", async () => {
+      const { service, problemReportRepository } = setup({ countedToday: DAILY_PROBLEM_REPORT_LIMIT });
 
       await service.create(CONVERSATION_ID, { copyVersion: COPY_VERSION });
 
@@ -167,7 +169,7 @@ describe(AssistantProblemReportService.name, () => {
     });
 
     it("refuses a report over the daily limit and queues nothing", async () => {
-      const { service, problemReportRepository, jobQueueService } = setup({ sentToday: DAILY_PROBLEM_REPORT_LIMIT });
+      const { service, problemReportRepository, jobQueueService } = setup({ countedToday: DAILY_PROBLEM_REPORT_LIMIT + 1 });
 
       await expect(service.create(CONVERSATION_ID, { copyVersion: COPY_VERSION })).rejects.toMatchObject({
         status: 429,
@@ -179,19 +181,19 @@ describe(AssistantProblemReportService.name, () => {
     });
   });
 
-  function setup(input: { organizationId?: string; sentToday?: number } = {}) {
+  function setup(input: { organizationId?: string; countedToday?: number } = {}) {
     const authService = mock<AuthService>({ currentUser: mock<UserOutput>({ id: "user-1" }), ability: mock<MongoAbility>() });
     const executionContextService = mock<ExecutionContextService>();
     executionContextService.get.mockReturnValue(input.organizationId ? mock<OrganizationContext>({ organizationId: input.organizationId }) : undefined);
     const problemReportRepository = mock<AssistantProblemReportRepository>();
     problemReportRepository.accessibleBy.mockReturnValue(problemReportRepository);
-    problemReportRepository.countSince.mockResolvedValue(input.sentToday ?? 0);
     problemReportRepository.create.mockResolvedValue(createAssistantProblemReport({ id: "report-1" }));
     const conversationRepository = mock<AssistantConversationRepository>();
     conversationRepository.accessibleBy.mockReturnValue(conversationRepository);
     conversationRepository.findOneBy.mockResolvedValue(undefined);
     const turnTraceRepository = mock<AssistantTurnTraceRepository>();
-    const userRepository = mock<UserRepository>();
+    const usageRepository = mock<AssistantUserUsageRepository>();
+    usageRepository.countProblemReport.mockResolvedValue(input.countedToday ?? 1);
     const signer = new AssistantAnswerSigner(envSchema.parse({ ASSISTANT_HISTORY_SIGNING_KEY: "k".repeat(32) }));
     const jobQueueService = mock<JobQueueService>();
     const txService = mock<TxService>();
@@ -201,7 +203,7 @@ describe(AssistantProblemReportService.name, () => {
       problemReportRepository,
       conversationRepository,
       turnTraceRepository,
-      userRepository,
+      usageRepository,
       signer,
       authService,
       executionContextService,
@@ -216,7 +218,7 @@ describe(AssistantProblemReportService.name, () => {
       problemReportRepository,
       conversationRepository,
       turnTraceRepository,
-      userRepository,
+      usageRepository,
       jobQueueService,
       txService
     };

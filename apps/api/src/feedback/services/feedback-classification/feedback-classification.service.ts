@@ -44,7 +44,6 @@ interface ClassificationTarget {
 }
 
 export const MAX_CLASSIFICATION_ATTEMPTS = 5;
-export const PROBLEM_REPORT_NOTE_PREFIX = "Reported a problem with the assistant: ";
 
 function itemToMatchOf(classification: FeedbackClassification): ItemToMatch | null {
   return classification.type && classification.summary ? { type: classification.type, summary: classification.summary } : null;
@@ -113,7 +112,7 @@ export class FeedbackClassificationService {
     await this.#classifyWithModel({ conversation: { ...conversation, messages } }, target);
   }
 
-  /** A report reads as the conversation it points at followed by the user's note, so it lands in the same themes as conversations do. */
+  /** A report reads as the conversation it points at plus the user's note, so it lands in the same themes as conversations do. */
   async classifyProblemReport(problemReportId: string): Promise<void> {
     const report = await this.assistantProblemReportRepository.findById(problemReportId);
     if (!report || report.classifiedAt || report.classificationFailedAt) return;
@@ -127,7 +126,7 @@ export class FeedbackClassificationService {
 
     const conversation = await this.#reportedConversationOf(report);
 
-    if (!conversation.messages.some(({ role }) => role === "user")) {
+    if (!conversation.problemReportNote && !conversation.messages.some(({ role }) => role === "user")) {
       await this.#store(classifyWithoutText(null), null, target);
       return;
     }
@@ -137,9 +136,8 @@ export class FeedbackClassificationService {
 
   async #reportedConversationOf(report: AssistantProblemReportOutput): Promise<ConversationToClassify> {
     const messages = report.transcript ?? (await this.assistantMessageRepository.findAllOf(report.conversationId));
-    const note = report.note ? [{ role: "user" as const, content: `${PROBLEM_REPORT_NOTE_PREFIX}${report.note}` }] : [];
 
-    return { status: "unresolved", resolvedByUser: null, context: { isTrialing: null }, messages: [...messages, ...note] };
+    return { status: "unresolved", resolvedByUser: null, context: { isTrialing: null }, messages, problemReportNote: report.note };
   }
 
   #isModelAvailable(target: ClassificationTarget): boolean {

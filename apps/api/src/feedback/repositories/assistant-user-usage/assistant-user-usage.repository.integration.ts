@@ -98,6 +98,64 @@ describe(AssistantUserUsageRepository.name, () => {
     });
   });
 
+  describe("countProblemReport", () => {
+    it("counts the reports of the same day for a user who never sent a message", async () => {
+      const { repository, userId } = await setup();
+
+      expect(await repository.countProblemReport(userId, new Date("2026-11-04T12:00:00.000Z"))).toBe(1);
+      expect(await repository.countProblemReport(userId, new Date("2026-11-04T23:59:00.000Z"))).toBe(2);
+    });
+
+    it("leaves today's message and token counts alone", async () => {
+      const { repository, userId } = await setup();
+      await repository.countMessage(userId, new Date("2026-11-04T12:00:00.000Z"));
+      await repository.addTokens(userId, "2026-11-04", 120);
+
+      await repository.countProblemReport(userId, new Date("2026-11-04T12:00:10.000Z"));
+
+      expect(await repository.countMessage(userId, new Date("2026-11-04T12:00:20.000Z"))).toEqual({
+        dayMessageCount: 2,
+        minuteMessageCount: 2,
+        dayTokenCount: 120
+      });
+    });
+
+    it("starts every day count over on a new UTC day", async () => {
+      const { repository, userId } = await setup();
+      await repository.countMessage(userId, new Date("2026-11-04T23:58:00.000Z"));
+      await repository.addTokens(userId, "2026-11-04", 900);
+      await repository.countProblemReport(userId, new Date("2026-11-04T23:59:00.000Z"));
+
+      expect(await repository.countProblemReport(userId, new Date("2026-11-05T00:00:00.000Z"))).toBe(1);
+      expect(await repository.countMessage(userId, new Date("2026-11-05T00:01:00.000Z"))).toMatchObject({ dayMessageCount: 1, dayTokenCount: 0 });
+    });
+
+    it("is started over by the first message of a new day", async () => {
+      const { repository, userId } = await setup();
+      await repository.countProblemReport(userId, new Date("2026-11-04T12:00:00.000Z"));
+      await repository.countMessage(userId, new Date("2026-11-05T12:00:00.000Z"));
+
+      expect(await repository.countProblemReport(userId, new Date("2026-11-05T12:00:10.000Z"))).toBe(1);
+    });
+
+    it("keeps the count when a message of the same day follows", async () => {
+      const { repository, userId } = await setup();
+      await repository.countProblemReport(userId, new Date("2026-11-04T12:00:00.000Z"));
+      await repository.countMessage(userId, new Date("2026-11-04T12:00:10.000Z"));
+
+      expect(await repository.countProblemReport(userId, new Date("2026-11-04T12:00:20.000Z"))).toBe(2);
+    });
+
+    it("never hands two concurrent reports the same count", async () => {
+      const { repository, userId } = await setup();
+      const sentAt = new Date("2026-11-04T12:00:00.000Z");
+
+      const counts = await Promise.all(Array.from({ length: 5 }, () => repository.countProblemReport(userId, sentAt)));
+
+      expect(counts.sort()).toEqual([1, 2, 3, 4, 5]);
+    });
+  });
+
   describe("addTokens", () => {
     it("adds tokens only to the row of the day they were used", async () => {
       const { repository, userId } = await setup();

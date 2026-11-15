@@ -25,7 +25,7 @@ import { HardwareRequestRepository } from "@src/hardware-request/repositories/ha
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
-import { seedAssistantConsent, seedAssistantConversation, seedAssistantProblemReport, seedAssistantTurnTrace } from "@test/seeders/db/feedback.seeder";
+import { seedAssistantConsent, seedAssistantConversation, seedAssistantTurnTrace } from "@test/seeders/db/feedback.seeder";
 import { fileIntoPersonalOrganization } from "@test/seeders/db/organization.seeder";
 import { ASSISTANT_TEST_SDL } from "@test/seeders/get-deployment-response.seeder";
 import { createHardwareRequestSpec } from "@test/seeders/hardware-request.seeder";
@@ -643,9 +643,14 @@ describe("Assistant conversations", () => {
       expect(await response.json()).toMatchObject({ code: "assistant_history_unverified" });
     });
 
-    it("refuses a report over the daily limit", async () => {
-      const { token, user } = await setup();
-      for (let sent = 0; sent < DAILY_PROBLEM_REPORT_LIMIT; sent++) await seedAssistantProblemReport({ userId: user.id });
+    it("refuses a report over the daily limit, even after the user deleted the reports they sent", async () => {
+      const { token } = await setup();
+      for (let sent = 0; sent < DAILY_PROBLEM_REPORT_LIMIT; sent++) {
+        const accepted = await request(`/v1/assistant/conversations/${faker.string.uuid()}/problem-reports`, token, { copyVersion: COPY_VERSION });
+        expect(accepted.status).toBe(201);
+      }
+      const erased = await app.request("/v1/assistant/conversations", { method: "DELETE", headers: { authorization: `Bearer ${token}` } });
+      expect(erased.status).toBe(200);
 
       const response = await request(`/v1/assistant/conversations/${faker.string.uuid()}/problem-reports`, token, { copyVersion: COPY_VERSION });
 

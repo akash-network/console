@@ -23,7 +23,7 @@ import type { FeedbackJevClassifierService } from "@src/feedback/services/feedba
 import type { FeedbackThemeAssignmentService } from "@src/feedback/services/feedback-theme-assignment/feedback-theme-assignment.service";
 import type { FeedbackThemeScoreService } from "@src/feedback/services/feedback-theme-score/feedback-theme-score.service";
 import { TypeSafeOutputError } from "@src/feedback/services/typesafe-client/typesafe.client";
-import { FeedbackClassificationService, MAX_CLASSIFICATION_ATTEMPTS, PROBLEM_REPORT_NOTE_PREFIX } from "./feedback-classification.service";
+import { FeedbackClassificationService, MAX_CLASSIFICATION_ATTEMPTS } from "./feedback-classification.service";
 
 import { createAssistantConversation } from "@test/seeders/assistant-conversation.seeder";
 import { createAssistantProblemReport } from "@test/seeders/assistant-problem-report.seeder";
@@ -380,7 +380,7 @@ describe(FeedbackClassificationService.name, () => {
   });
 
   describe("classifyProblemReport", () => {
-    it("classifies an unstored conversation's report from its transcript followed by the note, and files it under its theme", async () => {
+    it("classifies an unstored conversation's report from its transcript and its note, and files it under its theme", async () => {
       const problemReport = createAssistantProblemReport({
         note: "The answer named a GPU nobody offers",
         transcript: [
@@ -404,9 +404,9 @@ describe(FeedbackClassificationService.name, () => {
           context: { isTrialing: null },
           messages: [
             { role: "user", content: "why no bids" },
-            { role: "assistant", content: "pick an H200" },
-            { role: "user", content: `${PROBLEM_REPORT_NOTE_PREFIX}The answer named a GPU nobody offers` }
-          ]
+            { role: "assistant", content: "pick an H200" }
+          ],
+          problemReportNote: "The answer named a GPU nobody offers"
         }),
         schema: FEEDBACK_CLASSIFICATION_SCHEMA,
         temperature: 0
@@ -435,6 +435,40 @@ describe(FeedbackClassificationService.name, () => {
           messages: buildConversationClassificationMessages({ status: "unresolved", resolvedByUser: null, context: { isTrialing: null }, messages })
         })
       );
+    });
+
+    it("hands Jev the note apart from the messages, so an answered conversation does not read as unanswered", async () => {
+      const transcript = [
+        { role: "user" as const, content: "why no bids" },
+        { role: "assistant" as const, content: "pick an H200" }
+      ];
+      const problemReport = createAssistantProblemReport({ note: "The answer was misleading", transcript });
+      const { service, feedbackJevClassifierService } = setup({ problemReport, engine: "jev" });
+      feedbackJevClassifierService.classify.mockResolvedValue({ classification: CLASSIFICATION, match: null });
+
+      await service.classifyProblemReport(problemReport.id);
+
+      expect(feedbackJevClassifierService.classify).toHaveBeenCalledWith(
+        {
+          conversation: {
+            status: "unresolved",
+            resolvedByUser: null,
+            context: { isTrialing: null },
+            messages: transcript,
+            problemReportNote: "The answer was misleading"
+          }
+        },
+        { problemReportId: problemReport.id }
+      );
+    });
+
+    it("asks the model about a report whose only user text is its note", async () => {
+      const problemReport = createAssistantProblemReport({ note: "wrong answer", transcript: [{ role: "assistant", content: "hi" }] });
+      const { service, akashMlClient } = setup({ problemReport });
+
+      await service.classifyProblemReport(problemReport.id);
+
+      expect(akashMlClient.completeJson).toHaveBeenCalledTimes(1);
     });
 
     it("settles a report holding no user text without asking the model", async () => {

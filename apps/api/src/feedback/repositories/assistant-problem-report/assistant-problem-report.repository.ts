@@ -1,4 +1,4 @@
-import { and, asc, count, eq, gt, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -23,15 +23,6 @@ export class AssistantProblemReportRepository extends BaseRepository<Table, Assi
 
   accessibleBy(...abilityParams: AbilityParams) {
     return new AssistantProblemReportRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
-  }
-
-  async countSince(userId: string, since: Date): Promise<number> {
-    const [result] = await this.cursor
-      .select({ count: count() })
-      .from(this.table)
-      .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), gt(this.table.createdAt, since))));
-
-    return result.count;
   }
 
   /** Answers the themes the deleted reports belonged to, since their counts no longer hold. */

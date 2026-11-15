@@ -1,4 +1,3 @@
-import { subDays } from "date-fns";
 import createError from "http-errors";
 import { singleton } from "tsyringe";
 
@@ -13,10 +12,10 @@ import type { ReportedTranscriptMessage } from "@src/feedback/model-schemas";
 import { AssistantConversationRepository } from "@src/feedback/repositories/assistant-conversation/assistant-conversation.repository";
 import { AssistantProblemReportRepository } from "@src/feedback/repositories/assistant-problem-report/assistant-problem-report.repository";
 import { AssistantTurnTraceRepository } from "@src/feedback/repositories/assistant-turn-trace/assistant-turn-trace.repository";
+import { AssistantUserUsageRepository } from "@src/feedback/repositories/assistant-user-usage/assistant-user-usage.repository";
 import { AssistantAnswerSigner } from "@src/feedback/services/assistant-answer-signer/assistant-answer-signer.service";
 import { ClassifyProblemReport, classifyProblemReportOptionsFor } from "@src/feedback/services/classify-problem-report/classify-problem-report.handler";
 import { NotifyProblemReport } from "@src/feedback/services/notify-problem-report/notify-problem-report.handler";
-import { UserRepository } from "@src/user/repositories";
 
 export const DAILY_PROBLEM_REPORT_LIMIT = 10;
 
@@ -29,7 +28,7 @@ export class AssistantProblemReportService {
     private readonly assistantProblemReportRepository: AssistantProblemReportRepository,
     private readonly assistantConversationRepository: AssistantConversationRepository,
     private readonly assistantTurnTraceRepository: AssistantTurnTraceRepository,
-    private readonly userRepository: UserRepository,
+    private readonly assistantUserUsageRepository: AssistantUserUsageRepository,
     private readonly answerSigner: AssistantAnswerSigner,
     private readonly authService: AuthService,
     private readonly executionContextService: ExecutionContextService,
@@ -47,8 +46,7 @@ export class AssistantProblemReportService {
     const turn = turnId ? await this.assistantTurnTraceRepository.findTurnOf({ id: turnId, userId, conversationId }) : undefined;
 
     return await this.txService.transaction(async () => {
-      await this.userRepository.findOneByAndLock({ id: userId }, { strength: "no key update" });
-      await this.#assertWithinDailyLimit(userId);
+      await this.#countWithinDailyLimit(userId);
 
       const report = await this.assistantProblemReportRepository.accessibleBy(this.authService.ability, "create").create({
         userId,
@@ -82,10 +80,11 @@ export class AssistantProblemReportService {
     return history.map(({ role, content }) => redactSecretStrings({ role, content }));
   }
 
-  async #assertWithinDailyLimit(userId: string): Promise<void> {
-    const sentToday = await this.assistantProblemReportRepository.countSince(userId, subDays(new Date(), 1));
+  /** Runs inside the report's transaction, so a refused or failed report never counts against the limit. */
+  async #countWithinDailyLimit(userId: string): Promise<void> {
+    const sentToday = await this.assistantUserUsageRepository.countProblemReport(userId, new Date());
 
-    if (sentToday >= DAILY_PROBLEM_REPORT_LIMIT) {
+    if (sentToday > DAILY_PROBLEM_REPORT_LIMIT) {
       throw createError(429, `You can report up to ${DAILY_PROBLEM_REPORT_LIMIT} problems a day. Try again tomorrow.`, {
         errorCode: ASSISTANT_ERROR_CODES.reportLimit
       });

@@ -82,6 +82,14 @@ describe(redactSecrets.name, () => {
     expect(redactSecrets(text)).toBe(expected);
   });
 
+  it.each([
+    { case: "JSON", text: `config: {"password":"hunter22","port":8080}`, expected: `config: {"password":"${REDACTED}","port":8080}` },
+    { case: "spaced JSON", text: `{ "api_key": "abc 123" }`, expected: `{ "api_key": "${REDACTED}" }` },
+    { case: "single-quoted", text: `{'token': 'abc123'}`, expected: `{'token': '${REDACTED}'}` }
+  ])("replaces the value of a quoted secret key in $case", ({ text, expected }) => {
+    expect(redactSecrets(text)).toBe(expected);
+  });
+
   it("keeps an empty quoted secret value", () => {
     const text = `password="" is not set`;
 

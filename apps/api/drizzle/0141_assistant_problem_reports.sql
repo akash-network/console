@@ -22,6 +22,7 @@ CREATE TABLE "assistant_problem_reports" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "assistant_user_usage" ADD COLUMN "day_problem_report_count" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
 ALTER TABLE "assistant_turn_traces" ADD COLUMN "rating" "assistant_turn_rating";--> statement-breakpoint
 ALTER TABLE "assistant_problem_reports" ADD CONSTRAINT "assistant_problem_reports_user_id_userSetting_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."userSetting"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "assistant_problem_reports" ADD CONSTRAINT "assistant_problem_reports_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint

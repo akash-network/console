@@ -6,7 +6,6 @@ import { JOB_NAME } from "@src/core";
 import { AssistantProblemReportRepository } from "@src/feedback/repositories/assistant-problem-report/assistant-problem-report.repository";
 import { FeedbackThemeRepository } from "@src/feedback/repositories/feedback-theme/feedback-theme.repository";
 import { AkashMlClient, type ChatCompletion } from "@src/feedback/services/akashml-client/akashml.client";
-import { PROBLEM_REPORT_NOTE_PREFIX } from "@src/feedback/services/feedback-classification/feedback-classification.service";
 import { ClassifyProblemReport, ClassifyProblemReportHandler, classifyProblemReportOptionsFor } from "./classify-problem-report.handler";
 
 import { seedAssistantConversation, seedAssistantMessage, seedAssistantProblemReport } from "@test/seeders/db/feedback.seeder";
@@ -53,7 +52,7 @@ describe(ClassifyProblemReportHandler.name, () => {
       distinctUserCount: 1
     });
     expect(modelInputs()[0]).toContain("Ask for an H900.");
-    expect(modelInputs()[0]).toContain(`${PROBLEM_REPORT_NOTE_PREFIX}It suggested a GPU no provider has`);
+    expect(modelInputs()[0]).toContain('"problemReportNote":"It suggested a GPU no provider has"');
   });
 
   it("reads a stored conversation's report from the stored messages", async () => {

@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import { subDays, subHours } from "date-fns";
+import { subDays } from "date-fns";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
@@ -71,30 +71,18 @@ describe(AssistantProblemReportRepository.name, () => {
     });
   });
 
-  describe("countSince", () => {
-    it("counts the user's reports created after the given time", async () => {
-      const { repository, user } = await setup();
-      const other = await seedUser();
-      await seedAssistantProblemReport({ userId: user.id, createdAt: subHours(new Date(), 1) });
-      await seedAssistantProblemReport({ userId: user.id, createdAt: subHours(new Date(), 2) });
-      await seedAssistantProblemReport({ userId: user.id, createdAt: subDays(new Date(), 2) });
-      await seedAssistantProblemReport({ userId: other.id });
-
-      expect(await repository.countSince(user.id, subDays(new Date(), 1))).toBe(2);
-    });
-  });
-
   describe("deleteAllOf", () => {
     it("deletes the user's reports only and answers the themes they belonged to", async () => {
       const { repository, user } = await setup();
       const other = await seedUser();
       const theme = await seedFeedbackTheme();
-      await seedAssistantProblemReport({ userId: user.id, themeId: theme.id });
-      await seedAssistantProblemReport({ userId: user.id });
+      const themed = await seedAssistantProblemReport({ userId: user.id, themeId: theme.id });
+      const unthemed = await seedAssistantProblemReport({ userId: user.id });
       const kept = await seedAssistantProblemReport({ userId: other.id });
 
       expect(await asUser(user, ability => repository.accessibleBy(ability, "delete").deleteAllOf(user.id))).toEqual([theme.id]);
-      expect(await repository.countSince(user.id, subDays(new Date(), 1))).toBe(0);
+      expect(await repository.findById(themed.id)).toBeUndefined();
+      expect(await repository.findById(unthemed.id)).toBeUndefined();
       expect(await repository.findById(kept.id)).toBeDefined();
     });
 
