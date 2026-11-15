@@ -23,6 +23,9 @@ export interface SignAndBroadcastOptions {
 /** Interval between tx-recovery polls. Kept below Akash's ~6s block time so several polls land within each block window. */
 const TX_RECOVERY_POLL_INTERVAL_MS = 2_000;
 
+/** Two ~6s blocks, by which a tx the node accepted has normally landed, so a shorter gap re-sends txs that are merely waiting their turn. */
+const UNSEEN_TX_RESEND_INTERVAL_MS = 12_000;
+
 /**
  * How far past the tx TTL to keep polling. `getTx` runs a `tx_search`, which only returns a tx once it is committed AND
  * written to the node's tx index, and that index lags block commit — so we poll a bit beyond the TTL to still catch a tx
@@ -229,7 +232,7 @@ export class SigningClientService {
 
       const txHash = deriveTxHash(txBytes);
 
-      if (error instanceof Error && error.message.toLowerCase().includes("tx already exists in cache")) {
+      if (isAlreadyInCache(error)) {
         return { txHash, txBytes, isAnswered: true };
       }
 
@@ -251,7 +254,8 @@ export class SigningClientService {
     }
 
     const pollUntil = Math.min(deadline, Date.now() + this.#ttlMs * TX_RECOVERY_WINDOW_FACTOR);
-    let isAnswered = broadcast.isAnswered;
+    let delivery: Delivery = broadcast.isAnswered ? "held" : "unanswered";
+    let lastSentAt = Date.now();
 
     try {
       for (let attempt = 0; ; attempt++) {
@@ -267,8 +271,9 @@ export class SigningClientService {
           return null;
         }
 
-        if (!isAnswered) {
-          isAnswered = await this.#resend(broadcast);
+        if (isResendDue(delivery, lastSentAt)) {
+          delivery = await this.#resend(broadcast);
+          lastSentAt = Date.now();
         }
 
         await delay(TX_RECOVERY_POLL_INTERVAL_MS);
@@ -278,18 +283,40 @@ export class SigningClientService {
     }
   }
 
-  /** Safe to repeat because the chain executes a signed tx at most once; resolves whether the node has now answered. */
-  async #resend({ txHash, txBytes }: Broadcast): Promise<boolean> {
+  /** Safe to repeat because the chain executes a signed tx at most once. */
+  async #resend({ txHash, txBytes }: Broadcast): Promise<Delivery> {
     try {
       await this.#client.broadcastTxSync(txBytes);
       this.#logger.info({ event: "SIGN_AND_BROADCAST_RESENT", txHash });
-      return true;
+      return "held";
     } catch (error: unknown) {
-      const isAnswered = !isRetriableTransportError(error);
-      this.#logger.warn({ event: isAnswered ? "SIGN_AND_BROADCAST_RESEND_REFUSED" : "SIGN_AND_BROADCAST_RESEND_UNANSWERED", txHash, error });
-      return isAnswered;
+      if (isAlreadyInCache(error)) {
+        return "held";
+      }
+
+      if (isRetriableTransportError(error)) {
+        this.#logger.warn({ event: "SIGN_AND_BROADCAST_RESEND_UNANSWERED", txHash, error });
+        return "unanswered";
+      }
+
+      this.#logger.warn({ event: "SIGN_AND_BROADCAST_RESEND_REFUSED", txHash, error });
+      return "refused";
     }
   }
+}
+
+type Delivery = "held" | "unanswered" | "refused";
+
+function isResendDue(delivery: Delivery, lastSentAt: number): boolean {
+  if (delivery === "unanswered") {
+    return true;
+  }
+
+  return delivery === "held" && Date.now() - lastSentAt >= UNSEEN_TX_RESEND_INTERVAL_MS;
+}
+
+function isAlreadyInCache(error: unknown): boolean {
+  return error instanceof Error && error.message.toLowerCase().includes("tx already exists in cache");
 }
 
 /** Tendermint indexes a tx under the uppercase hex of its hash, which is also what a `broadcastTxSync` the node answered returns. */
