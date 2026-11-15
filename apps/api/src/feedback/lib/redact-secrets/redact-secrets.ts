@@ -15,7 +15,7 @@ const SECRET_REPLACEMENTS: [RegExp, string][] = [
   [/\b(bearer\s+)[\w.~+/-]+=*/gi, `$1${REDACTED}`],
   [/\b([a-z][a-z0-9+.-]*:\/\/[^\s:@/]+:)[^\s@/]+@/gi, `$1${REDACTED}@`],
   [
-    new RegExp(String.raw`\b(${SECRET_KEY_NAME}["']?\s*[:=]\s*)(?:(["'])(?:\\.|(?!\2)[^\n\\])+(\2)|(["'])(?:(?!\4)[^\n])+|[^\s"']+)`, "gi"),
+    new RegExp(String.raw`\b(${SECRET_KEY_NAME}["']?\s*[:=]\s*)(?:(["'])(?:\\.|(?!\2)[^\n\\])+(\2)(?=[\s,;:)\]}]|$)|(["'])(?:(?!\4)[^\n])+|[^\s"']+)`, "gi"),
     `$1$2$4${REDACTED}$3`
   ]
 ];

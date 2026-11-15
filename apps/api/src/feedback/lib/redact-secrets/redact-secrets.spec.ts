@@ -97,6 +97,14 @@ describe(redactSecrets.name, () => {
     expect(redactSecrets(text)).toBe(expected);
   });
 
+  it("replaces the next secret after a value whose escaped quote never closes", () => {
+    expect(redactSecrets(String.raw`password="abc\" api_key="z9Xk2mP4qR7s"`)).toBe(`password="${REDACTED}" api_key="${REDACTED}"`);
+  });
+
+  it("closes a quoted secret value followed by punctuation at its own quote", () => {
+    expect(redactSecrets(`password="hunter22". token="abc123"`)).toBe(`password="${REDACTED}". token="${REDACTED}"`);
+  });
+
   it("keeps an empty quoted secret value", () => {
     const text = `password="" is not set`;
 
