@@ -1,6 +1,8 @@
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
+import { TxService } from "@src/core/services";
+import { FeedbackSubmissionRepository } from "@src/feedback/repositories/feedback-submission/feedback-submission.repository";
 import { FeedbackThemeRepository } from "./feedback-theme.repository";
 
 import { seedAssistantConversation, seedFeedbackSubmission, seedFeedbackTheme } from "@test/seeders/db/feedback.seeder";
@@ -51,6 +53,34 @@ describe(FeedbackThemeRepository.name, () => {
       const { repository } = setup();
 
       await expect(repository.refreshCounts([])).resolves.toBeUndefined();
+    });
+
+    it("counts the delete of a transaction that recounted the same theme first and committed while it waited", async () => {
+      const { repository, submissionRepository, txService } = setup();
+      const [alice, bob, carol] = await Promise.all([seedUser(), seedUser(), seedUser()]);
+      const theme = await seedFeedbackTheme();
+      const [aliceSubmission, bobSubmission] = await Promise.all(
+        [alice, bob, carol].map(user => seedFeedbackSubmission({ userId: user.id, themeId: theme.id }))
+      );
+      const firstRecounted = Promise.withResolvers<void>();
+      const firstMayCommit = Promise.withResolvers<void>();
+
+      const first = txService.transaction(async () => {
+        await submissionRepository.deleteById(aliceSubmission.id);
+        await repository.refreshCounts([theme.id]);
+        firstRecounted.resolve();
+        await firstMayCommit.promise;
+      });
+      await firstRecounted.promise;
+      const second = txService.transaction(async () => {
+        await submissionRepository.deleteById(bobSubmission.id);
+        await repository.refreshCounts([theme.id]);
+      });
+      await new Promise(resolve => setTimeout(resolve, 300));
+      firstMayCommit.resolve();
+      await Promise.all([first, second]);
+
+      expect(await repository.findById(theme.id)).toMatchObject({ itemCount: 1, distinctUserCount: 1 });
     });
   });
 
@@ -222,6 +252,10 @@ describe(FeedbackThemeRepository.name, () => {
   });
 
   function setup() {
-    return { repository: container.resolve(FeedbackThemeRepository) };
+    return {
+      repository: container.resolve(FeedbackThemeRepository),
+      submissionRepository: container.resolve(FeedbackSubmissionRepository),
+      txService: container.resolve(TxService)
+    };
   }
 });
