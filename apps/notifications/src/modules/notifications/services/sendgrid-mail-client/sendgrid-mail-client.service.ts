@@ -61,7 +61,7 @@ export class SendgridMailClient {
   }
 }
 
-/** A timed out request may still have been accepted, so only failures SendGrid surely did not act on are retried. */
+/** Timeouts are not retried since SendGrid may have accepted the email; 429s, 5xx and other connection failures are, accepting a rare double send. */
 function isRetriable(error: Error): boolean {
   if (error instanceof SendgridRequestError) {
     return error.status === 429 || error.status >= 500;

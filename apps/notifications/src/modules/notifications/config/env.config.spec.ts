@@ -78,6 +78,16 @@ describe("notifications env config", () => {
     expect(schema.safeParse(env).success).toBe(false);
   });
 
+  it.each(["SENDGRID_API_KEY", "EMAIL_FROM_ADDRESS"] as const)("refuses to boot with an empty %s", key => {
+    expect(schema.safeParse({ ...requiredEnv(), [key]: "" }).success).toBe(false);
+  });
+
+  it("takes empty SendGrid base url and timeout for unset ones and falls back to their defaults", () => {
+    const config = schema.parse({ ...requiredEnv(), SENDGRID_API_BASE_URL: "", SENDGRID_TIMEOUT_MS: "" });
+
+    expect(config).toMatchObject({ SENDGRID_API_BASE_URL: "https://api.sendgrid.com", SENDGRID_TIMEOUT_MS: 10_000 });
+  });
+
   function requiredEnv() {
     return { SENDGRID_API_KEY: "sendgrid-key", EMAIL_FROM_ADDRESS: "alerts@example.com" };
   }
