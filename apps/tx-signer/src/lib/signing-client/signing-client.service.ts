@@ -222,9 +222,10 @@ export class SigningClientService {
   /** Only a {@link BroadcastTxError} proves the node refused the tx; any other failure here can carry an already-accepted tx. */
   async #broadcast(signedTx: TxRaw): Promise<Broadcast> {
     const txBytes = TxRaw.encode(signedTx).finish();
+    const sentAt = Date.now();
 
     try {
-      return { txHash: await this.#client.broadcastTxSync(txBytes), txBytes, isAnswered: true };
+      return { txHash: await this.#client.broadcastTxSync(txBytes), txBytes, sentAt, isAnswered: true };
     } catch (error: unknown) {
       if (error instanceof BroadcastTxError) {
         throw error;
@@ -233,12 +234,12 @@ export class SigningClientService {
       const txHash = deriveTxHash(txBytes);
 
       if (isAlreadyInCache(error)) {
-        return { txHash, txBytes, isAnswered: true };
+        return { txHash, txBytes, sentAt, isAnswered: true };
       }
 
       if (isRetriableTransportError(error)) {
         this.#logger.warn({ event: "SIGN_AND_BROADCAST_BROADCAST_UNANSWERED", txHash, error });
-        return { txHash, txBytes, isAnswered: false };
+        return { txHash, txBytes, sentAt, isAnswered: false };
       }
 
       throw this.#undecidedOutcomeError(txHash, { error });
@@ -255,7 +256,7 @@ export class SigningClientService {
 
     const pollUntil = Math.min(deadline, Date.now() + this.#ttlMs * TX_RECOVERY_WINDOW_FACTOR);
     let delivery: Delivery = broadcast.isAnswered ? "held" : "unanswered";
-    let lastSentAt = Date.now();
+    let lastSentAt = broadcast.sentAt;
 
     try {
       for (let attempt = 0; ; attempt++) {
@@ -272,8 +273,8 @@ export class SigningClientService {
         }
 
         if (isResendDue(delivery, lastSentAt)) {
-          delivery = await this.#resend(broadcast);
           lastSentAt = Date.now();
+          delivery = await this.#resend(broadcast);
         }
 
         await delay(TX_RECOVERY_POLL_INTERVAL_MS);
@@ -341,6 +342,7 @@ interface OutOfGasInfo {
 interface Broadcast {
   txHash: string;
   txBytes: Uint8Array;
+  sentAt: number;
   isAnswered: boolean;
 }
 

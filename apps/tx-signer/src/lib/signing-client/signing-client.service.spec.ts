@@ -228,6 +228,44 @@ describe(SigningClientService.name, () => {
     }
   });
 
+  it("counts the first two blocks from when a slow broadcast was sent rather than when it was answered", async () => {
+    vi.useFakeTimers();
+    try {
+      const { service, client } = setup({ ttlMs: 30_000 });
+      client.broadcastTxSync.mockImplementationOnce(bytes => answerAfter(8_000, () => toHex(sha256(bytes))));
+      client.getTx.mockResolvedValue(null);
+
+      const promise = service.signAndBroadcast(createMessages(1));
+      promise.catch(() => {});
+      await vi.advanceTimersByTimeAsync(12_500);
+
+      expect(client.broadcastTxSync).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps two blocks between re-sends when a re-send is slow to answer", async () => {
+    vi.useFakeTimers();
+    try {
+      const { service, client } = setup({ ttlMs: 30_000 });
+      client.broadcastTxSync.mockResolvedValueOnce("broadcast-hash").mockImplementationOnce(() =>
+        answerAfter(8_000, () => {
+          throw new Error("tx already exists in cache: ...");
+        })
+      );
+      client.getTx.mockResolvedValue(null);
+
+      const promise = service.signAndBroadcast(createMessages(1));
+      promise.catch(() => {});
+      await vi.advanceTimersByTimeAsync(24_500);
+
+      expect(client.broadcastTxSync).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("stops sending an unseen transaction once the node refuses the copy, and logs why", async () => {
     vi.useFakeTimers();
     try {
@@ -591,6 +629,18 @@ describe(SigningClientService.name, () => {
     const bodyBytes = TxBody.encode(TxBody.fromPartial({ memo: "akash console", unordered: true, timeoutTimestamp: new Date(Date.now() + ttlMs) })).finish();
 
     return TxRaw.fromPartial({ bodyBytes, authInfoBytes: new Uint8Array([2]), signatures: [new Uint8Array([3])] });
+  }
+
+  function answerAfter<T>(ms: number, answer: () => T): Promise<T> {
+    return new Promise((resolve, reject) =>
+      setTimeout(() => {
+        try {
+          resolve(answer());
+        } catch (error) {
+          reject(error);
+        }
+      }, ms)
+    );
   }
 
   function blockAt(time: Date) {
