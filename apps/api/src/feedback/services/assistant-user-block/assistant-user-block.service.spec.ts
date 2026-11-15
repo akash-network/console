@@ -141,7 +141,9 @@ describe(AssistantUserBlockService.name, () => {
       reason: null,
       createdAt: SENT_AT,
       liftedAt: null,
-      liftedBy: null
+      liftedBy: null,
+      createdBy: null,
+      madePermanentBy: null
     };
   }
 

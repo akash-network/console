@@ -24,7 +24,10 @@ export const AssistantUserBlocks = pgTable(
     reason: text("reason"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     liftedAt: timestamp("lifted_at", { withTimezone: true }),
-    liftedBy: text("lifted_by")
+    liftedBy: text("lifted_by"),
+    /** Only the admin app writes the staff attribution columns, so the API leaves them null. */
+    createdBy: text("created_by"),
+    madePermanentBy: text("made_permanent_by")
   },
   table => ({
     userIdCreatedAtIdx: index("assistant_user_blocks_user_id_created_at_idx").on(table.userId, table.createdAt),

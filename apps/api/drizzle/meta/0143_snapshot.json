@@ -1,5 +1,5 @@
 {
-  "id": "c93cb3c1-3e9e-4ab9-aba8-d0a520a2973b",
+  "id": "25db4677-8922-4f8a-a12d-a0062ecce543",
   "prevId": "196a16f4-d802-4f73-91ae-46984de78bcd",
   "version": "7",
   "dialect": "postgresql",
@@ -7414,6 +7414,18 @@
         },
         "lifted_by": {
           "name": "lifted_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "made_permanent_by": {
+          "name": "made_permanent_by",
           "type": "text",
           "primaryKey": false,
           "notNull": false

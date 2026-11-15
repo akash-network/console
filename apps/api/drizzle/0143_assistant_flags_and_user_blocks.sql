@@ -9,7 +9,9 @@ CREATE TABLE "assistant_user_blocks" (
 	"reason" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"lifted_at" timestamp with time zone,
-	"lifted_by" text
+	"lifted_by" text,
+	"created_by" text,
+	"made_permanent_by" text
 );
 --> statement-breakpoint
 ALTER TABLE "assistant_user_usage" ADD COLUMN "day_flagged_turn_count" integer DEFAULT 0 NOT NULL;--> statement-breakpoint

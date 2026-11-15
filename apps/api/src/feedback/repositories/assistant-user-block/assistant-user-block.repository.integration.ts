@@ -51,7 +51,9 @@ describe(AssistantUserBlockRepository.name, () => {
         flaggedTurnCount: 3,
         reason: null,
         liftedAt: null,
-        liftedBy: null
+        liftedBy: null,
+        createdBy: null,
+        madePermanentBy: null
       });
       expect(await repository.findById(block!.id)).toEqual(block);
     });
