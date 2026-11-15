@@ -34,15 +34,14 @@ export class AssistantConversationRepository extends BaseRepository<Table, Assis
     return { deletedCount: deleted.length, themeIds: deleted.flatMap(({ themeId }) => (themeId ? [themeId] : [])) };
   }
 
-  /** Deletes the conversations quiet the longest first, at most `limit` of them, and answers the themes they belonged to. */
+  /** Deletes the conversations quiet the longest first, at most `limit` of them, rechecking each one on delete so a message that lands meanwhile keeps it, and answers the themes they belonged to. */
   async deleteInactiveBefore(cutoff: Date, limit: number): Promise<DeletedClassifiedItems> {
-    const inactive = this.cursor
-      .select({ id: this.table.id })
-      .from(this.table)
-      .where(lt(this.table.lastMessageAt, cutoff))
-      .orderBy(asc(this.table.lastMessageAt))
-      .limit(limit);
-    const deleted = await this.cursor.delete(this.table).where(inArray(this.table.id, inactive)).returning({ themeId: this.table.themeId });
+    const inactiveBeforeCutoff = lt(this.table.lastMessageAt, cutoff);
+    const inactive = this.cursor.select({ id: this.table.id }).from(this.table).where(inactiveBeforeCutoff).orderBy(asc(this.table.lastMessageAt)).limit(limit);
+    const deleted = await this.cursor
+      .delete(this.table)
+      .where(and(inArray(this.table.id, inactive), inactiveBeforeCutoff))
+      .returning({ themeId: this.table.themeId });
 
     return { deletedCount: deleted.length, themeIds: deleted.flatMap(({ themeId }) => (themeId ? [themeId] : [])) };
   }

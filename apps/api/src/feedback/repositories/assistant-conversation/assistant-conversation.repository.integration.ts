@@ -3,6 +3,7 @@ import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
 import { resolveTable } from "@src/core";
+import { TxService } from "@src/core/services";
 import { AssistantConversationRepository } from "./assistant-conversation.repository";
 
 import { seedAssistantConversation, seedAssistantMessage, seedFeedbackTheme } from "@test/seeders/db/feedback.seeder";
@@ -54,6 +55,30 @@ describe(AssistantConversationRepository.name, () => {
       expect(await repository.deleteInactiveBefore(cutoff, 1)).toEqual({ deletedCount: 1, themeIds: [] });
       expect(await repository.findById(oldest.id)).toBeUndefined();
       expect(await repository.findById(older.id)).toBeDefined();
+    });
+
+    it("keeps a conversation that received a message while the delete waited for it", async () => {
+      const { repository, userId, countMessagesOf } = await setup();
+      const txService = container.resolve(TxService);
+      const cutoff = new Date("1999-06-01T00:00:00.000Z");
+      const resumed = await seedAssistantConversation({ userId, lastMessageAt: new Date("1999-01-01T00:00:00.000Z") });
+      const messageWritten = Promise.withResolvers<void>();
+      const messageMayCommit = Promise.withResolvers<void>();
+
+      const writer = txService.transaction(async () => {
+        await seedAssistantMessage({ conversationId: resumed.id });
+        await repository.updateById(resumed.id, { lastMessageAt: new Date() });
+        messageWritten.resolve();
+        await messageMayCommit.promise;
+      });
+      await messageWritten.promise;
+      const deleted = repository.deleteInactiveBefore(cutoff, 10);
+      await new Promise(resolve => setTimeout(resolve, 300));
+      messageMayCommit.resolve();
+      await writer;
+
+      expect(await deleted).toEqual({ deletedCount: 0, themeIds: [] });
+      expect(await countMessagesOf(resumed.id)).toBe(1);
     });
   });
 
