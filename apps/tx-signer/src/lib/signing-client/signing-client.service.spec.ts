@@ -168,7 +168,7 @@ describe(SigningClientService.name, () => {
     }
   });
 
-  it("does not send again a transaction the node already holds in its cache", async () => {
+  it("does not send again within two blocks a transaction the node already holds in its cache", async () => {
     vi.useFakeTimers();
     try {
       const { service, client } = setup({ ttlMs: 10_000 });
