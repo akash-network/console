@@ -90,6 +90,13 @@ describe(redactSecrets.name, () => {
     expect(redactSecrets(text)).toBe(expected);
   });
 
+  it.each([
+    { case: "an escaped quote", text: String.raw`{"password":"first\"remaining-secret","port":8080}`, expected: `{"password":"${REDACTED}","port":8080}` },
+    { case: "an escaped backslash before the closing quote", text: String.raw`{"token":"abc\\","port":8080}`, expected: `{"token":"${REDACTED}","port":8080}` }
+  ])("replaces the whole quoted secret value holding $case", ({ text, expected }) => {
+    expect(redactSecrets(text)).toBe(expected);
+  });
+
   it("keeps an empty quoted secret value", () => {
     const text = `password="" is not set`;
 
@@ -107,8 +114,10 @@ describe(redactSecrets.name, () => {
     expect(redactSecrets(`password="never closed\nthen "quoted" text`)).toBe(`password="${REDACTED}\nthen "quoted" text`);
   });
 
-  it("scans a long line with an opening quote that never closes quickly", () => {
-    const text = `password="${"a ".repeat(25_000)}`;
+  it.each([
+    { case: "words", text: `password="${"a ".repeat(25_000)}` },
+    { case: "escapes", text: `password="${"\\a ".repeat(16_000)}` }
+  ])("scans a long line of $case with an opening quote that never closes quickly", ({ text }) => {
     const startedAt = performance.now();
 
     expect(redactSecrets(text)).toBe(`password="${REDACTED}`);
