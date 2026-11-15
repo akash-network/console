@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { DEFAULT_FEEDBACK_THEME_SCORE_WEIGHTS } from "../lib/feedback-theme-score/feedback-theme-score";
-import { envSchema } from "./env.config";
+import { envSchema, MAX_FEEDBACK_RETENTION_DAYS } from "./env.config";
 
 describe("envSchema", () => {
   it("defaults to the public AkashML endpoint, no key, the default models and the default weights", () => {
@@ -107,6 +107,10 @@ describe("envSchema", () => {
     });
   });
 
+  it("accepts a retention of exactly the maximum number of days", () => {
+    expect(envSchema.parse({ FEEDBACK_RETENTION_DAYS: String(MAX_FEEDBACK_RETENTION_DAYS) }).FEEDBACK_RETENTION_DAYS).toBe(MAX_FEEDBACK_RETENTION_DAYS);
+  });
+
   it.each([
     { AKASHML_API_URL: "not-a-url" },
     { TYPESAFE_API_URL: "not-a-url" },
@@ -118,6 +122,8 @@ describe("envSchema", () => {
     { ASSISTANT_TRIAL_USER_DAILY_TOKENS: "-1" },
     { FEEDBACK_RETENTION_DAYS: "0" },
     { FEEDBACK_RETENTION_DAYS: "90.5" },
+    { FEEDBACK_RETENTION_DAYS: String(MAX_FEEDBACK_RETENTION_DAYS + 1) },
+    { FEEDBACK_RETENTION_DAYS: "1000000000" },
     { ASSISTANT_REASONING_EFFORT: "none" },
     { ASSISTANT_HISTORY_SIGNING_KEY: "k".repeat(31) },
     { FEEDBACK_THEME_SCORE_WEIGHTS: "{not json" },
