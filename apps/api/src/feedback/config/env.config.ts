@@ -16,7 +16,7 @@ function parseJson(value: unknown): unknown {
   }
 }
 
-/** Larger values push the sweep's cutoff past the range of a JS Date, which fails every hourly run. */
+/** A 100-year ceiling, well short of the values that push the sweep's cutoff past the range of a JS Date and fail every hourly run. */
 export const MAX_FEEDBACK_RETENTION_DAYS = 36_500;
 
 function positiveIntegerOr(fallback: number) {
