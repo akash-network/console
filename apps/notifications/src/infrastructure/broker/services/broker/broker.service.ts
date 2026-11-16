@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Pool } from "pg";
-import { type Job, PgBoss, type SendOptions } from "pg-boss";
+import { type Job, PgBoss, type QueueOptions, type SendOptions } from "pg-boss";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { BrokerConfig } from "@src/infrastructure/broker/config";
@@ -34,9 +34,12 @@ export class BrokerService {
     this.logger.log({ event: "EVENT_PUBLISHED", eventName });
   }
 
-  async subscribe<ReqData>(eventName: string, options: { prefetchCount: number }, handler: SingleMsgWorkHandler<ReqData>): Promise<void> {
+  async subscribe<ReqData>(eventName: string, options: SubscribeOptions, handler: SingleMsgWorkHandler<ReqData>): Promise<void> {
     const queueName = this.toQueueName(eventName);
     await this.boss.createQueue(queueName);
+    if (options.retry) {
+      await this.boss.updateQueue(queueName, options.retry);
+    }
     await this.boss.subscribe(eventName, queueName);
 
     await Promise.all(
@@ -86,3 +89,11 @@ export class BrokerService {
 }
 
 export type PublishOptions = SendOptions;
+
+export type QueueRetryOptions = Pick<QueueOptions, "retryLimit" | "retryDelay" | "retryBackoff" | "retryDelayMax">;
+
+export type SubscribeOptions = {
+  prefetchCount: number;
+  /** Applied with an update because creating a queue that already exists leaves its settings untouched. */
+  retry?: QueueRetryOptions;
+};
