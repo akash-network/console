@@ -60,9 +60,24 @@ describe(BrokerService.name, () => {
       await service.subscribe(eventName, options, handler);
 
       expect(pgBoss.createQueue).toHaveBeenCalledWith(queueName);
+      expect(pgBoss.updateQueue).not.toHaveBeenCalled();
       expect(pgBoss.subscribe).toHaveBeenCalledWith(eventName, queueName);
       expect(pgBoss.work).toHaveBeenCalledTimes(options.prefetchCount);
       expect(pgBoss.work).toHaveBeenCalledWith(queueName, expect.any(Function));
+    });
+
+    it("applies the retry settings to the queue, including one created by an earlier release", async () => {
+      const { service, pgBoss, configService } = await setup();
+
+      const eventName = faker.string.alphanumeric(10);
+      const queueName = `${configService.getOrThrow("broker.APP_NAME")}.${eventName}`;
+      const retry = { retryLimit: 8, retryDelay: 30, retryBackoff: true, retryDelayMax: 1800 };
+
+      await service.subscribe(eventName, { prefetchCount: 1, retry }, vi.fn());
+
+      expect(pgBoss.updateQueue).toHaveBeenCalledWith(queueName, retry);
+      expect(pgBoss.createQueue.mock.invocationCallOrder[0]).toBeLessThan(pgBoss.updateQueue.mock.invocationCallOrder[0]);
+      expect(pgBoss.updateQueue.mock.invocationCallOrder[0]).toBeLessThan(pgBoss.work.mock.invocationCallOrder[0]);
     });
   });
 

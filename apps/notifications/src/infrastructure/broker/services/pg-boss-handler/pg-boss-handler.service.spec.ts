@@ -12,7 +12,7 @@ import type { MockProxy } from "vitest-mock-extended";
 import { z } from "zod";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
-import { BrokerService } from "@src/infrastructure/broker/services/broker/broker.service";
+import { BrokerService, type QueueRetryOptions } from "@src/infrastructure/broker/services/broker/broker.service";
 import { PgBossHandlerService } from "./pg-boss-handler.service";
 
 import { MockProvider } from "@test/mocks/provider.mock";
@@ -29,6 +29,14 @@ describe(PgBossHandlerService.name, () => {
     await service.startAllHandlers();
 
     expect(brokerService.subscribe).toHaveBeenCalledWith(testKey, { prefetchCount: 10 }, expect.any(Function));
+  });
+
+  it("subscribes with the handler's retry settings", async () => {
+    const retry = { retryLimit: 8, retryDelay: 30, retryBackoff: true };
+    const { service, brokerService, testKey } = await setup({ retry });
+    await service.startAllHandlers();
+
+    expect(brokerService.subscribe).toHaveBeenCalledWith(testKey, { prefetchCount: 10, retry }, expect.any(Function));
   });
 
   it("should process messages correctly when subscribed", async () => {
@@ -94,7 +102,7 @@ describe(PgBossHandlerService.name, () => {
     expect(loggerService.error).toHaveBeenCalledWith(expect.objectContaining({ event: "MESSAGE_WORKER_FAILURE", key: testKey, error: rethrown }));
   });
 
-  async function setup(): Promise<{
+  async function setup(input: { retry?: QueueRetryOptions } = {}): Promise<{
     service: PgBossHandlerService;
     brokerService: MockProxy<BrokerService>;
     loggerService: MockProxy<LoggerService>;
@@ -122,7 +130,8 @@ describe(PgBossHandlerService.name, () => {
       {
         meta: {
           key,
-          dto: TestMessageDto
+          dto: TestMessageDto,
+          retry: input.retry
         },
         discoveredMethod: {
           handler(message: TestMessageDto) {
