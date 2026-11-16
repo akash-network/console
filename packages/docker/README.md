@@ -79,7 +79,7 @@ Produces `console-akash-sandbox.sql.gz`, the backup `console:dev` imports into a
 - `verify-sandbox-seed.sh <seed>` restores the seed into a throwaway Postgres and fails unless it imports cleanly, every deployment and lease keeps its block, no block is unprocessed, and provider CPU rows carry `arch`.
 - `publish-sandbox-seed.sh <seed>` refuses to upload when the source database lacks indexer migrations that exist on `main`, then uploads to the public bucket.
 
-`kustomization.yaml` runs the three as a weekly CronJob. It expects a `sandbox-seed-dump` service account that can write to the bucket and a `sandbox-seed-dump-db` secret holding read-only libpq variables (`PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`, `PGSSLMODE`). Trigger a run by hand with:
+`kustomization.yaml` runs the three as a weekly CronJob. It expects a `sandbox-seed-dump` secret, synced from Doppler, holding read-only libpq variables (`PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`, `PGSSLMODE`) for the dump and `GCS_KEY_JSON`, a key for a GCP service account that can write to the bucket (the cluster has no Workload Identity), for the upload. Trigger a run by hand with:
 
 ```bash
 kubectl create job --from=cronjob/sandbox-seed-dump sandbox-seed-dump-manual
