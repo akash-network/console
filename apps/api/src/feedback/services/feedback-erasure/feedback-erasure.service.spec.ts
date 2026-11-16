@@ -119,17 +119,19 @@ describe(FeedbackErasureService.name, () => {
   });
 
   describe("eraseExpired", () => {
-    it("deletes a bounded batch of inactive conversations and old submissions, recounts every theme they fed and answers how many went", async () => {
-      const { service, assistantConversationRepository, feedbackSubmissionRepository, feedbackThemeRepository } = setup({
+    it("deletes a bounded batch of inactive conversations, old submissions and old problem reports, recounts every theme they fed and answers how many went", async () => {
+      const { service, assistantConversationRepository, feedbackSubmissionRepository, assistantProblemReportRepository, feedbackThemeRepository } = setup({
         inactiveConversations: { deletedCount: 2, themeIds: ["theme-1"] },
-        expiredSubmissions: { deletedCount: 3, themeIds: ["theme-2", "theme-3"] }
+        expiredSubmissions: { deletedCount: 3, themeIds: ["theme-2", "theme-3"] },
+        expiredReports: { deletedCount: 4, themeIds: ["theme-4"] }
       });
       const cutoff = new Date("2025-11-14T12:00:00.000Z");
 
-      expect(await service.eraseExpired(cutoff, 50)).toEqual({ conversations: 2, submissions: 3 });
+      expect(await service.eraseExpired(cutoff, 50)).toEqual({ conversations: 2, submissions: 3, problemReports: 4 });
       expect(assistantConversationRepository.deleteInactiveBefore).toHaveBeenCalledWith(cutoff, 50);
       expect(feedbackSubmissionRepository.deleteCreatedBefore).toHaveBeenCalledWith(cutoff, 50);
-      expect(feedbackThemeRepository.refreshCounts).toHaveBeenCalledWith(["theme-1", "theme-2", "theme-3"]);
+      expect(assistantProblemReportRepository.deleteCreatedBefore).toHaveBeenCalledWith(cutoff, 50);
+      expect(feedbackThemeRepository.refreshCounts).toHaveBeenCalledWith(["theme-1", "theme-2", "theme-3", "theme-4"]);
     });
 
     it("leaves turn traces to their own retention", async () => {
@@ -161,6 +163,7 @@ describe(FeedbackErasureService.name, () => {
       deletedReportThemeIds?: string[];
       inactiveConversations?: DeletedClassifiedItems;
       expiredSubmissions?: DeletedClassifiedItems;
+      expiredReports?: DeletedClassifiedItems;
     } = {}
   ) {
     const user = createUser();
@@ -174,6 +177,7 @@ describe(FeedbackErasureService.name, () => {
     const assistantProblemReportRepository = mock<AssistantProblemReportRepository>();
     assistantProblemReportRepository.accessibleBy.mockReturnValue(assistantProblemReportRepository);
     assistantProblemReportRepository.deleteAllOf.mockResolvedValue(input.deletedReportThemeIds ?? []);
+    assistantProblemReportRepository.deleteCreatedBefore.mockResolvedValue(input.expiredReports ?? { deletedCount: 0, themeIds: [] });
     const feedbackThemeRepository = mock<FeedbackThemeRepository>();
     const assistantTurnTraceRepository = mock<AssistantTurnTraceRepository>();
     const authService = mock<AuthService>({ currentUser: user });

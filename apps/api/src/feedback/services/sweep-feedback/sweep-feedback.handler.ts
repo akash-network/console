@@ -25,7 +25,7 @@ export const RETENTION_BATCH_SIZE = 500;
 /** Must stay well past the longest a turn can run, so only a trace whose pod died mid-turn is still running after it. */
 export const ABANDONED_TURN_TRACE_MINUTES = 10;
 
-/** Classifies what was stored while the model was unavailable or whose job gave up, lets theme scores decay, and drops assistant turns the browser never resumed and conversations, feedback and turn traces past retention, and fails turn traces a crashed pod left running. */
+/** Classifies what was stored while the model was unavailable or whose job gave up, lets theme scores decay, and drops assistant turns the browser never resumed and conversations, feedback, problem reports and turn traces past retention, and fails turn traces a crashed pod left running. */
 export class SweepFeedback implements Job {
   static readonly [JOB_NAME] = "SweepFeedback";
   readonly name = SweepFeedback[JOB_NAME];
@@ -84,6 +84,7 @@ export class SweepFeedbackHandler implements JobHandler<SweepFeedback> {
       expiredPendingTurns,
       deletedConversations: expired.conversations,
       deletedSubmissions: expired.submissions,
+      deletedProblemReports: expired.problemReports,
       deletedTurnTraces,
       abandonedTurnTraces
     });

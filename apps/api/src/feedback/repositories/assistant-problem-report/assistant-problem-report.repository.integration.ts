@@ -96,6 +96,36 @@ describe(AssistantProblemReportRepository.name, () => {
     });
   });
 
+  describe("deleteCreatedBefore", () => {
+    it("deletes reports created before the cutoff, keeps the one exactly at it and answers the count and the themes", async () => {
+      const { repository, user } = await setup();
+      const cutoff = new Date("2001-06-01T00:00:00.000Z");
+      const theme = await seedFeedbackTheme();
+      const expired = await seedAssistantProblemReport({
+        userId: user.id,
+        classifiedAt: new Date(),
+        themeId: theme.id,
+        createdAt: new Date(cutoff.getTime() - 1)
+      });
+      const atCutoff = await seedAssistantProblemReport({ userId: user.id, classifiedAt: new Date(), themeId: theme.id, createdAt: cutoff });
+
+      expect(await repository.deleteCreatedBefore(cutoff, 10)).toEqual({ deletedCount: 1, themeIds: [theme.id] });
+      expect(await repository.findById(expired.id)).toBeUndefined();
+      expect(await repository.findById(atCutoff.id)).toBeDefined();
+    });
+
+    it("deletes at most the given number, the oldest first", async () => {
+      const { repository, user } = await setup();
+      const cutoff = new Date("2000-06-01T00:00:00.000Z");
+      const oldest = await seedAssistantProblemReport({ userId: user.id, classifiedAt: new Date(), createdAt: new Date("2000-01-01T00:00:00.000Z") });
+      const older = await seedAssistantProblemReport({ userId: user.id, classifiedAt: new Date(), createdAt: new Date("2000-02-01T00:00:00.000Z") });
+
+      expect(await repository.deleteCreatedBefore(cutoff, 1)).toEqual({ deletedCount: 1, themeIds: [] });
+      expect(await repository.findById(oldest.id)).toBeUndefined();
+      expect(await repository.findById(older.id)).toBeDefined();
+    });
+  });
+
   describe("findUnclassifiedIds", () => {
     it("answers reports neither classified nor given up on, oldest first, up to the limit", async () => {
       const { repository, user } = await setup();

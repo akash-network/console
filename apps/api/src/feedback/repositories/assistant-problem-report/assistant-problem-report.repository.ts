@@ -1,10 +1,10 @@
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
-import type { FailedClassification } from "@src/feedback/model-schemas";
+import type { DeletedClassifiedItems, FailedClassification } from "@src/feedback/model-schemas";
 
 type Table = ApiPgTables["AssistantProblemReports"];
 export type AssistantProblemReportInsert = Table["$inferInsert"];
@@ -33,6 +33,18 @@ export class AssistantProblemReportRepository extends BaseRepository<Table, Assi
       .returning({ themeId: this.table.themeId });
 
     return deleted.flatMap(({ themeId }) => (themeId ? [themeId] : []));
+  }
+
+  async deleteCreatedBefore(cutoff: Date, limit: number): Promise<DeletedClassifiedItems> {
+    const expired = this.cursor
+      .select({ id: this.table.id })
+      .from(this.table)
+      .where(lt(this.table.createdAt, cutoff))
+      .orderBy(asc(this.table.createdAt))
+      .limit(limit);
+    const deleted = await this.cursor.delete(this.table).where(inArray(this.table.id, expired)).returning({ themeId: this.table.themeId });
+
+    return { deletedCount: deleted.length, themeIds: deleted.flatMap(({ themeId }) => (themeId ? [themeId] : [])) };
   }
 
   async findUnclassifiedIds(limit: number): Promise<string[]> {

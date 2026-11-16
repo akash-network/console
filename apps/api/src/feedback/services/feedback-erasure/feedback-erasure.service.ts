@@ -45,13 +45,14 @@ export class FeedbackErasureService {
   }
 
   /** Takes at most `batchSize` of each kind per call, so a large backlog is spread over several calls instead of one long delete. */
-  async eraseExpired(cutoff: Date, batchSize: number): Promise<{ conversations: number; submissions: number }> {
+  async eraseExpired(cutoff: Date, batchSize: number): Promise<{ conversations: number; submissions: number; problemReports: number }> {
     return await this.txService.transaction(async () => {
       const conversations = await this.assistantConversationRepository.deleteInactiveBefore(cutoff, batchSize);
       const submissions = await this.feedbackSubmissionRepository.deleteCreatedBefore(cutoff, batchSize);
-      await this.feedbackThemeRepository.refreshCounts([...conversations.themeIds, ...submissions.themeIds]);
+      const problemReports = await this.assistantProblemReportRepository.deleteCreatedBefore(cutoff, batchSize);
+      await this.feedbackThemeRepository.refreshCounts([...conversations.themeIds, ...submissions.themeIds, ...problemReports.themeIds]);
 
-      return { conversations: conversations.deletedCount, submissions: submissions.deletedCount };
+      return { conversations: conversations.deletedCount, submissions: submissions.deletedCount, problemReports: problemReports.deletedCount };
     });
   }
 }

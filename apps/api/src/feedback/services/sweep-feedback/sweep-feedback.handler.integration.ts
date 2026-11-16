@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { type ApiPgDatabase, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { AssistantConversationRepository } from "@src/feedback/repositories/assistant-conversation/assistant-conversation.repository";
 import { AssistantPendingTurnRepository } from "@src/feedback/repositories/assistant-pending-turn/assistant-pending-turn.repository";
+import { AssistantProblemReportRepository } from "@src/feedback/repositories/assistant-problem-report/assistant-problem-report.repository";
 import { AssistantTurnTraceRepository } from "@src/feedback/repositories/assistant-turn-trace/assistant-turn-trace.repository";
 import { FeedbackSubmissionRepository } from "@src/feedback/repositories/feedback-submission/feedback-submission.repository";
 import { FeedbackThemeRepository } from "@src/feedback/repositories/feedback-theme/feedback-theme.repository";
@@ -19,7 +20,13 @@ import {
 import { ClassifyFeedback, ClassifyFeedbackHandler, classifyFeedbackOptionsFor } from "@src/feedback/services/classify-feedback/classify-feedback.handler";
 import { SWEEP_FEEDBACK_KEY, SweepFeedback, SweepFeedbackHandler } from "./sweep-feedback.handler";
 
-import { seedAssistantConversation, seedAssistantMessage, seedFeedbackSubmission, seedFeedbackTheme } from "@test/seeders/db/feedback.seeder";
+import {
+  seedAssistantConversation,
+  seedAssistantMessage,
+  seedAssistantProblemReport,
+  seedFeedbackSubmission,
+  seedFeedbackTheme
+} from "@test/seeders/db/feedback.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 
@@ -91,7 +98,7 @@ describe(SweepFeedbackHandler.name, () => {
     expect(remaining).toEqual([expect.objectContaining({ startedAt: recentStartedAt })]);
   });
 
-  it("deletes conversations and feedback past the 365 day retention and recounts the themes they fed", async () => {
+  it("deletes conversations, feedback and problem reports past the 365 day retention and recounts the themes they fed", async () => {
     const { enqueue, startWorkers } = await jobWorkers();
     const { user } = await seedUserWithWallet({ isTrialing: false });
     const theme = await seedFeedbackTheme();
@@ -105,6 +112,8 @@ describe(SweepFeedbackHandler.name, () => {
       createdAt: subDays(new Date(), 366)
     });
     const keptSubmission = await seedFeedbackSubmission({ userId: user.id, themeId: theme.id, classifiedAt: new Date(), createdAt: subDays(new Date(), 364) });
+    const expiredReport = await seedAssistantProblemReport({ userId: user.id, themeId: theme.id, createdAt: subDays(new Date(), 366) });
+    const keptReport = await seedAssistantProblemReport({ userId: user.id, themeId: theme.id, createdAt: subDays(new Date(), 364) });
     vi.spyOn(container.resolve(AkashMlClient), "isAvailable").mockReturnValue(false);
 
     await enqueue(new SweepFeedback(), { singletonKey: "retentionSweep" });
@@ -113,13 +122,16 @@ describe(SweepFeedbackHandler.name, () => {
 
     const conversations = container.resolve(AssistantConversationRepository);
     const submissions = container.resolve(FeedbackSubmissionRepository);
+    const reports = container.resolve(AssistantProblemReportRepository);
     const messages = resolveTable("AssistantMessages");
     expect(await conversations.findById(expiredConversation.id)).toBeUndefined();
     expect(await conversations.cursor.select().from(messages).where(eq(messages.conversationId, expiredConversation.id))).toEqual([]);
     expect(await conversations.findById(keptConversation.id)).toBeDefined();
     expect(await submissions.findById(expiredSubmission.id)).toBeUndefined();
     expect(await submissions.findById(keptSubmission.id)).toBeDefined();
-    expect(await container.resolve(FeedbackThemeRepository).findById(theme.id)).toMatchObject({ itemCount: 2, distinctUserCount: 1 });
+    expect(await reports.findById(expiredReport.id)).toBeUndefined();
+    expect(await reports.findById(keptReport.id)).toBeDefined();
+    expect(await container.resolve(FeedbackThemeRepository).findById(theme.id)).toMatchObject({ itemCount: 3, distinctUserCount: 1 });
   });
 
   it("marks turn traces a crashed turn left running as failed", async () => {

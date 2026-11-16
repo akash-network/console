@@ -86,6 +86,7 @@ describe(SweepFeedbackHandler.name, () => {
       expiredPendingTurns: 3,
       deletedConversations: 0,
       deletedSubmissions: 0,
+      deletedProblemReports: 0,
       deletedTurnTraces: 0,
       abandonedTurnTraces: 0
     });
@@ -106,13 +107,15 @@ describe(SweepFeedbackHandler.name, () => {
   it("erases a batch of conversations and feedback past the configured retention on each sweep", async () => {
     vi.useFakeTimers({ now: NOW });
     const { handler, feedbackErasureService, logger } = setup({ isAvailable: false, retentionDays: 30 });
-    feedbackErasureService.eraseExpired.mockResolvedValue({ conversations: 5, submissions: 6 });
+    feedbackErasureService.eraseExpired.mockResolvedValue({ conversations: 5, submissions: 6, problemReports: 7 });
 
     await handler.handle();
 
     expect(RETENTION_BATCH_SIZE).toBe(500);
     expect(feedbackErasureService.eraseExpired).toHaveBeenCalledWith(subDays(NOW, 30), RETENTION_BATCH_SIZE);
-    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "FEEDBACK_SWEPT", deletedConversations: 5, deletedSubmissions: 6 }));
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "FEEDBACK_SWEPT", deletedConversations: 5, deletedSubmissions: 6, deletedProblemReports: 7 })
+    );
   });
 
   it("erases expired items before backfilling and rescoring, so neither works on what retention removes", async () => {
@@ -153,6 +156,7 @@ describe(SweepFeedbackHandler.name, () => {
       expiredPendingTurns: 0,
       deletedConversations: 0,
       deletedSubmissions: 0,
+      deletedProblemReports: 0,
       deletedTurnTraces: 0,
       abandonedTurnTraces: 0
     });
@@ -175,7 +179,7 @@ describe(SweepFeedbackHandler.name, () => {
     assistantTurnTraceRepository.deleteStartedBefore.mockResolvedValue(0);
     assistantTurnTraceRepository.markAbandoned.mockResolvedValue(0);
     const feedbackErasureService = mock<FeedbackErasureService>();
-    feedbackErasureService.eraseExpired.mockResolvedValue({ conversations: 0, submissions: 0 });
+    feedbackErasureService.eraseExpired.mockResolvedValue({ conversations: 0, submissions: 0, problemReports: 0 });
     const config = envSchema.parse({ FEEDBACK_RETENTION_DAYS: input.retentionDays });
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
