@@ -399,8 +399,11 @@ describe("ProvidersExplorer", () => {
   ])("styles the region and GPU filters on %s screens for the table's %s", (_, isWide, variant) => {
     const RegionFilterPopover = vi.fn(ComponentMock);
     const GpuFilterPopover = vi.fn(ComponentMock);
+    const CpuFilterPopover = vi.fn(ComponentMock);
 
-    setup({ isWide, dependencies: { RegionFilterPopover, GpuFilterPopover } });
+    setup({ isWide, dependencies: { RegionFilterPopover, GpuFilterPopover, CpuFilterPopover } });
+
+    expect(CpuFilterPopover).toHaveBeenCalledWith(expect.objectContaining({ variant }), expect.anything());
 
     expect(RegionFilterPopover).toHaveBeenCalledWith(expect.objectContaining({ variant }), expect.anything());
     expect(GpuFilterPopover).toHaveBeenCalledWith(expect.objectContaining({ variant }), expect.anything());
@@ -495,6 +498,23 @@ describe("ProvidersExplorer", () => {
 
     expect(model.updateFilters).toHaveBeenNthCalledWith(1, { regions: ["eu-central"] });
     expect(model.updateFilters).toHaveBeenNthCalledWith(2, { gpuModels: ["h100"] });
+  });
+
+  it("passes the picked CPU vendor, generation and model to the model", async () => {
+    const { model } = setup({
+      cpuVendorOptions: [{ value: "AMD", count: 3 }],
+      cpuGenerationOptions: [{ value: "Milan", count: 2 }],
+      cpuModelOptions: [{ value: "EPYC 7763", count: 2 }]
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Filter by cpu" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: /AMD/ }));
+    await userEvent.click(screen.getByRole("checkbox", { name: /Milan/ }));
+    await userEvent.click(screen.getByRole("checkbox", { name: /EPYC 7763/ }));
+
+    expect(model.updateFilters).toHaveBeenNthCalledWith(1, { cpuVendors: ["AMD"] });
+    expect(model.updateFilters).toHaveBeenNthCalledWith(2, { cpuGenerations: ["Milan"] });
+    expect(model.updateFilters).toHaveBeenNthCalledWith(3, { cpuModels: ["EPYC 7763"] });
   });
 
   it("switches the Favorites filter and offers no Active or Audited filter", async () => {
@@ -620,6 +640,9 @@ describe("ProvidersExplorer", () => {
     hasFailedToLoadLocations?: boolean;
     regionOptions?: { value: string; count: number }[];
     gpuModelOptions?: { value: string; count: number }[];
+    cpuVendorOptions?: { value: string; count: number }[];
+    cpuGenerationOptions?: { value: string; count: number }[];
+    cpuModelOptions?: { value: string; count: number }[];
     isWide?: boolean;
     prefersReducedMotion?: boolean;
     theme?: string;
@@ -650,6 +673,9 @@ describe("ProvidersExplorer", () => {
       matchingLocationIds: null,
       regionOptions: input.regionOptions ?? [],
       gpuModelOptions: input.gpuModelOptions ?? [],
+      cpuVendorOptions: input.cpuVendorOptions ?? [],
+      cpuGenerationOptions: input.cpuGenerationOptions ?? [],
+      cpuModelOptions: input.cpuModelOptions ?? [],
       networkStats: { availableGpuCount: 60, activeProviderCount: 59, availableVcpuCount: 8868, activeLeaseCount: 678, averageUptime30d: 0.945 },
       favoriteProviders: [],
       toggleFavorite: vi.fn()

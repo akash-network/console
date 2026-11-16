@@ -118,6 +118,25 @@ describe(useProviderSearch.name, () => {
     });
   });
 
+  it("names the CPU vendors, models and generations in comma-separated values", async () => {
+    const { result, httpClient } = setup({
+      params: {
+        sort: "active-leases-desc",
+        cpuVendors: ["AMD", "Intel"],
+        cpuModels: ["EPYC 7763", "Xeon Gold 6248R"],
+        cpuGenerations: ["Milan", "Genoa"],
+        skip: 0,
+        limit: 10
+      }
+    });
+
+    await vi.waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(httpClient.get).toHaveBeenCalledExactlyOnceWith(ApiUrlService.providerSearch(), {
+      params: expect.objectContaining({ cpuVendors: "AMD,Intel", cpuModels: "EPYC 7763,Xeon Gold 6248R", cpuGenerations: "Milan,Genoa" })
+    });
+  });
+
   it("names no address when the search is not limited to any", async () => {
     const { result, httpClient } = setup({ params: { sort: "active-leases-desc", skip: 0, limit: 10 } });
 

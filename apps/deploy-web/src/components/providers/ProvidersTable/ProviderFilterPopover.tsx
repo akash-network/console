@@ -92,6 +92,58 @@ export const GpuFilterPopover: FC<GpuFilterPopoverProps> = ({ options, selected,
   );
 };
 
+type CpuFilters = { cpuVendors: string[]; cpuGenerations: string[]; cpuModels: string[] };
+
+type CpuFilterPopoverProps = {
+  vendorOptions: FilterOption[];
+  generationOptions: FilterOption[];
+  modelOptions: FilterOption[];
+  selected: CpuFilters;
+  onChange: (change: Partial<CpuFilters>) => void;
+  variant: TriggerVariant;
+};
+
+export const CpuFilterPopover: FC<CpuFilterPopoverProps> = ({ vendorOptions, generationOptions, modelOptions, selected, onChange, variant }) => {
+  const activeCount = selected.cpuVendors.length + selected.cpuGenerations.length + selected.cpuModels.length;
+  const hasNoOptions = [vendorOptions, generationOptions, modelOptions].every(options => options.length === 0);
+
+  return (
+    <FilterPopover label="CPU" activeCount={activeCount} variant={variant}>
+      {hasNoOptions && <span className="block px-2 py-2.5 text-[11.5px] text-muted-foreground">No CPU models reported on the network right now.</span>}
+      <div className="flex max-h-72 flex-col overflow-y-auto">
+        <CpuOptionGroup label="Vendor" options={vendorOptions} selected={selected.cpuVendors} onChange={cpuVendors => onChange({ cpuVendors })} />
+        <CpuOptionGroup
+          label="Generation"
+          options={generationOptions}
+          selected={selected.cpuGenerations}
+          onChange={cpuGenerations => onChange({ cpuGenerations })}
+        />
+        <CpuOptionGroup label="Model" options={modelOptions} selected={selected.cpuModels} onChange={cpuModels => onChange({ cpuModels })} />
+      </div>
+      {activeCount > 0 && <PopoverFooter count={activeCount} noun="filter" onClear={() => onChange({ cpuVendors: [], cpuGenerations: [], cpuModels: [] })} />}
+    </FilterPopover>
+  );
+};
+
+type CpuOptionGroupProps = {
+  label: string;
+  options: FilterOption[];
+  selected: string[];
+  onChange: (values: string[]) => void;
+};
+
+const CpuOptionGroup: FC<CpuOptionGroupProps> = ({ label, options, selected, onChange }) =>
+  options.length === 0 ? null : (
+    <div role="group" aria-label={`CPU ${label.toLowerCase()}`}>
+      <span className="block px-2 pb-0.5 pt-1 font-mono text-[9.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
+      {options.map(option => (
+        <CheckRow key={option.value} isChecked={selected.includes(option.value)} onToggle={() => onChange(toggle(selected, option.value))} count={option.count}>
+          {option.value}
+        </CheckRow>
+      ))}
+    </div>
+  );
+
 type FilterPopoverProps = {
   label: string;
   activeCount: number;

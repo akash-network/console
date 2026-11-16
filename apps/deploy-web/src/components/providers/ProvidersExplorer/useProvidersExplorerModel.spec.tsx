@@ -22,6 +22,9 @@ describe(useProvidersExplorerModel.name, () => {
         regions: undefined,
         gpu: undefined,
         gpuModels: undefined,
+        cpuVendors: undefined,
+        cpuModels: undefined,
+        cpuGenerations: undefined,
         sort: "active-leases-desc",
         skip: 0,
         limit: PAGE_SIZE
@@ -68,6 +71,9 @@ describe(useProvidersExplorerModel.name, () => {
   it.each([
     ["regions", { regions: ["eu-central"] }],
     ["GPU models", { gpuModels: ["h100"] }],
+    ["CPU vendors", { cpuVendors: ["AMD"] }],
+    ["CPU models", { cpuModels: ["EPYC 7763"] }],
+    ["CPU generations", { cpuGenerations: ["Milan"] }],
     ["GPU providers only", { isGpuOnly: true }],
     ["favorites", { isFavoritesOnly: true }]
   ])("narrows the list and the pins by %s alone", (_, change) => {
@@ -213,7 +219,7 @@ describe(useProvidersExplorerModel.name, () => {
       search: "",
       pageIndex: 0,
       hasFilters: false,
-      filters: { regions: [], gpuModels: [], isGpuOnly: false, isFavoritesOnly: false }
+      filters: { regions: [], gpuModels: [], cpuVendors: [], cpuModels: [], cpuGenerations: [], isGpuOnly: false, isFavoritesOnly: false }
     });
   });
 
@@ -396,6 +402,79 @@ describe(useProvidersExplorerModel.name, () => {
     expect(result.current.matchingLocationIds).toEqual(new Set(["akash1gpu"]));
   });
 
+  it("searches the providers by the picked CPU vendors, models and generations", () => {
+    const { result, useProviderSearch } = setup();
+
+    act(() => result.current.updateFilters({ cpuVendors: ["AMD"], cpuModels: ["EPYC 7763"], cpuGenerations: ["Milan"] }));
+
+    expect(useProviderSearch).toHaveBeenLastCalledWith(
+      expect.objectContaining({ cpuVendors: ["AMD"], cpuModels: ["EPYC 7763"], cpuGenerations: ["Milan"], skip: 0 }),
+      { enabled: true }
+    );
+  });
+
+  it("offers the CPU vendors, models and generations on the map, counting each provider once and keeping the picked ones", () => {
+    const milan = { vendor: "AMD" as const, model: "EPYC 7763", generation: "Milan" };
+    const genoa = { vendor: "AMD" as const, model: "EPYC 9654", generation: "Genoa" };
+    const xeon = { vendor: "Intel" as const, model: "Xeon Gold 6248R", generation: "Cascade Lake" };
+    const locations = [
+      createLocation({ owner: "akash1a", cpus: [milan, genoa] }),
+      createLocation({ owner: "akash1b", cpus: [milan] }),
+      createLocation({ owner: "akash1c", cpus: [xeon, { vendor: null, model: "Neoverse-N1", generation: null }] }),
+      createLocation({ owner: "akash1d", cpus: [] }),
+      createLocation({ owner: "akash1old", cpus: undefined })
+    ];
+    const { result } = setup({ locations });
+
+    act(() => result.current.updateFilters({ cpuVendors: ["Ampere"], cpuModels: ["EPYC 9965"], cpuGenerations: ["Turin"] }));
+
+    expect(result.current.cpuVendorOptions).toEqual([
+      { value: "AMD", count: 2 },
+      { value: "Intel", count: 1 },
+      { value: "Ampere", count: 0 }
+    ]);
+    expect(result.current.cpuModelOptions).toEqual([
+      { value: "EPYC 7763", count: 2 },
+      { value: "EPYC 9654", count: 1 },
+      { value: "Neoverse-N1", count: 1 },
+      { value: "Xeon Gold 6248R", count: 1 },
+      { value: "EPYC 9965", count: 0 }
+    ]);
+    expect(result.current.cpuGenerationOptions).toEqual([
+      { value: "Milan", count: 2 },
+      { value: "Cascade Lake", count: 1 },
+      { value: "Genoa", count: 1 },
+      { value: "Turin", count: 0 }
+    ]);
+  });
+
+  it.each([
+    ["vendor", { cpuVendors: ["amd"] }, ["akash1milan", "akash1mixed"]],
+    ["model", { cpuModels: ["xeon gold 6248r"] }, ["akash1mixed"]],
+    ["generation", { cpuGenerations: ["MILAN"] }, ["akash1milan"]],
+    ["vendor and generation", { cpuVendors: ["AMD"], cpuGenerations: ["Genoa"] }, ["akash1mixed"]],
+    ["vendor and generation, only when one CPU has both", { cpuVendors: ["Intel"], cpuGenerations: ["Genoa"] }, []]
+  ])("lights the pins of the providers running a CPU of the picked %s", (_, change, owners) => {
+    const locations = [
+      createLocation({ owner: "akash1milan", cpus: [{ vendor: "AMD", model: "EPYC 7763", generation: "Milan" }] }),
+      createLocation({
+        owner: "akash1mixed",
+        cpus: [
+          { vendor: "AMD", model: "EPYC 9654", generation: "Genoa" },
+          { vendor: "Intel", model: "Xeon Gold 6248R", generation: "Cascade Lake" }
+        ]
+      }),
+      createLocation({ owner: "akash1arm", cpus: [{ vendor: null, model: "Neoverse-N1", generation: null }] }),
+      createLocation({ owner: "akash1none", cpus: [] }),
+      createLocation({ owner: "akash1old", cpus: undefined })
+    ];
+    const { result } = setup({ locations });
+
+    act(() => result.current.updateFilters(change));
+
+    expect(result.current.matchingLocationIds).toEqual(new Set(owners));
+  });
+
   it("lights the pin of a provider running any of the picked GPU models", () => {
     const locations = [createLocation({ owner: "akash1mixed", gpuModels: ["h100", "a100"] }), createLocation({ owner: "akash1other", gpuModels: ["rtx4090"] })];
     const { result } = setup({ locations });
@@ -462,6 +541,7 @@ describe(useProvidersExplorerModel.name, () => {
       locationRegion: null,
       uptime30d: null,
       gpuModels: [],
+      cpus: [],
       stats: { cpu: item(vcpuMillicores), gpu: item(gpus), memory: item(0), storage: { ephemeral: item(0), persistent: item(0), total: item(0) } },
       ...fields
     });

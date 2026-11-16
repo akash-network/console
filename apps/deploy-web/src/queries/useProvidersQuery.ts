@@ -115,6 +115,9 @@ export interface ProviderSearchParams {
   regions?: string[];
   gpu?: boolean;
   gpuModels?: string[];
+  cpuVendors?: string[];
+  cpuModels?: string[];
+  cpuGenerations?: string[];
   sort: ProviderSearchSort;
   walletAddress?: string;
   skip: number;
@@ -133,7 +136,15 @@ export function useProviderSearch(params: ProviderSearchParams, options: { enabl
     queryFn: () =>
       publicConsoleApiHttpClient
         .get<{ data: ProviderSearchPage }>(ApiUrlService.providerSearch(), {
-          params: { ...params, addresses: params.addresses?.join(","), regions: params.regions?.join(","), gpuModels: params.gpuModels?.join(",") }
+          params: {
+            ...params,
+            addresses: params.addresses?.join(","),
+            regions: params.regions?.join(","),
+            gpuModels: params.gpuModels?.join(","),
+            cpuVendors: params.cpuVendors?.join(","),
+            cpuModels: params.cpuModels?.join(","),
+            cpuGenerations: params.cpuGenerations?.join(",")
+          }
         })
         .then(response => response.data.data),
     placeholderData: keepPreviousData,

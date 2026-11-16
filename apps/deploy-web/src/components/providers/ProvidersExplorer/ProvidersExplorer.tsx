@@ -11,7 +11,7 @@ import { NetworkStats } from "@src/components/providers/NetworkStats/NetworkStat
 import { ProviderPanel } from "@src/components/providers/ProviderPanel/ProviderPanel";
 import type { GlobeCluster, GlobeProvider } from "@src/components/providers/ProvidersGlobe/clusterProviders";
 import type { ProvidersGlobeHandle } from "@src/components/providers/ProvidersGlobe/ProvidersGlobe";
-import { GpuFilterPopover, RegionFilterPopover } from "@src/components/providers/ProvidersTable/ProviderFilterPopover";
+import { CpuFilterPopover, GpuFilterPopover, RegionFilterPopover } from "@src/components/providers/ProvidersTable/ProviderFilterPopover";
 import { ProvidersTable } from "@src/components/providers/ProvidersTable/ProvidersTable";
 import type { ProviderSummary } from "@src/components/providers/providerSummary/providerSummary";
 import { summarizeListedProvider, summarizeLocatedProvider } from "@src/components/providers/providerSummary/providerSummary";
@@ -32,7 +32,8 @@ export const DEPENDENCIES = {
   ProviderPanel,
   ProvidersTable,
   RegionFilterPopover,
-  GpuFilterPopover
+  GpuFilterPopover,
+  CpuFilterPopover
 };
 
 const WIDE_LAYOUT_QUERY = "(min-width: 1024px)";
@@ -130,6 +131,16 @@ export const ProvidersExplorer: FC<Props> = ({ dependencies: d = DEPENDENCIES })
       options={model.gpuModelOptions}
       selected={model.filters.gpuModels}
       isGpuOnly={model.filters.isGpuOnly}
+      onChange={model.updateFilters}
+      variant={isWide ? "header" : "toolbar"}
+    />
+  );
+  const cpuFilter = (
+    <d.CpuFilterPopover
+      vendorOptions={model.cpuVendorOptions}
+      generationOptions={model.cpuGenerationOptions}
+      modelOptions={model.cpuModelOptions}
+      selected={model.filters}
       onChange={model.updateFilters}
       variant={isWide ? "header" : "toolbar"}
     />
@@ -313,6 +324,7 @@ export const ProvidersExplorer: FC<Props> = ({ dependencies: d = DEPENDENCIES })
             <div className="flex items-center gap-2">
               {regionFilter}
               {gpuFilter}
+              {cpuFilter}
             </div>
           </div>
         )}
@@ -332,6 +344,7 @@ export const ProvidersExplorer: FC<Props> = ({ dependencies: d = DEPENDENCIES })
           isCompact={!isWide}
           regionFilter={regionFilter}
           gpuFilter={gpuFilter}
+          cpuFilter={cpuFilter}
         />
       </section>
     </div>
