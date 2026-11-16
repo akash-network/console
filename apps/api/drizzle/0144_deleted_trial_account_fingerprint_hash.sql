@@ -1,0 +1,2 @@
+ALTER TABLE "deleted_trial_accounts" ADD COLUMN "fingerprint_hash" varchar(64);--> statement-breakpoint
+CREATE INDEX "deleted_trial_accounts_fingerprint_hash_idx" ON "deleted_trial_accounts" USING btree ("fingerprint_hash");

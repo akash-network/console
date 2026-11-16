@@ -202,6 +202,13 @@ describe("workload abuse env config", () => {
     expect(() => setup({ [name]: value })).toThrow(new RegExp(name));
   });
 
+  it("matches deleted trial accounts by fingerprint unless switched off", () => {
+    expect(setup().WORKLOAD_ABUSE_DELETED_TRIAL_MATCH_FINGERPRINT).toBe(true);
+    expect(setup({ WORKLOAD_ABUSE_DELETED_TRIAL_MATCH_FINGERPRINT: " " }).WORKLOAD_ABUSE_DELETED_TRIAL_MATCH_FINGERPRINT).toBe(true);
+    expect(setup({ WORKLOAD_ABUSE_DELETED_TRIAL_MATCH_FINGERPRINT: "false" }).WORKLOAD_ABUSE_DELETED_TRIAL_MATCH_FINGERPRINT).toBe(false);
+    expect(() => setup({ WORKLOAD_ABUSE_DELETED_TRIAL_MATCH_FINGERPRINT: "off" })).toThrow(/WORKLOAD_ABUSE_DELETED_TRIAL_MATCH_FINGERPRINT/);
+  });
+
   it("posts the daily summary at 13:00 UTC unless another hour is set", () => {
     expect(setup().WORKLOAD_ABUSE_DAILY_SUMMARY_HOUR_UTC).toBe(13);
     expect(setup({ WORKLOAD_ABUSE_DAILY_SUMMARY_HOUR_UTC: " " }).WORKLOAD_ABUSE_DAILY_SUMMARY_HOUR_UTC).toBe(13);

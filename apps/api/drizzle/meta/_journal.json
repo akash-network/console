@@ -1009,6 +1009,13 @@
       "when": 1794801478533,
       "tag": "0143_assistant_flags_and_user_blocks",
       "breakpoints": true
+    },
+    {
+      "idx": 144,
+      "version": "7",
+      "when": 1794850309686,
+      "tag": "0144_deleted_trial_account_fingerprint_hash",
+      "breakpoints": true
     }
   ]
 }
