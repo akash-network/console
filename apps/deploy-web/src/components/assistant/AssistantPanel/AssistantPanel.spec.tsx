@@ -179,7 +179,7 @@ describe("AssistantPanel", () => {
       expect.objectContaining({ initialValue: "Why no bids?", isSending: false, isDisabled: false, onSend: conversation.send }),
       expect.anything()
     );
-    expect(screen.getByText("Ask about your deployments, bids, logs, or billing. The assistant reads your account to answer.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "What do you want to know?" })).toBeInTheDocument();
   });
 
   it("disables the composer once the assistant is turned off for the account", () => {
@@ -302,7 +302,7 @@ describe("AssistantPanel", () => {
   it("drops the intro and example prompts once the conversation has messages", () => {
     const { dependencies } = setup({ consent: CURRENT_CONSENT, hasMessages: true });
 
-    expect(screen.queryByText(/Ask about your deployments/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "What do you want to know?" })).not.toBeInTheDocument();
     expect(dependencies.AssistantExamplePrompts).not.toHaveBeenCalled();
   });
 
@@ -336,6 +336,51 @@ describe("AssistantPanel", () => {
     expect(dependencies.DiscordHelpCard).toHaveBeenCalled();
   });
 
+  it("keeps the transcript and hides the load error when a refetch fails after consent loaded", () => {
+    const { dependencies } = setup({ consent: CURRENT_CONSENT, hasMessages: true, refetchFailed: true });
+
+    expect(dependencies.AssistantTranscript).toHaveBeenCalled();
+    expect(screen.queryByText("Couldn't load the assistant. Close the panel and try again.")).not.toBeInTheDocument();
+  });
+
+  it("offers a new chat only once the conversation has messages", () => {
+    setup({ consent: CURRENT_CONSENT });
+
+    expect(screen.queryByRole("button", { name: "New chat" })).not.toBeInTheDocument();
+  });
+
+  it("starts over from the new chat button", async () => {
+    const { conversation } = setup({ consent: CURRENT_CONSENT, hasMessages: true });
+
+    await userEvent.click(screen.getByRole("button", { name: "New chat" }));
+
+    expect(conversation.startOver).toHaveBeenCalledTimes(1);
+  });
+
+  it("warns that answers can be wrong under the composer", () => {
+    setup({ consent: CURRENT_CONSENT });
+
+    expect(screen.getByText("AI can make mistakes; always verify.")).toBeInTheDocument();
+  });
+
+  it("shows no warning before the user agreed", () => {
+    setup({ consent: null });
+
+    expect(screen.queryByText("AI can make mistakes; always verify.")).not.toBeInTheDocument();
+  });
+
+  it("opens the feedback dialog from the footer and closes it again", async () => {
+    const { dependencies } = setup({ consent: CURRENT_CONSENT });
+    expect(dependencies.SendFeedbackDialog).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Send feedback" }));
+    const { onClose } = vi.mocked(dependencies.SendFeedbackDialog).mock.lastCall![0] as ComponentProps<typeof DEPENDENCIES.SendFeedbackDialog>;
+    vi.mocked(dependencies.SendFeedbackDialog).mockClear();
+    act(() => onClose());
+
+    expect(dependencies.SendFeedbackDialog).not.toHaveBeenCalled();
+  });
+
   it("closes from the close button", async () => {
     const { onOpenChange } = setup({ consent: CURRENT_CONSENT });
 
@@ -350,6 +395,7 @@ describe("AssistantPanel", () => {
     isOpen?: boolean;
     isLoading?: boolean;
     isError?: boolean;
+    refetchFailed?: boolean;
     question?: string;
     sendsQuestion?: boolean;
     isAnswering?: boolean;
@@ -362,7 +408,7 @@ describe("AssistantPanel", () => {
     const privacy = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useAssistantPrivacyQuery>>(), {
       data,
       isLoading: !!input.isLoading,
-      isError: !!input.isError
+      isError: !!input.isError || !!input.refetchFailed
     });
     const dependencies = MockComponents(DEPENDENCIES, {
       useAssistantPrivacyQuery: vi.fn(() => privacy),
@@ -378,6 +424,7 @@ describe("AssistantPanel", () => {
       page: input.page ?? null,
       deploymentDseq: input.deploymentDseq ?? null,
       send: vi.fn(),
+      startOver: vi.fn(),
       clearProblem: vi.fn()
     });
     const onOpenChange = vi.fn();
