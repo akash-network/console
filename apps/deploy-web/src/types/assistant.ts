@@ -29,3 +29,5 @@ export type AssistantClientToolResult = SubmitAssistantClientToolResultsBody["da
 export type AssistantHistoryMessage = NonNullable<SendAssistantMessageBody["data"]["history"]>[number];
 
 export type AssistantContext = NonNullable<SendAssistantMessageBody["data"]["context"]>;
+
+export type AssistantTurnRating = JsonBodyOf<"updateAssistantTurnRating">["data"]["rating"];

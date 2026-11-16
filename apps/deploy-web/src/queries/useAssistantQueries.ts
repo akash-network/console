@@ -45,3 +45,15 @@ export function useRecordAssistantActionResultMutation() {
 
   return api.v1.createAssistantActionResult.useMutation({ meta: SKIP_REPORTING_REFUSED_INPUT });
 }
+
+export function useRateAssistantTurnMutation() {
+  const { api } = useServices();
+
+  return api.v1.updateAssistantTurnRating.useMutation({ meta: SKIP_REPORTING_REFUSED_INPUT });
+}
+
+export function useCreateAssistantProblemReportMutation() {
+  const { api } = useServices();
+
+  return api.v1.createAssistantProblemReport.useMutation({ meta: SKIP_REPORTING_REFUSED_INPUT });
+}

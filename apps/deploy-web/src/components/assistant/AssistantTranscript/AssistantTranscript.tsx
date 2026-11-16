@@ -3,15 +3,17 @@ import type { FC } from "react";
 import { Button } from "@akashnetwork/ui/components";
 import { LoaderCircle, ShieldAlert } from "lucide-react";
 
+import type { AssistantTurnRating } from "@src/types/assistant";
 import { ActionCard } from "../action-cards/ActionCard/ActionCard";
+import { AssistantAnswerFeedback } from "../AssistantAnswerFeedback/AssistantAnswerFeedback";
 import { AssistantMarkdown } from "../AssistantMarkdown/AssistantMarkdown";
 import { DiagnosisBlock } from "../DiagnosisBlock/DiagnosisBlock";
 import { DiscordHelpCard } from "../DiscordHelpCard/DiscordHelpCard";
 import type { AssistantProposal, AssistantTranscriptMessage, AssistantVisibleReadChip } from "../transcriptModel/transcriptModel";
-import { visibleReadsOf } from "../transcriptModel/transcriptModel";
+import { canGiveFeedbackOn, visibleReadsOf } from "../transcriptModel/transcriptModel";
 import type { AssistantConversation, AssistantProblem } from "../useAssistantConversation/useAssistantConversation";
 
-export const DEPENDENCIES = { ActionCard, AssistantMarkdown, DiagnosisBlock, DiscordHelpCard };
+export const DEPENDENCIES = { ActionCard, AssistantAnswerFeedback, AssistantMarkdown, DiagnosisBlock, DiscordHelpCard };
 
 export const FOLLOW_UP_ANSWERS = [
   { label: "Deploy something new", message: "I was trying to deploy something new." },
@@ -61,7 +63,10 @@ export const AssistantTranscript: FC<Props> = ({ conversation, dependencies: d =
             key={message.id}
             message={message}
             conversationId={conversation.conversationId}
+            isStreaming={isAnswering && message.id === lastMessage?.id}
             continueConversation={conversation.send}
+            onRate={rating => conversation.rate(message.id, rating)}
+            onReport={note => conversation.reportProblem(message.id, note)}
             dependencies={d}
           />
         )
@@ -151,11 +156,14 @@ const AssistantQuestion: FC<{ message: AssistantTranscriptMessage; canAddSecretS
 type AnswerProps = {
   message: AssistantTranscriptMessage;
   conversationId: string | null;
+  isStreaming: boolean;
   continueConversation: (message: string) => void;
+  onRate: (rating: AssistantTurnRating) => void;
+  onReport: (note: string) => Promise<void>;
   dependencies: typeof DEPENDENCIES;
 };
 
-const AssistantAnswer: FC<AnswerProps> = ({ message, conversationId, continueConversation, dependencies: d }) => {
+const AssistantAnswer: FC<AnswerProps> = ({ message, conversationId, isStreaming, continueConversation, onRate, onReport, dependencies: d }) => {
   const reads = visibleReadsOf(message.reads);
 
   return (
@@ -177,11 +185,12 @@ const AssistantAnswer: FC<AnswerProps> = ({ message, conversationId, continueCon
           dependencies={d}
         />
       ))}
+      {!isStreaming && canGiveFeedbackOn(message) && <d.AssistantAnswerFeedback message={message} onRate={onRate} onReport={onReport} />}
     </div>
   );
 };
 
-const ProposalCard: FC<Omit<AnswerProps, "message"> & { proposal: AssistantProposal }> = ({
+const ProposalCard: FC<Pick<AnswerProps, "conversationId" | "continueConversation" | "dependencies"> & { proposal: AssistantProposal }> = ({
   proposal,
   conversationId,
   continueConversation,
