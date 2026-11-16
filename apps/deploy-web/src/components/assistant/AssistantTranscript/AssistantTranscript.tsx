@@ -65,7 +65,7 @@ export const AssistantTranscript: FC<Props> = ({ conversation, dependencies: d =
             message={message}
             conversationId={conversation.conversationId}
             isStreaming={isAnswering && message.id === lastMessage?.id}
-            continueConversation={conversation.send}
+            continueConversation={problem === "blocked" ? undefined : conversation.send}
             onRate={rating => conversation.rate(message.id, rating)}
             onReport={note => conversation.reportProblem(message.id, note)}
             dependencies={d}
@@ -158,7 +158,7 @@ type AnswerProps = {
   message: AssistantTranscriptMessage;
   conversationId: string | null;
   isStreaming: boolean;
-  continueConversation: (message: string) => void;
+  continueConversation?: (message: string) => void;
   onRate: (rating: AssistantTurnRating) => void;
   onReport: (note: string) => Promise<void>;
   dependencies: typeof DEPENDENCIES;

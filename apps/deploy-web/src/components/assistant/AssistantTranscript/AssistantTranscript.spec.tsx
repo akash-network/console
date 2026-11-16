@@ -106,6 +106,13 @@ describe("AssistantTranscript", () => {
     expect(DiagnosisBlock).not.toHaveBeenCalled();
   });
 
+  it("gives the cards no way to continue the conversation while the assistant is turned off for the account", () => {
+    const action: AssistantAction = { type: "buy_credits", tier: "deep_link", amountUsd: 20 };
+    const { ActionCard } = setup({ messages: [message("2", { text: "Buy credits.", proposals: [{ proposalId: "p-1", action }] })], problem: "blocked" });
+
+    expect(ActionCard).toHaveBeenCalledWith(expect.objectContaining({ proposalId: "p-1", continueConversation: undefined }), expect.anything());
+  });
+
   it("shows the card alone when its diagnosis quotes no evidence", () => {
     const action: AssistantAction = {
       type: "create_deployment",
