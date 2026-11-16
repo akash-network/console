@@ -13,6 +13,7 @@ import { DeploymentNameClient } from "@src/modules/alert/services/deployment-nam
 import { DeploymentReferenceService } from "@src/modules/alert/services/deployment-reference/deployment-reference.service";
 import type { LeaseClosedAlertEvent } from "@src/modules/alert/services/lease-closed-alert/lease-closed-alert.service";
 import { LeaseClosedAlertService } from "@src/modules/alert/services/lease-closed-alert/lease-closed-alert.service";
+import { ProviderHostService } from "@src/modules/alert/services/provider-host/provider-host.service";
 
 import { MockProvider } from "@test/mocks/provider.mock";
 import { mockAkashAddress } from "@test/seeders/akash-address.seeder";
@@ -149,8 +150,8 @@ describe(LeaseClosedAlertService.name, () => {
       expect(onMessage).toHaveBeenCalledTimes(1);
     });
 
-    it("names the deployment, the provider and the close reason, and links to the deployment", async () => {
-      const { service, alertRepository, onMessage, consoleWebUrl } = await setup();
+    it("names the deployment, the provider by its host and the close reason, and links to the deployment", async () => {
+      const { service, alertRepository, providerHostService, providerHost, onMessage, consoleWebUrl } = await setup();
       const alert = generateDeploymentClosedAlert();
       alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([alert]);
       alertRepository.claimNotification.mockResolvedValue(alert);
@@ -158,10 +159,11 @@ describe(LeaseClosedAlertService.name, () => {
 
       await service.alertFor(generateLeaseClosedEvent({ dseq: "12345", provider, reason: "lease_closed_reason_manifest_timeout" }), onMessage);
 
+      expect(providerHostService.labelFor).toHaveBeenCalledWith(provider);
       expect(onMessage.mock.calls[0][0].payload).toEqual({
         summary: "The lease for deployment 12345 was closed",
         description:
-          `The lease for deployment 12345 with provider ${provider} was closed because the manifest was not received in time, ` +
+          `The lease for deployment 12345 with provider ${providerHost} was closed because the manifest was not received in time, ` +
           `so your workload is no longer running on that provider. ` +
           `Please visit <a href="https://${consoleWebUrl}/deployments/12345">${consoleWebUrl}</a> to manage your deployment.`
       });
@@ -193,13 +195,26 @@ describe(LeaseClosedAlertService.name, () => {
       expect(description).toContain(`Please visit <a href="https://${consoleWebUrl}/deployments/12345?org=${alert.organizationId}">${consoleWebUrl}</a>`);
     });
 
-    it("skips an opted-out alert without looking the deployment up", async () => {
-      const { service, alertRepository, deploymentNameClient, onMessage } = await setup();
+    it("escapes the provider's label in the description", async () => {
+      const { service, alertRepository, providerHostService, onMessage } = await setup();
+      const alert = generateDeploymentClosedAlert();
+      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([alert]);
+      alertRepository.claimNotification.mockResolvedValue(alert);
+      providerHostService.labelFor.mockResolvedValue("<b>evil & co</b>");
+
+      await service.alertFor(generateLeaseClosedEvent(), onMessage);
+
+      expect(onMessage.mock.calls[0][0].payload.description).toContain("with provider &lt;b&gt;evil &amp; co&lt;/b&gt; was closed");
+    });
+
+    it("skips an opted-out alert without looking the deployment or the provider up", async () => {
+      const { service, alertRepository, deploymentNameClient, providerHostService, onMessage } = await setup();
       alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([generateDeploymentClosedAlert({ enabled: false })]);
 
       await service.alertFor(generateLeaseClosedEvent(), onMessage);
 
       expect(deploymentNameClient.findName).not.toHaveBeenCalled();
+      expect(providerHostService.labelFor).not.toHaveBeenCalled();
       expect(onMessage).not.toHaveBeenCalled();
     });
   });
@@ -233,18 +248,24 @@ describe(LeaseClosedAlertService.name, () => {
         LeaseClosedAlertService,
         DeploymentReferenceService,
         MockProvider(DeploymentNameClient),
+        MockProvider(ProviderHostService),
         MockProvider(AlertRepository),
         MockProvider(LoggerService)
       ]
     }).compile();
     const deploymentNameClient = module.get<MockProxy<DeploymentNameClient>>(DeploymentNameClient);
     deploymentNameClient.findName.mockResolvedValue(null);
+    const providerHostService = module.get<MockProxy<ProviderHostService>>(ProviderHostService);
+    const providerHost = faker.internet.domainName();
+    providerHostService.labelFor.mockResolvedValue(providerHost);
 
     return {
       service: module.get<LeaseClosedAlertService>(LeaseClosedAlertService),
       alertRepository: module.get<MockProxy<AlertRepository>>(AlertRepository),
       loggerService: module.get<MockProxy<LoggerService>>(LoggerService),
       deploymentNameClient,
+      providerHostService,
+      providerHost,
       consoleWebUrl: module.get<ConfigService<AlertConfig>>(ConfigService).getOrThrow("alert.CONSOLE_WEB_URL"),
       onMessage: vi.fn()
     };

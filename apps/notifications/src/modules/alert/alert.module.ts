@@ -22,6 +22,7 @@ import { DeploymentService } from "./services/deployment/deployment.service";
 import { DeploymentBalanceAlertsService } from "./services/deployment-balance-alerts/deployment-balance-alerts.service";
 import { DeploymentNameClient } from "./services/deployment-name-client/deployment-name-client.service";
 import { DeploymentReferenceService } from "./services/deployment-reference/deployment-reference.service";
+import { ProviderHostService } from "./services/provider-host/provider-host.service";
 import { TemplateService } from "./services/template/template.service";
 import moduleConfig from "./config";
 import * as schema from "./model-schemas";
@@ -38,6 +39,7 @@ import * as schema from "./model-schemas";
     DeploymentService,
     DeploymentNameClient,
     DeploymentReferenceService,
+    ProviderHostService,
     TemplateService,
     DeploymentAlertService,
     ReclaimAlertService,

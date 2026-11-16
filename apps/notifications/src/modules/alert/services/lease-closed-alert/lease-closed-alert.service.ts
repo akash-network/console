@@ -9,6 +9,7 @@ import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.rep
 import type { AlertMessagePayload } from "@src/modules/alert/services/alert-message/alert-message.service";
 import { alertNotifiedLog } from "@src/modules/alert/services/alert-notified-log";
 import { type DeploymentReference, DeploymentReferenceService } from "@src/modules/alert/services/deployment-reference/deployment-reference.service";
+import { ProviderHostService } from "@src/modules/alert/services/provider-host/provider-host.service";
 import { getLeaseClosedReasonText, toLeaseClosedReason } from "@src/modules/alert/services/reclaim-alert/lease-closed-reason";
 import type { MessageCallback } from "@src/modules/alert/types/message-callback.type";
 
@@ -24,6 +25,7 @@ export class LeaseClosedAlertService {
   constructor(
     private readonly alertRepository: AlertRepository,
     private readonly deploymentReferenceService: DeploymentReferenceService,
+    private readonly providerHostService: ProviderHostService,
     private readonly loggerService: LoggerService
   ) {
     this.loggerService.setContext(LeaseClosedAlertService.name);
@@ -57,12 +59,15 @@ export class LeaseClosedAlertService {
       return;
     }
 
-    const deployment = await this.deploymentReferenceService.referTo({
-      owner: event.owner,
-      dseq: event.dseq,
-      userId: alert.userId,
-      organizationId: alert.organizationId
-    });
+    const [deployment, providerLabel] = await Promise.all([
+      this.deploymentReferenceService.referTo({
+        owner: event.owner,
+        dseq: event.dseq,
+        userId: alert.userId,
+        organizationId: alert.organizationId
+      }),
+      this.providerHostService.labelFor(event.provider)
+    ]);
     const claimedAlert = await this.alertRepository.claimNotification(alert.id, "leaseClosedNotifiedAt");
 
     if (!claimedAlert) {
@@ -72,7 +77,7 @@ export class LeaseClosedAlertService {
 
     await onMessage({
       notificationChannelId: claimedAlert.notificationChannelId,
-      payload: this.buildMessage(event, deployment, reason)
+      payload: this.buildMessage(deployment, providerLabel, reason)
     });
 
     this.loggerService.info(alertNotifiedLog(claimedAlert, { reason: "LEASE_CLOSED" }));
@@ -83,11 +88,11 @@ export class LeaseClosedAlertService {
     return !alert.enabled && !alert.params?.suppressedBySystem;
   }
 
-  private buildMessage(event: LeaseClosedAlertEvent, { label, link }: DeploymentReference, reason: LeaseClosedReason): AlertMessagePayload {
+  private buildMessage({ label, link }: DeploymentReference, providerLabel: string, reason: LeaseClosedReason): AlertMessagePayload {
     return {
       summary: `The lease for deployment ${label} was closed`,
       description:
-        `The lease for deployment ${escape(label)} with provider ${event.provider} was closed because ${getLeaseClosedReasonText(reason)}, ` +
+        `The lease for deployment ${escape(label)} with provider ${escape(providerLabel)} was closed because ${getLeaseClosedReasonText(reason)}, ` +
         `so your workload is no longer running on that provider. ` +
         `Please visit ${link} to manage your deployment.`
     };

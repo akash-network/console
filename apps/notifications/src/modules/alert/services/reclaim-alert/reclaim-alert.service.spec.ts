@@ -10,6 +10,7 @@ import moduleConfig, { type AlertConfig } from "@src/modules/alert/config";
 import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
 import { DeploymentNameClient } from "@src/modules/alert/services/deployment-name-client/deployment-name-client.service";
 import { DeploymentReferenceService } from "@src/modules/alert/services/deployment-reference/deployment-reference.service";
+import { ProviderHostService } from "@src/modules/alert/services/provider-host/provider-host.service";
 import type { ReclaimAlertEvent } from "@src/modules/alert/services/reclaim-alert/reclaim-alert.service";
 import { ReclaimAlertService } from "@src/modules/alert/services/reclaim-alert/reclaim-alert.service";
 
@@ -107,17 +108,16 @@ describe(ReclaimAlertService.name, () => {
     });
 
     it("adds the notice to the feed once per claimed alert, linked to the deployment, leaving its email as it was", async () => {
-      const { service, alertRepository, onMessage } = await setup();
+      const { service, alertRepository, providerHost, onMessage } = await setup();
       const alert = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
       alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([alert]);
       alertRepository.claimNotification.mockResolvedValue(alert);
-      const provider = mockAkashAddress();
 
-      await service.alertFor(generateReclaimEvent({ dseq: "12345", provider, deadline: 1749398400 }), onMessage);
+      await service.alertFor(generateReclaimEvent({ dseq: "12345", deadline: 1749398400 }), onMessage);
 
       const { summary, description, feedEntry } = onMessage.mock.calls[0][0].payload;
       expect(summary).toBe("Deployment 12345 is being reclaimed by the provider");
-      expect(description).toContain(`The provider ${provider} has started reclaiming deployment 12345`);
+      expect(description).toContain(`The provider ${providerHost} has started reclaiming deployment 12345`);
       expect(feedEntry).toEqual({
         type: "deployment_reclaim_alert",
         alertId: alert.id,
@@ -160,8 +160,8 @@ describe(ReclaimAlertService.name, () => {
       expect(firstEntry.dedupeKey).not.toBe(secondEntry.dedupeKey);
     });
 
-    it("includes the provider, reason, deadline and deep link in the message", async () => {
-      const { service, alertRepository, onMessage } = await setup();
+    it("includes the provider's host, reason, deadline and deep link in the message", async () => {
+      const { service, alertRepository, providerHostService, providerHost, onMessage } = await setup();
       const alert = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
       alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([alert]);
       alertRepository.claimNotification.mockResolvedValue(alert);
@@ -173,7 +173,9 @@ describe(ReclaimAlertService.name, () => {
       );
 
       const { description } = onMessage.mock.calls[0][0].payload;
-      expect(description).toContain(provider);
+      expect(providerHostService.labelFor).toHaveBeenCalledWith(provider);
+      expect(description).toContain(`The provider ${providerHost} has started`);
+      expect(description).not.toContain(provider);
       expect(description).toContain("the workload has been unstable");
       expect(description).toContain("2025-06-08");
       expect(description).toContain("/deployments/12345");
@@ -201,13 +203,26 @@ describe(ReclaimAlertService.name, () => {
       expect(feedEntry).toMatchObject({ dseq: "12345" });
     });
 
-    it("skips an opted-out alert without looking the deployment up", async () => {
-      const { service, alertRepository, deploymentNameClient, onMessage } = await setup();
+    it("escapes the provider's label in the description", async () => {
+      const { service, alertRepository, providerHostService, onMessage } = await setup();
+      const alert = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
+      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([alert]);
+      alertRepository.claimNotification.mockResolvedValue(alert);
+      providerHostService.labelFor.mockResolvedValue("<b>evil & co</b>");
+
+      await service.alertFor(generateReclaimEvent(), onMessage);
+
+      expect(onMessage.mock.calls[0][0].payload.description).toContain("The provider &lt;b&gt;evil &amp; co&lt;/b&gt; has started");
+    });
+
+    it("skips an opted-out alert without looking the deployment or the provider up", async () => {
+      const { service, alertRepository, deploymentNameClient, providerHostService, onMessage } = await setup();
       alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([generateGeneralAlert({ type: "CHAIN_EVENT", enabled: false })]);
 
       await service.alertFor(generateReclaimEvent(), onMessage);
 
       expect(deploymentNameClient.findName).not.toHaveBeenCalled();
+      expect(providerHostService.labelFor).not.toHaveBeenCalled();
       expect(onMessage).not.toHaveBeenCalled();
     });
 
@@ -285,18 +300,24 @@ describe(ReclaimAlertService.name, () => {
         ReclaimAlertService,
         DeploymentReferenceService,
         MockProvider(DeploymentNameClient),
+        MockProvider(ProviderHostService),
         MockProvider(AlertRepository),
         MockProvider(LoggerService)
       ]
     }).compile();
     const deploymentNameClient = module.get<MockProxy<DeploymentNameClient>>(DeploymentNameClient);
     deploymentNameClient.findName.mockResolvedValue(null);
+    const providerHostService = module.get<MockProxy<ProviderHostService>>(ProviderHostService);
+    const providerHost = faker.internet.domainName();
+    providerHostService.labelFor.mockResolvedValue(providerHost);
 
     return {
       service: module.get<ReclaimAlertService>(ReclaimAlertService),
       alertRepository: module.get<MockProxy<AlertRepository>>(AlertRepository),
       loggerService: module.get<MockProxy<LoggerService>>(LoggerService),
       deploymentNameClient,
+      providerHostService,
+      providerHost,
       consoleWebUrl: module.get<ConfigService<AlertConfig>>(ConfigService).getOrThrow("alert.CONSOLE_WEB_URL"),
       onMessage: vi.fn()
     };
