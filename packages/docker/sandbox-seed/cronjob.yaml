@@ -106,3 +106,4 @@ spec:
                 items:
                   - key: GCS_KEY_JSON
                     path: key.json
+                    mode: 0440
