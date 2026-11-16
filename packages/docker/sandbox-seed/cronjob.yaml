@@ -6,7 +6,7 @@ spec:
   schedule: "0 6 * * 1"
   timeZone: Etc/UTC
   concurrencyPolicy: Forbid
-  successfulJobsHistoryLimit: 1
+  successfulJobsHistoryLimit: 0
   failedJobsHistoryLimit: 3
   jobTemplate:
     spec:
