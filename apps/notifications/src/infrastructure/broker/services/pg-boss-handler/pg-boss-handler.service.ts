@@ -7,11 +7,12 @@ import { Err, Result } from "ts-results";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { PG_BOSS_HANDLER } from "../../decorators/handler.decorator";
-import { BrokerService } from "../broker/broker.service";
+import { BrokerService, type QueueRetryOptions } from "../broker/broker.service";
 
 export interface HandlerConfig<T> {
   key: string;
   dto: ZodDto<T>;
+  retry?: QueueRetryOptions;
   handler: (message: Job<T>["data"]) => Promise<void | Result<unknown, unknown>>;
 }
 
@@ -46,7 +47,7 @@ export class PgBossHandlerService {
   }
 
   private async handle<T>(config: HandlerConfig<T>) {
-    await this.broker.subscribe(config.key, { prefetchCount: 10 }, async job => {
+    await this.broker.subscribe(config.key, { prefetchCount: 10, ...(config.retry && { retry: config.retry }) }, async job => {
       try {
         const msg = validate(job.data, config.dto);
         const result = await config.handler(msg);
