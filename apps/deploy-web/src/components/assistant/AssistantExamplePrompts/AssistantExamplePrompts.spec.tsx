@@ -39,12 +39,18 @@ describe("AssistantExamplePrompts", () => {
   ])("offers the prompts that fit $case", ({ page, deploymentDseq, isTrialing, prompts }) => {
     setup({ page, deploymentDseq, isTrialing });
 
-    const list = screen.getByRole("region", { name: "Try asking" });
+    const list = screen.getByRole("region", { name: "Example questions" });
     expect(
       within(list)
         .getAllByRole("button")
         .map(button => button.textContent)
     ).toEqual(prompts);
+  });
+
+  it("lists the prompts without a heading above them", () => {
+    setup({ page: null, deploymentDseq: null, isTrialing: false });
+
+    expect(screen.queryByText("Try asking")).not.toBeInTheDocument();
   });
 
   it("sends the prompt the user clicks", async () => {

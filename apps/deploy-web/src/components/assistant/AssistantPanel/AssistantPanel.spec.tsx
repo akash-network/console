@@ -6,7 +6,7 @@ import type { AssistantConsentCard } from "../AssistantConsentCard/AssistantCons
 import { ASSISTANT_CONSENT_COPY_VERSION } from "../assistantConsentCopy";
 import { createTranscriptMessage } from "../transcriptModel/transcriptModel";
 import type { AssistantConversation } from "../useAssistantConversation/useAssistantConversation";
-import { ASSISTANT_PANEL_WIDTH_VAR, AssistantPanel, DEPENDENCIES } from "./AssistantPanel";
+import { ASSISTANT_PANEL_WIDTH_VAR, assistantContextLabelOf, AssistantPanel, DEPENDENCIES } from "./AssistantPanel";
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -179,7 +179,7 @@ describe("AssistantPanel", () => {
       expect.objectContaining({ initialValue: "Why no bids?", isSending: false, isDisabled: false, onSend: conversation.send }),
       expect.anything()
     );
-    expect(screen.getByText("Ask about your deployments, bids, logs, or billing. The assistant reads your account to answer.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "What do you want to know?" })).toBeInTheDocument();
   });
 
   it("disables the composer once the assistant is turned off for the account", () => {
@@ -302,7 +302,7 @@ describe("AssistantPanel", () => {
   it("drops the intro and example prompts once the conversation has messages", () => {
     const { dependencies } = setup({ consent: CURRENT_CONSENT, hasMessages: true });
 
-    expect(screen.queryByText(/Ask about your deployments/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "What do you want to know?" })).not.toBeInTheDocument();
     expect(dependencies.AssistantExamplePrompts).not.toHaveBeenCalled();
   });
 
@@ -336,6 +336,68 @@ describe("AssistantPanel", () => {
     expect(dependencies.DiscordHelpCard).toHaveBeenCalled();
   });
 
+  it("keeps the transcript and hides the load error when a refetch fails after consent loaded", () => {
+    const { dependencies } = setup({ consent: CURRENT_CONSENT, hasMessages: true, refetchFailed: true });
+
+    expect(dependencies.AssistantTranscript).toHaveBeenCalled();
+    expect(screen.queryByText("Couldn't load the assistant. Close the panel and try again.")).not.toBeInTheDocument();
+  });
+
+  it("offers a new chat only once the conversation has messages", () => {
+    setup({ consent: CURRENT_CONSENT });
+
+    expect(screen.queryByRole("button", { name: "New chat" })).not.toBeInTheDocument();
+  });
+
+  it("starts over from the new chat button", async () => {
+    const { conversation } = setup({ consent: CURRENT_CONSENT, hasMessages: true });
+
+    await userEvent.click(screen.getByRole("button", { name: "New chat" }));
+
+    expect(conversation.startOver).toHaveBeenCalledTimes(1);
+  });
+
+  it("warns that answers can be wrong under the composer", () => {
+    setup({ consent: CURRENT_CONSENT });
+
+    expect(screen.getByText("AI can make mistakes; always verify.")).toBeInTheDocument();
+  });
+
+  it("shows no warning before the user agreed", () => {
+    setup({ consent: null });
+
+    expect(screen.queryByText("AI can make mistakes; always verify.")).not.toBeInTheDocument();
+  });
+
+  it("opens the feedback dialog from the footer and closes it again", async () => {
+    const { dependencies } = setup({ consent: CURRENT_CONSENT });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Send feedback" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    const { onClose } = vi.mocked(dependencies.SendFeedbackDialog).mock.lastCall![0];
+    act(() => onClose());
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("tells the composer the name of the deployment in view", () => {
+    const { dependencies } = setup({ consent: CURRENT_CONSENT, deploymentDseq: "1234", deploymentName: "my-web-app" });
+
+    expect(dependencies.useDeploymentName).toHaveBeenCalledWith("1234");
+    expect(dependencies.AssistantComposer).toHaveBeenCalledWith(expect.objectContaining({ contextLabel: "my-web-app" }), expect.anything());
+  });
+
+  it.each([
+    { case: "the configure page", page: "/new-deployment/configure/web", deploymentDseq: null, deploymentName: null, label: "New deployment" },
+    { case: "a named deployment", page: "/deployments/1234", deploymentDseq: "1234", deploymentName: "my-web-app", label: "my-web-app" },
+    { case: "an unnamed deployment", page: "/deployments/1234", deploymentDseq: "1234", deploymentName: null, label: "Deployment" },
+    { case: "any other page", page: "/templates", deploymentDseq: null, deploymentName: null, label: null },
+    { case: "no page", page: null, deploymentDseq: null, deploymentName: null, label: null }
+  ])("labels the context for $case", ({ page, deploymentDseq, deploymentName, label }) => {
+    expect(assistantContextLabelOf({ page, deploymentDseq, deploymentName })).toBe(label);
+  });
+
   it("closes from the close button", async () => {
     const { onOpenChange } = setup({ consent: CURRENT_CONSENT });
 
@@ -350,22 +412,26 @@ describe("AssistantPanel", () => {
     isOpen?: boolean;
     isLoading?: boolean;
     isError?: boolean;
+    refetchFailed?: boolean;
     question?: string;
     sendsQuestion?: boolean;
     isAnswering?: boolean;
     hasMessages?: boolean;
     page?: string;
     deploymentDseq?: string;
+    deploymentName?: string;
   }) {
     const updateConsent = vi.fn(async (_input: unknown) => ({ data: { consent: CURRENT_CONSENT, storedConversationCount: 0 } }));
     const data = input.isLoading || input.isError ? undefined : { consent: input.consent ?? null, storedConversationCount: 0 };
     const privacy = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useAssistantPrivacyQuery>>(), {
       data,
       isLoading: !!input.isLoading,
-      isError: !!input.isError
+      isError: !!input.isError || !!input.refetchFailed
     });
     const dependencies = MockComponents(DEPENDENCIES, {
       useAssistantPrivacyQuery: vi.fn(() => privacy),
+      useDeploymentName: vi.fn(() => input.deploymentName ?? null),
+      SendFeedbackDialog: vi.fn(() => <div role="dialog" />),
       useUpdateAssistantConsentMutation: vi.fn(() =>
         mock<ReturnType<typeof DEPENDENCIES.useUpdateAssistantConsentMutation>>({ mutateAsync: updateConsent as never, isPending: false })
       )
@@ -378,6 +444,7 @@ describe("AssistantPanel", () => {
       page: input.page ?? null,
       deploymentDseq: input.deploymentDseq ?? null,
       send: vi.fn(),
+      startOver: vi.fn(),
       clearProblem: vi.fn()
     });
     const onOpenChange = vi.fn();

@@ -80,10 +80,11 @@ export function useAssistantConversation({ context }: { context: AssistantContex
 
   const nextMessageId = () => `message-${++messageCountRef.current}`;
 
-  const ensureConversation = async (): Promise<StartedConversation> => {
+  const ensureConversation = async (signal: AbortSignal): Promise<StartedConversation> => {
     if (conversationRef.current) return conversationRef.current;
 
     const { data } = await startConversation({ data: { copyVersion: ASSISTANT_CONSENT_COPY_VERSION, context } });
+    signal.throwIfAborted();
     conversationRef.current = data;
     setConversation(data);
     return data;
@@ -105,7 +106,7 @@ export function useAssistantConversation({ context }: { context: AssistantContex
     signal: AbortSignal;
     canRestart: boolean;
   }) => {
-    const current = await ensureConversation();
+    const current = await ensureConversation(input.signal);
     updateMessage(input.questionId, { conversationId: current.id });
     updateMessage(input.answerId, { conversationId: current.id });
     const applyToTurn = (event: AssistantStreamEvent) => setMessages(previous => applyTurnEvent(previous, input, event));
@@ -149,7 +150,7 @@ export function useAssistantConversation({ context }: { context: AssistantContex
     } catch (error) {
       if (!abortController.signal.aborted) setProblem(problemOfError(error));
     } finally {
-      setIsAnswering(false);
+      if (abortControllerRef.current === abortController) setIsAnswering(false);
     }
   };
 
@@ -166,6 +167,7 @@ export function useAssistantConversation({ context }: { context: AssistantContex
     abortControllerRef.current?.abort();
     forgetConversation();
     setMessages([]);
+    setIsAnswering(false);
     setProblem(keepBlocked);
     setEndedAs(null);
   };

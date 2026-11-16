@@ -2,25 +2,29 @@
 import type { FC } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { Badge, Spinner } from "@akashnetwork/ui/components";
-import { X } from "lucide-react";
+import { MessageSquareText, SquarePen, X } from "lucide-react";
 
+import { SendFeedbackDialog } from "@src/components/feedback/SendFeedbackDialog/SendFeedbackDialog";
 import { useAssistantPrivacyQuery, useUpdateAssistantConsentMutation } from "@src/queries/useAssistantQueries";
+import { useDeploymentName } from "../action-cards/useDeploymentName/useDeploymentName";
 import { AssistantComposer } from "../AssistantComposer/AssistantComposer";
 import { AssistantConsentCard } from "../AssistantConsentCard/AssistantConsentCard";
 import { ASSISTANT_CONSENT_COPY_VERSION } from "../assistantConsentCopy";
-import { AssistantExamplePrompts } from "../AssistantExamplePrompts/AssistantExamplePrompts";
+import { AssistantExamplePrompts, CONFIGURE_PAGE } from "../AssistantExamplePrompts/AssistantExamplePrompts";
 import { AssistantTranscript } from "../AssistantTranscript/AssistantTranscript";
 import { DiscordHelpCard } from "../DiscordHelpCard/DiscordHelpCard";
 import type { AssistantConversation } from "../useAssistantConversation/useAssistantConversation";
 
 export const DEPENDENCIES = {
   useAssistantPrivacyQuery,
+  useDeploymentName,
   useUpdateAssistantConsentMutation,
   AssistantConsentCard,
   AssistantExamplePrompts,
   AssistantTranscript,
   AssistantComposer,
-  DiscordHelpCard
+  DiscordHelpCard,
+  SendFeedbackDialog
 };
 
 /** Read by the page layout, which pads itself by this much on wide screens so the docked panel never covers the page. */
@@ -30,6 +34,20 @@ export const ASSISTANT_PANEL_WIDTH_VAR = "--assistant-panel-width";
 export const TOASTS_BESIDE_ASSISTANT_PANEL = "lg:!right-[calc(var(--assistant-panel-width,0px)+20px)]";
 
 const DOCKED_PANEL_WIDTH = "440px";
+
+export function assistantContextLabelOf({
+  page,
+  deploymentDseq,
+  deploymentName
+}: {
+  page: string | null;
+  deploymentDseq: string | null;
+  deploymentName: string | null;
+}): string | null {
+  if (page && CONFIGURE_PAGE.test(page)) return "New deployment";
+  if (deploymentDseq) return deploymentName || "Deployment";
+  return null;
+}
 
 type Props = {
   isOpen: boolean;
@@ -44,8 +62,10 @@ type Props = {
 
 export const AssistantPanel: FC<Props> = ({ isOpen, onOpenChange, conversation, question, sendsQuestion, openedAt, dependencies: d = DEPENDENCIES }) => {
   const privacy = d.useAssistantPrivacyQuery({ enabled: isOpen });
+  const deploymentName = d.useDeploymentName(conversation.deploymentDseq);
   const { mutateAsync: updateConsent, isPending: isSavingConsent } = d.useUpdateAssistantConsentMutation();
   const [hasConsentFailed, setHasConsentFailed] = useState(false);
+  const [isSendingFeedback, setIsSendingFeedback] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLElement>(null);
   const titleId = useId();
@@ -153,6 +173,17 @@ export const AssistantPanel: FC<Props> = ({ isOpen, onOpenChange, conversation, 
           <Badge variant="outline" className="font-normal text-muted-foreground">
             Beta
           </Badge>
+          {conversation.messages.length > 0 && (
+            <button
+              type="button"
+              aria-label="New chat"
+              title="New chat"
+              onClick={conversation.startOver}
+              className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <SquarePen className="h-4 w-4" />
+            </button>
+          )}
           <button
             type="button"
             aria-label="Close"
@@ -164,14 +195,14 @@ export const AssistantPanel: FC<Props> = ({ isOpen, onOpenChange, conversation, 
         </div>
       </header>
 
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto p-4">
+      <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
         {privacy.isLoading && (
           <div className="flex justify-center py-12">
             <Spinner size="medium" />
           </div>
         )}
 
-        {privacy.isError && (
+        {privacy.isError && !privacy.data && (
           <div className="flex flex-col gap-3">
             <p role="alert" className="text-sm text-destructive">
               Couldn&apos;t load the assistant. Close the panel and try again.
@@ -185,8 +216,8 @@ export const AssistantPanel: FC<Props> = ({ isOpen, onOpenChange, conversation, 
         )}
 
         {isReady && conversation.messages.length === 0 && !conversation.problem && (
-          <div className="flex flex-col gap-4">
-            <p className="text-sm text-muted-foreground">Ask about your deployments, bids, logs, or billing. The assistant reads your account to answer.</p>
+          <div className="my-auto flex flex-col items-center gap-5 py-8 text-center">
+            <h3 className="text-xl font-semibold">What do you want to know?</h3>
             {!isQuestionWaitingToSend && (
               <d.AssistantExamplePrompts page={conversation.page} deploymentDseq={conversation.deploymentDseq} onSend={conversation.send} />
             )}
@@ -197,16 +228,30 @@ export const AssistantPanel: FC<Props> = ({ isOpen, onOpenChange, conversation, 
       </div>
 
       {isReady && (
-        <footer className="shrink-0 border-t p-3">
+        <footer className="flex shrink-0 flex-col gap-2 border-t p-3">
           <d.AssistantComposer
             key={openedAt}
             initialValue={willSendQuestion ? undefined : question}
             isSending={conversation.isAnswering}
             isDisabled={conversation.problem === "blocked"}
+            contextLabel={assistantContextLabelOf({ page: conversation.page, deploymentDseq: conversation.deploymentDseq, deploymentName })}
             onSend={conversation.send}
           />
+          <div className="flex items-center justify-between gap-3 px-1 text-xs text-muted-foreground">
+            <p>AI can make mistakes; always verify.</p>
+            <button
+              type="button"
+              onClick={() => setIsSendingFeedback(true)}
+              className="flex shrink-0 items-center gap-1.5 rounded-md px-1 py-0.5 hover:bg-muted hover:text-foreground"
+            >
+              Send feedback
+              <MessageSquareText className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          </div>
         </footer>
       )}
+
+      {isSendingFeedback && <d.SendFeedbackDialog onClose={() => setIsSendingFeedback(false)} />}
     </aside>
   );
 };
