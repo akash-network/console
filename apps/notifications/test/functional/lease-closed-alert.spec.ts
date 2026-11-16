@@ -1,6 +1,8 @@
 import { faker } from "@faker-js/faker";
+import { ConfigService } from "@nestjs/config";
 import { Test } from "@nestjs/testing";
-import { describe, expect, it, vi } from "vitest";
+import nock from "nock";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { eventKeyRegistry } from "@src/common/config/event-key-registry.config";
 import { BrokerService } from "@src/infrastructure/broker";
@@ -19,12 +21,13 @@ import { generateNotificationChannel } from "@test/seeders/notification-channel.
 
 describe("lease closed alerts", () => {
   it("sends a single lease closed notification to the deployment-closed alert's channel and dedupes on replay", async () => {
-    const { module, controller, brokerService, db } = await setup();
+    const { module, controller, brokerService, providerHostUris, db } = await setup();
 
     try {
       const owner = mockAkashAddress();
       const dseq = generateDseq();
       const provider = mockAkashAddress();
+      providerHostUris.set(provider, "https://provider.hurricane.akash.pub:8443");
       const [ownerChannel, otherOwnerChannel] = await db
         .insert(NotificationChannel)
         .values([generateNotificationChannel({}), generateNotificationChannel({})])
@@ -47,8 +50,35 @@ describe("lease closed alerts", () => {
           notificationChannelId: ownerChannel.id,
           payload: {
             summary: `The lease for deployment ${dseq} was closed`,
-            description: expect.stringContaining(`with provider ${provider} was closed because the manifest was not received in time`)
+            description: expect.stringContaining("with provider provider.hurricane.akash.pub was closed because the manifest was not received in time")
           }
+        })
+      );
+    } finally {
+      await module.close();
+    }
+  });
+
+  it("names the provider by its address when the chain cannot tell its host", async () => {
+    const { module, controller, brokerService, db } = await setup();
+
+    try {
+      const owner = mockAkashAddress();
+      const dseq = generateDseq();
+      const provider = mockAkashAddress();
+      const [channel] = await db
+        .insert(NotificationChannel)
+        .values([generateNotificationChannel({})])
+        .returning();
+      await db.insert(schema.Alert).values([generateClosedAlert({ owner, dseq, notificationChannelId: channel.id })]);
+
+      await controller.processLeaseClosed(generateLeaseClosedEvent({ owner, dseq, provider }));
+
+      expect(brokerService.publish).toHaveBeenCalledWith(
+        eventKeyRegistry.createNotification,
+        expect.objectContaining({
+          notificationChannelId: channel.id,
+          payload: expect.objectContaining({ description: expect.stringContaining(`with provider ${provider} was closed`) })
         })
       );
     } finally {
@@ -279,11 +309,23 @@ describe("lease closed alerts", () => {
     }).compile();
     const brokerService = module.get(BrokerService);
     vi.spyOn(brokerService, "publish").mockResolvedValue(undefined);
+    const providerHostUris = new Map<string, string>();
+    nock(module.get(ConfigService).getOrThrow("API_NODE_ENDPOINT"))
+      .persist()
+      .get(/\/akash\/provider\/v1beta4\/providers\/[^/]+$/)
+      .reply(uri => {
+        const hostUri = providerHostUris.get(uri.split("/").at(-1) ?? "");
+        return hostUri ? [200, { provider: { host_uri: hostUri } }] : [404, { code: 5, message: "provider not found" }];
+      });
+    onTestFinished(() => {
+      nock.cleanAll();
+    });
 
     return {
       module,
       controller: module.get(ChainEventsHandler),
       brokerService,
+      providerHostUris,
       db: module.get(DRIZZLE_PROVIDER_TOKEN)
     };
   }

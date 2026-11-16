@@ -1,6 +1,8 @@
 import { faker } from "@faker-js/faker";
+import { ConfigService } from "@nestjs/config";
 import { Test } from "@nestjs/testing";
-import { describe, expect, it, vi } from "vitest";
+import nock from "nock";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { eventKeyRegistry } from "@src/common/config/event-key-registry.config";
 import { BrokerService } from "@src/infrastructure/broker";
@@ -17,7 +19,7 @@ import { generateNotificationChannel } from "@test/seeders/notification-channel.
 
 describe("lease reclaim alerts", () => {
   it("sends a single reclaim notification to the deployment-closed alert's channel and dedupes on replay", async () => {
-    const { module } = await setup();
+    const { module, providerHostUris } = await setup();
 
     try {
       const controller = module.get(ChainEventsHandler);
@@ -28,6 +30,7 @@ describe("lease reclaim alerts", () => {
       const otherOwner = mockAkashAddress();
       const dseq = String(faker.number.int({ min: 1, max: 999999 }));
       const provider = mockAkashAddress();
+      providerHostUris.set(provider, "https://provider.hurricane.akash.pub:8443");
 
       vi.spyOn(brokerService, "publish").mockResolvedValue(undefined);
 
@@ -54,7 +57,7 @@ describe("lease reclaim alerts", () => {
           notificationChannelId: ownerChannel.id,
           payload: expect.objectContaining({
             summary: expect.stringContaining(dseq),
-            description: expect.stringContaining(provider),
+            description: expect.stringContaining("The provider provider.hurricane.akash.pub has started reclaiming"),
             feedEntry: {
               type: "deployment_reclaim_alert",
               alertId: ownerClosedAlert.id,
@@ -65,6 +68,40 @@ describe("lease reclaim alerts", () => {
               dseq
             }
           })
+        })
+      );
+    } finally {
+      await module.close();
+    }
+  });
+
+  it("names the provider by its address when the chain cannot tell its host", async () => {
+    const { module } = await setup();
+
+    try {
+      const controller = module.get(ChainEventsHandler);
+      const brokerService = module.get(BrokerService);
+      const db = module.get(DRIZZLE_PROVIDER_TOKEN);
+
+      const owner = mockAkashAddress();
+      const dseq = String(faker.number.int({ min: 1, max: 999999 }));
+      const provider = mockAkashAddress();
+
+      vi.spyOn(brokerService, "publish").mockResolvedValue(undefined);
+
+      const [channel] = await db
+        .insert(NotificationChannel)
+        .values([generateNotificationChannel({})])
+        .returning();
+      await db.insert(schema.Alert).values(generateClosedAlert({ owner, dseq, notificationChannelId: channel.id }));
+
+      await controller.processLeaseReclaimStarted(generateReclaimEvent({ owner, dseq, provider }));
+
+      expect(brokerService.publish).toHaveBeenCalledWith(
+        eventKeyRegistry.createNotification,
+        expect.objectContaining({
+          notificationChannelId: channel.id,
+          payload: expect.objectContaining({ description: expect.stringContaining(`The provider ${provider} has started reclaiming`) })
         })
       );
     } finally {
@@ -247,9 +284,21 @@ describe("lease reclaim alerts", () => {
     const module = await Test.createTestingModule({
       imports: [AlertEventsModule]
     }).compile();
+    const providerHostUris = new Map<string, string>();
+    nock(module.get(ConfigService).getOrThrow("API_NODE_ENDPOINT"))
+      .persist()
+      .get(/\/akash\/provider\/v1beta4\/providers\/[^/]+$/)
+      .reply(uri => {
+        const hostUri = providerHostUris.get(uri.split("/").at(-1) ?? "");
+        return hostUri ? [200, { provider: { host_uri: hostUri } }] : [404, { code: 5, message: "provider not found" }];
+      });
+    onTestFinished(() => {
+      nock.cleanAll();
+    });
 
     return {
-      module
+      module,
+      providerHostUris
     };
   }
 });

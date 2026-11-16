@@ -7,6 +7,7 @@ import { type AlertOutput, AlertRepository, type GeneralAlertOutput } from "@src
 import type { AlertMessagePayload } from "@src/modules/alert/services/alert-message/alert-message.service";
 import { alertNotifiedLog } from "@src/modules/alert/services/alert-notified-log";
 import { type DeploymentReference, DeploymentReferenceService } from "@src/modules/alert/services/deployment-reference/deployment-reference.service";
+import { ProviderHostService } from "@src/modules/alert/services/provider-host/provider-host.service";
 import { getLeaseClosedReasonText, toLeaseClosedReason } from "@src/modules/alert/services/reclaim-alert/lease-closed-reason";
 import { formatReclaimDeadline } from "@src/modules/alert/services/reclaim-alert/reclaim-deadline";
 import type { MessageCallback } from "@src/modules/alert/types/message-callback.type";
@@ -25,6 +26,7 @@ export class ReclaimAlertService {
   constructor(
     private readonly alertRepository: AlertRepository,
     private readonly deploymentReferenceService: DeploymentReferenceService,
+    private readonly providerHostService: ProviderHostService,
     private readonly loggerService: LoggerService
   ) {
     this.loggerService.setContext(ReclaimAlertService.name);
@@ -52,12 +54,15 @@ export class ReclaimAlertService {
     }
 
     const recipientTimezone = await this.alertRepository.findNotificationChannelTimezone(alert.notificationChannelId);
-    const deployment = await this.deploymentReferenceService.referTo({
-      owner: event.owner,
-      dseq: event.dseq,
-      userId: alert.userId,
-      organizationId: alert.organizationId
-    });
+    const [deployment, providerLabel] = await Promise.all([
+      this.deploymentReferenceService.referTo({
+        owner: event.owner,
+        dseq: event.dseq,
+        userId: alert.userId,
+        organizationId: alert.organizationId
+      }),
+      this.providerHostService.labelFor(event.provider)
+    ]);
     const claimedAlert = await this.alertRepository.claimNotification(alert.id, "reclaimNotifiedAt");
 
     if (!claimedAlert) {
@@ -67,20 +72,27 @@ export class ReclaimAlertService {
 
     await onMessage({
       notificationChannelId: claimedAlert.notificationChannelId,
-      payload: { ...this.buildMessage(event, deployment, recipientTimezone), feedEntry: feedEntryOf(claimedAlert, event.dseq) }
+      payload: { ...this.buildMessage(event, { deployment, providerLabel, recipientTimezone }), feedEntry: feedEntryOf(claimedAlert, event.dseq) }
     });
 
     this.loggerService.info(alertNotifiedLog(claimedAlert, { reason: "RECLAIM_DEADLINE" }));
   }
 
-  private buildMessage(event: ReclaimAlertEvent, { label, link }: DeploymentReference, recipientTimezone: string | null): AlertMessagePayload {
+  private buildMessage(
+    event: ReclaimAlertEvent,
+    {
+      deployment: { label, link },
+      providerLabel,
+      recipientTimezone
+    }: { deployment: DeploymentReference; providerLabel: string; recipientTimezone: string | null }
+  ): AlertMessagePayload {
     const reasonText = getLeaseClosedReasonText(toLeaseClosedReason(event.reason));
     const deadline = formatReclaimDeadline(Number(event.deadline), Date.now(), recipientTimezone);
 
     return {
       summary: `Deployment ${label} is being reclaimed by the provider`,
       description:
-        `The provider ${event.provider} has started reclaiming deployment ${escape(label)} because ${reasonText}. ` +
+        `The provider ${escape(providerLabel)} has started reclaiming deployment ${escape(label)} because ${reasonText}. ` +
         `You have until ${deadline} to take action before the lease is closed. ` +
         `Please visit ${link} to manage your deployment.`
     };
