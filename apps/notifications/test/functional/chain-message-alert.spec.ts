@@ -94,6 +94,7 @@ describe("chain message alerts", () => {
       expect(brokerService.publish).toHaveBeenCalledTimes(1);
       expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, {
         notificationChannelId: notificationChannel.id,
+        category: "deploymentClosedAlert",
         payload: {
           summary: `deployment ${dseq} closed`,
           description: `deployment ${dseq} is closed`
@@ -141,6 +142,7 @@ describe("chain message alerts", () => {
 
       expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, {
         notificationChannelId: notificationChannel.id,
+        category: "deploymentClosedAlert",
         payload: {
           summary: `Deployment ${dseq} is now closed`,
           description: "Please visit Console to manage your deployment and re-deploy if needed.",

@@ -1,12 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { Novu } from "@novu/api";
 import sanitizeHtml from "sanitize-html";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { Namespaced } from "@src/lib/types/namespaced-config.type";
 import { NotificationEnvConfig } from "@src/modules/notifications/config/env.config";
 import type { EmailUnsubscribe } from "@src/modules/notifications/dto/NotificationCommand.dto";
+import { SendgridMailClient } from "../sendgrid-mail-client/sendgrid-mail-client.service";
 import { type EmailAction, renderEmailLayout } from "./email-layout";
 
 type EmailSendOptions = {
@@ -15,6 +15,7 @@ type EmailSendOptions = {
   content: string;
   userId: string;
   notificationId?: string;
+  category?: string;
   actions?: EmailAction[];
   code?: string;
   unsubscribe?: EmailUnsubscribe;
@@ -31,51 +32,43 @@ function oneClickUnsubscribeHeaders({ oneClickUrl }: EmailUnsubscribe) {
 @Injectable()
 export class EmailSenderService {
   constructor(
-    private readonly novu: Novu,
+    private readonly sendgridMailClient: SendgridMailClient,
     private readonly configService: ConfigService<Namespaced<"notifications", NotificationEnvConfig>>,
     private readonly loggerService: LoggerService
   ) {
     this.loggerService.setContext(EmailSenderService.name);
   }
 
-  async send({ addresses, userId, subject, content, notificationId, actions, code, unsubscribe, receivingReason }: EmailSendOptions): Promise<void> {
-    await this.novu.trigger({
-      workflowId: this.configService.getOrThrow("notifications.NOVU_MAILER_WORKFLOW_ID"),
-      to: {
-        subscriberId: userId,
-        email: addresses[0]
-      },
-      payload: {
+  async send({ addresses, userId, subject, content, notificationId, category, actions, code, unsubscribe, receivingReason }: EmailSendOptions): Promise<void> {
+    const { messageId } = await this.sendgridMailClient.send({
+      to: addresses,
+      subject,
+      html: renderEmailLayout({
         subject,
-        content: renderEmailLayout({
-          subject,
-          actions,
-          code,
-          unsubscribe,
-          receivingReason,
-          postalAddress: this.configService.get("notifications.PROMOTIONAL_EMAIL_POSTAL_ADDRESS"),
-          content: sanitizeHtml(content, {
-            allowedTags: ["a", "strong", "p", "br"],
-            allowedAttributes: {
-              a: ["href"]
-            }
-          })
+        actions,
+        code,
+        unsubscribe,
+        receivingReason,
+        postalAddress: this.configService.get("notifications.PROMOTIONAL_EMAIL_POSTAL_ADDRESS"),
+        content: sanitizeHtml(content, {
+          allowedTags: ["a", "strong", "p", "br"],
+          allowedAttributes: {
+            a: ["href"]
+          }
         })
-      },
-      overrides: {
-        email: {
-          to: addresses,
-          ...(unsubscribe && { headers: oneClickUnsubscribeHeaders(unsubscribe) })
-        }
-      }
+      }),
+      ...(category && { categories: [category] }),
+      ...(unsubscribe && { headers: oneClickUnsubscribeHeaders(unsubscribe) })
     });
 
     this.loggerService.info({
       event: "EMAIL_SENT",
       notificationId,
+      category,
       userId,
       ...(!code && { subject }),
-      recipientCount: addresses.length
+      recipientCount: addresses.length,
+      messageId
     });
   }
 }

@@ -2,9 +2,14 @@ import { z } from "zod";
 
 import { unsetWhenEmpty } from "@src/lib/unset-when-empty/unset-when-empty";
 
+const emptyToUndefined = (value: unknown) => (value === "" ? undefined : value);
+
 export const schema = z.object({
-  NOVU_SECRET_KEY: z.string(),
-  NOVU_MAILER_WORKFLOW_ID: z.string(),
+  SENDGRID_API_KEY: z.string().min(1),
+  SENDGRID_API_BASE_URL: z.preprocess(emptyToUndefined, z.string().url().default("https://api.sendgrid.com")),
+  SENDGRID_TIMEOUT_MS: z.preprocess(emptyToUndefined, z.number({ coerce: true }).int().positive().default(10_000)),
+  EMAIL_FROM_ADDRESS: z.string().email(),
+  EMAIL_FROM_NAME: unsetWhenEmpty(z.string()),
   CONSOLE_API_BASE_URL: unsetWhenEmpty(z.string().url()),
   CONSOLE_API_INTERNAL_TOKEN: unsetWhenEmpty(z.string()),
   /** Kept short because the emails queued behind an alert wait while its feed entry is written. */

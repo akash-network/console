@@ -250,7 +250,7 @@ export class NotificationChannelRepository {
     return notificationChannel && this.toOutput(notificationChannel);
   }
 
-  /** Deletes a channel left with no address rather than keeping it empty, since Novu still emails the channel's creator as its subscriber. */
+  /** Deletes a channel left with no address rather than keeping one that reaches nobody. */
   async releaseAddressInOrganization({ organizationId, addressSha256, fallbackAddresses }: ReleaseAddressInput): Promise<number> {
     return await this.db.transaction(async tx => {
       const channels = await tx

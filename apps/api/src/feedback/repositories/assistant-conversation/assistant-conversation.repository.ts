@@ -1,10 +1,10 @@
-import { and, asc, eq, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
-import type { FailedClassification } from "@src/feedback/model-schemas";
+import type { DeletedClassifiedItems, FailedClassification } from "@src/feedback/model-schemas";
 
 type Table = ApiPgTables["AssistantConversations"];
 export type AssistantConversationInput = Partial<Table["$inferInsert"]>;
@@ -25,10 +25,22 @@ export class AssistantConversationRepository extends BaseRepository<Table, Assis
   }
 
   /** Answers the themes the deleted conversations belonged to, since their counts no longer hold. */
-  async deleteAllOf(userId: string): Promise<{ deletedCount: number; themeIds: string[] }> {
+  async deleteAllOf(userId: string): Promise<DeletedClassifiedItems> {
     const deleted = await this.cursor
       .delete(this.table)
       .where(this.whereAccessibleBy(eq(this.table.userId, userId)))
+      .returning({ themeId: this.table.themeId });
+
+    return { deletedCount: deleted.length, themeIds: deleted.flatMap(({ themeId }) => (themeId ? [themeId] : [])) };
+  }
+
+  /** Deletes the conversations quiet the longest first, at most `limit` of them, rechecking each one on delete so a message that lands meanwhile keeps it, and answers the themes they belonged to. */
+  async deleteInactiveBefore(cutoff: Date, limit: number): Promise<DeletedClassifiedItems> {
+    const inactiveBeforeCutoff = lt(this.table.lastMessageAt, cutoff);
+    const inactive = this.cursor.select({ id: this.table.id }).from(this.table).where(inactiveBeforeCutoff).orderBy(asc(this.table.lastMessageAt)).limit(limit);
+    const deleted = await this.cursor
+      .delete(this.table)
+      .where(and(inArray(this.table.id, inactive), inactiveBeforeCutoff))
       .returning({ themeId: this.table.themeId });
 
     return { deletedCount: deleted.length, themeIds: deleted.flatMap(({ themeId }) => (themeId ? [themeId] : [])) };

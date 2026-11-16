@@ -1,11 +1,15 @@
+import { sql } from "drizzle-orm";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
+import { TxService } from "@src/core/services";
+import { FeedbackSubmissionRepository } from "@src/feedback/repositories/feedback-submission/feedback-submission.repository";
 import { FeedbackThemeRepository } from "./feedback-theme.repository";
 
 import { seedAssistantConversation, seedAssistantProblemReport, seedFeedbackSubmission, seedFeedbackTheme } from "@test/seeders/db/feedback.seeder";
 import { seedOrganization } from "@test/seeders/db/organization.seeder";
 import { seedOrganizationWallet, seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { holdTransaction, waitForLockWait } from "@test/services/lock-wait";
 
 describe(FeedbackThemeRepository.name, () => {
   describe("refreshCounts", () => {
@@ -69,6 +73,53 @@ describe(FeedbackThemeRepository.name, () => {
       const { repository } = setup();
 
       await expect(repository.refreshCounts([])).resolves.toBeUndefined();
+    });
+
+    it("counts the delete of a transaction that recounted the same theme first and committed while it waited", async () => {
+      const { repository, submissionRepository, txService } = setup();
+      const [alice, bob, carol] = await Promise.all([seedUser(), seedUser(), seedUser()]);
+      const theme = await seedFeedbackTheme();
+      const [aliceSubmission, bobSubmission] = await Promise.all(
+        [alice, bob, carol].map(user => seedFeedbackSubmission({ userId: user.id, themeId: theme.id }))
+      );
+      const first = holdTransaction(async () => {
+        await submissionRepository.deleteById(aliceSubmission.id);
+        await repository.refreshCounts([theme.id]);
+      });
+      await first.held;
+
+      const second = txService.transaction(async () => {
+        await submissionRepository.deleteById(bobSubmission.id);
+        await repository.refreshCounts([theme.id]);
+      });
+      await waitForLockWait('select %from "feedback_themes"%for %');
+      first.release();
+      await Promise.all([first.committed, second]);
+
+      expect(await repository.findById(theme.id)).toMatchObject({ itemCount: 1, distinctUserCount: 1 });
+    });
+
+    it("lets an item be filed onto a theme while a recount holds it", async () => {
+      const { repository, submissionRepository, txService } = setup();
+      const user = await seedUser();
+      const theme = await seedFeedbackTheme();
+      const submission = await seedFeedbackSubmission({ userId: user.id });
+      const recount = holdTransaction(() => repository.refreshCounts([theme.id]));
+      await recount.held;
+
+      const filingOutcome = await txService
+        .transaction(async () => {
+          await repository.cursor.execute(sql`SET LOCAL lock_timeout = '2s'`);
+          await submissionRepository.updateById(submission.id, { themeId: theme.id });
+        })
+        .then(
+          () => "filed",
+          (error: unknown) => error
+        );
+      recount.release();
+      await recount.committed;
+
+      expect(filingOutcome).toBe("filed");
     });
   });
 
@@ -263,6 +314,10 @@ describe(FeedbackThemeRepository.name, () => {
   });
 
   function setup() {
-    return { repository: container.resolve(FeedbackThemeRepository) };
+    return {
+      repository: container.resolve(FeedbackThemeRepository),
+      submissionRepository: container.resolve(FeedbackSubmissionRepository),
+      txService: container.resolve(TxService)
+    };
   }
 });

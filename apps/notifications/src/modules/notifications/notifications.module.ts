@@ -10,7 +10,6 @@ import { register } from "@src/infrastructure/db/db.module";
 import type { FullSchema } from "@src/infrastructure/db/full-schema";
 import { DbHealthzService } from "@src/infrastructure/db/services/db-healthz/db-healthz.service";
 import moduleConfig from "@src/modules/notifications/config";
-import { NovuProvider } from "./providers/novu.provider";
 import { NotificationChannelRepository } from "./repositories/notification-channel/notification-channel.repository";
 import { PendingAddressRepository } from "./repositories/pending-address/pending-address.repository";
 import { ActivityFeedService } from "./services/activity-feed/activity-feed.service";
@@ -18,12 +17,13 @@ import { ActivityFeedClient } from "./services/activity-feed-client/activity-fee
 import { AddressConfirmationService } from "./services/address-confirmation/address-confirmation.service";
 import { EmailSenderService } from "./services/email-sender/email-sender.service";
 import { NotificationRouterService } from "./services/notification-router/notification-router.service";
+import { SendgridMailClient } from "./services/sendgrid-mail-client/sendgrid-mail-client.service";
 import * as schema from "./model-schemas";
 
 @Module({
   imports: [CommonModule, ConfigModule.forFeature(moduleConfig), ...register(schema)],
   providers: [
-    NovuProvider,
+    SendgridMailClient,
     EmailSenderService,
     ActivityFeedClient,
     ActivityFeedService,

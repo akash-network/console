@@ -60,10 +60,6 @@
       "groupName": "Ucast & Casl"
     },
     {
-      "matchPackagePatterns": ["^@novu/"],
-      "groupName": "Novu"
-    },
-    {
       "matchPackagePatterns": ["^@dotenvx/", "^dotenv$", "^dotenv-"],
       "groupName": "Dotenv"
     }

@@ -193,7 +193,7 @@ describe(UnreachableProviderDeploymentsNotifierService.name, () => {
       teamWallet: true,
       setting: mock<DeploymentSettingsOutput>({ id: ORPHANED_SETTING_ID, userId: null, providerUnreachableNotifiedFor: null })
     });
-    notificationService.createNotification.mockRejectedValue(new Error("novu is down"));
+    notificationService.createNotification.mockRejectedValue(new Error("notifications is down"));
 
     await service.notifyUnreachableProviderDeployments({ dryRun: false });
 
@@ -270,7 +270,7 @@ describe(UnreachableProviderDeploymentsNotifierService.name, () => {
       outages: [anOutage({})],
       leases: [aLease({})]
     });
-    notificationService.createNotification.mockRejectedValue(new Error("novu is down"));
+    notificationService.createNotification.mockRejectedValue(new Error("notifications is down"));
 
     const result = await service.notifyUnreachableProviderDeployments({ dryRun: false });
 
@@ -288,7 +288,7 @@ describe(UnreachableProviderDeploymentsNotifierService.name, () => {
       outages: [anOutage({})],
       leases: [aLease({}), aLease({ owner: "akash1other", dseq: "999" })]
     });
-    notificationService.createNotification.mockRejectedValueOnce(new Error("novu is down"));
+    notificationService.createNotification.mockRejectedValueOnce(new Error("notifications is down"));
 
     const result = await service.notifyUnreachableProviderDeployments({ dryRun: false });
 

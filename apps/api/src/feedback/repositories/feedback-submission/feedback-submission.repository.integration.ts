@@ -81,6 +81,31 @@ describe(FeedbackSubmissionRepository.name, () => {
     });
   });
 
+  describe("deleteCreatedBefore", () => {
+    it("deletes submissions created before the cutoff, keeps the one exactly at it and answers the count and the themes", async () => {
+      const { repository, userId } = await setup();
+      const cutoff = new Date("2001-06-01T00:00:00.000Z");
+      const theme = await seedFeedbackTheme();
+      const expired = await seedFeedbackSubmission({ userId, themeId: theme.id, createdAt: new Date(cutoff.getTime() - 1) });
+      const atCutoff = await seedFeedbackSubmission({ userId, themeId: theme.id, createdAt: cutoff });
+
+      expect(await repository.deleteCreatedBefore(cutoff, 10)).toEqual({ deletedCount: 1, themeIds: [theme.id] });
+      expect(await repository.findById(expired.id)).toBeUndefined();
+      expect(await repository.findById(atCutoff.id)).toBeDefined();
+    });
+
+    it("deletes at most the given number, the oldest first", async () => {
+      const { repository, userId } = await setup();
+      const cutoff = new Date("2000-06-01T00:00:00.000Z");
+      const oldest = await seedFeedbackSubmission({ userId, createdAt: new Date("2000-01-01T00:00:00.000Z") });
+      const older = await seedFeedbackSubmission({ userId, createdAt: new Date("2000-02-01T00:00:00.000Z") });
+
+      expect(await repository.deleteCreatedBefore(cutoff, 1)).toEqual({ deletedCount: 1, themeIds: [] });
+      expect(await repository.findById(oldest.id)).toBeUndefined();
+      expect(await repository.findById(older.id)).toBeDefined();
+    });
+  });
+
   describe("findUnclassifiedIds", () => {
     it("answers the oldest submissions still waiting for classification, leaving dismissed and classified ones out", async () => {
       const { repository, userId } = await setup();

@@ -19,7 +19,7 @@ import {
 import { ClassifyFeedback, ClassifyFeedbackHandler, classifyFeedbackOptionsFor } from "@src/feedback/services/classify-feedback/classify-feedback.handler";
 import { SWEEP_FEEDBACK_KEY, SweepFeedback, SweepFeedbackHandler } from "./sweep-feedback.handler";
 
-import { seedAssistantConversation, seedFeedbackSubmission, seedFeedbackTheme } from "@test/seeders/db/feedback.seeder";
+import { seedAssistantConversation, seedAssistantMessage, seedFeedbackSubmission, seedFeedbackTheme } from "@test/seeders/db/feedback.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 
@@ -89,6 +89,37 @@ describe(SweepFeedbackHandler.name, () => {
     const table = resolveTable("AssistantTurnTraces");
     const remaining = await container.resolve<ApiPgDatabase>(POSTGRES_DB).select().from(table).where(eq(table.conversationId, conversationId));
     expect(remaining).toEqual([expect.objectContaining({ startedAt: recentStartedAt })]);
+  });
+
+  it("deletes conversations and feedback past the 365 day retention and recounts the themes they fed", async () => {
+    const { enqueue, startWorkers } = await jobWorkers();
+    const { user } = await seedUserWithWallet({ isTrialing: false });
+    const theme = await seedFeedbackTheme();
+    const expiredConversation = await seedAssistantConversation({ userId: user.id, themeId: theme.id, lastMessageAt: subDays(new Date(), 366) });
+    await seedAssistantMessage({ conversationId: expiredConversation.id });
+    const keptConversation = await seedAssistantConversation({ userId: user.id, themeId: theme.id, lastMessageAt: subDays(new Date(), 364) });
+    const expiredSubmission = await seedFeedbackSubmission({
+      userId: user.id,
+      themeId: theme.id,
+      classifiedAt: new Date(),
+      createdAt: subDays(new Date(), 366)
+    });
+    const keptSubmission = await seedFeedbackSubmission({ userId: user.id, themeId: theme.id, classifiedAt: new Date(), createdAt: subDays(new Date(), 364) });
+    vi.spyOn(container.resolve(AkashMlClient), "isAvailable").mockReturnValue(false);
+
+    await enqueue(new SweepFeedback(), { singletonKey: "retentionSweep" });
+    await startWorkers();
+    await expectJobCompleted(SweepFeedback[JOB_NAME], { singletonKey: "retentionSweep" });
+
+    const conversations = container.resolve(AssistantConversationRepository);
+    const submissions = container.resolve(FeedbackSubmissionRepository);
+    const messages = resolveTable("AssistantMessages");
+    expect(await conversations.findById(expiredConversation.id)).toBeUndefined();
+    expect(await conversations.cursor.select().from(messages).where(eq(messages.conversationId, expiredConversation.id))).toEqual([]);
+    expect(await conversations.findById(keptConversation.id)).toBeDefined();
+    expect(await submissions.findById(expiredSubmission.id)).toBeUndefined();
+    expect(await submissions.findById(keptSubmission.id)).toBeDefined();
+    expect(await container.resolve(FeedbackThemeRepository).findById(theme.id)).toMatchObject({ itemCount: 2, distinctUserCount: 1 });
   });
 
   it("marks turn traces a crashed turn left running as failed", async () => {
