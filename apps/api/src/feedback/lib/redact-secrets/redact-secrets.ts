@@ -3,8 +3,11 @@ export const REDACTED = "[REDACTED]";
 /** Bounded on both sides of the secret word, since unbounded runs backtrack quadratically on long dotted words like `token.token.token`. */
 const SECRET_KEY_NAME = String.raw`[\w.-]{0,64}?(?:secret|token|password|passwd|api[_-]?key|access[_-]?key|private[_-]?key|credentials?)[\w.-]{0,64}`;
 
+/** A quote closing the key only counts before a quoted value, or an unquoted value could swallow the name of a second secret and leave its value visible. */
+const SECRET_KEY_SEPARATOR = String.raw`(?:["']\s*[:=]\s*(?=["'])|\s*[:=]\s*)`;
+
 /** Redacted to the end of its line, since the quote that really closes such a value cannot be told apart from a later value's opening quote. */
-const QUOTED_SECRET_WITH_ESCAPED_QUOTE = new RegExp(String.raw`\b(${SECRET_KEY_NAME}["']?\s*[:=]\s*)(["'])(?:(?!\2)[^\n])*\\\2[^\n]*`, "gi");
+const QUOTED_SECRET_WITH_ESCAPED_QUOTE = new RegExp(String.raw`\b(${SECRET_KEY_NAME}${SECRET_KEY_SEPARATOR})(["'])(?:(?!\2)[^\n])*\\\2[^\n]*`, "gi");
 
 const SECRET_REPLACEMENTS: [RegExp, string][] = [
   [/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g, REDACTED],
@@ -18,7 +21,10 @@ const SECRET_REPLACEMENTS: [RegExp, string][] = [
   [/\b(bearer\s+)[\w.~+/-]+=*/gi, `$1${REDACTED}`],
   [/\b([a-z][a-z0-9+.-]*:\/\/[^\s:@/]+:)[^\s@/]+@/gi, `$1${REDACTED}@`],
   [QUOTED_SECRET_WITH_ESCAPED_QUOTE, `$1$2${REDACTED}`],
-  [new RegExp(String.raw`\b(${SECRET_KEY_NAME}["']?\s*[:=]\s*)(?:(["'])(?:(?!\2)[^\n])+(\2)|(["'])(?:(?!\4)[^\n])+|[^\s"']+)`, "gi"), `$1$2$4${REDACTED}$3`]
+  [
+    new RegExp(String.raw`\b(${SECRET_KEY_NAME}${SECRET_KEY_SEPARATOR})(?:(["'])(?:(?!\2)[^\n])+(\2)|(["'])(?:(?!\4)[^\n])+|[^\s"']+)`, "gi"),
+    `$1$2$4${REDACTED}$3`
+  ]
 ];
 
 /** Best effort over common credential shapes, applied to every free text the team may later read, whatever the user consented to. */

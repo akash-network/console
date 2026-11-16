@@ -91,11 +91,24 @@ describe(redactSecrets.name, () => {
   });
 
   it.each([
+    { case: "an equals sign", text: `password"=token="hunter22"`, expected: `password"=token="${REDACTED}"` },
+    { case: "JSON", text: `{"password":token="hunter22"}`, expected: `{"password":token="${REDACTED}"}` },
+    { case: "single quotes", text: `password': token: 'hunter22'`, expected: `password': token: '${REDACTED}'` },
+    { case: "spaces", text: `password" = token = "hunter22"`, expected: `password" = token = "${REDACTED}"` },
+    { case: "an unclosed second value", text: `passwd'=token="abc`, expected: `passwd'=token="${REDACTED}` }
+  ])("replaces the second secret after a quoted secret key with an unquoted value in $case", ({ text, expected }) => {
+    expect(redactSecrets(text)).toBe(expected);
+  });
+
+  it.each([
     { case: "JSON", text: String.raw`{"password":"first\"remaining-secret","port":8080}`, expected: `{"password":"${REDACTED}` },
     { case: "an escaped backslash", text: String.raw`{"token":"abc\\","port":8080}`, expected: `{"token":"${REDACTED}` },
     { case: "a second secret after it", text: String.raw`password="abc\" api_key="z9Xk2mP4qR7s"`, expected: `password="${REDACTED}` },
     { case: "a second secret opening with a space", text: String.raw`password="x\" api_key=" z9Xk2mP4qR7s"`, expected: `password="${REDACTED}` },
-    { case: "punctuation after it", text: String.raw`password="p\"w0rd".`, expected: `password="${REDACTED}` },
+    { case: "a period after it", text: String.raw`password="p\"w0rd".`, expected: `password="${REDACTED}` },
+    { case: "a slash after it", text: String.raw`password="p\"w0rd"/`, expected: `password="${REDACTED}` },
+    { case: "a closing angle bracket after it", text: String.raw`password="p\"w0rd">`, expected: `password="${REDACTED}` },
+    { case: "an exclamation mark after it", text: String.raw`password="p\"w0rd"!`, expected: `password="${REDACTED}` },
     { case: "a following line", text: String.raw`password="p\"w0rd"` + "\nport=8080", expected: `password="${REDACTED}\nport=8080` }
   ])("replaces the rest of the line after a quoted secret holding an escaped quote in $case", ({ text, expected }) => {
     expect(redactSecrets(text)).toBe(expected);
