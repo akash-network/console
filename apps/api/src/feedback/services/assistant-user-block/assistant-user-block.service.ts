@@ -60,12 +60,13 @@ export class AssistantUserBlockService {
     }
   }
 
+  /** Counts on the day the turn was sent but blocks until the midnight after now, since the label can land after the day it counts on ended. */
   async #countFlaggedTurn(userId: string, sentAt: Date): Promise<void> {
     const flaggedTurnCount = await this.assistantUserUsageRepository.countFlaggedTurn(userId, dayOf(sentAt));
     if (flaggedTurnCount < this.config.ASSISTANT_DAILY_FLAGGED_TURN_LIMIT) return;
 
     await this.txService.transaction(async () => {
-      const block = await this.assistantUserBlockRepository.createAutomatic({ userId, blockedUntil: nextUtcMidnightAfter(sentAt), flaggedTurnCount });
+      const block = await this.assistantUserBlockRepository.createAutomatic({ userId, blockedUntil: nextUtcMidnightAfter(new Date()), flaggedTurnCount });
       if (!block) return;
 
       await this.jobQueueService.enqueue(new NotifyAssistantUserBlock({ blockId: block.id }));

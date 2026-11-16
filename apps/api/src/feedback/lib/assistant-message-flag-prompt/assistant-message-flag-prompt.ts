@@ -3,7 +3,6 @@ import { z } from "zod";
 import { type AssistantTurnFlag, assistantTurnFlagEnum } from "@src/feedback/model-schemas/assistant-turn-trace/assistant-turn-trace.schema";
 import type { ChatMessage, JsonOutputSchema } from "@src/feedback/services/akashml-client/akashml.client";
 
-export const MAX_FLAGGED_MESSAGE_LENGTH = 4000;
 export const MAX_EARLIER_USER_MESSAGES = 3;
 export const MAX_EARLIER_USER_MESSAGE_LENGTH = 1000;
 
@@ -38,11 +37,11 @@ export const ASSISTANT_MESSAGE_FLAG_SCHEMA: JsonOutputSchema<AssistantTurnFlag> 
   parser: z.object({ label: z.enum(assistantTurnFlagEnum.enumValues) }).transform(output => output.label)
 };
 
-/** Earlier user messages ride along because the client can send them unsigned, so a planted request could otherwise hide behind a bare follow-up. */
+/** Earlier user messages ride along because the client can send them unsigned, and the latest goes uncut because redaction can grow it past the request limit. */
 export function buildMessageFlagMessages({ message, earlierUserMessages }: MessageToFlag): ChatMessage[] {
   const item = {
     earlierUserMessages: earlierUserMessages.slice(-MAX_EARLIER_USER_MESSAGES).map(earlier => earlier.slice(0, MAX_EARLIER_USER_MESSAGE_LENGTH)),
-    latestMessage: message.slice(0, MAX_FLAGGED_MESSAGE_LENGTH)
+    latestMessage: message
   };
 
   return [

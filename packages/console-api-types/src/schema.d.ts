@@ -21453,6 +21453,13 @@ export interface operations {
         };
         content?: never;
       };
+      /** @description `assistant_blocked`: the assistant is turned off for this account. Point the user to Discord */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
       /** @description `assistant_consent_required` when the user never agreed to the assistant. `assistant_consent_outdated` when the copy version differs from the one agreed to. `assistant_conversation_ended` when the conversation already ended */
       409: {
         headers: {
@@ -21970,6 +21977,13 @@ export interface operations {
       };
       /** @description Unauthorized */
       401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description `assistant_blocked`: the assistant is turned off for this account. Point the user to Discord */
+      403: {
         headers: {
           [name: string]: unknown;
         };

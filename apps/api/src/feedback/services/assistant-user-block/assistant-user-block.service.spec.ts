@@ -61,6 +61,7 @@ describe(AssistantUserBlockService.name, () => {
     });
 
     it("blocks the user until the next UTC midnight and enqueues the Slack notice with the block once the limit is reached", async () => {
+      vi.useFakeTimers({ now: SENT_AT });
       const { service, usageRepository, blockRepository, jobQueueService, txService, logger } = setup();
       usageRepository.countFlaggedTurn.mockResolvedValue(3);
       blockRepository.createAutomatic.mockResolvedValue(block());
@@ -74,6 +75,21 @@ describe(AssistantUserBlockService.name, () => {
       expect(blockRepository.createAutomatic).toHaveBeenCalledWith({ userId: "user-1", blockedUntil: NEXT_MIDNIGHT, flaggedTurnCount: 3 });
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(new NotifyAssistantUserBlock({ blockId: "block-1" }));
       expect(logger.info).toHaveBeenCalledWith({ event: "ASSISTANT_USER_BLOCKED", blockId: "block-1", source: "automatic", blockedUntil: NEXT_MIDNIGHT });
+    });
+
+    it("blocks until the midnight after the label lands when the turn was sent the day before", async () => {
+      vi.useFakeTimers({ now: new Date("2026-11-05T00:00:00.100Z") });
+      const { service, usageRepository, blockRepository } = setup();
+      usageRepository.countFlaggedTurn.mockResolvedValue(3);
+
+      await service.recordFlag({ userId: "user-1", turnId: "turn-1", sentAt: new Date("2026-11-04T23:59:59.900Z"), flag: "off_topic" });
+
+      expect(usageRepository.countFlaggedTurn).toHaveBeenCalledWith("user-1", "2026-11-04");
+      expect(blockRepository.createAutomatic).toHaveBeenCalledWith({
+        userId: "user-1",
+        blockedUntil: new Date("2026-11-06T00:00:00.000Z"),
+        flaggedTurnCount: 3
+      });
     });
 
     it("follows the configured limit", async () => {

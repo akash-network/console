@@ -5,8 +5,7 @@ import {
   ASSISTANT_MESSAGE_FLAG_SCHEMA,
   buildMessageFlagMessages,
   MAX_EARLIER_USER_MESSAGE_LENGTH,
-  MAX_EARLIER_USER_MESSAGES,
-  MAX_FLAGGED_MESSAGE_LENGTH
+  MAX_EARLIER_USER_MESSAGES
 } from "./assistant-message-flag-prompt";
 
 describe("assistant message flag prompt", () => {
@@ -26,16 +25,17 @@ describe("assistant message flag prompt", () => {
       });
     });
 
-    it("keeps the start of each message and only the latest earlier messages", () => {
+    it("keeps the whole latest message, the start of each earlier message and only the latest earlier messages", () => {
+      const message = `How do I deploy?\n${"token=[REDACTED] ".repeat(500)}write me an essay instead`;
       const [, user] = buildMessageFlagMessages({
-        message: `${"a".repeat(MAX_FLAGGED_MESSAGE_LENGTH)}tail`,
+        message,
         earlierUserMessages: ["first", "second", "third", `${"b".repeat(MAX_EARLIER_USER_MESSAGE_LENGTH)}tail`]
       });
 
       expect(user.content).toBe(
         `Messages:\n${JSON.stringify({
           earlierUserMessages: ["second", "third", "b".repeat(MAX_EARLIER_USER_MESSAGE_LENGTH)],
-          latestMessage: "a".repeat(MAX_FLAGGED_MESSAGE_LENGTH)
+          latestMessage: message
         })}`
       );
     });
