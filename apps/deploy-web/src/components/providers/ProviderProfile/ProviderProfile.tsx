@@ -12,6 +12,7 @@ import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 import type { ApiProviderDetail } from "@src/types/provider";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import { CopyChip } from "./CopyChip";
+import { CpuModelsCard } from "./CpuModelsCard";
 import { GpuInventoryCard } from "./GpuInventoryCard";
 import { LocationCard } from "./LocationCard";
 import { OperatorCard } from "./OperatorCard";
@@ -26,6 +27,7 @@ export const DEPENDENCIES = {
   CustomNextSeo,
   useProviderProfileModel,
   GpuInventoryCard,
+  CpuModelsCard,
   LeaseTrendCard,
   UptimeCard,
   YourLeasesCard,
@@ -119,6 +121,12 @@ export const ProviderProfile: FC<Props> = ({ owner, initialProvider, dependencie
           drivers={provider.gpuDrivers ?? []}
           freeVcpuCount={freeVcpuCount}
           freeMemoryBytes={freeMemoryBytes}
+        />
+
+        <d.CpuModelsCard
+          models={provider.cpuModels ?? []}
+          profile={provider.cpuProfile ?? "unknown"}
+          unreportedNodeCount={provider.cpuUnreportedNodeCount ?? 0}
         />
 
         <div className="grid gap-3.5 md:grid-cols-2">

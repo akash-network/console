@@ -138,6 +138,21 @@ describe("ProviderProfile", () => {
     expect(dependencies.RawAttributesCard.mock.calls[0][0]).toMatchObject({ attributes: model.provider.attributes });
   });
 
+  it("passes the CPU models the nodes report, the provider's CPU profile and the nodes without a model to their card", () => {
+    const cpuModels = [
+      { vendor: "AMD" as const, model: "EPYC 7763", generation: "Milan", baseFrequencyMhz: null, isVirtual: false, threads: 128, nodeCount: 1 }
+    ];
+    const { dependencies } = setup({ provider: { cpuModels, cpuProfile: "mixed", cpuUnreportedNodeCount: 2 } });
+
+    expect(dependencies.CpuModelsCard.mock.calls[0][0]).toEqual({ models: cpuModels, profile: "mixed", unreportedNodeCount: 2 });
+  });
+
+  it("shows the CPUs as unknown when the API answers without them", () => {
+    const { dependencies } = setup({ provider: { cpuModels: undefined, cpuProfile: undefined, cpuUnreportedNodeCount: undefined } });
+
+    expect(dependencies.CpuModelsCard.mock.calls[0][0]).toEqual({ models: [], profile: "unknown", unreportedNodeCount: 0 });
+  });
+
   it("passes the GPU drivers workloads reported to the inventory", () => {
     const gpuDrivers = [{ driverVersion: "550.54.15", cudaVersion: "12.4", lastSeenDate: "2026-09-21" }];
     const { dependencies } = setup({ provider: { gpuDrivers } });

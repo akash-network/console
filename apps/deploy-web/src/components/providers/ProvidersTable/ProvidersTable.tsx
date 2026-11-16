@@ -6,8 +6,10 @@ import { ChevronLeft, ChevronRight, RefreshCw, Star } from "lucide-react";
 
 import { PAGE_SIZE } from "@src/components/providers/ProvidersExplorer/useProvidersExplorerModel";
 import type { ProviderSummary, UptimeQuality } from "@src/components/providers/providerSummary/providerSummary";
-import { formatBytes, formatGpuModel, formatUptime, getUptimeQuality } from "@src/components/providers/providerSummary/providerSummary";
+import { formatBytes, formatCpuName, formatGpuModel, formatUptime, getUptimeQuality } from "@src/components/providers/providerSummary/providerSummary";
 import { RegionPill } from "@src/components/providers/RegionPill/RegionPill";
+
+const WIDE_COLUMN_COUNT = 8;
 
 const UPTIME_TONE_CLASSES: Record<UptimeQuality, string> = {
   excellent: "text-emerald-600 dark:text-emerald-400",
@@ -71,11 +73,12 @@ export const ProvidersTable: FC<Props> = ({
         ) : (
           <colgroup>
             <col />
-            <col className="w-[15%]" />
             <col className="w-[13%]" />
-            <col className="w-[8%]" />
-            <col className="w-[15%]" />
             <col className="w-[12%]" />
+            <col className="w-[7%]" />
+            <col className="w-[16%]" />
+            <col className="w-[14%]" />
+            <col className="w-[11%]" />
             <col className="w-[76px]" />
           </colgroup>
         )}
@@ -87,6 +90,7 @@ export const ProvidersTable: FC<Props> = ({
                 <HeaderCell hasFilter>{regionFilter}</HeaderCell>
                 <HeaderCell hasFilter>{gpuFilter}</HeaderCell>
                 <HeaderCell>GPUs</HeaderCell>
+                <HeaderCell>CPU</HeaderCell>
                 <HeaderCell>Capacity</HeaderCell>
                 <HeaderCell>Uptime (30d)</HeaderCell>
               </>
@@ -97,10 +101,10 @@ export const ProvidersTable: FC<Props> = ({
           </tr>
         </thead>
         <tbody>
-          {status === "loading" && providers.length === 0 && <SkeletonRows columnCount={isCompact ? 2 : 7} />}
+          {status === "loading" && providers.length === 0 && <SkeletonRows columnCount={isCompact ? 2 : WIDE_COLUMN_COUNT} />}
           {status === "ready" && providers.length === 0 && (
             <tr>
-              <td colSpan={isCompact ? 2 : 7} className="px-5 py-10 text-center text-[13px] text-muted-foreground">
+              <td colSpan={isCompact ? 2 : WIDE_COLUMN_COUNT} className="px-5 py-10 text-center text-[13px] text-muted-foreground">
                 No providers match those filters.
               </td>
             </tr>
@@ -209,6 +213,9 @@ const ProviderRow: FC<ProviderRowProps> = ({ provider, isSelected, isFavorite, i
             <GpuModels models={provider.gpuModels} />
           </td>
           <td className="px-3.5 py-3 font-mono text-[12.5px] text-foreground">{provider.gpuCount > 0 ? provider.gpuCount : <EmptyValue />}</td>
+          <td className="px-3.5 py-3">
+            <CpuModels cpus={provider.cpus} />
+          </td>
           <td className="truncate px-3.5 py-3 font-mono text-[11.5px] text-muted-foreground">
             {provider.vcpuCount} vCPU · {formatBytes(provider.memoryBytes)}
           </td>
@@ -238,6 +245,7 @@ const CompactSummary: FC<{ provider: ProviderSummary }> = ({ provider }) => (
   <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
     {provider.locationRegion && <RegionPill region={provider.locationRegion} />}
     <span className="font-mono text-[10.5px] text-muted-foreground">{describeCompactGpus(provider)}</span>
+    {provider.cpus.length > 0 && <span className="font-mono text-[10.5px] text-muted-foreground">{describeCpus(provider.cpus)}</span>}
     <span className="font-mono text-[10.5px]">
       <Uptime uptime={provider.uptime30d} />
     </span>
@@ -251,6 +259,18 @@ const GpuModels: FC<{ models: string[] }> = ({ models }) => {
   return (
     <span className="inline-flex min-w-0 items-center gap-1" title={models.map(formatGpuModel).join(", ")}>
       <span className="truncate rounded-full border bg-muted px-2 py-0.5 font-mono text-[10.5px] text-foreground">{formatGpuModel(first)}</span>
+      {rest.length > 0 && <span className="font-mono text-[10.5px] text-muted-foreground">+{rest.length}</span>}
+    </span>
+  );
+};
+
+const CpuModels: FC<{ cpus: ProviderSummary["cpus"] }> = ({ cpus }) => {
+  if (cpus.length === 0) return <span className="font-mono text-[11px] text-muted-foreground">Unknown</span>;
+
+  const [first, ...rest] = cpus;
+  return (
+    <span className="inline-flex min-w-0 max-w-full items-center gap-1" title={cpus.map(formatCpuName).join(", ")}>
+      <span className="truncate font-mono text-[11px] text-foreground">{formatCpuName(first)}</span>
       {rest.length > 0 && <span className="font-mono text-[10.5px] text-muted-foreground">+{rest.length}</span>}
     </span>
   );
@@ -286,6 +306,11 @@ const SkeletonRows: FC<{ columnCount: number }> = ({ columnCount }) => (
     ))}
   </>
 );
+
+export function describeCpus(cpus: ProviderSummary["cpus"]): string {
+  const [first, ...rest] = cpus;
+  return rest.length > 0 ? `${formatCpuName(first)} +${rest.length}` : formatCpuName(first);
+}
 
 function describeCompactGpus({ gpuCount, gpuModels }: ProviderSummary): string {
   if (gpuCount === 0) return "CPU only";

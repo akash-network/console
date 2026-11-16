@@ -5,6 +5,7 @@ import type { ApiProviderList, ApiProviderLocation, StatsItem } from "@src/types
 import {
   formatBytes,
   formatCompactCount,
+  formatCpuName,
   formatGpuModel,
   formatOptionalUptime,
   formatProviderLocation,
@@ -32,6 +33,7 @@ describe("providerSummary", () => {
         locationRegion: "na-ca-central",
         uptime30d: 0.995,
         gpuModels: ["h100", "a100"],
+        cpus: [{ vendor: "AMD", model: "EPYC 7763", generation: "Milan" }],
         stats: createStats({ cpu: 64_000, gpu: 8, memory: 512e9, ephemeral: 1e12, persistent: 2e12 })
       });
 
@@ -44,6 +46,7 @@ describe("providerSummary", () => {
         uptime30d: 0.995,
         gpuCount: 8,
         gpuModels: ["h100", "a100"],
+        cpus: [{ vendor: "AMD", model: "EPYC 7763", generation: "Milan" }],
         vcpuCount: 64,
         memoryBytes: 512e9,
         storageBytes: 3e12,
@@ -70,6 +73,9 @@ describe("providerSummary", () => {
           { vendor: "nvidia", model: "h100", ram: "80Gi", interface: "SXM" },
           { vendor: "nvidia", model: "h100", ram: "94Gi", interface: "SXM" }
         ],
+        cpuModels: [
+          { vendor: "Intel", model: "Xeon Gold 6248R", generation: "Cascade Lake", baseFrequencyMhz: 3000, isVirtual: false, threads: 96, nodeCount: 2 }
+        ],
         stats: createStats({ cpu: 1500, gpu: 0, memory: 0, ephemeral: 0, persistent: 0 })
       });
 
@@ -79,9 +85,31 @@ describe("providerSummary", () => {
         locationRegion: null,
         uptime30d: null,
         gpuModels: ["h100"],
+        cpus: [{ vendor: "Intel", model: "Xeon Gold 6248R", generation: "Cascade Lake" }],
         vcpuCount: 2,
         coordinates: null
       });
+    });
+  });
+
+  describe("providers answered by an API that predates CPU models", () => {
+    it("summarizes a located and a listed provider without CPUs", () => {
+      const stats = createStats({ cpu: 1000, gpu: 0, memory: 0, ephemeral: 0, persistent: 0 });
+      const location = Object.assign(mock<ApiProviderLocation>(), { hostUri: "https://a.example.com:8443", gpuModels: [], cpus: undefined, stats });
+      const provider = Object.assign(mock<ApiProviderList>(), { hostUri: "https://b.example.com:8443", gpuModels: [], cpuModels: undefined, stats });
+
+      expect(summarizeLocatedProvider(location).cpus).toEqual([]);
+      expect(summarizeListedProvider(provider).cpus).toEqual([]);
+    });
+  });
+
+  describe(formatCpuName.name, () => {
+    it("puts the vendor before the model", () => {
+      expect(formatCpuName({ vendor: "AMD", model: "EPYC 7763" })).toBe("AMD EPYC 7763");
+    });
+
+    it("shows the model alone when the vendor is neither AMD nor Intel", () => {
+      expect(formatCpuName({ vendor: null, model: "Neoverse-N1" })).toBe("Neoverse-N1");
     });
   });
 

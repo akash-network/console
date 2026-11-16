@@ -152,6 +152,7 @@ describe("ProviderPanel", () => {
       uptime30d: 0.995,
       gpuCount: 0,
       gpuModels: [],
+      cpus: [],
       vcpuCount: 16,
       memoryBytes: 64e9,
       storageBytes: 1e12,

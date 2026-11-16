@@ -563,6 +563,8 @@ describe("ProvidersExplorer", () => {
       locationRegion: "na-us-midwest",
       uptime30d: 0.99,
       gpuModels: [],
+      cpus: [],
+      cpuModels: [],
       stats: createStats(),
       ...overrides
     });
@@ -581,6 +583,8 @@ describe("ProvidersExplorer", () => {
       locationRegion: "eu-central",
       uptime30d: 0.99,
       gpuModels: [],
+      cpus: [],
+      cpuModels: [],
       stats: createStats(),
       ...overrides
     });

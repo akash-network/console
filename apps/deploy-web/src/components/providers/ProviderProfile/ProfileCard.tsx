@@ -32,3 +32,12 @@ export const ProfileRow: FC<{ label: string; children: ReactNode }> = ({ label, 
     <dd className="min-w-0 truncate text-right font-mono text-[11.5px] text-foreground">{children}</dd>
   </div>
 );
+
+export const HeaderCell: FC<{ className?: string; children: string }> = ({ className, children }) => (
+  <th
+    scope="col"
+    className={cn("whitespace-nowrap px-3.5 py-2 text-left font-mono text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground", className)}
+  >
+    {children}
+  </th>
+);
