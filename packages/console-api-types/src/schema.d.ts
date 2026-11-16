@@ -21467,7 +21467,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description `assistant_rate_limited` (too many messages this minute) or `assistant_daily_limit` (too many today) */
+      /** @description `assistant_rate_limited` (too many messages this minute), `assistant_daily_limit` (too many today) or `assistant_trial_limit` (an account that never bought credits used all its free messages) */
       429: {
         headers: {
           [name: string]: unknown;

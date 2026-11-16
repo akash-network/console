@@ -152,4 +152,22 @@ describe("envSchema", () => {
   ])("rejects %o", env => {
     expect(envSchema.safeParse(env).success).toBe(false);
   });
+
+  it.each([
+    { ASSISTANT_DAILY_TOKEN_BUDGET: "1000", ASSISTANT_TRIAL_DAILY_TOKEN_BUDGET: "1000" },
+    { ASSISTANT_DAILY_TOKEN_BUDGET: "1000", ASSISTANT_TRIAL_DAILY_TOKEN_BUDGET: "1001" }
+  ])("rejects a trial token budget that is not below the shared one: %o", env => {
+    const result = envSchema.safeParse(env);
+
+    expect(result.error?.issues).toEqual([
+      expect.objectContaining({
+        path: ["ASSISTANT_TRIAL_DAILY_TOKEN_BUDGET"],
+        message: `ASSISTANT_TRIAL_DAILY_TOKEN_BUDGET (${env.ASSISTANT_TRIAL_DAILY_TOKEN_BUDGET}) must be below ASSISTANT_DAILY_TOKEN_BUDGET (1000), otherwise trial accounts can spend the whole shared budget`
+      })
+    ]);
+  });
+
+  it("accepts a trial token budget just below the shared one", () => {
+    expect(envSchema.parse({ ASSISTANT_DAILY_TOKEN_BUDGET: "1000", ASSISTANT_TRIAL_DAILY_TOKEN_BUDGET: "999" }).ASSISTANT_TRIAL_DAILY_TOKEN_BUDGET).toBe(999);
+  });
 });

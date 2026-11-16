@@ -38609,7 +38609,7 @@
             "description": "`assistant_consent_required` when the user never agreed to the assistant. `assistant_consent_outdated` when the copy version differs from the one agreed to. `assistant_conversation_ended` when the conversation already ended"
           },
           "429": {
-            "description": "`assistant_rate_limited` (too many messages this minute) or `assistant_daily_limit` (too many today)"
+            "description": "`assistant_rate_limited` (too many messages this minute), `assistant_daily_limit` (too many today) or `assistant_trial_limit` (an account that never bought credits used all its free messages)"
           },
           "503": {
             "description": "`assistant_unavailable`: the assistant is off or over its budget. Point the user to Discord"
