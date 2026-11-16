@@ -30,7 +30,8 @@ permissions:
 jobs:
   test:
     name: Test ${{ inputs.environment }}
-    runs-on: ubuntu-latest
+    # Pinned until @playwright/test is on 1.61 or later, the first version that installs chromium on ubuntu-26.04 (ubuntu-latest since 2026-11-16).
+    runs-on: ubuntu-24.04
     # Backstop for hangs the test tooling can't cut off itself, replacing GitHub's 6h default. Sits just above
     # the longest run any suite here can legitimately produce: console-web's Playwright globalTimeout of 60m
     # plus dependency setup and report upload. A healthy console-web run is ~10m.
