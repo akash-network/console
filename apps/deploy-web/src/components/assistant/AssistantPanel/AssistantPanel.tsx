@@ -217,7 +217,7 @@ export const AssistantPanel: FC<Props> = ({ isOpen, onOpenChange, conversation, 
 
         {isReady && conversation.messages.length === 0 && !conversation.problem && (
           <div className="my-auto flex flex-col items-center gap-5 py-8 text-center">
-            <h3 className="text-xl font-semibold">What do you want to know?</h3>
+            <h3 className="text-xl font-semibold">What do you want to do?</h3>
             {!isQuestionWaitingToSend && (
               <d.AssistantExamplePrompts page={conversation.page} deploymentDseq={conversation.deploymentDseq} onSend={conversation.send} />
             )}
