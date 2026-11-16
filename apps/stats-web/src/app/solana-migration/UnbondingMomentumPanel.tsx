@@ -215,27 +215,29 @@ function TooltipRow({ swatchClassName, label, akt }: { swatchClassName: string; 
 
 function UnbondingTable({ bars, seriesLabel }: { bars: UnbondingBar[]; seriesLabel: string }) {
   return (
-    <table className="sr-only">
-      <caption>Daily AKT unbonding and sent to Solana</caption>
-      <thead>
-        <tr>
-          <th scope="col">Date</th>
-          <th scope="col">{seriesLabel} (AKT)</th>
-          <th scope="col">Sent to Solana (AKT)</th>
-          <th scope="col">Sent by unstakers (AKT)</th>
-        </tr>
-      </thead>
-      <tbody>
-        {bars.map(bar => (
-          <tr key={bar.date}>
-            <th scope="row">{bar.date}</th>
-            <td>{formatNumber(bar.unbondingAkt)}</td>
-            <td>{formatNumber(bar.sentAkt)}</td>
-            <td>{formatNumber(bar.sentByUnstakersAkt)}</td>
+    <div className="sr-only">
+      <table>
+        <caption>Daily AKT unbonding and sent to Solana</caption>
+        <thead>
+          <tr>
+            <th scope="col">Date</th>
+            <th scope="col">{seriesLabel} (AKT)</th>
+            <th scope="col">Sent to Solana (AKT)</th>
+            <th scope="col">Sent by unstakers (AKT)</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {bars.map(bar => (
+            <tr key={bar.date}>
+              <th scope="row">{bar.date}</th>
+              <td>{formatNumber(bar.unbondingAkt)}</td>
+              <td>{formatNumber(bar.sentAkt)}</td>
+              <td>{formatNumber(bar.sentByUnstakersAkt)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
