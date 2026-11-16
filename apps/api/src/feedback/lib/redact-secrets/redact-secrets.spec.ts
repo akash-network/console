@@ -101,6 +101,16 @@ describe(redactSecrets.name, () => {
   });
 
   it.each([
+    { case: "JSON", text: `{"password": hunter22}`, expected: `{"password": ${REDACTED}}` },
+    { case: "a JSON number before another field", text: `{"token": 123456, "port": 8080}`, expected: `{"token": ${REDACTED}, "port": 8080}` },
+    { case: "a JSON array", text: `["api_key": abc123]`, expected: `["api_key": ${REDACTED}]` },
+    { case: "single quotes", text: `'api_key': abc123`, expected: `'api_key': ${REDACTED}` },
+    { case: "an equals sign", text: `password"=hunter2 next`, expected: `password"=${REDACTED} next` }
+  ])("replaces an unquoted value after a quoted secret key in $case", ({ text, expected }) => {
+    expect(redactSecrets(text)).toBe(expected);
+  });
+
+  it.each([
     { case: "JSON", text: String.raw`{"password":"first\"remaining-secret","port":8080}`, expected: `{"password":"${REDACTED}` },
     { case: "an escaped backslash", text: String.raw`{"token":"abc\\","port":8080}`, expected: `{"token":"${REDACTED}` },
     { case: "a second secret after it", text: String.raw`password="abc\" api_key="z9Xk2mP4qR7s"`, expected: `password="${REDACTED}` },

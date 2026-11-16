@@ -9,6 +9,9 @@ const SECRET_KEY_SEPARATOR = String.raw`(?:["']\s*[:=]\s*(?=["'])|\s*[:=]\s*)`;
 /** Redacted to the end of its line, since the quote that really closes such a value cannot be told apart from a later value's opening quote. */
 const QUOTED_SECRET_WITH_ESCAPED_QUOTE = new RegExp(String.raw`\b(${SECRET_KEY_NAME}${SECRET_KEY_SEPARATOR})(["'])(?:(?!\2)[^\n])*\\\2[^\n]*`, "gi");
 
+/** Skips a value that is itself another key's assignment, which the rule before it has already redacted. */
+const QUOTED_SECRET_KEY_WITH_UNQUOTED_VALUE = new RegExp(String.raw`\b(${SECRET_KEY_NAME}["']\s*[:=]\s*)(?![\w.-]*["']?\s*[:=])[^\s"',}\]]+`, "gi");
+
 const SECRET_REPLACEMENTS: [RegExp, string][] = [
   [/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g, REDACTED],
   [/\beyJ[\w-]+\.eyJ[\w-]+\.[\w-]+/g, REDACTED],
@@ -24,7 +27,8 @@ const SECRET_REPLACEMENTS: [RegExp, string][] = [
   [
     new RegExp(String.raw`\b(${SECRET_KEY_NAME}${SECRET_KEY_SEPARATOR})(?:(["'])(?:(?!\2)[^\n])+(\2)|(["'])(?:(?!\4)[^\n])+|[^\s"']+)`, "gi"),
     `$1$2$4${REDACTED}$3`
-  ]
+  ],
+  [QUOTED_SECRET_KEY_WITH_UNQUOTED_VALUE, `$1${REDACTED}`]
 ];
 
 /** Best effort over common credential shapes, applied to every free text the team may later read, whatever the user consented to. */
