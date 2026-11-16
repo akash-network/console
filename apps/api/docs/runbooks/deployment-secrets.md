@@ -302,7 +302,7 @@ The key service records administrative activity on a key by itself. The decrypt 
 
 2. Choose retention deliberately and write the number down here. Data Access logs land in the `_Default` bucket, which keeps them 30 days unless that project has raised it. An investigation that starts from a user report can begin months after the access, so route these entries to a bucket of their own with a locked retention of 400 days.
 
-   Done in production on 2026-09-16: bucket `kms-audit` and sink `kms-audit-sink` exist in `console-441017` at 400 days, and entries were confirmed arriving. **The bucket is deliberately not locked yet.** Locking cannot be undone for the whole retention window, so the plan is to leave it a month, confirm the sink filter is catching what it should, then run the lock command below. Until then the trail is still deletable by anyone with logging admin, which is the property the lock exists to remove. Staging needs no separate bucket: its `_Default` already retains 400 days.
+   Done in production on 2026-09-16: bucket `kms-audit` and sink `kms-audit-sink` exist in `console-441017` at 400 days, and entries were confirmed arriving. Locked on 2026-11-16, after two months of the sink landing every Cloud KMS call since the bucket was created, so the retention cannot be shortened nor the bucket deleted until its entries age past 400 days. Staging needs no separate bucket: its `_Default` already retains 400 days.
 
    The commands, for a project that does not have this yet:
 
