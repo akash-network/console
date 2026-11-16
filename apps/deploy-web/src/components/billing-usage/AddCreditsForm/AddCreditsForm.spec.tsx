@@ -1351,6 +1351,30 @@ describe(AddCreditsForm.name, () => {
       });
     });
 
+    it("tracks what was left to finish in Link when Link refuses the payment", async () => {
+      const analyticsService = mock<AnalyticsService>();
+      const { Mock: AddCreditsNewPaymentMethodFields, lastProps } = makePaymentMethodFieldsMock(
+        vi.fn().mockResolvedValue({
+          failure: { errorType: "validation_error", errorCode: "incomplete_link_sign_in", incompletePaymentMethodDetail: "link_verification" }
+        })
+      );
+      setup({ status: "success", clientSecret: "seti_secret", analyticsService, dependencies: { AddCreditsNewPaymentMethodFields } });
+      act(() => lastProps()!.onPaymentTypeChange?.("link"));
+
+      await submitWithAmount("100");
+
+      expect(analyticsService.track).toHaveBeenCalledWith("add_credits_payment_failed", {
+        category: "billing",
+        amount: 100,
+        type: "link",
+        isSavedMethod: false,
+        stage: "payment_method_setup",
+        errorType: "validation_error",
+        errorCode: "incomplete_link_sign_in",
+        incompletePaymentMethodDetail: "link_verification"
+      });
+    });
+
     it("tracks a wallet setup failure with Stripe's codes", async () => {
       const analyticsService = mock<AnalyticsService>();
       const addPaymentMethod = vi.fn().mockResolvedValue({ failure: { errorType: "card_error", errorCode: "card_declined", declineCode: "do_not_honor" } });

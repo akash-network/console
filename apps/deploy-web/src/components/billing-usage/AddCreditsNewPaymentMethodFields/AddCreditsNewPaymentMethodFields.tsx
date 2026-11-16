@@ -11,6 +11,8 @@ import { useTheme } from "next-themes";
 import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
 import type { IncompleteBillingDetail } from "./incompleteBillingDetail";
 import { findIncompleteBillingDetail } from "./incompleteBillingDetail";
+import type { IncompletePaymentMethodDetail } from "./incompletePaymentMethodDetail";
+import { findIncompletePaymentMethodDetail } from "./incompletePaymentMethodDetail";
 
 /** Why a payment method could not be set up, as codes only: Stripe's message is left out because it can echo what the user typed. */
 export interface PaymentMethodSetupFailure {
@@ -18,6 +20,7 @@ export interface PaymentMethodSetupFailure {
   errorCode?: string;
   declineCode?: string;
   incompleteBillingDetail?: IncompleteBillingDetail;
+  incompletePaymentMethodDetail?: IncompletePaymentMethodDetail;
 }
 
 export type PaymentMethodSetupResult = { paymentMethodId: string } | { failure: PaymentMethodSetupFailure };
@@ -39,13 +42,31 @@ export interface PaymentMethodSourceHandle {
 }
 
 export function toPaymentMethodSetupFailure(error: StripeError): PaymentMethodSetupFailure {
-  return { errorType: error.type, errorCode: error.code, declineCode: error.decline_code, incompleteBillingDetail: findIncompleteBillingDetail(error) };
+  return {
+    errorType: error.type,
+    errorCode: error.code,
+    declineCode: error.decline_code,
+    incompleteBillingDetail: findIncompleteBillingDetail(error),
+    incompletePaymentMethodDetail: findIncompletePaymentMethodDetail(error)
+  };
 }
+
+type IncompleteDetail = { element: "address"; detail: IncompleteBillingDetail } | { element: "payment"; detail: IncompletePaymentMethodDetail };
 
 const INCOMPLETE_BILLING_DETAIL_MESSAGES: Record<IncompleteBillingDetail, string> = {
   address: "Your billing address is incomplete. Fill in the highlighted fields under Billing address, then try again.",
   name: "Your billing name is incomplete. Enter your full name under Billing address, then try again."
 };
+
+const INCOMPLETE_PAYMENT_METHOD_DETAIL_MESSAGES: Record<IncompletePaymentMethodDetail, string> = {
+  link_email: "Your email for Link is incomplete. Enter it under Choose a payment method to continue with Link, then try again.",
+  link_phone: "Your phone number for Link is incomplete. Enter it under Choose a payment method to finish setting up Link, then try again.",
+  link_verification: "Finish signing in to Link. Enter the verification code Link sent you under Choose a payment method, then try again.",
+  link_saved_payment_method: "Choose which of your Link payment methods to pay with under Choose a payment method, then try again.",
+  payment_details: "Your payment details are incomplete. Finish your card or Link details under Choose a payment method, then try again."
+};
+
+const SCROLL_TO_SECTION_START: ScrollIntoViewOptions = { behavior: "smooth", block: "start" };
 
 export const DEPENDENCIES = {
   Elements,
@@ -144,27 +165,39 @@ const StripePaymentMethodFields = forwardRef<PaymentMethodSourceHandle, StripePa
   const stripe = d.useStripe();
   const elements = d.useElements();
   const [error, setError] = useState<string | null>(null);
-  const [incompleteBillingDetail, setIncompleteBillingDetail] = useState<IncompleteBillingDetail | null>(null);
+  const [incompleteDetail, setIncompleteDetail] = useState<IncompleteDetail | null>(null);
   /** Set by a refusal and consumed once the fields are interactive again, since an inert subtree cannot take focus. */
-  const shouldRevealBillingFieldsRef = useRef(false);
+  const incompleteDetailToRevealRef = useRef<IncompleteDetail | null>(null);
   const lastPaymentTypeRef = useRef<string | null>(null);
   const billingSectionRef = useRef<HTMLElement>(null);
+  const paymentSectionRef = useRef<HTMLElement>(null);
   const billingHeadingId = useId();
-  const shownError = incompleteBillingDetail ? INCOMPLETE_BILLING_DETAIL_MESSAGES[incompleteBillingDetail] : error;
+  const paymentHeadingId = useId();
+  const shownError = incompleteDetail ? describeIncompleteDetail(incompleteDetail) : error;
 
   const clearError = useCallback(() => {
     setError(null);
-    setIncompleteBillingDetail(null);
+    setIncompleteDetail(null);
   }, []);
 
+  const clearIncompleteDetailOf = (element: IncompleteDetail["element"]) => {
+    setIncompleteDetail(current => (current?.element === element ? null : current));
+  };
+
   useEffect(
-    function revealIncompleteBillingFields() {
-      if (disabled || !shouldRevealBillingFieldsRef.current) return;
-      shouldRevealBillingFieldsRef.current = false;
-      elements?.getElement("address")?.focus();
-      billingSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    function revealIncompleteFields() {
+      const incompleteDetailToReveal = incompleteDetailToRevealRef.current;
+      if (disabled || !incompleteDetailToReveal) return;
+      incompleteDetailToRevealRef.current = null;
+      if (incompleteDetailToReveal.element === "address") {
+        elements?.getElement("address")?.focus();
+        billingSectionRef.current?.scrollIntoView(SCROLL_TO_SECTION_START);
+      } else {
+        elements?.getElement("payment")?.focus();
+        paymentSectionRef.current?.scrollIntoView(SCROLL_TO_SECTION_START);
+      }
     },
-    [disabled, incompleteBillingDetail, elements]
+    [disabled, incompleteDetail, elements]
   );
 
   const reportPaymentType = (type: string) => {
@@ -198,9 +231,10 @@ const StripePaymentMethodFields = forwardRef<PaymentMethodSourceHandle, StripePa
 
         if (setupResult.error) {
           const failure = toPaymentMethodSetupFailure(setupResult.error);
-          if (failure.incompleteBillingDetail) {
-            shouldRevealBillingFieldsRef.current = true;
-            setIncompleteBillingDetail(failure.incompleteBillingDetail);
+          const failureIncompleteDetail = findIncompleteDetail(failure);
+          if (failureIncompleteDetail) {
+            incompleteDetailToRevealRef.current = failureIncompleteDetail;
+            setIncompleteDetail(failureIncompleteDetail);
           } else {
             setError(setupResult.error.message || "Couldn't save your card. Please try again.");
           }
@@ -228,20 +262,25 @@ const StripePaymentMethodFields = forwardRef<PaymentMethodSourceHandle, StripePa
         <d.AddressElement
           options={{ mode: "billing" }}
           onChange={event => {
-            if (event.complete) setIncompleteBillingDetail(null);
+            if (event.complete) clearIncompleteDetailOf("address");
           }}
         />
       </section>
 
-      <div className="space-y-2">
-        <h3 className="text-left text-sm font-medium text-muted-foreground">CHOOSE A PAYMENT METHOD</h3>
+      <section ref={paymentSectionRef} aria-labelledby={paymentHeadingId} className="scroll-mt-4 space-y-2">
+        <h3 id={paymentHeadingId} className="text-left text-sm font-medium text-muted-foreground">
+          CHOOSE A PAYMENT METHOD
+        </h3>
         <d.PaymentElement
           options={{ layout: "tabs", paymentMethodOrder: ["card", "link"] }}
-          onChange={event => reportPaymentType(event.value.type)}
+          onChange={event => {
+            reportPaymentType(event.value.type);
+            if (event.complete) clearIncompleteDetailOf("payment");
+          }}
           onReady={onReady}
           onLoadError={onLoadError}
         />
-      </div>
+      </section>
 
       <Alert variant="default" className="bg-muted p-3">
         <ShieldCheck className="h-4 w-4 text-muted-foreground" />
@@ -258,6 +297,18 @@ const StripePaymentMethodFields = forwardRef<PaymentMethodSourceHandle, StripePa
     </div>
   );
 });
+
+function findIncompleteDetail(failure: PaymentMethodSetupFailure): IncompleteDetail | null {
+  if (failure.incompleteBillingDetail) return { element: "address", detail: failure.incompleteBillingDetail };
+  if (failure.incompletePaymentMethodDetail) return { element: "payment", detail: failure.incompletePaymentMethodDetail };
+  return null;
+}
+
+function describeIncompleteDetail(incompleteDetail: IncompleteDetail): string {
+  return incompleteDetail.element === "address"
+    ? INCOMPLETE_BILLING_DETAIL_MESSAGES[incompleteDetail.detail]
+    : INCOMPLETE_PAYMENT_METHOD_DETAIL_MESSAGES[incompleteDetail.detail];
+}
 
 /**
  * Builds the Stripe Elements appearance config so it stays out of the JSX and
