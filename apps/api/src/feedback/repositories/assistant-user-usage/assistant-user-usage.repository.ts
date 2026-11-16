@@ -36,6 +36,7 @@ export class AssistantUserUsageRepository {
         set: {
           dayMessageCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayMessageCount} + 1 ELSE 1 END`,
           dayTokenCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayTokenCount} ELSE 0 END`,
+          dayProblemReportCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayProblemReportCount} ELSE 0 END`,
           day: sql`excluded.day`,
           minuteMessageCount: sql`CASE WHEN ${withinMinute} THEN ${this.table.minuteMessageCount} + 1 ELSE 1 END`,
           minuteStartedAt: sql`CASE WHEN ${withinMinute} THEN ${this.table.minuteStartedAt} ELSE excluded.minute_started_at END`,
@@ -49,6 +50,26 @@ export class AssistantUserUsageRepository {
       });
 
     return counts;
+  }
+
+  /** Counts apart from the reports themselves, so erasing them never gives the user a fresh daily limit. */
+  async countProblemReport(userId: string, sentAt: Date): Promise<number> {
+    const [usage] = await this.#cursor
+      .insert(this.table)
+      .values({ userId, day: sentAt.toISOString().slice(0, 10), dayProblemReportCount: 1, minuteStartedAt: sentAt })
+      .onConflictDoUpdate({
+        target: this.table.userId,
+        set: {
+          dayProblemReportCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayProblemReportCount} + 1 ELSE 1 END`,
+          dayMessageCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayMessageCount} ELSE 0 END`,
+          dayTokenCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayTokenCount} ELSE 0 END`,
+          day: sql`excluded.day`,
+          updatedAt: sql`now()`
+        }
+      })
+      .returning({ dayProblemReportCount: this.table.dayProblemReportCount });
+
+    return usage.dayProblemReportCount;
   }
 
   async dayTokenCountOf(userId: string, day: string): Promise<number> {

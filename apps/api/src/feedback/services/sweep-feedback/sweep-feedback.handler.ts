@@ -6,11 +6,13 @@ import { JobQueueService } from "@src/core/services/job-queue/job-queue.service"
 import { FEEDBACK_CONFIG, type FeedbackConfig } from "@src/feedback/providers/config.provider";
 import { AssistantConversationRepository } from "@src/feedback/repositories/assistant-conversation/assistant-conversation.repository";
 import { AssistantPendingTurnRepository } from "@src/feedback/repositories/assistant-pending-turn/assistant-pending-turn.repository";
+import { AssistantProblemReportRepository } from "@src/feedback/repositories/assistant-problem-report/assistant-problem-report.repository";
 import { AssistantTurnTraceRepository } from "@src/feedback/repositories/assistant-turn-trace/assistant-turn-trace.repository";
 import { FeedbackSubmissionRepository } from "@src/feedback/repositories/feedback-submission/feedback-submission.repository";
 import { AkashMlClient } from "@src/feedback/services/akashml-client/akashml.client";
 import { ClassifyConversation, classifyConversationOptionsFor } from "@src/feedback/services/classify-conversation/classify-conversation.handler";
 import { ClassifyFeedback, classifyFeedbackOptionsFor } from "@src/feedback/services/classify-feedback/classify-feedback.handler";
+import { ClassifyProblemReport, classifyProblemReportOptionsFor } from "@src/feedback/services/classify-problem-report/classify-problem-report.handler";
 import { FeedbackErasureService } from "@src/feedback/services/feedback-erasure/feedback-erasure.service";
 import { FeedbackThemeScoreService } from "@src/feedback/services/feedback-theme-score/feedback-theme-score.service";
 
@@ -23,7 +25,7 @@ export const RETENTION_BATCH_SIZE = 500;
 /** Must stay well past the longest a turn can run, so only a trace whose pod died mid-turn is still running after it. */
 export const ABANDONED_TURN_TRACE_MINUTES = 10;
 
-/** Classifies what was stored while the model was unavailable or whose job gave up, lets theme scores decay, and drops assistant turns the browser never resumed and conversations, feedback and turn traces past retention, and fails turn traces a crashed pod left running. */
+/** Classifies what was stored while the model was unavailable or whose job gave up, lets theme scores decay, and drops assistant turns the browser never resumed and conversations, feedback, problem reports and turn traces past retention, and fails turn traces a crashed pod left running. */
 export class SweepFeedback implements Job {
   static readonly [JOB_NAME] = "SweepFeedback";
   readonly name = SweepFeedback[JOB_NAME];
@@ -48,6 +50,7 @@ export class SweepFeedbackHandler implements JobHandler<SweepFeedback> {
     private readonly jobQueueService: JobQueueService,
     private readonly feedbackSubmissionRepository: FeedbackSubmissionRepository,
     private readonly assistantConversationRepository: AssistantConversationRepository,
+    private readonly assistantProblemReportRepository: AssistantProblemReportRepository,
     private readonly akashMlClient: AkashMlClient,
     private readonly feedbackThemeScoreService: FeedbackThemeScoreService,
     private readonly assistantPendingTurnRepository: AssistantPendingTurnRepository,
@@ -81,12 +84,13 @@ export class SweepFeedbackHandler implements JobHandler<SweepFeedback> {
       expiredPendingTurns,
       deletedConversations: expired.conversations,
       deletedSubmissions: expired.submissions,
+      deletedProblemReports: expired.problemReports,
       deletedTurnTraces,
       abandonedTurnTraces
     });
   }
 
-  async #enqueueUnclassified(now: Date): Promise<{ submissions: number; conversations: number }> {
+  async #enqueueUnclassified(now: Date): Promise<{ submissions: number; conversations: number; problemReports: number }> {
     const submissionIds = await this.feedbackSubmissionRepository.findUnclassifiedIds(BACKFILL_BATCH_SIZE);
     for (const feedbackSubmissionId of submissionIds) {
       await this.jobQueueService.enqueue(new ClassifyFeedback({ feedbackSubmissionId }), classifyFeedbackOptionsFor(feedbackSubmissionId));
@@ -97,6 +101,11 @@ export class SweepFeedbackHandler implements JobHandler<SweepFeedback> {
       await this.jobQueueService.enqueue(new ClassifyConversation({ conversationId }), classifyConversationOptionsFor(conversationId));
     }
 
-    return { submissions: submissionIds.length, conversations: conversationIds.length };
+    const problemReportIds = await this.assistantProblemReportRepository.findUnclassifiedIds(BACKFILL_BATCH_SIZE);
+    for (const problemReportId of problemReportIds) {
+      await this.jobQueueService.enqueue(new ClassifyProblemReport({ problemReportId }), classifyProblemReportOptionsFor(problemReportId));
+    }
+
+    return { submissions: submissionIds.length, conversations: conversationIds.length, problemReports: problemReportIds.length };
   }
 }

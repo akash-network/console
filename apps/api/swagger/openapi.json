@@ -36887,6 +36887,11 @@
                             "content": {
                               "type": "string",
                               "maxLength": 8000
+                            },
+                            "signature": {
+                              "type": "string",
+                              "maxLength": 128,
+                              "description": "The `answerSignature` the API sent with this answer"
                             }
                           },
                           "required": [
@@ -36895,7 +36900,7 @@
                           ]
                         },
                         "maxItems": 20,
-                        "description": "The earlier messages of a conversation the API does not store, oldest first. Ignored for a stored conversation."
+                        "description": "The earlier messages of a conversation the API does not store, oldest first. An assistant message without a valid signature is left out. Ignored for a stored conversation."
                       },
                       "context": {
                         "type": "object",
@@ -38541,6 +38546,15 @@
                             "awaiting_client_tool"
                           ],
                           "description": "`awaiting_client_tool`: the turn is paused until the browser posts the requested results to `client-tool-results`"
+                        },
+                        "answerSignature": {
+                          "type": "string",
+                          "description": "Signs the answer's text so far, up to its first 8000 characters, which is all the client sends back with this answer in `history`"
+                        },
+                        "turnId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "description": "Identifies this turn, to rate it or report a problem with it"
                         }
                       },
                       "required": [
@@ -40292,6 +40306,15 @@
                             "awaiting_client_tool"
                           ],
                           "description": "`awaiting_client_tool`: the turn is paused until the browser posts the requested results to `client-tool-results`"
+                        },
+                        "answerSignature": {
+                          "type": "string",
+                          "description": "Signs the answer's text so far, up to its first 8000 characters, which is all the client sends back with this answer in `history`"
+                        },
+                        "turnId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "description": "Identifies this turn, to rate it or report a problem with it"
                         }
                       },
                       "required": [
@@ -40584,6 +40607,262 @@
           },
           "404": {
             "description": "`assistant_proposal_not_found` when the stored conversation holds no such proposal"
+          }
+        }
+      }
+    },
+    "/v1/assistant/conversations/{id}/turns/{turnId}/rating": {
+      "put": {
+        "operationId": "updateAssistantTurnRating",
+        "summary": "Rate one assistant answer up or down, or clear its rating",
+        "tags": [
+          "Assistant"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "turnId",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "rating": {
+                        "type": "string",
+                        "nullable": true,
+                        "enum": [
+                          "up",
+                          "down"
+                        ],
+                        "description": "`null` clears the rating"
+                      }
+                    },
+                    "required": [
+                      "rating"
+                    ]
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The rating the turn now has",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "turnId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "rating": {
+                          "type": "string",
+                          "nullable": true,
+                          "enum": [
+                            "up",
+                            "down"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "turnId",
+                        "rating"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "`assistant_turn_not_found` when the user has no such turn in this conversation"
+          }
+        }
+      }
+    },
+    "/v1/assistant/conversations/{id}/problem-reports": {
+      "post": {
+        "operationId": "createAssistantProblemReport",
+        "summary": "Report a problem with the assistant's answers in this conversation",
+        "tags": [
+          "Assistant"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "turnId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "The `turnId` of the answer the user reported, from its `done` event"
+                      },
+                      "note": {
+                        "type": "string",
+                        "maxLength": 2000
+                      },
+                      "copyVersion": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "description": "The version of the report consent line the client showed"
+                      },
+                      "history": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "role": {
+                              "type": "string",
+                              "enum": [
+                                "user",
+                                "assistant"
+                              ]
+                            },
+                            "content": {
+                              "type": "string",
+                              "maxLength": 8000
+                            },
+                            "signature": {
+                              "type": "string",
+                              "maxLength": 128,
+                              "description": "The `answerSignature` the API sent with this answer"
+                            }
+                          },
+                          "required": [
+                            "role",
+                            "content"
+                          ]
+                        },
+                        "maxItems": 20,
+                        "description": "The messages of a conversation the API does not store, oldest first. Every assistant message needs its valid signature. Ignored for a stored conversation."
+                      }
+                    },
+                    "required": [
+                      "copyVersion"
+                    ]
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        }
+                      },
+                      "required": [
+                        "id"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body, or `assistant_history_unverified` when an assistant message in `history` fails its signature check"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "429": {
+            "description": "`assistant_report_limit` when the user sent too many reports today"
           }
         }
       }

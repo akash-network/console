@@ -3,6 +3,22 @@ export const REDACTED = "[REDACTED]";
 /** Bounded on both sides of the secret word, since unbounded runs backtrack quadratically on long dotted words like `token.token.token`. */
 const SECRET_KEY_NAME = String.raw`[\w.-]{0,64}?(?:secret|token|password|passwd|api[_-]?key|access[_-]?key|private[_-]?key|credentials?)[\w.-]{0,64}`;
 
+/** A quote closing the key only counts before a quoted value, or an unquoted value could swallow the name of a second secret and leave its value visible. */
+const SECRET_KEY_SEPARATOR = String.raw`(?:["']\s*[:=]\s*(?=["'])|\s*[:=]\s*)`;
+
+/** Redacted to the end of its line, since the quote that really closes such a value cannot be told apart from a later value's opening quote. */
+const QUOTED_SECRET_WITH_ESCAPED_QUOTE = new RegExp(String.raw`\b(${SECRET_KEY_NAME}${SECRET_KEY_SEPARATOR})(["'])(?:(?!\2)[^\n])*\\\2[^\n]*`, "gi");
+
+const QUOTED_SECRET_VALUE = String.raw`(["'])(?:(?!\2)[^\n])+(\2)|(["'])(?:(?!\4)[^\n])+`;
+
+/** Runs before the quoted-key rules, so whatever they match can only add to what it already redacted. */
+const UNQUOTED_SECRET_KEY = new RegExp(String.raw`\b(${SECRET_KEY_NAME}\s*[:=]\s*)(?:${QUOTED_SECRET_VALUE}|[^\s"']+)`, "gi");
+
+const QUOTED_SECRET_KEY_WITH_QUOTED_VALUE = new RegExp(String.raw`\b(${SECRET_KEY_NAME}["']\s*[:=]\s*)(?:${QUOTED_SECRET_VALUE})`, "gi");
+
+/** Skips a value that is itself another key's assignment, which the rules before it have already redacted. */
+const QUOTED_SECRET_KEY_WITH_UNQUOTED_VALUE = new RegExp(String.raw`\b(${SECRET_KEY_NAME}["']\s*[:=]\s*)(?![\w.-]*["']?\s*[:=])[^\s"',}\]]+`, "gi");
+
 const SECRET_REPLACEMENTS: [RegExp, string][] = [
   [/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g, REDACTED],
   [/\beyJ[\w-]+\.eyJ[\w-]+\.[\w-]+/g, REDACTED],
@@ -14,7 +30,10 @@ const SECRET_REPLACEMENTS: [RegExp, string][] = [
   [/\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g, REDACTED],
   [/\b(bearer\s+)[\w.~+/-]+=*/gi, `$1${REDACTED}`],
   [/\b([a-z][a-z0-9+.-]*:\/\/[^\s:@/]+:)[^\s@/]+@/gi, `$1${REDACTED}@`],
-  [new RegExp(String.raw`\b(${SECRET_KEY_NAME}\s*[:=]\s*)(?:(["'])(?:(?!\2)[^\n])+(\2)|(["'])(?:(?!\4)[^\n])+|[^\s"']+)`, "gi"), `$1$2$4${REDACTED}$3`]
+  [QUOTED_SECRET_WITH_ESCAPED_QUOTE, `$1$2${REDACTED}`],
+  [UNQUOTED_SECRET_KEY, `$1$2$4${REDACTED}$3`],
+  [QUOTED_SECRET_KEY_WITH_QUOTED_VALUE, `$1$2$4${REDACTED}$3`],
+  [QUOTED_SECRET_KEY_WITH_UNQUOTED_VALUE, `$1${REDACTED}`]
 ];
 
 /** Best effort over common credential shapes, applied to every free text the team may later read, whatever the user consented to. */

@@ -17,9 +17,13 @@ export const assistantTurnOutcomeEnum = pgEnum("assistant_turn_outcome", [
   "limited"
 ]);
 
+export const assistantTurnRatingEnum = pgEnum("assistant_turn_rating", ["up", "down"]);
+
 export const MAX_TRACED_PAGE_LENGTH = 500;
 
 export type AssistantTurnOutcome = (typeof assistantTurnOutcomeEnum.enumValues)[number];
+
+export type AssistantTurnRating = (typeof assistantTurnRatingEnum.enumValues)[number];
 
 export type TracedToolCall = { name: string; ok: boolean; durationMs: number };
 
@@ -48,7 +52,8 @@ export const AssistantTurnTraces = pgTable(
     promptTokens: integer("prompt_tokens").notNull().default(0),
     completionTokens: integer("completion_tokens").notNull().default(0),
     toolCalls: jsonb("tool_calls").$type<TracedToolCall[]>().notNull().default([]),
-    cards: jsonb("cards").$type<TracedCard[]>().notNull().default([])
+    cards: jsonb("cards").$type<TracedCard[]>().notNull().default([]),
+    rating: assistantTurnRatingEnum("rating")
   },
   table => ({
     userIdStartedAtIdx: index("assistant_turn_traces_user_id_started_at_idx").on(table.userId, table.startedAt),

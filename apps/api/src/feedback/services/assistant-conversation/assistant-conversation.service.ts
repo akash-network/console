@@ -11,6 +11,8 @@ import { TxService } from "@src/core/services/tx/tx.service";
 import type {
   EndAssistantConversationRequest,
   EndAssistantConversationResponse,
+  RateAssistantTurnRequest,
+  RateAssistantTurnResponse,
   RecordAssistantActionResultRequest,
   SendAssistantMessageRequest,
   StartAssistantConversationRequest,
@@ -278,6 +280,13 @@ export class AssistantConversationService {
     });
 
     return { recorded: true };
+  }
+
+  async rateTurn(conversationId: string, turnId: string, { rating }: RateAssistantTurnRequest["data"]): Promise<RateAssistantTurnResponse["data"]> {
+    const rated = await this.assistantTurnTraceRepository.rate({ id: turnId, userId: this.authService.currentUser.id, conversationId, rating });
+    if (!rated) throw createError(404, "No such turn in this conversation.", { errorCode: ASSISTANT_ERROR_CODES.turnNotFound });
+
+    return { turnId, rating };
   }
 
   async #admit(countedMessage?: CountedMessage): Promise<{ consent: AssistantConsentOutput; isTrialing: boolean | null }> {

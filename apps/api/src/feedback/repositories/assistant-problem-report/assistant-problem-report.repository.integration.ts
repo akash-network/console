@@ -1,0 +1,174 @@
+import { faker } from "@faker-js/faker";
+import { subDays } from "date-fns";
+import { container } from "tsyringe";
+import { describe, expect, it } from "vitest";
+
+import { AbilityService } from "@src/auth/services/ability/ability.service";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { AssistantTurnTraceRepository } from "@src/feedback/repositories/assistant-turn-trace/assistant-turn-trace.repository";
+import type { UserOutput } from "@src/user/repositories";
+import { AssistantProblemReportRepository } from "./assistant-problem-report.repository";
+
+import { seedAssistantProblemReport, seedAssistantTurnTrace, seedFeedbackTheme } from "@test/seeders/db/feedback.seeder";
+import { seedOrganization } from "@test/seeders/db/organization.seeder";
+import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
+
+describe(AssistantProblemReportRepository.name, () => {
+  describe("create", () => {
+    it("stores a report as new and reads it back", async () => {
+      const { repository, user } = await setup();
+      const organization = await seedOrganization();
+      const trace = await seedAssistantTurnTrace({ userId: user.id });
+      const input = {
+        userId: user.id,
+        organizationId: organization.id,
+        conversationId: trace.conversationId,
+        turnTraceId: trace.id,
+        note: "The answer was wrong",
+        transcript: [{ role: "user" as const, content: "Why no bids?" }],
+        consentCopyVersion: "2026-11-14"
+      };
+
+      const report = await repository.create(input);
+
+      expect(await repository.findById(report.id)).toEqual({
+        ...input,
+        id: report.id,
+        status: "new",
+        classificationType: null,
+        classificationSummary: null,
+        sentimentScore: null,
+        endedStuck: null,
+        classifiedAt: null,
+        classificationAttempts: 0,
+        classificationFailedAt: null,
+        themeId: null,
+        createdAt: expect.any(Date),
+        updatedAt: expect.any(Date)
+      });
+    });
+
+    it("refuses a report for another user under the user's ability", async () => {
+      const { repository, user } = await setup();
+      const other = await seedUser();
+
+      await expect(
+        asUser(user, ability =>
+          repository.accessibleBy(ability, "create").create({ userId: other.id, conversationId: faker.string.uuid(), consentCopyVersion: "v1" })
+        )
+      ).rejects.toThrow();
+    });
+
+    it("keeps the report and clears its turn when the turn trace is deleted", async () => {
+      const { repository, user } = await setup();
+      const trace = await seedAssistantTurnTrace({ userId: user.id });
+      const report = await seedAssistantProblemReport({ userId: user.id, turnTraceId: trace.id });
+
+      await container.resolve(AssistantTurnTraceRepository).deleteAllOf(user.id);
+
+      expect(await repository.findById(report.id)).toMatchObject({ turnTraceId: null });
+    });
+  });
+
+  describe("deleteAllOf", () => {
+    it("deletes the user's reports only and answers the themes they belonged to", async () => {
+      const { repository, user } = await setup();
+      const other = await seedUser();
+      const theme = await seedFeedbackTheme();
+      const themed = await seedAssistantProblemReport({ userId: user.id, themeId: theme.id });
+      const unthemed = await seedAssistantProblemReport({ userId: user.id });
+      const kept = await seedAssistantProblemReport({ userId: other.id });
+
+      expect(await asUser(user, ability => repository.accessibleBy(ability, "delete").deleteAllOf(user.id))).toEqual([theme.id]);
+      expect(await repository.findById(themed.id)).toBeUndefined();
+      expect(await repository.findById(unthemed.id)).toBeUndefined();
+      expect(await repository.findById(kept.id)).toBeDefined();
+    });
+
+    it("deletes nothing of another user under the user's ability", async () => {
+      const { repository, user } = await setup();
+      const other = await seedUser();
+      const kept = await seedAssistantProblemReport({ userId: other.id });
+
+      expect(await asUser(user, ability => repository.accessibleBy(ability, "delete").deleteAllOf(other.id))).toEqual([]);
+      expect(await repository.findById(kept.id)).toBeDefined();
+    });
+  });
+
+  describe("deleteCreatedBefore", () => {
+    it("deletes reports created before the cutoff, keeps the one exactly at it and answers the count and the themes", async () => {
+      const { repository, user } = await setup();
+      const cutoff = new Date("2001-06-01T00:00:00.000Z");
+      const theme = await seedFeedbackTheme();
+      const expired = await seedAssistantProblemReport({
+        userId: user.id,
+        classifiedAt: new Date(),
+        themeId: theme.id,
+        createdAt: new Date(cutoff.getTime() - 1)
+      });
+      const atCutoff = await seedAssistantProblemReport({ userId: user.id, classifiedAt: new Date(), themeId: theme.id, createdAt: cutoff });
+
+      expect(await repository.deleteCreatedBefore(cutoff, 10)).toEqual({ deletedCount: 1, themeIds: [theme.id] });
+      expect(await repository.findById(expired.id)).toBeUndefined();
+      expect(await repository.findById(atCutoff.id)).toBeDefined();
+    });
+
+    it("deletes at most the given number, the oldest first", async () => {
+      const { repository, user } = await setup();
+      const cutoff = new Date("2000-06-01T00:00:00.000Z");
+      const oldest = await seedAssistantProblemReport({ userId: user.id, classifiedAt: new Date(), createdAt: new Date("2000-01-01T00:00:00.000Z") });
+      const older = await seedAssistantProblemReport({ userId: user.id, classifiedAt: new Date(), createdAt: new Date("2000-02-01T00:00:00.000Z") });
+
+      expect(await repository.deleteCreatedBefore(cutoff, 1)).toEqual({ deletedCount: 1, themeIds: [] });
+      expect(await repository.findById(oldest.id)).toBeUndefined();
+      expect(await repository.findById(older.id)).toBeDefined();
+    });
+  });
+
+  describe("findUnclassifiedIds", () => {
+    it("answers reports neither classified nor given up on, oldest first, up to the limit", async () => {
+      const { repository, user } = await setup();
+      const oldest = await seedAssistantProblemReport({ userId: user.id, createdAt: subDays(new Date(), 400) });
+      const older = await seedAssistantProblemReport({ userId: user.id, createdAt: subDays(new Date(), 399) });
+      await seedAssistantProblemReport({ userId: user.id, createdAt: subDays(new Date(), 398) });
+      await seedAssistantProblemReport({ userId: user.id, createdAt: subDays(new Date(), 401), classifiedAt: new Date() });
+      await seedAssistantProblemReport({ userId: user.id, createdAt: subDays(new Date(), 401), classificationFailedAt: new Date() });
+
+      expect(await repository.findUnclassifiedIds(2)).toEqual([oldest.id, older.id]);
+    });
+  });
+
+  describe("recordFailedClassification", () => {
+    it("counts each failed attempt and gives up on the last one", async () => {
+      const { repository, user } = await setup();
+      const report = await seedAssistantProblemReport({ userId: user.id });
+
+      expect(await repository.recordFailedClassification(report.id, 2)).toEqual({ attempts: 1, abandoned: false });
+      expect(await repository.recordFailedClassification(report.id, 2)).toEqual({ attempts: 2, abandoned: true });
+      expect(await repository.findById(report.id)).toMatchObject({ classificationAttempts: 2, classificationFailedAt: expect.any(Date) });
+    });
+
+    it("answers nothing for a report that is gone", async () => {
+      const { repository } = await setup();
+
+      expect(await repository.recordFailedClassification(faker.string.uuid(), 2)).toBeUndefined();
+    });
+  });
+
+  function asUser<R>(user: UserOutput, run: (ability: ReturnType<AbilityService["getAbilityFor"]>) => Promise<R>) {
+    const executionContextService = container.resolve(ExecutionContextService);
+
+    return executionContextService.runWithContext(async () => {
+      executionContextService.set("ORGANIZATION_CONTEXT", createOrganizationContext({}));
+      return await run(container.resolve(AbilityService).getAbilityFor("REGULAR_USER", user));
+    });
+  }
+
+  async function setup() {
+    const user = await seedUser();
+    const repository = container.resolve(AssistantProblemReportRepository);
+
+    return { repository, user };
+  }
+});

@@ -9,6 +9,8 @@ type FeedbackThemeInsert = ApiPgTables["FeedbackThemes"]["$inferInsert"];
 type AssistantConversationInsert = ApiPgTables["AssistantConversations"]["$inferInsert"];
 type AssistantMessageInsert = ApiPgTables["AssistantMessages"]["$inferInsert"];
 type AssistantConsentInsert = ApiPgTables["AssistantConsents"]["$inferInsert"];
+type AssistantProblemReportInsert = ApiPgTables["AssistantProblemReports"]["$inferInsert"];
+type AssistantTurnTraceInsert = ApiPgTables["AssistantTurnTraces"]["$inferInsert"];
 
 function db() {
   return container.resolve<ApiPgDatabase>(POSTGRES_DB);
@@ -64,4 +66,30 @@ export async function seedAssistantConsent(overrides: Partial<AssistantConsentIn
     .returning();
 
   return consent;
+}
+
+export async function seedAssistantProblemReport(overrides: Partial<AssistantProblemReportInsert> & Pick<AssistantProblemReportInsert, "userId">) {
+  const [report] = await db()
+    .insert(resolveTable("AssistantProblemReports"))
+    .values({ conversationId: faker.string.uuid(), consentCopyVersion: "2026-11-14", transcript: [], ...overrides })
+    .returning();
+
+  return report;
+}
+
+export async function seedAssistantTurnTrace(overrides: Partial<AssistantTurnTraceInsert> & Pick<AssistantTurnTraceInsert, "userId">) {
+  const [trace] = await db()
+    .insert(resolveTable("AssistantTurnTraces"))
+    .values({
+      conversationId: faker.string.uuid(),
+      model: "assistant-model",
+      promptVersion: "2026-11-08",
+      outcome: "answered",
+      startedAt: new Date(),
+      durationMs: 1200,
+      ...overrides
+    })
+    .returning();
+
+  return trace;
 }

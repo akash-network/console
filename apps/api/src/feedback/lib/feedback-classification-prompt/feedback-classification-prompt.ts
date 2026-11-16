@@ -40,6 +40,8 @@ export interface ConversationToClassify {
   resolvedByUser: boolean | null;
   context: AssistantConversationContext;
   messages: { role: AssistantMessageRole; content: string }[];
+  /** Kept out of `messages`, so a note never reads as a question the assistant left unanswered. */
+  problemReportNote?: string | null;
 }
 
 export type ItemToClassify = { submission: SubmissionToClassify } | { conversation: ConversationToClassify };
@@ -177,7 +179,8 @@ function conversationItemOf(conversation: ConversationToClassify): Record<string
     status: conversation.status,
     resolvedByUser: conversation.resolvedByUser ?? undefined,
     page: conversation.context.page,
-    transcript: transcriptOf(conversation.messages)
+    transcript: transcriptOf(conversation.messages),
+    problemReportNote: sanitized(conversation.problemReportNote)
   };
 }
 

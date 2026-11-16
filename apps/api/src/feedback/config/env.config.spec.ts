@@ -24,7 +24,8 @@ describe("envSchema", () => {
       ASSISTANT_DAILY_TOKEN_BUDGET: 20_000_000,
       FEEDBACK_RETENTION_DAYS: 365,
       ASSISTANT_SUPPORT_URL: "https://discord.gg/akash",
-      ASSISTANT_HISTORY_SIGNING_KEY: undefined
+      ASSISTANT_HISTORY_SIGNING_KEY: undefined,
+      ASSISTANT_SLACK_WEBHOOK_URL: undefined
     });
   });
 
@@ -49,7 +50,8 @@ describe("envSchema", () => {
         ASSISTANT_DAILY_TOKEN_BUDGET: "",
         FEEDBACK_RETENTION_DAYS: "",
         ASSISTANT_SUPPORT_URL: "",
-        ASSISTANT_HISTORY_SIGNING_KEY: ""
+        ASSISTANT_HISTORY_SIGNING_KEY: "",
+        ASSISTANT_SLACK_WEBHOOK_URL: ""
       })
     ).toEqual(envSchema.parse({}));
   });
@@ -75,7 +77,8 @@ describe("envSchema", () => {
         ASSISTANT_DAILY_TOKEN_BUDGET: "1000",
         FEEDBACK_RETENTION_DAYS: "30",
         ASSISTANT_SUPPORT_URL: "https://support.example.com",
-        ASSISTANT_HISTORY_SIGNING_KEY: "k".repeat(32)
+        ASSISTANT_HISTORY_SIGNING_KEY: "k".repeat(32),
+        ASSISTANT_SLACK_WEBHOOK_URL: "https://hooks.slack.example.com/services/assistant"
       })
     ).toEqual({
       AKASHML_API_URL: "https://akashml.example.com/v1",
@@ -96,7 +99,8 @@ describe("envSchema", () => {
       ASSISTANT_DAILY_TOKEN_BUDGET: 1000,
       FEEDBACK_RETENTION_DAYS: 30,
       ASSISTANT_SUPPORT_URL: "https://support.example.com",
-      ASSISTANT_HISTORY_SIGNING_KEY: "k".repeat(32)
+      ASSISTANT_HISTORY_SIGNING_KEY: "k".repeat(32),
+      ASSISTANT_SLACK_WEBHOOK_URL: "https://hooks.slack.example.com/services/assistant"
     });
   });
 

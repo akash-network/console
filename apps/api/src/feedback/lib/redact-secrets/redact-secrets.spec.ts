@@ -82,6 +82,66 @@ describe(redactSecrets.name, () => {
     expect(redactSecrets(text)).toBe(expected);
   });
 
+  it.each([
+    { case: "JSON", text: `config: {"password":"hunter22","port":8080}`, expected: `config: {"password":"${REDACTED}","port":8080}` },
+    { case: "spaced JSON", text: `{ "api_key": "abc 123" }`, expected: `{ "api_key": "${REDACTED}" }` },
+    { case: "single-quoted", text: `{'token': 'abc123'}`, expected: `{'token': '${REDACTED}'}` }
+  ])("replaces the value of a quoted secret key in $case", ({ text, expected }) => {
+    expect(redactSecrets(text)).toBe(expected);
+  });
+
+  it.each([
+    { case: "an equals sign", text: `password"=token="hunter22"`, expected: `password"=token="${REDACTED}"` },
+    { case: "JSON", text: `{"password":token="hunter22"}`, expected: `{"password":token="${REDACTED}"}` },
+    { case: "single quotes", text: `password': token: 'hunter22'`, expected: `password': token: '${REDACTED}'` },
+    { case: "spaces", text: `password" = token = "hunter22"`, expected: `password" = token = "${REDACTED}"` },
+    { case: "an unclosed second value", text: `passwd'=token="abc`, expected: `passwd'=token="${REDACTED}` }
+  ])("replaces the second secret after a quoted secret key with an unquoted value in $case", ({ text, expected }) => {
+    expect(redactSecrets(text)).toBe(expected);
+  });
+
+  it.each([
+    { case: "JSON", text: `{"password": hunter22}`, expected: `{"password": ${REDACTED}}` },
+    { case: "a JSON number before another field", text: `{"token": 123456, "port": 8080}`, expected: `{"token": ${REDACTED}, "port": 8080}` },
+    { case: "a JSON array", text: `["api_key": abc123]`, expected: `["api_key": ${REDACTED}]` },
+    { case: "single quotes", text: `'api_key': abc123`, expected: `'api_key': ${REDACTED}` },
+    { case: "an equals sign", text: `password"=hunter2 next`, expected: `password"=${REDACTED} next` }
+  ])("replaces an unquoted value after a quoted secret key in $case", ({ text, expected }) => {
+    expect(redactSecrets(text)).toBe(expected);
+  });
+
+  it.each([
+    { case: "a second key in the first value", text: `token"= "a secret= "z9"`, expected: `token"= "${REDACTED}"${REDACTED}"` },
+    { case: "a second key after words", text: `password"="one two token="z9x8c7"`, expected: `password"="${REDACTED}"${REDACTED}"` },
+    { case: "single quotes", text: `password'= 'abc api_key ='hunter22'`, expected: `password'= '${REDACTED}'${REDACTED}'` },
+    { case: "a suffixed key name", text: `AWS_ACCESS_KEY_ID"= "a secret= "z9"`, expected: `AWS_ACCESS_KEY_ID"= "${REDACTED}"${REDACTED}"` },
+    { case: "the other quote inside the second value", text: `token"= "a secret= '"hunter22'`, expected: `token"= "${REDACTED}` }
+  ])("replaces a second secret whose quote a quoted secret key's value would close on, with $case", ({ text, expected }) => {
+    expect(redactSecrets(text)).toBe(expected);
+  });
+
+  it.each([
+    { case: "JSON", text: String.raw`{"password":"first\"remaining-secret","port":8080}`, expected: `{"password":"${REDACTED}` },
+    { case: "an escaped backslash", text: String.raw`{"token":"abc\\","port":8080}`, expected: `{"token":"${REDACTED}` },
+    { case: "a second secret after it", text: String.raw`password="abc\" api_key="z9Xk2mP4qR7s"`, expected: `password="${REDACTED}` },
+    { case: "a second secret opening with a space", text: String.raw`password="x\" api_key=" z9Xk2mP4qR7s"`, expected: `password="${REDACTED}` },
+    { case: "a period after it", text: String.raw`password="p\"w0rd".`, expected: `password="${REDACTED}` },
+    { case: "a slash after it", text: String.raw`password="p\"w0rd"/`, expected: `password="${REDACTED}` },
+    { case: "a closing angle bracket after it", text: String.raw`password="p\"w0rd">`, expected: `password="${REDACTED}` },
+    { case: "an exclamation mark after it", text: String.raw`password="p\"w0rd"!`, expected: `password="${REDACTED}` },
+    { case: "a following line", text: String.raw`password="p\"w0rd"` + "\nport=8080", expected: `password="${REDACTED}\nport=8080` }
+  ])("replaces the rest of the line after a quoted secret holding an escaped quote in $case", ({ text, expected }) => {
+    expect(redactSecrets(text)).toBe(expected);
+  });
+
+  it("keeps a later escaped quote out of an earlier quoted secret", () => {
+    expect(redactSecrets(String.raw`{"password":"x","note":"say \"hi\""}`)).toBe(String.raw`{"password":"${REDACTED}","note":"say \"hi\""}`);
+  });
+
+  it("closes a quoted secret value followed by punctuation at its own quote", () => {
+    expect(redactSecrets(`password="hunter22". token="abc123"`)).toBe(`password="${REDACTED}". token="${REDACTED}"`);
+  });
+
   it("keeps an empty quoted secret value", () => {
     const text = `password="" is not set`;
 
@@ -99,8 +159,10 @@ describe(redactSecrets.name, () => {
     expect(redactSecrets(`password="never closed\nthen "quoted" text`)).toBe(`password="${REDACTED}\nthen "quoted" text`);
   });
 
-  it("scans a long line with an opening quote that never closes quickly", () => {
-    const text = `password="${"a ".repeat(25_000)}`;
+  it.each([
+    { case: "words", text: `password="${"a ".repeat(25_000)}` },
+    { case: "escapes", text: `password="${"\\a ".repeat(16_000)}` }
+  ])("scans a long line of $case with an opening quote that never closes quickly", ({ text }) => {
     const startedAt = performance.now();
 
     expect(redactSecrets(text)).toBe(`password="${REDACTED}`);

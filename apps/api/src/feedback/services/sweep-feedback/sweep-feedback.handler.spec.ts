@@ -7,12 +7,14 @@ import type { JobQueueService } from "@src/core/services/job-queue/job-queue.ser
 import { envSchema } from "@src/feedback/config/env.config";
 import type { AssistantConversationRepository } from "@src/feedback/repositories/assistant-conversation/assistant-conversation.repository";
 import type { AssistantPendingTurnRepository } from "@src/feedback/repositories/assistant-pending-turn/assistant-pending-turn.repository";
+import type { AssistantProblemReportRepository } from "@src/feedback/repositories/assistant-problem-report/assistant-problem-report.repository";
 import type { AssistantTurnTraceRepository } from "@src/feedback/repositories/assistant-turn-trace/assistant-turn-trace.repository";
 import type { FeedbackSubmissionRepository } from "@src/feedback/repositories/feedback-submission/feedback-submission.repository";
 import type { AkashMlClient } from "@src/feedback/services/akashml-client/akashml.client";
 import { PENDING_TURN_TTL_MS, TURN_TIMEOUT_MS } from "@src/feedback/services/assistant-turn/assistant-turn.service";
 import { ClassifyConversation, classifyConversationOptionsFor } from "@src/feedback/services/classify-conversation/classify-conversation.handler";
 import { ClassifyFeedback, classifyFeedbackOptionsFor } from "@src/feedback/services/classify-feedback/classify-feedback.handler";
+import { ClassifyProblemReport, classifyProblemReportOptionsFor } from "@src/feedback/services/classify-problem-report/classify-problem-report.handler";
 import type { FeedbackErasureService } from "@src/feedback/services/feedback-erasure/feedback-erasure.service";
 import type { FeedbackThemeScoreService } from "@src/feedback/services/feedback-theme-score/feedback-theme-score.service";
 import {
@@ -52,6 +54,7 @@ describe(SweepFeedbackHandler.name, () => {
       jobQueueService,
       feedbackSubmissionRepository,
       assistantConversationRepository,
+      assistantProblemReportRepository,
       feedbackThemeScoreService,
       assistantPendingTurnRepository,
       logger
@@ -59,6 +62,7 @@ describe(SweepFeedbackHandler.name, () => {
     assistantPendingTurnRepository.deleteExpired.mockResolvedValue(3);
     feedbackSubmissionRepository.findUnclassifiedIds.mockResolvedValue(["s1", "s2"]);
     assistantConversationRepository.findUnclassifiedIds.mockResolvedValue(["c1"]);
+    assistantProblemReportRepository.findUnclassifiedIds.mockResolvedValue(["r1"]);
     feedbackThemeScoreService.rescoreAll.mockResolvedValue(7);
 
     await handler.handle();
@@ -67,19 +71,22 @@ describe(SweepFeedbackHandler.name, () => {
       [new SweepFeedback(), sweepFeedbackOptionsFor(NOW)],
       [new ClassifyFeedback({ feedbackSubmissionId: "s1" }), classifyFeedbackOptionsFor("s1")],
       [new ClassifyFeedback({ feedbackSubmissionId: "s2" }), classifyFeedbackOptionsFor("s2")],
-      [new ClassifyConversation({ conversationId: "c1" }), classifyConversationOptionsFor("c1")]
+      [new ClassifyConversation({ conversationId: "c1" }), classifyConversationOptionsFor("c1")],
+      [new ClassifyProblemReport({ problemReportId: "r1" }), classifyProblemReportOptionsFor("r1")]
     ]);
+    expect(assistantProblemReportRepository.findUnclassifiedIds).toHaveBeenCalledWith(BACKFILL_BATCH_SIZE);
     expect(feedbackSubmissionRepository.findUnclassifiedIds).toHaveBeenCalledWith(BACKFILL_BATCH_SIZE);
     expect(assistantConversationRepository.findUnclassifiedIds).toHaveBeenCalledWith(new Date("2026-11-04T11:30:00.000Z"), BACKFILL_BATCH_SIZE);
     expect(feedbackThemeScoreService.rescoreAll).toHaveBeenCalledWith(NOW);
     expect(assistantPendingTurnRepository.deleteExpired).toHaveBeenCalledWith(NOW);
     expect(logger.info).toHaveBeenCalledWith({
       event: "FEEDBACK_SWEPT",
-      backfilled: { submissions: 2, conversations: 1 },
+      backfilled: { submissions: 2, conversations: 1, problemReports: 1 },
       rescored: 7,
       expiredPendingTurns: 3,
       deletedConversations: 0,
       deletedSubmissions: 0,
+      deletedProblemReports: 0,
       deletedTurnTraces: 0,
       abandonedTurnTraces: 0
     });
@@ -100,13 +107,15 @@ describe(SweepFeedbackHandler.name, () => {
   it("erases a batch of conversations and feedback past the configured retention on each sweep", async () => {
     vi.useFakeTimers({ now: NOW });
     const { handler, feedbackErasureService, logger } = setup({ isAvailable: false, retentionDays: 30 });
-    feedbackErasureService.eraseExpired.mockResolvedValue({ conversations: 5, submissions: 6 });
+    feedbackErasureService.eraseExpired.mockResolvedValue({ conversations: 5, submissions: 6, problemReports: 7 });
 
     await handler.handle();
 
     expect(RETENTION_BATCH_SIZE).toBe(500);
     expect(feedbackErasureService.eraseExpired).toHaveBeenCalledWith(subDays(NOW, 30), RETENTION_BATCH_SIZE);
-    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "FEEDBACK_SWEPT", deletedConversations: 5, deletedSubmissions: 6 }));
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "FEEDBACK_SWEPT", deletedConversations: 5, deletedSubmissions: 6, deletedProblemReports: 7 })
+    );
   });
 
   it("erases expired items before backfilling and rescoring, so neither works on what retention removes", async () => {
@@ -147,6 +156,7 @@ describe(SweepFeedbackHandler.name, () => {
       expiredPendingTurns: 0,
       deletedConversations: 0,
       deletedSubmissions: 0,
+      deletedProblemReports: 0,
       deletedTurnTraces: 0,
       abandonedTurnTraces: 0
     });
@@ -158,6 +168,8 @@ describe(SweepFeedbackHandler.name, () => {
     feedbackSubmissionRepository.findUnclassifiedIds.mockResolvedValue([]);
     const assistantConversationRepository = mock<AssistantConversationRepository>();
     assistantConversationRepository.findUnclassifiedIds.mockResolvedValue([]);
+    const assistantProblemReportRepository = mock<AssistantProblemReportRepository>();
+    assistantProblemReportRepository.findUnclassifiedIds.mockResolvedValue([]);
     const akashMlClient = mock<AkashMlClient>();
     akashMlClient.isAvailable.mockReturnValue(input.isAvailable ?? true);
     const feedbackThemeScoreService = mock<FeedbackThemeScoreService>();
@@ -167,7 +179,7 @@ describe(SweepFeedbackHandler.name, () => {
     assistantTurnTraceRepository.deleteStartedBefore.mockResolvedValue(0);
     assistantTurnTraceRepository.markAbandoned.mockResolvedValue(0);
     const feedbackErasureService = mock<FeedbackErasureService>();
-    feedbackErasureService.eraseExpired.mockResolvedValue({ conversations: 0, submissions: 0 });
+    feedbackErasureService.eraseExpired.mockResolvedValue({ conversations: 0, submissions: 0, problemReports: 0 });
     const config = envSchema.parse({ FEEDBACK_RETENTION_DAYS: input.retentionDays });
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
@@ -175,6 +187,7 @@ describe(SweepFeedbackHandler.name, () => {
       jobQueueService,
       feedbackSubmissionRepository,
       assistantConversationRepository,
+      assistantProblemReportRepository,
       akashMlClient,
       feedbackThemeScoreService,
       assistantPendingTurnRepository,
@@ -189,6 +202,7 @@ describe(SweepFeedbackHandler.name, () => {
       jobQueueService,
       feedbackSubmissionRepository,
       assistantConversationRepository,
+      assistantProblemReportRepository,
       feedbackThemeScoreService,
       assistantPendingTurnRepository,
       assistantTurnTraceRepository,

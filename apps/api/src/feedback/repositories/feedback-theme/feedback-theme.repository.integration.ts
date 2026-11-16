@@ -6,7 +6,7 @@ import { TxService } from "@src/core/services";
 import { FeedbackSubmissionRepository } from "@src/feedback/repositories/feedback-submission/feedback-submission.repository";
 import { FeedbackThemeRepository } from "./feedback-theme.repository";
 
-import { seedAssistantConversation, seedFeedbackSubmission, seedFeedbackTheme } from "@test/seeders/db/feedback.seeder";
+import { seedAssistantConversation, seedAssistantProblemReport, seedFeedbackSubmission, seedFeedbackTheme } from "@test/seeders/db/feedback.seeder";
 import { seedOrganization } from "@test/seeders/db/organization.seeder";
 import { seedOrganizationWallet, seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { holdTransaction, waitForLockWait } from "@test/services/lock-wait";
@@ -29,6 +29,24 @@ describe(FeedbackThemeRepository.name, () => {
         distinctUserCount: 2,
         firstSeenAt: new Date("2026-10-01T00:00:00.000Z"),
         lastSeenAt: new Date("2026-10-05T00:00:00.000Z")
+      });
+    });
+
+    it("counts the problem reports attached to a theme with the other items", async () => {
+      const { repository } = setup();
+      const [alice, bob] = await Promise.all([seedUser(), seedUser()]);
+      const theme = await seedFeedbackTheme();
+      await seedFeedbackSubmission({ userId: alice.id, themeId: theme.id, createdAt: new Date("2026-10-01T00:00:00.000Z") });
+      await seedAssistantProblemReport({ userId: bob.id, themeId: theme.id, createdAt: new Date("2026-10-07T00:00:00.000Z") });
+      await seedAssistantProblemReport({ userId: bob.id });
+
+      await repository.refreshCounts([theme.id]);
+
+      expect(await repository.findById(theme.id)).toMatchObject({
+        itemCount: 2,
+        distinctUserCount: 2,
+        firstSeenAt: new Date("2026-10-01T00:00:00.000Z"),
+        lastSeenAt: new Date("2026-10-07T00:00:00.000Z")
       });
     });
 
@@ -239,6 +257,29 @@ describe(FeedbackThemeRepository.name, () => {
         isPayingUser: false,
         isFirstWeekUser: true
       });
+    });
+
+    it("answers the signals of a problem report attached to the themes", async () => {
+      const { repository } = setup();
+      const { user } = await seedUserWithWallet({ isTrialing: false, user: { createdAt: new Date("2019-01-01T00:00:00.000Z") } });
+      const theme = await seedFeedbackTheme();
+      const reportedAt = new Date("2020-01-01T00:00:00.000Z");
+      await seedAssistantProblemReport({ userId: user.id, themeId: theme.id, sentimentScore: -0.6, endedStuck: true, createdAt: reportedAt });
+      await seedAssistantProblemReport({ userId: user.id });
+
+      expect(await repository.findScoreSignals([theme.id])).toEqual([
+        {
+          themeId: theme.id,
+          userId: user.id,
+          seenAt: reportedAt,
+          rating: null,
+          sentimentScore: -0.6,
+          endedStuck: true,
+          deploymentFailed: false,
+          isPayingUser: true,
+          isFirstWeekUser: false
+        }
+      ]);
     });
 
     it("counts a user as paying through the organization wallet the item was filed under", async () => {

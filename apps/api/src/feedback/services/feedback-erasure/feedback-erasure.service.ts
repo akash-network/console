@@ -3,6 +3,7 @@ import { singleton } from "tsyringe";
 import { AuthService } from "@src/auth/services/auth.service";
 import { TxService } from "@src/core/services/tx/tx.service";
 import { AssistantConversationRepository } from "@src/feedback/repositories/assistant-conversation/assistant-conversation.repository";
+import { AssistantProblemReportRepository } from "@src/feedback/repositories/assistant-problem-report/assistant-problem-report.repository";
 import { AssistantTurnTraceRepository } from "@src/feedback/repositories/assistant-turn-trace/assistant-turn-trace.repository";
 import { FeedbackSubmissionRepository } from "@src/feedback/repositories/feedback-submission/feedback-submission.repository";
 import { FeedbackThemeRepository } from "@src/feedback/repositories/feedback-theme/feedback-theme.repository";
@@ -12,6 +13,7 @@ export class FeedbackErasureService {
   constructor(
     private readonly feedbackSubmissionRepository: FeedbackSubmissionRepository,
     private readonly assistantConversationRepository: AssistantConversationRepository,
+    private readonly assistantProblemReportRepository: AssistantProblemReportRepository,
     private readonly feedbackThemeRepository: FeedbackThemeRepository,
     private readonly assistantTurnTraceRepository: AssistantTurnTraceRepository,
     private readonly authService: AuthService,
@@ -23,7 +25,8 @@ export class FeedbackErasureService {
 
     return await this.txService.transaction(async () => {
       const { deletedCount, themeIds } = await this.assistantConversationRepository.accessibleBy(this.authService.ability, "delete").deleteAllOf(userId);
-      await this.feedbackThemeRepository.refreshCounts(themeIds);
+      const reportThemeIds = await this.assistantProblemReportRepository.accessibleBy(this.authService.ability, "delete").deleteAllOf(userId);
+      await this.feedbackThemeRepository.refreshCounts([...themeIds, ...reportThemeIds]);
       await this.assistantTurnTraceRepository.deleteAllOf(userId);
 
       return deletedCount;
@@ -35,19 +38,21 @@ export class FeedbackErasureService {
     await this.txService.transaction(async () => {
       const submissionThemeIds = await this.feedbackSubmissionRepository.deleteAllOf(userId);
       const { themeIds: conversationThemeIds } = await this.assistantConversationRepository.deleteAllOf(userId);
-      await this.feedbackThemeRepository.refreshCounts([...submissionThemeIds, ...conversationThemeIds]);
+      const reportThemeIds = await this.assistantProblemReportRepository.deleteAllOf(userId);
+      await this.feedbackThemeRepository.refreshCounts([...submissionThemeIds, ...conversationThemeIds, ...reportThemeIds]);
       await this.assistantTurnTraceRepository.deleteAllOf(userId);
     });
   }
 
   /** Takes at most `batchSize` of each kind per call, so a large backlog is spread over several calls instead of one long delete. */
-  async eraseExpired(cutoff: Date, batchSize: number): Promise<{ conversations: number; submissions: number }> {
+  async eraseExpired(cutoff: Date, batchSize: number): Promise<{ conversations: number; submissions: number; problemReports: number }> {
     return await this.txService.transaction(async () => {
       const conversations = await this.assistantConversationRepository.deleteInactiveBefore(cutoff, batchSize);
       const submissions = await this.feedbackSubmissionRepository.deleteCreatedBefore(cutoff, batchSize);
-      await this.feedbackThemeRepository.refreshCounts([...conversations.themeIds, ...submissions.themeIds]);
+      const problemReports = await this.assistantProblemReportRepository.deleteCreatedBefore(cutoff, batchSize);
+      await this.feedbackThemeRepository.refreshCounts([...conversations.themeIds, ...submissions.themeIds, ...problemReports.themeIds]);
 
-      return { conversations: conversations.deletedCount, submissions: submissions.deletedCount };
+      return { conversations: conversations.deletedCount, submissions: submissions.deletedCount, problemReports: problemReports.deletedCount };
     });
   }
 }

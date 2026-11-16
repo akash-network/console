@@ -140,6 +140,7 @@ describe(OrgScopedRepository.name, () => {
         "feedback_submissions",
         "assistant_conversations",
         "assistant_turn_traces",
+        "assistant_problem_reports",
         "template_usage_events"
       ];
       const organizationTables = API_PG_TABLE_NAMES.map((name): unknown => resolveTable(name))
