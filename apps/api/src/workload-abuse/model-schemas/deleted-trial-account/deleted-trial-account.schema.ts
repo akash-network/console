@@ -12,6 +12,7 @@ export const DeletedTrialAccounts = pgTable(
       .default(sql`uuid_generate_v4()`),
     identityHash: varchar("identity_hash", { length: HMAC_SHA256_HEX_LENGTH }),
     emailHash: varchar("email_hash", { length: HMAC_SHA256_HEX_LENGTH }),
+    fingerprintHash: varchar("fingerprint_hash", { length: HMAC_SHA256_HEX_LENGTH }),
     walletAddress: varchar("wallet_address"),
     /** The account last refused a trial over this row, so its review is raised once however often its activation is retried. */
     refusedUserId: uuid("refused_user_id"),
@@ -19,6 +20,7 @@ export const DeletedTrialAccounts = pgTable(
   },
   table => ({
     identityHashIdx: index("deleted_trial_accounts_identity_hash_idx").on(table.identityHash),
-    emailHashIdx: index("deleted_trial_accounts_email_hash_idx").on(table.emailHash)
+    emailHashIdx: index("deleted_trial_accounts_email_hash_idx").on(table.emailHash),
+    fingerprintHashIdx: index("deleted_trial_accounts_fingerprint_hash_idx").on(table.fingerprintHash)
   })
 );

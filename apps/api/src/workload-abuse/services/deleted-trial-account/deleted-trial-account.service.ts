@@ -6,15 +6,16 @@ import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.p
 import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import { TxService } from "@src/core/services/tx/tx.service";
 import type { UserOutput } from "@src/user/repositories";
-import { type AccountHashes, hashAccount } from "@src/workload-abuse/lib/account-hashes/account-hashes";
+import { hashAccount, hashFingerprint } from "@src/workload-abuse/lib/account-hashes/account-hashes";
 import {
+  type DeletedTrialAccountHashes,
   type DeletedTrialAccountOutput,
   DeletedTrialAccountRepository
 } from "@src/workload-abuse/repositories/deleted-trial-account/deleted-trial-account.repository";
 import { ReviewRefusedTrial } from "@src/workload-abuse/services/review-refused-trial/review-refused-trial.handler";
 import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 
-type Account = Pick<UserOutput, "id" | "userId" | "email">;
+type Account = Pick<UserOutput, "id" | "userId" | "email" | "lastFingerprint">;
 
 interface TrialRefusal {
   latestDeletion: DeletedTrialAccountOutput;
@@ -40,7 +41,7 @@ export class DeletedTrialAccountService {
     if (!memoryDays || !wallet?.activatedAt || !wallet.isTrialing) return;
 
     const hashes = this.#hashesOf(account);
-    if (!hashes.identityHash && !hashes.emailHash) return;
+    if (!hashes.identityHash && !hashes.emailHash && !hashes.fingerprintHash) return;
 
     await this.deletedTrialAccountRepository.deleteOlderThan(subDays(new Date(), memoryDays));
     await this.deletedTrialAccountRepository.create({ ...hashes, walletAddress: wallet.address });
@@ -79,7 +80,7 @@ export class DeletedTrialAccountService {
     if (!memoryDays) return undefined;
 
     const now = new Date();
-    const deletions = await this.deletedTrialAccountRepository.findByAnyHashSince(this.#hashesOf(account), subDays(now, memoryDays));
+    const deletions = await this.deletedTrialAccountRepository.findByAnyHashSince(this.#lookupHashesOf(account), subDays(now, memoryDays));
     const [latestDeletion] = deletions;
     if (!latestDeletion) return undefined;
 
@@ -91,7 +92,16 @@ export class DeletedTrialAccountService {
     return isInCooldown || isOverMaxReturns ? { latestDeletion, deletionsOnRecord: deletions.length } : undefined;
   }
 
-  #hashesOf(account: Account): AccountHashes {
-    return hashAccount(this.workloadAbuseConfigService.get("WORKLOAD_ABUSE_ACCOUNT_HASH_SECRET"), account);
+  #lookupHashesOf(account: Account): DeletedTrialAccountHashes {
+    const hashes = this.#hashesOf(account);
+    const matchesFingerprint = this.workloadAbuseConfigService.get("WORKLOAD_ABUSE_DELETED_TRIAL_MATCH_FINGERPRINT");
+
+    return matchesFingerprint ? hashes : { ...hashes, fingerprintHash: null };
+  }
+
+  #hashesOf(account: Account): DeletedTrialAccountHashes {
+    const secret = this.workloadAbuseConfigService.get("WORKLOAD_ABUSE_ACCOUNT_HASH_SECRET");
+
+    return { ...hashAccount(secret, account), fingerprintHash: hashFingerprint(secret, account.lastFingerprint) };
   }
 }

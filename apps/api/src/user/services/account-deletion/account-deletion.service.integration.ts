@@ -567,6 +567,49 @@ describe(AccountDeletionService.name, () => {
       ]);
     });
 
+    it("refuses a new trial to a sign-up from the browser of a deleted trial account under another identity and email", async () => {
+      const { service, account, token, answerActiveDeployments, setFingerprintOf, startTrialOf, limitReturningTrials, signUpAgain } = await setup();
+      answerActiveDeployments([]);
+      limitReturningTrials({ cooldownHours: 4 });
+      const fingerprint = await setFingerprintOf(account, faker.string.hexadecimal({ length: 64, casing: "lower", prefix: "" }));
+      await startTrialOf(account, { isTrialing: true, activatedAt: new Date() });
+
+      await service.confirm({ token });
+      const { user, wallet, grantTrial, refusal } = await signUpAgain({
+        userId: `auth0|${faker.string.alphanumeric(24)}`,
+        email: faker.internet.email().toLowerCase(),
+        lastFingerprint: fingerprint
+      });
+
+      expect(refusal).toBeUndefined();
+      expect(grantTrial).not.toHaveBeenCalled();
+      expect(wallet).toMatchObject({ isTrialing: false, abuseLockedAt: expect.any(Date), abuseLockedReason: DELETED_TRIAL_ACCOUNT_LOCK_REASON });
+      expect(await findJobRows(ReviewRefusedTrial[JOB_NAME], { data: { userId: user.id } })).toEqual([
+        expect.objectContaining({
+          data: expect.objectContaining({ deletedAccount: { walletAddress: account.address, deletedAt: expect.any(String), deletionsOnRecord: 1 } })
+        })
+      ]);
+    });
+
+    it("grants a trial to a sign-up from the browser of a deleted trial account while fingerprint matching is switched off", async () => {
+      const { service, account, token, answerActiveDeployments, setFingerprintOf, startTrialOf, limitReturningTrials, signUpAgain } = await setup();
+      answerActiveDeployments([]);
+      limitReturningTrials({ cooldownHours: 4, matchesFingerprint: false });
+      const fingerprint = await setFingerprintOf(account, faker.string.hexadecimal({ length: 64, casing: "lower", prefix: "" }));
+      await startTrialOf(account, { isTrialing: true, activatedAt: new Date() });
+
+      await service.confirm({ token });
+      const { wallet, grantTrial, refusal } = await signUpAgain({
+        userId: `auth0|${faker.string.alphanumeric(24)}`,
+        email: faker.internet.email().toLowerCase(),
+        lastFingerprint: fingerprint
+      });
+
+      expect(refusal).toBeUndefined();
+      expect(grantTrial).toHaveBeenCalledWith(expect.anything(), { addressIndex: wallet.id });
+      expect(wallet).toMatchObject({ isTrialing: true, abuseLockedAt: null });
+    });
+
     it("grants a trial again to a returning account outside the configured limits", async () => {
       const { service, account, token, answerActiveDeployments, setEmailOf, startTrialOf, limitReturningTrials, signUpAgain } = await setup();
       answerActiveDeployments([]);
@@ -602,11 +645,12 @@ describe(AccountDeletionService.name, () => {
       expect(wallet).toMatchObject({ isTrialing: true, activatedAt: expect.any(Date) });
     });
 
-    it("keeps no identity, email or user id of a deleted trial account in plain text", async () => {
-      const { service, db, account, token, answerActiveDeployments, setEmailOf, startTrialOf, limitReturningTrials } = await setup();
+    it("keeps no identity, email, fingerprint or user id of a deleted trial account in plain text", async () => {
+      const { service, db, account, token, answerActiveDeployments, setEmailOf, setFingerprintOf, startTrialOf, limitReturningTrials } = await setup();
       answerActiveDeployments([]);
       limitReturningTrials({ cooldownHours: 4 });
       const email = await setEmailOf(account, faker.internet.email());
+      const fingerprint = await setFingerprintOf(account, faker.string.hexadecimal({ length: 64, casing: "lower", prefix: "" }));
       await startTrialOf(account, { isTrialing: true, activatedAt: new Date() });
 
       await service.confirm({ token });
@@ -620,6 +664,7 @@ describe(AccountDeletionService.name, () => {
           id: expect.any(String),
           identityHash: expect.stringMatching(/^[0-9a-f]{64}$/),
           emailHash: expect.stringMatching(/^[0-9a-f]{64}$/),
+          fingerprintHash: expect.stringMatching(/^[0-9a-f]{64}$/),
           walletAddress: account.address,
           refusedUserId: null,
           createdAt: expect.any(Date)
@@ -628,6 +673,7 @@ describe(AccountDeletionService.name, () => {
       const stored = JSON.stringify(remembered).toLowerCase();
       expect(stored).not.toContain(account.user.userId!.toLowerCase());
       expect(stored).not.toContain(email.toLowerCase());
+      expect(stored).not.toContain(fingerprint);
       expect(stored).not.toContain(account.user.id);
     });
 
@@ -857,6 +903,15 @@ describe(AccountDeletionService.name, () => {
       return email;
     }
 
+    async function setFingerprintOf({ user }: Awaited<ReturnType<typeof seedAccount>>, fingerprint: string) {
+      await db
+        .update(resolveTable("Users"))
+        .set({ lastFingerprint: fingerprint })
+        .where(eq(resolveTable("Users").id, user.id));
+
+      return fingerprint;
+    }
+
     async function lockForWorkloadAbuse({ wallet }: Awaited<ReturnType<typeof seedAccount>>) {
       await db
         .update(resolveTable("UserWallets"))
@@ -871,20 +926,22 @@ describe(AccountDeletionService.name, () => {
         .where(eq(resolveTable("UserWallets").id, wallet.id));
     }
 
-    function limitReturningTrials(limits: { cooldownHours?: number; maxReturns?: number }) {
+    function limitReturningTrials(limits: { cooldownHours?: number; maxReturns?: number; matchesFingerprint?: boolean }) {
       const workloadAbuseConfig = container.resolve(WorkloadAbuseConfigService);
       const readWorkloadAbuseConfig = workloadAbuseConfig.get.bind(workloadAbuseConfig);
       const overrides: Partial<Record<Parameters<typeof readWorkloadAbuseConfig>[0], unknown>> = {
         WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS: 9,
         WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS: limits.cooldownHours,
-        WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS: limits.maxReturns
+        WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS: limits.maxReturns,
+        WORKLOAD_ABUSE_DELETED_TRIAL_MATCH_FINGERPRINT: limits.matchesFingerprint ?? true
       };
       vi.spyOn(workloadAbuseConfig, "get").mockImplementation((key =>
         key in overrides ? overrides[key] : readWorkloadAbuseConfig(key)) as typeof workloadAbuseConfig.get);
     }
 
-    async function signUpAgain(identity: { userId: string; email: string }) {
-      const user = await seedUser({ ...identity, emailVerified: true });
+    async function signUpAgain(identity: { userId: string; email: string; lastFingerprint?: string }) {
+      const lastFingerprint = identity.lastFingerprint ?? faker.string.hexadecimal({ length: 64, casing: "lower", prefix: "" });
+      const user = await seedUser({ ...identity, lastFingerprint, emailVerified: true });
       await personalOrganizationService.ensureForUser(user);
       const grantTrial = vi
         .spyOn(container.resolve(ManagedUserWalletService), "createAndAuthorizeTrialSpending")
@@ -1027,6 +1084,7 @@ describe(AccountDeletionService.name, () => {
       answerActiveDeployments,
       answerBalanceOf,
       setEmailOf,
+      setFingerprintOf,
       lockForWorkloadAbuse,
       startTrialOf,
       limitReturningTrials,

@@ -6,7 +6,7 @@ import { mock } from "vitest-mock-extended";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import type { TxService } from "@src/core/services/tx/tx.service";
-import { hashAccount } from "@src/workload-abuse/lib/account-hashes/account-hashes";
+import { hashAccount, hashFingerprint } from "@src/workload-abuse/lib/account-hashes/account-hashes";
 import type {
   DeletedTrialAccountOutput,
   DeletedTrialAccountRepository
@@ -32,15 +32,16 @@ describe(DeletedTrialAccountService.name, () => {
   describe("remember", () => {
     it("records the keyed hashes and the wallet address of the deleted account", async () => {
       const { service, repository } = setup();
-      const account = createUser({ userId: "auth0|abc123", email: "  Jane.Doe@Example.COM " });
+      const account = createUser({ userId: "auth0|abc123", email: "  Jane.Doe@Example.COM ", lastFingerprint: "f00d" });
       const wallet = trialWallet();
 
       await service.remember(account, wallet);
 
-      expect(repository.create).toHaveBeenCalledWith({ ...hashAccount(SECRET, account), walletAddress: wallet.address });
+      expect(repository.create).toHaveBeenCalledWith({ ...hashesOf(account), walletAddress: wallet.address });
       expect(repository.create.mock.calls[0][0]).toEqual({
         identityHash: expect.stringMatching(/^[0-9a-f]{64}$/),
         emailHash: expect.stringMatching(/^[0-9a-f]{64}$/),
+        fingerprintHash: expect.stringMatching(/^[0-9a-f]{64}$/),
         walletAddress: wallet.address
       });
     });
@@ -85,26 +86,27 @@ describe(DeletedTrialAccountService.name, () => {
       expect(repository.create).not.toHaveBeenCalled();
     });
 
-    it("records nothing for an account with neither an identity nor an email", async () => {
+    it("records nothing for an account with neither an identity, an email nor a fingerprint", async () => {
       const { service, repository } = setup();
 
-      await service.remember(createUser({ userId: null, email: null }), trialWallet());
+      await service.remember(createUser({ userId: null, email: null, lastFingerprint: null }), trialWallet());
 
       expect(repository.deleteOlderThan).not.toHaveBeenCalled();
       expect(repository.create).not.toHaveBeenCalled();
     });
 
     it.each([
-      { userId: "auth0|abc123", email: null },
-      { userId: null, email: "jane@example.com" }
-    ])("records an account that has only one of its identity and email, case %#", async identity => {
+      { userId: "auth0|abc123", email: null, lastFingerprint: null },
+      { userId: null, email: "jane@example.com", lastFingerprint: null },
+      { userId: null, email: null, lastFingerprint: "f00d" }
+    ])("records an account that has only one of its identity, email and fingerprint, case %#", async identity => {
       const { service, repository } = setup();
       const account = createUser(identity);
       const wallet = trialWallet();
 
       await service.remember(account, wallet);
 
-      expect(repository.create).toHaveBeenCalledWith({ ...hashAccount(SECRET, account), walletAddress: wallet.address });
+      expect(repository.create).toHaveBeenCalledWith({ ...hashesOf(account), walletAddress: wallet.address });
     });
   });
 
@@ -122,11 +124,23 @@ describe(DeletedTrialAccountService.name, () => {
   describe("refusesTrialOf", () => {
     it("looks the account up by its keyed hashes among the records inside the configured age", async () => {
       const { service, repository } = setup({ cooldownHours: 4 });
-      const account = createUser({ userId: "auth0|abc123", email: "JANE.doe+trial@example.com" });
+      const account = createUser({ userId: "auth0|abc123", email: "JANE.doe+trial@example.com", lastFingerprint: "f00d" });
 
       await service.refusesTrialOf(account);
 
-      expect(repository.findByAnyHashSince).toHaveBeenCalledWith(hashAccount(SECRET, account), subDays(NOW, MEMORY_DAYS));
+      expect(repository.findByAnyHashSince).toHaveBeenCalledWith(
+        { ...hashAccount(SECRET, account), fingerprintHash: hashFingerprint(SECRET, "f00d") },
+        subDays(NOW, MEMORY_DAYS)
+      );
+    });
+
+    it("looks the account up without its fingerprint while fingerprint matching is switched off", async () => {
+      const { service, repository } = setup({ cooldownHours: 4, matchesFingerprint: false });
+      const account = createUser({ lastFingerprint: "f00d" });
+
+      await service.refusesTrialOf(account);
+
+      expect(repository.findByAnyHashSince).toHaveBeenCalledWith({ ...hashAccount(SECRET, account), fingerprintHash: null }, subDays(NOW, MEMORY_DAYS));
     });
 
     it("refuses nothing and reads no record while the record age is not configured", async () => {
@@ -226,6 +240,10 @@ describe(DeletedTrialAccountService.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: DeletedTrialAccountService.name });
   });
 
+  function hashesOf(account: ReturnType<typeof createUser>) {
+    return { ...hashAccount(SECRET, account), fingerprintHash: hashFingerprint(SECRET, account.lastFingerprint) };
+  }
+
   function trialWallet() {
     return createUserWallet({ isTrialing: true, activatedAt: new Date() });
   }
@@ -235,6 +253,7 @@ describe(DeletedTrialAccountService.name, () => {
       id: faker.string.uuid(),
       identityHash: faker.string.hexadecimal({ length: 64, casing: "lower", prefix: "" }),
       emailHash: faker.string.hexadecimal({ length: 64, casing: "lower", prefix: "" }),
+      fingerprintHash: faker.string.hexadecimal({ length: 64, casing: "lower", prefix: "" }),
       walletAddress: createAkashAddress(),
       refusedUserId: null,
       createdAt: NOW,
@@ -242,7 +261,9 @@ describe(DeletedTrialAccountService.name, () => {
     };
   }
 
-  function setup(input: { memoryDays?: number; cooldownHours?: number; maxReturns?: number; deletionAgesInHours?: number[] } = {}) {
+  function setup(
+    input: { memoryDays?: number; cooldownHours?: number; maxReturns?: number; matchesFingerprint?: boolean; deletionAgesInHours?: number[] } = {}
+  ) {
     vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
 
     const deletions = (input.deletionAgesInHours ?? []).map(ageInHours => deletion({ createdAt: subHours(NOW, ageInHours) }));
@@ -254,7 +275,8 @@ describe(DeletedTrialAccountService.name, () => {
       WORKLOAD_ABUSE_ACCOUNT_HASH_SECRET: SECRET,
       WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS: "memoryDays" in input ? input.memoryDays : MEMORY_DAYS,
       WORKLOAD_ABUSE_DELETED_TRIAL_COOLDOWN_HOURS: input.cooldownHours,
-      WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS: input.maxReturns
+      WORKLOAD_ABUSE_DELETED_TRIAL_MAX_RETURNS: input.maxReturns,
+      WORKLOAD_ABUSE_DELETED_TRIAL_MATCH_FINGERPRINT: input.matchesFingerprint ?? true
     });
     const jobQueueService = mock<JobQueueService>();
     const txService = mock<TxService>();

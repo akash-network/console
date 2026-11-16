@@ -11,26 +11,40 @@ import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 
 describe(DeletedTrialAccountRepository.name, () => {
   describe("findByAnyHashSince", () => {
-    it("matches a record by its identity hash or by its email hash", async () => {
+    it("matches a record by its identity hash, its email hash or its fingerprint hash", async () => {
       const { repository, record } = await setup();
       const since = subDays(new Date(), 1);
 
-      const [byIdentity, byEmail] = await Promise.all([
-        repository.findByAnyHashSince({ identityHash: record.identityHash, emailHash: hash() }, since),
-        repository.findByAnyHashSince({ identityHash: hash(), emailHash: record.emailHash }, since)
+      const matches = await Promise.all([
+        repository.findByAnyHashSince({ identityHash: record.identityHash, emailHash: hash(), fingerprintHash: hash() }, since),
+        repository.findByAnyHashSince({ identityHash: hash(), emailHash: record.emailHash, fingerprintHash: hash() }, since),
+        repository.findByAnyHashSince({ identityHash: hash(), emailHash: hash(), fingerprintHash: record.fingerprintHash }, since)
       ]);
 
-      expect([byIdentity.map(found => found.id), byEmail.map(found => found.id)]).toEqual([[record.id], [record.id]]);
+      expect(matches.map(found => found.map(row => row.id))).toEqual([[record.id], [record.id], [record.id]]);
+    });
+
+    it("matches by fingerprint hash alone, and leaves out a record kept without one", async () => {
+      const { repository, record, recordAt } = await setup();
+      await recordAt(subHours(new Date(), 5), { fingerprintHash: null });
+
+      const found = await repository.findByAnyHashSince(
+        { identityHash: null, emailHash: null, fingerprintHash: record.fingerprintHash },
+        subDays(new Date(), 1)
+      );
+
+      expect(found.map(row => row.id)).toEqual([record.id]);
     });
 
     it("returns every matching record, the latest first", async () => {
       const { repository, record, recordAt } = await setup();
       const older = await recordAt(subHours(new Date(), 5), { identityHash: record.identityHash });
       const oldest = await recordAt(subHours(new Date(), 9), { emailHash: record.emailHash });
+      const oldestByDevice = await recordAt(subHours(new Date(), 12), { fingerprintHash: record.fingerprintHash });
 
       const found = await repository.findByAnyHashSince(record, subDays(new Date(), 1));
 
-      expect(found.map(row => row.id)).toEqual([record.id, older.id, oldest.id]);
+      expect(found.map(row => row.id)).toEqual([record.id, older.id, oldest.id, oldestByDevice.id]);
     });
 
     it("leaves out a matching record written before the given moment", async () => {
@@ -45,13 +59,16 @@ describe(DeletedTrialAccountRepository.name, () => {
     it("finds nothing for hashes no record was written under", async () => {
       const { repository } = await setup();
 
-      await expect(repository.findByAnyHashSince({ identityHash: hash(), emailHash: hash() }, subDays(new Date(), 1))).resolves.toEqual([]);
+      await expect(
+        repository.findByAnyHashSince({ identityHash: hash(), emailHash: hash(), fingerprintHash: hash() }, subDays(new Date(), 1))
+      ).resolves.toEqual([]);
     });
 
     it("finds nothing without a hash to match, while records exist", async () => {
-      const { repository } = await setup();
+      const { repository, recordAt } = await setup();
+      await recordAt(new Date(), { identityHash: null, emailHash: null, fingerprintHash: null });
 
-      await expect(repository.findByAnyHashSince({ identityHash: null, emailHash: null }, subDays(new Date(), 1))).resolves.toEqual([]);
+      await expect(repository.findByAnyHashSince({ identityHash: null, emailHash: null, fingerprintHash: null }, subDays(new Date(), 1))).resolves.toEqual([]);
     });
   });
 
@@ -135,10 +152,10 @@ describe(DeletedTrialAccountRepository.name, () => {
     const table = resolveTable("DeletedTrialAccounts");
     const repository = container.resolve(DeletedTrialAccountRepository);
 
-    async function recordAt(createdAt: Date, hashes: { identityHash?: string; emailHash?: string } = {}) {
+    async function recordAt(createdAt: Date, hashes: { identityHash?: string | null; emailHash?: string | null; fingerprintHash?: string | null } = {}) {
       const [row] = await db
         .insert(table)
-        .values({ identityHash: hash(), emailHash: hash(), walletAddress: createAkashAddress(), ...hashes, createdAt })
+        .values({ identityHash: hash(), emailHash: hash(), fingerprintHash: hash(), walletAddress: createAkashAddress(), ...hashes, createdAt })
         .returning();
 
       return row;
@@ -152,6 +169,11 @@ describe(DeletedTrialAccountRepository.name, () => {
 
     const record = await recordAt(new Date());
 
-    return { repository, recordAt, findRecord, record: { ...record, identityHash: record.identityHash!, emailHash: record.emailHash! } };
+    return {
+      repository,
+      recordAt,
+      findRecord,
+      record: { ...record, identityHash: record.identityHash!, emailHash: record.emailHash!, fingerprintHash: record.fingerprintHash! }
+    };
   }
 });

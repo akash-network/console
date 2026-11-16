@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
-import { hashAccount } from "./account-hashes";
+import { hashAccount, hashFingerprint } from "./account-hashes";
 
 const SECRET = "a".repeat(32);
 
@@ -29,8 +29,20 @@ describe(hashAccount.name, () => {
     expect(hashAccount(SECRET, { userId: "auth0|abc123", email: "not-an-address" }).emailHash).toBeNull();
     expect(hashAccount(SECRET, { userId: null, email: null })).toEqual({ identityHash: null, emailHash: null });
   });
-
-  function keyedHash(secret: string, value: string) {
-    return createHmac("sha256", secret).update(value).digest("hex");
-  }
 });
+
+describe(hashFingerprint.name, () => {
+  it("hashes the fingerprint under the secret for its own purpose", () => {
+    expect(hashFingerprint(SECRET, "f00d")).toBe(keyedHash(SECRET, "deleted-account-fingerprint:f00d"));
+    expect(hashFingerprint("b".repeat(32), "f00d")).toBe(keyedHash("b".repeat(32), "deleted-account-fingerprint:f00d"));
+  });
+
+  it("leaves out the hash of a fingerprint the account does not have", () => {
+    expect(hashFingerprint(SECRET, null)).toBeNull();
+    expect(hashFingerprint(SECRET, "")).toBeNull();
+  });
+});
+
+function keyedHash(secret: string, value: string) {
+  return createHmac("sha256", secret).update(value).digest("hex");
+}

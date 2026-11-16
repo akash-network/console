@@ -9,6 +9,7 @@ import type { AccountHashes } from "@src/workload-abuse/lib/account-hashes/accou
 type Table = ApiPgTables["DeletedTrialAccounts"];
 export type DeletedTrialAccountInput = Partial<Table["$inferInsert"]>;
 export type DeletedTrialAccountOutput = Table["$inferSelect"];
+export type DeletedTrialAccountHashes = AccountHashes & Pick<DeletedTrialAccountOutput, "fingerprintHash">;
 
 @singleton()
 export class DeletedTrialAccountRepository extends BaseRepository<Table, DeletedTrialAccountInput, DeletedTrialAccountOutput> {
@@ -25,10 +26,11 @@ export class DeletedTrialAccountRepository extends BaseRepository<Table, Deleted
   }
 
   /** Returns nothing without a hash to match, since a query with no condition would match every row. */
-  async findByAnyHashSince({ identityHash, emailHash }: AccountHashes, since: Date): Promise<DeletedTrialAccountOutput[]> {
+  async findByAnyHashSince({ identityHash, emailHash, fingerprintHash }: DeletedTrialAccountHashes, since: Date): Promise<DeletedTrialAccountOutput[]> {
     const matches: SQL[] = [];
     if (identityHash) matches.push(eq(this.table.identityHash, identityHash));
     if (emailHash) matches.push(eq(this.table.emailHash, emailHash));
+    if (fingerprintHash) matches.push(eq(this.table.fingerprintHash, fingerprintHash));
 
     if (matches.length === 0) return [];
 
