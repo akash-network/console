@@ -202,6 +202,7 @@ export const AssistantPanel: FC<Props> = ({ isOpen, onOpenChange, conversation, 
             key={openedAt}
             initialValue={willSendQuestion ? undefined : question}
             isSending={conversation.isAnswering}
+            isDisabled={conversation.problem === "blocked"}
             onSend={conversation.send}
           />
         </footer>

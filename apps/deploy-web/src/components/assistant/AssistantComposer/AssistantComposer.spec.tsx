@@ -17,6 +17,15 @@ describe("AssistantComposer", () => {
     expect(box).toHaveValue("");
   });
 
+  it("sends nothing for a message of only spaces", async () => {
+    const { onSend } = setup({});
+
+    await userEvent.type(screen.getByRole("textbox"), "   {Enter}");
+
+    expect(onSend).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+  });
+
   it("adds a line with Shift+Enter instead of sending", async () => {
     const { onSend } = setup({});
     const box = screen.getByRole("textbox", { name: "Message the assistant" });
@@ -51,9 +60,21 @@ describe("AssistantComposer", () => {
     expect(onSend).toHaveBeenCalledTimes(1);
   });
 
-  function setup(input: { initialValue?: string }) {
+  it("keeps the box and the button disabled and sends nothing while the composer is disabled", async () => {
+    const { onSend } = setup({ initialValue: "Hello", isDisabled: true });
+    const box = screen.getByRole("textbox", { name: "Message the assistant" });
+
+    expect(box).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+    fireEvent.keyDown(box, { key: "Enter" });
+    fireEvent.submit(box.closest("form")!);
+
+    expect(onSend).not.toHaveBeenCalled();
+  });
+
+  function setup(input: { initialValue?: string; isDisabled?: boolean }) {
     const onSend = vi.fn();
-    const view = render(<AssistantComposer initialValue={input.initialValue} isSending={false} onSend={onSend} />);
+    const view = render(<AssistantComposer initialValue={input.initialValue} isSending={false} isDisabled={input.isDisabled} onSend={onSend} />);
     return { onSend, rerender: view.rerender };
   }
 });

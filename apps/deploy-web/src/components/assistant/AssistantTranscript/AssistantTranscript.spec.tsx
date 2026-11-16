@@ -106,6 +106,13 @@ describe("AssistantTranscript", () => {
     expect(DiagnosisBlock).not.toHaveBeenCalled();
   });
 
+  it("gives the cards no way to continue the conversation while the assistant is turned off for the account", () => {
+    const action: AssistantAction = { type: "buy_credits", tier: "deep_link", amountUsd: 20 };
+    const { ActionCard } = setup({ messages: [message("2", { text: "Buy credits.", proposals: [{ proposalId: "p-1", action }] })], problem: "blocked" });
+
+    expect(ActionCard).toHaveBeenCalledWith(expect.objectContaining({ proposalId: "p-1", continueConversation: undefined }), expect.anything());
+  });
+
   it("shows the card alone when its diagnosis quotes no evidence", () => {
     const action: AssistantAction = {
       type: "create_deployment",
@@ -196,7 +203,8 @@ describe("AssistantTranscript", () => {
   it.each([
     ["unavailable", "The assistant is unavailable right now."],
     ["rate_limited", "You're sending messages too quickly. Wait a minute, then try again."],
-    ["daily_limit", "You've reached today's message limit. It resets tomorrow."]
+    ["daily_limit", "You've reached today's message limit. It resets tomorrow."],
+    ["blocked", "The assistant is turned off for your account."]
   ] as const)("points to Discord when the assistant is %s", (problem, text) => {
     const { DiscordHelpCard } = setup({ problem });
 

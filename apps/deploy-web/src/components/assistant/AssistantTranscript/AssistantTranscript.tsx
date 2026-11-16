@@ -29,6 +29,7 @@ const PROBLEM_MESSAGES: Record<Exclude<AssistantProblem, "consent">, string> = {
   unavailable: "The assistant is unavailable right now.",
   rate_limited: "You're sending messages too quickly. Wait a minute, then try again.",
   daily_limit: "You've reached today's message limit. It resets tomorrow.",
+  blocked: "The assistant is turned off for your account.",
   error: "Something went wrong with that answer. Try sending it again."
 };
 
@@ -64,7 +65,7 @@ export const AssistantTranscript: FC<Props> = ({ conversation, dependencies: d =
             message={message}
             conversationId={conversation.conversationId}
             isStreaming={isAnswering && message.id === lastMessage?.id}
-            continueConversation={conversation.send}
+            continueConversation={problem === "blocked" ? undefined : conversation.send}
             onRate={rating => conversation.rate(message.id, rating)}
             onReport={note => conversation.reportProblem(message.id, note)}
             dependencies={d}
@@ -157,7 +158,7 @@ type AnswerProps = {
   message: AssistantTranscriptMessage;
   conversationId: string | null;
   isStreaming: boolean;
-  continueConversation: (message: string) => void;
+  continueConversation?: (message: string) => void;
   onRate: (rating: AssistantTurnRating) => void;
   onReport: (note: string) => Promise<void>;
   dependencies: typeof DEPENDENCIES;
