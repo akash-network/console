@@ -498,6 +498,7 @@ describe(useAssistantConversation.name, () => {
       expect(problemOfError(new ApiError(409, { code: "assistant_consent_required" }, "x"))).toBe("consent");
       expect(problemOfError(new ApiError(429, { code: "assistant_rate_limited" }, "x"))).toBe("rate_limited");
       expect(problemOfError(new ApiError(429, { code: "assistant_daily_limit" }, "x"))).toBe("daily_limit");
+      expect(problemOfError(new ApiError(429, { code: "assistant_trial_limit" }, "x"))).toBe("trial_limit");
       expect(problemOfError(new ApiError(403, { code: "assistant_blocked" }, "x"))).toBe("blocked");
       expect(problemOfError(new ApiError(503, { code: "assistant_unavailable" }, "x"))).toBe("unavailable");
       expect(problemOfError(new ApiError(503, "Service Unavailable", "x"))).toBe("unavailable");
