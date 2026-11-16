@@ -198,6 +198,21 @@ describe(ClosureAlertService.name, () => {
       });
     });
 
+    it("stamps the closures it sends with the time it got the channel's lock, not the time it started waiting for it", async () => {
+      const { service, closureNoticeRepository, tx, now } = setup();
+      const lockedAt = addSeconds(now, 300);
+      closureNoticeRepository.lockingChannel.mockImplementation((_, work) => {
+        vi.setSystemTime(lockedAt);
+        return work(tx);
+      });
+      closureNoticeRepository.findChannelState.mockResolvedValue({ oldestPendingAt: now, lastSentAt: null });
+      closureNoticeRepository.claimPending.mockResolvedValue([generateClosureNotice({})]);
+
+      await service.flush(faker.string.uuid());
+
+      expect(closureNoticeRepository.claimPending).toHaveBeenCalledWith(expect.any(String), { createdUpTo: subSeconds(lockedAt, HOLD_SECONDS), sentAt: lockedAt }, tx);
+    });
+
     it("sends the digest the moment the digest window is over", async () => {
       const { service, closureNoticeRepository, brokerService, now } = setup();
       closureNoticeRepository.findChannelState.mockResolvedValueOnce({

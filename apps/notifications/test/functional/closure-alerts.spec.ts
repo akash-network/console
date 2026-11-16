@@ -319,6 +319,7 @@ describe("closure alerts", () => {
       holdNextPublish: () => {
         let release = () => {};
         publish.mockImplementationOnce(() => new Promise<void>(resolve => (release = resolve)));
+        onTestFinished(() => release());
         return () => release();
       },
       db,

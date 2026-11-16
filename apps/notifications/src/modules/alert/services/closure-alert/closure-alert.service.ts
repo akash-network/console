@@ -69,9 +69,8 @@ export class ClosureAlertService {
   }
 
   async flush(notificationChannelId: string): Promise<void> {
-    const now = new Date();
-
     await this.closureNoticeRepository.lockingChannel(notificationChannelId, async tx => {
+      const now = new Date();
       const flushAt = this.#flushTimeOf(await this.closureNoticeRepository.findChannelState(notificationChannelId, tx));
 
       if (!flushAt || flushAt > now) return;
@@ -84,7 +83,7 @@ export class ClosureAlertService {
     });
 
     await this.#scheduleFlush(notificationChannelId);
-    await this.closureNoticeRepository.deleteSentBefore(subSeconds(now, this.#digestWindowSeconds));
+    await this.closureNoticeRepository.deleteSentBefore(subSeconds(new Date(), this.#digestWindowSeconds));
   }
 
   async #noticeOf(alert: GeneralAlertOutput, { owner, dseq }: ClosedDeployment, deploymentClosed: boolean): Promise<ClosureNoticeInput> {
