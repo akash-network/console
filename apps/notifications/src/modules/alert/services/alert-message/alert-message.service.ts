@@ -14,6 +14,7 @@ export interface AlertMessagePayload {
   description: string;
   /** Set by the alerts that also show in the user's activity feed, which get an entry once their email is sent. */
   feedEntry?: AlertFeedEntry;
+  feedEntries?: AlertFeedEntry[];
 }
 
 @Injectable()

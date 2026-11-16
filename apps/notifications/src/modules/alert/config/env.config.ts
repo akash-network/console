@@ -11,7 +11,10 @@ export const schema = z.object({
   /** Kept short because an alert's email waits on the lookup of the deployment's name. */
   CONSOLE_API_TIMEOUT_MS: z.number({ coerce: true }).int().positive().optional().default(2000),
   /** Bounds the whole lookup, retries included, because an alert's email waits on the provider's host. */
-  PROVIDER_HOST_LOOKUP_TIMEOUT_MS: z.number({ coerce: true }).int().positive().optional().default(2000)
+  PROVIDER_HOST_LOOKUP_TIMEOUT_MS: z.number({ coerce: true }).int().positive().optional().default(2000),
+  /** Long enough for a deployment's lease-closed and deployment-closed events, which arrive on separate queues, to land in one email. */
+  CLOSURE_ALERT_HOLD_SECONDS: z.number({ coerce: true }).int().positive().optional().default(120),
+  CLOSURE_ALERT_DIGEST_WINDOW_SECONDS: z.number({ coerce: true }).int().positive().optional().default(3600)
 });
 
 export type AlertEnvConfig = z.infer<typeof schema>;

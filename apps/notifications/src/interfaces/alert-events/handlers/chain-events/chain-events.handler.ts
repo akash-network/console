@@ -35,7 +35,7 @@ export class ChainEventsHandler {
     dto: EventClosedDeploymentDto
   })
   async processDeploymentClosed(payload: EventClosedDeploymentDto): Promise<void> {
-    await this.chainMessageAlertService.alertFor({ type: "CHAIN_EVENT", payload }, this.#notifyAs("deploymentClosedAlert"));
+    await this.chainMessageAlertService.alertFor({ type: "CHAIN_EVENT", payload }, this.#notifyAs("chainEventAlert"));
   }
 
   @Handler({
@@ -51,7 +51,7 @@ export class ChainEventsHandler {
     dto: EventLeaseClosedDto
   })
   async processLeaseClosed(payload: EventLeaseClosedDto): Promise<void> {
-    await this.leaseClosedAlertService.alertFor(payload, this.#notifyAs("leaseClosedAlert"));
+    await this.leaseClosedAlertService.alertFor(payload);
   }
 
   #notifyAs(category: string): MessageCallback {

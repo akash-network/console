@@ -1,17 +1,13 @@
 import { LeaseClosedReason } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { Injectable } from "@nestjs/common";
-import escape from "lodash/escape";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { attemptEach } from "@src/lib/attempt-each/attempt-each";
 import type { GeneralAlertOutput } from "@src/modules/alert/repositories/alert/alert.repository";
 import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
-import type { AlertMessagePayload } from "@src/modules/alert/services/alert-message/alert-message.service";
 import { alertNotifiedLog } from "@src/modules/alert/services/alert-notified-log";
-import { type DeploymentReference, DeploymentReferenceService } from "@src/modules/alert/services/deployment-reference/deployment-reference.service";
-import { ProviderHostService } from "@src/modules/alert/services/provider-host/provider-host.service";
-import { getLeaseClosedReasonText, toLeaseClosedReason } from "@src/modules/alert/services/reclaim-alert/lease-closed-reason";
-import type { MessageCallback } from "@src/modules/alert/types/message-callback.type";
+import { ClosureAlertService } from "@src/modules/alert/services/closure-alert/closure-alert.service";
+import { toLeaseClosedReason } from "@src/modules/alert/services/reclaim-alert/lease-closed-reason";
 
 export interface LeaseClosedAlertEvent {
   owner: string;
@@ -24,14 +20,13 @@ export interface LeaseClosedAlertEvent {
 export class LeaseClosedAlertService {
   constructor(
     private readonly alertRepository: AlertRepository,
-    private readonly deploymentReferenceService: DeploymentReferenceService,
-    private readonly providerHostService: ProviderHostService,
+    private readonly closureAlertService: ClosureAlertService,
     private readonly loggerService: LoggerService
   ) {
     this.loggerService.setContext(LeaseClosedAlertService.name);
   }
 
-  async alertFor(event: LeaseClosedAlertEvent, onMessage: MessageCallback): Promise<void> {
+  async alertFor(event: LeaseClosedAlertEvent): Promise<void> {
     const reason = toLeaseClosedReason(event.reason);
 
     if (reason === LeaseClosedReason.lease_closed_owner) {
@@ -48,37 +43,23 @@ export class LeaseClosedAlertService {
 
     await attemptEach(
       alerts,
-      alert => this.#notifyThrough(alert, event, reason, onMessage),
+      alert => this.#recordFor(alert, event, reason),
       (alert, error) => this.loggerService.error({ event: "LEASE_CLOSED_ALERT_FAILED", alertId: alert.id, error })
     );
   }
 
-  async #notifyThrough(alert: GeneralAlertOutput, event: LeaseClosedAlertEvent, reason: LeaseClosedReason, onMessage: MessageCallback): Promise<void> {
+  async #recordFor(alert: GeneralAlertOutput, event: LeaseClosedAlertEvent, reason: LeaseClosedReason): Promise<void> {
     if (this.isOptedOut(alert)) {
       this.loggerService.debug({ event: "LEASE_CLOSED_ALERT_SKIPPED", reason: "OPTED_OUT", alertId: alert.id });
       return;
     }
 
-    const [deployment, providerLabel] = await Promise.all([
-      this.deploymentReferenceService.referTo({
-        owner: event.owner,
-        dseq: event.dseq,
-        userId: alert.userId,
-        organizationId: alert.organizationId
-      }),
-      this.providerHostService.labelFor(event.provider)
-    ]);
-    const claimedAlert = await this.alertRepository.claimNotification(alert.id, "leaseClosedNotifiedAt");
+    const claimedAlert = await this.closureAlertService.recordLeaseClosure(alert, { owner: event.owner, dseq: event.dseq, provider: event.provider, reason });
 
     if (!claimedAlert) {
       this.loggerService.debug({ event: "LEASE_CLOSED_ALERT_SKIPPED", reason: "ALREADY_NOTIFIED", alertId: alert.id });
       return;
     }
-
-    await onMessage({
-      notificationChannelId: claimedAlert.notificationChannelId,
-      payload: this.buildMessage(deployment, providerLabel, reason)
-    });
 
     this.loggerService.info(alertNotifiedLog(claimedAlert, { reason: "LEASE_CLOSED" }));
   }
@@ -86,15 +67,5 @@ export class LeaseClosedAlertService {
   /** The deployment-closed alert switches itself off when it fires, and an insufficient-funds close can reach it first in the same block. */
   private isOptedOut(alert: GeneralAlertOutput): boolean {
     return !alert.enabled && !alert.params?.suppressedBySystem;
-  }
-
-  private buildMessage({ label, link }: DeploymentReference, providerLabel: string, reason: LeaseClosedReason): AlertMessagePayload {
-    return {
-      summary: `The lease for deployment ${label} was closed`,
-      description:
-        `The lease for deployment ${escape(label)} with provider ${escape(providerLabel)} was closed because ${getLeaseClosedReasonText(reason)}, ` +
-        `so your workload is no longer running on that provider. ` +
-        `Please visit ${link} to manage your deployment.`
-    };
   }
 }

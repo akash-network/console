@@ -57,12 +57,14 @@ export class NotificationRouterService {
     return Ok(undefined);
   }
 
-  /** Runs once the email is out, so a slow or unavailable feed never holds the email back; the entry goes to the alert's own user, whoever the channel reaches. */
-  async #addToFeed({ summary, feedEntry }: NotificationCommandDto["payload"]): Promise<void> {
-    if (!feedEntry) return;
+  /** Runs once the email is out, so a slow or unavailable feed never holds the email back; each entry goes to its alert's own user, whoever the channel reaches. */
+  async #addToFeed({ summary, feedEntry, feedEntries = [] }: NotificationCommandDto["payload"]): Promise<void> {
+    for (const entry of [feedEntry, ...feedEntries]) {
+      if (!entry) continue;
 
-    const { type, dedupeKey, alertId, dseq, userId, organizationId, projectId } = feedEntry;
-    await this.activityFeedService.addToFeed({ userId, organizationId, projectId, type, dedupeKey, meta: { alertId, summary, dseq } });
+      const { type, dedupeKey, alertId, dseq, userId, organizationId, projectId } = entry;
+      await this.activityFeedService.addToFeed({ userId, organizationId, projectId, type, dedupeKey, meta: { alertId, summary: entry.summary ?? summary, dseq } });
+    }
   }
 }
 

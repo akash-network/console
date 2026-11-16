@@ -151,6 +151,29 @@ describe(NotificationRouterService.name, () => {
       expect(emailSenderService.send.mock.invocationCallOrder[0]).toBeLessThan(activityFeedService.addToFeed.mock.invocationCallOrder[0]);
     });
 
+    it("adds each entry of a digest to the feed under its own summary, falling back to the email's", async () => {
+      const { service, notificationChannelRepository, activityFeedService } = await setup();
+      const entries = [0, 1].map(index => ({
+        type: "deployment_closed_alert" as const,
+        alertId: faker.string.uuid(),
+        userId: faker.string.uuid(),
+        organizationId: null,
+        projectId: null,
+        dedupeKey: `deployment_close.akash1owner.${index}`,
+        dseq: String(index)
+      }));
+      const notificationCommand = createAlertCommand();
+      notificationCommand.payload.feedEntries = [{ ...entries[0], summary: "Deployment 0 is now closed" }, undefined, entries[1]];
+      notificationChannelRepository.findById.mockResolvedValue(generateNotificationChannel({ id: notificationCommand.notificationChannelId }));
+
+      await service.send(notificationCommand);
+
+      expect(activityFeedService.addToFeed.mock.calls.map(([activity]) => activity.meta)).toEqual([
+        { alertId: entries[0].alertId, summary: "Deployment 0 is now closed", dseq: "0" },
+        { alertId: entries[1].alertId, summary: notificationCommand.payload.summary, dseq: "1" }
+      ]);
+    });
+
     it("leaves the activity feed alone for a notification without a feed entry", async () => {
       const { service, emailSenderService, notificationChannelRepository, activityFeedService } = await setup();
       const notificationCommand = createAlertCommand();

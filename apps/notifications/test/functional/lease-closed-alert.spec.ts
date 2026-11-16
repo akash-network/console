@@ -9,10 +9,12 @@ import { BrokerService } from "@src/infrastructure/broker";
 import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
 import AlertEventsModule from "@src/interfaces/alert-events/alert-events.module";
 import { ChainEventsHandler } from "@src/interfaces/alert-events/handlers/chain-events/chain-events.handler";
+import { ClosureAlertsHandler } from "@src/interfaces/alert-events/handlers/closure-alerts/closure-alerts.handler";
 import type { EventClosedDeploymentDto } from "@src/modules/alert/dto/event-closed-deployment.dto";
 import type { EventLeaseClosedDto } from "@src/modules/alert/dto/event-lease-closed.dto";
 import type { EventLeaseReclaimStartedDto } from "@src/modules/alert/dto/event-lease-reclaim-started.dto";
 import * as schema from "@src/modules/alert/model-schemas";
+import type { NotificationCommandDto } from "@src/modules/notifications/dto/NotificationCommand.dto";
 import { NotificationChannel } from "@src/modules/notifications/model-schemas";
 
 import { mockAkashAddress } from "@test/seeders/akash-address.seeder";
@@ -21,7 +23,7 @@ import { generateNotificationChannel } from "@test/seeders/notification-channel.
 
 describe("lease closed alerts", () => {
   it("sends a single lease closed notification to the deployment-closed alert's channel and dedupes on replay", async () => {
-    const { module, controller, brokerService, providerHostUris, db } = await setup();
+    const { module, controller, emailsAfterHold, providerHostUris, db } = await setup();
 
     try {
       const owner = mockAkashAddress();
@@ -43,24 +45,22 @@ describe("lease closed alerts", () => {
       await controller.processLeaseClosed(event);
       await controller.processLeaseClosed(event);
 
-      expect(brokerService.publish).toHaveBeenCalledTimes(1);
-      expect(brokerService.publish).toHaveBeenCalledWith(
-        eventKeyRegistry.createNotification,
+      expect(await emailsAfterHold(ownerChannel.id, otherOwnerChannel.id)).toEqual([
         expect.objectContaining({
           notificationChannelId: ownerChannel.id,
-          payload: {
+          payload: expect.objectContaining({
             summary: `The lease for deployment ${dseq} was closed`,
             description: expect.stringContaining("with provider provider.hurricane.akash.pub was closed because the manifest was not received in time")
-          }
+          })
         })
-      );
+      ]);
     } finally {
       await module.close();
     }
   });
 
   it("names the provider by its address when the chain cannot tell its host", async () => {
-    const { module, controller, brokerService, db } = await setup();
+    const { module, controller, emailsAfterHold, db } = await setup();
 
     try {
       const owner = mockAkashAddress();
@@ -74,20 +74,16 @@ describe("lease closed alerts", () => {
 
       await controller.processLeaseClosed(generateLeaseClosedEvent({ owner, dseq, provider }));
 
-      expect(brokerService.publish).toHaveBeenCalledWith(
-        eventKeyRegistry.createNotification,
-        expect.objectContaining({
-          notificationChannelId: channel.id,
-          payload: expect.objectContaining({ description: expect.stringContaining(`with provider ${provider} was closed`) })
-        })
-      );
+      expect(await emailsAfterHold(channel.id)).toEqual([
+        expect.objectContaining({ payload: expect.objectContaining({ description: expect.stringContaining(`with provider ${provider} was closed`) }) })
+      ]);
     } finally {
       await module.close();
     }
   });
 
   it("sends the lease closed notification to the owner's alert when another user's alert for the same deployment was already notified", async () => {
-    const { module, controller, brokerService, db } = await setup();
+    const { module, controller, emailsAfterHold, db } = await setup();
 
     try {
       const owner = mockAkashAddress();
@@ -102,18 +98,14 @@ describe("lease closed alerts", () => {
 
       await controller.processLeaseClosed(generateLeaseClosedEvent({ owner, dseq }));
 
-      expect(brokerService.publish).toHaveBeenCalledTimes(1);
-      expect(brokerService.publish).toHaveBeenCalledWith(
-        eventKeyRegistry.createNotification,
-        expect.objectContaining({ notificationChannelId: ownerChannel.id })
-      );
+      expect(await emailsAfterHold(otherUserChannel.id, ownerChannel.id)).toEqual([expect.objectContaining({ notificationChannelId: ownerChannel.id })]);
     } finally {
       await module.close();
     }
   });
 
-  it("still notifies when the deployment closed in the same block and its alert fired first", async () => {
-    const { module, controller, brokerService, db } = await setup();
+  it("tells the lease's close reason in the deployment's one closure email when the deployment closed in the same block and its alert fired first", async () => {
+    const { module, controller, emailsAfterHold, db } = await setup();
 
     try {
       const owner = mockAkashAddress();
@@ -127,21 +119,22 @@ describe("lease closed alerts", () => {
       await controller.processDeploymentClosed(generateDeploymentClosedEvent({ owner, dseq }));
       await controller.processLeaseClosed(generateLeaseClosedEvent({ owner, dseq, reason: "lease_closed_reason_insufficient_funds" }));
 
-      expect(brokerService.publish).toHaveBeenCalledTimes(2);
-      expect(brokerService.publish).toHaveBeenLastCalledWith(
-        eventKeyRegistry.createNotification,
+      expect(await emailsAfterHold(channel.id)).toEqual([
         expect.objectContaining({
           notificationChannelId: channel.id,
-          payload: expect.objectContaining({ description: expect.stringContaining("because the deployment has insufficient funds") })
+          payload: expect.objectContaining({
+            summary: `Deployment ${dseq} is now closed`,
+            description: expect.stringContaining("because the deployment has insufficient funds")
+          })
         })
-      );
+      ]);
     } finally {
       await module.close();
     }
   });
 
   it("does not send when a reclaim email already warned about the deployment", async () => {
-    const { module, controller, brokerService, db } = await setup();
+    const { module, controller, emailsAfterHold, db } = await setup();
 
     try {
       const owner = mockAkashAddress();
@@ -155,18 +148,16 @@ describe("lease closed alerts", () => {
       await controller.processLeaseReclaimStarted(generateReclaimEvent({ owner, dseq }));
       await controller.processLeaseClosed(generateLeaseClosedEvent({ owner, dseq }));
 
-      expect(brokerService.publish).toHaveBeenCalledTimes(1);
-      expect(brokerService.publish).toHaveBeenCalledWith(
-        eventKeyRegistry.createNotification,
+      expect(await emailsAfterHold(channel.id)).toEqual([
         expect.objectContaining({ payload: expect.objectContaining({ summary: `Deployment ${dseq} is being reclaimed by the provider` }) })
-      );
+      ]);
     } finally {
       await module.close();
     }
   });
 
   it("does not send a reclaim email after the lease closed email", async () => {
-    const { module, controller, brokerService, db } = await setup();
+    const { module, controller, emailsAfterHold, db } = await setup();
 
     try {
       const owner = mockAkashAddress();
@@ -180,18 +171,16 @@ describe("lease closed alerts", () => {
       await controller.processLeaseClosed(generateLeaseClosedEvent({ owner, dseq }));
       await controller.processLeaseReclaimStarted(generateReclaimEvent({ owner, dseq }));
 
-      expect(brokerService.publish).toHaveBeenCalledTimes(1);
-      expect(brokerService.publish).toHaveBeenCalledWith(
-        eventKeyRegistry.createNotification,
+      expect(await emailsAfterHold(channel.id)).toEqual([
         expect.objectContaining({ payload: expect.objectContaining({ summary: `The lease for deployment ${dseq} was closed` }) })
-      );
+      ]);
     } finally {
       await module.close();
     }
   });
 
   it("sends only one email when the reclaim and lease closed events are processed at once", async () => {
-    const { module, controller, brokerService, db } = await setup();
+    const { module, controller, emailsAfterHold, db } = await setup();
 
     try {
       const owner = mockAkashAddress();
@@ -207,14 +196,14 @@ describe("lease closed alerts", () => {
         controller.processLeaseClosed(generateLeaseClosedEvent({ owner, dseq }))
       ]);
 
-      expect(brokerService.publish).toHaveBeenCalledTimes(1);
+      expect(await emailsAfterHold(channel.id)).toHaveLength(1);
     } finally {
       await module.close();
     }
   });
 
   it("does not send when the user switched the deployment-closed alert off", async () => {
-    const { module, controller, brokerService, db } = await setup();
+    const { module, controller, emailsAfterHold, db } = await setup();
 
     try {
       const owner = mockAkashAddress();
@@ -227,14 +216,14 @@ describe("lease closed alerts", () => {
 
       await controller.processLeaseClosed(generateLeaseClosedEvent({ owner, dseq }));
 
-      expect(brokerService.publish).not.toHaveBeenCalled();
+      expect(await emailsAfterHold(channel.id)).toEqual([]);
     } finally {
       await module.close();
     }
   });
 
   it("does not send when the owner closed the lease", async () => {
-    const { module, controller, brokerService, db } = await setup();
+    const { module, controller, emailsAfterHold, db } = await setup();
 
     try {
       const owner = mockAkashAddress();
@@ -247,7 +236,7 @@ describe("lease closed alerts", () => {
 
       await controller.processLeaseClosed(generateLeaseClosedEvent({ owner, dseq, reason: "lease_closed_owner" }));
 
-      expect(brokerService.publish).not.toHaveBeenCalled();
+      expect(await emailsAfterHold(channel.id)).toEqual([]);
     } finally {
       await module.close();
     }
@@ -304,11 +293,13 @@ describe("lease closed alerts", () => {
   }
 
   async function setup() {
+    vi.useFakeTimers({ toFake: ["Date"] });
     const module = await Test.createTestingModule({
       imports: [AlertEventsModule]
     }).compile();
     const brokerService = module.get(BrokerService);
-    vi.spyOn(brokerService, "publish").mockResolvedValue(undefined);
+    const publish = vi.spyOn(brokerService, "publish").mockResolvedValue(undefined);
+    const closureAlerts = module.get(ClosureAlertsHandler);
     const providerHostUris = new Map<string, string>();
     nock(module.get(ConfigService).getOrThrow("API_NODE_ENDPOINT"))
       .persist()
@@ -319,12 +310,23 @@ describe("lease closed alerts", () => {
       });
     onTestFinished(() => {
       nock.cleanAll();
+      vi.useRealTimers();
     });
+
+    async function emailsAfterHold(...notificationChannelIds: string[]) {
+      vi.setSystemTime(Date.now() + module.get(ConfigService).getOrThrow("alert.CLOSURE_ALERT_HOLD_SECONDS") * 1000);
+      for (const notificationChannelId of notificationChannelIds) {
+        await closureAlerts.flush({ notificationChannelId });
+      }
+
+      return publish.mock.calls.filter(([eventName]) => eventName === eventKeyRegistry.createNotification).map(([, message]) => message as NotificationCommandDto);
+    }
 
     return {
       module,
       controller: module.get(ChainEventsHandler),
       brokerService,
+      emailsAfterHold,
       providerHostUris,
       db: module.get(DRIZZLE_PROVIDER_TOKEN)
     };

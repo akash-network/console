@@ -12,7 +12,8 @@ const AlertFeedEntrySchema = z
     organizationId: z.string().uuid().nullable(),
     projectId: z.string().uuid().nullable(),
     dedupeKey: z.string().min(1),
-    dseq: z.string().min(1).optional()
+    dseq: z.string().min(1).optional(),
+    summary: z.string().min(1).optional()
   })
   .optional()
   .catch(undefined);
@@ -51,7 +52,8 @@ const NotificationCommandSchema = z.object({
         })
       )
       .optional(),
-    feedEntry: AlertFeedEntrySchema
+    feedEntry: AlertFeedEntrySchema,
+    feedEntries: z.array(AlertFeedEntrySchema).optional().catch(undefined)
   }),
   unsubscribe: EmailUnsubscribeSchema.optional(),
   recipient: EmailRecipientSchema.optional()

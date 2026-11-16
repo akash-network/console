@@ -38,6 +38,16 @@ describe(BrokerService.name, () => {
     });
   });
 
+  describe("createQueue", () => {
+    it("creates the event's queue with the given policy", async () => {
+      const { service, pgBoss, configService } = await setup();
+
+      await service.createQueue(eventKeyRegistry.closureAlertsDue, { policy: "short" });
+
+      expect(pgBoss.createQueue).toHaveBeenCalledWith(`${configService.getOrThrow("broker.APP_NAME")}.${eventKeyRegistry.closureAlertsDue}`, { policy: "short" });
+    });
+  });
+
   describe("subscribe", () => {
     it("should create a queue, subscribe to it, and start workers", async () => {
       const { service, pgBoss, configService } = await setup();
