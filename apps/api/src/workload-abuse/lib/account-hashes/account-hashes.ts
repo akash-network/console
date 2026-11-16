@@ -12,7 +12,7 @@ const IDENTITY_HASH_PURPOSE = "deleted-account-identity";
 const EMAIL_HASH_PURPOSE = "deleted-account-email";
 const FINGERPRINT_HASH_PURPOSE = "deleted-account-fingerprint";
 
-/** A stored hash only matches while the secret and both purposes stay as they were when it was written. */
+/** A stored hash only matches while the secret and its purpose stay as they were when it was written. */
 export function hashAccount(secret: string, account: Pick<UserOutput, "userId" | "email">): AccountHashes {
   const email = normalizeEmailAddress(account.email);
 
