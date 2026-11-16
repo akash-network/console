@@ -16,7 +16,7 @@ export class ClosureAlertsHandler implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
-    await this.brokerService.createQueue(eventKeyRegistry.closureAlertsDue, CLOSURE_ALERTS_QUEUE);
+    await this.brokerService.createSubscribedQueue(eventKeyRegistry.closureAlertsDue, CLOSURE_ALERTS_QUEUE);
   }
 
   @Handler({

@@ -34,9 +34,11 @@ export class BrokerService {
     this.logger.log({ event: "EVENT_PUBLISHED", eventName });
   }
 
-  /** Must run before the event's handler subscribes, since subscribing creates the queue with the default policy and a queue's policy never changes. */
-  async createQueue(eventName: keyof EventToPayload, options: Parameters<PgBoss["createQueue"]>[1]): Promise<void> {
-    await this.boss.createQueue(this.toQueueName(eventName), options);
+  /** Must run before any worker starts, so the queue gets its policy before the handler's subscribe would create it with the default one, and an event published during startup still finds it. */
+  async createSubscribedQueue(eventName: keyof EventToPayload, options: Parameters<PgBoss["createQueue"]>[1]): Promise<void> {
+    const queueName = this.toQueueName(eventName);
+    await this.boss.createQueue(queueName, options);
+    await this.boss.subscribe(eventName, queueName);
   }
 
   async subscribe<ReqData>(eventName: string, options: SubscribeOptions, handler: SingleMsgWorkHandler<ReqData>): Promise<void> {

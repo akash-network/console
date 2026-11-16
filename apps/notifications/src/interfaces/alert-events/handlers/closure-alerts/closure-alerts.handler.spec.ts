@@ -9,12 +9,12 @@ import { ClosureAlertsHandler } from "./closure-alerts.handler";
 
 describe(ClosureAlertsHandler.name, () => {
   describe("onModuleInit", () => {
-    it("creates the queue with one waiting flush per channel before the handler subscribes", async () => {
+    it("creates and subscribes the queue with one waiting flush per channel before any worker starts", async () => {
       const { handler, brokerService } = setup();
 
       await handler.onModuleInit();
 
-      expect(brokerService.createQueue).toHaveBeenCalledWith(
+      expect(brokerService.createSubscribedQueue).toHaveBeenCalledWith(
         eventKeyRegistry.closureAlertsDue,
         expect.objectContaining({ policy: "short", retryLimit: 10, retryBackoff: true })
       );
