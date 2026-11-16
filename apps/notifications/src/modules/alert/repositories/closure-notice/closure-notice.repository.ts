@@ -70,9 +70,14 @@ export class ClosureNoticeRepository {
   /** Serializes the flushes of a channel, so two of them can never both find it due and send it two emails. */
   async lockingChannel<T>(notificationChannelId: string, work: (tx: Db) => Promise<T>): Promise<T> {
     return this.transaction(async tx => {
-      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${`closure_notices.${notificationChannelId}`}, 0))`);
+      await this.lockChannel(notificationChannelId, tx);
       return work(tx);
     });
+  }
+
+  /** Held until `tx` ends, so a lease recorded under it waits out a running flush instead of reading its claimed notice as still pending. */
+  async lockChannel(notificationChannelId: string, tx: Db): Promise<void> {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${`closure_notices.${notificationChannelId}`}, 0))`);
   }
 
   async claimPending(notificationChannelId: string, { createdUpTo, sentAt }: { createdUpTo: Date; sentAt: Date }, tx: Db = this.db): Promise<ClosureNoticeOutput[]> {

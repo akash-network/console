@@ -112,6 +112,8 @@ describe(ClosureAlertService.name, () => {
       expect(result).toBe(claimedAlert);
       expect(providerHostService.labelFor).toHaveBeenCalledWith(provider);
       expect(alertRepository.claimNotification).toHaveBeenCalledWith(alert.id, "leaseClosedNotifiedAt", tx);
+      expect(closureNoticeRepository.lockChannel).toHaveBeenCalledWith(claimedAlert.notificationChannelId, tx);
+      expect(closureNoticeRepository.lockChannel).toHaveBeenCalledBefore(closureNoticeRepository.hasSentDeploymentClosure);
       expect(closureNoticeRepository.hasSentDeploymentClosure).toHaveBeenCalledWith(claimedAlert.id, tx);
       expect(closureNoticeRepository.record).toHaveBeenCalledWith(
         expect.objectContaining({

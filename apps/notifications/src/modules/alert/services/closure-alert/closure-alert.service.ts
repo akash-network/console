@@ -46,13 +46,15 @@ export class ClosureAlertService {
     await this.#scheduleFlush(alert.notificationChannelId);
   }
 
-  /** A lease that closes after its deployment's closure was emailed adds nothing, and the flush is scheduled even when the claim was taken, so a redelivered event still sends a notice whose scheduling failed. */
+  /** A lease that closes within a digest window of its deployment's closure email adds nothing, and the flush is scheduled even when the claim was taken, so a redelivered event still sends a notice whose scheduling failed. */
   async recordLeaseClosure(alert: GeneralAlertOutput, lease: ClosedLease): Promise<AlertOutput | undefined> {
     const [notice, providerLabel] = await Promise.all([this.#noticeOf(alert, lease, false), this.providerHostService.labelFor(lease.provider)]);
     const claimedAlert = await this.closureNoticeRepository.transaction(async tx => {
       const claimed = await this.alertRepository.claimNotification(alert.id, "leaseClosedNotifiedAt", tx);
 
       if (!claimed) return undefined;
+
+      await this.closureNoticeRepository.lockChannel(claimed.notificationChannelId, tx);
 
       if (!(await this.closureNoticeRepository.hasSentDeploymentClosure(claimed.id, tx))) {
         await this.closureNoticeRepository.record({ ...notice, providerLabel, leaseClosedReason: lease.reason, notificationChannelId: claimed.notificationChannelId }, tx);
