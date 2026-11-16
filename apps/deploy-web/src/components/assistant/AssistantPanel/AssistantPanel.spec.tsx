@@ -179,7 +179,7 @@ describe("AssistantPanel", () => {
       expect.objectContaining({ initialValue: "Why no bids?", isSending: false, isDisabled: false, onSend: conversation.send }),
       expect.anything()
     );
-    expect(screen.getByRole("heading", { name: "What do you want to know?" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "What do you want to do?" })).toBeInTheDocument();
   });
 
   it("disables the composer once the assistant is turned off for the account", () => {
@@ -302,7 +302,7 @@ describe("AssistantPanel", () => {
   it("drops the intro and example prompts once the conversation has messages", () => {
     const { dependencies } = setup({ consent: CURRENT_CONSENT, hasMessages: true });
 
-    expect(screen.queryByRole("heading", { name: "What do you want to know?" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "What do you want to do?" })).not.toBeInTheDocument();
     expect(dependencies.AssistantExamplePrompts).not.toHaveBeenCalled();
   });
 
