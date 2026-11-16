@@ -91,12 +91,23 @@ export class AssistantUserUsageRepository {
       .where(and(eq(this.table.userId, userId), eq(this.table.day, day)));
   }
 
-  /** Counts in one statement on the row of the given day, so concurrent turns never read the same count and a stale day counts nothing. */
-  async countFlaggedTurn(userId: string, day: string): Promise<number> {
+  /** Starts a new day over like the other counts but never touches a row a later day already started, so a stale flag counts nothing. */
+  async countFlaggedTurn(userId: string, sentAt: Date): Promise<number> {
     const [usage] = await this.#cursor
-      .update(this.table)
-      .set({ dayFlaggedTurnCount: sql`${this.table.dayFlaggedTurnCount} + 1`, updatedAt: sql`now()` })
-      .where(and(eq(this.table.userId, userId), eq(this.table.day, day)))
+      .insert(this.table)
+      .values({ userId, day: sentAt.toISOString().slice(0, 10), dayFlaggedTurnCount: 1, minuteStartedAt: sentAt })
+      .onConflictDoUpdate({
+        target: this.table.userId,
+        set: {
+          dayFlaggedTurnCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayFlaggedTurnCount} + 1 ELSE 1 END`,
+          dayMessageCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayMessageCount} ELSE 0 END`,
+          dayTokenCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayTokenCount} ELSE 0 END`,
+          dayProblemReportCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayProblemReportCount} ELSE 0 END`,
+          day: sql`excluded.day`,
+          updatedAt: sql`now()`
+        },
+        setWhere: sql`${this.table.day} <= excluded.day`
+      })
       .returning({ dayFlaggedTurnCount: this.table.dayFlaggedTurnCount });
 
     return usage?.dayFlaggedTurnCount ?? 0;

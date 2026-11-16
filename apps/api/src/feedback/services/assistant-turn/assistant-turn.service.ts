@@ -185,14 +185,15 @@ export class AssistantTurnService {
   async run(turn: AssistantTurn, emitEvent: EmitAssistantEvent, signal: AbortSignal): Promise<string | undefined> {
     const trace = this.#startTrace(turn);
     let outcome: AssistantTurnOutcome = "failed";
+    let fallbackId: string | undefined;
 
     try {
       outcome = await this.#runTurn(turn, trace, emitEvent, signal);
     } finally {
-      await this.#finishTrace(trace, outcome);
+      fallbackId = await this.#finishTrace(trace, outcome);
     }
 
-    return await trace.provisionalId;
+    return (await trace.provisionalId) ?? fallbackId;
   }
 
   async #runTurn(turn: AssistantTurn, trace: TurnTrace, emitEvent: EmitAssistantEvent, signal: AbortSignal): Promise<AssistantTurnOutcome> {
@@ -270,8 +271,8 @@ export class AssistantTurnService {
   }
 
   /** Runs after the turn's last event and swallows its own errors, so tracing never delays, fails or changes what the user sees. */
-  async #finishTrace(trace: TurnTrace, outcome: AssistantTurnOutcome): Promise<void> {
-    await writeTraceQuietly(this.#logger, async () => {
+  async #finishTrace(trace: TurnTrace, outcome: AssistantTurnOutcome): Promise<string | undefined> {
+    return await writeTraceQuietly(this.#logger, async () => {
       const finished = trace.builder.finish(outcome, new Date());
       this.#logger.info({
         event: "ASSISTANT_TURN_COMPLETED",
@@ -283,18 +284,18 @@ export class AssistantTurnService {
         toolCallCount: finished.toolCalls.length,
         failedToolCallCount: finished.toolCalls.filter(({ ok }) => !ok).length
       });
-      await this.#writeFinishedTrace(await trace.provisionalId, finished);
+      return await this.#writeFinishedTrace(await trace.provisionalId, finished);
     });
   }
 
   /** Finishing leaves the row's cards alone, since the user may already have decided on them while the turn streamed. */
-  async #writeFinishedTrace(provisionalId: string | undefined, finished: FinishedAssistantTurnTrace): Promise<void> {
+  async #writeFinishedTrace(provisionalId: string | undefined, finished: FinishedAssistantTurnTrace): Promise<string | undefined> {
     if (provisionalId) {
       await this.traceRepository.finish(provisionalId, traceResultOf(finished));
       return;
     }
 
-    await this.traceRepository.create(finished);
+    return await this.traceRepository.create(finished);
   }
 
   /** A turn that runs out of time still answers with what it read, since an error would hide reads the user already saw as chips. */

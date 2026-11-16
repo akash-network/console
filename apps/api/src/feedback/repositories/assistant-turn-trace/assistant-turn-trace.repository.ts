@@ -30,8 +30,10 @@ export class AssistantTurnTraceRepository {
     return this.txManager.getPgTx() || this.pg;
   }
 
-  async create(input: AssistantTurnTraceInput): Promise<void> {
-    await this.#cursor.insert(this.table).values(input);
+  async create(input: AssistantTurnTraceInput): Promise<string> {
+    const [trace] = await this.#cursor.insert(this.table).values(input).returning({ id: this.table.id });
+
+    return trace.id;
   }
 
   async start(input: AssistantTurnTraceInput): Promise<string> {

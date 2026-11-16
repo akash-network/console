@@ -1396,7 +1396,26 @@ describe(AssistantTurnService.name, () => {
       )
     ).toBe("trace-1");
 
+    traceRepository.finish.mockRejectedValueOnce(new Error("db down"));
+    expect(
+      await service.run(
+        assistantTurn(),
+        vi.fn(async () => undefined),
+        new AbortController().signal
+      )
+    ).toBe("trace-1");
+
     traceRepository.start.mockRejectedValue(new Error("db down"));
+    traceRepository.create.mockResolvedValue("trace-2");
+    expect(
+      await service.run(
+        assistantTurn(),
+        vi.fn(async () => undefined),
+        new AbortController().signal
+      )
+    ).toBe("trace-2");
+
+    traceRepository.create.mockRejectedValue(new Error("db down"));
     expect(
       await service.run(
         assistantTurn(),

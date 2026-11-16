@@ -56,7 +56,7 @@ describe(AssistantUserBlockService.name, () => {
       await service.recordFlag({ userId: "user-1", turnId: "turn-1", sentAt: SENT_AT, flag: "off_topic" });
 
       expect(traceRepository.flag).toHaveBeenCalledWith("turn-1", "off_topic");
-      expect(usageRepository.countFlaggedTurn).toHaveBeenCalledWith("user-1", "2026-11-04");
+      expect(usageRepository.countFlaggedTurn).toHaveBeenCalledWith("user-1", SENT_AT);
       expect(blockRepository.createAutomatic).not.toHaveBeenCalled();
     });
 
@@ -81,10 +81,11 @@ describe(AssistantUserBlockService.name, () => {
       vi.useFakeTimers({ now: new Date("2026-11-05T00:00:00.100Z") });
       const { service, usageRepository, blockRepository } = setup();
       usageRepository.countFlaggedTurn.mockResolvedValue(3);
+      const sentAt = new Date("2026-11-04T23:59:59.900Z");
 
-      await service.recordFlag({ userId: "user-1", turnId: "turn-1", sentAt: new Date("2026-11-04T23:59:59.900Z"), flag: "off_topic" });
+      await service.recordFlag({ userId: "user-1", turnId: "turn-1", sentAt, flag: "off_topic" });
 
-      expect(usageRepository.countFlaggedTurn).toHaveBeenCalledWith("user-1", "2026-11-04");
+      expect(usageRepository.countFlaggedTurn).toHaveBeenCalledWith("user-1", sentAt);
       expect(blockRepository.createAutomatic).toHaveBeenCalledWith({
         userId: "user-1",
         blockedUntil: new Date("2026-11-06T00:00:00.000Z"),
@@ -121,7 +122,7 @@ describe(AssistantUserBlockService.name, () => {
       await service.recordFlag({ userId: "user-1", turnId: undefined, sentAt: SENT_AT, flag: "off_topic" });
 
       expect(traceRepository.flag).not.toHaveBeenCalled();
-      expect(usageRepository.countFlaggedTurn).toHaveBeenCalledWith("user-1", "2026-11-04");
+      expect(usageRepository.countFlaggedTurn).toHaveBeenCalledWith("user-1", SENT_AT);
     });
 
     it("logs a failed trace label and still counts the turn", async () => {

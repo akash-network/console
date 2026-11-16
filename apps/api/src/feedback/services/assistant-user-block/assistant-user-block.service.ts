@@ -18,10 +18,6 @@ export interface FlaggedTurn {
   flag: AssistantTurnFlag | null;
 }
 
-function dayOf(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
 function nextUtcMidnightAfter(date: Date): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + 1));
 }
@@ -62,7 +58,7 @@ export class AssistantUserBlockService {
 
   /** Counts on the day the turn was sent but blocks until the midnight after now, since the label can land after the day it counts on ended. */
   async #countFlaggedTurn(userId: string, sentAt: Date): Promise<void> {
-    const flaggedTurnCount = await this.assistantUserUsageRepository.countFlaggedTurn(userId, dayOf(sentAt));
+    const flaggedTurnCount = await this.assistantUserUsageRepository.countFlaggedTurn(userId, sentAt);
     if (flaggedTurnCount < this.config.ASSISTANT_DAILY_FLAGGED_TURN_LIMIT) return;
 
     await this.txService.transaction(async () => {
