@@ -3,6 +3,7 @@ import type { AxiosResponse } from "axios";
 import type { Result } from "ts-results";
 import { Err, Ok } from "ts-results";
 
+import { SUPPORT_EMAIL } from "@src/config/ui.config";
 import { Session } from "@src/lib/auth0";
 import type { UserSettings } from "@src/types/user";
 import { fromBase64Url } from "../../utils/encoding";
@@ -440,7 +441,7 @@ export interface OauthConfig {
   AUDIENCE: string;
 }
 
-const ACTION_REFUSED_MESSAGE = "Unable to create account. Please try again or use a different email.";
+const ACTION_REFUSED_MESSAGE = `You can't create an account with this email. Use a different email, or contact ${SUPPORT_EMAIL} for help.`;
 
 /** Auth0 reports an Action refusal with the Action's admin-facing reason code as `error_description`, e.g. `action.domain_blacklist.domain_blocked_by_console`. */
 function isAuth0ActionRefusal(response: AxiosResponse) {
