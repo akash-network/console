@@ -107,7 +107,7 @@ export class SigningClientService {
             return { broadcast: await this.#broadcast(signedTx), expiresAt: readExpiry(signedTx) };
           });
 
-          const foundTx = (await this.#pollTx(broadcast, deadline)) ?? (await this.#settleUnseenTx(broadcast.txHash, expiresAt, deadline));
+          const foundTx = (await this.#pollTx(broadcast, expiresAt, deadline)) ?? (await this.#settleUnseenTx(broadcast.txHash, expiresAt, deadline));
 
           prevResult = foundTx;
           return foundTx;
@@ -247,7 +247,7 @@ export class SigningClientService {
   }
 
   /** Stops on a wall clock rather than an attempt count, so a slow `getTx` spends the window instead of running the poll past the deadline. */
-  async #pollTx(broadcast: Broadcast, deadline: number): Promise<IndexedTx | null> {
+  async #pollTx(broadcast: Broadcast, expiresAt: Date | undefined, deadline: number): Promise<IndexedTx | null> {
     const hash = broadcast.txHash;
 
     if (Date.now() >= deadline) {
@@ -272,7 +272,7 @@ export class SigningClientService {
           return null;
         }
 
-        if (isResendDue(delivery, lastSentAt)) {
+        if (isResendDue(delivery, lastSentAt) && !hasExpired(expiresAt)) {
           lastSentAt = Date.now();
           delivery = await this.#resend(broadcast);
         }
@@ -314,6 +314,11 @@ function isResendDue(delivery: Delivery, lastSentAt: number): boolean {
   }
 
   return delivery === "held" && Date.now() - lastSentAt >= UNSEEN_TX_RESEND_INTERVAL_MS;
+}
+
+/** The poll window outlasts the expiry only to catch a lagging tx index, since the chain can no longer include a copy sent after it. */
+function hasExpired(expiresAt: Date | undefined): boolean {
+  return expiresAt !== undefined && Date.now() >= expiresAt.getTime();
 }
 
 function isAlreadyInCache(error: unknown): boolean {

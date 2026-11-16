@@ -266,6 +266,70 @@ describe(SigningClientService.name, () => {
     }
   });
 
+  it("does not send a copy once the transaction has expired, even while the poll window is still open", async () => {
+    vi.useFakeTimers();
+    try {
+      const { service, client } = setup({ ttlMs: 24_000 });
+      client.broadcastTxSync.mockImplementationOnce(bytes => answerAfter(2_000, () => toHex(sha256(bytes))));
+      client.getTx.mockResolvedValue(null);
+
+      const promise = service.signAndBroadcast(createMessages(1));
+      promise.catch(() => {});
+      await vi.advanceTimersByTimeAsync(120_000);
+
+      await expect(promise).rejects.toBeInstanceOf(TxNotIncludedError);
+      expect(client.broadcastTxSync).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not send a copy past expiry while the node stays unreachable", async () => {
+    vi.useFakeTimers();
+    try {
+      const { service, client } = setup({ ttlMs: 10_000 });
+      client.broadcastTxSync.mockImplementation(() =>
+        answerAfter(4_000, () => {
+          throw new Error("Bad status on response: 500");
+        })
+      );
+      client.getTx.mockResolvedValue(null);
+
+      const promise = service.signAndBroadcast(createMessages(1));
+      promise.catch(() => {});
+      await vi.advanceTimersByTimeAsync(120_000);
+
+      await expect(promise).rejects.toBeInstanceOf(TxNotIncludedError);
+      expect(client.broadcastTxSync).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps sending an unseen transaction that carries no expiry for the whole poll window", async () => {
+    vi.useFakeTimers();
+    try {
+      const { service, client } = setup({ ttlMs: 30_000 });
+      client.signUnordered.mockResolvedValue(
+        TxRaw.fromPartial({
+          bodyBytes: TxBody.encode(TxBody.fromPartial({ memo: "akash console" })).finish(),
+          authInfoBytes: new Uint8Array([2]),
+          signatures: [new Uint8Array([3])]
+        })
+      );
+      client.getTx.mockResolvedValue(null);
+
+      const promise = service.signAndBroadcast(createMessages(1));
+      promise.catch(() => {});
+      await vi.advanceTimersByTimeAsync(120_000);
+
+      await expect(promise).rejects.toBeInstanceOf(TxOutcomeUnknownError);
+      expect(client.broadcastTxSync).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("stops sending an unseen transaction once the node refuses the copy, and logs why", async () => {
     vi.useFakeTimers();
     try {
