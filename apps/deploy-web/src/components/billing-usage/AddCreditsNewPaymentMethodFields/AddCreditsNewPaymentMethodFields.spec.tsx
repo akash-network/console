@@ -1,5 +1,5 @@
 import React from "react";
-import type { Stripe, StripeAddressElement } from "@stripe/stripe-js";
+import type { Stripe, StripeAddressElement, StripePaymentElement } from "@stripe/stripe-js";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -10,6 +10,24 @@ import { AddCreditsNewPaymentMethodFields } from "./AddCreditsNewPaymentMethodFi
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 const INCOMPLETE_ADDRESS = { error: { type: "validation_error", code: "incomplete_address", message: "Your address is incomplete." } };
+const INCOMPLETE_LINK_SIGN_IN = { error: { type: "validation_error", code: "incomplete_link_sign_in", message: "" } };
+
+const CompletableAddressElement = ((props: { onChange?: (event: { complete: boolean }) => void }) => (
+  <button type="button" onClick={() => props.onChange?.({ complete: true })}>
+    complete the address
+  </button>
+)) as unknown as typeof DEPENDENCIES.AddressElement;
+
+const CompletablePaymentElement = ((props: { onChange?: (event: { complete: boolean; value: { type: string } }) => void }) => (
+  <>
+    <button type="button" onClick={() => props.onChange?.({ complete: false, value: { type: "link" } })}>
+      type part of the link code
+    </button>
+    <button type="button" onClick={() => props.onChange?.({ complete: true, value: { type: "link" } })}>
+      finish signing in to link
+    </button>
+  </>
+)) as unknown as typeof DEPENDENCIES.PaymentElement;
 
 describe(AddCreditsNewPaymentMethodFields.name, () => {
   it("shows a loading spinner when isLoading is true", () => {
@@ -360,8 +378,128 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
     });
   });
 
+  describe("when the Link payment method is incomplete", () => {
+    it.each([
+      ["link_email", "incomplete_email", "Your email for Link is incomplete. Enter it under Choose a payment method to continue with Link, then try again."],
+      [
+        "link_phone",
+        "incomplete_phone_number",
+        "Your phone number for Link is incomplete. Enter it under Choose a payment method to finish setting up Link, then try again."
+      ],
+      [
+        "link_verification",
+        "incomplete_link_sign_in",
+        "Finish signing in to Link. Enter the verification code Link sent you under Choose a payment method, then try again."
+      ],
+      [
+        "link_saved_payment_method",
+        "incomplete_payment_method",
+        "Choose which of your Link payment methods to pay with under Choose a payment method, then try again."
+      ],
+      [
+        "payment_details",
+        "incomplete_payment_details",
+        "Your payment details are incomplete. Finish your card or Link details under Choose a payment method, then try again."
+      ]
+    ])("says what to finish for %s and returns it", async (detail, code, message) => {
+      const { ref } = setup({
+        isLoading: false,
+        clientSecret: "seti_secret",
+        dependencies: { useStripe: stripeConfirmingSetupWith({ error: { type: "validation_error", code, message: "" } }) }
+      });
+
+      const result = await act(async () => ref.current!.addPaymentMethod());
+
+      expect(result).toEqual({ failure: { errorType: "validation_error", errorCode: code, incompletePaymentMethodDetail: detail } });
+      expect(screen.getByRole("alert", { name: /payment error/i })).toHaveTextContent(message);
+    });
+
+    it("brings the payment method section into view and focuses the payment fields, not the billing address", async () => {
+      const addressElement = mock<StripeAddressElement>();
+      const paymentElement = mock<StripePaymentElement>();
+      const { ref } = setup({
+        isLoading: false,
+        clientSecret: "seti_secret",
+        addressElement,
+        paymentElement,
+        dependencies: { useStripe: stripeConfirmingSetupWith(INCOMPLETE_LINK_SIGN_IN) }
+      });
+      const paymentSection = screen.getByRole("region", { name: /choose a payment method/i });
+      const billingSection = screen.getByRole("region", { name: /billing address/i });
+      paymentSection.scrollIntoView = vi.fn();
+      billingSection.scrollIntoView = vi.fn();
+
+      await act(async () => ref.current!.addPaymentMethod());
+
+      expect(paymentElement.focus).toHaveBeenCalledOnce();
+      expect(paymentSection.scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
+      expect(addressElement.focus).not.toHaveBeenCalled();
+      expect(billingSection.scrollIntoView).not.toHaveBeenCalled();
+    });
+
+    it("waits until the payment fields are interactive again before focusing them", async () => {
+      const paymentElement = mock<StripePaymentElement>();
+      const { ref, rerender } = setup({
+        isLoading: false,
+        clientSecret: "seti_secret",
+        paymentElement,
+        dependencies: { useStripe: stripeConfirmingSetupWith(INCOMPLETE_LINK_SIGN_IN) }
+      });
+      rerender(true);
+
+      await act(async () => ref.current!.addPaymentMethod());
+      expect(paymentElement.focus).not.toHaveBeenCalled();
+
+      rerender(false);
+      expect(paymentElement.focus).toHaveBeenCalledOnce();
+    });
+
+    it("clears the error once the payment method is complete, but not when only the billing address is", async () => {
+      const { ref } = setup({
+        isLoading: false,
+        clientSecret: "seti_secret",
+        dependencies: {
+          AddressElement: CompletableAddressElement,
+          PaymentElement: CompletablePaymentElement,
+          useStripe: stripeConfirmingSetupWith(INCOMPLETE_LINK_SIGN_IN)
+        }
+      });
+      fireEvent.click(screen.getByRole("button", { name: /type part of the link code/i }));
+      fireEvent.click(screen.getByRole("button", { name: /complete the address/i }));
+      await act(async () => ref.current!.addPaymentMethod());
+
+      fireEvent.click(screen.getByRole("button", { name: /type part of the link code/i }));
+      fireEvent.click(screen.getByRole("button", { name: /complete the address/i }));
+      expect(screen.getByRole("alert", { name: /payment error/i })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: /finish signing in to link/i }));
+      expect(screen.queryByRole("alert", { name: /payment error/i })).not.toBeInTheDocument();
+    });
+
+    it("keeps an incomplete billing address error once only the payment method is complete", async () => {
+      const { ref } = setup({
+        isLoading: false,
+        clientSecret: "seti_secret",
+        dependencies: {
+          AddressElement: CompletableAddressElement,
+          PaymentElement: CompletablePaymentElement,
+          useStripe: stripeConfirmingSetupWith(INCOMPLETE_ADDRESS)
+        }
+      });
+      fireEvent.click(screen.getByRole("button", { name: /type part of the link code/i }));
+      await act(async () => ref.current!.addPaymentMethod());
+
+      fireEvent.click(screen.getByRole("button", { name: /finish signing in to link/i }));
+      expect(screen.getByRole("alert", { name: /payment error/i })).toHaveTextContent("Your billing address is incomplete.");
+
+      fireEvent.click(screen.getByRole("button", { name: /complete the address/i }));
+      expect(screen.queryByRole("alert", { name: /payment error/i })).not.toBeInTheDocument();
+    });
+  });
+
   it.each([
     ["an incomplete billing address", INCOMPLETE_ADDRESS],
+    ["an incomplete Link sign-in", INCOMPLETE_LINK_SIGN_IN],
     ["a declined card", { error: { type: "card_error", code: "card_declined", message: "Your card was declined." } }]
   ])("clears the error about %s when the user switches payment method, but not while they keep using the same one", async (_, setupResult) => {
     const onPaymentTypeChange = vi.fn();
@@ -410,6 +548,7 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
     isLoading: boolean;
     clientSecret?: string;
     addressElement?: StripeAddressElement;
+    paymentElement?: StripePaymentElement;
     stripeLoad?: StripeLoadResult | Promise<StripeLoadResult>;
     onPaymentTypeChange?: (type: string) => void;
     onReady?: () => void;
@@ -427,7 +566,11 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
     const useTheme: typeof DEPENDENCIES.useTheme = () => mock<ReturnType<typeof DEPENDENCIES.useTheme>>({ resolvedTheme: "light" });
 
     const useStripe: typeof DEPENDENCIES.useStripe = () => mock<ReturnType<typeof DEPENDENCIES.useStripe>>();
-    const getElement = vi.fn().mockReturnValue(input.addressElement ?? null);
+    const elementsByType = new Map<string, StripeAddressElement | StripePaymentElement | undefined>([
+      ["address", input.addressElement],
+      ["payment", input.paymentElement]
+    ]);
+    const getElement = vi.fn().mockImplementation((type: string) => elementsByType.get(type) ?? null);
     const elements = mock<NonNullable<ReturnType<typeof DEPENDENCIES.useElements>>>({ getElement });
     const useElements: typeof DEPENDENCIES.useElements = () => elements;
 
