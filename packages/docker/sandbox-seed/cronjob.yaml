@@ -14,7 +14,6 @@ spec:
       activeDeadlineSeconds: 3600
       template:
         spec:
-          serviceAccountName: sandbox-seed-dump
           restartPolicy: Never
           securityContext:
             runAsNonRoot: true
@@ -51,6 +50,8 @@ spec:
               env:
                 - name: CLOUDSDK_CONFIG
                   value: /work/gcloud
+                - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+                  value: /gcs/key.json
               resources:
                 requests:
                   cpu: 100m
@@ -62,6 +63,9 @@ spec:
                   mountPath: /scripts
                 - name: work
                   mountPath: /work
+                - name: gcs-key
+                  mountPath: /gcs
+                  readOnly: true
           volumes:
             - name: scripts
               configMap:
@@ -69,3 +73,6 @@ spec:
             - name: work
               emptyDir:
                 sizeLimit: 5Gi
+            - name: gcs-key
+              secret:
+                secretName: sandbox-seed-dump-gcs
