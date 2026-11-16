@@ -218,7 +218,7 @@ describe(SessionService.name, () => {
       consoleApiHttpClient.post.mockResolvedValueOnce({
         status: 422,
         data: {
-          message: "Unable to create account. Please try again or use a different email."
+          message: "You can't create an account with this email. Use a different email, or contact support@akash.network for help."
         },
         headers: {}
       });
@@ -567,7 +567,7 @@ describe(SessionService.name, () => {
       const error = expectErr(result);
       expect(error).toMatchObject({
         code: "action_refused",
-        message: "Unable to create account. Please try again or use a different email."
+        message: "You can't create an account with this email. Use a different email, or contact support@akash.network for help."
       });
     });
 
@@ -696,7 +696,7 @@ describe(SessionService.name, () => {
       const error = expectErr(result);
       expect(error).toMatchObject({
         code: "action_refused",
-        message: "Unable to create account. Please try again or use a different email."
+        message: "You can't create an account with this email. Use a different email, or contact support@akash.network for help."
       });
     });
 

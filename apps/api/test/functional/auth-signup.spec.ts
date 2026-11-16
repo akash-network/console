@@ -76,7 +76,7 @@ describe("Signup", () => {
 
       expect(response.status).toBe(422);
       await expect(response.json()).resolves.toMatchObject({
-        message: "Unable to create account. Please try again or use a different email."
+        message: "You can't create an account with this email. Use a different email, or contact support@akash.network for help."
       });
     });
 
@@ -106,7 +106,7 @@ describe("Signup", () => {
 
       expect(response.status).toBe(400);
       await expect(response.json()).resolves.toMatchObject({
-        message: "Unable to create account. Please try again or use a different email."
+        message: "You can't create an account with this email. Use a different email, or contact support@akash.network for help."
       });
     });
 

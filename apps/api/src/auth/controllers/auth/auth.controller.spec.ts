@@ -63,7 +63,7 @@ describe(AuthController.name, () => {
 
       await expect(controller.signup({ email: "miner@attacker.com", password: "StrongPassword123!" }, {})).rejects.toMatchObject({
         status: 422,
-        message: "Unable to create account. Please try again or use a different email."
+        message: "You can't create an account with this email. Use a different email, or contact support@akash.network for help."
       });
       expect(auth0Service.createUser).not.toHaveBeenCalled();
     });
@@ -75,7 +75,7 @@ describe(AuthController.name, () => {
 
       await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" }, {})).rejects.toMatchObject({
         status: 422,
-        message: "Unable to create account. Please try again or use a different email."
+        message: "You can't create an account with this email. Use a different email, or contact support@akash.network for help."
       });
     });
 
@@ -97,7 +97,7 @@ describe(AuthController.name, () => {
 
       await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" }, {})).rejects.toMatchObject({
         status: 400,
-        message: "Unable to create account. Please try again or use a different email."
+        message: "You can't create an account with this email. Use a different email, or contact support@akash.network for help."
       });
     });
 
@@ -130,7 +130,7 @@ describe(AuthController.name, () => {
 
       await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" }, {})).rejects.toMatchObject({
         status: 422,
-        message: "Unable to create account. Please try again or use a different email."
+        message: "You can't create an account with this email. Use a different email, or contact support@akash.network for help."
       });
     });
 
