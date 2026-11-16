@@ -213,6 +213,47 @@ describe(useAssistantConversation.name, () => {
     expect(startConversation).toHaveBeenCalledTimes(2);
   });
 
+  it("lets a new question through at once after starting over while a browser read was still running", async () => {
+    let finishRead: () => void = () => undefined;
+    const { result, runClientTool, assistantConversation } = setup({
+      turns: [[logsRequest, { type: "done", reason: "awaiting_client_tool" }], answerOf("Fresh")]
+    });
+    runClientTool.mockImplementationOnce(
+      request => new Promise(resolve => (finishRead = () => resolve({ toolCallId: request.toolCallId, ok: true, content: "logs" })))
+    );
+    act(() => void result.current.send("Why does it restart?"));
+    await waitFor(() => expect(runClientTool).toHaveBeenCalled());
+
+    act(() => result.current.startOver());
+
+    expect(result.current.isAnswering).toBe(false);
+    await act(() => result.current.send("Again"));
+    expect(assistantConversation.sendMessage).toHaveBeenCalledTimes(2);
+    expect(result.current.messages[1]).toEqual(expect.objectContaining({ text: "Fresh" }));
+    await act(async () => finishRead());
+  });
+
+  it("keeps a newer answer in progress when the turn that was started over finally settles", async () => {
+    let finishRead: () => void = () => undefined;
+    let finishNewAnswer: () => void = () => undefined;
+    const { result, runClientTool, assistantConversation } = setup({ turns: [[logsRequest, { type: "done", reason: "awaiting_client_tool" }]] });
+    runClientTool.mockImplementationOnce(
+      request => new Promise(resolve => (finishRead = () => resolve({ toolCallId: request.toolCallId, ok: true, content: "logs" })))
+    );
+    act(() => void result.current.send("Why does it restart?"));
+    await waitFor(() => expect(runClientTool).toHaveBeenCalled());
+    act(() => result.current.startOver());
+    assistantConversation.sendMessage.mockImplementationOnce(() => blockedStream(new Promise(resolve => (finishNewAnswer = resolve))));
+    act(() => void result.current.send("Again"));
+    await waitFor(() => expect(assistantConversation.sendMessage).toHaveBeenCalledTimes(2));
+
+    await act(async () => finishRead());
+
+    expect(result.current.isAnswering).toBe(true);
+    await act(async () => finishNewAnswer());
+    expect(result.current.isAnswering).toBe(false);
+  });
+
   it("stays blocked after starting over when the api turned the assistant off for the account", async () => {
     const { result, assistantConversation } = setup({});
     assistantConversation.sendMessage.mockImplementationOnce(() => failingStream(new ApiError(403, { code: "assistant_blocked" }, "blocked")));
@@ -452,6 +493,14 @@ describe(useAssistantConversation.name, () => {
       expect(problemOfStreamError("assistant_timeout")).toBe("error");
     });
   });
+
+  const logsRequest: AssistantClientToolRequest = {
+    type: "client_tool_request",
+    toolCallId: "t-1",
+    name: "read_logs",
+    arguments: { dseq: "42", service: "web" },
+    maxLength: 16000
+  };
 
   function answerOf(text: string, answerSignature?: string, turnId?: string): AssistantStreamEvent[] {
     return [

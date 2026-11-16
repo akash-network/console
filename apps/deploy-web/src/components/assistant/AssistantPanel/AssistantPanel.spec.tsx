@@ -371,14 +371,14 @@ describe("AssistantPanel", () => {
 
   it("opens the feedback dialog from the footer and closes it again", async () => {
     const { dependencies } = setup({ consent: CURRENT_CONSENT });
-    expect(dependencies.SendFeedbackDialog).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Send feedback" }));
-    const { onClose } = vi.mocked(dependencies.SendFeedbackDialog).mock.lastCall![0] as ComponentProps<typeof DEPENDENCIES.SendFeedbackDialog>;
-    vi.mocked(dependencies.SendFeedbackDialog).mockClear();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    const { onClose } = vi.mocked(dependencies.SendFeedbackDialog).mock.lastCall![0];
     act(() => onClose());
 
-    expect(dependencies.SendFeedbackDialog).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("tells the composer the name of the deployment in view", () => {
@@ -431,6 +431,7 @@ describe("AssistantPanel", () => {
     const dependencies = MockComponents(DEPENDENCIES, {
       useAssistantPrivacyQuery: vi.fn(() => privacy),
       useDeploymentName: vi.fn(() => input.deploymentName ?? null),
+      SendFeedbackDialog: vi.fn(() => <div role="dialog" />),
       useUpdateAssistantConsentMutation: vi.fn(() =>
         mock<ReturnType<typeof DEPENDENCIES.useUpdateAssistantConsentMutation>>({ mutateAsync: updateConsent as never, isPending: false })
       )

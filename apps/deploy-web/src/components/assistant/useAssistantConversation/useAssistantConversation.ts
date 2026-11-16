@@ -149,7 +149,7 @@ export function useAssistantConversation({ context }: { context: AssistantContex
     } catch (error) {
       if (!abortController.signal.aborted) setProblem(problemOfError(error));
     } finally {
-      setIsAnswering(false);
+      if (abortControllerRef.current === abortController) setIsAnswering(false);
     }
   };
 
@@ -166,6 +166,7 @@ export function useAssistantConversation({ context }: { context: AssistantContex
     abortControllerRef.current?.abort();
     forgetConversation();
     setMessages([]);
+    setIsAnswering(false);
     setProblem(keepBlocked);
     setEndedAs(null);
   };
