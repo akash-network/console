@@ -33,6 +33,20 @@ describe(AssistantAnswerFeedback.name, () => {
     expect(onRate).toHaveBeenCalledWith(sent);
   });
 
+  it("disables both ratings while one is being saved", () => {
+    setup({ rating: "up", isRating: true });
+
+    expect(screen.getByRole("button", { name: "Good answer" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Bad answer" })).toBeDisabled();
+  });
+
+  it("enables both ratings when none is being saved", () => {
+    setup({ rating: "up" });
+
+    expect(screen.getByRole("button", { name: "Good answer" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Bad answer" })).toBeEnabled();
+  });
+
   it("shows which rating the answer has", () => {
     setup({ rating: "up" });
 
@@ -74,7 +88,7 @@ describe(AssistantAnswerFeedback.name, () => {
     expect(screen.queryByText(/Sorry this answer missed/)).not.toBeInTheDocument();
   });
 
-  function setup(input: { rating?: AssistantTurnRating; reported?: boolean }) {
+  function setup(input: { rating?: AssistantTurnRating; isRating?: boolean; reported?: boolean }) {
     const onRate = vi.fn();
     const onReport = vi.fn(async () => undefined);
     const message: AssistantRatableMessage = {
@@ -82,6 +96,7 @@ describe(AssistantAnswerFeedback.name, () => {
       conversationId: "c-1",
       turnId: "turn-1",
       rating: input.rating ?? null,
+      isRating: input.isRating ?? false,
       reported: input.reported ?? false
     };
     const ReportProblemDialog: FC<{ onSend: (note: string) => Promise<void>; onClose: () => void }> = ({ onSend, onClose }) => (

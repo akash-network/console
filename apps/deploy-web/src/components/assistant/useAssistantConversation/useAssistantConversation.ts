@@ -13,7 +13,7 @@ import { ASSISTANT_CONSENT_COPY_VERSION } from "../assistantConsentCopy";
 import { ASSISTANT_REPORT_CONSENT_COPY_VERSION } from "../assistantReportConsentCopy";
 import { runAssistantTurn } from "../runAssistantTurn/runAssistantTurn";
 import type { AssistantTranscriptMessage } from "../transcriptModel/transcriptModel";
-import { applyTurnEvent, canGiveFeedbackOn, createTranscriptMessage, historyOf } from "../transcriptModel/transcriptModel";
+import { applyTurnEvent, canGiveFeedbackOn, createTranscriptMessage, historyOf, signedHistoryOf } from "../transcriptModel/transcriptModel";
 import { useAssistantClientTools } from "../useAssistantClientTools/useAssistantClientTools";
 
 export const DEPENDENCIES = {
@@ -66,6 +66,7 @@ export function useAssistantConversation({ context }: { context: AssistantContex
   messagesRef.current = messages;
   const abortControllerRef = useRef<AbortController | null>(null);
   const messageCountRef = useRef(0);
+  const ratingMessageIdsRef = useRef(new Set<string>());
 
   useEffect(function stopAnsweringOnUnmount() {
     return () => abortControllerRef.current?.abort();
@@ -165,16 +166,20 @@ export function useAssistantConversation({ context }: { context: AssistantContex
 
   const clearProblem = useCallback(() => setProblem(null), []);
 
-  /** Shows the new rating at once and puts the old one back if the api refuses it. */
+  /** Shows the new rating at once and puts the old one back if the api refuses it, one request per answer at a time so a revert never undoes a later rating. */
   const rate = async (messageId: string, rating: AssistantTurnRating) => {
     const message = messagesRef.current.find(({ id }) => id === messageId);
-    if (!message || !canGiveFeedbackOn(message)) return;
+    if (!message || !canGiveFeedbackOn(message) || ratingMessageIdsRef.current.has(messageId)) return;
 
-    updateMessage(messageId, { rating });
+    ratingMessageIdsRef.current.add(messageId);
+    updateMessage(messageId, { rating, isRating: true });
     try {
       await rateTurn({ id: message.conversationId, turnId: message.turnId, data: { rating } });
+      updateMessage(messageId, { isRating: false });
     } catch {
-      updateMessage(messageId, { rating: message.rating });
+      updateMessage(messageId, { rating: message.rating, isRating: false });
+    } finally {
+      ratingMessageIdsRef.current.delete(messageId);
     }
   };
 
@@ -190,7 +195,7 @@ export function useAssistantConversation({ context }: { context: AssistantContex
         turnId: message.turnId,
         note: note.trim() || undefined,
         copyVersion: ASSISTANT_REPORT_CONSENT_COPY_VERSION,
-        history: historyOf(conversationMessages)
+        history: signedHistoryOf(conversationMessages)
       }
     });
     updateMessage(messageId, { reported: true });

@@ -10,6 +10,7 @@ import {
   historyOf,
   MAX_HISTORY_MESSAGES,
   readLabelOfClientTool,
+  signedHistoryOf,
   tailLinesOf,
   visibleReadsOf
 } from "./transcriptModel";
@@ -223,6 +224,7 @@ describe("transcriptModel", () => {
         conversationId: null,
         turnId: null,
         rating: null,
+        isRating: false,
         reported: false
       });
     });
@@ -341,6 +343,33 @@ describe("transcriptModel", () => {
       const history = historyOf([{ ...createTranscriptMessage("1", "user", "Why no bids?"), signature: "sig-1" }]);
 
       expect(history).toStrictEqual([{ role: "user", content: "Why no bids?" }]);
+    });
+  });
+
+  describe(signedHistoryOf.name, () => {
+    it("leaves out answers without a signature and keeps the questions and signed answers", () => {
+      const history = signedHistoryOf([
+        createTranscriptMessage("1", "user", "Why no bids?"),
+        answer({ text: "No provider has", signature: null }),
+        createTranscriptMessage("3", "user", "Try again"),
+        answer({ text: "No provider has 8 GPUs free.", signature: "sig-1" })
+      ]);
+
+      expect(history).toStrictEqual([
+        { role: "user", content: "Why no bids?" },
+        { role: "user", content: "Try again" },
+        { role: "assistant", content: "No provider has 8 GPUs free.", signature: "sig-1" }
+      ]);
+    });
+
+    it("keeps the latest messages the api accepts after leaving out unsigned answers", () => {
+      const messages = Array.from({ length: MAX_HISTORY_MESSAGES }, (_, index) => createTranscriptMessage(`${index}`, "user", `message ${index}`));
+      messages.push(answer({ text: "cut off" }));
+
+      const history = signedHistoryOf(messages);
+
+      expect(history).toHaveLength(MAX_HISTORY_MESSAGES);
+      expect(history[0].content).toBe("message 0");
     });
   });
 

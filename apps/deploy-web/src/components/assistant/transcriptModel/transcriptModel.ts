@@ -39,6 +39,7 @@ export interface AssistantTranscriptMessage {
   conversationId: string | null;
   turnId: string | null;
   rating: AssistantTurnRating;
+  isRating: boolean;
   reported: boolean;
 }
 
@@ -87,6 +88,7 @@ export function createTranscriptMessage(id: string, role: AssistantTranscriptMes
     conversationId: null,
     turnId: null,
     rating: null,
+    isRating: false,
     reported: false
   };
 }
@@ -167,6 +169,11 @@ export function historyOf(messages: AssistantTranscriptMessage[]): AssistantHist
     .filter(message => message.text.trim().length > 0)
     .slice(-MAX_HISTORY_MESSAGES)
     .map(historyMessageOf);
+}
+
+/** The api rejects a whole report over one answer that fails its check, so answers that never got a signature stay out. */
+export function signedHistoryOf(messages: AssistantTranscriptMessage[]): AssistantHistoryMessage[] {
+  return historyOf(messages.filter(message => message.role === "user" || !!message.signature));
 }
 
 function historyMessageOf(message: AssistantTranscriptMessage): AssistantHistoryMessage {

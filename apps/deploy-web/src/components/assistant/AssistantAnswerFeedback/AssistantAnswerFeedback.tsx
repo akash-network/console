@@ -33,6 +33,7 @@ export const AssistantAnswerFeedback: FC<Props> = ({ message, onRate, onReport, 
           aria-label="Good answer"
           aria-pressed={message.rating === "up"}
           className="aria-pressed:text-foreground"
+          disabled={message.isRating}
           onClick={() => toggle("up")}
         >
           <ThumbsUp className="h-3.5 w-3.5" aria-hidden="true" fill={message.rating === "up" ? "currentColor" : "none"} />
@@ -44,6 +45,7 @@ export const AssistantAnswerFeedback: FC<Props> = ({ message, onRate, onReport, 
           aria-label="Bad answer"
           aria-pressed={isRatedDown}
           className="aria-pressed:text-foreground"
+          disabled={message.isRating}
           onClick={() => toggle("down")}
         >
           <ThumbsDown className="h-3.5 w-3.5" aria-hidden="true" fill={isRatedDown ? "currentColor" : "none"} />

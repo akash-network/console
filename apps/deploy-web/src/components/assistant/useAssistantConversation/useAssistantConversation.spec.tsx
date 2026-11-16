@@ -261,6 +261,51 @@ describe(useAssistantConversation.name, () => {
       expect(result.current.messages[1].rating).toBe("up");
     });
 
+    it("marks the answer as being rated until the api answers", async () => {
+      const { result, rateTurn } = setup({ turns: [answerOf("Your lease is active.", "sig-1", "turn-1")] });
+      await act(() => result.current.send("Is my app up?"));
+      let accept: () => void = () => undefined;
+      rateTurn.mockImplementationOnce(() => new Promise(resolve => (accept = () => resolve({ data: { turnId: "turn-1", rating: null } }))));
+
+      let rating: Promise<void> = Promise.resolve();
+      act(() => {
+        rating = result.current.rate(result.current.messages[1].id, "up");
+      });
+
+      expect(result.current.messages[1]).toMatchObject({ rating: "up", isRating: true });
+      await act(async () => {
+        accept();
+        await rating;
+      });
+      expect(result.current.messages[1]).toMatchObject({ rating: "up", isRating: false });
+    });
+
+    it("ignores another rating of the same answer until the first one settles, so a refusal cannot undo a later rating", async () => {
+      const { result, rateTurn } = setup({ turns: [answerOf("Your lease is active.", "sig-1", "turn-1")] });
+      await act(() => result.current.send("Is my app up?"));
+      const answerId = result.current.messages[1].id;
+      let refuse: () => void = () => undefined;
+      rateTurn.mockImplementationOnce(() => new Promise((_, reject) => (refuse = () => reject(new ApiError(500, "error", "x")))));
+
+      let first: Promise<void> = Promise.resolve();
+      await act(async () => {
+        first = result.current.rate(answerId, "up");
+        await result.current.rate(answerId, "down");
+      });
+      await act(async () => {
+        refuse();
+        await first;
+      });
+
+      expect(rateTurn).toHaveBeenCalledTimes(1);
+      expect(result.current.messages[1]).toMatchObject({ rating: null, isRating: false });
+
+      await act(() => result.current.rate(answerId, "down"));
+
+      expect(rateTurn).toHaveBeenCalledTimes(2);
+      expect(result.current.messages[1].rating).toBe("down");
+    });
+
     it("rates nothing for an answer the api gave no turn", async () => {
       const { result, rateTurn } = setup({ turns: [answerOf("Your lease is active.", "sig-1")] });
       await act(() => result.current.send("Is my app up?"));
@@ -320,6 +365,27 @@ describe(useAssistantConversation.name, () => {
           ]
         }
       });
+    });
+
+    it("leaves out an answer that never got a signature, which the api could not verify", async () => {
+      const { result, createProblemReport, assistantConversation } = setup({ turns: [answerOf("Good answer", "sig-2", "turn-2")] });
+      assistantConversation.sendMessage.mockImplementationOnce(() => streamOf([{ type: "text_delta", text: "Cut off" }]));
+      await act(() => result.current.send("First question"));
+      await act(() => result.current.send("Second question"));
+
+      await act(() => result.current.reportProblem(result.current.messages[3].id, ""));
+
+      expect(createProblemReport).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            history: [
+              { role: "user", content: "First question" },
+              { role: "user", content: "Second question" },
+              { role: "assistant", content: "Good answer", signature: "sig-2" }
+            ]
+          })
+        })
+      );
     });
 
     it("passes a refusal on to the caller and leaves the answer unreported", async () => {
