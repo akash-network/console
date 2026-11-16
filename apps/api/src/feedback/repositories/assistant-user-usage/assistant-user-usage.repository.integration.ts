@@ -13,12 +13,14 @@ describe(AssistantUserUsageRepository.name, () => {
       expect(await repository.countMessage(userId, new Date("2026-11-04T12:00:00.000Z"))).toEqual({
         dayMessageCount: 1,
         minuteMessageCount: 1,
-        dayTokenCount: 0
+        dayTokenCount: 0,
+        totalMessageCount: 1
       });
       expect(await repository.countMessage(userId, new Date("2026-11-04T12:00:59.000Z"))).toEqual({
         dayMessageCount: 2,
         minuteMessageCount: 2,
-        dayTokenCount: 0
+        dayTokenCount: 0,
+        totalMessageCount: 2
       });
     });
 
@@ -30,12 +32,14 @@ describe(AssistantUserUsageRepository.name, () => {
       expect(await repository.countMessage(userId, new Date("2026-11-04T12:01:00.000Z"))).toEqual({
         dayMessageCount: 3,
         minuteMessageCount: 1,
-        dayTokenCount: 0
+        dayTokenCount: 0,
+        totalMessageCount: 3
       });
       expect(await repository.countMessage(userId, new Date("2026-11-04T12:01:30.000Z"))).toEqual({
         dayMessageCount: 4,
         minuteMessageCount: 2,
-        dayTokenCount: 0
+        dayTokenCount: 0,
+        totalMessageCount: 4
       });
     });
 
@@ -46,7 +50,8 @@ describe(AssistantUserUsageRepository.name, () => {
       expect(await repository.countMessage(userId, new Date("2026-11-05T00:00:00.000Z"))).toEqual({
         dayMessageCount: 1,
         minuteMessageCount: 1,
-        dayTokenCount: 0
+        dayTokenCount: 0,
+        totalMessageCount: 2
       });
     });
 
@@ -59,7 +64,8 @@ describe(AssistantUserUsageRepository.name, () => {
       expect(await repository.countMessage(other.id, new Date("2026-11-04T12:00:00.000Z"))).toEqual({
         dayMessageCount: 1,
         minuteMessageCount: 1,
-        dayTokenCount: 0
+        dayTokenCount: 0,
+        totalMessageCount: 1
       });
     });
 
@@ -70,6 +76,17 @@ describe(AssistantUserUsageRepository.name, () => {
       const counts = await Promise.all(Array.from({ length: 5 }, () => repository.countMessage(userId, sentAt)));
 
       expect(counts.map(count => count.minuteMessageCount).sort()).toEqual([1, 2, 3, 4, 5]);
+      expect(counts.map(count => count.totalMessageCount).sort()).toEqual([1, 2, 3, 4, 5]);
+    });
+
+    it("keeps the total across days, problem reports and flagged turns", async () => {
+      const { repository, userId } = await setup();
+      await repository.countProblemReport(userId, new Date("2026-11-02T12:00:00.000Z"));
+      await repository.countMessage(userId, new Date("2026-11-03T12:00:00.000Z"));
+      await repository.countProblemReport(userId, new Date("2026-11-04T12:00:00.000Z"));
+      await repository.countFlaggedTurn(userId, new Date("2026-11-05T12:00:00.000Z"));
+
+      expect(await repository.countMessage(userId, new Date("2026-11-05T12:00:30.000Z"))).toMatchObject({ dayMessageCount: 1, totalMessageCount: 2 });
     });
 
     it("returns the tokens used today with the message counts", async () => {
@@ -81,7 +98,8 @@ describe(AssistantUserUsageRepository.name, () => {
       expect(await repository.countMessage(userId, new Date("2026-11-04T12:00:30.000Z"))).toEqual({
         dayMessageCount: 2,
         minuteMessageCount: 2,
-        dayTokenCount: 150
+        dayTokenCount: 150,
+        totalMessageCount: 2
       });
     });
 
@@ -93,7 +111,8 @@ describe(AssistantUserUsageRepository.name, () => {
       expect(await repository.countMessage(userId, new Date("2026-11-04T12:00:00.000Z"))).toEqual({
         dayMessageCount: 1,
         minuteMessageCount: 1,
-        dayTokenCount: 0
+        dayTokenCount: 0,
+        totalMessageCount: 2
       });
     });
   });
@@ -116,7 +135,8 @@ describe(AssistantUserUsageRepository.name, () => {
       expect(await repository.countMessage(userId, new Date("2026-11-04T12:00:20.000Z"))).toEqual({
         dayMessageCount: 2,
         minuteMessageCount: 2,
-        dayTokenCount: 120
+        dayTokenCount: 120,
+        totalMessageCount: 2
       });
     });
 
@@ -240,7 +260,8 @@ describe(AssistantUserUsageRepository.name, () => {
       expect(await repository.countMessage(userId, new Date("2026-11-04T12:00:20.000Z"))).toEqual({
         dayMessageCount: 2,
         minuteMessageCount: 2,
-        dayTokenCount: 120
+        dayTokenCount: 120,
+        totalMessageCount: 2
       });
       expect(await repository.countProblemReport(userId, new Date("2026-11-04T12:00:30.000Z"))).toBe(2);
     });

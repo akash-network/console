@@ -277,7 +277,7 @@ describe(AssistantConversationService.name, () => {
 
     it("traces a message refused by the daily token cap as limited and refuses it with the daily limit error", async () => {
       const userUsageRepository = mock<AssistantUserUsageRepository>();
-      userUsageRepository.countMessage.mockResolvedValue({ minuteMessageCount: 1, dayMessageCount: 1, dayTokenCount: 2_000_000 });
+      userUsageRepository.countMessage.mockResolvedValue({ minuteMessageCount: 1, dayMessageCount: 1, dayTokenCount: 2_000_000, totalMessageCount: 1 });
       const { service, traceRepository, turnService } = setup({ userUsageRepository });
 
       await expect(service.prepareMessage(CONVERSATION_ID, { content: "hi" })).rejects.toMatchObject({
@@ -331,7 +331,7 @@ describe(AssistantConversationService.name, () => {
       expect(conversationRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "read");
       expect(conversationRepository.findOneBy).toHaveBeenCalledWith({ id: CONVERSATION_ID, userId: "user-1" });
       expect(limitsService.countMessage).toHaveBeenCalledWith("user-1", true);
-      expect(limitsService.assertWithinBudget).toHaveBeenCalled();
+      expect(limitsService.assertWithinBudget).toHaveBeenCalledWith(true);
       expect(messageRepository.findAllOf).toHaveBeenCalledWith(CONVERSATION_ID);
       expect(transcriptService.record).toHaveBeenCalledWith(CONVERSATION_ID, { role: "user", content: `my token is ${REDACTED}` });
       const [turn, passedEmit, passedSignal] = turnService.run.mock.calls[0];

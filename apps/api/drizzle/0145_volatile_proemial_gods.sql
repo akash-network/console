@@ -1,0 +1,2 @@
+ALTER TABLE "assistant_user_usage" ADD COLUMN "total_message_count" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "assistant_daily_token_usage" ADD COLUMN "trial_tokens" bigint DEFAULT 0 NOT NULL;

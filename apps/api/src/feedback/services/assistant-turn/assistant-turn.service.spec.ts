@@ -120,18 +120,20 @@ describe(AssistantTurnService.name, () => {
       { signal: expect.any(AbortSignal), onContentDelta: expect.any(Function) }
     );
     expect(limitsService.assertWithinBudget).toHaveBeenCalledTimes(1);
-    expect(limitsService.recordUsage).toHaveBeenCalledWith("user-1", USAGE);
+    expect(limitsService.assertWithinBudget).toHaveBeenCalledWith(null);
+    expect(limitsService.recordUsage).toHaveBeenCalledWith("user-1", null, USAGE);
     expect(transcriptService.record).toHaveBeenCalledWith("conversation-1", { role: "assistant", content: "Your deployment is live." });
     expect(service).toBeInstanceOf(AssistantTurnService);
   });
 
-  it("records usage for the user who ran the turn", async () => {
+  it("checks the budget and records usage for the user who ran the turn, on their tier", async () => {
     const { akashMlClient, limitsService, run } = setup();
     akashMlClient.streamChatCompletion.mockImplementation(streamed({ content: "Done." }));
 
-    await run({ userId: "user-2" });
+    await run({ userId: "user-2", isTrialing: true });
 
-    expect(limitsService.recordUsage).toHaveBeenCalledWith("user-2", USAGE);
+    expect(limitsService.assertWithinBudget).toHaveBeenCalledWith(true);
+    expect(limitsService.recordUsage).toHaveBeenCalledWith("user-2", true, USAGE);
   });
 
   it("offers the configure form tools only while the browser has the form open", async () => {

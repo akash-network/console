@@ -309,7 +309,7 @@ export class AssistantConversationService {
 
     const isTrialing = await this.#isTrialing();
     if (countedMessage) await this.#countMessage(countedMessage, isTrialing);
-    await this.limitsService.assertWithinBudget();
+    await this.limitsService.assertWithinBudget(isTrialing);
 
     return { consent, isTrialing };
   }

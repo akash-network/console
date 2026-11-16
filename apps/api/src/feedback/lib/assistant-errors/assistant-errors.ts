@@ -6,6 +6,7 @@ export const ASSISTANT_ERROR_CODES = {
   consentOutdated: "assistant_consent_outdated",
   rateLimited: "assistant_rate_limited",
   dailyLimit: "assistant_daily_limit",
+  trialLimit: "assistant_trial_limit",
   conversationEnded: "assistant_conversation_ended",
   noPendingToolRequest: "assistant_no_pending_tool_request",
   toolResultsMismatch: "assistant_tool_results_mismatch",
@@ -18,6 +19,12 @@ export const ASSISTANT_ERROR_CODES = {
 
 export function assistantDailyLimitReached() {
   return createError(429, "You reached today's assistant limit. Try again tomorrow, or ask on Discord.", { errorCode: ASSISTANT_ERROR_CODES.dailyLimit });
+}
+
+export function assistantTrialLimitReached() {
+  return createError(429, "You used all your free assistant messages. Add credits to keep using the assistant.", {
+    errorCode: ASSISTANT_ERROR_CODES.trialLimit
+  });
 }
 
 export function assistantUnavailable() {
