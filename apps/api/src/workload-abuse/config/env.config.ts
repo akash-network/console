@@ -54,6 +54,9 @@ function parseJson(raw: string): unknown {
 
 const DEFAULT_PROBE_INITIAL_DELAYS_MIN = "5,20,60";
 
+/** The review is throttled per device through a pg-boss job row, which pg-boss deletes 7 days after the job finishes. */
+const MAX_SIGNUP_REVIEW_WINDOW_MINUTES = 7 * 24 * 60;
+
 function parseMinutesList(raw: string, ctx: z.RefinementCtx): number[] {
   const entries = raw.split(",").map(entry => entry.trim());
 
@@ -135,7 +138,10 @@ export const envSchema = z.object({
   /** Back-to-back probes can land minutes apart, so a streak also has to span real time before it counts. */
   WORKLOAD_ABUSE_BEHAVIOURAL_MIN_WINDOW_MINUTES: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().default(120)),
   /** Lives in Doppler only, and trial sign-ups go unreviewed while it is unset. */
-  WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().optional()),
+  WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES: z.preprocess(
+    blankToUndefined,
+    z.number({ coerce: true }).int().positive().max(MAX_SIGNUP_REVIEW_WINDOW_MINUTES).optional()
+  ),
   WORKLOAD_ABUSE_SIGNUP_REVIEW_SLACK_WEBHOOK_URL: z.preprocess(blankToUndefined, z.string().url().optional()),
   /** Lives in Doppler only, as do the two values after it. */
   WORKLOAD_ABUSE_DELETED_TRIAL_MEMORY_DAYS: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().optional()),

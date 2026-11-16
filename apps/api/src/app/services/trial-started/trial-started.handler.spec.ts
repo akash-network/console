@@ -11,7 +11,7 @@ import type { NotificationService } from "@src/notifications/services/notificati
 import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
 import { startTrialNotification } from "@src/notifications/services/notification-templates/start-trial-notification";
 import type { UserRepository } from "@src/user/repositories";
-import { ReviewTrialSignup } from "@src/workload-abuse/services/review-trial-signup/review-trial-signup.handler";
+import type { TrialSignupReviewService } from "@src/workload-abuse/services/trial-signup-review/trial-signup-review.service";
 import { TrialStartedHandler } from "./trial-started.handler";
 
 import { createUser } from "@test/seeders/user.seeder";
@@ -67,7 +67,7 @@ describe(TrialStartedHandler.name, () => {
       expect(userRepository.findById).toHaveBeenCalledWith(user.id);
       expect(notificationService.createNotification).not.toHaveBeenCalled();
       expect(logger.warn).not.toHaveBeenCalled();
-      expect(jobQueueManager.enqueue).toHaveBeenCalledTimes(5);
+      expect(jobQueueManager.enqueue).toHaveBeenCalledTimes(4);
     });
 
     it("sends start trial notification when user has email and enqueues notification jobs", async () => {
@@ -106,19 +106,19 @@ describe(TrialStartedHandler.name, () => {
         event: "START_TRIAL_NOTIFICATION_SENT",
         userId: user.id
       });
-      expect(jobQueueManager.enqueue).toHaveBeenCalledTimes(5);
+      expect(jobQueueManager.enqueue).toHaveBeenCalledTimes(4);
     });
 
-    it("queues the trial sign-up for review once per user", async () => {
+    it("hands the trial sign-up to review", async () => {
       const user = createUser({ email: "user@example.com" });
-      const { handler, jobQueueManager } = setup({
+      const { handler, trialSignupReviewService } = setup({
         findUserById: vi.fn().mockResolvedValue(user),
         findWalletByUserId: vi.fn().mockResolvedValue(createUserWallet({ userId: user.id, activatedAt: new Date() }))
       });
 
       await handler.handle({ userId: user.id, version: 1 });
 
-      expect(jobQueueManager.enqueue).toHaveBeenCalledWith(new ReviewTrialSignup({ userId: user.id }), { singletonKey: `reviewTrialSignup.${user.id}` });
+      expect(trialSignupReviewService.flagIfLinked).toHaveBeenCalledWith(user);
     });
 
     it("enqueues all notification jobs with correct timing and data", async () => {
@@ -288,6 +288,7 @@ describe(TrialStartedHandler.name, () => {
         findOneByUserId: input?.findWalletByUserId ?? vi.fn()
       }),
       logger: mock<ReturnType<CreateLogger>>(),
+      trialSignupReviewService: mock<TrialSignupReviewService>(),
       coreConfig: mockConfig<BillingConfigService>({
         TRIAL_ALLOWANCE_EXPIRATION_DAYS: input?.trialExpirationDays ?? 30,
         CONSOLE_WEB_PAYMENT_LINK: paymentLink,
@@ -303,7 +304,8 @@ describe(TrialStartedHandler.name, () => {
       mocks.userRepository,
       mocks.userWalletRepository,
       createLogger,
-      mocks.coreConfig
+      mocks.coreConfig,
+      mocks.trialSignupReviewService
     );
 
     return { handler, createLogger, ...mocks, paymentLink };

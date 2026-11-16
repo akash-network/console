@@ -154,6 +154,11 @@ describe("workload abuse env config", () => {
     expect(() => setup({ WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES: "1.5" })).toThrow(/WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES/);
   });
 
+  it("caps the sign-up review window at seven days", () => {
+    expect(setup({ WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES: "10080" }).WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES).toBe(10080);
+    expect(() => setup({ WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES: "10081" })).toThrow(/WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES/);
+  });
+
   it("leaves the deleted trial account settings unset when their variables are unset or blank", () => {
     const unset = setup();
     const blank = setup({
