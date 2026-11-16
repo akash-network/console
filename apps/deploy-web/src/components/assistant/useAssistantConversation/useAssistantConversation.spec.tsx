@@ -254,6 +254,25 @@ describe(useAssistantConversation.name, () => {
     expect(result.current.isAnswering).toBe(false);
   });
 
+  it("sends the next question to a new conversation when starting over while the previous one was still being created", async () => {
+    let finishStart: () => void = () => undefined;
+    const { result, startConversation, assistantConversation } = setup({ turns: [answerOf("Fresh")] });
+    startConversation.mockImplementationOnce(() => new Promise(resolve => (finishStart = () => resolve({ data: { id: "c-abandoned", stored: false } }))));
+    act(() => void result.current.send("Why does it restart?"));
+    await waitFor(() => expect(startConversation).toHaveBeenCalled());
+
+    act(() => result.current.startOver());
+    await act(async () => finishStart());
+
+    expect(result.current.conversationId).toBeNull();
+    expect(result.current.messages).toEqual([]);
+    expect(result.current.problem).toBeNull();
+    await act(() => result.current.send("Again"));
+    expect(startConversation).toHaveBeenCalledTimes(2);
+    expect(assistantConversation.sendMessage).toHaveBeenCalledTimes(1);
+    expect(assistantConversation.sendMessage).toHaveBeenCalledWith("c-1", expect.anything(), expect.any(AbortSignal));
+  });
+
   it("stays blocked after starting over when the api turned the assistant off for the account", async () => {
     const { result, assistantConversation } = setup({});
     assistantConversation.sendMessage.mockImplementationOnce(() => failingStream(new ApiError(403, { code: "assistant_blocked" }, "blocked")));
