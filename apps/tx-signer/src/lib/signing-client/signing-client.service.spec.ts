@@ -168,7 +168,7 @@ describe(SigningClientService.name, () => {
     }
   });
 
-  it("does not send again a transaction the node already holds in its cache", async () => {
+  it("does not send again within two blocks a transaction the node already holds in its cache", async () => {
     vi.useFakeTimers();
     try {
       const { service, client } = setup({ ttlMs: 10_000 });
@@ -183,6 +183,172 @@ describe(SigningClientService.name, () => {
       expect(client.broadcastTxSync).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
+    }
+  });
+
+  it("sends the same signed bytes again once an accepted transaction stays unseen for two blocks", async () => {
+    vi.useFakeTimers();
+    try {
+      const { service, client } = setup({ ttlMs: 30_000 });
+      client.getTx.mockImplementation(async hash => (client.broadcastTxSync.mock.calls.length > 1 ? mock<IndexedTx>({ hash, code: 0, height: 100 }) : null));
+
+      const promise = service.signAndBroadcast(createMessages(1));
+      promise.catch(() => {});
+      await vi.advanceTimersByTimeAsync(11_999);
+      expect(client.broadcastTxSync).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(3_000);
+
+      await expect(promise).resolves.toMatchObject({ code: 0 });
+      const [[firstTxBytes], [resentTxBytes]] = client.broadcastTxSync.mock.calls;
+      expect(resentTxBytes).toEqual(firstTxBytes);
+      expect(client.broadcastTxSync).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps sending an unseen transaction every two blocks while the node still holds it", async () => {
+    vi.useFakeTimers();
+    try {
+      const { service, client } = setup({ ttlMs: 40_000 });
+      client.broadcastTxSync
+        .mockResolvedValueOnce("broadcast-hash")
+        .mockResolvedValueOnce("broadcast-hash")
+        .mockRejectedValue(new Error("tx already exists in cache: ..."));
+      client.getTx.mockResolvedValue(null);
+
+      const promise = service.signAndBroadcast(createMessages(1));
+      promise.catch(() => {});
+      await vi.advanceTimersByTimeAsync(120_000);
+
+      await expect(promise).rejects.toBeInstanceOf(TxNotIncludedError);
+      expect(client.broadcastTxSync).toHaveBeenCalledTimes(4);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("counts the first two blocks from when a slow broadcast was sent rather than when it was answered", async () => {
+    vi.useFakeTimers();
+    try {
+      const { service, client } = setup({ ttlMs: 30_000 });
+      client.broadcastTxSync.mockImplementationOnce(bytes => answerAfter(8_000, () => toHex(sha256(bytes))));
+      client.getTx.mockResolvedValue(null);
+
+      const promise = service.signAndBroadcast(createMessages(1));
+      promise.catch(() => {});
+      await vi.advanceTimersByTimeAsync(12_500);
+
+      expect(client.broadcastTxSync).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps two blocks between re-sends when a re-send is slow to answer", async () => {
+    vi.useFakeTimers();
+    try {
+      const { service, client } = setup({ ttlMs: 30_000 });
+      client.broadcastTxSync.mockResolvedValueOnce("broadcast-hash").mockImplementationOnce(() =>
+        answerAfter(8_000, () => {
+          throw new Error("tx already exists in cache: ...");
+        })
+      );
+      client.getTx.mockResolvedValue(null);
+
+      const promise = service.signAndBroadcast(createMessages(1));
+      promise.catch(() => {});
+      await vi.advanceTimersByTimeAsync(24_500);
+
+      expect(client.broadcastTxSync).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not send a copy once the transaction has expired, even while the poll window is still open", async () => {
+    vi.useFakeTimers();
+    try {
+      const { service, client } = setup({ ttlMs: 24_000 });
+      client.broadcastTxSync.mockImplementationOnce(bytes => answerAfter(2_000, () => toHex(sha256(bytes))));
+      client.getTx.mockResolvedValue(null);
+
+      const promise = service.signAndBroadcast(createMessages(1));
+      promise.catch(() => {});
+      await vi.advanceTimersByTimeAsync(120_000);
+
+      await expect(promise).rejects.toBeInstanceOf(TxNotIncludedError);
+      expect(client.broadcastTxSync).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not send a copy past expiry while the node stays unreachable", async () => {
+    vi.useFakeTimers();
+    try {
+      const { service, client } = setup({ ttlMs: 10_000 });
+      client.broadcastTxSync.mockImplementation(() =>
+        answerAfter(4_000, () => {
+          throw new Error("Bad status on response: 500");
+        })
+      );
+      client.getTx.mockResolvedValue(null);
+
+      const promise = service.signAndBroadcast(createMessages(1));
+      promise.catch(() => {});
+      await vi.advanceTimersByTimeAsync(120_000);
+
+      await expect(promise).rejects.toBeInstanceOf(TxNotIncludedError);
+      expect(client.broadcastTxSync).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps sending an unseen transaction that carries no expiry for the whole poll window", async () => {
+    vi.useFakeTimers();
+    try {
+      const { service, client } = setup({ ttlMs: 30_000 });
+      client.signUnordered.mockResolvedValue(
+        TxRaw.fromPartial({
+          bodyBytes: TxBody.encode(TxBody.fromPartial({ memo: "akash console" })).finish(),
+          authInfoBytes: new Uint8Array([2]),
+          signatures: [new Uint8Array([3])]
+        })
+      );
+      client.getTx.mockResolvedValue(null);
+
+      const promise = service.signAndBroadcast(createMessages(1));
+      promise.catch(() => {});
+      await vi.advanceTimersByTimeAsync(120_000);
+
+      await expect(promise).rejects.toBeInstanceOf(TxOutcomeUnknownError);
+      expect(client.broadcastTxSync).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stops sending an unseen transaction once the node refuses the copy, and logs why", async () => {
+    vi.useFakeTimers();
+    try {
+      const { service, client } = setup({ ttlMs: 30_000 });
+      const refusal = new BroadcastTxError(13, "sdk", "insufficient fee");
+      client.broadcastTxSync.mockResolvedValueOnce("broadcast-hash").mockRejectedValue(refusal);
+      client.getTx.mockResolvedValue(null);
+      const logWarn = vi.spyOn(LoggerService.prototype, "warn");
+
+      const promise = service.signAndBroadcast(createMessages(1));
+      promise.catch(() => {});
+      await vi.advanceTimersByTimeAsync(120_000);
+
+      await expect(promise).rejects.toBeInstanceOf(TxNotIncludedError);
+      expect(client.broadcastTxSync).toHaveBeenCalledTimes(2);
+      expect(logWarn).toHaveBeenCalledWith({ event: "SIGN_AND_BROADCAST_RESEND_REFUSED", txHash: "broadcast-hash", error: refusal });
+    } finally {
+      vi.useRealTimers();
+      vi.restoreAllMocks();
     }
   });
 
@@ -527,6 +693,18 @@ describe(SigningClientService.name, () => {
     const bodyBytes = TxBody.encode(TxBody.fromPartial({ memo: "akash console", unordered: true, timeoutTimestamp: new Date(Date.now() + ttlMs) })).finish();
 
     return TxRaw.fromPartial({ bodyBytes, authInfoBytes: new Uint8Array([2]), signatures: [new Uint8Array([3])] });
+  }
+
+  function answerAfter<T>(ms: number, answer: () => T): Promise<T> {
+    return new Promise((resolve, reject) =>
+      setTimeout(() => {
+        try {
+          resolve(answer());
+        } catch (error) {
+          reject(error);
+        }
+      }, ms)
+    );
   }
 
   function blockAt(time: Date) {
