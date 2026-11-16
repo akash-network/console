@@ -15,6 +15,37 @@ const AddressesSchema = z
   )
   .pipe(z.array(z.string().min(1)).min(1).max(MAX_ADDRESSES));
 
+const ProviderCpuModelsSchema = z
+  .array(
+    z.object({
+      vendor: z
+        .enum(["AMD", "Intel"])
+        .nullable()
+        .openapi({ description: "Null when the node reports a vendor other than AMD or Intel, or a virtual CPU whose name names none." }),
+      model: z.string().openapi({ description: "The CPU name the node reports, without trademark marks, core count and frequency.", example: "EPYC 7763" }),
+      generation: z.string().nullable().openapi({
+        description: "The generation the model number belongs to. Null when the model is not one Console recognises; it is never inferred.",
+        example: "Milan"
+      }),
+      baseFrequencyMhz: z.number().nullable().openapi({ description: "The base frequency written in the CPU name. Null when the name carries none." }),
+      isVirtual: z.boolean().openapi({ description: "True when the name is one a hypervisor reports instead of the physical CPU, such as QEMU Virtual CPU." }),
+      threads: z.number().openapi({ description: "Hardware threads of this model across the provider's nodes, as the nodes report them." }),
+      nodeCount: z.number().openapi({ description: "Nodes that run this model." })
+    })
+  )
+  .openapi({
+    description: "Each CPU model the provider's nodes reported in its last successful snapshot, largest first. Empty when no node reports a model."
+  });
+
+const CpuProfileSchema = z.enum(["uniform", "mixed", "virtual", "unknown"]).openapi({
+  description:
+    "Uniform when every node runs one model, mixed when they run several or some nodes report none, virtual when every reported name is a hypervisor's, unknown when no node reports a model."
+});
+
+const CpuUnreportedNodeCountSchema = z.number().openapi({
+  description: "Nodes that report no CPU model while others do. A deployment can land on them. Zero when no node reports a model."
+});
+
 export const ProviderListQuerySchema = z.object({
   scope: z.enum(["all", "trial"]).default("all"),
   addresses: AddressesSchema.optional()
@@ -70,6 +101,9 @@ const ProviderListItemSchema = z.object({
       interface: z.string()
     })
   ),
+  cpuModels: ProviderCpuModelsSchema,
+  cpuProfile: CpuProfileSchema,
+  cpuUnreportedNodeCount: CpuUnreportedNodeCountSchema,
   attributes: z.array(
     z.object({
       key: z.string(),
@@ -111,6 +145,7 @@ export const PROVIDER_SEARCH_MAX_LIMIT = 100;
 export const PROVIDER_SEARCH_MAX_ADDRESSES = 100;
 export const PROVIDER_SEARCH_MAX_REGIONS = 50;
 export const PROVIDER_SEARCH_MAX_GPU_MODELS = 50;
+export const PROVIDER_SEARCH_MAX_CPU_FILTER_VALUES = 50;
 const PROVIDER_SEARCH_MAX_SEARCH_LENGTH = 200;
 
 export const ProviderSearchSortSchema = z.enum(["active-leases-desc", "active-leases-asc", "wallet-leases-desc", "wallet-active-leases-desc", "gpus-desc"]);
@@ -165,6 +200,24 @@ export const ProviderSearchQuerySchema = z
         description: `Comma-separated GPU model names, matched ignoring case, at most ${PROVIDER_SEARCH_MAX_GPU_MODELS}. Keeps providers with any of them.`,
         example: "h100,a100"
       }),
+    cpuVendors: commaSeparatedListSchema(PROVIDER_SEARCH_MAX_CPU_FILTER_VALUES)
+      .optional()
+      .openapi({
+        description: `Comma-separated CPU vendors, matched ignoring case, at most ${PROVIDER_SEARCH_MAX_CPU_FILTER_VALUES}. Keeps providers with a CPU from any of them.`,
+        example: "amd"
+      }),
+    cpuModels: commaSeparatedListSchema(PROVIDER_SEARCH_MAX_CPU_FILTER_VALUES)
+      .optional()
+      .openapi({
+        description: `Comma-separated CPU model names as the provider list returns them, matched ignoring case, at most ${PROVIDER_SEARCH_MAX_CPU_FILTER_VALUES}. Keeps providers with any of them.`,
+        example: "EPYC 7763,Xeon Gold 6248R"
+      }),
+    cpuGenerations: commaSeparatedListSchema(PROVIDER_SEARCH_MAX_CPU_FILTER_VALUES)
+      .optional()
+      .openapi({
+        description: `Comma-separated CPU generations, matched ignoring case, at most ${PROVIDER_SEARCH_MAX_CPU_FILTER_VALUES}. Keeps providers with a CPU of any of them.`,
+        example: "Milan,Genoa"
+      }),
     sort: ProviderSearchSortSchema.default("active-leases-desc").openapi({
       description:
         "`active-leases-*` orders by the provider's active lease count, `wallet-leases-desc` and `wallet-active-leases-desc` by how many leases `walletAddress` holds on it, and `gpus-desc` by its GPU count across available, pending and active ones."
@@ -212,6 +265,9 @@ export const ProviderLocationsResponseSchema = z.object({
       locationRegion: z.string().nullable().openapi({ description: "The provider's location-region attribute.", example: "eu-central" }),
       uptime30d: z.number().nullable(),
       gpuModels: z.array(z.string()).openapi({ description: "Distinct GPU model names across the provider's nodes.", example: ["h100", "a100"] }),
+      cpus: z
+        .array(z.object({ vendor: z.enum(["AMD", "Intel"]).nullable(), model: z.string(), generation: z.string().nullable() }))
+        .openapi({ description: "The vendor, model and recognised generation of each CPU model the provider's nodes run." }),
       stats: ProviderStatsSchema
     })
   )
@@ -285,6 +341,9 @@ export const ProviderResponseSchema = z.object({
     description:
       "Whether the self-declared capabilities/cpu/arch attribute agrees with the architecture the nodes report. Unknown when either side is missing or the declared value is not a recognised architecture."
   }),
+  cpuModels: ProviderCpuModelsSchema,
+  cpuProfile: CpuProfileSchema,
+  cpuUnreportedNodeCount: CpuUnreportedNodeCountSchema,
   gpuDrivers: z
     .array(
       z.object({

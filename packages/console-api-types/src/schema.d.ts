@@ -3753,6 +3753,9 @@ export interface paths {
           regions?: string;
           gpu?: "true" | "false";
           gpuModels?: string;
+          cpuVendors?: string;
+          cpuModels?: string;
+          cpuGenerations?: string;
           sort?: "active-leases-desc" | "active-leases-asc" | "wallet-leases-desc" | "wallet-active-leases-desc" | "gpus-desc";
           walletAddress?: string;
           skip?: number | null;
@@ -3832,6 +3835,39 @@ export interface paths {
                     ram: string;
                     interface: string;
                   }[];
+                  /** @description Each CPU model the provider's nodes reported in its last successful snapshot, largest first. Empty when no node reports a model. */
+                  cpuModels: {
+                    /**
+                     * @description Null when the node reports a vendor other than AMD or Intel, or a virtual CPU whose name names none.
+                     * @enum {string|null}
+                     */
+                    vendor: "AMD" | "Intel" | null;
+                    /**
+                     * @description The CPU name the node reports, without trademark marks, core count and frequency.
+                     * @example EPYC 7763
+                     */
+                    model: string;
+                    /**
+                     * @description The generation the model number belongs to. Null when the model is not one Console recognises; it is never inferred.
+                     * @example Milan
+                     */
+                    generation: string | null;
+                    /** @description The base frequency written in the CPU name. Null when the name carries none. */
+                    baseFrequencyMhz: number | null;
+                    /** @description True when the name is one a hypervisor reports instead of the physical CPU, such as QEMU Virtual CPU. */
+                    isVirtual: boolean;
+                    /** @description Hardware threads of this model across the provider's nodes, as the nodes report them. */
+                    threads: number;
+                    /** @description Nodes that run this model. */
+                    nodeCount: number;
+                  }[];
+                  /**
+                   * @description Uniform when every node runs one model, mixed when they run several or some nodes report none, virtual when every reported name is a hypervisor's, unknown when no node reports a model.
+                   * @enum {string}
+                   */
+                  cpuProfile: "uniform" | "mixed" | "virtual" | "unknown";
+                  /** @description Nodes that report no CPU model while others do. A deployment can land on them. Zero when no node reports a model. */
+                  cpuUnreportedNodeCount: number;
                   attributes: {
                     key: string;
                     value: string;
@@ -3942,6 +3978,13 @@ export interface paths {
                  *     ]
                  */
                 gpuModels: string[];
+                /** @description The vendor, model and recognised generation of each CPU model the provider's nodes run. */
+                cpus: {
+                  /** @enum {string|null} */
+                  vendor: "AMD" | "Intel" | null;
+                  model: string;
+                  generation: string | null;
+                }[];
                 stats: {
                   cpu: {
                     active: number;
@@ -4098,6 +4141,41 @@ export interface paths {
                * @enum {string}
                */
               cpuArchAgreement: "match" | "mismatch" | "unknown";
+              /** @description Each CPU model the provider's nodes reported in its last successful snapshot, largest first. Empty when no node reports a model. */
+              cpuModels: {
+                /**
+                 * @description Null when the node reports a vendor other than AMD or Intel, or a virtual CPU whose name names none.
+                 * @enum {string|null}
+                 */
+                vendor: "AMD" | "Intel" | null;
+                /**
+                 * @description The CPU name the node reports, without trademark marks, core count and frequency.
+                 * @example EPYC 7763
+                 */
+                model: string;
+                /**
+                 * @description The generation the model number belongs to. Null when the model is not one Console recognises; it is never inferred.
+                 * @example Milan
+                 */
+                generation: string | null;
+                /** @description The base frequency written in the CPU name. Null when the name carries none. */
+                baseFrequencyMhz: number | null;
+                /** @description True when the name is one a hypervisor reports instead of the physical CPU, such as QEMU Virtual CPU. */
+                isVirtual: boolean;
+                /** @description Hardware threads of this model across the provider's nodes, as the nodes report them. */
+                threads: number;
+                /** @description Nodes that run this model. */
+                nodeCount: number;
+              }[];
+              /**
+               * @description Uniform when every node runs one model, mixed when they run several or some nodes report none, virtual when every reported name is a hypervisor's, unknown when no node reports a model.
+               * @enum {string}
+               */
+              cpuProfile: "uniform" | "mixed" | "virtual" | "unknown";
+              /**
+               * @description Nodes that report no CPU model while others do. A deployment can land on them. Zero when no node reports a model.
+               */
+              cpuUnreportedNodeCount: number;
               /**
                * @description Up to 5 NVIDIA driver versions reported by workloads running on this provider over the last 30 days, most widely reported first. Console does not verify them. Empty when there is none to list.
                * @example [
@@ -13999,6 +14077,39 @@ export interface operations {
               ram: string;
               interface: string;
             }[];
+            /** @description Each CPU model the provider's nodes reported in its last successful snapshot, largest first. Empty when no node reports a model. */
+            cpuModels: {
+              /**
+               * @description Null when the node reports a vendor other than AMD or Intel, or a virtual CPU whose name names none.
+               * @enum {string|null}
+               */
+              vendor: "AMD" | "Intel" | null;
+              /**
+               * @description The CPU name the node reports, without trademark marks, core count and frequency.
+               * @example EPYC 7763
+               */
+              model: string;
+              /**
+               * @description The generation the model number belongs to. Null when the model is not one Console recognises; it is never inferred.
+               * @example Milan
+               */
+              generation: string | null;
+              /** @description The base frequency written in the CPU name. Null when the name carries none. */
+              baseFrequencyMhz: number | null;
+              /** @description True when the name is one a hypervisor reports instead of the physical CPU, such as QEMU Virtual CPU. */
+              isVirtual: boolean;
+              /** @description Hardware threads of this model across the provider's nodes, as the nodes report them. */
+              threads: number;
+              /** @description Nodes that run this model. */
+              nodeCount: number;
+            }[];
+            /**
+             * @description Uniform when every node runs one model, mixed when they run several or some nodes report none, virtual when every reported name is a hypervisor's, unknown when no node reports a model.
+             * @enum {string}
+             */
+            cpuProfile: "uniform" | "mixed" | "virtual" | "unknown";
+            /** @description Nodes that report no CPU model while others do. A deployment can land on them. Zero when no node reports a model. */
+            cpuUnreportedNodeCount: number;
             attributes: {
               key: string;
               value: string;
