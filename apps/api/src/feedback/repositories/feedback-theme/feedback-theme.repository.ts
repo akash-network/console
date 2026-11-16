@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, ne, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable, resolveTable } from "@src/core/providers";
@@ -42,7 +42,7 @@ export class FeedbackThemeRepository extends BaseRepository<Table, FeedbackTheme
     return new FeedbackThemeRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
   }
 
-  /** Recounts the themes from the submissions and conversations still attached to them, so deleted items stop counting. */
+  /** Recounts the themes from the items still attached to them, locking the themes in a statement of its own first so a recount that waited sees the deletes committed meanwhile. */
   async refreshCounts(themeIds: string[]): Promise<void> {
     const uniqueThemeIds = [...new Set(themeIds)];
     if (uniqueThemeIds.length === 0) return;
@@ -50,6 +50,12 @@ export class FeedbackThemeRepository extends BaseRepository<Table, FeedbackTheme
     const submissions = resolveTable("FeedbackSubmissions");
     const conversations = resolveTable("AssistantConversations");
 
+    await this.cursor
+      .select({ id: this.table.id })
+      .from(this.table)
+      .where(inArray(this.table.id, uniqueThemeIds))
+      .orderBy(asc(this.table.id))
+      .for("no key update");
     await this.cursor.execute(sql`
       UPDATE ${this.table}
       SET

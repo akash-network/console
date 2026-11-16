@@ -9,6 +9,11 @@ export interface FailedClassification {
   abandoned: boolean;
 }
 
+export interface DeletedClassifiedItems {
+  deletedCount: number;
+  themeIds: string[];
+}
+
 /** Every classified item carries the same fields, so each table gets its own column builders from here. */
 export function classificationColumns() {
   return {

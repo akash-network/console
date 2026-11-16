@@ -3,6 +3,7 @@ import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, type EnqueueOptions, type Job, JOB_NAME, type JobHandler, type JobPermissions, LOGGER_FACTORY } from "@src/core";
 import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
+import { FEEDBACK_CONFIG, type FeedbackConfig } from "@src/feedback/providers/config.provider";
 import { AssistantConversationRepository } from "@src/feedback/repositories/assistant-conversation/assistant-conversation.repository";
 import { AssistantPendingTurnRepository } from "@src/feedback/repositories/assistant-pending-turn/assistant-pending-turn.repository";
 import { AssistantTurnTraceRepository } from "@src/feedback/repositories/assistant-turn-trace/assistant-turn-trace.repository";
@@ -10,6 +11,7 @@ import { FeedbackSubmissionRepository } from "@src/feedback/repositories/feedbac
 import { AkashMlClient } from "@src/feedback/services/akashml-client/akashml.client";
 import { ClassifyConversation, classifyConversationOptionsFor } from "@src/feedback/services/classify-conversation/classify-conversation.handler";
 import { ClassifyFeedback, classifyFeedbackOptionsFor } from "@src/feedback/services/classify-feedback/classify-feedback.handler";
+import { FeedbackErasureService } from "@src/feedback/services/feedback-erasure/feedback-erasure.service";
 import { FeedbackThemeScoreService } from "@src/feedback/services/feedback-theme-score/feedback-theme-score.service";
 
 export const SWEEP_FEEDBACK_INTERVAL_IN_HOURS = 1;
@@ -17,10 +19,11 @@ export const SWEEP_FEEDBACK_KEY = "sweepFeedback";
 export const BACKFILL_BATCH_SIZE = 100;
 export const CONVERSATION_IDLE_MINUTES = 30;
 export const ASSISTANT_TURN_TRACE_RETENTION_DAYS = 90;
+export const RETENTION_BATCH_SIZE = 500;
 /** Must stay well past the longest a turn can run, so only a trace whose pod died mid-turn is still running after it. */
 export const ABANDONED_TURN_TRACE_MINUTES = 10;
 
-/** Classifies what was stored while the model was unavailable or whose job gave up, lets theme scores decay, and drops assistant turns the browser never resumed and turn traces past retention, and fails turn traces a crashed pod left running. */
+/** Classifies what was stored while the model was unavailable or whose job gave up, lets theme scores decay, and drops assistant turns the browser never resumed and conversations, feedback and turn traces past retention, and fails turn traces a crashed pod left running. */
 export class SweepFeedback implements Job {
   static readonly [JOB_NAME] = "SweepFeedback";
   readonly name = SweepFeedback[JOB_NAME];
@@ -49,6 +52,8 @@ export class SweepFeedbackHandler implements JobHandler<SweepFeedback> {
     private readonly feedbackThemeScoreService: FeedbackThemeScoreService,
     private readonly assistantPendingTurnRepository: AssistantPendingTurnRepository,
     private readonly assistantTurnTraceRepository: AssistantTurnTraceRepository,
+    private readonly feedbackErasureService: FeedbackErasureService,
+    @inject(FEEDBACK_CONFIG) private readonly config: FeedbackConfig,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.#logger = createLogger({ context: SweepFeedbackHandler.name });
@@ -62,13 +67,23 @@ export class SweepFeedbackHandler implements JobHandler<SweepFeedback> {
     const now = new Date();
     await this.jobQueueService.enqueue(new SweepFeedback(), sweepFeedbackOptionsFor(now));
 
+    const expired = await this.feedbackErasureService.eraseExpired(subDays(now, this.config.FEEDBACK_RETENTION_DAYS), RETENTION_BATCH_SIZE);
     const backfilled = this.akashMlClient.isAvailable() ? await this.#enqueueUnclassified(now) : null;
     const rescored = await this.feedbackThemeScoreService.rescoreAll(now);
     const expiredPendingTurns = await this.assistantPendingTurnRepository.deleteExpired(now);
     const deletedTurnTraces = await this.assistantTurnTraceRepository.deleteStartedBefore(subDays(now, ASSISTANT_TURN_TRACE_RETENTION_DAYS));
     const abandonedTurnTraces = await this.assistantTurnTraceRepository.markAbandoned(subMinutes(now, ABANDONED_TURN_TRACE_MINUTES));
 
-    this.#logger.info({ event: "FEEDBACK_SWEPT", backfilled, rescored, expiredPendingTurns, deletedTurnTraces, abandonedTurnTraces });
+    this.#logger.info({
+      event: "FEEDBACK_SWEPT",
+      backfilled,
+      rescored,
+      expiredPendingTurns,
+      deletedConversations: expired.conversations,
+      deletedSubmissions: expired.submissions,
+      deletedTurnTraces,
+      abandonedTurnTraces
+    });
   }
 
   async #enqueueUnclassified(now: Date): Promise<{ submissions: number; conversations: number }> {

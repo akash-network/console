@@ -7,6 +7,7 @@ import { AssistantConversationRepository } from "./assistant-conversation.reposi
 
 import { seedAssistantConversation, seedAssistantMessage, seedFeedbackTheme } from "@test/seeders/db/feedback.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { holdTransaction, waitForLockWait } from "@test/services/lock-wait";
 
 describe(AssistantConversationRepository.name, () => {
   describe("deleteAllOf", () => {
@@ -25,6 +26,54 @@ describe(AssistantConversationRepository.name, () => {
       expect(await countMessagesOf(themed.id)).toBe(0);
       expect(await repository.count({ userId: other.id })).toBe(1);
       expect(await countMessagesOf(kept.id)).toBe(1);
+    });
+  });
+
+  describe("deleteInactiveBefore", () => {
+    it("deletes conversations whose last message is before the cutoff with their messages, keeps the one exactly at it and answers the themes", async () => {
+      const { repository, userId, countMessagesOf } = await setup();
+      const cutoff = new Date("2001-06-01T00:00:00.000Z");
+      const theme = await seedFeedbackTheme();
+      const inactive = await seedAssistantConversation({ userId, themeId: theme.id, lastMessageAt: new Date(cutoff.getTime() - 1) });
+      await seedAssistantMessage({ conversationId: inactive.id });
+      const atCutoff = await seedAssistantConversation({ userId, themeId: theme.id, lastMessageAt: cutoff });
+      const startedLongAgo = await seedAssistantConversation({ userId, startedAt: new Date("2001-01-01T00:00:00.000Z"), lastMessageAt: new Date() });
+
+      expect(await repository.deleteInactiveBefore(cutoff, 10)).toEqual({ deletedCount: 1, themeIds: [theme.id] });
+      expect(await repository.findById(inactive.id)).toBeUndefined();
+      expect(await countMessagesOf(inactive.id)).toBe(0);
+      expect(await repository.findById(atCutoff.id)).toBeDefined();
+      expect(await repository.findById(startedLongAgo.id)).toBeDefined();
+    });
+
+    it("deletes at most the given number, the longest inactive first", async () => {
+      const { repository, userId } = await setup();
+      const cutoff = new Date("2000-06-01T00:00:00.000Z");
+      const oldest = await seedAssistantConversation({ userId, lastMessageAt: new Date("2000-01-01T00:00:00.000Z") });
+      const older = await seedAssistantConversation({ userId, lastMessageAt: new Date("2000-02-01T00:00:00.000Z") });
+
+      expect(await repository.deleteInactiveBefore(cutoff, 1)).toEqual({ deletedCount: 1, themeIds: [] });
+      expect(await repository.findById(oldest.id)).toBeUndefined();
+      expect(await repository.findById(older.id)).toBeDefined();
+    });
+
+    it("keeps a conversation that received a message while the delete waited for it", async () => {
+      const { repository, userId, countMessagesOf } = await setup();
+      const cutoff = new Date("1999-06-01T00:00:00.000Z");
+      const resumed = await seedAssistantConversation({ userId, lastMessageAt: new Date("1999-01-01T00:00:00.000Z") });
+      const writer = holdTransaction(async () => {
+        await seedAssistantMessage({ conversationId: resumed.id });
+        await repository.updateById(resumed.id, { lastMessageAt: new Date() });
+      });
+      await writer.held;
+
+      const deleted = repository.deleteInactiveBefore(cutoff, 10);
+      await waitForLockWait('delete from "assistant_conversations"%');
+      writer.release();
+      await writer.committed;
+
+      expect(await deleted).toEqual({ deletedCount: 0, themeIds: [] });
+      expect(await countMessagesOf(resumed.id)).toBe(1);
     });
   });
 
