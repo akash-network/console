@@ -6,16 +6,18 @@ import { MessageSquareText, SquarePen, X } from "lucide-react";
 
 import { SendFeedbackDialog } from "@src/components/feedback/SendFeedbackDialog/SendFeedbackDialog";
 import { useAssistantPrivacyQuery, useUpdateAssistantConsentMutation } from "@src/queries/useAssistantQueries";
+import { useDeploymentName } from "../action-cards/useDeploymentName/useDeploymentName";
 import { AssistantComposer } from "../AssistantComposer/AssistantComposer";
 import { AssistantConsentCard } from "../AssistantConsentCard/AssistantConsentCard";
 import { ASSISTANT_CONSENT_COPY_VERSION } from "../assistantConsentCopy";
-import { AssistantExamplePrompts } from "../AssistantExamplePrompts/AssistantExamplePrompts";
+import { AssistantExamplePrompts, CONFIGURE_PAGE } from "../AssistantExamplePrompts/AssistantExamplePrompts";
 import { AssistantTranscript } from "../AssistantTranscript/AssistantTranscript";
 import { DiscordHelpCard } from "../DiscordHelpCard/DiscordHelpCard";
 import type { AssistantConversation } from "../useAssistantConversation/useAssistantConversation";
 
 export const DEPENDENCIES = {
   useAssistantPrivacyQuery,
+  useDeploymentName,
   useUpdateAssistantConsentMutation,
   AssistantConsentCard,
   AssistantExamplePrompts,
@@ -33,6 +35,20 @@ export const TOASTS_BESIDE_ASSISTANT_PANEL = "lg:!right-[calc(var(--assistant-pa
 
 const DOCKED_PANEL_WIDTH = "440px";
 
+export function assistantContextLabelOf({
+  page,
+  deploymentDseq,
+  deploymentName
+}: {
+  page: string | null;
+  deploymentDseq: string | null;
+  deploymentName: string | null;
+}): string | null {
+  if (page && CONFIGURE_PAGE.test(page)) return "New deployment";
+  if (deploymentDseq) return deploymentName || "Deployment";
+  return null;
+}
+
 type Props = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
@@ -46,6 +62,7 @@ type Props = {
 
 export const AssistantPanel: FC<Props> = ({ isOpen, onOpenChange, conversation, question, sendsQuestion, openedAt, dependencies: d = DEPENDENCIES }) => {
   const privacy = d.useAssistantPrivacyQuery({ enabled: isOpen });
+  const deploymentName = d.useDeploymentName(conversation.deploymentDseq);
   const { mutateAsync: updateConsent, isPending: isSavingConsent } = d.useUpdateAssistantConsentMutation();
   const [hasConsentFailed, setHasConsentFailed] = useState(false);
   const [isSendingFeedback, setIsSendingFeedback] = useState(false);
@@ -217,6 +234,7 @@ export const AssistantPanel: FC<Props> = ({ isOpen, onOpenChange, conversation, 
             initialValue={willSendQuestion ? undefined : question}
             isSending={conversation.isAnswering}
             isDisabled={conversation.problem === "blocked"}
+            contextLabel={assistantContextLabelOf({ page: conversation.page, deploymentDseq: conversation.deploymentDseq, deploymentName })}
             onSend={conversation.send}
           />
           <div className="flex items-center justify-between gap-3 px-1 text-xs text-muted-foreground">

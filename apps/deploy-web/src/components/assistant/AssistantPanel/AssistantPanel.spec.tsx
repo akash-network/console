@@ -6,7 +6,7 @@ import type { AssistantConsentCard } from "../AssistantConsentCard/AssistantCons
 import { ASSISTANT_CONSENT_COPY_VERSION } from "../assistantConsentCopy";
 import { createTranscriptMessage } from "../transcriptModel/transcriptModel";
 import type { AssistantConversation } from "../useAssistantConversation/useAssistantConversation";
-import { ASSISTANT_PANEL_WIDTH_VAR, AssistantPanel, DEPENDENCIES } from "./AssistantPanel";
+import { ASSISTANT_PANEL_WIDTH_VAR, assistantContextLabelOf, AssistantPanel, DEPENDENCIES } from "./AssistantPanel";
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -381,6 +381,23 @@ describe("AssistantPanel", () => {
     expect(dependencies.SendFeedbackDialog).not.toHaveBeenCalled();
   });
 
+  it("tells the composer the name of the deployment in view", () => {
+    const { dependencies } = setup({ consent: CURRENT_CONSENT, deploymentDseq: "1234", deploymentName: "my-web-app" });
+
+    expect(dependencies.useDeploymentName).toHaveBeenCalledWith("1234");
+    expect(dependencies.AssistantComposer).toHaveBeenCalledWith(expect.objectContaining({ contextLabel: "my-web-app" }), expect.anything());
+  });
+
+  it.each([
+    { case: "the configure page", page: "/new-deployment/configure/web", deploymentDseq: null, deploymentName: null, label: "New deployment" },
+    { case: "a named deployment", page: "/deployments/1234", deploymentDseq: "1234", deploymentName: "my-web-app", label: "my-web-app" },
+    { case: "an unnamed deployment", page: "/deployments/1234", deploymentDseq: "1234", deploymentName: null, label: "Deployment" },
+    { case: "any other page", page: "/templates", deploymentDseq: null, deploymentName: null, label: null },
+    { case: "no page", page: null, deploymentDseq: null, deploymentName: null, label: null }
+  ])("labels the context for $case", ({ page, deploymentDseq, deploymentName, label }) => {
+    expect(assistantContextLabelOf({ page, deploymentDseq, deploymentName })).toBe(label);
+  });
+
   it("closes from the close button", async () => {
     const { onOpenChange } = setup({ consent: CURRENT_CONSENT });
 
@@ -402,6 +419,7 @@ describe("AssistantPanel", () => {
     hasMessages?: boolean;
     page?: string;
     deploymentDseq?: string;
+    deploymentName?: string;
   }) {
     const updateConsent = vi.fn(async (_input: unknown) => ({ data: { consent: CURRENT_CONSENT, storedConversationCount: 0 } }));
     const data = input.isLoading || input.isError ? undefined : { consent: input.consent ?? null, storedConversationCount: 0 };
@@ -412,6 +430,7 @@ describe("AssistantPanel", () => {
     });
     const dependencies = MockComponents(DEPENDENCIES, {
       useAssistantPrivacyQuery: vi.fn(() => privacy),
+      useDeploymentName: vi.fn(() => input.deploymentName ?? null),
       useUpdateAssistantConsentMutation: vi.fn(() =>
         mock<ReturnType<typeof DEPENDENCIES.useUpdateAssistantConsentMutation>>({ mutateAsync: updateConsent as never, isPending: false })
       )

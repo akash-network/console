@@ -72,9 +72,23 @@ describe("AssistantComposer", () => {
     expect(onSend).not.toHaveBeenCalled();
   });
 
-  function setup(input: { initialValue?: string; isDisabled?: boolean }) {
+  it("shows what the assistant is looking at above the message box", () => {
+    setup({ contextLabel: "my-web-app" });
+
+    expect(screen.getByText("my-web-app")).toBeInTheDocument();
+  });
+
+  it("shows no context when the assistant has none", () => {
+    setup({ contextLabel: null });
+
+    expect(screen.queryByTestId("assistant-context")).not.toBeInTheDocument();
+  });
+
+  function setup(input: { initialValue?: string; isDisabled?: boolean; contextLabel?: string | null }) {
     const onSend = vi.fn();
-    const view = render(<AssistantComposer initialValue={input.initialValue} isSending={false} isDisabled={input.isDisabled} onSend={onSend} />);
+    const view = render(
+      <AssistantComposer initialValue={input.initialValue} isSending={false} isDisabled={input.isDisabled} contextLabel={input.contextLabel} onSend={onSend} />
+    );
     return { onSend, rerender: view.rerender };
   }
 });

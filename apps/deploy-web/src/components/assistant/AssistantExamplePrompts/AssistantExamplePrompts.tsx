@@ -1,13 +1,12 @@
 "use client";
 import type { FC } from "react";
-import { useId } from "react";
 import { Button } from "@akashnetwork/ui/components";
 
 import { useWallet } from "@src/context/WalletProvider";
 
 export const DEPENDENCIES = { useWallet };
 
-const CONFIGURE_PAGE = /^\/new-deployment\/configure(?:\/|$)/;
+export const CONFIGURE_PAGE = /^\/new-deployment\/configure(?:\/|$)/;
 
 /** Each prompt must stay one the assistant's tools can answer or act on, so a click never ends in "I can't do that". */
 export const EXAMPLE_PROMPTS = {
@@ -33,15 +32,11 @@ type Props = {
 
 export const AssistantExamplePrompts: FC<Props> = ({ page, deploymentDseq, onSend, dependencies: d = DEPENDENCIES }) => {
   const { isTrialing } = d.useWallet();
-  const headingId = useId();
   const prompts = examplePromptsFor({ page, deploymentDseq, isTrialing });
 
   return (
-    <section aria-labelledby={headingId} className="flex flex-col gap-2">
-      <h3 id={headingId} className="text-xs font-medium text-muted-foreground">
-        Try asking
-      </h3>
-      <ul className="flex flex-wrap gap-2">
+    <section aria-label="Example questions">
+      <ul className="flex flex-col items-center gap-2">
         {prompts.map(prompt => (
           <li key={prompt}>
             <Button type="button" variant="outline" size="sm" className="h-auto whitespace-normal rounded-full py-1.5 text-left" onClick={() => onSend(prompt)}>
