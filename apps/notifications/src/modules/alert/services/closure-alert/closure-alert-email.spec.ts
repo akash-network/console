@@ -102,7 +102,7 @@ describe(toClosureEmail.name, () => {
     expect(toClosureEmail([closed, leaseOnly])).toEqual({
       category: CLOSURE_DIGEST_CATEGORY,
       payload: {
-        summary: "Closure alerts for 2 deployments",
+        summary: "2 deployments were closed",
         description:
           `<p>Deployment 1001 was closed. Manage it at ${LINK}.</p>` +
           "<p>The lease for deployment 2002 with provider provider.example.com was closed because the manifest was not received in time, " +

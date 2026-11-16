@@ -34,7 +34,7 @@ export function toClosureEmail(notices: ClosureNoticeOutput[]): ClosureEmail {
   return {
     category: CLOSURE_DIGEST_CATEGORY,
     payload: {
-      summary: `Closure alerts for ${notices.length} deployments`,
+      summary: `${notices.length} deployments were closed`,
       description: notices.map(notice => `<p>${describe(notice)} Manage it at ${notice.deploymentLink}.</p>`).join(""),
       feedEntries
     }
