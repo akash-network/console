@@ -132,7 +132,7 @@ export function useAssistantConversation({ context }: { context: AssistantContex
 
   const send = async (content: string) => {
     const question = content.trim();
-    if (!question || isAnswering) return;
+    if (!question || isAnswering || problem === "blocked") return;
 
     const history = historyOf(messagesRef.current);
     const asked = createTranscriptMessage(nextMessageId(), "user", question);

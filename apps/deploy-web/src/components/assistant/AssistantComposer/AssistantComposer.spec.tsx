@@ -17,6 +17,15 @@ describe("AssistantComposer", () => {
     expect(box).toHaveValue("");
   });
 
+  it("sends nothing for a message of only spaces", async () => {
+    const { onSend } = setup({});
+
+    await userEvent.type(screen.getByRole("textbox"), "   {Enter}");
+
+    expect(onSend).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+  });
+
   it("adds a line with Shift+Enter instead of sending", async () => {
     const { onSend } = setup({});
     const box = screen.getByRole("textbox", { name: "Message the assistant" });

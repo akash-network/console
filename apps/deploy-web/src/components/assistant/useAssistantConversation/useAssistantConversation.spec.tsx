@@ -225,6 +225,19 @@ describe(useAssistantConversation.name, () => {
     expect(result.current.problem).toBe("blocked");
   });
 
+  it("sends nothing and stays blocked while the api has turned the assistant off for the account", async () => {
+    const { result, assistantConversation } = setup({});
+    assistantConversation.sendMessage.mockImplementationOnce(() => failingStream(new ApiError(403, { code: "assistant_blocked" }, "blocked")));
+    await act(() => result.current.send("Question"));
+    const messagesWhenBlocked = result.current.messages;
+
+    await act(() => result.current.send("Another question"));
+
+    expect(assistantConversation.sendMessage).toHaveBeenCalledTimes(1);
+    expect(result.current.messages).toBe(messagesWhenBlocked);
+    expect(result.current.problem).toBe("blocked");
+  });
+
   it("clears a problem on request", async () => {
     const { result } = setup({ startError: new ApiError(429, { code: "assistant_rate_limited" }, "slow") });
     await act(() => result.current.send("Hi"));
