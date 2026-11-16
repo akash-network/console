@@ -4,10 +4,9 @@ import { LoggerService } from "@src/common/services/logger/logger.service";
 import { AlertRepository, GeneralAlertOutput, UpdateInput } from "@src/modules/alert/repositories/alert/alert.repository";
 import { AlertMessageService } from "@src/modules/alert/services/alert-message/alert-message.service";
 import { alertNotifiedLog } from "@src/modules/alert/services/alert-notified-log";
+import { ClosureAlertService } from "@src/modules/alert/services/closure-alert/closure-alert.service";
 import { ConditionsMatcherService } from "@src/modules/alert/services/conditions-matcher/conditions-matcher.service";
-import { type DeploymentReference, DeploymentReferenceService } from "@src/modules/alert/services/deployment-reference/deployment-reference.service";
 import type { MessageCallback } from "@src/modules/alert/types/message-callback.type";
-import type { AlertFeedEntry } from "@src/modules/notifications/dto/NotificationCommand.dto";
 
 type AlertCallback = (alert: GeneralAlertOutput) => Promise<void> | void;
 
@@ -34,7 +33,7 @@ export class ChainAlertService {
     private readonly alertRepository: AlertRepository,
     private readonly conditionsMatcher: ConditionsMatcherService,
     private readonly alertMessageService: AlertMessageService,
-    private readonly deploymentReferenceService: DeploymentReferenceService,
+    private readonly closureAlertService: ClosureAlertService,
     private readonly loggerService: LoggerService
   ) {
     this.loggerService.setContext(ChainAlertService.name);
@@ -59,24 +58,22 @@ export class ChainAlertService {
 
         const updatedAlert = await this.alertRepository.updateById(alert.id, update);
 
-        const message = this.alertMessageService.getMessage({
-          summary: alert.summary,
-          description: alert.description,
-          vars: {
-            alert: {
-              prev: alert,
-              next: updatedAlert
-            },
-            data: event,
-            deployment: await this.deploymentReferenceOf(alert, event)
-          }
-        });
-        const feedEntry = feedEntryOf(alert, event);
-
-        await onMessage({
-          payload: feedEntry ? { ...message, feedEntry } : message,
-          notificationChannelId: alert.notificationChannelId
-        });
+        if (isDeploymentClosedAlert(alert, event)) {
+          await this.closureAlertService.recordDeploymentClosure(alert, event.payload);
+        } else {
+          const message = this.alertMessageService.getMessage({
+            summary: alert.summary,
+            description: alert.description,
+            vars: {
+              alert: {
+                prev: alert,
+                next: updatedAlert
+              },
+              data: event
+            }
+          });
+          await onMessage({ payload: message, notificationChannelId: alert.notificationChannelId });
+        }
 
         this.loggerService.info(alertNotifiedLog(alert, { triggerType: event.type }));
       } catch (error) {
@@ -88,13 +85,6 @@ export class ChainAlertService {
         });
       }
     }, event.type);
-  }
-
-  private async deploymentReferenceOf({ userId, organizationId, params }: GeneralAlertOutput, event: TriggerPayload): Promise<DeploymentReference | undefined> {
-    if (event.type !== "CHAIN_EVENT" || params?.type !== "DEPLOYMENT_CLOSED") return undefined;
-
-    const { owner, dseq } = event.payload;
-    return await this.deploymentReferenceService.referTo({ owner, dseq, userId, organizationId, tab: "SETTINGS" });
   }
 
   private async forEachAlert(onAlert: AlertCallback, type: "CHAIN_MESSAGE" | "CHAIN_EVENT") {
@@ -117,15 +107,7 @@ export class ChainAlertService {
   }
 }
 
-/** Only a deployment's own deployment-closed alert reaches the feed, filed under the user who set it in the alert's organization and project. */
-function feedEntryOf({ id, userId, organizationId, projectId, params }: GeneralAlertOutput, event: TriggerPayload): AlertFeedEntry | undefined {
-  if (event.type !== "CHAIN_EVENT" || params?.type !== "DEPLOYMENT_CLOSED") return undefined;
-
-  const { owner, dseq } = event.payload;
-  return { type: "deployment_closed_alert", alertId: id, userId, organizationId, projectId, dedupeKey: deploymentCloseDedupeKeyOf({ owner, dseq }), dseq };
-}
-
-/** Must match the dedupe key console-api gives the close of a deployment, so a close and the alert reporting it show as one entry. */
-function deploymentCloseDedupeKeyOf({ owner, dseq }: { owner: string; dseq: string }): string {
-  return `deployment_close.${owner}.${dseq}`;
+/** A deployment's own deployment-closed alert goes out as a closure notice, merged with its lease closures and batched per channel. */
+function isDeploymentClosedAlert({ params }: GeneralAlertOutput, event: TriggerPayload): event is Extract<TriggerPayload, { type: "CHAIN_EVENT" }> {
+  return event.type === "CHAIN_EVENT" && params?.type === "DEPLOYMENT_CLOSED";
 }

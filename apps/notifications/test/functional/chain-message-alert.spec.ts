@@ -11,6 +11,7 @@ import { BrokerService } from "@src/infrastructure/broker";
 import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
 import AlertEventsModule from "@src/interfaces/alert-events/alert-events.module";
 import { ChainEventsHandler } from "@src/interfaces/alert-events/handlers/chain-events/chain-events.handler";
+import { ClosureAlertsHandler } from "@src/interfaces/alert-events/handlers/closure-alerts/closure-alerts.handler";
 import type { AlertConfig } from "@src/modules/alert/config";
 import { EventClosedDeploymentDto } from "@src/modules/alert/dto/event-closed-deployment.dto";
 import * as schema from "@src/modules/alert/model-schemas";
@@ -94,7 +95,7 @@ describe("chain message alerts", () => {
       expect(brokerService.publish).toHaveBeenCalledTimes(1);
       expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, {
         notificationChannelId: notificationChannel.id,
-        category: "deploymentClosedAlert",
+        category: "chainEventAlert",
         payload: {
           summary: `deployment ${dseq} closed`,
           description: `deployment ${dseq} is closed`
@@ -105,7 +106,7 @@ describe("chain message alerts", () => {
     }
   });
 
-  it("adds a team deployment's deployment-closed alert to its user's feed under the key of that deployment's close, with the email it always sent", async () => {
+  it("files a team deployment's closure in its alert user's feed under the key of that deployment's close as soon as it is recorded", async () => {
     const { module } = await setup();
 
     try {
@@ -140,22 +141,19 @@ describe("chain message alerts", () => {
 
       await controller.processDeploymentClosed({ ...generateMock(EventClosedDeploymentDto.schema), owner, dseq });
 
-      expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, {
-        notificationChannelId: notificationChannel.id,
-        category: "deploymentClosedAlert",
-        payload: {
-          summary: `Deployment ${dseq} is now closed`,
-          description: "Please visit Console to manage your deployment and re-deploy if needed.",
-          feedEntry: {
+      expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.addFeedEntries, {
+        feedEntries: [
+          {
             type: "deployment_closed_alert",
             alertId: closedAlert.id,
             userId: closedAlert.userId,
             organizationId: closedAlert.organizationId,
             projectId: closedAlert.projectId,
             dedupeKey: `deployment_close.${owner}.${dseq}`,
-            dseq
+            dseq,
+            summary: `Deployment ${dseq} is now closed`
           }
-        }
+        ]
       });
     } finally {
       await module.close();
@@ -182,6 +180,7 @@ describe("chain message alerts", () => {
       await db.insert(schema.Alert).values([closedAlert]);
 
       await controller.processDeploymentClosed({ ...generateMock(EventClosedDeploymentDto.schema), owner, dseq });
+      const emails = await emailsAfterHold(module, notificationChannel.id);
 
       expect(consoleApi.requests).toEqual([
         {
@@ -189,15 +188,14 @@ describe("chain message alerts", () => {
           token: consoleApi.token
         }
       ]);
-      expect(brokerService.publish).toHaveBeenCalledWith(
-        eventKeyRegistry.createNotification,
+      expect(emails).toEqual([
         expect.objectContaining({
           payload: expect.objectContaining({
             summary: "Deployment “my-app” is now closed",
-            description: `Please visit <a href="https://${consoleWebUrl}/deployments/${dseq}?tab=SETTINGS&org=${closedAlert.organizationId}">${consoleWebUrl}</a> to manage your deployment and re-deploy if needed.`
+            description: `Deployment “my-app” was closed. Please visit <a href="https://${consoleWebUrl}/deployments/${dseq}?tab=SETTINGS&org=${closedAlert.organizationId}">${consoleWebUrl}</a> to manage your deployment.`
           })
         })
-      );
+      ]);
     } finally {
       await module.close();
     }
@@ -223,10 +221,9 @@ describe("chain message alerts", () => {
 
       await controller.processDeploymentClosed({ ...generateMock(EventClosedDeploymentDto.schema), owner, dseq });
 
-      expect(brokerService.publish).toHaveBeenCalledWith(
-        eventKeyRegistry.createNotification,
+      expect(await emailsAfterHold(module, notificationChannel.id)).toEqual([
         expect.objectContaining({ payload: expect.objectContaining({ summary: `Deployment ${dseq} is now closed` }) })
-      );
+      ]);
     } finally {
       await module.close();
     }
@@ -279,7 +276,22 @@ describe("chain message alerts", () => {
     };
   }
 
+  async function emailsAfterHold(module: Awaited<ReturnType<typeof setup>>["module"], notificationChannelId: string) {
+    const brokerService = module.get(BrokerService);
+    vi.setSystemTime(Date.now() + module.get<ConfigService<AlertConfig>>(ConfigService).getOrThrow("alert.CLOSURE_ALERT_HOLD_SECONDS") * 1000);
+    await module.get(ClosureAlertsHandler).flush({ notificationChannelId });
+
+    return vi
+      .mocked(brokerService.publish)
+      .mock.calls.filter(([eventName]) => eventName === eventKeyRegistry.createNotification)
+      .map(([, message]) => message);
+  }
+
   async function setup() {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
     const module = await Test.createTestingModule({
       imports: [AlertEventsModule]
     }).compile();

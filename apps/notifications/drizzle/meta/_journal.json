@@ -78,6 +78,13 @@
       "when": 1793436642285,
       "tag": "0010_confirm_channel_addresses",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794850339807,
+      "tag": "0011_closure_notices",
+      "breakpoints": true
     }
   ]
 }

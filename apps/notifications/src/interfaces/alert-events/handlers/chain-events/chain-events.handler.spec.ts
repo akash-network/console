@@ -22,7 +22,7 @@ import { generateAlertMessage } from "@test/seeders/alert-message.seeder";
 
 describe(ChainEventsHandler.name, () => {
   describe("processDeploymentClosed", () => {
-    it("publishes the deployment closed alerts as deployment closed emails", async () => {
+    it("publishes the chain event alerts it is handed as chain event emails", async () => {
       const { controller, chainMessageAlertService, brokerService } = await setup();
 
       const mockEvent = generateMock(EventClosedDeploymentDto.schema);
@@ -32,7 +32,7 @@ describe(ChainEventsHandler.name, () => {
       await controller.processDeploymentClosed(mockEvent);
 
       expect(chainMessageAlertService.alertFor).toHaveBeenCalledWith({ type: "CHAIN_EVENT", payload: mockEvent }, expect.any(Function));
-      expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, { ...alertMessage, category: "deploymentClosedAlert" });
+      expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, { ...alertMessage, category: "chainEventAlert" });
     });
   });
 
@@ -52,17 +52,15 @@ describe(ChainEventsHandler.name, () => {
   });
 
   describe("processLeaseClosed", () => {
-    it("routes the lease closed event to the lease closed alert service and publishes its alerts as lease closed emails", async () => {
+    it("routes the lease closed event to the lease closed alert service, which holds it for the deployment's closure email", async () => {
       const { controller, leaseClosedAlertService, brokerService } = await setup();
 
       const mockEvent = generateMock(EventLeaseClosedDto.schema);
-      const alertMessage = generateAlertMessage({});
-      leaseClosedAlertService.alertFor.mockImplementation((_, callback) => callback(alertMessage));
 
       await controller.processLeaseClosed(mockEvent);
 
-      expect(leaseClosedAlertService.alertFor).toHaveBeenCalledWith(mockEvent, expect.any(Function));
-      expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, { ...alertMessage, category: "leaseClosedAlert" });
+      expect(leaseClosedAlertService.alertFor).toHaveBeenCalledWith(mockEvent);
+      expect(brokerService.publish).not.toHaveBeenCalled();
     });
   });
 

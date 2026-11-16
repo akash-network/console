@@ -5,7 +5,7 @@ import { LoggerService } from "@src/common/services/logger/logger.service";
 import { RichError } from "@src/lib/rich-error/rich-error";
 import { NotificationCommandDto } from "../../dto/NotificationCommand.dto";
 import { NotificationChannelRepository } from "../../repositories/notification-channel/notification-channel.repository";
-import { ActivityFeedService } from "../activity-feed/activity-feed.service";
+import { ActivityFeedService, toAlertActivity } from "../activity-feed/activity-feed.service";
 import { EmailSenderService } from "../email-sender/email-sender.service";
 
 @Injectable()
@@ -57,12 +57,13 @@ export class NotificationRouterService {
     return Ok(undefined);
   }
 
-  /** Runs once the email is out, so a slow or unavailable feed never holds the email back; the entry goes to the alert's own user, whoever the channel reaches. */
-  async #addToFeed({ summary, feedEntry }: NotificationCommandDto["payload"]): Promise<void> {
-    if (!feedEntry) return;
+  /** Runs once the email is out, so a slow or unavailable feed never holds the email back; each entry goes to its alert's own user, whoever the channel reaches. */
+  async #addToFeed({ summary, feedEntry, feedEntries = [] }: NotificationCommandDto["payload"]): Promise<void> {
+    for (const entry of [feedEntry, ...feedEntries]) {
+      if (!entry) continue;
 
-    const { type, dedupeKey, alertId, dseq, userId, organizationId, projectId } = feedEntry;
-    await this.activityFeedService.addToFeed({ userId, organizationId, projectId, type, dedupeKey, meta: { alertId, summary, dseq } });
+      await this.activityFeedService.addToFeed(toAlertActivity(entry, entry.summary ?? summary));
+    }
   }
 }
 

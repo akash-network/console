@@ -4,12 +4,13 @@ import { ConfigModule } from "@nestjs/config";
 import { CommonModule } from "@src/common/common.module";
 import { WorkerHealthzController } from "@src/common/controllers/worker-healthz/worker-healthz.controller";
 import { BrokerModule } from "@src/infrastructure/broker";
+import { FeedEntriesHandler } from "@src/interfaces/notifications-events/handlers/feed-entries/feed-entries.handler";
 import { NotificationHandler } from "@src/interfaces/notifications-events/handlers/notification/notification.handler";
 import { NotificationsModule } from "@src/modules/notifications/notifications.module";
 
 @Module({
   imports: [CommonModule, NotificationsModule, BrokerModule, ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true })],
-  providers: [NotificationHandler],
+  providers: [NotificationHandler, FeedEntriesHandler],
   controllers: [WorkerHealthzController]
 })
 export default class NotificationsEventsModule {}

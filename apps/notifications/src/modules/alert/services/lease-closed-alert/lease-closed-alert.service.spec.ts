@@ -1,52 +1,38 @@
-import { faker } from "@faker-js/faker";
-import { ConfigModule, ConfigService } from "@nestjs/config";
-import { Test } from "@nestjs/testing";
-import { describe, expect, it, vi } from "vitest";
-import type { MockProxy } from "vitest-mock-extended";
+import { LeaseClosedReason } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { describe, expect, it } from "vitest";
+import { mock } from "vitest-mock-extended";
 
-import { LoggerService } from "@src/common/services/logger/logger.service";
-import type { AlertConfig } from "@src/modules/alert/config";
-import moduleConfig from "@src/modules/alert/config";
-import type { GeneralAlertOutput } from "@src/modules/alert/repositories/alert/alert.repository";
-import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
-import { DeploymentNameClient } from "@src/modules/alert/services/deployment-name-client/deployment-name-client.service";
-import { DeploymentReferenceService } from "@src/modules/alert/services/deployment-reference/deployment-reference.service";
+import type { LoggerService } from "@src/common/services/logger/logger.service";
+import type { AlertRepository, GeneralAlertOutput } from "@src/modules/alert/repositories/alert/alert.repository";
+import type { ClosureAlertService } from "@src/modules/alert/services/closure-alert/closure-alert.service";
 import type { LeaseClosedAlertEvent } from "@src/modules/alert/services/lease-closed-alert/lease-closed-alert.service";
 import { LeaseClosedAlertService } from "@src/modules/alert/services/lease-closed-alert/lease-closed-alert.service";
-import { ProviderHostService } from "@src/modules/alert/services/provider-host/provider-host.service";
 
-import { MockProvider } from "@test/mocks/provider.mock";
 import { mockAkashAddress } from "@test/seeders/akash-address.seeder";
 import { generateGeneralAlert } from "@test/seeders/general-alert.seeder";
 
 describe(LeaseClosedAlertService.name, () => {
   describe("alertFor", () => {
     it("skips a lease the owner closed without looking up alerts", async () => {
-      const { service, alertRepository, loggerService, onMessage } = await setup();
+      const { service, alertRepository, closureAlertService, loggerService } = setup();
       const event = generateLeaseClosedEvent({ reason: "lease_closed_owner" });
 
-      await service.alertFor(event, onMessage);
+      await service.alertFor(event);
 
       expect(alertRepository.findDeploymentClosedAlertsByOwnerAndDseq).not.toHaveBeenCalled();
-      expect(onMessage).not.toHaveBeenCalled();
-      expect(loggerService.debug).toHaveBeenCalledWith({
-        event: "LEASE_CLOSED_ALERT_SKIPPED",
-        reason: "CLOSED_BY_OWNER",
-        owner: event.owner,
-        dseq: event.dseq
-      });
+      expect(closureAlertService.recordLeaseClosure).not.toHaveBeenCalled();
+      expect(loggerService.debug).toHaveBeenCalledWith({ event: "LEASE_CLOSED_ALERT_SKIPPED", reason: "CLOSED_BY_OWNER", owner: event.owner, dseq: event.dseq });
     });
 
     it("skips when no deployment-closed alert exists for the owner and dseq", async () => {
-      const { service, alertRepository, loggerService, onMessage } = await setup();
+      const { service, alertRepository, closureAlertService, loggerService } = setup();
       alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([]);
       const event = generateLeaseClosedEvent();
 
-      await service.alertFor(event, onMessage);
+      await service.alertFor(event);
 
       expect(alertRepository.findDeploymentClosedAlertsByOwnerAndDseq).toHaveBeenCalledWith(event.owner, event.dseq);
-      expect(alertRepository.claimNotification).not.toHaveBeenCalled();
-      expect(onMessage).not.toHaveBeenCalled();
+      expect(closureAlertService.recordLeaseClosure).not.toHaveBeenCalled();
       expect(loggerService.debug).toHaveBeenCalledWith({
         event: "LEASE_CLOSED_ALERT_SKIPPED",
         reason: "NO_DEPLOYMENT_CLOSED_ALERT",
@@ -55,167 +41,73 @@ describe(LeaseClosedAlertService.name, () => {
       });
     });
 
-    it("skips when the user switched the deployment-closed alert off", async () => {
-      const { service, alertRepository, loggerService, onMessage } = await setup();
+    it("skips an alert the user switched off", async () => {
+      const { service, alertRepository, closureAlertService, loggerService } = setup();
       const alert = generateDeploymentClosedAlert({ enabled: false });
       alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([alert]);
 
-      await service.alertFor(generateLeaseClosedEvent(), onMessage);
+      await service.alertFor(generateLeaseClosedEvent());
 
-      expect(alertRepository.claimNotification).not.toHaveBeenCalled();
-      expect(onMessage).not.toHaveBeenCalled();
+      expect(closureAlertService.recordLeaseClosure).not.toHaveBeenCalled();
       expect(loggerService.debug).toHaveBeenCalledWith({ event: "LEASE_CLOSED_ALERT_SKIPPED", reason: "OPTED_OUT", alertId: alert.id });
     });
 
-    it("skips when this or the reclaim notification was already claimed", async () => {
-      const { service, alertRepository, loggerService, onMessage } = await setup();
-      const alert = generateDeploymentClosedAlert();
-      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([alert]);
-      alertRepository.claimNotification.mockResolvedValue(undefined);
-
-      await service.alertFor(generateLeaseClosedEvent(), onMessage);
-
-      expect(onMessage).not.toHaveBeenCalled();
-      expect(loggerService.debug).toHaveBeenCalledWith({ event: "LEASE_CLOSED_ALERT_SKIPPED", reason: "ALREADY_NOTIFIED", alertId: alert.id });
-    });
-
-    it("claims then sends one notification to the claimed alert's channel", async () => {
-      const { service, alertRepository, loggerService, onMessage } = await setup();
+    it("records the lease closure with its reason for each alert of the deployment", async () => {
+      const { service, alertRepository, closureAlertService, loggerService } = setup();
       const alert = generateDeploymentClosedAlert();
       const claimedAlert = { ...alert, notificationChannelId: "claimed-channel-id" };
       alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([alert]);
-      alertRepository.claimNotification.mockResolvedValue(claimedAlert);
+      closureAlertService.recordLeaseClosure.mockResolvedValue(claimedAlert);
+      const event = generateLeaseClosedEvent({ reason: "lease_closed_reason_insufficient_funds" });
 
-      await service.alertFor(generateLeaseClosedEvent(), onMessage);
+      await service.alertFor(event);
 
-      expect(alertRepository.claimNotification).toHaveBeenCalledWith(alert.id, "leaseClosedNotifiedAt");
-      expect(onMessage).toHaveBeenCalledTimes(1);
-      expect(onMessage).toHaveBeenCalledWith(expect.objectContaining({ notificationChannelId: "claimed-channel-id" }));
+      expect(closureAlertService.recordLeaseClosure).toHaveBeenCalledWith(alert, {
+        owner: event.owner,
+        dseq: event.dseq,
+        provider: event.provider,
+        reason: LeaseClosedReason.lease_closed_reason_insufficient_funds
+      });
       expect(loggerService.info).toHaveBeenCalledWith(
         expect.objectContaining({ event: "ALERT_NOTIFIED", alertId: alert.id, notificationChannelId: "claimed-channel-id", reason: "LEASE_CLOSED" })
       );
     });
 
-    it("notifies the deployment's enabled alert when another alert for the same deployment is switched off", async () => {
-      const { service, alertRepository, onMessage } = await setup();
-      const switchedOffAlert = generateDeploymentClosedAlert({ enabled: false });
-      const enabledAlert = generateDeploymentClosedAlert();
-      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([switchedOffAlert, enabledAlert]);
-      alertRepository.claimNotification.mockResolvedValue(enabledAlert);
+    it("records the lease closure when the deployment closed in the same block and switched its alert off", async () => {
+      const { service, alertRepository, closureAlertService } = setup();
+      const alert = generateDeploymentClosedAlert({ enabled: false, suppressedBySystem: true });
+      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([alert]);
+      closureAlertService.recordLeaseClosure.mockResolvedValue(alert);
 
-      await service.alertFor(generateLeaseClosedEvent(), onMessage);
+      await service.alertFor(generateLeaseClosedEvent());
 
-      expect(alertRepository.claimNotification).toHaveBeenCalledTimes(1);
-      expect(alertRepository.claimNotification).toHaveBeenCalledWith(enabledAlert.id, "leaseClosedNotifiedAt");
-      expect(onMessage).toHaveBeenCalledTimes(1);
-      expect(onMessage).toHaveBeenCalledWith(expect.objectContaining({ notificationChannelId: enabledAlert.notificationChannelId }));
+      expect(closureAlertService.recordLeaseClosure).toHaveBeenCalledWith(alert, expect.anything());
     });
 
-    it("notifies every enabled alert for the deployment that was not notified yet, each through its own channel", async () => {
-      const { service, alertRepository, onMessage } = await setup();
-      const notifiedAlert = generateDeploymentClosedAlert();
-      const first = generateDeploymentClosedAlert();
-      const second = generateDeploymentClosedAlert();
-      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([notifiedAlert, first, second]);
-      alertRepository.claimNotification.mockResolvedValueOnce(undefined).mockResolvedValueOnce(first).mockResolvedValueOnce(second);
+    it("logs an alert whose lease or reclaim notification was already claimed as skipped", async () => {
+      const { service, alertRepository, closureAlertService, loggerService } = setup();
+      const alert = generateDeploymentClosedAlert();
+      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([alert]);
+      closureAlertService.recordLeaseClosure.mockResolvedValue(undefined);
 
-      await service.alertFor(generateLeaseClosedEvent(), onMessage);
+      await service.alertFor(generateLeaseClosedEvent());
 
-      expect(onMessage.mock.calls.map(([message]) => message.notificationChannelId)).toEqual([first.notificationChannelId, second.notificationChannelId]);
+      expect(loggerService.debug).toHaveBeenCalledWith({ event: "LEASE_CLOSED_ALERT_SKIPPED", reason: "ALREADY_NOTIFIED", alertId: alert.id });
+      expect(loggerService.info).not.toHaveBeenCalled();
     });
 
-    it("still notifies the deployment's other alerts when one fails, then rejects so the event is redelivered", async () => {
-      const { service, alertRepository, loggerService, onMessage } = await setup();
+    it("still records the deployment's other alerts when one fails, then rejects so the event is redelivered", async () => {
+      const { service, alertRepository, closureAlertService, loggerService } = setup();
       const failingAlert = generateDeploymentClosedAlert();
       const healthyAlert = generateDeploymentClosedAlert();
       const error = new Error("connection reset");
       alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([failingAlert, healthyAlert]);
-      alertRepository.claimNotification.mockRejectedValueOnce(error).mockResolvedValueOnce(healthyAlert);
+      closureAlertService.recordLeaseClosure.mockRejectedValueOnce(error).mockResolvedValueOnce(healthyAlert);
 
-      await expect(service.alertFor(generateLeaseClosedEvent(), onMessage)).rejects.toBe(error);
+      await expect(service.alertFor(generateLeaseClosedEvent())).rejects.toBe(error);
 
-      expect(onMessage).toHaveBeenCalledTimes(1);
-      expect(onMessage).toHaveBeenCalledWith(expect.objectContaining({ notificationChannelId: healthyAlert.notificationChannelId }));
+      expect(closureAlertService.recordLeaseClosure).toHaveBeenCalledWith(healthyAlert, expect.anything());
       expect(loggerService.error).toHaveBeenCalledWith({ event: "LEASE_CLOSED_ALERT_FAILED", alertId: failingAlert.id, error });
-    });
-
-    it("still notifies when the deployment closed in the same block and switched its alert off", async () => {
-      const { service, alertRepository, onMessage } = await setup();
-      const alert = generateDeploymentClosedAlert({ enabled: false, suppressedBySystem: true });
-      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([alert]);
-      alertRepository.claimNotification.mockResolvedValue(alert);
-
-      await service.alertFor(generateLeaseClosedEvent({ reason: "lease_closed_reason_insufficient_funds" }), onMessage);
-
-      expect(onMessage).toHaveBeenCalledTimes(1);
-    });
-
-    it("names the deployment, the provider by its host and the close reason, and links to the deployment", async () => {
-      const { service, alertRepository, providerHostService, providerHost, onMessage, consoleWebUrl } = await setup();
-      const alert = generateDeploymentClosedAlert();
-      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([alert]);
-      alertRepository.claimNotification.mockResolvedValue(alert);
-      const provider = mockAkashAddress();
-
-      await service.alertFor(generateLeaseClosedEvent({ dseq: "12345", provider, reason: "lease_closed_reason_manifest_timeout" }), onMessage);
-
-      expect(providerHostService.labelFor).toHaveBeenCalledWith(provider);
-      expect(onMessage.mock.calls[0][0].payload).toEqual({
-        summary: "The lease for deployment 12345 was closed",
-        description:
-          `The lease for deployment 12345 with provider ${providerHost} was closed because the manifest was not received in time, ` +
-          `so your workload is no longer running on that provider. ` +
-          `Please visit <a href="https://${consoleWebUrl}/deployments/12345">${consoleWebUrl}</a> to manage your deployment.`
-      });
-    });
-
-    it("names the deployment by its name, escaped in the description, and links to it in the alert's organization", async () => {
-      const { service, alertRepository, deploymentNameClient, onMessage, consoleWebUrl } = await setup();
-      const alert = generateGeneralAlert({
-        type: "CHAIN_EVENT",
-        enabled: true,
-        organizationId: faker.string.uuid(),
-        params: { dseq: "12345", type: "DEPLOYMENT_CLOSED" }
-      });
-      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([alert]);
-      alertRepository.claimNotification.mockResolvedValue(alert);
-      deploymentNameClient.findName.mockResolvedValue("<b>Tom & Jerry</b>");
-      const event = generateLeaseClosedEvent({ dseq: "12345", reason: "lease_closed_reason_manifest_timeout" });
-
-      await service.alertFor(event, onMessage);
-
-      const { summary, description } = onMessage.mock.calls[0][0].payload;
-      expect(deploymentNameClient.findName).toHaveBeenCalledWith({
-        owner: event.owner,
-        dseq: "12345",
-        reader: { userId: alert.userId, organizationId: alert.organizationId }
-      });
-      expect(summary).toBe("The lease for deployment “<b>Tom & Jerry</b>” was closed");
-      expect(description).toContain("The lease for deployment “&lt;b&gt;Tom &amp; Jerry&lt;/b&gt;” with provider");
-      expect(description).toContain(`Please visit <a href="https://${consoleWebUrl}/deployments/12345?org=${alert.organizationId}">${consoleWebUrl}</a>`);
-    });
-
-    it("escapes the provider's label in the description", async () => {
-      const { service, alertRepository, providerHostService, onMessage } = await setup();
-      const alert = generateDeploymentClosedAlert();
-      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([alert]);
-      alertRepository.claimNotification.mockResolvedValue(alert);
-      providerHostService.labelFor.mockResolvedValue("<b>evil & co</b>");
-
-      await service.alertFor(generateLeaseClosedEvent(), onMessage);
-
-      expect(onMessage.mock.calls[0][0].payload.description).toContain("with provider &lt;b&gt;evil &amp; co&lt;/b&gt; was closed");
-    });
-
-    it("skips an opted-out alert without looking the deployment or the provider up", async () => {
-      const { service, alertRepository, deploymentNameClient, providerHostService, onMessage } = await setup();
-      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([generateDeploymentClosedAlert({ enabled: false })]);
-
-      await service.alertFor(generateLeaseClosedEvent(), onMessage);
-
-      expect(deploymentNameClient.findName).not.toHaveBeenCalled();
-      expect(providerHostService.labelFor).not.toHaveBeenCalled();
-      expect(onMessage).not.toHaveBeenCalled();
     });
   });
 
@@ -233,41 +125,20 @@ describe(LeaseClosedAlertService.name, () => {
     return generateGeneralAlert({
       type: "CHAIN_EVENT",
       enabled: input.enabled ?? true,
-      params: {
-        dseq: "12345",
-        type: "DEPLOYMENT_CLOSED",
-        suppressedBySystem: input.suppressedBySystem
-      }
+      params: { dseq: "12345", type: "DEPLOYMENT_CLOSED", suppressedBySystem: input.suppressedBySystem }
     });
   }
 
-  async function setup() {
-    const module = await Test.createTestingModule({
-      imports: [ConfigModule.forFeature(moduleConfig)],
-      providers: [
-        LeaseClosedAlertService,
-        DeploymentReferenceService,
-        MockProvider(DeploymentNameClient),
-        MockProvider(ProviderHostService),
-        MockProvider(AlertRepository),
-        MockProvider(LoggerService)
-      ]
-    }).compile();
-    const deploymentNameClient = module.get<MockProxy<DeploymentNameClient>>(DeploymentNameClient);
-    deploymentNameClient.findName.mockResolvedValue(null);
-    const providerHostService = module.get<MockProxy<ProviderHostService>>(ProviderHostService);
-    const providerHost = faker.internet.domainName();
-    providerHostService.labelFor.mockResolvedValue(providerHost);
+  function setup() {
+    const alertRepository = mock<AlertRepository>();
+    const closureAlertService = mock<ClosureAlertService>();
+    const loggerService = mock<LoggerService>();
 
     return {
-      service: module.get<LeaseClosedAlertService>(LeaseClosedAlertService),
-      alertRepository: module.get<MockProxy<AlertRepository>>(AlertRepository),
-      loggerService: module.get<MockProxy<LoggerService>>(LoggerService),
-      deploymentNameClient,
-      providerHostService,
-      providerHost,
-      consoleWebUrl: module.get<ConfigService<AlertConfig>>(ConfigService).getOrThrow("alert.CONSOLE_WEB_URL"),
-      onMessage: vi.fn()
+      service: new LeaseClosedAlertService(alertRepository, closureAlertService, loggerService),
+      alertRepository,
+      closureAlertService,
+      loggerService
     };
   }
 });

@@ -235,21 +235,17 @@ export class AlertRepository {
   }
 
   /** Stamps `params[stamp]` only while the alert carries no notification stamp, so the reclaim and lease-closed emails go out at most once and never both. */
-  async claimNotification(id: string, stamp: NotificationStamp): Promise<AlertOutput | undefined> {
-    return this.db.transaction(async transaction => {
-      const [alert] = await transaction
-        .update(schema.Alert)
-        .set({
-          params: sql`COALESCE(${schema.Alert.params}, '{}'::jsonb) || jsonb_build_object(${stamp}::text, to_jsonb(NOW()))`,
-          updatedAt: sql`NOW()`
-        })
-        .where(
-          and(eq(schema.Alert.id, id), sql`NOT jsonb_exists_any(COALESCE(${schema.Alert.params}, '{}'::jsonb), ${sql.param(NOTIFICATION_STAMPS)}::text[])`)
-        )
-        .returning();
+  async claimNotification(id: string, stamp: NotificationStamp, tx: NodePgDatabase<typeof schema> = this.db): Promise<AlertOutput | undefined> {
+    const [alert] = await tx
+      .update(schema.Alert)
+      .set({
+        params: sql`COALESCE(${schema.Alert.params}, '{}'::jsonb) || jsonb_build_object(${stamp}::text, to_jsonb(NOW()))`,
+        updatedAt: sql`NOW()`
+      })
+      .where(and(eq(schema.Alert.id, id), sql`NOT jsonb_exists_any(COALESCE(${schema.Alert.params}, '{}'::jsonb), ${sql.param(NOTIFICATION_STAMPS)}::text[])`))
+      .returning();
 
-      return alert && this.toOutput(alert);
-    });
+    return alert && this.toOutput(alert);
   }
 
   async deleteOneById(id: string): Promise<AlertOutput | undefined> {

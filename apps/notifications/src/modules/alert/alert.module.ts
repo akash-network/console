@@ -5,12 +5,15 @@ import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { Client } from "pg";
 
 import { CommonModule } from "@src/common/common.module";
+import { BrokerModule } from "@src/infrastructure/broker";
 import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
 import { register } from "@src/infrastructure/db/db.module";
 import type { FullSchema } from "@src/infrastructure/db/full-schema";
 import { DbHealthzService } from "@src/infrastructure/db/services/db-healthz/db-healthz.service";
 import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
+import { ClosureNoticeRepository } from "@src/modules/alert/repositories/closure-notice/closure-notice.repository";
 import { ChainAlertService } from "@src/modules/alert/services/chain-alert/chain-alert.service";
+import { ClosureAlertService } from "@src/modules/alert/services/closure-alert/closure-alert.service";
 import { DeploymentAlertService } from "@src/modules/alert/services/deployment-alert/deployment-alert.service";
 import { LeaseClosedAlertService } from "@src/modules/alert/services/lease-closed-alert/lease-closed-alert.service";
 import { ReclaimAlertService } from "@src/modules/alert/services/reclaim-alert/reclaim-alert.service";
@@ -28,7 +31,7 @@ import moduleConfig from "./config";
 import * as schema from "./model-schemas";
 
 @Module({
-  imports: [CommonModule, ...register(schema), ConfigModule.forFeature(moduleConfig)],
+  imports: [CommonModule, BrokerModule, ...register(schema), ConfigModule.forFeature(moduleConfig)],
   providers: [
     AlertRepository,
     ChainAlertService,
@@ -44,6 +47,8 @@ import * as schema from "./model-schemas";
     DeploymentAlertService,
     ReclaimAlertService,
     LeaseClosedAlertService,
+    ClosureNoticeRepository,
+    ClosureAlertService,
     DbHealthzService,
     ...HTTP_SDK_PROVIDERS
   ],
@@ -55,6 +60,7 @@ import * as schema from "./model-schemas";
     DeploymentAlertService,
     ReclaimAlertService,
     LeaseClosedAlertService,
+    ClosureAlertService,
     DbHealthzService
   ]
 })

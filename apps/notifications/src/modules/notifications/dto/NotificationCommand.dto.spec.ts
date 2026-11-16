@@ -83,6 +83,23 @@ describe(NotificationCommandDto.name, () => {
     });
   });
 
+  it("keeps the feed entries of a digest, each under its own summary, dropping a malformed one alone", () => {
+    const feedEntries = [
+      { ...FEED_ENTRY, type: "deployment_closed_alert", dedupeKey: "deployment_close.akash1owner.4242", dseq: "4242", summary: "Deployment 4242 is now closed" },
+      { ...FEED_ENTRY, userId: "user-1" }
+    ];
+
+    const result = NotificationCommandDto.schema.parse(command({ feedEntries }));
+
+    expect(result.payload.feedEntries).toEqual([feedEntries[0], undefined]);
+  });
+
+  it("drops feed entries that are not a list but keeps the notification", () => {
+    const result = NotificationCommandDto.schema.parse(command({ feedEntries: FEED_ENTRY }));
+
+    expect(result.payload.feedEntries).toBeUndefined();
+  });
+
   it("keeps the unsubscribe links of a promotional email", () => {
     const result = NotificationCommandDto.schema.parse({ ...command({}), unsubscribe: UNSUBSCRIBE });
 
@@ -148,7 +165,12 @@ describe(NotificationCommandDto.name, () => {
     expect(result.error?.issues).toContainEqual(expect.objectContaining({ path: ["recipient"], validation: "email" }));
   });
 
-  function command(payload: { actions?: { label: string; url: string }[]; code?: string; feedEntry?: Record<string, string | null | undefined> }) {
+  function command(payload: {
+    actions?: { label: string; url: string }[];
+    code?: string;
+    feedEntry?: Record<string, string | null | undefined>;
+    feedEntries?: unknown;
+  }) {
     return {
       notificationChannelId: "channel-1",
       notificationId: "creditsRunningLow.user-1",
