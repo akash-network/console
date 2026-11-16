@@ -29,9 +29,36 @@ spec:
                   value: /work/console-akash-sandbox.sql.gz
                 - name: TMPDIR
                   value: /work
-              envFrom:
-                - secretRef:
-                    name: sandbox-seed-dump-db
+                - name: PGHOST
+                  valueFrom:
+                    secretKeyRef:
+                      name: sandbox-seed-dump
+                      key: PGHOST
+                - name: PGPORT
+                  valueFrom:
+                    secretKeyRef:
+                      name: sandbox-seed-dump
+                      key: PGPORT
+                - name: PGUSER
+                  valueFrom:
+                    secretKeyRef:
+                      name: sandbox-seed-dump
+                      key: PGUSER
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: sandbox-seed-dump
+                      key: PGPASSWORD
+                - name: PGDATABASE
+                  valueFrom:
+                    secretKeyRef:
+                      name: sandbox-seed-dump
+                      key: PGDATABASE
+                - name: PGSSLMODE
+                  valueFrom:
+                    secretKeyRef:
+                      name: sandbox-seed-dump
+                      key: PGSSLMODE
               resources:
                 requests:
                   cpu: 250m
@@ -75,4 +102,7 @@ spec:
                 sizeLimit: 5Gi
             - name: gcs-key
               secret:
-                secretName: sandbox-seed-dump-gcs
+                secretName: sandbox-seed-dump
+                items:
+                  - key: GCS_KEY_JSON
+                    path: key.json
