@@ -87,6 +87,24 @@ describe(ProviderHostService.name, () => {
       expect(label).toBe(provider);
       expect(loggerService.warn).toHaveBeenCalledWith({ event: "PROVIDER_HOST_LOOKUP_FAILED", provider, error: expect.anything() });
     });
+
+    it("labels the provider by its address within the timeout when the chain asks to retry much later", async () => {
+      const { service, loggerService } = await setup({
+        timeoutMs: 300,
+        respond: response => {
+          response.writeHead(503, { "retry-after": "5" });
+          response.end();
+        }
+      });
+      const provider = mockAkashAddress();
+      const startedAt = Date.now();
+
+      const label = await service.labelFor(provider);
+
+      expect(label).toBe(provider);
+      expect(Date.now() - startedAt).toBeLessThan(2000);
+      expect(loggerService.warn).toHaveBeenCalledWith({ event: "PROVIDER_HOST_LOOKUP_FAILED", provider, error: expect.anything() });
+    });
   });
 
   function answerWith(body: unknown) {

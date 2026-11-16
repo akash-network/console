@@ -29,10 +29,13 @@ export class ProviderHostService {
     }
   }
 
+  /** Races the abort because the chain client's retry backoff, which honors Retry-After, sleeps through it. */
   async #findHost(provider: string): Promise<string> {
-    const { data } = await this.chainApi.get(`/akash/provider/v1beta4/providers/${encodeURIComponent(provider)}`, {
-      signal: AbortSignal.timeout(this.configService.getOrThrow("alert.PROVIDER_HOST_LOOKUP_TIMEOUT_MS"))
-    });
+    const signal = AbortSignal.timeout(this.configService.getOrThrow("alert.PROVIDER_HOST_LOOKUP_TIMEOUT_MS"));
+    const { data } = await Promise.race([
+      this.chainApi.get(`/akash/provider/v1beta4/providers/${encodeURIComponent(provider)}`, { signal }),
+      rejectOnAbort(signal)
+    ]);
     const { hostname } = new URL(ProviderResponseSchema.parse(data).provider.host_uri);
 
     if (!hostname) {
@@ -41,4 +44,8 @@ export class ProviderHostService {
 
     return hostname;
   }
+}
+
+function rejectOnAbort(signal: AbortSignal): Promise<never> {
+  return new Promise((_, reject) => signal.addEventListener("abort", () => reject(signal.reason)));
 }

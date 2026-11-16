@@ -10,7 +10,7 @@ export const schema = z.object({
   CONSOLE_API_INTERNAL_TOKEN: unsetWhenEmpty(z.string()),
   /** Kept short because an alert's email waits on the lookup of the deployment's name. */
   CONSOLE_API_TIMEOUT_MS: z.number({ coerce: true }).int().positive().optional().default(2000),
-  /** Bounds every retry of the lookup together, because an alert's email waits on the provider's host. */
+  /** Bounds the whole lookup, retries included, because an alert's email waits on the provider's host. */
   PROVIDER_HOST_LOOKUP_TIMEOUT_MS: z.number({ coerce: true }).int().positive().optional().default(2000)
 });
 
