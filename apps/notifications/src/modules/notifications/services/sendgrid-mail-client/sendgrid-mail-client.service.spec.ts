@@ -49,6 +49,14 @@ describe(SendgridMailClient.name, () => {
     expect(received[0].body).toMatchObject({ headers });
   });
 
+  it("files the email under its categories in SendGrid", async () => {
+    const { client, received } = await setup({});
+
+    await client.send(createMail({ categories: ["leaseClosedAlert"] }));
+
+    expect(received[0].body).toMatchObject({ categories: ["leaseClosedAlert"] });
+  });
+
   it("sends from the bare address when no sender name is set", async () => {
     const { client, received, fromAddress } = await setup({ fromName: undefined });
 

@@ -15,6 +15,7 @@ type EmailSendOptions = {
   content: string;
   userId: string;
   notificationId?: string;
+  category?: string;
   actions?: EmailAction[];
   code?: string;
   unsubscribe?: EmailUnsubscribe;
@@ -38,7 +39,7 @@ export class EmailSenderService {
     this.loggerService.setContext(EmailSenderService.name);
   }
 
-  async send({ addresses, userId, subject, content, notificationId, actions, code, unsubscribe, receivingReason }: EmailSendOptions): Promise<void> {
+  async send({ addresses, userId, subject, content, notificationId, category, actions, code, unsubscribe, receivingReason }: EmailSendOptions): Promise<void> {
     const { messageId } = await this.sendgridMailClient.send({
       to: addresses,
       subject,
@@ -56,12 +57,14 @@ export class EmailSenderService {
           }
         })
       }),
+      ...(category && { categories: [category] }),
       ...(unsubscribe && { headers: oneClickUnsubscribeHeaders(unsubscribe) })
     });
 
     this.loggerService.info({
       event: "EMAIL_SENT",
       notificationId,
+      category,
       userId,
       ...(!code && { subject }),
       recipientCount: addresses.length,

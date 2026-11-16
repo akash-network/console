@@ -125,6 +125,7 @@ describe("balance alerts", () => {
           eventKeyRegistry.createNotification,
           {
             notificationChannelId: notificationChannel.id,
+            category: "walletBalanceAlert",
             payload: {
               summary: "Wallet balance is below 10 AKT",
               description: "Current balance is <strong>9 AKT</strong>.",
@@ -143,6 +144,7 @@ describe("balance alerts", () => {
           eventKeyRegistry.createNotification,
           {
             notificationChannelId: notificationChannel.id,
+            category: "walletBalanceAlert",
             payload: {
               summary: "Wallet balance is back above 10 AKT",
               description: "Current balance is <strong>11 AKT</strong>.",

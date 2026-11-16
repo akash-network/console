@@ -8,6 +8,7 @@ export type SendgridMail = {
   to: string[];
   subject: string;
   html: string;
+  categories?: string[];
   headers?: Record<string, string>;
 };
 
@@ -34,7 +35,7 @@ export class SendgridMailClient {
     return await this.#retryPolicy.execute(() => this.#post(mail));
   }
 
-  async #post({ to, subject, html, headers }: SendgridMail): Promise<{ messageId: string | null }> {
+  async #post({ to, subject, html, categories, headers }: SendgridMail): Promise<{ messageId: string | null }> {
     const name = this.configService.get("notifications.EMAIL_FROM_NAME");
     const response = await fetch(`${this.configService.getOrThrow("notifications.SENDGRID_API_BASE_URL")}/v3/mail/send`, {
       method: "POST",
@@ -47,6 +48,7 @@ export class SendgridMailClient {
         from: { email: this.configService.getOrThrow("notifications.EMAIL_FROM_ADDRESS"), ...(name && { name }) },
         subject,
         content: [{ type: "text/html", value: html }],
+        ...(categories && { categories }),
         ...(headers && { headers })
       }),
       redirect: "manual",

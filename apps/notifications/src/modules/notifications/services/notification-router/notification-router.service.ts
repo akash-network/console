@@ -45,6 +45,7 @@ export class NotificationRouterService {
         actions: notificationCommand.payload.actions,
         code: notificationCommand.payload.code,
         notificationId: notificationCommand.notificationId,
+        category: emailCategoryOf(notificationCommand),
         unsubscribe: notificationCommand.unsubscribe
       });
     } else {
@@ -63,4 +64,13 @@ export class NotificationRouterService {
     const { type, dedupeKey, alertId, dseq, userId, organizationId, projectId } = feedEntry;
     await this.activityFeedService.addToFeed({ userId, organizationId, projectId, type, dedupeKey, meta: { alertId, summary, dseq } });
   }
+}
+
+/** SendGrid refuses a whole email over a non-ASCII category and keeps stats for few of them, so only a plain type name like the part of a notification id before its ids qualifies. */
+const EMAIL_CATEGORY_PATTERN = /^[A-Za-z]{1,64}$/;
+
+function emailCategoryOf({ category, notificationId }: NotificationCommandDto): string | undefined {
+  const candidate = category ?? notificationId?.split(".")[0] ?? "";
+
+  return EMAIL_CATEGORY_PATTERN.test(candidate) ? candidate : undefined;
 }

@@ -22,7 +22,7 @@ import { generateAlertMessage } from "@test/seeders/alert-message.seeder";
 
 describe(ChainEventsHandler.name, () => {
   describe("processDeploymentClosed", () => {
-    it("should log the received event and process alerts", async () => {
+    it("publishes the deployment closed alerts as deployment closed emails", async () => {
       const { controller, chainMessageAlertService, brokerService } = await setup();
 
       const mockEvent = generateMock(EventClosedDeploymentDto.schema);
@@ -32,12 +32,12 @@ describe(ChainEventsHandler.name, () => {
       await controller.processDeploymentClosed(mockEvent);
 
       expect(chainMessageAlertService.alertFor).toHaveBeenCalledWith({ type: "CHAIN_EVENT", payload: mockEvent }, expect.any(Function));
-      expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, alertMessage);
+      expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, { ...alertMessage, category: "deploymentClosedAlert" });
     });
   });
 
   describe("processLeaseReclaimStarted", () => {
-    it("routes the reclaim event to the reclaim alert service and publishes notifications", async () => {
+    it("routes the reclaim event to the reclaim alert service and publishes its alerts as reclaim emails", async () => {
       const { controller, reclaimAlertService, brokerService } = await setup();
 
       const mockEvent = generateMock(EventLeaseReclaimStartedDto.schema);
@@ -47,12 +47,12 @@ describe(ChainEventsHandler.name, () => {
       await controller.processLeaseReclaimStarted(mockEvent);
 
       expect(reclaimAlertService.alertFor).toHaveBeenCalledWith(mockEvent, expect.any(Function));
-      expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, alertMessage);
+      expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, { ...alertMessage, category: "deploymentReclaimAlert" });
     });
   });
 
   describe("processLeaseClosed", () => {
-    it("routes the lease closed event to the lease closed alert service and publishes notifications", async () => {
+    it("routes the lease closed event to the lease closed alert service and publishes its alerts as lease closed emails", async () => {
       const { controller, leaseClosedAlertService, brokerService } = await setup();
 
       const mockEvent = generateMock(EventLeaseClosedDto.schema);
@@ -62,12 +62,12 @@ describe(ChainEventsHandler.name, () => {
       await controller.processLeaseClosed(mockEvent);
 
       expect(leaseClosedAlertService.alertFor).toHaveBeenCalledWith(mockEvent, expect.any(Function));
-      expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, alertMessage);
+      expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, { ...alertMessage, category: "leaseClosedAlert" });
     });
   });
 
   describe("processBlock", () => {
-    it("processes wallet-balance alerts and does not evaluate deployment escrow-balance alerts", async () => {
+    it("publishes wallet balance alerts as wallet balance emails and does not evaluate deployment escrow-balance alerts", async () => {
       const { controller, deploymentBalanceAlertsService, walletBalanceAlertsService, brokerService } = await setup();
 
       const mockBlock = generateMock(ChainBlockCreatedDto.schema);
@@ -78,7 +78,7 @@ describe(ChainEventsHandler.name, () => {
 
       expect(deploymentBalanceAlertsService.alertFor).not.toHaveBeenCalled();
       expect(walletBalanceAlertsService.alertFor).toHaveBeenCalledWith(mockBlock, expect.any(Function));
-      expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, alertMessage);
+      expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, { ...alertMessage, category: "walletBalanceAlert" });
     });
   });
 

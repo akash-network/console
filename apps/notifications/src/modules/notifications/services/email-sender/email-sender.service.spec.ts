@@ -111,6 +111,34 @@ describe(EmailSenderService.name, () => {
       });
     });
 
+    it("files the email under its category in SendGrid and in the log", async () => {
+      const { service, sendgridMailClient, loggerService } = await setup();
+
+      await service.send({
+        addresses: [faker.internet.email()],
+        subject: faker.lorem.sentence(),
+        content: faker.lorem.paragraph(),
+        userId: faker.string.uuid(),
+        category: "leaseClosedAlert"
+      });
+
+      expect(sendgridMailClient.send).toHaveBeenCalledWith(expect.objectContaining({ categories: ["leaseClosedAlert"] }));
+      expect(loggerService.info).toHaveBeenCalledWith(expect.objectContaining({ event: "EMAIL_SENT", category: "leaseClosedAlert" }));
+    });
+
+    it("sends an email without a category under no SendGrid category", async () => {
+      const { service, sendgridMailClient } = await setup();
+
+      await service.send({
+        addresses: [faker.internet.email()],
+        subject: faker.lorem.sentence(),
+        content: faker.lorem.paragraph(),
+        userId: faker.string.uuid()
+      });
+
+      expect(sendgridMailClient.send.mock.calls[0][0]).not.toHaveProperty("categories");
+    });
+
     it("logs an undefined notificationId for alert emails that carry none", async () => {
       const { service, loggerService } = await setup();
 

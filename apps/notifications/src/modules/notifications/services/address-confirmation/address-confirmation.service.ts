@@ -197,7 +197,8 @@ export class AddressConfirmationService {
         "<p>This address was added to a notification channel on Akash Console. Confirm it to start receiving the channel's alerts here.</p>" +
         "<p>If you don't want these alerts, ignore this email. No alerts are sent to this address until it is confirmed.</p>",
       actions: [{ label: "Confirm email address", url: `${webUrl}/alerts/confirm-address?token=${token}` }],
-      receivingReason: "this address was added to a notification channel on Akash Console"
+      receivingReason: "this address was added to a notification channel on Akash Console",
+      category: "addressConfirmation"
     });
     this.loggerService.info({ event: "ADDRESS_CONFIRMATION_EMAIL_SENT", notificationChannelId: channel.id, userId: senderUserId });
   }
