@@ -31,10 +31,15 @@ export function toClosureEmail(notices: ClosureNoticeOutput[]): ClosureEmail {
   return {
     category: CLOSURE_DIGEST_CATEGORY,
     payload: {
-      summary: `${notices.length} deployments were closed`,
+      summary: digestSummaryOf(notices),
       description: notices.map(notice => `<p>${describe(notice)} Manage it at ${notice.deploymentLink}.</p>`).join("")
     }
   };
+}
+
+function digestSummaryOf(notices: ClosureNoticeOutput[]): string {
+  const deployments = `${notices.length} deployments`;
+  return notices.every(notice => notice.deploymentClosed) ? `${deployments} were closed` : `${deployments} were closed or lost a lease`;
 }
 
 function summaryOf({ deploymentClosed, deploymentLabel }: Pick<ClosureNoticeInput, "deploymentClosed" | "deploymentLabel">): string {

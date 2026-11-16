@@ -89,13 +89,19 @@ describe(toClosureEmail.name, () => {
     expect(toClosureEmail([closed, leaseOnly])).toEqual({
       category: CLOSURE_DIGEST_CATEGORY,
       payload: {
-        summary: "2 deployments were closed",
+        summary: "2 deployments were closed or lost a lease",
         description:
           `<p>Deployment 1001 was closed. Manage it at ${LINK}.</p>` +
           "<p>The lease for deployment 2002 with provider provider.example.com was closed because the manifest was not received in time, " +
           "so your workload is no longer running on that provider. Manage it at LINK-2002.</p>"
       }
     });
+  });
+
+  it("says in a digest's subject that its deployments were closed when every one of them was", () => {
+    const notices = [generateClosureNotice({}), generateClosureNotice({})];
+
+    expect(toClosureEmail(notices).payload.summary).toBe("2 deployments were closed");
   });
 
   it("keeps its SendGrid categories to plain letters", () => {

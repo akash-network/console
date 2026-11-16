@@ -168,7 +168,7 @@ describe("closure alerts", () => {
       expect.objectContaining({
         category: CLOSURE_DIGEST_CATEGORY,
         payload: expect.objectContaining({
-          summary: "2 deployments were closed",
+          summary: "2 deployments were closed or lost a lease",
           description: expect.stringMatching(new RegExp(`^<p>Deployment ${second.dseq} was closed\\..*</p><p>The lease for deployment ${third.dseq} with provider`))
         })
       })
