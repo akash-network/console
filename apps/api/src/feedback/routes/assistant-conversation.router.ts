@@ -33,7 +33,10 @@ const CONSENT_REQUIRED = {
 };
 const UNAVAILABLE = { description: "`assistant_unavailable`: the assistant is off or over its budget. Point the user to Discord" };
 const BLOCKED = { description: "`assistant_blocked`: the assistant is turned off for this account. Point the user to Discord" };
-const RATE_LIMITED = { description: "`assistant_rate_limited` (too many messages this minute) or `assistant_daily_limit` (too many today)" };
+const RATE_LIMITED = {
+  description:
+    "`assistant_rate_limited` (too many messages this minute), `assistant_daily_limit` (too many today) or `assistant_trial_limit` (an account that never bought credits used all its free messages)"
+};
 const EVENT_STREAM = {
   description:
     "A server-sent event stream of the assistant turn. Each event's `event` field is its `type`, and its `data` is the event as JSON. The stream ends after `done` or `error`.",

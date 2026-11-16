@@ -339,7 +339,7 @@ export class AssistantTurnService {
     trace: AssistantTurnTraceBuilder,
     onContentDelta: (text: string) => Promise<void>
   ): Promise<ChatCompletion> {
-    await this.limitsService.assertWithinBudget();
+    await this.limitsService.assertWithinBudget(turn.isTrialing);
     await this.limitsService.assertWithinUserTokens(turn.userId, turn.isTrialing);
 
     const completion = await this.akashMlClient.streamChatCompletion(
@@ -360,7 +360,7 @@ export class AssistantTurnService {
       }
     );
     trace.usageAdded(completion.usage);
-    await this.limitsService.recordUsage(turn.userId, completion.usage);
+    await this.limitsService.recordUsage(turn.userId, turn.isTrialing, completion.usage);
 
     return completion;
   }

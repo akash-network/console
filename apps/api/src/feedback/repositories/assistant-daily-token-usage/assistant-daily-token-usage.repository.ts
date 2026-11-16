@@ -7,6 +7,11 @@ import { TxService } from "@src/core/services";
 type Table = ApiPgTables["AssistantDailyTokenUsage"];
 export type AssistantDailyTokenUsageOutput = Table["$inferSelect"];
 
+export interface AssistantDayTokenTotals {
+  total: number;
+  trialTotal: number;
+}
+
 @singleton()
 export class AssistantDailyTokenUsageRepository {
   constructor(
@@ -19,29 +24,36 @@ export class AssistantDailyTokenUsageRepository {
     return this.txManager.getPgTx() || this.pg;
   }
 
-  async add(day: string, usage: { promptTokens: number; completionTokens: number }): Promise<number> {
+  async add(day: string, usage: { promptTokens: number; completionTokens: number }, { isTrial }: { isTrial: boolean }): Promise<AssistantDayTokenTotals> {
+    const trialTokens = isTrial ? usage.promptTokens + usage.completionTokens : 0;
     const [row] = await this.#cursor
       .insert(this.table)
-      .values({ day, ...usage })
+      .values({ day, ...usage, trialTokens })
       .onConflictDoUpdate({
         target: this.table.day,
         set: {
           promptTokens: sql`${this.table.promptTokens} + excluded.prompt_tokens`,
           completionTokens: sql`${this.table.completionTokens} + excluded.completion_tokens`,
+          trialTokens: sql`${this.table.trialTokens} + excluded.trial_tokens`,
           updatedAt: sql`now()`
         }
       })
-      .returning({ promptTokens: this.table.promptTokens, completionTokens: this.table.completionTokens });
+      .returning(this.#totalColumns);
 
-    return row.promptTokens + row.completionTokens;
+    return totalsOf(row);
   }
 
-  async totalOn(day: string): Promise<number> {
-    const [row] = await this.#cursor
-      .select({ promptTokens: this.table.promptTokens, completionTokens: this.table.completionTokens })
-      .from(this.table)
-      .where(eq(this.table.day, day));
+  async totalsOn(day: string): Promise<AssistantDayTokenTotals> {
+    const [row] = await this.#cursor.select(this.#totalColumns).from(this.table).where(eq(this.table.day, day));
 
-    return row ? row.promptTokens + row.completionTokens : 0;
+    return row ? totalsOf(row) : { total: 0, trialTotal: 0 };
   }
+
+  get #totalColumns() {
+    return { promptTokens: this.table.promptTokens, completionTokens: this.table.completionTokens, trialTokens: this.table.trialTokens };
+  }
+}
+
+function totalsOf(row: { promptTokens: number; completionTokens: number; trialTokens: number }): AssistantDayTokenTotals {
+  return { total: row.promptTokens + row.completionTokens, trialTotal: row.trialTokens };
 }

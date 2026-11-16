@@ -23,28 +23,40 @@ function positiveIntegerOr(fallback: number) {
   return z.preprocess(blankToUndefined, z.coerce.number().int().positive().optional().default(fallback));
 }
 
-export const envSchema = z.object({
-  AKASHML_API_URL: z.preprocess(blankToUndefined, z.string().url().optional().default("https://api.akashml.com/v1")),
-  AKASHML_API_KEY: z.preprocess(blankToUndefined, z.string().optional()),
-  FEEDBACK_CLASSIFIER_MODEL: z.preprocess(blankToUndefined, z.string().optional().default("Qwen/Qwen3.6-35B-A3B")),
-  FEEDBACK_CLASSIFIER_ENGINE: z.preprocess(blankToUndefined, z.enum(["akashml", "jev"]).optional().default("akashml")),
-  TYPESAFE_API_URL: z.preprocess(blankToUndefined, z.string().url().optional().default("https://api.typesafe.ai")),
-  TYPESAFE_API_KEY: z.preprocess(blankToUndefined, z.string().optional()),
-  FEEDBACK_JEV_MODEL: z.preprocess(blankToUndefined, z.string().optional().default("jev-1.14.0")),
-  ASSISTANT_MODEL: z.preprocess(blankToUndefined, z.string().optional().default("zai-org/GLM-5.3")),
-  ASSISTANT_REASONING_EFFORT: z.preprocess(blankToUndefined, z.enum(["low", "medium", "high"]).optional().default("medium")),
-  FEEDBACK_THEME_SCORE_WEIGHTS: z.preprocess(parseJson, feedbackThemeScoreWeightsSchema),
-  ASSISTANT_MESSAGES_PER_MINUTE: positiveIntegerOr(6),
-  ASSISTANT_MESSAGES_PER_DAY: positiveIntegerOr(100),
-  ASSISTANT_TRIAL_MESSAGES_PER_DAY: positiveIntegerOr(30),
-  ASSISTANT_USER_DAILY_TOKENS: positiveIntegerOr(2_000_000),
-  ASSISTANT_TRIAL_USER_DAILY_TOKENS: positiveIntegerOr(500_000),
-  ASSISTANT_DAILY_TOKEN_BUDGET: positiveIntegerOr(20_000_000),
-  FEEDBACK_RETENTION_DAYS: z.preprocess(blankToUndefined, z.coerce.number().int().positive().max(MAX_FEEDBACK_RETENTION_DAYS).optional().default(365)),
-  ASSISTANT_DAILY_FLAGGED_TURN_LIMIT: positiveIntegerOr(3),
-  ASSISTANT_SUPPORT_URL: z.preprocess(blankToUndefined, z.string().url().optional().default("https://discord.gg/akash")),
-  ASSISTANT_HISTORY_SIGNING_KEY: z.preprocess(blankToUndefined, z.string().min(32).optional()),
-  ASSISTANT_SLACK_WEBHOOK_URL: z.preprocess(blankToUndefined, z.string().url().optional())
-});
+export const envSchema = z
+  .object({
+    AKASHML_API_URL: z.preprocess(blankToUndefined, z.string().url().optional().default("https://api.akashml.com/v1")),
+    AKASHML_API_KEY: z.preprocess(blankToUndefined, z.string().optional()),
+    FEEDBACK_CLASSIFIER_MODEL: z.preprocess(blankToUndefined, z.string().optional().default("Qwen/Qwen3.6-35B-A3B")),
+    FEEDBACK_CLASSIFIER_ENGINE: z.preprocess(blankToUndefined, z.enum(["akashml", "jev"]).optional().default("akashml")),
+    TYPESAFE_API_URL: z.preprocess(blankToUndefined, z.string().url().optional().default("https://api.typesafe.ai")),
+    TYPESAFE_API_KEY: z.preprocess(blankToUndefined, z.string().optional()),
+    FEEDBACK_JEV_MODEL: z.preprocess(blankToUndefined, z.string().optional().default("jev-1.14.0")),
+    ASSISTANT_MODEL: z.preprocess(blankToUndefined, z.string().optional().default("zai-org/GLM-5.3")),
+    ASSISTANT_REASONING_EFFORT: z.preprocess(blankToUndefined, z.enum(["low", "medium", "high"]).optional().default("medium")),
+    FEEDBACK_THEME_SCORE_WEIGHTS: z.preprocess(parseJson, feedbackThemeScoreWeightsSchema),
+    ASSISTANT_MESSAGES_PER_MINUTE: positiveIntegerOr(6),
+    ASSISTANT_MESSAGES_PER_DAY: positiveIntegerOr(100),
+    ASSISTANT_TRIAL_MESSAGES_PER_DAY: positiveIntegerOr(15),
+    ASSISTANT_TRIAL_TOTAL_MESSAGES: positiveIntegerOr(50),
+    ASSISTANT_USER_DAILY_TOKENS: positiveIntegerOr(2_000_000),
+    ASSISTANT_TRIAL_USER_DAILY_TOKENS: positiveIntegerOr(500_000),
+    ASSISTANT_DAILY_TOKEN_BUDGET: positiveIntegerOr(20_000_000),
+    ASSISTANT_TRIAL_DAILY_TOKEN_BUDGET: positiveIntegerOr(5_000_000),
+    FEEDBACK_RETENTION_DAYS: z.preprocess(blankToUndefined, z.coerce.number().int().positive().max(MAX_FEEDBACK_RETENTION_DAYS).optional().default(365)),
+    ASSISTANT_DAILY_FLAGGED_TURN_LIMIT: positiveIntegerOr(3),
+    ASSISTANT_SUPPORT_URL: z.preprocess(blankToUndefined, z.string().url().optional().default("https://discord.gg/akash")),
+    ASSISTANT_HISTORY_SIGNING_KEY: z.preprocess(blankToUndefined, z.string().min(32).optional()),
+    ASSISTANT_SLACK_WEBHOOK_URL: z.preprocess(blankToUndefined, z.string().url().optional())
+  })
+  .superRefine((env, ctx) => {
+    if (env.ASSISTANT_TRIAL_DAILY_TOKEN_BUDGET >= env.ASSISTANT_DAILY_TOKEN_BUDGET) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["ASSISTANT_TRIAL_DAILY_TOKEN_BUDGET"],
+        message: `ASSISTANT_TRIAL_DAILY_TOKEN_BUDGET (${env.ASSISTANT_TRIAL_DAILY_TOKEN_BUDGET}) must be below ASSISTANT_DAILY_TOKEN_BUDGET (${env.ASSISTANT_DAILY_TOKEN_BUDGET}), otherwise trial accounts can spend the whole shared budget`
+      });
+    }
+  });
 
 export type FeedbackConfig = z.infer<typeof envSchema>;

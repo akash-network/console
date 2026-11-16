@@ -11,6 +11,7 @@ export interface AssistantMessageCounts {
   dayMessageCount: number;
   minuteMessageCount: number;
   dayTokenCount: number;
+  totalMessageCount: number;
 }
 
 @singleton()
@@ -30,7 +31,7 @@ export class AssistantUserUsageRepository {
     const withinMinute = sql`${this.table.minuteStartedAt} > excluded.minute_started_at - interval '1 minute'`;
     const [counts] = await this.#cursor
       .insert(this.table)
-      .values({ userId, day: sentAt.toISOString().slice(0, 10), dayMessageCount: 1, minuteStartedAt: sentAt, minuteMessageCount: 1 })
+      .values({ userId, day: sentAt.toISOString().slice(0, 10), dayMessageCount: 1, minuteStartedAt: sentAt, minuteMessageCount: 1, totalMessageCount: 1 })
       .onConflictDoUpdate({
         target: this.table.userId,
         set: {
@@ -41,13 +42,15 @@ export class AssistantUserUsageRepository {
           day: sql`excluded.day`,
           minuteMessageCount: sql`CASE WHEN ${withinMinute} THEN ${this.table.minuteMessageCount} + 1 ELSE 1 END`,
           minuteStartedAt: sql`CASE WHEN ${withinMinute} THEN ${this.table.minuteStartedAt} ELSE excluded.minute_started_at END`,
+          totalMessageCount: sql`${this.table.totalMessageCount} + 1`,
           updatedAt: sql`now()`
         }
       })
       .returning({
         dayMessageCount: this.table.dayMessageCount,
         minuteMessageCount: this.table.minuteMessageCount,
-        dayTokenCount: this.table.dayTokenCount
+        dayTokenCount: this.table.dayTokenCount,
+        totalMessageCount: this.table.totalMessageCount
       });
 
     return counts;
