@@ -11,7 +11,7 @@ import { RESOLVED_MARKER } from "@src/notifications/services/notification-data-r
 import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
 import { startTrialNotification } from "@src/notifications/services/notification-templates/start-trial-notification";
 import { UserRepository } from "@src/user/repositories";
-import { ReviewTrialSignup, reviewTrialSignupKeyFor } from "@src/workload-abuse/services/review-trial-signup/review-trial-signup.handler";
+import { TrialSignupReviewService } from "@src/workload-abuse/services/trial-signup-review/trial-signup-review.service";
 
 @singleton()
 export class TrialStartedHandler implements JobHandler<TrialStarted> {
@@ -27,7 +27,8 @@ export class TrialStartedHandler implements JobHandler<TrialStarted> {
     private readonly userRepository: UserRepository,
     private readonly userWalletRepository: UserWalletRepository,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger,
-    private readonly billingConfig: BillingConfigService
+    private readonly billingConfig: BillingConfigService,
+    private readonly trialSignupReviewService: TrialSignupReviewService
   ) {
     this.logger = createLogger({ context: TrialStartedHandler.name });
   }
@@ -55,7 +56,7 @@ export class TrialStartedHandler implements JobHandler<TrialStarted> {
       return;
     }
 
-    await this.jobQueueManager.enqueue(new ReviewTrialSignup({ userId: user.id }), { singletonKey: reviewTrialSignupKeyFor(user.id) });
+    await this.trialSignupReviewService.flagIfLinked(user);
 
     const TRIAL_ALLOWANCE_EXPIRATION_DAYS = this.billingConfig.get("TRIAL_ALLOWANCE_EXPIRATION_DAYS");
     const trialEndsAt = getTrialEndsAt(wallet, TRIAL_ALLOWANCE_EXPIRATION_DAYS);

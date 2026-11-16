@@ -21,12 +21,14 @@ export class ReviewTrialSignup implements Job {
   ) {}
 }
 
-export function reviewTrialSignupKeyFor(userId: UserOutput["id"]): string {
-  return `reviewTrialSignup.${userId}`;
+type Fingerprint = NonNullable<UserOutput["lastFingerprint"]>;
+
+export function reviewTrialSignupKeyFor(fingerprint: Fingerprint): string {
+  return `reviewTrialSignup.${fingerprint}`;
 }
 
-export function reviewHeldTrialSignupKeyFor(userId: UserOutput["id"]): string {
-  return `reviewTrialSignup.held.${userId}`;
+export function reviewHeldTrialSignupKeyFor(fingerprint: Fingerprint): string {
+  return `reviewTrialSignup.held.${fingerprint}`;
 }
 
 @singleton()

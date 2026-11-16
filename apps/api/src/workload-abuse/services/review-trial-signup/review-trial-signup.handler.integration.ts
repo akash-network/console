@@ -75,10 +75,10 @@ describe(ReviewTrialSignupHandler.name, () => {
     expect(slackPosts).toEqual([]);
   });
 
-  it("refuses a second review of a sign-up while the first is still queued", async () => {
-    const { seedAccount, enqueue } = await setup();
+  it("refuses a second review of a device while the first is still queued", async () => {
+    const { seedAccount, enqueue, fingerprint } = await setup();
     const signup = await seedAccount({ email: "queued@example.com" });
-    const options = { singletonKey: reviewTrialSignupKeyFor(signup.id) };
+    const options = { singletonKey: reviewTrialSignupKeyFor(fingerprint) };
 
     const firstJobId = await enqueue(new ReviewTrialSignup({ userId: signup.id }), options);
     const secondJobId = await enqueue(new ReviewTrialSignup({ userId: signup.id }), options);
@@ -116,6 +116,7 @@ describe(ReviewTrialSignupHandler.name, () => {
 
     return {
       enqueue,
+      fingerprint,
       slackPosts,
       seedAccount: (overrides: { email: string; lastActiveAt?: Date }) => seedUser({ lastFingerprint: fingerprint, lastActiveAt: new Date(), ...overrides }),
       review: async (user: UserOutput) => {

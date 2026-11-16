@@ -20,7 +20,7 @@ describe(TrialSignupHoldService.name, () => {
   });
 
   it("holds a trial once the linked accounts reach the threshold and reports it outside the transaction once per window", async () => {
-    const { service, user, linkedAccounts, userRepository, jobQueueService, txService, logger } = setup({ mode: "enforce", linkedCount: 2 });
+    const { service, user, fingerprint, linkedAccounts, userRepository, jobQueueService, txService, logger } = setup({ mode: "enforce", linkedCount: 2 });
 
     const held = await service.isHeld(user);
 
@@ -29,7 +29,7 @@ describe(TrialSignupHoldService.name, () => {
     expect(logger.warn).toHaveBeenCalledWith({ event: "TRIAL_SIGNUP_HELD", userId: user.id, linkedUserIds: linkedAccounts.map(account => account.id) });
     expect(txService.outsideTransaction).toHaveBeenCalledTimes(1);
     expect(jobQueueService.enqueue).toHaveBeenCalledWith(new ReviewTrialSignup({ userId: user.id, held: true }), {
-      singletonKey: reviewHeldTrialSignupKeyFor(user.id),
+      singletonKey: reviewHeldTrialSignupKeyFor(fingerprint),
       singletonSeconds: 45 * 60
     });
   });
@@ -96,7 +96,8 @@ describe(TrialSignupHoldService.name, () => {
       user?: UserOutput;
     } = {}
   ) {
-    const user = input.user ?? createUser({ lastFingerprint: faker.string.hexadecimal({ length: 64 }) });
+    const fingerprint = faker.string.hexadecimal({ length: 64 });
+    const user = input.user ?? createUser({ lastFingerprint: fingerprint });
     const linkedAccounts = Array.from({ length: input.linkedCount ?? 0 }, () => ({ id: faker.string.uuid(), email: faker.internet.email() }));
     const userRepository = mock<UserRepository>({ findRecentlyActiveByFingerprint: vi.fn().mockResolvedValue(linkedAccounts) });
     const jobQueueService = mock<JobQueueService>({ enqueue: vi.fn().mockResolvedValue("job-id") });
@@ -110,6 +111,6 @@ describe(TrialSignupHoldService.name, () => {
     const createLogger = vi.fn<CreateLogger>(() => logger);
     const service = new TrialSignupHoldService(userRepository, jobQueueService, txService, config, createLogger);
 
-    return { service, user, linkedAccounts, userRepository, jobQueueService, txService, logger, createLogger };
+    return { service, user, fingerprint, linkedAccounts, userRepository, jobQueueService, txService, logger, createLogger };
   }
 });

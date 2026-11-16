@@ -37,18 +37,18 @@ export class TrialSignupHoldService {
     }
 
     this.logger.warn({ event: "TRIAL_SIGNUP_HELD", ...context });
-    await this.#reportHeld(user.id, windowMinutes);
+    await this.#reportHeld(user.id, user.lastFingerprint, windowMinutes);
 
     return true;
   }
 
   /** Enqueued outside any surrounding transaction because the hold refuses by throwing; pg-boss throttles on fixed slots counted from the epoch, so attempts on either side of a slot boundary each report. */
-  async #reportHeld(userId: UserOutput["id"], windowMinutes: number): Promise<void> {
+  async #reportHeld(userId: UserOutput["id"], fingerprint: string, windowMinutes: number): Promise<void> {
     try {
       await this.txService.outsideTransaction(
         async () =>
           await this.jobQueueService.enqueue(new ReviewTrialSignup({ userId, held: true }), {
-            singletonKey: reviewHeldTrialSignupKeyFor(userId),
+            singletonKey: reviewHeldTrialSignupKeyFor(fingerprint),
             singletonSeconds: windowMinutes * 60
           })
       );

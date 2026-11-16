@@ -21,8 +21,8 @@ describe(ReviewTrialSignupHandler.name, () => {
     const job = new ReviewTrialSignup({ userId: "user-1" });
 
     expect(job).toMatchObject({ name: "ReviewTrialSignup", version: 1, data: { userId: "user-1" } });
-    expect(reviewTrialSignupKeyFor("user-1")).toBe("reviewTrialSignup.user-1");
-    expect(reviewHeldTrialSignupKeyFor("user-1")).toBe("reviewTrialSignup.held.user-1");
+    expect(reviewTrialSignupKeyFor("fingerprint-1")).toBe("reviewTrialSignup.fingerprint-1");
+    expect(reviewHeldTrialSignupKeyFor("fingerprint-1")).toBe("reviewTrialSignup.held.fingerprint-1");
   });
 
   it("declares no permissions and names its logger after itself", () => {

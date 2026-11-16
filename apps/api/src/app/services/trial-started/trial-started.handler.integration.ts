@@ -4,7 +4,7 @@ import { faker } from "@faker-js/faker";
 import { addDays, subDays } from "date-fns";
 import nock from "nock";
 import { container } from "tsyringe";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TrialStarted } from "@src/billing/events/trial-started";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
@@ -12,7 +12,12 @@ import { JOB_NAME } from "@src/core";
 import { DOMAIN_EVENT_NAME } from "@src/core/services/domain-events/domain-events.service";
 import { NOTIFICATIONS_CONFIG } from "@src/notifications/providers/notifications-config.provider";
 import { NotificationHandler, NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
-import { ReviewTrialSignup, ReviewTrialSignupHandler } from "@src/workload-abuse/services/review-trial-signup/review-trial-signup.handler";
+import {
+  ReviewTrialSignup,
+  ReviewTrialSignupHandler,
+  reviewTrialSignupKeyFor
+} from "@src/workload-abuse/services/review-trial-signup/review-trial-signup.handler";
+import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 import { TrialStartedHandler } from "./trial-started.handler";
 
 import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
@@ -20,6 +25,7 @@ import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/j
 
 const NOTIFICATION_PATH = "/internal/v1/jobs/notification";
 const SIGNED_UP_DAYS_BEFORE_TRIAL = 40;
+const REVIEW_WINDOW_MINUTES = 45;
 
 const jobWorkers = useJobWorkers(() => [
   container.resolve(TrialStartedHandler),
@@ -29,6 +35,7 @@ const jobWorkers = useJobWorkers(() => [
 
 describe(TrialStartedHandler.name, () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     nock.cleanAll();
   });
 
@@ -46,13 +53,23 @@ describe(TrialStartedHandler.name, () => {
     ]);
   });
 
-  it("queues the new trial for review", async () => {
-    const { userId, handle } = await setup();
+  it("queues the new trial for review when its device was used by another recent account", async () => {
+    const fingerprint = faker.string.hexadecimal({ length: 64 });
+    await seedUser({ lastFingerprint: fingerprint, lastActiveAt: new Date() });
+    const { userId, handle } = await setup({ lastFingerprint: fingerprint });
 
     await handle();
 
     const reviewJobs = await findJobRows(ReviewTrialSignup[JOB_NAME], { data: { userId } });
-    expect(reviewJobs.map(row => row.singleton_key)).toEqual([`reviewTrialSignup.${userId}`]);
+    expect(reviewJobs.map(row => row.singleton_key)).toEqual([reviewTrialSignupKeyFor(fingerprint)]);
+  });
+
+  it("queues no review for a trial on a device no other account used", async () => {
+    const { userId, handle } = await setup({ lastFingerprint: faker.string.hexadecimal({ length: 64 }) });
+
+    await handle();
+
+    expect(await findJobRows(ReviewTrialSignup[JOB_NAME], { data: { userId } })).toEqual([]);
   });
 
   it("sends the welcome email straight away", async () => {
@@ -90,16 +107,26 @@ describe(TrialStartedHandler.name, () => {
     expect(await findNotificationJobs(userId)).toHaveLength(0);
   });
 
-  async function setup(input: { email?: string | null; hasWallet?: boolean } = {}) {
+  async function setup(input: { email?: string | null; hasWallet?: boolean; lastFingerprint?: string } = {}) {
     const { enqueue, startWorkers } = await jobWorkers();
     const billingConfig = container.resolve(BillingConfigService);
     const expirationDays = billingConfig.get("TRIAL_ALLOWANCE_EXPIRATION_DAYS");
     const notificationsBaseUrl = container.resolve(NOTIFICATIONS_CONFIG).NOTIFICATIONS_API_BASE_URL as string;
 
+    const workloadAbuseConfig = container.resolve(WorkloadAbuseConfigService);
+    const readWorkloadAbuseConfig = workloadAbuseConfig.get.bind(workloadAbuseConfig);
+    const workloadAbuseOverrides: Partial<Record<Parameters<typeof readWorkloadAbuseConfig>[0], unknown>> = {
+      WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES: REVIEW_WINDOW_MINUTES,
+      WORKLOAD_ABUSE_SIGNUP_REVIEW_SLACK_WEBHOOK_URL: undefined
+    };
+    vi.spyOn(workloadAbuseConfig, "get").mockImplementation((key =>
+      key in workloadAbuseOverrides ? workloadAbuseOverrides[key] : readWorkloadAbuseConfig(key)) as typeof workloadAbuseConfig.get);
+
     const trialStartedAt = new Date();
     const userInput = {
       email: input.email === undefined ? faker.internet.email() : input.email,
-      createdAt: subDays(trialStartedAt, SIGNED_UP_DAYS_BEFORE_TRIAL)
+      createdAt: subDays(trialStartedAt, SIGNED_UP_DAYS_BEFORE_TRIAL),
+      lastFingerprint: input.lastFingerprint ?? null
     };
     const user =
       input.hasWallet === false

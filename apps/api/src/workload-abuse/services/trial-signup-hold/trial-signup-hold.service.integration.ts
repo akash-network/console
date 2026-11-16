@@ -31,7 +31,7 @@ describe(TrialSignupHoldService.name, () => {
   });
 
   it("keeps a single held report queued across refused attempts and posts it as held", async () => {
-    const { seedAccount, attemptTrial, startWorkers, slackPosts } = await setup();
+    const { seedAccount, attemptTrial, startWorkers, slackPosts, heldReviewKey } = await setup();
     await seedAccount({ email: "first@example.com" });
     await seedAccount({ email: "second@example.com" });
     const signup = await seedAccount({ email: "third@example.com" });
@@ -39,10 +39,10 @@ describe(TrialSignupHoldService.name, () => {
     await expect(attemptTrial(signup)).rejects.toThrow("refused");
     await expect(attemptTrial(signup)).rejects.toThrow("refused");
 
-    expect(await findJobRows(ReviewTrialSignup[JOB_NAME], { singletonKey: reviewHeldTrialSignupKeyFor(signup.id) })).toHaveLength(1);
+    expect(await findJobRows(ReviewTrialSignup[JOB_NAME], { singletonKey: heldReviewKey })).toHaveLength(1);
 
     await startWorkers();
-    await expectJobCompleted(ReviewTrialSignup[JOB_NAME], { singletonKey: reviewHeldTrialSignupKeyFor(signup.id) });
+    await expectJobCompleted(ReviewTrialSignup[JOB_NAME], { singletonKey: heldReviewKey });
 
     expect(slackPosts).toHaveLength(1);
     expect(slackPosts[0].text.split("\n")).toEqual([
@@ -54,14 +54,30 @@ describe(TrialSignupHoldService.name, () => {
     ]);
   });
 
+  it("reports the held sign-ups of one device once per window", async () => {
+    const { seedAccount, attemptTrial, startWorkers, slackPosts, heldReviewKey } = await setup();
+    await seedAccount({ email: "first@example.com" });
+    await seedAccount({ email: "second@example.com" });
+    const thirdSignup = await seedAccount({ email: "third@example.com" });
+    await expect(attemptTrial(thirdSignup)).rejects.toThrow("refused");
+    await startWorkers();
+    await expectJobCompleted(ReviewTrialSignup[JOB_NAME], { singletonKey: heldReviewKey });
+
+    const fourthSignup = await seedAccount({ email: "fourth@example.com" });
+    await expect(attemptTrial(fourthSignup)).rejects.toThrow("refused");
+
+    expect(await findJobRows(ReviewTrialSignup[JOB_NAME], { singletonKey: heldReviewKey })).toHaveLength(1);
+    expect(slackPosts).toHaveLength(1);
+  });
+
   it("lifts the hold once the linked accounts have left the review window", async () => {
-    const { seedAccount, attemptTrial } = await setup();
+    const { seedAccount, attemptTrial, heldReviewKey } = await setup();
     await seedAccount({ email: "first@example.com", lastActiveAt: subDays(new Date(), 2) });
     await seedAccount({ email: "second@example.com", lastActiveAt: subDays(new Date(), 2) });
     const signup = await seedAccount({ email: "third@example.com" });
 
     await expect(attemptTrial(signup)).resolves.toBe("granted");
-    expect(await findJobRows(ReviewTrialSignup[JOB_NAME], { singletonKey: reviewHeldTrialSignupKeyFor(signup.id) })).toEqual([]);
+    expect(await findJobRows(ReviewTrialSignup[JOB_NAME], { singletonKey: heldReviewKey })).toEqual([]);
   });
 
   async function setup() {
@@ -98,6 +114,7 @@ describe(TrialSignupHoldService.name, () => {
     return {
       startWorkers,
       slackPosts,
+      heldReviewKey: reviewHeldTrialSignupKeyFor(fingerprint),
       seedAccount: (overrides: { email: string; lastActiveAt?: Date }) => seedUser({ lastFingerprint: fingerprint, lastActiveAt: new Date(), ...overrides }),
       attemptTrial: (user: UserOutput) =>
         txService.transaction(async () => {
