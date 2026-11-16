@@ -35,7 +35,7 @@ export const AssistantExamplePrompts: FC<Props> = ({ page, deploymentDseq, onSen
   const prompts = examplePromptsFor({ page, deploymentDseq, isTrialing });
 
   return (
-    <section aria-label="Example questions">
+    <section aria-label="Example prompts">
       <ul className="flex flex-col items-center gap-2">
         {prompts.map(prompt => (
           <li key={prompt}>

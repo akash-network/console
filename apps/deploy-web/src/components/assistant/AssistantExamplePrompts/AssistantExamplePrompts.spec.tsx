@@ -39,7 +39,7 @@ describe("AssistantExamplePrompts", () => {
   ])("offers the prompts that fit $case", ({ page, deploymentDseq, isTrialing, prompts }) => {
     setup({ page, deploymentDseq, isTrialing });
 
-    const list = screen.getByRole("region", { name: "Example questions" });
+    const list = screen.getByRole("region", { name: "Example prompts" });
     expect(
       within(list)
         .getAllByRole("button")
