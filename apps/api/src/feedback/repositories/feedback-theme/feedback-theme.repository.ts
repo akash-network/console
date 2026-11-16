@@ -50,7 +50,12 @@ export class FeedbackThemeRepository extends BaseRepository<Table, FeedbackTheme
     const submissions = resolveTable("FeedbackSubmissions");
     const conversations = resolveTable("AssistantConversations");
 
-    await this.cursor.select({ id: this.table.id }).from(this.table).where(inArray(this.table.id, uniqueThemeIds)).orderBy(asc(this.table.id)).for("update");
+    await this.cursor
+      .select({ id: this.table.id })
+      .from(this.table)
+      .where(inArray(this.table.id, uniqueThemeIds))
+      .orderBy(asc(this.table.id))
+      .for("no key update");
     await this.cursor.execute(sql`
       UPDATE ${this.table}
       SET

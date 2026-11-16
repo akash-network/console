@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
@@ -8,6 +9,7 @@ import { FeedbackThemeRepository } from "./feedback-theme.repository";
 import { seedAssistantConversation, seedFeedbackSubmission, seedFeedbackTheme } from "@test/seeders/db/feedback.seeder";
 import { seedOrganization } from "@test/seeders/db/organization.seeder";
 import { seedOrganizationWallet, seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { holdTransaction, waitForLockWait } from "@test/services/lock-wait";
 
 describe(FeedbackThemeRepository.name, () => {
   describe("refreshCounts", () => {
@@ -62,25 +64,44 @@ describe(FeedbackThemeRepository.name, () => {
       const [aliceSubmission, bobSubmission] = await Promise.all(
         [alice, bob, carol].map(user => seedFeedbackSubmission({ userId: user.id, themeId: theme.id }))
       );
-      const firstRecounted = Promise.withResolvers<void>();
-      const firstMayCommit = Promise.withResolvers<void>();
-
-      const first = txService.transaction(async () => {
+      const first = holdTransaction(async () => {
         await submissionRepository.deleteById(aliceSubmission.id);
         await repository.refreshCounts([theme.id]);
-        firstRecounted.resolve();
-        await firstMayCommit.promise;
       });
-      await firstRecounted.promise;
+      await first.held;
+
       const second = txService.transaction(async () => {
         await submissionRepository.deleteById(bobSubmission.id);
         await repository.refreshCounts([theme.id]);
       });
-      await new Promise(resolve => setTimeout(resolve, 300));
-      firstMayCommit.resolve();
-      await Promise.all([first, second]);
+      await waitForLockWait('select %from "feedback_themes"%for %');
+      first.release();
+      await Promise.all([first.committed, second]);
 
       expect(await repository.findById(theme.id)).toMatchObject({ itemCount: 1, distinctUserCount: 1 });
+    });
+
+    it("lets an item be filed onto a theme while a recount holds it", async () => {
+      const { repository, submissionRepository, txService } = setup();
+      const user = await seedUser();
+      const theme = await seedFeedbackTheme();
+      const submission = await seedFeedbackSubmission({ userId: user.id });
+      const recount = holdTransaction(() => repository.refreshCounts([theme.id]));
+      await recount.held;
+
+      const filingOutcome = await txService
+        .transaction(async () => {
+          await repository.cursor.execute(sql`SET LOCAL lock_timeout = '2s'`);
+          await submissionRepository.updateById(submission.id, { themeId: theme.id });
+        })
+        .then(
+          () => "filed",
+          (error: unknown) => error
+        );
+      recount.release();
+      await recount.committed;
+
+      expect(filingOutcome).toBe("filed");
     });
   });
 
