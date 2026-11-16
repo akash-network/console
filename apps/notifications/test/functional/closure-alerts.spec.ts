@@ -1,7 +1,7 @@
 import { faker } from "@faker-js/faker";
 import { ConfigService } from "@nestjs/config";
 import { Test } from "@nestjs/testing";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import nock from "nock";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 
@@ -21,6 +21,7 @@ import { NotificationChannel } from "@src/modules/notifications/model-schemas";
 import { mockAkashAddress } from "@test/seeders/akash-address.seeder";
 import { generateGeneralAlert } from "@test/seeders/general-alert.seeder";
 import { generateNotificationChannel } from "@test/seeders/notification-channel.seeder";
+import { untilAQueryWaitsOnALock } from "@test/services/lock-waits";
 
 const HOLD_SECONDS = 120;
 const DIGEST_WINDOW_SECONDS = 3600;
@@ -116,7 +117,7 @@ describe("closure alerts", () => {
   });
 
   it("sends nothing more for a lease that closes while its deployment's closure email is going out", async () => {
-    const { chainEvents, closureAlerts, emails, holdNextPublish, waitForQueryBlockedOnLock, travel, givenDeploymentClosedAlert } = await setup();
+    const { chainEvents, closureAlerts, emails, holdNextPublish, db, travel, givenDeploymentClosedAlert } = await setup();
     const deployment = generateDeployment();
     const { channel } = await givenDeploymentClosedAlert(deployment);
     await chainEvents.processDeploymentClosed(generateDeploymentClosedEvent(deployment));
@@ -126,7 +127,7 @@ describe("closure alerts", () => {
     const flushing = closureAlerts.flush({ notificationChannelId: channel.id });
     await vi.waitFor(() => expect(emails()).toHaveLength(1));
     const leaseClosing = chainEvents.processLeaseClosed(generateLeaseClosedEvent(deployment));
-    await waitForQueryBlockedOnLock();
+    await untilAQueryWaitsOnALock(db);
     releaseEmail();
     await Promise.all([flushing, leaseClosing]);
     travel.by(DIGEST_WINDOW_SECONDS);
@@ -320,13 +321,7 @@ describe("closure alerts", () => {
         publish.mockImplementationOnce(() => new Promise<void>(resolve => (release = resolve)));
         return () => release();
       },
-      waitForQueryBlockedOnLock: () =>
-        vi.waitFor(async () => {
-          const { rows } = await db.execute(
-            sql`SELECT count(*)::int AS count FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`
-          );
-          expect(rows).toEqual([{ count: 1 }]);
-        }),
+      db,
       travel,
       givenDeploymentClosedAlert,
       providerHostUris,
