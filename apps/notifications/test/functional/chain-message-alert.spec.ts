@@ -106,7 +106,7 @@ describe("chain message alerts", () => {
     }
   });
 
-  it("files a team deployment's closure email in its alert user's feed under the key of that deployment's close", async () => {
+  it("files a team deployment's closure in its alert user's feed under the key of that deployment's close as soon as it is recorded", async () => {
     const { module } = await setup();
 
     try {
@@ -141,27 +141,20 @@ describe("chain message alerts", () => {
 
       await controller.processDeploymentClosed({ ...generateMock(EventClosedDeploymentDto.schema), owner, dseq });
 
-      expect(await emailsAfterHold(module, notificationChannel.id)).toEqual([
-        expect.objectContaining({
-          notificationChannelId: notificationChannel.id,
-          category: "deploymentClosureAlert",
-          payload: expect.objectContaining({
-            summary: `Deployment ${dseq} is now closed`,
-            feedEntries: [
-              {
-                type: "deployment_closed_alert",
-                alertId: closedAlert.id,
-                userId: closedAlert.userId,
-                organizationId: closedAlert.organizationId,
-                projectId: closedAlert.projectId,
-                dedupeKey: `deployment_close.${owner}.${dseq}`,
-                dseq,
-                summary: `Deployment ${dseq} is now closed`
-              }
-            ]
-          })
-        })
-      ]);
+      expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.addFeedEntries, {
+        feedEntries: [
+          {
+            type: "deployment_closed_alert",
+            alertId: closedAlert.id,
+            userId: closedAlert.userId,
+            organizationId: closedAlert.organizationId,
+            projectId: closedAlert.projectId,
+            dedupeKey: `deployment_close.${owner}.${dseq}`,
+            dseq,
+            summary: `Deployment ${dseq} is now closed`
+          }
+        ]
+      });
     } finally {
       await module.close();
     }

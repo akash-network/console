@@ -4,5 +4,6 @@ export const eventKeyRegistry = {
   eventLeaseReclaimStarted: "akash.v1.market.lease-reclaim-started",
   eventLeaseClosed: "akash.v1.market.lease-closed",
   createNotification: "notifications.v1.notification.create",
-  closureAlertsDue: "notifications.v1.closure-alerts.due"
+  closureAlertsDue: "notifications.v1.closure-alerts.due",
+  addFeedEntries: "notifications.v1.feed-entries.add"
 } as const;

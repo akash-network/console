@@ -19,6 +19,14 @@ describe(ClosureAlertsHandler.name, () => {
         expect.objectContaining({ policy: "short", retryLimit: 10, retryBackoff: true })
       );
     });
+
+    it("creates and subscribes the feed entries queue, so a closure filed before the notifications worker starts still reaches the feed", async () => {
+      const { handler, brokerService } = setup();
+
+      await handler.onModuleInit();
+
+      expect(brokerService.createSubscribedQueue).toHaveBeenCalledWith(eventKeyRegistry.addFeedEntries, {});
+    });
   });
 
   describe("flush", () => {

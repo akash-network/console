@@ -15,6 +15,7 @@ import type { EventClosedDeploymentDto } from "@src/modules/alert/dto/event-clos
 import type { EventLeaseClosedDto } from "@src/modules/alert/dto/event-lease-closed.dto";
 import * as schema from "@src/modules/alert/model-schemas";
 import { CLOSURE_ALERT_CATEGORY, CLOSURE_DIGEST_CATEGORY } from "@src/modules/alert/services/closure-alert/closure-alert-email";
+import type { FeedEntriesCommandDto } from "@src/modules/notifications/dto/FeedEntriesCommand.dto";
 import type { NotificationCommandDto } from "@src/modules/notifications/dto/NotificationCommand.dto";
 import { NotificationChannel } from "@src/modules/notifications/model-schemas";
 
@@ -28,7 +29,7 @@ const DIGEST_WINDOW_SECONDS = 3600;
 
 describe("closure alerts", () => {
   it("sends a provider's close of a deployment as one email, after the hold, that names the provider and the reason and links the deployment", async () => {
-    const { chainEvents, closureAlerts, emails, flushJobs, travel, givenDeploymentClosedAlert, providerHostUris, consoleWebUrl } = await setup();
+    const { chainEvents, closureAlerts, emails, feedEntries, flushJobs, travel, givenDeploymentClosedAlert, providerHostUris, consoleWebUrl } = await setup();
     const deployment = generateDeployment();
     const provider = mockAkashAddress();
     providerHostUris.set(provider, "https://provider.hurricane.akash.pub:8443");
@@ -41,6 +42,18 @@ describe("closure alerts", () => {
     await closureAlerts.flush({ notificationChannelId: channel.id });
 
     expect(emails()).toEqual([]);
+    expect(feedEntries()).toEqual([
+      {
+        type: "deployment_closed_alert",
+        alertId: alert.id,
+        userId: alert.userId,
+        organizationId: null,
+        projectId: null,
+        dedupeKey: `deployment_close.${deployment.owner}.${deployment.dseq}`,
+        dseq: deployment.dseq,
+        summary: `Deployment ${deployment.dseq} is now closed`
+      }
+    ]);
     expect(flushJobs().at(-1)).toEqual({ notificationChannelId: channel.id, singletonKey: channel.id, startAfter: travel.at(HOLD_SECONDS) });
 
     travel.by(HOLD_SECONDS);
@@ -54,19 +67,7 @@ describe("closure alerts", () => {
           summary: `Deployment ${deployment.dseq} is now closed`,
           description:
             `Deployment ${deployment.dseq} was closed after its lease with provider provider.hurricane.akash.pub was closed because the deployment has insufficient funds. ` +
-            `Please visit <a href="https://${consoleWebUrl}/deployments/${deployment.dseq}?tab=SETTINGS">${consoleWebUrl}</a> to manage your deployment.`,
-          feedEntries: [
-            {
-              type: "deployment_closed_alert",
-              alertId: alert.id,
-              userId: alert.userId,
-              organizationId: null,
-              projectId: null,
-              dedupeKey: `deployment_close.${deployment.owner}.${deployment.dseq}`,
-              dseq: deployment.dseq,
-              summary: `Deployment ${deployment.dseq} is now closed`
-            }
-          ]
+            `Please visit <a href="https://${consoleWebUrl}/deployments/${deployment.dseq}?tab=SETTINGS">${consoleWebUrl}</a> to manage your deployment.`
         }
       }
     ]);
@@ -172,6 +173,23 @@ describe("closure alerts", () => {
         })
       })
     );
+  });
+
+  it("files a deployment closure in the feed as it happens while its email waits for the channel's digest window", async () => {
+    const { chainEvents, closureAlerts, emails, feedEntries, travel, givenDeploymentClosedAlert } = await setup();
+    const first = generateDeployment();
+    const { channel } = await givenDeploymentClosedAlert(first);
+    const second = generateDeployment();
+    const { alert: secondAlert } = await givenDeploymentClosedAlert(second, channel.id);
+
+    await chainEvents.processDeploymentClosed(generateDeploymentClosedEvent(first));
+    travel.by(HOLD_SECONDS);
+    await closureAlerts.flush({ notificationChannelId: channel.id });
+    travel.by(600);
+    await chainEvents.processDeploymentClosed(generateDeploymentClosedEvent(second));
+
+    expect(emails()).toHaveLength(1);
+    expect(feedEntries().map(({ alertId }) => alertId)).toEqual([expect.any(String), secondAlert.id]);
   });
 
   it("emails a channel's next closure on its own once an hour passed without one", async () => {
@@ -312,6 +330,10 @@ describe("closure alerts", () => {
       closureAlerts: module.get(ClosureAlertsHandler),
       emails: () =>
         publish.mock.calls.filter(([eventName]) => eventName === eventKeyRegistry.createNotification).map(([, message]) => message as NotificationCommandDto),
+      feedEntries: () =>
+        publish.mock.calls
+          .filter(([eventName]) => eventName === eventKeyRegistry.addFeedEntries)
+          .flatMap(([, message]) => (message as FeedEntriesCommandDto).feedEntries),
       flushJobs: () =>
         publish.mock.calls
           .filter(([eventName]) => eventName === eventKeyRegistry.closureAlertsDue)

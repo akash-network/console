@@ -33,7 +33,7 @@ import * as schema from "./model-schemas";
     AddressConfirmationService,
     DbHealthzService
   ],
-  exports: [NotificationChannelRepository, NotificationRouterService, EmailSenderService, AddressConfirmationService, DbHealthzService]
+  exports: [NotificationChannelRepository, NotificationRouterService, ActivityFeedService, EmailSenderService, AddressConfirmationService, DbHealthzService]
 })
 export class NotificationsModule implements OnApplicationShutdown {
   constructor(@InjectDrizzle(DRIZZLE_PROVIDER_TOKEN) private readonly db: NodePgDatabase<FullSchema>) {}

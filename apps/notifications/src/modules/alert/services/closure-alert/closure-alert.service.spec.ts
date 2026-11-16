@@ -89,7 +89,32 @@ describe(ClosureAlertService.name, () => {
 
       await service.recordDeploymentClosure(generateDeploymentClosedAlert(), { owner: mockAkashAddress(), dseq: "1001" });
 
-      expect(brokerService.publish).not.toHaveBeenCalled();
+      expect(brokerService.publish).not.toHaveBeenCalledWith(eventKeyRegistry.closureAlertsDue, expect.anything(), expect.anything());
+    });
+
+    it("files the closure in the feed right away, after recording it, whenever its email goes out", async () => {
+      const { service, closureNoticeRepository, brokerService, now } = setup();
+      const alert = generateDeploymentClosedAlert();
+      const owner = mockAkashAddress();
+      closureNoticeRepository.findChannelState.mockResolvedValue({ oldestPendingAt: now, lastSentAt: subSeconds(now, 600) });
+
+      await service.recordDeploymentClosure(alert, { owner, dseq: "1001" });
+
+      expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.addFeedEntries, {
+        feedEntries: [
+          {
+            type: "deployment_closed_alert",
+            alertId: alert.id,
+            userId: alert.userId,
+            organizationId: alert.organizationId,
+            projectId: alert.projectId,
+            dedupeKey: `deployment_close.${owner}.1001`,
+            dseq: "1001",
+            summary: "Deployment “my-app” is now closed"
+          }
+        ]
+      });
+      expect(closureNoticeRepository.record.mock.invocationCallOrder[0]).toBeLessThan(brokerService.publish.mock.invocationCallOrder.at(-1)!);
     });
   });
 

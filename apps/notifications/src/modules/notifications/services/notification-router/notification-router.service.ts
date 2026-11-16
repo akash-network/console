@@ -5,7 +5,7 @@ import { LoggerService } from "@src/common/services/logger/logger.service";
 import { RichError } from "@src/lib/rich-error/rich-error";
 import { NotificationCommandDto } from "../../dto/NotificationCommand.dto";
 import { NotificationChannelRepository } from "../../repositories/notification-channel/notification-channel.repository";
-import { ActivityFeedService } from "../activity-feed/activity-feed.service";
+import { ActivityFeedService, toAlertActivity } from "../activity-feed/activity-feed.service";
 import { EmailSenderService } from "../email-sender/email-sender.service";
 
 @Injectable()
@@ -62,8 +62,7 @@ export class NotificationRouterService {
     for (const entry of [feedEntry, ...feedEntries]) {
       if (!entry) continue;
 
-      const { type, dedupeKey, alertId, dseq, userId, organizationId, projectId } = entry;
-      await this.activityFeedService.addToFeed({ userId, organizationId, projectId, type, dedupeKey, meta: { alertId, summary: entry.summary ?? summary, dseq } });
+      await this.activityFeedService.addToFeed(toAlertActivity(entry, entry.summary ?? summary));
     }
   }
 }

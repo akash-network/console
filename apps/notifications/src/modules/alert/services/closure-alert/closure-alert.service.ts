@@ -15,7 +15,7 @@ import {
 } from "@src/modules/alert/repositories/closure-notice/closure-notice.repository";
 import { DeploymentReferenceService } from "@src/modules/alert/services/deployment-reference/deployment-reference.service";
 import { ProviderHostService } from "@src/modules/alert/services/provider-host/provider-host.service";
-import { toClosureEmail } from "./closure-alert-email";
+import { toClosureEmail, toDeploymentClosedFeedEntry } from "./closure-alert-email";
 
 export type ClosedDeployment = {
   owner: string;
@@ -41,9 +41,12 @@ export class ClosureAlertService {
     this.loggerService.setContext(ClosureAlertService.name);
   }
 
+  /** The feed entry goes out right away, while the email may wait out the channel's digest window. */
   async recordDeploymentClosure(alert: GeneralAlertOutput, deployment: ClosedDeployment): Promise<void> {
-    await this.closureNoticeRepository.record(await this.#noticeOf(alert, deployment, true));
+    const notice = await this.#noticeOf(alert, deployment, true);
+    await this.closureNoticeRepository.record(notice);
     await this.#scheduleFlush(alert.notificationChannelId);
+    await this.brokerService.publish(eventKeyRegistry.addFeedEntries, { feedEntries: [toDeploymentClosedFeedEntry(notice)] });
   }
 
   /** A lease that closes within a digest window of its deployment's closure email adds nothing, and the flush is scheduled even when the claim was taken, so a redelivered event still sends a notice whose scheduling failed. */

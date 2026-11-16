@@ -1,10 +1,10 @@
 import { LeaseClosedReason } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import escape from "lodash/escape";
 
-import type { ClosureNoticeOutput } from "@src/modules/alert/repositories/closure-notice/closure-notice.repository";
+import type { ClosureNoticeInput, ClosureNoticeOutput } from "@src/modules/alert/repositories/closure-notice/closure-notice.repository";
 import type { AlertMessagePayload } from "@src/modules/alert/services/alert-message/alert-message.service";
 import { getLeaseClosedReasonText } from "@src/modules/alert/services/reclaim-alert/lease-closed-reason";
-import type { AlertFeedEntry } from "@src/modules/notifications/dto/NotificationCommand.dto";
+import type { FeedEntriesCommandDto } from "@src/modules/notifications/dto/FeedEntriesCommand.dto";
 
 /** SendGrid categories, so they must stay plain letters. */
 export const CLOSURE_ALERT_CATEGORY = "deploymentClosureAlert";
@@ -16,8 +16,6 @@ export type ClosureEmail = {
 };
 
 export function toClosureEmail(notices: ClosureNoticeOutput[]): ClosureEmail {
-  const feedEntries = notices.flatMap(feedEntriesOf);
-
   if (notices.length === 1) {
     const [notice] = notices;
 
@@ -25,8 +23,7 @@ export function toClosureEmail(notices: ClosureNoticeOutput[]): ClosureEmail {
       category: CLOSURE_ALERT_CATEGORY,
       payload: {
         summary: summaryOf(notice),
-        description: `${describe(notice)} Please visit ${notice.deploymentLink} to manage your deployment.`,
-        feedEntries
+        description: `${describe(notice)} Please visit ${notice.deploymentLink} to manage your deployment.`
       }
     };
   }
@@ -35,13 +32,12 @@ export function toClosureEmail(notices: ClosureNoticeOutput[]): ClosureEmail {
     category: CLOSURE_DIGEST_CATEGORY,
     payload: {
       summary: `${notices.length} deployments were closed`,
-      description: notices.map(notice => `<p>${describe(notice)} Manage it at ${notice.deploymentLink}.</p>`).join(""),
-      feedEntries
+      description: notices.map(notice => `<p>${describe(notice)} Manage it at ${notice.deploymentLink}.</p>`).join("")
     }
   };
 }
 
-function summaryOf({ deploymentClosed, deploymentLabel }: ClosureNoticeOutput): string {
+function summaryOf({ deploymentClosed, deploymentLabel }: Pick<ClosureNoticeInput, "deploymentClosed" | "deploymentLabel">): string {
   return deploymentClosed ? `Deployment ${deploymentLabel} is now closed` : `The lease for deployment ${deploymentLabel} was closed`;
 }
 
@@ -62,10 +58,8 @@ function leaseClosureOf({ providerLabel, leaseClosedReason }: ClosureNoticeOutpu
   return `with provider ${escape(providerLabel)} was closed because ${getLeaseClosedReasonText(leaseClosedReason ?? LeaseClosedReason.UNRECOGNIZED)}`;
 }
 
-/** Only a closed deployment reaches the feed, under the key console-api gives its close, so a close and the alert reporting it show as one entry. */
-function feedEntriesOf(notice: ClosureNoticeOutput): AlertFeedEntry[] {
-  if (!notice.deploymentClosed) return [];
-
-  const { alertId, userId, organizationId, projectId, owner, dseq } = notice;
-  return [{ type: "deployment_closed_alert", alertId, userId, organizationId, projectId, dedupeKey: `deployment_close.${owner}.${dseq}`, dseq, summary: summaryOf(notice) }];
+/** Filed under the key console-api gives the deployment's close, so a close and the alert reporting it show as one entry. */
+export function toDeploymentClosedFeedEntry(notice: ClosureNoticeInput): FeedEntriesCommandDto["feedEntries"][number] {
+  const { alertId, userId, organizationId = null, projectId = null, owner, dseq } = notice;
+  return { type: "deployment_closed_alert", alertId, userId, organizationId, projectId, dedupeKey: `deployment_close.${owner}.${dseq}`, dseq, summary: summaryOf(notice) };
 }

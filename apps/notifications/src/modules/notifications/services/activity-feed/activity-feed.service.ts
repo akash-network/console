@@ -1,7 +1,12 @@
 import { Injectable } from "@nestjs/common";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
+import type { AlertFeedEntry } from "../../dto/NotificationCommand.dto";
 import { ActivityFeedClient, type AlertActivity } from "../activity-feed-client/activity-feed-client.service";
+
+export function toAlertActivity({ type, dedupeKey, alertId, dseq, userId, organizationId, projectId }: AlertFeedEntry, summary: string): AlertActivity {
+  return { userId, organizationId, projectId, type, dedupeKey, meta: { alertId, summary, dseq } };
+}
 
 @Injectable()
 export class ActivityFeedService {
