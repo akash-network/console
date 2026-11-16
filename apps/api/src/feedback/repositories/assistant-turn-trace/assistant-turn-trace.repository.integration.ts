@@ -13,7 +13,7 @@ import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe(AssistantTurnTraceRepository.name, () => {
   describe("create", () => {
-    it("stores a trace and reads it back by conversation", async () => {
+    it("stores a trace, returns its id and reads it back by conversation", async () => {
       const { repository, userId, findByConversation } = await setup();
       const organization = await seedOrganization();
       const trace = {
@@ -36,9 +36,9 @@ describe(AssistantTurnTraceRepository.name, () => {
         cards: [{ proposalId: "p1", actionType: "close_deployment", decision: null }]
       } satisfies AssistantTurnTraceInput;
 
-      await repository.create(trace);
+      const id = await repository.create(trace);
 
-      expect(await findByConversation(trace.conversationId)).toEqual([{ id: expect.any(String), ...trace, rating: null }]);
+      expect(await findByConversation(trace.conversationId)).toEqual([{ id, ...trace, rating: null, flag: null }]);
     });
 
     it("defaults tokens, tool calls and cards to empty", async () => {
@@ -236,6 +236,21 @@ describe(AssistantTurnTraceRepository.name, () => {
       expect(await repository.rate({ id, userId: other.id, conversationId, rating: "up" })).toBe(false);
       expect(await repository.rate({ id, userId, conversationId: faker.string.uuid(), rating: "up" })).toBe(false);
       expect((await findByConversation(conversationId))[0].rating).toBeNull();
+    });
+  });
+
+  describe("flag", () => {
+    it("labels only the given turn and leaves the rest of its trace alone", async () => {
+      const { repository, userId, findByConversation } = await setup();
+      const conversationId = faker.string.uuid();
+      const id = await repository.start({ ...traceOf({ userId, conversationId }), outcome: "fallback" });
+      const otherId = await repository.start(traceOf({ userId, conversationId }));
+
+      await repository.flag(id, "manipulation");
+
+      const traces = Object.fromEntries((await findByConversation(conversationId)).map(trace => [trace.id, trace]));
+      expect(traces[id]).toMatchObject({ flag: "manipulation", outcome: "fallback" });
+      expect(traces[otherId].flag).toBeNull();
     });
   });
 

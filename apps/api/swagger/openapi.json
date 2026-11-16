@@ -38602,6 +38602,9 @@
           "401": {
             "description": "Unauthorized"
           },
+          "403": {
+            "description": "`assistant_blocked`: the assistant is turned off for this account. Point the user to Discord"
+          },
           "409": {
             "description": "`assistant_consent_required` when the user never agreed to the assistant. `assistant_consent_outdated` when the copy version differs from the one agreed to. `assistant_conversation_ended` when the conversation already ended"
           },
@@ -40361,6 +40364,9 @@
           },
           "401": {
             "description": "Unauthorized"
+          },
+          "403": {
+            "description": "`assistant_blocked`: the assistant is turned off for this account. Point the user to Discord"
           },
           "409": {
             "description": "`assistant_consent_required` when the user never agreed to the assistant. `assistant_consent_outdated` when the copy version differs from the one agreed to. `assistant_no_pending_tool_request` when no turn waits on the browser, or it expired"

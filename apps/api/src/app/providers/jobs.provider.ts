@@ -37,6 +37,7 @@ import { ScreenUserGpuDeploymentHandler } from "@src/deployment/services/screen-
 import { ClassifyConversationHandler } from "@src/feedback/services/classify-conversation/classify-conversation.handler";
 import { ClassifyFeedbackHandler } from "@src/feedback/services/classify-feedback/classify-feedback.handler";
 import { ClassifyProblemReportHandler } from "@src/feedback/services/classify-problem-report/classify-problem-report.handler";
+import { NotifyAssistantUserBlockHandler } from "@src/feedback/services/notify-assistant-user-block/notify-assistant-user-block.handler";
 import { NotifyProblemReportHandler } from "@src/feedback/services/notify-problem-report/notify-problem-report.handler";
 import { SweepFeedbackHandler } from "@src/feedback/services/sweep-feedback/sweep-feedback.handler";
 import { HardwareRequestAcceptedNoticeHandler } from "@src/hardware-request/services/hardware-request-accepted-notice/hardware-request-accepted-notice.handler";
@@ -166,6 +167,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(ClassifyConversationHandler),
     container.resolve(ClassifyProblemReportHandler),
     container.resolve(NotifyProblemReportHandler),
+    container.resolve(NotifyAssistantUserBlockHandler),
     container.resolve(SweepFeedbackHandler),
     container.resolve(SyncAffiliateCommissionHandler),
     container.resolve(ReverseDeletedPaymentCommissionHandler)

@@ -37,6 +37,7 @@ export class AssistantUserUsageRepository {
           dayMessageCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayMessageCount} + 1 ELSE 1 END`,
           dayTokenCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayTokenCount} ELSE 0 END`,
           dayProblemReportCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayProblemReportCount} ELSE 0 END`,
+          dayFlaggedTurnCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayFlaggedTurnCount} ELSE 0 END`,
           day: sql`excluded.day`,
           minuteMessageCount: sql`CASE WHEN ${withinMinute} THEN ${this.table.minuteMessageCount} + 1 ELSE 1 END`,
           minuteStartedAt: sql`CASE WHEN ${withinMinute} THEN ${this.table.minuteStartedAt} ELSE excluded.minute_started_at END`,
@@ -63,6 +64,7 @@ export class AssistantUserUsageRepository {
           dayProblemReportCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayProblemReportCount} + 1 ELSE 1 END`,
           dayMessageCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayMessageCount} ELSE 0 END`,
           dayTokenCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayTokenCount} ELSE 0 END`,
+          dayFlaggedTurnCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayFlaggedTurnCount} ELSE 0 END`,
           day: sql`excluded.day`,
           updatedAt: sql`now()`
         }
@@ -87,5 +89,27 @@ export class AssistantUserUsageRepository {
       .update(this.table)
       .set({ dayTokenCount: sql`${this.table.dayTokenCount} + ${tokens}`, updatedAt: sql`now()` })
       .where(and(eq(this.table.userId, userId), eq(this.table.day, day)));
+  }
+
+  /** Starts a new day over like the other counts but never touches a row a later day already started, so a stale flag counts nothing. */
+  async countFlaggedTurn(userId: string, sentAt: Date): Promise<number> {
+    const [usage] = await this.#cursor
+      .insert(this.table)
+      .values({ userId, day: sentAt.toISOString().slice(0, 10), dayFlaggedTurnCount: 1, minuteStartedAt: sentAt })
+      .onConflictDoUpdate({
+        target: this.table.userId,
+        set: {
+          dayFlaggedTurnCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayFlaggedTurnCount} + 1 ELSE 1 END`,
+          dayMessageCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayMessageCount} ELSE 0 END`,
+          dayTokenCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayTokenCount} ELSE 0 END`,
+          dayProblemReportCount: sql`CASE WHEN ${this.table.day} = excluded.day THEN ${this.table.dayProblemReportCount} ELSE 0 END`,
+          day: sql`excluded.day`,
+          updatedAt: sql`now()`
+        },
+        setWhere: sql`${this.table.day} <= excluded.day`
+      })
+      .returning({ dayFlaggedTurnCount: this.table.dayFlaggedTurnCount });
+
+    return usage?.dayFlaggedTurnCount ?? 0;
   }
 }

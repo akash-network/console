@@ -1,0 +1,1 @@
+ALTER TYPE "public"."assistant_turn_outcome" ADD VALUE 'blocked';

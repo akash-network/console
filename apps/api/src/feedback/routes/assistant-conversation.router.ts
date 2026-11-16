@@ -32,6 +32,7 @@ const CONSENT_REQUIRED = {
     "`assistant_consent_required` when the user never agreed to the assistant. `assistant_consent_outdated` when the copy version differs from the one agreed to"
 };
 const UNAVAILABLE = { description: "`assistant_unavailable`: the assistant is off or over its budget. Point the user to Discord" };
+const BLOCKED = { description: "`assistant_blocked`: the assistant is turned off for this account. Point the user to Discord" };
 const RATE_LIMITED = { description: "`assistant_rate_limited` (too many messages this minute) or `assistant_daily_limit` (too many today)" };
 const EVENT_STREAM = {
   description:
@@ -82,6 +83,7 @@ const sendAssistantMessageRoute = createRoute({
     200: EVENT_STREAM,
     400: { description: "Invalid request body" },
     401: UNAUTHORIZED,
+    403: BLOCKED,
     409: { description: `${CONSENT_REQUIRED.description}. \`assistant_conversation_ended\` when the conversation already ended` },
     429: RATE_LIMITED,
     503: UNAVAILABLE
@@ -112,6 +114,7 @@ const submitClientToolResultsRoute = createRoute({
     200: EVENT_STREAM,
     400: { description: "Invalid request body, or `assistant_tool_results_mismatch` when the results do not answer each requested call exactly once" },
     401: UNAUTHORIZED,
+    403: BLOCKED,
     409: { description: `${CONSENT_REQUIRED.description}. \`assistant_no_pending_tool_request\` when no turn waits on the browser, or it expired` },
     503: UNAVAILABLE
   }
