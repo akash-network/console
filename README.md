@@ -90,7 +90,7 @@ flowchart TB
   end
 
   AKASH["Akash Network<br/>chain nodes · providers"]:::chain
-  EXT["External services<br/>Auth0 · Stripe · Novu · Amplitude<br/>Unleash · Turnstile · GCP · Git · Sentry"]:::env
+  EXT["External services<br/>Auth0 · Stripe · SendGrid · Amplitude<br/>Unleash · Turnstile · GCP · Git · Sentry"]:::env
   GOAPI["provider-console-api<br/>Go · separate repo"]:::env
 
   U --> fe

@@ -10,6 +10,7 @@ import { ChainAlertService } from "@src/modules/alert/services/chain-alert/chain
 import { LeaseClosedAlertService } from "@src/modules/alert/services/lease-closed-alert/lease-closed-alert.service";
 import { ReclaimAlertService } from "@src/modules/alert/services/reclaim-alert/reclaim-alert.service";
 import { WalletBalanceAlertsService } from "@src/modules/alert/services/wallet-balance-alerts/wallet-balance-alerts.service";
+import type { MessageCallback } from "@src/modules/alert/types/message-callback.type";
 
 @Injectable()
 export class ChainEventsHandler {
@@ -26,7 +27,7 @@ export class ChainEventsHandler {
     dto: ChainBlockCreatedDto
   })
   async processBlock(block: ChainBlockCreatedDto): Promise<void> {
-    await this.walletBalanceAlertsService.alertFor(block, async message => this.brokerService.publish(eventKeyRegistry.createNotification, message));
+    await this.walletBalanceAlertsService.alertFor(block, this.#notifyAs("walletBalanceAlert"));
   }
 
   @Handler({
@@ -34,9 +35,7 @@ export class ChainEventsHandler {
     dto: EventClosedDeploymentDto
   })
   async processDeploymentClosed(payload: EventClosedDeploymentDto): Promise<void> {
-    await this.chainMessageAlertService.alertFor({ type: "CHAIN_EVENT", payload }, message =>
-      this.brokerService.publish(eventKeyRegistry.createNotification, message)
-    );
+    await this.chainMessageAlertService.alertFor({ type: "CHAIN_EVENT", payload }, this.#notifyAs("deploymentClosedAlert"));
   }
 
   @Handler({
@@ -44,7 +43,7 @@ export class ChainEventsHandler {
     dto: EventLeaseReclaimStartedDto
   })
   async processLeaseReclaimStarted(payload: EventLeaseReclaimStartedDto): Promise<void> {
-    await this.reclaimAlertService.alertFor(payload, message => this.brokerService.publish(eventKeyRegistry.createNotification, message));
+    await this.reclaimAlertService.alertFor(payload, this.#notifyAs("deploymentReclaimAlert"));
   }
 
   @Handler({
@@ -52,6 +51,10 @@ export class ChainEventsHandler {
     dto: EventLeaseClosedDto
   })
   async processLeaseClosed(payload: EventLeaseClosedDto): Promise<void> {
-    await this.leaseClosedAlertService.alertFor(payload, message => this.brokerService.publish(eventKeyRegistry.createNotification, message));
+    await this.leaseClosedAlertService.alertFor(payload, this.#notifyAs("leaseClosedAlert"));
+  }
+
+  #notifyAs(category: string): MessageCallback {
+    return message => this.brokerService.publish(eventKeyRegistry.createNotification, { ...message, category });
   }
 }

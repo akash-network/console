@@ -2,11 +2,11 @@ import { faker } from "@faker-js/faker";
 import { ConfigService } from "@nestjs/config";
 import type { TestingModule } from "@nestjs/testing";
 import { Test } from "@nestjs/testing";
-import { Novu } from "@novu/api";
 import { describe, expect, it } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
+import { SendgridMailClient } from "../sendgrid-mail-client/sendgrid-mail-client.service";
 import { EmailSenderService } from "./email-sender.service";
 
 import { MockProvider } from "@test/mocks/provider.mock";
@@ -23,8 +23,8 @@ describe(EmailSenderService.name, () => {
   });
 
   describe("send", () => {
-    it("sends the email through the configured Novu workflow", async () => {
-      const { service, novu, novuWorkflowId } = await setup();
+    it("sends the rendered email to SendGrid", async () => {
+      const { service, sendgridMailClient } = await setup();
       const email = faker.internet.email();
       const params = {
         addresses: [email],
@@ -35,26 +35,15 @@ describe(EmailSenderService.name, () => {
 
       await service.send(params);
 
-      expect(novu.trigger).toHaveBeenCalledWith({
-        workflowId: novuWorkflowId,
-        to: {
-          subscriberId: params.userId,
-          email
-        },
-        payload: {
-          subject: params.subject,
-          content: expect.stringContaining(params.content)
-        },
-        overrides: {
-          email: {
-            to: [email]
-          }
-        }
+      expect(sendgridMailClient.send).toHaveBeenCalledWith({
+        to: [email],
+        subject: params.subject,
+        html: expect.stringContaining(params.content)
       });
     });
 
     it("wraps the content in the branded layout document", async () => {
-      const { service, novu } = await setup();
+      const { service, sendgridMailClient } = await setup();
       const content = faker.lorem.paragraph();
 
       await service.send({
@@ -64,13 +53,13 @@ describe(EmailSenderService.name, () => {
         userId: faker.string.uuid()
       });
 
-      const sentContent = novu.trigger.mock.calls[0][0].payload?.content as string;
+      const sentContent = sendgridMailClient.send.mock.calls[0][0].html;
       expect(sentContent).toContain("<!DOCTYPE html>");
       expect(sentContent).toContain(content);
     });
 
     it("renders the actions as buttons in the sent document", async () => {
-      const { service, novu } = await setup();
+      const { service, sendgridMailClient } = await setup();
 
       await service.send({
         addresses: [faker.internet.email()],
@@ -80,34 +69,28 @@ describe(EmailSenderService.name, () => {
         actions: [{ label: "Add credits", url: "https://console.akash.network/billing" }]
       });
 
-      const sentContent = novu.trigger.mock.calls[0][0].payload?.content as string;
+      const sentContent = sendgridMailClient.send.mock.calls[0][0].html;
       expect(sentContent).toContain('href="https://console.akash.network/billing"');
       expect(sentContent).toContain(">Add credits</a>");
       expect(sentContent).toContain('class="btn-primary"');
     });
 
-    it("sends to every address while addressing the first one as the subscriber", async () => {
-      const { service, novu } = await setup();
+    it("sends to every address of the channel", async () => {
+      const { service, sendgridMailClient } = await setup();
       const addresses = [faker.internet.email(), faker.internet.email(), faker.internet.email()];
-      const userId = faker.string.uuid();
 
       await service.send({
         addresses,
         subject: faker.lorem.sentence(),
         content: faker.lorem.paragraph(),
-        userId
+        userId: faker.string.uuid()
       });
 
-      expect(novu.trigger).toHaveBeenCalledWith(
-        expect.objectContaining({
-          to: { subscriberId: userId, email: addresses[0] },
-          overrides: { email: { to: addresses } }
-        })
-      );
+      expect(sendgridMailClient.send).toHaveBeenCalledWith(expect.objectContaining({ to: addresses }));
     });
 
-    it("logs which notification was emailed and how many recipients it reached", async () => {
-      const { service, loggerService } = await setup();
+    it("logs which notification was emailed, how many recipients it reached and the SendGrid message id", async () => {
+      const { service, loggerService, messageId } = await setup();
       const params = {
         addresses: [faker.internet.email(), faker.internet.email()],
         subject: faker.lorem.sentence(),
@@ -123,8 +106,37 @@ describe(EmailSenderService.name, () => {
         notificationId: params.notificationId,
         userId: params.userId,
         subject: params.subject,
-        recipientCount: 2
+        recipientCount: 2,
+        messageId
       });
+    });
+
+    it("files the email under its category in SendGrid and in the log", async () => {
+      const { service, sendgridMailClient, loggerService } = await setup();
+
+      await service.send({
+        addresses: [faker.internet.email()],
+        subject: faker.lorem.sentence(),
+        content: faker.lorem.paragraph(),
+        userId: faker.string.uuid(),
+        category: "leaseClosedAlert"
+      });
+
+      expect(sendgridMailClient.send).toHaveBeenCalledWith(expect.objectContaining({ categories: ["leaseClosedAlert"] }));
+      expect(loggerService.info).toHaveBeenCalledWith(expect.objectContaining({ event: "EMAIL_SENT", category: "leaseClosedAlert" }));
+    });
+
+    it("sends an email without a category under no SendGrid category", async () => {
+      const { service, sendgridMailClient } = await setup();
+
+      await service.send({
+        addresses: [faker.internet.email()],
+        subject: faker.lorem.sentence(),
+        content: faker.lorem.paragraph(),
+        userId: faker.string.uuid()
+      });
+
+      expect(sendgridMailClient.send.mock.calls[0][0]).not.toHaveProperty("categories");
     });
 
     it("logs an undefined notificationId for alert emails that carry none", async () => {
@@ -141,7 +153,7 @@ describe(EmailSenderService.name, () => {
     });
 
     it("leaves the subject out of the log for an email that carries a code", async () => {
-      const { service, loggerService } = await setup();
+      const { service, loggerService, messageId } = await setup();
       const code = faker.string.numeric(6);
       const params = {
         addresses: [faker.internet.email()],
@@ -158,12 +170,13 @@ describe(EmailSenderService.name, () => {
         event: "EMAIL_SENT",
         notificationId: params.notificationId,
         userId: params.userId,
-        recipientCount: 1
+        recipientCount: 1,
+        messageId
       });
     });
 
     it("strips disallowed markup from the content", async () => {
-      const { service, novu } = await setup();
+      const { service, sendgridMailClient } = await setup();
 
       await service.send({
         addresses: [faker.internet.email()],
@@ -172,14 +185,30 @@ describe(EmailSenderService.name, () => {
         userId: faker.string.uuid()
       });
 
-      const sentContent = novu.trigger.mock.calls[0][0].payload?.content as string;
+      const sentContent = sendgridMailClient.send.mock.calls[0][0].html;
       expect(sentContent).toContain('<p>keep</p><strong>keep</strong><a href="https://akash.network">link</a>');
       expect(sentContent).not.toContain("<script>");
     });
 
+    it("fails without logging the email as sent when SendGrid does not take it", async () => {
+      const { service, sendgridMailClient, loggerService } = await setup();
+      const error = new Error("SendGrid answered 400");
+      sendgridMailClient.send.mockRejectedValue(error);
+
+      await expect(
+        service.send({
+          addresses: [faker.internet.email()],
+          subject: faker.lorem.sentence(),
+          content: faker.lorem.paragraph(),
+          userId: faker.string.uuid()
+        })
+      ).rejects.toBe(error);
+      expect(loggerService.info).not.toHaveBeenCalled();
+    });
+
     describe("when the email carries unsubscribe links", () => {
-      it("asks the mailer for one-click unsubscribe headers pointing at the one-click endpoint", async () => {
-        const { service, novu } = await setup();
+      it("sends one-click unsubscribe headers pointing at the one-click endpoint", async () => {
+        const { service, sendgridMailClient } = await setup();
         const addresses = [faker.internet.email()];
 
         await service.send({
@@ -190,23 +219,19 @@ describe(EmailSenderService.name, () => {
           unsubscribe: UNSUBSCRIBE
         });
 
-        expect(novu.trigger).toHaveBeenCalledWith(
+        expect(sendgridMailClient.send).toHaveBeenCalledWith(
           expect.objectContaining({
-            overrides: {
-              email: {
-                to: addresses,
-                headers: {
-                  "List-Unsubscribe": `<${UNSUBSCRIBE.oneClickUrl}>`,
-                  "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
-                }
-              }
+            to: addresses,
+            headers: {
+              "List-Unsubscribe": `<${UNSUBSCRIBE.oneClickUrl}>`,
+              "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
             }
           })
         );
       });
 
       it("links the unsubscribe page and shows the configured postal address in the footer", async () => {
-        const { service, novu } = await setup({ postalAddress: "1 Market St, San Francisco, CA 94105" });
+        const { service, sendgridMailClient } = await setup({ postalAddress: "1 Market St, San Francisco, CA 94105" });
 
         await service.send({
           addresses: [faker.internet.email()],
@@ -216,14 +241,14 @@ describe(EmailSenderService.name, () => {
           unsubscribe: UNSUBSCRIBE
         });
 
-        const sentContent = novu.trigger.mock.calls[0][0].payload?.content as string;
+        const sentContent = sendgridMailClient.send.mock.calls[0][0].html;
         expect(sentContent).toContain(`<a href="${UNSUBSCRIBE.url}" style="color:inherit;text-decoration:underline;">Unsubscribe</a>`);
         expect(sentContent).toContain(">1 Market St, San Francisco, CA 94105</p>");
       });
     });
 
     it("says in the footer why the address receives an email that names its own reason", async () => {
-      const { service, novu } = await setup();
+      const { service, sendgridMailClient } = await setup();
 
       await service.send({
         addresses: [faker.internet.email()],
@@ -233,11 +258,11 @@ describe(EmailSenderService.name, () => {
         receivingReason: "this address was added to a notification channel"
       });
 
-      expect(novu.trigger.mock.calls[0][0].payload?.content).toContain("You're receiving this because this address was added to a notification channel.");
+      expect(sendgridMailClient.send.mock.calls[0][0].html).toContain("You're receiving this because this address was added to a notification channel.");
     });
 
     it("sends no unsubscribe headers nor unsubscribe footer for an email without unsubscribe links", async () => {
-      const { service, novu } = await setup({ postalAddress: "1 Market St, San Francisco, CA 94105" });
+      const { service, sendgridMailClient } = await setup({ postalAddress: "1 Market St, San Francisco, CA 94105" });
       const addresses = [faker.internet.email()];
 
       await service.send({
@@ -247,26 +272,22 @@ describe(EmailSenderService.name, () => {
         userId: faker.string.uuid()
       });
 
-      const trigger = novu.trigger.mock.calls[0][0];
-      expect(trigger.overrides).toEqual({ email: { to: addresses } });
-      expect(trigger.payload?.content).not.toContain(">Unsubscribe</a>");
-      expect(trigger.payload?.content).not.toContain("1 Market St");
+      const [mail] = sendgridMailClient.send.mock.calls[0];
+      expect(mail).not.toHaveProperty("headers");
+      expect(mail.html).not.toContain(">Unsubscribe</a>");
+      expect(mail.html).not.toContain("1 Market St");
     });
   });
 
   async function setup(input?: { postalAddress?: string }) {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [EmailSenderService, MockProvider(Novu), MockProvider(ConfigService), MockProvider(LoggerService)]
+      providers: [EmailSenderService, MockProvider(SendgridMailClient), MockProvider(ConfigService), MockProvider(LoggerService)]
     }).compile();
 
-    const novuWorkflowId = faker.lorem.word();
+    const messageId = faker.string.alphanumeric(22);
+    const sendgridMailClient = module.get<MockProxy<SendgridMailClient>>(SendgridMailClient);
+    sendgridMailClient.send.mockResolvedValue({ messageId });
     const configService = module.get<MockProxy<ConfigService>>(ConfigService);
-
-    configService.getOrThrow.mockImplementation((key: string) => {
-      if (key === "notifications.NOVU_MAILER_WORKFLOW_ID") {
-        return novuWorkflowId;
-      }
-    });
     configService.get.mockImplementation((key: string) => {
       if (key === "notifications.PROMOTIONAL_EMAIL_POSTAL_ADDRESS") {
         return input?.postalAddress;
@@ -275,9 +296,9 @@ describe(EmailSenderService.name, () => {
 
     return {
       service: module.get<EmailSenderService>(EmailSenderService),
-      novu: module.get<MockProxy<Novu>>(Novu),
+      sendgridMailClient,
       loggerService: module.get<MockProxy<LoggerService>>(LoggerService),
-      novuWorkflowId
+      messageId
     };
   }
 });

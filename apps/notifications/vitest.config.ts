@@ -39,8 +39,7 @@ export default defineConfig({
         "src/test/**/*",
         "src/**/index.ts",
         "src/**/*.module.ts",
-        "src/**/*.config.ts",
-        "src/modules/notifications/providers/novu.provider.ts"
+        "src/**/*.config.ts"
       ],
       reportsDirectory: "./coverage"
     },

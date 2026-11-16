@@ -61,7 +61,7 @@ describe(UnreachableProviderDeploymentsNotifierService.name, () => {
 
   it("retries on the next sweep when the email is rejected", async () => {
     const { service, createNotification } = await setup();
-    createNotification.mockRejectedValueOnce(new Error("novu is down"));
+    createNotification.mockRejectedValueOnce(new Error("notifications is down"));
 
     const failed = await service.notifyUnreachableProviderDeployments({ dryRun: false });
     const retried = await service.notifyUnreachableProviderDeployments({ dryRun: false });

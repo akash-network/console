@@ -2,7 +2,6 @@ import { generateMock } from "@anatine/zod-mock";
 import { faker } from "@faker-js/faker";
 import { INestApplication, Module } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
-import { Novu } from "@novu/api";
 import request from "supertest";
 import { describe, expect, it, vi } from "vitest";
 import { mock, type MockProxy } from "vitest-mock-extended";
@@ -14,6 +13,7 @@ import { HttpExceptionFilter } from "@src/interfaces/rest/filters/http-exception
 import RestModule from "@src/interfaces/rest/rest.module";
 import { NotificationChannelOutput } from "@src/modules/notifications/repositories/notification-channel/notification-channel.repository";
 import { AddressConfirmationService } from "@src/modules/notifications/services/address-confirmation/address-confirmation.service";
+import { SendgridMailClient } from "@src/modules/notifications/services/sendgrid-mail-client/sendgrid-mail-client.service";
 
 import { untilAQueryWaitsOnALock } from "@test/services/lock-waits";
 
@@ -96,7 +96,7 @@ describe("Contact Points CRUD", () => {
   });
 
   it("holds an address other than the account's verified email until the link emailed to it confirms it, once", async () => {
-    const { app, novu } = await setup();
+    const { app, sendgridMailClient } = await setup();
     const server = app.getHttpServer();
     const userId = faker.string.uuid();
     const accountEmail = faker.internet.email().toLowerCase();
@@ -106,13 +106,13 @@ describe("Contact Points CRUD", () => {
       .post("/v1/notification-channels")
       .set(accountHeaders(userId, accountEmail))
       .send({ data: { name: "Ops", type: "email", config: { addresses: [accountEmail, teammate] } } });
-    const token = confirmationTokenEmailedTo(novu, teammate);
+    const token = confirmationTokenEmailedTo(sendgridMailClient, teammate);
     const confirmRes = await request(server).post("/internal/v1/address-confirmations").send({ token });
     const reuseRes = await request(server).post("/internal/v1/address-confirmations").send({ token });
     const getRes = await request(server).get(`/v1/notification-channels/${createRes.body.data.id}`).set("x-user-id", userId);
 
     expect(createRes.body.data).toMatchObject({ config: { addresses: [accountEmail] }, pendingAddresses: [teammate] });
-    expect(novu.trigger).toHaveBeenCalledTimes(1);
+    expect(sendgridMailClient.send).toHaveBeenCalledTimes(1);
     expect([confirmRes.status, reuseRes.status]).toEqual([204, 400]);
     expect(getRes.body.data).toMatchObject({ config: { addresses: [accountEmail, teammate] }, pendingAddresses: [] });
 
@@ -120,7 +120,7 @@ describe("Contact Points CRUD", () => {
   });
 
   it("confirms the account's email on the user's channels once they verify it", async () => {
-    const { app, novu } = await setup();
+    const { app, sendgridMailClient } = await setup();
     const server = app.getHttpServer();
     const userId = faker.string.uuid();
     const accountEmail = faker.internet.email().toLowerCase();
@@ -134,7 +134,7 @@ describe("Contact Points CRUD", () => {
     await request(server).post("/v1/notification-channels/default").set(accountHeaders(userId, accountEmail)).send({ data: input });
     const afterRes = await request(server).get("/v1/notification-channels").set("x-user-id", userId);
 
-    expect(novu.trigger).not.toHaveBeenCalled();
+    expect(sendgridMailClient.send).not.toHaveBeenCalled();
     expect(beforeRes.body.data).toEqual([expect.objectContaining({ config: { addresses: [] }, pendingAddresses: [accountEmail] })]);
     expect(afterRes.body.data).toEqual([expect.objectContaining({ config: { addresses: [accountEmail] }, pendingAddresses: [] })]);
 
@@ -142,7 +142,7 @@ describe("Contact Points CRUD", () => {
   });
 
   it("keeps an address confirmed while an update of the channel's addresses was in flight", async () => {
-    const { app, novu } = await setup();
+    const { app, sendgridMailClient } = await setup();
     const server = app.getHttpServer();
     const userId = faker.string.uuid();
     const accountEmail = faker.internet.email().toLowerCase();
@@ -151,7 +151,7 @@ describe("Contact Points CRUD", () => {
       .post("/v1/notification-channels")
       .set(accountHeaders(userId, accountEmail))
       .send({ data: { name: "Ops", type: "email", config: { addresses: [accountEmail, teammate] } } });
-    const token = confirmationTokenEmailedTo(novu, teammate);
+    const token = confirmationTokenEmailedTo(sendgridMailClient, teammate);
     const addressConfirmationService = app.get(AddressConfirmationService);
     const readPendingAddresses = addressConfirmationService.pendingAddressesOf.bind(addressConfirmationService);
     let confirmation: Promise<request.Response> | undefined;
@@ -179,7 +179,7 @@ describe("Contact Points CRUD", () => {
   });
 
   it("emails a new confirmation link on request, which replaces the previous one", async () => {
-    const { app, novu } = await setup();
+    const { app, sendgridMailClient } = await setup();
     const server = app.getHttpServer();
     const userId = faker.string.uuid();
     const teammate = faker.internet.email().toLowerCase();
@@ -188,12 +188,12 @@ describe("Contact Points CRUD", () => {
       .post("/v1/notification-channels")
       .set("x-user-id", userId)
       .send({ data: { name: "Ops", type: "email", config: { addresses: [teammate] } } });
-    const firstToken = confirmationTokenEmailedTo(novu, teammate);
+    const firstToken = confirmationTokenEmailedTo(sendgridMailClient, teammate);
     const resendRes = await request(server)
       .post(`/v1/notification-channels/${createRes.body.data.id}/confirmation-emails`)
       .set("x-user-id", userId)
       .send({ data: { address: teammate } });
-    const secondToken = confirmationTokenEmailedTo(novu, teammate);
+    const secondToken = confirmationTokenEmailedTo(sendgridMailClient, teammate);
     const staleRes = await request(server).post("/internal/v1/address-confirmations").send({ token: firstToken });
     const confirmRes = await request(server).post("/internal/v1/address-confirmations").send({ token: secondToken });
 
@@ -320,7 +320,7 @@ describe("Contact Points CRUD", () => {
 
   async function setup(): Promise<{
     app: INestApplication;
-    novu: MockProxy<Novu>;
+    sendgridMailClient: MockProxy<SendgridMailClient>;
   }> {
     @Module({
       imports: [RestModule]
@@ -328,12 +328,12 @@ describe("Contact Points CRUD", () => {
     class TestModule {}
 
     vi.stubEnv("CONSOLE_WEB_URL", "https://console.example.com");
-    const novu = mock<Novu>();
+    const sendgridMailClient = mock<SendgridMailClient>({ send: vi.fn().mockResolvedValue({ messageId: null }) });
     const module: TestingModule = await Test.createTestingModule({
       imports: [TestModule]
     })
-      .overrideProvider(Novu)
-      .useValue(novu)
+      .overrideProvider(SendgridMailClient)
+      .useValue(sendgridMailClient)
       .compile();
 
     const app = module.createNestApplication();
@@ -342,7 +342,7 @@ describe("Contact Points CRUD", () => {
 
     await app.init();
 
-    return { app, novu };
+    return { app, sendgridMailClient };
   }
 });
 
@@ -350,13 +350,8 @@ function accountHeaders(userId: string, email: string, isVerified = true): Recor
   return { "x-user-id": userId, "x-user-email": email, "x-user-email-verified": String(isVerified) };
 }
 
-function confirmationTokenEmailedTo(novu: MockProxy<Novu>, address: string): string {
-  const [{ payload }] = novu.trigger.mock.calls.filter(([request]) => isEmailedTo(request.to, address)).at(-1)!;
-  const content = String(payload?.content);
+function confirmationTokenEmailedTo(sendgridMailClient: MockProxy<SendgridMailClient>, address: string): string {
+  const [{ html }] = sendgridMailClient.send.mock.calls.filter(([mail]) => mail.to.includes(address)).at(-1)!;
 
-  return content.match(/confirm-address\?token=([A-Za-z0-9_-]+)/)![1];
-}
-
-function isEmailedTo(to: unknown, address: string): boolean {
-  return typeof to === "object" && to !== null && "email" in to && to.email === address;
+  return html.match(/confirm-address\?token=([A-Za-z0-9_-]+)/)![1];
 }

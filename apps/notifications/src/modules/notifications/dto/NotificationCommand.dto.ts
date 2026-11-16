@@ -38,6 +38,7 @@ export const EmailRecipientSchema = z.string().email().describe("Sends the email
 const NotificationCommandSchema = z.object({
   notificationChannelId: z.string(),
   notificationId: z.string().optional(),
+  category: z.string().optional(),
   payload: z.object({
     summary: z.string(),
     description: z.string(),

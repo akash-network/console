@@ -20,7 +20,7 @@ describe(NotificationRouterService.name, () => {
     it("should send an email", async () => {
       const { service, emailSenderService, notificationChannelRepository } = await setup();
 
-      const notificationCommand = { ...generateMock(NotificationCommandDto.schema), recipient: undefined };
+      const notificationCommand = { ...generateMock(NotificationCommandDto.schema), category: "creditsRunningLow", recipient: undefined };
       const notificationChannel = generateNotificationChannel({
         id: notificationCommand.notificationChannelId
       });
@@ -35,8 +35,68 @@ describe(NotificationRouterService.name, () => {
         actions: notificationCommand.payload.actions,
         code: notificationCommand.payload.code,
         notificationId: notificationCommand.notificationId,
+        category: "creditsRunningLow",
         unsubscribe: notificationCommand.unsubscribe
       });
+    });
+
+    it("files the email under the category the notification carries over the type its notification id starts with", async () => {
+      const { service, emailSenderService, notificationChannelRepository } = await setup();
+      const notificationCommand = { ...createAlertCommand(), category: "leaseClosedAlert", notificationId: "creditsRunningLow.1" };
+      notificationChannelRepository.findById.mockResolvedValue(generateNotificationChannel({ id: notificationCommand.notificationChannelId }));
+
+      await service.send(notificationCommand);
+
+      expect(emailSenderService.send).toHaveBeenCalledWith(expect.objectContaining({ category: "leaseClosedAlert" }));
+    });
+
+    it("files an email without a category under the type its notification id starts with", async () => {
+      const { service, emailSenderService, notificationChannelRepository } = await setup();
+      const notificationCommand = { ...createAlertCommand(), notificationId: `apiKeyExpiryReminder.${faker.string.uuid()}.2027-10-18T14:30:00.000Z.30` };
+      notificationChannelRepository.findById.mockResolvedValue(generateNotificationChannel({ id: notificationCommand.notificationChannelId }));
+
+      await service.send(notificationCommand);
+
+      expect(emailSenderService.send).toHaveBeenCalledWith(expect.objectContaining({ category: "apiKeyExpiryReminder" }));
+    });
+
+    it("files an email under no category when its notification has neither a category nor an id", async () => {
+      const { service, emailSenderService, notificationChannelRepository } = await setup();
+      const notificationCommand = createAlertCommand();
+      notificationChannelRepository.findById.mockResolvedValue(generateNotificationChannel({ id: notificationCommand.notificationChannelId }));
+
+      await service.send(notificationCommand);
+
+      expect(emailSenderService.send).toHaveBeenCalledWith(expect.objectContaining({ category: undefined }));
+    });
+
+    it("files an email under a category of 64 letters", async () => {
+      const { service, emailSenderService, notificationChannelRepository } = await setup();
+      const category = "a".repeat(64);
+      const notificationCommand = { ...createAlertCommand(), category };
+      notificationChannelRepository.findById.mockResolvedValue(generateNotificationChannel({ id: notificationCommand.notificationChannelId }));
+
+      await service.send(notificationCommand);
+
+      expect(emailSenderService.send).toHaveBeenCalledWith(expect.objectContaining({ category }));
+    });
+
+    it.each([
+      { category: "" },
+      { category: "credits running low" },
+      { category: " creditsRunningLow" },
+      { category: "creditsRunningLow1" },
+      { category: "créditos" },
+      { category: "a".repeat(65) },
+      { notificationId: "créditos.1" }
+    ])("files an email under no category rather than one SendGrid could refuse: %o", async fields => {
+      const { service, emailSenderService, notificationChannelRepository } = await setup();
+      const notificationCommand = { ...createAlertCommand(), ...fields };
+      notificationChannelRepository.findById.mockResolvedValue(generateNotificationChannel({ id: notificationCommand.notificationChannelId }));
+
+      await service.send(notificationCommand);
+
+      expect(emailSenderService.send).toHaveBeenCalledWith(expect.objectContaining({ category: undefined }));
     });
 
     it("hands the unsubscribe links of a promotional notification to the email", async () => {
@@ -143,7 +203,7 @@ describe(NotificationRouterService.name, () => {
 
     it("adds nothing to the activity feed when the email could not be sent", async () => {
       const { service, emailSenderService, notificationChannelRepository, activityFeedService } = await setup();
-      const error = new Error("Novu is unavailable");
+      const error = new Error("SendGrid is unavailable");
       const notificationCommand = createAlertCommand({
         type: "wallet_balance_alert",
         alertId: faker.string.uuid(),
