@@ -110,7 +110,6 @@ async function queryStatus(hostUri: string, timeoutMs: number): Promise<Provider
   }
 }
 
-// TODO: fetch port from chain
 export function toGrpcUrl(hostUri: string): string {
   return hostUri.replace(":8443", ":8444");
 }
