@@ -23,10 +23,12 @@ const VIRTUAL_CPU_NAME = /\b(QEMU|KVM|Virtual)\b|Processor \(|\bEPYC-|\d+x{2,}|\
 
 const MODEL_NAME_NOISE = [/\(.*?\)/g, /@.*$/, /\b(with|w\/)\s.*$/i, /\b\d+(st|nd|rd|th) Gen\b/i, /\b\w+-Cores?\b/i, /\b(CPU|Processor|Intel|AMD)\b/gi, /,/g];
 
+const KERNEL_MODEL_NAME_FOR_A_NAMELESS_CPU = "unknown";
+
 /** Emerald Rapids prints its brand string in capitals: INTEL(R) XEON(R) PLATINUM 8592+. */
 const SHOUTED_XEON_WORD = /\b(?:XEON|PLATINUM|GOLD|SILVER|BRONZE)\b/g;
 
-/** Sold as 5th Gen on the 4th Gen die: a Silver 4510 reports CPUID model 143 (Sapphire Rapids), not 207. */
+/** Sold as 5th Gen but built on the Sapphire Rapids die. */
 const XEON_5TH_GEN_ON_SAPPHIRE_RAPIDS = new Set(["Xeon Silver 4509Y", "Xeon Silver 4510", "Xeon Silver 4510T", "Xeon Bronze 3508U"]);
 
 /** Sandy Bridge-E to Broadwell-E parts without an X: Intel lists them as Core X-series, a generation behind their number. */
@@ -49,7 +51,7 @@ const XEON_SCALABLE_GENERATIONS: Record<string, string> = {
   "5": "Emerald Rapids"
 };
 
-/** Xeon 6 splits by core type. The 6300P series is left out: it shares the name but is a Raptor Lake part. */
+/** The 6300P series is left out: it shares the Xeon 6 name but is a Raptor Lake part. */
 const XEON_6_GENERATIONS: Record<string, string> = {
   "5P": "Granite Rapids",
   "7P": "Granite Rapids",
@@ -119,8 +121,7 @@ export function recognizeCpuGeneration(cleanModel: string): string | null {
 
 export function describeCpu(vendor: string | null | undefined, model: string | null | undefined): CpuDescription | null {
   const reportedModel = model?.trim();
-  // "unknown" is what the Linux kernel prints as the model name of a CPU that has none.
-  if (!reportedModel || reportedModel === "unknown") return null;
+  if (!reportedModel || reportedModel === KERNEL_MODEL_NAME_FOR_A_NAMELESS_CPU) return null;
 
   const isVirtual = VIRTUAL_CPU_NAME.test(reportedModel);
   const vendorIdUnlessEmulated = isVirtual ? null : vendor;

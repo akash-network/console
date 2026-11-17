@@ -251,6 +251,86 @@ describe(describeCpu.name, () => {
   it.each([null, undefined, "", "   ", "unknown"])("returns null for the model %j", model => {
     expect(describeCpu("GenuineIntel", model)).toBeNull();
   });
+
+  describe("when reading the CPU names 51 mainnet providers reported on 2026-11-15", () => {
+    it.each([
+      ["GenuineIntel", "Intel(R) Xeon(R) Platinum 8470", "Intel", "Xeon Platinum 8470", "Sapphire Rapids", null, false],
+      ["AuthenticAMD", "AMD EPYC 7763 64-Core Processor", "AMD", "EPYC 7763", "Milan", null, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) Gold 6140 CPU @ 2.30GHz", "Intel", "Xeon Gold 6140", "Skylake", 2300, false],
+      ["AuthenticAMD", "AMD EPYC 9335 32-Core Processor", "AMD", "EPYC 9335", "Turin", null, false],
+      ["AuthenticAMD", "AMD Ryzen 9 5900X 12-Core Processor", "AMD", "Ryzen 9 5900X", "Zen 3", null, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2699 v3 @ 2.30GHz", "Intel", "Xeon E5-2699 v3", "Haswell", 2300, false],
+      ["AuthenticAMD", "AMD EPYC 7502 32-Core Processor", "AMD", "EPYC 7502", "Rome", null, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz", "Intel", "Xeon E5-2680 v4", "Broadwell", 2400, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) Platinum 8468", "Intel", "Xeon Platinum 8468", "Sapphire Rapids", null, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) Platinum 8168 CPU @ 2.70GHz", "Intel", "Xeon Platinum 8168", "Skylake", 2700, false],
+      ["AuthenticAMD", "AMD EPYC 7352 24-Core Processor", "AMD", "EPYC 7352", "Rome", null, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2698 v3 @ 2.30GHz", "Intel", "Xeon E5-2698 v3", "Haswell", 2300, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) Gold 6130 CPU @ 2.10GHz", "Intel", "Xeon Gold 6130", "Skylake", 2100, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) Platinum 8173M CPU @ 2.00GHz", "Intel", "Xeon Platinum 8173M", "Skylake", 2000, false],
+      ["GenuineIntel", "12th Gen Intel(R) Core(TM) i9-12900HK", "Intel", "Core i9-12900HK", "12th Gen", null, false],
+      ["AuthenticAMD", "AMD EPYC 9334 32-Core Processor", "AMD", "EPYC 9334", "Genoa", null, false],
+      ["AuthenticAMD", "AMD Ryzen 7 4800U with Radeon Graphics", "AMD", "Ryzen 7 4800U", null, null, false],
+      ["GenuineIntel", "Intel(R) Core(TM) i5-8500T CPU @ 2.10GHz", "Intel", "Core i5-8500T", "8th Gen", 2100, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) 6776P", "Intel", "Xeon 6776P", "Granite Rapids", null, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2690 v2 @ 3.00GHz", "Intel", "Xeon E5-2690 v2", "Ivy Bridge", 3000, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2690 v4 @ 2.60GHz", "Intel", "Xeon E5-2690 v4", "Broadwell", 2600, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2699 v4 @ 2.20GHz", "Intel", "Xeon E5-2699 v4", "Broadwell", 2200, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) CPU E7-8880 v3 @ 2.30GHz", "Intel", "Xeon E7-8880 v3", null, 2300, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) Platinum 8462Y+", "Intel", "Xeon Platinum 8462Y+", "Sapphire Rapids", null, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) Silver 4210R CPU @ 2.40GHz", "Intel", "Xeon Silver 4210R", "Cascade Lake", 2400, false],
+      ["AuthenticAMD", "AMD EPYC 7401P 24-Core Processor", "AMD", "EPYC 7401P", "Naples", null, false],
+      ["AuthenticAMD", "AMD EPYC 7742 64-Core Processor", "AMD", "EPYC 7742", "Rome", null, false],
+      ["AuthenticAMD", "AMD Ryzen 7 5825U with Radeon Graphics", "AMD", "Ryzen 7 5825U", null, null, false],
+      ["AuthenticAMD", "AMD Ryzen 7 7730U with Radeon Graphics", "AMD", "Ryzen 7 7730U", null, null, false],
+      ["AuthenticAMD", "AMD Ryzen 9 7900X 12-Core Processor", "AMD", "Ryzen 9 7900X", "Zen 4", null, false],
+      ["GenuineIntel", "Intel(R) Core(TM) i5-14500T", "Intel", "Core i5-14500T", "14th Gen", null, false],
+      ["AuthenticAMD", "AMD EPYC 7713P 64-Core Processor", "AMD", "EPYC 7713P", "Milan", null, false],
+      ["AuthenticAMD", "AMD EPYC 9534 64-Core Processor", "AMD", "EPYC 9534", "Genoa", null, false],
+      ["AuthenticAMD", "AMD EPYC 9755 128-Core Processor", "AMD", "EPYC 9755", "Turin", null, false],
+      ["AuthenticAMD", "AMD Ryzen 7 5800X 8-Core Processor", "AMD", "Ryzen 7 5800X", "Zen 3", null, false],
+      ["AuthenticAMD", "AMD Ryzen 7 7840U w/ Radeon  780M Graphics", "AMD", "Ryzen 7 7840U", null, null, false],
+      ["AuthenticAMD", "AMD Ryzen 9 7945HX with Radeon Graphics", "AMD", "Ryzen 9 7945HX", null, null, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz", "Intel", "Xeon E5-2630 v3", "Haswell", 2400, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2667 v4 @ 3.20GHz", "Intel", "Xeon E5-2667 v4", "Broadwell", 3200, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2680 v3 @ 2.50GHz", "Intel", "Xeon E5-2680 v3", "Haswell", 2500, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2690 v3 @ 2.60GHz", "Intel", "Xeon E5-2690 v3", "Haswell", 2600, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2695 v4 @ 2.10GHz", "Intel", "Xeon E5-2695 v4", "Broadwell", 2100, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2696 v3 @ 2.30GHz", "Intel", "Xeon E5-2696 v3", "Haswell", 2300, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2696 v4 @ 2.20GHz", "Intel", "Xeon E5-2696 v4", "Broadwell", 2200, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2697 v3 @ 2.60GHz", "Intel", "Xeon E5-2697 v3", "Haswell", 2600, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) Gold 6138 CPU @ 2.00GHz", "Intel", "Xeon Gold 6138", "Skylake", 2000, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) W-2133 CPU @ 3.60GHz", "Intel", "Xeon W-2133", null, 3600, false],
+      ["GenuineIntel", "QEMU Virtual CPU version 2.5+", null, "QEMU Virtual version 2.5+", null, null, true],
+      ["GenuineIntel", "11th Gen Intel(R) Core(TM) i7-11700F @ 2.50GHz", "Intel", "Core i7-11700F", "11th Gen", 2500, false],
+      ["GenuineIntel", "12th Gen Intel(R) Core(TM) i5-12500T", "Intel", "Core i5-12500T", "12th Gen", null, false],
+      ["AuthenticAMD", "AMD EPYC 7502P 32-Core Processor", "AMD", "EPYC 7502P", "Rome", null, false],
+      ["AuthenticAMD", "AMD EPYC 7663 56-Core Processor", "AMD", "EPYC 7663", "Milan", null, false],
+      ["AuthenticAMD", "AMD EPYC 7702 64-Core Processor", "AMD", "EPYC 7702", "Rome", null, false],
+      ["AuthenticAMD", "AMD EPYC 9454P 48-Core Processor", "AMD", "EPYC 9454P", "Genoa", null, false],
+      ["AuthenticAMD", "AMD EPYC 9555P 64-Core Processor", "AMD", "EPYC 9555P", "Turin", null, false],
+      ["AuthenticAMD", "AMD EPYC 9754 128-Core Processor", "AMD", "EPYC 9754", "Bergamo", null, false],
+      ["AuthenticAMD", "AMD Ryzen 5 PRO 5650GE with Radeon Graphics", "AMD", "Ryzen 5 PRO 5650GE", null, null, false],
+      ["AuthenticAMD", "AMD Ryzen 7 5700G with Radeon Graphics", "AMD", "Ryzen 7 5700G", null, null, false],
+      ["AuthenticAMD", "AMD Ryzen 9 7900 12-Core Processor", "AMD", "Ryzen 9 7900", "Zen 4", null, false],
+      ["AuthenticAMD", "AMD Ryzen 9 9950X3D 16-Core Processor", "AMD", "Ryzen 9 9950X3D", "Zen 5", null, false],
+      ["AuthenticAMD", "AMD Ryzen Threadripper PRO 3975WX 32-Cores", "AMD", "Ryzen Threadripper PRO 3975WX", null, null, false],
+      ["GenuineIntel", "Intel(R) Core(TM) i5-10500T CPU @ 2.30GHz", "Intel", "Core i5-10500T", "10th Gen", 2300, false],
+      ["GenuineIntel", "Intel(R) Core(TM) i5-14400", "Intel", "Core i5-14400", "14th Gen", null, false],
+      ["GenuineIntel", "Intel(R) Core(TM) i5-9500T CPU @ 2.20GHz", "Intel", "Core i5-9500T", "9th Gen", 2200, false],
+      ["GenuineIntel", "Intel(R) Core(TM) i7-14700K", "Intel", "Core i7-14700K", "14th Gen", null, false],
+      ["GenuineIntel", "Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz", "Intel", "Core i7-6700", "6th Gen", 3400, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2660 v3 @ 2.60GHz", "Intel", "Xeon E5-2660 v3", "Haswell", 2600, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2683 v4 @ 2.10GHz", "Intel", "Xeon E5-2683 v4", "Broadwell", 2100, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2697 v2 @ 2.70GHz", "Intel", "Xeon E5-2697 v2", "Ivy Bridge", 2700, false],
+      ["GenuineIntel", "Intel(R) Xeon(R) W-2235 CPU @ 3.80GHz", "Intel", "Xeon W-2235", null, 3800, false]
+    ])(
+      "describes %j %j as %s %j, generation %j, base %j MHz, virtual %j",
+      (reportedVendor, reportedModel, vendor, model, generation, baseFrequencyMhz, isVirtual) => {
+        expect(describeCpu(reportedVendor, reportedModel)).toEqual({ vendor, model, generation, baseFrequencyMhz, isVirtual });
+      }
+    );
+  });
 });
 
 describe(getProviderCpuModels.name, () => {
@@ -323,21 +403,6 @@ describe(getProviderCpuModels.name, () => {
   }
 });
 
-describe("virtual and physical CPUs with the same name", () => {
-  const physical = { vendor: "GenuineIntel", model: "Intel(R) Xeon(R) CPU", vcores: 8 };
-  const virtual = { vendor: "GenuineIntel", model: "Intel Xeon Processor (Icelake)", vcores: 8 };
-
-  it.each([
-    ["physical first", [physical, virtual]],
-    ["virtual first", [virtual, physical]]
-  ])("keeps them apart and reports mixed, %s", (_, cpus) => {
-    const result = describeProviderCpus(cpus.map(cpu => mock<ProviderSnapshotNode>({ cpus: [mock<ProviderSnapshotNodeCPU>(cpu)] })));
-
-    expect(result.cpuModels.map(model => model.isVirtual).sort()).toEqual([false, true]);
-    expect(result.cpuProfile).toBe("mixed");
-  });
-});
-
 describe(countNodesWithoutCpuModel.name, () => {
   const epyc = mock<ProviderSnapshotNodeCPU>({ vendor: "AuthenticAMD", model: "AMD EPYC 7763 64-Core Processor", vcores: 128 });
   const blank = mock<ProviderSnapshotNodeCPU>({ vendor: "GenuineIntel", model: "", vcores: 4 });
@@ -371,6 +436,21 @@ describe(describeProviderCpus.name, () => {
 
     expect(describeProviderCpus(nodes)).toEqual({ cpuModels: [], cpuProfile: "unknown", cpuUnreportedNodeCount: 0 });
   });
+
+  describe("when a virtual and a physical CPU share a name", () => {
+    const physical = { vendor: "GenuineIntel", model: "Intel(R) Xeon(R) CPU", vcores: 8 };
+    const virtual = { vendor: "GenuineIntel", model: "Intel Xeon Processor (Icelake)", vcores: 8 };
+
+    it.each([
+      ["physical first", [physical, virtual]],
+      ["virtual first", [virtual, physical]]
+    ])("keeps them apart and reports mixed, %s", (_, cpus) => {
+      const result = describeProviderCpus(cpus.map(cpu => mock<ProviderSnapshotNode>({ cpus: [mock<ProviderSnapshotNodeCPU>(cpu)] })));
+
+      expect(result.cpuModels.map(model => model.isVirtual).sort()).toEqual([false, true]);
+      expect(result.cpuProfile).toBe("mixed");
+    });
+  });
 });
 
 describe(getCpuProfile.name, () => {
@@ -388,84 +468,4 @@ describe(getCpuProfile.name, () => {
   ])("calls %j with %j nodes unreported %s", (models, unreported, expected) => {
     expect(getCpuProfile(models, unreported)).toBe(expected);
   });
-});
-
-describe("CPU names reported by 51 mainnet providers on 2026-11-15", () => {
-  it.each([
-    ["GenuineIntel", "Intel(R) Xeon(R) Platinum 8470", "Intel", "Xeon Platinum 8470", "Sapphire Rapids", null, false],
-    ["AuthenticAMD", "AMD EPYC 7763 64-Core Processor", "AMD", "EPYC 7763", "Milan", null, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) Gold 6140 CPU @ 2.30GHz", "Intel", "Xeon Gold 6140", "Skylake", 2300, false],
-    ["AuthenticAMD", "AMD EPYC 9335 32-Core Processor", "AMD", "EPYC 9335", "Turin", null, false],
-    ["AuthenticAMD", "AMD Ryzen 9 5900X 12-Core Processor", "AMD", "Ryzen 9 5900X", "Zen 3", null, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2699 v3 @ 2.30GHz", "Intel", "Xeon E5-2699 v3", "Haswell", 2300, false],
-    ["AuthenticAMD", "AMD EPYC 7502 32-Core Processor", "AMD", "EPYC 7502", "Rome", null, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz", "Intel", "Xeon E5-2680 v4", "Broadwell", 2400, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) Platinum 8468", "Intel", "Xeon Platinum 8468", "Sapphire Rapids", null, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) Platinum 8168 CPU @ 2.70GHz", "Intel", "Xeon Platinum 8168", "Skylake", 2700, false],
-    ["AuthenticAMD", "AMD EPYC 7352 24-Core Processor", "AMD", "EPYC 7352", "Rome", null, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2698 v3 @ 2.30GHz", "Intel", "Xeon E5-2698 v3", "Haswell", 2300, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) Gold 6130 CPU @ 2.10GHz", "Intel", "Xeon Gold 6130", "Skylake", 2100, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) Platinum 8173M CPU @ 2.00GHz", "Intel", "Xeon Platinum 8173M", "Skylake", 2000, false],
-    ["GenuineIntel", "12th Gen Intel(R) Core(TM) i9-12900HK", "Intel", "Core i9-12900HK", "12th Gen", null, false],
-    ["AuthenticAMD", "AMD EPYC 9334 32-Core Processor", "AMD", "EPYC 9334", "Genoa", null, false],
-    ["AuthenticAMD", "AMD Ryzen 7 4800U with Radeon Graphics", "AMD", "Ryzen 7 4800U", null, null, false],
-    ["GenuineIntel", "Intel(R) Core(TM) i5-8500T CPU @ 2.10GHz", "Intel", "Core i5-8500T", "8th Gen", 2100, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) 6776P", "Intel", "Xeon 6776P", "Granite Rapids", null, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2690 v2 @ 3.00GHz", "Intel", "Xeon E5-2690 v2", "Ivy Bridge", 3000, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2690 v4 @ 2.60GHz", "Intel", "Xeon E5-2690 v4", "Broadwell", 2600, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2699 v4 @ 2.20GHz", "Intel", "Xeon E5-2699 v4", "Broadwell", 2200, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) CPU E7-8880 v3 @ 2.30GHz", "Intel", "Xeon E7-8880 v3", null, 2300, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) Platinum 8462Y+", "Intel", "Xeon Platinum 8462Y+", "Sapphire Rapids", null, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) Silver 4210R CPU @ 2.40GHz", "Intel", "Xeon Silver 4210R", "Cascade Lake", 2400, false],
-    ["AuthenticAMD", "AMD EPYC 7401P 24-Core Processor", "AMD", "EPYC 7401P", "Naples", null, false],
-    ["AuthenticAMD", "AMD EPYC 7742 64-Core Processor", "AMD", "EPYC 7742", "Rome", null, false],
-    ["AuthenticAMD", "AMD Ryzen 7 5825U with Radeon Graphics", "AMD", "Ryzen 7 5825U", null, null, false],
-    ["AuthenticAMD", "AMD Ryzen 7 7730U with Radeon Graphics", "AMD", "Ryzen 7 7730U", null, null, false],
-    ["AuthenticAMD", "AMD Ryzen 9 7900X 12-Core Processor", "AMD", "Ryzen 9 7900X", "Zen 4", null, false],
-    ["GenuineIntel", "Intel(R) Core(TM) i5-14500T", "Intel", "Core i5-14500T", "14th Gen", null, false],
-    ["AuthenticAMD", "AMD EPYC 7713P 64-Core Processor", "AMD", "EPYC 7713P", "Milan", null, false],
-    ["AuthenticAMD", "AMD EPYC 9534 64-Core Processor", "AMD", "EPYC 9534", "Genoa", null, false],
-    ["AuthenticAMD", "AMD EPYC 9755 128-Core Processor", "AMD", "EPYC 9755", "Turin", null, false],
-    ["AuthenticAMD", "AMD Ryzen 7 5800X 8-Core Processor", "AMD", "Ryzen 7 5800X", "Zen 3", null, false],
-    ["AuthenticAMD", "AMD Ryzen 7 7840U w/ Radeon  780M Graphics", "AMD", "Ryzen 7 7840U", null, null, false],
-    ["AuthenticAMD", "AMD Ryzen 9 7945HX with Radeon Graphics", "AMD", "Ryzen 9 7945HX", null, null, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz", "Intel", "Xeon E5-2630 v3", "Haswell", 2400, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2667 v4 @ 3.20GHz", "Intel", "Xeon E5-2667 v4", "Broadwell", 3200, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2680 v3 @ 2.50GHz", "Intel", "Xeon E5-2680 v3", "Haswell", 2500, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2690 v3 @ 2.60GHz", "Intel", "Xeon E5-2690 v3", "Haswell", 2600, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2695 v4 @ 2.10GHz", "Intel", "Xeon E5-2695 v4", "Broadwell", 2100, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2696 v3 @ 2.30GHz", "Intel", "Xeon E5-2696 v3", "Haswell", 2300, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2696 v4 @ 2.20GHz", "Intel", "Xeon E5-2696 v4", "Broadwell", 2200, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2697 v3 @ 2.60GHz", "Intel", "Xeon E5-2697 v3", "Haswell", 2600, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) Gold 6138 CPU @ 2.00GHz", "Intel", "Xeon Gold 6138", "Skylake", 2000, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) W-2133 CPU @ 3.60GHz", "Intel", "Xeon W-2133", null, 3600, false],
-    ["GenuineIntel", "QEMU Virtual CPU version 2.5+", null, "QEMU Virtual version 2.5+", null, null, true],
-    ["GenuineIntel", "11th Gen Intel(R) Core(TM) i7-11700F @ 2.50GHz", "Intel", "Core i7-11700F", "11th Gen", 2500, false],
-    ["GenuineIntel", "12th Gen Intel(R) Core(TM) i5-12500T", "Intel", "Core i5-12500T", "12th Gen", null, false],
-    ["AuthenticAMD", "AMD EPYC 7502P 32-Core Processor", "AMD", "EPYC 7502P", "Rome", null, false],
-    ["AuthenticAMD", "AMD EPYC 7663 56-Core Processor", "AMD", "EPYC 7663", "Milan", null, false],
-    ["AuthenticAMD", "AMD EPYC 7702 64-Core Processor", "AMD", "EPYC 7702", "Rome", null, false],
-    ["AuthenticAMD", "AMD EPYC 9454P 48-Core Processor", "AMD", "EPYC 9454P", "Genoa", null, false],
-    ["AuthenticAMD", "AMD EPYC 9555P 64-Core Processor", "AMD", "EPYC 9555P", "Turin", null, false],
-    ["AuthenticAMD", "AMD EPYC 9754 128-Core Processor", "AMD", "EPYC 9754", "Bergamo", null, false],
-    ["AuthenticAMD", "AMD Ryzen 5 PRO 5650GE with Radeon Graphics", "AMD", "Ryzen 5 PRO 5650GE", null, null, false],
-    ["AuthenticAMD", "AMD Ryzen 7 5700G with Radeon Graphics", "AMD", "Ryzen 7 5700G", null, null, false],
-    ["AuthenticAMD", "AMD Ryzen 9 7900 12-Core Processor", "AMD", "Ryzen 9 7900", "Zen 4", null, false],
-    ["AuthenticAMD", "AMD Ryzen 9 9950X3D 16-Core Processor", "AMD", "Ryzen 9 9950X3D", "Zen 5", null, false],
-    ["AuthenticAMD", "AMD Ryzen Threadripper PRO 3975WX 32-Cores", "AMD", "Ryzen Threadripper PRO 3975WX", null, null, false],
-    ["GenuineIntel", "Intel(R) Core(TM) i5-10500T CPU @ 2.30GHz", "Intel", "Core i5-10500T", "10th Gen", 2300, false],
-    ["GenuineIntel", "Intel(R) Core(TM) i5-14400", "Intel", "Core i5-14400", "14th Gen", null, false],
-    ["GenuineIntel", "Intel(R) Core(TM) i5-9500T CPU @ 2.20GHz", "Intel", "Core i5-9500T", "9th Gen", 2200, false],
-    ["GenuineIntel", "Intel(R) Core(TM) i7-14700K", "Intel", "Core i7-14700K", "14th Gen", null, false],
-    ["GenuineIntel", "Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz", "Intel", "Core i7-6700", "6th Gen", 3400, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2660 v3 @ 2.60GHz", "Intel", "Xeon E5-2660 v3", "Haswell", 2600, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2683 v4 @ 2.10GHz", "Intel", "Xeon E5-2683 v4", "Broadwell", 2100, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2697 v2 @ 2.70GHz", "Intel", "Xeon E5-2697 v2", "Ivy Bridge", 2700, false],
-    ["GenuineIntel", "Intel(R) Xeon(R) W-2235 CPU @ 3.80GHz", "Intel", "Xeon W-2235", null, 3800, false]
-  ])(
-    "describes %j %j as %s %j, generation %j, base %j MHz, virtual %j",
-    (reportedVendor, reportedModel, vendor, model, generation, baseFrequencyMhz, isVirtual) => {
-      expect(describeCpu(reportedVendor, reportedModel)).toEqual({ vendor, model, generation, baseFrequencyMhz, isVirtual });
-    }
-  );
 });
