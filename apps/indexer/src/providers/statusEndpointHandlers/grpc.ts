@@ -10,7 +10,7 @@ import { assertPublicHost } from "@src/shared/utils/private-network";
 import type { ProviderStatusInfo } from "./types";
 
 export async function fetchProviderStatusFromGRPC(provider: Provider, timeout: number): Promise<ProviderStatusInfo> {
-  await assertEndpointNotOwnedByAnotherProvider({ owner: provider.owner, endpoint: toGrpcUrl(provider.hostUri), timeoutMs: timeout });
+  await assertEndpointNotOwnedByAnotherProvider({ owner: provider.owner, hostUri: provider.hostUri, timeoutMs: timeout });
   const data = await queryStatus(provider.hostUri, timeout);
 
   const activeResources = parseResources(data.cluster?.inventory?.reservations?.active?.resources);
@@ -110,13 +110,10 @@ async function queryStatus(hostUri: string, timeoutMs: number): Promise<Provider
   }
 }
 
-export function toGrpcUrl(hostUri: string): string {
-  return hostUri.replace(":8443", ":8444");
-}
-
 const getProviderSDK = memoize((hostUri: string) => {
+  const url = hostUri.replace(":8443", ":8444");
   return createProviderSDK({
-    baseUrl: toGrpcUrl(hostUri),
+    baseUrl: url,
     transportOptions: {
       pingIdleConnection: true,
       idleConnectionTimeoutMs: minutesToMilliseconds(5)

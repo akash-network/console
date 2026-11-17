@@ -3,23 +3,13 @@ import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { fetchProviderStatusFromGRPC, mapCpuInfo, toGrpcUrl } from "./grpc";
+import { fetchProviderStatusFromGRPC, mapCpuInfo } from "./grpc";
 
 describe(fetchProviderStatusFromGRPC.name, () => {
   it("refuses a provider whose host is a private address before dialing it", async () => {
     const provider = mock<Provider>({ hostUri: "https://127.0.0.1:8443" });
 
     await expect(fetchProviderStatusFromGRPC(provider, 1_000)).rejects.toMatchObject({ code: "EFORBIDDEN" });
-  });
-});
-
-describe(toGrpcUrl.name, () => {
-  it("moves the provider's REST port to its gRPC port", () => {
-    expect(toGrpcUrl("https://provider.example.com:8443")).toBe("https://provider.example.com:8444");
-  });
-
-  it("keeps a port other than the REST one", () => {
-    expect(toGrpcUrl("https://provider.example.com:9443")).toBe("https://provider.example.com:9443");
   });
 });
 

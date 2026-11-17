@@ -5,7 +5,7 @@ import { fetchAllowingSelfSignedCerts } from "@src/shared/utils/fetch";
 import type { ProviderStatusInfo } from "./types";
 
 export async function fetchProviderStatusFromREST(provider: Provider, timeout: number): Promise<ProviderStatusInfo> {
-  await assertEndpointNotOwnedByAnotherProvider({ owner: provider.owner, endpoint: provider.hostUri, timeoutMs: timeout });
+  await assertEndpointNotOwnedByAnotherProvider({ owner: provider.owner, hostUri: provider.hostUri, timeoutMs: timeout });
   const response = await fetchAllowingSelfSignedCerts(provider.hostUri + "/status", {
     signal: AbortSignal.timeout(timeout)
   });

@@ -1,9 +1,9 @@
-import { certificateManager } from "@akashnetwork/chain-sdk";
 import dns from "node:dns";
+import http from "node:http";
 import net, { type AddressInfo, BlockList } from "node:net";
-import tls from "node:tls";
-import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
 
+import { createProviderFetch } from "@src/shared/utils/fetch";
 import { createForbidPrivateNetworkLookup } from "@src/shared/utils/private-network";
 import { assertEndpointNotOwnedByAnotherProvider, ProviderIdentityMismatchError } from "./providerIdentity";
 
@@ -11,123 +11,93 @@ const OWNER = "akash1lsqphmdf25rdm87zuhekeydv9pvtdzuqmwxlqg";
 const OTHER_OWNER = "akash172k755dd82elslzcgkgtk3ux5ytdqvx5wq2a98";
 
 describe(assertEndpointNotOwnedByAnotherProvider.name, () => {
-  it("accepts an endpoint that presents the provider's own certificate", async () => {
-    const endpoint = await startTlsServer({ commonName: OWNER });
+  it("accepts an endpoint that answers as the provider itself", async () => {
+    const endpoint = await startServer((_req, res) => res.end(JSON.stringify({ address: OWNER })));
     const { assertIdentity } = setup();
 
-    await expect(assertIdentity(`https://provider.test:${endpoint.port}`)).resolves.toBeUndefined();
+    await expect(assertIdentity(endpoint.hostUri)).resolves.toBeUndefined();
+    expect(endpoint.hits).toEqual(["/address"]);
   });
 
-  it("rejects an endpoint that presents another provider's certificate", async () => {
-    const endpoint = await startTlsServer({ commonName: OTHER_OWNER });
+  it("rejects an endpoint that answers as another provider", async () => {
+    const endpoint = await startServer((_req, res) => res.end(JSON.stringify({ address: OTHER_OWNER })));
     const { assertIdentity } = setup();
-    const url = `https://provider.test:${endpoint.port}`;
 
-    const error = await assertIdentity(url).catch((e: unknown) => e);
+    const error = await assertIdentity(endpoint.hostUri).catch((e: unknown) => e);
 
     expect(error).toBeInstanceOf(ProviderIdentityMismatchError);
     expect(error).toMatchObject({
       name: "ProviderIdentityMismatchError",
-      endpoint: url,
+      hostUri: endpoint.hostUri,
       owner: OWNER,
-      presentedOwner: OTHER_OWNER,
-      message: `Provider endpoint ${url} presents the certificate of ${OTHER_OWNER}, not ${OWNER}`
+      reportedOwner: OTHER_OWNER,
+      message: `Provider endpoint ${endpoint.hostUri} answers as ${OTHER_OWNER}, not ${OWNER}`
     });
   });
 
-  it("accepts an endpoint whose certificate names a host rather than an account", async () => {
-    const endpoint = await startTlsServer({ commonName: "provider.test" });
+  it("accepts an endpoint that does not serve its address", async () => {
+    const endpoint = await startServer((_req, res) => res.writeHead(404).end(JSON.stringify({ address: OTHER_OWNER })));
     const { assertIdentity } = setup();
 
-    await expect(assertIdentity(`https://provider.test:${endpoint.port}`)).resolves.toBeUndefined();
+    await expect(assertIdentity(endpoint.hostUri)).resolves.toBeUndefined();
   });
 
-  it("accepts a certificate whose name only contains another account", async () => {
-    const endpoint = await startTlsServer({ commonName: `gateway-${OTHER_OWNER}` });
+  it("accepts an address response that is not JSON", async () => {
+    const endpoint = await startServer((_req, res) => res.end(OTHER_OWNER));
     const { assertIdentity } = setup();
 
-    await expect(assertIdentity(`https://provider.test:${endpoint.port}`)).resolves.toBeUndefined();
+    await expect(assertIdentity(endpoint.hostUri)).resolves.toBeUndefined();
   });
 
-  it("rejects a certificate that lists another provider's account among several common names", async () => {
-    const endpoint = await startTlsServer({ commonName: OWNER });
-    presentCommonNames([OWNER, OTHER_OWNER]);
+  it("accepts an address response without a textual address", async () => {
+    const endpoint = await startServer((_req, res) => res.end(JSON.stringify({ address: [OTHER_OWNER] })));
     const { assertIdentity } = setup();
 
-    await expect(assertIdentity(`https://provider.test:${endpoint.port}`)).rejects.toMatchObject({
-      name: "ProviderIdentityMismatchError",
-      presentedOwner: OTHER_OWNER
-    });
+    await expect(assertIdentity(endpoint.hostUri)).resolves.toBeUndefined();
   });
 
-  it("accepts a certificate whose several common names are the provider's own account and host names", async () => {
-    const endpoint = await startTlsServer({ commonName: OWNER });
-    presentCommonNames(["provider.test", OWNER]);
+  it("accepts a JSON null address response", async () => {
+    const endpoint = await startServer((_req, res) => res.end("null"));
     const { assertIdentity } = setup();
 
-    await expect(assertIdentity(`https://provider.test:${endpoint.port}`)).resolves.toBeUndefined();
+    await expect(assertIdentity(endpoint.hostUri)).resolves.toBeUndefined();
   });
 
-  it("asks for the endpoint's host name during the handshake", async () => {
-    const endpoint = await startTlsServer({ commonName: OWNER });
+  it("accepts an address that is not an account", async () => {
+    const endpoint = await startServer((_req, res) => res.end(JSON.stringify({ address: `gateway-${OTHER_OWNER}` })));
     const { assertIdentity } = setup();
 
-    await assertIdentity(`https://provider.test:${endpoint.port}`);
-
-    expect(endpoint.serverNames).toEqual(["provider.test"]);
+    await expect(assertIdentity(endpoint.hostUri)).resolves.toBeUndefined();
   });
 
-  it("sends no host name to an endpoint addressed by IP", async () => {
-    const endpoint = await startTlsServer({ commonName: OWNER });
+  it("accepts an address that only starts with another account", async () => {
+    const endpoint = await startServer((_req, res) => res.end(JSON.stringify({ address: `${OTHER_OWNER}0` })));
     const { assertIdentity } = setup();
 
-    await assertIdentity(`https://127.0.0.1:${endpoint.port}`);
-
-    expect(endpoint.connections).toHaveLength(1);
-    expect(endpoint.serverNames).toEqual([]);
+    await expect(assertIdentity(endpoint.hostUri)).resolves.toBeUndefined();
   });
 
-  it("reaches an endpoint addressed by an IPv6 literal", async () => {
-    const endpoint = await startTlsServer({ commonName: OTHER_OWNER, host: "::1" });
-    const { assertIdentity } = setup();
-
-    await expect(assertIdentity(`https://[::1]:${endpoint.port}`)).rejects.toBeInstanceOf(ProviderIdentityMismatchError);
-  });
-
-  it("fails when the endpoint does not finish the handshake in time", async () => {
-    const endpoint = await startSilentServer();
+  it("fails when the endpoint does not answer in time", async () => {
+    const endpoint = await startServer(() => undefined);
     const { assertIdentity } = setup({ timeoutMs: 100 });
 
-    await expect(assertIdentity(`https://provider.test:${endpoint.port}`)).rejects.toThrow(
-      `Timed out reading the certificate of https://provider.test:${endpoint.port}`
-    );
-  });
-
-  it("leaves no deadline pending once the connection closes", async () => {
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-    onTestFinished(() => void vi.useRealTimers());
-    const endpoint = await startTlsServer({ commonName: OWNER });
-    const { assertIdentity } = setup();
-
-    await assertIdentity(`https://provider.test:${endpoint.port}`);
-
-    await vi.waitFor(() => expect(vi.getTimerCount()).toBe(0));
+    await expect(assertIdentity(endpoint.hostUri)).rejects.toMatchObject({ name: "TimeoutError" });
   });
 
   it("fails when the endpoint refuses the connection", async () => {
     const port = await findClosedPort();
     const { assertIdentity } = setup();
 
-    await expect(assertIdentity(`https://provider.test:${port}`)).rejects.toMatchObject({ code: "ECONNREFUSED" });
+    await expect(assertIdentity(`http://provider.test:${port}`)).rejects.toThrow();
   });
 
   it("refuses a private address without dialing it", async () => {
-    const endpoint = await startTlsServer({ commonName: OWNER });
+    const endpoint = await startServer((_req, res) => res.end(JSON.stringify({ address: OWNER })));
 
     await expect(
-      assertEndpointNotOwnedByAnotherProvider({ owner: OWNER, endpoint: `https://127.0.0.1:${endpoint.port}`, timeoutMs: 1_000 })
+      assertEndpointNotOwnedByAnotherProvider({ owner: OWNER, hostUri: `http://127.0.0.1:${endpoint.port}`, timeoutMs: 1_000 })
     ).rejects.toMatchObject({ code: "EFORBIDDEN" });
-    expect(endpoint.connections).toEqual([]);
+    expect(endpoint.hits).toEqual([]);
   });
 
   function setup(input: { timeoutMs?: number } = {}) {
@@ -136,60 +106,37 @@ describe(assertEndpointNotOwnedByAnotherProvider.name, () => {
       options: dns.LookupAllOptions,
       callback: (err: NodeJS.ErrnoException | null, addresses: dns.LookupAddress[]) => void
     ) => (hostname === "provider.test" ? callback(null, [{ address: "127.0.0.1", family: 4 }]) : dns.lookup(hostname, options, callback));
-    const lookup = createForbidPrivateNetworkLookup(resolveTestHostToLoopback, new BlockList());
-    const assertIdentity = (endpoint: string) =>
-      assertEndpointNotOwnedByAnotherProvider({ owner: OWNER, endpoint, timeoutMs: input.timeoutMs ?? 2_000, lookup });
+    const fetchProvider = createProviderFetch({ lookup: createForbidPrivateNetworkLookup(resolveTestHostToLoopback, new BlockList()) });
+    const assertIdentity = (hostUri: string) =>
+      assertEndpointNotOwnedByAnotherProvider({ owner: OWNER, hostUri, timeoutMs: input.timeoutMs ?? 2_000, fetchProvider });
 
     return { assertIdentity };
   }
 });
 
-async function startTlsServer(input: { commonName: string; host?: string }) {
-  const { cert, privateKey } = await certificateManager.generatePEM(input.commonName);
-  const context = tls.createSecureContext({ cert, key: privateKey });
-  const serverNames: string[] = [];
-  const server = tls.createServer({
-    cert,
-    key: privateKey,
-    SNICallback: (serverName, callback) => {
-      serverNames.push(serverName);
-      callback(null, context);
-    }
+async function startServer(handler: http.RequestListener) {
+  const hits: string[] = [];
+  const server = http.createServer((req, res) => {
+    hits.push(req.url ?? "");
+    handler(req, res);
   });
-  const { port, connections } = await listen(server, input.host ?? "127.0.0.1");
 
-  return { port, connections, serverNames };
-}
-
-function presentCommonNames(commonNames: string[]) {
-  const readPeerCertificate = tls.TLSSocket.prototype.getPeerCertificate;
-  const spy = vi.spyOn(tls.TLSSocket.prototype, "getPeerCertificate").mockImplementation(function (this: tls.TLSSocket) {
-    const certificate = readPeerCertificate.call(this);
-    return { ...certificate, subject: { ...certificate.subject, CN: commonNames } };
+  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  onTestFinished(() => {
+    server.closeAllConnections();
+    return new Promise<void>(resolve => server.close(() => resolve()));
   });
-  onTestFinished(() => void spy.mockRestore());
-}
 
-async function startSilentServer() {
-  return listen(net.createServer(), "127.0.0.1");
+  const { port } = server.address() as AddressInfo;
+
+  return { hostUri: `http://provider.test:${port}`, port, hits };
 }
 
 async function findClosedPort() {
   const server = net.createServer();
-  const port = await new Promise<number>(resolve => server.listen(0, "127.0.0.1", () => resolve((server.address() as AddressInfo).port)));
+  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address() as AddressInfo;
   await new Promise<void>(resolve => server.close(() => resolve()));
 
   return port;
-}
-
-async function listen(server: net.Server, host: string) {
-  const sockets: net.Socket[] = [];
-  server.on("connection", socket => sockets.push(socket));
-  await new Promise<void>(resolve => server.listen(0, host, resolve));
-  onTestFinished(() => {
-    sockets.forEach(socket => socket.destroy());
-    return new Promise<void>(resolve => server.close(() => resolve()));
-  });
-
-  return { port: (server.address() as AddressInfo).port, connections: sockets };
 }
