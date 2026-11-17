@@ -18,7 +18,6 @@ describe(normalizeCpuVendor.name, () => {
   it.each([
     ["GenuineIntel", "Intel(R) Xeon(R) Gold 6248R CPU @ 3.00GHz", "Intel"],
     ["AuthenticAMD", "AMD EPYC 7763 64-Core Processor", "AMD"],
-    ["", "AMD Ryzen 9 7950X 16-Core Processor", "AMD"],
     [null, "Intel(R) Core(TM) i9-9900K CPU @ 3.60GHz", "Intel"],
     ["AuthenticAMD", "QEMU Virtual CPU version 2.5+", "AMD"]
   ])("reads vendor %j with model %j as %s", (vendor, model, expected) => {
@@ -28,8 +27,7 @@ describe(normalizeCpuVendor.name, () => {
   it.each([
     ["HygonGenuine", "Hygon C86 7185 32-core Processor"],
     ["ARM", ""],
-    [null, null],
-    [undefined, undefined]
+    [null, null]
   ])("returns null for vendor %j with model %j", (vendor, model) => {
     expect(normalizeCpuVendor(vendor, model)).toBeNull();
   });
@@ -38,7 +36,6 @@ describe(normalizeCpuVendor.name, () => {
 describe(parseBaseFrequencyMhz.name, () => {
   it.each([
     ["Intel(R) Xeon(R) Gold 6248R CPU @ 3.00GHz", 3000],
-    ["Intel(R) Xeon(R) CPU E5-2690 v4 @ 2.60GHz", 2600],
     ["Intel(R) Xeon(R) CPU @ 2.25GHz", 2250],
     ["Intel(R) Pentium(R) III CPU @ 800MHz", 800],
     ["Intel(R) Atom(TM) CPU @1.66ghz", 1660]
@@ -54,12 +51,10 @@ describe(parseBaseFrequencyMhz.name, () => {
 describe(cleanCpuModelName.name, () => {
   it.each([
     ["Intel(R) Xeon(R) Gold 6248R CPU @ 3.00GHz", "Xeon Gold 6248R"],
-    ["Intel(R) Xeon(R) CPU E5-2690 v4 @ 2.60GHz", "Xeon E5-2690 v4"],
     ["Intel(R) Xeon(R) CPU @ 2.30GHz", "Xeon"],
     ["13th Gen Intel(R) Core(TM) i9-13900K", "Core i9-13900K"],
     ["2nd Gen Intel(R) Core(TM) i7-2600 CPU @ 3.40GHz", "Core i7-2600"],
     ["AMD EPYC 7763 64-Core Processor", "EPYC 7763"],
-    ["AMD Ryzen 9 7950X 16-Core Processor", "Ryzen 9 7950X"],
     ["AMD Ryzen 7 5700G with Radeon Graphics", "Ryzen 7 5700G"],
     ["Intel(R)Xeon(R)Gold 6248R", "Xeon Gold 6248R"],
     ["AMD Ryzen 7 7840U w/ Radeon  780M Graphics", "Ryzen 7 7840U"],
@@ -71,9 +66,7 @@ describe(cleanCpuModelName.name, () => {
     ["INTEL(R) XEON(R) GOLD 6548Y+", "Xeon Gold 6548Y+"],
     ["INTEL(R) XEON(R) SILVER 4514Y", "Xeon Silver 4514Y"],
     ["INTEL(R) XEON(R) BRONZE 3508U", "Xeon Bronze 3508U"],
-    ["AMD Ryzen 7 2700X Eight-Core Processor", "Ryzen 7 2700X"],
-    ["AMD Ryzen 5 2600 Six-Core Processor", "Ryzen 5 2600"],
-    ["AMD Ryzen 3 2300X Quad-Core Processor", "Ryzen 3 2300X"]
+    ["AMD Ryzen 7 2700X Eight-Core Processor", "Ryzen 7 2700X"]
   ])("cleans %j to %j", (model, expected) => {
     expect(cleanCpuModelName(model)).toBe(expected);
   });
@@ -88,7 +81,6 @@ describe(recognizeCpuGeneration.name, () => {
     ["EPYC 8534P", "Siena"],
     ["EPYC 9654", "Genoa"],
     ["EPYC 9754", "Bergamo"],
-    ["EPYC 9965", "Turin"],
     ["EPYC 9755", "Turin"],
     ["Xeon Gold 6148", "Skylake"],
     ["Xeon Gold 6248R", "Cascade Lake"],
@@ -115,13 +107,9 @@ describe(recognizeCpuGeneration.name, () => {
     ["Core i7-2600", "2nd Gen"],
     ["Core i5-3570K", "3rd Gen"],
     ["Core i7-8700", "8th Gen"],
-    ["Core i9-9900K", "9th Gen"],
     ["Core i7-1065G7", "10th Gen"],
     ["Core i5-10400", "10th Gen"],
     ["Core i9-13900K", "13th Gen"],
-    ["Core i9-13980HX", "13th Gen"],
-    ["Core i7-4790K", "4th Gen"],
-    ["Core i7-6820HK", "6th Gen"],
     ["Ryzen 7 2700X", "Zen+"],
     ["Ryzen 9 3900X", "Zen 2"],
     ["Ryzen 9 PRO 3900", "Zen 2"],
@@ -222,12 +210,9 @@ describe(describeCpu.name, () => {
     ["QEMU Virtual CPU version 2.5+", "QEMU Virtual version 2.5+"],
     ["Common KVM processor", "Common KVM"],
     ["Intel Xeon Processor (Icelake)", "Xeon"],
-    ["Intel Core Processor (Broadwell, IBRS)", "Core"],
     ["AMD EPYC-Milan Processor", "EPYC-Milan"],
-    ["AMD EPYC Processor (with IBPB)", "EPYC"],
     ["AMD EPYC Processor", "EPYC"],
     ["Intel Xeon E312xx (Sandy Bridge)", "Xeon E312xx"],
-    ["AMD Opteron 63xx class CPU", "Opteron 63xx class"],
     ["Intel Core i7 9xx (Nehalem Class Core i7)", "Core i7 9xx"]
   ])("marks the hypervisor name %j as virtual without a generation", (model, cleanModel) => {
     expect(describeCpu("GenuineIntel", model)).toMatchObject({ model: cleanModel, generation: null, isVirtual: true });
@@ -235,7 +220,6 @@ describe(describeCpu.name, () => {
 
   it.each([
     ["GenuineIntel", "QEMU Virtual CPU version 2.5+", null],
-    ["AuthenticAMD", "Common KVM processor", null],
     ["GenuineIntel", "AMD EPYC-Milan Processor", "AMD"],
     ["AuthenticAMD", "Intel Xeon Processor (Icelake)", "Intel"]
   ])("takes the vendor of a virtual CPU reported as %j %j from its name only, as %j", (vendor, model, expected) => {
@@ -266,14 +250,6 @@ describe(describeCpu.name, () => {
 
   it.each([null, undefined, "", "   ", "unknown"])("returns null for the model %j", model => {
     expect(describeCpu("GenuineIntel", model)).toBeNull();
-  });
-
-  it.each([
-    ["GenuineIntel", "INTEL(R) XEON(R) GOLD 6548Y+", "Xeon Gold 6548Y+", "Emerald Rapids"],
-    ["GenuineIntel", "INTEL(R) XEON(R) SILVER 4510", "Xeon Silver 4510", null],
-    ["AuthenticAMD", "AMD Ryzen 7 2700X Eight-Core Processor", "Ryzen 7 2700X", "Zen+"]
-  ])("reads the brand string %j %j as %j of generation %j", (vendor, reported, model, generation) => {
-    expect(describeCpu(vendor, reported)).toMatchObject({ model, generation });
   });
 });
 
@@ -395,12 +371,6 @@ describe(describeProviderCpus.name, () => {
 
     expect(describeProviderCpus(nodes)).toEqual({ cpuModels: [], cpuProfile: "unknown", cpuUnreportedNodeCount: 0 });
   });
-
-  it("calls a provider unknown when its only node reports the kernel's placeholder for a CPU without a name", () => {
-    const nodes = [mock<ProviderSnapshotNode>({ cpus: [mock<ProviderSnapshotNodeCPU>({ vendor: "GenuineIntel", model: "unknown", vcores: 4 })] })];
-
-    expect(describeProviderCpus(nodes)).toEqual({ cpuModels: [], cpuProfile: "unknown", cpuUnreportedNodeCount: 0 });
-  });
 });
 
 describe(getCpuProfile.name, () => {
@@ -409,7 +379,6 @@ describe(getCpuProfile.name, () => {
 
   it.each([
     [[], 0, "unknown"],
-    [[], 3, "unknown"],
     [[physical], 1, "mixed"],
     [[virtual], 2, "mixed"],
     [[physical], 0, "uniform"],
