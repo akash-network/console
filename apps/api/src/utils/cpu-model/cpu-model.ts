@@ -131,7 +131,7 @@ export function getProviderCpuModels(nodes: ProviderSnapshotNode[]): ProviderCpu
       const description = describeCpu(cpu.vendor, cpu.model);
       if (!description) continue;
 
-      const key = JSON.stringify([description.vendor, description.model, description.baseFrequencyMhz]);
+      const key = JSON.stringify([description.vendor, description.model, description.baseFrequencyMhz, description.isVirtual]);
       const cpuModel = modelsByKey.get(key) ?? { ...description, threads: 0, nodeCount: 0 };
 
       cpuModel.threads += cpu.vcores ?? 0;

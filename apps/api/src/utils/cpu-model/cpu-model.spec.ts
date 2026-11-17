@@ -306,6 +306,21 @@ describe(getProviderCpuModels.name, () => {
   }
 });
 
+describe("virtual and physical CPUs with the same name", () => {
+  const physical = { vendor: "GenuineIntel", model: "Intel(R) Xeon(R) CPU", vcores: 8 };
+  const virtual = { vendor: "GenuineIntel", model: "Intel Xeon Processor (Icelake)", vcores: 8 };
+
+  it.each([
+    ["physical first", [physical, virtual]],
+    ["virtual first", [virtual, physical]]
+  ])("keeps them apart and reports mixed, %s", (_, cpus) => {
+    const result = describeProviderCpus(cpus.map(cpu => mock<ProviderSnapshotNode>({ cpus: [mock<ProviderSnapshotNodeCPU>(cpu)] })));
+
+    expect(result.cpuModels.map(model => model.isVirtual).sort()).toEqual([false, true]);
+    expect(result.cpuProfile).toBe("mixed");
+  });
+});
+
 describe(countNodesWithoutCpuModel.name, () => {
   const epyc = mock<ProviderSnapshotNodeCPU>({ vendor: "AuthenticAMD", model: "AMD EPYC 7763 64-Core Processor", vcores: 128 });
   const blank = mock<ProviderSnapshotNodeCPU>({ vendor: "GenuineIntel", model: "", vcores: 4 });
