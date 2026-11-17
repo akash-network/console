@@ -49,6 +49,25 @@ describe(assertEndpointNotOwnedByAnotherProvider.name, () => {
     await expect(assertIdentity(`https://provider.test:${endpoint.port}`)).resolves.toBeUndefined();
   });
 
+  it("rejects a certificate that lists another provider's account among several common names", async () => {
+    const endpoint = await startTlsServer({ commonName: OWNER });
+    presentCommonNames([OWNER, OTHER_OWNER]);
+    const { assertIdentity } = setup();
+
+    await expect(assertIdentity(`https://provider.test:${endpoint.port}`)).rejects.toMatchObject({
+      name: "ProviderIdentityMismatchError",
+      presentedOwner: OTHER_OWNER
+    });
+  });
+
+  it("accepts a certificate whose several common names are the provider's own account and host names", async () => {
+    const endpoint = await startTlsServer({ commonName: OWNER });
+    presentCommonNames(["provider.test", OWNER]);
+    const { assertIdentity } = setup();
+
+    await expect(assertIdentity(`https://provider.test:${endpoint.port}`)).resolves.toBeUndefined();
+  });
+
   it("asks for the endpoint's host name during the handshake", async () => {
     const endpoint = await startTlsServer({ commonName: OWNER });
     const { assertIdentity } = setup();
@@ -140,6 +159,15 @@ async function startTlsServer(input: { commonName: string; host?: string }) {
   const { port, connections } = await listen(server, input.host ?? "127.0.0.1");
 
   return { port, connections, serverNames };
+}
+
+function presentCommonNames(commonNames: string[]) {
+  const readPeerCertificate = tls.TLSSocket.prototype.getPeerCertificate;
+  const spy = vi.spyOn(tls.TLSSocket.prototype, "getPeerCertificate").mockImplementation(function (this: tls.TLSSocket) {
+    const certificate = readPeerCertificate.call(this);
+    return { ...certificate, subject: { ...certificate.subject, CN: commonNames } };
+  });
+  onTestFinished(() => void spy.mockRestore());
 }
 
 async function startSilentServer() {

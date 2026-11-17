@@ -30,14 +30,15 @@ export async function assertEndpointNotOwnedByAnotherProvider({
 }): Promise<void> {
   await assertPublicHost(endpoint, lookup);
 
-  const presentedCommonName = await readCertificateCommonName(endpoint, timeoutMs, lookup);
+  const presentedCommonNames = await readCertificateCommonNames(endpoint, timeoutMs, lookup);
+  const presentedOwner = presentedCommonNames.find(commonName => commonName !== owner && AKASH_ADDRESS.test(commonName));
 
-  if (presentedCommonName && presentedCommonName !== owner && AKASH_ADDRESS.test(presentedCommonName)) {
-    throw new ProviderIdentityMismatchError(endpoint, owner, presentedCommonName);
+  if (presentedOwner) {
+    throw new ProviderIdentityMismatchError(endpoint, owner, presentedOwner);
   }
 }
 
-function readCertificateCommonName(endpoint: string, timeoutMs: number, lookup: NetworkLookup): Promise<string | undefined> {
+function readCertificateCommonNames(endpoint: string, timeoutMs: number, lookup: NetworkLookup): Promise<string[]> {
   const { hostname, port } = new URL(endpoint);
   const host = hostname.startsWith("[") ? hostname.slice(1, -1) : hostname;
 
@@ -56,9 +57,9 @@ function readCertificateCommonName(endpoint: string, timeoutMs: number, lookup: 
 
     socket.once("close", () => clearTimeout(deadline));
     socket.once("secureConnect", () => {
-      const commonName = socket.getPeerCertificate().subject?.CN;
+      const commonNames = socket.getPeerCertificate().subject?.CN ?? [];
       socket.end();
-      resolve(typeof commonName === "string" ? commonName : undefined);
+      resolve([commonNames].flat());
     });
     socket.once("error", reject);
   });
