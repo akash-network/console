@@ -82,6 +82,28 @@ describe(GpuRackBuild.name, () => {
     expect(callout).not.toHaveAttribute("data-hot");
   });
 
+  it("keeps a focused part lit while the pointer passes over it and other parts", () => {
+    const { container } = setup({ startingPoint: STARTER_PACKAGES[0], reached: ["start", "region"], current: "region" });
+    const storagePart = screen.getByRole("button", { name: "Change the storage" });
+    const storageCallout = screen.getByRole("button", { name: "Change Storage: 4 TB/node" });
+    const networkCallout = screen.getByRole("button", { name: "Change Network: InfiniBand" });
+
+    fireEvent.focus(storagePart);
+    fireEvent.mouseEnter(storagePart);
+    fireEvent.mouseLeave(storagePart);
+    fireEvent.mouseEnter(container.querySelector('[data-part="network"]')!);
+
+    expect(storageCallout).toHaveAttribute("data-hot");
+    expect(storagePart.querySelector(`[data-tone="lit"]`)).toBeInTheDocument();
+    expect(networkCallout).toHaveAttribute("data-hot");
+
+    fireEvent.blur(storagePart);
+
+    expect(storageCallout).not.toHaveAttribute("data-hot");
+    expect(storagePart.querySelector(`[data-tone="lit"]`)).not.toBeInTheDocument();
+    expect(networkCallout).toHaveAttribute("data-hot");
+  });
+
   it("marks the callout of the question being asked", () => {
     setup({ startingPoint: STARTER_PACKAGES[0], reached: ["start", "region", "sla"], current: "sla" });
 

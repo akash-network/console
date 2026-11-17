@@ -98,7 +98,9 @@ type Props = { build: RackBuild; onChangeStep: (step: QuoteStepId) => void };
 
 export const GpuRackBuild: FC<Props> = ({ build, onChangeStep }) => {
   const [hoveredPart, setHoveredPart] = useState<RackPart | null>(null);
-  const isLit = (part: RackPart) => build.currentPart === part || hoveredPart === part;
+  const [focusedPart, setFocusedPart] = useState<RackPart | null>(null);
+  const isHot = (part: RackPart) => hoveredPart === part || focusedPart === part;
+  const isLit = (part: RackPart) => build.currentPart === part || isHot(part);
   const placedCallouts = (["left", "right"] as const).flatMap(side =>
     placeCallouts(
       build.callouts
@@ -108,15 +110,12 @@ export const GpuRackBuild: FC<Props> = ({ build, onChangeStep }) => {
   );
 
   function partHandlers(part: RackPart) {
-    const highlight = () => setHoveredPart(part);
-    const unhighlight = () => setHoveredPart(current => (current === part ? null : current));
-
     return {
       onClick: () => onChangeStep(build.stepOfPart[part]),
-      onMouseEnter: highlight,
-      onMouseLeave: unhighlight,
-      onFocus: highlight,
-      onBlur: unhighlight
+      onMouseEnter: () => setHoveredPart(part),
+      onMouseLeave: () => setHoveredPart(null),
+      onFocus: () => setFocusedPart(part),
+      onBlur: () => setFocusedPart(null)
     };
   }
 
@@ -178,7 +177,7 @@ export const GpuRackBuild: FC<Props> = ({ build, onChangeStep }) => {
               type="button"
               className={styles.callout}
               data-side={callout.side}
-              data-hot={hoveredPart === callout.part || undefined}
+              data-hot={isHot(callout.part) || undefined}
               aria-current={build.currentPart === callout.part ? "step" : undefined}
               title={CHANGE_LABELS[callout.part]}
               aria-label={`Change ${callout.label}: ${callout.value}`}
