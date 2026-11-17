@@ -37,7 +37,7 @@ export const CpuModelsCard: FC<Props> = ({ models, profile, unreportedNodeCount 
             </thead>
             <tbody>
               {models.map(model => (
-                <tr key={`${model.vendor}-${model.model}-${model.baseFrequencyMhz}`} className="border-t">
+                <tr key={JSON.stringify([model.vendor, model.model, model.baseFrequencyMhz, model.isVirtual])} className="border-t">
                   <td className="px-3.5 py-[11px]">
                     <span className="flex items-start gap-[7px]">
                       <Cpu className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />

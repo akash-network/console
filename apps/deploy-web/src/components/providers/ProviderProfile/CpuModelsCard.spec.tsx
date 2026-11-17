@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { ProviderCpuModel } from "@src/types/provider";
 import { CpuModelsCard, formatBaseFrequency, formatCpuDetails, formatCpuGeneration, formatUnreportedNodesNote } from "./CpuModelsCard";
@@ -67,6 +67,15 @@ describe(CpuModelsCard.name, () => {
     expect(screen.getByText("Cascade Lake · 3.00 GHz")).toHaveClass("sm:hidden");
     expect(screen.getByRole("columnheader", { name: "Generation" })).toHaveClass("hidden", "sm:table-cell");
     expect(screen.getByRole("columnheader", { name: "Base frequency" })).toHaveClass("hidden", "sm:table-cell");
+  });
+
+  it("keeps a physical and a virtual CPU with the same name as two rows", () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    setup({ models: [buildModel({ model: "Xeon Gold 6248R" }), buildModel({ model: "Xeon Gold 6248R", isVirtual: true })], profile: "mixed" });
+
+    expect(screen.getAllByRole("row", { name: /Xeon Gold 6248R/ })).toHaveLength(2);
+    expect(consoleError.mock.calls.flat().join(" ")).not.toContain("same key");
+    consoleError.mockRestore();
   });
 
   function buildModel(overrides: Partial<ProviderCpuModel>): ProviderCpuModel {
