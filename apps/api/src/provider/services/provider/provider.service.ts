@@ -345,7 +345,10 @@ export class ProviderService {
           include: [
             {
               model: ProviderSnapshotNode,
-              include: [{ model: ProviderSnapshotNodeGPU }, { model: ProviderSnapshotNodeCPU, attributes: ["arch", "vendor", "model", "vcores"] }]
+              include: [
+                { model: ProviderSnapshotNodeGPU },
+                { model: ProviderSnapshotNodeCPU, attributes: ["id", "snapshotNodeId", "arch", "vendor", "model", "vcores"] }
+              ]
             }
           ]
         })
