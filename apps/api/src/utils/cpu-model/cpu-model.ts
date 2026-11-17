@@ -40,10 +40,13 @@ const XEON_SCALABLE_GENERATIONS: Record<string, string> = {
   "5": "Emerald Rapids"
 };
 
-/** Xeon 6 splits by core type: P-core parts are Granite Rapids, E-core parts are Sierra Forest. */
+/** Xeon 6 splits by core type. The 6300P series is left out: it shares the name but is a Raptor Lake part. */
 const XEON_6_GENERATIONS: Record<string, string> = {
-  P: "Granite Rapids",
-  E: "Sierra Forest"
+  "5P": "Granite Rapids",
+  "7P": "Granite Rapids",
+  "9P": "Granite Rapids",
+  "7E": "Sierra Forest",
+  "9E": "Sierra Forest"
 };
 
 const XEON_E_GENERATIONS: Record<string, string> = {
@@ -191,10 +194,10 @@ function readXeonScalableGeneration(model: string) {
 }
 
 function readXeon6Generation(model: string) {
-  const match = /^Xeon 6\d{3}([PE])$/.exec(model);
+  const match = /^Xeon 6(\d)\d{2}([PE])$/.exec(model);
   if (!match) return null;
 
-  return XEON_6_GENERATIONS[match[1]];
+  return XEON_6_GENERATIONS[`${match[1]}${match[2]}`];
 }
 
 function readXeonEGeneration(model: string) {
@@ -204,8 +207,9 @@ function readXeonEGeneration(model: string) {
   return XEON_E_GENERATIONS[match[1] ?? "1"];
 }
 
+/** The X-series (i9-7900X, i7-6950X) is left out: its number runs ahead of the generation it is built on. */
 function readCoreGeneration(model: string) {
-  const match = /^Core i[3579]-(\d{4,5})[A-Z0-9]*$/.exec(model);
+  const match = /^Core i[3579]-(\d{4,5})(?!\d|X)[A-Z0-9]*$/.exec(model);
   if (!match) return null;
 
   const modelNumber = match[1];
