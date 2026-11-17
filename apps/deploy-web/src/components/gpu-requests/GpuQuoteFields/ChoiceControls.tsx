@@ -20,11 +20,26 @@ const TILE_CLASSES = cn(
   SELECTED_RING_CLASSES
 );
 
+export const RADIO_DOT_CLASSES =
+  "mt-0.5 h-4 w-4 shrink-0 border-[1.5px] border-border text-foreground data-[state=checked]:border-foreground [&_svg]:h-2 [&_svg]:w-2";
+
 const OPTION_CARD_CLASSES =
   "flex cursor-pointer items-start gap-3 rounded-[10px] border bg-background px-3.5 py-3 shadow-sm transition-[border-color,box-shadow] hover:border-foreground/35 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[[data-state=checked]]:border-foreground has-[[data-state=checked]]:ring-1 has-[[data-state=checked]]:ring-foreground";
 
 /** Toggle items only carry string values, so each choice is keyed by its position and handed back as its own value. */
-export function ChoiceChips<T>({ label, choices, value, onChange }: { label: string; choices: Choice<T>[]; value: T | null; onChange: (value: T) => void }) {
+export function ChoiceChips<T>({
+  label,
+  choices,
+  value,
+  isNumeric = false,
+  onChange
+}: {
+  label: string;
+  choices: Choice<T>[];
+  value: T | null;
+  isNumeric?: boolean;
+  onChange: (value: T) => void;
+}) {
   const selectedIndex = choices.findIndex(choice => choice.value === value);
 
   return (
@@ -37,7 +52,7 @@ export function ChoiceChips<T>({ label, choices, value, onChange }: { label: str
       className="flex flex-wrap justify-start gap-1.5"
     >
       {choices.map((choice, index) => (
-        <ToggleGroupItem key={choice.label} value={String(index)} className={CHIP_CLASSES}>
+        <ToggleGroupItem key={choice.label} value={String(index)} className={cn(CHIP_CLASSES, isNumeric && "font-mono text-[12.5px]")}>
           {choice.label}
           {choice.detail && <span className="font-mono text-[11.5px] font-normal text-muted-foreground">{choice.detail}</span>}
         </ToggleGroupItem>
@@ -114,12 +129,22 @@ export function ChoiceTiles<T>({
   );
 }
 
-export function OptionCards<T extends string>({ label, options, value, onChange }: { label: string; options: OptionCard<T>[]; value: T; onChange: (value: T) => void }) {
+export function OptionCards<T extends string>({
+  label,
+  options,
+  value,
+  onChange
+}: {
+  label: string;
+  options: OptionCard<T>[];
+  value: T;
+  onChange: (value: T) => void;
+}) {
   return (
     <RadioGroup aria-label={label} value={value} onValueChange={next => onChange(next as T)} className="flex flex-col gap-2">
       {options.map(option => (
         <label key={option.value} className={OPTION_CARD_CLASSES}>
-          <RadioGroupItem value={option.value} aria-label={option.label} className="mt-0.5 shrink-0" />
+          <RadioGroupItem value={option.value} aria-label={option.label} className={RADIO_DOT_CLASSES} />
           <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
             <span className="text-[13.5px] font-semibold leading-[19px]">{option.label}</span>
             {option.detail && <span className="text-[12.5px] leading-snug text-muted-foreground">{option.detail}</span>}

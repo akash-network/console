@@ -385,7 +385,7 @@ describe("gpuQuoteDraft", () => {
       expect(describeStorageTotal({ storageTbPerNode: 0, gpuModel: "b300", gpuCount: 32 })).toBeNull();
       expect(describeSla("99.5")).toBe("99.5% uptime");
       expect(describeSla(null)).toBe("No requirement");
-      expect(describeTerm("24_months")).toBe("2 years or more");
+      expect(describeTerm("24_months")).toBe("2 years+");
       expect(describeStart({ start: "flexible", startDate: "" })).toBe("Flexible");
       expect(describeStart({ start: "date", startDate: "2026-12-01" })).toBe("Dec 1, 2026");
       expect(describeStart({ start: "date", startDate: "" })).toBeNull();

@@ -1,7 +1,7 @@
 import { ApiError } from "@akashnetwork/openapi-sdk";
 import { createProxy } from "@akashnetwork/react-query-proxy";
 import { QueryClient } from "@tanstack/react-query";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AppDIContainer } from "@src/context/ServicesProvider/ServicesProvider";
@@ -350,6 +350,69 @@ describe("GpuQuoteRequestFlow", () => {
     expect(question()).toHaveTextContent("Where can they run?");
   });
 
+  it("picks a focused setup card on Enter and moves on", async () => {
+    const { user } = setup({ source: "requests_page" });
+
+    screen.getByRole("radio", { name: /Inference fleet/ }).focus();
+    await user.keyboard("{Enter}");
+
+    expect(question()).toHaveTextContent("Where can they run?");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("grows the receipt out of the server room each time the review opens", async () => {
+    const animate = stubAnimate();
+    stubRects({ room: { left: 900, top: 100, width: 340 }, receipt: { left: 200, top: 150, width: 680 } });
+    const { user } = setup({ source: "requests_page" });
+
+    await user.click(screen.getByRole("radio", { name: /Inference fleet/ }));
+    await continueTo(user, "How should we reach you?");
+    expect(animate).not.toHaveBeenCalled();
+
+    await user.click(continueButton());
+    expect(animate).toHaveBeenCalledTimes(1);
+    expect(animate.mock.contexts[0]).toHaveTextContent(/^Your request/);
+    expect(animate).toHaveBeenCalledWith(
+      [
+        { transformOrigin: "0 0", transform: "translate(700px, -50px) scale(0.5)", opacity: 0.4 },
+        { transformOrigin: "0 0", transform: "translate(0px, 0px) scale(1)", opacity: 1 }
+      ],
+      { duration: 640, easing: "cubic-bezier(0.32, 0.72, 0, 1)" }
+    );
+
+    await user.click(screen.getByRole("button", { name: /^Change SLA/ }));
+    await user.click(screen.getByRole("button", { name: "Back to review" }));
+    expect(animate).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the receipt from growing past its own size out of a wider room", async () => {
+    const animate = stubAnimate();
+    stubRects({ room: { left: 0, top: 0, width: 900 }, receipt: { left: 0, top: 0, width: 600 } });
+    const { user } = setup({ source: "requests_page", initialAnswers: { gpuModel: "h100" } });
+
+    await continueTo(user, "Check your request");
+
+    expect(animate.mock.lastCall?.[0][0].transform).toBe("translate(0px, 0px) scale(1)");
+  });
+
+  it.each([
+    ["the server room is hidden on a narrow screen", { width: 0 }, false],
+    ["the user prefers reduced motion", { width: 340 }, true]
+  ])("shows the receipt in place when %s", async (_, room, prefersReducedMotion) => {
+    const animate = stubAnimate();
+    stubRects({ room: { left: 900, top: 100, ...room }, receipt: { left: 200, top: 150, width: 680 } });
+    vi.stubGlobal("matchMedia", (query: string) => mock<MediaQueryList>({ matches: prefersReducedMotion && query === "(prefers-reduced-motion: reduce)" }));
+    onTestFinished(() => {
+      vi.unstubAllGlobals();
+    });
+    const { user } = setup({ source: "requests_page", initialAnswers: { gpuModel: "h100" } });
+
+    await continueTo(user, "Check your request");
+
+    expect(screen.getByText("Your request")).toBeInTheDocument();
+    expect(animate).not.toHaveBeenCalled();
+  });
+
   it("leaves Enter to the GPU search, buttons, notes and text being composed, and ignores other keys", async () => {
     const { user } = setup({ source: "requests_page", initialAnswers: { gpuModel: "h100" } });
 
@@ -411,7 +474,7 @@ describe("GpuQuoteRequestFlow", () => {
   }
 
   function receiptSections() {
-    return screen.getAllByRole("button", { name: /^Change [A-Za-z]+ / }).map(section => section.textContent);
+    return screen.getAllByRole("button", { name: /^Change [A-Z][A-Za-z]* / }).map(section => section.textContent);
   }
 
   function continueButton() {
@@ -434,6 +497,24 @@ describe("GpuQuoteRequestFlow", () => {
     while (!question().textContent?.includes(title)) {
       await user.click(continueButton());
     }
+  }
+
+  function stubAnimate() {
+    const animate = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, "animate", { value: animate, configurable: true });
+    onTestFinished(() => {
+      delete (HTMLElement.prototype as Partial<HTMLElement>).animate;
+    });
+    return animate;
+  }
+
+  function stubRects(rects: Record<"room" | "receipt", { left: number; top: number; width: number }>) {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function measure(this: HTMLElement) {
+      return mock<DOMRect>(this.tagName === "ASIDE" ? rects.room : rects.receipt);
+    });
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
   }
 
   function snackbarProps(enqueueSnackbar: ReturnType<typeof vi.fn>) {

@@ -92,7 +92,7 @@ describe("RequestFields", () => {
         within(screen.getByRole("group", { name: "Term" }))
           .getAllByRole("radio")
           .map(term => term.textContent)
-      ).toEqual(["Month to month", "6 months", "1 year", "2 years or more"]);
+      ).toEqual(["Month to month", "6 months", "1 year", "2 years+"]);
     });
 
     it("takes a typed start date once it is a real day from today on", async () => {
@@ -188,6 +188,16 @@ describe("RequestFields", () => {
       fireEvent.change(screen.getByLabelText("Email"), { target: { value: "ops@example.com" } });
 
       expect(onChange).toHaveBeenLastCalledWith({ email: "ops@example.com" });
+    });
+
+    it("marks every field but the email as optional beside its label", () => {
+      setup({ Field: ContactField, answers: { email: "" }, asksEmail: true });
+
+      expect(screen.getAllByText("Optional").map(note => note.previousElementSibling?.textContent)).toEqual([
+        "Phone number",
+        "Company",
+        "Anything else we should know?"
+      ]);
     });
   });
 

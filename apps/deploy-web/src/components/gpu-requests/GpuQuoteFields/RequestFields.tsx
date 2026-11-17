@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { Calendar, Input, Textarea } from "@akashnetwork/ui/components";
+import { Calendar, Input, Label, Textarea } from "@akashnetwork/ui/components";
 import { BanIcon, CalendarIcon, CheckIcon, PhoneIcon, TriangleAlertIcon } from "lucide-react";
 
 import { REGION_AREAS, REGION_MODES, REQUESTABLE_TERMS, STARTS, UPTIME_SLAS } from "../gpuQuoteDraft/gpuQuoteCatalog";
@@ -47,8 +47,8 @@ export function SlaField({ draft, onChange }: DraftFieldProps) {
         onChange={sla => onChange({ sla })}
       />
       {isRare && (
-        <p className="flex items-start gap-2.5 rounded-[10px] border border-warning/35 bg-warning/10 px-3 py-2.5 text-[12.5px] leading-normal">
-          <TriangleAlertIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" aria-hidden="true" />
+        <p className="flex items-start gap-[9px] rounded-[10px] border border-amber-500/35 bg-amber-500/[0.09] px-3 py-2.5 text-[12.5px] leading-normal">
+          <TriangleAlertIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-500" aria-hidden="true" />
           Very few providers offer 99.9%. Expect fewer offers and a longer search, or choose 99.5% for more options.
         </p>
       )}
@@ -116,7 +116,7 @@ function StartDateField({ value, today, onChange }: { value: string; today: stri
         className="w-[200px]"
         inputClassName="font-mono"
       />
-      {isInvalid && <p className="text-[12.5px] font-medium text-warning">Enter a date from today onward, like {toTypedDate(today)}.</p>}
+      {isInvalid && <p className="text-[12.5px] font-medium text-amber-700 dark:text-amber-500">Enter a date from today onward, like {toTypedDate(today)}.</p>}
       <Calendar
         mode="single"
         selected={value ? fromIsoDate(value) : undefined}
@@ -132,66 +132,76 @@ function StartDateField({ value, today, onChange }: { value: string; today: stri
 
 export function ContactField({ draft, onChange, asksEmail }: DraftFieldProps & { asksEmail: boolean }) {
   return (
-    <div className="flex max-w-[360px] flex-col gap-4">
+    <div className="flex flex-col gap-4">
       {asksEmail && (
-        <Input
-          id="gpu-quote-email"
-          type="email"
-          label="Email"
-          labelClassName="text-[12.5px] font-medium"
-          autoComplete="email"
-          value={draft.email}
-          onChange={event => onChange({ email: event.target.value })}
-        />
+        <ContactRow id="gpu-quote-email" label="Email">
+          <Input
+            id="gpu-quote-email"
+            type="email"
+            autoComplete="email"
+            value={draft.email}
+            onChange={event => onChange({ email: event.target.value })}
+            className="max-w-[360px]"
+          />
+        </ContactRow>
       )}
-      <Input
-        id="gpu-quote-phone"
-        type="tel"
-        label={<OptionalLabel>Phone number</OptionalLabel>}
-        labelClassName="text-[12.5px] font-medium"
-        placeholder="+1 555 010 0100"
-        startIcon={<PhoneIcon className="ml-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />}
-        autoComplete="tel"
-        maxLength={MAX_CONTACT_FIELD_LENGTH}
-        value={draft.phone}
-        onChange={event => onChange({ phone: event.target.value })}
-      />
-      <Input
-        id="gpu-quote-company"
-        label={<OptionalLabel>Company</OptionalLabel>}
-        labelClassName="text-[12.5px] font-medium"
-        placeholder="Company or team name"
-        autoComplete="organization"
-        maxLength={MAX_CONTACT_FIELD_LENGTH}
-        value={draft.company}
-        onChange={event => onChange({ company: event.target.value })}
-      />
-      <Textarea
-        id="gpu-quote-notes"
-        label={<OptionalLabel>Anything else we should know?</OptionalLabel>}
-        rows={3}
-        placeholder="Workload, software stack, compliance needs…"
-        maxLength={MAX_NOTES_LENGTH}
-        value={draft.notes}
-        onChange={event => onChange({ notes: event.target.value })}
-      />
+      <ContactRow id="gpu-quote-phone" label="Phone number" isOptional>
+        <Input
+          id="gpu-quote-phone"
+          type="tel"
+          placeholder="+1 555 010 0100"
+          startIcon={<PhoneIcon className="ml-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />}
+          autoComplete="tel"
+          maxLength={MAX_CONTACT_FIELD_LENGTH}
+          value={draft.phone}
+          onChange={event => onChange({ phone: event.target.value })}
+          className="max-w-[360px]"
+        />
+      </ContactRow>
+      <ContactRow id="gpu-quote-company" label="Company" isOptional>
+        <Input
+          id="gpu-quote-company"
+          placeholder="Company or team name"
+          autoComplete="organization"
+          maxLength={MAX_CONTACT_FIELD_LENGTH}
+          value={draft.company}
+          onChange={event => onChange({ company: event.target.value })}
+          className="max-w-[360px]"
+        />
+      </ContactRow>
+      <ContactRow id="gpu-quote-notes" label="Anything else we should know?" isOptional>
+        <Textarea
+          id="gpu-quote-notes"
+          rows={3}
+          placeholder="Workload, software stack, compliance needs…"
+          maxLength={MAX_NOTES_LENGTH}
+          value={draft.notes}
+          onChange={event => onChange({ notes: event.target.value })}
+        />
+      </ContactRow>
+    </div>
+  );
+}
+
+function ContactRow({ id, label, isOptional = false, children }: { id: string; label: string; isOptional?: boolean; children: ReactNode }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-2">
+      <span className="flex items-baseline justify-between gap-2.5">
+        <Label htmlFor={id} className="text-[12.5px] font-medium">
+          {label}
+        </Label>
+        {isOptional && <span className="text-xs text-muted-foreground">Optional</span>}
+      </span>
+      {children}
     </div>
   );
 }
 
 function RareBadge() {
   return (
-    <span className="rounded border border-warning/45 px-[5px] font-mono text-[9.5px] font-semibold uppercase leading-[14px] tracking-[0.08em] text-warning">
+    <span className="rounded border border-amber-500/45 px-[5px] font-mono text-[9.5px] font-semibold uppercase leading-[14px] tracking-[0.08em] text-amber-700 dark:text-amber-500">
       Rare
     </span>
-  );
-}
-
-function OptionalLabel({ children }: { children: ReactNode }) {
-  return (
-    <>
-      {children} <span className="font-normal text-muted-foreground">(optional)</span>
-    </>
   );
 }
 

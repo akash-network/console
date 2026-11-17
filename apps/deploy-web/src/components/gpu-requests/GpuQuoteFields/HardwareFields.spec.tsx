@@ -17,7 +17,7 @@ describe("HardwareFields", () => {
       expect(screen.getByRole("radio", { name: /Full server/ }).closest("label")).toHaveTextContent(
         "Full serverFine-tuning and large modelsNVIDIA RTX · 96 GB8×PRO 6000Nodes1 × 8 GPUsNetworkInfiniBandStorage8 TB / node"
       );
-      expect(screen.getByRole("radiogroup", { name: "Starting point" })).toHaveClass("sm:grid-cols-3");
+      expect(screen.getByRole("radiogroup", { name: "Starting point" })).toHaveClass("min-[552px]:grid-cols-3");
 
       await userEvent.click(screen.getByRole("radio", { name: /Training cluster/ }));
 
@@ -31,7 +31,8 @@ describe("HardwareFields", () => {
       expect(screen.getByRole("radio", { name: /Your configuration/ })).toBeChecked();
       expect(screen.getByText("4 vCPU · 1× GPU")).toBeInTheDocument();
       expect(screen.getByText("From your SDL")).toBeInTheDocument();
-      expect(screen.getByRole("radiogroup", { name: "Starting point" })).toHaveClass("sm:grid-cols-2");
+      expect(screen.getByRole("radiogroup", { name: "Starting point" })).toHaveClass("min-[452px]:grid-cols-2");
+      expect(screen.getByRole("radiogroup", { name: "Starting point" })).not.toHaveClass("min-[552px]:grid-cols-3");
     });
   });
 

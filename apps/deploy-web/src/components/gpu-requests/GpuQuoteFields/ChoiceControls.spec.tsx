@@ -29,6 +29,14 @@ describe("ChoiceControls", () => {
       expect(onChange).not.toHaveBeenCalled();
     });
 
+    it("sets numbers in mono only when the choices are numeric", () => {
+      const { rerender } = render(<ChoiceChips label="Nodes" choices={[{ value: 2, label: "2" }]} value={null} isNumeric onChange={vi.fn()} />);
+      expect(screen.getByRole("radio", { name: "2" })).toHaveClass("font-mono", "text-[12.5px]");
+
+      rerender(<ChoiceChips label="Nodes" choices={[{ value: 2, label: "2" }]} value={null} onChange={vi.fn()} />);
+      expect(screen.getByRole("radio", { name: "2" })).not.toHaveClass("font-mono");
+    });
+
     it("checks nothing when the value is not one of the choices", () => {
       render(<ChoiceChips label="Uplink" choices={UPLINK_CHOICES.slice(1)} value={null} onChange={vi.fn()} />);
 
