@@ -29,6 +29,7 @@ const PROBLEM_MESSAGES: Record<Exclude<AssistantProblem, "consent">, string> = {
   unavailable: "The assistant is unavailable right now.",
   rate_limited: "You're sending messages too quickly. Wait a minute, then try again.",
   daily_limit: "You've reached today's message limit. It resets tomorrow.",
+  trial_limit: "You've used all your free assistant messages. Add credits to keep using the assistant.",
   blocked: "The assistant is turned off for your account.",
   error: "Something went wrong with that answer. Try sending it again."
 };
