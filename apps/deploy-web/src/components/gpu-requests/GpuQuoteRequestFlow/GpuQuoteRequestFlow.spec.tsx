@@ -326,7 +326,7 @@ describe("GpuQuoteRequestFlow", () => {
     const { user } = setup({ source: "requests_page" });
 
     expect(screen.getByRole("dialog", { name: "Request GPUs" })).toHaveAccessibleDescription("Step 1 of 9");
-    expect(screen.getByRole("complementary", { name: "Your server room" })).toHaveTextContent("Empty rack");
+    expect(screen.getByRole("complementary", { name: "Your server room" })).toContainElement(screen.getByRole("button", { name: "Change the setup" }));
     expect(question()).toHaveFocus();
     expect(screen.getByText("Press")).toBeInTheDocument();
 

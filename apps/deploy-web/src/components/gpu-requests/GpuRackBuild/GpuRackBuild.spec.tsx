@@ -3,36 +3,49 @@ import { describe, expect, it, vi } from "vitest";
 import type { GpuQuoteDraft, QuoteStepId, StartingPoint } from "../gpuQuoteDraft/gpuQuoteDraft";
 import { applyStartingPoint, createBlankDraft, CUSTOM_STARTING_POINT, listSteps, STARTER_PACKAGES } from "../gpuQuoteDraft/gpuQuoteDraft";
 import { GpuRackBuild } from "./GpuRackBuild";
+import type { RackPart } from "./rackBuild";
 import { describeRackBuild } from "./rackBuild";
 
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe(GpuRackBuild.name, () => {
-  it("names the setup and what has been built in its corners", () => {
-    setup({ startingPoint: STARTER_PACKAGES[0], reached: ["start"], current: "start" });
-
-    expect(screen.getByText("Inference fleet")).toBeInTheDocument();
-    expect(screen.getByText("Click to change")).toBeInTheDocument();
-    expect(screen.getByText("16 GPUs")).toBeInTheDocument();
-  });
-
   it("offers a callout per built part that goes back to its question", async () => {
     const { onChangeStep } = setup({ startingPoint: STARTER_PACKAGES[0], reached: ["start"], current: "review" });
 
     await userEvent.click(screen.getByRole("button", { name: "Change Uptime: No SLA" }));
     await userEvent.click(screen.getByRole("button", { name: "Change GPUs: 16× B300" }));
 
-    expect(screen.getAllByRole("button", { name: /^Change [A-Z]/ }).map(button => button.getAttribute("aria-label"))).toEqual([
-      "Change Network: InfiniBand",
-      "Change Storage: 4 TB/node",
+    expect(calloutLabels()).toEqual([
       "Change GPUs: 16× B300",
-      "Change Term: M2M · ASAP",
+      "Change Network: InfiniBand",
+      "Change Region: Anywhere",
+      "Change Storage: 4 TB/node",
       "Change Uptime: No SLA",
-      "Change Region: Anywhere"
+      "Change Term: M2M · ASAP"
     ]);
     expect(screen.getByRole("button", { name: "Change Uptime: No SLA" })).toHaveAttribute("title", "Change the uptime");
     expect(onChangeStep.mock.calls).toEqual([["sla"], ["start"]]);
+  });
+
+  it("stacks callouts in the order their answers arrive and never moves one that is already placed", () => {
+    const { show } = setup({ startingPoint: STARTER_PACKAGES[0], reached: ["start"], current: "start" });
+    expect(calloutLabels()).toEqual(["Change GPUs: 16× B300", "Change Network: InfiniBand", "Change Storage: 4 TB/node"]);
+
+    show({ startingPoint: STARTER_PACKAGES[0], reached: ["start", "region", "sla"], current: "sla", draft: { sla: "99.5" } });
+    expect(calloutLabels()).toEqual([
+      "Change GPUs: 16× B300",
+      "Change Network: InfiniBand",
+      "Change Storage: 4 TB/node",
+      "Change Region: Anywhere",
+      "Change Uptime: 99.5%"
+    ]);
+
+    show({ reached: ["start", "region", "sla"], current: "start" });
+    expect(calloutLabels()).toEqual(["Change Region: Anywhere", "Change Uptime: No SLA"]);
+
+    show({ reached: ["start", "region", "sla", "gpu", "interconnect"], current: "interconnect", draft: { gpuModel: "h100" } });
+    expect(calloutLabels()).toEqual(["Change GPUs: 8× H100", "Change Network: InfiniBand", "Change Region: Anywhere", "Change Uptime: No SLA"]);
   });
 
   it("lets the keyboard reach each built part once and go back to its question", async () => {
@@ -66,7 +79,6 @@ describe(GpuRackBuild.name, () => {
       [...container.querySelectorAll('[data-part][tabindex="-1"]')].map(part => [part.getAttribute("data-part"), part.getAttribute("aria-hidden")])
     ).toEqual([
       ["rack", "true"],
-      ["network", "true"],
       ["power", "true"]
     ]);
   });
@@ -94,13 +106,13 @@ describe(GpuRackBuild.name, () => {
     fireEvent.mouseEnter(container.querySelector('[data-part="network"]')!);
 
     expect(storageCallout).toHaveAttribute("data-hot");
-    expect(storagePart.querySelector(`[data-tone="lit"]`)).toBeInTheDocument();
+    expect(storagePart.querySelector('[data-tone="lit"]')).toBeInTheDocument();
     expect(networkCallout).toHaveAttribute("data-hot");
 
     fireEvent.blur(storagePart);
 
     expect(storageCallout).not.toHaveAttribute("data-hot");
-    expect(storagePart.querySelector(`[data-tone="lit"]`)).not.toBeInTheDocument();
+    expect(storagePart.querySelector('[data-tone="lit"]')).not.toBeInTheDocument();
     expect(networkCallout).toHaveAttribute("data-hot");
   });
 
@@ -114,7 +126,7 @@ describe(GpuRackBuild.name, () => {
   it("goes back to a question from its part of the drawing", () => {
     const { container, onChangeStep } = setup({ draft: { gpuModel: "h100" }, reached: ["start"], current: "review" });
 
-    for (const part of ["rack", "servers", "network", "storage", "floor", "power", "cage"]) {
+    for (const part of ["rack", "servers", "network", "storage", "floor", "power", "calendar"]) {
       fireEvent.click(container.querySelector(`[data-part="${part}"]`)!);
     }
 
@@ -141,34 +153,98 @@ describe(GpuRackBuild.name, () => {
     expect(network).not.toHaveAttribute("data-hot");
   });
 
-  it.each([
-    [
-      "8U servers caged on the raised floor",
-      { startingPoint: STARTER_PACKAGES[0], reached: ["start", "region", "sla", "timing"], current: "timing", draft: { sla: "99.5" } }
-    ],
-    ["an NVL72 rack backed by a UPS", { startingPoint: STARTER_PACKAGES[1], reached: ["start", "region", "sla"], current: "sla", draft: { sla: "99.9" } }]
-  ] as [string, SetupInput][])("draws %s", (_, input) => {
-    const { container } = setup(input);
+  it("lights the part of the question being asked, the part under the pointer, and the servers on the review", () => {
+    const { container, show } = setup({ startingPoint: STARTER_PACKAGES[0], reached: ["start", "region", "sla"], current: "sla" });
+    const litParts = () => PARTS.filter(part => container.querySelector(`[data-part="${part}"] [data-lit]`));
+
+    expect(litParts()).toEqual(["power"]);
+
+    fireEvent.mouseEnter(container.querySelector('[data-part="floor"]')!);
+    expect(litParts()).toEqual(["floor", "power"]);
+
+    fireEvent.mouseLeave(container.querySelector('[data-part="floor"]')!);
+    show({ startingPoint: STARTER_PACKAGES[0], reached: ["start", "region", "sla"], current: "review" });
+    expect(litParts()).toEqual(["servers"]);
+  });
+
+  it("turns the status LEDs on once the rack has power", () => {
+    const { container, show } = setup({ startingPoint: STARTER_PACKAGES[0], reached: ["start", "region"], current: "region" });
+    const ledsOn = () => container.querySelectorAll("circle[data-on]").length;
+
+    expect(ledsOn()).toBe(0);
+
+    show({ startingPoint: STARTER_PACKAGES[0], reached: ["start", "region", "sla"], current: "sla" });
+    expect(ledsOn()).toBe(6);
+  });
+
+  it("heads the wall calendar with the term", () => {
+    setup({ startingPoint: STARTER_PACKAGES[0], reached: ["start", "timing"], current: "timing", draft: { term: "12_months" } });
+
+    expect(screen.getByText("12 MONTHS")).toBeInTheDocument();
+  });
+
+  it("draws the whole room around 8U servers: floor, wall calendar, power strips, network and drives", () => {
+    const { container } = setup({
+      startingPoint: STARTER_PACKAGES[0],
+      reached: ["start", "region", "sla", "timing"],
+      current: "timing",
+      draft: { sla: "99.5", term: "12_months", start: "date", startDate: "2026-12-09" }
+    });
 
     expect(describeDrawing(container.querySelector("svg")!)).toMatchSnapshot();
   });
+
+  it.each([
+    [
+      "an NVL72's trays, drives and shared cables, backed by a UPS",
+      { startingPoint: STARTER_PACKAGES[1], reached: ["start", "sla"], current: "sla", draft: { sla: "99.9" } },
+      ["servers", "storage", "network", "power"]
+    ],
+    [
+      "4U servers under a single blanking span before the network arrives",
+      { reached: ["start", "gpu", "interconnect", "region", "storage"], current: "gpu", draft: { gpuModel: "pro6000", gpuCount: 16, storageTbPerNode: 30 } },
+      ["servers", "storage"]
+    ],
+    [
+      "a one-page calendar with no day marked for a flexible monthly term",
+      { reached: ["start", "timing"], current: "start", draft: { start: "flexible" } },
+      ["calendar"]
+    ],
+    ["a thinner-paged calendar for a two-year term", { reached: ["start", "timing"], current: "start", draft: { term: "24_months" } }, ["calendar"]]
+  ] as [string, SetupInput, RackPart[]][])("draws %s", (_, input, parts) => {
+    const { container } = setup(input);
+    const selector = parts.map(part => `[data-part="${part}"]`).join(",");
+
+    expect([...container.querySelectorAll(selector)].map(part => describeDrawing(part)).join("\n")).toMatchSnapshot();
+  });
+
+  const PARTS: RackPart[] = ["rack", "servers", "network", "storage", "floor", "power", "calendar"];
 
   type SetupInput = { startingPoint?: StartingPoint; draft?: Partial<GpuQuoteDraft>; reached: QuoteStepId[]; current: QuoteStepId };
 
   function setup(input: SetupInput) {
     const onChangeStep = vi.fn();
+    const { container, rerender } = render(<GpuRackBuild build={buildOf(input)} onChangeStep={onChangeStep} />);
+    const show = (nextInput: SetupInput) => rerender(<GpuRackBuild build={buildOf(nextInput)} onChangeStep={onChangeStep} />);
+
+    return { container, onChangeStep, show };
+  }
+
+  function buildOf(input: SetupInput) {
     const startingPoint = input.startingPoint ?? CUSTOM_STARTING_POINT;
     const draft = { ...applyStartingPoint(createBlankDraft("me@example.com"), startingPoint), ...input.draft };
-    const build = describeRackBuild({
+
+    return describeRackBuild({
       steps: listSteps(startingPoint.answers),
       draft,
-      setupName: input.startingPoint?.name,
       reachedSteps: new Set(input.reached),
-      currentStep: input.current
+      currentStep: input.current,
+      today: "2026-11-17"
     });
-    const { container } = render(<GpuRackBuild build={build} onChangeStep={onChangeStep} />);
+  }
 
-    return { container, onChangeStep };
+  function calloutLabels() {
+    return screen.getAllByRole("button", { name: /^Change [A-Z]/ }).map(button => button.getAttribute("aria-label"));
   }
 
   function describeDrawing(element: Element, depth = 0): string {
