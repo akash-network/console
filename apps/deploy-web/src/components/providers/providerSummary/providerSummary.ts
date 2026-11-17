@@ -29,7 +29,7 @@ export function summarizeLocatedProvider(location: ApiProviderLocation): Provide
   return {
     ...summarizeIdentity(location),
     gpuModels: location.gpuModels,
-    cpus: location.cpus ?? [],
+    cpus: uniqueCpus(location.cpus ?? []),
     coordinates: parseCoordinates(location.ipLat, location.ipLon)
   };
 }
@@ -38,7 +38,7 @@ export function summarizeListedProvider(provider: ApiProviderList): ProviderSumm
   return {
     ...summarizeIdentity(provider),
     gpuModels: [...new Set(provider.gpuModels.map(gpu => gpu.model))],
-    cpus: (provider.cpuModels ?? []).map(({ vendor, model, generation }) => ({ vendor, model, generation })),
+    cpus: uniqueCpus((provider.cpuModels ?? []).map(({ vendor, model, generation }) => ({ vendor, model, generation }))),
     coordinates: parseCoordinates(provider.ipLat, provider.ipLon)
   };
 }
@@ -56,6 +56,11 @@ function summarizeIdentity(provider: ApiProviderLocation | ApiProviderList): Omi
     memoryBytes: totalOf(provider.stats.memory),
     storageBytes: totalOf(provider.stats.storage.ephemeral) + totalOf(provider.stats.storage.persistent)
   };
+}
+
+/** The API keeps a model reported with and without a frequency apart; without the frequency they read the same. */
+function uniqueCpus(cpus: ProviderCpu[]): ProviderCpu[] {
+  return [...new Map(cpus.map(cpu => [JSON.stringify([cpu.vendor, cpu.model, cpu.generation]), cpu])).values()];
 }
 
 export function formatCpuName({ vendor, model }: Pick<ProviderCpu, "vendor" | "model">): string {

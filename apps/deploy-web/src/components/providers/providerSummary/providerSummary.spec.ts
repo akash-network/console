@@ -103,6 +103,28 @@ describe("providerSummary", () => {
     });
   });
 
+  describe("a CPU model reported with and without its frequency", () => {
+    it("lists it once for a located and a listed provider", () => {
+      const stats = createStats({ cpu: 1000, gpu: 0, memory: 0, ephemeral: 0, persistent: 0 });
+      const xeon = { vendor: "Intel" as const, model: "Xeon Gold 6248R", generation: "Cascade Lake" };
+      const epyc = { vendor: "AMD" as const, model: "EPYC 7763", generation: "Milan" };
+      const location = Object.assign(mock<ApiProviderLocation>(), { hostUri: "https://a.example.com:8443", gpuModels: [], cpus: [xeon, epyc, xeon], stats });
+      const provider = Object.assign(mock<ApiProviderList>(), {
+        hostUri: "https://b.example.com:8443",
+        gpuModels: [],
+        cpuModels: [
+          { ...xeon, baseFrequencyMhz: 3000, isVirtual: false, threads: 96, nodeCount: 1 },
+          { ...epyc, baseFrequencyMhz: null, isVirtual: false, threads: 64, nodeCount: 1 },
+          { ...xeon, baseFrequencyMhz: null, isVirtual: false, threads: 48, nodeCount: 1 }
+        ],
+        stats
+      });
+
+      expect(summarizeLocatedProvider(location).cpus).toEqual([xeon, epyc]);
+      expect(summarizeListedProvider(provider).cpus).toEqual([xeon, epyc]);
+    });
+  });
+
   describe(formatCpuName.name, () => {
     it("puts the vendor before the model", () => {
       expect(formatCpuName({ vendor: "AMD", model: "EPYC 7763" })).toBe("AMD EPYC 7763");
