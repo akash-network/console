@@ -255,6 +255,35 @@ describe("ProviderFilterPopover", () => {
       expect(screen.queryByText("No CPU models reported on the network right now.")).not.toBeInTheDocument();
     });
 
+    it("stops adding CPU models at 50 and still lets the user remove one", async () => {
+      const models = Array.from({ length: 51 }, (_, index) => `Model ${index + 1}`);
+      const { onChange } = setupCpu({
+        modelOptions: models.map(value => ({ value, count: 1 })),
+        selected: { cpuVendors: [], cpuGenerations: [], cpuModels: models.slice(0, 50) }
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "Filter by cpu, 50 selected" }));
+
+      expect(screen.getByRole("checkbox", { name: /Model 51\b/ })).toBeDisabled();
+      expect(screen.getByText("Up to 50 per list.")).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("checkbox", { name: /Model 50\b/ }));
+      expect(onChange).toHaveBeenCalledExactlyOnceWith({ cpuModels: models.slice(0, 49) });
+    });
+
+    it("lets the user add a 50th CPU model", async () => {
+      const models = Array.from({ length: 50 }, (_, index) => `Model ${index + 1}`);
+      const { onChange } = setupCpu({
+        modelOptions: models.map(value => ({ value, count: 1 })),
+        selected: { cpuVendors: [], cpuGenerations: [], cpuModels: models.slice(0, 49) }
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "Filter by cpu, 49 selected" }));
+      await userEvent.click(screen.getByRole("checkbox", { name: /Model 50\b/ }));
+
+      expect(onChange).toHaveBeenCalledExactlyOnceWith({ cpuModels: models });
+      expect(screen.queryByText("Up to 50 per list.")).not.toBeInTheDocument();
+    });
+
     it("says when no provider reports its CPUs", async () => {
       setupCpu({ vendorOptions: [], generationOptions: [], modelOptions: [] });
 

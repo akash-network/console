@@ -125,6 +125,9 @@ export const CpuFilterPopover: FC<CpuFilterPopoverProps> = ({ vendorOptions, gen
   );
 };
 
+/** The API rejects a CPU filter list longer than this. */
+const MAX_VALUES_PER_CPU_FILTER = 50;
+
 type CpuOptionGroupProps = {
   label: string;
   options: FilterOption[];
@@ -132,17 +135,31 @@ type CpuOptionGroupProps = {
   onChange: (values: string[]) => void;
 };
 
-const CpuOptionGroup: FC<CpuOptionGroupProps> = ({ label, options, selected, onChange }) =>
-  options.length === 0 ? null : (
+const CpuOptionGroup: FC<CpuOptionGroupProps> = ({ label, options, selected, onChange }) => {
+  if (options.length === 0) return null;
+
+  const isFull = selected.length >= MAX_VALUES_PER_CPU_FILTER;
+  return (
     <div role="group" aria-label={`CPU ${label.toLowerCase()}`}>
       <span className="block px-2 pb-0.5 pt-1 font-mono text-[9.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
-      {options.map(option => (
-        <CheckRow key={option.value} isChecked={selected.includes(option.value)} onToggle={() => onChange(toggle(selected, option.value))} count={option.count}>
-          {option.value}
-        </CheckRow>
-      ))}
+      {options.map(option => {
+        const isChecked = selected.includes(option.value);
+        return (
+          <CheckRow
+            key={option.value}
+            isChecked={isChecked}
+            isDisabled={isFull && !isChecked}
+            onToggle={() => onChange(toggle(selected, option.value))}
+            count={option.count}
+          >
+            {option.value}
+          </CheckRow>
+        );
+      })}
+      {isFull && <span className="block px-2 py-1 text-[10.5px] text-muted-foreground">Up to {MAX_VALUES_PER_CPU_FILTER} per list.</span>}
     </div>
   );
+};
 
 type FilterPopoverProps = {
   label: string;
@@ -179,19 +196,21 @@ const FilterPopover: FC<FilterPopoverProps> = ({ label, activeCount, variant, ch
 
 type CheckRowProps = {
   isChecked: boolean;
+  isDisabled?: boolean;
   onToggle: () => void;
   dotClassName?: string;
   count?: number;
   children: ReactNode;
 };
 
-const CheckRow: FC<CheckRowProps> = ({ isChecked, onToggle, dotClassName, count, children }) => (
+const CheckRow: FC<CheckRowProps> = ({ isChecked, isDisabled, onToggle, dotClassName, count, children }) => (
   <button
     type="button"
     role="checkbox"
     aria-checked={isChecked}
+    disabled={isDisabled}
     onClick={onToggle}
-    className="flex w-full items-center gap-2 rounded-[7px] px-2 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-muted"
+    className="flex w-full items-center gap-2 rounded-[7px] px-2 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
   >
     <span
       className={cn(
