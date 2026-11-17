@@ -25,6 +25,10 @@
  */
 
 .root {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 116px;
+  column-gap: 6px;
+  align-items: start;
   --iso-card: #fbfbfa;
   --iso-text: #57575a;
   --iso-strong: #18181a;
@@ -35,6 +39,7 @@
   --iso-shade-0: #dcdcd9;
   --iso-shade-1: #e5e5e2;
   --iso-shade-2: #ededea;
+  --iso-shade-3: #f4f4f1;
   --iso-lit-top: #ffffff;
   --iso-lit-shade: #eeeeeb;
   --iso-hi: #26262a;
@@ -59,6 +64,7 @@
   --iso-shade-0: #0f0f0f;
   --iso-shade-1: #121212;
   --iso-shade-2: #151515;
+  --iso-shade-3: #181818;
   --iso-lit-top: #262626;
   --iso-lit-shade: #1d1d1d;
   --iso-hi: #d4d4d4;
@@ -71,66 +77,10 @@
   --iso-dot: #e6e6e6;
 }
 
-.plate {
-  position: relative;
-  padding: 40px 12px;
-  border-radius: 12px;
-  background: var(--iso-card);
-  box-shadow: 0 0 0 1px var(--iso-mid);
-}
-
-.corners {
-  position: absolute;
-  inset: 16px;
-  pointer-events: none;
-}
-
-.corner {
-  position: absolute;
-  color: var(--iso-muted);
-  font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 10.5px;
-  line-height: 1;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
-}
-
-.corner[data-corner="fig"] {
-  top: 0;
-  left: 0;
-  color: var(--iso-text);
-}
-
-.corner[data-corner="title"] {
-  top: 0;
-  right: 0;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
-
-.corner[data-corner="hint"] {
-  bottom: 0;
-  left: 0;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
-
-.corner[data-corner="readout"] {
-  right: 0;
-  bottom: 0;
-  color: var(--iso-text);
-  font-variant-numeric: tabular-nums;
-}
-
-.figure {
-  position: relative;
-}
-
 .svg {
   display: block;
   width: 100%;
   height: auto;
-  margin: 0 auto;
   overflow: visible;
 }
 
@@ -157,6 +107,10 @@
 
 .shade[data-shade="2"] {
   fill: var(--iso-shade-2);
+}
+
+.shade[data-shade="3"] {
+  fill: var(--iso-shade-3);
 }
 
 .top {
@@ -199,7 +153,21 @@
 }
 
 .line[data-tone="lit"],
-.solid[data-lit] > .line {
+.solid[data-lit] > .line[data-edge] {
+  stroke: var(--iso-lit);
+}
+
+.wireEnd {
+  fill: var(--iso-paper);
+  stroke: var(--iso-lo);
+  stroke-width: var(--iso-weight);
+}
+
+.wire[data-tone="mid"] .wireEnd {
+  stroke: var(--iso-mid);
+}
+
+.wire[data-tone="lit"] .wireEnd {
   stroke: var(--iso-lit);
 }
 
@@ -218,6 +186,20 @@
 
 .dots[data-tone="lo"] circle {
   opacity: 0.22;
+}
+
+.dots[data-tone="faint"] circle {
+  opacity: 0.12;
+}
+
+.faceText {
+  fill: var(--iso-mid);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  letter-spacing: 0.04em;
+}
+
+.faceText[data-tone="hi"] {
+  fill: var(--iso-hi);
 }
 
 .slideIn {
@@ -247,7 +229,7 @@
 }
 
 .led {
-  fill: var(--iso-lo);
+  fill: var(--iso-faint);
   transition: fill 400ms ease;
 }
 
@@ -255,19 +237,16 @@
   fill: var(--iso-lit);
 }
 
-.pin {
-  fill: var(--iso-mid);
-  transition: fill 120ms ease;
-}
-
-.pin[data-hot] {
-  fill: var(--iso-lit);
+.callouts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding-top: 2px;
 }
 
 .callout {
   appearance: none;
-  position: absolute;
-  width: 30%;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -280,19 +259,10 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
-  translate: 0 -50%;
-  animation: callout-in 420ms var(--iso-ease) both;
+  animation: callout-in 420ms var(--iso-ease) 160ms both;
   transition:
     border-color 120ms ease,
     box-shadow 120ms ease;
-}
-
-.callout[data-side="left"] {
-  left: 0;
-}
-
-.callout[data-side="right"] {
-  right: 0;
 }
 
 .callout:hover,

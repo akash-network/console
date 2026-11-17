@@ -1,13 +1,51 @@
 import { describe, expect, it } from "vitest";
 
-import { boxPaths, calloutEdge, faceRect, meshPath, pathOf, placeCallouts, project, round, slideFrom } from "./rackGeometry";
+import {
+  boxOf,
+  boxPaths,
+  cylinderPaths,
+  faceRect,
+  FLOOR,
+  FLOOR_PEDESTAL_BOTTOM,
+  insetPlan,
+  pathOf,
+  planCorners,
+  project,
+  projectOffset,
+  ringPath,
+  round,
+  roundedTopRect,
+  seamPath,
+  sideRect,
+  sideTextMatrix,
+  slideFrom,
+  topRect,
+  VIEW
+} from "./rackGeometry";
 
 describe("rackGeometry", () => {
   describe(project.name, () => {
-    it("draws +x down to the right, +y down to the left and +z straight up", () => {
-      expect(project([10, 0, 0]).map(round)).toEqual([7.07, 3.54]);
-      expect(project([0, 10, 0]).map(round)).toEqual([-7.07, 3.54]);
-      expect(project([0, 0, 10]).map(round)).toEqual([0, -8.66]);
+    it("draws +x down to the right, +y down to the left and +z straight up from the view's origin", () => {
+      expect(project([0, 0, 0]).map(round)).toEqual([115, 145.39]);
+      expect(project([10, 0, 0]).map(round)).toEqual([121.22, 148.5]);
+      expect(project([0, 10, 0]).map(round)).toEqual([108.78, 148.5]);
+      expect(project([0, 0, 10]).map(round)).toEqual([115, 137.77]);
+    });
+
+    it("fits the widest thing the room holds, the raised floor on its pedestals, inside the view's padding", () => {
+      const { width, depth } = FLOOR;
+
+      expect(project([0, depth, FLOOR_PEDESTAL_BOTTOM]).map(round)).toEqual([3, 213.58]);
+      expect(project([width, 0, FLOOR_PEDESTAL_BOTTOM]).map(round)).toEqual([VIEW.width - 3, 213.58]);
+      expect(project([width, depth, FLOOR_PEDESTAL_BOTTOM])[1]).toBeLessThan(VIEW.height - 3);
+    });
+  });
+
+  describe(projectOffset.name, () => {
+    it("turns a world offset into the distance it covers on screen", () => {
+      expect(projectOffset(10, 0, 0).map(round)).toEqual([6.22, 3.11]);
+      expect(projectOffset(0, 10, 0).map(round)).toEqual([-6.22, 3.11]);
+      expect(projectOffset(0, 0, 10).map(round)).toEqual([0, -7.62]);
     });
   });
 
@@ -25,7 +63,7 @@ describe("rackGeometry", () => {
           [0, 0, 0],
           [10, 0, 0]
         ])
-      ).toBe("M0 0L7.07 3.54");
+      ).toBe("M115 145.39L121.22 148.5");
       expect(
         pathOf(
           [
@@ -34,12 +72,12 @@ describe("rackGeometry", () => {
           ],
           true
         )
-      ).toBe("M0 0L0 -8.66Z");
+      ).toBe("M115 145.39L115 137.77Z");
     });
   });
 
-  describe(faceRect.name, () => {
-    it("lays a rectangle on the face at the given depth", () => {
+  describe("rectangles", () => {
+    it("lays one on a front face at its depth", () => {
       expect(faceRect(1, 2, 3, 4, 5)).toEqual([
         [1, 5, 3],
         [2, 5, 3],
@@ -47,88 +85,121 @@ describe("rackGeometry", () => {
         [1, 5, 4]
       ]);
     });
+
+    it("lays one on a side face at its x", () => {
+      expect(sideRect(1, 2, 3, 4, 5)).toEqual([
+        [5, 1, 3],
+        [5, 2, 3],
+        [5, 2, 4],
+        [5, 1, 4]
+      ]);
+    });
+
+    it("lays one flat over a plan at its height", () => {
+      expect(topRect({ x: 1, y: 2, width: 10, depth: 20 }, 5)).toEqual([
+        [1, 2, 5],
+        [11, 2, 5],
+        [11, 22, 5],
+        [1, 22, 5]
+      ]);
+    });
+
+    it("rounds the corners of a flat one, walking each quarter turn in four steps", () => {
+      const points = roundedTopRect({ x: 0, y: 0, width: 10, depth: 4 }, 2, 7).map(point => point.map(round));
+
+      expect(points).toHaveLength(20);
+      expect(points.slice(0, 5)).toEqual([
+        [8, 0, 7],
+        [8.77, 0.15, 7],
+        [9.41, 0.59, 7],
+        [9.85, 1.23, 7],
+        [10, 2, 7]
+      ]);
+      expect(points.filter((_, index) => index % 5 === 4)).toEqual([
+        [10, 2, 7],
+        [8, 4, 7],
+        [0, 2, 7],
+        [2, 0, 7]
+      ]);
+    });
+  });
+
+  describe("plans", () => {
+    it("stands a box on a plan", () => {
+      expect(boxOf({ x: 1, y: 2, width: 3, depth: 4 }, 5, 6)).toEqual([1, 2, 5, 3, 4, 6]);
+    });
+
+    it("shrinks a plan by an inset and grows it by a negative one", () => {
+      expect(insetPlan({ x: 10, y: 20, width: 30, depth: 40 }, 2)).toEqual({ x: 12, y: 22, width: 26, depth: 36 });
+      expect(insetPlan({ x: 10, y: 20, width: 30, depth: 40 }, -1.5)).toEqual({ x: 8.5, y: 18.5, width: 33, depth: 43 });
+    });
+
+    it("lists a plan's inset corners from the far one to the near one", () => {
+      expect(planCorners({ x: 0, y: 0, width: 10, depth: 4 }, 1)).toEqual([
+        [1, 1],
+        [1, 3],
+        [9, 1],
+        [9, 3]
+      ]);
+      expect(planCorners({ x: 0, y: 0, width: 4, depth: 10 }, 1)).toEqual([
+        [1, 1],
+        [3, 1],
+        [1, 9],
+        [3, 9]
+      ]);
+    });
+
+    it("runs a seam around the front and the side the camera sees", () => {
+      expect(seamPath({ x: 0, y: 0, width: 10, depth: 20 }, 5)).toBe("M102.56 147.8L108.78 150.91L121.22 144.69");
+    });
   });
 
   describe(boxPaths.name, () => {
-    it("outlines a box and shades the faces the camera sees", () => {
+    it("outlines a box, shades the faces the camera sees and creases where the top meets them", () => {
       expect(boxPaths([0, 0, 0, 10, 10, 10])).toEqual({
-        outline: "M0 -8.66L7.07 -5.12L7.07 3.54L0 7.07L-7.07 3.54L-7.07 -5.12Z",
-        side: "M7.07 3.54L0 7.07L0 -1.59L7.07 -5.12Z",
-        front: "M-7.07 3.54L0 7.07L0 -1.59L-7.07 -5.12Z",
-        top: "M0 -8.66L7.07 -5.12L0 -1.59L-7.07 -5.12Z",
-        edges: "M0 -8.66L7.07 -5.12L7.07 3.54L0 7.07L-7.07 3.54L-7.07 -5.12ZM-7.07 -5.12L0 -1.59L7.07 -5.12M0 -1.59L0 7.07"
+        outline: "M115 137.77L121.22 140.88L121.22 148.5L115 151.61L108.78 148.5L108.78 140.88Z",
+        side: "M121.22 148.5L115 151.61L115 143.99L121.22 140.88Z",
+        front: "M108.78 148.5L115 151.61L115 143.99L108.78 140.88Z",
+        top: "M115 137.77L121.22 140.88L115 143.99L108.78 140.88Z",
+        crease: "M108.78 140.88L115 143.99L121.22 140.88"
       });
     });
 
     it("places the box at its origin", () => {
-      expect(boxPaths([10, 0, 0, 1, 1, 1]).top).toBe(pathOf([[10, 0, 1], [11, 0, 1], [11, 1, 1], [10, 1, 1]], true));
+      expect(boxPaths([10, 0, 0, 1, 1, 1]).top).toBe(pathOf(topRect({ x: 10, y: 0, width: 1, depth: 1 }, 1), true));
     });
   });
 
-  describe(meshPath.name, () => {
-    it("crosses a wall with strands clipped to its frame", () => {
-      expect(meshPath({ wall: "y", at: 0, from: 0, to: 10, bottom: 0, top: 10, step: 10 })).toBe(
-        "M0 -4.33L3.54 -6.89M7.07 -0.79L3.54 -6.89" + "M3.54 1.77L7.07 -0.79M3.54 1.77L0 -4.33"
-      );
+  describe(ringPath.name, () => {
+    it("draws a flat circle as an ellipse twice as wide as it is tall", () => {
+      expect(ringPath([0, 0], 10, 0)).toBe("M106.2 145.39A8.8 4.4 0 1 0 123.8 145.39A8.8 4.4 0 1 0 106.2 145.39Z");
     });
 
-    it("draws on the x wall at its depth and skips strands too short to see", () => {
-      const path = meshPath({ wall: "x", at: 5, from: 0, to: 10, bottom: 0, top: 10, step: 10 });
+    it("centres the ring on its place at its height", () => {
+      expect(ringPath([10, 0], 10, 10)).toBe("M112.42 140.88A8.8 4.4 0 1 0 130.02 140.88A8.8 4.4 0 1 0 112.42 140.88Z");
+    });
+  });
 
-      expect(path.startsWith(pathOf([[5, 0, 5], [5, 5, 10]]))).toBe(true);
-      expect(meshPath({ wall: "y", at: 0, from: 0, to: 0.2, bottom: 0, top: 0.2, step: 1 })).toBe("");
+  describe(cylinderPaths.name, () => {
+    it("drops the body from the top's width to the near half of the base, under a ring for its top", () => {
+      expect(cylinderPaths([0, 0], 10, 0, 10)).toEqual({
+        body: "M106.2 137.77L106.2 145.39A8.8 4.4 0 0 0 123.8 145.39L123.8 137.77Z",
+        top: ringPath([0, 0], 10, 10)
+      });
+    });
+  });
+
+  describe(sideTextMatrix.name, () => {
+    it("runs text along the wall and down it from the given point", () => {
+      expect(sideTextMatrix([0, 0, 0])).toBe("matrix(0.622 -0.311 0 0.762 115 145.389)");
+      expect(sideTextMatrix([10, 0, 10])).toBe("matrix(0.622 -0.311 0 0.762 121.222 140.879)");
     });
   });
 
   describe(slideFrom.name, () => {
     it("turns a world offset into screen offsets and a delay for the entry animation", () => {
-      expect(slideFrom(0, 0, 10, 120)).toEqual({ "--slide-x": "0px", "--slide-y": "-8.66px", "--slide-delay": "120ms" });
-      expect(slideFrom(10, 0, 0)).toEqual({ "--slide-x": "7.07px", "--slide-y": "3.54px", "--slide-delay": "0ms" });
-    });
-  });
-
-  describe(placeCallouts.name, () => {
-    it("keeps callouts level with their anchors when they have room", () => {
-      expect(
-        placeCallouts([
-          { id: "high", at: [0, 0, 100] },
-          { id: "low", at: [0, 0, 0] }
-        ])
-      ).toEqual([
-        { id: "high", anchorX: 0, anchorY: -86.60254037844386, y: -86.60254037844386 },
-        { id: "low", anchorX: 0, anchorY: 0, y: 0 }
-      ]);
-    });
-
-    it("pushes crowded callouts apart from the top down", () => {
-      const placed = placeCallouts([
-        { id: "second", at: [0, 0, 0] },
-        { id: "first", at: [0, 0, 10] }
-      ]);
-
-      expect(placed.map(({ id, y }) => [id, round(y)])).toEqual([
-        ["first", -8.66],
-        ["second", 41.34]
-      ]);
-    });
-
-    it("lifts the column when its last callout would leave the view", () => {
-      const placed = placeCallouts([
-        { id: "top", at: [100, 100, 0] },
-        { id: "bottom", at: [100, 100, -10] }
-      ]);
-
-      expect(placed.map(({ id, y }) => [id, round(y)])).toEqual([
-        ["top", 46],
-        ["bottom", 96]
-      ]);
-    });
-  });
-
-  describe(calloutEdge.name, () => {
-    it("starts leaders at the inner edge of each callout column", () => {
-      expect(calloutEdge("left")).toBeCloseTo(-70);
-      expect(calloutEdge("right")).toBeCloseTo(60);
+      expect(slideFrom(0, 0, 10, 120)).toEqual({ "--slide-x": "0px", "--slide-y": "-7.62px", "--slide-delay": "120ms" });
+      expect(slideFrom(10, 0, 0)).toEqual({ "--slide-x": "6.22px", "--slide-y": "3.11px", "--slide-delay": "0ms" });
     });
   });
 });

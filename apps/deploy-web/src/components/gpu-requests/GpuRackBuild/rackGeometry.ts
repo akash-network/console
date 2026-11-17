@@ -2,45 +2,95 @@ import type { CSSProperties } from "react";
 
 export type Point3 = [x: number, y: number, z: number];
 
+export type Point2 = [x: number, y: number];
+
 export type Box = [x: number, y: number, z: number, width: number, depth: number, height: number];
 
-export type BoxPaths = { outline: string; side: string; front: string; top: string; edges: string };
+/** A footprint on the floor, in the drawing's world units of one centimetre. */
+export type Plan = { x: number; y: number; width: number; depth: number };
 
-export type CalloutAnchor<T> = { id: T; at: Point3 };
+export type BoxPaths = { outline: string; side: string; front: string; top: string; crease: string };
 
-export type PlacedCallout<T> = { id: T; anchorX: number; anchorY: number; y: number };
+export type CylinderPaths = { body: string; top: string };
 
+/** One rack unit, 1.75 in. */
+export const RACK_UNIT = 4.445;
+
+export const RACK_UNITS = 42;
+
+/** A 600 × 1070 mm cabinet. */
+export const RACK: Plan = { x: 60, y: 10, width: 60, depth: 107 };
+
+export const RACK_DOOR = RACK.y + RACK.depth;
+
+/** The plinth's top, where the first rack unit starts. */
+export const RAILS_BOTTOM = 12;
+
+export const RAILS_TOP = RAILS_BOTTOM + RACK_UNITS * RACK_UNIT;
+
+export const ROOF_TOP = RAILS_TOP + 7;
+
+/** A chassis on its rails, which leaves a 7 cm channel on the open side for the power strips. */
+export const CHASSIS: Plan = { x: 64, y: 22, width: 46, depth: 91 };
+
+/** Every front panel faces +y on this plane. */
+export const FRONT = CHASSIS.y + CHASSIS.depth;
+
+/** Three by three raised-floor tiles of 60 cm. */
+export const FLOOR: Plan = { x: 0, y: 0, width: 180, depth: 180 };
+
+export const FLOOR_PEDESTAL_BOTTOM = -16;
+
+export const UPS: Plan = { x: 128, y: 64, width: 30, depth: 44 };
+
+export const UPS_HEIGHT = 62;
+
+/** The wall calendar's backing board, flat on the wall over the floor's x = 0 edge. */
+export const CALENDAR = { y0: 94, y1: 132, z0: 92, z1: 144 };
+
+export const VIEW = { width: 230, height: 280 };
+
+const VIEW_PADDING = 3;
+
+/** The camera looks down at 30° from a 45° azimuth, so +y faces read on the left and +x faces on the right. */
 const SCREEN_X_PER_UNIT = Math.SQRT1_2;
 const SCREEN_Y_PER_FLOOR_UNIT = Math.SQRT1_2 / 2;
 const SCREEN_Y_PER_HEIGHT_UNIT = Math.sqrt(3) / 2;
 
-/** One rack unit, in the drawing's world units of about a centimetre. */
-export const RACK_UNIT = 4.4;
-
-/** Servers and switches face +y with their fronts here, a hair proud of the rack posts so their lines draw on top. */
-export const FRONT = 96.02;
-
-export const FLOOR = { x0: -30, x1: 138, y0: -24, y1: 156 };
-
-export const CAGE_HEIGHT = 210;
-
-export const VIEW_BOX = { x: -170, y: -206, width: 330, height: 324 };
-
-/** The share of the view's width each callout column covers. */
-export const CALLOUT_COLUMN = 0.3;
-
-/** Callouts render about 38px tall, so anchors closer than this in view units would overlap. */
-export const MIN_CALLOUT_GAP = 50;
-
-/** Room left below the lowest callout so it stays inside the view. */
-const CALLOUT_BOTTOM_MARGIN = 22;
-
-/** Where the GPU slots and drive bays sit across a server's front. */
-export const BAY_COLUMNS = Array.from({ length: 8 }, (_, index) => 8 + index * 5.5);
-
-/** The camera looks down at 30° from a 45° azimuth, so +y faces read on the left and +x faces on the right. */
-export function project([x, y, z]: Point3): [number, number] {
+function projectUnscaled([x, y, z]: Point3): Point2 {
   return [(x - y) * SCREEN_X_PER_UNIT, (x + y) * SCREEN_Y_PER_FLOOR_UNIT - z * SCREEN_Y_PER_HEIGHT_UNIT];
+}
+
+function cornersOf({ x, y, width, depth }: Plan, bottom: number, top: number): Point3[] {
+  return [x, x + width].flatMap(cornerX => [y, y + depth].flatMap(cornerY => [bottom, top].map((z): Point3 => [cornerX, cornerY, z])));
+}
+
+/** Scales and centres everything the room can hold, so the drawing keeps one size while its parts arrive. */
+const PROJECTION = (() => {
+  const calendarWall: Plan = { x: 0, y: CALENDAR.y0, width: 16, depth: CALENDAR.y1 - CALENDAR.y0 };
+  const extent = [
+    ...cornersOf(FLOOR, FLOOR_PEDESTAL_BOTTOM, 0),
+    ...cornersOf(RACK, 0, ROOF_TOP),
+    ...cornersOf(UPS, 0, UPS_HEIGHT),
+    ...cornersOf(calendarWall, CALENDAR.z0, CALENDAR.z1 + 8)
+  ].map(projectUnscaled);
+  const xs = extent.map(([x]) => x);
+  const ys = extent.map(([, y]) => y);
+  const [left, right, up, down] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  const scale = Math.min((VIEW.width - VIEW_PADDING * 2) / (right - left), (VIEW.height - VIEW_PADDING * 2) / (down - up));
+
+  return { scale, originX: VIEW.width / 2 - ((left + right) / 2) * scale, originY: VIEW.height / 2 - ((up + down) / 2) * scale };
+})();
+
+export function project(point: Point3): Point2 {
+  const [x, y] = projectUnscaled(point);
+  return [PROJECTION.originX + x * PROJECTION.scale, PROJECTION.originY + y * PROJECTION.scale];
+}
+
+/** How far a world offset moves a point on screen. */
+export function projectOffset(dx: number, dy: number, dz: number): Point2 {
+  const [x, y] = projectUnscaled([dx, dy, dz]);
+  return [x * PROJECTION.scale, y * PROJECTION.scale];
 }
 
 export function round(value: number): number {
@@ -55,7 +105,7 @@ export function pathOf(points: Point3[], isClosed = false): string {
   return segments.join("") + (isClosed ? "Z" : "");
 }
 
-/** A rectangle on a face parallel to the x–z plane, at depth `y`. */
+/** A rectangle on a face that looks along +y, at depth `y`. */
 export function faceRect(x1: number, x2: number, z1: number, z2: number, y: number): Point3[] {
   return [
     [x1, y, z1],
@@ -65,103 +115,138 @@ export function faceRect(x1: number, x2: number, z1: number, z2: number, y: numb
   ];
 }
 
-/** The three faces the camera sees, plus the silhouette and the edges between the faces. */
+/** A rectangle on a face that looks along +x, at `x`. */
+export function sideRect(y1: number, y2: number, z1: number, z2: number, x: number): Point3[] {
+  return [
+    [x, y1, z1],
+    [x, y2, z1],
+    [x, y2, z2],
+    [x, y1, z2]
+  ];
+}
+
+export function topRect({ x, y, width, depth }: Plan, z: number): Point3[] {
+  return [
+    [x, y, z],
+    [x + width, y, z],
+    [x + width, y + depth, z],
+    [x, y + depth, z]
+  ];
+}
+
+const CORNER_ARC_STEPS = 4;
+
+/** A rectangle with rounded corners, lying flat at height `z`. */
+export function roundedTopRect({ x, y, width, depth }: Plan, radius: number, z: number): Point3[] {
+  const corners: [centerX: number, centerY: number, startDegrees: number][] = [
+    [x + width - radius, y + radius, -90],
+    [x + width - radius, y + depth - radius, 0],
+    [x + radius, y + depth - radius, 90],
+    [x + radius, y + radius, 180]
+  ];
+
+  return corners.flatMap(([centerX, centerY, startDegrees]) =>
+    Array.from({ length: CORNER_ARC_STEPS + 1 }, (_, step): Point3 => {
+      const angle = ((startDegrees + (90 * step) / CORNER_ARC_STEPS) * Math.PI) / 180;
+      return [centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle), z];
+    })
+  );
+}
+
+export function boxOf({ x, y, width, depth }: Plan, z: number, height: number): Box {
+  return [x, y, z, width, depth, height];
+}
+
+export function insetPlan({ x, y, width, depth }: Plan, by: number): Plan {
+  return { x: x + by, y: y + by, width: width - by * 2, depth: depth - by * 2 };
+}
+
+/** Far corners come first, so shapes standing on nearer ones paint over them. */
+export function planCorners({ x, y, width, depth }: Plan, inset: number): Point2[] {
+  const corners: Point2[] = [
+    [x + inset, y + inset],
+    [x + width - inset, y + inset],
+    [x + inset, y + depth - inset],
+    [x + width - inset, y + depth - inset]
+  ];
+
+  return corners.sort((first, second) => first[0] + first[1] - (second[0] + second[1]));
+}
+
+/** A line around the two faces the camera sees, at height `z`. */
+export function seamPath({ x, y, width, depth }: Plan, z: number): string {
+  return pathOf([
+    [x, y + depth, z],
+    [x + width, y + depth, z],
+    [x + width, y, z]
+  ]);
+}
+
+/** The silhouette, the three faces the camera sees, and the crease where the top meets the two sides. */
 export function boxPaths([x, y, z, width, depth, height]: Box): BoxPaths {
   const [x2, y2, z2] = [x + width, y + depth, z + height];
-  const outline = pathOf(
-    [
-      [x, y, z2],
-      [x2, y, z2],
-      [x2, y, z],
-      [x2, y2, z],
-      [x, y2, z],
-      [x, y2, z2]
-    ],
-    true
-  );
 
   return {
-    outline,
-    side: pathOf(
-      [
-        [x2, y, z],
-        [x2, y2, z],
-        [x2, y2, z2],
-        [x2, y, z2]
-      ],
-      true
-    ),
-    front: pathOf(faceRect(x, x2, z, z2, y2), true),
-    top: pathOf(
+    outline: pathOf(
       [
         [x, y, z2],
         [x2, y, z2],
-        [x2, y2, z2],
+        [x2, y, z],
+        [x2, y2, z],
+        [x, y2, z],
         [x, y2, z2]
       ],
       true
     ),
-    edges:
-      outline +
-      pathOf([
-        [x, y2, z2],
-        [x2, y2, z2],
-        [x2, y, z2]
-      ]) +
-      pathOf([
-        [x2, y2, z2],
-        [x2, y2, z]
-      ])
+    side: pathOf(sideRect(y, y2, z, z2, x2), true),
+    front: pathOf(faceRect(x, x2, z, z2, y2), true),
+    top: pathOf(topRect({ x, y, width, depth }, z2), true),
+    crease: pathOf([
+      [x, y2, z2],
+      [x2, y2, z2],
+      [x2, y, z2]
+    ])
   };
 }
 
-/** Diagonal wire mesh across a wall, each strand clipped to end on the wall's frame. */
-export function meshPath({ wall, at, from, to, bottom, top, step }: { wall: "x" | "y"; at: number; from: number; to: number; bottom: number; top: number; step: number }): string {
-  const pointOnWall = (along: number, height: number): Point3 => (wall === "y" ? [along, at, height] : [at, along, height]);
-  const width = to - from;
-  const height = top - bottom;
-  let path = "";
+type Ellipse = { left: number; right: number; y: number; radiusX: number; radiusY: number };
 
-  for (let offset = -height + step / 2; offset < width; offset += step) {
-    const start = Math.max(0, -offset);
-    const end = Math.min(height, width - offset);
-    if (end - start < 0.5) continue;
+/** A circle lying flat projects to an ellipse twice as wide as it is tall. */
+function ellipseOf([centerX, centerY]: Point2, radius: number, z: number): Ellipse {
+  const [x, y] = project([centerX, centerY, z]);
+  const radiusX = radius * PROJECTION.scale;
 
-    path +=
-      pathOf([pointOnWall(from + offset + start, bottom + start), pointOnWall(from + offset + end, bottom + end)]) +
-      pathOf([pointOnWall(to - offset - start, bottom + start), pointOnWall(to - offset - end, bottom + end)]);
-  }
+  return { left: round(x - radiusX), right: round(x + radiusX), y: round(y), radiusX: round(radiusX), radiusY: round(radiusX / 2) };
+}
 
-  return path;
+export function ringPath(center: Point2, radius: number, z: number): string {
+  const { left, right, y, radiusX, radiusY } = ellipseOf(center, radius, z);
+  return `M${left} ${y}A${radiusX} ${radiusY} 0 1 0 ${right} ${y}A${radiusX} ${radiusY} 0 1 0 ${left} ${y}Z`;
+}
+
+/** An upright cylinder: its body down to the near half of its base, and its top. */
+export function cylinderPaths(center: Point2, radius: number, z: number, height: number): CylinderPaths {
+  const base = ellipseOf(center, radius, z);
+  const cap = ellipseOf(center, radius, z + height);
+
+  return {
+    body: `M${cap.left} ${cap.y}L${base.left} ${base.y}A${base.radiusX} ${base.radiusY} 0 0 0 ${base.right} ${base.y}L${cap.right} ${cap.y}Z`,
+    top: ringPath(center, radius, z + height)
+  };
+}
+
+/** Lays text flat on a face that looks along +x, reading away from the camera's left. */
+export function sideTextMatrix([x, y, z]: Point3): string {
+  const [alongX, alongY] = projectOffset(0, -1, 0);
+  const [downX, downY] = projectOffset(0, 0, -1);
+  const [originX, originY] = project([x, y, z]);
+  const fine = (value: number) => Math.round(value * 1000) / 1000;
+
+  return `matrix(${fine(alongX)} ${fine(alongY)} ${fine(downX)} ${fine(downY)} ${fine(originX)} ${fine(originY)})`;
 }
 
 /** Where a part slides in from, as a world offset turned into screen offsets for the entry animation. */
 export function slideFrom(dx: number, dy: number, dz: number, delayMs = 0): CSSProperties {
-  const [x, y] = project([dx, dy, dz]);
+  const [x, y] = projectOffset(dx, dy, dz);
   return { "--slide-x": `${round(x)}px`, "--slide-y": `${round(y)}px`, "--slide-delay": `${delayMs}ms` } as CSSProperties;
-}
-
-/** Keeps each callout level with its anchor where it can, pushes neighbours apart, and lifts the column if it runs off the bottom. */
-export function placeCallouts<T>(anchors: CalloutAnchor<T>[]): PlacedCallout<T>[] {
-  const sorted = anchors
-    .map(({ id, at }) => {
-      const [anchorX, anchorY] = project(at);
-      return { id, anchorX, anchorY };
-    })
-    .sort((first, second) => first.anchorY - second.anchorY);
-  const placed: PlacedCallout<T>[] = [];
-  let previousY = -Infinity;
-
-  for (const anchor of sorted) {
-    previousY = Math.max(anchor.anchorY, previousY + MIN_CALLOUT_GAP);
-    placed.push({ ...anchor, y: previousY });
-  }
-
-  const overflow = previousY - (VIEW_BOX.y + VIEW_BOX.height - CALLOUT_BOTTOM_MARGIN);
-  return overflow > 0 ? placed.map(callout => ({ ...callout, y: callout.y - overflow })) : placed;
-}
-
-/** The x where a callout column's leader lines start, at its inner edge. */
-export function calloutEdge(side: "left" | "right"): number {
-  return side === "left" ? VIEW_BOX.x + VIEW_BOX.width * CALLOUT_COLUMN + 1 : VIEW_BOX.x + VIEW_BOX.width * (1 - CALLOUT_COLUMN) - 1;
 }

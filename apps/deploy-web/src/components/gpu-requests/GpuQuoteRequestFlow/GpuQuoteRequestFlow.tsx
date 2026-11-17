@@ -62,9 +62,12 @@ const SOURCE_NOTES: Partial<Record<QuoteRequestSource, { icon: LucideIcon; text:
 const FULL_PAGE_CLASSES =
   "inset-0 max-h-none max-w-none translate-x-0 translate-y-0 rounded-none border-0 bg-background shadow-none sm:rounded-none data-[state=open]:!slide-in-from-left-0 data-[state=open]:!slide-in-from-top-0 data-[state=open]:!zoom-in-100";
 
-/** One column below 860px; from there the question sits beside the server room, which widens at 1100px. */
+/** One column below 860px; from there the question keeps 600px beside the server room, which widens at 1100px and 1360px. */
 const COLUMNS_CLASSES =
-  "mx-auto w-full max-w-[640px] px-4 sm:px-6 min-[860px]:max-w-[980px] min-[860px]:grid-cols-[minmax(0,1fr)_300px] min-[860px]:gap-x-8 min-[1100px]:max-w-[1044px] min-[1100px]:grid-cols-[minmax(0,1fr)_340px] min-[1100px]:gap-x-14";
+  "mx-auto w-full max-w-[640px] px-4 sm:px-6 min-[860px]:max-w-[1020px] min-[860px]:grid-cols-[minmax(0,1fr)_340px] min-[860px]:gap-x-8 min-[1100px]:max-w-[1104px] min-[1100px]:grid-cols-[minmax(0,1fr)_400px] min-[1100px]:gap-x-14 min-[1360px]:max-w-[1224px] min-[1360px]:grid-cols-[minmax(0,1fr)_520px]";
+
+/** Level with the review step's request card, which sits under a one-line question and a one-line hint, so the room never moves between steps. */
+const SERVER_ROOM_CLASSES = "sticky top-6 mt-[86px] hidden min-w-0 min-[860px]:block";
 
 const PICK_A_SETUP: MissingAnswer = { step: "start", label: "a setup" };
 
@@ -185,7 +188,7 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
   const missing = listMissingAnswers(draft, today);
   const blocking = step === "start" && !draft.startingPoint ? [PICK_A_SETUP] : missing.filter(answer => answer.step === step);
   const limitMessage = isRequestLimitError(createHardwareRequest.error) ? extractApiErrorMessage(createHardwareRequest.error) : null;
-  const rackBuild = describeRackBuild({ steps, draft, setupName: startingPoint?.name, reachedSteps, currentStep: step });
+  const rackBuild = describeRackBuild({ steps, draft, reachedSteps, currentStep: step, today });
 
   useEffect(
     function trackFormOpened() {
@@ -376,7 +379,7 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
               )}
               {limitMessage && <Alert variant="destructive">{limitMessage}</Alert>}
             </section>
-            <aside ref={roomRef} aria-label="Your server room" className="sticky top-6 hidden min-w-0 min-[860px]:block">
+            <aside ref={roomRef} aria-label="Your server room" className={SERVER_ROOM_CLASSES}>
               <GpuRackBuild build={rackBuild} onChangeStep={goTo} />
             </aside>
           </div>
