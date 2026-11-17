@@ -269,7 +269,7 @@ const GpuModels: FC<{ models: string[]; dependencies: typeof DEPENDENCIES }> = (
   const [first, ...rest] = models;
   return (
     <d.CustomTooltip title={models.map(formatGpuModel).join("\n")} className="whitespace-pre-line p-3">
-      <span className="inline-flex min-w-0 cursor-help items-center gap-1">
+      <span className="inline-flex min-w-0 cursor-help items-center gap-1" tabIndex={0}>
         <span className="truncate rounded-full border bg-muted px-2 py-0.5 font-mono text-[10.5px] text-foreground">{formatGpuModel(first)}</span>
         {rest.length > 0 && <span className="font-mono text-[10.5px] text-muted-foreground">+{rest.length}</span>}
       </span>
@@ -283,7 +283,7 @@ const CpuModels: FC<{ cpus: ProviderSummary["cpus"]; dependencies: typeof DEPEND
   const [first, ...rest] = cpus;
   return (
     <d.CustomTooltip title={cpus.map(formatCpuName).join("\n")} className="whitespace-pre-line p-3">
-      <span className="inline-flex min-w-0 max-w-full cursor-help items-center gap-1">
+      <span className="inline-flex min-w-0 max-w-full cursor-help items-center gap-1" tabIndex={0}>
         <span className="truncate font-mono text-[11px] text-foreground">{formatCpuName(first)}</span>
         {rest.length > 0 && <span className="font-mono text-[10.5px] text-muted-foreground">+{rest.length}</span>}
       </span>
