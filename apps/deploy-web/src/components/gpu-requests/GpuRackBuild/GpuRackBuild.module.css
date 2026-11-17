@@ -238,9 +238,11 @@
 
 .part {
   cursor: pointer;
+  outline: none;
 }
 
-.part:hover .line[data-edge] {
+.part:hover .line[data-edge],
+.part:focus-visible .line[data-edge] {
   stroke: var(--iso-hi);
 }
 

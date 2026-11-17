@@ -1,4 +1,4 @@
-import type { FC, ReactNode } from "react";
+import type { FC, KeyboardEvent, ReactNode } from "react";
 import { useState } from "react";
 import { PencilIcon } from "lucide-react";
 
@@ -26,7 +26,15 @@ import {
 
 type Tone = "hi" | "mid" | "lo" | "faint" | "lit";
 
-type ServerLayout = { heightUnits: number; gpuSlots: [number, number]; seam: number; bay: [number, number]; handle: [number, number]; led: number; storageAnchor: number };
+type ServerLayout = {
+  heightUnits: number;
+  gpuSlots: [number, number];
+  seam: number;
+  bay: [number, number];
+  handle: [number, number];
+  led: number;
+  storageAnchor: number;
+};
 
 /** Offsets up from a server's base: GPU slots below a seam, drive bays above it, as on an 8U HGX or a 4U PCIe chassis. */
 const SERVER_LAYOUTS: Record<Exclude<RackKind, "nvl">, ServerLayout> = {
@@ -76,15 +84,28 @@ const CALLOUT_ANCHORS: Record<RackCallout["part"], (kind: RackKind, servers: num
 
 const UPS_X = 74;
 
+const CHANGE_LABELS: Record<RackPart, string> = {
+  rack: "Change the setup",
+  servers: "Change the GPUs",
+  network: "Change the network",
+  storage: "Change the storage",
+  floor: "Change the region",
+  power: "Change the uptime",
+  cage: "Change the term"
+};
+
 type Props = { build: RackBuild; onChangeStep: (step: QuoteStepId) => void };
 
-/** The drawing is decorative and pointer-only; its callouts are the buttons that carry the same summary and way back to each question. */
 export const GpuRackBuild: FC<Props> = ({ build, onChangeStep }) => {
   const [hoveredPart, setHoveredPart] = useState<RackPart | null>(null);
-  const isLit = (part: RackPart) => build.currentPart === part || hoveredPart === part;
+  const [focusedPart, setFocusedPart] = useState<RackPart | null>(null);
+  const isHot = (part: RackPart) => hoveredPart === part || focusedPart === part;
+  const isLit = (part: RackPart) => build.currentPart === part || isHot(part);
   const placedCallouts = (["left", "right"] as const).flatMap(side =>
     placeCallouts(
-      build.callouts.filter(callout => callout.side === side).map(callout => ({ id: callout, at: CALLOUT_ANCHORS[callout.part](build.kind, build.serversInRack) }))
+      build.callouts
+        .filter(callout => callout.side === side)
+        .map(callout => ({ id: callout, at: CALLOUT_ANCHORS[callout.part](build.kind, build.serversInRack) }))
     )
   );
 
@@ -92,7 +113,9 @@ export const GpuRackBuild: FC<Props> = ({ build, onChangeStep }) => {
     return {
       onClick: () => onChangeStep(build.stepOfPart[part]),
       onMouseEnter: () => setHoveredPart(part),
-      onMouseLeave: () => setHoveredPart(current => (current === part ? null : current))
+      onMouseLeave: () => setHoveredPart(null),
+      onFocus: () => setFocusedPart(part),
+      onBlur: () => setFocusedPart(null)
     };
   }
 
@@ -114,7 +137,7 @@ export const GpuRackBuild: FC<Props> = ({ build, onChangeStep }) => {
           </span>
         </div>
         <div className={styles.figure}>
-          <svg className={styles.svg} viewBox={`${VIEW_BOX.x} ${VIEW_BOX.y} ${VIEW_BOX.width} ${VIEW_BOX.height}`} aria-hidden="true">
+          <svg className={styles.svg} viewBox={`${VIEW_BOX.x} ${VIEW_BOX.y} ${VIEW_BOX.width} ${VIEW_BOX.height}`} role="group" aria-label="Server room parts">
             {build.isBuilt.floor && (
               <ClickablePart partHandlers={partHandlers} part="floor">
                 <g className={styles.slideIn} style={slideFrom(0, 0, -40)}>
@@ -131,14 +154,14 @@ export const GpuRackBuild: FC<Props> = ({ build, onChangeStep }) => {
             )}
             <Rack build={build} isLit={isLit} partHandlers={partHandlers} />
             {build.hasUps && (
-              <ClickablePart partHandlers={partHandlers} part="power">
+              <ClickablePart partHandlers={partHandlers} part="power" isRepeat>
                 <g className={styles.slideIn} style={slideFrom(40, 0, 0, 120)}>
                   <Ups isLit={isLit("power")} isOn={build.isPowered} />
                 </g>
               </ClickablePart>
             )}
             {placedCallouts.map(({ id: callout, anchorX, anchorY, y }) => (
-              <g key={callout.part} className={styles.slideIn} style={slideFrom(0, 0, 0, 160)}>
+              <g key={callout.part} className={styles.slideIn} style={slideFrom(0, 0, 0, 160)} aria-hidden="true">
                 <path
                   className={styles.line}
                   data-tone={isLit(callout.part) ? "hi" : "mid"}
@@ -154,13 +177,11 @@ export const GpuRackBuild: FC<Props> = ({ build, onChangeStep }) => {
               type="button"
               className={styles.callout}
               data-side={callout.side}
-              data-hot={hoveredPart === callout.part || undefined}
+              data-hot={isHot(callout.part) || undefined}
               aria-current={build.currentPart === callout.part ? "step" : undefined}
-              title={`Change ${callout.label}`}
+              title={CHANGE_LABELS[callout.part]}
               aria-label={`Change ${callout.label}: ${callout.value}`}
               style={{ top: `${round(((y - VIEW_BOX.y) / VIEW_BOX.height) * 100)}%` }}
-              onFocus={() => setHoveredPart(callout.part)}
-              onBlur={() => setHoveredPart(current => (current === callout.part ? null : current))}
               {...partHandlers(callout.part)}
             >
               <span className={styles.calloutLabel}>
@@ -178,7 +199,13 @@ export const GpuRackBuild: FC<Props> = ({ build, onChangeStep }) => {
   );
 };
 
-type PartHandlers = (part: RackPart) => { onClick: () => void; onMouseEnter: () => void; onMouseLeave: () => void };
+type PartHandlers = (part: RackPart) => {
+  onClick: () => void;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+  onFocus: () => void;
+  onBlur: () => void;
+};
 
 const Rack: FC<{ build: RackBuild; isLit: (part: RackPart) => boolean; partHandlers: PartHandlers }> = ({ build, isLit, partHandlers }) => {
   const { kind, serversInRack, isBuilt, sleds } = build;
@@ -260,11 +287,11 @@ const Rack: FC<{ build: RackBuild; isLit: (part: RackPart) => boolean; partHandl
           ))}
         </ClickablePart>
       )}
-      <ClickablePart partHandlers={partHandlers} part="rack">
+      <ClickablePart partHandlers={partHandlers} part="rack" isRepeat>
         <RackFront isLit={isLit("rack")} />
       </ClickablePart>
       {isBuilt.network && hasServers && (
-        <ClickablePart partHandlers={partHandlers} part="network">
+        <ClickablePart partHandlers={partHandlers} part="network" isRepeat>
           <Cables ports={kind === "nvl" ? NVL_CABLE_PORTS : serverZs.map(z => z + 8)} isLit={isLit("network")} />
         </ClickablePart>
       )}
@@ -272,11 +299,38 @@ const Rack: FC<{ build: RackBuild; isLit: (part: RackPart) => boolean; partHandl
   );
 };
 
-const ClickablePart: FC<{ part: RackPart; partHandlers: PartHandlers; children: ReactNode }> = ({ part, partHandlers, children }) => (
-  <g className={styles.part} data-part={part} {...partHandlers(part)}>
-    {children}
-  </g>
-);
+/** A part drawn in two pieces, such as the rack's back and front posts, is one stop for the keyboard: only its first piece is focusable. */
+const ClickablePart: FC<{ part: RackPart; partHandlers: PartHandlers; isRepeat?: boolean; children: ReactNode }> = ({
+  part,
+  partHandlers,
+  isRepeat = false,
+  children
+}) => {
+  const handlers = partHandlers(part);
+
+  function changeOnKey(event: KeyboardEvent<SVGGElement>) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    event.stopPropagation();
+    handlers.onClick();
+  }
+
+  return (
+    <g
+      className={styles.part}
+      data-part={part}
+      role="button"
+      tabIndex={isRepeat ? -1 : 0}
+      aria-label={CHANGE_LABELS[part]}
+      aria-hidden={isRepeat || undefined}
+      onKeyDown={changeOnKey}
+      {...handlers}
+    >
+      <title>{CHANGE_LABELS[part]}</title>
+      {children}
+    </g>
+  );
+};
 
 const RackBack: FC<{ isLit: boolean }> = ({ isLit }) => (
   <g>

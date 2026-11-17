@@ -111,7 +111,7 @@ export const TERMS: { value: RequestTerm; label: string; shortLabel: string }[] 
   { value: "3_months", label: "3 months", shortLabel: "3 mo" },
   { value: "6_months", label: "6 months", shortLabel: "6 mo" },
   { value: "12_months", label: "1 year", shortLabel: "1 yr" },
-  { value: "24_months", label: "2 years or more", shortLabel: "2 yr+" }
+  { value: "24_months", label: "2 years+", shortLabel: "2 yr+" }
 ];
 
 /** Requests and offers made before the 3-month term was dropped still carry it, so only the form leaves it out of `TERMS`. */

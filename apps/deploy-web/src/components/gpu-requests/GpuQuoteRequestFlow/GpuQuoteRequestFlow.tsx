@@ -1,6 +1,6 @@
 "use client";
 import type { FC, KeyboardEvent, ReactNode } from "react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { extractApiErrorMessage, isApiError } from "@akashnetwork/openapi-sdk";
 import { Alert, Button, DialogV2, DialogV2Close, DialogV2Content, DialogV2Description, DialogV2Title, Progress, Snackbar } from "@akashnetwork/ui/components";
 import { useQueryClient } from "@tanstack/react-query";
@@ -106,7 +106,9 @@ function questionOfStep(step: QuoteStepId, draft: GpuQuoteDraft, asksEmail: bool
     case "contact":
       return {
         title: "How should we reach you?",
-        hint: asksEmail ? "Add the email we should reply to, and a phone number if you'd also like a call." : `We'll email you at ${draft.email}. Add a phone number if you'd also like a call.`
+        hint: asksEmail
+          ? "Add the email we should reply to, and a phone number if you'd also like a call."
+          : `We'll email you at ${draft.email}. Add a phone number if you'd also like a call.`
       };
     case "review":
       return { title: "Check your request", hint: "Click any section to change it." };
@@ -119,6 +121,28 @@ function continuesOnEnter(event: KeyboardEvent<HTMLElement>): boolean {
 
   const target = event.target as HTMLElement;
   return !!target.closest('[role="radiogroup"]') || !target.closest('button, textarea, [role="combobox"], [role="listbox"]');
+}
+
+function isUnpickedRadio(element: HTMLElement): boolean {
+  return element.getAttribute("role") === "radio" && element.getAttribute("aria-checked") !== "true";
+}
+
+const RISE_EASING = "cubic-bezier(0.32, 0.72, 0, 1)";
+const RISE_DURATION_MS = 640;
+
+/** On the review the receipt grows out of the server room beside it, as if the room's key became the receipt. */
+function riseFromRoom(receipt: HTMLElement, room: DOMRect) {
+  if (!receipt.animate || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+
+  const to = receipt.getBoundingClientRect();
+  const scale = Math.min(1, room.width / Math.max(1, to.width));
+  receipt.animate(
+    [
+      { transformOrigin: "0 0", transform: `translate(${room.left - to.left}px, ${room.top - to.top}px) scale(${scale})`, opacity: 0.4 },
+      { transformOrigin: "0 0", transform: "translate(0px, 0px) scale(1)", opacity: 1 }
+    ],
+    { duration: RISE_DURATION_MS, easing: RISE_EASING }
+  );
 }
 
 function isRequestLimitError(error: unknown): boolean {
@@ -142,9 +166,14 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
   const questionId = useId();
   const questionRef = useRef<HTMLHeadingElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const roomRef = useRef<HTMLElement>(null);
+  const receiptRef = useRef<HTMLDivElement>(null);
+  const roomBeforeReview = useRef<DOMRect | null>(null);
   const [stepId, setStepId] = useState<QuoteStepId>("start");
   const [reachedSteps, setReachedSteps] = useState<ReadonlySet<QuoteStepId>>(() => new Set(["start"]));
   const [showsMissing, setShowsMissing] = useState(false);
+  const [continuesAfterPick, setContinuesAfterPick] = useState(false);
+  const continueOrSendRef = useRef(() => {});
   const today = toIsoDate(new Date());
   const startingPoint = startingPoints.find(point => point.id === draft.startingPoint);
   const steps = listSteps(startingPoint?.answers ?? {});
@@ -175,12 +204,29 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
     [configurationKey]
   );
 
-  useEffect(
+  useLayoutEffect(
     function showQuestionOfStep() {
       scrollRef.current?.scrollTo?.({ top: 0 });
       questionRef.current?.focus();
+
+      const room = roomBeforeReview.current;
+      roomBeforeReview.current = null;
+      if (room && receiptRef.current) riseFromRoom(receiptRef.current, room);
     },
     [step]
+  );
+
+  useLayoutEffect(function keepLatestContinue() {
+    continueOrSendRef.current = continueOrSend;
+  });
+
+  useEffect(
+    function continueAfterPickingWithEnter() {
+      if (!continuesAfterPick) return;
+      setContinuesAfterPick(false);
+      continueOrSendRef.current();
+    },
+    [continuesAfterPick]
   );
 
   function changeDraft(patch: Partial<GpuQuoteDraft>) {
@@ -188,6 +234,8 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
   }
 
   function goTo(targetStep: QuoteStepId) {
+    const room = roomRef.current?.getBoundingClientRect();
+    roomBeforeReview.current = targetStep === "review" && step !== "review" && room && room.width > 0 ? room : null;
     setShowsMissing(false);
     setStepId(targetStep);
     setReachedSteps(current => (current.has(targetStep) ? current : new Set([...current, targetStep])));
@@ -217,6 +265,13 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
   function continueOnEnter(event: KeyboardEvent<HTMLElement>) {
     if (!continuesOnEnter(event) || createHardwareRequest.isPending) return;
     event.preventDefault();
+
+    const target = event.target as HTMLElement;
+    if (isUnpickedRadio(target)) {
+      target.click();
+      setContinuesAfterPick(true);
+      return;
+    }
     continueOrSend();
   }
 
@@ -271,7 +326,7 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
           <Progress
             value={((stepIndex + 1) / steps.length) * 100}
             aria-label="Request progress"
-            className="absolute -bottom-px left-0 h-0.5 rounded-none bg-transparent [&>div]:bg-foreground [&>div]:duration-300 motion-reduce:[&>div]:transition-none"
+            className="[&>div]:duration-[360ms] [&>div]:ease-[cubic-bezier(0.32,0.72,0,1)] absolute -bottom-px left-0 h-0.5 rounded-none bg-transparent [&>div]:bg-foreground motion-reduce:[&>div]:transition-none"
           />
         </header>
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
@@ -279,7 +334,7 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
             <section
               key={step}
               aria-labelledby={questionId}
-              className="flex min-w-0 flex-col gap-6 duration-300 animate-in fade-in-0 slide-in-from-bottom-2 motion-reduce:animate-none"
+              className="duration-[340ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] flex min-w-0 flex-col gap-6 animate-in fade-in-0 slide-in-from-bottom-[10px] motion-reduce:animate-none"
             >
               <div className="flex flex-col gap-2">
                 {sourceNote && (
@@ -292,7 +347,7 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
                   id={questionId}
                   ref={questionRef}
                   tabIndex={-1}
-                  className="text-balance text-[22px] font-bold leading-tight tracking-[-0.015em] focus:outline-none sm:text-[28px]"
+                  className="text-balance text-[22px] font-bold leading-[1.2] tracking-[-0.015em] focus:outline-none sm:text-[28px]"
                 >
                   {question.title}
                 </h3>
@@ -308,19 +363,20 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
               {StepField && <StepField draft={draft} onChange={changeDraft} today={today} asksEmail={asksEmail} />}
               {isReview && (
                 <GpuQuoteReceipt
+                  receiptRef={receiptRef}
                   sections={describeReceiptSections(steps, draft, startingPoint)}
                   date={formatDate(today, { month: "short", day: "numeric", year: "numeric" })}
                   onChangeStep={goTo}
                 />
               )}
               {showsMissing && blocking.length > 0 && (
-                <p role="alert" className="text-sm font-medium text-warning">
+                <p role="alert" className="-mt-2.5 text-[12.5px] font-medium leading-normal text-amber-700 dark:text-amber-500">
                   {step === "start" ? "Pick a setup to continue." : describeMissingAnswers(blocking, "continue")}
                 </p>
               )}
               {limitMessage && <Alert variant="destructive">{limitMessage}</Alert>}
             </section>
-            <aside aria-label="Your server room" className="sticky top-6 hidden min-w-0 min-[860px]:block">
+            <aside ref={roomRef} aria-label="Your server room" className="sticky top-6 hidden min-w-0 min-[860px]:block">
               <GpuRackBuild build={rackBuild} onChangeStep={goTo} />
             </aside>
           </div>

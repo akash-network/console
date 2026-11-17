@@ -23,7 +23,7 @@ describe(GpuRackBuild.name, () => {
     await userEvent.click(screen.getByRole("button", { name: "Change Uptime: No SLA" }));
     await userEvent.click(screen.getByRole("button", { name: "Change GPUs: 16× B300" }));
 
-    expect(screen.getAllByRole("button").map(button => button.getAttribute("aria-label"))).toEqual([
+    expect(screen.getAllByRole("button", { name: /^Change [A-Z]/ }).map(button => button.getAttribute("aria-label"))).toEqual([
       "Change Network: InfiniBand",
       "Change Storage: 4 TB/node",
       "Change GPUs: 16× B300",
@@ -31,7 +31,77 @@ describe(GpuRackBuild.name, () => {
       "Change Uptime: No SLA",
       "Change Region: Anywhere"
     ]);
+    expect(screen.getByRole("button", { name: "Change Uptime: No SLA" })).toHaveAttribute("title", "Change the uptime");
     expect(onChangeStep.mock.calls).toEqual([["sla"], ["start"]]);
+  });
+
+  it("lets the keyboard reach each built part once and go back to its question", async () => {
+    const { onChangeStep } = setup({ startingPoint: STARTER_PACKAGES[1], reached: ["start"], current: "review", draft: { sla: "99.9" } });
+
+    expect(screen.getAllByRole("button", { name: /^Change the / }).map(part => part.getAttribute("aria-label"))).toEqual([
+      "Change the region",
+      "Change the term",
+      "Change the setup",
+      "Change the GPUs",
+      "Change the storage",
+      "Change the network",
+      "Change the uptime"
+    ]);
+    expect(screen.getAllByRole("button", { name: /^Change the / }).every(part => part.getAttribute("tabindex") === "0")).toBe(true);
+    expect(screen.getByRole("button", { name: "Change the GPUs" }).querySelector("title")).toHaveTextContent("Change the GPUs");
+
+    screen.getByRole("button", { name: "Change the network" }).focus();
+    await userEvent.keyboard("{Enter}");
+    screen.getByRole("button", { name: "Change the uptime" }).focus();
+    await userEvent.keyboard(" ");
+    await userEvent.keyboard("a");
+
+    expect(onChangeStep.mock.calls).toEqual([["start"], ["sla"]]);
+  });
+
+  it("keeps a part's second piece out of the tab order", () => {
+    const { container } = setup({ startingPoint: STARTER_PACKAGES[1], reached: ["start"], current: "review", draft: { sla: "99.9" } });
+
+    expect(
+      [...container.querySelectorAll('[data-part][tabindex="-1"]')].map(part => [part.getAttribute("data-part"), part.getAttribute("aria-hidden")])
+    ).toEqual([
+      ["rack", "true"],
+      ["network", "true"],
+      ["power", "true"]
+    ]);
+  });
+
+  it("lights a callout while its part has keyboard focus", () => {
+    setup({ startingPoint: STARTER_PACKAGES[0], reached: ["start", "region"], current: "region" });
+    const callout = screen.getByRole("button", { name: "Change Storage: 4 TB/node" });
+
+    fireEvent.focus(screen.getByRole("button", { name: "Change the storage" }));
+    expect(callout).toHaveAttribute("data-hot");
+
+    fireEvent.blur(screen.getByRole("button", { name: "Change the storage" }));
+    expect(callout).not.toHaveAttribute("data-hot");
+  });
+
+  it("keeps a focused part lit while the pointer passes over it and other parts", () => {
+    const { container } = setup({ startingPoint: STARTER_PACKAGES[0], reached: ["start", "region"], current: "region" });
+    const storagePart = screen.getByRole("button", { name: "Change the storage" });
+    const storageCallout = screen.getByRole("button", { name: "Change Storage: 4 TB/node" });
+    const networkCallout = screen.getByRole("button", { name: "Change Network: InfiniBand" });
+
+    fireEvent.focus(storagePart);
+    fireEvent.mouseEnter(storagePart);
+    fireEvent.mouseLeave(storagePart);
+    fireEvent.mouseEnter(container.querySelector('[data-part="network"]')!);
+
+    expect(storageCallout).toHaveAttribute("data-hot");
+    expect(storagePart.querySelector(`[data-tone="lit"]`)).toBeInTheDocument();
+    expect(networkCallout).toHaveAttribute("data-hot");
+
+    fireEvent.blur(storagePart);
+
+    expect(storageCallout).not.toHaveAttribute("data-hot");
+    expect(storagePart.querySelector(`[data-tone="lit"]`)).not.toBeInTheDocument();
+    expect(networkCallout).toHaveAttribute("data-hot");
   });
 
   it("marks the callout of the question being asked", () => {
@@ -72,7 +142,10 @@ describe(GpuRackBuild.name, () => {
   });
 
   it.each([
-    ["8U servers caged on the raised floor", { startingPoint: STARTER_PACKAGES[0], reached: ["start", "region", "sla", "timing"], current: "timing", draft: { sla: "99.5" } }],
+    [
+      "8U servers caged on the raised floor",
+      { startingPoint: STARTER_PACKAGES[0], reached: ["start", "region", "sla", "timing"], current: "timing", draft: { sla: "99.5" } }
+    ],
     ["an NVL72 rack backed by a UPS", { startingPoint: STARTER_PACKAGES[1], reached: ["start", "region", "sla"], current: "sla", draft: { sla: "99.9" } }]
   ] as [string, SetupInput][])("draws %s", (_, input) => {
     const { container } = setup(input);

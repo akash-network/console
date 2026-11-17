@@ -23,7 +23,7 @@ import {
   pluralize,
   withGpuModel
 } from "../gpuQuoteDraft/gpuQuoteDraft";
-import { ChoiceChips, FieldGroup, OptionCards } from "./ChoiceControls";
+import { ChoiceChips, FieldGroup, OptionCards, RADIO_DOT_CLASSES } from "./ChoiceControls";
 
 export type DraftFieldProps = { draft: GpuQuoteDraft; onChange: (patch: Partial<GpuQuoteDraft>) => void };
 
@@ -31,9 +31,9 @@ const MAX_GPU_MODEL_LENGTH = 100;
 
 const MAX_PACKAGES_PER_ROW = 3;
 
-const ONE_ROW_PACKAGES_CLASSES = "grid-cols-1 gap-2.5 sm:grid-cols-3";
+const ONE_ROW_PACKAGES_CLASSES = "grid-cols-1 gap-2.5 min-[452px]:grid-cols-2 min-[552px]:grid-cols-3";
 
-const TWO_COLUMN_PACKAGES_CLASSES = "grid-cols-1 gap-2.5 sm:grid-cols-2";
+const TWO_COLUMN_PACKAGES_CLASSES = "grid-cols-1 gap-2.5 min-[452px]:grid-cols-2";
 
 const PICKABLE_CARD_CLASSES =
   "cursor-pointer rounded-xl border bg-background shadow-sm transition-[border-color,box-shadow] hover:border-foreground/35 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[[data-state=checked]]:border-foreground has-[[data-state=checked]]:ring-1 has-[[data-state=checked]]:ring-foreground";
@@ -75,7 +75,7 @@ export function StartingPointField({
         <PackageCard key={startingPoint.id} startingPoint={startingPoint} />
       ))}
       <label className={CUSTOM_CARD_CLASSES}>
-        <RadioGroupItem value={CUSTOM_STARTING_POINT.id} className="mt-0.5 shrink-0" />
+        <RadioGroupItem value={CUSTOM_STARTING_POINT.id} className={RADIO_DOT_CLASSES} />
         <span className="flex min-w-0 flex-col gap-0.5">
           <span className="text-sm font-semibold">{CUSTOM_STARTING_POINT.name}</span>
           <span className="text-[13px] text-muted-foreground">{CUSTOM_STARTING_POINT.use}</span>
@@ -96,7 +96,7 @@ function PackageCard({ startingPoint }: { startingPoint: StartingPoint }) {
           <span className="text-[12.5px] leading-snug text-muted-foreground">{startingPoint.use}</span>
           {startingPoint.detail && <span className="font-mono text-xs text-muted-foreground">{startingPoint.detail}</span>}
         </span>
-        <RadioGroupItem value={startingPoint.id} className="mt-0.5 shrink-0" />
+        <RadioGroupItem value={startingPoint.id} className={RADIO_DOT_CLASSES} />
       </span>
       <span className="flex min-w-0 flex-col gap-[3px] border-t px-3.5 pb-[13px] pt-3">
         <span className="truncate font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{memory ?? "From your SDL"}</span>
@@ -161,6 +161,7 @@ export function GpuField({ draft, onChange }: DraftFieldProps) {
             label={`Common ${unit.name} counts`}
             choices={UNIT_COUNTS[unit.name].map(units => ({ value: units, label: String(units) }))}
             value={count}
+            isNumeric
             onChange={units => onChange({ gpuCount: units * unit.gpuCount })}
           />
         </div>
@@ -205,6 +206,7 @@ export function StorageField({ draft, onChange }: DraftFieldProps) {
         </span>
         <ChoiceChips
           label="Common sizes"
+          isNumeric
           choices={STORAGE_SIZES_TB.map(size => ({
             value: size,
             label: `${size} TB`,
