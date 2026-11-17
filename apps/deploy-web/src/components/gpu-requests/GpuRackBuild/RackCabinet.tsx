@@ -329,7 +329,7 @@ export const DriveBays: FC<{ slots: RackSlot[]; drives: number; isLit: boolean }
   </g>
 );
 
-/** The top-of-rack switch, with one cable down to each server; an NVL72's trays share eight cables between them. */
+/** The top-of-rack switch and its cables: one per server, thinned out evenly once there are more than eight. */
 export const RackNetwork: FC<{ slots: RackSlot[]; isLit: boolean }> = ({ slots, isLit }) => {
   const gpuSlots = slots.filter(isGpuSlot);
   const cableEvery = Math.ceil(gpuSlots.length / MAX_CABLES);
