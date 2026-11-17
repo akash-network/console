@@ -66,7 +66,14 @@ describe(cleanCpuModelName.name, () => {
     ["AMD Ryzen Threadripper PRO 3975WX 32-Cores", "Ryzen Threadripper PRO 3975WX"],
     ["AMD EPYC Processor (with IBPB)", "EPYC"],
     ["  AMD   EPYC 9654  96-Core   Processor ", "EPYC 9654"],
-    ["Cortex-A72, rev 3", "Cortex-A72 rev 3"]
+    ["Cortex-A72, rev 3", "Cortex-A72 rev 3"],
+    ["INTEL(R) XEON(R) PLATINUM 8592+", "Xeon Platinum 8592+"],
+    ["INTEL(R) XEON(R) GOLD 6548Y+", "Xeon Gold 6548Y+"],
+    ["INTEL(R) XEON(R) SILVER 4514Y", "Xeon Silver 4514Y"],
+    ["INTEL(R) XEON(R) BRONZE 3508U", "Xeon Bronze 3508U"],
+    ["AMD Ryzen 7 2700X Eight-Core Processor", "Ryzen 7 2700X"],
+    ["AMD Ryzen 5 2600 Six-Core Processor", "Ryzen 5 2600"],
+    ["AMD Ryzen 3 2300X Quad-Core Processor", "Ryzen 3 2300X"]
   ])("cleans %j to %j", (model, expected) => {
     expect(cleanCpuModelName(model)).toBe(expected);
   });
@@ -90,6 +97,7 @@ describe(recognizeCpuGeneration.name, () => {
     ["Xeon Platinum 8380HL", "Cooper Lake"],
     ["Xeon Platinum 8480C", "Sapphire Rapids"],
     ["Xeon Platinum 8592", "Emerald Rapids"],
+    ["Xeon Silver 4514Y", "Emerald Rapids"],
     ["Xeon Platinum 8490H", "Sapphire Rapids"],
     ["Xeon Platinum 8462Y+", "Sapphire Rapids"],
     ["Xeon 6776P", "Granite Rapids"],
@@ -112,6 +120,8 @@ describe(recognizeCpuGeneration.name, () => {
     ["Core i5-10400", "10th Gen"],
     ["Core i9-13900K", "13th Gen"],
     ["Core i9-13980HX", "13th Gen"],
+    ["Core i7-4790K", "4th Gen"],
+    ["Core i7-6820HK", "6th Gen"],
     ["Ryzen 7 2700X", "Zen+"],
     ["Ryzen 9 3900X", "Zen 2"],
     ["Ryzen 9 PRO 3900", "Zen 2"],
@@ -144,6 +154,10 @@ describe(recognizeCpuGeneration.name, () => {
     "EPYC 7774",
     "Xeon 67760P",
     "Xeon 6369P",
+    "Xeon Silver 4509Y",
+    "Xeon Silver 4510",
+    "Xeon Silver 4510T",
+    "Xeon Bronze 3508U",
     "Xeon 6530E",
     "Xeon 6880P",
     "Xeon E-2288G",
@@ -154,6 +168,15 @@ describe(recognizeCpuGeneration.name, () => {
     "Xeon E5-2690 v4 Engineering Sample",
     "Core i7-920",
     "Core i9-7900X",
+    "Core i7-3820",
+    "Core i7-3930K",
+    "Core i7-4820K",
+    "Core i7-4930K",
+    "Core i7-5820K",
+    "Core i7-5930K",
+    "Core i7-6800K",
+    "Core i7-6850K",
+    "Core i7-6900K",
     "Core i7-6950X",
     "Core i9-10980XE",
     "Core i7-8700 Engineering Sample",
@@ -241,8 +264,16 @@ describe(describeCpu.name, () => {
     expect(describeCpu("ARM", "")).toBeNull();
   });
 
-  it.each([null, undefined, "", "   "])("returns null for the model %j", model => {
+  it.each([null, undefined, "", "   ", "unknown"])("returns null for the model %j", model => {
     expect(describeCpu("GenuineIntel", model)).toBeNull();
+  });
+
+  it.each([
+    ["GenuineIntel", "INTEL(R) XEON(R) GOLD 6548Y+", "Xeon Gold 6548Y+", "Emerald Rapids"],
+    ["GenuineIntel", "INTEL(R) XEON(R) SILVER 4510", "Xeon Silver 4510", null],
+    ["AuthenticAMD", "AMD Ryzen 7 2700X Eight-Core Processor", "Ryzen 7 2700X", "Zen+"]
+  ])("reads the brand string %j %j as %j of generation %j", (vendor, reported, model, generation) => {
+    expect(describeCpu(vendor, reported)).toMatchObject({ model, generation });
   });
 });
 
@@ -361,6 +392,12 @@ describe(describeProviderCpus.name, () => {
 
   it("counts no node as unreported when none reports a model", () => {
     const nodes = [mock<ProviderSnapshotNode>({ cpus: [] }), mock<ProviderSnapshotNode>({ cpus: [] })];
+
+    expect(describeProviderCpus(nodes)).toEqual({ cpuModels: [], cpuProfile: "unknown", cpuUnreportedNodeCount: 0 });
+  });
+
+  it("calls a provider unknown when its only node reports the kernel's placeholder for a CPU without a name", () => {
+    const nodes = [mock<ProviderSnapshotNode>({ cpus: [mock<ProviderSnapshotNodeCPU>({ vendor: "GenuineIntel", model: "unknown", vcores: 4 })] })];
 
     expect(describeProviderCpus(nodes)).toEqual({ cpuModels: [], cpuProfile: "unknown", cpuUnreportedNodeCount: 0 });
   });

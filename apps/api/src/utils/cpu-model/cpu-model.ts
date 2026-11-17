@@ -21,7 +21,16 @@ const BASE_FREQUENCY = /@\s*(\d+(?:\.\d+)?)\s*(GHz|MHz)/i;
 
 const VIRTUAL_CPU_NAME = /\b(QEMU|KVM|Virtual)\b|Processor \(|\bEPYC-|\d+x{2,}|\bClass\b|^AMD EPYC Processor$/i;
 
-const MODEL_NAME_NOISE = [/\(.*?\)/g, /@.*$/, /\b(with|w\/)\s.*$/i, /\b\d+(st|nd|rd|th) Gen\b/i, /\b\d+-Cores?\b/i, /\b(CPU|Processor|Intel|AMD)\b/gi, /,/g];
+const MODEL_NAME_NOISE = [/\(.*?\)/g, /@.*$/, /\b(with|w\/)\s.*$/i, /\b\d+(st|nd|rd|th) Gen\b/i, /\b\w+-Cores?\b/i, /\b(CPU|Processor|Intel|AMD)\b/gi, /,/g];
+
+/** Emerald Rapids prints its brand string in capitals: INTEL(R) XEON(R) PLATINUM 8592+. */
+const SHOUTED_XEON_WORD = /\b(?:XEON|PLATINUM|GOLD|SILVER|BRONZE)\b/g;
+
+/** Sold as 5th Gen on the 4th Gen die: a Silver 4510 reports CPUID model 143 (Sapphire Rapids), not 207. */
+const XEON_5TH_GEN_ON_SAPPHIRE_RAPIDS = new Set(["Xeon Silver 4509Y", "Xeon Silver 4510", "Xeon Silver 4510T", "Xeon Bronze 3508U"]);
+
+/** Sandy Bridge-E to Broadwell-E parts without an X: Intel lists them as Core X-series, a generation behind their number. */
+const CORE_X_SERIES_WITHOUT_X = new Set(["3820", "3930K", "4820K", "4930K", "5820K", "5930K", "6800K", "6850K", "6900K"].map(number => `Core i7-${number}`));
 
 const EPYC_GENERATIONS: Record<string, string> = {
   "7xx1": "Naples",
@@ -95,6 +104,7 @@ export function parseBaseFrequencyMhz(model: string): number | null {
 export function cleanCpuModelName(model: string): string {
   return MODEL_NAME_NOISE.reduce((name, noise) => name.replace(noise, " "), model)
     .replace(/\s+/g, " ")
+    .replace(SHOUTED_XEON_WORD, word => word[0] + word.slice(1).toLowerCase())
     .trim();
 }
 
@@ -109,7 +119,8 @@ export function recognizeCpuGeneration(cleanModel: string): string | null {
 
 export function describeCpu(vendor: string | null | undefined, model: string | null | undefined): CpuDescription | null {
   const reportedModel = model?.trim();
-  if (!reportedModel) return null;
+  // "unknown" is what the Linux kernel prints as the model name of a CPU that has none.
+  if (!reportedModel || reportedModel === "unknown") return null;
 
   const isVirtual = VIRTUAL_CPU_NAME.test(reportedModel);
   const vendorIdUnlessEmulated = isVirtual ? null : vendor;
@@ -185,7 +196,7 @@ function readEpycGeneration(model: string) {
 
 function readXeonScalableGeneration(model: string) {
   const match = /^Xeon (?:Bronze|Silver|Gold|Platinum) \d(\d)\d\d([A-Z]*)\+?$/.exec(model);
-  if (!match) return null;
+  if (!match || XEON_5TH_GEN_ON_SAPPHIRE_RAPIDS.has(model)) return null;
 
   const [, generationDigit, suffix] = match;
   if (generationDigit === "3" && suffix.startsWith("H")) return "Cooper Lake";
@@ -210,7 +221,7 @@ function readXeonEGeneration(model: string) {
 /** The X-series (i9-7900X, i7-6950X) is left out: its number runs ahead of the generation it is built on. */
 function readCoreGeneration(model: string) {
   const match = /^Core i[3579]-(\d{4,5})(?!\d|X)[A-Z0-9]*$/.exec(model);
-  if (!match) return null;
+  if (!match || CORE_X_SERIES_WITHOUT_X.has(model)) return null;
 
   const modelNumber = match[1];
   const generation = Number(modelNumber.startsWith("1") ? modelNumber.slice(0, 2) : modelNumber.slice(0, 1));
