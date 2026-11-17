@@ -1,6 +1,6 @@
 "use client";
 import type { FC, MouseEvent, ReactNode } from "react";
-import { Button, Skeleton } from "@akashnetwork/ui/components";
+import { Button, CustomNoDivTooltip, Skeleton } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { ChevronLeft, ChevronRight, RefreshCw, Star } from "lucide-react";
 
@@ -15,6 +15,11 @@ const UPTIME_TONE_CLASSES: Record<UptimeQuality, string> = {
   excellent: "text-emerald-600 dark:text-emerald-400",
   healthy: "text-sky-600 dark:text-sky-400",
   variable: "text-amber-600 dark:text-amber-500"
+};
+
+/** CustomNoDivTooltip, so the trigger stays inline and keeps truncating, as in DeploymentSpecSummary. */
+export const DEPENDENCIES = {
+  CustomTooltip: CustomNoDivTooltip
 };
 
 type Props = {
@@ -33,6 +38,7 @@ type Props = {
   regionFilter: ReactNode;
   gpuFilter: ReactNode;
   cpuFilter: ReactNode;
+  dependencies?: typeof DEPENDENCIES;
 };
 
 export const ProvidersTable: FC<Props> = ({
@@ -50,7 +56,8 @@ export const ProvidersTable: FC<Props> = ({
   isCompact,
   regionFilter,
   gpuFilter,
-  cpuFilter
+  cpuFilter,
+  dependencies = DEPENDENCIES
 }) => (
   <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
     {status === "failed" && (
@@ -120,6 +127,7 @@ export const ProvidersTable: FC<Props> = ({
               isCompact={isCompact}
               onSelect={onSelect}
               onToggleFavorite={onToggleFavorite}
+              dependencies={dependencies}
             />
           ))}
         </tbody>
@@ -173,9 +181,10 @@ type ProviderRowProps = {
   isCompact: boolean;
   onSelect: (provider: ProviderSummary) => void;
   onToggleFavorite: (owner: string) => void;
+  dependencies: typeof DEPENDENCIES;
 };
 
-const ProviderRow: FC<ProviderRowProps> = ({ provider, isSelected, isFavorite, isCompact, onSelect, onToggleFavorite }) => {
+const ProviderRow: FC<ProviderRowProps> = ({ provider, isSelected, isFavorite, isCompact, onSelect, onToggleFavorite, dependencies }) => {
   const selectProvider = () => onSelect(provider);
   const toggleFavorite = (event: MouseEvent) => {
     event.stopPropagation();
@@ -212,11 +221,11 @@ const ProviderRow: FC<ProviderRowProps> = ({ provider, isSelected, isFavorite, i
         <>
           <td className="px-3.5 py-3">{provider.locationRegion ? <RegionPill region={provider.locationRegion} /> : <EmptyValue />}</td>
           <td className="px-3.5 py-3">
-            <GpuModels models={provider.gpuModels} />
+            <GpuModels models={provider.gpuModels} dependencies={dependencies} />
           </td>
           <td className="px-3.5 py-3 font-mono text-[12.5px] text-foreground">{provider.gpuCount > 0 ? provider.gpuCount : <EmptyValue />}</td>
           <td className="px-3.5 py-3">
-            <CpuModels cpus={provider.cpus} />
+            <CpuModels cpus={provider.cpus} dependencies={dependencies} />
           </td>
           <td className="truncate px-3.5 py-3 font-mono text-[11.5px] text-muted-foreground">
             {provider.vcpuCount} vCPU · {formatBytes(provider.memoryBytes)}
@@ -254,27 +263,31 @@ const CompactSummary: FC<{ provider: ProviderSummary }> = ({ provider }) => (
   </div>
 );
 
-const GpuModels: FC<{ models: string[] }> = ({ models }) => {
+const GpuModels: FC<{ models: string[]; dependencies: typeof DEPENDENCIES }> = ({ models, dependencies: d }) => {
   if (models.length === 0) return <span className="font-mono text-[11px] text-muted-foreground">CPU only</span>;
 
   const [first, ...rest] = models;
   return (
-    <span className="inline-flex min-w-0 items-center gap-1" title={models.map(formatGpuModel).join(", ")}>
-      <span className="truncate rounded-full border bg-muted px-2 py-0.5 font-mono text-[10.5px] text-foreground">{formatGpuModel(first)}</span>
-      {rest.length > 0 && <span className="font-mono text-[10.5px] text-muted-foreground">+{rest.length}</span>}
-    </span>
+    <d.CustomTooltip title={models.map(formatGpuModel).join("\n")} className="whitespace-pre-line p-3">
+      <span className="inline-flex min-w-0 cursor-help items-center gap-1">
+        <span className="truncate rounded-full border bg-muted px-2 py-0.5 font-mono text-[10.5px] text-foreground">{formatGpuModel(first)}</span>
+        {rest.length > 0 && <span className="font-mono text-[10.5px] text-muted-foreground">+{rest.length}</span>}
+      </span>
+    </d.CustomTooltip>
   );
 };
 
-const CpuModels: FC<{ cpus: ProviderSummary["cpus"] }> = ({ cpus }) => {
+const CpuModels: FC<{ cpus: ProviderSummary["cpus"]; dependencies: typeof DEPENDENCIES }> = ({ cpus, dependencies: d }) => {
   if (cpus.length === 0) return <span className="font-mono text-[11px] text-muted-foreground">Unknown</span>;
 
   const [first, ...rest] = cpus;
   return (
-    <span className="inline-flex min-w-0 max-w-full items-center gap-1" title={cpus.map(formatCpuName).join(", ")}>
-      <span className="truncate font-mono text-[11px] text-foreground">{formatCpuName(first)}</span>
-      {rest.length > 0 && <span className="font-mono text-[10.5px] text-muted-foreground">+{rest.length}</span>}
-    </span>
+    <d.CustomTooltip title={cpus.map(formatCpuName).join("\n")} className="whitespace-pre-line p-3">
+      <span className="inline-flex min-w-0 max-w-full cursor-help items-center gap-1">
+        <span className="truncate font-mono text-[11px] text-foreground">{formatCpuName(first)}</span>
+        {rest.length > 0 && <span className="font-mono text-[10.5px] text-muted-foreground">+{rest.length}</span>}
+      </span>
+    </d.CustomTooltip>
   );
 };
 

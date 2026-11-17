@@ -2,6 +2,7 @@ import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ProviderSummary } from "@src/components/providers/providerSummary/providerSummary";
+import type { DEPENDENCIES } from "./ProvidersTable";
 import { describeCpus, ProvidersTable } from "./ProvidersTable";
 
 import { render, screen, within } from "@testing-library/react";
@@ -33,10 +34,10 @@ describe("ProvidersTable", () => {
     expect(within(row).getByText("akash1gpu")).toBeInTheDocument();
     expect(within(row).getByText("EU Central")).toBeInTheDocument();
     expect(within(row).getByText("H100")).toBeInTheDocument();
-    expect(within(row).getByTitle("H100, A100, T4")).toHaveTextContent(/^H100\+2$/);
+    expect(within(row).getByTitle("H100 A100 T4")).toHaveTextContent(/^H100\+2$/);
     expect(within(row).getByText("8")).toBeInTheDocument();
     expect(within(row).getByText("AMD EPYC 7763")).toBeInTheDocument();
-    expect(within(row).getByTitle("AMD EPYC 7763, Intel Xeon Gold 6248R, Neoverse-N1")).toHaveTextContent(/^AMD EPYC 7763\+2$/);
+    expect(within(row).getByTitle("AMD EPYC 7763 Intel Xeon Gold 6248R Neoverse-N1")).toHaveTextContent(/^AMD EPYC 7763\+2$/);
     expect(within(row).getByText("128 vCPU · 512 GB")).toBeInTheDocument();
     expect(within(row).getByText("99.95%")).toBeInTheDocument();
   });
@@ -300,6 +301,7 @@ describe("ProvidersTable", () => {
     const onToggleFavorite = vi.fn();
     const onPageChange = vi.fn();
     const onRetry = vi.fn();
+    const CustomTooltip = vi.fn<typeof DEPENDENCIES.CustomTooltip>(({ title, children }) => <span title={String(title)}>{children}</span>);
     render(
       <ProvidersTable
         status="ready"
@@ -316,9 +318,10 @@ describe("ProvidersTable", () => {
         onToggleFavorite={onToggleFavorite}
         onPageChange={onPageChange}
         onRetry={onRetry}
+        dependencies={{ CustomTooltip }}
         {...input}
       />
     );
-    return { onSelect, onToggleFavorite, onPageChange, onRetry };
+    return { onSelect, onToggleFavorite, onPageChange, onRetry, CustomTooltip };
   }
 });
