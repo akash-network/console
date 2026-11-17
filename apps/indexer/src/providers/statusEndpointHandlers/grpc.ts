@@ -4,11 +4,13 @@ import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import { minutesToMilliseconds } from "date-fns";
 import memoize from "lodash/memoize";
 
+import { assertEndpointNotOwnedByAnotherProvider } from "@src/providers/providerIdentity";
 import { parseDecimalKubernetesString, parseSizeStr } from "@src/shared/utils/files";
 import { assertPublicHost } from "@src/shared/utils/private-network";
 import type { ProviderStatusInfo } from "./types";
 
 export async function fetchProviderStatusFromGRPC(provider: Provider, timeout: number): Promise<ProviderStatusInfo> {
+  await assertEndpointNotOwnedByAnotherProvider({ owner: provider.owner, hostUri: provider.hostUri, timeoutMs: timeout });
   const data = await queryStatus(provider.hostUri, timeout);
 
   const activeResources = parseResources(data.cluster?.inventory?.reservations?.active?.resources);
@@ -109,7 +111,6 @@ async function queryStatus(hostUri: string, timeoutMs: number): Promise<Provider
 }
 
 const getProviderSDK = memoize((hostUri: string) => {
-  // TODO: fetch port from chain
   const url = hostUri.replace(":8443", ":8444");
   return createProviderSDK({
     baseUrl: url,
