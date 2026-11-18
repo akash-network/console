@@ -206,6 +206,24 @@ describe(runPublishChecks.name, () => {
       expect(checkOf(results, "no_secrets").issues.map(({ message }) => message.match(/^Line (\d+) /)?.[1])).toEqual(["1", "3", "5"]);
     });
 
+    it("names at most twenty lines of a text that holds more keys than that", () => {
+      const readme = Array.from({ length: 25 }, () => "token hf_abcdefghijklmnopqrstuv").join("\n\n");
+
+      const results = setup({ readme });
+
+      expect(checkOf(results, "no_secrets").issues.map(({ message }) => message.match(/^Line (\d+) /)?.[1])).toEqual(
+        Array.from({ length: 20 }, (_, index) => String(index * 2 + 1))
+      );
+    });
+
+    it("names the right line for keys that share one and for a key on the last line", () => {
+      const readme = ["one hf_abcdefghijklmnopqrstuv two hf_zyxwvutsrqponmlkjihgfe", "", "plain", "last sk-abcdefghijklmnop1234"].join("\n");
+
+      const results = setup({ readme });
+
+      expect(checkOf(results, "no_secrets").issues.map(({ message }) => message.match(/^Line (\d+) /)?.[1])).toEqual(["1", "4"]);
+    });
+
     it("names the line of a private key header left without the rest of its block", () => {
       const results = setup({ readme: "# Chat\n\n-----BEGIN RSA PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASC" });
 

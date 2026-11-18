@@ -63,12 +63,12 @@ export function redactSecrets(text: string): string {
 }
 
 /** Narrower than `redactSecrets` on purpose: no rule depends on what a value is called, so text that only mentions a token does not match. */
-export function findIssuedCredentialOffsets(text: string): number[] {
-  return [PRIVATE_KEY_BLOCK, ...ISSUED_TOKEN_FORMATS].flatMap(format => [...text.matchAll(format)].map(match => match.index));
+export function findIssuedTokenOffsets(text: string): number[] {
+  return ISSUED_TOKEN_FORMATS.flatMap(format => [...text.matchAll(format)].map(match => match.index));
 }
 
 export function holdsIssuedCredential(text: string): boolean {
-  return findIssuedCredentialOffsets(text).length > 0;
+  return text.search(PRIVATE_KEY_BLOCK) !== -1 || findIssuedTokenOffsets(text).length > 0;
 }
 
 export function holdsUrlPassword(text: string): boolean {

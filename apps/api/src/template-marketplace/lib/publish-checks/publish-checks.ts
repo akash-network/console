@@ -92,17 +92,36 @@ function findSecretIssues({ sdl, readme, askedValues }: PublishCheckInput): Publ
 
 const CREDENTIAL_LINE_SOURCES = { sdl: "the SDL", readme: "the README" };
 
-/** Reads the text as written, so a key in a comment, an argument or the README is found too; only the env values already reported under their variable are left out, and whatever shares their line is still read. */
+const MAX_REPORTED_CREDENTIAL_LINES = 20;
+
+/** Reads the text as written, so a key in a comment, an argument or the README is found too; an env value already reported under its variable is left out, which hides nothing, since that report alone fails the check. */
 function findCredentialLineIssues(text: string, field: keyof typeof CREDENTIAL_LINE_SOURCES, reportedValues: string[]): PublishCheckIssue[] {
   const unreportedText = reportedValues.reduce((rest, value) => rest.replaceAll(value, " ".repeat(value.length)), text);
-  const lineNumbers = new Set(findKnownCredentialOffsets(unreportedText).map(offset => unreportedText.slice(0, offset).split("\n").length));
 
-  return [...lineNumbers]
-    .sort((first, second) => first - second)
+  return findLineNumbers(unreportedText, findKnownCredentialOffsets(unreportedText))
+    .slice(0, MAX_REPORTED_CREDENTIAL_LINES)
     .map(lineNumber => ({
       message: `Line ${lineNumber} of ${CREDENTIAL_LINE_SOURCES[field]} ${CREDENTIAL_SIGN_LABELS.known_format}. Remove it before the template is public; anyone could read and use it.`,
       field
     }));
+}
+
+/** Walks the text once for all offsets, since counting the lines before each one separately grows with their product. */
+function findLineNumbers(text: string, offsets: number[]): number[] {
+  const lineNumbers = new Set<number>();
+  let lineNumber = 1;
+  let lineStart = 0;
+
+  for (const offset of [...offsets].sort((first, second) => first - second)) {
+    for (let lineBreak = text.indexOf("\n", lineStart); lineBreak !== -1 && lineBreak < offset; lineBreak = text.indexOf("\n", lineStart)) {
+      lineNumber++;
+      lineStart = lineBreak + 1;
+    }
+
+    lineNumbers.add(lineNumber);
+  }
+
+  return [...lineNumbers];
 }
 
 /** A stored version predating the schema's refusal could still carry a secret's default, which the type no longer admits. */

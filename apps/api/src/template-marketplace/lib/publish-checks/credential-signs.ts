@@ -1,7 +1,7 @@
 import { EnglishMnemonic } from "@cosmjs/crypto";
 
 import { isSdlReference } from "@src/deployment/services/sdl-reference/sdl-reference.service";
-import { findIssuedCredentialOffsets, holdsUrlPassword } from "@src/feedback/lib/redact-secrets/redact-secrets";
+import { findIssuedTokenOffsets, holdsUrlPassword } from "@src/feedback/lib/redact-secrets/redact-secrets";
 
 export type CredentialSign = "known_format" | "credential_name" | "credential_assignment" | "random_string";
 
@@ -80,6 +80,7 @@ const ASSIGNMENTS_INSIDE_A_VALUE = /["']?([A-Za-z][\w.-]*)["']?\s*[:=](?!\/\/)\s
 export function findCredentialSign(value: string, variableName?: string): CredentialSign | undefined {
   const trimmed = value.trim();
 
+  if (!trimmed || isSdlReference(trimmed)) return undefined;
   if (holdsKnownFormat(trimmed)) return "known_format";
   if (!isRealValue(trimmed)) return undefined;
   if (variableName && isCredentialName(variableName, trimmed)) return "credential_name";
@@ -91,7 +92,7 @@ export function findCredentialSign(value: string, variableName?: string): Creden
 
 /** Where each credential in a known format starts; narrower than the checks on a variable, since free text carries no name to judge and often mentions tokens without holding one. */
 export function findKnownCredentialOffsets(text: string): number[] {
-  return [...findIssuedCredentialOffsets(text), ...[...text.matchAll(PRIVATE_KEY_HEADER)].map(match => match.index), ...findMnemonicOffsets(text)];
+  return [...findIssuedTokenOffsets(text), ...[...text.matchAll(PRIVATE_KEY_HEADER)].map(match => match.index), ...findMnemonicOffsets(text)];
 }
 
 export function holdsKnownCredentialFormat(text: string): boolean {

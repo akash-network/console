@@ -128,7 +128,8 @@ describe(findCredentialSign.name, () => {
     "TBD",
     "example",
     "placeholder",
-    "ac-secret://HF_TOKEN"
+    "ac-secret://HF_TOKEN",
+    "ac-secret://hf_abcdefghijklmnopqrstuv"
   ])("reads the placeholder %j in a credential variable as no value", value => {
     expect(findCredentialSign(value, "API_TOKEN")).toBeUndefined();
   });
