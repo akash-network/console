@@ -134,7 +134,7 @@ E2E tests in deploy-web require:
 
 #### Running All Tests
 
-To run both unit and functional tests together:
+To run the app's full suite (unit, plus integration and functional where the app has them):
 ```bash
 cd apps/<app-name>
 npm test
