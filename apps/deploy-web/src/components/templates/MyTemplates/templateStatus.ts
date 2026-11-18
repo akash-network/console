@@ -26,7 +26,7 @@ const NOT_IN_GALLERY: TemplateStatus = {
   nextStep: "share"
 };
 
-/** A status missing here needs no note. The list only carries the current version today, so a held or failed newer version shows once the API lists it. */
+/** The list carries only the current version today, so a held or failed newer version shows once the API lists it. */
 const VERSION_NOTES: Partial<Record<VersionStatus, TemplateVersionNote & { describe: (version: number) => string }>> = {
   held: { label: "Held for review", tone: "warning", describe: version => `v${version} held for review` },
   failed_checks: { label: "Failed checks", tone: "danger", describe: version => `v${version} failed checks` }

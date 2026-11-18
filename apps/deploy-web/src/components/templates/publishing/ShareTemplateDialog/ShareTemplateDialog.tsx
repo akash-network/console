@@ -72,7 +72,6 @@ export type SharedTemplate = SharingState & {
 
 export interface ShareTemplateDialogProps {
   template: SharedTemplate;
-  /** The organization the template is published under, which the copy names. */
   organization: PublishOrganization | null;
   onClose: () => void;
   dependencies?: typeof DEPENDENCIES;
