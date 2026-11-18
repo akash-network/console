@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, isNull, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, lt, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -8,10 +8,10 @@ import { ExecutionContextService } from "@src/core/services/execution-context/ex
 
 type Table = ApiPgTables["GpuWaitlistEntries"];
 export type GpuWaitlistEntryInput = Partial<Table["$inferInsert"]>;
-export type GpuWaitlistEntryOutput = Table["$inferSelect"];
+export type GpuWaitlistEntryRow = Table["$inferSelect"];
 
 @singleton()
-export class GpuWaitlistEntryRepository extends OrgScopedRepository<Table, GpuWaitlistEntryInput, GpuWaitlistEntryOutput> {
+export class GpuWaitlistEntryRepository extends OrgScopedRepository<Table, GpuWaitlistEntryInput, GpuWaitlistEntryRow> {
   constructor(
     @InjectPg() protected readonly pg: ApiPgDatabase,
     @InjectPgTable("GpuWaitlistEntries") protected readonly table: Table,
@@ -25,7 +25,7 @@ export class GpuWaitlistEntryRepository extends OrgScopedRepository<Table, GpuWa
     return new GpuWaitlistEntryRepository(this.pg, this.table, this.txManager, this.executionContextService) as this;
   }
 
-  async findWaitingNewestFirst(): Promise<GpuWaitlistEntryOutput[]> {
+  async findWaitingNewestFirst(): Promise<GpuWaitlistEntryRow[]> {
     return await this.cursor
       .select()
       .from(this.table)
@@ -33,22 +33,17 @@ export class GpuWaitlistEntryRepository extends OrgScopedRepository<Table, GpuWa
       .orderBy(desc(this.table.joinedAt));
   }
 
-  async findWaitingInPoolOf(poolKey: string): Promise<GpuWaitlistEntryOutput | undefined> {
-    const organizationId = this.scopedOrganizationId;
+  async findWaitingInPoolOf(poolKey: string): Promise<GpuWaitlistEntryRow | undefined> {
     const [entry] = await this.cursor
       .select()
       .from(this.table)
-      .where(
-        this.whereAccessibleBy(
-          and(eq(this.table.poolKey, poolKey), eq(this.table.status, "waiting"), organizationId ? undefined : isNull(this.table.organizationId))
-        )
-      )
+      .where(this.whereAccessibleBy(and(eq(this.table.poolKey, poolKey), eq(this.table.status, "waiting"))))
       .limit(1);
 
     return entry;
   }
 
-  async findWaitingInPool(poolKey: string): Promise<GpuWaitlistEntryOutput[]> {
+  async findWaitingInPoolAcrossOrganizations(poolKey: string): Promise<GpuWaitlistEntryRow[]> {
     return await this.cursor
       .select()
       .from(this.table)
@@ -56,16 +51,22 @@ export class GpuWaitlistEntryRepository extends OrgScopedRepository<Table, GpuWa
       .orderBy(asc(this.table.joinedAt), asc(this.table.id));
   }
 
-  async findPlaceInLine(entry: Pick<GpuWaitlistEntryOutput, "poolKey" | "joinedAt">): Promise<number> {
+  async findPlaceInLineAcrossOrganizations(entry: Pick<GpuWaitlistEntryRow, "id" | "poolKey" | "joinedAt">): Promise<number> {
     const [{ ahead }] = await this.cursor
       .select({ ahead: sql<number>`count(*)::int` })
       .from(this.table)
-      .where(and(eq(this.table.poolKey, entry.poolKey), eq(this.table.status, "waiting"), lt(this.table.joinedAt, entry.joinedAt)));
+      .where(
+        and(
+          eq(this.table.poolKey, entry.poolKey),
+          eq(this.table.status, "waiting"),
+          or(lt(this.table.joinedAt, entry.joinedAt), and(eq(this.table.joinedAt, entry.joinedAt), lt(this.table.id, entry.id)))
+        )
+      );
 
     return ahead + 1;
   }
 
-  async findJoinTimesSince(userId: string, since: Date): Promise<Date[]> {
+  async findJoinTimesAcrossOrganizationsSince(userId: string, since: Date): Promise<Date[]> {
     const rows = await this.cursor
       .select({ joinedAt: this.table.joinedAt })
       .from(this.table)
@@ -75,7 +76,7 @@ export class GpuWaitlistEntryRepository extends OrgScopedRepository<Table, GpuWa
     return rows.map(row => row.joinedAt);
   }
 
-  async countWaitingFor(userId: string): Promise<number> {
+  async countWaitingAcrossOrganizations(userId: string): Promise<number> {
     const [{ waiting }] = await this.cursor
       .select({ waiting: sql<number>`count(*)::int` })
       .from(this.table)
@@ -84,11 +85,12 @@ export class GpuWaitlistEntryRepository extends OrgScopedRepository<Table, GpuWa
     return waiting;
   }
 
-  async findWaitingPoolKeys(): Promise<string[]> {
-    const rows = await this.unscoped("gpu-waitlist-watcher")
-      .cursor.selectDistinct({ poolKey: this.table.poolKey })
+  async findWaitingPoolKeysAcrossOrganizations(): Promise<string[]> {
+    const unscoped = this.unscoped("gpu-waitlist-watcher");
+    const rows = await unscoped.cursor
+      .selectDistinct({ poolKey: this.table.poolKey })
       .from(this.table)
-      .where(eq(this.table.status, "waiting"));
+      .where(unscoped.whereAccessibleBy(eq(this.table.status, "waiting")));
 
     return rows.map(row => row.poolKey);
   }

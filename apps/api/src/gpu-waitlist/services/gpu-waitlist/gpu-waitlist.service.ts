@@ -6,7 +6,7 @@ import { TxService } from "@src/core/services/tx/tx.service";
 import type { JoinGpuWaitlistRequest } from "@src/gpu-waitlist/http-schemas/gpu-waitlist.schema";
 import { toPoolKey } from "@src/gpu-waitlist/lib/gpu-pool-key/gpu-pool-key";
 import { GPU_WAITLIST_CONFIG, type GpuWaitlistConfig } from "@src/gpu-waitlist/providers/config.provider";
-import { type GpuWaitlistEntryOutput, GpuWaitlistEntryRepository } from "@src/gpu-waitlist/repositories/gpu-waitlist-entry/gpu-waitlist-entry.repository";
+import { GpuWaitlistEntryRepository, type GpuWaitlistEntryRow } from "@src/gpu-waitlist/repositories/gpu-waitlist-entry/gpu-waitlist-entry.repository";
 import { UserRepository } from "@src/user/repositories";
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -16,7 +16,7 @@ type JoinWindow = { durationMs: number; limit: number; message: string };
 
 type Refusal = { message: string; retryAfterSeconds: number };
 
-export type GpuWaitlistEntryInLine = GpuWaitlistEntryOutput & { placeInLine: number };
+export type GpuWaitlistEntryInLine = GpuWaitlistEntryRow & { placeInLine: number };
 
 /** Waits on the join `limit` places before the newest, since a window a lowered limit left over-full needs more than its oldest to leave. */
 function refusalIn({ durationMs, limit, message }: JoinWindow, joinTimes: Date[], now: number): Refusal | undefined {
@@ -44,8 +44,7 @@ export class GpuWaitlistService {
     const poolKey = toPoolKey(input);
 
     return await this.txService.transaction(async () => {
-      await this.userRepository.findOneByAndLock({ id: userId });
-      await this.#assertWithinJoinLimits(userId);
+      await this.userRepository.findOneByAndLock({ id: userId }, { strength: "no key update" });
 
       const existing = await this.gpuWaitlistEntryRepository.accessibleBy(this.authService.ability, "read").findWaitingInPoolOf(poolKey);
       const entry = existing ? await this.#refresh(existing, input) : await this.#enter(userId, poolKey, input);
@@ -70,7 +69,7 @@ export class GpuWaitlistService {
     }
   }
 
-  async #refresh(existing: GpuWaitlistEntryOutput, input: JoinGpuWaitlistRequest["data"]): Promise<GpuWaitlistEntryOutput> {
+  async #refresh(existing: GpuWaitlistEntryRow, input: JoinGpuWaitlistRequest["data"]): Promise<GpuWaitlistEntryRow> {
     const refreshed = await this.gpuWaitlistEntryRepository
       .accessibleBy(this.authService.ability, "update")
       .updateById(existing.id, { gpuCount: input.gpuCount, source: input.source }, { returning: true });
@@ -78,8 +77,10 @@ export class GpuWaitlistService {
     return refreshed;
   }
 
-  async #enter(userId: string, poolKey: string, input: JoinGpuWaitlistRequest["data"]): Promise<GpuWaitlistEntryOutput> {
-    if ((await this.gpuWaitlistEntryRepository.countWaitingFor(userId)) >= this.config.GPU_WAITLIST_MAX_ACTIVE_ENTRIES) {
+  async #enter(userId: string, poolKey: string, input: JoinGpuWaitlistRequest["data"]): Promise<GpuWaitlistEntryRow> {
+    await this.#assertWithinJoinLimits(userId);
+
+    if ((await this.gpuWaitlistEntryRepository.countWaitingAcrossOrganizations(userId)) >= this.config.GPU_WAITLIST_MAX_ACTIVE_ENTRIES) {
       throw createError(409, `You can wait for up to ${this.config.GPU_WAITLIST_MAX_ACTIVE_ENTRIES} GPU setups at once. Leave one to join another.`, {
         errorCode: "gpu_waitlist_active_limit"
       });
@@ -88,8 +89,8 @@ export class GpuWaitlistService {
     return await this.gpuWaitlistEntryRepository.accessibleBy(this.authService.ability, "create").create({ ...input, userId, poolKey });
   }
 
-  async #withPlaceInLine(entry: GpuWaitlistEntryOutput): Promise<GpuWaitlistEntryInLine> {
-    const placeInLine = await this.gpuWaitlistEntryRepository.unscoped("gpu-waitlist-watcher").findPlaceInLine(entry);
+  async #withPlaceInLine(entry: GpuWaitlistEntryRow): Promise<GpuWaitlistEntryInLine> {
+    const placeInLine = await this.gpuWaitlistEntryRepository.findPlaceInLineAcrossOrganizations(entry);
 
     return { ...entry, placeInLine };
   }
@@ -108,7 +109,7 @@ export class GpuWaitlistService {
         message: `You can join up to ${this.config.GPU_WAITLIST_JOIN_HOURLY_LIMIT} GPU waitlists an hour. Try again later.`
       }
     ];
-    const joinTimes = await this.gpuWaitlistEntryRepository.findJoinTimesSince(userId, new Date(now - DAY_MS));
+    const joinTimes = await this.gpuWaitlistEntryRepository.findJoinTimesAcrossOrganizationsSince(userId, new Date(now - DAY_MS));
 
     const refusals = windows.map(window => refusalIn(window, joinTimes, now)).filter(refusal => refusal !== undefined);
 

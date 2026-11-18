@@ -10,15 +10,27 @@ import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 const HOUR_MS = 60 * 60 * 1000;
 
 describe(GpuWaitlistEntryRepository.name, () => {
-  describe("findPlaceInLine", () => {
+  describe("findPlaceInLineAcrossOrganizations", () => {
     it("counts the waiting entries of the pool that joined earlier, plus one", async () => {
       const { repository, poolModel, user } = await setup();
       const first = await seedGpuWaitlistEntry({ userId: user.id, model: poolModel, joinedAt: hoursAgo(3) });
       const second = await seedGpuWaitlistEntry({ userId: (await seedUser()).id, model: poolModel, joinedAt: hoursAgo(2) });
       await seedGpuWaitlistEntry({ userId: (await seedUser()).id, model: poolModel, joinedAt: hoursAgo(1) });
 
-      expect(await repository.findPlaceInLine(first)).toBe(1);
-      expect(await repository.findPlaceInLine(second)).toBe(2);
+      expect(await repository.findPlaceInLineAcrossOrganizations(first)).toBe(1);
+      expect(await repository.findPlaceInLineAcrossOrganizations(second)).toBe(2);
+    });
+
+    it("breaks a tie on the join time by id, the way the pool is ordered", async () => {
+      const { repository, poolModel } = await setup();
+      const joinedAt = hoursAgo(2);
+      const entries = [
+        await seedGpuWaitlistEntry({ userId: (await seedUser()).id, model: poolModel, joinedAt }),
+        await seedGpuWaitlistEntry({ userId: (await seedUser()).id, model: poolModel, joinedAt })
+      ].sort((a, b) => a.id.localeCompare(b.id));
+
+      expect(await repository.findPlaceInLineAcrossOrganizations(entries[0])).toBe(1);
+      expect(await repository.findPlaceInLineAcrossOrganizations(entries[1])).toBe(2);
     });
 
     it("skips entries that left, were fulfilled, or wait for another pool", async () => {
@@ -28,7 +40,7 @@ describe(GpuWaitlistEntryRepository.name, () => {
       await seedGpuWaitlistEntry({ userId: (await seedUser()).id, model: faker.string.alphanumeric(12), joinedAt: hoursAgo(3) });
       const mine = await seedGpuWaitlistEntry({ userId: user.id, model: poolModel, joinedAt: hoursAgo(1) });
 
-      expect(await repository.findPlaceInLine(mine)).toBe(1);
+      expect(await repository.findPlaceInLineAcrossOrganizations(mine)).toBe(1);
     });
   });
 
@@ -39,13 +51,13 @@ describe(GpuWaitlistEntryRepository.name, () => {
       const older = await seedGpuWaitlistEntry({ userId: (await seedUser()).id, model: poolModel, joinedAt: hoursAgo(2) });
       await seedGpuWaitlistEntry({ userId: (await seedUser()).id, model: poolModel, status: "expired" });
 
-      const entries = await repository.findWaitingInPool(newer.poolKey);
+      const entries = await repository.findWaitingInPoolAcrossOrganizations(newer.poolKey);
 
       expect(entries.map(entry => entry.id)).toEqual([older.id, newer.id]);
     });
   });
 
-  describe("findJoinTimesSince", () => {
+  describe("findJoinTimesAcrossOrganizationsSince", () => {
     it("lists the user's joins after the cutoff, whatever their status, oldest first", async () => {
       const { repository, user } = await setup();
       const recent = hoursAgo(1);
@@ -55,11 +67,11 @@ describe(GpuWaitlistEntryRepository.name, () => {
       await seedGpuWaitlistEntry({ userId: user.id, joinedAt: hoursAgo(30) });
       await seedGpuWaitlistEntry({ userId: (await seedUser()).id, joinedAt: recent });
 
-      expect(await repository.findJoinTimesSince(user.id, hoursAgo(24))).toEqual([earlier, recent]);
+      expect(await repository.findJoinTimesAcrossOrganizationsSince(user.id, hoursAgo(24))).toEqual([earlier, recent]);
     });
   });
 
-  describe("countWaitingFor", () => {
+  describe("countWaitingAcrossOrganizations", () => {
     it("counts only the user's waiting entries across organizations", async () => {
       const { repository, user } = await setup();
       await seedGpuWaitlistEntry({ userId: user.id });
@@ -67,18 +79,18 @@ describe(GpuWaitlistEntryRepository.name, () => {
       await seedGpuWaitlistEntry({ userId: user.id, status: "left" });
       await seedGpuWaitlistEntry({ userId: (await seedUser()).id });
 
-      expect(await repository.countWaitingFor(user.id)).toBe(2);
+      expect(await repository.countWaitingAcrossOrganizations(user.id)).toBe(2);
     });
   });
 
-  describe("findWaitingPoolKeys", () => {
+  describe("findWaitingPoolKeysAcrossOrganizations", () => {
     it("lists each pool with a waiting entry once", async () => {
       const { repository, poolModel, user } = await setup();
       const entry = await seedGpuWaitlistEntry({ userId: user.id, model: poolModel });
       await seedGpuWaitlistEntry({ userId: (await seedUser()).id, model: poolModel });
       const gone = await seedGpuWaitlistEntry({ userId: user.id, model: faker.string.alphanumeric(12), status: "left" });
 
-      const poolKeys = await repository.findWaitingPoolKeys();
+      const poolKeys = await repository.findWaitingPoolKeysAcrossOrganizations();
 
       expect(poolKeys.filter(poolKey => poolKey === entry.poolKey)).toHaveLength(1);
       expect(poolKeys).not.toContain(gone.poolKey);

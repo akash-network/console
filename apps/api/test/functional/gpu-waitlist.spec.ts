@@ -72,7 +72,7 @@ describe("GPU waitlist", () => {
       const { data } = (await response.json()) as { data: Entry };
 
       expect(data).toMatchObject({ placeInLine: 1, gpuCount: 2 });
-      expect(await entryRepository.countWaitingFor(alice.user.id)).toBe(1);
+      expect(await entryRepository.countWaitingAcrossOrganizations(alice.user.id)).toBe(1);
     });
 
     it("creates one entry when the same pool is joined twice at once", async () => {
@@ -82,7 +82,7 @@ describe("GPU waitlist", () => {
       const responses = await Promise.all([join(alice.headers, pool), join(alice.headers, pool)]);
 
       expect(responses.map(response => response.status)).toEqual([200, 200]);
-      expect(await entryRepository.countWaitingFor(alice.user.id)).toBe(1);
+      expect(await entryRepository.countWaitingAcrossOrganizations(alice.user.id)).toBe(1);
     });
 
     it.each([
@@ -97,7 +97,7 @@ describe("GPU waitlist", () => {
       const response = await join(alice.headers, { ...aPool(), ...override });
 
       expect(response.status).toBe(400);
-      expect(await entryRepository.countWaitingFor(alice.user.id)).toBe(0);
+      expect(await entryRepository.countWaitingAcrossOrganizations(alice.user.id)).toBe(0);
     });
 
     it("refuses an 11th active entry with 409", async () => {
@@ -145,8 +145,29 @@ describe("GPU waitlist", () => {
 
       expect(((await first.json()) as { data: Entry }).data.placeInLine).toBe(1);
       expect(((await second.json()) as { data: Entry }).data.placeInLine).toBe(2);
-      expect(await entryRepository.countWaitingFor(alice.user.id)).toBe(1);
-      expect(await entryRepository.countWaitingFor(bob.user.id)).toBe(1);
+      expect(await entryRepository.countWaitingAcrossOrganizations(alice.user.id)).toBe(1);
+      expect(await entryRepository.countWaitingAcrossOrganizations(bob.user.id)).toBe(1);
+    });
+  });
+
+  describe("in an organization, between members", () => {
+    it("keeps a member's entry out of a teammate's list", async () => {
+      const { alice, bob } = await setupTeam();
+      await join(alice.headers, aPool());
+
+      const response = await list(bob.headers);
+
+      expect(((await response.json()) as { data: Entry[] }).data).toEqual([]);
+    });
+
+    it("answers 404 when a member leaves a teammate's entry and leaves it waiting", async () => {
+      const { alice, bob } = await setupTeam();
+      const { data } = (await (await join(alice.headers, aPool())).json()) as { data: Entry };
+
+      const response = await leave(bob.headers, data.id);
+
+      expect(response.status).toBe(404);
+      expect(((await (await list(alice.headers)).json()) as { data: Entry[] }).data).toMatchObject([{ id: data.id }]);
     });
   });
 
@@ -198,6 +219,16 @@ describe("GPU waitlist", () => {
       expect(((await (await list(bob.headers)).json()) as { data: Entry[] }).data).toMatchObject([{ placeInLine: 1 }]);
     });
 
+    it("answers like an unknown path while the flag is off", async () => {
+      const { alice } = await setup({ flagOn: false });
+      const entry = await seedGpuWaitlistEntry({ userId: alice.user.id, organizationId: alice.organizationId });
+
+      const response = await leave(alice.headers, entry.id);
+
+      expect(response.status).toBe(404);
+      expect(await entryRepository.countWaitingAcrossOrganizations(alice.user.id)).toBe(1);
+    });
+
     it("answers 404 for another user's entry and leaves it waiting", async () => {
       const { alice, bob } = await setup();
       const entry = await seedGpuWaitlistEntry({ userId: bob.user.id, organizationId: bob.organizationId });
@@ -205,7 +236,7 @@ describe("GPU waitlist", () => {
       const response = await leave(alice.headers, entry.id);
 
       expect(response.status).toBe(404);
-      expect(await entryRepository.countWaitingFor(bob.user.id)).toBe(1);
+      expect(await entryRepository.countWaitingAcrossOrganizations(bob.user.id)).toBe(1);
     });
 
     it("answers 404 for an entry that was already left", async () => {

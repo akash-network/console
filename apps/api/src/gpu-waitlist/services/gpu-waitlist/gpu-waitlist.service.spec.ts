@@ -5,7 +5,7 @@ import type { AuthService } from "@src/auth/services/auth.service";
 import type { TxService } from "@src/core/services/tx/tx.service";
 import type { GpuWaitlistConfig } from "@src/gpu-waitlist/config/env.config";
 import type { JoinGpuWaitlistRequest } from "@src/gpu-waitlist/http-schemas/gpu-waitlist.schema";
-import type { GpuWaitlistEntryOutput, GpuWaitlistEntryRepository } from "@src/gpu-waitlist/repositories/gpu-waitlist-entry/gpu-waitlist-entry.repository";
+import type { GpuWaitlistEntryRepository, GpuWaitlistEntryRow } from "@src/gpu-waitlist/repositories/gpu-waitlist-entry/gpu-waitlist-entry.repository";
 import type { UserRepository } from "@src/user/repositories";
 import { GpuWaitlistService } from "./gpu-waitlist.service";
 
@@ -19,7 +19,7 @@ function minutesAgo(minutes: number) {
   return new Date(NOW - minutes * MINUTE_MS);
 }
 
-function anEntry(overrides: Partial<GpuWaitlistEntryOutput> = {}): GpuWaitlistEntryOutput {
+function anEntry(overrides: Partial<GpuWaitlistEntryRow> = {}): GpuWaitlistEntryRow {
   return {
     id: "entry-1",
     userId: "user-1",
@@ -123,12 +123,26 @@ describe(GpuWaitlistService.name, () => {
       expect(repository.create).toHaveBeenCalled();
     });
 
-    it("locks the user row before checking limits", async () => {
-      const { service, userRepository, user } = setup();
+    it("lets a user over the hourly limit refresh an entry they already hold", async () => {
+      const existing = anEntry();
+      const joinTimes = Array.from({ length: 10 }, (_, index) => minutesAgo(30 - index));
+      const { service, repository } = setup({ existing, joinTimes });
+      repository.updateById.mockImplementation(vi.fn().mockResolvedValue(existing));
 
       await service.join(INPUT);
 
-      expect(userRepository.findOneByAndLock).toHaveBeenCalledWith({ id: user.id });
+      expect(repository.updateById).toHaveBeenCalled();
+    });
+
+    it("locks the user row before looking for an existing entry or checking limits", async () => {
+      const { service, userRepository, repository, user } = setup();
+
+      await service.join(INPUT);
+
+      const [lockOrder] = userRepository.findOneByAndLock.mock.invocationCallOrder;
+      expect(userRepository.findOneByAndLock).toHaveBeenCalledWith({ id: user.id }, { strength: "no key update" });
+      expect(lockOrder).toBeLessThan(repository.findWaitingInPoolOf.mock.invocationCallOrder[0]);
+      expect(lockOrder).toBeLessThan(repository.findJoinTimesAcrossOrganizationsSince.mock.invocationCallOrder[0]);
     });
   });
 
@@ -164,7 +178,7 @@ describe(GpuWaitlistService.name, () => {
     });
   });
 
-  function setup(input: { existing?: GpuWaitlistEntryOutput; waitingCount?: number; joinTimes?: Date[]; placeInLine?: number } = {}) {
+  function setup(input: { existing?: GpuWaitlistEntryRow; waitingCount?: number; joinTimes?: Date[]; placeInLine?: number } = {}) {
     vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
 
     const user = createUser();
@@ -172,9 +186,9 @@ describe(GpuWaitlistService.name, () => {
     repository.accessibleBy.mockReturnValue(repository);
     repository.unscoped.mockReturnValue(repository);
     repository.findWaitingInPoolOf.mockResolvedValue(input.existing);
-    repository.countWaitingFor.mockResolvedValue(input.waitingCount ?? 0);
-    repository.findJoinTimesSince.mockResolvedValue(input.joinTimes ?? []);
-    repository.findPlaceInLine.mockResolvedValue(input.placeInLine ?? 1);
+    repository.countWaitingAcrossOrganizations.mockResolvedValue(input.waitingCount ?? 0);
+    repository.findJoinTimesAcrossOrganizationsSince.mockResolvedValue(input.joinTimes ?? []);
+    repository.findPlaceInLineAcrossOrganizations.mockResolvedValue(input.placeInLine ?? 1);
     repository.create.mockImplementation(async values => anEntry({ ...values, userId: user.id }));
     const userRepository = mock<UserRepository>();
     const authService = mock<AuthService>({ currentUser: user });
