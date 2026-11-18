@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 
+import { CUMULATIVE_SERIES_STYLES, CumulativeUnbondingChart } from "./CumulativeUnbondingChart";
+import { CUMULATIVE_SERIES, toCumulativeUnbondingPoints } from "./cumulativeUnbondingModel";
 import type { MigrationMilestoneMarker } from "./migrationMilestonesModel";
 import type { FittedUnbondingBar, UnbondingBar, UnbondingView } from "./unbondingMomentumModel";
 import { fitUnbondingBars, placeMilestoneMarkers, slotIndexAt, toUnbondingBars, UNBONDING_VIEWS } from "./unbondingMomentumModel";
@@ -43,7 +45,10 @@ export function UnbondingMomentumPanel({
   className?: string;
 }) {
   const [view, setView] = useState<UnbondingView>("liquid");
-  const bars = data && toUnbondingBars(data.daily, view, now);
+  const isCumulative = view === "cumulative";
+  const bars = data && (isCumulative ? undefined : toUnbondingBars(data.daily, view, now));
+  const points = data && isCumulative ? toCumulativeUnbondingPoints(data.daily, now) : undefined;
+  const isEmpty = (bars ?? points)?.length === 0;
   const seriesLabel = UNBONDING_VIEWS.find(option => option.value === view)?.seriesLabel ?? "";
 
   return (
@@ -51,23 +56,32 @@ export function UnbondingMomentumPanel({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-col gap-1">
           <PanelTitle>Unstaking vs AKT sent to Solana</PanelTitle>
-          <span className="text-xs text-muted-foreground">Daily AKT, UTC. Unbonding takes 21 days before AKT can be sent.</span>
+          <span className="text-xs text-muted-foreground">
+            {isCumulative ? "Running totals since October 1, UTC." : "Daily AKT, UTC."} Unbonding takes 21 days before AKT can be sent.
+          </span>
         </div>
         <SegmentedTabs<UnbondingView> options={UNBONDING_VIEWS} value={view} onChange={setView} label="Unbonding series" />
       </div>
 
       <div className="flex flex-wrap gap-4">
-        <LegendItem swatchClassName={UNBONDING_SWATCH} label={seriesLabel} />
-        <LegendItem swatchClassName={SENT_SWATCH} label="Sent to Solana" />
+        {isCumulative ? (
+          CUMULATIVE_SERIES.map(series => <LegendItem key={series.key} swatchClassName={CUMULATIVE_SERIES_STYLES[series.key].swatch} label={series.label} />)
+        ) : (
+          <>
+            <LegendItem swatchClassName={UNBONDING_SWATCH} label={seriesLabel} />
+            <LegendItem swatchClassName={SENT_SWATCH} label="Sent to Solana" />
+          </>
+        )}
       </div>
 
-      {!bars &&
+      {!data &&
         (isError ? (
           <LoadError subject="the unbondings" onRetry={onRetry} />
         ) : (
           <div className="animate-pulse rounded-md bg-nested" style={{ height: CHART_HEIGHT }} />
         ))}
-      {bars?.length === 0 && <p className="py-10 text-center text-sm text-muted-foreground">No unbondings yet.</p>}
+      {isEmpty && <p className="py-10 text-center text-sm text-muted-foreground">No unbondings yet.</p>}
+      {!!points?.length && <CumulativeUnbondingChart points={points} markers={markers} />}
       {!!bars?.length && (
         <>
           <UnbondingBarChart bars={bars} markers={markers} seriesLabel={seriesLabel} now={now} />

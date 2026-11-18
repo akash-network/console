@@ -10,10 +10,11 @@ const PADDING = { top: 10, right: 10, bottom: 10, left: 10 };
 
 describe("unbondingMomentumModel", () => {
   describe("UNBONDING_VIEWS", () => {
-    it("shows when unstaked AKT becomes liquid first, then when it was unstaked", () => {
+    it("shows when unstaked AKT becomes liquid first, then when it was unstaked, then the running totals", () => {
       expect(UNBONDING_VIEWS.map(view => [view.value, view.label, view.seriesLabel])).toEqual([
         ["liquid", "Becomes liquid", "Unbonding completes"],
-        ["unstaked", "Unstaked", "Unbonding started"]
+        ["unstaked", "Unstaked", "Unbonding started"],
+        ["cumulative", "Cumulative", "Started unbonding"]
       ]);
     });
   });
