@@ -21793,11 +21793,109 @@
                           "sentBySendersWhoUnbondedUakt"
                         ]
                       }
+                    },
+                    "milestones": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string",
+                            "enum": [
+                              "announcement",
+                              "voteClosed",
+                              "upgrade"
+                            ]
+                          },
+                          "label": {
+                            "type": "string",
+                            "description": "Human readable name of the milestone"
+                          },
+                          "height": {
+                            "type": "number",
+                            "description": "Block height of the milestone"
+                          },
+                          "date": {
+                            "type": "string",
+                            "nullable": true,
+                            "description": "Time of the milestone block, null until that block is indexed"
+                          },
+                          "unbondedSinceUakt": {
+                            "type": "number",
+                            "description": "AKT that started unbonding at or after the milestone block, net of cancellations"
+                          },
+                          "delegatorsSince": {
+                            "type": "number",
+                            "description": "Delegators that started unbonding at or after the milestone block"
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "label",
+                          "height",
+                          "date",
+                          "unbondedSinceUakt",
+                          "delegatorsSince"
+                        ]
+                      }
+                    },
+                    "cohorts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "firstUnbondedAfter": {
+                            "type": "string",
+                            "nullable": true,
+                            "enum": [
+                              "announcement",
+                              "voteClosed",
+                              "upgrade"
+                            ],
+                            "description": "Last milestone reached before the delegators of this cohort first unbonded, null for those who first unbonded before every milestone"
+                          },
+                          "delegators": {
+                            "type": "number",
+                            "description": "Delegators of the cohort"
+                          },
+                          "unbondedUakt": {
+                            "type": "number",
+                            "description": "AKT the cohort unbonded, net of cancellations"
+                          },
+                          "liquidUakt": {
+                            "type": "number",
+                            "description": "Part of the unbonded AKT whose unbonding period is over"
+                          },
+                          "senders": {
+                            "type": "number",
+                            "description": "Delegators of the cohort that sent AKT to Solana after they first unbonded"
+                          },
+                          "sentUakt": {
+                            "type": "number",
+                            "description": "AKT the cohort sent to Solana after first unbonding, excluding voided and refunded transfers"
+                          },
+                          "sentFromLiquidUakt": {
+                            "type": "number",
+                            "description": "AKT sent to Solana, capped per delegator at its liquid unbonded AKT"
+                          }
+                        },
+                        "required": [
+                          "firstUnbondedAfter",
+                          "delegators",
+                          "unbondedUakt",
+                          "liquidUakt",
+                          "senders",
+                          "sentUakt",
+                          "sentFromLiquidUakt"
+                        ]
+                      }
                     }
                   },
                   "required": [
                     "summary",
-                    "daily"
+                    "daily",
+                    "milestones",
+                    "cohorts"
                   ]
                 }
               }

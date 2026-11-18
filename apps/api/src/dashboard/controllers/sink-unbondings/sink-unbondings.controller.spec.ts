@@ -19,7 +19,11 @@ describe(SinkUnbondingsController.name, () => {
     const statsService = mock<StatsService>();
     const unbondings: SinkUnbondingsResponse = {
       summary: { unbondingUakt: 420, unbondingDelegators: 2, senders: 3, sendersWhoUnbonded: 2, sentUakt: 220, sentBySendersWhoUnbondedUakt: 160 },
-      daily: [{ date: "2026-11-12", unbondStartedUakt: 0, unbondCompletingUakt: 0, cancelledUakt: 0, sentToSolanaUakt: 220, sentBySendersWhoUnbondedUakt: 160 }]
+      daily: [
+        { date: "2026-11-12", unbondStartedUakt: 0, unbondCompletingUakt: 0, cancelledUakt: 0, sentToSolanaUakt: 220, sentBySendersWhoUnbondedUakt: 160 }
+      ],
+      milestones: [],
+      cohorts: []
     };
     statsService.getSinkUnbondings.mockResolvedValue(unbondings);
 

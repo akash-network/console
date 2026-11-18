@@ -6,6 +6,7 @@ import { mock } from "vitest-mock-extended";
 
 import { cacheEngine } from "@src/caching/helpers";
 import type { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
+import type { SinkMigrationMilestone } from "@src/dashboard/config/sink-migration-milestones.config";
 import type { LeasesDurationQuery } from "@src/dashboard/http-schemas/leases-duration/leases-duration.schema";
 import type { StatsRepository } from "../../repositories/stats";
 import type { SinkDashboardTotalsRow, SinkTransferRow } from "../../repositories/stats/stats.repository";
@@ -1079,7 +1080,9 @@ describe(StatsService.name, () => {
           { ...zeroUnbondingDay(), date: "2026-10-31", unbondStartedUakt: 950 },
           { ...zeroUnbondingDay(), date: "2026-11-01", cancelledUakt: 30 },
           { ...zeroUnbondingDay(), date: "2026-11-02", unbondCompletingUakt: 420, sentToSolanaUakt: 220, sentBySendersWhoUnbondedUakt: 160 }
-        ]
+        ],
+        milestones: [],
+        cohorts: []
       });
     });
 
@@ -1100,8 +1103,79 @@ describe(StatsService.name, () => {
 
       const result = await service.getSinkUnbondings();
 
-      expect(result).toEqual({ summary: zeroUnbondingSummary(), daily: [] });
+      expect(result).toEqual({ summary: zeroUnbondingSummary(), daily: [], milestones: [], cohorts: [] });
     });
+
+    it("returns the AKT unbonded since each migration milestone", async () => {
+      const { service, statsRepository } = setup({ sinkMigrationMilestones: MILESTONES });
+      mockEmptyUnbondings(statsRepository);
+      statsRepository.findSinkUnbondingMilestones.mockResolvedValue([
+        { height: 100, datetime: new Date("2026-10-26T15:02:58Z"), unbondedUakt: 900, delegators: 7 },
+        { height: 200, datetime: new Date("2026-11-02T15:02:58Z"), unbondedUakt: 600, delegators: 4 }
+      ]);
+
+      const result = await service.getSinkUnbondings();
+
+      expect(statsRepository.findSinkUnbondingMilestones).toHaveBeenCalledWith([100, 200, 300]);
+      expect(result.milestones).toEqual([
+        { key: "announcement", label: "Announced", height: 100, date: "2026-10-26T15:02:58.000Z", unbondedSinceUakt: 900, delegatorsSince: 7 },
+        { key: "voteClosed", label: "Vote passed", height: 200, date: "2026-11-02T15:02:58.000Z", unbondedSinceUakt: 600, delegatorsSince: 4 },
+        { key: "upgrade", label: "Upgrade", height: 300, date: null, unbondedSinceUakt: 0, delegatorsSince: 0 }
+      ]);
+    });
+
+    it("returns a null date for a milestone whose block is not indexed yet", async () => {
+      const { service, statsRepository } = setup({ sinkMigrationMilestones: MILESTONES.slice(0, 1) });
+      mockEmptyUnbondings(statsRepository);
+      statsRepository.findSinkUnbondingMilestones.mockResolvedValue([{ height: 100, datetime: null, unbondedUakt: 0, delegators: 0 }]);
+
+      const result = await service.getSinkUnbondings();
+
+      expect(result.milestones).toEqual([{ key: "announcement", label: "Announced", height: 100, date: null, unbondedSinceUakt: 0, delegatorsSince: 0 }]);
+    });
+
+    it("returns one cohort per milestone reached before the first unbonding, with zeros for cohorts nobody is in", async () => {
+      const { service, statsRepository } = setup({ sinkMigrationMilestones: MILESTONES });
+      mockEmptyUnbondings(statsRepository);
+      statsRepository.findSinkUnbondingCohorts.mockResolvedValue([
+        { milestonesReached: 0, delegators: 5, unbondedUakt: 500, liquidUakt: 450, senders: 1, sentUakt: 20, sentFromLiquidUakt: 20 },
+        { milestonesReached: 1, delegators: 3, unbondedUakt: 300, liquidUakt: 100, senders: 2, sentUakt: 150, sentFromLiquidUakt: 90 },
+        { milestonesReached: 3, delegators: 9, unbondedUakt: 900, liquidUakt: 0, senders: 1, sentUakt: 10, sentFromLiquidUakt: 0 }
+      ]);
+
+      const result = await service.getSinkUnbondings();
+
+      expect(statsRepository.findSinkUnbondingCohorts).toHaveBeenCalledWith([100, 200, 300]);
+      expect(result.cohorts).toEqual([
+        { firstUnbondedAfter: null, delegators: 5, unbondedUakt: 500, liquidUakt: 450, senders: 1, sentUakt: 20, sentFromLiquidUakt: 20 },
+        { firstUnbondedAfter: "announcement", delegators: 3, unbondedUakt: 300, liquidUakt: 100, senders: 2, sentUakt: 150, sentFromLiquidUakt: 90 },
+        { firstUnbondedAfter: "voteClosed", delegators: 0, unbondedUakt: 0, liquidUakt: 0, senders: 0, sentUakt: 0, sentFromLiquidUakt: 0 },
+        { firstUnbondedAfter: "upgrade", delegators: 9, unbondedUakt: 900, liquidUakt: 0, senders: 1, sentUakt: 10, sentFromLiquidUakt: 0 }
+      ]);
+    });
+
+    it("does not query milestones or cohorts on a network without migration milestones", async () => {
+      const { service, statsRepository } = setup({ sinkMigrationMilestones: [] });
+      mockEmptyUnbondings(statsRepository);
+
+      await service.getSinkUnbondings();
+
+      expect(statsRepository.findSinkUnbondingMilestones).not.toHaveBeenCalled();
+      expect(statsRepository.findSinkUnbondingCohorts).not.toHaveBeenCalled();
+    });
+
+    const MILESTONES: SinkMigrationMilestone[] = [
+      { key: "announcement", label: "Announced", height: 100 },
+      { key: "voteClosed", label: "Vote passed", height: 200 },
+      { key: "upgrade", label: "Upgrade", height: 300 }
+    ];
+
+    function mockEmptyUnbondings(statsRepository: ReturnType<typeof setup>["statsRepository"]) {
+      statsRepository.findSinkUnbondingSummary.mockResolvedValue(zeroUnbondingSummary());
+      statsRepository.findSinkUnbondingDailyAmounts.mockResolvedValue([]);
+      statsRepository.findSinkUnbondingMilestones.mockResolvedValue([]);
+      statsRepository.findSinkUnbondingCohorts.mockResolvedValue([]);
+    }
 
     function zeroUnbondingSummary() {
       return { unbondingUakt: 0, unbondingDelegators: 0, senders: 0, sendersWhoUnbonded: 0, sentUakt: 0, sentBySendersWhoUnbondedUakt: 0 };
@@ -1369,7 +1443,7 @@ describe(StatsService.name, () => {
     };
   }
 
-  function setup() {
+  function setup(input: { sinkMigrationMilestones?: SinkMigrationMilestone[] } = {}) {
     cacheEngine.clearAllKeyInCache();
 
     const statsRepository = mock<StatsRepository>();
@@ -1378,7 +1452,7 @@ describe(StatsService.name, () => {
 
     statsRepository.findActiveProvidersWithSnapshots.mockResolvedValue([]);
 
-    const service = new StatsService(statsRepository, cosmosHttpService, denomExchangeService);
+    const service = new StatsService(statsRepository, cosmosHttpService, denomExchangeService, input.sinkMigrationMilestones ?? []);
 
     return {
       service,

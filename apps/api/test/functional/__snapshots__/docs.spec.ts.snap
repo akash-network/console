@@ -29624,6 +29624,57 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "application/json": {
                 "schema": {
                   "properties": {
+                    "cohorts": {
+                      "items": {
+                        "properties": {
+                          "delegators": {
+                            "description": "Delegators of the cohort",
+                            "type": "number",
+                          },
+                          "firstUnbondedAfter": {
+                            "description": "Last milestone reached before the delegators of this cohort first unbonded, null for those who first unbonded before every milestone",
+                            "enum": [
+                              "announcement",
+                              "voteClosed",
+                              "upgrade",
+                            ],
+                            "nullable": true,
+                            "type": "string",
+                          },
+                          "liquidUakt": {
+                            "description": "Part of the unbonded AKT whose unbonding period is over",
+                            "type": "number",
+                          },
+                          "senders": {
+                            "description": "Delegators of the cohort that sent AKT to Solana after they first unbonded",
+                            "type": "number",
+                          },
+                          "sentFromLiquidUakt": {
+                            "description": "AKT sent to Solana, capped per delegator at its liquid unbonded AKT",
+                            "type": "number",
+                          },
+                          "sentUakt": {
+                            "description": "AKT the cohort sent to Solana after first unbonding, excluding voided and refunded transfers",
+                            "type": "number",
+                          },
+                          "unbondedUakt": {
+                            "description": "AKT the cohort unbonded, net of cancellations",
+                            "type": "number",
+                          },
+                        },
+                        "required": [
+                          "firstUnbondedAfter",
+                          "delegators",
+                          "unbondedUakt",
+                          "liquidUakt",
+                          "senders",
+                          "sentUakt",
+                          "sentFromLiquidUakt",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
                     "daily": {
                       "items": {
                         "properties": {
@@ -29659,6 +29710,51 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "cancelledUakt",
                           "sentToSolanaUakt",
                           "sentBySendersWhoUnbondedUakt",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    "milestones": {
+                      "items": {
+                        "properties": {
+                          "date": {
+                            "description": "Time of the milestone block, null until that block is indexed",
+                            "nullable": true,
+                            "type": "string",
+                          },
+                          "delegatorsSince": {
+                            "description": "Delegators that started unbonding at or after the milestone block",
+                            "type": "number",
+                          },
+                          "height": {
+                            "description": "Block height of the milestone",
+                            "type": "number",
+                          },
+                          "key": {
+                            "enum": [
+                              "announcement",
+                              "voteClosed",
+                              "upgrade",
+                            ],
+                            "type": "string",
+                          },
+                          "label": {
+                            "description": "Human readable name of the milestone",
+                            "type": "string",
+                          },
+                          "unbondedSinceUakt": {
+                            "description": "AKT that started unbonding at or after the milestone block, net of cancellations",
+                            "type": "number",
+                          },
+                        },
+                        "required": [
+                          "key",
+                          "label",
+                          "height",
+                          "date",
+                          "unbondedSinceUakt",
+                          "delegatorsSince",
                         ],
                         "type": "object",
                       },
@@ -29705,6 +29801,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   "required": [
                     "summary",
                     "daily",
+                    "milestones",
+                    "cohorts",
                   ],
                   "type": "object",
                 },

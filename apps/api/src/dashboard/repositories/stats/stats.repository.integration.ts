@@ -335,6 +335,51 @@ describe(StatsRepository.name, () => {
     });
   });
 
+  describe("findSinkUnbondingMilestones", () => {
+    it("returns per milestone height its block time and the AKT unbonded from that height on, net of cancellations", async () => {
+      const { repository } = await setup();
+      await createUnbondingsAndTransfers();
+      await createLateUnbonders();
+
+      const rows = await repository.findSinkUnbondingMilestones([5, 20, 99]);
+
+      expect(rows).toEqual([
+        { height: 5, datetime: null, unbondedUakt: 1170, delegators: 5 },
+        { height: 20, datetime: new Date("2026-11-02T09:00:00Z"), unbondedUakt: 250, delegators: 2 },
+        { height: 99, datetime: null, unbondedUakt: 0, delegators: 0 }
+      ]);
+    });
+  });
+
+  describe("findSinkUnbondingCohorts", () => {
+    it("groups delegators by how many milestones preceded their first unbonding and counts only what they sent to Solana after it", async () => {
+      const { repository } = await setup();
+      await createUnbondingsAndTransfers();
+      await createLateUnbonders();
+
+      const rows = await repository.findSinkUnbondingCohorts([5, 20]);
+
+      expect(rows).toEqual([
+        { milestonesReached: 1, delegators: 3, unbondedUakt: 920, liquidUakt: 500, senders: 2, sentUakt: 160, sentFromLiquidUakt: 40 },
+        { milestonesReached: 2, delegators: 2, unbondedUakt: 250, liquidUakt: 250, senders: 1, sentUakt: 60, sentFromLiquidUakt: 60 }
+      ]);
+    });
+
+    it("returns nothing when no unbonding is indexed yet", async () => {
+      const { repository } = await setup();
+
+      expect(await repository.findSinkUnbondingCohorts([5, 20])).toEqual([]);
+    });
+  });
+
+  async function createLateUnbonders() {
+    const validator = "akashvaloper1validator";
+    const completedBeforeLatestBlock = new Date("2026-11-10T00:00:00Z");
+    await createStakingUnbonding({ height: 25, delegator: "akash1frank", validator, amount: "200", completionTime: completedBeforeLatestBlock });
+    await createStakingUnbonding({ height: 25, delegator: "akash1grace", validator, amount: "50", completionTime: completedBeforeLatestBlock });
+    await createSinkTransfer({ height: 20, sequence: 1, owner: "akash1grace", amount: "70", status: "minted" });
+  }
+
   async function createUnbondingsAndTransfers() {
     const validator = "akashvaloper1validator";
     const completesAfterLatestBlock = new Date("2026-11-22T10:00:00Z");
