@@ -38,6 +38,7 @@ type Props = {
   regionFilter: ReactNode;
   gpuFilter: ReactNode;
   cpuFilter: ReactNode;
+  emptyNote?: string;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -57,6 +58,7 @@ export const ProvidersTable: FC<Props> = ({
   regionFilter,
   gpuFilter,
   cpuFilter,
+  emptyNote,
   dependencies = DEPENDENCIES
 }) => (
   <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
@@ -115,6 +117,7 @@ export const ProvidersTable: FC<Props> = ({
             <tr>
               <td colSpan={isCompact ? 2 : WIDE_COLUMN_COUNT} className="px-5 py-10 text-center text-[13px] text-muted-foreground">
                 No providers match those filters.
+                {emptyNote && <span className="mt-1 block">{emptyNote}</span>}
               </td>
             </tr>
           )}

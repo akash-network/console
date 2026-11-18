@@ -18,6 +18,7 @@ const PROFILE_NOTES: Partial<Record<CpuProfile, string>> = {
 
 export const CpuModelsCard: FC<Props> = ({ models, profile, unreportedNodeCount = 0 }) => {
   const note = unreportedNodeCount > 0 ? formatUnreportedNodesNote(unreportedNodeCount) : PROFILE_NOTES[profile];
+  const showsBaseFrequency = models.some(model => model.baseFrequencyMhz !== null);
 
   return (
     <ProfileCard title="CPU models" aside={note && <span className="font-mono text-[11px] capitalize text-muted-foreground">{profile}</span>}>
@@ -30,7 +31,7 @@ export const CpuModelsCard: FC<Props> = ({ models, profile, unreportedNodeCount 
               <tr className="bg-muted">
                 <HeaderCell>Model</HeaderCell>
                 <HeaderCell className="hidden sm:table-cell">Generation</HeaderCell>
-                <HeaderCell className="hidden sm:table-cell">Base frequency</HeaderCell>
+                {showsBaseFrequency && <HeaderCell className="hidden sm:table-cell">Base frequency</HeaderCell>}
                 <HeaderCell>Threads</HeaderCell>
                 <HeaderCell>Nodes</HeaderCell>
               </tr>
@@ -48,9 +49,11 @@ export const CpuModelsCard: FC<Props> = ({ models, profile, unreportedNodeCount 
                     </span>
                   </td>
                   <td className="hidden px-3.5 py-[11px] font-mono text-xs sm:table-cell">{formatCpuGeneration(model)}</td>
-                  <td className="hidden whitespace-nowrap px-3.5 py-[11px] font-mono text-xs text-muted-foreground sm:table-cell">
-                    {formatBaseFrequency(model.baseFrequencyMhz)}
-                  </td>
+                  {showsBaseFrequency && (
+                    <td className="hidden whitespace-nowrap px-3.5 py-[11px] font-mono text-xs text-muted-foreground sm:table-cell">
+                      {formatBaseFrequency(model.baseFrequencyMhz)}
+                    </td>
+                  )}
                   <td className="px-3.5 py-[11px] font-mono text-xs">{model.threads}</td>
                   <td className="px-3.5 py-[11px] font-mono text-xs">{model.nodeCount}</td>
                 </tr>

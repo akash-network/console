@@ -16,6 +16,7 @@ import { ProvidersTable } from "@src/components/providers/ProvidersTable/Provide
 import type { ProviderSummary } from "@src/components/providers/providerSummary/providerSummary";
 import { summarizeListedProvider, summarizeLocatedProvider } from "@src/components/providers/providerSummary/providerSummary";
 import useCookieTheme from "@src/hooks/useTheme";
+import type { ProviderFilters } from "./useProvidersExplorerModel";
 import { useProvidersExplorerModel } from "./useProvidersExplorerModel";
 
 const ProvidersGlobe = dynamic(() => import("@src/components/providers/ProvidersGlobe/ProvidersGlobe").then(module => module.ProvidersGlobe), {
@@ -40,6 +41,7 @@ const WIDE_LAYOUT_QUERY = "(min-width: 1024px)";
 /** Moves the globe left by this many world units so the open panel doesn't cover it. */
 const PANEL_OPEN_GLOBE_SHIFT = -0.42;
 const ZOOM_STEP = 0.42;
+const CPU_FILTERS_MATCH_ONE_CPU = "Vendor, generation and model have to match the same CPU.";
 const CLUSTER_CAMERA_DISTANCE = 2.6;
 const PROVIDER_CAMERA_DISTANCE = 2.35;
 
@@ -345,6 +347,7 @@ export const ProvidersExplorer: FC<Props> = ({ dependencies: d = DEPENDENCIES })
           regionFilter={regionFilter}
           gpuFilter={gpuFilter}
           cpuFilter={cpuFilter}
+          emptyNote={countCpuFilterGroupsInUse(model.filters) > 1 ? CPU_FILTERS_MATCH_ONE_CPU : undefined}
         />
       </section>
     </div>
@@ -418,6 +421,10 @@ function describeCluster(cluster: GlobeCluster): string {
   const providerCount = cluster.providerIds.length;
   const providers = `${providerCount} ${providerCount === 1 ? "provider" : "providers"}`;
   return cluster.gpuCount > 0 ? `${providers} · ${cluster.gpuCount} GPUs` : providers;
+}
+
+function countCpuFilterGroupsInUse({ cpuVendors, cpuGenerations, cpuModels }: ProviderFilters): number {
+  return [cpuVendors, cpuGenerations, cpuModels].filter(values => values.length > 0).length;
 }
 
 function describeZoom(zoomLevel: number): string {
