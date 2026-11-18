@@ -1,5 +1,6 @@
 import type { ComponentProps } from "react";
 import { useImperativeHandle } from "react";
+import { TooltipProvider } from "@akashnetwork/ui/components";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -692,12 +693,20 @@ describe("ProvidersExplorer", () => {
       ...input.dependencies
     };
 
-    const view = render(<ProvidersExplorer dependencies={dependencies} />);
+    const view = render(
+      <TooltipProvider>
+        <ProvidersExplorer dependencies={dependencies} />
+      </TooltipProvider>
+    );
     const rerender = (changes: { locations?: ApiProviderLocation[]; providers?: ApiProviderList[]; prefersReducedMotion?: boolean }) => {
       const { prefersReducedMotion = motion.prefersReducedMotion, ...modelChanges } = changes;
       Object.assign(model, modelChanges);
       motion.prefersReducedMotion = prefersReducedMotion;
-      view.rerender(<ProvidersExplorer dependencies={dependencies} />);
+      view.rerender(
+        <TooltipProvider>
+          <ProvidersExplorer dependencies={dependencies} />
+        </TooltipProvider>
+      );
     };
 
     return { model, globe, rerender };

@@ -1,8 +1,9 @@
 import type { ComponentProps } from "react";
+import { TooltipProvider } from "@akashnetwork/ui/components";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ProviderSummary } from "@src/components/providers/providerSummary/providerSummary";
-import { describeCpus, ProvidersTable } from "./ProvidersTable";
+import { DEPENDENCIES, describeCpus, ProvidersTable } from "./ProvidersTable";
 
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -33,10 +34,10 @@ describe("ProvidersTable", () => {
     expect(within(row).getByText("akash1gpu")).toBeInTheDocument();
     expect(within(row).getByText("EU Central")).toBeInTheDocument();
     expect(within(row).getByText("H100")).toBeInTheDocument();
-    expect(within(row).getByTitle("H100, A100, T4")).toHaveTextContent(/^H100\+2$/);
+    expect(within(row).getByTitle("H100 A100 T4")).toHaveTextContent(/^H100\+2$/);
     expect(within(row).getByText("8")).toBeInTheDocument();
     expect(within(row).getByText("AMD EPYC 7763")).toBeInTheDocument();
-    expect(within(row).getByTitle("AMD EPYC 7763, Intel Xeon Gold 6248R, Neoverse-N1")).toHaveTextContent(/^AMD EPYC 7763\+2$/);
+    expect(within(row).getByTitle("AMD EPYC 7763 Intel Xeon Gold 6248R Neoverse-N1")).toHaveTextContent(/^AMD EPYC 7763\+2$/);
     expect(within(row).getByText("128 vCPU · 512 GB")).toBeInTheDocument();
     expect(within(row).getByText("99.95%")).toBeInTheDocument();
   });
@@ -76,6 +77,28 @@ describe("ProvidersTable", () => {
 
     expect(within(screen.getByRole("row", { name: /provider\.one\.com/ })).getByTitle("AMD EPYC 9654")).toHaveTextContent(/^AMD EPYC 9654$/);
     expect(within(screen.getByRole("row", { name: /provider\.none\.com/ })).getByText("Unknown")).toBeInTheDocument();
+  });
+
+  it("lets a keyboard reach every GPU and CPU model of a row", async () => {
+    setup({
+      providers: [
+        createSummary({
+          gpuModels: ["h100", "a100"],
+          cpus: [
+            { vendor: "AMD", model: "EPYC 9654", generation: "Genoa" },
+            { vendor: "Intel", model: "Xeon Gold 6248R", generation: "Cascade Lake" }
+          ]
+        })
+      ],
+      dependencies: DEPENDENCIES
+    });
+
+    await userEvent.tab();
+    await userEvent.tab();
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("H100 A100");
+
+    await userEvent.tab();
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("AMD EPYC 9654 Intel Xeon Gold 6248R");
   });
 
   it("puts the region, GPU and CPU filters in the column headers", () => {
@@ -300,6 +323,7 @@ describe("ProvidersTable", () => {
     const onToggleFavorite = vi.fn();
     const onPageChange = vi.fn();
     const onRetry = vi.fn();
+    const CustomTooltip = vi.fn<typeof DEPENDENCIES.CustomTooltip>(({ title, children }) => <span title={String(title)}>{children}</span>);
     render(
       <ProvidersTable
         status="ready"
@@ -316,9 +340,11 @@ describe("ProvidersTable", () => {
         onToggleFavorite={onToggleFavorite}
         onPageChange={onPageChange}
         onRetry={onRetry}
+        dependencies={{ CustomTooltip }}
         {...input}
-      />
+      />,
+      { wrapper: TooltipProvider }
     );
-    return { onSelect, onToggleFavorite, onPageChange, onRetry };
+    return { onSelect, onToggleFavorite, onPageChange, onRetry, CustomTooltip };
   }
 });
