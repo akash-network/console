@@ -1,10 +1,13 @@
 import { ripemd160, sha256 } from "@cosmjs/crypto";
 import { fromBech32 } from "@cosmjs/encoding";
 
-export function isValidBech32Address(address: string, prefix?: string) {
+/** Account and validator addresses hash to 20 bytes and module or contract addresses to 32, so any other length cannot name an account. */
+const ADDRESS_BYTE_LENGTHS = new Set([20, 32]);
+
+export function isValidBech32Address(address: string, prefix?: string): boolean {
   const bech32 = parseBech32(address);
 
-  return bech32 && (!prefix || bech32.prefix === prefix);
+  return !!bech32 && ADDRESS_BYTE_LENGTHS.has(bech32.data.length) && (!prefix || bech32.prefix === prefix);
 }
 
 export function parseBech32(str: string) {
