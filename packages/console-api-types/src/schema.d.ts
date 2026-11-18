@@ -8123,6 +8123,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/user-templates/{id}/publish-readiness": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Tell what still stands between a template the caller may change and making it public */
+    get: operations["getUserTemplatePublishReadiness"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/user-templates/{id}/publish": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Make a template public and list it in the gallery, once its requirements are met and its checks pass */
+    post: operations["publishUserTemplate"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/user-templates/{id}": {
     parameters: {
       query?: never;
@@ -8152,7 +8186,7 @@ export interface paths {
     /** List the versions of a template the caller may read, newest first */
     get: operations["listUserTemplateVersions"];
     put?: never;
-    /** Save a new version of a template the caller may change */
+    /** Save a new version of a template the caller may change, held to the publish checks when the template is public */
     post: operations["createUserTemplateVersion"];
     delete?: never;
     options?: never;
@@ -8465,6 +8499,27 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    TemplatePublishCheck: {
+      /** @enum {string} */
+      key: "sdl_valid" | "no_secrets" | "images_allowed" | "fixed_tags" | "name_not_reserved";
+      /** @enum {string} */
+      status: "passed" | "failed";
+      issues: {
+        /** @description What is wrong and how to fix it, as plain text */
+        message: string;
+        /** @description The SDL service the issue is in */
+        service?: string;
+        /** @description The env variable or asked value the issue is in */
+        variable?: string;
+        /** @description The container image the issue is about */
+        image?: string;
+        /**
+         * @description The name a reserved word was found in
+         * @enum {string}
+         */
+        field?: "title" | "publisher_name";
+      }[];
+    };
     AlertCreateInput: {
       data:
         | {
@@ -9388,6 +9443,11 @@ export interface components {
       createdAt: string;
       /** Format: date-time */
       updatedAt: string;
+      /**
+       * Format: date-time
+       * @description When the template first went public through the publish checks, kept after it is made private again; null before
+       */
+      publishedAt: string | null;
       /** @description Null when the author deleted their account */
       author: {
         username: string;
@@ -9399,6 +9459,8 @@ export interface components {
         slug: string | null;
         /** @enum {string} */
         type: "personal" | "team";
+        /** @description The name of the publisher page, null until the organization first publishes a template */
+        handle: string | null;
       } | null;
       /** @description Its readme falls back to the template's description and its resources to the SDL's, for versions saved before they were recorded */
       currentVersion: {
@@ -9420,8 +9482,17 @@ export interface components {
             models: string[];
           };
         } | null;
-        /** @enum {string} */
+        /**
+         * @description A `failed_checks` version failed the publish checks of a public template, never became the current version and is shown to editors only
+         * @enum {string}
+         */
         status: "live" | "held" | "failed_checks";
+        /** @description What the publish checks found, for callers who may change the template; null for everyone else and for a version they never ran on */
+        checkResults: {
+          /** Format: date-time */
+          ranAt: string;
+          checks: components["schemas"]["TemplatePublishCheck"][];
+        } | null;
         /** @description What this version changed from the one before it, null for a version saved before changes were recorded */
         changes:
           | (
@@ -9690,6 +9761,33 @@ export interface components {
         visibility?: "private" | "organization";
       };
     };
+    TemplatePublishReadiness: {
+      /** @description The community template terms to accept, sent back as `acceptedTermsVersion` when publishing */
+      termsVersion: string;
+      requirements: {
+        /** @enum {string} */
+        key: "email_verified" | "organization_payment" | "publisher_role" | "publisher_in_good_standing";
+        met: boolean;
+      }[];
+      /** @description The publish checks run on the current version just now */
+      checks: components["schemas"]["TemplatePublishCheck"][];
+      /** Format: date-time */
+      ranAt: string;
+      /** @description Whether every requirement is met and every check passed */
+      canPublish: boolean;
+    };
+    GetTemplatePublishReadinessResponse: {
+      data: components["schemas"]["TemplatePublishReadiness"];
+    };
+    PublishUserTemplateResponse: {
+      data: components["schemas"]["MarketplaceTemplate"];
+    };
+    PublishUserTemplateRequest: {
+      data: {
+        /** @description The `termsVersion` of the community template terms the user accepted, refused with 409 once the terms have changed */
+        acceptedTermsVersion: string;
+      };
+    };
     CreateUserTemplateVersionResponse: {
       data: components["schemas"]["TemplateVersion"];
     };
@@ -9712,8 +9810,17 @@ export interface components {
           models: string[];
         };
       } | null;
-      /** @enum {string} */
+      /**
+       * @description A `failed_checks` version failed the publish checks of a public template, never became the current version and is shown to editors only
+       * @enum {string}
+       */
       status: "live" | "held" | "failed_checks";
+      /** @description What the publish checks found, for callers who may change the template; null for everyone else and for a version they never ran on */
+      checkResults: {
+        /** Format: date-time */
+        ranAt: string;
+        checks: components["schemas"]["TemplatePublishCheck"][];
+      } | null;
       /** @description What this version changed from the one before it, null for a version saved before changes were recorded */
       changes:
         | (
@@ -19664,6 +19771,141 @@ export interface operations {
         };
         content?: never;
       };
+      /** @description The caller or the organization reached a limit; `Retry-After` tells when to try again (`template_rate_limited`) */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  getUserTemplatePublishReadiness: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The requirements on the caller and the organization, and the publish checks run on the current version */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GetTemplatePublishReadinessResponse"];
+        };
+      };
+      /** @description The id is not a uuid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller is not signed in */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The template belongs to another organization than the active one (`organization_forbidden`), or the caller may not change it */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The template does not exist or the caller may not read it */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  publishUserTemplate: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PublishUserTemplateRequest"];
+      };
+    };
+    responses: {
+      /** @description The template, now public */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PublishUserTemplateResponse"];
+        };
+      };
+      /** @description The body is invalid, or the current version fails the publish checks (`template_publish_checks_failed`, with the `checks`) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller is not signed in */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description A requirement is unmet (`template_publish_requirements_unmet`, with the `unmet` keys). The template belongs to another organization than the active one (`organization_forbidden`), or the caller may not change it */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The template does not exist or the caller may not read it */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The terms accepted are not the current ones (`template_terms_version_mismatch`, with the current `termsVersion`) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller or the organization reached a limit; `Retry-After` tells when to try again (`template_rate_limited`) */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
     };
   };
   getUserTemplate: {
@@ -19789,7 +20031,7 @@ export interface operations {
           "application/json": components["schemas"]["UpdateUserTemplateResponse"];
         };
       };
-      /** @description The body changes no setting, or a setting is outside the catalog or its limits */
+      /** @description The body changes no setting, a setting is outside the catalog or its limits, or the new title of a public template uses a reserved word (`template_publish_checks_failed`) */
       400: {
         headers: {
           [name: string]: unknown;
@@ -19880,7 +20122,7 @@ export interface operations {
       };
     };
     responses: {
-      /** @description The version saved */
+      /** @description The version saved; with status `failed_checks` it did not become the current version, and `checkResults` says why */
       201: {
         headers: {
           [name: string]: unknown;
@@ -19919,6 +20161,13 @@ export interface operations {
       };
       /** @description Another version was saved after the base version (`template_version_conflict`) */
       409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller or the organization reached a limit; `Retry-After` tells when to try again (`template_rate_limited`) */
+      429: {
         headers: {
           [name: string]: unknown;
         };

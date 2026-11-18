@@ -35226,6 +35226,9 @@
           },
           "404": {
             "description": "The project or the template copied from does not exist or the caller may not read it"
+          },
+          "429": {
+            "description": "The caller or the organization reached a limit; `Retry-After` tells when to try again (`template_rate_limited`)"
           }
         },
         "parameters": [
@@ -35297,6 +35300,138 @@
           },
           "401": {
             "description": "The caller is not signed in"
+          }
+        }
+      }
+    },
+    "/v1/user-templates/{id}/publish-readiness": {
+      "get": {
+        "operationId": "getUserTemplatePublishReadiness",
+        "summary": "Tell what still stands between a template the caller may change and making it public",
+        "tags": [
+          "Templates"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The requirements on the caller and the organization, and the publish checks run on the current version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetTemplatePublishReadinessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The id is not a uuid"
+          },
+          "401": {
+            "description": "The caller is not signed in"
+          },
+          "403": {
+            "description": "The template belongs to another organization than the active one (`organization_forbidden`), or the caller may not change it"
+          },
+          "404": {
+            "description": "The template does not exist or the caller may not read it"
+          }
+        }
+      }
+    },
+    "/v1/user-templates/{id}/publish": {
+      "post": {
+        "operationId": "publishUserTemplate",
+        "summary": "Make a template public and list it in the gallery, once its requirements are met and its checks pass",
+        "tags": [
+          "Templates"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishUserTemplateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The template, now public",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishUserTemplateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is invalid, or the current version fails the publish checks (`template_publish_checks_failed`, with the `checks`)"
+          },
+          "401": {
+            "description": "The caller is not signed in"
+          },
+          "403": {
+            "description": "A requirement is unmet (`template_publish_requirements_unmet`, with the `unmet` keys). The template belongs to another organization than the active one (`organization_forbidden`), or the caller may not change it"
+          },
+          "404": {
+            "description": "The template does not exist or the caller may not read it"
+          },
+          "409": {
+            "description": "The terms accepted are not the current ones (`template_terms_version_mismatch`, with the current `termsVersion`)"
+          },
+          "429": {
+            "description": "The caller or the organization reached a limit; `Retry-After` tells when to try again (`template_rate_limited`)"
           }
         }
       }
@@ -35398,7 +35533,7 @@
             }
           },
           "400": {
-            "description": "The body changes no setting, or a setting is outside the catalog or its limits"
+            "description": "The body changes no setting, a setting is outside the catalog or its limits, or the new title of a public template uses a reserved word (`template_publish_checks_failed`)"
           },
           "401": {
             "description": "The caller is not signed in"
@@ -35507,7 +35642,7 @@
       },
       "post": {
         "operationId": "createUserTemplateVersion",
-        "summary": "Save a new version of a template the caller may change",
+        "summary": "Save a new version of a template the caller may change, held to the publish checks when the template is public",
         "tags": [
           "Templates"
         ],
@@ -35548,7 +35683,7 @@
         },
         "responses": {
           "201": {
-            "description": "The version saved",
+            "description": "The version saved; with status `failed_checks` it did not become the current version, and `checkResults` says why",
             "content": {
               "application/json": {
                 "schema": {
@@ -35571,6 +35706,9 @@
           },
           "409": {
             "description": "Another version was saved after the base version (`template_version_conflict`)"
+          },
+          "429": {
+            "description": "The caller or the organization reached a limit; `Retry-After` tells when to try again (`template_rate_limited`)"
           }
         }
       }
@@ -41588,6 +41726,68 @@
   },
   "components": {
     "schemas": {
+      "TemplatePublishCheck": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "enum": [
+              "sdl_valid",
+              "no_secrets",
+              "images_allowed",
+              "fixed_tags",
+              "name_not_reserved"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed"
+            ]
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "description": "What is wrong and how to fix it, as plain text"
+                },
+                "service": {
+                  "type": "string",
+                  "description": "The SDL service the issue is in"
+                },
+                "variable": {
+                  "type": "string",
+                  "description": "The env variable or asked value the issue is in"
+                },
+                "image": {
+                  "type": "string",
+                  "description": "The container image the issue is about"
+                },
+                "field": {
+                  "type": "string",
+                  "enum": [
+                    "title",
+                    "publisher_name"
+                  ],
+                  "description": "The name a reserved word was found in"
+                }
+              },
+              "required": [
+                "message"
+              ]
+            }
+          }
+        },
+        "required": [
+          "key",
+          "status",
+          "issues"
+        ]
+      },
       "AlertCreateInput": {
         "type": "object",
         "properties": {
@@ -46629,6 +46829,12 @@
             "type": "string",
             "format": "date-time"
           },
+          "publishedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "description": "When the template first went public through the publish checks, kept after it is made private again; null before"
+          },
           "author": {
             "type": "object",
             "nullable": true,
@@ -46660,12 +46866,18 @@
                   "personal",
                   "team"
                 ]
+              },
+              "handle": {
+                "type": "string",
+                "nullable": true,
+                "description": "The name of the publisher page, null until the organization first publishes a template"
               }
             },
             "required": [
               "name",
               "slug",
-              "type"
+              "type",
+              "handle"
             ],
             "description": "The organization the template belongs to, null for a template filed in none"
           },
@@ -46734,7 +46946,29 @@
                   "live",
                   "held",
                   "failed_checks"
-                ]
+                ],
+                "description": "A `failed_checks` version failed the publish checks of a public template, never became the current version and is shown to editors only"
+              },
+              "checkResults": {
+                "type": "object",
+                "nullable": true,
+                "properties": {
+                  "ranAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "checks": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/TemplatePublishCheck"
+                    }
+                  }
+                },
+                "required": [
+                  "ranAt",
+                  "checks"
+                ],
+                "description": "What the publish checks found, for callers who may change the template; null for everyone else and for a version they never ran on"
               },
               "changes": {
                 "type": "array",
@@ -46795,6 +47029,7 @@
               "version",
               "resources",
               "status",
+              "checkResults",
               "changes",
               "createdBy",
               "createdAt",
@@ -46855,6 +47090,7 @@
           "copiedFromId",
           "createdAt",
           "updatedAt",
+          "publishedAt",
           "author",
           "publisher",
           "currentVersion",
@@ -47343,6 +47579,105 @@
           "data"
         ]
       },
+      "TemplatePublishReadiness": {
+        "type": "object",
+        "properties": {
+          "termsVersion": {
+            "type": "string",
+            "description": "The community template terms to accept, sent back as `acceptedTermsVersion` when publishing"
+          },
+          "requirements": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "enum": [
+                    "email_verified",
+                    "organization_payment",
+                    "publisher_role",
+                    "publisher_in_good_standing"
+                  ]
+                },
+                "met": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "key",
+                "met"
+              ]
+            }
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TemplatePublishCheck"
+            },
+            "description": "The publish checks run on the current version just now"
+          },
+          "ranAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "canPublish": {
+            "type": "boolean",
+            "description": "Whether every requirement is met and every check passed"
+          }
+        },
+        "required": [
+          "termsVersion",
+          "requirements",
+          "checks",
+          "ranAt",
+          "canPublish"
+        ]
+      },
+      "GetTemplatePublishReadinessResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/TemplatePublishReadiness"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "PublishUserTemplateResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MarketplaceTemplate"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "PublishUserTemplateRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "acceptedTermsVersion": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16,
+                "description": "The `termsVersion` of the community template terms the user accepted, refused with 409 once the terms have changed"
+              }
+            },
+            "required": [
+              "acceptedTermsVersion"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
       "CreateUserTemplateVersionResponse": {
         "type": "object",
         "properties": {
@@ -47418,7 +47753,29 @@
               "live",
               "held",
               "failed_checks"
-            ]
+            ],
+            "description": "A `failed_checks` version failed the publish checks of a public template, never became the current version and is shown to editors only"
+          },
+          "checkResults": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "ranAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "checks": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TemplatePublishCheck"
+                }
+              }
+            },
+            "required": [
+              "ranAt",
+              "checks"
+            ],
+            "description": "What the publish checks found, for callers who may change the template; null for everyone else and for a version they never ran on"
           },
           "changes": {
             "type": "array",
@@ -47466,6 +47823,7 @@
           "version",
           "resources",
           "status",
+          "checkResults",
           "changes",
           "createdBy",
           "createdAt"

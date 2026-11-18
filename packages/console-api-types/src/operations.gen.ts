@@ -682,6 +682,22 @@ export const operations = {
       queryParams: ["visibility", "projectId"],
       hasBody: false
     },
+    getUserTemplatePublishReadiness: {
+      path: "/v1/user-templates/{id}/publish-readiness",
+      method: "get",
+      operationId: "getUserTemplatePublishReadiness",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: false
+    },
+    publishUserTemplate: {
+      path: "/v1/user-templates/{id}/publish",
+      method: "post",
+      operationId: "publishUserTemplate",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: true
+    },
     getUserTemplate: { path: "/v1/user-templates/{id}", method: "get", operationId: "getUserTemplate", pathParams: ["id"], queryParams: [], hasBody: false },
     updateUserTemplate: {
       path: "/v1/user-templates/{id}",
