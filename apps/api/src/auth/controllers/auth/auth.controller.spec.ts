@@ -90,13 +90,24 @@ describe(AuthController.name, () => {
       });
     });
 
-    it("replaces an auth0 action refusal with the generic account message, keeping its status", async () => {
+    it("converts an auth0 action refusal to the same 422 as an existing account", async () => {
       const { controller, auth0Service } = setup();
 
       auth0Service.createUser.mockRejectedValue(createManagementApiError(400, "Sandbox Error: action.email_dedup.duplicate_email"));
 
       await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" }, {})).rejects.toMatchObject({
-        status: 400,
+        status: 422,
+        message: "You can't create an account with this email. Use a different email, or contact support@akash.network for help."
+      });
+    });
+
+    it("converts an auth0 action refusal to 422 whatever status auth0 sends it with", async () => {
+      const { controller, auth0Service } = setup();
+
+      auth0Service.createUser.mockRejectedValue(createManagementApiError(403, "Sandbox Error: action.example.refused", "Forbidden"));
+
+      await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" }, {})).rejects.toMatchObject({
+        status: 422,
         message: "You can't create an account with this email. Use a different email, or contact support@akash.network for help."
       });
     });
