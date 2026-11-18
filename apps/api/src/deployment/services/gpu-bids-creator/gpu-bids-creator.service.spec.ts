@@ -376,6 +376,21 @@ describe(GpuBidsCreatorService.name, () => {
     expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "GPU_BIDS_CREATED", deploymentCount: 1, failedDeploymentCount: 1 }));
   });
 
+  it("still records the checks when a deployment cannot be closed", async () => {
+    const { service, signingClient, gpuBidCheckRepository, logger } = setup({
+      models: [nvidia("h100")],
+      bidPages: [{ bids: [aBid({ gseq: 1, provider: "akash1bidder" })] }]
+    });
+    signingClient.broadcastTx
+      .mockResolvedValueOnce(mock<DeliverTxResponse>({ code: 0, rawLog: "" }))
+      .mockResolvedValueOnce(mock<DeliverTxResponse>({ code: 5, rawLog: "deployment closed" }));
+
+    await service.createGpuBids();
+
+    expect(gpuBidCheckRepository.insertMany).toHaveBeenCalledWith([expect.objectContaining({ provider: "akash1bidder", bid: true })]);
+    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "GPU_CHECK_DEPLOYMENT_CLOSE_FAILED" }));
+  });
+
   it("closes nothing when the deployments could not be created", async () => {
     const { service, signingClient, logger } = setup({ models: [nvidia("h100")] });
     signingClient.broadcastTx.mockResolvedValueOnce(mock<DeliverTxResponse>({ code: 5, rawLog: "insufficient funds" }));

@@ -82,7 +82,10 @@ export class GpuCheckRunner {
 
     try {
       await new Promise(resolve => setTimeout(resolve, this.#deploymentConfig.GPU_BOT_BID_WINDOW_SECONDS * 1000));
-      const bidsByDeployment = await Promise.all(dseqs.map(dseq => findDeploymentBids(this.#chainSdk, session.owner, dseq)));
+      const bidReads = await Promise.allSettled(dseqs.map(dseq => findDeploymentBids(this.#chainSdk, session.owner, dseq)));
+      const failedRead = bidReads.find(read => read.status === "rejected");
+      if (failedRead) throw failedRead.reason;
+      const bidsByDeployment = bidReads.map(read => (read as PromiseFulfilledResult<Bid[]>).value);
 
       return dseqs.map((dseq, index) => ({ dseq, bids: bidsByDeployment[index], screenedByGroup: screenedByDeployment[index] }));
     } finally {
@@ -125,22 +128,15 @@ export class GpuCheckRunner {
     await this.#signAndBroadcast(owner, client, messages);
   }
 
-  /** Each close is its own transaction because its gas grows with the bids placed, so combining them would risk running out of gas for all. */
+  /** Each close is its own transaction because its gas grows with the bids placed, and a failed one is left to the next run's leftover cleanup so the bids already read are not lost. */
   async #closeDeployments(session: GpuCheckSession, dseqs: string[]) {
-    const failures: unknown[] = [];
-
     for (const dseq of dseqs) {
       try {
         await this.closeDeployment(session, dseq);
         this.#logger.info({ event: "GPU_CHECK_DEPLOYMENT_CLOSED", dseq });
       } catch (error) {
-        failures.push(error);
         this.#logger.error({ event: "GPU_CHECK_DEPLOYMENT_CLOSE_FAILED", dseq, error });
       }
-    }
-
-    if (failures.length > 0) {
-      throw new AggregateError(failures, `${failures.length} of ${dseqs.length} gpu check deployments could not be closed`);
     }
   }
 

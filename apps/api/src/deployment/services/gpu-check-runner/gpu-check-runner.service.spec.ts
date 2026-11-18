@@ -130,18 +130,36 @@ describe(GpuCheckRunner.name, () => {
       expect(closedDseqs(signingClient)).toEqual(createdDseqs(signingClient));
     });
 
-    it("closes the other deployments when one close fails, then reports it", async () => {
-      const { runner, session, signingClient, logger } = setup();
+    it("closes the other deployments and still returns the bids read when one close fails", async () => {
+      const { runner, session, signingClient, chainSdk, logger } = setup();
+      chainSdk.akash.market.v1beta5.getBids.mockImplementation(async ({ filters }) =>
+        bidsResponse([aBid({ dseq: String(filters!.dseq), gseq: 1, provider: "akash1bidder" })])
+      );
       signingClient.broadcastTx
         .mockResolvedValueOnce(mock<DeliverTxResponse>({ code: 0, rawLog: "" }))
         .mockResolvedValueOnce(mock<DeliverTxResponse>({ code: 5, rawLog: "deployment closed" }));
 
-      await expect(runner.run(session, [{ manifest: aManifest(["a100"]) }, { manifest: aManifest(["h100"]) }])).rejects.toThrow(
-        "1 of 2 gpu check deployments could not be closed"
-      );
+      const results = await runner.run(session, [{ manifest: aManifest(["a100"]) }, { manifest: aManifest(["h100"]) }]);
 
+      expect(results.map(({ bids }) => bids.length)).toEqual([1, 1]);
       expect(closedDseqs(signingClient)).toHaveLength(2);
-      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "GPU_CHECK_DEPLOYMENT_CLOSE_FAILED" }));
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "GPU_CHECK_DEPLOYMENT_CLOSE_FAILED", dseq: results[0].dseq }));
+    });
+
+    it("starts no close while a bid read is still in flight", async () => {
+      const { runner, session, signingClient, chainSdk } = setup();
+      let releaseSecondRead!: () => void;
+      chainSdk.akash.market.v1beta5.getBids
+        .mockRejectedValueOnce(new Error("rpc unavailable"))
+        .mockReturnValueOnce(new Promise(resolve => (releaseSecondRead = () => resolve(bidsResponse([])))));
+
+      const run = runner.run(session, [{ manifest: aManifest(["a100"]) }, { manifest: aManifest(["h100"]) }]);
+      await new Promise(resolve => setImmediate(resolve));
+      expect(closedDseqs(signingClient)).toHaveLength(0);
+
+      releaseSecondRead();
+      await expect(run).rejects.toThrow("rpc unavailable");
+      expect(closedDseqs(signingClient)).toHaveLength(2);
     });
 
     it("closes nothing when the create transaction fails", async () => {
