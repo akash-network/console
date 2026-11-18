@@ -56,6 +56,8 @@ const UNRELEASED_TEMPLATE_MARKETPLACE_ROUTES = [
   "POST /v1/user-templates/{id}/versions"
 ];
 
+const UNRELEASED_GPU_WAITLIST_ROUTES = ["DELETE /v1/gpu-waitlist/{id}", "GET /v1/gpu-waitlist", "POST /v1/gpu-waitlist"];
+
 describe("API Docs", () => {
   afterEach(() => {
     nock.cleanAll();
@@ -74,7 +76,7 @@ describe("API Docs", () => {
       expect(data).toMatchSnapshot();
     });
 
-    it("publishes every route but the withheld billing ones and the unreleased feedback and template marketplace ones, the team and project routes included", async () => {
+    it("publishes every route but the withheld billing ones and the unreleased feedback, template marketplace and GPU waitlist ones, the team and project routes included", async () => {
       const response = await app.request(`/v1/doc?scope=console`);
       const publishedRoutes = listRoutes((await response.json()) as OpenAPIObject);
       const everyRoute = listRoutes(
@@ -82,7 +84,7 @@ describe("API Docs", () => {
       );
 
       expect(everyRoute.filter(route => !publishedRoutes.includes(route)).sort()).toEqual(
-        [...WITHHELD_ROUTES, ...UNRELEASED_FEEDBACK_ROUTES, ...UNRELEASED_TEMPLATE_MARKETPLACE_ROUTES].sort()
+        [...WITHHELD_ROUTES, ...UNRELEASED_FEEDBACK_ROUTES, ...UNRELEASED_TEMPLATE_MARKETPLACE_ROUTES, ...UNRELEASED_GPU_WAITLIST_ROUTES].sort()
       );
     });
 
