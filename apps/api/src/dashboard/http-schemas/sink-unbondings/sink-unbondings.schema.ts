@@ -8,7 +8,7 @@ export const SinkUnbondingsResponseSchema = z.object({
     unbondingDelegators: z.number().openapi({ description: "Delegators with AKT still unbonding" }),
     senders: z.number().openapi({ description: "Addresses that sent AKT to Solana" }),
     sendersWhoUnbonded: z.number().openapi({ description: "Addresses that sent AKT to Solana and also unbonded" }),
-    sentUakt: z.number().openapi({ description: "AKT sent to Solana, excluding voided and refunded transfers" }),
+    sentUakt: z.number().openapi({ description: "AKT sent to Solana, excluding voided, refund-pending and refunded transfers" }),
     sentBySendersWhoUnbondedUakt: z.number().openapi({ description: "AKT sent to Solana by addresses that also unbonded" })
   }),
   daily: z.array(
@@ -17,7 +17,7 @@ export const SinkUnbondingsResponseSchema = z.object({
       unbondStartedUakt: z.number().openapi({ description: "AKT that started unbonding on this day" }),
       unbondCompletingUakt: z.number().openapi({ description: "AKT whose unbonding completes on this day, net of cancellations" }),
       cancelledUakt: z.number().openapi({ description: "AKT whose unbonding was cancelled on this day" }),
-      sentToSolanaUakt: z.number().openapi({ description: "AKT sent to Solana on this day, excluding voided and refunded transfers" }),
+      sentToSolanaUakt: z.number().openapi({ description: "AKT sent to Solana on this day, excluding voided, refund-pending and refunded transfers" }),
       sentBySendersWhoUnbondedUakt: z.number().openapi({ description: "Part of the AKT sent to Solana on this day by addresses that also unbonded" })
     })
   ),
@@ -28,19 +28,22 @@ export const SinkUnbondingsResponseSchema = z.object({
       height: z.number().openapi({ description: "Block height of the milestone" }),
       date: z.string().nullable().openapi({ description: "Time of the milestone block, null until that block is indexed" }),
       unbondedSinceUakt: z.number().openapi({ description: "AKT that started unbonding at or after the milestone block, net of cancellations" }),
-      delegatorsSince: z.number().openapi({ description: "Delegators that started unbonding at or after the milestone block" })
+      delegatorsSince: z.number().openapi({ description: "Delegators with AKT that started unbonding at or after the milestone block, net of cancellations" })
     })
   ),
   cohorts: z.array(
     z.object({
       firstUnbondedAfter: SinkMigrationMilestoneKeySchema.nullable().openapi({
-        description: "Last milestone reached before the delegators of this cohort first unbonded, null for those who first unbonded before every milestone"
+        description:
+          "Last milestone reached before the delegators of this cohort first unbonded, ignoring fully cancelled unbondings, null for those who first unbonded before every milestone"
       }),
       delegators: z.number().openapi({ description: "Delegators of the cohort" }),
       unbondedUakt: z.number().openapi({ description: "AKT the cohort unbonded, net of cancellations" }),
       liquidUakt: z.number().openapi({ description: "Part of the unbonded AKT whose unbonding period is over" }),
       senders: z.number().openapi({ description: "Delegators of the cohort that sent AKT to Solana after they first unbonded" }),
-      sentUakt: z.number().openapi({ description: "AKT the cohort sent to Solana after first unbonding, excluding voided and refunded transfers" }),
+      sentUakt: z
+        .number()
+        .openapi({ description: "AKT the cohort sent to Solana after first unbonding, excluding voided, refund-pending and refunded transfers" }),
       sentFromLiquidUakt: z.number().openapi({ description: "AKT sent to Solana, capped per delegator at its liquid unbonded AKT" })
     })
   )
