@@ -21,6 +21,7 @@ import type {
   MarketplaceTemplateRepository,
   MarketplaceTemplateRow
 } from "@src/template-marketplace/repositories/marketplace-template/marketplace-template.repository";
+import type { TemplateRemovalRepository } from "@src/template-marketplace/repositories/template-removal/template-removal.repository";
 import type { TemplateVersionOutput, TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
 import type {
   MarketplaceTemplateOutput,
@@ -770,25 +771,25 @@ describe(TemplateWriterService.name, () => {
   });
 
   describe("delete", () => {
-    it("re-checks the locked template, then deletes it in one transaction", async () => {
+    it("re-checks the locked template, then removes it as its owner in one transaction", async () => {
       const template = createTemplateRow();
-      const { service, repository, transactionSteps } = setup({ template });
-      repository.deleteTemplate.mockImplementation(async () => {
-        transactionSteps.push("deleteTemplate");
+      const { service, templateRemovalRepository, transactionSteps } = setup({ template });
+      templateRemovalRepository.remove.mockImplementation(async () => {
+        transactionSteps.push("remove");
       });
 
       await service.delete(template.id);
 
-      expect(transactionSteps).toEqual(["begin", "findAndLockForWrite", "deleteTemplate", "end"]);
-      expect(repository.deleteTemplate).toHaveBeenCalledWith(template.id);
+      expect(transactionSteps).toEqual(["begin", "findAndLockForWrite", "remove", "end"]);
+      expect(templateRemovalRepository.remove).toHaveBeenCalledWith(template.id, "owner");
     });
 
     it("refuses a caller who may change the template but not delete it", async () => {
       const template = createTemplateRow();
-      const { service, repository } = setup({ template, rules: [UPDATE_RULE] });
+      const { service, templateRemovalRepository } = setup({ template, rules: [UPDATE_RULE] });
 
       await expect(service.delete(template.id)).rejects.toMatchObject({ status: 403, message: "You cannot change this template" });
-      expect(repository.deleteTemplate).not.toHaveBeenCalled();
+      expect(templateRemovalRepository.remove).not.toHaveBeenCalled();
     });
   });
 
@@ -880,7 +881,6 @@ describe(TemplateWriterService.name, () => {
   function expectNothingWritten(repository: MarketplaceTemplateRepository) {
     expect(repository.mirrorVersion).not.toHaveBeenCalled();
     expect(repository.updateSettings).not.toHaveBeenCalled();
-    expect(repository.deleteTemplate).not.toHaveBeenCalled();
   }
 
   function buildSdl({
@@ -972,6 +972,8 @@ describe(TemplateWriterService.name, () => {
       moderationStatus: "active",
       currentVersionId: faker.string.uuid(),
       publishedAt: null,
+      removedAt: null,
+      removedBy: null,
       createdAt: faker.date.past(),
       updatedAt: faker.date.recent(),
       authorUsername: faker.internet.userName(),
@@ -1022,6 +1024,7 @@ describe(TemplateWriterService.name, () => {
     writableRepository.createTemplate.mockResolvedValue(faker.string.uuid());
     const templateVersionRepository = mock<TemplateVersionRepository>();
     templateVersionRepository.appendVersion.mockResolvedValue(createVersion());
+    const templateRemovalRepository = mock<TemplateRemovalRepository>();
     const marketplaceTemplateService = mock<MarketplaceTemplateService>();
     const template = input.template ?? createTemplateRow();
     marketplaceTemplateService.findReadable.mockResolvedValue(template);
@@ -1060,6 +1063,7 @@ describe(TemplateWriterService.name, () => {
     const service = new TemplateWriterService(
       repository,
       templateVersionRepository,
+      templateRemovalRepository,
       marketplaceTemplateService,
       deploymentProjectService,
       new TemplateSdlValidatorService(sdlService, sdlReferenceService),
@@ -1076,6 +1080,7 @@ describe(TemplateWriterService.name, () => {
       repository,
       writableRepository,
       templateVersionRepository,
+      templateRemovalRepository,
       marketplaceTemplateService,
       deploymentProjectService,
       authService,

@@ -20,6 +20,7 @@ import {
   MarketplaceTemplateRepository,
   type TemplateSettingsUpdate
 } from "@src/template-marketplace/repositories/marketplace-template/marketplace-template.repository";
+import { TemplateRemovalRepository } from "@src/template-marketplace/repositories/template-removal/template-removal.repository";
 import {
   TEMPLATE_VERSION_CONFLICT_ERROR_CODE,
   type TemplateVersionOutput,
@@ -103,6 +104,7 @@ export class TemplateWriterService {
   constructor(
     private readonly marketplaceTemplateRepository: MarketplaceTemplateRepository,
     private readonly templateVersionRepository: TemplateVersionRepository,
+    private readonly templateRemovalRepository: TemplateRemovalRepository,
     private readonly marketplaceTemplateService: MarketplaceTemplateService,
     private readonly deploymentProjectService: DeploymentProjectService,
     private readonly templateSdlValidatorService: TemplateSdlValidatorService,
@@ -222,7 +224,7 @@ export class TemplateWriterService {
 
     await this.txService.transaction(async () => {
       await this.templateWriteAccessService.lockWritable(id, "delete");
-      await this.marketplaceTemplateRepository.deleteTemplate(id);
+      await this.templateRemovalRepository.remove(id, "owner");
     });
   }
 

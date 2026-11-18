@@ -9,6 +9,7 @@ import { ExecutionContextService } from "@src/core/services/execution-context/ex
 import type { OrganizationType } from "@src/organization/model-schemas/organization/organization.schema";
 import type { TemplateVersionStatus } from "@src/template-marketplace/model-schemas/template-version/template-version.schema";
 import type { TemplateVisibility } from "@src/user/model-schemas/template/template.schema";
+import { publiclyReadableTemplate } from "./publicly-readable-template";
 
 type Table = ApiPgTables["Templates"];
 type Row = Table["$inferSelect"];
@@ -38,6 +39,8 @@ export type NewTemplateInput = {
 export type TemplateVersionMirror = Pick<Row, "sdl" | "cpu" | "ram" | "storage"> & { description: string };
 
 export type TemplateSettingsUpdate = Partial<Pick<Row, "title" | "summary" | "icon" | "categories" | "visibility" | "isPublic">>;
+
+export type ReportableTemplate = Pick<Row, "id" | "organizationId" | "currentVersionId">;
 
 export type UserTemplateListFilter = {
   organizationId: string;
@@ -127,11 +130,6 @@ export class MarketplaceTemplateRepository extends OrgScopedRepository<Table, Pa
       .where(eq(this.table.id, id));
   }
 
-  /** Unscoped, so it must run only after the writer has authorized the delete; versions and favorites cascade. */
-  async deleteTemplate(id: string): Promise<void> {
-    await this.unscoped("template-writers").deleteById(id);
-  }
-
   async listInOrganization({ organizationId, visibility, projectId, limit }: UserTemplateListFilter): Promise<UserTemplateListRow[]> {
     return await this.cursor
       .select({
@@ -182,7 +180,7 @@ export class MarketplaceTemplateRepository extends OrgScopedRepository<Table, Pa
       .leftJoin(this.users, eq(this.users.id, this.table.authorId))
       .leftJoin(this.organizations, eq(this.organizations.id, this.table.organizationId))
       .leftJoin(this.publishers, eq(this.publishers.organizationId, this.table.organizationId))
-      .where(and(eq(this.table.id, id), ne(this.table.moderationStatus, "removed"), or(this.#publiclyReadable(), this.#readableThroughRules())))
+      .where(and(eq(this.table.id, id), ne(this.table.moderationStatus, "removed"), or(publiclyReadableTemplate(), this.#readableThroughRules())))
       .limit(1);
 
     if (!result) return undefined;
@@ -203,13 +201,20 @@ export class MarketplaceTemplateRepository extends OrgScopedRepository<Table, Pa
     const rows = await this.cursor
       .select({ id: this.table.id })
       .from(this.table)
-      .where(and(inArray(this.table.id, ids), ne(this.table.moderationStatus, "removed"), or(this.#publiclyReadable(), this.#readableThroughRules())));
+      .where(and(inArray(this.table.id, ids), ne(this.table.moderationStatus, "removed"), or(publiclyReadableTemplate(), this.#readableThroughRules())));
 
     return new Set(rows.map(row => row.id));
   }
 
-  #publiclyReadable(): SQL | undefined {
-    return and(eq(this.table.visibility, "public"), eq(this.table.moderationStatus, "active"));
+  /** Reads what anyone may read whatever the caller's rules, which is the only kind of template a report can be about. */
+  async findPubliclyReadable(id: string): Promise<ReportableTemplate | undefined> {
+    const [template] = await this.cursor
+      .select({ id: this.table.id, organizationId: this.table.organizationId, currentVersionId: this.table.currentVersionId })
+      .from(this.table)
+      .where(and(eq(this.table.id, id), publiclyReadableTemplate()))
+      .limit(1);
+
+    return template;
   }
 
   /** Rules name the organizations they reach, so this branch skips the active-organization narrowing, and a rule with no conditions reads every template. */

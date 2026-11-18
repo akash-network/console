@@ -5,7 +5,7 @@ import { singleton } from "tsyringe";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { TxService } from "@src/core/services";
 
-export const RATE_LIMITED_TEMPLATE_ACTIONS = ["create", "version", "publish"] as const;
+export const RATE_LIMITED_TEMPLATE_ACTIONS = ["create", "version", "publish", "report"] as const;
 
 export type RateLimitedTemplateAction = (typeof RATE_LIMITED_TEMPLATE_ACTIONS)[number];
 
@@ -22,6 +22,7 @@ export class TemplateRateLimitRepository {
     @InjectPgTable("Templates") private readonly templates: ApiPgTables["Templates"],
     @InjectPgTable("TemplateVersions") private readonly versions: ApiPgTables["TemplateVersions"],
     @InjectPgTable("TemplateTermsAcceptances") private readonly acceptances: ApiPgTables["TemplateTermsAcceptances"],
+    @InjectPgTable("TemplateReports") private readonly reports: ApiPgTables["TemplateReports"],
     private readonly txManager: TxService
   ) {}
 
@@ -53,7 +54,8 @@ export class TemplateRateLimitRepository {
       return {
         create: { happenedAt: this.templates.createdAt, where: eq(this.templates.authorId, scope.userId) },
         version: { happenedAt: this.versions.createdAt, where: and(eq(this.versions.createdById, scope.userId), isLaterVersion) },
-        publish: { happenedAt: this.acceptances.acceptedAt, where: eq(this.acceptances.userId, scope.userId) }
+        publish: { happenedAt: this.acceptances.acceptedAt, where: eq(this.acceptances.userId, scope.userId) },
+        report: { happenedAt: this.reports.createdAt, where: eq(this.reports.reporterUserId, scope.userId) }
       }[action];
     }
 
@@ -64,7 +66,8 @@ export class TemplateRateLimitRepository {
         where: and(eq(this.templates.organizationId, scope.organizationId), isLaterVersion),
         joinsTemplates: true
       },
-      publish: { happenedAt: this.acceptances.acceptedAt, where: eq(this.acceptances.organizationId, scope.organizationId) }
+      publish: { happenedAt: this.acceptances.acceptedAt, where: eq(this.acceptances.organizationId, scope.organizationId) },
+      report: { happenedAt: this.reports.createdAt, where: eq(this.reports.reporterOrganizationId, scope.organizationId) }
     }[action];
   }
 }
