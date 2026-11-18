@@ -67,6 +67,14 @@ describe("migrationMilestonesModel", () => {
       expect(cards[3]).toMatchObject({ value: "—", detail: "0 of 0 AKT" });
     });
 
+    it("shows no cards or rows when the API does not report milestones and cohorts yet", () => {
+      const { milestones, cohorts, ...legacyResponse } = unbondings({});
+
+      expect([milestones, cohorts].map(list => list?.length)).toEqual([3, 4]);
+      expect(toMilestoneCards(legacyResponse, 0.5, NOW)).toEqual([]);
+      expect(toUnbondingCohortRows(legacyResponse)).toEqual([]);
+    });
+
     it("shows no cards on a network without migration milestones or before the unbondings load", () => {
       expect(toMilestoneCards(unbondings({ milestones: [] }), 0.5, NOW)).toEqual([]);
       expect(toMilestoneCards(undefined, 0.5, NOW)).toEqual([]);
@@ -92,6 +100,13 @@ describe("migrationMilestonesModel", () => {
       ];
 
       expect(toMilestoneMarkers(unbondings({ milestones, daily: [day({ date: "2026-11-10" })] }))).toEqual([{ date: "2026-10-26", label: "Announcement" }]);
+    });
+
+    it("marks only the first transfer when the API does not report milestones yet", () => {
+      const { milestones, ...withoutMilestones } = unbondings({ daily: [day({ date: "2026-11-11", sentToSolanaUakt: 1 })] });
+
+      expect(milestones).toHaveLength(3);
+      expect(toMilestoneMarkers(withoutMilestones)).toEqual([{ date: "2026-11-11", label: "First transfer" }]);
     });
 
     it("returns no markers before the unbondings load", () => {
@@ -165,6 +180,7 @@ describe("migrationMilestonesModel", () => {
 
     it("returns no rows on a network without cohorts or before the unbondings load", () => {
       expect(toUnbondingCohortRows(unbondings({ cohorts: [] }))).toEqual([]);
+      expect(toUnbondingCohortRows(unbondings({ milestones: [] }))).toEqual([]);
       expect(toUnbondingCohortRows(undefined)).toEqual([]);
     });
   });

@@ -216,6 +216,7 @@ export type SinkUnbondingsCohort = {
 export type SinkUnbondings = {
   summary: SinkUnbondingsSummary;
   daily: SinkUnbondingsDay[];
-  milestones: SinkUnbondingsMilestone[];
-  cohorts: SinkUnbondingsCohort[];
+  /** Absent until the API that reports migration milestones is deployed. */
+  milestones?: SinkUnbondingsMilestone[];
+  cohorts?: SinkUnbondingsCohort[];
 };

@@ -74,18 +74,18 @@ function sumConversionSinceFirstTransfer(daily: SinkUnbondingsDay[], now: number
 export function toMilestoneMarkers(data: SinkUnbondings | undefined): MigrationMilestoneMarker[] {
   if (!data) return [];
 
-  const milestoneMarkers = data.milestones.flatMap(milestone => (milestone.date ? [{ date: dayOf(milestone.date), label: milestone.label }] : []));
+  const milestoneMarkers = (data.milestones ?? []).flatMap(milestone => (milestone.date ? [{ date: dayOf(milestone.date), label: milestone.label }] : []));
   const firstTransferDay = data.daily.find(day => day.sentToSolanaUakt > 0);
 
   return firstTransferDay ? [...milestoneMarkers, { date: firstTransferDay.date, label: FIRST_TRANSFER_LABEL }] : milestoneMarkers;
 }
 
 export function toUnbondingCohortRows(data: SinkUnbondings | undefined): UnbondingCohortRow[] {
-  if (!data?.cohorts.length) return [];
+  const milestones = data?.milestones ?? [];
+  const cohorts = data?.cohorts ?? [];
+  if (!milestones.length) return [];
 
-  const { milestones } = data;
-
-  return data.cohorts.map((cohort, index) => {
+  return cohorts.map((cohort, index) => {
     const isLiquid = cohort.liquidUakt > 0;
 
     return {
