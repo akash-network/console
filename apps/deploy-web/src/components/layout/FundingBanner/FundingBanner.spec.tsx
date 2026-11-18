@@ -30,6 +30,7 @@ describe(FundingBanner.name, () => {
 
       expect(screen.getByRole("button")).toHaveTextContent("Your free trial credit is used up");
       expect(screen.getByRole("button")).toHaveTextContent("Add credits to keep deploying");
+      expect(screen.getByRole("button")).toHaveClass("bg-warning");
       expect(screen.queryByText("Get $100")).not.toBeInTheDocument();
     });
 
