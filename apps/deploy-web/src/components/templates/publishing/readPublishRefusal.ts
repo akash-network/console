@@ -21,7 +21,6 @@ const NOT_ALLOWED_STATUSES = [403, 404];
 
 type RefusalBody = { code?: unknown; message?: unknown };
 
-/** Every refusal the publish route answers on purpose, so the dialog can respond to each instead of showing a generic failure. */
 export function readPublishRefusal(error: unknown): PublishRefusal | undefined {
   if (!isApiError(error)) return undefined;
 

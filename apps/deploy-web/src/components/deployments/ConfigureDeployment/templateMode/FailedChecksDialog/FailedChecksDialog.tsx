@@ -17,7 +17,6 @@ import type { TemplateVersionDetail } from "@src/types/marketplace-template";
 
 export interface FailedChecksDialogProps {
   version: Pick<TemplateVersionDetail, "version" | "checkResults">;
-  /** The version people keep deploying, when the template has one. */
   liveVersion: number | undefined;
   onKeepEditing: () => void;
   onViewVersions: () => void;
