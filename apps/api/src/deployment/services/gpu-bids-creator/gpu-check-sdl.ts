@@ -5,6 +5,9 @@ export type GpuCheckShape = "pricing" | "typical";
 export interface GpuCheck {
   model: string;
   shape: GpuCheckShape;
+  units?: number;
+  memory?: string;
+  interface?: string;
 }
 
 export const GPU_CHECK_SHAPES: GpuCheckShape[] = ["pricing", "typical"];
@@ -20,7 +23,7 @@ const RESOURCES: Record<GpuCheckShape, { cpu: { units: number }; memory: { size:
 export function buildGpuCheckSdl(checks: GpuCheck[]): SDLInput {
   const sdl: SDLInput = { version: "2.0", services: {}, profiles: { compute: {}, placement: {} }, deployment: {} };
 
-  checks.forEach(({ model, shape }, index) => {
+  checks.forEach(({ model, shape, units = 1, memory, interface: gpuInterface }, index) => {
     const name = toPlacementName(index);
 
     sdl.services[name] = {
@@ -30,7 +33,7 @@ export function buildGpuCheckSdl(checks: GpuCheck[]): SDLInput {
       expose: [{ port: 8080, as: 80, to: [{ global: true }] }]
     };
     sdl.profiles.compute[name] = {
-      resources: { ...RESOURCES[shape], gpu: { units: 1, attributes: { vendor: { nvidia: [{ model }] } } } }
+      resources: { ...RESOURCES[shape], gpu: { units, attributes: { vendor: { nvidia: [toGpuAttribute({ model, memory, gpuInterface })] } } } }
     };
     sdl.profiles.placement[name] = { pricing: { [name]: { denom: "uact", amount: 100_000 } } };
     sdl.deployment[name] = { [name]: { profile: name, count: 1 } };
@@ -42,4 +45,8 @@ export function buildGpuCheckSdl(checks: GpuCheck[]): SDLInput {
 /** Zero padded so that ordering placements by name keeps them in the order the checks came in. */
 export function toPlacementName(index: number): string {
   return `gpu${String(index).padStart(2, "0")}`;
+}
+
+function toGpuAttribute({ model, memory, gpuInterface }: { model: string; memory?: string; gpuInterface?: string }) {
+  return { model, ...(memory && { ram: memory }), ...(gpuInterface && { interface: gpuInterface.toLowerCase() as "pcie" | "sxm" }) };
 }
