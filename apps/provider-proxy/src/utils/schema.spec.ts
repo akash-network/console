@@ -83,13 +83,25 @@ describe(addProviderAuthValidation.name, () => {
   it.each([
     ["another chain's prefix", toBech32("cosmos", fromBech32(PROVIDER_ADDRESS).data)],
     ["a prefix carrying path characters", toBech32("../../x?", fromBech32(PROVIDER_ADDRESS).data)],
-    ["a string that is not bech32", "akash1notanaddress"]
+    ["a string that is not bech32", "akash1notanaddress"],
+    ["a payload shorter than an account address", toBech32("akash", new Uint8Array(19))],
+    ["a payload between account and module address lengths", toBech32("akash", new Uint8Array(21))],
+    ["a payload longer than a module address", toBech32("akash", new Uint8Array(33))],
+    ["a payload padded to thousands of characters", toBech32("akash", new Uint8Array(4000), Infinity)]
   ])("rejects a provider address with %s", async (_label, providerAddress) => {
     const { schema } = await setup();
 
     const result = schema.safeParse({ url: PROVIDER_URL, providerAddress });
 
     expect(result.error?.issues).toEqual([expect.objectContaining({ path: ["providerAddress"], message: "is not an akash bech32 address" })]);
+  });
+
+  it("accepts a provider address with a module address length payload", async () => {
+    const { schema } = await setup();
+
+    const result = schema.safeParse({ url: PROVIDER_URL, providerAddress: toBech32("akash", new Uint8Array(32).fill(7)) });
+
+    expect(result.error).toBeUndefined();
   });
 
   async function setup() {
