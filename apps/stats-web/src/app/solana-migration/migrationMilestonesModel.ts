@@ -1,7 +1,7 @@
 import type { MigrationCard } from "./solanaMigrationModel";
 
 import { EMPTY_VALUE, formatCompact, formatNumber, formatPercent, formatShortDate, formatUsd } from "@/lib/statsFormat/statsFormat";
-import type { SinkUnbondings, SinkUnbondingsDay, SinkUnbondingsMilestone } from "@/types";
+import type { SinkUnbondings, SinkUnbondingsCohort, SinkUnbondingsMilestone } from "@/types";
 
 export type MigrationMilestoneMarker = { date: string; label: string };
 
@@ -22,13 +22,12 @@ const FIRST_TRANSFER_LABEL = "First transfer";
 
 const toAkt = (uakt: number) => uakt / 1e6;
 const dayOf = (isoDate: string) => isoDate.slice(0, 10);
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 const dayStartOf = (date: string) => Date.parse(`${date}T00:00:00Z`);
 const lowerFirst = (text: string) => text.charAt(0).toLowerCase() + text.slice(1);
 const shareOf = (part: number, whole: number) => (whole > 0 ? (part / whole) * 100 : undefined);
 
-export function toMilestoneCards(data: SinkUnbondings | undefined, aktPrice: number, now: number): MigrationCard[] {
+export function toMilestoneCards(data: SinkUnbondings | undefined, aktPrice: number): MigrationCard[] {
   const usdOf = (akt: number) => (aktPrice > 0 ? formatUsd(akt * aktPrice, { compact: true }) : undefined);
   const milestoneCards = (data?.milestones ?? []).map(milestone => {
     const akt = toAkt(milestone.unbondedSinceUakt);
@@ -45,29 +44,23 @@ export function toMilestoneCards(data: SinkUnbondings | undefined, aktPrice: num
 
   if (!milestoneCards.length) return [];
 
-  const conversion = sumConversionSinceFirstTransfer(data?.daily ?? [], now);
+  const conversion = sumLiquidConversion(data?.cohorts ?? []);
 
   return [
     ...milestoneCards,
     {
       label: "Newly liquid AKT migrated",
-      value: formatPercent(shareOf(conversion.sentUakt, conversion.liquidUakt)),
-      detail: `${formatCompact(toAkt(conversion.sentUakt))} of ${formatCompact(toAkt(conversion.liquidUakt))} AKT`,
-      tooltip:
-        "Share of the AKT that finished unbonding from the first transfer to Solana until yesterday and was sent to Solana by the addresses that unstaked it"
+      value: formatPercent(shareOf(conversion.sentFromLiquidUakt, conversion.liquidUakt)),
+      detail: `${formatCompact(toAkt(conversion.sentFromLiquidUakt))} of ${formatCompact(toAkt(conversion.liquidUakt))} AKT`,
+      tooltip: "Share of the AKT unstaked since October 1 that finished unbonding and was sent to Solana by the address that unstaked it"
     }
   ];
 }
 
-/** Stops before today because the day's completions are counted before they happen, while its transfers are not. */
-function sumConversionSinceFirstTransfer(daily: SinkUnbondingsDay[], now: number) {
-  const todayStart = now - (now % DAY_MS);
-  const firstTransferDay = daily.find(day => day.sentToSolanaUakt > 0);
-  const window = firstTransferDay ? daily.filter(day => day.date >= firstTransferDay.date && dayStartOf(day.date) < todayStart) : [];
-
+function sumLiquidConversion(cohorts: SinkUnbondingsCohort[]) {
   return {
-    liquidUakt: window.reduce((total, day) => total + day.unbondCompletingUakt, 0),
-    sentUakt: window.reduce((total, day) => total + day.sentBySendersWhoUnbondedUakt, 0)
+    liquidUakt: cohorts.reduce((total, cohort) => total + cohort.liquidUakt, 0),
+    sentFromLiquidUakt: cohorts.reduce((total, cohort) => total + cohort.sentFromLiquidUakt, 0)
   };
 }
 

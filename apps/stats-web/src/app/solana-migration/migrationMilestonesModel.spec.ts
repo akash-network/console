@@ -4,12 +4,10 @@ import { toMilestoneCards, toMilestoneMarkers, toUnbondingCohortRows } from "./m
 
 import type { SinkUnbondings, SinkUnbondingsCohort, SinkUnbondingsDay, SinkUnbondingsMilestone } from "@/types";
 
-const NOW = Date.parse("2026-11-13T15:00:00Z");
-
 describe("migrationMilestonesModel", () => {
   describe(toMilestoneCards.name, () => {
     it("shows the AKT unstaked since each milestone with its delegators and USD value", () => {
-      const cards = toMilestoneCards(unbondings({}), 0.5, NOW);
+      const cards = toMilestoneCards(unbondings({}), 0.5);
 
       expect(cards.slice(0, 3)).toEqual([
         {
@@ -37,32 +35,35 @@ describe("migrationMilestonesModel", () => {
     });
 
     it("leaves the USD value out until the AKT price is known", () => {
-      const [card] = toMilestoneCards(unbondings({}), 0, NOW);
+      const [card] = toMilestoneCards(unbondings({}), 0);
 
       expect(card.detail).toBe("2,054 delegators");
     });
 
-    it("shows the share of AKT that finished unbonding from the first transfer day until yesterday and was sent to Solana by its unstakers", () => {
-      const daily = [
-        day({ date: "2026-11-09", unbondCompletingUakt: 100_000_000 }),
-        day({ date: "2026-11-11", unbondCompletingUakt: 200_000_000, sentToSolanaUakt: 50_000_000, sentBySendersWhoUnbondedUakt: 10_000_000 }),
-        day({ date: "2026-11-12", unbondCompletingUakt: 300_000_000, sentToSolanaUakt: 100_000_000, sentBySendersWhoUnbondedUakt: 100_000_000 }),
-        day({ date: "2026-11-13", unbondCompletingUakt: 999_000_000, sentToSolanaUakt: 1_000_000, sentBySendersWhoUnbondedUakt: 1_000_000 })
-      ];
-
-      const cards = toMilestoneCards(unbondings({ daily }), 0.5, NOW);
+    it("shows the share of liquid unstaked AKT that its unstakers sent to Solana across all cohorts", () => {
+      const cards = toMilestoneCards(unbondings({}), 0.5);
 
       expect(cards[3]).toEqual({
         label: "Newly liquid AKT migrated",
-        value: "22.0%",
-        detail: "110 of 500 AKT",
-        tooltip:
-          "Share of the AKT that finished unbonding from the first transfer to Solana until yesterday and was sent to Solana by the addresses that unstaked it"
+        value: "7.4%",
+        detail: "221.2K of 3.01M AKT",
+        tooltip: "Share of the AKT unstaked since October 1 that finished unbonding and was sent to Solana by the address that unstaked it"
       });
     });
 
-    it("shows no share before the first transfer to Solana", () => {
-      const cards = toMilestoneCards(unbondings({ daily: [day({ date: "2026-11-09", unbondCompletingUakt: 100_000_000 })] }), 0.5, NOW);
+    it("counts only AKT sent from liquid unstaked AKT, not everything its unstakers sent", () => {
+      const cohorts = [
+        cohort({ liquidUakt: 50_000_000, sentUakt: 90_000_000, sentFromLiquidUakt: 50_000_000 }),
+        cohort({ firstUnbondedAfter: "announcement", liquidUakt: 150_000_000, sentUakt: 10_000_000, sentFromLiquidUakt: 10_000_000 })
+      ];
+
+      const cards = toMilestoneCards(unbondings({ cohorts }), 0.5);
+
+      expect(cards[3]).toMatchObject({ value: "30.0%", detail: "60 of 200 AKT" });
+    });
+
+    it("shows no share before any unstaked AKT finishes unbonding", () => {
+      const cards = toMilestoneCards(unbondings({ cohorts: [cohort({ sentUakt: 5_000_000 })] }), 0.5);
 
       expect(cards[3]).toMatchObject({ value: "—", detail: "0 of 0 AKT" });
     });
@@ -71,13 +72,13 @@ describe("migrationMilestonesModel", () => {
       const { milestones, cohorts, ...legacyResponse } = unbondings({});
 
       expect([milestones, cohorts].map(list => list?.length)).toEqual([3, 4]);
-      expect(toMilestoneCards(legacyResponse, 0.5, NOW)).toEqual([]);
+      expect(toMilestoneCards(legacyResponse, 0.5)).toEqual([]);
       expect(toUnbondingCohortRows(legacyResponse)).toEqual([]);
     });
 
     it("shows no cards on a network without migration milestones or before the unbondings load", () => {
-      expect(toMilestoneCards(unbondings({ milestones: [] }), 0.5, NOW)).toEqual([]);
-      expect(toMilestoneCards(undefined, 0.5, NOW)).toEqual([]);
+      expect(toMilestoneCards(unbondings({ milestones: [] }), 0.5)).toEqual([]);
+      expect(toMilestoneCards(undefined, 0.5)).toEqual([]);
     });
   });
 

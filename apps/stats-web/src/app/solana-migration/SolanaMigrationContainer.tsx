@@ -32,7 +32,7 @@ export const SolanaMigrationContainer: React.FunctionComponent = () => {
     [DAILY_TRANSFERS.key]: useGraphSeries(DAILY_TRANSFERS.key, DAILY_TRANSFERS.scale)
   };
   const updatedAt = data?.now?.date ? new Date(data.now.date).getTime() : undefined;
-  const milestoneCards = toMilestoneCards(unbondings.data, price, now);
+  const milestoneCards = toMilestoneCards(unbondings.data, price);
 
   return (
     <div className="flex flex-col gap-4 pt-7">
