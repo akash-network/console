@@ -19,6 +19,25 @@ describe(GpuWaitlistPoolRepository.name, () => {
     });
   });
 
+  describe("findByPoolKeys", () => {
+    it("returns the known pools among the keys", async () => {
+      const { repository, poolKey } = setup();
+      const otherPoolKey = `${poolKey}-other`;
+      await repository.upsert({ poolKey, lastFreeUnits: 4, lastMaxNodeFreeUnits: 2 });
+      await repository.upsert({ poolKey: otherPoolKey, lastFreeUnits: 1, lastMaxNodeFreeUnits: 1 });
+
+      const pools = await repository.findByPoolKeys([poolKey, `${poolKey}-unknown`]);
+
+      expect(pools).toEqual([expect.objectContaining({ poolKey, lastFreeUnits: 4, lastMaxNodeFreeUnits: 2 })]);
+    });
+
+    it("returns nothing for no key", async () => {
+      const { repository } = setup();
+
+      expect(await repository.findByPoolKeys([])).toEqual([]);
+    });
+  });
+
   describe("findByPoolKeyAndLock", () => {
     it("returns undefined for an unknown pool", async () => {
       const { repository, poolKey } = setup();

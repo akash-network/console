@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -18,6 +18,12 @@ export class GpuWaitlistPoolRepository {
 
   get #cursor() {
     return this.txManager.getPgTx() || this.pg;
+  }
+
+  async findByPoolKeys(poolKeys: string[]): Promise<GpuWaitlistPoolRow[]> {
+    if (!poolKeys.length) return [];
+
+    return await this.#cursor.select().from(this.table).where(inArray(this.table.poolKey, poolKeys));
   }
 
   async findByPoolKeyAndLock(poolKey: string): Promise<GpuWaitlistPoolRow | undefined> {

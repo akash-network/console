@@ -48,6 +48,22 @@ export class GpuBidCheckRepository extends BaseRepository<Table, GpuBidCheckInpu
     await this.cursor.delete(this.table).where(lt(this.table.checkedAt, before));
   }
 
+  async findProvidersWithBidsSince({ vendor, model, since }: CheckedGpuModel & { since: Date }): Promise<string[]> {
+    const rows = await this.cursor
+      .selectDistinct({ provider: this.table.provider })
+      .from(this.table)
+      .where(
+        and(
+          sql`lower(${this.table.vendor}) = ${vendor.toLowerCase()}`,
+          sql`lower(${this.table.model}) = ${model.toLowerCase()}`,
+          eq(this.table.bid, true),
+          gte(this.table.checkedAt, since)
+        )
+      );
+
+    return rows.map(row => row.provider);
+  }
+
   async findPricingBotHistory({
     providers,
     models,
