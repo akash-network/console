@@ -81,7 +81,10 @@ describe(rehypeHardenUserContent.name, () => {
       ["a local host and a port", "localhost:3000"],
       ["a host written with middle dots", "console\u00b7akash\u00b7network"],
       ["a host written with hyphenation points and dot operators", "console\u2027akash\u22c5network"],
-      ["a host written with a katakana middle dot", "akash\u30fbnetwork"]
+      ["a host written with a katakana middle dot", "akash\u30fbnetwork"],
+      ["a host written with bullet operators", "console\u2219akash\u2219network"],
+      ["a host written with bullets", "console\u2022akash\u2022network"],
+      ["a host written with full stops of other scripts", "console\u06d4akash\u16ebnetwork\ua4feexample\ua60dcom"]
     ])("spells out where a link labelled with %s really goes", (_, label) => {
       const { container } = setup({ markdown: `[${label}](https://attacker.example/billing)` });
 
@@ -151,6 +154,22 @@ describe(rehypeHardenUserContent.name, () => {
       const { container } = setup({ markdown: `[${label}](${href})` });
 
       expect(screen.getByRole("link", { name: label })).toHaveAttribute("href", href);
+      expect(container.textContent).toBe(`${label}${LEAVES_CONSOLE_MARK}`);
+    });
+
+    it("spells out the destination of a label too long to search for an address, without searching it", () => {
+      const label = "1.".repeat(1001);
+      const startedAt = performance.now();
+      const { container } = setup({ markdown: `[${label}](https://example.com/docs)` });
+
+      expect(performance.now() - startedAt).toBeLessThan(1000);
+      expect(container.textContent).toBe(`${label} (https://example.com/docs${LEAVES_CONSOLE_MARK})`);
+    });
+
+    it("keeps a link labelled with its own host inside a label of the longest length searched", () => {
+      const label = `${"a".repeat(1988)} example.com`;
+      const { container } = setup({ markdown: `[${label}](https://example.com/docs)` });
+
       expect(container.textContent).toBe(`${label}${LEAVES_CONSOLE_MARK}`);
     });
 

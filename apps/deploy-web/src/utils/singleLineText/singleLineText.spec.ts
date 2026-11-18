@@ -25,7 +25,20 @@ describe(toSingleLine.name, () => {
     expect(toSingleLine("one\ntwo\nthree")).toBe("one two three");
   });
 
-  it("leaves text that is already one line as it was", () => {
-    expect(toSingleLine("  Chat  with models ")).toBe("  Chat  with models ");
+  it("trims the ends and keeps the spacing inside a line", () => {
+    expect(toSingleLine("  Chat  with models ")).toBe("Chat  with models");
+    expect(toSingleLine("\n Chat with models \n\n")).toBe("Chat with models");
+  });
+
+  it("answers nothing for text that is only line breaks and spaces", () => {
+    expect(toSingleLine(" \n\t \n ")).toBe("");
+  });
+
+  it("flattens a long run of spaces without a line break quickly", () => {
+    const text = `a${" ".repeat(200_000)}b`;
+    const startedAt = performance.now();
+
+    expect(toSingleLine(text)).toBe(text);
+    expect(performance.now() - startedAt).toBeLessThan(500);
   });
 });

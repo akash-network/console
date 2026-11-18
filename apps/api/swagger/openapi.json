@@ -14883,7 +14883,7 @@
                     "properties": {
                       "name": {
                         "type": "string",
-                        "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
+                        "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]*$"
                       },
                       "expiresAt": {
                         "type": "string",
@@ -15165,7 +15165,7 @@
                     "properties": {
                       "name": {
                         "type": "string",
-                        "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
+                        "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]*$"
                       }
                     }
                   }
@@ -30507,7 +30507,7 @@
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 64,
-                        "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$",
+                        "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]*$",
                         "description": "Creating or renaming is refused when the caller already belongs to another organization of this name, ignoring case. Organizations joined by invitation may share a name."
                       }
                     },
@@ -30664,7 +30664,7 @@
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 64,
-                        "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$",
+                        "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]*$",
                         "description": "Creating or renaming is refused when the caller already belongs to another organization of this name, ignoring case. Organizations joined by invitation may share a name."
                       }
                     },
@@ -31133,7 +31133,7 @@
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 64,
-                        "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$",
+                        "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]*$",
                         "description": "Unique within the organization, whatever its case.",
                         "example": "checkout-api"
                       },
@@ -31406,7 +31406,7 @@
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 64,
-                        "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$",
+                        "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]*$",
                         "description": "Unique within the organization, whatever its case.",
                         "example": "checkout-api"
                       },
@@ -45843,7 +45843,7 @@
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 80,
-                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
+                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]*$"
               },
               "help": {
                 "type": "string",
@@ -45917,7 +45917,7 @@
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 80,
-                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
+                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]*$"
               },
               "help": {
                 "type": "string",
@@ -45992,7 +45992,7 @@
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 80,
-                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
+                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]*$"
               },
               "help": {
                 "type": "string",
@@ -46060,7 +46060,7 @@
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 80,
-                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
+                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]*$"
               },
               "help": {
                 "type": "string",
@@ -46105,7 +46105,7 @@
                 "items": {
                   "type": "string",
                   "maxLength": 200,
-                  "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
+                  "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]*$"
                 },
                 "minItems": 1,
                 "maxItems": 50
@@ -46137,7 +46137,7 @@
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 80,
-                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
+                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]*$"
               },
               "help": {
                 "type": "string",
@@ -46585,12 +46585,12 @@
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 80,
-                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
+                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]*$"
               },
               "summary": {
                 "type": "string",
                 "maxLength": 200,
-                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
+                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]*$"
               },
               "icon": {
                 "type": "string",
@@ -46931,13 +46931,13 @@
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 80,
-                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
+                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]*$"
               },
               "summary": {
                 "type": "string",
                 "nullable": true,
                 "maxLength": 200,
-                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$",
+                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]*$",
                 "description": "Null or blank clears it"
               },
               "icon": {

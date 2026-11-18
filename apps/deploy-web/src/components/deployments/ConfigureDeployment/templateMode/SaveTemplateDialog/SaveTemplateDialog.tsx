@@ -86,7 +86,7 @@ export const SaveTemplateDialog: FC<Props> = ({
 
   const save = (event: FormEvent) => {
     event.preventDefault();
-    if (canSave) onSave({ title: title.trim(), summary: toSingleLine(summary).trim() });
+    if (canSave) onSave({ title: title.trim(), summary: toSingleLine(summary) });
   };
 
   return (
@@ -128,7 +128,7 @@ export const SaveTemplateDialog: FC<Props> = ({
                 maxLength={SUMMARY_MAX_LENGTH}
                 aria-describedby={summaryCounterId}
                 value={summary}
-                onChange={event => setSummary(toSingleLine(event.target.value))}
+                onChange={event => setSummary(event.target.value)}
                 className={`${FIELD_CLASSES} resize-y`}
               />
               <div className="flex justify-end">

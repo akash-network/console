@@ -18,7 +18,10 @@ const DIRECTION_OVERRIDES = /[\u202a-\u202e\u2066-\u2069]/g;
 
 const INVISIBLE_CHARACTERS = /[\p{Cf}\p{Default_Ignorable_Code_Point}]/gu;
 
-const DOT_LOOKALIKES = /[\u00b7\u2027\u22c5\u30fb\u3002\uff61]/g;
+const DOT_LOOKALIKES = /[\u00b7\u06d4\u16eb\u2022\u2027\u2219\u22c5\u30fb\u3002\ua4fe\ua60d\uff61]/g;
+
+/** Host matching backtracks over every dotted run, so a label too long to be a readable address is not searched at all. */
+const MAX_SEARCHED_LABEL_LENGTH = 2000;
 
 const MAILBOX_NAMES = /[^\s@]+@/g;
 
@@ -109,7 +112,7 @@ function textOf(nodes: HastNode[]): string {
 /** A label that reads as a web address is a promise about where the link goes, and an internationalized host can imitate any other. */
 function namesAnotherDestination(label: string, url: URL): boolean {
   if (label === url.href) return false;
-  if (url.hostname.includes("xn--")) return true;
+  if (url.hostname.includes("xn--") || label.length > MAX_SEARCHED_LABEL_LENGTH) return true;
 
   const isEmailLink = url.protocol === "mailto:";
   const readableLabel = label.normalize("NFKC").replace(INVISIBLE_CHARACTERS, "").replace(DOT_LOOKALIKES, ".");

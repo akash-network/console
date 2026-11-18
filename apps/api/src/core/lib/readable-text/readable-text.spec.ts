@@ -17,6 +17,8 @@ describe(readableName.name, () => {
     { case: "a null character", name: "Acme\u0000Corp", message: "The name cannot contain control characters" },
     { case: "a trailing null character", name: "Acme\u0000", message: "The name cannot contain control characters" },
     { case: "a line break", name: "Acme\nCorp", message: "The name cannot contain control characters" },
+    { case: "a line separator", name: "Acme\u2028Corp", message: "The name cannot contain control characters" },
+    { case: "a paragraph separator", name: "Acme\u2029Corp", message: "The name cannot contain control characters" },
     { case: "a right-to-left override", name: "Acme\u202eproc", message: "The name cannot contain control characters" },
     { case: "only spaces", name: "   ", message: "The name needs at least one visible character" },
     { case: "only zero-width spaces", name: "\u200b\u200b", message: "The name needs at least one visible character" },
@@ -53,6 +55,8 @@ describe(readableLine.name, () => {
   it.each([
     { case: "a null character", line: "about\u0000it" },
     { case: "a line break", line: "about\nit" },
+    { case: "a line separator", line: "about\u2028it" },
+    { case: "a paragraph separator", line: "about\u2029it" },
     { case: "a tab", line: "about\tit" },
     { case: "an escape character", line: "about\u001bit" },
     { case: "a right-to-left override", line: "about\u202eit" },
@@ -78,7 +82,8 @@ describe(readableText.name, () => {
   it.each([
     { case: "an empty text", text: "" },
     { case: "a single line", text: "Storefront and checkout" },
-    { case: "several lines with tabs", text: "Storefront\r\n\tand checkout\nfor the shop" }
+    { case: "several lines with tabs", text: "Storefront\r\n\tand checkout\nfor the shop" },
+    { case: "lines parted by line and paragraph separators", text: "Storefront\u2028and checkout\u2029for the shop" }
   ])("accepts $case", ({ text }) => {
     expect(readableText(z.string()).safeParse(text)).toEqual({ success: true, data: text });
   });
