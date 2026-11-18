@@ -387,6 +387,19 @@ describe("ProvidersExplorer", () => {
     expect(screen.getByRole("table", { name: "Providers" })).toHaveAttribute("aria-busy", "true");
   });
 
+  it("says vendor, generation and model have to match the same CPU when the CPU picks match no CPU", () => {
+    setup({ providers: [], hasFilters: true, hasCpuPicksMatchingNoCpu: true });
+
+    expect(screen.getByText("Vendor, generation and model have to match the same CPU.")).toBeInTheDocument();
+  });
+
+  it("adds no CPU note when another filter emptied the list", () => {
+    setup({ providers: [], hasFilters: true, hasCpuPicksMatchingNoCpu: false });
+
+    expect(screen.getByText("No providers match those filters.")).toBeInTheDocument();
+    expect(screen.queryByText(/have to match the same CPU/)).not.toBeInTheDocument();
+  });
+
   it("says when no provider matches once the search answers", () => {
     setup({ providers: [], hasFilters: true });
 
@@ -635,6 +648,7 @@ describe("ProvidersExplorer", () => {
     providers?: ApiProviderList[];
     search?: string;
     hasFilters?: boolean;
+    hasCpuPicksMatchingNoCpu?: boolean;
     matchingProviderCount?: number;
     hasLoadedProviders?: boolean;
     hasFailedToLoadProviders?: boolean;
@@ -658,6 +672,7 @@ describe("ProvidersExplorer", () => {
       updateFilters: vi.fn(),
       clearFilters: vi.fn(),
       hasFilters: !!input.hasFilters,
+      hasCpuPicksMatchingNoCpu: !!input.hasCpuPicksMatchingNoCpu,
       pageIndex: 0,
       changePageIndex: vi.fn(),
       pageCount: 1,

@@ -40,6 +40,7 @@ const WIDE_LAYOUT_QUERY = "(min-width: 1024px)";
 /** Moves the globe left by this many world units so the open panel doesn't cover it. */
 const PANEL_OPEN_GLOBE_SHIFT = -0.42;
 const ZOOM_STEP = 0.42;
+const CPU_FILTERS_MATCH_ONE_CPU = "Vendor, generation and model have to match the same CPU.";
 const CLUSTER_CAMERA_DISTANCE = 2.6;
 const PROVIDER_CAMERA_DISTANCE = 2.35;
 
@@ -345,6 +346,7 @@ export const ProvidersExplorer: FC<Props> = ({ dependencies: d = DEPENDENCIES })
           regionFilter={regionFilter}
           gpuFilter={gpuFilter}
           cpuFilter={cpuFilter}
+          emptyNote={model.hasCpuPicksMatchingNoCpu ? CPU_FILTERS_MATCH_ONE_CPU : undefined}
         />
       </section>
     </div>
