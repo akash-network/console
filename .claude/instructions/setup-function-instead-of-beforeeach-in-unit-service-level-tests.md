@@ -20,7 +20,7 @@ alwaysApply: false
 describe("UserProfile", () => {
   it("renders user name when provided", () => {
     setup({ name: "John Doe" });
-    expect(screen.queryByText("John Doe")).toBeInTheDocument();
+    expect(screen.getByText("John Doe")).toBeInTheDocument();
   });
 
   function setup(input: { name?: string; email?: string; isLoading?: boolean; error?: string }) {

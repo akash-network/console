@@ -166,14 +166,11 @@ Follow the AAA pattern. Setup prepares state; the test validates it. Don't mix c
 
 ```typescript
 it("creates a deployment grant", async () => {
-  // Arrange
   const { service, grantService } = setup();
   grantService.create.mockResolvedValue(mockGrant);
 
-  // Act
   const result = await service.createGrant("akash1abc...");
 
-  // Assert
   expect(result).toEqual(mockGrant);
   expect(grantService.create).toHaveBeenCalledWith("akash1abc...");
 });
@@ -220,7 +217,7 @@ Rules:
 - Run the handler through the real worker — `useJobWorkers` + `startWorkers`, never `handler.handle(payload)` alone. Calling `handle` directly bypasses the worker context and tests an execution environment that does not exist in production.
 - Assert on **end state** (rows, job rows), never on `expect(repo.method).toHaveBeenCalled()`. A write that matched zero rows satisfies the spy and fails the row read.
 - Wait with `expectJobCompleted(jobName)` rather than only waiting on a side effect, so a refused job reports its cause instead of timing out opaquely.
-- Fake collaborators at the tsyringe boundary with `vi.spyOn(container.resolve(X), "m")`, or with `nock` for HTTP. `test:ci-setup` starts only the database and the mock OAuth2 server, so anything reaching notifications, provider-proxy, the tx signer, or KMS must be faked or the test dies on `ECONNREFUSED`.
+- Fake collaborators at the tsyringe boundary with `vi.spyOn(container.resolve(X), "m")`, or with `nock` for HTTP. `test:ci-setup` starts only the database, the mock OAuth2 server and the mock GCP KMS, so anything reaching notifications, provider-proxy, the tx signer or provider-inventory must be faked or the test dies on `ECONNREFUSED`.
 - Keep the existing unit spec. Integration coverage supersedes it as the guarantee, but removing specs is separate work with its own coverage argument.
 
 The shared helpers live in `apps/api/test/services/job-queue-harness.ts` and the DB seeders in `apps/api/test/seeders/db/`. `apps/api/src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler.integration.ts` is the reference example.
