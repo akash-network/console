@@ -3,11 +3,13 @@ import type { MigrationCard } from "./solanaMigrationModel";
 import { formatCompact, formatNumber, formatPercent, formatUsd } from "@/lib/statsFormat/statsFormat";
 import type { SinkUnbondings, SinkUnbondingsDay } from "@/types";
 
-export type UnbondingView = "liquid" | "unstaked";
+export type UnbondingView = "liquid" | "unstaked" | "cumulative";
+export type DailyUnbondingView = Exclude<UnbondingView, "cumulative">;
 
 export const UNBONDING_VIEWS: { value: UnbondingView; label: string; seriesLabel: string }[] = [
   { value: "liquid", label: "Becomes liquid", seriesLabel: "Unbonding completes" },
-  { value: "unstaked", label: "Unstaked", seriesLabel: "Unbonding started" }
+  { value: "unstaked", label: "Unstaked", seriesLabel: "Unbonding started" },
+  { value: "cumulative", label: "Cumulative", seriesLabel: "Started unbonding" }
 ];
 
 export type UnbondingBar = {
@@ -28,7 +30,7 @@ const toAkt = (uakt: number) => uakt / 1e6;
 const dayStartOf = (date: string) => Date.parse(`${date}T00:00:00Z`);
 const todayStartOf = (now: number) => now - (now % DAY_MS);
 
-export function toUnbondingBars(daily: SinkUnbondingsDay[], view: UnbondingView, now: number): UnbondingBar[] {
+export function toUnbondingBars(daily: SinkUnbondingsDay[], view: DailyUnbondingView, now: number): UnbondingBar[] {
   const todayStart = todayStartOf(now);
   const firstCompleteDayStart = daily.length ? dayStartOf(daily[0].date) + UNBONDING_PERIOD_DAYS * DAY_MS : 0;
   const days = view === "liquid" ? daily.filter(day => dayStartOf(day.date) >= firstCompleteDayStart) : daily.filter(day => dayStartOf(day.date) <= todayStart);
@@ -155,7 +157,10 @@ export type PlacedMilestoneMarker = { date: string; label: string; x: number; ro
 /** Labels alternate between this many rows so markers a few days apart do not overlap. */
 const MARKER_LABEL_ROWS = 2;
 
-export function placeMilestoneMarkers(markers: { date: string; label: string }[], bars: FittedUnbondingBar[]): PlacedMilestoneMarker[] {
+export function placeMilestoneMarkers(
+  markers: { date: string; label: string }[],
+  bars: Pick<FittedUnbondingBar, "date" | "slotX" | "slotWidth">[]
+): PlacedMilestoneMarker[] {
   const placed: PlacedMilestoneMarker[] = [];
 
   for (const marker of markers) {
