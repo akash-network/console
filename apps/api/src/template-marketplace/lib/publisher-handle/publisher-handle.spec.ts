@@ -21,6 +21,13 @@ describe(publisherHandleCandidates.name, () => {
     ]);
   });
 
+  it("offers no candidate that ends with a hyphen when the length limit cuts a username at one", () => {
+    const candidates = publisherHandleCandidates({ type: "personal", slug: "personal-0123456789ab", ownerUsername: `${"a".repeat(39)}-b` }, () => "abcd1234");
+
+    expect(candidates[0]).toBe("a".repeat(39));
+    expect(candidates.filter(candidate => !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(candidate))).toEqual([]);
+  });
+
   it("offers a personal organization's owner username, made lowercase and url-safe, rather than its slug", () => {
     const [first] = publisherHandleCandidates({ type: "personal", slug: "personal-0123456789ab", ownerUsername: "Sam.Rivera_42" }, () => "abcd1234");
 

@@ -181,7 +181,7 @@ export class TemplateWriterService {
         createdById,
         expectedCurrentVersionId: base && (await this.#currentVersionExpectedFrom(base, template)),
         readmesShown: { current: currentReadmeShown, next: readme },
-        checkResults: template.visibility === "public" ? await this.#runPublishChecks(template, input) : undefined
+        checkResults: template.visibility === "public" ? await this.#runPublishChecks(template, { ...input, readme }) : undefined
       });
 
       if (appended.status === "live") {
@@ -259,9 +259,10 @@ export class TemplateWriterService {
     return current && current.version < base.version ? current.id : base.id;
   }
 
-  async #runPublishChecks(template: StoredTemplate, input: AppendUserTemplateVersionInput): Promise<PublishCheckResults> {
+  async #runPublishChecks(template: StoredTemplate, input: AppendUserTemplateVersionInput & { readme: string | null }): Promise<PublishCheckResults> {
     return await this.publishChecksService.run({
       sdl: input.sdl,
+      readme: input.readme,
       askedValues: input.askedValues,
       title: template.title,
       organizationId: template.organizationId

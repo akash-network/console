@@ -1243,6 +1243,25 @@ describe(StripeTransactionRepository.name, () => {
       await expect(stripeTransactionRepository.hasSucceededPayment(transaction.organizationId)).resolves.toBe(expected);
     });
 
+    it("answers false for an organization whose only payment was lost to a dispute, and true once it has an undisputed one", async () => {
+      const { stripeTransactionRepository, createTestTransaction } = setup();
+      const disputed = await createTestTransaction({ type: "payment_intent", status: "succeeded" });
+      await stripeTransactionRepository.updateById(disputed.id, { disputeClosedAt: new Date(), disputeLostAt: new Date() });
+
+      await expect(stripeTransactionRepository.hasSucceededPayment(disputed.organizationId)).resolves.toBe(false);
+
+      await stripeTransactionRepository.create({
+        userId: disputed.userId,
+        organizationId: disputed.organizationId,
+        type: "payment_intent",
+        status: "succeeded",
+        amount: 2000,
+        currency: "usd"
+      });
+
+      await expect(stripeTransactionRepository.hasSucceededPayment(disputed.organizationId)).resolves.toBe(true);
+    });
+
     it("answers false for an organization that paid nothing while another one did", async () => {
       const { stripeTransactionRepository, createTestTransaction, createTestUser } = setup();
       await createTestTransaction();

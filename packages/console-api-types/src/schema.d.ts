@@ -8514,10 +8514,10 @@ export interface components {
         /** @description The container image the issue is about */
         image?: string;
         /**
-         * @description The name a reserved word was found in
+         * @description The name a reserved word was found in, or the text a line holding a credential was found in
          * @enum {string}
          */
-        field?: "title" | "publisher_name";
+        field?: "title" | "publisher_name" | "sdl" | "readme";
       }[];
     };
     AlertCreateInput: {

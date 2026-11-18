@@ -130,6 +130,7 @@ export class TemplatePublishService {
 
     const checkResults = await this.publishChecksService.run({
       sdl: current.sdl,
+      readme: current.readme ?? (template.description || null),
       askedValues: current.askedValues,
       title: template.title,
       organizationId: template.organizationId

@@ -47,6 +47,25 @@ describe("envSchema", () => {
     expect(envSchema.parse({ TEMPLATE_CREATE_LIMIT_PER_USER: blank }).TEMPLATE_CREATE_LIMIT_PER_USER).toBe(20);
   });
 
+  it("accepts a window of up to 366 days and refuses a longer one, which the database could not count back", () => {
+    const longestWindowSeconds = 366 * 24 * 60 * 60;
+
+    expect(envSchema.parse({ TEMPLATE_PUBLISH_LIMIT_WINDOW_SECONDS: String(longestWindowSeconds) }).TEMPLATE_PUBLISH_LIMIT_WINDOW_SECONDS).toBe(
+      longestWindowSeconds
+    );
+    expect(() => envSchema.parse({ TEMPLATE_PUBLISH_LIMIT_WINDOW_SECONDS: String(longestWindowSeconds + 1) })).toThrow();
+    expect(() => envSchema.parse({ TEMPLATE_CREATE_LIMIT_WINDOW_SECONDS: "10000000000000" })).toThrow();
+    expect(() => envSchema.parse({ TEMPLATE_VERSION_LIMIT_WINDOW_SECONDS: "10000000000000" })).toThrow();
+  });
+
+  it.each(["", "   "])("falls back to the default for a window set to %j", blank => {
+    expect(envSchema.parse({ TEMPLATE_CREATE_LIMIT_WINDOW_SECONDS: blank }).TEMPLATE_CREATE_LIMIT_WINDOW_SECONDS).toBe(3600);
+  });
+
+  it.each(["0", "-1", "1.5", "many"])("refuses %j as a window", value => {
+    expect(() => envSchema.parse({ TEMPLATE_CREATE_LIMIT_WINDOW_SECONDS: value })).toThrow();
+  });
+
   it.each(["0", "-1", "1.5", "many"])("refuses %j as a limit", value => {
     expect(() => envSchema.parse({ TEMPLATE_PUBLISH_LIMIT_PER_USER: value })).toThrow();
   });

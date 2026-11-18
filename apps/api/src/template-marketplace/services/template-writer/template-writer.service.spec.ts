@@ -512,9 +512,15 @@ describe(TemplateWriterService.name, () => {
       const sdl = buildSdl({ count: 3 });
       const askedValues = [textAskedValue("GREETING")];
 
-      await service.appendVersion(template.id, { sdl, askedValues, baseVersion: 1 });
+      await service.appendVersion(template.id, { sdl, readme: "# Hello", askedValues, baseVersion: 1 });
 
-      expect(publishChecksService.run).toHaveBeenCalledWith({ sdl, askedValues, title: "Renamed since", organizationId: template.organizationId });
+      expect(publishChecksService.run).toHaveBeenCalledWith({
+        sdl,
+        readme: "# Hello",
+        askedValues,
+        title: "Renamed since",
+        organizationId: template.organizationId
+      });
       expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ checkResults: PASSED_CHECKS }));
       expect(repository.mirrorVersion).toHaveBeenCalledTimes(1);
     });

@@ -113,9 +113,14 @@ describe(TemplateRateLimitRepository.name, () => {
 
     it("answers at least one second for a row about to leave the window", async () => {
       const { repository, user, organization } = await setup();
-      await seedTemplates({ authorId: user.id, organizationId: organization.id, minutesAgo: [59.999] });
 
-      expect(await repository.findSecondsUntilRoom("create", { userId: user.id }, { max: 1, ...HOUR })).toBe(1);
+      const secondsUntilRoom = await container.resolve(TxService).transaction(async () => {
+        await seedTemplates({ authorId: user.id, organizationId: organization.id, minutesAgo: [59.999] }, container.resolve(TxService).getPgTx());
+
+        return await repository.findSecondsUntilRoom("create", { userId: user.id }, { max: 1, ...HOUR });
+      });
+
+      expect(secondsUntilRoom).toBe(1);
     });
 
     it("sees the rows written earlier in the surrounding transaction", async () => {

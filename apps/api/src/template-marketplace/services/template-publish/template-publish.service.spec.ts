@@ -74,10 +74,22 @@ describe(TemplatePublishService.name, () => {
       expect(stripeTransactionRepository.hasSucceededPayment).toHaveBeenCalledWith(template.organizationId);
       expect(publishChecksService.run).toHaveBeenCalledWith({
         sdl: version.sdl,
+        readme: "# Llama",
         askedValues: version.askedValues,
         title: template.title,
         organizationId: template.organizationId
       });
+    });
+
+    it.each([
+      { shape: "the template description", description: "Chat with Llama", expected: "Chat with Llama" },
+      { shape: "nothing when the description is empty too", description: "", expected: null }
+    ])("checks $shape for a version that has no README", async ({ description, expected }) => {
+      const { service, template, publishChecksService } = setup({ readme: null, description });
+
+      await service.getReadiness(template.id);
+
+      expect(publishChecksService.run).toHaveBeenCalledWith(expect.objectContaining({ readme: expected }));
     });
 
     it.each([
@@ -307,6 +319,8 @@ describe(TemplatePublishService.name, () => {
       organization?: PublishingOrganization | null;
       checkResults?: PublishCheckResults;
       version?: null;
+      readme?: string | null;
+      description?: string;
       locked?: Partial<MarketplaceTemplateRow>;
     } = {}
   ) {
@@ -315,9 +329,15 @@ describe(TemplatePublishService.name, () => {
       id: faker.string.uuid(),
       organizationId: faker.string.uuid(),
       projectId: faker.string.uuid(),
-      title: "Llama 3.1 Chat"
+      title: "Llama 3.1 Chat",
+      description: input.description ?? ""
     });
-    const version = mock<TemplateVersionOutput>({ id: faker.string.uuid(), sdl: "version: '2.0'", askedValues: [] });
+    const version = mock<TemplateVersionOutput>({
+      id: faker.string.uuid(),
+      sdl: "version: '2.0'",
+      askedValues: [],
+      readme: input.readme === undefined ? "# Llama" : input.readme
+    });
     const user = mock<UserOutput>({ id: faker.string.uuid(), emailVerified: input.isEmailVerified ?? true });
     const authService = mock<AuthService>();
     authService.ability = createMongoAbility<MongoAbility>(input.rules ?? [{ action: "manage", subject: "Template" }]);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { findCredentialSign } from "./credential-signs";
+import { findCredentialSign, holdsKnownCredentialFormat } from "./credential-signs";
 
 const RANDOM_TOKEN = "q7Rk2ZpX9vLm4TnB8sWd3YhC6";
 
@@ -13,7 +13,7 @@ describe(findCredentialSign.name, () => {
     { shape: "a JWT", value: "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U" },
     { shape: "a private key block", value: "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----" },
     { shape: "a connection string with a password", value: `postgres://admin:${"hunter2".repeat(2)}@db.internal:5432/app` },
-    { shape: "a bearer header", value: "Bearer abcdefghijklmnop" },
+    { shape: "a bearer header", value: "Bearer abcdefghijklmnop1234" },
     { shape: "a 12-word mnemonic", value: "abandon ability able about above absent absorb abstract absurd abuse access accident" },
     { shape: "a 24-word mnemonic", value: Array.from({ length: 24 }, () => "ladder").join(" ") },
     { shape: "a mnemonic split over lines", value: Array.from({ length: 15 }, () => "zoo").join("\n") }
@@ -140,6 +140,31 @@ describe(findCredentialSign.name, () => {
     expect(findCredentialSign(value)).toBe("random_string");
   });
 
+  it.each([
+    { shape: "an argument", value: "--api-key=hunter2abc --verbose" },
+    { shape: "inline JSON", value: '{"password": "hunter2abc", "port": 8080}' },
+    { shape: "a query string", value: "https://example.com/hook?token=abc123" }
+  ])("reads a credential set by name inside $shape as a credential assignment", ({ value }) => {
+    expect(findCredentialSign(value, "EXTRA_ARGS")).toBe("credential_assignment");
+    expect(findCredentialSign(value)).toBe("credential_assignment");
+  });
+
+  it.each([
+    "--max_tokens=512 --temperature=0.7",
+    "--max-new-tokens=1024",
+    "--hf-token-path=/models/token",
+    "--api-key=<your-key>",
+    "--api-key=${API_KEY}",
+    "token_limit: 4096",
+    "model=meta-llama/Llama-3.1-8B-Instruct --tokenizer=fast",
+    "https://example.com:8080/v1",
+    "you are now using the fast model with some safe default values",
+    "Bearer authentication is required",
+    "Send a bearer token in the Authorization header"
+  ])("reads %j as ordinary config", value => {
+    expect(findCredentialSign(value, "EXTRA_ARGS")).toBeUndefined();
+  });
+
   it("reads a credential-named value with no name given as ordinary config", () => {
     expect(findCredentialSign("postgres")).toBeUndefined();
   });
@@ -150,5 +175,25 @@ describe(findCredentialSign.name, () => {
     expect(findCredentialSign("abcdefghijkl", "WANDB_KEY")).toBeUndefined();
     expect(findCredentialSign("123456789012", "WANDB_KEY")).toBeUndefined();
     expect(findCredentialSign("abcdef ghij12", "WANDB_KEY")).toBeUndefined();
+  });
+});
+
+describe(holdsKnownCredentialFormat.name, () => {
+  it.each([
+    { shape: "a provider token among other words", text: "# export HF_TOKEN=hf_abcdefghijklmnopqrstuv before deploying" },
+    { shape: "a mnemonic on a line of its own", text: "  abandon ability able about above absent absorb abstract absurd abuse access accident  " }
+  ])("finds $shape", ({ text }) => {
+    expect(holdsKnownCredentialFormat(text)).toBe(true);
+  });
+
+  it.each([
+    "Set HF_TOKEN to your own token, then deploy.",
+    "--max_tokens=512",
+    "password: hunter2abc",
+    "Authorization: Bearer abcdefghijklmnop1234",
+    `postgres://app:${"hunter2".repeat(2)}@db:5432/app`,
+    "you are now using the fast model with some safe default values"
+  ])("finds none in %j, which names no format a provider issues", text => {
+    expect(holdsKnownCredentialFormat(text)).toBe(false);
   });
 });

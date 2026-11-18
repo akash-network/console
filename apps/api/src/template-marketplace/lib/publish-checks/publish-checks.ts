@@ -4,13 +4,15 @@ import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import type { AskedValue } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
 import { findSecretValueIssues, readSdlEnvValues } from "@src/template-marketplace/lib/asked-values/find-secret-value-issues";
 import { type BlockedImageKind, findBlockedImageKind } from "./blocked-images";
-import { type CredentialSign, findCredentialSign } from "./credential-signs";
+import { type CredentialSign, findCredentialSign, holdsKnownCredentialFormat } from "./credential-signs";
 import { isPinned, parseImageReference } from "./image-reference";
 import { type PublishCheckIssue, type PublishCheckResults, toPublishCheck } from "./publish-check-results";
 import { findReservedWords } from "./reserved-names";
 
 export type PublishCheckInput = {
   sdl: string;
+  /** The README readers of the template are shown, which for a version without one is the template description. */
+  readme: string | null;
   askedValues: AskedValue[];
   title: string;
   /** Null for a template filed in no organization, which has no name to publish under. */
@@ -27,6 +29,7 @@ const SDL_TOO_LARGE_ISSUE = `The SDL is larger than ${SDL_MAX_LENGTH / 1024} KB.
 const CREDENTIAL_SIGN_LABELS: Record<CredentialSign, string> = {
   known_format: "holds a key or token in a format providers issue",
   credential_name: "is named like a key, token or password and holds a value",
+  credential_assignment: "sets a value under a name that reads like a key, token or password",
   random_string: "holds a long random string that reads like a key or token"
 };
 
@@ -56,13 +59,14 @@ function findSdlIssues({ sdl, sdlIssues }: PublishCheckInput): PublishCheckIssue
   return [...sizeIssues, ...sdlIssues].map(message => ({ message }));
 }
 
-function findSecretIssues({ sdl, askedValues }: PublishCheckInput): PublishCheckIssue[] {
+function findSecretIssues({ sdl, readme, askedValues }: PublishCheckInput): PublishCheckIssue[] {
   const secretBindings = new Set(
     askedValues
       .filter(askedValue => askedValue.type === "secret")
       .flatMap(askedValue => askedValue.bindings.map(binding => bindingKey(binding.service, binding.env)))
   );
-  const envIssues = readSdlEnvValues(sdl).flatMap(({ service, variable, value }): PublishCheckIssue[] => {
+  const envValues = readSdlEnvValues(sdl);
+  const envIssues = envValues.flatMap(({ service, variable, value }): PublishCheckIssue[] => {
     const sign = secretBindings.has(bindingKey(service, variable)) ? undefined : findCredentialSign(value, variable);
 
     return sign
@@ -75,8 +79,31 @@ function findSecretIssues({ sdl, askedValues }: PublishCheckInput): PublishCheck
         ]
       : [];
   });
+  const envValuesReportedByVariable = envValues.map(({ value }) => value).filter(holdsKnownCredentialFormat);
 
-  return [...findSecretValueIssues(sdl, askedValues).map(message => ({ message })), ...envIssues, ...askedValues.flatMap(findDefaultIssue)];
+  return [
+    ...findSecretValueIssues(sdl, askedValues).map(message => ({ message })),
+    ...envIssues,
+    ...findCredentialLineIssues(sdl, "sdl", envValuesReportedByVariable),
+    ...askedValues.flatMap(findDefaultIssue),
+    ...findCredentialLineIssues(readme ?? "", "readme", [])
+  ];
+}
+
+const CREDENTIAL_LINE_SOURCES = { sdl: "the SDL", readme: "the README" };
+
+/** Reads the text as written, so a key in a comment, an argument or the README is found too; a line holding an env value reported under its variable is skipped. */
+function findCredentialLineIssues(text: string, field: keyof typeof CREDENTIAL_LINE_SOURCES, reportedValues: string[]): PublishCheckIssue[] {
+  return text.split(/\r?\n/).flatMap((line, index): PublishCheckIssue[] =>
+    holdsKnownCredentialFormat(line) && !reportedValues.some(value => line.includes(value))
+      ? [
+          {
+            message: `Line ${index + 1} of ${CREDENTIAL_LINE_SOURCES[field]} ${CREDENTIAL_SIGN_LABELS.known_format}. Remove it before the template is public; anyone could read and use it.`,
+            field
+          }
+        ]
+      : []
+  );
 }
 
 /** A stored version predating the schema's refusal could still carry a secret's default, which the type no longer admits. */

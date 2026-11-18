@@ -34,7 +34,10 @@ export const PublishCheckSchema = z
         service: z.string().optional().openapi({ description: "The SDL service the issue is in" }),
         variable: z.string().optional().openapi({ description: "The env variable or asked value the issue is in" }),
         image: z.string().optional().openapi({ description: "The container image the issue is about" }),
-        field: z.enum(PUBLISH_CHECK_ISSUE_FIELDS).optional().openapi({ description: "The name a reserved word was found in" })
+        field: z
+          .enum(PUBLISH_CHECK_ISSUE_FIELDS)
+          .optional()
+          .openapi({ description: "The name a reserved word was found in, or the text a line holding a credential was found in" })
       })
     )
   })

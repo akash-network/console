@@ -41771,9 +41771,11 @@
                   "type": "string",
                   "enum": [
                     "title",
-                    "publisher_name"
+                    "publisher_name",
+                    "sdl",
+                    "readme"
                   ],
-                  "description": "The name a reserved word was found in"
+                  "description": "The name a reserved word was found in, or the text a line holding a credential was found in"
                 }
               },
               "required": [

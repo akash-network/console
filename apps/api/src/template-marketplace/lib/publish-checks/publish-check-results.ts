@@ -6,7 +6,7 @@ export const PUBLISH_CHECK_STATUSES = ["passed", "failed"] as const;
 
 export type PublishCheckStatus = (typeof PUBLISH_CHECK_STATUSES)[number];
 
-export const PUBLISH_CHECK_ISSUE_FIELDS = ["title", "publisher_name"] as const;
+export const PUBLISH_CHECK_ISSUE_FIELDS = ["title", "publisher_name", "sdl", "readme"] as const;
 
 export type PublishCheckIssueField = (typeof PUBLISH_CHECK_ISSUE_FIELDS)[number];
 

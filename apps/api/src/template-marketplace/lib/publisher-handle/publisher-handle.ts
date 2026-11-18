@@ -3,6 +3,11 @@ import { findReservedWords } from "@src/template-marketplace/lib/publish-checks/
 
 const FALLBACK_HANDLE_PREFIX = "publisher";
 
+/** A slug is cut to its length limit after its ends are trimmed, which can leave a hyphen the handle format refuses. */
+function withoutTrailingHyphens(candidate: string): string {
+  return candidate.replace(/-+$/, "");
+}
+
 export type HandleSource = { type: "personal" | "team"; slug: string; ownerUsername: string | null };
 
 /** A personal organization's slug is derived from its owner's internal id, so its handle comes from the username instead; a name that reads as Akash's gets a neutral handle. */
@@ -10,5 +15,5 @@ export function publisherHandleCandidates({ type, slug, ownerUsername }: HandleS
   const wanted = type === "team" ? slug : ownerUsername ?? "";
   const allowed = findReservedWords(wanted).length > 0 ? "" : wanted;
 
-  return slugCandidates(allowed, FALLBACK_HANDLE_PREFIX, randomSuffix);
+  return slugCandidates(allowed, FALLBACK_HANDLE_PREFIX, randomSuffix).map(withoutTrailingHyphens);
 }

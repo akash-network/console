@@ -19,35 +19,56 @@ const QUOTED_SECRET_KEY_WITH_QUOTED_VALUE = new RegExp(String.raw`\b(${SECRET_KE
 /** Skips a value that is itself another key's assignment, which the rules before it have already redacted. */
 const QUOTED_SECRET_KEY_WITH_UNQUOTED_VALUE = new RegExp(String.raw`\b(${SECRET_KEY_NAME}["']\s*[:=]\s*)(?![\w.-]*["']?\s*[:=])[^\s"',}\]]+`, "gi");
 
+const PRIVATE_KEY_BLOCK = /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g;
+
+/** Tokens whose shape alone says a provider issued them, whatever names or carries them. */
+const ISSUED_TOKEN_FORMATS = [
+  /\beyJ[\w-]+\.eyJ[\w-]+\.[\w-]+/g,
+  /\bsk-[\w-]{16,}/g,
+  /\bhf_[A-Za-z0-9]{20,}/g,
+  /\bgh[pousr]_[A-Za-z0-9]{20,}/g,
+  /\bgithub_pat_\w{20,}/g,
+  /\bxox[abprs]-[\w-]{10,}/g,
+  /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g,
+  /\b[sr]k_(?:live|test)_[A-Za-z0-9]{16,}/g,
+  /\bAIza[\w-]{35}/g,
+  /\bglpat-[\w-]{20,}/g,
+  /\bnpm_[A-Za-z0-9]{36}/g,
+  /\bSG\.[\w-]{16,}\.[\w-]{16,}/g,
+  /\b(?:r8|gsk)_[A-Za-z0-9]{20,}/g,
+  /\bnvapi-[\w-]{20,}/g,
+  /\bdckr_pat_[\w-]{20,}/g,
+  /\btskey-[\w-]{20,}/g
+];
+
+const BEARER_TOKEN = /\b(bearer\s+)[\w.~+/-]+=*/gi;
+
+const URL_PASSWORD = /\b([a-z][a-z0-9+.-]*:\/\/[^\s:@/]+:)[^\s@/]+@/gi;
+
+/** The token formats run last, so a token inside a named or carried value cannot cut that value's redaction short. */
 const SECRET_REPLACEMENTS: [RegExp, string][] = [
-  [/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g, REDACTED],
-  [/\beyJ[\w-]+\.eyJ[\w-]+\.[\w-]+/g, REDACTED],
-  [/\bsk-[\w-]{16,}/g, REDACTED],
-  [/\bhf_[A-Za-z0-9]{20,}/g, REDACTED],
-  [/\bgh[pousr]_[A-Za-z0-9]{20,}/g, REDACTED],
-  [/\bgithub_pat_\w{20,}/g, REDACTED],
-  [/\bxox[abprs]-[\w-]{10,}/g, REDACTED],
-  [/\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g, REDACTED],
-  [/\b[sr]k_(?:live|test)_[A-Za-z0-9]{16,}/g, REDACTED],
-  [/\bAIza[\w-]{35}/g, REDACTED],
-  [/\bglpat-[\w-]{20,}/g, REDACTED],
-  [/\bnpm_[A-Za-z0-9]{36}/g, REDACTED],
-  [/\bSG\.[\w-]{16,}\.[\w-]{16,}/g, REDACTED],
-  [/\b(?:r8|gsk)_[A-Za-z0-9]{20,}/g, REDACTED],
-  [/\bnvapi-[\w-]{20,}/g, REDACTED],
-  [/\bdckr_pat_[\w-]{20,}/g, REDACTED],
-  [/\btskey-[\w-]{20,}/g, REDACTED],
-  [/\b(bearer\s+)[\w.~+/-]+=*/gi, `$1${REDACTED}`],
-  [/\b([a-z][a-z0-9+.-]*:\/\/[^\s:@/]+:)[^\s@/]+@/gi, `$1${REDACTED}@`],
+  [PRIVATE_KEY_BLOCK, REDACTED],
+  [BEARER_TOKEN, `$1${REDACTED}`],
+  [URL_PASSWORD, `$1${REDACTED}@`],
   [QUOTED_SECRET_WITH_ESCAPED_QUOTE, `$1$2${REDACTED}`],
   [UNQUOTED_SECRET_KEY, `$1$2$4${REDACTED}$3`],
   [QUOTED_SECRET_KEY_WITH_QUOTED_VALUE, `$1$2$4${REDACTED}$3`],
-  [QUOTED_SECRET_KEY_WITH_UNQUOTED_VALUE, `$1${REDACTED}`]
+  [QUOTED_SECRET_KEY_WITH_UNQUOTED_VALUE, `$1${REDACTED}`],
+  ...ISSUED_TOKEN_FORMATS.map((format): [RegExp, string] => [format, REDACTED])
 ];
 
 /** Best effort over common credential shapes, applied to every free text the team may later read, whatever the user consented to. */
 export function redactSecrets(text: string): string {
   return SECRET_REPLACEMENTS.reduce((redacted, [pattern, replacement]) => redacted.replace(pattern, replacement), text);
+}
+
+/** Narrower than `redactSecrets` on purpose: no rule depends on what a value is called, so text that only mentions a token does not match. */
+export function holdsIssuedCredential(text: string): boolean {
+  return [PRIVATE_KEY_BLOCK, ...ISSUED_TOKEN_FORMATS].some(format => text.search(format) !== -1);
+}
+
+export function holdsUrlPassword(text: string): boolean {
+  return text.search(URL_PASSWORD) !== -1;
 }
 
 export function redactSecretStrings<T>(value: T): T {

@@ -19,7 +19,7 @@ describe(PublishChecksService.name, () => {
     vi.useFakeTimers({ now: new Date("2026-11-18T10:00:00.000Z") });
     const { service, organizationId, templatePublisherRepository, templateSdlValidatorService } = setup();
 
-    const results = await service.run({ sdl: SDL, askedValues: [], title: "Llama 3.1 Chat", organizationId });
+    const results = await service.run({ sdl: SDL, readme: null, askedValues: [], title: "Llama 3.1 Chat", organizationId });
 
     expect(results.ranAt).toBe("2026-11-18T10:00:00.000Z");
     expect(results.checks.map(({ key, status }) => ({ key, status }))).toEqual([
@@ -36,7 +36,7 @@ describe(PublishChecksService.name, () => {
   it("fails the SDL check with what the template SDL validation found", async () => {
     const { service, organizationId } = setup({ sdlIssues: ["The SDL defines no services"] });
 
-    const results = await service.run({ sdl: SDL, askedValues: [askedValue({ service: "worker" })], title: "Llama", organizationId });
+    const results = await service.run({ sdl: SDL, readme: null, askedValues: [askedValue({ service: "worker" })], title: "Llama", organizationId });
 
     expect(issuesOf(results, "sdl_valid")).toEqual(["The SDL defines no services"]);
   });
@@ -44,7 +44,7 @@ describe(PublishChecksService.name, () => {
   it("fails the SDL check with an asked value the SDL cannot hold once the SDL itself is valid", async () => {
     const { service, organizationId } = setup();
 
-    const results = await service.run({ sdl: SDL, askedValues: [askedValue({ service: "worker" })], title: "Llama", organizationId });
+    const results = await service.run({ sdl: SDL, readme: null, askedValues: [askedValue({ service: "worker" })], title: "Llama", organizationId });
 
     expect(issuesOf(results, "sdl_valid")).toEqual(['Variable "PORT" fills in service "worker", which the SDL does not define']);
   });
@@ -52,7 +52,7 @@ describe(PublishChecksService.name, () => {
   it("reads the title and the organization's name for reserved words", async () => {
     const { service, organizationId } = setup({ organizationName: "Akash Fans" });
 
-    const results = await service.run({ sdl: SDL, askedValues: [], title: "Official Llama", organizationId });
+    const results = await service.run({ sdl: SDL, readme: null, askedValues: [], title: "Official Llama", organizationId });
 
     expect(results.checks.find(check => check.key === "name_not_reserved")?.issues.map(issue => issue.field)).toEqual(["title", "publisher_name"]);
   });
@@ -60,7 +60,7 @@ describe(PublishChecksService.name, () => {
   it("checks a template whose organization is gone under no publisher name", async () => {
     const { service, organizationId } = setup({ organizationName: null });
 
-    const results = await service.run({ sdl: SDL, askedValues: [], title: "Llama", organizationId });
+    const results = await service.run({ sdl: SDL, readme: null, askedValues: [], title: "Llama", organizationId });
 
     expect(issuesOf(results, "name_not_reserved")).toEqual([]);
   });

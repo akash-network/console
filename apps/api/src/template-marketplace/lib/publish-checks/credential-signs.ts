@@ -1,7 +1,9 @@
-import { isSdlReference } from "@src/deployment/services/sdl-reference/sdl-reference.service";
-import { redactSecrets } from "@src/feedback/lib/redact-secrets/redact-secrets";
+import { EnglishMnemonic } from "@cosmjs/crypto";
 
-export type CredentialSign = "known_format" | "credential_name" | "random_string";
+import { isSdlReference } from "@src/deployment/services/sdl-reference/sdl-reference.service";
+import { holdsIssuedCredential, holdsUrlPassword } from "@src/feedback/lib/redact-secrets/redact-secrets";
+
+export type CredentialSign = "known_format" | "credential_name" | "credential_assignment" | "random_string";
 
 const NOT_A_VALUE = /^(?:true|false|yes|no|on|off|enabled|disabled|none|null|nil|undefined|-?\d+(?:\.\d+)?)$/i;
 
@@ -68,19 +70,40 @@ const MIN_RANDOM_RUN_LENGTH = 24;
 const MIN_RANDOM_RUN_ENTROPY_BITS = 3.5;
 const ALPHANUMERIC_RUNS = /[A-Za-z0-9]+/g;
 const HEX_ONLY = /^(?:0x)?[0-9a-fA-F]+$/;
-const MNEMONIC_WORD = /^[a-z]{3,8}$/;
+const MNEMONIC_WORDS = new Set(EnglishMnemonic.wordlist);
 const MNEMONIC_WORD_COUNTS = new Set([12, 15, 18, 21, 24]);
+const BEARER_TOKEN = /\bbearer\s+([\w.~+/-]+=*)/i;
+const ASSIGNMENTS_INSIDE_A_VALUE = /["']?([A-Za-z][\w.-]*)["']?\s*[:=](?!\/\/)\s*["']?([^\s"',}\]]+)/g;
 
 /** Answers why a value reads as a key, token or password, without ever reporting the value itself. */
 export function findCredentialSign(value: string, variableName?: string): CredentialSign | undefined {
   const trimmed = value.trim();
 
-  if (!trimmed || NOT_A_VALUE.test(trimmed) || PLACEHOLDER.test(trimmed) || isSdlReference(trimmed)) return undefined;
-  if (redactSecrets(trimmed) !== trimmed || isMnemonic(trimmed)) return "known_format";
+  if (!isRealValue(trimmed)) return undefined;
+  if (holdsKnownFormat(trimmed)) return "known_format";
   if (variableName && isCredentialName(variableName, trimmed)) return "credential_name";
   if (holdsRandomString(trimmed)) return "random_string";
+  if (assignsCredential(trimmed)) return "credential_assignment";
 
   return undefined;
+}
+
+/** Narrower than the checks on a variable: free text and SDL lines carry no name to judge, and prose often mentions tokens without holding one. */
+export function holdsKnownCredentialFormat(text: string): boolean {
+  return holdsIssuedCredential(text) || isMnemonic(text.trim());
+}
+
+function isRealValue(value: string): boolean {
+  return !!value && !NOT_A_VALUE.test(value) && !PLACEHOLDER.test(value) && !isSdlReference(value);
+}
+
+function holdsKnownFormat(value: string): boolean {
+  return holdsKnownCredentialFormat(value) || holdsUrlPassword(value) || isOpaque(value.match(BEARER_TOKEN)?.[1] ?? "");
+}
+
+/** Arguments and inline config set values under their own names, such as `--api-key=…` inside a variable that is itself named for something else. */
+function assignsCredential(value: string): boolean {
+  return [...value.matchAll(ASSIGNMENTS_INSIDE_A_VALUE)].some(([, name, assigned]) => isRealValue(assigned) && isCredentialName(name, assigned));
 }
 
 function isCredentialName(name: string, value: string): boolean {
@@ -103,7 +126,7 @@ function isOpaque(value: string): boolean {
 function isMnemonic(value: string): boolean {
   const words = value.split(/\s+/);
 
-  return MNEMONIC_WORD_COUNTS.has(words.length) && words.every(word => MNEMONIC_WORD.test(word));
+  return MNEMONIC_WORD_COUNTS.has(words.length) && words.every(word => MNEMONIC_WORDS.has(word));
 }
 
 /** Hex is left to the name rule, since digests, commits and addresses are ordinary config; mixed-case runs this long are almost never words. */

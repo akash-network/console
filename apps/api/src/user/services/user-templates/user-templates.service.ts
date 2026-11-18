@@ -9,8 +9,8 @@ import { DeploymentProjectService } from "@src/deployment/services/deployment-pr
 import { summarizeTemplateHardware } from "@src/template/utils/template-hardware/template-hardware";
 import type { AskedValue } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
 import { contentCarriedByLegacySave } from "@src/template-marketplace/lib/legacy-save/content-carried-by-legacy-save";
-import { hasPassedPublishChecks } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
-import { createChecksFailedError } from "@src/template-marketplace/lib/publish-requirements/publish-refusals";
+import { hasPassedPublishChecks, type PublishCheckResults } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
+import { createChecksFailedError, createPublishGateRequiredError } from "@src/template-marketplace/lib/publish-requirements/publish-refusals";
 import { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
 import { PublishChecksService } from "@src/template-marketplace/services/publish-checks/publish-checks.service";
 import { TemplateUsageService } from "@src/template-marketplace/services/template-usage/template-usage.service";
@@ -154,37 +154,58 @@ export class UserTemplatesService {
         ? contentCarriedByLegacySave(template.sdl, { readme: stored.currentVersionReadme, askedValues: stored.currentVersionAskedValues }, template.description)
         : {};
 
-      if (this.#staysPublished(template, stored)) {
-        const askedValues = isNewVersion ? carried.askedValues : stored.currentVersionAskedValues;
-        await this.#assertPassesPublishChecks(template, stored.organizationId, askedValues ?? []);
-      }
+      const nextReadmeShown = readmeShownBy(isNewVersion ? carried.readme : stored.currentVersionReadme, template.description ?? stored.description);
+
+      if (this.#returnsToPublicPastPublishGate(template, stored)) throw createPublishGateRequiredError();
+
+      const checkResults = this.#staysPublicAfterPublishGate(template, stored)
+        ? await this.#findPassingPublishChecks(template, stored.organizationId, {
+            readme: nextReadmeShown,
+            askedValues: (isNewVersion ? carried.askedValues : stored.currentVersionAskedValues) ?? []
+          })
+        : undefined;
 
       await repository.updateTemplate(id, userId, visibilityPatch(template, stored));
 
       if (isNewVersion) {
-        const readmesShown = {
-          current: readmeShownBy(stored.currentVersionReadme, stored.description),
-          next: readmeShownBy(carried.readme, template.description ?? stored.description)
-        };
-        await this.#templateVersionRepository.appendVersion({ templateId: id, sdl: template.sdl, resources, createdById, ...carried, readmesShown });
+        const readmesShown = { current: readmeShownBy(stored.currentVersionReadme, stored.description), next: nextReadmeShown };
+        await this.#templateVersionRepository.appendVersion({
+          templateId: id,
+          sdl: template.sdl,
+          resources,
+          createdById,
+          ...carried,
+          readmesShown,
+          checkResults
+        });
       }
     });
   }
 
   /** A template that went through the publish gate stays held to its checks, since this route can save neither a failed version nor the reason. */
-  #staysPublished(template: TemplateInput, stored: TemplateVersionState): boolean {
-    return (
-      stored.visibility === "public" &&
-      !!stored.publishedAt &&
-      template.isPublic !== false &&
-      this.#featureFlagsService.isEnabled(FeatureFlags.TEMPLATE_MARKETPLACE)
-    );
+  #staysPublicAfterPublishGate(template: TemplateInput, stored: TemplateVersionState): boolean {
+    return stored.visibility === "public" && template.isPublic !== false && this.#wentThroughPublishGate(stored);
   }
 
-  async #assertPassesPublishChecks(template: TemplateInput, organizationId: string, askedValues: AskedValue[]): Promise<void> {
-    const checkResults = await this.#publishChecksService.run({ sdl: template.sdl, askedValues, title: template.title, organizationId });
+  /** Its owner took it out of the gallery, and only the publish route knows the requirements and terms that let it back in. */
+  #returnsToPublicPastPublishGate(template: TemplateInput, stored: TemplateVersionState): boolean {
+    return stored.visibility !== "public" && template.isPublic === true && this.#wentThroughPublishGate(stored);
+  }
+
+  #wentThroughPublishGate(stored: TemplateVersionState): boolean {
+    return !!stored.publishedAt && this.#featureFlagsService.isEnabled(FeatureFlags.TEMPLATE_MARKETPLACE);
+  }
+
+  async #findPassingPublishChecks(
+    template: TemplateInput,
+    organizationId: string,
+    content: { readme: string | null; askedValues: AskedValue[] }
+  ): Promise<PublishCheckResults> {
+    const checkResults = await this.#publishChecksService.run({ sdl: template.sdl, title: template.title, organizationId, ...content });
 
     if (!hasPassedPublishChecks(checkResults)) throw createChecksFailedError(checkResults);
+
+    return checkResults;
   }
 
   /** A caller whose rules reach no template, such as a billing member of a team, reads public templates only. */

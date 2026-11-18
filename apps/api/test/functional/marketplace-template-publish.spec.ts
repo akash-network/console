@@ -35,6 +35,12 @@ const LATEST_TAG_ISSUE = {
   image: "nginx:latest"
 };
 
+const PROVIDER_KEY = "hf_abcdefghijklmnopqrstuv";
+const README_KEY_ISSUE = {
+  message: "Line 3 of the README holds a key or token in a format providers issue. Remove it before the template is public; anyone could read and use it.",
+  field: "readme"
+};
+
 type ReadinessBody = {
   data: { requirements: { key: string; met: boolean }[]; checks: PublishCheck[]; canPublish: boolean; termsVersion: string; ranAt: string };
 };
@@ -413,6 +419,49 @@ describe("Marketplace template publishing", () => {
       expect((await versionsOf(template.id))[0]).toMatchObject({ status: "live", checkResults: null });
     });
 
+    it("refuses a template whose README holds a provider key, naming the line without repeating the key", async () => {
+      const { owner, team, project, actAs } = await setup();
+      const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id });
+      const templates = resolveTable("Templates");
+      await db()
+        .update(templates)
+        .set({ description: `# Chat\n\nRun it with ${PROVIDER_KEY} as the hub token.` })
+        .where(eq(templates.id, template.id));
+
+      const response = await actAs(owner)(`/v1/user-templates/${template.id}/publish`, { method: "POST", body: ACCEPT_TERMS });
+
+      expect(response.status).toBe(400);
+      const text = await response.text();
+      expect(text).not.toContain(PROVIDER_KEY);
+      const body = JSON.parse(text) as ErrorBody;
+      expect(body.code).toBe("template_publish_checks_failed");
+      expect(body.data.checks).toContainEqual({ key: "no_secrets", status: "failed", issues: [README_KEY_ISSUE] });
+      await expectNothingPublished(template.id, team.id);
+    });
+
+    it("refuses a template whose SDL keeps a provider key in a comment", async () => {
+      const { owner, team, project, actAs } = await setup();
+      const sdl = `# hub token ${PROVIDER_KEY}\n${buildSdl()}`;
+      const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id, sdl });
+
+      const response = await actAs(owner)(`/v1/user-templates/${template.id}/publish`, { method: "POST", body: ACCEPT_TERMS });
+
+      expect(response.status).toBe(400);
+      const body = (await response.json()) as ErrorBody;
+      expect(body.data.checks).toContainEqual({
+        key: "no_secrets",
+        status: "failed",
+        issues: [
+          {
+            message:
+              "Line 1 of the SDL holds a key or token in a format providers issue. Remove it before the template is public; anyone could read and use it.",
+            field: "sdl"
+          }
+        ]
+      });
+      await expectNothingPublished(template.id, team.id);
+    });
+
     it("refuses a legacy template that has no saved version to check", async () => {
       const { owner, team, project, actAs } = await setup();
       const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id, withoutVersion: true });
@@ -553,6 +602,24 @@ describe("Marketplace template publishing", () => {
       const { data } = (await response.json()) as { data: { id: string } };
       expect(data).toMatchObject({ version: 3, status: "live", changes: ["image_tag_changed"] });
       expect(await storedTemplate(published.id)).toMatchObject({ currentVersionId: data.id });
+    });
+
+    it("stores a version whose README holds a provider key as failed, and keeps the README readers see", async () => {
+      const { owner, actAs, read, published } = await setupPublished();
+
+      const response = await actAs(owner)(`/v1/user-templates/${published.id}/versions`, {
+        method: "POST",
+        body: {
+          data: { sdl: buildSdl({ image: "nginx:1.26" }), readme: `# Chat\n\nRun it with ${PROVIDER_KEY} as the hub token.`, askedValues: [], baseVersion: 1 }
+        }
+      });
+
+      expect(response.status).toBe(201);
+      const { data } = (await response.json()) as { data: { status: string; checkResults: { checks: PublishCheck[] } } };
+      expect(data.status).toBe("failed_checks");
+      expect(data.checkResults.checks).toContainEqual({ key: "no_secrets", status: "failed", issues: [README_KEY_ISSUE] });
+      const forVisitor = await read(`/v1/user-templates/${published.id}`);
+      expect(await forVisitor.text()).not.toContain(PROVIDER_KEY);
     });
 
     it("answers 409 to a fix edited from a failed version once another version became current after it", async () => {
@@ -705,10 +772,42 @@ describe("Marketplace template publishing", () => {
       const response = await actAs(owner)("/v1/user/saveTemplate", { method: "POST", body: legacySaveOf(published, buildSdl({ image: "nginx:1.26" })) });
 
       expect(response.status).toBe(200);
-      expect((await versionsOf(published.id)).map(({ version, status }) => ({ version, status }))).toEqual([
+      const versions = await versionsOf(published.id);
+      expect(versions.map(({ version, status }) => ({ version, status }))).toEqual([
         { version: 1, status: "live" },
         { version: 2, status: "live" }
       ]);
+      expect(versions[1].checkResults?.checks.map(({ key, status }) => ({ key, status }))).toEqual(ALL_PASSED.map(({ key, status }) => ({ key, status })));
+    });
+
+    it("refuses a save whose description, shown as the README, holds a provider key", async () => {
+      const { owner, actAs, published } = await setupPublished();
+      const body = { ...legacySaveOf(published, buildSdl({ image: "nginx:1.26" })), description: `Run it with ${PROVIDER_KEY}` };
+
+      const response = await actAs(owner)("/v1/user/saveTemplate", { method: "POST", body });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ code: "template_publish_checks_failed" });
+      expect(await versionsOf(published.id)).toHaveLength(1);
+    });
+
+    it("refuses to make a template public again once it was taken out of the gallery, and still saves it as private", async () => {
+      const { owner, actAs, published } = await setupPublished();
+      const madePrivate = await actAs(owner)(`/v1/user-templates/${published.id}`, { method: "PATCH", body: { data: { visibility: "private" } } });
+      expect(madePrivate.status).toBe(200);
+      const save = legacySaveOf(published, buildSdl({ image: "nginx:latest" }));
+
+      const madePublicAgain = await actAs(owner)("/v1/user/saveTemplate", { method: "POST", body: save });
+
+      expect(madePublicAgain.status).toBe(409);
+      expect(await madePublicAgain.json()).toMatchObject({ code: "template_publish_gate_required" });
+      expect(await versionsOf(published.id)).toHaveLength(1);
+      expect(await storedTemplate(published.id)).toMatchObject({ visibility: "private", isPublic: false, sdl: published.sdl });
+
+      const keptPrivate = await actAs(owner)("/v1/user/saveTemplate", { method: "POST", body: { ...save, isPublic: false } });
+
+      expect(keptPrivate.status).toBe(200);
+      expect(await storedTemplate(published.id)).toMatchObject({ visibility: "private", isPublic: false, sdl: save.sdl });
     });
 
     it("saves as it always did while template_marketplace is off", async () => {

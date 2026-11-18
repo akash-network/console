@@ -92,6 +92,95 @@ describe(runPublishChecks.name, () => {
       ]);
     });
 
+    it("names a credential an env value sets under its own name", () => {
+      const results = setup({ sdl: buildSdl({ web: { image: "nginx:1.27.2", env: ["EXTRA_ARGS=--api-key=hunter2abc --max_tokens=512"] } }) });
+
+      expect(checkOf(results, "no_secrets").issues).toEqual([
+        {
+          message:
+            "web.env.EXTRA_ARGS sets a value under a name that reads like a key, token or password. Remove the value, or ask the deployer for it as a secret so nobody deploys with yours.",
+          service: "web",
+          variable: "EXTRA_ARGS"
+        }
+      ]);
+    });
+
+    it("passes arguments and prompts that only mention tokens", () => {
+      const results = setup({
+        sdl: buildSdl({
+          web: {
+            image: "nginx:1.27.2",
+            env: ["EXTRA_ARGS=--max_tokens=512 --temperature=0.7", "SYSTEM_PROMPT=you are now using the fast model with some safe default values"]
+          }
+        })
+      });
+
+      expect(checkOf(results, "no_secrets")).toEqual({ key: "no_secrets", status: "passed", issues: [] });
+    });
+
+    it("names the line of a provider key left in an SDL comment or argument, without repeating the key", () => {
+      const sdl = [
+        'version: "2.0"',
+        "services:",
+        "  web:",
+        "    image: nginx:1.27.2",
+        "    # old token: hf_abcdefghijklmnopqrstuv",
+        "    args:",
+        "      - --hub-token",
+        "      - hf_zyxwvutsrqponmlkjihgfe"
+      ].join("\r\n");
+
+      const results = setup({ sdl });
+
+      const lineIssue = (line: number) => ({
+        message: `Line ${line} of the SDL holds a key or token in a format providers issue. Remove it before the template is public; anyone could read and use it.`,
+        field: "sdl"
+      });
+      expect(checkOf(results, "no_secrets")).toEqual({ key: "no_secrets", status: "failed", issues: [lineIssue(5), lineIssue(8)] });
+    });
+
+    it("reports a provider key in an env value once, under its variable", () => {
+      const sdl = ['version: "2.0"', "services:", "  web:", "    image: nginx:1.27.2", "    env:", "      - HUB=hf_abcdefghijklmnopqrstuv"].join("\n");
+
+      const results = setup({ sdl });
+
+      expect(checkOf(results, "no_secrets").issues).toEqual([expect.objectContaining({ service: "web", variable: "HUB" })]);
+    });
+
+    it("still names a provider key in a comment that shares its line with an ordinary env value", () => {
+      const sdl = ['version: "2.0"', "services:", "  web:", "    image: nginx:1.27.2", "    env:", "      - MODE=fast # hf_abcdefghijklmnopqrstuv"].join("\n");
+
+      const results = setup({ sdl });
+
+      expect(checkOf(results, "no_secrets").issues).toEqual([expect.objectContaining({ field: "sdl", message: expect.stringContaining("Line 6 of the SDL") })]);
+    });
+
+    it("names the line of a provider key or a mnemonic in the README, without repeating it", () => {
+      const readme = [
+        "# Chat",
+        "",
+        "Run it with hf_abcdefghijklmnopqrstuv as the hub token.",
+        "",
+        "abandon ability able about above absent absorb abstract absurd abuse access accident"
+      ].join("\n");
+
+      const results = setup({ readme });
+
+      const lineIssue = (line: number) => ({
+        message: `Line ${line} of the README holds a key or token in a format providers issue. Remove it before the template is public; anyone could read and use it.`,
+        field: "readme"
+      });
+      expect(checkOf(results, "no_secrets")).toEqual({ key: "no_secrets", status: "failed", issues: [lineIssue(3), lineIssue(5)] });
+    });
+
+    it("passes a README that explains tokens without holding one", () => {
+      const readme = "# Chat\n\nSet HF_TOKEN to your own token. Requests need a Bearer token; max_tokens=512 by default.";
+
+      const results = setup({ readme });
+
+      expect(checkOf(results, "no_secrets")).toEqual({ key: "no_secrets", status: "passed", issues: [] });
+    });
+
     it("reads an env written as a mapping too", () => {
       const results = setup({ sdl: buildSdl({ web: { image: "nginx:1.27.2", env: { API_TOKEN: "abc123" } } }) });
 
@@ -321,6 +410,7 @@ describe(runPublishChecks.name, () => {
   function setup(input: Partial<PublishCheckInput> = {}) {
     return runPublishChecks({
       sdl: buildSdl({ web: { image: "nginx:1.27.2" } }),
+      readme: null,
       askedValues: [],
       title: "Llama 3.1 Chat",
       publisherName: "Sam Rivera",
