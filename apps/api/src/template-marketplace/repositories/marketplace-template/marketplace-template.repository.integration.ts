@@ -444,6 +444,32 @@ describe(MarketplaceTemplateRepository.name, () => {
     });
   });
 
+  describe("findOfAnyOrganization", () => {
+    it("reads a private, hidden or removed template of any organization, with no organization in context", async () => {
+      const { repository, organization, project } = await setup();
+      const other = await seedOrganization();
+      const templates = await Promise.all([
+        seedTemplate({ organizationId: other.id, visibility: "private" }),
+        seedTemplate({ organizationId: other.id, visibility: "public", moderationStatus: "hidden" }),
+        seedTemplate({ organizationId: organization.id, projectId: project.id, visibility: "private", moderationStatus: "removed" })
+      ]);
+
+      const found = await Promise.all(templates.map(template => repository.findOfAnyOrganization(template.id)));
+
+      expect(found.map(template => [template?.id, template?.title, template?.organizationId])).toEqual([
+        [templates[0].id, templates[0].title, other.id],
+        [templates[1].id, templates[1].title, other.id],
+        [templates[2].id, templates[2].title, organization.id]
+      ]);
+    });
+
+    it("finds nothing for an id no template has", async () => {
+      const { repository } = await setup();
+
+      expect(await repository.findOfAnyOrganization(faker.string.uuid())).toBeUndefined();
+    });
+  });
+
   describe("findAndLockForWrite", () => {
     it("returns the template row inside a transaction, whichever organization is active", async () => {
       const { repository, organization, project } = await setup();

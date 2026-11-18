@@ -130,6 +130,11 @@ export class MarketplaceTemplateRepository extends OrgScopedRepository<Table, Pa
       .where(eq(this.table.id, id));
   }
 
+  /** For the jobs that tell a publisher about its own template, which run in no organization and read a removed one too. */
+  async findOfAnyOrganization(id: string): Promise<Row | undefined> {
+    return await this.unscoped("template-publisher-notifications").findById(id);
+  }
+
   async listInOrganization({ organizationId, visibility, projectId, limit }: UserTemplateListFilter): Promise<UserTemplateListRow[]> {
     return await this.cursor
       .select({
