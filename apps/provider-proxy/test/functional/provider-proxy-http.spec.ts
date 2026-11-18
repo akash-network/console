@@ -1142,7 +1142,8 @@ describe("Provider HTTP proxy", () => {
     it("returns 400 without connecting when an oversized provider address would make the chain lookup fail", async () => {
       const providerAddress = toBech32("akash", new Uint8Array(4000), Infinity);
       const validCertPair = await createX509CertPair({ commonName: generateBech32() });
-      const chainServer = await startChainApiServer([validCertPair.cert], { interceptRequest: failProviderLookup });
+      const interceptRequest = vi.fn(failProviderLookup);
+      const chainServer = await startChainApiServer([validCertPair.cert], { interceptRequest });
       const handleRequest = vi.fn((_, res) => res.end("Hello, World!"));
       const { providerUrl } = await startProviderServer({ certPair: validCertPair, handlers: { "/200.txt": handleRequest } });
       await startServer({ REST_API_NODE_URL: chainServer.url });
@@ -1153,6 +1154,7 @@ describe("Provider HTTP proxy", () => {
       });
 
       expect(response.status).toBe(400);
+      expect(interceptRequest).not.toHaveBeenCalled();
       expect(handleRequest).not.toHaveBeenCalled();
     });
 
