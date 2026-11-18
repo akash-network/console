@@ -1,10 +1,10 @@
 import { inject, singleton } from "tsyringe";
 
-import { UserWalletRepository } from "@src/billing/repositories/user-wallet/user-wallet.repository";
 import { type CreateLogger, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { gpuAlertLeaveUrl, gpuSetupDeployUrl, gpuSetupLabel } from "@src/gpu-waitlist/lib/gpu-setup-links/gpu-setup-links";
-import { GpuWaitlistEntryRepository, type GpuWaitlistEntryRow } from "@src/gpu-waitlist/repositories/gpu-waitlist-entry/gpu-waitlist-entry.repository";
+import { GpuWaitlistEntryRepository } from "@src/gpu-waitlist/repositories/gpu-waitlist-entry/gpu-waitlist-entry.repository";
+import { HardwareRequestAccountService } from "@src/hardware-request/services/hardware-request-account/hardware-request-account.service";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { gpuAvailableNotification } from "@src/notifications/services/notification-templates/gpu-available-notification";
 import { UserRepository } from "@src/user/repositories";
@@ -19,7 +19,7 @@ export class GpuAvailableNoticeHandler implements JobHandler<GpuAvailableNoticeJ
   constructor(
     private readonly gpuWaitlistEntryRepository: GpuWaitlistEntryRepository,
     private readonly userRepository: UserRepository,
-    private readonly userWalletRepository: UserWalletRepository,
+    private readonly hardwareRequestAccountService: HardwareRequestAccountService,
     private readonly notificationService: NotificationService,
     private readonly deploymentConfigService: DeploymentConfigService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
@@ -47,24 +47,18 @@ export class GpuAvailableNoticeHandler implements JobHandler<GpuAvailableNoticeJ
     }
 
     const baseUrl = this.deploymentConfigService.get("DEPLOY_WEB_BASE_URL");
+    const accountType = await this.hardwareRequestAccountService.findAccountType({ userId: entry.userId, organizationId: entry.organizationId });
 
-    await this.notificationService.createNotification(
+    await this.notificationService.createNotificationOnce(
       gpuAvailableNotification(user, {
         entryId,
         waveNumber,
         priceUsdPerHour,
         setupLabel: gpuSetupLabel(entry),
-        isTrial: await this.#isTrialing(entry),
-        deployUrl: gpuSetupDeployUrl(baseUrl, entry),
-        leaveUrl: gpuAlertLeaveUrl(baseUrl, entryId)
+        isTrial: accountType === "trial",
+        deployUrl: gpuSetupDeployUrl(baseUrl, entry, entry.organizationId),
+        leaveUrl: gpuAlertLeaveUrl(baseUrl, entryId, entry.organizationId)
       })
     );
-  }
-
-  async #isTrialing(entry: GpuWaitlistEntryRow): Promise<boolean> {
-    const wallets = this.userWalletRepository.unscoped("gpu-waitlist-watcher");
-    const wallet = entry.organizationId ? await wallets.findOneByOrganizationId(entry.organizationId) : await wallets.findOneByUserId(entry.userId);
-
-    return wallet?.isTrialing !== false;
   }
 }

@@ -22,6 +22,14 @@ describe("gpu setup links", () => {
     expect(gpuAlertKeepUrl(BASE, "entry-1")).toBe(`${BASE}/gpu-requests?keepAlert=entry-1`);
   });
 
+  it("scopes every link to the entry's organization when it has one", () => {
+    const setup = { vendor: "nvidia", model: "h100", gpuCount: 8 };
+
+    expect(gpuSetupDeployUrl(BASE, setup, "org-1")).toBe(`${BASE}/new-deployment/configure?gpuVendor=nvidia&gpuModel=h100&gpuCount=8&org=org-1`);
+    expect(gpuAlertLeaveUrl(BASE, "entry-1", "org-1")).toBe(`${BASE}/gpu-requests?leaveAlert=entry-1&org=org-1`);
+    expect(gpuAlertKeepUrl(BASE, "entry-1", "org-1")).toBe(`${BASE}/gpu-requests?keepAlert=entry-1&org=org-1`);
+  });
+
   it("labels a setup with its count, model, memory and interface", () => {
     expect(gpuSetupLabel({ vendor: "nvidia", model: "h100", gpuCount: 8, memory: "80Gi", interface: "sxm5" })).toBe("8× H100 80Gi SXM5");
     expect(gpuSetupLabel({ vendor: "nvidia", model: "a100", gpuCount: 1 })).toBe("1× A100");

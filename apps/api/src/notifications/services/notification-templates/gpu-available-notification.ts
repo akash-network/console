@@ -1,3 +1,5 @@
+import escapeHtml from "lodash/escape";
+
 import type { UserOutput } from "@src/user/repositories";
 import type { CreateNotificationInput } from "../notification/notification.service";
 
@@ -13,7 +15,7 @@ export type GpuAvailableVars = {
 
 export function gpuAvailableNotification(user: Pick<UserOutput, "id" | "email">, vars: GpuAvailableVars): CreateNotificationInput {
   const description = [
-    `<p>${vars.setupLabel} is available on Akash from $${vars.priceUsdPerHour}/hr.</p>`,
+    `<p>${escapeHtml(vars.setupLabel)} is available on Akash from $${vars.priceUsdPerHour.toFixed(2)}/hr.</p>`,
     "<p>The first to deploy gets it, so we can't hold it for you.</p>",
     vars.isTrial ? "<p>Add a payment method to deploy GPUs.</p>" : ""
   ].join("");

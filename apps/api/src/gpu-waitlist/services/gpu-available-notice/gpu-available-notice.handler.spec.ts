@@ -1,10 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { UserWalletRepository } from "@src/billing/repositories/user-wallet/user-wallet.repository";
 import type { CreateLogger } from "@src/core";
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import type { GpuWaitlistEntryRepository, GpuWaitlistEntryRow } from "@src/gpu-waitlist/repositories/gpu-waitlist-entry/gpu-waitlist-entry.repository";
+import type {
+  HardwareRequestAccountService,
+  HardwareRequestAccountType
+} from "@src/hardware-request/services/hardware-request-account/hardware-request-account.service";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
 import type { UserRepository } from "@src/user/repositories";
 import { GpuAvailableNoticeHandler } from "./gpu-available-notice.handler";
@@ -12,17 +15,19 @@ import { GpuAvailableNoticeHandler } from "./gpu-available-notice.handler";
 import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createUser } from "@test/seeders/user.seeder";
 
+const PAYLOAD = { entryId: "entry-1", waveNumber: 1, priceUsdPerHour: 2.5, version: 1 } as const;
+
 describe(GpuAvailableNoticeHandler.name, () => {
   it("emails the waiting user with the setup, price and links", async () => {
     const { handler, notificationService, user } = setup({});
 
-    await handler.handle({ entryId: "entry-1", waveNumber: 1, priceUsdPerHour: 2.5, version: 1 });
+    await handler.handle(PAYLOAD);
 
-    expect(notificationService.createNotification).toHaveBeenCalledWith({
+    expect(notificationService.createNotificationOnce).toHaveBeenCalledWith({
       notificationId: "gpuAvailable.entry-1.1",
       payload: {
         summary: "8× H100 80Gi SXM5 is available on Akash",
-        description: expect.stringContaining("from $2.5/hr"),
+        description: expect.stringContaining("from $2.50/hr"),
         actions: [
           {
             label: "Deploy now",
@@ -35,42 +40,63 @@ describe(GpuAvailableNoticeHandler.name, () => {
     });
   });
 
-  it("is sent once per wave", async () => {
+  it("scopes the links to the organization of a team entry", async () => {
+    const { handler, notificationService, accountService } = setup({ organizationId: "org-1" });
+
+    await handler.handle(PAYLOAD);
+
+    expect(accountService.findAccountType).toHaveBeenCalledWith({ userId: expect.any(String), organizationId: "org-1" });
+    expect(notificationService.createNotificationOnce).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          actions: [
+            expect.objectContaining({ url: expect.stringContaining("&org=org-1") }),
+            { label: "Stop these alerts", url: "https://console.example.com/gpu-requests?leaveAlert=entry-1&org=org-1" }
+          ]
+        })
+      })
+    );
+  });
+
+  it("keys the notification on the entry and wave", async () => {
     const { handler, notificationService } = setup({});
 
-    await handler.handle({ entryId: "entry-1", waveNumber: 1, priceUsdPerHour: 2.5, version: 1 });
-    await handler.handle({ entryId: "entry-1", waveNumber: 1, priceUsdPerHour: 2.5, version: 1 });
-    await handler.handle({ entryId: "entry-1", waveNumber: 2, priceUsdPerHour: 2.5, version: 1 });
+    await handler.handle(PAYLOAD);
+    await handler.handle(PAYLOAD);
+    await handler.handle({ ...PAYLOAD, waveNumber: 2 });
 
-    const ids = notificationService.createNotification.mock.calls.map(([input]) => input.notificationId);
+    const ids = notificationService.createNotificationOnce.mock.calls.map(([input]) => input.notificationId);
     expect(ids).toEqual(["gpuAvailable.entry-1.1", "gpuAvailable.entry-1.1", "gpuAvailable.entry-1.2"]);
   });
 
-  it("tells trialing users to add a payment method", async () => {
-    const { handler, notificationService } = setup({ isTrialing: true });
+  it.each([
+    { accountType: "trial", isTrial: true },
+    { accountType: "paying", isTrial: false },
+    { accountType: "no_card", isTrial: false }
+  ] as const)("treats a $accountType account as trial: $isTrial", async ({ accountType, isTrial }) => {
+    const { handler, notificationService } = setup({ accountType });
 
-    await handler.handle({ entryId: "entry-1", waveNumber: 1, priceUsdPerHour: 2.5, version: 1 });
+    await handler.handle(PAYLOAD);
 
-    expect(notificationService.createNotification).toHaveBeenCalledWith(
-      expect.objectContaining({ payload: expect.objectContaining({ description: expect.stringContaining("Add a payment method to deploy GPUs") }) })
-    );
+    const description = notificationService.createNotificationOnce.mock.calls[0][0].payload.description;
+    expect(description.includes("Add a payment method to deploy GPUs")).toBe(isTrial);
   });
 
   it.each(["fulfilled", "left", "expired"] as const)("skips an entry that has ended as %s", async status => {
     const { handler, notificationService } = setup({ status });
 
-    await handler.handle({ entryId: "entry-1", waveNumber: 1, priceUsdPerHour: 2.5, version: 1 });
+    await handler.handle(PAYLOAD);
 
-    expect(notificationService.createNotification).not.toHaveBeenCalled();
+    expect(notificationService.createNotificationOnce).not.toHaveBeenCalled();
   });
 
   it("skips and logs when the entry is gone", async () => {
     const { handler, notificationService, entryRepository, logger } = setup({});
     entryRepository.findByIdAcrossOrganizations.mockResolvedValue(undefined);
 
-    await handler.handle({ entryId: "missing", waveNumber: 1, priceUsdPerHour: 2.5, version: 1 });
+    await handler.handle({ ...PAYLOAD, entryId: "missing" });
 
-    expect(notificationService.createNotification).not.toHaveBeenCalled();
+    expect(notificationService.createNotificationOnce).not.toHaveBeenCalled();
     expect(logger.info).toHaveBeenCalledWith({ event: "GPU_AVAILABLE_NOTICE_SKIPPED", entryId: "missing", reason: "Entry not found" });
   });
 
@@ -78,9 +104,9 @@ describe(GpuAvailableNoticeHandler.name, () => {
     const { handler, notificationService, userRepository, logger } = setup({});
     userRepository.findById.mockResolvedValue(undefined);
 
-    await handler.handle({ entryId: "entry-1", waveNumber: 1, priceUsdPerHour: 2.5, version: 1 });
+    await handler.handle(PAYLOAD);
 
-    expect(notificationService.createNotification).not.toHaveBeenCalled();
+    expect(notificationService.createNotificationOnce).not.toHaveBeenCalled();
     expect(logger.warn).toHaveBeenCalledWith({ event: "GPU_AVAILABLE_NOTICE_SKIPPED", entryId: "entry-1", reason: "User or email not found" });
   });
 
@@ -91,12 +117,12 @@ describe(GpuAvailableNoticeHandler.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: GpuAvailableNoticeHandler.name });
   });
 
-  function setup(input: { status?: GpuWaitlistEntryRow["status"]; isTrialing?: boolean }) {
+  function setup(input: { status?: GpuWaitlistEntryRow["status"]; accountType?: HardwareRequestAccountType; organizationId?: string }) {
     const user = createUser({ email: "jane@example.com" });
     const entry = mock<GpuWaitlistEntryRow>({
       id: "entry-1",
       userId: user.id,
-      organizationId: null,
+      organizationId: input.organizationId ?? null,
       vendor: "nvidia",
       model: "h100",
       memory: "80Gi",
@@ -108,23 +134,14 @@ describe(GpuAvailableNoticeHandler.name, () => {
     entryRepository.findByIdAcrossOrganizations.mockResolvedValue(entry);
     const userRepository = mock<UserRepository>();
     userRepository.findById.mockResolvedValue(user);
-    const wallets = mock<UserWalletRepository>();
-    wallets.findOneByUserId.mockResolvedValue({ isTrialing: input.isTrialing ?? false } as Awaited<ReturnType<UserWalletRepository["findOneByUserId"]>>);
-    const userWalletRepository = mock<UserWalletRepository>();
-    userWalletRepository.unscoped.mockReturnValue(wallets);
+    const accountService = mock<HardwareRequestAccountService>();
+    accountService.findAccountType.mockResolvedValue(input.accountType ?? "paying");
     const notificationService = mock<NotificationService>();
     const deploymentConfigService = mockConfigService<DeploymentConfigService>({ DEPLOY_WEB_BASE_URL: "https://console.example.com" });
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
-    const handler = new GpuAvailableNoticeHandler(
-      entryRepository,
-      userRepository,
-      userWalletRepository,
-      notificationService,
-      deploymentConfigService,
-      createLogger
-    );
+    const handler = new GpuAvailableNoticeHandler(entryRepository, userRepository, accountService, notificationService, deploymentConfigService, createLogger);
 
-    return { handler, entryRepository, userRepository, notificationService, logger, createLogger, user };
+    return { handler, entryRepository, userRepository, accountService, notificationService, logger, createLogger, user };
   }
 });
