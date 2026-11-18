@@ -155,6 +155,65 @@ describe(runPublishChecks.name, () => {
       expect(checkOf(results, "no_secrets").issues).toEqual([expect.objectContaining({ field: "sdl", message: expect.stringContaining("Line 6 of the SDL") })]);
     });
 
+    it("still names a second provider key that shares its line with one reported under its variable", () => {
+      const sdl = [
+        'version: "2.0"',
+        "services:",
+        "  web:",
+        "    image: nginx:1.27.2",
+        "    env:",
+        "      - HUB=hf_abcdefghijklmnopqrstuv # backup hf_zyxwvutsrqponmlkjihgfe"
+      ].join("\n");
+
+      const results = setup({ sdl });
+
+      expect(checkOf(results, "no_secrets").issues).toEqual([
+        expect.objectContaining({ service: "web", variable: "HUB" }),
+        expect.objectContaining({ field: "sdl", message: expect.stringContaining("Line 6 of the SDL") })
+      ]);
+    });
+
+    it("reports a provider key written after a placeholder word under its variable", () => {
+      const results = setup({ sdl: buildSdl({ web: { image: "nginx:1.27.2", env: ["NOTE=your-token hf_abcdefghijklmnopqrstuv"] } }) });
+
+      expect(checkOf(results, "no_secrets").issues).toEqual([expect.objectContaining({ service: "web", variable: "NOTE" })]);
+    });
+
+    it("names the first line of a private key block and of a mnemonic that span lines of the README, once each", () => {
+      const readme = [
+        "# Chat",
+        "-----BEGIN PRIVATE KEY-----",
+        "MIIEvQIBADANBgkqhkiG9w0BAQEFAASC",
+        "-----END PRIVATE KEY-----",
+        "",
+        "abandon ability able about above absent",
+        "absorb abstract absurd abuse access accident"
+      ].join("\n");
+
+      const results = setup({ readme });
+
+      expect(checkOf(results, "no_secrets").issues.map(({ message, field }) => ({ line: message.match(/^Line (\d+) /)?.[1], field }))).toEqual([
+        { line: "2", field: "readme" },
+        { line: "6", field: "readme" }
+      ]);
+    });
+
+    it("lists the lines in the order they are written, whichever format each one holds", () => {
+      const readme = ["Hub token hf_abcdefghijklmnopqrstuv", "", "API key sk-abcdefghijklmnop1234", "", "-----BEGIN PRIVATE KEY-----"].join("\n");
+
+      const results = setup({ readme });
+
+      expect(checkOf(results, "no_secrets").issues.map(({ message }) => message.match(/^Line (\d+) /)?.[1])).toEqual(["1", "3", "5"]);
+    });
+
+    it("names the line of a private key header left without the rest of its block", () => {
+      const results = setup({ readme: "# Chat\n\n-----BEGIN RSA PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASC" });
+
+      expect(checkOf(results, "no_secrets").issues).toEqual([
+        expect.objectContaining({ field: "readme", message: expect.stringContaining("Line 3 of the README") })
+      ]);
+    });
+
     it("names the line of a provider key or a mnemonic in the README, without repeating it", () => {
       const readme = [
         "# Chat",

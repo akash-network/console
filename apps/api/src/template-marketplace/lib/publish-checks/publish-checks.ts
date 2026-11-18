@@ -4,7 +4,7 @@ import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import type { AskedValue } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
 import { findSecretValueIssues, readSdlEnvValues } from "@src/template-marketplace/lib/asked-values/find-secret-value-issues";
 import { type BlockedImageKind, findBlockedImageKind } from "./blocked-images";
-import { type CredentialSign, findCredentialSign, holdsKnownCredentialFormat } from "./credential-signs";
+import { type CredentialSign, findCredentialSign, findKnownCredentialOffsets } from "./credential-signs";
 import { isPinned, parseImageReference } from "./image-reference";
 import { type PublishCheckIssue, type PublishCheckResults, toPublishCheck } from "./publish-check-results";
 import { findReservedWords } from "./reserved-names";
@@ -65,21 +65,21 @@ function findSecretIssues({ sdl, readme, askedValues }: PublishCheckInput): Publ
       .filter(askedValue => askedValue.type === "secret")
       .flatMap(askedValue => askedValue.bindings.map(binding => bindingKey(binding.service, binding.env)))
   );
-  const envValues = readSdlEnvValues(sdl);
-  const envIssues = envValues.flatMap(({ service, variable, value }): PublishCheckIssue[] => {
-    const sign = secretBindings.has(bindingKey(service, variable)) ? undefined : findCredentialSign(value, variable);
+  const credentialEnvValues = readSdlEnvValues(sdl).flatMap(entry => {
+    const sign = findCredentialSign(entry.value, entry.variable);
 
-    return sign
-      ? [
-          {
-            message: `${service}.env.${variable} ${CREDENTIAL_SIGN_LABELS[sign]}. Remove the value, or ask the deployer for it as a secret so nobody deploys with yours.`,
-            service,
-            variable
-          }
-        ]
-      : [];
+    return sign ? [{ ...entry, sign }] : [];
   });
-  const envValuesReportedByVariable = envValues.map(({ value }) => value).filter(holdsKnownCredentialFormat);
+  const envIssues = credentialEnvValues
+    .filter(({ service, variable }) => !secretBindings.has(bindingKey(service, variable)))
+    .map(
+      ({ service, variable, sign }): PublishCheckIssue => ({
+        message: `${service}.env.${variable} ${CREDENTIAL_SIGN_LABELS[sign]}. Remove the value, or ask the deployer for it as a secret so nobody deploys with yours.`,
+        service,
+        variable
+      })
+    );
+  const envValuesReportedByVariable = credentialEnvValues.map(({ value }) => value);
 
   return [
     ...findSecretValueIssues(sdl, askedValues).map(message => ({ message })),
@@ -92,18 +92,17 @@ function findSecretIssues({ sdl, readme, askedValues }: PublishCheckInput): Publ
 
 const CREDENTIAL_LINE_SOURCES = { sdl: "the SDL", readme: "the README" };
 
-/** Reads the text as written, so a key in a comment, an argument or the README is found too; a line holding an env value reported under its variable is skipped. */
+/** Reads the text as written, so a key in a comment, an argument or the README is found too; only the env values already reported under their variable are left out, and whatever shares their line is still read. */
 function findCredentialLineIssues(text: string, field: keyof typeof CREDENTIAL_LINE_SOURCES, reportedValues: string[]): PublishCheckIssue[] {
-  return text.split(/\r?\n/).flatMap((line, index): PublishCheckIssue[] =>
-    holdsKnownCredentialFormat(line) && !reportedValues.some(value => line.includes(value))
-      ? [
-          {
-            message: `Line ${index + 1} of ${CREDENTIAL_LINE_SOURCES[field]} ${CREDENTIAL_SIGN_LABELS.known_format}. Remove it before the template is public; anyone could read and use it.`,
-            field
-          }
-        ]
-      : []
-  );
+  const unreportedText = reportedValues.reduce((rest, value) => rest.replaceAll(value, " ".repeat(value.length)), text);
+  const lineNumbers = new Set(findKnownCredentialOffsets(unreportedText).map(offset => unreportedText.slice(0, offset).split("\n").length));
+
+  return [...lineNumbers]
+    .sort((first, second) => first - second)
+    .map(lineNumber => ({
+      message: `Line ${lineNumber} of ${CREDENTIAL_LINE_SOURCES[field]} ${CREDENTIAL_SIGN_LABELS.known_format}. Remove it before the template is public; anyone could read and use it.`,
+      field
+    }));
 }
 
 /** A stored version predating the schema's refusal could still carry a secret's default, which the type no longer admits. */

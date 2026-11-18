@@ -16,7 +16,10 @@ describe(findCredentialSign.name, () => {
     { shape: "a bearer header", value: "Bearer abcdefghijklmnop1234" },
     { shape: "a 12-word mnemonic", value: "abandon ability able about above absent absorb abstract absurd abuse access accident" },
     { shape: "a 24-word mnemonic", value: Array.from({ length: 24 }, () => "ladder").join(" ") },
-    { shape: "a mnemonic split over lines", value: Array.from({ length: 15 }, () => "zoo").join("\n") }
+    { shape: "a mnemonic split over lines", value: Array.from({ length: 15 }, () => "zoo").join("\n") },
+    { shape: "a mnemonic after other words", value: "seed: abandon ability able about above absent absorb abstract absurd abuse access accident" },
+    { shape: "a private key header without the rest of its block", value: "-----BEGIN EC PRIVATE KEY-----" },
+    { shape: "a provider token after a placeholder word", value: "your-token hf_abcdefghijklmnopqrstuv" }
   ])("reads $shape as a known format whatever the variable is called", ({ value }) => {
     expect(findCredentialSign(value, "NOTES")).toBe("known_format");
     expect(findCredentialSign(`  ${value}  `)).toBe("known_format");
@@ -90,7 +93,10 @@ describe(findCredentialSign.name, () => {
     { name: "SHORT_RUN", value: RANDOM_TOKEN.slice(0, 23) },
     { name: "SYSTEM_PROMPT", value: "you are a helpful assistant that answers questions about the weather in detail" },
     { name: "ELEVEN_WORDS", value: Array.from({ length: 11 }, () => "ladder").join(" ") },
-    { name: "THIRTEEN_WORDS", value: Array.from({ length: 13 }, () => "ladder").join(" ") },
+    {
+      name: "BROKEN_RUN_OF_WORDS",
+      value: `${Array.from({ length: 11 }, () => "ladder").join(" ")} xyzzy ${Array.from({ length: 11 }, () => "ladder").join(" ")}`
+    },
     { name: "LONG_WORDS", value: Array.from({ length: 12 }, () => "ladderlad").join(" ") },
     { name: "SHORT_WORDS", value: Array.from({ length: 12 }, () => "la").join(" ") },
     { name: "CAPITAL_WORDS", value: Array.from({ length: 12 }, () => "Ladder").join(" ") }
@@ -181,7 +187,8 @@ describe(findCredentialSign.name, () => {
 describe(holdsKnownCredentialFormat.name, () => {
   it.each([
     { shape: "a provider token among other words", text: "# export HF_TOKEN=hf_abcdefghijklmnopqrstuv before deploying" },
-    { shape: "a mnemonic on a line of its own", text: "  abandon ability able about above absent absorb abstract absurd abuse access accident  " }
+    { shape: "a mnemonic on a line of its own", text: "  abandon ability able about above absent absorb abstract absurd abuse access accident  " },
+    { shape: "a private key block that spans lines", text: "notes\n-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n" }
   ])("finds $shape", ({ text }) => {
     expect(holdsKnownCredentialFormat(text)).toBe(true);
   });
@@ -192,7 +199,9 @@ describe(holdsKnownCredentialFormat.name, () => {
     "password: hunter2abc",
     "Authorization: Bearer abcdefghijklmnop1234",
     `postgres://app:${"hunter2".repeat(2)}@db:5432/app`,
-    "you are now using the fast model with some safe default values"
+    "you are now using the fast model with some safe default values",
+    "abandon ability able about above absent absorb abstract absurd abuse access",
+    "abandon ability able about above absent xyzzy absorb abstract absurd abuse access accident"
   ])("finds none in %j, which names no format a provider issues", text => {
     expect(holdsKnownCredentialFormat(text)).toBe(false);
   });

@@ -1,7 +1,7 @@
 import { EnglishMnemonic } from "@cosmjs/crypto";
 
 import { isSdlReference } from "@src/deployment/services/sdl-reference/sdl-reference.service";
-import { holdsIssuedCredential, holdsUrlPassword } from "@src/feedback/lib/redact-secrets/redact-secrets";
+import { findIssuedCredentialOffsets, holdsUrlPassword } from "@src/feedback/lib/redact-secrets/redact-secrets";
 
 export type CredentialSign = "known_format" | "credential_name" | "credential_assignment" | "random_string";
 
@@ -71,7 +71,8 @@ const MIN_RANDOM_RUN_ENTROPY_BITS = 3.5;
 const ALPHANUMERIC_RUNS = /[A-Za-z0-9]+/g;
 const HEX_ONLY = /^(?:0x)?[0-9a-fA-F]+$/;
 const MNEMONIC_WORDS = new Set(EnglishMnemonic.wordlist);
-const MNEMONIC_WORD_COUNTS = new Set([12, 15, 18, 21, 24]);
+const MIN_MNEMONIC_WORDS = 12;
+const PRIVATE_KEY_HEADER = /-----BEGIN [A-Z ]*PRIVATE KEY-----/g;
 const BEARER_TOKEN = /\bbearer\s+([\w.~+/-]+=*)/i;
 const ASSIGNMENTS_INSIDE_A_VALUE = /["']?([A-Za-z][\w.-]*)["']?\s*[:=](?!\/\/)\s*["']?([^\s"',}\]]+)/g;
 
@@ -79,8 +80,8 @@ const ASSIGNMENTS_INSIDE_A_VALUE = /["']?([A-Za-z][\w.-]*)["']?\s*[:=](?!\/\/)\s
 export function findCredentialSign(value: string, variableName?: string): CredentialSign | undefined {
   const trimmed = value.trim();
 
-  if (!isRealValue(trimmed)) return undefined;
   if (holdsKnownFormat(trimmed)) return "known_format";
+  if (!isRealValue(trimmed)) return undefined;
   if (variableName && isCredentialName(variableName, trimmed)) return "credential_name";
   if (holdsRandomString(trimmed)) return "random_string";
   if (assignsCredential(trimmed)) return "credential_assignment";
@@ -88,9 +89,13 @@ export function findCredentialSign(value: string, variableName?: string): Creden
   return undefined;
 }
 
-/** Narrower than the checks on a variable: free text and SDL lines carry no name to judge, and prose often mentions tokens without holding one. */
+/** Where each credential in a known format starts; narrower than the checks on a variable, since free text carries no name to judge and often mentions tokens without holding one. */
+export function findKnownCredentialOffsets(text: string): number[] {
+  return [...findIssuedCredentialOffsets(text), ...[...text.matchAll(PRIVATE_KEY_HEADER)].map(match => match.index), ...findMnemonicOffsets(text)];
+}
+
 export function holdsKnownCredentialFormat(text: string): boolean {
-  return holdsIssuedCredential(text) || isMnemonic(text.trim());
+  return findKnownCredentialOffsets(text).length > 0;
 }
 
 function isRealValue(value: string): boolean {
@@ -123,10 +128,24 @@ function isOpaque(value: string): boolean {
   return value.length >= MIN_OPAQUE_LENGTH && !/\s/.test(value) && /[A-Za-z]/.test(value) && /\d/.test(value);
 }
 
-function isMnemonic(value: string): boolean {
-  const words = value.split(/\s+/);
+/** A run of mnemonic words is found wherever it sits and however its lines break, since ordinary prose never strings twelve of them together. */
+function findMnemonicOffsets(text: string): number[] {
+  const offsets: number[] = [];
+  let runStart = 0;
+  let runLength = 0;
 
-  return MNEMONIC_WORD_COUNTS.has(words.length) && words.every(word => MNEMONIC_WORDS.has(word));
+  for (const word of text.matchAll(/\S+/g)) {
+    if (!MNEMONIC_WORDS.has(word[0])) {
+      runLength = 0;
+      continue;
+    }
+
+    if (runLength === 0) runStart = word.index;
+    runLength++;
+    if (runLength === MIN_MNEMONIC_WORDS) offsets.push(runStart);
+  }
+
+  return offsets;
 }
 
 /** Hex is left to the name rule, since digests, commits and addresses are ordinary config; mixed-case runs this long are almost never words. */
