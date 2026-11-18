@@ -46,8 +46,8 @@ describe(BlockedGpuAlternatives.name, () => {
     expect(listOptionTitles()).toEqual(["Run Llama 3.3 70B on AkashML", "Add credits"]);
   });
 
-  it("leaves the smaller model out once the trial has no credit left to deploy it", () => {
-    setup({ templateId: LLAMA_70B_TEMPLATE_ID, models: RUNNABLE_MODELS, isOutOfCredit: true });
+  it("leaves the smaller model out when the balance does not cover the deposit to start it", () => {
+    setup({ templateId: LLAMA_70B_TEMPLATE_ID, models: RUNNABLE_MODELS, coversOpeningDeposit: false });
 
     expect(listOptionTitles()).toEqual(["Run Llama 3.3 70B on AkashML", "Add credits"]);
   });
@@ -121,7 +121,7 @@ describe(BlockedGpuAlternatives.name, () => {
     return screen.getAllByRole("listitem").map(item => item.querySelector("p")?.textContent);
   }
 
-  function setup(input: { templateId?: string; models: RunnableModel[]; isOutOfCredit?: boolean; placement?: "configure" | "template_detail" }) {
+  function setup(input: { templateId?: string; models: RunnableModel[]; coversOpeningDeposit?: boolean; placement?: "configure" | "template_detail" }) {
     const analyticsService = mock<AnalyticsService>();
     const push = vi.fn();
     const openAddCredits = vi.fn();
@@ -137,7 +137,7 @@ describe(BlockedGpuAlternatives.name, () => {
           useServices,
           useRouter,
           useAddCredits: () => openAddCredits,
-          useIsOutOfDeployCredit: () => input.isOutOfCredit ?? false,
+          useCoversOpeningDeposit: () => input.coversOpeningDeposit ?? true,
           useTrialRunnableModels: () => ({ models: input.models, isChecking: false, hasCheckFailed: false }),
           useMarkAutoDeployStart: () => markAutoDeployStart
         })}
