@@ -10,6 +10,7 @@ import type {
   UserTemplateListItem
 } from "@src/template-marketplace/services/marketplace-template/marketplace-template.service";
 import type { TemplatePublishService } from "@src/template-marketplace/services/template-publish/template-publish.service";
+import type { TemplateReportService } from "@src/template-marketplace/services/template-report/template-report.service";
 import type { TemplateWriterService } from "@src/template-marketplace/services/template-writer/template-writer.service";
 import { MarketplaceTemplateController } from "./marketplace-template.controller";
 
@@ -198,6 +199,20 @@ describe(MarketplaceTemplateController.name, () => {
     });
   });
 
+  describe("reportTemplate", () => {
+    it("files the report and answers it with an ISO date", async () => {
+      const { controller, reporter } = setup();
+      const id = faker.string.uuid();
+      const filed = { id: faker.string.uuid(), reason: "spam" as const, createdAt: new Date("2026-11-18T10:00:00.000Z") };
+      reporter.report.mockResolvedValue(filed);
+
+      const result = await controller.reportTemplate(id, { data: { reason: "spam", details: "Link farm" } });
+
+      expect(reporter.report).toHaveBeenCalledWith(id, { reason: "spam", details: "Link farm" });
+      expect(result).toEqual({ data: { id: filed.id, reason: "spam", createdAt: "2026-11-18T10:00:00.000Z" } });
+    });
+  });
+
   describe("deleteTemplate", () => {
     it("deletes the template", async () => {
       const id = faker.string.uuid();
@@ -283,8 +298,9 @@ describe(MarketplaceTemplateController.name, () => {
     const service = mock<MarketplaceTemplateService>();
     const writer = mock<TemplateWriterService>();
     const publisher = mock<TemplatePublishService>();
-    const controller = new MarketplaceTemplateController(service, writer, publisher);
+    const reporter = mock<TemplateReportService>();
+    const controller = new MarketplaceTemplateController(service, writer, publisher, reporter);
 
-    return { controller, service, writer, publisher };
+    return { controller, service, writer, publisher, reporter };
   }
 });

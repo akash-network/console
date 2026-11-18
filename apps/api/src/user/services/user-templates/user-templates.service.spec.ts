@@ -12,6 +12,7 @@ import type { FeatureFlagsService } from "@src/core/services/feature-flags/featu
 import type { DeploymentProjectService } from "@src/deployment/services/deployment-project/deployment-project.service";
 import { summarizeTemplateHardware } from "@src/template/utils/template-hardware/template-hardware";
 import type { PublishCheckResults } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
+import type { TemplateRemovalRepository } from "@src/template-marketplace/repositories/template-removal/template-removal.repository";
 import type { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
 import type { PublishChecksService } from "@src/template-marketplace/services/publish-checks/publish-checks.service";
 import type { TemplateRateLimiterService } from "@src/template-marketplace/services/template-rate-limiter/template-rate-limiter.service";
@@ -850,17 +851,31 @@ describe(UserTemplatesService.name, () => {
   });
 
   describe("deleteTemplate", () => {
-    it("calls repository deleteById with correct parameters", async () => {
-      const { service, userTemplateRepository, ability } = setup();
+    it("deletes a template that was never public, within the caller's delete rules", async () => {
+      const { service, userTemplateRepository, templateRemovalRepository, txService, ability } = setup();
       const userId = faker.string.uuid();
       const id = faker.string.uuid();
-
-      userTemplateRepository.deleteById.mockResolvedValue();
+      userTemplateRepository.markRemovedIfEverPublic.mockResolvedValue(false);
 
       await service.deleteTemplate(userId, id);
 
       expect(userTemplateRepository.accessibleBy).toHaveBeenCalledWith(ability, "delete");
+      expect(userTemplateRepository.markRemovedIfEverPublic).toHaveBeenCalledWith(id, userId);
       expect(userTemplateRepository.deleteById).toHaveBeenCalledWith(id, userId);
+      expect(templateRemovalRepository.emptyRemoved).not.toHaveBeenCalled();
+      expect(txService.transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it("empties a once-public template it marked removed instead of deleting it", async () => {
+      const { service, userTemplateRepository, templateRemovalRepository } = setup();
+      const userId = faker.string.uuid();
+      const id = faker.string.uuid();
+      userTemplateRepository.markRemovedIfEverPublic.mockResolvedValue(true);
+
+      await service.deleteTemplate(userId, id);
+
+      expect(templateRemovalRepository.emptyRemoved).toHaveBeenCalledWith(id, "owner");
+      expect(userTemplateRepository.deleteById).not.toHaveBeenCalled();
     });
   });
 
@@ -1011,6 +1026,7 @@ describe(UserTemplatesService.name, () => {
     executionContextService.get
       .calledWith("ORGANIZATION_CONTEXT")
       .mockReturnValue(input.hasNoOrganization ? undefined : createOrganizationContext({ organizationId: activeOrganizationId }));
+    const templateRemovalRepository = mock<TemplateRemovalRepository>();
     const service = new UserTemplatesService(
       userTemplateRepository,
       authService,
@@ -1021,7 +1037,8 @@ describe(UserTemplatesService.name, () => {
       publishChecksService,
       featureFlagsService,
       templateRateLimiterService,
-      executionContextService
+      executionContextService,
+      templateRemovalRepository
     );
 
     return {
@@ -1035,7 +1052,8 @@ describe(UserTemplatesService.name, () => {
       templateUsageService,
       publishChecksService,
       templateRateLimiterService,
-      activeOrganizationId
+      activeOrganizationId,
+      templateRemovalRepository
     };
   }
 

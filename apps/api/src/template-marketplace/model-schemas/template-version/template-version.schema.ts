@@ -8,7 +8,7 @@ import type { TemplateVersionChange } from "@src/template-marketplace/lib/versio
 import { Templates } from "@src/user/model-schemas/template/template.schema";
 import { Users } from "@src/user/model-schemas/user/user.schema";
 
-export const templateVersionStatusEnum = pgEnum("template_version_status", ["live", "held", "failed_checks"]);
+export const templateVersionStatusEnum = pgEnum("template_version_status", ["live", "held", "failed_checks", "rejected"]);
 
 export type TemplateVersionStatus = (typeof templateVersionStatusEnum.enumValues)[number];
 
@@ -37,6 +37,9 @@ export const TemplateVersions = pgTable(
     changes: jsonb("changes").$type<TemplateVersionChange[]>(),
     checkResults: jsonb("check_results").$type<PublishCheckResults>(),
     status: templateVersionStatusEnum("status").default("live").notNull(),
+    /** Written by the admin app when staff approve or reject a held version. */
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewNote: text("review_note"),
     createdById: uuid("created_by_id").references(() => Users.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
   },

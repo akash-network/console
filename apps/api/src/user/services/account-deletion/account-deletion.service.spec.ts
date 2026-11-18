@@ -16,6 +16,7 @@ import type { OrganizationRepository } from "@src/organization/repositories/orga
 import type { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
 import type { AccountTeamsService, LockedTeamGoingWithAccount, TeamReference } from "@src/organization/services/account-teams/account-teams.service";
 import type { DepartedMemberAlertsService } from "@src/organization/services/departed-member-alerts/departed-member-alerts.service";
+import type { RemovedTemplateRow, TemplateRemovalRepository } from "@src/template-marketplace/repositories/template-removal/template-removal.repository";
 import type {
   AccountDeletionTokenOutput,
   AccountDeletionTokenRepository
@@ -326,6 +327,16 @@ describe(AccountDeletionService.name, () => {
         }),
         PURGE_DELETED_ACCOUNT_RETRY_OPTIONS
       );
+    });
+
+    it("hands the templates it deleted on, so the once-public ones keep their removed page", async () => {
+      const deletedTemplates = [{ id: faker.string.uuid(), title: "Llama 3.1 Chat", publishedAt: new Date(), removedAt: null }];
+      const { service, user, userTemplateRepository, templateRemovalRepository } = setup({ storedToken: {}, deletedTemplates });
+
+      await service.confirm({ token: "link-token" });
+
+      expect(userTemplateRepository.deleteAllOwnedBy).toHaveBeenCalledWith(user.userId);
+      expect(templateRemovalRepository.keepRemovedPagesOf).toHaveBeenCalledWith(deletedTemplates);
     });
 
     it("keeps the records the member wrote for team organizations before the user row cascades and the templates go", async () => {
@@ -699,6 +710,7 @@ describe(AccountDeletionService.name, () => {
       hasPersonalOrganization?: boolean;
       teamsOwnedOnlyByUser?: { id: string; name: string }[];
       teamsGoingWithAccount?: LockedTeamGoingWithAccount[];
+      deletedTemplates?: RemovedTemplateRow[];
     } = {}
   ) {
     const user = createUser(input.user);
@@ -732,6 +744,8 @@ describe(AccountDeletionService.name, () => {
     userWalletRepository.unscoped.mockReturnValue(userWalletRepository);
 
     const userTemplateRepository = mock<UserTemplateRepository>();
+    userTemplateRepository.deleteAllOwnedBy.mockResolvedValue(input.deletedTemplates ?? []);
+    const templateRemovalRepository = mock<TemplateRemovalRepository>();
     const workloadProbeEvidenceRepository = mock<WorkloadProbeEvidenceRepository>();
     const organizationRepository = mock<OrganizationRepository>();
     organizationRepository.findPersonalByUserId.mockResolvedValue(input.hasPersonalOrganization === false ? undefined : personalOrganization);
@@ -768,6 +782,7 @@ describe(AccountDeletionService.name, () => {
       userRepository,
       userWalletRepository,
       userTemplateRepository,
+      templateRemovalRepository,
       workloadProbeEvidenceRepository,
       organizationRepository,
       organizationMemberRepository,
@@ -796,6 +811,7 @@ describe(AccountDeletionService.name, () => {
       userRepository,
       userWalletRepository,
       userTemplateRepository,
+      templateRemovalRepository,
       workloadProbeEvidenceRepository,
       organizationRepository,
       organizationMemberRepository,

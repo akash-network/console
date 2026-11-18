@@ -17,6 +17,7 @@ import {
   PublishUserTemplateRequestSchema,
   PublishUserTemplateResponseSchema
 } from "@src/template-marketplace/http-schemas/template-publish.schema";
+import { CreateTemplateReportRequestSchema, CreateTemplateReportResponseSchema } from "@src/template-marketplace/http-schemas/template-report.schema";
 import {
   CreateUserTemplateRequestSchema,
   CreateUserTemplateResponseSchema,
@@ -32,6 +33,8 @@ import { MAX_LISTED_USER_TEMPLATES } from "@src/template-marketplace/services/ma
 export const marketplaceTemplatesRouter = new OpenApiHonoHandler();
 
 const NOT_FOUND_DESCRIPTION = "The template does not exist or the caller may not read it";
+
+const REMOVED_DESCRIPTION = "The template was public once and has since been removed (`template_removed`, with the `title` it had)";
 
 const getUserTemplateRoute = createRoute({
   method: "get",
@@ -51,7 +54,8 @@ const getUserTemplateRoute = createRoute({
       content: { "application/json": { schema: GetUserTemplateResponseSchema } }
     },
     400: { description: "The id is not a uuid" },
-    404: { description: NOT_FOUND_DESCRIPTION }
+    404: { description: NOT_FOUND_DESCRIPTION },
+    410: { description: REMOVED_DESCRIPTION }
   }
 });
 
@@ -78,7 +82,8 @@ const listUserTemplateVersionsRoute = createRoute({
       content: { "application/json": { schema: ListUserTemplateVersionsResponseSchema } }
     },
     400: { description: "The id is not a uuid" },
-    404: { description: NOT_FOUND_DESCRIPTION }
+    404: { description: NOT_FOUND_DESCRIPTION },
+    410: { description: REMOVED_DESCRIPTION }
   }
 });
 
@@ -105,7 +110,8 @@ const getUserTemplateVersionRoute = createRoute({
       content: { "application/json": { schema: GetUserTemplateVersionResponseSchema } }
     },
     400: { description: "The id is not a uuid or the version is not a positive integer" },
-    404: { description: "The template or the version does not exist, or the caller may not read the template" }
+    404: { description: "The template or the version does not exist, or the caller may not read the template" },
+    410: { description: REMOVED_DESCRIPTION }
   }
 });
 
@@ -304,11 +310,46 @@ marketplaceTemplatesRouter.openapi(publishUserTemplateRoute, async function rout
   return c.json(await container.resolve(MarketplaceTemplateController).publishTemplate(id, c.req.valid("json")), 200);
 });
 
+const createUserTemplateReportRoute = createRoute({
+  method: "post",
+  operationId: "createUserTemplateReport",
+  path: "/v1/user-templates/{id}/reports",
+  summary: "Report the current version of a public template to Akash staff, without the publisher learning who did",
+  tags: ["Templates"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  featureFlag: FeatureFlags.TEMPLATE_MARKETPLACE,
+  request: {
+    params: UserTemplateParamsSchema,
+    body: { content: { "application/json": { schema: CreateTemplateReportRequestSchema } }, required: true }
+  },
+  responses: {
+    201: {
+      description: "The report filed",
+      content: { "application/json": { schema: CreateTemplateReportResponseSchema } }
+    },
+    400: { description: "The id is not a uuid, the reason is unknown, or the details are too long or not readable text" },
+    401: { description: "The caller is not signed in" },
+    403: { description: "The caller belongs to the organization that published the template (`template_report_own_organization`)" },
+    404: { description: NOT_FOUND_DESCRIPTION },
+    409: {
+      description:
+        "The caller already reported this version (`template_already_reported`), or the template is not public, is hidden or has no version (`template_not_reportable`)"
+    },
+    410: { description: REMOVED_DESCRIPTION },
+    429: { description: RATE_LIMITED_DESCRIPTION }
+  }
+});
+
+marketplaceTemplatesRouter.openapi(createUserTemplateReportRoute, async function routeCreateUserTemplateReport(c) {
+  const { id } = c.req.valid("param");
+  return c.json(await container.resolve(MarketplaceTemplateController).reportTemplate(id, c.req.valid("json")), 201);
+});
+
 const deleteUserTemplateRoute = createRoute({
   method: "delete",
   operationId: "deleteUserTemplate",
   path: "/v1/user-templates/{id}",
-  summary: "Delete a template the caller may delete, with its versions and favorites",
+  summary: "Delete a template the caller may delete; one that was ever public keeps its link as a removed page",
   tags: ["Templates"],
   security: SECURITY_BEARER_OR_API_KEY,
   featureFlag: FeatureFlags.TEMPLATE_MARKETPLACE,
@@ -320,7 +361,8 @@ const deleteUserTemplateRoute = createRoute({
     400: { description: "The id is not a uuid" },
     401: { description: "The caller is not signed in" },
     403: { description: OUTSIDE_ORGANIZATION_DESCRIPTION },
-    404: { description: NOT_FOUND_DESCRIPTION }
+    404: { description: NOT_FOUND_DESCRIPTION },
+    410: { description: REMOVED_DESCRIPTION }
   }
 });
 
