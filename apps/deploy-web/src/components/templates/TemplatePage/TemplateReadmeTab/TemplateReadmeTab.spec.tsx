@@ -9,6 +9,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildTemplateVersion } from "@tests/seeders/userTemplate";
 import { MockComponents } from "@tests/unit/mocks";
+import { findActiveContent, findUnsafeUserLinks, USER_CONTENT_ATTACKS } from "@tests/unit/userContentAttacks";
 
 type CreateVersionMutation = ReturnType<typeof DEPENDENCIES.useCreateTemplateVersionMutation>;
 
@@ -21,21 +22,52 @@ const ADMIN_EMAIL: TemplateAskedValue = {
   type: "text"
 };
 const README = "# Open WebUI\n\nA private chat app for your team.";
+const DEPLOY_BADGE = "https://raw.githubusercontent.com/akash-network/console/refs/heads/main/apps/deploy-web/public/images/deploy-with-akash-btn.svg";
+const SCREENSHOT = "https://raw.githubusercontent.com/open-webui/open-webui/main/demo.png";
 
 describe(TemplateReadmeTab.name, () => {
-  it("renders the README with the same markdown component and no raw HTML", () => {
-    const { Markdown, container } = setup({ readme: "# Open WebUI\n\n<script>window.pwned = true</script>" });
+  it("renders the README as user content, with raw HTML shown as text", () => {
+    const { UserContentMarkdown, container } = setup({ readme: "# Open WebUI\n\n<script>window.pwned = true</script>" });
 
     expect(screen.getByRole("heading", { name: "Open WebUI" })).toBeInTheDocument();
     expect(screen.getByText("<script>window.pwned = true</script>")).toBeInTheDocument();
     expect(container.querySelector("script")).toBeNull();
-    expect(Markdown).toHaveBeenCalledWith(expect.not.objectContaining({ hasHtml: expect.anything() }), expect.anything());
+    expect(UserContentMarkdown).toHaveBeenCalledTimes(1);
   });
 
   it("never links a README to a script", () => {
     setup({ readme: "[x](javascript:alert(1))" });
 
-    expect(screen.getByRole("link", { name: "x" })).toHaveAttribute("href", "javascript:void(0)");
+    expect(screen.getByText("x")).toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it.each(USER_CONTENT_ATTACKS)("renders a README holding $name as inert content", ({ payload }) => {
+    const { container } = setup({ readme: payload });
+
+    expect(findActiveContent(container)).toEqual([]);
+    expect(findUnsafeUserLinks(container)).toEqual([]);
+  });
+
+  it("previews a draft holding every attack as inert content", async () => {
+    const { container } = setup({ canEdit: true, readme: USER_CONTENT_ATTACKS.map(({ payload }) => payload).join("\n\n") });
+
+    await userEvent.click(screen.getByRole("button", { name: "Edit README" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Preview" }));
+
+    expect(screen.getByRole("tabpanel", { name: "Preview" })).toHaveTextContent('<script>alert("xss")</script>');
+    expect(findActiveContent(container)).toEqual([]);
+    expect(findUnsafeUserLinks(container)).toEqual([]);
+  });
+
+  it("leaves out a Deploy on Akash badge, which the page already offers as Deploy", () => {
+    const { container } = setup({
+      readme: `# Open WebUI\n\n[![Deploy on Akash](${DEPLOY_BADGE})](https://console.akash.network/new-deployment)\n\n![Demo](${SCREENSHOT})`
+    });
+
+    expect(screen.getByRole("img", { name: "Demo" })).toHaveAttribute("src", SCREENSHOT);
+    expect(screen.queryByRole("img", { name: "Deploy on Akash" })).not.toBeInTheDocument();
+    expect(container.querySelector("a")).toBeNull();
   });
 
   it("shows a placeholder when the version has no README", () => {
@@ -219,7 +251,7 @@ describe(TemplateReadmeTab.name, () => {
     const enqueueSnackbar = vi.fn();
     const createVersionMutation = mock<CreateVersionMutation>({ mutateAsync: createVersion, isPending: false });
     const snackbar = mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar });
-    const Markdown = vi.fn(DEPENDENCIES.Markdown);
+    const UserContentMarkdown = vi.fn(DEPENDENCIES.UserContentMarkdown);
     const version = buildTemplateVersion({
       version: 3,
       sdl: SDL,
@@ -228,7 +260,7 @@ describe(TemplateReadmeTab.name, () => {
     });
 
     const dependencies = MockComponents(DEPENDENCIES, {
-      Markdown,
+      UserContentMarkdown,
       useCreateTemplateVersionMutation: () => createVersionMutation,
       useSnackbar: () => snackbar
     });
@@ -239,6 +271,6 @@ describe(TemplateReadmeTab.name, () => {
     const showVersion = (next: TemplateVersionDetail) =>
       rerender(<TemplateReadmeTab templateId="tpl-webui" version={next} canEdit={input.canEdit ?? false} dependencies={dependencies} />);
 
-    return { createVersion, enqueueSnackbar, Markdown, container, showVersion };
+    return { createVersion, enqueueSnackbar, UserContentMarkdown, container, showVersion };
   }
 });

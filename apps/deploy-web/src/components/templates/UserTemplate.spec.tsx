@@ -11,6 +11,7 @@ import { createEvent, fireEvent, render, screen } from "@testing-library/react";
 import { accountActionGatesFor } from "@tests/unit/accountActionGates";
 import { MockComponents } from "@tests/unit/mocks";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
+import { findActiveContent, USER_CONTENT_ATTACKS } from "@tests/unit/userContentAttacks";
 
 describe(UserTemplate.name, () => {
   it("links the author's name to their profile", () => {
@@ -60,6 +61,14 @@ describe(UserTemplate.name, () => {
     setup({ accountStatus: "suspended" });
 
     expect(screen.getByRole("button", { name: "Deploy" })).toBeDisabled();
+  });
+
+  it.each(USER_CONTENT_ATTACKS)("shows a title, description and author name holding $name as inert text", ({ payload }) => {
+    setup({ template: { title: payload, description: payload, username: payload } });
+
+    expect(document.body.textContent).toContain(`${payload}\u00a0\u00a0by\u00a0${payload}`);
+    expect(document.body.textContent).toContain(`Disk${payload}`);
+    expect(findActiveContent(document.body)).toEqual([]);
   });
 
   function setup(input: { id?: string; template?: Partial<ITemplate>; accountStatus?: AccountStatus }) {

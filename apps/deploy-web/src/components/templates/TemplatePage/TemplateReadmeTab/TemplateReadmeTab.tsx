@@ -1,24 +1,28 @@
 "use client";
 import type { ChangeEvent, FC } from "react";
 import { useId, useState } from "react";
+import type { PluggableList } from "react-markdown/lib/react-markdown";
 import { ApiError } from "@akashnetwork/openapi-sdk";
 import { Alert, AlertDescription, Button, Label, LoadingButton, Snackbar, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { Pencil } from "lucide-react";
 import { useSnackbar } from "notistack";
 
 import { LengthCounter } from "@src/components/shared/LengthCounter/LengthCounter";
-import Markdown from "@src/components/shared/Markdown";
+import { UserContentMarkdown } from "@src/components/shared/UserContentMarkdown/UserContentMarkdown";
 import { describeTemplateRefusal } from "@src/components/templates/describeTemplateRefusal";
+import { rehypeRemoveDeployBadge } from "@src/components/templates/rehypeRemoveDeployBadge/rehypeRemoveDeployBadge";
 import { useCreateTemplateVersionMutation } from "@src/queries/useUserTemplateQueries";
 import type { TemplateVersionDetail } from "@src/types/marketplace-template";
 
 export const DEPENDENCIES = {
-  Markdown,
+  UserContentMarkdown,
   useCreateTemplateVersionMutation,
   useSnackbar
 };
 
 const README_MAX_LENGTH = 50_000;
+
+const README_PLUGINS: PluggableList = [rehypeRemoveDeployBadge];
 
 const MARKDOWN_CLASSES =
   "prose-sm [overflow-wrap:anywhere] prose-headings:tracking-tight prose-h1:border-b prose-h1:border-border prose-h1:pb-3 prose-h1:text-[22px] prose-h2:text-base prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-pre:rounded-[10px] dark:prose-a:text-blue-400 [&_img]:max-w-full";
@@ -78,7 +82,9 @@ export const TemplateReadmeTab: FC<TemplateReadmeTabProps> = ({ templateId, vers
           </Button>
         )}
         {version.readme ? (
-          <d.Markdown className={MARKDOWN_CLASSES}>{version.readme}</d.Markdown>
+          <d.UserContentMarkdown className={MARKDOWN_CLASSES} rehypePlugins={README_PLUGINS}>
+            {version.readme}
+          </d.UserContentMarkdown>
         ) : (
           <p className="py-8 text-center text-sm text-muted-foreground">No README yet</p>
         )}
@@ -111,7 +117,9 @@ export const TemplateReadmeTab: FC<TemplateReadmeTabProps> = ({ templateId, vers
         </TabsContent>
         <TabsContent value="preview" className="mt-0 min-h-[420px] rounded-md border border-border px-4 py-4 sm:px-6">
           {draft.trim() ? (
-            <d.Markdown className={MARKDOWN_CLASSES}>{draft}</d.Markdown>
+            <d.UserContentMarkdown className={MARKDOWN_CLASSES} rehypePlugins={README_PLUGINS}>
+              {draft}
+            </d.UserContentMarkdown>
           ) : (
             <p className="py-8 text-center text-sm text-muted-foreground">Nothing to preview</p>
           )}
