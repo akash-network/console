@@ -212,35 +212,52 @@ describe(SessionService.name, () => {
       expect(externalHttpClient.post).not.toHaveBeenCalled();
     });
 
-    it("returns user_exists when user already exists and sign-in fails", async () => {
+    it("returns account_unavailable pointing to log in, another email or support when the email cannot be used and sign-in fails", async () => {
       const { service, consoleApiHttpClient, externalHttpClient } = setup();
-
-      consoleApiHttpClient.post.mockResolvedValueOnce({
-        status: 422,
-        data: {
-          message: "You can't create an account with this email. Use a different email, or contact support@akash.network for help."
-        },
-        headers: {}
-      });
-
-      externalHttpClient.post.mockResolvedValueOnce({
-        status: 401,
-        data: { error_description: "Invalid credentials" },
-        headers: {}
-      });
+      consoleApiHttpClient.post.mockResolvedValueOnce(accountUnavailableSignupResponse());
+      externalHttpClient.post.mockResolvedValueOnce({ status: 403, data: { error: "invalid_grant", error_description: "Wrong email or password." }, headers: {} });
 
       const result = await service.signUp({ email: "user@example.com", password: "Password123!" });
 
-      expect(result.ok).toBe(false);
-      const error = expectErr(result);
-      expect(error).toEqual(
+      expect(expectErr(result)).toEqual(
         expect.objectContaining({
-          message: "Such user already exists but credentials are invalid",
-          code: "user_exists"
+          message:
+            "You can't create an account with this email. If you already have an account, log in instead. Otherwise, use a different email or contact support@akash.network for help.",
+          code: "account_unavailable"
         })
       );
       expect(consoleApiHttpClient.post).toHaveBeenCalledTimes(1);
       expect(externalHttpClient.post).toHaveBeenCalledTimes(1);
+    });
+
+    it("returns signup_failed with the sign-in message when the account is created but sign-in fails", async () => {
+      const { service, consoleApiHttpClient, externalHttpClient } = setup();
+      consoleApiHttpClient.post.mockResolvedValueOnce({ status: 204, data: undefined, headers: {} });
+      externalHttpClient.post.mockResolvedValueOnce({ status: 403, data: { error: "invalid_grant", error_description: "Wrong email or password." }, headers: {} });
+
+      const result = await service.signUp({ email: "user@example.com", password: "Password123!" });
+
+      expect(expectErr(result).code).toBe("signup_failed");
+    });
+
+    it("returns the same error for a refused email as for an email that already has an account", async () => {
+      const refusedEmail = setup();
+      refusedEmail.consoleApiHttpClient.post.mockResolvedValueOnce(accountUnavailableSignupResponse());
+      refusedEmail.externalHttpClient.post.mockResolvedValueOnce({
+        status: 403,
+        data: { error: "invalid_grant", error_description: "Wrong email or password." },
+        headers: {}
+      });
+      const existingEmail = setup();
+      existingEmail.consoleApiHttpClient.post.mockResolvedValueOnce(accountUnavailableSignupResponse());
+      existingEmail.externalHttpClient.post.mockResolvedValueOnce({ status: 401, data: { error: "unauthorized", error_description: "user is blocked" }, headers: {} });
+
+      const refusedResult = await refusedEmail.service.signUp({ email: "user@refused.example", password: "Password123!" });
+      const existingResult = await existingEmail.service.signUp({ email: "user@example.com", password: "Password123!" });
+
+      expect(expectErr(refusedResult)).toEqual(expectErr(existingResult));
+      expect(refusedEmail.externalHttpClient.post).toHaveBeenCalledTimes(1);
+      expect(existingEmail.externalHttpClient.post).toHaveBeenCalledTimes(1);
     });
 
     it("creates local user after successful signup", async () => {
@@ -913,4 +930,12 @@ function expectErr<T, E>(result: Result<T, E>): E {
     throw new Error("Expected Err result but received Ok");
   }
   return result.val;
+}
+
+function accountUnavailableSignupResponse() {
+  return {
+    status: 422,
+    data: { message: "You can't create an account with this email. Use a different email, or contact support@akash.network for help." },
+    headers: {}
+  };
 }

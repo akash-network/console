@@ -66,11 +66,6 @@ export default defineApiHandler({
       cause: result.val
     });
 
-    if (result.val.code === "user_exists") {
-      res.status(204).end();
-      return;
-    }
-
     return res.status(400).json(errorDetails);
   }
 });
