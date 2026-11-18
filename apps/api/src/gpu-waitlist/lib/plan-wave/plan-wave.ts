@@ -1,4 +1,4 @@
-type WaveCandidate = { id: string; gpuCount: number; isEligible: boolean };
+export type WaveCandidate = { id: string; gpuCount: number; isEligible: boolean };
 
 export function planWave({ nodeFreeUnits, entries, multiplier }: { nodeFreeUnits: number[]; entries: WaveCandidate[]; multiplier: number }): string[] {
   const eligible = entries.filter(entry => entry.isEligible);
@@ -11,7 +11,7 @@ export function planWave({ nodeFreeUnits, entries, multiplier }: { nodeFreeUnits
     .map(entry => entry.id);
 }
 
-function countSlots(nodeFreeUnits: number[], eligible: WaveCandidate[]): number {
+export function countSlots(nodeFreeUnits: number[], eligible: WaveCandidate[]): number {
   const remaining = [...nodeFreeUnits];
   let placed = 0;
 

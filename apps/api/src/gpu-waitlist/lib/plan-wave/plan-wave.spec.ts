@@ -51,4 +51,10 @@ describe(planWave.name, () => {
   it("emails nobody when no node has free units", () => {
     expect(planWave({ nodeFreeUnits: [], entries: [{ id: "a", gpuCount: 1, isEligible: true }], multiplier: 3 })).toEqual([]);
   });
+
+  it("treats an unlimited node as large enough for every entry", () => {
+    const entries = Array.from({ length: 5 }, (_, index) => ({ id: `e${index}`, gpuCount: 8, isEligible: true }));
+
+    expect(planWave({ nodeFreeUnits: [Number.MAX_SAFE_INTEGER], entries, multiplier: 1 })).toHaveLength(5);
+  });
 });

@@ -1,7 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { JobQueueService } from "@src/core";
+import type { CreateLogger, JobQueueService } from "@src/core";
 import type { TxService } from "@src/core/services/tx/tx.service";
 import type { GpuWaitlistConfig } from "@src/gpu-waitlist/providers/config.provider";
 import type { GpuWaitlistEntryRepository, GpuWaitlistEntryRow } from "@src/gpu-waitlist/repositories/gpu-waitlist-entry/gpu-waitlist-entry.repository";
@@ -14,14 +14,20 @@ import type {
 import { GpuWaveService } from "./gpu-wave.service";
 
 const HOUR_MS = 60 * 60 * 1000;
+const NOW = new Date("2026-11-18T12:00:00.000Z");
 const POOL_KEY = "nvidia:h100";
+const ONE_NODE_OF_EIGHT = { nodeFreeUnits: [8] };
 
 describe(GpuWaveService.name, () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   describe("startWave", () => {
     it("emails the first people in line with the new wave number", async () => {
-      const { service, jobQueueService, entries } = setup({ entries: [entry("a"), entry("b"), entry("c"), entry("d")], pool: { waveNumber: 4 } });
+      const { service, jobQueueService, entries } = setup({ entries: names("a", "b", "c", "d"), pool: { waveNumber: 4 } });
 
-      const recipients = await service.startWave(POOL_KEY, { nodeFreeUnits: [8] }, 2.5);
+      const recipients = await service.startWave(POOL_KEY, ONE_NODE_OF_EIGHT, 2.5);
 
       expect(recipients).toEqual(["a", "b", "c"]);
       expect(jobQueueService.enqueue).toHaveBeenCalledTimes(3);
@@ -29,90 +35,158 @@ describe(GpuWaveService.name, () => {
     });
 
     it("skips trial users and keeps their place", async () => {
-      const { service, jobQueueService, updatedEntries } = setup({
-        entries: [entry("trial"), entry("a"), entry("b"), entry("c"), entry("d")],
-        accountTypes: { trial: "trial" }
-      });
+      const { service, jobQueueService, updatedEntries } = setup({ entries: names("trial", "a", "b", "c", "d"), accountTypes: { trial: "trial" } });
 
-      const recipients = await service.startWave(POOL_KEY, { nodeFreeUnits: [8] }, 2);
+      const recipients = await service.startWave(POOL_KEY, ONE_NODE_OF_EIGHT, 2);
 
       expect(recipients).toEqual(["a", "b", "c"]);
-      expect(jobQueueService.enqueue).not.toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ entryId: "trial" }) }));
+      expect(jobQueueService.enqueue).toHaveBeenCalledTimes(3);
       expect(updatedEntries.has("trial")).toBe(false);
     });
 
-    it("emails a user who was in trial once the wallet is no longer trialing", async () => {
-      const { service } = setup({ entries: [entry("former-trial"), entry("a")], accountTypes: { "former-trial": "paying" } });
+    it("emails a skipped trial user first in a later episode once the account is no longer trialing", async () => {
+      const { service, accountTypes } = setup({ entries: names("former-trial", "a"), accountTypes: { "former-trial": "trial" } });
 
-      expect(await service.startWave(POOL_KEY, { nodeFreeUnits: [8] }, 2)).toEqual(["former-trial", "a"]);
+      const whileTrialing = await service.startWave(POOL_KEY, { nodeFreeUnits: [8] }, 2);
+      const episodeCloses = await service.startWave(POOL_KEY, { nodeFreeUnits: [8] }, 2);
+      accountTypes["former-trial"] = "paying";
+      const afterUpgrade = await service.startWave(POOL_KEY, { nodeFreeUnits: [8] }, 2);
+
+      expect(whileTrialing).toEqual(["a"]);
+      expect(episodeCloses).toEqual([]);
+      expect(afterUpgrade).toEqual(["former-trial", "a"]);
     });
 
     it("does not email anyone more than twice a day", async () => {
-      const { service } = setup({
-        entries: [entry("maxed", { lastNotifiedAt: hoursAgo(5), notifiedCount: 2 }), entry("a")],
-        pool: { waveStartedAt: null }
-      });
+      const { service } = setup({ entries: [entry("maxed", { lastNotifiedAt: hoursAgo(5), notifiedCount: 2 }), entry("a")] });
 
-      expect(await service.startWave(POOL_KEY, { nodeFreeUnits: [8] }, 2)).toEqual(["a"]);
+      expect(await service.startWave(POOL_KEY, ONE_NODE_OF_EIGHT, 2)).toEqual(["a"]);
     });
 
     it("counts emails afresh once the last one is older than a day", async () => {
-      const { service, updatedEntries } = setup({
-        entries: [entry("rested", { lastNotifiedAt: hoursAgo(25), notifiedCount: 2 })],
-        pool: { waveStartedAt: null }
-      });
+      const { service, updatedEntries } = setup({ entries: [entry("rested", { lastNotifiedAt: hoursAgo(25), notifiedCount: 2 })] });
 
-      expect(await service.startWave(POOL_KEY, { nodeFreeUnits: [8] }, 2)).toEqual(["rested"]);
+      expect(await service.startWave(POOL_KEY, ONE_NODE_OF_EIGHT, 2)).toEqual(["rested"]);
       expect(updatedEntries.get("rested")).toEqual(expect.objectContaining({ notifiedCount: 1 }));
     });
 
-    it("emails the next people in line in the following wave", async () => {
-      const entries = ["a", "b", "c", "d", "e", "f"].map(name => entry(name));
-      const { service, pool } = setup({ entries, pool: { waveStartedAt: null, waveNumber: 0 } });
+    it("counts emails afresh when the last one went out exactly a day ago", async () => {
+      const { service, updatedEntries } = setup({ entries: [entry("on-the-dot", { lastNotifiedAt: hoursAgo(24), notifiedCount: 2 })] });
 
-      const first = await service.startWave(POOL_KEY, { nodeFreeUnits: [8] }, 2);
-      const second = await service.startWave(POOL_KEY, { nodeFreeUnits: [8] }, 2);
+      expect(await service.startWave(POOL_KEY, ONE_NODE_OF_EIGHT, 2)).toEqual(["on-the-dot"]);
+      expect(updatedEntries.get("on-the-dot")).toEqual(expect.objectContaining({ notifiedCount: 1 }));
+    });
 
-      expect(first).toEqual(["a", "b", "c"]);
-      expect(second).toEqual(["d", "e", "f"]);
-      expect(pool.waveNumber).toBe(2);
+    it("reaches new people in line order in every round of one episode", async () => {
+      const { service, pool } = setup({ entries: names("a", "b", "c", "d", "e", "f", "g", "h", "i") });
+
+      const rounds = [
+        await service.startWave(POOL_KEY, ONE_NODE_OF_EIGHT, 2),
+        await service.startWave(POOL_KEY, ONE_NODE_OF_EIGHT, 2),
+        await service.startWave(POOL_KEY, ONE_NODE_OF_EIGHT, 2)
+      ];
+
+      expect(rounds).toEqual([
+        ["a", "b", "c"],
+        ["d", "e", "f"],
+        ["g", "h", "i"]
+      ]);
+      expect(pool.waveNumber).toBe(3);
+      expect(pool.waveStartedAt).toEqual(NOW);
     });
 
     it("does not email anyone twice for the same wave", async () => {
-      const { service } = setup({ entries: [entry("a"), entry("b")], pool: { waveStartedAt: null } });
+      const { service } = setup({ entries: names("a", "b") });
 
-      const first = await service.startWave(POOL_KEY, { nodeFreeUnits: [8] }, 2);
-      const second = await service.startWave(POOL_KEY, { nodeFreeUnits: [8] }, 2);
+      const first = await service.startWave(POOL_KEY, ONE_NODE_OF_EIGHT, 2);
+      const second = await service.startWave(POOL_KEY, ONE_NODE_OF_EIGHT, 2);
 
       expect(first).toEqual(["a", "b"]);
       expect(second).toEqual([]);
     });
 
-    it("emails three people for one free node of eight when everyone wants eight", async () => {
-      const { service, jobQueueService } = setup({ entries: Array.from({ length: 10 }, (_, index) => entry(`e${index}`, { gpuCount: 8 })) });
+    it("closes the episode without a new round when nobody is left to email", async () => {
+      const { service, pool, jobQueueService } = setup({ entries: names("a"), pool: { waveNumber: 1 } });
+      await service.startWave(POOL_KEY, ONE_NODE_OF_EIGHT, 2);
+      const roundAt = pool.lastRoundAt;
+      vi.setSystemTime(new Date(NOW.getTime() + HOUR_MS));
 
-      const recipients = await service.startWave(POOL_KEY, { nodeFreeUnits: [8] }, 2);
+      const recipients = await service.startWave(POOL_KEY, ONE_NODE_OF_EIGHT, 2);
+
+      expect(recipients).toEqual([]);
+      expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
+      expect(pool).toEqual(expect.objectContaining({ waveStartedAt: null, waveNumber: 2, lastRoundAt: roundAt }));
+    });
+
+    it("leaves a pool without an open episode alone when nobody is left to email", async () => {
+      const { service, poolRepository } = setup({ entries: [] });
+
+      expect(await service.startWave(POOL_KEY, ONE_NODE_OF_EIGHT, 2)).toEqual([]);
+      expect(poolRepository.update).not.toHaveBeenCalled();
+    });
+
+    it("opens a new episode on a later supply rise", async () => {
+      const { service, pool } = setup({ entries: names("a", "b") });
+      await service.startWave(POOL_KEY, ONE_NODE_OF_EIGHT, 2);
+      await service.startWave(POOL_KEY, ONE_NODE_OF_EIGHT, 2);
+      vi.setSystemTime(new Date(NOW.getTime() + HOUR_MS));
+
+      const recipients = await service.startWave(POOL_KEY, ONE_NODE_OF_EIGHT, 2);
+
+      expect(recipients).toEqual(["a", "b"]);
+      expect(pool.waveStartedAt).toEqual(new Date(NOW.getTime() + HOUR_MS));
+    });
+
+    it("emails three people for one free node of eight when everyone wants eight", async () => {
+      const { service, jobQueueService } = setup({ entries: names(...Array.from({ length: 10 }, (_, index) => `e${index}`)) });
+
+      const recipients = await service.startWave(POOL_KEY, ONE_NODE_OF_EIGHT, 2);
 
       expect(recipients).toHaveLength(3);
       expect(jobQueueService.enqueue).toHaveBeenCalledTimes(3);
     });
 
-    it("runs the pool lock, the entry updates and every enqueue in one transaction", async () => {
-      const { service, txService, poolRepository } = setup({ entries: [entry("a")] });
+    it("treats an unlimited node as large enough for everyone in line", async () => {
+      const { service } = setup({ entries: names("a", "b", "c", "d") });
 
-      await service.startWave(POOL_KEY, { nodeFreeUnits: [8] }, 2);
+      const recipients = await service.startWave(POOL_KEY, { nodeFreeUnits: [Number.MAX_SAFE_INTEGER] }, 2);
 
-      expect(txService.transaction).toHaveBeenCalledTimes(1);
-      expect(poolRepository.findByPoolKeyAndLock).toHaveBeenCalledWith(POOL_KEY);
+      expect(recipients).toEqual(["a", "b", "c", "d"]);
     });
 
-    it("opens the wave on the pool", async () => {
-      const { service, pool } = setup({ entries: [entry("a")], pool: { waveStartedAt: null, waveNumber: 1 } });
+    it("checks only as many wallets as the free supply can serve", async () => {
+      const { service, accountService } = setup({ entries: names(...Array.from({ length: 30 }, (_, index) => `e${index}`)) });
 
-      await service.startWave(POOL_KEY, { nodeFreeUnits: [8] }, 2);
+      await service.startWave(POOL_KEY, ONE_NODE_OF_EIGHT, 2);
 
-      expect(pool.waveNumber).toBe(2);
-      expect(pool.waveStartedAt).toBeInstanceOf(Date);
+      expect(accountService.findAccountType).toHaveBeenCalledTimes(10);
+    });
+
+    it("does not check the wallet of anyone over the daily limit", async () => {
+      const { service, accountService } = setup({ entries: [entry("maxed", { lastNotifiedAt: hoursAgo(5), notifiedCount: 2 })] });
+
+      await service.startWave(POOL_KEY, ONE_NODE_OF_EIGHT, 2);
+
+      expect(accountService.findAccountType).not.toHaveBeenCalled();
+    });
+
+    it("runs the pool lock, the entry updates, the pool update and every enqueue inside the transaction", async () => {
+      const { service, insideTransactionAtCall } = setup({ entries: names("a", "b") });
+
+      await service.startWave(POOL_KEY, ONE_NODE_OF_EIGHT, 2);
+
+      expect(insideTransactionAtCall).toHaveLength(2 + 2 + 1 + 1);
+      expect(insideTransactionAtCall.every(Boolean)).toBe(true);
+    });
+
+    it("logs and emails nobody when the pool row does not exist", async () => {
+      const { service, jobQueueService, logger } = setup({ entries: names("a"), pool: null });
+
+      const recipients = await service.startWave(POOL_KEY, ONE_NODE_OF_EIGHT, 2);
+
+      expect(recipients).toEqual([]);
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith({ event: "GPU_WAVE_POOL_NOT_FOUND", poolKey: POOL_KEY });
     });
   });
 
@@ -129,18 +203,32 @@ describe(GpuWaveService.name, () => {
     });
   }
 
-  function hoursAgo(hours: number) {
-    return new Date(Date.now() - hours * HOUR_MS);
+  function names(...ids: string[]) {
+    return ids.map(id => entry(id));
   }
 
-  function setup(input: { entries: GpuWaitlistEntryRow[]; pool?: Partial<GpuWaitlistPoolRow>; accountTypes?: Record<string, HardwareRequestAccountType> }) {
-    const pool = mock<GpuWaitlistPoolRow>({ poolKey: POOL_KEY, waveStartedAt: null, waveNumber: 0, ...input.pool });
-    const updatedEntries = new Map<string, Partial<GpuWaitlistEntryRow>>();
+  function hoursAgo(hours: number) {
+    return new Date(NOW.getTime() - hours * HOUR_MS);
+  }
+
+  function setup(input: {
+    entries: GpuWaitlistEntryRow[];
+    pool?: Partial<GpuWaitlistPoolRow> | null;
+    accountTypes?: Record<string, HardwareRequestAccountType>;
+  }) {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(NOW);
+
+    const insideTransactionAtCall: boolean[] = [];
+    let insideTransaction = false;
+    const accountTypes = { ...input.accountTypes };
+    const pool = mock<GpuWaitlistPoolRow>({ poolKey: POOL_KEY, waveStartedAt: null, lastRoundAt: null, waveNumber: 0, ...input.pool });
 
     const unscopedEntryRepository = mock<GpuWaitlistEntryRepository>();
+    const updatedEntries = new Map<string, Partial<GpuWaitlistEntryRow>>();
     unscopedEntryRepository.updateById.mockImplementation((async (id: string, payload: Partial<GpuWaitlistEntryRow>) => {
-      const stored = input.entries.find(candidate => candidate.id === id)!;
-      Object.assign(stored, payload);
+      insideTransactionAtCall.push(insideTransaction);
+      Object.assign(input.entries.find(candidate => candidate.id === id)!, payload);
       updatedEntries.set(id, payload);
     }) as GpuWaitlistEntryRepository["updateById"]);
     const entryRepository = mock<GpuWaitlistEntryRepository>({
@@ -149,22 +237,50 @@ describe(GpuWaveService.name, () => {
     });
 
     const poolRepository = mock<GpuWaitlistPoolRepository>({
-      upsert: vi.fn(async () => undefined),
-      findByPoolKeyAndLock: vi.fn(async () => pool),
+      findByPoolKeyAndLock: vi.fn(async () => {
+        insideTransactionAtCall.push(insideTransaction);
+        return input.pool === null ? undefined : pool;
+      }),
       update: vi.fn(async (_poolKey, values) => {
+        insideTransactionAtCall.push(insideTransaction);
         Object.assign(pool, values);
       })
     });
 
     const accountService = mock<HardwareRequestAccountService>({
-      findAccountType: vi.fn(async ({ userId }) => input.accountTypes?.[userId.replace("user-", "")] ?? "paying")
+      findAccountType: vi.fn(async ({ userId }) => accountTypes[userId!.replace("user-", "")] ?? "paying")
     });
     const jobQueueService = mock<JobQueueService>();
-    const txService = mock<TxService>({ transaction: vi.fn(async cb => await cb()) as TxService["transaction"] });
-    const config = { GPU_WAITLIST_WAVE_MULTIPLIER: 3, GPU_WAITLIST_MAX_EMAILS_PER_ENTRY_PER_DAY: 2 } as GpuWaitlistConfig;
+    jobQueueService.enqueue.mockImplementation(async () => {
+      insideTransactionAtCall.push(insideTransaction);
+      return null;
+    });
+    const txService = mock<TxService>({
+      transaction: vi.fn(async cb => {
+        insideTransaction = true;
+        try {
+          return await cb();
+        } finally {
+          insideTransaction = false;
+        }
+      }) as TxService["transaction"]
+    });
+    const config = mock<GpuWaitlistConfig>({ GPU_WAITLIST_WAVE_MULTIPLIER: 3, GPU_WAITLIST_MAX_EMAILS_PER_ENTRY_PER_DAY: 2 });
+    const logger = mock<ReturnType<CreateLogger>>();
 
-    const service = new GpuWaveService(entryRepository, poolRepository, accountService, jobQueueService, txService, config);
+    const service = new GpuWaveService(entryRepository, poolRepository, accountService, jobQueueService, txService, config, () => logger);
 
-    return { service, jobQueueService, txService, entryRepository, poolRepository, pool, entries: input.entries, updatedEntries };
+    return {
+      service,
+      jobQueueService,
+      accountService,
+      poolRepository,
+      pool,
+      entries: input.entries,
+      updatedEntries,
+      accountTypes,
+      insideTransactionAtCall,
+      logger
+    };
   }
 });

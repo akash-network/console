@@ -30,20 +30,24 @@ describe(GpuWaitlistPoolRepository.name, () => {
       const txService = container.resolve(TxService);
       await repository.upsert({ poolKey, lastFreeUnits: 1, lastMaxNodeFreeUnits: 1 });
       const order: string[] = [];
+      const firstHoldsLock = Promise.withResolvers<void>();
+      const releaseFirst = Promise.withResolvers<void>();
 
       const first = txService.transaction(async () => {
         await repository.findByPoolKeyAndLock(poolKey);
-        await new Promise(resolve => setTimeout(resolve, 200));
-        order.push("first committed");
+        firstHoldsLock.resolve();
+        await releaseFirst.promise;
+        order.push("first released");
       });
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await firstHoldsLock.promise;
       const second = txService.transaction(async () => {
         await repository.findByPoolKeyAndLock(poolKey);
         order.push("second locked");
       });
+      releaseFirst.resolve();
       await Promise.all([first, second]);
 
-      expect(order).toEqual(["first committed", "second locked"]);
+      expect(order).toEqual(["first released", "second locked"]);
     });
   });
 
