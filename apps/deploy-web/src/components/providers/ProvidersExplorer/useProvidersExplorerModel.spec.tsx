@@ -475,6 +475,39 @@ describe(useProvidersExplorerModel.name, () => {
     expect(result.current.matchingLocationIds).toEqual(new Set(owners));
   });
 
+  it.each([
+    ["a generation and a model no CPU has together", { cpuGenerations: ["Milan"], cpuModels: ["Xeon Gold 6248R"] }, true],
+    [
+      "a vendor and a generation one CPU has, even with favorites only and no favorite",
+      { cpuVendors: ["AMD"], cpuGenerations: ["Milan"], isFavoritesOnly: true },
+      false
+    ],
+    [
+      "a vendor and a generation one CPU has, even in a region where none runs",
+      { cpuVendors: ["AMD"], cpuGenerations: ["Milan"], regions: ["eu-east"] },
+      false
+    ],
+    ["two generations from one group", { cpuGenerations: ["Milan", "Cascade Lake"] }, false]
+  ])("tells whether the CPU picks match no CPU on the map: %s", (_, change, expected) => {
+    const locations = [
+      createLocation({ owner: "akash1milan", locationRegion: "us-central", cpus: [{ vendor: "AMD", model: "EPYC 7763", generation: "Milan" }] }),
+      createLocation({ owner: "akash1xeon", locationRegion: "eu-east", cpus: [{ vendor: "Intel", model: "Xeon Gold 6248R", generation: "Cascade Lake" }] })
+    ];
+    const { result } = setup({ locations });
+
+    act(() => result.current.updateFilters(change));
+
+    expect(result.current.hasCpuPicksMatchingNoCpu).toBe(expected);
+  });
+
+  it("doesn't blame the CPU picks before the map loads", () => {
+    const { result } = setup({ locations: [] });
+
+    act(() => result.current.updateFilters({ cpuGenerations: ["Milan"], cpuModels: ["Xeon Gold 6248R"] }));
+
+    expect(result.current.hasCpuPicksMatchingNoCpu).toBe(false);
+  });
+
   it("lights the pin of a provider running any of the picked GPU models", () => {
     const locations = [createLocation({ owner: "akash1mixed", gpuModels: ["h100", "a100"] }), createLocation({ owner: "akash1other", gpuModels: ["rtx4090"] })];
     const { result } = setup({ locations });

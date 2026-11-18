@@ -169,6 +169,7 @@ export function useProvidersExplorerModel(dependencies: typeof DEPENDENCIES = DE
     cpuVendorOptions: useMemo(() => countCpuOptions(locations, cpu => cpu.vendor, filters.cpuVendors), [locations, filters.cpuVendors]),
     cpuModelOptions: useMemo(() => countCpuOptions(locations, cpu => cpu.model, filters.cpuModels), [locations, filters.cpuModels]),
     cpuGenerationOptions: useMemo(() => countCpuOptions(locations, cpu => cpu.generation, filters.cpuGenerations), [locations, filters.cpuGenerations]),
+    hasCpuPicksMatchingNoCpu: useMemo(() => hasCpuPicksMatchingNoCpu(locations, filters), [locations, filters]),
     networkStats: useMemo(() => buildNetworkStats(dashboard.data, auditedLocations), [dashboard.data, auditedLocations]),
     favoriteProviders,
     toggleFavorite
@@ -206,6 +207,12 @@ function findMatchingLocationIds(locations: ApiProviderLocation[], filters: Prov
   );
 
   return new Set(matches.map(location => location.owner));
+}
+
+/** Picks from two CPU groups can rule each other out, since one CPU has to match them all. */
+function hasCpuPicksMatchingNoCpu(locations: ApiProviderLocation[], filters: ProviderFilters): boolean {
+  const cpuGroupsInUse = [filters.cpuVendors, filters.cpuModels, filters.cpuGenerations].filter(wanted => wanted.length > 0).length;
+  return cpuGroupsInUse > 1 && locations.length > 0 && !locations.some(location => runsWantedCpu(location, filters));
 }
 
 function runsWantedCpu(location: ApiProviderLocation, filters: ProviderFilters): boolean {

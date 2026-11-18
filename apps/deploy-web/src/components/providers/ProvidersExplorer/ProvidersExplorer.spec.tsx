@@ -7,7 +7,6 @@ import { mock } from "vitest-mock-extended";
 import type { GlobeCluster } from "@src/components/providers/ProvidersGlobe/clusterProviders";
 import type { ApiProviderList, ApiProviderLocation, StatsItem } from "@src/types/provider";
 import { DEPENDENCIES, ProvidersExplorer } from "./ProvidersExplorer";
-import type { ProviderFilters } from "./useProvidersExplorerModel";
 import { DEFAULT_FILTERS } from "./useProvidersExplorerModel";
 
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
@@ -388,14 +387,14 @@ describe("ProvidersExplorer", () => {
     expect(screen.getByRole("table", { name: "Providers" })).toHaveAttribute("aria-busy", "true");
   });
 
-  it("says vendor, generation and model have to match the same CPU when picks from two CPU groups match no provider", () => {
-    setup({ providers: [], hasFilters: true, filters: { ...DEFAULT_FILTERS, cpuGenerations: ["Milan"], cpuModels: ["Xeon Gold 6248R"] } });
+  it("says vendor, generation and model have to match the same CPU when the CPU picks match no CPU", () => {
+    setup({ providers: [], hasFilters: true, hasCpuPicksMatchingNoCpu: true });
 
     expect(screen.getByText("Vendor, generation and model have to match the same CPU.")).toBeInTheDocument();
   });
 
-  it("adds no CPU note when the picks come from one CPU group", () => {
-    setup({ providers: [], hasFilters: true, filters: { ...DEFAULT_FILTERS, cpuGenerations: ["Milan", "Genoa"] } });
+  it("adds no CPU note when another filter emptied the list", () => {
+    setup({ providers: [], hasFilters: true, hasCpuPicksMatchingNoCpu: false });
 
     expect(screen.getByText("No providers match those filters.")).toBeInTheDocument();
     expect(screen.queryByText(/have to match the same CPU/)).not.toBeInTheDocument();
@@ -649,7 +648,7 @@ describe("ProvidersExplorer", () => {
     providers?: ApiProviderList[];
     search?: string;
     hasFilters?: boolean;
-    filters?: ProviderFilters;
+    hasCpuPicksMatchingNoCpu?: boolean;
     matchingProviderCount?: number;
     hasLoadedProviders?: boolean;
     hasFailedToLoadProviders?: boolean;
@@ -669,10 +668,11 @@ describe("ProvidersExplorer", () => {
     const model = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useProvidersExplorerModel>>(), {
       search: input.search ?? "",
       changeSearch: vi.fn(),
-      filters: input.filters ?? DEFAULT_FILTERS,
+      filters: DEFAULT_FILTERS,
       updateFilters: vi.fn(),
       clearFilters: vi.fn(),
       hasFilters: !!input.hasFilters,
+      hasCpuPicksMatchingNoCpu: !!input.hasCpuPicksMatchingNoCpu,
       pageIndex: 0,
       changePageIndex: vi.fn(),
       pageCount: 1,

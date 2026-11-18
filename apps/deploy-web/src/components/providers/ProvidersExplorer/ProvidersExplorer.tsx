@@ -16,7 +16,6 @@ import { ProvidersTable } from "@src/components/providers/ProvidersTable/Provide
 import type { ProviderSummary } from "@src/components/providers/providerSummary/providerSummary";
 import { summarizeListedProvider, summarizeLocatedProvider } from "@src/components/providers/providerSummary/providerSummary";
 import useCookieTheme from "@src/hooks/useTheme";
-import type { ProviderFilters } from "./useProvidersExplorerModel";
 import { useProvidersExplorerModel } from "./useProvidersExplorerModel";
 
 const ProvidersGlobe = dynamic(() => import("@src/components/providers/ProvidersGlobe/ProvidersGlobe").then(module => module.ProvidersGlobe), {
@@ -347,7 +346,7 @@ export const ProvidersExplorer: FC<Props> = ({ dependencies: d = DEPENDENCIES })
           regionFilter={regionFilter}
           gpuFilter={gpuFilter}
           cpuFilter={cpuFilter}
-          emptyNote={countCpuFilterGroupsInUse(model.filters) > 1 ? CPU_FILTERS_MATCH_ONE_CPU : undefined}
+          emptyNote={model.hasCpuPicksMatchingNoCpu ? CPU_FILTERS_MATCH_ONE_CPU : undefined}
         />
       </section>
     </div>
@@ -421,10 +420,6 @@ function describeCluster(cluster: GlobeCluster): string {
   const providerCount = cluster.providerIds.length;
   const providers = `${providerCount} ${providerCount === 1 ? "provider" : "providers"}`;
   return cluster.gpuCount > 0 ? `${providers} · ${cluster.gpuCount} GPUs` : providers;
-}
-
-function countCpuFilterGroupsInUse({ cpuVendors, cpuGenerations, cpuModels }: ProviderFilters): number {
-  return [cpuVendors, cpuGenerations, cpuModels].filter(values => values.length > 0).length;
 }
 
 function describeZoom(zoomLevel: number): string {
