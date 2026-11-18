@@ -20,7 +20,8 @@ const ADD_CREDITS_CONTEXT = "template_publish";
 const CHECK_FIX_LABELS: Record<PublishCheckFix, string> = {
   rename: "Rename",
   "rename-organization": "Organization settings",
-  "edit-configuration": "Edit configuration"
+  "edit-configuration": "Edit configuration",
+  "edit-readme": "Edit README"
 };
 
 export type PublishFixLinks = Partial<Record<PublishCheckFix, string>>;

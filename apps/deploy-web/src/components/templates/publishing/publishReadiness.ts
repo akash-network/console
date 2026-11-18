@@ -2,7 +2,7 @@ import type { TemplatePublishCheck, TemplatePublishReadiness } from "@src/types/
 
 export type PublishOrganization = { name: string; type: "personal" | "team" };
 
-export type PublishCheckFix = "rename" | "rename-organization" | "edit-configuration";
+export type PublishCheckFix = "rename" | "rename-organization" | "edit-configuration" | "edit-readme";
 
 export type PublishRequirementFix = "verify-email" | "add-credits" | "contact-support";
 
@@ -25,6 +25,8 @@ const RESERVED_NAME_CHECK_KEY = "name_not_reserved";
 
 const PUBLISHER_NAME_FIELD = "publisher_name";
 
+const README_FIELD = "readme";
+
 /** The API adds checks and requirements over time, so a key this build has never seen still gets a readable name. */
 export function readableKeyOf(key: string): string {
   const words = key.replace(/_+/g, " ").trim();
@@ -37,12 +39,21 @@ export function publishCheckLabelOf(key: string): string {
 
 export function publishCheckFixesOf(check: TemplatePublishCheck): PublishCheckFix[] {
   if (check.status !== "failed") return [];
-  if (CONFIGURATION_CHECK_KEYS.includes(check.key)) return ["edit-configuration"];
+  if (CONFIGURATION_CHECK_KEYS.includes(check.key)) return configurationFixesOf(check);
   if (check.key !== RESERVED_NAME_CHECK_KEY) return [];
 
   const fixes: PublishCheckFix[] = [];
   if (check.issues.some(issue => issue.field !== PUBLISHER_NAME_FIELD)) fixes.push("rename");
   if (check.issues.some(issue => issue.field === PUBLISHER_NAME_FIELD)) fixes.push("rename-organization");
+  return fixes;
+}
+
+/** A credential can sit in the README, which is edited on the template page and not in Configure. */
+function configurationFixesOf(check: TemplatePublishCheck): PublishCheckFix[] {
+  const readmeIssues = check.issues.filter(issue => issue.field === README_FIELD);
+  const fixes: PublishCheckFix[] = [];
+  if (readmeIssues.length === 0 || readmeIssues.length < check.issues.length) fixes.push("edit-configuration");
+  if (readmeIssues.length > 0) fixes.push("edit-readme");
   return fixes;
 }
 
