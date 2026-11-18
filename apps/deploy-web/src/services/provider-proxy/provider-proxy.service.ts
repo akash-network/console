@@ -159,12 +159,20 @@ export class ProviderProxyService {
     }
 
     if (expectedSize !== undefined && download.file.size < expectedSize) {
-      this.logger.error({ event: "DOWNLOAD_FILE_FROM_SHELL_INCOMPLETE", expectedSize, receivedSize: download.file.size });
-      return {
-        ok: false,
-        code: "unknown",
-        message: `The provider ended the download early (${download.file.size} of ${expectedSize} bytes). Try again.`
-      };
+      const sourceSize = (await this.readShellFileSize(input)) ?? expectedSize;
+
+      if (input.signal?.aborted) {
+        return { ok: false, code: "cancelled" };
+      }
+
+      if (download.file.size < sourceSize) {
+        this.logger.error({ event: "DOWNLOAD_FILE_FROM_SHELL_INCOMPLETE", expectedSize: sourceSize, receivedSize: download.file.size });
+        return {
+          ok: false,
+          code: "unknown",
+          message: `The provider ended the download early (${download.file.size} of ${sourceSize} bytes). Try again.`
+        };
+      }
     }
 
     this.logger.info({ event: "DOWNLOAD_FILE_FROM_SHELL_SUCCESS", size: download.file.size });

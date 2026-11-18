@@ -307,11 +307,12 @@ describe(ProviderProxyService.name, () => {
       expect(await readSavedFile(saveFile)).toBe("grown log");
     });
 
-    it("returns an error without saving when fewer bytes arrive than the file holds, although the provider reports exit code 0", async () => {
-      const { download, saveFile, logger, websocket } = await startDownload({ sizeCheck: { stdout: "62914560\n", exitCode: 0 } });
+    it("returns an error without saving when fewer bytes arrive than the file still holds, although the provider reports exit code 0", async () => {
+      const { download, saveFile, logger, websocket, answerRecheck } = await startDownload({ sizeCheck: { stdout: "62914560\n", exitCode: 0 } });
 
       await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "cut off");
       await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
+      await answerRecheck({ stdout: "62914560\n", exitCode: 0 });
 
       expect(await download).toEqual({
         ok: false,
@@ -320,6 +321,56 @@ describe(ProviderProxyService.name, () => {
       });
       expect(saveFile).not.toHaveBeenCalled();
       expect(logger.error).toHaveBeenCalledWith({ event: "DOWNLOAD_FILE_FROM_SHELL_INCOMPLETE", expectedSize: 62914560, receivedSize: 7 });
+    });
+
+    it("saves the file when it shrank to the received size between the size check and the download", async () => {
+      const { download, saveFile, websocket, answerRecheck } = await startDownload({ sizeCheck: { stdout: "12\n", exitCode: 0 } });
+
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "rotated");
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
+      await answerRecheck({ stdout: "7\n", exitCode: 0 });
+
+      expect(await download).toEqual({ ok: true });
+      expect(await readSavedFile(saveFile)).toBe("rotated");
+    });
+
+    it("compares the download with the new size when the file changed size but is still larger than what arrived", async () => {
+      const { download, saveFile, websocket, answerRecheck } = await startDownload({ sizeCheck: { stdout: "12\n", exitCode: 0 } });
+
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "cut off");
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
+      await answerRecheck({ stdout: "9\n", exitCode: 0 });
+
+      expect(await download).toEqual({ ok: false, code: "unknown", message: "The provider ended the download early (7 of 9 bytes). Try again." });
+      expect(saveFile).not.toHaveBeenCalled();
+    });
+
+    it("keeps the first size and returns an error when the size can't be read again", async () => {
+      const { download, saveFile, websocket, answerRecheck } = await startDownload({ sizeCheck: { stdout: "12\n", exitCode: 0 } });
+
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "cut off");
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
+      await answerRecheck({ stdout: "", exitCode: 1 });
+
+      expect(await download).toEqual({ ok: false, code: "unknown", message: "The provider ended the download early (7 of 12 bytes). Try again." });
+      expect(saveFile).not.toHaveBeenCalled();
+    });
+
+    it("returns cancelled without saving when the download is aborted while the size is read again", async () => {
+      const abortController = new AbortController();
+      const { download, saveFile, websocket, recheckSocket, createWebSocket } = await startDownload({
+        signal: abortController.signal,
+        sizeCheck: { stdout: "12\n", exitCode: 0 }
+      });
+
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "cut off");
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
+      await vi.waitFor(() => expect(createWebSocket).toHaveBeenCalledTimes(3));
+      await dispatchWsEvent(recheckSocket, new Event("open"));
+      abortController.abort();
+
+      expect(await download).toEqual({ ok: false, code: "cancelled" });
+      expect(saveFile).not.toHaveBeenCalled();
     });
 
     it("saves the file without a size check when the size command prints something other than a number", async () => {
@@ -486,19 +537,29 @@ describe(ProviderProxyService.name, () => {
       expect(createWebSocket).toHaveBeenCalledTimes(1);
     });
 
-    async function startDownload(input?: { filePath?: string; signal?: AbortSignal; sizeCheck?: { stdout: string; exitCode: number } }) {
-      const { service, saveFile, logger, sockets, createWebSocket } = setupWithSocketSequence(2);
-      const [sizeSocket, websocket] = sockets;
-      const sizeCheck = input?.sizeCheck ?? { stdout: "", exitCode: 127 };
+    async function startDownload(input?: { filePath?: string; signal?: AbortSignal; sizeCheck?: SizeCheckAnswer }) {
+      const { service, saveFile, logger, sockets, createWebSocket } = setupWithSocketSequence(3);
+      const [sizeSocket, websocket, recheckSocket] = sockets;
 
       const download = downloadFile(service, input);
-      await dispatchWsEvent(sizeSocket, new Event("open"));
-      await sendShellFrame(sizeSocket, LeaseShellCode.LeaseShellCodeStdout, sizeCheck.stdout);
-      await sendShellFrame(sizeSocket, LeaseShellCode.LeaseShellCodeResult, `{"exit_code":${sizeCheck.exitCode}}\n`);
+      await answerSizeCheck(sizeSocket, input?.sizeCheck ?? { stdout: "", exitCode: 127 });
       await vi.waitFor(() => expect(createWebSocket).toHaveBeenCalledTimes(2));
       await dispatchWsEvent(websocket, new Event("open"));
 
-      return { download, saveFile, logger, sizeSocket, websocket };
+      const answerRecheck = async (answer: SizeCheckAnswer) => {
+        await vi.waitFor(() => expect(createWebSocket).toHaveBeenCalledTimes(3));
+        await answerSizeCheck(recheckSocket, answer);
+      };
+
+      return { download, saveFile, logger, sizeSocket, websocket, recheckSocket, createWebSocket, answerRecheck };
+    }
+
+    type SizeCheckAnswer = { stdout: string; exitCode: number };
+
+    async function answerSizeCheck(socket: WebSocket, answer: SizeCheckAnswer) {
+      await dispatchWsEvent(socket, new Event("open"));
+      await sendShellFrame(socket, LeaseShellCode.LeaseShellCodeStdout, answer.stdout);
+      await sendShellFrame(socket, LeaseShellCode.LeaseShellCodeResult, `{"exit_code":${answer.exitCode}}\n`);
     }
 
     function downloadFile(service: ProviderProxyService, input?: { filePath?: string; signal?: AbortSignal }) {
