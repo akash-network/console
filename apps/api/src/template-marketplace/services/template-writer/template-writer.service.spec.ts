@@ -28,6 +28,7 @@ import type {
   MarketplaceTemplateService
 } from "@src/template-marketplace/services/marketplace-template/marketplace-template.service";
 import type { PublishChecksService } from "@src/template-marketplace/services/publish-checks/publish-checks.service";
+import type { TemplatePublisherNotifierService } from "@src/template-marketplace/services/template-publisher-notifier/template-publisher-notifier.service";
 import type { TemplateRateLimiterService } from "@src/template-marketplace/services/template-rate-limiter/template-rate-limiter.service";
 import { TemplateSdlValidatorService } from "@src/template-marketplace/services/template-sdl-validator/template-sdl-validator.service";
 import { TemplateWriteAccessService } from "@src/template-marketplace/services/template-write-access/template-write-access.service";
@@ -534,6 +535,27 @@ describe(TemplateWriterService.name, () => {
       });
       expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ checkResults: PASSED_CHECKS }));
       expect(repository.mirrorVersion).toHaveBeenCalledTimes(1);
+    });
+
+    it("sends no notice about a version that went live", async () => {
+      const template = createTemplateRow({ visibility: "public", isPublic: true });
+      const { service, templatePublisherNotifierService } = setup({ template });
+
+      await service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [], baseVersion: 1 });
+
+      expect(templatePublisherNotifierService.notifyVersionFailedChecks).not.toHaveBeenCalled();
+    });
+
+    it("tells the rest of the publisher about a version that failed its checks, inside the save's transaction", async () => {
+      const template = createTemplateRow({ visibility: "public", isPublic: true });
+      const { service, templateVersionRepository, templatePublisherNotifierService, user, transactionSteps } = setup({ template, checkResults: FAILED_CHECKS });
+      const failed = createVersion({ templateId: template.id, version: 2, status: "failed_checks", checkResults: FAILED_CHECKS });
+      templateVersionRepository.appendVersion.mockResolvedValue(failed);
+
+      await service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [], baseVersion: 1 });
+
+      expect(templatePublisherNotifierService.notifyVersionFailedChecks).toHaveBeenCalledWith({ versionId: failed.id, savedByUserId: user.id });
+      expect(transactionSteps).toEqual(["begin", "findAndLockForWrite", "assertWithinLimits", "notifyVersionFailedChecks", "end"]);
     });
 
     it("answers a version that failed its checks without mirroring it into the legacy columns", async () => {
@@ -1060,6 +1082,10 @@ describe(TemplateWriterService.name, () => {
       transactionSteps.push("assertWithinLimits");
       if (input.rateLimitError) throw input.rateLimitError;
     });
+    const templatePublisherNotifierService = mock<TemplatePublisherNotifierService>();
+    templatePublisherNotifierService.notifyVersionFailedChecks.mockImplementation(async () => {
+      transactionSteps.push("notifyVersionFailedChecks");
+    });
     const service = new TemplateWriterService(
       repository,
       templateVersionRepository,
@@ -1070,6 +1096,7 @@ describe(TemplateWriterService.name, () => {
       new TemplateWriteAccessService(repository, marketplaceTemplateService, authService, executionContextService),
       publishChecksService,
       templateRateLimiterService,
+      templatePublisherNotifierService,
       authService,
       txService,
       executionContextService
@@ -1087,6 +1114,7 @@ describe(TemplateWriterService.name, () => {
       txService,
       publishChecksService,
       templateRateLimiterService,
+      templatePublisherNotifierService,
       user,
       transactionSteps
     };

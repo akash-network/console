@@ -32,6 +32,7 @@ import {
   type PublishedTemplateVersion
 } from "@src/template-marketplace/services/marketplace-template/marketplace-template.service";
 import { PublishChecksService } from "@src/template-marketplace/services/publish-checks/publish-checks.service";
+import { TemplatePublisherNotifierService } from "@src/template-marketplace/services/template-publisher-notifier/template-publisher-notifier.service";
 import { TemplateRateLimiterService } from "@src/template-marketplace/services/template-rate-limiter/template-rate-limiter.service";
 import { TemplateSdlValidatorService } from "@src/template-marketplace/services/template-sdl-validator/template-sdl-validator.service";
 import { type StoredTemplate, TemplateWriteAccessService } from "@src/template-marketplace/services/template-write-access/template-write-access.service";
@@ -111,6 +112,7 @@ export class TemplateWriterService {
     private readonly templateWriteAccessService: TemplateWriteAccessService,
     private readonly publishChecksService: PublishChecksService,
     private readonly templateRateLimiterService: TemplateRateLimiterService,
+    private readonly templatePublisherNotifierService: TemplatePublisherNotifierService,
     private readonly authService: AuthService,
     private readonly txService: TxService,
     private readonly executionContextService: ExecutionContextService
@@ -192,6 +194,9 @@ export class TemplateWriterService {
           description: readme ?? "",
           ...legacyHardwareOf(hardware)
         });
+      }
+      if (appended.status === "failed_checks") {
+        await this.templatePublisherNotifierService.notifyVersionFailedChecks({ versionId: appended.id, savedByUserId: createdById });
       }
 
       return appended;

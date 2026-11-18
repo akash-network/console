@@ -19,7 +19,7 @@ const ActivityStatusSchema = z.enum(activityStatusEnum.enumValues).openapi({
 
 const ActivityTypeSchema = z.enum(activityTypeEnum.enumValues).openapi({
   description:
-    "What the action was, which kind of alert fired (`wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`), or `gpu_request_update` when the team moved one of the user's GPU requests along."
+    "What the action was, which kind of alert fired (`wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`), `gpu_request_update` when the team moved one of the user's GPU requests along, or `template_update` when staff or the publish checks decided something about a template the user's organization published."
 });
 
 const EnvNamesSchema = z.array(z.string());
@@ -69,7 +69,8 @@ export const ActivitySchema = z.object({
     organizationId: z.string().uuid().optional().openapi({ description: "The organization the alert is filed in, on an alert set in one." }),
     changes: DeploymentChangesSchema.optional(),
     hardwareRequestId: z.string().uuid().optional().openapi({ description: "The GPU request a `gpu_request_update` is about." }),
-    hardwareRequestStatus: z.string().optional().openapi({ description: "The status the GPU request moved to, on a `gpu_request_update`." })
+    hardwareRequestStatus: z.string().optional().openapi({ description: "The status the GPU request moved to, on a `gpu_request_update`." }),
+    templateId: z.string().uuid().optional().openapi({ description: "The template a `template_update` is about, absent on one about the publisher." })
   }),
   seenAt: z.string().datetime().nullable().openapi({ description: "When the user first marked the activity seen." }),
   createdAt: z.string().datetime(),
