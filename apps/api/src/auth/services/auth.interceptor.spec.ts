@@ -178,6 +178,63 @@ describe(AuthInterceptor.name, () => {
     });
   });
 
+  describe("Request user", () => {
+    it("names the signed-in user on the request", async () => {
+      const user = createUser();
+      const { callInterceptor, observedUserIds } = setup({ user });
+
+      await callInterceptor();
+
+      expect(observedUserIds).toEqual([user.id]);
+    });
+
+    it("names the signed-in user on a request the organization context refuses", async () => {
+      const user = createUser();
+      const { callInterceptor, observedUserIds } = setup({ user, organizationContextRejection: createError(403, "Not a member of this organization") });
+
+      const response = await callInterceptor();
+
+      expect(response.status).toBe(403);
+      expect(observedUserIds).toEqual([user.id]);
+    });
+
+    it("names the API key's user on a request the organization context refuses", async () => {
+      const user = createUser();
+      const { callInterceptor, observedUserIds } = setup({
+        apiKey: "123",
+        user,
+        organizationContextRejection: createError(403, "Not a member of this organization")
+      });
+
+      const response = await callInterceptor();
+
+      expect(response.status).toBe(403);
+      expect(observedUserIds).toEqual([user.id]);
+    });
+
+    it.each([
+      { authentication: "session", apiKey: undefined },
+      { authentication: "API key", apiKey: "123" }
+    ])("names the terminated user on a $authentication write it refuses", async ({ apiKey }) => {
+      const user = createUser({ accountStatus: "terminated" });
+      const { callInterceptor, observedUserIds } = setup({ apiKey, user });
+
+      const response = await callInterceptor({ method: "POST" });
+
+      expect(response.status).toBe(403);
+      expect(observedUserIds).toEqual([user.id]);
+    });
+
+    it("names no user on a request whose API key is rejected", async () => {
+      const { callInterceptor, observedUserIds } = setup({ apiKey: "123", user: createUser(), apiKeyBehavior: "throw" });
+
+      const response = await callInterceptor();
+
+      expect(response.status).toBe(401);
+      expect(observedUserIds).toEqual([undefined]);
+    });
+  });
+
   describe("Terminated account", () => {
     it.each(["GET", "HEAD", "POST", "DELETE"])("rejects a %s api key request of a terminated user with account_terminated", async method => {
       const { callInterceptor, organizationContextResolver, di } = setup({
@@ -339,6 +396,7 @@ describe(AuthInterceptor.name, () => {
     const getActiveSpan = vi.spyOn(trace, "getActiveSpan").mockReturnValue(input?.withoutRequestSpan ? undefined : requestSpan);
     onTestFinished(() => getActiveSpan.mockRestore());
     const observedAuthMethods: unknown[] = [];
+    const observedUserIds: unknown[] = [];
 
     const abilityService = mock<AbilityService>();
     di.registerInstance(AbilityService, abilityService);
@@ -404,7 +462,7 @@ describe(AuthInterceptor.name, () => {
     });
     di.register(ExecutionContextService, { useValue: executionContextService });
 
-    const app = new Hono<{ Variables: { authMethod?: string } }>()
+    const app = new Hono<{ Variables: { authMethod?: string; user?: UserOutput } }>()
       .onError((error, c) => {
         if (isHttpError(error)) {
           return c.json({ error: error.message, code: error.errorCode, data: error.data }, { status: error.status });
@@ -414,6 +472,7 @@ describe(AuthInterceptor.name, () => {
       .use(async (c, next) => {
         await next();
         observedAuthMethods.push(c.get("authMethod"));
+        observedUserIds.push(c.get("user")?.id);
       })
       .use(di.resolve(AuthInterceptor).intercept())
       .get("/", c => c.text("Ok"))
@@ -439,6 +498,7 @@ describe(AuthInterceptor.name, () => {
       organizationContext,
       requestSpan,
       observedAuthMethods,
+      observedUserIds,
       accountStatusService,
       callInterceptor: (request: { method?: string; path?: string } = {}) => app.request(request.path ?? "/", { method: request.method ?? "GET", headers })
     };

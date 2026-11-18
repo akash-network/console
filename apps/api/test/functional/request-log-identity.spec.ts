@@ -2,6 +2,7 @@ import { registerContextPropagation } from "@akashnetwork/instrumentation/testin
 import { LoggerService } from "@akashnetwork/logging";
 import { collectOtel } from "@akashnetwork/logging/otel";
 import { faker } from "@faker-js/faker";
+import { subDays } from "date-fns";
 import { container } from "tsyringe";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 
@@ -50,7 +51,43 @@ describe("Request log identity", () => {
     expect(logRecords).not.toContainEqual(expect.objectContaining({ jobId: expect.anything() }));
   });
 
-  async function setup() {
+  it("logs a request refused for an organization the user is not a member of with the user and the caller's address", async () => {
+    const { logRecords, user, authorization } = await setup();
+    const caller = { ip: faker.internet.ipv4(), userAgent: faker.internet.userAgent() };
+
+    const response = await requestFrom(caller, "/v1/user/me", { authorization, "x-organization-id": faker.string.uuid() });
+
+    expect(response.status).toBe(403);
+    expect(logRecords).toContainEqual(
+      expect.objectContaining({
+        userId: user.id,
+        httpRequest: expect.objectContaining({ status: 403, remoteIp: caller.ip, userAgent: caller.userAgent })
+      })
+    );
+  });
+
+  it("remembers the caller's address as where a signed-in user was last seen", async () => {
+    const { user, authorization } = await setup({ lastActiveAt: subDays(new Date(), 1) });
+    const caller = { ip: faker.internet.ipv4(), userAgent: faker.internet.userAgent() };
+
+    const response = await requestFrom(caller, "/v1/user/me", { authorization });
+
+    expect(response.status).toBe(200);
+    expect(await container.resolve(UserRepository).findById(user.id)).toMatchObject({
+      lastIp: caller.ip,
+      lastFingerprint: expect.stringMatching(/^[0-9a-f]{64}$/)
+    });
+  });
+
+  function requestFrom(caller: { ip: string; userAgent: string }, path: string, headers: Record<string, string>) {
+    return app.request(
+      path,
+      { headers: { ...headers, "cf-connecting-ip": caller.ip, "User-Agent": caller.userAgent } },
+      { incoming: { socket: { remoteAddress: caller.ip, remotePort: 443, remoteFamily: "IPv4" } } }
+    );
+  }
+
+  async function setup(input: { lastActiveAt?: Date } = {}) {
     onTestFinished(registerContextPropagation());
     onTestFinished(() => {
       vi.restoreAllMocks();
@@ -67,7 +104,8 @@ describe("Request log identity", () => {
       userId: faker.string.uuid(),
       username: `user-${faker.string.alphanumeric(12)}`,
       email: faker.internet.email().toLowerCase(),
-      emailVerified: true
+      emailVerified: true,
+      lastActiveAt: input.lastActiveAt
     });
     const token = faker.string.alphanumeric(40);
     vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(async header =>

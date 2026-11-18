@@ -51,10 +51,10 @@ appHono.use(
 );
 
 appHono.use(container.resolve(HttpLoggerInterceptor).intercept());
+appHono.use(clientInfoMiddleware);
 appHono.use(container.resolve(RequestContextInterceptor).intercept());
 appHono.use(container.resolve(AuthInterceptor).intercept());
 appHono.use(container.resolve(RefusalBackoffInterceptor).intercept());
-appHono.use(clientInfoMiddleware);
 
 appHono.route("/", legacyRouter);
 appHono.route("/", apiRouter);
