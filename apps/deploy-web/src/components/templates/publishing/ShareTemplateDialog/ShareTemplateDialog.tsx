@@ -117,7 +117,7 @@ export const ShareTemplateDialog: FC<ShareTemplateDialogProps> = ({ template, or
   };
 
   const makePublic = async () => {
-    if (!readiness || !canPublish) return;
+    if (!readiness) return;
     setFailure(undefined);
 
     try {
