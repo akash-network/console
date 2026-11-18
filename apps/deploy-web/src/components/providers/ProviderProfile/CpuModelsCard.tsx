@@ -78,7 +78,7 @@ export function formatCpuGeneration({ generation, isVirtual }: Pick<ProviderCpuM
 }
 
 export function formatBaseFrequency(baseFrequencyMhz: number | null): string {
-  return baseFrequencyMhz === null ? "Not in the name" : `${(baseFrequencyMhz / 1000).toFixed(2)} GHz`;
+  return baseFrequencyMhz === null ? "—" : `${(baseFrequencyMhz / 1000).toFixed(2)} GHz`;
 }
 
 export function formatCpuDetails(model: Pick<ProviderCpuModel, "generation" | "isVirtual" | "baseFrequencyMhz">): string {

@@ -21,7 +21,10 @@ const BASE_FREQUENCY = /@\s*(\d+(?:\.\d+)?)\s*(GHz|MHz)/i;
 
 const VIRTUAL_CPU_NAME = /\b(QEMU|KVM|Virtual)\b|Processor \(|\bEPYC-|\d+x{2,}|\bClass\b|^AMD EPYC Processor$/i;
 
-const MODEL_NAME_NOISE = [/\(.*?\)/g, /@.*$/, /\b(with|w\/)\s.*$/i, /\b\d+(st|nd|rd|th) Gen\b/i, /\b\w+-Cores?\b/i, /\b(CPU|Processor|Intel|AMD)\b/gi, /,/g];
+/** QEMU names its emulated CPU "QEMU Virtual CPU version 2.5+", so CPU stays after Virtual. */
+const BRAND_WORDS = /\b(Processor|Intel|AMD)\b|(?<!\bVirtual )\bCPU\b/gi;
+
+const MODEL_NAME_NOISE = [/\(.*?\)/g, /@.*$/, /\b(with|w\/)\s.*$/i, /\b\d+(st|nd|rd|th) Gen\b/i, /\b\w+-Cores?\b/i, BRAND_WORDS, /,/g];
 
 const KERNEL_MODEL_NAME_FOR_A_NAMELESS_CPU = "unknown";
 

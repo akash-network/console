@@ -207,7 +207,7 @@ describe(describeCpu.name, () => {
   });
 
   it.each([
-    ["QEMU Virtual CPU version 2.5+", "QEMU Virtual version 2.5+"],
+    ["QEMU Virtual CPU version 2.5+", "QEMU Virtual CPU version 2.5+"],
     ["Common KVM processor", "Common KVM"],
     ["Intel Xeon Processor (Icelake)", "Xeon"],
     ["AMD EPYC-Milan Processor", "EPYC-Milan"],
@@ -301,7 +301,7 @@ describe(describeCpu.name, () => {
       ["GenuineIntel", "Intel(R) Xeon(R) CPU E5-2697 v3 @ 2.60GHz", "Intel", "Xeon E5-2697 v3", "Haswell", 2600, false],
       ["GenuineIntel", "Intel(R) Xeon(R) Gold 6138 CPU @ 2.00GHz", "Intel", "Xeon Gold 6138", "Skylake", 2000, false],
       ["GenuineIntel", "Intel(R) Xeon(R) W-2133 CPU @ 3.60GHz", "Intel", "Xeon W-2133", null, 3600, false],
-      ["GenuineIntel", "QEMU Virtual CPU version 2.5+", null, "QEMU Virtual version 2.5+", null, null, true],
+      ["GenuineIntel", "QEMU Virtual CPU version 2.5+", null, "QEMU Virtual CPU version 2.5+", null, null, true],
       ["GenuineIntel", "11th Gen Intel(R) Core(TM) i7-11700F @ 2.50GHz", "Intel", "Core i7-11700F", "11th Gen", 2500, false],
       ["GenuineIntel", "12th Gen Intel(R) Core(TM) i5-12500T", "Intel", "Core i5-12500T", "12th Gen", null, false],
       ["AuthenticAMD", "AMD EPYC 7502P 32-Core Processor", "AMD", "EPYC 7502P", "Rome", null, false],

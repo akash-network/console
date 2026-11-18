@@ -17,7 +17,7 @@ describe(CpuModelsCard.name, () => {
     });
 
     const table = screen.getByRole("table", { name: "CPU models" });
-    expect(within(table).getByRole("row", { name: /AMD EPYC 7763 .*Milan Not in the name 256 2$/ })).toBeInTheDocument();
+    expect(within(table).getByRole("row", { name: /AMD EPYC 7763 .*Milan — 256 2$/ })).toBeInTheDocument();
     expect(within(table).getByRole("row", { name: /Intel Xeon Gold 6248R .*Cascade Lake 3\.00 GHz 96 1$/ })).toBeInTheDocument();
     expect(screen.queryByText(/no CPU report/)).not.toBeInTheDocument();
   });
@@ -38,10 +38,10 @@ describe(CpuModelsCard.name, () => {
   });
 
   it("says the physical model is unknown when the nodes only report a hypervisor CPU", () => {
-    setup({ models: [buildModel({ model: "QEMU Virtual version 2.5+", isVirtual: true })], profile: "virtual" });
+    setup({ models: [buildModel({ model: "QEMU Virtual CPU version 2.5+", isVirtual: true })], profile: "virtual" });
 
     expect(screen.getByText("virtual")).toBeInTheDocument();
-    expect(screen.getByRole("row", { name: /QEMU Virtual version 2\.5\+ .*Virtual 64 1$/ })).toBeInTheDocument();
+    expect(screen.getByRole("row", { name: /QEMU Virtual CPU version 2\.5\+ .*Virtual 64 1$/ })).toBeInTheDocument();
     expect(screen.getByText("The nodes report the CPU their hypervisor emulates, so the physical model is unknown.")).toBeInTheDocument();
   });
 
@@ -49,7 +49,7 @@ describe(CpuModelsCard.name, () => {
     setup({ models: [buildModel({ model: "EPYC 7763" }), buildModel({ model: "EPYC 9654" })], profile: "mixed" });
 
     expect(screen.queryByRole("columnheader", { name: "Base frequency" })).not.toBeInTheDocument();
-    expect(screen.queryByText("Not in the name")).not.toBeInTheDocument();
+    expect(screen.queryByText("—")).not.toBeInTheDocument();
   });
 
   it("adds no note for a provider that runs a single model", () => {
@@ -109,7 +109,7 @@ describe(formatBaseFrequency.name, () => {
     [3000, "3.00 GHz"],
     [2250, "2.25 GHz"],
     [800, "0.80 GHz"],
-    [null, "Not in the name"]
+    [null, "—"]
   ])("formats %j as %s", (baseFrequencyMhz, expected) => {
     expect(formatBaseFrequency(baseFrequencyMhz)).toBe(expected);
   });
