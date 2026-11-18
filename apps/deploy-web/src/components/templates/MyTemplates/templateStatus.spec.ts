@@ -23,8 +23,19 @@ describe(templateStatusOf.name, () => {
     [
       "an unlisted public template",
       { visibility: "public", isListed: false },
-      { label: "Not in gallery", tone: "warning", reason: "Saved before checks existed." }
-    ]
+      { label: "Not in gallery", tone: "warning", reason: "It went public before publish checks existed.", nextStep: "share" }
+    ],
+    [
+      "a listed template whose current version is held",
+      { visibility: "public", isListed: true, currentVersion: { version: 5, status: "held", createdAt: "2026-11-05T12:00:00.000Z" } },
+      { label: "In gallery", tone: "success", versionNote: { label: "v5 held for review", tone: "warning" } }
+    ],
+    [
+      "a private template whose current version failed its checks",
+      { visibility: "private", currentVersion: { version: 2, status: "failed_checks", createdAt: "2026-11-05T12:00:00.000Z" } },
+      { label: "Not shared", tone: "neutral", versionNote: { label: "v2 failed checks", tone: "danger" } }
+    ],
+    ["a template without a version", { visibility: "organization", currentVersion: null }, { label: "Shared with organization", tone: "neutral" }]
   ])("describes %s", (_, overrides, expected) => {
     expect(templateStatusOf(buildUserTemplateListItem(overrides))).toEqual(expected);
   });
