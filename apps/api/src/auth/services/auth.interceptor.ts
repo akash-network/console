@@ -97,18 +97,18 @@ export class AuthInterceptor implements HonoInterceptor {
 
         if (userId) {
           const currentUser = await this.userRepository.findByUserId(userId);
+          c.set("user", currentUser);
           await this.#refuseTerminatedUnlessAllowed(currentUser, c, "bearer");
           await this.auth(currentUser, c);
-          c.set("user", currentUser);
           return await this.#nextWithUserContext(currentUser, next);
         }
 
         if (apiKey) {
           const { apiKeyOutput, currentUser } = await this.#authenticateApiKey(apiKey);
+          c.set("user", currentUser);
           await this.#refuseTerminatedUnlessAllowed(currentUser, c, "api_key");
 
           await Promise.all([currentUser ? this.markApiKeyAsUsed(apiKeyOutput) : null, this.auth(currentUser, c, apiKeyOutput)]);
-          c.set("user", currentUser);
 
           return await this.#nextWithUserContext(currentUser, next);
         }
