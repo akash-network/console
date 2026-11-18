@@ -136,7 +136,8 @@ describe(ShareTemplateDialog.name, () => {
           fixLinks: {
             rename: "/template/tpl-webui?tab=settings",
             "rename-organization": "/organization",
-            "edit-configuration": "/new-deployment/configure?templateMode=edit&userTemplateId=tpl-webui&baseVersion=4"
+            "edit-configuration": "/new-deployment/configure?templateMode=edit&userTemplateId=tpl-webui&baseVersion=4",
+            "edit-readme": "/template/tpl-webui?tab=readme"
           }
         })
       );

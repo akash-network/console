@@ -47,6 +47,32 @@ describe(publishCheckFixesOf.name, () => {
     expect(publishCheckFixesOf(buildCheck({ key, status: "failed", issues: [{ message: "Wrong" }] }))).toEqual(["edit-configuration"]);
   });
 
+  it("sends a failed check without a reason to Edit configuration", () => {
+    expect(publishCheckFixesOf(buildCheck({ key: "sdl_valid", status: "failed", issues: [] }))).toEqual(["edit-configuration"]);
+  });
+
+  it("sends a credential found in the README to the README", () => {
+    expect(
+      publishCheckFixesOf(buildCheck({ key: "no_secrets", status: "failed", issues: [{ message: "The README holds an API key.", field: "readme" }] }))
+    ).toEqual(["edit-readme"]);
+  });
+
+  it("offers both when credentials sit in the configuration and in the README", () => {
+    expect(
+      publishCheckFixesOf(
+        buildCheck({
+          key: "no_secrets",
+          status: "failed",
+          issues: [
+            { message: "The README holds an API key.", field: "readme" },
+            { message: "The SDL holds a token.", field: "sdl" },
+            { message: "web: HF_TOKEN looks like a key.", service: "web", variable: "HF_TOKEN" }
+          ]
+        })
+      )
+    ).toEqual(["edit-configuration", "edit-readme"]);
+  });
+
   it("offers nothing on a check that passed", () => {
     expect(publishCheckFixesOf(buildCheck({ key: "fixed_tags", status: "passed" }))).toEqual([]);
     expect(publishCheckFixesOf(buildCheck({ key: "name_not_reserved", status: "passed", issues: [{ message: "Old", field: "title" }] }))).toEqual([]);

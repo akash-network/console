@@ -105,7 +105,8 @@ export const ShareTemplateDialog: FC<ShareTemplateDialogProps> = ({ template, or
   const fixLinks: PublishFixLinks = {
     rename: `${UrlService.template(template.id)}?tab=settings`,
     "rename-organization": organization?.type === "team" ? UrlService.organizationSettings() : undefined,
-    "edit-configuration": UrlService.configureTemplate({ mode: "edit", userTemplateId: template.id, baseVersion: template.currentVersion?.version })
+    "edit-configuration": UrlService.configureTemplate({ mode: "edit", userTemplateId: template.id, baseVersion: template.currentVersion?.version }),
+    "edit-readme": `${UrlService.template(template.id)}?tab=readme`
   };
 
   const runChecksAgain = () => void readinessQuery.refetch();

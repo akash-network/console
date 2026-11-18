@@ -14,7 +14,8 @@ const SUPPORT_URL = "https://support.example.com";
 const FIX_LINKS: PublishFixLinks = {
   rename: "/template/tpl-1?tab=settings",
   "rename-organization": "/organization",
-  "edit-configuration": "/new-deployment/configure?templateMode=edit&userTemplateId=tpl-1"
+  "edit-configuration": "/new-deployment/configure?templateMode=edit&userTemplateId=tpl-1",
+  "edit-readme": "/template/tpl-1?tab=readme"
 };
 const READY: TemplatePublishReadiness = {
   termsVersion: "2026-11",
@@ -148,6 +149,13 @@ describe(PublishReadinessPanel.name, () => {
     await userEvent.click(rename);
 
     expect(onFollowFix).toHaveBeenCalledTimes(1);
+  });
+
+  it("links a credential found in the README to the README tab", () => {
+    setup({ checks: [{ key: "no_secrets", status: "failed", issues: [{ message: "The README holds an API key.", field: "readme" }] }] });
+
+    expect(screen.getByRole("link", { name: "Edit README" })).toHaveAttribute("href", "/template/tpl-1?tab=readme");
+    expect(screen.queryByRole("link", { name: "Edit configuration" })).not.toBeInTheDocument();
   });
 
   it("offers no link for a fix that has nowhere to go", () => {
