@@ -45,6 +45,8 @@ export const Templates = pgTable(
     isFeatured: boolean("featured").default(false).notNull(),
     moderationStatus: templateModerationStatusEnum("moderation_status").default("active").notNull(),
     currentVersionId: uuid("current_version_id"),
+    /** Kept when the template leaves public visibility, so it records that the template was ever public. */
+    publishedAt: timestamp("published_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
@@ -54,6 +56,7 @@ export const Templates = pgTable(
   table => ({
     userIdIdx: index("template_userId_idx").on(table.userId),
     organizationIdProjectIdIdx: index("template_organization_id_project_id_idx").on(table.organizationId, table.projectId),
+    authorIdCreatedAtIdx: index("template_author_id_created_at_idx").on(table.authorId, table.createdAt),
     projectFk: foreignKey({
       name: "template_organization_id_project_id_fk",
       columns: [table.organizationId, table.projectId],

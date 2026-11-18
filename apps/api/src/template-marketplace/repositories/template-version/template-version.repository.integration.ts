@@ -6,10 +6,26 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 import type { AskedValue } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
+import type { PublishCheckResults } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
 import { TemplateVersionRepository } from "./template-version.repository";
 
 import { seedOrganization, seedProject } from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+
+const PASSED_CHECKS: PublishCheckResults = {
+  ranAt: "2026-11-18T10:00:00.000Z",
+  checks: [
+    { key: "sdl_valid", status: "passed", issues: [] },
+    { key: "fixed_tags", status: "passed", issues: [] }
+  ]
+};
+const FAILED_CHECKS: PublishCheckResults = {
+  ranAt: "2026-11-18T10:00:00.000Z",
+  checks: [
+    { key: "sdl_valid", status: "passed", issues: [] },
+    { key: "fixed_tags", status: "failed", issues: [{ message: "Pin the tag", service: "web", image: "nginx" }] }
+  ]
+};
 
 describe(TemplateVersionRepository.name, () => {
   const createdTemplateIds: string[] = [];
@@ -56,6 +72,7 @@ describe(TemplateVersionRepository.name, () => {
         resources,
         imageDigests: {},
         status: "live",
+        checkResults: null,
         changes: ["first_version"],
         createdById: null,
         createdBy: null,
@@ -216,6 +233,88 @@ describe(TemplateVersionRepository.name, () => {
     });
   });
 
+  describe("when a version comes with publish check results", () => {
+    it("stores a version that passed as the live current version with what the checks found", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+
+      const version = await repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("nginx:1.27"), checkResults: PASSED_CHECKS });
+
+      expect(version).toMatchObject({ version: 1, status: "live", checkResults: PASSED_CHECKS });
+      expect(await findStoredTemplate(template.id)).toMatchObject({ currentVersionId: version.id });
+    });
+
+    it("stores a version that failed with its results, numbered after the current one, without making it current", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+      const current = await repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("nginx:1.27"), checkResults: PASSED_CHECKS });
+
+      const failed = await repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("nginx:latest"), checkResults: FAILED_CHECKS });
+
+      expect(failed).toMatchObject({ version: 2, status: "failed_checks", checkResults: FAILED_CHECKS, changes: ["image_tag_changed"] });
+      expect(await findStoredTemplate(template.id)).toMatchObject({ currentVersionId: current.id });
+      expect(await repository.findCurrent(template.id)).toEqual(current);
+      expect(await repository.findById(failed.id)).toEqual(failed);
+      expect(await repository.findByTemplateAndVersion(template.id, 2)).toEqual(failed);
+    });
+
+    it("numbers the version saved after a failed one past it and tells its changes from the current version", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+      const current = await repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("nginx:1.27"), checkResults: PASSED_CHECKS });
+      await repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("redis:latest"), checkResults: FAILED_CHECKS });
+
+      const fixed = await repository.appendVersion({
+        templateId: template.id,
+        sdl: sdlWithImage("nginx:1.28"),
+        checkResults: PASSED_CHECKS,
+        expectedCurrentVersionId: current.id
+      });
+
+      expect(fixed).toMatchObject({ version: 3, status: "live", changes: ["image_tag_changed"] });
+      expect(await findStoredTemplate(template.id)).toMatchObject({ currentVersionId: fixed.id });
+    });
+
+    it("leaves a template whose first version failed without a current version", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+
+      const failed = await repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("nginx:latest"), checkResults: FAILED_CHECKS });
+
+      expect(failed).toMatchObject({ version: 1, status: "failed_checks" });
+      expect(await findStoredTemplate(template.id)).toMatchObject({ currentVersionId: null });
+      expect(await repository.findCurrent(template.id)).toBeUndefined();
+    });
+
+    it("lists failed versions with their results next to live ones", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+      await repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("nginx:1.27") });
+      await repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("nginx:latest"), checkResults: FAILED_CHECKS });
+
+      const versions = await repository.listByTemplate(template.id);
+
+      expect(versions.map(({ version, status, checkResults }) => ({ version, status, checkResults }))).toEqual([
+        { version: 2, status: "failed_checks", checkResults: FAILED_CHECKS },
+        { version: 1, status: "live", checkResults: null }
+      ]);
+    });
+  });
+
+  describe("recordCheckResults", () => {
+    it("records what the publish gate found on that version alone and leaves its content and status as they were", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+      const first = await repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("nginx:1.27") });
+      const second = await repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("nginx:1.28") });
+
+      await repository.recordCheckResults(second.id, PASSED_CHECKS);
+
+      expect(await repository.findById(second.id)).toEqual({ ...second, checkResults: PASSED_CHECKS });
+      expect(await repository.findById(first.id)).toEqual(first);
+    });
+  });
+
   describe("immutability", () => {
     it("refuses to change a saved version", async () => {
       const { repository } = setup();
@@ -309,6 +408,7 @@ describe(TemplateVersionRepository.name, () => {
           version: 2,
           resources: null,
           status: "live",
+          checkResults: null,
           changes: ["readme_changed"],
           createdById: null,
           createdBy: null,
@@ -320,6 +420,7 @@ describe(TemplateVersionRepository.name, () => {
           version: 1,
           resources: null,
           status: "live",
+          checkResults: null,
           changes: ["first_version"],
           createdById: null,
           createdBy: null,

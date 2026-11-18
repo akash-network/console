@@ -43,6 +43,18 @@ export function findSecretValueIssues(sdl: string, askedValues: AskedValue[]): s
   return issues;
 }
 
+export type SdlEnvValue = { service: string; variable: string; value: string };
+
+/** Reads what the secret scan reads, so a publish check sees every value a save was held to. */
+export function readSdlEnvValues(sdl: string): SdlEnvValue[] {
+  const services = readServices(sdl);
+  if (services === undefined || services === "too-large") return [];
+
+  return Object.entries(services).flatMap(([service, definition]) =>
+    isMapping(definition) ? readEnvEntries(definition).map(([variable, value]) => ({ service, variable, value })) : []
+  );
+}
+
 function readServices(sdl: string): Mapping | "too-large" | undefined {
   let document: unknown;
   try {

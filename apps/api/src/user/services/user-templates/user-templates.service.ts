@@ -3,10 +3,16 @@ import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { TxService } from "@src/core/services";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { DeploymentProjectService } from "@src/deployment/services/deployment-project/deployment-project.service";
 import { summarizeTemplateHardware } from "@src/template/utils/template-hardware/template-hardware";
+import type { AskedValue } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
 import { contentCarriedByLegacySave } from "@src/template-marketplace/lib/legacy-save/content-carried-by-legacy-save";
+import { hasPassedPublishChecks } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
+import { createChecksFailedError } from "@src/template-marketplace/lib/publish-requirements/publish-refusals";
 import { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
+import { PublishChecksService } from "@src/template-marketplace/services/publish-checks/publish-checks.service";
 import { TemplateUsageService } from "@src/template-marketplace/services/template-usage/template-usage.service";
 import {
   TemplateInput,
@@ -36,6 +42,8 @@ export class UserTemplatesService {
   readonly #templateVersionRepository: TemplateVersionRepository;
   readonly #txService: TxService;
   readonly #templateUsageService: TemplateUsageService;
+  readonly #publishChecksService: PublishChecksService;
+  readonly #featureFlagsService: FeatureFlagsService;
 
   constructor(
     userTemplateRepository: UserTemplateRepository,
@@ -43,7 +51,9 @@ export class UserTemplatesService {
     deploymentProjectService: DeploymentProjectService,
     templateVersionRepository: TemplateVersionRepository,
     txService: TxService,
-    templateUsageService: TemplateUsageService
+    templateUsageService: TemplateUsageService,
+    publishChecksService: PublishChecksService,
+    featureFlagsService: FeatureFlagsService
   ) {
     this.#userTemplateRepository = userTemplateRepository;
     this.#authService = authService;
@@ -51,6 +61,8 @@ export class UserTemplatesService {
     this.#templateVersionRepository = templateVersionRepository;
     this.#txService = txService;
     this.#templateUsageService = templateUsageService;
+    this.#publishChecksService = publishChecksService;
+    this.#featureFlagsService = featureFlagsService;
   }
 
   async getTemplateById(id: string, userId: string = ""): Promise<(TemplateOutput & { isFavorite?: boolean }) | null> {
@@ -142,6 +154,11 @@ export class UserTemplatesService {
         ? contentCarriedByLegacySave(template.sdl, { readme: stored.currentVersionReadme, askedValues: stored.currentVersionAskedValues }, template.description)
         : {};
 
+      if (this.#staysPublished(template, stored)) {
+        const askedValues = isNewVersion ? carried.askedValues : stored.currentVersionAskedValues;
+        await this.#assertPassesPublishChecks(template, stored.organizationId, askedValues ?? []);
+      }
+
       await repository.updateTemplate(id, userId, visibilityPatch(template, stored));
 
       if (isNewVersion) {
@@ -152,6 +169,22 @@ export class UserTemplatesService {
         await this.#templateVersionRepository.appendVersion({ templateId: id, sdl: template.sdl, resources, createdById, ...carried, readmesShown });
       }
     });
+  }
+
+  /** A template that went through the publish gate stays held to its checks, since this route can save neither a failed version nor the reason. */
+  #staysPublished(template: TemplateInput, stored: TemplateVersionState): boolean {
+    return (
+      stored.visibility === "public" &&
+      !!stored.publishedAt &&
+      template.isPublic !== false &&
+      this.#featureFlagsService.isEnabled(FeatureFlags.TEMPLATE_MARKETPLACE)
+    );
+  }
+
+  async #assertPassesPublishChecks(template: TemplateInput, organizationId: string, askedValues: AskedValue[]): Promise<void> {
+    const checkResults = await this.#publishChecksService.run({ sdl: template.sdl, askedValues, title: template.title, organizationId });
+
+    if (!hasPassedPublishChecks(checkResults)) throw createChecksFailedError(checkResults);
   }
 
   /** A caller whose rules reach no template, such as a billing member of a team, reads public templates only. */

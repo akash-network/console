@@ -15,6 +15,17 @@ describe(redactSecrets.name, () => {
     { shape: "a Slack token", secret: `xoxb-${digits(10)}-${alphanumeric(12)}` },
     { shape: "an AWS access key id", secret: `AKIA${upperAlphanumeric(16)}` },
     { shape: "an AWS temporary access key id", secret: `ASIA${upperAlphanumeric(16)}` },
+    { shape: "a Stripe secret key", secret: `sk_live_${alphanumeric(24)}` },
+    { shape: "a Stripe restricted test key", secret: `rk_test_${alphanumeric(16)}` },
+    { shape: "a Google API key", secret: `AIza${alphanumeric(35)}` },
+    { shape: "a GitLab personal token", secret: `glpat-${alphanumeric(20)}` },
+    { shape: "an npm token", secret: `npm_${alphanumeric(36)}` },
+    { shape: "a SendGrid key", secret: `SG.${alphanumeric(22)}.${alphanumeric(43)}` },
+    { shape: "a Replicate token", secret: `r8_${alphanumeric(37)}` },
+    { shape: "a Groq key", secret: `gsk_${alphanumeric(52)}` },
+    { shape: "an NVIDIA API key", secret: `nvapi-${alphanumeric(64)}` },
+    { shape: "a Docker Hub token", secret: `dckr_pat_${alphanumeric(27)}` },
+    { shape: "a Tailscale key", secret: `tskey-auth-${alphanumeric(24)}` },
     { shape: "a JWT", secret: `eyJ${alphanumeric(12)}.eyJ${alphanumeric(20)}.${alphanumeric(16)}-_${alphanumeric(4)}` }
   ])("replaces $shape in the middle of a sentence", ({ secret }) => {
     expect(redactSecrets(`my deploy fails with ${secret} set in the env`)).toBe(`my deploy fails with ${REDACTED} set in the env`);

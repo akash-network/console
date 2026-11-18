@@ -3,6 +3,7 @@ import { z } from "@hono/zod-openapi";
 import { organizationTypeEnum } from "@src/organization/model-schemas/organization/organization.schema";
 import { TemplateHardwareSchema } from "@src/template/http-schemas/template.schema";
 import { AskedValueSchema } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
+import { PUBLISH_CHECK_ISSUE_FIELDS, PUBLISH_CHECK_KEYS, PUBLISH_CHECK_STATUSES } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
 import { TEMPLATE_VERSION_CHANGES } from "@src/template-marketplace/lib/version-changes/summarize-version-changes";
 import { templateVersionStatusEnum } from "@src/template-marketplace/model-schemas/template-version/template-version.schema";
 import { templateModerationStatusEnum, templateVisibilityEnum } from "@src/user/model-schemas/template/template.schema";
@@ -23,13 +24,36 @@ export const UserTemplateVersionParamsSchema = UserTemplateParamsSchema.extend({
     .openapi({ type: "integer", minimum: 1, maximum: MAX_VERSION_NUMBER, description: "The version number, counted from 1" })
 });
 
+export const PublishCheckSchema = z
+  .object({
+    key: z.enum(PUBLISH_CHECK_KEYS),
+    status: z.enum(PUBLISH_CHECK_STATUSES),
+    issues: z.array(
+      z.object({
+        message: z.string().openapi({ description: "What is wrong and how to fix it, as plain text" }),
+        service: z.string().optional().openapi({ description: "The SDL service the issue is in" }),
+        variable: z.string().optional().openapi({ description: "The env variable or asked value the issue is in" }),
+        image: z.string().optional().openapi({ description: "The container image the issue is about" }),
+        field: z.enum(PUBLISH_CHECK_ISSUE_FIELDS).optional().openapi({ description: "The name a reserved word was found in" })
+      })
+    )
+  })
+  .openapi("TemplatePublishCheck");
+
+const PublishCheckResultsSchema = z.object({ ranAt: z.string().datetime(), checks: z.array(PublishCheckSchema) });
+
 const TemplateVersionFieldsSchema = z
   .object({
     id: z.string().uuid(),
     templateId: z.string().uuid(),
     version: z.number().int().positive(),
     resources: TemplateHardwareSchema.nullable().openapi({ description: "Null when the version recorded none" }),
-    status: z.enum(templateVersionStatusEnum.enumValues),
+    status: z.enum(templateVersionStatusEnum.enumValues).openapi({
+      description: "A `failed_checks` version failed the publish checks of a public template, never became the current version and is shown to editors only"
+    }),
+    checkResults: PublishCheckResultsSchema.nullable().openapi({
+      description: "What the publish checks found, for callers who may change the template; null for everyone else and for a version they never ran on"
+    }),
     changes: z
       .array(z.enum(TEMPLATE_VERSION_CHANGES))
       .nullable()
@@ -79,12 +103,18 @@ export const MarketplaceTemplateSchema = z
     copiedFromId: z.string().uuid().nullable().openapi({ description: "The template this one was copied from, null unless the caller may read it" }),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
+    publishedAt: z
+      .string()
+      .datetime()
+      .nullable()
+      .openapi({ description: "When the template first went public through the publish checks, kept after it is made private again; null before" }),
     author: z.object({ username: z.string() }).nullable().openapi({ description: "Null when the author deleted their account" }),
     publisher: z
       .object({
         name: z.string(),
         slug: z.string().nullable().openapi({ description: "Null for a personal organization" }),
-        type: z.enum(organizationTypeEnum.enumValues)
+        type: z.enum(organizationTypeEnum.enumValues),
+        handle: z.string().nullable().openapi({ description: "The name of the publisher page, null until the organization first publishes a template" })
       })
       .nullable()
       .openapi({ description: "The organization the template belongs to, null for a template filed in none" }),

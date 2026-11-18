@@ -25,6 +25,7 @@ import {
 import type { TemplateModerationStatus, TemplateVisibility } from "@src/user/model-schemas/template/template.schema";
 import { UserTemplateRepository } from "@src/user/repositories/user-template/user-template.repository";
 
+/** `checkResults` is null for everyone but the template's editors, since an issue can quote a variable or an image an earlier version held. */
 export type PublishedTemplateVersion = Omit<TemplateVersionOutput, "imageDigests">;
 
 export interface MarketplaceTemplateOutput {
@@ -43,9 +44,11 @@ export interface MarketplaceTemplateOutput {
   copiedFromId: string | null;
   createdAt: Date;
   updatedAt: Date;
+  /** The first time the template went public through the publish gate, kept after it leaves public visibility. */
+  publishedAt: Date | null;
   author: { username: string } | null;
-  /** A personal organization's slug is derived from its owner's internal id, so it is withheld. */
-  publisher: { name: string; slug: string | null; type: OrganizationType } | null;
+  /** A personal organization's slug is derived from its owner's internal id, so it is withheld; the handle is null until the organization first publishes. */
+  publisher: { name: string; slug: string | null; type: OrganizationType; handle: string | null } | null;
   /** Null only on a template an older API pod saved without a version, until it is saved again or healed. */
   currentVersion: PublishedTemplateVersion | null;
   canEdit: boolean;
@@ -123,9 +126,10 @@ export class MarketplaceTemplateService {
       copiedFromId: isCopiedFromReadable ? template.copiedFromId : null,
       createdAt: template.createdAt,
       updatedAt: template.updatedAt,
+      publishedAt: template.publishedAt,
       author: template.authorUsername ? { username: template.authorUsername } : null,
       publisher: template.publisher && { ...template.publisher, slug: template.publisher.type === "team" ? template.publisher.slug : null },
-      currentVersion: currentVersion ? this.#withLegacyFallbacks(currentVersion, template) : null,
+      currentVersion: currentVersion ? this.#toPublishedVersion(currentVersion, template) : null,
       canEdit: this.#canEditInActiveOrganization(template),
       isFavorite: favoritingUserId ? await this.userTemplateRepository.isFavorite(id, favoritingUserId) : false,
       usage: usages.get(id) ?? NO_TEMPLATE_USAGE
@@ -162,14 +166,19 @@ export class MarketplaceTemplateService {
     }));
   }
 
-  /** Earlier versions may hold what the template no longer publishes, such as a removed key, so only editors see past the current one. */
+  /** Earlier versions may hold what the template no longer publishes, such as a removed key, and a version that failed its checks never was published, so only editors see past the current one. */
   async listVersions(id: string): Promise<ListedTemplateVersion[]> {
     const template = await this.findReadable(id);
     const versions = await this.templateVersionRepository.listByTemplate(id);
     const deploysByVersion = await this.templateUsageEventRepository.countDeploysByVersion(id);
-    const readableVersions = this.#hasUpdateRule(template) ? versions : versions.filter(version => version.id === template.currentVersionId);
+    const isEditor = this.#hasUpdateRule(template);
+    const readableVersions = isEditor ? versions : versions.filter(version => version.id === template.currentVersionId);
 
-    return readableVersions.map(version => ({ ...version, deploys: deploysByVersion.get(version.id) ?? 0 }));
+    return readableVersions.map(version => ({
+      ...version,
+      checkResults: isEditor ? version.checkResults : null,
+      deploys: deploysByVersion.get(version.id) ?? 0
+    }));
   }
 
   async getVersion(id: string, version: number): Promise<PublishedTemplateVersion> {
@@ -178,7 +187,7 @@ export class MarketplaceTemplateService {
     assert(found, 404, VERSION_NOT_FOUND);
     assert(found.id === template.currentVersionId || this.#hasUpdateRule(template), 404, VERSION_NOT_FOUND);
 
-    return this.#withLegacyFallbacks(found, template);
+    return this.#toPublishedVersion(found, template);
   }
 
   /** Mirrors `getVersion`, so a deployment can only name a version its caller could read. */
@@ -210,9 +219,10 @@ export class MarketplaceTemplateService {
     return this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId;
   }
 
-  #withLegacyFallbacks(version: TemplateVersionOutput, template: MarketplaceTemplateRow): PublishedTemplateVersion {
+  #toPublishedVersion(version: TemplateVersionOutput, template: MarketplaceTemplateRow): PublishedTemplateVersion {
     return {
       ...withoutImageDigests(version),
+      checkResults: this.#hasUpdateRule(template) ? version.checkResults : null,
       readme: version.readme ?? (template.description || null),
       resources: version.resources ?? summarizeTemplateHardware(version.sdl) ?? null
     };

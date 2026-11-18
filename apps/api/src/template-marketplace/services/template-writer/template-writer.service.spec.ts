@@ -16,6 +16,7 @@ import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { EXPANDED_SDL_TOO_LARGE_MESSAGE } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import type { AskedValue } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
+import type { PublishCheckResults } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
 import type {
   MarketplaceTemplateRepository,
   MarketplaceTemplateRow
@@ -25,6 +26,10 @@ import type {
   MarketplaceTemplateOutput,
   MarketplaceTemplateService
 } from "@src/template-marketplace/services/marketplace-template/marketplace-template.service";
+import type { PublishChecksService } from "@src/template-marketplace/services/publish-checks/publish-checks.service";
+import type { TemplateRateLimiterService } from "@src/template-marketplace/services/template-rate-limiter/template-rate-limiter.service";
+import { TemplateSdlValidatorService } from "@src/template-marketplace/services/template-sdl-validator/template-sdl-validator.service";
+import { TemplateWriteAccessService } from "@src/template-marketplace/services/template-write-access/template-write-access.service";
 import type { UserOutput } from "@src/user/repositories";
 import { TemplateWriterService } from "./template-writer.service";
 
@@ -36,6 +41,11 @@ const CREATE_RULE = { action: "create", subject: "Template" };
 const UPDATE_RULE = { action: "update", subject: "Template" };
 const DELETE_RULE = { action: "delete", subject: "Template" };
 const SWITCH_ORGANIZATION_MESSAGE = "Switch to the template's organization to change it";
+const PASSED_CHECKS: PublishCheckResults = { ranAt: "2026-11-18T10:00:00.000Z", checks: [{ key: "fixed_tags", status: "passed", issues: [] }] };
+const FAILED_CHECKS: PublishCheckResults = {
+  ranAt: "2026-11-18T10:00:00.000Z",
+  checks: [{ key: "fixed_tags", status: "failed", issues: [{ message: "Pin the tag", service: "web", image: "nginx" }] }]
+};
 
 describe(TemplateWriterService.name, () => {
   describe("create", () => {
@@ -70,7 +80,7 @@ describe(TemplateWriterService.name, () => {
       const result = await service.create({ title: "Web", summary: "Serves the web", sdl, readme: "# Web", askedValues, projectId: requestedProjectId });
 
       expect(result).toBe(output);
-      expect(transactionSteps).toEqual(["begin", "createTemplate", "appendVersion", "end"]);
+      expect(transactionSteps).toEqual(["begin", "assertWithinLimits", "createTemplate", "appendVersion", "end"]);
       expect(repository.accessibleBy).toHaveBeenCalledWith(expect.anything(), "create");
       expect(deploymentProjectService.resolveFilingProject).toHaveBeenCalledWith(requestedProjectId, "Template");
       expect(writableRepository.createTemplate).toHaveBeenCalledWith({
@@ -244,6 +254,34 @@ describe(TemplateWriterService.name, () => {
       });
       expect(writableRepository.createTemplate).not.toHaveBeenCalled();
     });
+
+    it("holds the creation to the limits of the caller and the active organization", async () => {
+      const template = createTemplateRow();
+      const { service, templateRateLimiterService, user } = setup({ template });
+
+      await service.create({ title: "Web", sdl: buildSdl(), askedValues: [] });
+
+      expect(templateRateLimiterService.assertWithinLimits).toHaveBeenCalledWith("create", { userId: user.id, organizationId: template.organizationId });
+    });
+
+    it("creates nothing once a limit is reached", async () => {
+      const rateLimitError = createError(429, "Too many", { errorCode: "template_rate_limited" });
+      const { service, writableRepository, templateVersionRepository } = setup({ rateLimitError });
+
+      await expect(service.create({ title: "Web", sdl: buildSdl(), askedValues: [] })).rejects.toBe(rateLimitError);
+      expect(writableRepository.createTemplate).not.toHaveBeenCalled();
+      expect(templateVersionRepository.appendVersion).not.toHaveBeenCalled();
+    });
+
+    it("refuses creation without an active organization to file the template in", async () => {
+      const { service, txService } = setup({ activeOrganizationId: null });
+
+      await expect(service.create({ title: "Web", sdl: buildSdl(), askedValues: [] })).rejects.toMatchObject({
+        status: 403,
+        message: "You cannot create templates"
+      });
+      expect(txService.transaction).not.toHaveBeenCalled();
+    });
   });
 
   describe("appendVersion", () => {
@@ -266,7 +304,7 @@ describe(TemplateWriterService.name, () => {
 
       const { imageDigests: _imageDigests, ...published } = appended;
       expect(result).toEqual(published);
-      expect(transactionSteps).toEqual(["begin", "findAndLockForWrite", "appendVersion", "mirrorVersion", "end"]);
+      expect(transactionSteps).toEqual(["begin", "findAndLockForWrite", "assertWithinLimits", "appendVersion", "mirrorVersion", "end"]);
       expect(repository.findAndLockForWrite).toHaveBeenCalledWith(template.id);
       expect(templateVersionRepository.findByTemplateAndVersion).toHaveBeenCalledWith(template.id, 3);
       expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith({
@@ -438,6 +476,101 @@ describe(TemplateWriterService.name, () => {
       ).rejects.toMatchObject({ status: 400, errorCode: "template_invalid" });
       expect(templateVersionRepository.findByTemplateAndVersion).not.toHaveBeenCalled();
     });
+
+    it("holds the save to the limits of the caller and the template's organization", async () => {
+      const template = createTemplateRow();
+      const { service, templateRateLimiterService, user } = setup({ template });
+
+      await service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [], baseVersion: 1 });
+
+      expect(templateRateLimiterService.assertWithinLimits).toHaveBeenCalledWith("version", { userId: user.id, organizationId: template.organizationId });
+    });
+
+    it("saves nothing once a limit is reached", async () => {
+      const template = createTemplateRow();
+      const rateLimitError = createError(429, "Too many", { errorCode: "template_rate_limited" });
+      const { service, templateVersionRepository } = setup({ template, rateLimitError });
+
+      await expect(service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [], baseVersion: 1 })).rejects.toBe(rateLimitError);
+      expect(templateVersionRepository.appendVersion).not.toHaveBeenCalled();
+    });
+
+    it.each(["private", "organization"] as const)("runs no publish check on a version of a %s template", async visibility => {
+      const template = createTemplateRow({ visibility });
+      const { service, templateVersionRepository, publishChecksService } = setup({ template });
+
+      await service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [], baseVersion: 1 });
+
+      expect(publishChecksService.run).not.toHaveBeenCalled();
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ checkResults: undefined }));
+    });
+
+    it("runs the publish checks on a version of a public template under the locked title and stores what they found", async () => {
+      const template = createTemplateRow({ visibility: "public", isPublic: true });
+      const locked = { ...template, title: "Renamed since" };
+      const { service, repository, templateVersionRepository, publishChecksService } = setup({ template, locked });
+      const sdl = buildSdl({ count: 3 });
+      const askedValues = [textAskedValue("GREETING")];
+
+      await service.appendVersion(template.id, { sdl, askedValues, baseVersion: 1 });
+
+      expect(publishChecksService.run).toHaveBeenCalledWith({ sdl, askedValues, title: "Renamed since", organizationId: template.organizationId });
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ checkResults: PASSED_CHECKS }));
+      expect(repository.mirrorVersion).toHaveBeenCalledTimes(1);
+    });
+
+    it("answers a version that failed its checks without mirroring it into the legacy columns", async () => {
+      const template = createTemplateRow({ visibility: "public", isPublic: true });
+      const { service, repository, templateVersionRepository } = setup({ template, checkResults: FAILED_CHECKS });
+      const failed = createVersion({ templateId: template.id, version: 2, status: "failed_checks", checkResults: FAILED_CHECKS });
+      templateVersionRepository.appendVersion.mockResolvedValue(failed);
+
+      const result = await service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [], baseVersion: 1 });
+
+      expect(result).toMatchObject({ id: failed.id, status: "failed_checks", checkResults: FAILED_CHECKS });
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ checkResults: FAILED_CHECKS }));
+      expect(repository.mirrorVersion).not.toHaveBeenCalled();
+    });
+
+    it("holds a save edited from a failed version to the version that was current when it failed", async () => {
+      const template = createTemplateRow({ visibility: "public", isPublic: true });
+      const failedBase = createVersion({ templateId: template.id, version: 3, status: "failed_checks", readme: "# Failed draft" });
+      const current = createVersion({ templateId: template.id, version: 2 });
+      const { service, templateVersionRepository } = setup({ template, base: failedBase });
+      templateVersionRepository.findCurrent.mockResolvedValue(current);
+
+      await service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [], baseVersion: 3 });
+
+      expect(templateVersionRepository.findCurrent).toHaveBeenCalledWith(template.id);
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(
+        expect.objectContaining({ expectedCurrentVersionId: current.id, readmesShown: { current: "# Failed draft", next: "# Failed draft" } })
+      );
+    });
+
+    it.each([
+      { shape: "a version saved after it became current", currentVersion: 4 },
+      { shape: "the template has no current version left to compare", currentVersion: undefined }
+    ])("holds a save edited from a failed version to that version when $shape", async ({ currentVersion }) => {
+      const template = createTemplateRow({ visibility: "public", isPublic: true });
+      const failedBase = createVersion({ templateId: template.id, version: 3, status: "failed_checks" });
+      const { service, templateVersionRepository } = setup({ template, base: failedBase });
+      templateVersionRepository.findCurrent.mockResolvedValue(currentVersion ? createVersion({ templateId: template.id, version: currentVersion }) : undefined);
+
+      await service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [], baseVersion: 3 });
+
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ expectedCurrentVersionId: failedBase.id }));
+    });
+
+    it("looks up no current version for a save edited from a live one", async () => {
+      const template = createTemplateRow();
+      const base = createVersion({ templateId: template.id, version: 1, status: "live" });
+      const { service, templateVersionRepository } = setup({ template, base });
+
+      await service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [], baseVersion: 1 });
+
+      expect(templateVersionRepository.findCurrent).not.toHaveBeenCalled();
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ expectedCurrentVersionId: base.id }));
+    });
   });
 
   describe("updateSettings", () => {
@@ -568,6 +701,55 @@ describe(TemplateWriterService.name, () => {
       await service.updateSettings(template.id, { summary, icon: null });
 
       expect(repository.updateSettings).toHaveBeenCalledWith(template.id, { summary: null, icon: null });
+    });
+
+    it("refuses a reserved word in the new title of a public template, naming the check that failed", async () => {
+      const template = createTemplateRow({ visibility: "public", isPublic: true });
+      const { service, repository } = setup({ template });
+
+      await expect(service.updateSettings(template.id, { title: "Official Llama" })).rejects.toMatchObject({
+        status: 400,
+        errorCode: "template_publish_checks_failed",
+        message: 'Titles can\'t contain "Official", which is reserved for Akash. Rename the template.',
+        data: {
+          checks: [
+            {
+              key: "name_not_reserved",
+              status: "failed",
+              issues: [{ message: 'Titles can\'t contain "Official", which is reserved for Akash. Rename the template.', field: "title" }]
+            }
+          ]
+        }
+      });
+      expect(repository.updateSettings).not.toHaveBeenCalled();
+    });
+
+    it("judges the title against the locked template's visibility rather than the one read before the lock", async () => {
+      const template = createTemplateRow({ visibility: "private" });
+      const locked = { ...template, visibility: "public" as const, isPublic: true };
+      const { service, repository } = setup({ template, locked });
+
+      await expect(service.updateSettings(template.id, { title: "Official Llama" })).rejects.toMatchObject({ errorCode: "template_publish_checks_failed" });
+      expect(repository.updateSettings).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { shape: "an ordinary new title on a public template", visibility: "public" as const, patch: { title: "Llama 3.1 Chat" } },
+      { shape: "a reserved word in the title of a private template", visibility: "private" as const, patch: { title: "Official Llama" } },
+      { shape: "a reserved word in the title of an organization template", visibility: "organization" as const, patch: { title: "Official Llama" } },
+      {
+        shape: "a public template renamed while it is made private",
+        visibility: "public" as const,
+        patch: { title: "Official Llama", visibility: "private" as const }
+      },
+      { shape: "a public template whose title is left alone", visibility: "public" as const, patch: { summary: "Official summary" } }
+    ])("allows $shape", async ({ visibility, patch }) => {
+      const template = createTemplateRow({ visibility, isPublic: visibility === "public", title: "Official legacy title" });
+      const { service, repository } = setup({ template });
+
+      await service.updateSettings(template.id, patch);
+
+      expect(repository.updateSettings).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -773,6 +955,7 @@ describe(TemplateWriterService.name, () => {
       isFeatured: false,
       moderationStatus: "active",
       currentVersionId: faker.string.uuid(),
+      publishedAt: null,
       createdAt: faker.date.past(),
       updatedAt: faker.date.recent(),
       authorUsername: faker.internet.userName(),
@@ -792,6 +975,7 @@ describe(TemplateWriterService.name, () => {
       resources: null,
       imageDigests: {},
       status: "live",
+      checkResults: null,
       changes: ["first_version"],
       createdById: faker.string.uuid(),
       createdBy: null,
@@ -807,6 +991,8 @@ describe(TemplateWriterService.name, () => {
       base?: TemplateVersionOutput | null;
       locked?: MarketplaceTemplateRow | null;
       activeOrganizationId?: string | null;
+      checkResults?: PublishCheckResults;
+      rateLimitError?: Error;
     } = {}
   ) {
     const ability = createMongoAbility<MongoAbility>(input.rules ?? [CREATE_RULE, UPDATE_RULE, DELETE_RULE]);
@@ -848,13 +1034,22 @@ describe(TemplateWriterService.name, () => {
         return result;
       })
     });
+    const publishChecksService = mock<PublishChecksService>();
+    publishChecksService.run.mockResolvedValue(input.checkResults ?? PASSED_CHECKS);
+    const templateRateLimiterService = mock<TemplateRateLimiterService>();
+    templateRateLimiterService.assertWithinLimits.mockImplementation(async () => {
+      transactionSteps.push("assertWithinLimits");
+      if (input.rateLimitError) throw input.rateLimitError;
+    });
     const service = new TemplateWriterService(
       repository,
       templateVersionRepository,
       marketplaceTemplateService,
       deploymentProjectService,
-      sdlService,
-      sdlReferenceService,
+      new TemplateSdlValidatorService(sdlService, sdlReferenceService),
+      new TemplateWriteAccessService(repository, marketplaceTemplateService, authService, executionContextService),
+      publishChecksService,
+      templateRateLimiterService,
       authService,
       txService,
       executionContextService
@@ -869,6 +1064,8 @@ describe(TemplateWriterService.name, () => {
       deploymentProjectService,
       authService,
       txService,
+      publishChecksService,
+      templateRateLimiterService,
       user,
       transactionSteps
     };
