@@ -261,7 +261,7 @@ export const ShareTemplateDialog: FC<ShareTemplateDialogProps> = ({ template, or
                 </p>
               )}
               <Button type="button" variant="ghost" disabled={isBusy} onClick={onClose}>
-                {isPublishOffered || pendingVisibility ? "Cancel" : "Close"}
+                {isPublishOffered || pendingVisibility ? "Cancel" : "Done"}
               </Button>
               {isPublishOffered && (
                 <LoadingButton type="button" loading={isPublishing} disabled={!canPublish} onClick={makePublic}>
