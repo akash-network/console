@@ -29,7 +29,10 @@ const shareOf = (part: number, whole: number) => (whole > 0 ? (part / whole) * 1
 
 export function toMilestoneCards(data: SinkUnbondings | undefined, aktPrice: number): MigrationCard[] {
   const usdOf = (akt: number) => (aktPrice > 0 ? formatUsd(akt * aktPrice, { compact: true }) : undefined);
-  const milestoneCards = (data?.milestones ?? []).map(milestone => {
+  const milestones = data?.milestones ?? [];
+  if (!milestones.length) return [];
+
+  const milestoneCards = milestones.map(milestone => {
     const akt = toAkt(milestone.unbondedSinceUakt);
     const usd = usdOf(akt);
 
@@ -42,17 +45,16 @@ export function toMilestoneCards(data: SinkUnbondings | undefined, aktPrice: num
     };
   });
 
-  if (!milestoneCards.length) return [];
-
-  const conversion = sumLiquidConversion(data?.cohorts ?? []);
+  const firstMilestone = lowerFirst(milestones[0].label);
+  const conversion = sumLiquidConversion((data?.cohorts ?? []).filter(cohort => cohort.firstUnbondedAfter !== null));
 
   return [
     ...milestoneCards,
     {
-      label: "Newly liquid AKT migrated",
+      label: `Share migrated since ${firstMilestone}`,
       value: formatPercent(shareOf(conversion.sentFromLiquidUakt, conversion.liquidUakt)),
-      detail: `${formatCompact(toAkt(conversion.sentFromLiquidUakt))} of ${formatCompact(toAkt(conversion.liquidUakt))} AKT`,
-      tooltip: "Share of the AKT unstaked since October 1 that finished unbonding and was sent to Solana by the address that unstaked it"
+      detail: `${formatCompact(toAkt(conversion.sentFromLiquidUakt))} of ${formatCompact(toAkt(conversion.liquidUakt))} liquid AKT`,
+      tooltip: `Share of the AKT first unstaked after the ${firstMilestone} that finished unbonding and was sent to Solana by the address that unstaked it`
     }
   ];
 }

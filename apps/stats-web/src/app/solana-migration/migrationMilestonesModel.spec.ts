@@ -40,32 +40,35 @@ describe("migrationMilestonesModel", () => {
       expect(card.detail).toBe("2,054 delegators");
     });
 
-    it("shows the share of liquid unstaked AKT that its unstakers sent to Solana across all cohorts", () => {
+    it("shows the share of liquid AKT first unstaked after the announcement that its unstakers sent to Solana", () => {
       const cards = toMilestoneCards(unbondings({}), 0.5);
 
       expect(cards[3]).toEqual({
-        label: "Newly liquid AKT migrated",
-        value: "7.4%",
-        detail: "221.2K of 3.01M AKT",
-        tooltip: "Share of the AKT unstaked since October 1 that finished unbonding and was sent to Solana by the address that unstaked it"
+        label: "Share migrated since announcement",
+        value: "38.1%",
+        detail: "199.6K of 524.5K liquid AKT",
+        tooltip: "Share of the AKT first unstaked after the announcement that finished unbonding and was sent to Solana by the address that unstaked it"
       });
     });
 
-    it("counts only AKT sent from liquid unstaked AKT, not everything its unstakers sent", () => {
+    it("leaves out the delegators who first unstaked before the announcement and AKT sent beyond what is liquid", () => {
       const cohorts = [
         cohort({ liquidUakt: 50_000_000, sentUakt: 90_000_000, sentFromLiquidUakt: 50_000_000 }),
-        cohort({ firstUnbondedAfter: "announcement", liquidUakt: 150_000_000, sentUakt: 10_000_000, sentFromLiquidUakt: 10_000_000 })
+        cohort({ firstUnbondedAfter: "announcement", liquidUakt: 150_000_000, sentUakt: 90_000_000, sentFromLiquidUakt: 10_000_000 }),
+        cohort({ firstUnbondedAfter: "upgrade", liquidUakt: 50_000_000, sentFromLiquidUakt: 50_000_000 })
       ];
 
       const cards = toMilestoneCards(unbondings({ cohorts }), 0.5);
 
-      expect(cards[3]).toMatchObject({ value: "30.0%", detail: "60 of 200 AKT" });
+      expect(cards[3]).toMatchObject({ value: "30.0%", detail: "60 of 200 liquid AKT" });
     });
 
-    it("shows no share before any unstaked AKT finishes unbonding", () => {
-      const cards = toMilestoneCards(unbondings({ cohorts: [cohort({ sentUakt: 5_000_000 })] }), 0.5);
+    it("shows no share before any AKT unstaked after the announcement finishes unbonding", () => {
+      const cohorts = [cohort({ liquidUakt: 100_000_000, sentFromLiquidUakt: 100_000_000 }), cohort({ firstUnbondedAfter: "announcement", sentUakt: 5_000_000 })];
 
-      expect(cards[3]).toMatchObject({ value: "—", detail: "0 of 0 AKT" });
+      const cards = toMilestoneCards(unbondings({ cohorts }), 0.5);
+
+      expect(cards[3]).toMatchObject({ value: "—", detail: "0 of 0 liquid AKT" });
     });
 
     it("shows no cards or rows when the API does not report milestones and cohorts yet", () => {
