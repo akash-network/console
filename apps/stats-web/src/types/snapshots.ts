@@ -192,7 +192,30 @@ export type SinkUnbondingsDay = {
   sentBySendersWhoUnbondedUakt: number;
 };
 
+export type SinkMigrationMilestoneKey = "announcement" | "voteClosed" | "upgrade";
+
+export type SinkUnbondingsMilestone = {
+  key: SinkMigrationMilestoneKey;
+  label: string;
+  height: number;
+  date: string | null;
+  unbondedSinceUakt: number;
+  delegatorsSince: number;
+};
+
+export type SinkUnbondingsCohort = {
+  firstUnbondedAfter: SinkMigrationMilestoneKey | null;
+  delegators: number;
+  unbondedUakt: number;
+  liquidUakt: number;
+  senders: number;
+  sentUakt: number;
+  sentFromLiquidUakt: number;
+};
+
 export type SinkUnbondings = {
   summary: SinkUnbondingsSummary;
   daily: SinkUnbondingsDay[];
+  milestones: SinkUnbondingsMilestone[];
+  cohorts: SinkUnbondingsCohort[];
 };

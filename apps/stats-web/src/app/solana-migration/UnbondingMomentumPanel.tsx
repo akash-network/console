@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 
+import type { MigrationMilestoneMarker } from "./migrationMilestonesModel";
 import type { FittedUnbondingBar, UnbondingBar, UnbondingView } from "./unbondingMomentumModel";
-import { fitUnbondingBars, slotIndexAt, toUnbondingBars, UNBONDING_VIEWS } from "./unbondingMomentumModel";
+import { fitUnbondingBars, placeMilestoneMarkers, slotIndexAt, toUnbondingBars, UNBONDING_VIEWS } from "./unbondingMomentumModel";
 
 import { LoadError, Panel, PanelTitle } from "@/components/stats/Panel";
 import { SegmentedTabs } from "@/components/stats/Toggles";
@@ -19,6 +20,7 @@ const TOOLTIP_GAP = 8;
 const MIN_DATE_LABEL_SPACING = 90;
 const MAX_DATE_LABELS = 7;
 const MAX_BAR_RADIUS = 2;
+const MARKER_LABEL_LINE_HEIGHT = 12;
 
 const UNBONDING_FILL = "fill-[#2a78d6] dark:fill-[#3987e5]";
 const UNBONDING_SWATCH = "bg-[#2a78d6] dark:bg-[#3987e5]";
@@ -27,12 +29,14 @@ const SENT_SWATCH = "bg-[#eb6834] dark:bg-[#d95926]";
 
 export function UnbondingMomentumPanel({
   data,
+  markers = [],
   isError,
   onRetry,
   now,
   className
 }: {
   data: SinkUnbondings | undefined;
+  markers?: MigrationMilestoneMarker[];
   isError: boolean;
   onRetry: () => void;
   now: number;
@@ -66,7 +70,7 @@ export function UnbondingMomentumPanel({
       {bars?.length === 0 && <p className="py-10 text-center text-sm text-muted-foreground">No unbondings yet.</p>}
       {!!bars?.length && (
         <>
-          <UnbondingBarChart bars={bars} seriesLabel={seriesLabel} now={now} />
+          <UnbondingBarChart bars={bars} markers={markers} seriesLabel={seriesLabel} now={now} />
           <UnbondingTable bars={bars} seriesLabel={seriesLabel} />
         </>
       )}
@@ -83,7 +87,17 @@ function LegendItem({ swatchClassName, label }: { swatchClassName: string; label
   );
 }
 
-function UnbondingBarChart({ bars, seriesLabel, now }: { bars: UnbondingBar[]; seriesLabel: string; now: number }) {
+function UnbondingBarChart({
+  bars,
+  markers,
+  seriesLabel,
+  now
+}: {
+  bars: UnbondingBar[];
+  markers: MigrationMilestoneMarker[];
+  seriesLabel: string;
+  now: number;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
@@ -104,6 +118,7 @@ function UnbondingBarChart({ bars, seriesLabel, now }: { bars: UnbondingBar[]; s
   const fitted = width > 0 ? fitUnbondingBars(bars, width, CHART_HEIGHT, CHART_PADDING) : undefined;
   const hovered = fitted && hoverIndex !== null ? fitted.bars[hoverIndex] : undefined;
   const firstUpcomingBar = fitted?.bars.find((bar, index) => bar.isUpcoming && index > 0);
+  const placedMarkers = fitted ? placeMilestoneMarkers(markers, fitted.bars) : [];
   const gridRight = width - CHART_PADDING.right + 8;
 
   return (
@@ -162,6 +177,29 @@ function UnbondingBarChart({ bars, seriesLabel, now }: { bars: UnbondingBar[]; s
               </text>
             </g>
           )}
+
+          {placedMarkers.map(marker => (
+            <g key={marker.label}>
+              <line
+                x1={marker.x}
+                x2={marker.x}
+                y1={CHART_PADDING.top}
+                y2={fitted.baseline}
+                className="stroke-akash"
+                strokeOpacity={0.7}
+                strokeWidth={1}
+                strokeDasharray="2 3"
+              />
+              <text
+                x={marker.x + 4}
+                y={CHART_PADDING.top + 8 + marker.row * MARKER_LABEL_LINE_HEIGHT}
+                className="fill-muted-foreground"
+                style={AXIS_LABEL_STYLE}
+              >
+                {marker.label.toUpperCase()}
+              </text>
+            </g>
+          ))}
 
           {fitted.bars.map(bar => (
             <g key={bar.date}>

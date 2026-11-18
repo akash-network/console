@@ -150,6 +150,22 @@ export function fitUnbondingBars(bars: UnbondingBar[], width: number, height: nu
   return { bars: fitted, max, ticks, baseline, yOf };
 }
 
+export type PlacedMilestoneMarker = { date: string; label: string; x: number; row: number };
+
+/** Labels alternate between this many rows so markers a few days apart do not overlap. */
+const MARKER_LABEL_ROWS = 2;
+
+export function placeMilestoneMarkers(markers: { date: string; label: string }[], bars: FittedUnbondingBar[]): PlacedMilestoneMarker[] {
+  const placed: PlacedMilestoneMarker[] = [];
+
+  for (const marker of markers) {
+    const bar = bars.find(candidate => candidate.date === marker.date);
+    if (bar) placed.push({ ...marker, x: bar.slotX + bar.slotWidth / 2, row: placed.length % MARKER_LABEL_ROWS });
+  }
+
+  return placed;
+}
+
 export function slotIndexAt(x: number, width: number, padding: UnbondingChartPadding, length: number) {
   const innerWidth = width - padding.left - padding.right;
   const index = Math.floor(((x - padding.left) / innerWidth) * length);

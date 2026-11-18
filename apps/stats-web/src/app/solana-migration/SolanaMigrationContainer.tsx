@@ -1,9 +1,11 @@
 "use client";
 import { HeroChartPanel } from "../(home)/HeroChartPanel";
 import { StatsCard } from "../(home)/StatsCard";
+import { toMilestoneCards, toMilestoneMarkers, toUnbondingCohortRows } from "./migrationMilestonesModel";
 import { MigrationTransfersPanel } from "./MigrationTransfersPanel";
 import type { MigrationCard } from "./solanaMigrationModel";
 import { MIGRATION_HERO_METRICS, toMigrationActivityCards, toMigrationStateCards, toMigrationSummaryCards } from "./solanaMigrationModel";
+import { UnbondingCohortsPanel } from "./UnbondingCohortsPanel";
 import { toUnbondingCards } from "./unbondingMomentumModel";
 import { UnbondingMomentumPanel } from "./UnbondingMomentumPanel";
 
@@ -30,6 +32,7 @@ export const SolanaMigrationContainer: React.FunctionComponent = () => {
     [DAILY_TRANSFERS.key]: useGraphSeries(DAILY_TRANSFERS.key, DAILY_TRANSFERS.scale)
   };
   const updatedAt = data?.now?.date ? new Date(data.now.date).getTime() : undefined;
+  const milestoneCards = toMilestoneCards(unbondings.data, price, now);
 
   return (
     <div className="flex flex-col gap-4 pt-7">
@@ -57,7 +60,26 @@ export const SolanaMigrationContainer: React.FunctionComponent = () => {
 
       <h2 className="pt-4 font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-faint">Unstaking</h2>
       <MigrationCardGrid cards={toUnbondingCards(unbondings.data, price, now)} />
-      <UnbondingMomentumPanel data={unbondings.data} isError={unbondings.isError} onRetry={() => unbondings.refetch()} now={now} />
+      <UnbondingMomentumPanel
+        data={unbondings.data}
+        markers={toMilestoneMarkers(unbondings.data)}
+        isError={unbondings.isError}
+        onRetry={() => unbondings.refetch()}
+        now={now}
+      />
+
+      {!!milestoneCards.length && (
+        <>
+          <h2 className="pt-4 font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-faint">Since the migration announcement</h2>
+          <MigrationCardGrid cards={milestoneCards} />
+        </>
+      )}
+      <UnbondingCohortsPanel
+        rows={toUnbondingCohortRows(unbondings.data)}
+        isLoading={unbondings.isLoading}
+        isError={unbondings.isError}
+        onRetry={() => unbondings.refetch()}
+      />
 
       <h2 className="pt-4 font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-faint">Individual transfers</h2>
       <div className="grid gap-4 xl:grid-cols-4">
