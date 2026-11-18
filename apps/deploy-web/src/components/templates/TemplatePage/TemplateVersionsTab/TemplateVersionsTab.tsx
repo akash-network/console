@@ -4,7 +4,9 @@ import { useMemo } from "react";
 import { Button, Spinner, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { format } from "date-fns";
+import { CircleX } from "lucide-react";
 
+import { failedPublishChecksOf, publishCheckLabelOf } from "@src/components/templates/publishing/publishReadiness";
 import { useTemplateVersion } from "@src/queries/useUserTemplateQueries";
 import type { TemplateVersionSummary } from "@src/types/marketplace-template";
 import type { VersionDiffEntry } from "./describeVersionDiff";
@@ -31,11 +33,11 @@ const CHANGE_LABELS: Record<VersionChange, string> = {
   readme_changed: "README changed"
 };
 
-const STATUS_LABELS: Record<TemplateVersionSummary["status"], string> = {
-  live: "Published",
-  held: "Held for staff review",
-  failed_checks: "Failed checks",
-  rejected: "Rejected by staff"
+const STATUSES: Record<TemplateVersionSummary["status"], { label: string; textClasses: string; dotClasses: string }> = {
+  live: { label: "Published", textClasses: "text-green-700 dark:text-green-500", dotClasses: "bg-green-600" },
+  held: { label: "Held for staff review", textClasses: "text-amber-700 dark:text-amber-500", dotClasses: "bg-amber-500" },
+  failed_checks: { label: "Failed checks", textClasses: "text-red-600 dark:text-red-500", dotClasses: "bg-red-600" },
+  rejected: { label: "Rejected by staff", textClasses: "text-red-600 dark:text-red-500", dotClasses: "bg-red-600" }
 };
 
 const MAX_LINES_PER_BLOCK = 50;
@@ -70,7 +72,9 @@ export const TemplateVersionsTab: FC<TemplateVersionsTabProps> = ({
       <div>
         <h2 className="text-base font-semibold">Version history</h2>
         <p className="mt-1 text-[13px] text-muted-foreground">Published versions never change. Deployments and forks stay on the version they started from.</p>
-        <p className="text-[13px] text-muted-foreground">New versions come from Edit configuration → Save new version.</p>
+        <p className="text-[13px] text-muted-foreground">
+          New versions come from Edit configuration → Save new version. On a public template, a new version goes live once its checks pass.
+        </p>
       </div>
       <div className="overflow-x-auto rounded-xl border border-border bg-card">
         <Table>
@@ -110,28 +114,52 @@ const VersionRow: FC<{ version: TemplateVersionSummary; isCurrent: boolean; isSh
   isCurrent,
   isShown,
   onView
-}) => (
-  <TableRow aria-current={isShown || undefined}>
-    <TableCell className="font-mono text-[13px] font-medium">v{version.version}</TableCell>
-    <TableCell>
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-[13px]">{STATUS_LABELS[version.status]}</span>
-        {isCurrent && <span className={CHIP_CLASSES}>Current</span>}
-      </div>
-    </TableCell>
-    <TableCell className="text-[13px]">{version.createdBy?.username ?? EMPTY_CELL}</TableCell>
-    <TableCell className="whitespace-nowrap text-[13px] text-muted-foreground">{format(new Date(version.createdAt), "MMM d, yyyy")}</TableCell>
-    <TableCell>
-      <ChangeChips changes={version.changes} />
-    </TableCell>
-    <TableCell className="text-right text-[13px]">{NUMBER_FORMAT.format(version.deploys)}</TableCell>
-    <TableCell className="text-right">
-      <Button variant="outline" size="sm" aria-label={`View v${version.version}`} onClick={onView}>
-        View
-      </Button>
-    </TableCell>
-  </TableRow>
-);
+}) => {
+  const status = STATUSES[version.status];
+  const failureReasons = version.status === "failed_checks" ? failureReasonsOf(version) : [];
+
+  return (
+    <TableRow aria-current={isShown || undefined}>
+      <TableCell className="font-mono text-[13px] font-medium">v{version.version}</TableCell>
+      <TableCell>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className={cn("flex items-center gap-1.5 text-[13px] font-medium", status.textClasses)}>
+            <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", status.dotClasses)} aria-hidden="true" />
+            {status.label}
+          </span>
+          {isCurrent && <span className={CHIP_CLASSES}>Current</span>}
+        </div>
+        {failureReasons.length > 0 && (
+          <ul aria-label={`Why v${version.version} failed`} className="mt-1.5 flex max-w-[320px] flex-col gap-1">
+            {failureReasons.map((reason, index) => (
+              <li key={index} className="flex items-start gap-1.5 break-words text-[12.5px] text-red-600 dark:text-red-500">
+                <CircleX className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span className="min-w-0">{reason}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </TableCell>
+      <TableCell className="text-[13px]">{version.createdBy?.username ?? EMPTY_CELL}</TableCell>
+      <TableCell className="whitespace-nowrap text-[13px] text-muted-foreground">{format(new Date(version.createdAt), "MMM d, yyyy")}</TableCell>
+      <TableCell>
+        <ChangeChips changes={version.changes} />
+      </TableCell>
+      <TableCell className="text-right text-[13px]">{NUMBER_FORMAT.format(version.deploys)}</TableCell>
+      <TableCell className="text-right">
+        <Button variant="outline" size="sm" aria-label={`View v${version.version}`} onClick={onView}>
+          View
+        </Button>
+      </TableCell>
+    </TableRow>
+  );
+};
+
+function failureReasonsOf(version: TemplateVersionSummary): string[] {
+  return failedPublishChecksOf(version.checkResults?.checks ?? []).flatMap(check =>
+    check.issues.length > 0 ? check.issues.map(issue => issue.message) : [publishCheckLabelOf(check.key)]
+  );
+}
 
 const ChangeChips: FC<{ changes: TemplateVersionSummary["changes"] }> = ({ changes }) => {
   if (changes === null) return <span className="text-muted-foreground">{EMPTY_CELL}</span>;

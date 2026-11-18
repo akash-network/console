@@ -14,10 +14,11 @@ import Layout from "@src/components/layout/Layout";
 import { ConfigureDeployTargetChip } from "@src/components/projects/ConfigureDeployTargetChip/ConfigureDeployTargetChip";
 import { useConfigureDeployTarget } from "@src/components/projects/DeployTargetGate/DeployTargetGate";
 import { describeTemplateRefusal } from "@src/components/templates/describeTemplateRefusal";
+import { readTemplateRateLimit } from "@src/components/templates/publishing/readPublishRefusal";
 import { useCreateTemplateMutation, useCreateTemplateVersionMutation } from "@src/queries/useUserTemplateQueries";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
-import type { MarketplaceTemplate, TemplateAskedValue } from "@src/types/marketplace-template";
+import type { MarketplaceTemplate, TemplateAskedValue, TemplateVersionDetail } from "@src/types/marketplace-template";
 import { severalRegionPicksOf } from "@src/utils/sdl/placementRegions";
 import { UrlService } from "@src/utils/urlUtils";
 import { ConfigureEditor } from "../../ConfigureEditor/ConfigureEditor";
@@ -36,6 +37,7 @@ import { useSyncLogCollectors } from "../../useSyncLogCollectors/useSyncLogColle
 import type { AskedValueSetting } from "../buildAskedValues";
 import { buildAskedValues, sealSharedSecretKeys, summarizeAskedValues } from "../buildAskedValues";
 import { ConfigureTemplateHeader } from "../ConfigureTemplateHeader/ConfigureTemplateHeader";
+import { FailedChecksDialog } from "../FailedChecksDialog/FailedChecksDialog";
 import type { TemplateDetails } from "../SaveTemplateDialog/SaveTemplateDialog";
 import { SaveTemplateDialog } from "../SaveTemplateDialog/SaveTemplateDialog";
 import type { TemplateModeState } from "../TemplateModeProvider/TemplateModeProvider";
@@ -54,6 +56,7 @@ export const DEPENDENCIES = {
   SdlPreviewPane,
   SdlImportChangesBanner,
   SaveTemplateDialog,
+  FailedChecksDialog,
   Snackbar,
   useConfigureDraft,
   useConfigureDeployTarget,
@@ -71,6 +74,8 @@ const SDL_SYNC_DEBOUNCE_MS = 300;
 const REFUSAL_TOAST_DURATION_MS = 10000;
 
 const CONFLICT_STATUS = 409;
+
+const FAILED_CHECKS_STATUS: TemplateVersionDetail["status"] = "failed_checks";
 
 const LEAVE_MESSAGE = "Leave without saving? Your changes to this template will be lost.";
 
@@ -128,6 +133,7 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({
   const [suggestedDetails] = useState({ title: suggestedTitle, summary: suggestedSummary });
   const [isPreviewOpen, setIsPreviewOpen] = useState(true);
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const [failedVersion, setFailedVersion] = useState<TemplateVersionDetail>();
   const lastSelectedServiceId = useRef(selectedServiceId);
   /** A draft save still pending when the template is saved would otherwise write the cleared draft back. */
   const isSavedRef = useRef(false);
@@ -249,8 +255,12 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({
 
   async function saveVersion(editedTemplate: MarketplaceTemplate) {
     try {
-      await createVersion({ id: editedTemplate.id, data: { ...templateContent(), baseVersion: intent.baseVersion } });
-      leaveFor(`${UrlService.template(editedTemplate.id)}?tab=versions`);
+      const response = await createVersion({ id: editedTemplate.id, data: { ...templateContent(), baseVersion: intent.baseVersion } });
+      if (response.data.status === FAILED_CHECKS_STATUS) {
+        setFailedVersion(response.data);
+        return;
+      }
+      leaveFor(versionsUrlOf(editedTemplate.id));
     } catch (error) {
       if (error instanceof ApiError && error.status === CONFLICT_STATUS) {
         toastNewerVersion(editedTemplate.id);
@@ -277,7 +287,11 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({
 
   function toastSaveFailure(error: unknown) {
     enqueueSnackbar(
-      <d.Snackbar title="Couldn't save the template" subTitle={describeTemplateRefusal(error) ?? "Try again in a moment."} iconVariant="error" />,
+      <d.Snackbar
+        title="Couldn't save the template"
+        subTitle={describeTemplateRefusal(error) ?? readTemplateRateLimit(error) ?? "Try again in a moment."}
+        iconVariant="error"
+      />,
       {
         variant: "error",
         autoHideDuration: REFUSAL_TOAST_DURATION_MS
@@ -370,6 +384,14 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({
               onClose={() => setIsSaveDialogOpen(false)}
             />
           )}
+          {failedVersion && template && (
+            <d.FailedChecksDialog
+              version={failedVersion}
+              liveVersion={template.currentVersion?.version}
+              onKeepEditing={() => setFailedVersion(undefined)}
+              onViewVersions={() => leaveFor(versionsUrlOf(template.id))}
+            />
+          )}
         </PlacementManagerProvider>
       </FormProvider>
     </d.Layout>
@@ -377,6 +399,10 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({
 };
 
 type TemplateContent = { sdl: string; askedValues: TemplateAskedValue[] };
+
+function versionsUrlOf(templateId: string) {
+  return `${UrlService.template(templateId)}?tab=versions`;
+}
 
 /** Every row of a key asked as a secret is sealed, so a value typed in the clear beside a secret never leaves the browser. */
 function templateContentOf(values: SdlBuilderFormValuesType, settings: Record<string, AskedValueSetting>, previousSdl: string): TemplateContent {
