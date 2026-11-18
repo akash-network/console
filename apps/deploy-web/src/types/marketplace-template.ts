@@ -17,3 +17,9 @@ export type TemplateVersionSummary = components["schemas"]["TemplateVersionSumma
 export type TemplateAskedValue = components["schemas"]["TemplateAskedValue"];
 
 export type TemplateCategory = NonNullable<components["schemas"]["UpdateUserTemplateRequest"]["data"]["categories"]>[number];
+
+export type TemplatePublishReadiness = components["schemas"]["TemplatePublishReadiness"];
+
+export type TemplatePublishCheck = components["schemas"]["TemplatePublishCheck"];
+
+export type TemplateCheckResults = NonNullable<TemplateVersionSummary["checkResults"]>;

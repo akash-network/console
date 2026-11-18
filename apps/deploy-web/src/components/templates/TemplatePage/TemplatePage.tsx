@@ -1,6 +1,6 @@
 "use client";
 import type { FC, ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ApiError } from "@akashnetwork/openapi-sdk";
 import {
   Button,
@@ -17,9 +17,9 @@ import {
   TabsList,
   TabsTrigger
 } from "@akashnetwork/ui/components";
-import { cn, copyTextToClipboard } from "@akashnetwork/ui/utils";
+import { cn } from "@akashnetwork/ui/utils";
 import { formatDistanceToNowStrict } from "date-fns";
-import { ArrowRight, ChevronRight, Link2, RefreshCw, SlidersHorizontal, Star } from "lucide-react";
+import { ArrowRight, ChevronRight, RefreshCw, Share2, SlidersHorizontal, Star } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { NextSeo } from "next-seo";
@@ -27,13 +27,16 @@ import { useSnackbar } from "notistack";
 
 import Layout from "@src/components/layout/Layout";
 import { NotFoundPage } from "@src/components/shared/NotFoundPage/NotFoundPage";
+import { DEPLOY_BADGE_SOURCE, isDeployBadgeArrival, TEMPLATE_ARRIVAL_SOURCE_PARAM } from "@src/components/templates/publishing/deployBadge";
+import { ShareTemplateDialog } from "@src/components/templates/publishing/ShareTemplateDialog/ShareTemplateDialog";
 import { TemplateIcon } from "@src/components/templates/TemplateIcon/TemplateIcon";
 import { TemplateVisibilityBadge } from "@src/components/templates/TemplateVisibilityBadge/TemplateVisibilityBadge";
+import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useAddFavoriteTemplate, useRemoveFavoriteTemplate } from "@src/queries/useTemplateQuery";
 import { useMarketplaceTemplate, useTemplateVersion, useTemplateVersions } from "@src/queries/useUserTemplateQueries";
 import type { MarketplaceTemplate, TemplateVersionDetail, TemplateVersionSummary } from "@src/types/marketplace-template";
-import { getBaseUrl, UrlService } from "@src/utils/urlUtils";
+import { UrlService } from "@src/utils/urlUtils";
 import { TemplateConfigurationTab } from "./TemplateConfigurationTab/TemplateConfigurationTab";
 import { TemplateReadmeTab } from "./TemplateReadmeTab/TemplateReadmeTab";
 import { TemplateSettingsTab } from "./TemplateSettingsTab/TemplateSettingsTab";
@@ -48,6 +51,7 @@ export const DEPENDENCIES = {
   TemplateConfigurationTab,
   TemplateVersionsTab,
   TemplateSettingsTab,
+  ShareTemplateDialog,
   useMarketplaceTemplate,
   useTemplateVersions,
   useTemplateVersion,
@@ -90,12 +94,29 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
   const { mutateAsync: removeFavorite } = d.useRemoveFavoriteTemplate(id);
   const [favoriteOverride, setFavoriteOverride] = useState<boolean>();
   const [isChangingFavorite, setIsChangingFavorite] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const { analyticsService } = useServices();
+  const arrivalSource = router.query[TEMPLATE_ARRIVAL_SOURCE_PARAM];
+  const hasRecordedArrival = useRef(false);
 
   useEffect(
     function followFavoriteFromServer() {
       setFavoriteOverride(undefined);
     },
     [template?.isFavorite]
+  );
+
+  useEffect(
+    function recordDeployBadgeArrival() {
+      if (hasRecordedArrival.current || !template || !isDeployBadgeArrival(arrivalSource)) return;
+      hasRecordedArrival.current = true;
+      analyticsService.track(
+        "template_badge_arrival",
+        { category: "deployments", templateId: template.id, templateVersion: template.currentVersion?.version ?? null, source: DEPLOY_BADGE_SOURCE },
+        "Amplitude"
+      );
+    },
+    [template, arrivalSource, analyticsService]
   );
 
   if (templateQuery.error instanceof ApiError && templateQuery.error.status === 404) return <d.NotFoundPage />;
@@ -140,15 +161,6 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
   };
 
   const selectVersion = (version: number) => setSelectedVersion(version === currentVersion?.version ? undefined : version);
-
-  const copyLink = async () => {
-    const isCopied = await copyTextToClipboard(`${getBaseUrl()}${UrlService.template(id)}`);
-    if (isCopied) {
-      enqueueSnackbar(<Snackbar title="Link copied" iconVariant="success" />, { variant: "success" });
-    } else {
-      enqueueSnackbar(<Snackbar title="Couldn't copy the link" iconVariant="error" />, { variant: "error" });
-    }
-  };
 
   const renderShownVersion = (render: (version: TemplateVersionDetail) => ReactNode) => {
     if (shownVersion) return render(shownVersion);
@@ -207,8 +219,9 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
                 <Star className={cn("h-4 w-4", isFavorite && "fill-current text-primary")} aria-hidden="true" />
               </Button>
             )}
-            <Button variant="outline" size="icon" aria-label="Copy link" onClick={copyLink}>
-              <Link2 className="h-4 w-4" aria-hidden="true" />
+            <Button variant="outline" size={template.canEdit ? "sm" : "icon"} aria-label="Share" className="gap-1.5" onClick={() => setIsShareOpen(true)}>
+              <Share2 className="h-4 w-4" aria-hidden="true" />
+              {template.canEdit && "Share"}
             </Button>
             {template.canEdit && (
               <Link
@@ -289,6 +302,14 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
           )}
         </Tabs>
       </div>
+
+      {isShareOpen && (
+        <d.ShareTemplateDialog
+          template={template}
+          organization={template.publisher && { name: template.publisher.name, type: template.publisher.type }}
+          onClose={() => setIsShareOpen(false)}
+        />
+      )}
     </d.Layout>
   );
 };

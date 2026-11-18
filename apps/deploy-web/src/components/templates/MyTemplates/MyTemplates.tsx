@@ -27,13 +27,14 @@ import {
 import { usePopup } from "@akashnetwork/ui/context";
 import { cn, copyTextToClipboard } from "@akashnetwork/ui/utils";
 import { format } from "date-fns";
-import { ChevronRight, Copy, Ellipsis, ExternalLink, Folder, Link2, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
+import { ChevronRight, Copy, Ellipsis, ExternalLink, Folder, Link2, Pencil, Plus, RefreshCw, Search, Share2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { NextSeo } from "next-seo";
 import { useSnackbar } from "notistack";
 
 import Layout from "@src/components/layout/Layout";
 import { ImportSdlButton } from "@src/components/new-deployment/ImportSdlButton/ImportSdlButton";
+import { ShareTemplateDialog } from "@src/components/templates/publishing/ShareTemplateDialog/ShareTemplateDialog";
 import { TemplateIcon } from "@src/components/templates/TemplateIcon/TemplateIcon";
 import { TemplateVisibilityBadge, VISIBILITY_LABELS } from "@src/components/templates/TemplateVisibilityBadge/TemplateVisibilityBadge";
 import { SUPPORT_EMAIL } from "@src/config/ui.config";
@@ -51,6 +52,7 @@ export const DEPENDENCIES = {
   Layout,
   NextSeo,
   ImportSdlButton,
+  ShareTemplateDialog,
   useMyTemplates,
   useDeleteMarketplaceTemplateMutation,
   useActiveOrganization,
@@ -95,11 +97,13 @@ export function MyTemplates({ dependencies: d = DEPENDENCIES }: Props) {
   const { enqueueSnackbar } = d.useSnackbar();
   const { publicConfig } = useServices();
   const [deletedIds, setDeletedIds] = useState<string[]>([]);
+  const [sharedTemplateId, setSharedTemplateId] = useState<string>();
   const [filters, setFilters] = useState<Filters>({ projectId: null, search: "", visibility: null, status: null });
 
   const templates = useMemo(() => (templatesQuery.data ?? []).filter(template => !deletedIds.includes(template.id)), [templatesQuery.data, deletedIds]);
   const visibleTemplates = useMemo(() => filterTemplates(templates, filters), [templates, filters]);
   const organizationName = activeOrganization?.name;
+  const sharedTemplate = templates.find(template => template.id === sharedTemplateId);
 
   const changeFilters = (change: Partial<Filters>) => setFilters(current => ({ ...current, ...change }));
 
@@ -234,6 +238,7 @@ export function MyTemplates({ dependencies: d = DEPENDENCIES }: Props) {
                         key={template.id}
                         template={template}
                         supportUrl={publicConfig.NEXT_PUBLIC_CONTACT_SUPPORT_URL}
+                        onShare={() => setSharedTemplateId(template.id)}
                         onCopyLink={() => copyLink(template)}
                         onDelete={() => confirmAndDelete(template)}
                       />
@@ -250,6 +255,15 @@ export function MyTemplates({ dependencies: d = DEPENDENCIES }: Props) {
           </p>
         </div>
       </div>
+
+      {sharedTemplate && (
+        <d.ShareTemplateDialog
+          key={sharedTemplate.id}
+          template={sharedTemplate}
+          organization={activeOrganization ? { name: activeOrganization.name, type: activeOrganization.type } : null}
+          onClose={() => setSharedTemplateId(undefined)}
+        />
+      )}
     </d.Layout>
   );
 }
@@ -350,11 +364,13 @@ function ProjectTabs({
 function TemplateRow({
   template,
   supportUrl,
+  onShare,
   onCopyLink,
   onDelete
 }: {
   template: UserTemplateListItem;
   supportUrl: string | undefined;
+  onShare: () => void;
   onCopyLink: () => void;
   onDelete: () => void;
 }) {
@@ -395,6 +411,20 @@ function TemplateRow({
                 </a>
               </>
             )}
+            {status.nextStep === "share" && template.canEdit && (
+              <>
+                {" "}
+                <button type="button" className="underline" aria-label={`Share ${template.title} to list it`} onClick={onShare}>
+                  Share
+                </button>{" "}
+                to list it.
+              </>
+            )}
+          </p>
+        )}
+        {status.versionNote && (
+          <p className={cn("mt-1 w-fit rounded-md border border-border px-1.5 py-0.5 text-xs font-medium", STATUS_TONE_CLASSES[status.versionNote.tone].text)}>
+            {status.versionNote.label}
           </p>
         )}
       </TableCell>
@@ -415,14 +445,24 @@ function TemplateRow({
               Edit
             </Link>
           )}
-          <TemplateActionsMenu template={template} onCopyLink={onCopyLink} onDelete={onDelete} />
+          <TemplateActionsMenu template={template} onShare={onShare} onCopyLink={onCopyLink} onDelete={onDelete} />
         </div>
       </TableCell>
     </TableRow>
   );
 }
 
-function TemplateActionsMenu({ template, onCopyLink, onDelete }: { template: UserTemplateListItem; onCopyLink: () => void; onDelete: () => void }) {
+function TemplateActionsMenu({
+  template,
+  onShare,
+  onCopyLink,
+  onDelete
+}: {
+  template: UserTemplateListItem;
+  onShare: () => void;
+  onCopyLink: () => void;
+  onDelete: () => void;
+}) {
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
@@ -437,6 +477,12 @@ function TemplateActionsMenu({ template, onCopyLink, onDelete }: { template: Use
             Open
           </Link>
         </DropdownMenuItem>
+        {template.canEdit && (
+          <DropdownMenuItem onSelect={onShare}>
+            <Share2 className="mr-2 h-4 w-4" aria-hidden="true" />
+            Share
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onSelect={onCopyLink}>
           <Link2 className="mr-2 h-4 w-4" aria-hidden="true" />
           Copy link
