@@ -162,6 +162,38 @@ describe(GpuWaveService.name, () => {
       expect(accountService.findAccountType).toHaveBeenCalledTimes(10);
     });
 
+    it("reaches into the next chunk of wallets when trial users fill the first", async () => {
+      const entries = names(...Array.from({ length: 30 }, (_, index) => `e${index + 1}`));
+      const trial = Object.fromEntries(entries.slice(0, 9).map(({ id }) => [id, "trial" as const]));
+      const { service } = setup({ entries, accountTypes: trial });
+
+      const recipients = await service.startWave(POOL_KEY, ONE_NODE_OF_EIGHT, 2);
+
+      expect(recipients).toEqual(["e10", "e11", "e12"]);
+    });
+
+    it("counts a slot that opens in a later chunk of wallets", async () => {
+      const entries = [
+        ...names(...Array.from({ length: 10 }, (_, index) => `big${index}`)),
+        entry("small", { gpuCount: 2 }),
+        ...names("tail0", "tail1", "tail2", "tail3")
+      ];
+      const { service } = setup({ entries });
+
+      const recipients = await service.startWave(POOL_KEY, { nodeFreeUnits: [8, 2] }, 2);
+
+      expect(recipients).toEqual(["big0", "big1", "big2", "big3", "big4", "big5"]);
+    });
+
+    it("emails everyone in line when small requests keep fitting across chunks", async () => {
+      const entries = Array.from({ length: 30 }, (_, index) => entry(`e${index}`, { gpuCount: 1 }));
+      const { service } = setup({ entries });
+
+      const recipients = await service.startWave(POOL_KEY, { nodeFreeUnits: [100] }, 2);
+
+      expect(recipients).toEqual(entries.map(({ id }) => id));
+    });
+
     it("does not check the wallet of anyone over the daily limit", async () => {
       const { service, accountService } = setup({ entries: [entry("maxed", { lastNotifiedAt: hoursAgo(5), notifiedCount: 2 })] });
 

@@ -60,7 +60,6 @@ export class GpuWaveService {
     });
   }
 
-  /** Checks wallets in line order, a chunk at a time, and stops once the entries left cannot add a slot nor change who is picked. */
   async #pickRecipients(entries: GpuWaitlistEntryRow[], pool: GpuWaitlistPoolRow, supply: GpuSupply, now: Date): Promise<string[]> {
     const withinLimits = entries.filter(entry => this.#withinEmailLimits(entry, pool, now));
     const multiplier = this.config.GPU_WAITLIST_WAVE_MULTIPLIER;
@@ -72,21 +71,22 @@ export class GpuWaveService {
         ...(await Promise.all(chunk.map(async entry => ({ id: entry.id, gpuCount: entry.gpuCount, isEligible: await this.#isNotTrialing(entry) }))))
       );
 
-      const unchecked = withinLimits.slice(start + chunk.length).map(({ id, gpuCount }) => ({ id, gpuCount, isEligible: true }));
+      const unchecked = withinLimits.slice(start + chunk.length);
       const picked = planWave({ nodeFreeUnits: supply.nodeFreeUnits, entries: evaluated, multiplier });
-      const slots = countSlots(
-        supply.nodeFreeUnits,
-        evaluated.filter(entry => entry.isEligible)
-      );
-      const slotsAtMost = countSlots(
-        supply.nodeFreeUnits,
-        [...evaluated, ...unchecked].filter(entry => entry.isEligible)
-      );
 
-      if (slotsAtMost === slots && picked.length === multiplier * slots) return picked;
+      if (this.#uncheckedEntriesCannotChangePick(supply, evaluated, unchecked, picked)) return picked;
     }
 
     return planWave({ nodeFreeUnits: supply.nodeFreeUnits, entries: evaluated, multiplier });
+  }
+
+  #uncheckedEntriesCannotChangePick(supply: GpuSupply, evaluated: WaveCandidate[], unchecked: GpuWaitlistEntryRow[], picked: string[]): boolean {
+    const eligible = evaluated.filter(entry => entry.isEligible);
+    const slots = countSlots(supply.nodeFreeUnits, eligible);
+    const optimisticallyEligible = unchecked.map(({ id, gpuCount }) => ({ id, gpuCount, isEligible: true }));
+    const slotsIfAllUncheckedWereEligible = countSlots(supply.nodeFreeUnits, [...eligible, ...optimisticallyEligible]);
+
+    return slotsIfAllUncheckedWereEligible === slots && picked.length === this.config.GPU_WAITLIST_WAVE_MULTIPLIER * slots;
   }
 
   #withinEmailLimits(entry: GpuWaitlistEntryRow, pool: GpuWaitlistPoolRow, now: Date): boolean {

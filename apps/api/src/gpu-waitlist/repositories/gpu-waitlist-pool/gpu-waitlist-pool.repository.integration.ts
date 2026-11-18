@@ -1,8 +1,9 @@
 import { faker } from "@faker-js/faker";
+import { sql } from "drizzle-orm";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
-import { TxService } from "@src/core/services";
+import { type ApiTransaction, TxService } from "@src/core/services/tx/tx.service";
 import { GpuWaitlistPoolRepository } from "./gpu-waitlist-pool.repository";
 
 describe(GpuWaitlistPoolRepository.name, () => {
@@ -25,33 +26,46 @@ describe(GpuWaitlistPoolRepository.name, () => {
       expect(await repository.findByPoolKeyAndLock(poolKey)).toBeUndefined();
     });
 
-    it("makes a second transaction wait until the first one commits", async () => {
+    it("makes a second transaction wait for the first and read what it committed", async () => {
       const { repository, poolKey } = setup();
       const txService = container.resolve(TxService);
       await repository.upsert({ poolKey, lastFreeUnits: 1, lastMaxNodeFreeUnits: 1 });
-      const order: string[] = [];
       const firstHoldsLock = Promise.withResolvers<void>();
-      const releaseFirst = Promise.withResolvers<void>();
+      const secondStarted = Promise.withResolvers<void>();
 
       const first = txService.transaction(async () => {
         await repository.findByPoolKeyAndLock(poolKey);
+        await repository.update(poolKey, { waveNumber: 7 });
         firstHoldsLock.resolve();
-        await releaseFirst.promise;
-        order.push("first released");
+        await secondStarted.promise;
+        await waitUntilABackendWaitsOnALock(txService.getPgTx()!);
       });
       await firstHoldsLock.promise;
-      const second = txService.transaction(async () => {
-        await repository.findByPoolKeyAndLock(poolKey);
-        order.push("second locked");
-      });
-      releaseFirst.resolve();
-      await Promise.all([first, second]);
+      const second = txService.transaction(async () => (await repository.findByPoolKeyAndLock(poolKey))?.waveNumber);
+      secondStarted.resolve();
+      await first;
 
-      expect(order).toEqual(["first released", "second locked"]);
+      expect(await second).toBe(7);
     });
   });
 
   function setup() {
     return { repository: container.resolve(GpuWaitlistPoolRepository), poolKey: `pool-${faker.string.alphanumeric(16).toLowerCase()}` };
+  }
+
+  async function waitUntilABackendWaitsOnALock(connection: ApiTransaction) {
+    const deadline = Date.now() + 5000;
+
+    while (Date.now() < deadline) {
+      const rows = await connection.execute<{ waiting: number }>(
+        sql`select count(*)::int as waiting from pg_stat_activity where wait_event_type = 'Lock' and datname = current_database()`
+      );
+
+      if (rows[0].waiting > 0) return;
+
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
+
+    throw new Error("No backend waited on a lock within 5 seconds");
   }
 });
