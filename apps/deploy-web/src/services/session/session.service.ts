@@ -89,7 +89,7 @@ export class SessionService {
   }): Promise<
     Result<
       Session,
-      | { code: "user_exists"; message: string; cause: unknown }
+      | { code: "account_unavailable"; message: string; cause: unknown }
       | { code: "signup_failed"; message: string; cause: unknown }
       | { code: "captcha_verification_failed"; message: string; cause: unknown }
     >
@@ -123,8 +123,8 @@ export class SessionService {
       });
     }
 
-    const isUserExists = signupResponse.status === 422;
-    if (signupResponse.status >= 400 && !isUserExists) {
+    const isAccountUnavailable = signupResponse.status === 422;
+    if (signupResponse.status >= 400 && !isAccountUnavailable) {
       return Err({
         message: signupResponse.data?.message || "Signup failed",
         code: "signup_failed",
@@ -144,10 +144,10 @@ export class SessionService {
       return Ok(session);
     }
 
-    if (isUserExists) {
+    if (isAccountUnavailable) {
       return Err({
-        message: "Such user already exists but credentials are invalid",
-        code: "user_exists",
+        message: ACCOUNT_UNAVAILABLE_FOR_PASSWORD_SIGNUP_MESSAGE,
+        code: "account_unavailable",
         cause: extractResponseDetails(signupResponse)
       });
     }
@@ -442,6 +442,9 @@ export interface OauthConfig {
 }
 
 const ACTION_REFUSED_MESSAGE = `You can't create an account with this email. Use a different email, or contact ${SUPPORT_EMAIL} for help.`;
+
+/** Must read the same whether the email is refused or already has an account. */
+const ACCOUNT_UNAVAILABLE_FOR_PASSWORD_SIGNUP_MESSAGE = `You can't create an account with this email. If you already have an account, log in instead. Otherwise, use a different email or contact ${SUPPORT_EMAIL} for help.`;
 
 /** Auth0 reports an Action refusal with the Action's admin-facing reason code as `error_description`, e.g. `action.domain_blacklist.domain_blocked_by_console`. */
 function isAuth0ActionRefusal(response: AxiosResponse) {
