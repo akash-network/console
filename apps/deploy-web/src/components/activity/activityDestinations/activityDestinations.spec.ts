@@ -153,6 +153,18 @@ describe("activityDestinations", () => {
       expect(activityDestinationOf(activity)).toEqual({ href: "/deployments", label: "View deployments" });
     });
 
+    it("leads a template update to its template", () => {
+      const activity = buildActivity({ type: "template_update", status: "info", meta: { templateId: "template-1" } });
+
+      expect(activityDestinationOf(activity)).toEqual({ href: "/template/template-1", label: "View template" });
+    });
+
+    it("leads a template update about the publisher rather than one template to the user's templates", () => {
+      const activity = buildActivity({ type: "template_update", status: "info", meta: {} });
+
+      expect(activityDestinationOf(activity)).toEqual({ href: "/templates/mine", label: "View templates" });
+    });
+
     it("leads a rename about no particular deployment to the deployments list", () => {
       const activity = buildActivity({ type: "deployment_rename", status: "succeeded", meta: {} });
 

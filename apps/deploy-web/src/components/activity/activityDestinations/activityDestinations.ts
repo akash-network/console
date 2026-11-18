@@ -52,6 +52,8 @@ const DESTINATIONS: Record<Activity["type"], (activity: Activity) => ActivityDes
   },
   gpu_request_update: ({ meta: { hardwareRequestId } }) =>
     hardwareRequestId ? { href: UrlService.gpuRequest(hardwareRequestId), label: "View request" } : DEPLOYMENT_LIST,
+  template_update: ({ meta: { templateId } }) =>
+    templateId ? { href: UrlService.template(templateId), label: "View template" } : { href: UrlService.myTemplates(), label: "View templates" },
   deployment_rename: ({ meta: { dseq } }) => (dseq ? { href: UrlService.deploymentDetails(dseq), label: "View deployment" } : DEPLOYMENT_LIST),
   lease_create: ({ status, meta: { dseq, error } }) => {
     if (!dseq) return DEPLOYMENT_LIST;

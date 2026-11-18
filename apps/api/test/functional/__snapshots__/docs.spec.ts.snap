@@ -1593,7 +1593,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "type",
             "required": false,
             "schema": {
-              "description": "What the action was, which kind of alert fired (\`wallet_balance_alert\`, \`deployment_closed_alert\` or \`deployment_reclaim_alert\`), or \`gpu_request_update\` when the team moved one of the user's GPU requests along.",
+              "description": "What the action was, which kind of alert fired (\`wallet_balance_alert\`, \`deployment_closed_alert\` or \`deployment_reclaim_alert\`), \`gpu_request_update\` when the team moved one of the user's GPU requests along, or \`template_update\` when staff or the publish checks decided something about a template the user's organization published.",
               "enum": [
                 "deployment_close",
                 "deployment_create",
@@ -1604,6 +1604,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 "deployment_reclaim_alert",
                 "deployment_rename",
                 "gpu_request_update",
+                "template_update",
               ],
               "type": "string",
             },
@@ -1790,6 +1791,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                     "description": "The alert's summary as the user wrote it, filled in for this firing, on an alert.",
                                     "type": "string",
                                   },
+                                  "templateId": {
+                                    "description": "The template a \`template_update\` is about, absent on one about the publisher.",
+                                    "format": "uuid",
+                                    "type": "string",
+                                  },
                                   "txHash": {
                                     "description": "Reference of a pending action whose outcome is still being confirmed.",
                                     "type": "string",
@@ -1814,7 +1820,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                 "type": "string",
                               },
                               "type": {
-                                "description": "What the action was, which kind of alert fired (\`wallet_balance_alert\`, \`deployment_closed_alert\` or \`deployment_reclaim_alert\`), or \`gpu_request_update\` when the team moved one of the user's GPU requests along.",
+                                "description": "What the action was, which kind of alert fired (\`wallet_balance_alert\`, \`deployment_closed_alert\` or \`deployment_reclaim_alert\`), \`gpu_request_update\` when the team moved one of the user's GPU requests along, or \`template_update\` when staff or the publish checks decided something about a template the user's organization published.",
                                 "enum": [
                                   "deployment_close",
                                   "deployment_create",
@@ -1825,6 +1831,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                   "deployment_reclaim_alert",
                                   "deployment_rename",
                                   "gpu_request_update",
+                                  "template_update",
                                 ],
                                 "type": "string",
                               },
@@ -2214,6 +2221,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "description": "The alert's summary as the user wrote it, filled in for this firing, on an alert.",
                               "type": "string",
                             },
+                            "templateId": {
+                              "description": "The template a \`template_update\` is about, absent on one about the publisher.",
+                              "format": "uuid",
+                              "type": "string",
+                            },
                             "txHash": {
                               "description": "Reference of a pending action whose outcome is still being confirmed.",
                               "type": "string",
@@ -2238,7 +2250,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "type": "string",
                         },
                         "type": {
-                          "description": "What the action was, which kind of alert fired (\`wallet_balance_alert\`, \`deployment_closed_alert\` or \`deployment_reclaim_alert\`), or \`gpu_request_update\` when the team moved one of the user's GPU requests along.",
+                          "description": "What the action was, which kind of alert fired (\`wallet_balance_alert\`, \`deployment_closed_alert\` or \`deployment_reclaim_alert\`), \`gpu_request_update\` when the team moved one of the user's GPU requests along, or \`template_update\` when staff or the publish checks decided something about a template the user's organization published.",
                           "enum": [
                             "deployment_close",
                             "deployment_create",
@@ -2249,6 +2261,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "deployment_reclaim_alert",
                             "deployment_rename",
                             "gpu_request_update",
+                            "template_update",
                           ],
                           "type": "string",
                         },

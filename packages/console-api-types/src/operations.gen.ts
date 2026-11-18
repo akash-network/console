@@ -698,6 +698,14 @@ export const operations = {
       queryParams: [],
       hasBody: true
     },
+    createUserTemplateReport: {
+      path: "/v1/user-templates/{id}/reports",
+      method: "post",
+      operationId: "createUserTemplateReport",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: true
+    },
     getUserTemplate: { path: "/v1/user-templates/{id}", method: "get", operationId: "getUserTemplate", pathParams: ["id"], queryParams: [], hasBody: false },
     updateUserTemplate: {
       path: "/v1/user-templates/{id}",

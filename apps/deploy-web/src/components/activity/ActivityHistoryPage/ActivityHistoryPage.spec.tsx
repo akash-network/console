@@ -170,6 +170,14 @@ describe(ActivityHistoryPage.name, () => {
     expect(useActivityHistoryQuery).toHaveBeenLastCalledWith({ status: "info", type: "wallet_balance_alert", cursor: undefined });
   });
 
+  it("narrows the feed to template updates", async () => {
+    const { useActivityHistoryQuery } = setup({});
+
+    await choose("Action", "Template updates");
+
+    expect(useActivityHistoryQuery).toHaveBeenLastCalledWith({ status: undefined, type: "template_update", cursor: undefined });
+  });
+
   it("goes back to every entry once a filter is cleared", async () => {
     const { useActivityHistoryQuery } = setup({});
     await choose("Status", "Succeeded");
