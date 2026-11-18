@@ -29022,9 +29022,10 @@
                 "deployment_closed_alert",
                 "deployment_reclaim_alert",
                 "deployment_rename",
-                "gpu_request_update"
+                "gpu_request_update",
+                "template_update"
               ],
-              "description": "What the action was, which kind of alert fired (`wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`), or `gpu_request_update` when the team moved one of the user's GPU requests along."
+              "description": "What the action was, which kind of alert fired (`wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`), `gpu_request_update` when the team moved one of the user's GPU requests along, or `template_update` when staff or the publish checks decided something about a template the user's organization published."
             },
             "required": false,
             "name": "type",
@@ -29068,9 +29069,10 @@
                                   "deployment_closed_alert",
                                   "deployment_reclaim_alert",
                                   "deployment_rename",
-                                  "gpu_request_update"
+                                  "gpu_request_update",
+                                  "template_update"
                                 ],
-                                "description": "What the action was, which kind of alert fired (`wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`), or `gpu_request_update` when the team moved one of the user's GPU requests along."
+                                "description": "What the action was, which kind of alert fired (`wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`), `gpu_request_update` when the team moved one of the user's GPU requests along, or `template_update` when staff or the publish checks decided something about a template the user's organization published."
                               },
                               "status": {
                                 "type": "string",
@@ -29241,6 +29243,11 @@
                                   "hardwareRequestStatus": {
                                     "type": "string",
                                     "description": "The status the GPU request moved to, on a `gpu_request_update`."
+                                  },
+                                  "templateId": {
+                                    "type": "string",
+                                    "format": "uuid",
+                                    "description": "The template a `template_update` is about, absent on one about the publisher."
                                   }
                                 }
                               },
@@ -29381,9 +29388,10 @@
                             "deployment_closed_alert",
                             "deployment_reclaim_alert",
                             "deployment_rename",
-                            "gpu_request_update"
+                            "gpu_request_update",
+                            "template_update"
                           ],
-                          "description": "What the action was, which kind of alert fired (`wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`), or `gpu_request_update` when the team moved one of the user's GPU requests along."
+                          "description": "What the action was, which kind of alert fired (`wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`), `gpu_request_update` when the team moved one of the user's GPU requests along, or `template_update` when staff or the publish checks decided something about a template the user's organization published."
                         },
                         "status": {
                           "type": "string",
@@ -29554,6 +29562,11 @@
                             "hardwareRequestStatus": {
                               "type": "string",
                               "description": "The status the GPU request moved to, on a `gpu_request_update`."
+                            },
+                            "templateId": {
+                              "type": "string",
+                              "format": "uuid",
+                              "description": "The template a `template_update` is about, absent on one about the publisher."
                             }
                           }
                         },
@@ -35445,6 +35458,83 @@
         }
       }
     },
+    "/v1/user-templates/{id}/reports": {
+      "post": {
+        "operationId": "createUserTemplateReport",
+        "summary": "Report the current version of a public template to Akash staff, without the publisher learning who did",
+        "tags": [
+          "Templates"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTemplateReportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The report filed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateTemplateReportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The id is not a uuid, the reason is unknown, or the details are too long or not readable text"
+          },
+          "401": {
+            "description": "The caller is not signed in"
+          },
+          "403": {
+            "description": "The caller belongs to the organization that published the template (`template_report_own_organization`)"
+          },
+          "404": {
+            "description": "The template does not exist or the caller may not read it"
+          },
+          "409": {
+            "description": "The caller already reported this version (`template_already_reported`), or the template is not public, is hidden or has no version (`template_not_reportable`)"
+          },
+          "410": {
+            "description": "The template was public once and has since been removed (`template_removed`, with the `title` it had)"
+          },
+          "429": {
+            "description": "The caller or the organization reached a limit; `Retry-After` tells when to try again (`template_rate_limited`)"
+          }
+        }
+      }
+    },
     "/v1/user-templates/{id}": {
       "get": {
         "operationId": "getUserTemplate",
@@ -35486,6 +35576,9 @@
           },
           "404": {
             "description": "The template does not exist or the caller may not read it"
+          },
+          "410": {
+            "description": "The template was public once and has since been removed (`template_removed`, with the `title` it had)"
           }
         }
       },
@@ -35557,7 +35650,7 @@
       },
       "delete": {
         "operationId": "deleteUserTemplate",
-        "summary": "Delete a template the caller may delete, with its versions and favorites",
+        "summary": "Delete a template the caller may delete; one that was ever public keeps its link as a removed page",
         "tags": [
           "Templates"
         ],
@@ -35601,6 +35694,9 @@
           },
           "404": {
             "description": "The template does not exist or the caller may not read it"
+          },
+          "410": {
+            "description": "The template was public once and has since been removed (`template_removed`, with the `title` it had)"
           }
         }
       }
@@ -35646,6 +35742,9 @@
           },
           "404": {
             "description": "The template does not exist or the caller may not read it"
+          },
+          "410": {
+            "description": "The template was public once and has since been removed (`template_removed`, with the `title` it had)"
           }
         }
       },
@@ -35774,6 +35873,9 @@
           },
           "404": {
             "description": "The template or the version does not exist, or the caller may not read the template"
+          },
+          "410": {
+            "description": "The template was public once and has since been removed (`template_removed`, with the `title` it had)"
           }
         }
       }
@@ -41745,7 +41847,8 @@
               "no_secrets",
               "images_allowed",
               "fixed_tags",
-              "name_not_reserved"
+              "name_not_reserved",
+              "text_within_limits"
             ]
           },
           "status": {
@@ -41782,9 +41885,10 @@
                     "title",
                     "publisher_name",
                     "sdl",
+                    "summary",
                     "readme"
                   ],
-                  "description": "The name a reserved word was found in, or the text a line holding a credential was found in"
+                  "description": "The name a reserved word was found in, the text a line holding a credential was found in, or the text that is over its length limit"
                 }
               },
               "required": [
@@ -46956,7 +47060,8 @@
                 "enum": [
                   "live",
                   "held",
-                  "failed_checks"
+                  "failed_checks",
+                  "rejected"
                 ],
                 "description": "A `failed_checks` version failed the publish checks of a public template, never became the current version and is shown to editors only"
               },
@@ -47392,7 +47497,8 @@
                 "enum": [
                   "live",
                   "held",
-                  "failed_checks"
+                  "failed_checks",
+                  "rejected"
                 ]
               },
               "createdAt": {
@@ -47689,6 +47795,75 @@
           "data"
         ]
       },
+      "CreateTemplateReportResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "malware_or_miner",
+                  "leaks_secrets",
+                  "impersonation",
+                  "spam",
+                  "broken",
+                  "other"
+                ]
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "id",
+              "reason",
+              "createdAt"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "CreateTemplateReportRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "malware_or_miner",
+                  "leaks_secrets",
+                  "impersonation",
+                  "spam",
+                  "broken",
+                  "other"
+                ]
+              },
+              "details": {
+                "type": "string",
+                "maxLength": 1000,
+                "description": "What the reporter saw, as plain text; staff read it and the publisher never does"
+              }
+            },
+            "required": [
+              "reason"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
       "CreateUserTemplateVersionResponse": {
         "type": "object",
         "properties": {
@@ -47763,7 +47938,8 @@
             "enum": [
               "live",
               "held",
-              "failed_checks"
+              "failed_checks",
+              "rejected"
             ],
             "description": "A `failed_checks` version failed the publish checks of a public template, never became the current version and is shown to editors only"
           },

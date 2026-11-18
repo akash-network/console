@@ -55,6 +55,7 @@ const UNRELEASED_TEMPLATE_MARKETPLACE_ROUTES = [
   "PATCH /v1/user-templates/{id}",
   "POST /v1/user-templates",
   "POST /v1/user-templates/{id}/publish",
+  "POST /v1/user-templates/{id}/reports",
   "POST /v1/user-templates/{id}/versions"
 ];
 

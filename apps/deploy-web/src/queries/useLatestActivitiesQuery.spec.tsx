@@ -119,9 +119,12 @@ describe(useLatestActivitiesQuery.name, () => {
   });
 
   describe(isKnownActivity.name, () => {
-    it.each(["deployment_close", "wallet_balance_alert", "deployment_closed_alert", "deployment_reclaim_alert"] as const)("knows a %s", type => {
-      expect(isKnownActivity(buildActivity({ type }))).toBe(true);
-    });
+    it.each(["deployment_close", "wallet_balance_alert", "deployment_closed_alert", "deployment_reclaim_alert", "template_update"] as const)(
+      "knows a %s",
+      type => {
+        expect(isKnownActivity(buildActivity({ type }))).toBe(true);
+      }
+    );
 
     it("knows a deployment create", () => {
       expect(isKnownActivity(buildActivity({ type: "deployment_create" }))).toBe(true);
