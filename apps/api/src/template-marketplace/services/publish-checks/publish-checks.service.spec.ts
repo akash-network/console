@@ -10,6 +10,8 @@ import { PublishChecksService } from "./publish-checks.service";
 
 const SDL = JSON.stringify({ version: "2.0", services: { web: { image: "nginx:1.27.2", env: ["PORT=8080"] } } });
 
+const TEXTS = { title: "Llama 3.1 Chat", summary: "Chat with Llama 3.1.", readme: "# Llama 3.1 Chat" };
+
 describe(PublishChecksService.name, () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -19,7 +21,7 @@ describe(PublishChecksService.name, () => {
     vi.useFakeTimers({ now: new Date("2026-11-18T10:00:00.000Z") });
     const { service, organizationId, templatePublisherRepository, templateSdlValidatorService } = setup();
 
-    const results = await service.run({ sdl: SDL, readme: null, askedValues: [], title: "Llama 3.1 Chat", organizationId });
+    const results = await service.run({ ...TEXTS, sdl: SDL, askedValues: [], organizationId });
 
     expect(results.ranAt).toBe("2026-11-18T10:00:00.000Z");
     expect(results.checks.map(({ key, status }) => ({ key, status }))).toEqual([
@@ -27,7 +29,8 @@ describe(PublishChecksService.name, () => {
       { key: "no_secrets", status: "passed" },
       { key: "images_allowed", status: "passed" },
       { key: "fixed_tags", status: "passed" },
-      { key: "name_not_reserved", status: "passed" }
+      { key: "name_not_reserved", status: "passed" },
+      { key: "text_within_limits", status: "passed" }
     ]);
     expect(templatePublisherRepository.findPublishingOrganization).toHaveBeenCalledWith(organizationId);
     expect(templateSdlValidatorService.findIssues).toHaveBeenCalledWith(SDL);
@@ -36,7 +39,7 @@ describe(PublishChecksService.name, () => {
   it("fails the SDL check with what the template SDL validation found", async () => {
     const { service, organizationId } = setup({ sdlIssues: ["The SDL defines no services"] });
 
-    const results = await service.run({ sdl: SDL, readme: null, askedValues: [askedValue({ service: "worker" })], title: "Llama", organizationId });
+    const results = await service.run({ ...TEXTS, sdl: SDL, askedValues: [askedValue({ service: "worker" })], organizationId });
 
     expect(issuesOf(results, "sdl_valid")).toEqual(["The SDL defines no services"]);
   });
@@ -44,7 +47,7 @@ describe(PublishChecksService.name, () => {
   it("fails the SDL check with an asked value the SDL cannot hold once the SDL itself is valid", async () => {
     const { service, organizationId } = setup();
 
-    const results = await service.run({ sdl: SDL, readme: null, askedValues: [askedValue({ service: "worker" })], title: "Llama", organizationId });
+    const results = await service.run({ ...TEXTS, sdl: SDL, askedValues: [askedValue({ service: "worker" })], organizationId });
 
     expect(issuesOf(results, "sdl_valid")).toEqual(['Variable "PORT" fills in service "worker", which the SDL does not define']);
   });
@@ -52,7 +55,7 @@ describe(PublishChecksService.name, () => {
   it("reads the title and the organization's name for reserved words", async () => {
     const { service, organizationId } = setup({ organizationName: "Akash Fans" });
 
-    const results = await service.run({ sdl: SDL, readme: null, askedValues: [], title: "Official Llama", organizationId });
+    const results = await service.run({ ...TEXTS, sdl: SDL, askedValues: [], title: "Official Llama", organizationId });
 
     expect(results.checks.find(check => check.key === "name_not_reserved")?.issues.map(issue => issue.field)).toEqual(["title", "publisher_name"]);
   });
@@ -60,9 +63,24 @@ describe(PublishChecksService.name, () => {
   it("checks a template whose organization is gone under no publisher name", async () => {
     const { service, organizationId } = setup({ organizationName: null });
 
-    const results = await service.run({ sdl: SDL, readme: null, askedValues: [], title: "Llama", organizationId });
+    const results = await service.run({ ...TEXTS, sdl: SDL, askedValues: [], organizationId });
 
     expect(issuesOf(results, "name_not_reserved")).toEqual([]);
+  });
+
+  it("holds the title, the summary and the readme to their length limits", async () => {
+    const { service, organizationId } = setup();
+
+    const results = await service.run({
+      sdl: SDL,
+      askedValues: [],
+      title: "t".repeat(81),
+      summary: "s".repeat(201),
+      readme: "r".repeat(50_001),
+      organizationId
+    });
+
+    expect(results.checks.find(check => check.key === "text_within_limits")?.issues.map(issue => issue.field)).toEqual(["title", "summary", "readme"]);
   });
 
   function issuesOf(results: Awaited<ReturnType<PublishChecksService["run"]>>, key: PublishCheckKey) {

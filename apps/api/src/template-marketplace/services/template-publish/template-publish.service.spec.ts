@@ -77,6 +77,7 @@ describe(TemplatePublishService.name, () => {
         readme: "# Llama",
         askedValues: version.askedValues,
         title: template.title,
+        summary: "Chat with Llama 3.1.",
         organizationId: template.organizationId
       });
     });
@@ -330,6 +331,7 @@ describe(TemplatePublishService.name, () => {
       organizationId: faker.string.uuid(),
       projectId: faker.string.uuid(),
       title: "Llama 3.1 Chat",
+      summary: "Chat with Llama 3.1.",
       description: input.description ?? ""
     });
     const version = mock<TemplateVersionOutput>({

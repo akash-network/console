@@ -265,6 +265,7 @@ export class TemplateWriterService {
       readme: input.readme,
       askedValues: input.askedValues,
       title: template.title,
+      summary: template.summary,
       organizationId: template.organizationId
     });
   }

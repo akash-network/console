@@ -133,6 +133,7 @@ export class TemplatePublishService {
       readme: current.readme ?? (template.description || null),
       askedValues: current.askedValues,
       title: template.title,
+      summary: template.summary,
       organizationId: template.organizationId
     });
 

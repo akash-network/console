@@ -27,7 +27,11 @@ const ALL_MET = [
   { key: "publisher_role", met: true },
   { key: "publisher_in_good_standing", met: true }
 ];
-const ALL_PASSED = ["sdl_valid", "no_secrets", "images_allowed", "fixed_tags", "name_not_reserved"].map(key => ({ key, status: "passed", issues: [] }));
+const ALL_PASSED = ["sdl_valid", "no_secrets", "images_allowed", "fixed_tags", "name_not_reserved", "text_within_limits"].map(key => ({
+  key,
+  status: "passed",
+  issues: []
+}));
 const LATEST_TAG_ISSUE = {
   message:
     'Service "web" uses nginx:latest, and the latest tag changes whenever the image is rebuilt. Pick a version tag such as nginx:1.2.3, or a digest, so the image can\'t change after the template is public.',
