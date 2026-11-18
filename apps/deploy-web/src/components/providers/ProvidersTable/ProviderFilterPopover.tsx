@@ -92,6 +92,75 @@ export const GpuFilterPopover: FC<GpuFilterPopoverProps> = ({ options, selected,
   );
 };
 
+type CpuFilters = { cpuVendors: string[]; cpuGenerations: string[]; cpuModels: string[] };
+
+type CpuFilterPopoverProps = {
+  vendorOptions: FilterOption[];
+  generationOptions: FilterOption[];
+  modelOptions: FilterOption[];
+  selected: CpuFilters;
+  onChange: (change: Partial<CpuFilters>) => void;
+  variant: TriggerVariant;
+};
+
+export const CpuFilterPopover: FC<CpuFilterPopoverProps> = ({ vendorOptions, generationOptions, modelOptions, selected, onChange, variant }) => {
+  const activeCount = selected.cpuVendors.length + selected.cpuGenerations.length + selected.cpuModels.length;
+  const hasNoOptions = [vendorOptions, generationOptions, modelOptions].every(options => options.length === 0);
+
+  return (
+    <FilterPopover label="CPU" activeCount={activeCount} variant={variant}>
+      {hasNoOptions && <span className="block px-2 py-2.5 text-[11.5px] text-muted-foreground">No CPU models reported on the network right now.</span>}
+      <div className="flex max-h-72 flex-col overflow-y-auto">
+        <CpuOptionGroup label="Vendor" options={vendorOptions} selected={selected.cpuVendors} onChange={cpuVendors => onChange({ cpuVendors })} />
+        <CpuOptionGroup
+          label="Generation"
+          options={generationOptions}
+          selected={selected.cpuGenerations}
+          onChange={cpuGenerations => onChange({ cpuGenerations })}
+        />
+        <CpuOptionGroup label="Model" options={modelOptions} selected={selected.cpuModels} onChange={cpuModels => onChange({ cpuModels })} />
+      </div>
+      {activeCount > 0 && <PopoverFooter count={activeCount} noun="filter" onClear={() => onChange({ cpuVendors: [], cpuGenerations: [], cpuModels: [] })} />}
+    </FilterPopover>
+  );
+};
+
+/** The API rejects a CPU filter list longer than this. */
+const MAX_VALUES_PER_CPU_FILTER = 50;
+
+type CpuOptionGroupProps = {
+  label: string;
+  options: FilterOption[];
+  selected: string[];
+  onChange: (values: string[]) => void;
+};
+
+const CpuOptionGroup: FC<CpuOptionGroupProps> = ({ label, options, selected, onChange }) => {
+  if (options.length === 0) return null;
+
+  const isFull = selected.length >= MAX_VALUES_PER_CPU_FILTER;
+  return (
+    <div role="group" aria-label={`CPU ${label.toLowerCase()}`}>
+      <span className="block px-2 pb-0.5 pt-1 font-mono text-[9.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
+      {options.map(option => {
+        const isChecked = selected.includes(option.value);
+        return (
+          <CheckRow
+            key={option.value}
+            isChecked={isChecked}
+            isDisabled={isFull && !isChecked}
+            onToggle={() => onChange(toggle(selected, option.value))}
+            count={option.count}
+          >
+            {option.value}
+          </CheckRow>
+        );
+      })}
+      {isFull && <span className="block px-2 py-1 text-[10.5px] text-muted-foreground">Up to {MAX_VALUES_PER_CPU_FILTER} per list.</span>}
+    </div>
+  );
+};
+
 type FilterPopoverProps = {
   label: string;
   activeCount: number;
@@ -127,19 +196,21 @@ const FilterPopover: FC<FilterPopoverProps> = ({ label, activeCount, variant, ch
 
 type CheckRowProps = {
   isChecked: boolean;
+  isDisabled?: boolean;
   onToggle: () => void;
   dotClassName?: string;
   count?: number;
   children: ReactNode;
 };
 
-const CheckRow: FC<CheckRowProps> = ({ isChecked, onToggle, dotClassName, count, children }) => (
+const CheckRow: FC<CheckRowProps> = ({ isChecked, isDisabled, onToggle, dotClassName, count, children }) => (
   <button
     type="button"
     role="checkbox"
     aria-checked={isChecked}
+    disabled={isDisabled}
     onClick={onToggle}
-    className="flex w-full items-center gap-2 rounded-[7px] px-2 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-muted"
+    className="flex w-full items-center gap-2 rounded-[7px] px-2 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
   >
     <span
       className={cn(

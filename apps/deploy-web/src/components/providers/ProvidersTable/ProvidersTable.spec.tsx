@@ -78,14 +78,15 @@ describe("ProvidersTable", () => {
     expect(within(screen.getByRole("row", { name: /provider\.none\.com/ })).getByText("Unknown")).toBeInTheDocument();
   });
 
-  it("puts the region and GPU filters in the column headers and a plain CPU header", () => {
+  it("puts the region, GPU and CPU filters in the column headers", () => {
     setup({
       providers: [createSummary()],
       regionFilter: <button type="button">Region filter</button>,
-      gpuFilter: <button type="button">GPU filter</button>
+      gpuFilter: <button type="button">GPU filter</button>,
+      cpuFilter: <button type="button">CPU filter</button>
     });
 
-    expect(screen.getByRole("columnheader", { name: "CPU" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "CPU filter" })).toBeInTheDocument();
 
     expect(screen.getByRole("columnheader", { name: "Region filter" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "GPU filter" })).toBeInTheDocument();
@@ -310,6 +311,7 @@ describe("ProvidersTable", () => {
         isCompact={false}
         regionFilter="Region"
         gpuFilter="GPU"
+        cpuFilter="CPU"
         onSelect={onSelect}
         onToggleFavorite={onToggleFavorite}
         onPageChange={onPageChange}

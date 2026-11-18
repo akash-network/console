@@ -32,6 +32,7 @@ type Props = {
   isCompact: boolean;
   regionFilter: ReactNode;
   gpuFilter: ReactNode;
+  cpuFilter: ReactNode;
 };
 
 export const ProvidersTable: FC<Props> = ({
@@ -48,7 +49,8 @@ export const ProvidersTable: FC<Props> = ({
   onRetry,
   isCompact,
   regionFilter,
-  gpuFilter
+  gpuFilter,
+  cpuFilter
 }) => (
   <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
     {status === "failed" && (
@@ -90,7 +92,7 @@ export const ProvidersTable: FC<Props> = ({
                 <HeaderCell hasFilter>{regionFilter}</HeaderCell>
                 <HeaderCell hasFilter>{gpuFilter}</HeaderCell>
                 <HeaderCell>GPUs</HeaderCell>
-                <HeaderCell>CPU</HeaderCell>
+                <HeaderCell hasFilter>{cpuFilter}</HeaderCell>
                 <HeaderCell>Capacity</HeaderCell>
                 <HeaderCell>Uptime (30d)</HeaderCell>
               </>

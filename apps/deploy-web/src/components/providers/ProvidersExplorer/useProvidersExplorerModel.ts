@@ -5,11 +5,14 @@ import { totalOf } from "@src/components/providers/providerSummary/providerSumma
 import { useFavoriteProviders } from "@src/hooks/useFavoriteProviders/useFavoriteProviders";
 import { usePacedValue } from "@src/hooks/usePacedValue/usePacedValue";
 import { useDashboardData, useProviderLocations, useProviderSearch } from "@src/queries/useProvidersQuery";
-import type { ApiProviderLocation } from "@src/types/provider";
+import type { ApiProviderLocation, ProviderCpu } from "@src/types/provider";
 
 export type ProviderFilters = {
   regions: string[];
   gpuModels: string[];
+  cpuVendors: string[];
+  cpuModels: string[];
+  cpuGenerations: string[];
   isGpuOnly: boolean;
   isFavoritesOnly: boolean;
 };
@@ -35,6 +38,9 @@ export const MAX_SEARCH_LENGTH = 200;
 export const DEFAULT_FILTERS: ProviderFilters = {
   regions: [],
   gpuModels: [],
+  cpuVendors: [],
+  cpuModels: [],
+  cpuGenerations: [],
   isGpuOnly: false,
   isFavoritesOnly: false
 };
@@ -69,6 +75,9 @@ export function useProvidersExplorerModel(dependencies: typeof DEPENDENCIES = DE
       regions: filters.regions.length > 0 ? filters.regions : undefined,
       gpu: filters.isGpuOnly || undefined,
       gpuModels: filters.gpuModels.length > 0 ? filters.gpuModels : undefined,
+      cpuVendors: filters.cpuVendors.length > 0 ? filters.cpuVendors : undefined,
+      cpuModels: filters.cpuModels.length > 0 ? filters.cpuModels : undefined,
+      cpuGenerations: filters.cpuGenerations.length > 0 ? filters.cpuGenerations : undefined,
       sort: "active-leases-desc",
       skip: pageIndex * PAGE_SIZE,
       limit: PAGE_SIZE
@@ -157,6 +166,9 @@ export function useProvidersExplorerModel(dependencies: typeof DEPENDENCIES = DE
         ),
       [locations, filters.gpuModels]
     ),
+    cpuVendorOptions: useMemo(() => countCpuOptions(locations, cpu => cpu.vendor, filters.cpuVendors), [locations, filters.cpuVendors]),
+    cpuModelOptions: useMemo(() => countCpuOptions(locations, cpu => cpu.model, filters.cpuModels), [locations, filters.cpuModels]),
+    cpuGenerationOptions: useMemo(() => countCpuOptions(locations, cpu => cpu.generation, filters.cpuGenerations), [locations, filters.cpuGenerations]),
     networkStats: useMemo(() => buildNetworkStats(dashboard.data, auditedLocations), [dashboard.data, auditedLocations]),
     favoriteProviders,
     toggleFavorite
@@ -164,7 +176,16 @@ export function useProvidersExplorerModel(dependencies: typeof DEPENDENCIES = DE
 }
 
 function hasNarrowingFilter(filters: ProviderFilters, search: string): boolean {
-  return !!search.trim() || filters.regions.length > 0 || filters.gpuModels.length > 0 || filters.isGpuOnly || filters.isFavoritesOnly;
+  return (
+    !!search.trim() ||
+    filters.regions.length > 0 ||
+    filters.gpuModels.length > 0 ||
+    filters.cpuVendors.length > 0 ||
+    filters.cpuModels.length > 0 ||
+    filters.cpuGenerations.length > 0 ||
+    filters.isGpuOnly ||
+    filters.isFavoritesOnly
+  );
 }
 
 /** Mirrors the provider search's matching on the located providers, so the globe can light the pins the table lists. */
@@ -180,10 +201,38 @@ function findMatchingLocationIds(locations: ApiProviderLocation[], filters: Prov
       (regions.size === 0 || (!!location.locationRegion && regions.has(location.locationRegion))) &&
       (!filters.isGpuOnly || totalOf(location.stats.gpu) > 0) &&
       (gpuModels.size === 0 || location.gpuModels.some(model => gpuModels.has(model.toLowerCase()))) &&
+      runsWantedCpu(location, filters) &&
       (!term || location.hostUri.toLowerCase().includes(term) || location.owner.includes(term))
   );
 
   return new Set(matches.map(location => location.owner));
+}
+
+function runsWantedCpu(location: ApiProviderLocation, filters: ProviderFilters): boolean {
+  if ([filters.cpuVendors, filters.cpuModels, filters.cpuGenerations].every(wanted => wanted.length === 0)) return true;
+
+  const isWanted = [
+    matchesOneOf(filters.cpuVendors, cpu => cpu.vendor),
+    matchesOneOf(filters.cpuModels, cpu => cpu.model),
+    matchesOneOf(filters.cpuGenerations, cpu => cpu.generation)
+  ];
+  return (location.cpus ?? []).some(cpu => isWanted.every(matches => matches(cpu)));
+}
+
+function matchesOneOf(wanted: string[], valueOf: (cpu: ProviderCpu) => string | null): (cpu: ProviderCpu) => boolean {
+  if (wanted.length === 0) return () => true;
+
+  const wantedValues = new Set(wanted.map(value => value.toLowerCase()));
+  return cpu => {
+    const value = valueOf(cpu);
+    return value !== null && wantedValues.has(value.toLowerCase());
+  };
+}
+
+function countCpuOptions(locations: ApiProviderLocation[], valueOf: (cpu: ProviderCpu) => string | null, selected: string[]): FilterOption[] {
+  const valuesPerProvider = locations.flatMap(location => [...new Set(location.cpus?.flatMap(cpu => valueOf(cpu) ?? []))]);
+
+  return countOptions(valuesPerProvider, selected);
 }
 
 function countOptions(values: string[], selected: string[]): FilterOption[] {
