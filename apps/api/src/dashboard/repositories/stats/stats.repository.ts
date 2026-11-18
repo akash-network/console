@@ -91,6 +91,23 @@ export type SinkUnbondingSummaryRow = {
   sentBySendersWhoUnbondedUakt: number;
 };
 
+export type SinkUnbondingMilestoneRow = {
+  height: number;
+  datetime: Date | null;
+  unbondedUakt: number;
+  delegators: number;
+};
+
+export type SinkUnbondingCohortRow = {
+  milestonesReached: number;
+  delegators: number;
+  unbondedUakt: number;
+  liquidUakt: number;
+  senders: number;
+  sentUakt: number;
+  sentFromLiquidUakt: number;
+};
+
 type SinkDashboardPeriod = "now" | "compare" | "second_compare";
 
 /** The chain merges unbondings of the same delegation started in the same block into one entry, and a cancellation names that entry by its creation height. */
@@ -563,6 +580,62 @@ export class StatsRepository {
     );
 
     return summary;
+  }
+
+  async findSinkUnbondingMilestones(heights: number[]): Promise<SinkUnbondingMilestoneRow[]> {
+    return this.#chainDb.query<SinkUnbondingMilestoneRow>(
+      `/* dashboard-stats:sink-unbondings-milestones */ ${SINK_UNBONDING_CTES}
+        SELECT
+          m."height",
+          b."datetime",
+          COALESCE(SUM(e."netAmount"), 0)::float AS "unbondedUakt",
+          COUNT(DISTINCT e."delegator")::int AS "delegators"
+        FROM unnest(ARRAY[:heights]::int[]) AS m("height")
+        LEFT JOIN "block" b ON b."height" = m."height"
+        LEFT JOIN net_entries e ON e."height" >= m."height" AND e."netAmount" > 0
+        GROUP BY m."height", b."datetime"
+        ORDER BY m."height"`,
+      { type: QueryTypes.SELECT, replacements: { heights } }
+    );
+  }
+
+  async findSinkUnbondingCohorts(heights: number[]): Promise<SinkUnbondingCohortRow[]> {
+    return this.#chainDb.query<SinkUnbondingCohortRow>(
+      `/* dashboard-stats:sink-unbondings-cohorts */ ${SINK_UNBONDING_CTES}, latest AS (
+          SELECT b."datetime"
+          FROM "block" b
+          WHERE b."isProcessed" = true
+          ORDER BY b."height" DESC
+          LIMIT 1
+        ), delegator_unbondings AS (
+          SELECT
+            e."delegator",
+            MIN(e."height") AS "firstHeight",
+            SUM(e."netAmount") AS "unbonded",
+            COALESCE(SUM(e."netAmount") FILTER (WHERE e."completion_time" <= (SELECT latest."datetime" FROM latest)), 0) AS "liquid"
+          FROM net_entries e
+          WHERE e."netAmount" > 0
+          GROUP BY e."delegator"
+        ), delegator_sends AS (
+          SELECT d."delegator", SUM(t."amount") AS "sent"
+          FROM delegator_unbondings d
+          INNER JOIN counted_transfers t ON t."owner" = d."delegator" AND t."height" >= d."firstHeight"
+          GROUP BY d."delegator"
+        )
+        SELECT
+          (SELECT COUNT(*) FROM unnest(ARRAY[:heights]::int[]) AS m("height") WHERE m."height" <= d."firstHeight")::int AS "milestonesReached",
+          COUNT(*)::int AS "delegators",
+          SUM(d."unbonded")::float AS "unbondedUakt",
+          SUM(d."liquid")::float AS "liquidUakt",
+          COUNT(s."delegator")::int AS "senders",
+          COALESCE(SUM(s."sent"), 0)::float AS "sentUakt",
+          COALESCE(SUM(LEAST(COALESCE(s."sent", 0), d."liquid")), 0)::float AS "sentFromLiquidUakt"
+        FROM delegator_unbondings d
+        LEFT JOIN delegator_sends s ON s."delegator" = d."delegator"
+        GROUP BY 1
+        ORDER BY 1`,
+      { type: QueryTypes.SELECT, replacements: { heights } }
+    );
   }
 
   async findClosedLeases(owner: string, query: { dseq?: string; startDate: Date; endDate: Date }, options: { limit: number }) {

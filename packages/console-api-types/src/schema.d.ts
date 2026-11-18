@@ -5615,7 +5615,7 @@ export interface paths {
                 senders: number;
                 /** @description Addresses that sent AKT to Solana and also unbonded */
                 sendersWhoUnbonded: number;
-                /** @description AKT sent to Solana, excluding voided and refunded transfers */
+                /** @description AKT sent to Solana, excluding voided, refund-pending and refunded transfers */
                 sentUakt: number;
                 /** @description AKT sent to Solana by addresses that also unbonded */
                 sentBySendersWhoUnbondedUakt: number;
@@ -5629,10 +5629,43 @@ export interface paths {
                 unbondCompletingUakt: number;
                 /** @description AKT whose unbonding was cancelled on this day */
                 cancelledUakt: number;
-                /** @description AKT sent to Solana on this day, excluding voided and refunded transfers */
+                /** @description AKT sent to Solana on this day, excluding voided, refund-pending and refunded transfers */
                 sentToSolanaUakt: number;
                 /** @description Part of the AKT sent to Solana on this day by addresses that also unbonded */
                 sentBySendersWhoUnbondedUakt: number;
+              }[];
+              milestones: {
+                /** @enum {string} */
+                key: "announcement" | "voteClosed" | "upgrade";
+                /** @description Human readable name of the milestone */
+                label: string;
+                /** @description Block height of the milestone */
+                height: number;
+                /** @description Time of the milestone block, null until that block is indexed */
+                date: string | null;
+                /** @description AKT that started unbonding at or after the milestone block, net of cancellations */
+                unbondedSinceUakt: number;
+                /** @description Delegators with AKT that started unbonding at or after the milestone block, net of cancellations */
+                delegatorsSince: number;
+              }[];
+              cohorts: {
+                /**
+                 * @description Last milestone reached before the delegators of this cohort first unbonded, ignoring fully cancelled unbondings, null for those who first unbonded before every milestone
+                 * @enum {string|null}
+                 */
+                firstUnbondedAfter: "announcement" | "voteClosed" | "upgrade" | null;
+                /** @description Delegators of the cohort */
+                delegators: number;
+                /** @description AKT the cohort unbonded, net of cancellations */
+                unbondedUakt: number;
+                /** @description Part of the unbonded AKT whose unbonding period is over */
+                liquidUakt: number;
+                /** @description Delegators of the cohort that sent AKT to Solana after they first unbonded */
+                senders: number;
+                /** @description AKT the cohort sent to Solana after first unbonding, excluding voided, refund-pending and refunded transfers */
+                sentUakt: number;
+                /** @description AKT sent to Solana, capped per delegator at its liquid unbonded AKT */
+                sentFromLiquidUakt: number;
               }[];
             };
           };

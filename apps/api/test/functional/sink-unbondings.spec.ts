@@ -67,5 +67,13 @@ describe("Sink unbondings", () => {
         sentBySendersWhoUnbondedUakt: 0
       });
     });
+
+    it("returns no migration milestones or cohorts on a network without a Solana migration", async () => {
+      const response = await app.request("/v1/sink/unbondings");
+
+      const body = (await response.json()) as SinkUnbondingsResponse;
+      expect(body.milestones).toEqual([]);
+      expect(body.cohorts).toEqual([]);
+    });
   });
 });

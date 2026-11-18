@@ -4,7 +4,7 @@ import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { differenceInSeconds, minutesToSeconds, subHours } from "date-fns";
 import assert from "http-assert";
 import uniqBy from "lodash/uniqBy";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { Memoize, memoizeAsync } from "@src/caching/helpers";
 import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
@@ -20,9 +20,22 @@ import {
 import { MarketDataParams } from "@src/dashboard/http-schemas/market-data/market-data.schema";
 import type { SinkDashboardDataResponse, SinkPeriodData } from "@src/dashboard/http-schemas/sink-dashboard-data/sink-dashboard-data.schema";
 import type { SinkTransfersQuery, SinkTransfersResponse, SinkTransferStatus } from "@src/dashboard/http-schemas/sink-transfers/sink-transfers.schema";
-import type { SinkUnbondingsDay, SinkUnbondingsResponse } from "@src/dashboard/http-schemas/sink-unbondings/sink-unbondings.schema";
+import type {
+  SinkUnbondingsCohort,
+  SinkUnbondingsDay,
+  SinkUnbondingsMilestone,
+  SinkUnbondingsResponse
+} from "@src/dashboard/http-schemas/sink-unbondings/sink-unbondings.schema";
+import type { SinkMigrationMilestone } from "@src/dashboard/providers/sink-migration-milestones.provider";
+import { SINK_MIGRATION_MILESTONES } from "@src/dashboard/providers/sink-migration-milestones.provider";
 import { StatsRepository } from "@src/dashboard/repositories/stats";
-import type { SinkDashboardTotalsRow, SinkTotalsRow, SinkUnbondingDailyAmountRow } from "@src/dashboard/repositories/stats/stats.repository";
+import type {
+  SinkDashboardTotalsRow,
+  SinkTotalsRow,
+  SinkUnbondingCohortRow,
+  SinkUnbondingDailyAmountRow,
+  SinkUnbondingMilestoneRow
+} from "@src/dashboard/repositories/stats/stats.repository";
 import { ProviderCapacityStats, StatsItem } from "@src/types/provider";
 import { forEachInChunks } from "@src/utils/array/array";
 import { createLoggingExecutor } from "@src/utils/logging";
@@ -183,7 +196,8 @@ export class StatsService {
   constructor(
     private readonly statsRepository: StatsRepository,
     private readonly cosmosHttpService: CosmosHttpService,
-    private readonly denomExchangeService: DenomExchangeService
+    private readonly denomExchangeService: DenomExchangeService,
+    @inject(SINK_MIGRATION_MILESTONES) private readonly sinkMigrationMilestones: readonly SinkMigrationMilestone[]
   ) {}
 
   async getDashboardData() {
@@ -306,9 +320,21 @@ export class StatsService {
 
   @Memoize({ ttlInSeconds: minutesToSeconds(1) })
   async getSinkUnbondings(): Promise<SinkUnbondingsResponse> {
-    const [summary, dailyAmounts] = await Promise.all([this.statsRepository.findSinkUnbondingSummary(), this.statsRepository.findSinkUnbondingDailyAmounts()]);
+    const milestones = this.sinkMigrationMilestones;
+    const heights = milestones.map(milestone => milestone.height);
+    const [summary, dailyAmounts, milestoneRows, cohortRows] = await Promise.all([
+      this.statsRepository.findSinkUnbondingSummary(),
+      this.statsRepository.findSinkUnbondingDailyAmounts(),
+      heights.length ? this.statsRepository.findSinkUnbondingMilestones(heights) : [],
+      heights.length ? this.statsRepository.findSinkUnbondingCohorts(heights) : []
+    ]);
 
-    return { summary, daily: toSinkUnbondingDays(dailyAmounts) };
+    return {
+      summary,
+      daily: toSinkUnbondingDays(dailyAmounts),
+      milestones: toSinkUnbondingMilestones(milestones, milestoneRows),
+      cohorts: toSinkUnbondingCohorts(milestones, cohortRows)
+    };
   }
 
   private async getBlockGraphData(
@@ -759,6 +785,42 @@ function toSinkUnbondingDays(dailyAmounts: SinkUnbondingDailyAmountRow[]): SinkU
   }
 
   return days;
+}
+
+function toSinkUnbondingMilestones(milestones: readonly SinkMigrationMilestone[], rows: SinkUnbondingMilestoneRow[]): SinkUnbondingsMilestone[] {
+  const rowsByHeight = new Map(rows.map(row => [row.height, row]));
+
+  return milestones.map(({ key, label, height }) => {
+    const row = rowsByHeight.get(height);
+    return {
+      key,
+      label,
+      height,
+      date: row?.datetime ? new Date(row.datetime).toISOString() : null,
+      unbondedSinceUakt: row?.unbondedUakt ?? 0,
+      delegatorsSince: row?.delegators ?? 0
+    };
+  });
+}
+
+function toSinkUnbondingCohorts(milestones: readonly SinkMigrationMilestone[], rows: SinkUnbondingCohortRow[]): SinkUnbondingsCohort[] {
+  if (!milestones.length) return [];
+
+  const rowsByMilestonesReached = new Map(rows.map(row => [row.milestonesReached, row]));
+  const cohortStarts = [null, ...milestones.map(milestone => milestone.key)];
+
+  return cohortStarts.map((firstUnbondedAfter, milestonesReached) => {
+    const row = rowsByMilestonesReached.get(milestonesReached);
+    return {
+      firstUnbondedAfter,
+      delegators: row?.delegators ?? 0,
+      unbondedUakt: row?.unbondedUakt ?? 0,
+      liquidUakt: row?.liquidUakt ?? 0,
+      senders: row?.senders ?? 0,
+      sentUakt: row?.sentUakt ?? 0,
+      sentFromLiquidUakt: row?.sentFromLiquidUakt ?? 0
+    };
+  });
 }
 
 function eachUtcDay(firstDate: string, lastDate: string): string[] {
