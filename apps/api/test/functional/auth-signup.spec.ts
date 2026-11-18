@@ -94,7 +94,7 @@ describe("Signup", () => {
       await expect(response.json()).resolves.toMatchObject({ message: "PasswordStrengthError: Password is too weak" });
     });
 
-    it("returns 400 with the generic account message instead of the reason code when an auth0 action refuses the signup", async () => {
+    it("returns 422 with the generic account message instead of the reason code when an auth0 action refuses the signup", async () => {
       const { email, password, captchaToken } = setup({
         auth0CreateUserResponse: {
           status: 400,
@@ -104,10 +104,32 @@ describe("Signup", () => {
 
       const response = await signup({ email, password, captchaToken });
 
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(422);
       await expect(response.json()).resolves.toMatchObject({
         message: "You can't create an account with this email. Use a different email, or contact support@akash.network for help."
       });
+    });
+
+    it("answers an auth0 action refusal the same as an existing email", async () => {
+      const existingEmail = setup({
+        auth0CreateUserResponse: {
+          status: 409,
+          body: { statusCode: 409, error: "Conflict", message: "The user already exists.", errorCode: "auth0_idp_error" }
+        }
+      });
+      const existingEmailResponse = await signup({ email: existingEmail.email, password: existingEmail.password, captchaToken: existingEmail.captchaToken });
+      nock.cleanAll();
+      const actionRefusal = setup({
+        auth0CreateUserResponse: {
+          status: 400,
+          body: { statusCode: 400, error: "Bad Request", message: "Sandbox Error: action.email_dedup.duplicate_email" }
+        }
+      });
+
+      const actionRefusalResponse = await signup({ email: actionRefusal.email, password: actionRefusal.password, captchaToken: actionRefusal.captchaToken });
+
+      expect(actionRefusalResponse.status).toBe(existingEmailResponse.status);
+      expect(await actionRefusalResponse.json()).toEqual(await existingEmailResponse.json());
     });
 
     it("returns 502 without echoing auth0's message when auth0 is unavailable", async () => {

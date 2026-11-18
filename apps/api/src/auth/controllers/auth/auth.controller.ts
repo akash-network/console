@@ -59,7 +59,12 @@ export class AuthController {
       }
 
       const auth0Message = extractAuth0ErrorMessage(error);
-      throw createError(error.statusCode, isAuth0ActionsErrorMessage(auth0Message) ? ACCOUNT_UNAVAILABLE_MESSAGE : auth0Message);
+
+      if (isAuth0ActionsErrorMessage(auth0Message)) {
+        throw createError(422, ACCOUNT_UNAVAILABLE_MESSAGE);
+      }
+
+      throw createError(error.statusCode, auth0Message);
     }
   }
 
