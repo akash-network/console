@@ -345,6 +345,27 @@ describe(ProviderProxyService.name, () => {
       expect(saveFile).not.toHaveBeenCalled();
     });
 
+    it("keeps the first size and returns an error when the size read again arrives without its line ending", async () => {
+      const { download, saveFile, websocket, answerRecheck } = await startDownload({ sizeCheck: { stdout: "12\n", exitCode: 0 } });
+
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "cut off");
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
+      await answerRecheck({ stdout: "1", exitCode: 0 });
+
+      expect(await download).toEqual({ ok: false, code: "unknown", message: "The provider ended the download early (7 of 12 bytes). Try again." });
+      expect(saveFile).not.toHaveBeenCalled();
+    });
+
+    it("saves the file without a size check when the size arrives without its line ending", async () => {
+      const { download, saveFile, websocket } = await startDownload({ sizeCheck: { stdout: "62914560", exitCode: 0 } });
+
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "content");
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
+
+      expect(await download).toEqual({ ok: true });
+      expect(await readSavedFile(saveFile)).toBe("content");
+    });
+
     it("keeps the first size and returns an error when the size can't be read again", async () => {
       const { download, saveFile, websocket, answerRecheck } = await startDownload({ sizeCheck: { stdout: "12\n", exitCode: 0 } });
 

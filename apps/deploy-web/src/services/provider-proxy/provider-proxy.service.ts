@@ -185,8 +185,8 @@ export class ProviderProxyService {
     const result = await this.runShellCommand({ ...input, command: ["sh", "-c", 'wc -c < "$1"', "sh", input.filePath] });
     if (!result.ok) return undefined;
 
-    const output = (await result.file.text()).trim();
-    return /^\d+$/.test(output) ? Number(output) : undefined;
+    const completeSizeLine = /^\s*(\d+)\n$/.exec(await result.file.text());
+    return completeSizeLine ? Number(completeSizeLine[1]) : undefined;
   }
 
   private runShellCommand(input: ShellCommandInput & { command: string[] }): Promise<ShellDownload> {
