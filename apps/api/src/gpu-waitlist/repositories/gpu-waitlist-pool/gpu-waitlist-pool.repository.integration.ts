@@ -76,6 +76,7 @@ describe(GpuWaitlistPoolRepository.name, () => {
     const deadline = Date.now() + 5000;
 
     while (Date.now() < deadline) {
+      await connection.execute(sql`select pg_stat_clear_snapshot()`);
       const rows = await connection.execute<{ waiting: number }>(
         sql`select count(*)::int as waiting from pg_stat_activity where wait_event_type = 'Lock' and datname = current_database()`
       );
