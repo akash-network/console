@@ -2,7 +2,7 @@ import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ProviderSummary } from "@src/components/providers/providerSummary/providerSummary";
-import { ProvidersTable } from "./ProvidersTable";
+import { describeCpus, ProvidersTable } from "./ProvidersTable";
 
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -17,6 +17,11 @@ describe("ProvidersTable", () => {
           locationRegion: "eu-central",
           gpuCount: 8,
           gpuModels: ["h100", "a100", "t4"],
+          cpus: [
+            { vendor: "AMD", model: "EPYC 7763", generation: "Milan" },
+            { vendor: "Intel", model: "Xeon Gold 6248R", generation: "Cascade Lake" },
+            { vendor: null, model: "Neoverse-N1", generation: null }
+          ],
           vcpuCount: 128,
           memoryBytes: 512e9,
           uptime30d: 0.9995
@@ -28,9 +33,10 @@ describe("ProvidersTable", () => {
     expect(within(row).getByText("akash1gpu")).toBeInTheDocument();
     expect(within(row).getByText("EU Central")).toBeInTheDocument();
     expect(within(row).getByText("H100")).toBeInTheDocument();
-    expect(within(row).getByText("+2")).toBeInTheDocument();
-    expect(within(row).getByTitle("H100, A100, T4")).toBeInTheDocument();
+    expect(within(row).getByTitle("H100, A100, T4")).toHaveTextContent(/^H100\+2$/);
     expect(within(row).getByText("8")).toBeInTheDocument();
+    expect(within(row).getByText("AMD EPYC 7763")).toBeInTheDocument();
+    expect(within(row).getByTitle("AMD EPYC 7763, Intel Xeon Gold 6248R, Neoverse-N1")).toHaveTextContent(/^AMD EPYC 7763\+2$/);
     expect(within(row).getByText("128 vCPU · 512 GB")).toBeInTheDocument();
     expect(within(row).getByText("99.95%")).toBeInTheDocument();
   });
@@ -60,8 +66,26 @@ describe("ProvidersTable", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("puts the region and GPU filters in the column headers", () => {
-    setup({ providers: [createSummary()], regionFilter: <button type="button">Region filter</button>, gpuFilter: <button type="button">GPU filter</button> });
+  it("shows a provider's only CPU model without counting other models, and says when it reports none", () => {
+    setup({
+      providers: [
+        createSummary({ owner: "akash1one", name: "provider.one.com", cpus: [{ vendor: "AMD", model: "EPYC 9654", generation: "Genoa" }] }),
+        createSummary({ owner: "akash1none", name: "provider.none.com", cpus: [] })
+      ]
+    });
+
+    expect(within(screen.getByRole("row", { name: /provider\.one\.com/ })).getByTitle("AMD EPYC 9654")).toHaveTextContent(/^AMD EPYC 9654$/);
+    expect(within(screen.getByRole("row", { name: /provider\.none\.com/ })).getByText("Unknown")).toBeInTheDocument();
+  });
+
+  it("puts the region and GPU filters in the column headers and a plain CPU header", () => {
+    setup({
+      providers: [createSummary()],
+      regionFilter: <button type="button">Region filter</button>,
+      gpuFilter: <button type="button">GPU filter</button>
+    });
+
+    expect(screen.getByRole("columnheader", { name: "CPU" })).toBeInTheDocument();
 
     expect(screen.getByRole("columnheader", { name: "Region filter" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "GPU filter" })).toBeInTheDocument();
@@ -121,7 +145,7 @@ describe("ProvidersTable", () => {
     setup({ providers: [], status: "loading", matchingProviderCount: 0 });
 
     expect(screen.getByRole("table", { name: "Providers" })).toHaveAttribute("aria-busy", "true");
-    expect(getBodyRows().map(row => within(row).getAllByRole("cell").length)).toEqual([7, 7, 7, 7]);
+    expect(getBodyRows().map(row => within(row).getAllByRole("cell").length)).toEqual([8, 8, 8, 8]);
     expect(screen.queryByText("No providers match those filters.")).not.toBeInTheDocument();
   });
 
@@ -192,7 +216,17 @@ describe("ProvidersTable", () => {
     setup({
       isCompact: true,
       providers: [
-        createSummary({ name: "provider.narrow.com", locationRegion: "eu-central", gpuCount: 19, gpuModels: ["rtx4000ada", "v100", "t4"], uptime30d: 0.99 })
+        createSummary({
+          name: "provider.narrow.com",
+          locationRegion: "eu-central",
+          gpuCount: 19,
+          gpuModels: ["rtx4000ada", "v100", "t4"],
+          cpus: [
+            { vendor: "AMD", model: "EPYC 7763", generation: "Milan" },
+            { vendor: "AMD", model: "EPYC 9654", generation: "Genoa" }
+          ],
+          uptime30d: 0.99
+        })
       ],
       regionFilter: <button type="button">Region filter</button>
     });
@@ -200,6 +234,7 @@ describe("ProvidersTable", () => {
     const row = screen.getByRole("row", { name: /provider\.narrow\.com/ });
     expect(within(row).getByText("EU Central")).toBeInTheDocument();
     expect(within(row).getByText("19× RTX4000ADA +2")).toBeInTheDocument();
+    expect(within(row).getByText("AMD EPYC 7763 +1")).toBeInTheDocument();
     expect(within(row).getByText("99%")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Region filter" })).not.toBeInTheDocument();
     expect(getHeaderRowGroup()).toHaveClass("sr-only");
@@ -220,6 +255,16 @@ describe("ProvidersTable", () => {
     expect(screen.getByText("CPU only")).toBeInTheDocument();
   });
 
+  it("leaves the CPU out of a narrow row when the provider reports none", () => {
+    setup({ isCompact: true, providers: [createSummary({ cpus: [] })] });
+
+    expect(screen.queryByText("Unknown")).not.toBeInTheDocument();
+  });
+
+  it("names a single CPU model without a count", () => {
+    expect(describeCpus([{ vendor: "Intel", model: "Xeon Gold 6248R", generation: "Cascade Lake" }])).toBe("Intel Xeon Gold 6248R");
+  });
+
   function createSummary(overrides: Partial<ProviderSummary> = {}): ProviderSummary {
     return {
       owner: "akash1provider",
@@ -230,6 +275,7 @@ describe("ProvidersTable", () => {
       uptime30d: 0.995,
       gpuCount: 0,
       gpuModels: [],
+      cpus: [],
       vcpuCount: 16,
       memoryBytes: 64e9,
       storageBytes: 1e12,

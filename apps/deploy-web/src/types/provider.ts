@@ -190,6 +190,9 @@ export interface ApiProviderList {
   lastOnlineDate: string | null;
   isAudited: boolean;
   gpuModels: { vendor: string; model: string; ram: string; interface: string }[];
+  cpuModels: ProviderCpuModel[];
+  cpuProfile: CpuProfile;
+  cpuUnreportedNodeCount: number;
   stats: {
     cpu: StatsItem;
     gpu: StatsItem;
@@ -237,7 +240,7 @@ export interface ApiProviderList {
 export type ApiProviderLocation = Pick<
   ApiProviderList,
   "owner" | "name" | "hostUri" | "ipRegion" | "ipCountryCode" | "ipLat" | "ipLon" | "isAudited" | "locationRegion" | "uptime30d" | "stats"
-> & { gpuModels: string[] };
+> & { gpuModels: string[]; cpus: ProviderCpu[] };
 
 export interface ClientProviderList extends ApiProviderList {
   userLeases?: number;
@@ -245,6 +248,20 @@ export interface ClientProviderList extends ApiProviderList {
 }
 
 export type CpuArchAgreement = "match" | "mismatch" | "unknown";
+
+export type CpuProfile = "uniform" | "mixed" | "virtual" | "unknown";
+
+export type ProviderCpuModel = {
+  vendor: "AMD" | "Intel" | null;
+  model: string;
+  generation: string | null;
+  baseFrequencyMhz: number | null;
+  isVirtual: boolean;
+  threads: number;
+  nodeCount: number;
+};
+
+export type ProviderCpu = Pick<ProviderCpuModel, "vendor" | "model" | "generation">;
 
 export type ProviderGpuDriver = {
   driverVersion: string;

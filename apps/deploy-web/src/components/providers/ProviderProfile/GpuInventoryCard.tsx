@@ -5,7 +5,7 @@ import { Cpu, Zap } from "lucide-react";
 
 import { formatBytes, formatGpuModel } from "@src/components/providers/providerSummary/providerSummary";
 import type { ProviderGpuDriver } from "@src/types/provider";
-import { ProfileCard } from "./ProfileCard";
+import { HeaderCell, ProfileCard } from "./ProfileCard";
 import type { GpuModelAvailability } from "./useProviderProfileModel";
 
 type Props = {
@@ -97,15 +97,6 @@ export const GpuInventoryCard: FC<Props> = ({ models, isLoading, isProviderOffli
     </ProfileCard>
   );
 };
-
-const HeaderCell: FC<{ className?: string; children: string }> = ({ className, children }) => (
-  <th
-    scope="col"
-    className={cn("whitespace-nowrap px-3.5 py-2 text-left font-mono text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground", className)}
-  >
-    {children}
-  </th>
-);
 
 const Availability: FC<{ free: number; total: number }> = ({ free, total }) => (
   <span className="flex items-center gap-2">

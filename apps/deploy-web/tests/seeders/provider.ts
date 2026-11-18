@@ -102,6 +102,9 @@ export function buildProvider(overrides?: Partial<ApiProviderDetail>): ApiProvid
     featEndpointIp: faker.datatype.boolean(),
     reportedCpuArchs: [],
     cpuArchAgreement: "unknown",
+    cpuModels: [],
+    cpuProfile: "unknown",
+    cpuUnreportedNodeCount: 0,
     gpuDrivers: [],
     uptime: [],
     ...overrides

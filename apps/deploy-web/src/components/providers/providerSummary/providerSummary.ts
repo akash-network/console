@@ -1,4 +1,4 @@
-import type { ApiProviderList, ApiProviderLocation, StatsItem } from "@src/types/provider";
+import type { ApiProviderList, ApiProviderLocation, ProviderCpu, StatsItem } from "@src/types/provider";
 import { bytesToShrink } from "@src/utils/unitUtils";
 
 export type ProviderCoordinates = { lat: number; lng: number };
@@ -12,6 +12,7 @@ export type ProviderSummary = {
   uptime30d: number | null;
   gpuCount: number;
   gpuModels: string[];
+  cpus: ProviderCpu[];
   vcpuCount: number;
   memoryBytes: number;
   storageBytes: number;
@@ -28,6 +29,7 @@ export function summarizeLocatedProvider(location: ApiProviderLocation): Provide
   return {
     ...summarizeIdentity(location),
     gpuModels: location.gpuModels,
+    cpus: uniqueCpus(location.cpus ?? []),
     coordinates: parseCoordinates(location.ipLat, location.ipLon)
   };
 }
@@ -36,11 +38,12 @@ export function summarizeListedProvider(provider: ApiProviderList): ProviderSumm
   return {
     ...summarizeIdentity(provider),
     gpuModels: [...new Set(provider.gpuModels.map(gpu => gpu.model))],
+    cpus: uniqueCpus((provider.cpuModels ?? []).map(({ vendor, model, generation }) => ({ vendor, model, generation }))),
     coordinates: parseCoordinates(provider.ipLat, provider.ipLon)
   };
 }
 
-function summarizeIdentity(provider: ApiProviderLocation | ApiProviderList): Omit<ProviderSummary, "gpuModels" | "coordinates"> {
+function summarizeIdentity(provider: ApiProviderLocation | ApiProviderList): Omit<ProviderSummary, "gpuModels" | "cpus" | "coordinates"> {
   return {
     owner: provider.owner,
     name: getProviderName(provider),
@@ -53,6 +56,15 @@ function summarizeIdentity(provider: ApiProviderLocation | ApiProviderList): Omi
     memoryBytes: totalOf(provider.stats.memory),
     storageBytes: totalOf(provider.stats.storage.ephemeral) + totalOf(provider.stats.storage.persistent)
   };
+}
+
+/** The API keeps a model reported with and without a frequency apart; without the frequency they read the same. */
+function uniqueCpus(cpus: ProviderCpu[]): ProviderCpu[] {
+  return [...new Map(cpus.map(cpu => [JSON.stringify([cpu.vendor, cpu.model, cpu.generation]), cpu])).values()];
+}
+
+export function formatCpuName({ vendor, model }: Pick<ProviderCpu, "vendor" | "model">): string {
+  return vendor ? `${vendor} ${model}` : model;
 }
 
 export function getProviderName({ name, hostUri }: { name: string | null; hostUri: string }): string {
