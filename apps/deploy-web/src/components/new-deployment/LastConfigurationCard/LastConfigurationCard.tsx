@@ -68,14 +68,23 @@ export const LastConfigurationCard: FC<Props> = ({ deployment, definition, targe
     .join(" · ");
   const image = describeImages(definition.sdl);
 
-  const redeployLastConfiguration = () => {
-    analyticsService.track("redeploy_last_configuration_btn_clk", "Amplitude");
+  const redeployConfiguration = () => {
     redeploy({
       sdl: sdlToRedeploy(definition),
       name: definition.name ?? deployment.name ?? undefined,
       sourceDseq: deployment.dseq,
       projectId: targetProjectId ?? deployment.projectId
     });
+  };
+
+  const redeployLastConfiguration = () => {
+    analyticsService.track("redeploy_last_configuration_btn_clk", "Amplitude");
+    redeployConfiguration();
+  };
+
+  const redeployAfterCreditsAdded = () => {
+    analyticsService.track("add_credits_resumed_deploy", { category: "billing", context: ADD_CREDITS_CONTEXT });
+    redeployConfiguration();
   };
 
   const addCreditsToRedeploy = (shortfall: NeedsFundsVariant) => {
@@ -85,7 +94,7 @@ export const LastConfigurationCard: FC<Props> = ({ deployment, definition, targe
       description: copyOfCreditShortfall(shortfall).sheetDescription,
       context: ADD_CREDITS_CONTEXT,
       nextStepLabel: "Redeploy",
-      onCreditsAdded: redeployLastConfiguration,
+      onCreditsAdded: redeployAfterCreditsAdded,
       suggestFirstDeployment: false
     });
   };

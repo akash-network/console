@@ -219,8 +219,8 @@ services:
       });
     });
 
-    it("redeploys the configuration once the credits are added", async () => {
-      const { redeploy, openAddCredits } = setup({
+    it("redeploys the configuration once the credits are added, tracked as a resume rather than a card click", async () => {
+      const { redeploy, openAddCredits, analyticsService } = setup({
         isOutOfDeployCredit: true,
         deployment: { dseq: "100", projectId: "project-of-deployment" }
       });
@@ -229,6 +229,8 @@ services:
       openAddCredits.mock.calls[0][0]?.onCreditsAdded?.();
 
       expect(redeploy).toHaveBeenCalledWith({ sdl: WEB_SDL, name: "acme-storefront", sourceDseq: "100", projectId: "project-of-deployment" });
+      expect(analyticsService.track).toHaveBeenCalledWith("add_credits_resumed_deploy", { category: "billing", context: "last_configuration_card" });
+      expect(analyticsService.track).not.toHaveBeenCalledWith("redeploy_last_configuration_btn_clk", expect.anything());
     });
   });
 
