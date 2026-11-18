@@ -40,6 +40,7 @@ import { ClassifyProblemReportHandler } from "@src/feedback/services/classify-pr
 import { NotifyAssistantUserBlockHandler } from "@src/feedback/services/notify-assistant-user-block/notify-assistant-user-block.handler";
 import { NotifyProblemReportHandler } from "@src/feedback/services/notify-problem-report/notify-problem-report.handler";
 import { SweepFeedbackHandler } from "@src/feedback/services/sweep-feedback/sweep-feedback.handler";
+import { GpuAvailableNoticeHandler } from "@src/gpu-waitlist/services/gpu-available-notice/gpu-available-notice.handler";
 import { HardwareRequestAcceptedNoticeHandler } from "@src/hardware-request/services/hardware-request-accepted-notice/hardware-request-accepted-notice.handler";
 import { HardwareRequestApprovalRequestHandler } from "@src/hardware-request/services/hardware-request-approval-request/hardware-request-approval-request.handler";
 import { HardwareRequestEmailHandler } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
@@ -137,6 +138,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(ReviewTrialSignupHandler),
     container.resolve(ReviewRefusedTrialHandler),
     container.resolve(DailySignupSummaryHandler),
+    container.resolve(GpuAvailableNoticeHandler),
     container.resolve(HardwareRequestEmailHandler),
     container.resolve(HardwareRequestReceivedNoticeHandler),
     container.resolve(HardwareRequestSlackAlertHandler),

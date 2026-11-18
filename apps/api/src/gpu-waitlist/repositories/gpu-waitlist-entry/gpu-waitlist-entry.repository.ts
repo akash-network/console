@@ -44,6 +44,12 @@ export class GpuWaitlistEntryRepository extends OrgScopedRepository<Table, GpuWa
     return entry;
   }
 
+  async findByIdAcrossOrganizations(id: string): Promise<GpuWaitlistEntryRow | undefined> {
+    const [entry] = await this.cursor.select().from(this.table).where(eq(this.table.id, id)).limit(1);
+
+    return entry;
+  }
+
   async findWaitingInPoolAcrossOrganizations(poolKey: string): Promise<GpuWaitlistEntryRow[]> {
     return await this.cursor
       .select()
