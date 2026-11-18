@@ -17,6 +17,10 @@ export function readableName(schema: z.ZodString): z.ZodString {
     .regex(VISIBLE_CHARACTER, "The name needs at least one visible character");
 }
 
+export function readableLine(schema: z.ZodString): z.ZodString {
+  return schema.regex(WITHOUT_CONTROL_CHARACTERS, "The text cannot contain control characters");
+}
+
 export function readableText(schema: z.ZodString): z.ZodString {
   return schema.regex(WITHOUT_CONTROL_CHARACTERS_BUT_LINE_BREAKS_AND_TABS, "The text cannot contain control characters other than line breaks and tabs");
 }

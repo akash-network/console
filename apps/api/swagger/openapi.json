@@ -45842,11 +45842,13 @@
               "label": {
                 "type": "string",
                 "minLength": 1,
-                "maxLength": 80
+                "maxLength": 80,
+                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
               },
               "help": {
                 "type": "string",
-                "maxLength": 500
+                "maxLength": 500,
+                "pattern": "^[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
               },
               "required": {
                 "type": "boolean"
@@ -45883,7 +45885,8 @@
               },
               "default": {
                 "type": "string",
-                "maxLength": 4096
+                "maxLength": 4096,
+                "pattern": "^[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
               },
               "minLength": {
                 "type": "integer",
@@ -45913,11 +45916,13 @@
               "label": {
                 "type": "string",
                 "minLength": 1,
-                "maxLength": 80
+                "maxLength": 80,
+                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
               },
               "help": {
                 "type": "string",
-                "maxLength": 500
+                "maxLength": 500,
+                "pattern": "^[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
               },
               "required": {
                 "type": "boolean"
@@ -45954,7 +45959,8 @@
               },
               "default": {
                 "type": "string",
-                "maxLength": 4096
+                "maxLength": 4096,
+                "pattern": "^[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
               },
               "min": {
                 "type": "number"
@@ -45985,11 +45991,13 @@
               "label": {
                 "type": "string",
                 "minLength": 1,
-                "maxLength": 80
+                "maxLength": 80,
+                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
               },
               "help": {
                 "type": "string",
-                "maxLength": 500
+                "maxLength": 500,
+                "pattern": "^[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
               },
               "required": {
                 "type": "boolean"
@@ -46051,11 +46059,13 @@
               "label": {
                 "type": "string",
                 "minLength": 1,
-                "maxLength": 80
+                "maxLength": 80,
+                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
               },
               "help": {
                 "type": "string",
-                "maxLength": 500
+                "maxLength": 500,
+                "pattern": "^[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
               },
               "required": {
                 "type": "boolean"
@@ -46094,14 +46104,16 @@
                 "type": "array",
                 "items": {
                   "type": "string",
-                  "maxLength": 200
+                  "maxLength": 200,
+                  "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
                 },
                 "minItems": 1,
                 "maxItems": 50
               },
               "default": {
                 "type": "string",
-                "maxLength": 4096
+                "maxLength": 4096,
+                "pattern": "^[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
               }
             },
             "required": [
@@ -46124,11 +46136,13 @@
               "label": {
                 "type": "string",
                 "minLength": 1,
-                "maxLength": 80
+                "maxLength": 80,
+                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
               },
               "help": {
                 "type": "string",
-                "maxLength": 500
+                "maxLength": 500,
+                "pattern": "^[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
               },
               "required": {
                 "type": "boolean"
@@ -46570,11 +46584,13 @@
               "title": {
                 "type": "string",
                 "minLength": 1,
-                "maxLength": 80
+                "maxLength": 80,
+                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
               },
               "summary": {
                 "type": "string",
-                "maxLength": 200
+                "maxLength": 200,
+                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
               },
               "icon": {
                 "type": "string",
@@ -46651,7 +46667,8 @@
               },
               "readme": {
                 "type": "string",
-                "maxLength": 50000
+                "maxLength": 50000,
+                "pattern": "^[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
               },
               "askedValues": {
                 "type": "array",
@@ -46709,6 +46726,7 @@
                 "type": "string",
                 "nullable": true,
                 "maxLength": 50000,
+                "pattern": "^[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$",
                 "description": "Omitted keeps the current version's readme, null clears it"
               },
               "askedValues": {
@@ -46912,12 +46930,14 @@
               "title": {
                 "type": "string",
                 "minLength": 1,
-                "maxLength": 80
+                "maxLength": 80,
+                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
               },
               "summary": {
                 "type": "string",
                 "nullable": true,
                 "maxLength": 200,
+                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$",
                 "description": "Null or blank clears it"
               },
               "icon": {

@@ -598,6 +598,10 @@ describe("Marketplace template writes", () => {
       ["a blank title", { title: "   " }],
       ["a summary of 201 characters", { summary: "a".repeat(201) }],
       ["a readme of 50,001 characters", { readme: "a".repeat(50_001) }],
+      ["a title that reorders its text", { title: "Web \u202etxt.exe" }],
+      ["a summary with a line break", { summary: "Private chat\nOfficial" }],
+      ["a readme with an escape character", { readme: "# Web\u001b[2J" }],
+      ["an asked value whose label reorders its text", { askedValues: [{ ...textAskedValue("GREETING"), label: "Greeting \u202egniteerg" }] }],
       ["an SDL over 128 KiB", { sdl: `${buildSdl()}\n#${"a".repeat(128 * 1024)}` }]
     ])("refuses %s", async (_case, fields) => {
       const { owner, actAs } = await setup();
@@ -693,9 +697,9 @@ describe("Marketplace template writes", () => {
 
     it("accepts a body with every field at its cap", async () => {
       const { owner, actAs } = await setup();
-      const sdl = `${buildSdl()}\n#${"é".repeat(128 * 1024 - buildSdl().length - 2)}`;
-      const readme = "\u0001".repeat(50_000);
-      const askedValues = Array.from({ length: 50 }, (_, index) => ({ ...textAskedValue(`VALUE_${index}`), help: "\u0001".repeat(500) }));
+      const sdl = `${buildSdl()}\n#${"語".repeat(128 * 1024 - buildSdl().length - 2)}`;
+      const readme = "語".repeat(50_000);
+      const askedValues = Array.from({ length: 50 }, (_, index) => ({ ...textAskedValue(`VALUE_${index}`), help: "語".repeat(500) }));
       const body = { data: { title: "a".repeat(80), summary: "a".repeat(200), sdl, readme, askedValues } };
 
       const response = await actAs(owner)("/v1/user-templates", { method: "POST", body });
