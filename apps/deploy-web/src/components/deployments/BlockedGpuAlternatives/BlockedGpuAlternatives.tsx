@@ -12,7 +12,7 @@ import { useTrialRunnableModels } from "@src/components/onboarding-picker/onboar
 import { useServices } from "@src/context/ServicesProvider";
 import { useAddCredits } from "@src/hooks/useAddCredits";
 import { useMarkAutoDeployStart } from "@src/hooks/useAutoDeployStart/useAutoDeployStart";
-import { useIsOutOfDeployCredit } from "@src/hooks/useIsOutOfDeployCredit/useIsOutOfDeployCredit";
+import { useCoversOpeningDeposit } from "@src/hooks/useCoversOpeningDeposit/useCoversOpeningDeposit";
 import type { AkashMlModel, BlockedGpuPlacement } from "./akashMlModels";
 import { buildAkashMlUrl, findAkashMlModel } from "./akashMlModels";
 
@@ -20,7 +20,7 @@ export const DEPENDENCIES = {
   useServices,
   useRouter,
   useAddCredits,
-  useIsOutOfDeployCredit,
+  useCoversOpeningDeposit,
   useTrialRunnableModels,
   useMarkAutoDeployStart
 };
@@ -42,11 +42,11 @@ export function BlockedGpuAlternatives({ templateId, placement, dependencies: d 
   const { analyticsService, urlService } = d.useServices();
   const router = d.useRouter();
   const openAddCredits = d.useAddCredits();
-  const isOutOfCredit = d.useIsOutOfDeployCredit();
+  const coversOpeningDeposit = d.useCoversOpeningDeposit();
   const { models } = d.useTrialRunnableModels();
   const markAutoDeployStart = d.useMarkAutoDeployStart();
   const akashMlModel = findAkashMlModel(templateId);
-  const smallerModel = isOutOfCredit ? undefined : models[0];
+  const smallerModel = coversOpeningDeposit ? models[0] : undefined;
 
   function trackAlternativeClick(option: AlternativeOption) {
     analyticsService.track("trial_gpu_alternative_click", { category: "onboarding", option, placement, templateId });
