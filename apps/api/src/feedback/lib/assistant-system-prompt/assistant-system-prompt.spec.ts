@@ -48,6 +48,17 @@ describe(buildAssistantSystemPrompt.name, () => {
       "saved ones stay until deleted there, while a reply waiting on a browser action is held for up to 5 minutes to resume either way, then deleted by an hourly cleanup"
     );
     expect(prompt).toContain("never a running commentary of what you are about to read or propose, and never name your tools");
+    expect(prompt).toContain(
+      "Never write or review the code of the user's own software, such as apps, scripts, bots, websites or features, even one they plan to deploy"
+    );
+    expect(prompt).toContain("You do write SDL, a short Dockerfile that packages an app the user already has");
+    expect(prompt).toContain("and you diagnose a failing deployment and propose its fix.");
+    expect(prompt).toContain(
+      "A request to deploy or host something, such as a web app or a model, is always in scope: search the templates for it before asking anything."
+    );
+    expect(prompt).toContain(
+      "offer the closest thing you can do, such as deploying their image or a template, writing its SDL, or fixing a failing deployment. Do not offer live help for it."
+    );
     expect(prompt).not.toContain("Latest assistant cards");
     expect(prompt.split("\n").at(-1)).toBe("The user has a paid account.");
   });
