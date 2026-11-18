@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { UnbondingBar } from "./unbondingMomentumModel";
-import { fitUnbondingBars, niceTicks, slotIndexAt, toUnbondingBars, toUnbondingCards, UNBONDING_VIEWS } from "./unbondingMomentumModel";
+import { fitUnbondingBars, niceTicks, placeMilestoneMarkers, slotIndexAt, toUnbondingBars, toUnbondingCards, UNBONDING_VIEWS } from "./unbondingMomentumModel";
 
 import type { SinkUnbondings, SinkUnbondingsDay, SinkUnbondingsSummary } from "@/types";
 
@@ -230,6 +230,41 @@ describe("unbondingMomentumModel", () => {
     });
   });
 
+  describe(placeMilestoneMarkers.name, () => {
+    it("places each marker at the middle of its day and alternates the label rows", () => {
+      const { bars } = fitUnbondingBars([bar({ date: "2026-11-01" }), bar({ date: "2026-11-02" }), bar({ date: "2026-11-03" })], 140, 100, PADDING);
+
+      const placed = placeMilestoneMarkers(
+        [
+          { date: "2026-11-01", label: "Announcement" },
+          { date: "2026-11-02", label: "Vote passed" },
+          { date: "2026-11-03", label: "Upgrade block" }
+        ],
+        bars
+      );
+
+      expect(placed).toEqual([
+        { date: "2026-11-01", label: "Announcement", x: 30, row: 0 },
+        { date: "2026-11-02", label: "Vote passed", x: 70, row: 1 },
+        { date: "2026-11-03", label: "Upgrade block", x: 110, row: 0 }
+      ]);
+    });
+
+    it("leaves out the markers whose day is not charted", () => {
+      const { bars } = fitUnbondingBars([bar({ date: "2026-11-12" })], 120, 100, PADDING);
+
+      expect(
+        placeMilestoneMarkers(
+          [
+            { date: "2026-10-26", label: "Announcement" },
+            { date: "2026-11-12", label: "First transfer" }
+          ],
+          bars
+        )
+      ).toEqual([{ date: "2026-11-12", label: "First transfer", x: 60, row: 0 }]);
+    });
+  });
+
   function day(input: Partial<SinkUnbondingsDay> & { date: string }): SinkUnbondingsDay {
     return { unbondStartedUakt: 0, unbondCompletingUakt: 0, cancelledUakt: 0, sentToSolanaUakt: 0, sentBySendersWhoUnbondedUakt: 0, ...input };
   }
@@ -249,7 +284,9 @@ describe("unbondingMomentumModel", () => {
         sentBySendersWhoUnbondedUakt: 250_000_000_000,
         ...input.summary
       },
-      daily: input.daily ?? []
+      daily: input.daily ?? [],
+      milestones: [],
+      cohorts: []
     };
   }
 });
