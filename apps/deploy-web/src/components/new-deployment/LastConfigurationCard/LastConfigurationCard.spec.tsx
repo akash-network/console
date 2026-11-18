@@ -161,14 +161,82 @@ services:
     expect(redeploy).toHaveBeenCalledWith(expect.objectContaining({ projectId: "target-project" }));
   });
 
+  describe("when a trial has no usable credit left", () => {
+    it("says the trial credit is used up and offers to add credits instead of redeploying", () => {
+      setup({ isTrialing: true, isOutOfDeployCredit: true });
+
+      expect(screen.getByRole("button", { name: "Add credits to redeploy acme-storefront" })).toBeInTheDocument();
+      expect(screen.getByRole("button")).toHaveAccessibleDescription(expect.stringContaining("Your free trial credit is used up"));
+      expect(screen.queryByRole("button", { name: /^Redeploy/ })).not.toBeInTheDocument();
+    });
+
+    it("opens add credits rather than redeploying when clicked", async () => {
+      const { redeploy, openAddCredits, analyticsService } = setup({ isTrialing: true, isOutOfDeployCredit: true });
+
+      await userEvent.click(screen.getByRole("button", { name: /Add credits to redeploy/ }));
+
+      expect(redeploy).not.toHaveBeenCalled();
+      expect(analyticsService.track).toHaveBeenCalledWith("redeploy_last_configuration_add_credits_btn_clk", {
+        category: "billing",
+        context: "last_configuration_card"
+      });
+      expect(openAddCredits).toHaveBeenCalledWith({
+        initialTab: "purchase",
+        description: "Your free trial credit is used up. Add credits to redeploy this configuration.",
+        context: "last_configuration_card",
+        nextStepLabel: "Redeploy",
+        onCreditsAdded: expect.any(Function),
+        suggestFirstDeployment: false
+      });
+    });
+
+    it("redeploys the configuration once the credits are added", async () => {
+      const { redeploy, openAddCredits } = setup({
+        isTrialing: true,
+        isOutOfDeployCredit: true,
+        deployment: { dseq: "100", projectId: "project-of-deployment" }
+      });
+      await userEvent.click(screen.getByRole("button", { name: /Add credits to redeploy/ }));
+
+      openAddCredits.mock.calls[0][0]?.onCreditsAdded?.();
+
+      expect(redeploy).toHaveBeenCalledWith({ sdl: WEB_SDL, name: "acme-storefront", sourceDseq: "100", projectId: "project-of-deployment" });
+    });
+  });
+
+  it("redeploys as usual for a trial with credit left", async () => {
+    const { redeploy, openAddCredits } = setup({ isTrialing: true, isOutOfDeployCredit: false });
+
+    await userEvent.click(screen.getByRole("button", { name: "Redeploy acme-storefront" }));
+
+    expect(redeploy).toHaveBeenCalled();
+    expect(openAddCredits).not.toHaveBeenCalled();
+    expect(screen.queryByText("Your free trial credit is used up")).not.toBeInTheDocument();
+  });
+
+  it("redeploys as usual for a paying account short of credit", async () => {
+    const { redeploy, openAddCredits } = setup({ isTrialing: false, isOutOfDeployCredit: true });
+
+    await userEvent.click(screen.getByRole("button", { name: "Redeploy acme-storefront" }));
+
+    expect(redeploy).toHaveBeenCalled();
+    expect(openAddCredits).not.toHaveBeenCalled();
+    expect(screen.queryByText("Your free trial credit is used up")).not.toBeInTheDocument();
+  });
+
   function setup(input: {
     deployment?: Partial<ListedDeploymentDto>;
     definition?: Partial<DeploymentDefinition>;
     createdAt?: string;
     providers?: ApiProviderList[];
     targetProjectId?: string;
+    isTrialing?: boolean;
+    isOutOfDeployCredit?: boolean;
   }) {
     const redeploy = vi.fn();
+    const openAddCredits = vi.fn<ReturnType<typeof DEPENDENCIES.useAddCredits>>();
+    const useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing: input.isTrialing ?? false });
+    const useIsOutOfDeployCredit = () => input.isOutOfDeployCredit ?? false;
     const analyticsService = mock<AnalyticsService>();
     const deployment = {
       dseq: "100",
@@ -197,11 +265,20 @@ services:
           deployment={deployment}
           definition={definition}
           targetProjectId={input.targetProjectId}
-          dependencies={{ ...DEPENDENCIES, useRedeploy: () => redeploy, useBlock, useProvidersByAddresses, DeploymentSpecSummary }}
+          dependencies={{
+            ...DEPENDENCIES,
+            useRedeploy: () => redeploy,
+            useBlock,
+            useProvidersByAddresses,
+            useWallet,
+            useIsOutOfDeployCredit,
+            useAddCredits: () => openAddCredits,
+            DeploymentSpecSummary
+          }}
         />
       </TestContainerProvider>
     );
 
-    return { redeploy, analyticsService, deployment, useBlock, useProvidersByAddresses, DeploymentSpecSummary };
+    return { redeploy, openAddCredits, analyticsService, deployment, useBlock, useProvidersByAddresses, DeploymentSpecSummary };
   }
 });
