@@ -110,6 +110,17 @@ const nextConfig = {
 
     return config;
   },
+  /**
+   * READMEs outside Console embed the "Deploy on Akash" badge, so it is cached for a week and served stale for a month
+   * while it revalidates. Not `immutable`: the file name carries no hash, and the artwork may change.
+   */
+  headers: async () => [
+    {
+      source: "/images/deploy-with-akash-btn.svg",
+      locale: false,
+      headers: [{ key: "Cache-Control", value: "public, max-age=604800, stale-while-revalidate=2592000" }]
+    }
+  ],
   redirects: async () => {
     return [
       {
