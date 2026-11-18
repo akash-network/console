@@ -246,6 +246,17 @@ describe("workload abuse env config", () => {
     expect(() => setup({ WORKLOAD_ABUSE_SIGNUP_HOLD_MIN_LINKED_ACCOUNTS: "1.5" })).toThrow(/WORKLOAD_ABUSE_SIGNUP_HOLD_MIN_LINKED_ACCOUNTS/);
   });
 
+  it("defaults the generated email tag hold to report when unset or blank", () => {
+    expect(setup().WORKLOAD_ABUSE_GENERATED_EMAIL_TAG_HOLD_MODE).toBe("report");
+    expect(setup({ WORKLOAD_ABUSE_GENERATED_EMAIL_TAG_HOLD_MODE: " " }).WORKLOAD_ABUSE_GENERATED_EMAIL_TAG_HOLD_MODE).toBe("report");
+  });
+
+  it("reads the generated email tag hold mode and rejects an unknown one", () => {
+    expect(setup({ WORKLOAD_ABUSE_GENERATED_EMAIL_TAG_HOLD_MODE: "enforce" }).WORKLOAD_ABUSE_GENERATED_EMAIL_TAG_HOLD_MODE).toBe("enforce");
+    expect(setup({ WORKLOAD_ABUSE_GENERATED_EMAIL_TAG_HOLD_MODE: "off" }).WORKLOAD_ABUSE_GENERATED_EMAIL_TAG_HOLD_MODE).toBe("off");
+    expect(() => setup({ WORKLOAD_ABUSE_GENERATED_EMAIL_TAG_HOLD_MODE: "detect" })).toThrow(/WORKLOAD_ABUSE_GENERATED_EMAIL_TAG_HOLD_MODE/);
+  });
+
   it("requires an account hash secret of at least 32 characters", () => {
     const secret = "s".repeat(32);
 
