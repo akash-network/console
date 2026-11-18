@@ -1,4 +1,3 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import type { Context, Env } from "hono";
 import { container } from "tsyringe";
 
@@ -87,7 +86,8 @@ const handleListGpus = async <E extends Env>(
   return c.json(blocks);
 };
 gpuRouter.openapi(listGpusRoute, handleListGpus<AppEnv>);
-export const listGpusInternalRouter = new OpenAPIHono().openapi(listGpusRoute, handleListGpus<Env>);
+export const listGpusInternalRouter = new OpenApiHonoHandler();
+listGpusInternalRouter.openapi(listGpusRoute, handleListGpus<AppEnv>);
 
 const listGpuModelsRoute = createRoute({
   method: "get",
@@ -127,7 +127,8 @@ const handleListGpuModels = async <E extends Env>(
   return c.json(gpuModels, 200);
 };
 gpuRouter.openapi(listGpuModelsRoute, handleListGpuModels<AppEnv>);
-export const listGpuModelsInternalRouter = new OpenAPIHono().openapi(listGpuModelsRoute, handleListGpuModels<Env>);
+export const listGpuModelsInternalRouter = new OpenApiHonoHandler();
+listGpuModelsInternalRouter.openapi(listGpuModelsRoute, handleListGpuModels<AppEnv>);
 
 const gpuBreakdownRoute = createRoute({
   method: "get",
@@ -199,7 +200,8 @@ const handleGetGpuPrices = async <E extends Env>(
   return c.json(gpuPrices, 200);
 };
 gpuRouter.openapi(getGpuPricesRoute, handleGetGpuPrices<AppEnv>);
-export const getGpuPricesInternalRouter = new OpenAPIHono().openapi(getGpuPricesRoute, handleGetGpuPrices<Env>);
+export const getGpuPricesInternalRouter = new OpenApiHonoHandler();
+getGpuPricesInternalRouter.openapi(getGpuPricesRoute, handleGetGpuPrices<AppEnv>);
 
 const listTrialGpuAvailabilityRoute = createRoute({
   method: "get",

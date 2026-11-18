@@ -232,6 +232,19 @@ describe("GET /v1/leases-duration/{owner}", () => {
     expect(response.status).toBe(400);
   });
 
+  describe("responds with 400 for a dseq that is not positive", () => {
+    ["/v1", "/internal/v1"].forEach(prefix => {
+      ["0", "-1"].forEach(dseq => {
+        it(`on ${prefix} with dseq ${dseq}`, async () => {
+          const response = await app.request(`${prefix}/leases-duration/${owners[0]}?dseq=${dseq}`);
+
+          expect(response.status).toBe(400);
+          expect(await response.json()).toMatchObject({ code: "validation_error" });
+        });
+      });
+    });
+  });
+
   describe("responds with 400 for invalid dates", () => {
     const invalidDateTests = [
       { param: "startDate", value: "invalid-date", description: "non-date string" },
