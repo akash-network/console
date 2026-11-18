@@ -1,6 +1,6 @@
 ## Commit and PR Conventions
 
-**IMPORTANT!!!** whenever you change `apps/*/src` or `packages/*/src` it cannot be a "chore" commit! It's either "fix" or "refactor": decide based on whether the change fixes a bug in code or it's just a cleanup or internal refactoring. If you are in doubt, use "refactor".
+A change to `apps/*/src` or `packages/*/src` ships in the build, so its commit type is `feat`, `fix` or `refactor`, never `chore` (a `chore` commit skips the release). Use `fix` when it fixes a bug, `refactor` for cleanup or internal restructuring, and `refactor` when unsure between the two.
 
 ## Commit Messages
 - Must comply with `.commitlintrc.json` (extends `@commitlint/config-conventional`)

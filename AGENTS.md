@@ -17,11 +17,13 @@ The monorepo contains multiple applications and shared packages:
 - `apps/indexer` - Node.js blockchain indexer (Hono, no DI)
 - `apps/notifications` - NestJS service for handling notifications (NestJS built-in DI)
 - `apps/log-collector` - Standalone log collector (vanilla Node.js + tsyringe)
+- `apps/provider-inventory` - Provider inventory service for bid screening (read-side pre-filter fed by a streamer)
 - `apps/provider-proxy` - Hono service for proxying requests to providers (manual factory DI)
 - `apps/provider-console` - Provider console application
 - `apps/tx-signer` - Internal transaction signing service (Hono + tsyringe)
 
 **Shared Packages:**
+- `packages/console-api-types` - Generated types and operations table for the console API
 - `packages/database` - Database shared package (Drizzle ORM schemas)
 - `packages/dev-config` - Shared ESLint, TypeScript, and Prettier configs
 - `packages/docker` - Docker build utilities
@@ -32,6 +34,7 @@ The monorepo contains multiple applications and shared packages:
 - `packages/logging` - Logging utilities (Pino-based `LoggerService`)
 - `packages/net` - Blockchain Network utilities
 - `packages/network-store` - Network state management
+- `packages/openapi-sdk` - Typed OpenAPI client runtime (Proxy-based `createApi`)
 - `packages/react-query-proxy` - React Query wrapper utilities
 - `packages/react-query-sdk` - React Query SDK for console services
 - `packages/releaser` - Release management utilities
@@ -39,8 +42,8 @@ The monorepo contains multiple applications and shared packages:
 
 ### Running Tests
 
-IMPORTANT: Before pushing, ALWAYS run in the affected app:
-1. `npm test` (runs unit, integration, and functional tests)
+Before pushing, run these in the affected app:
+1. `npm test` (the app's full suite: unit, plus integration and functional where the app has them)
 2. `npm run lint -- --quiet`
 3. `npx tsc --noEmit`
 4. The mutation check on the changed lines (see [Mutation Testing](#mutation-testing))
@@ -80,7 +83,7 @@ Integration tests run against real infrastructure (database, etc.) and are curre
   npm run test:integration
   ```
 - **Setup**: Requires Docker services running via `npm run test:ci-setup`
-- **Vitest project**: Configured as a separate `integration` project in `vitest.config.ts` with its own setup files and extended timeouts (60s test, 30s hook)
+- **Vitest project**: Configured as a separate `integration` project in `vitest.config.ts` with its own setup files and extended timeouts (60s test, 60s hook)
 
 #### Functional Tests
 
@@ -154,11 +157,11 @@ node ../../script/mutation-report.mjs reports/mutation/mutation.json --min 80
 
 ### Linting
 
-ESLint config lives in `packages/dev-config`; lint runs on commit via `lint-staged`/`husky`. Note the custom `eslint-plugin-akash` rules (e.g. `akash/no-mnemonic`).
+ESLint config lives in `packages/dev-config`, with custom rules in `eslint-plugin-akash` (e.g. `akash/operation-id-format`). On commit, `lint-staged`/`husky` runs ESLint and secretlint, whose `akash-no-mnemonic` rule blocks committed mnemonics.
 
 ### Commits
 
-The project uses **semantic release** with **conventional commits** for automated versioning and changelog generation. All commit messages **must comply with the rules defined in `commitlintrc.json`**.
+The project uses **semantic release** with **conventional commits** for automated versioning and changelog generation. All commit messages **must comply with the rules defined in `.commitlintrc.json`**.
 
 ## Dependency Injection
 
