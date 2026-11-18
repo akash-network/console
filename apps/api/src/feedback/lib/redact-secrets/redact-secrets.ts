@@ -43,7 +43,8 @@ const ISSUED_TOKEN_FORMATS = [
 
 const BEARER_TOKEN = /\b(bearer\s+)[\w.~+/-]+=*/gi;
 
-const URL_PASSWORD = /\b([a-z][a-z0-9+.-]*:\/\/[^\s:@/]+:)[^\s@/]+@/gi;
+/** The scheme is bounded, since an unbounded run backtracks quadratically over long dotted words that never reach `://`. */
+const URL_PASSWORD = /\b([a-z][a-z0-9+.-]{0,63}:\/\/[^\s:@/]+:)[^\s@/]+@/gi;
 
 /** The token formats run last, so a token inside a named or carried value cannot cut that value's redaction short. */
 const SECRET_REPLACEMENTS: [RegExp, string][] = [

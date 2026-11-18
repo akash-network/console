@@ -74,7 +74,8 @@ const MNEMONIC_WORDS = new Set(EnglishMnemonic.wordlist);
 const MIN_MNEMONIC_WORDS = 12;
 const PRIVATE_KEY_HEADER = /-----BEGIN [A-Z ]*PRIVATE KEY-----/g;
 const BEARER_TOKEN = /\bbearer\s+([\w.~+/-]+=*)/i;
-const ASSIGNMENTS_INSIDE_A_VALUE = /["']?([A-Za-z][\w.-]*)["']?\s*[:=](?!\/\/)\s*["']?([^\s"',}\]]+)/g;
+/** The name is bounded, since an unbounded run backtracks quadratically over long dotted words that never reach an assignment. */
+const ASSIGNMENTS_INSIDE_A_VALUE = /["']?([A-Za-z][\w.-]{0,63})["']?\s*[:=](?!\/\/)\s*["']?([^\s"',}\]]+)/g;
 
 /** Answers why a value reads as a key, token or password, without ever reporting the value itself. */
 export function findCredentialSign(value: string, variableName?: string): CredentialSign | undefined {

@@ -197,6 +197,18 @@ describe(UserTemplatesService.name, () => {
       expect(deploymentProjectService.resolveFilingProject).not.toHaveBeenCalled();
     });
 
+    it("refuses to create a public template outside the publish gate while template_marketplace is on", async () => {
+      const { service, userTemplateRepository } = setup({ isMarketplaceOn: true });
+      userTemplateRepository.isAuthoredBy.mockResolvedValue(false);
+
+      await expect(service.saveTemplate(undefined, "user-id", { ...createTemplateInput(), isPublic: true })).rejects.toMatchObject({
+        status: 409,
+        errorCode: "template_publish_gate_required"
+      });
+
+      expect(userTemplateRepository.createTemplate).not.toHaveBeenCalled();
+    });
+
     it("creates a template under the caller's create rules in the project resolved for templates", async () => {
       const { service, userTemplateRepository, deploymentProjectService, ability, user } = setup();
       const userId = faker.string.uuid();
@@ -519,10 +531,14 @@ describe(UserTemplatesService.name, () => {
         expect(publishChecksService.run).toHaveBeenCalledWith(expect.objectContaining({ readme: "# Stored" }));
       });
 
-      it("refuses to make a template public again past the publish gate and writes nothing", async () => {
+      it.each([
+        { shape: "a template taken out of the gallery", stored: { visibility: "private" as const, isPublic: false, publishedAt: new Date() } },
+        { shape: "a template that never went through the gate", stored: { visibility: "private" as const, isPublic: false, publishedAt: null } },
+        { shape: "a template shared with its organization", stored: { visibility: "organization" as const, isPublic: false, publishedAt: null } }
+      ])("refuses to make $shape public outside the publish gate and writes nothing", async ({ stored }) => {
         const { service, userTemplateRepository, templateVersionRepository, publishChecksService } = setup({ isMarketplaceOn: true });
         userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
-        userTemplateRepository.findVersionState.mockResolvedValue(createVersionState({ visibility: "private", isPublic: false, publishedAt: new Date() }));
+        userTemplateRepository.findVersionState.mockResolvedValue(createVersionState(stored));
 
         await expect(service.saveTemplate("template-id", "user-id", { ...createTemplateInput(), isPublic: true })).rejects.toMatchObject({
           status: 409,
@@ -589,8 +605,8 @@ describe(UserTemplatesService.name, () => {
           stored: { visibility: "public" as const, isPublic: true, publishedAt: null }
         },
         {
-          shape: "a template that never went through the gate is made public",
-          isMarketplaceOn: true,
+          shape: "template_marketplace is off and a template that never went through the gate is made public",
+          isMarketplaceOn: false,
           isPublic: true,
           stored: { visibility: "private" as const, isPublic: false, publishedAt: null }
         },
@@ -651,6 +667,64 @@ describe(UserTemplatesService.name, () => {
 
       expect(userTemplateRepository.accessibleBy).toHaveBeenCalledWith(ability, "update");
       expect(userTemplateRepository.updateTemplate).toHaveBeenCalledWith(id, userId, data);
+    });
+
+    it("refuses a description holding a provider key when a published template shows it as its README", async () => {
+      const { service, userTemplateRepository } = setup({ isMarketplaceOn: true });
+      userTemplateRepository.findVersionState.mockResolvedValue(
+        createVersionState({ visibility: "public", isPublic: true, publishedAt: new Date(), currentVersionReadme: null })
+      );
+
+      await expect(service.update("template-id", "user-id", { description: "Run it with hf_abcdefghijklmnopqrstuv" })).rejects.toMatchObject({
+        status: 400,
+        errorCode: "template_publish_checks_failed",
+        data: { checks: [{ key: "no_secrets", status: "failed", issues: [expect.objectContaining({ field: "readme" })] }] }
+      });
+
+      expect(userTemplateRepository.updateTemplate).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      {
+        shape: "template_marketplace is off",
+        isMarketplaceOn: false,
+        stored: { visibility: "public" as const, publishedAt: new Date(), currentVersionReadme: null }
+      },
+      {
+        shape: "the template is private",
+        isMarketplaceOn: true,
+        stored: { visibility: "private" as const, publishedAt: new Date(), currentVersionReadme: null }
+      },
+      {
+        shape: "the template never went through the gate",
+        isMarketplaceOn: true,
+        stored: { visibility: "public" as const, publishedAt: null, currentVersionReadme: null }
+      },
+      {
+        shape: "the version has a README of its own",
+        isMarketplaceOn: true,
+        stored: { visibility: "public" as const, publishedAt: new Date(), currentVersionReadme: "# Mine" }
+      }
+    ])("saves any description when $shape", async ({ isMarketplaceOn, stored }) => {
+      const { service, userTemplateRepository } = setup({ isMarketplaceOn });
+      userTemplateRepository.findVersionState.mockResolvedValue(createVersionState(stored));
+      const data = { description: "Run it with hf_abcdefghijklmnopqrstuv" };
+
+      await service.update("template-id", "user-id", data);
+
+      expect(userTemplateRepository.updateTemplate).toHaveBeenCalledWith("template-id", "user-id", data);
+    });
+
+    it("saves an ordinary description of a published template, and a change that leaves the description alone", async () => {
+      const { service, userTemplateRepository } = setup({ isMarketplaceOn: true });
+      userTemplateRepository.findVersionState.mockResolvedValue(
+        createVersionState({ visibility: "public", isPublic: true, publishedAt: new Date(), currentVersionReadme: null })
+      );
+
+      await service.update("template-id", "user-id", { description: "Chat with your own models." });
+      await service.update("template-id", "user-id", { title: "Renamed" });
+
+      expect(userTemplateRepository.updateTemplate).toHaveBeenCalledTimes(2);
     });
   });
 

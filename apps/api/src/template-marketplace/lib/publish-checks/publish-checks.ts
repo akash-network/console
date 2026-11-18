@@ -86,8 +86,12 @@ function findSecretIssues({ sdl, readme, askedValues }: PublishCheckInput): Publ
     ...envIssues,
     ...findCredentialLineIssues(sdl, "sdl", envValuesReportedByVariable),
     ...askedValues.flatMap(findDefaultIssue),
-    ...findCredentialLineIssues(readme ?? "", "readme", [])
+    ...findReadmeSecretIssues(readme ?? "")
   ];
+}
+
+export function findReadmeSecretIssues(readme: string): PublishCheckIssue[] {
+  return findCredentialLineIssues(readme, "readme", []);
 }
 
 const CREDENTIAL_LINE_SOURCES = { sdl: "the SDL", readme: "the README" };

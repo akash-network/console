@@ -9,11 +9,13 @@ import { DeploymentProjectService } from "@src/deployment/services/deployment-pr
 import { summarizeTemplateHardware } from "@src/template/utils/template-hardware/template-hardware";
 import type { AskedValue } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
 import { contentCarriedByLegacySave } from "@src/template-marketplace/lib/legacy-save/content-carried-by-legacy-save";
-import { hasPassedPublishChecks, type PublishCheckResults } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
+import { hasPassedPublishChecks, type PublishCheckResults, toPublishCheck } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
+import { findReadmeSecretIssues } from "@src/template-marketplace/lib/publish-checks/publish-checks";
 import { createChecksFailedError, createPublishGateRequiredError } from "@src/template-marketplace/lib/publish-requirements/publish-refusals";
 import { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
 import { PublishChecksService } from "@src/template-marketplace/services/publish-checks/publish-checks.service";
 import { TemplateUsageService } from "@src/template-marketplace/services/template-usage/template-usage.service";
+import type { TemplateVisibility } from "@src/user/model-schemas/template/template.schema";
 import {
   TemplateInput,
   type TemplateOutput,
@@ -94,6 +96,8 @@ export class UserTemplatesService {
       return id;
     }
 
+    if (this.#wouldPublishOutsidePublishGate(template.isPublic, undefined)) throw createPublishGateRequiredError();
+
     const repository = this.#writableBy("create");
     const filingProjectId = await this.#deploymentProjectService.resolveFilingProject(projectId, "Template");
 
@@ -109,7 +113,15 @@ export class UserTemplatesService {
   }
 
   async update(id: string, userId: string, data: Partial<TemplateInput>): Promise<void> {
-    await this.#writableBy("update").updateTemplate(id, userId, data);
+    await this.#txService.transaction(async () => {
+      const stored = await this.#userTemplateRepository.findVersionState(id, userId);
+
+      if (stored && data.description !== undefined && this.#showsDescriptionAsPublishedReadme(stored)) {
+        this.#assertReadmeHoldsNoSecret(data.description);
+      }
+
+      await this.#writableBy("update").updateTemplate(id, userId, data);
+    });
   }
 
   async deleteTemplate(userId: string, id: string): Promise<void> {
@@ -156,7 +168,7 @@ export class UserTemplatesService {
 
       const nextReadmeShown = readmeShownBy(isNewVersion ? carried.readme : stored.currentVersionReadme, template.description ?? stored.description);
 
-      if (this.#returnsToPublicPastPublishGate(template, stored)) throw createPublishGateRequiredError();
+      if (this.#wouldPublishOutsidePublishGate(template.isPublic, stored.visibility)) throw createPublishGateRequiredError();
 
       const checkResults = this.#staysPublicAfterPublishGate(template, stored)
         ? await this.#findPassingPublishChecks(template, stored.organizationId, {
@@ -187,9 +199,20 @@ export class UserTemplatesService {
     return stored.visibility === "public" && template.isPublic !== false && this.#wentThroughPublishGate(stored);
   }
 
-  /** Its owner took it out of the gallery, and only the publish route knows the requirements and terms that let it back in. */
-  #returnsToPublicPastPublishGate(template: TemplateInput, stored: TemplateVersionState): boolean {
-    return stored.visibility !== "public" && template.isPublic === true && this.#wentThroughPublishGate(stored);
+  /** With the marketplace on, only the publish route makes a template public, since it alone knows the requirements, the terms and the checks. */
+  #wouldPublishOutsidePublishGate(isPublic: boolean | undefined, storedVisibility: TemplateVisibility | undefined): boolean {
+    return isPublic === true && storedVisibility !== "public" && this.#featureFlagsService.isEnabled(FeatureFlags.TEMPLATE_MARKETPLACE);
+  }
+
+  /** A version without a README of its own shows the template description in its place. */
+  #showsDescriptionAsPublishedReadme(stored: TemplateVersionState): boolean {
+    return stored.visibility === "public" && stored.currentVersionReadme == null && this.#wentThroughPublishGate(stored);
+  }
+
+  #assertReadmeHoldsNoSecret(readme: string): void {
+    const issues = findReadmeSecretIssues(readme);
+
+    if (issues.length > 0) throw createChecksFailedError({ ranAt: new Date().toISOString(), checks: [toPublishCheck("no_secrets", issues)] });
   }
 
   #wentThroughPublishGate(stored: TemplateVersionState): boolean {

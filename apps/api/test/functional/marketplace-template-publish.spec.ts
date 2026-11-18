@@ -791,6 +791,27 @@ describe("Marketplace template publishing", () => {
       expect(await versionsOf(published.id)).toHaveLength(1);
     });
 
+    it("refuses a description holding a provider key on the description route when readers see it as the README", async () => {
+      const { owner, actAs, read, published } = await setupPublished();
+
+      const response = await actAs(owner)("/v1/user/saveTemplateDesc", {
+        method: "POST",
+        body: { id: published.id, description: `Run it with ${PROVIDER_KEY}` }
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ code: "template_publish_checks_failed" });
+      expect(await (await read(`/v1/user-templates/${published.id}`)).text()).not.toContain(PROVIDER_KEY);
+
+      const ordinary = await actAs(owner)("/v1/user/saveTemplateDesc", {
+        method: "POST",
+        body: { id: published.id, description: "Chat with your own models." }
+      });
+
+      expect(ordinary.status).toBe(204);
+      expect(await storedTemplate(published.id)).toMatchObject({ description: "Chat with your own models." });
+    });
+
     it("refuses to make a template public again once it was taken out of the gallery, and still saves it as private", async () => {
       const { owner, actAs, published } = await setupPublished();
       const madePrivate = await actAs(owner)(`/v1/user-templates/${published.id}`, { method: "PATCH", body: { data: { visibility: "private" } } });

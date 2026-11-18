@@ -172,6 +172,14 @@ describe(findCredentialSign.name, () => {
     expect(findCredentialSign(value, "EXTRA_ARGS")).toBeUndefined();
   });
 
+  it("reads a value as long as an SDL of dotted words that never reach an assignment quickly", () => {
+    const value = "token.".repeat(21_830);
+    const startedAt = performance.now();
+
+    expect(findCredentialSign(value, "NOTES")).toBeUndefined();
+    expect(performance.now() - startedAt).toBeLessThan(500);
+  });
+
   it("reads a credential-named value with no name given as ordinary config", () => {
     expect(findCredentialSign("postgres")).toBeUndefined();
   });
