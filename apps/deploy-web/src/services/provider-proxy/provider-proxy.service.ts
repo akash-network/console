@@ -146,10 +146,8 @@ export class ProviderProxyService {
     service: string;
     filePath: string;
   }): Promise<DownloadMessagesResult> {
-    const session = this.connectToShell({ ...input, command: ["cat", input.filePath] });
-    session.send(new Uint8Array());
-
-    const download = await receiveShellDownload(session);
+    const expectedSize = await this.readShellFileSize(input);
+    const download = await this.runShellCommand({ ...input, command: ["cat", input.filePath] });
 
     if (input.signal?.aborted) {
       return { ok: false, code: "cancelled" };
@@ -160,9 +158,33 @@ export class ProviderProxyService {
       return { ok: false, code: "unknown", message: download.message };
     }
 
+    if (expectedSize !== undefined && download.file.size < expectedSize) {
+      this.logger.error({ event: "DOWNLOAD_FILE_FROM_SHELL_INCOMPLETE", expectedSize, receivedSize: download.file.size });
+      return {
+        ok: false,
+        code: "unknown",
+        message: `The provider ended the download early (${download.file.size} of ${expectedSize} bytes). Try again.`
+      };
+    }
+
     this.logger.info({ event: "DOWNLOAD_FILE_FROM_SHELL_SUCCESS", size: download.file.size });
     this.saveFile(download.file, input.filePath.replace(/^.*[\\/]/, ""));
     return { ok: true };
+  }
+
+  /** Providers can end a command's output early yet still report exit code 0, so a download is only trusted once it matches this size. */
+  private async readShellFileSize(input: ShellCommandInput & { filePath: string }): Promise<number | undefined> {
+    const result = await this.runShellCommand({ ...input, command: ["sh", "-c", 'wc -c < "$1"', "sh", input.filePath] });
+    if (!result.ok) return undefined;
+
+    const output = (await result.file.text()).trim();
+    return /^\d+$/.test(output) ? Number(output) : undefined;
+  }
+
+  private runShellCommand(input: ShellCommandInput & { command: string[] }): Promise<ShellDownload> {
+    const session = this.connectToShell(input);
+    session.send(new Uint8Array());
+    return receiveShellDownload(session);
   }
 
   async *getLogsStream<T extends "logs" | "events">(input: {
@@ -296,6 +318,11 @@ function providerLeaseUrl(input: { providerBaseUrl: string; dseq: string; gseq: 
 const SHELL_DOWNLOAD_INTERRUPTED_MESSAGE = "The connection to the provider closed before the file finished downloading.";
 
 type ShellDownload = { ok: true; file: Blob } | { ok: false; message: string };
+
+type ShellCommandInput = Pick<
+  Parameters<ProviderProxyService["connectToShell"]>[0],
+  "providerBaseUrl" | "providerAddress" | "ensureToken" | "dseq" | "gseq" | "oseq" | "service" | "signal"
+>;
 
 interface ShellCommandResult {
   exit_code: number;
