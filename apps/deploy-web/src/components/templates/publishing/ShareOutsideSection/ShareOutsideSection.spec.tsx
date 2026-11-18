@@ -48,6 +48,7 @@ describe(ShareOutsideSection.name, () => {
     const markdown = screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Markdown badge code" });
 
     await userEvent.click(link);
+    expect(link.selectionStart).toBe(0);
     expect(link.selectionEnd).toBe(LINK.length);
 
     await userEvent.click(markdown);

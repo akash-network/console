@@ -212,6 +212,8 @@ describe(ShareTemplateDialog.name, () => {
 
       await userEvent.click(screen.getByRole("radio", { name: /^Public/ }));
       expect(screen.queryByText(/to make it public/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/not in the gallery/)).not.toBeInTheDocument();
+      expect(screen.getAllByRole("button").map(button => button.textContent)).toEqual(["Accept the terms", "Cancel", "Make public", "Close"]);
       expect(screen.getByRole("button", { name: "Make public" })).toBeDisabled();
       act(() => readPanelProps().onAcceptedTermsChange(true));
 
@@ -433,6 +435,18 @@ describe(ShareTemplateDialog.name, () => {
       expect(enqueueSnackbar).not.toHaveBeenCalled();
     });
 
+    it("clears the last refusal when the change is tried again", async () => {
+      const { updateSettings } = setup({ updateError: new ApiError(503, null, "503") });
+
+      await userEvent.click(screen.getByRole("radio", { name: /^Organization/ }));
+      await userEvent.click(screen.getByRole("button", { name: "Share with organization only" }));
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+      updateSettings.mockImplementation(() => new Promise(() => undefined));
+      await userEvent.click(screen.getByRole("button", { name: "Share with organization only" }));
+
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
     it("locks the dialog while the change is under way", async () => {
       const { onClose } = setup({ isChangingVisibility: true });
 
@@ -542,7 +556,8 @@ describe(ShareTemplateDialog.name, () => {
 
     it.each([
       ["a team", TEAM, "Northwind Labs"],
-      ["a personal organization", PERSONAL, "your organization"]
+      ["a personal organization", PERSONAL, "your organization"],
+      ["an unknown organization", null, "your organization"]
     ])("names who keeps access when it goes back to %s", async (_, organization, audience) => {
       setup({ template: IN_GALLERY, organization });
 
