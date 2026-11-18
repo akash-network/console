@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import type { WalletBalance } from "@src/hooks/useWalletBalance";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { LeaseDto, ListedDeploymentDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
@@ -161,28 +162,56 @@ services:
     expect(redeploy).toHaveBeenCalledWith(expect.objectContaining({ projectId: "target-project" }));
   });
 
-  describe("when a trial has no usable credit left", () => {
-    it("says the trial credit is used up and offers to add credits instead of redeploying", () => {
-      setup({ isTrialing: true, isOutOfDeployCredit: true });
+  describe("when the account is short of deploy credit", () => {
+    it.each([
+      { account: "a trial at $0", isTrialing: true, deployBalanceUsd: 0, warning: "Your free trial credit is used up" },
+      { account: "a trial below the minimum", isTrialing: true, deployBalanceUsd: 2, warning: "Your free trial credit is below the deployment minimum" },
+      { account: "a paying account", isTrialing: false, deployBalanceUsd: 2, warning: "Your balance is too low to start a deployment" }
+    ])("warns $account and offers to add credits instead of redeploying", ({ isTrialing, deployBalanceUsd, warning }) => {
+      setup({ isTrialing, isOutOfDeployCredit: true, deployBalanceUsd, minimumDepositUsd: 5 });
 
-      expect(screen.getByRole("button", { name: "Add credits to redeploy acme-storefront" })).toBeInTheDocument();
-      expect(screen.getByRole("button")).toHaveAccessibleDescription(expect.stringContaining("Your free trial credit is used up"));
+      expect(screen.getByRole("button", { name: "Add credits to redeploy acme-storefront" })).toHaveAccessibleDescription(
+        `Deployed May 12, 2026 ghcr.io/acme/storefront:2.8.1 ${warning}`
+      );
       expect(screen.queryByRole("button", { name: /^Redeploy/ })).not.toBeInTheDocument();
     });
 
-    it("opens add credits rather than redeploying when clicked", async () => {
-      const { redeploy, openAddCredits, analyticsService } = setup({ isTrialing: true, isOutOfDeployCredit: true });
+    it.each([
+      {
+        account: "a trial at $0",
+        isTrialing: true,
+        deployBalanceUsd: 0,
+        variant: "trial_credit_used_up",
+        description: "Your free trial credit is used up. Add credits to redeploy this configuration."
+      },
+      {
+        account: "a trial below the minimum",
+        isTrialing: true,
+        deployBalanceUsd: 2,
+        variant: "trial_credit_below_minimum",
+        description: "You have $2.00 of free trial credit left, and every deployment needs at least $5.00 up front. Add credits to redeploy this configuration."
+      },
+      {
+        account: "a paying account",
+        isTrialing: false,
+        deployBalanceUsd: 2,
+        variant: "not_enough_balance",
+        description: "Your balance is too low to start a deployment. Add credits to redeploy this configuration."
+      }
+    ])("opens add credits explaining the shortfall of $account rather than redeploying", async ({ isTrialing, deployBalanceUsd, variant, description }) => {
+      const { redeploy, openAddCredits, analyticsService } = setup({ isTrialing, isOutOfDeployCredit: true, deployBalanceUsd, minimumDepositUsd: 5 });
 
       await userEvent.click(screen.getByRole("button", { name: /Add credits to redeploy/ }));
 
       expect(redeploy).not.toHaveBeenCalled();
       expect(analyticsService.track).toHaveBeenCalledWith("redeploy_last_configuration_add_credits_btn_clk", {
         category: "billing",
-        context: "last_configuration_card"
+        context: "last_configuration_card",
+        variant
       });
       expect(openAddCredits).toHaveBeenCalledWith({
         initialTab: "purchase",
-        description: "Your free trial credit is used up. Add credits to redeploy this configuration.",
+        description,
         context: "last_configuration_card",
         nextStepLabel: "Redeploy",
         onCreditsAdded: expect.any(Function),
@@ -192,7 +221,6 @@ services:
 
     it("redeploys the configuration once the credits are added", async () => {
       const { redeploy, openAddCredits } = setup({
-        isTrialing: true,
         isOutOfDeployCredit: true,
         deployment: { dseq: "100", projectId: "project-of-deployment" }
       });
@@ -204,24 +232,25 @@ services:
     });
   });
 
-  it("redeploys as usual for a trial with credit left", async () => {
-    const { redeploy, openAddCredits } = setup({ isTrialing: true, isOutOfDeployCredit: false });
+  it.each([
+    { account: "a trial", isTrialing: true },
+    { account: "a paying account", isTrialing: false }
+  ])("redeploys as usual for $account with credit left", async ({ isTrialing }) => {
+    const { redeploy, openAddCredits } = setup({ isTrialing, isOutOfDeployCredit: false, deployBalanceUsd: 10, minimumDepositUsd: 5 });
 
     await userEvent.click(screen.getByRole("button", { name: "Redeploy acme-storefront" }));
 
     expect(redeploy).toHaveBeenCalled();
     expect(openAddCredits).not.toHaveBeenCalled();
-    expect(screen.queryByText("Your free trial credit is used up")).not.toBeInTheDocument();
+    expect(screen.getByRole("button")).toHaveAccessibleDescription("Deployed May 12, 2026 ghcr.io/acme/storefront:2.8.1");
   });
 
-  it("redeploys as usual for a paying account short of credit", async () => {
-    const { redeploy, openAddCredits } = setup({ isTrialing: false, isOutOfDeployCredit: true });
+  it("redeploys as usual while the balance and the deployment minimum are still loading", async () => {
+    const { redeploy } = setup({ isOutOfDeployCredit: false, deployBalanceUsd: undefined, minimumDepositUsd: undefined });
 
     await userEvent.click(screen.getByRole("button", { name: "Redeploy acme-storefront" }));
 
     expect(redeploy).toHaveBeenCalled();
-    expect(openAddCredits).not.toHaveBeenCalled();
-    expect(screen.queryByText("Your free trial credit is used up")).not.toBeInTheDocument();
   });
 
   function setup(input: {
@@ -232,11 +261,23 @@ services:
     targetProjectId?: string;
     isTrialing?: boolean;
     isOutOfDeployCredit?: boolean;
+    deployBalanceUsd?: number;
+    minimumDepositUsd?: number;
   }) {
     const redeploy = vi.fn();
     const openAddCredits = vi.fn<ReturnType<typeof DEPENDENCIES.useAddCredits>>();
     const useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing: input.isTrialing ?? false });
     const useIsOutOfDeployCredit = () => input.isOutOfDeployCredit ?? false;
+    const deployBalanceUsd = "deployBalanceUsd" in input ? input.deployBalanceUsd : 0;
+    const minimumDepositUsd = "minimumDepositUsd" in input ? input.minimumDepositUsd : 5;
+    const useWalletBalance = () =>
+      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useWalletBalance>>(), {
+        balance: deployBalanceUsd === undefined ? null : mock<WalletBalance>({ totalDeploymentGrantsUSD: deployBalanceUsd })
+      });
+    const useDeploymentFundingConfigQuery = () =>
+      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useDeploymentFundingConfigQuery>>(), {
+        data: minimumDepositUsd === undefined ? undefined : { targetRunwayHours: 48, balanceHeadroomUsd: 5, defaultDepositUsd: minimumDepositUsd }
+      });
     const analyticsService = mock<AnalyticsService>();
     const deployment = {
       dseq: "100",
@@ -272,6 +313,8 @@ services:
             useProvidersByAddresses,
             useWallet,
             useIsOutOfDeployCredit,
+            useWalletBalance,
+            useDeploymentFundingConfigQuery,
             useAddCredits: () => openAddCredits,
             DeploymentSpecSummary
           }}
