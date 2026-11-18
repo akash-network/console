@@ -104,7 +104,7 @@ Set the initial workflow status based on issue readiness:
 | **Backlog** | Issue is well-defined with clear acceptance criteria but not yet prioritized for a cycle |
 | **Todo** | Issue is fully ready to pick up — has all context, is prioritized, and a dev can start immediately |
 
-Use `--status "<status>"` in the CLI command. Default to **Triage** unless the user explicitly says the issue is ready to work on.
+Use `--state "<status>"` in the CLI command. Default to **Triage** unless the user explicitly says the issue is ready to work on.
 
 ## Execution Order
 
@@ -295,7 +295,7 @@ linear issue create \
   --no-interactive \
   --team "CON" \
   --project "<project name>" \
-  --status "<Triage|Backlog|Todo>" \
+  --state "<Triage|Backlog|Todo>" \
   --label "<Bug|Feature|Improvement>" \
   --label "<source:customer|source:error-log|source:internal|source:roadmap>" \
   [--priority <1-4>] \
