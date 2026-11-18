@@ -1,4 +1,3 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import type { Context, Env } from "hono";
 import { container } from "tsyringe";
 
@@ -84,4 +83,5 @@ const leasesDurationHandler = async <E extends Env>(
 export const leasesDurationRouter = new OpenApiHonoHandler();
 leasesDurationRouter.openapi(route, leasesDurationHandler<AppEnv>);
 
-export const leasesDurationInternalRouter = new OpenAPIHono().openapi(route, leasesDurationHandler<Env>);
+export const leasesDurationInternalRouter = new OpenApiHonoHandler();
+leasesDurationInternalRouter.openapi(route, leasesDurationHandler<AppEnv>);

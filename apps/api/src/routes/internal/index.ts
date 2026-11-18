@@ -17,7 +17,11 @@ export const internalOpenApiHonoHandlers: OpenApiHonoHandler[] = [
   internalGpuMarketRouter,
   internalUnmetDemandRouter,
   approveAffiliateRouter,
-  revokeAffiliateRouter
+  revokeAffiliateRouter,
+  listGpusInternalRouter,
+  listGpuModelsInternalRouter,
+  leasesDurationInternalRouter,
+  getGpuPricesInternalRouter
 ];
 
-export default [listGpusInternalRouter, listGpuModelsInternalRouter, leasesDurationInternalRouter, getGpuPricesInternalRouter, financial];
+export default [financial];
