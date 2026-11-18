@@ -1,0 +1,160 @@
+import { generateManifestVersion } from "@akashnetwork/chain-sdk";
+import { Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { type GroupSpec, MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import type { Bid } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
+import { TxRaw } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
+import type { EncodeObject } from "@cosmjs/proto-signing";
+import { calculateFee, type SigningStargateClient } from "@cosmjs/stargate";
+import { inject, singleton } from "tsyringe";
+
+import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { CHAIN_SDK, type ChainSDK } from "@src/chain/providers/chain-sdk.provider";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
+import { DEPLOYMENT_CONFIG, type DeploymentConfig } from "@src/deployment/config/config.provider";
+import { BidScreeningHttpService } from "@src/deployment/services/bid-screening-http/bid-screening-http.service";
+import { GpuBotSigningClientFactory } from "@src/deployment/services/gpu-bids-creator/gpu-bot-signing-client.factory";
+import { findDeploymentBids } from "@src/deployment/utils/find-deployment-bids/find-deployment-bids";
+
+/** Close settlement gas grows with bids placed between simulation and inclusion; matches tx-signer GAS_DEFAULT_MULTIPLIER (PR #3501). */
+const GAS_MULTIPLIER = 2;
+
+const DEPOSIT_UACT = "500000";
+
+export interface GpuCheckManifest {
+  groups: Parameters<typeof generateManifestVersion>[0];
+  groupSpecs: GroupSpec[];
+  /** The model each group checks, in group sequence order, which is how the chain numbers the orders it opens. */
+  groupModels: string[];
+}
+
+export interface GpuCheckDeployment {
+  manifest: GpuCheckManifest;
+}
+
+export interface GpuCheckRunResult {
+  dseq: string;
+  bids: Bid[];
+  /** Null when screening could not be asked, so nobody can be said to have missed the check. */
+  screenedByGroup: string[][] | null;
+}
+
+export interface GpuCheckSession {
+  client: SigningStargateClient;
+  owner: string;
+}
+
+@singleton()
+export class GpuCheckRunner {
+  readonly #deploymentConfig: DeploymentConfig;
+  readonly #chainSdk: ChainSDK;
+  readonly #logger: ReturnType<CreateLogger>;
+
+  constructor(
+    private readonly config: BillingConfigService,
+    @inject(CHAIN_SDK) chainSdk: ChainSDK,
+    private readonly bidScreeningHttpService: BidScreeningHttpService,
+    private readonly signingClientFactory: GpuBotSigningClientFactory,
+    @inject(DEPLOYMENT_CONFIG) deploymentConfig: DeploymentConfig,
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
+  ) {
+    this.#deploymentConfig = deploymentConfig;
+    this.#chainSdk = chainSdk;
+    this.#logger = createLogger({ context: GpuCheckRunner.name });
+  }
+
+  async connect(): Promise<GpuCheckSession | null> {
+    const mnemonic = this.#deploymentConfig.GPU_BOT_WALLET_MNEMONIC;
+    if (!mnemonic || !this.config.get("RPC_NODE_ENDPOINT")) return null;
+
+    const { address, client } = await this.signingClientFactory.connect(mnemonic);
+    return { client, owner: address };
+  }
+
+  async run(session: GpuCheckSession, deployments: GpuCheckDeployment[]): Promise<GpuCheckRunResult[]> {
+    if (deployments.length === 0) return [];
+
+    const screenedByDeployment = await Promise.all(deployments.map(({ manifest }) => this.#screenGroups(manifest.groupSpecs)));
+    const baseDseq = Date.now();
+    const dseqs = deployments.map((_, index) => (baseDseq + index).toString());
+
+    await this.#createDeployments(session, deployments, dseqs);
+    this.#logger.info({ event: "GPU_CHECK_DEPLOYMENT_CREATED", dseqs });
+
+    try {
+      await new Promise(resolve => setTimeout(resolve, this.#deploymentConfig.GPU_BOT_BID_WINDOW_SECONDS * 1000));
+      const bidsByDeployment = await Promise.all(dseqs.map(dseq => findDeploymentBids(this.#chainSdk, session.owner, dseq)));
+
+      return dseqs.map((dseq, index) => ({ dseq, bids: bidsByDeployment[index], screenedByGroup: screenedByDeployment[index] }));
+    } finally {
+      await this.#closeDeployments(session, dseqs);
+    }
+  }
+
+  async closeDeployment({ client, owner }: GpuCheckSession, dseq: string) {
+    const message = {
+      typeUrl: `/${MsgCloseDeployment.$type}`,
+      value: MsgCloseDeployment.fromPartial({ id: { owner, dseq } })
+    };
+
+    await this.#signAndBroadcast(owner, client, [message]);
+  }
+
+  /** Screens right before the deployment goes out, so the providers expected to bid are the ones that could at that moment. */
+  async #screenGroups(groupSpecs: GroupSpec[]): Promise<string[][] | null> {
+    try {
+      return await Promise.all(groupSpecs.map(groupSpec => this.bidScreeningHttpService.findScreenedProviders(groupSpec)));
+    } catch (error) {
+      this.#logger.warn({ event: "GPU_CHECK_SCREENING_FAILED", error });
+      return null;
+    }
+  }
+
+  async #createDeployments({ client, owner }: GpuCheckSession, deployments: GpuCheckDeployment[], dseqs: string[]) {
+    const messages = await Promise.all(
+      deployments.map(async ({ manifest: { groups, groupSpecs } }, index) => ({
+        typeUrl: `/${MsgCreateDeployment.$type}`,
+        value: MsgCreateDeployment.fromPartial({
+          id: { owner, dseq: dseqs[index] },
+          groups: groupSpecs,
+          hash: await generateManifestVersion(groups),
+          deposit: { amount: { denom: "uact", amount: DEPOSIT_UACT }, sources: [Source.balance] }
+        })
+      }))
+    );
+
+    await this.#signAndBroadcast(owner, client, messages);
+  }
+
+  /** Each close is its own transaction because its gas grows with the bids placed, so combining them would risk running out of gas for all. */
+  async #closeDeployments(session: GpuCheckSession, dseqs: string[]) {
+    const failures: unknown[] = [];
+
+    for (const dseq of dseqs) {
+      try {
+        await this.closeDeployment(session, dseq);
+        this.#logger.info({ event: "GPU_CHECK_DEPLOYMENT_CLOSED", dseq });
+      } catch (error) {
+        failures.push(error);
+        this.#logger.error({ event: "GPU_CHECK_DEPLOYMENT_CLOSE_FAILED", dseq, error });
+      }
+    }
+
+    if (failures.length > 0) {
+      throw new AggregateError(failures, `${failures.length} of ${dseqs.length} gpu check deployments could not be closed`);
+    }
+  }
+
+  async #signAndBroadcast(address: string, client: SigningStargateClient, messages: readonly EncodeObject[]) {
+    const simulation = await client.simulate(address, messages, "");
+    const fee = calculateFee(Math.round(simulation * GAS_MULTIPLIER), `${this.config.get("AVERAGE_GAS_PRICE")}uakt`);
+    const txRaw = await client.sign(address, messages, fee, "");
+    const txResult = await client.broadcastTx(Uint8Array.from(TxRaw.encode(txRaw).finish()));
+
+    if (txResult.code !== 0) {
+      this.#logger.error(txResult);
+      throw new Error(`Error broadcasting transaction: ${txResult.rawLog}`);
+    }
+
+    return txResult;
+  }
+}

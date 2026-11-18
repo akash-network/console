@@ -1,27 +1,21 @@
-import { generateManifest, generateManifestVersion } from "@akashnetwork/chain-sdk";
-import { Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
-import { type GroupSpec, MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import { generateManifest } from "@akashnetwork/chain-sdk";
 import type { Bid } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
-import { TxRaw } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
-import type { EncodeObject } from "@cosmjs/proto-signing";
-import { calculateFee, type SigningStargateClient } from "@cosmjs/stargate";
+import type { SigningStargateClient } from "@cosmjs/stargate";
 import { subDays } from "date-fns";
 import chunk from "lodash/chunk";
 import { inject, singleton } from "tsyringe";
 
-import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { CHAIN_SDK, type ChainSDK } from "@src/chain/providers/chain-sdk.provider";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
-import { DEPLOYMENT_CONFIG, type DeploymentConfig } from "@src/deployment/config/config.provider";
 import { type GpuBidCheckInsert, GpuBidCheckRepository } from "@src/deployment/repositories/gpu-bid-check/gpu-bid-check.repository";
-import { BidScreeningHttpService } from "@src/deployment/services/bid-screening-http/bid-screening-http.service";
+import {
+  type GpuCheckManifest,
+  GpuCheckRunner,
+  type GpuCheckRunResult,
+  type GpuCheckSession
+} from "@src/deployment/services/gpu-check-runner/gpu-check-runner.service";
 import { type GpuModel, PlacementOptionsHttpService } from "@src/deployment/services/placement-options-http/placement-options-http.service";
-import { findDeploymentBids } from "@src/deployment/utils/find-deployment-bids/find-deployment-bids";
-import { GpuBotSigningClientFactory } from "./gpu-bot-signing-client.factory";
 import { buildGpuCheckSdl, GPU_CHECK_SHAPES, type GpuCheck, toPlacementName } from "./gpu-check-sdl";
-
-/** Close settlement gas grows with bids placed between simulation and inclusion; matches tx-signer GAS_DEFAULT_MULTIPLIER (PR #3501). */
-const GAS_MULTIPLIER = 2;
 
 /** The chain SDK's SDL schema accepts no other gpu vendor, so a deployment for any other would fail validation and stop the run. */
 const SDL_GPU_VENDOR = "nvidia";
@@ -33,8 +27,6 @@ const SDL_GPU_MODEL_NAME = /^[\w.-]+$/;
 const MAX_GROUPS_PER_DEPLOYMENT = 20;
 
 const MODELS_PER_DEPLOYMENT = MAX_GROUPS_PER_DEPLOYMENT / GPU_CHECK_SHAPES.length;
-
-const DEPOSIT_UACT = "500000";
 
 /** One page per run is enough, since each run closes what it finds and leaves the rest to the next. */
 const LEFTOVER_DEPLOYMENTS_PAGE_SIZE = 100n;
@@ -58,55 +50,54 @@ interface ModelOutcome {
   bidders: Set<string>;
 }
 
-interface GpuCheckManifest {
-  groups: Parameters<typeof generateManifestVersion>[0];
-  groupSpecs: GroupSpec[];
-  /** The model each group checks, in group sequence order, which is how the chain numbers the orders it opens. */
-  groupModels: string[];
-}
-
 @singleton()
 export class GpuBidsCreatorService {
-  readonly #deploymentConfig: DeploymentConfig;
   readonly #chainSdk: ChainSDK;
   readonly #logger: ReturnType<CreateLogger>;
 
   constructor(
-    private readonly config: BillingConfigService,
     @inject(CHAIN_SDK) chainSdk: ChainSDK,
     private readonly placementOptionsHttpService: PlacementOptionsHttpService,
-    private readonly bidScreeningHttpService: BidScreeningHttpService,
     private readonly gpuBidCheckRepository: GpuBidCheckRepository,
-    private readonly signingClientFactory: GpuBotSigningClientFactory,
-    @inject(DEPLOYMENT_CONFIG) deploymentConfig: DeploymentConfig,
+    private readonly gpuCheckRunner: GpuCheckRunner,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
-    this.#deploymentConfig = deploymentConfig;
     this.#chainSdk = chainSdk;
     this.#logger = createLogger({ context: GpuBidsCreatorService.name });
   }
 
   async createGpuBids() {
-    if (!this.#deploymentConfig.GPU_BOT_WALLET_MNEMONIC) throw new Error("The env variable GPU_BOT_WALLET_MNEMONIC is not set.");
-    if (!this.config.get("RPC_NODE_ENDPOINT")) throw new Error("The env variable RPC_NODE_ENDPOINT is not set.");
+    const session = await this.gpuCheckRunner.connect();
+    if (!session) throw new Error("The env variables GPU_BOT_WALLET_MNEMONIC and RPC_NODE_ENDPOINT must be set.");
 
-    const { address, client } = await this.signingClientFactory.connect(this.#deploymentConfig.GPU_BOT_WALLET_MNEMONIC);
+    const { client, owner: address } = session;
     const feeBalanceBefore = await this.#getFeeBalance(client, address);
     this.#logger.info({ event: "CREATING_GPU_BIDS", address, feeBalance: feeBalanceBefore / 1_000_000 });
-    await this.#closeLeftoverDeployments(client, address);
+    await this.#closeLeftoverDeployments(session);
 
     const models = await this.#findCheckableModels();
     const batches = chunk(models, MODELS_PER_DEPLOYMENT);
     const results: GpuCheckBatchResult[] = [];
     const failures: unknown[] = [];
+    const manifests = batches.map(batch => this.#buildManifest(batch.flatMap(model => GPU_CHECK_SHAPES.map(shape => ({ model, shape })))));
 
-    for (const batch of batches) {
-      try {
-        results.push(await this.#checkBatch(batch, client, address));
-      } catch (error) {
-        failures.push(error);
-        this.#logger.error({ event: "GPU_CHECK_BATCH_FAILED", models: batch, error });
+    try {
+      const runResults = await this.gpuCheckRunner.run(
+        session,
+        manifests.map(manifest => ({ manifest }))
+      );
+
+      for (const [index, batch] of batches.entries()) {
+        try {
+          results.push(await this.#recordBatch(batch, manifests[index], runResults[index]));
+        } catch (error) {
+          failures.push(error);
+          this.#logger.error({ event: "GPU_CHECK_BATCH_FAILED", models: batch, error });
+        }
       }
+    } catch (error) {
+      failures.push(...batches.map(() => error));
+      this.#logger.error({ event: "GPU_CHECK_RUN_FAILED", models, error });
     }
 
     await this.#deleteExpiredChecks();
@@ -128,10 +119,10 @@ export class GpuBidsCreatorService {
   }
 
   /** A run that lost track of its deployment, to a broadcast timeout or a pod stopped mid-check, left it open with its deposit, so the next run closes it. */
-  async #closeLeftoverDeployments(client: SigningStargateClient, owner: string): Promise<void> {
+  async #closeLeftoverDeployments(session: GpuCheckSession): Promise<void> {
     let dseqs: string[];
     try {
-      dseqs = await this.#findActiveDeploymentDseqs(owner);
+      dseqs = await this.#findActiveDeploymentDseqs(session.owner);
     } catch (error) {
       this.#logger.error({ event: "GPU_CHECK_LEFTOVER_DEPLOYMENTS_UNREAD", error });
       return;
@@ -139,7 +130,7 @@ export class GpuBidsCreatorService {
 
     for (const dseq of dseqs) {
       try {
-        await this.#closeDeployment(client, owner, dseq);
+        await this.gpuCheckRunner.closeDeployment(session, dseq);
         this.#logger.info({ event: "GPU_CHECK_LEFTOVER_DEPLOYMENT_CLOSED", dseq });
       } catch (error) {
         this.#logger.error({ event: "GPU_CHECK_LEFTOVER_DEPLOYMENT_CLOSE_FAILED", dseq, error });
@@ -175,35 +166,21 @@ export class GpuBidsCreatorService {
     return checkableModels.map(({ model }) => model);
   }
 
-  async #checkBatch(models: string[], client: SigningStargateClient, owner: string): Promise<GpuCheckBatchResult> {
-    const dseq = Date.now().toString();
-    const manifest = this.#buildManifest(models.flatMap(model => GPU_CHECK_SHAPES.map(shape => ({ model, shape }))));
-    const screenedByGroup = await this.#screenGroups(manifest.groupSpecs);
+  async #recordBatch(models: string[], manifest: GpuCheckManifest, { dseq, bids, screenedByGroup }: GpuCheckRunResult): Promise<GpuCheckBatchResult> {
+    const outcomes = toModelOutcomes(models, manifest.groupModels, screenedByGroup, bids);
 
-    await this.#createDeployment(client, owner, dseq, manifest);
-    this.#logger.info({ event: "GPU_CHECK_DEPLOYMENT_CREATED", dseq, models });
+    const checkedAt = new Date();
+    await this.gpuBidCheckRepository.insertMany(outcomes.flatMap(outcome => toCheckRows(outcome, dseq, checkedAt)));
 
-    try {
-      await new Promise(resolve => setTimeout(resolve, this.#deploymentConfig.GPU_BOT_BID_WINDOW_SECONDS * 1000));
-      const bids = await findDeploymentBids(this.#chainSdk, owner, dseq);
-      const outcomes = toModelOutcomes(models, manifest.groupModels, screenedByGroup, bids);
-      const checkedAt = new Date();
+    const missed = outcomes.map(toMissedModel).filter(({ providers }) => providers.length > 0);
+    this.#logger.info({
+      event: "GPU_CHECK_BIDS_RECEIVED",
+      dseq,
+      models: outcomes.map(({ model, screened, bidders }) => ({ model, screenedCount: screened?.size ?? null, bidders: [...bidders] })),
+      missed
+    });
 
-      await this.gpuBidCheckRepository.insertMany(outcomes.flatMap(outcome => toCheckRows(outcome, dseq, checkedAt)));
-
-      const missed = outcomes.map(toMissedModel).filter(({ providers }) => providers.length > 0);
-      this.#logger.info({
-        event: "GPU_CHECK_BIDS_RECEIVED",
-        dseq,
-        models: outcomes.map(({ model, screened, bidders }) => ({ model, screenedCount: screened?.size ?? null, bidders: [...bidders] })),
-        missed
-      });
-
-      return { bidCount: bids.length, missed };
-    } finally {
-      await this.#closeDeployment(client, owner, dseq);
-      this.#logger.info({ event: "GPU_CHECK_DEPLOYMENT_CLOSED", dseq });
-    }
+    return { bidCount: bids.length, missed };
   }
 
   #buildManifest(checks: GpuCheck[]): GpuCheckManifest {
@@ -216,53 +193,6 @@ export class GpuBidsCreatorService {
 
     const { groups, groupSpecs } = manifest.value;
     return { groups, groupSpecs, groupModels: groupSpecs.map(({ name }) => placementModels.get(name) ?? name) };
-  }
-
-  /** Screens right before the deployment goes out, so the providers expected to bid are the ones that could at that moment. */
-  async #screenGroups(groupSpecs: GroupSpec[]): Promise<string[][] | null> {
-    try {
-      return await Promise.all(groupSpecs.map(groupSpec => this.bidScreeningHttpService.findScreenedProviders(groupSpec)));
-    } catch (error) {
-      this.#logger.warn({ event: "GPU_CHECK_SCREENING_FAILED", error });
-      return null;
-    }
-  }
-
-  async #createDeployment(client: SigningStargateClient, owner: string, dseq: string, { groups, groupSpecs }: GpuCheckManifest) {
-    const message = {
-      typeUrl: `/${MsgCreateDeployment.$type}`,
-      value: MsgCreateDeployment.fromPartial({
-        id: { owner, dseq },
-        groups: groupSpecs,
-        hash: await generateManifestVersion(groups),
-        deposit: { amount: { denom: "uact", amount: DEPOSIT_UACT }, sources: [Source.balance] }
-      })
-    };
-
-    await this.#signAndBroadcast(owner, client, [message]);
-  }
-
-  async #closeDeployment(client: SigningStargateClient, owner: string, dseq: string) {
-    const message = {
-      typeUrl: `/${MsgCloseDeployment.$type}`,
-      value: MsgCloseDeployment.fromPartial({ id: { owner, dseq } })
-    };
-
-    await this.#signAndBroadcast(owner, client, [message]);
-  }
-
-  async #signAndBroadcast(address: string, client: SigningStargateClient, messages: readonly EncodeObject[]) {
-    const simulation = await client.simulate(address, messages, "");
-    const fee = calculateFee(Math.round(simulation * GAS_MULTIPLIER), `${this.config.get("AVERAGE_GAS_PRICE")}uakt`);
-    const txRaw = await client.sign(address, messages, fee, "");
-    const txResult = await client.broadcastTx(Uint8Array.from(TxRaw.encode(txRaw).finish()));
-
-    if (txResult.code !== 0) {
-      this.#logger.error(txResult);
-      throw new Error(`Error broadcasting transaction: ${txResult.rawLog}`);
-    }
-
-    return txResult;
   }
 
   /** Fees are paid in uakt while the deposit is in uact and comes back on close, so the uakt balance is what a run costs. */
