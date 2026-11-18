@@ -3,10 +3,15 @@ import { yaml } from "@akashnetwork/chain-sdk";
 import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import type { AskedValue } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
 import { findSecretValueIssues, readSdlEnvValues } from "@src/template-marketplace/lib/asked-values/find-secret-value-issues";
+import {
+  MAX_TEMPLATE_README_LENGTH,
+  MAX_TEMPLATE_SUMMARY_LENGTH,
+  MAX_TEMPLATE_TITLE_LENGTH
+} from "@src/template-marketplace/lib/template-catalog/template-catalog";
 import { type BlockedImageKind, findBlockedImageKind } from "./blocked-images";
 import { type CredentialSign, findCredentialSign, findKnownCredentialOffsets } from "./credential-signs";
 import { isPinned, parseImageReference } from "./image-reference";
-import { type PublishCheckIssue, type PublishCheckResults, toPublishCheck } from "./publish-check-results";
+import { type PublishCheckIssue, type PublishCheckIssueField, type PublishCheckResults, toPublishCheck } from "./publish-check-results";
 import { findReservedWords } from "./reserved-names";
 
 export type PublishCheckInput = {
@@ -15,6 +20,7 @@ export type PublishCheckInput = {
   readme: string | null;
   askedValues: AskedValue[];
   title: string;
+  summary: string | null;
   /** Null for a template filed in no organization, which has no name to publish under. */
   publisherName: string | null;
   /** What the SDL validation every save runs found, so a template is held to one parser. */
@@ -48,7 +54,8 @@ export function runPublishChecks(input: PublishCheckInput): PublishCheckResults 
       toPublishCheck("no_secrets", findSecretIssues(input)),
       toPublishCheck("images_allowed", images.flatMap(findBlockedImageIssue)),
       toPublishCheck("fixed_tags", images.flatMap(findFloatingTagIssue)),
-      toPublishCheck("name_not_reserved", findReservedNameIssues(input))
+      toPublishCheck("name_not_reserved", findReservedNameIssues(input)),
+      toPublishCheck("text_within_limits", findTextLimitIssues(input))
     ]
   };
 }
@@ -197,6 +204,21 @@ function findReservedNameIssues({ title, publisherName }: PublishCheckInput): Pu
   );
 
   return [...findReservedTitleIssues(title), ...publisherIssues];
+}
+
+/** The legacy save routes cap the title at 255 characters and the description not at all, so a row they wrote can exceed what the write schema admits. */
+function findTextLimitIssues({ title, summary, readme }: PublishCheckInput): PublishCheckIssue[] {
+  return [
+    ...findOverLimitIssue("title", "The title", title, MAX_TEMPLATE_TITLE_LENGTH, "Shorten it in the template's settings."),
+    ...findOverLimitIssue("summary", "The summary", summary, MAX_TEMPLATE_SUMMARY_LENGTH, "Shorten it in the template's settings."),
+    ...findOverLimitIssue("readme", "The README", readme, MAX_TEMPLATE_README_LENGTH, "Shorten it and save a new version.")
+  ];
+}
+
+function findOverLimitIssue(field: PublishCheckIssueField, label: string, text: string | null, maxLength: number, remedy: string): PublishCheckIssue[] {
+  const length = text?.length ?? 0;
+
+  return length > maxLength ? [{ message: `${label} is ${length} characters long, and a public template allows ${maxLength}. ${remedy}`, field }] : [];
 }
 
 function readServiceImages(sdl: string): ServiceImage[] {

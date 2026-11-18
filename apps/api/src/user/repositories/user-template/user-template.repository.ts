@@ -52,6 +52,7 @@ export interface TemplateVersionState {
   isPublic: boolean;
   visibility: TemplateVisibility;
   publishedAt: Date | null;
+  summary: string | null;
   description: string | null;
   currentVersionId: string | null;
   currentVersionSdl: string | null;
@@ -191,6 +192,7 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
         isPublic: this.table.isPublic,
         visibility: this.table.visibility,
         publishedAt: this.table.publishedAt,
+        summary: this.table.summary,
         description: this.table.description,
         currentVersionId: this.table.currentVersionId
       })

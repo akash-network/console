@@ -505,9 +505,18 @@ describe(TemplateWriterService.name, () => {
       expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ checkResults: undefined }));
     });
 
+    it("holds a version saved without a readme to the readme it carries forward", async () => {
+      const template = createTemplateRow({ visibility: "public", isPublic: true, description: "A legacy description" });
+      const { service, publishChecksService } = setup({ template });
+
+      await service.appendVersion(template.id, { sdl: buildSdl({ count: 3 }), askedValues: [], baseVersion: 1 });
+
+      expect(publishChecksService.run).toHaveBeenCalledWith(expect.objectContaining({ readme: "A legacy description" }));
+    });
+
     it("runs the publish checks on a version of a public template under the locked title and stores what they found", async () => {
       const template = createTemplateRow({ visibility: "public", isPublic: true });
-      const locked = { ...template, title: "Renamed since" };
+      const locked = { ...template, title: "Renamed since", summary: "Summarized since" };
       const { service, repository, templateVersionRepository, publishChecksService } = setup({ template, locked });
       const sdl = buildSdl({ count: 3 });
       const askedValues = [textAskedValue("GREETING")];
@@ -519,6 +528,7 @@ describe(TemplateWriterService.name, () => {
         readme: "# Hello",
         askedValues,
         title: "Renamed since",
+        summary: "Summarized since",
         organizationId: template.organizationId
       });
       expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ checkResults: PASSED_CHECKS }));

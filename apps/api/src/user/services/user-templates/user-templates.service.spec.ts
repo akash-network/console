@@ -547,7 +547,13 @@ describe(UserTemplatesService.name, () => {
           isMarketplaceOn: true,
           checkResults: FAILED_CHECKS
         });
-        const stored = createVersionState({ visibility: "public", isPublic: true, publishedAt: new Date(), currentVersionAskedValues: [] });
+        const stored = createVersionState({
+          visibility: "public",
+          isPublic: true,
+          publishedAt: new Date(),
+          summary: "A stored summary",
+          currentVersionAskedValues: []
+        });
         userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
         userTemplateRepository.findVersionState.mockResolvedValue(stored);
         const template = createTemplateInput();
@@ -563,6 +569,7 @@ describe(UserTemplatesService.name, () => {
           readme: template.description,
           askedValues: [],
           title: template.title,
+          summary: "A stored summary",
           organizationId: stored.organizationId
         });
         expect(userTemplateRepository.updateTemplate).not.toHaveBeenCalled();
@@ -652,6 +659,51 @@ describe(UserTemplatesService.name, () => {
         await service.saveTemplate("template-id", "user-id", template);
 
         expect(publishChecksService.run).toHaveBeenCalledWith(expect.objectContaining({ askedValues }));
+      });
+
+      it("checks a save that keeps the SDL under the readme the current version keeps showing", async () => {
+        const { service, userTemplateRepository, publishChecksService } = setup({ isMarketplaceOn: true });
+        const template = createTemplateInput();
+        userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+        userTemplateRepository.findVersionState.mockResolvedValue(
+          createVersionState({
+            visibility: "public",
+            isPublic: true,
+            publishedAt: new Date(),
+            currentVersionSdl: template.sdl,
+            currentVersionReadme: "# Kept readme"
+          })
+        );
+
+        await service.saveTemplate("template-id", "user-id", template);
+
+        expect(publishChecksService.run).toHaveBeenCalledWith(expect.objectContaining({ readme: "# Kept readme" }));
+      });
+
+      it("checks a new version under the description it carries as its readme", async () => {
+        const { service, userTemplateRepository, publishChecksService } = setup({ isMarketplaceOn: true });
+        const template = { ...createTemplateInput(), description: "A new description" };
+        userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+        userTemplateRepository.findVersionState.mockResolvedValue(
+          createVersionState({ visibility: "public", isPublic: true, publishedAt: new Date(), currentVersionReadme: "# Old readme" })
+        );
+
+        await service.saveTemplate("template-id", "user-id", template);
+
+        expect(publishChecksService.run).toHaveBeenCalledWith(expect.objectContaining({ readme: "A new description" }));
+      });
+
+      it("checks the stored description as the readme of a save that sends none", async () => {
+        const { service, userTemplateRepository, publishChecksService } = setup({ isMarketplaceOn: true });
+        const { description: _description, ...template } = createTemplateInput();
+        userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+        userTemplateRepository.findVersionState.mockResolvedValue(
+          createVersionState({ visibility: "public", isPublic: true, publishedAt: new Date(), description: "A stored description" })
+        );
+
+        await service.saveTemplate("template-id", "user-id", template);
+
+        expect(publishChecksService.run).toHaveBeenCalledWith(expect.objectContaining({ readme: "A stored description" }));
       });
 
       it.each([
@@ -993,6 +1045,7 @@ describe(UserTemplatesService.name, () => {
       isPublic: false,
       visibility: "private",
       publishedAt: null,
+      summary: null,
       description: null,
       currentVersionId: faker.string.uuid(),
       currentVersionSdl: faker.lorem.paragraph(),

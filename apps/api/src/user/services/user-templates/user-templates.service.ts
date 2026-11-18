@@ -182,6 +182,7 @@ export class UserTemplatesService {
 
       const checkResults = this.#staysPublicAfterPublishGate(template, stored)
         ? await this.#findPassingPublishChecks(template, stored.organizationId, {
+            summary: stored.summary,
             readme: nextReadmeShown,
             askedValues: (isNewVersion ? carried.askedValues : stored.currentVersionAskedValues) ?? []
           })
@@ -239,7 +240,7 @@ export class UserTemplatesService {
   async #findPassingPublishChecks(
     template: TemplateInput,
     organizationId: string,
-    content: { readme: string | null; askedValues: AskedValue[] }
+    content: { summary: string | null; readme: string | null; askedValues: AskedValue[] }
   ): Promise<PublishCheckResults> {
     const checkResults = await this.#publishChecksService.run({ sdl: template.sdl, title: template.title, organizationId, ...content });
 
