@@ -58,6 +58,8 @@ export const MARKDOWN_ATTACKS: UserContentAttack[] = [
   { name: "a link labelled as the Console host", payload: `[${IMPERSONATED_HOST}](https://${IMPERSONATED_HOST}.${ATTACKER_HOST}/)` },
   { name: "a link with the Console host as its user name", payload: `[Sign in](https://${IMPERSONATED_HOST}@${ATTACKER_HOST}/)` },
   { name: "a link labelled through zero-width characters", payload: `[console.akash\u200b.network](https://${ATTACKER_HOST}/)` },
+  { name: "a link labelled with an IP address", payload: `[10.0.0.1](https://${ATTACKER_HOST}/)` },
+  { name: "a link labelled through middle dots", payload: `[console\u00b7akash\u00b7network](https://${ATTACKER_HOST}/)` },
   { name: "a link labelled right to left", payload: `[\u202ekrowten.hsaka.elosnoc//:sptth](https://${ATTACKER_HOST}/)` },
   { name: "a link to a look-alike host", payload: "[c\u043ensole.akash.network](https://c\u043ensole.akash.network/)" },
   { name: "a link with a misleading title", payload: `[Docs](https://${ATTACKER_HOST}/ "https://${IMPERSONATED_HOST}/docs")` },

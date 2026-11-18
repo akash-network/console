@@ -73,7 +73,15 @@ describe(rehypeHardenUserContent.name, () => {
       ["a host written with full-width dots", "console\uff0eakash\uff0enetwork"],
       ["a host written with ideographic full stops", "console\u3002akash\uff61network"],
       ["its own host next to another one", "attacker.example or console.akash.network"],
-      ["an address that has no host name", "http://10.0.0.1/admin"]
+      ["an address that has no host name", "http://10.0.0.1/admin"],
+      ["an IPv4 address", "10.0.0.1"],
+      ["an IPv4 address and a port", "127.0.0.1:8080"],
+      ["an IPv6 address", "2001:db8::1"],
+      ["the IPv6 loopback address", "the router at ::1"],
+      ["a local host and a port", "localhost:3000"],
+      ["a host written with middle dots", "console\u00b7akash\u00b7network"],
+      ["a host written with hyphenation points and dot operators", "console\u2027akash\u22c5network"],
+      ["a host written with a katakana middle dot", "akash\u30fbnetwork"]
     ])("spells out where a link labelled with %s really goes", (_, label) => {
       const { container } = setup({ markdown: `[${label}](https://attacker.example/billing)` });
 
@@ -92,7 +100,11 @@ describe(rehypeHardenUserContent.name, () => {
       ["the address it goes to", "https://example.com/docs"],
       ["a page on the host it goes to", "Read example.com/docs/intro first"],
       ["the host it goes to split by a zero-width character", "exam\u200bple.com"],
-      ["words that name no address", "the docs for v1.2.3"]
+      ["words that name no address", "the docs for v1.2.3"],
+      ["a version with four parts", "release v1.2.3.4"],
+      ["a version that ends a longer number", "build 2024.1.2.3.4-rc1"],
+      ["code that uses double colons", "tokio::spawn"],
+      ["a time of day", "open from 9:30"]
     ])("keeps a link labelled with %s", (_, label) => {
       const { container } = setup({ markdown: `[${label}](https://example.com/docs)` });
 
@@ -129,6 +141,17 @@ describe(rehypeHardenUserContent.name, () => {
       const { container } = setup({ markdown: "[docs\u3002example.com](https://docs.example.com/)" });
 
       expect(container.textContent).toBe(`docs\u3002example.com${LEAVES_CONSOLE_MARK}`);
+    });
+
+    it.each([
+      ["an IPv4 address", "10.0.0.1", "http://10.0.0.1/admin"],
+      ["a local host", "localhost:3000", "http://localhost:3000/admin"],
+      ["a host written with middle dots", "docs\u00b7example\u00b7com", "https://docs.example.com/admin"]
+    ])("keeps a link labelled with the destination it goes to, written as %s", (_, label, href) => {
+      const { container } = setup({ markdown: `[${label}](${href})` });
+
+      expect(screen.getByRole("link", { name: label })).toHaveAttribute("href", href);
+      expect(container.textContent).toBe(`${label}${LEAVES_CONSOLE_MARK}`);
     });
 
     it("spells out an internationalized host, which can imitate any other", () => {

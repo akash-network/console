@@ -34,6 +34,7 @@ import { useActiveOrganization } from "@src/context/OrganizationProvider/Organiz
 import { useProjectsQuery } from "@src/queries/useProjectsQuery";
 import { useDeleteMarketplaceTemplateMutation, useUpdateTemplateSettingsMutation } from "@src/queries/useUserTemplateQueries";
 import type { MarketplaceTemplate, TemplateCategory, TemplateIconId } from "@src/types/marketplace-template";
+import { toSingleLine } from "@src/utils/singleLineText/singleLineText";
 import { UrlService } from "@src/utils/urlUtils";
 
 export const DEPENDENCIES = {
@@ -142,7 +143,7 @@ export const TemplateSettingsTab: FC<TemplateSettingsTabProps> = ({ template, de
             aria-describedby={summaryCounterId}
             rows={3}
             value={summary}
-            onChange={(event: ChangeEvent<HTMLTextAreaElement>) => edit({ summary: event.target.value })}
+            onChange={(event: ChangeEvent<HTMLTextAreaElement>) => edit({ summary: toSingleLine(event.target.value) })}
             className="w-full resize-y rounded-md border border-input bg-popover px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
           <div className="flex justify-end">

@@ -18,11 +18,19 @@ const DIRECTION_OVERRIDES = /[\u202a-\u202e\u2066-\u2069]/g;
 
 const INVISIBLE_CHARACTERS = /[\p{Cf}\p{Default_Ignorable_Code_Point}]/gu;
 
-const IDEOGRAPHIC_FULL_STOPS = /[\u3002\uff61]/g;
+const DOT_LOOKALIKES = /[\u00b7\u2027\u22c5\u30fb\u3002\uff61]/g;
 
 const MAILBOX_NAMES = /[^\s@]+@/g;
 
-const ADDRESS_LIKE_WORDS = /(?:[\p{L}\p{N}_-]+\.)+\p{L}[\p{L}\p{N}-]+/gu;
+const HOST_NAME = /(?:[\p{L}\p{N}_-]+\.)+\p{L}[\p{L}\p{N}-]+/u;
+
+const IPV4_ADDRESS = /(?<![\p{L}\p{N}_.-])(?:\d{1,3}\.){3}\d{1,3}(?![\p{L}\p{N}_-])/u;
+
+const IPV6_ADDRESS = /(?<![\p{L}\p{N}_:])(?:(?:[0-9a-f]{1,4}:){2,}[0-9a-f:]*|::(?:[0-9a-f]{1,4}:)*[0-9a-f]{1,4})(?![\p{L}\p{N}_])/iu;
+
+const LOCAL_HOST = /\blocalhost\b/iu;
+
+const ADDRESS_LIKE_WORDS = new RegExp([HOST_NAME, IPV4_ADDRESS, IPV6_ADDRESS, LOCAL_HOST].map(({ source }) => source).join("|"), "giu");
 
 /** Content one user writes for others: links only leave Console and say where to, and images load only from listed sources. */
 export function rehypeHardenUserContent() {
@@ -104,7 +112,7 @@ function namesAnotherDestination(label: string, url: URL): boolean {
   if (url.hostname.includes("xn--")) return true;
 
   const isEmailLink = url.protocol === "mailto:";
-  const readableLabel = label.normalize("NFKC").replace(INVISIBLE_CHARACTERS, "").replace(IDEOGRAPHIC_FULL_STOPS, ".");
+  const readableLabel = label.normalize("NFKC").replace(INVISIBLE_CHARACTERS, "").replace(DOT_LOOKALIKES, ".");
   const namedHosts = ((isEmailLink ? readableLabel.replace(MAILBOX_NAMES, "") : readableLabel).match(ADDRESS_LIKE_WORDS) ?? []).map(toComparableHost);
   const destination = toComparableHost(isEmailLink ? url.pathname.slice(url.pathname.lastIndexOf("@") + 1) : url.hostname);
 

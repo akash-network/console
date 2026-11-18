@@ -66,6 +66,25 @@ describe(SaveTemplateDialog.name, () => {
     expect(onSave).toHaveBeenCalledWith({ title: "Support chat", summary: "Chat with models" });
   });
 
+  it("keeps a summary on one line when line breaks are entered into it", () => {
+    const { onSave } = setup({ initialTitle: "Support chat" });
+    const summary = screen.getByRole("textbox", { name: /Summary/ });
+
+    fireEvent.change(summary, { target: { value: "Chat with models\non your own GPU" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save template" }));
+
+    expect(summary).toHaveValue("Chat with models on your own GPU");
+    expect(onSave).toHaveBeenCalledWith({ title: "Support chat", summary: "Chat with models on your own GPU" });
+  });
+
+  it("saves a suggested summary that spans lines as one line", () => {
+    const { onSave } = setup({ initialTitle: "Support chat", initialSummary: "Chat with models\non your own GPU" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save template" }));
+
+    expect(onSave).toHaveBeenCalledWith({ title: "Support chat", summary: "Chat with models on your own GPU" });
+  });
+
   it("needs a title to save", () => {
     const { onSave } = setup({});
 

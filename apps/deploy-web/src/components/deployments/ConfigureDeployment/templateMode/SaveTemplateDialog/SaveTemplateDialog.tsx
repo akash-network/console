@@ -17,6 +17,7 @@ import { ArrowLeftIcon, BoxIcon, CheckIcon, LockIcon, MessageCircleQuestionIcon,
 import { LengthCounter } from "@src/components/shared/LengthCounter/LengthCounter";
 import type { ServiceType } from "@src/types";
 import type { TemplateAskedValue } from "@src/types/marketplace-template";
+import { toSingleLine } from "@src/utils/singleLineText/singleLineText";
 import type { UnaskableSecret } from "../buildAskedValues";
 import { countOf, summarizeTemplateServices } from "../templateServicesSummary";
 import { UnaskableSecretsAlert } from "../UnaskableSecretsAlert/UnaskableSecretsAlert";
@@ -85,7 +86,7 @@ export const SaveTemplateDialog: FC<Props> = ({
 
   const save = (event: FormEvent) => {
     event.preventDefault();
-    if (canSave) onSave({ title: title.trim(), summary: summary.trim() });
+    if (canSave) onSave({ title: title.trim(), summary: toSingleLine(summary).trim() });
   };
 
   return (
@@ -127,7 +128,7 @@ export const SaveTemplateDialog: FC<Props> = ({
                 maxLength={SUMMARY_MAX_LENGTH}
                 aria-describedby={summaryCounterId}
                 value={summary}
-                onChange={event => setSummary(event.target.value)}
+                onChange={event => setSummary(toSingleLine(event.target.value))}
                 className={`${FIELD_CLASSES} resize-y`}
               />
               <div className="flex justify-end">
