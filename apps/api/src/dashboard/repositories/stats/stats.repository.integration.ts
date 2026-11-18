@@ -365,6 +365,25 @@ describe(StatsRepository.name, () => {
       ]);
     });
 
+    it("places a delegator by its first unbonding that was not fully cancelled and ignores what it sent before that unbonding", async () => {
+      const { repository } = await setup();
+      const validator = "akashvaloper1validator";
+      const completedBeforeLatestBlock = new Date("2026-11-10T00:00:00Z");
+      for (const height of [3, 4, 10, 25]) {
+        await createAkashBlock({ height, datetime: new Date("2026-11-01T10:00:00Z"), isProcessed: true });
+      }
+      await createAkashBlock({ height: 30, datetime: new Date("2026-11-12T08:00:00Z"), isProcessed: true });
+      await createStakingUnbonding({ height: 3, delegator: "akash1heidi", validator, amount: "100", completionTime: completedBeforeLatestBlock });
+      await createStakingUnbonding({ height: 4, type: "cancel", delegator: "akash1heidi", validator, amount: "100", creationHeight: 3 });
+      await createSinkTransfer({ height: 10, sequence: 1, owner: "akash1heidi", amount: "30", status: "minted" });
+      await createStakingUnbonding({ height: 25, delegator: "akash1heidi", validator, amount: "40", completionTime: completedBeforeLatestBlock });
+      await createSinkTransfer({ height: 30, sequence: 1, owner: "akash1heidi", amount: "15", status: "minted" });
+
+      expect(await repository.findSinkUnbondingCohorts([5, 20])).toEqual([
+        { milestonesReached: 2, delegators: 1, unbondedUakt: 40, liquidUakt: 40, senders: 1, sentUakt: 15, sentFromLiquidUakt: 15 }
+      ]);
+    });
+
     it("returns nothing when no unbonding is indexed yet", async () => {
       const { repository } = await setup();
 
