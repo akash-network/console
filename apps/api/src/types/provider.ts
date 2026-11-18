@@ -1,5 +1,6 @@
 import type { ProviderGpuDriver } from "@src/provider/services/provider-gpu-driver/provider-gpu-driver.service";
 import type { CpuArchAgreement } from "@src/utils/cpu-arch/cpu-arch";
+import type { CpuProfile, ProviderCpuModel } from "@src/utils/cpu-model/cpu-model";
 
 export interface ProviderList {
   owner: string;
@@ -32,6 +33,9 @@ export interface ProviderList {
     ram: string;
     interface: string;
   }>;
+  cpuModels: ProviderCpuModel[];
+  cpuProfile: CpuProfile;
+  cpuUnreportedNodeCount: number;
   stats: ProviderCapacityStats;
   attributes: Array<{
     key: string;

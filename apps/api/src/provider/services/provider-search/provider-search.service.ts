@@ -8,7 +8,7 @@ import type { ProviderList } from "@src/types/provider";
 export type ProviderLocation = Pick<
   ProviderList,
   "owner" | "name" | "hostUri" | "ipRegion" | "ipCountryCode" | "ipLat" | "ipLon" | "isAudited" | "locationRegion" | "uptime30d" | "stats"
-> & { gpuModels: string[] };
+> & { gpuModels: string[]; cpus: Pick<ProviderList["cpuModels"][number], "vendor" | "model" | "generation">[] };
 
 type WalletLeaseCounts = Map<string, ProviderLeaseCount>;
 
@@ -59,15 +59,28 @@ function toLocation(provider: ProviderList): ProviderLocation {
     locationRegion,
     uptime30d,
     gpuModels: [...new Set(provider.gpuModels.map(gpu => gpu.model))],
+    cpus: provider.cpuModels.map(({ vendor, model, generation }) => ({ vendor, model, generation })),
     stats
   };
 }
 
-function createQueryMatcher({ search, online, audited, addresses, regions, gpu, gpuModels }: ProviderSearchQuery): (provider: ProviderList) => boolean {
+function createQueryMatcher({
+  search,
+  online,
+  audited,
+  addresses,
+  regions,
+  gpu,
+  gpuModels,
+  cpuVendors,
+  cpuModels,
+  cpuGenerations
+}: ProviderSearchQuery): (provider: ProviderList) => boolean {
   const term = search?.toLowerCase();
   const allowedAddresses = addresses && new Set(addresses);
   const allowedRegions = regions && new Set(regions);
   const wantedGpuModels = gpuModels && new Set(gpuModels.map(model => model.toLowerCase()));
+  const runsWantedCpu = createCpuMatcher(cpuVendors, cpuModels, cpuGenerations);
 
   return provider =>
     (online === undefined || provider.isOnline === online) &&
@@ -76,7 +89,37 @@ function createQueryMatcher({ search, online, audited, addresses, regions, gpu, 
     (!allowedRegions || (!!provider.locationRegion && allowedRegions.has(provider.locationRegion))) &&
     (gpu === undefined || hasGpus(provider) === gpu) &&
     (!wantedGpuModels || provider.gpuModels.some(({ model }) => wantedGpuModels.has(model.toLowerCase()))) &&
+    runsWantedCpu(provider) &&
     (!term || provider.hostUri.toLowerCase().includes(term) || provider.owner.includes(term));
+}
+
+type ProviderCpuModel = ProviderList["cpuModels"][number];
+
+function createCpuMatcher(
+  cpuVendors: string[] | undefined,
+  cpuModels: string[] | undefined,
+  cpuGenerations: string[] | undefined
+): (provider: ProviderList) => boolean {
+  if (!cpuVendors && !cpuModels && !cpuGenerations) return () => true;
+
+  const isWanted = [
+    matchesOneOf(cpuVendors, cpu => cpu.vendor),
+    matchesOneOf(cpuModels, cpu => cpu.model),
+    matchesOneOf(cpuGenerations, cpu => cpu.generation)
+  ];
+
+  return provider => provider.cpuModels.some(cpu => isWanted.every(matches => matches(cpu)));
+}
+
+function matchesOneOf(wanted: string[] | undefined, valueOf: (cpu: ProviderCpuModel) => string | null): (cpu: ProviderCpuModel) => boolean {
+  if (!wanted) return () => true;
+
+  const wantedValues = new Set(wanted.map(value => value.toLowerCase()));
+
+  return cpu => {
+    const value = valueOf(cpu);
+    return value !== null && wantedValues.has(value.toLowerCase());
+  };
 }
 
 function compareBy(sort: ProviderSearchSort, walletLeaseCounts: WalletLeaseCounts): (a: ProviderList, b: ProviderList) => number {

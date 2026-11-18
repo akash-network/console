@@ -26111,6 +26111,35 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     "data": {
                       "items": {
                         "properties": {
+                          "cpus": {
+                            "description": "The vendor, model and recognised generation of each CPU model the provider's nodes run.",
+                            "items": {
+                              "properties": {
+                                "generation": {
+                                  "nullable": true,
+                                  "type": "string",
+                                },
+                                "model": {
+                                  "type": "string",
+                                },
+                                "vendor": {
+                                  "enum": [
+                                    "AMD",
+                                    "Intel",
+                                  ],
+                                  "nullable": true,
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "vendor",
+                                "model",
+                                "generation",
+                              ],
+                              "type": "object",
+                            },
+                            "type": "array",
+                          },
                           "gpuModels": {
                             "description": "Distinct GPU model names across the provider's nodes.",
                             "example": [
@@ -26289,6 +26318,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "locationRegion",
                           "uptime30d",
                           "gpuModels",
+                          "cpus",
                           "stats",
                         ],
                         "type": "object",
@@ -26443,6 +26473,36 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
           },
           {
             "in": "query",
+            "name": "cpuVendors",
+            "required": false,
+            "schema": {
+              "description": "Comma-separated CPU vendors, matched ignoring case, at most 50. Keeps providers with a CPU from any of them.",
+              "example": "amd",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "cpuModels",
+            "required": false,
+            "schema": {
+              "description": "Comma-separated CPU model names as the provider list returns them, matched ignoring case, at most 50. Keeps providers with any of them.",
+              "example": "EPYC 7763,Xeon Gold 6248R",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "cpuGenerations",
+            "required": false,
+            "schema": {
+              "description": "Comma-separated CPU generations, matched ignoring case, at most 50. Keeps providers with a CPU of any of them.",
+              "example": "Milan,Genoa",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
             "name": "sort",
             "required": false,
             "schema": {
@@ -26566,6 +26626,75 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "country": {
                                 "nullable": true,
                                 "type": "string",
+                              },
+                              "cpuModels": {
+                                "description": "Each CPU model the provider's nodes reported in its last successful snapshot, largest first. Empty when no node reports a model.",
+                                "items": {
+                                  "properties": {
+                                    "baseFrequencyMhz": {
+                                      "description": "The base frequency written in the CPU name. Null when the name carries none.",
+                                      "nullable": true,
+                                      "type": "number",
+                                    },
+                                    "generation": {
+                                      "description": "The generation the model number belongs to. Null when the model is not one Console recognises; it is never inferred.",
+                                      "example": "Milan",
+                                      "nullable": true,
+                                      "type": "string",
+                                    },
+                                    "isVirtual": {
+                                      "description": "True when the name is one a hypervisor reports instead of the physical CPU, such as QEMU Virtual CPU.",
+                                      "type": "boolean",
+                                    },
+                                    "model": {
+                                      "description": "The CPU name the node reports, without trademark marks, core count and frequency.",
+                                      "example": "EPYC 7763",
+                                      "type": "string",
+                                    },
+                                    "nodeCount": {
+                                      "description": "Nodes that run this model.",
+                                      "type": "number",
+                                    },
+                                    "threads": {
+                                      "description": "Hardware threads of this model across the provider's nodes, as the nodes report them.",
+                                      "type": "number",
+                                    },
+                                    "vendor": {
+                                      "description": "Null when the node reports a vendor other than AMD or Intel, or a virtual CPU whose name names none.",
+                                      "enum": [
+                                        "AMD",
+                                        "Intel",
+                                      ],
+                                      "nullable": true,
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "vendor",
+                                    "model",
+                                    "generation",
+                                    "baseFrequencyMhz",
+                                    "isVirtual",
+                                    "threads",
+                                    "nodeCount",
+                                  ],
+                                  "type": "object",
+                                },
+                                "type": "array",
+                              },
+                              "cpuProfile": {
+                                "description": "Uniform when every node runs one model, mixed when they run several or some nodes report none, virtual when every reported name is a hypervisor's, unknown when no node reports a model.",
+                                "enum": [
+                                  "uniform",
+                                  "mixed",
+                                  "virtual",
+                                  "unknown",
+                                ],
+                                "type": "string",
+                              },
+                              "cpuUnreportedNodeCount": {
+                                "description": "Nodes that report no CPU model while others do. A deployment can land on them. Zero when no node reports a model.",
+                                "type": "number",
                               },
                               "createdHeight": {
                                 "type": "number",
@@ -26911,6 +27040,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "isAudited",
                               "stats",
                               "gpuModels",
+                              "cpuModels",
+                              "cpuProfile",
+                              "cpuUnreportedNodeCount",
                               "attributes",
                               "host",
                               "organization",
@@ -27088,6 +27220,75 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "country": {
                         "nullable": true,
                         "type": "string",
+                      },
+                      "cpuModels": {
+                        "description": "Each CPU model the provider's nodes reported in its last successful snapshot, largest first. Empty when no node reports a model.",
+                        "items": {
+                          "properties": {
+                            "baseFrequencyMhz": {
+                              "description": "The base frequency written in the CPU name. Null when the name carries none.",
+                              "nullable": true,
+                              "type": "number",
+                            },
+                            "generation": {
+                              "description": "The generation the model number belongs to. Null when the model is not one Console recognises; it is never inferred.",
+                              "example": "Milan",
+                              "nullable": true,
+                              "type": "string",
+                            },
+                            "isVirtual": {
+                              "description": "True when the name is one a hypervisor reports instead of the physical CPU, such as QEMU Virtual CPU.",
+                              "type": "boolean",
+                            },
+                            "model": {
+                              "description": "The CPU name the node reports, without trademark marks, core count and frequency.",
+                              "example": "EPYC 7763",
+                              "type": "string",
+                            },
+                            "nodeCount": {
+                              "description": "Nodes that run this model.",
+                              "type": "number",
+                            },
+                            "threads": {
+                              "description": "Hardware threads of this model across the provider's nodes, as the nodes report them.",
+                              "type": "number",
+                            },
+                            "vendor": {
+                              "description": "Null when the node reports a vendor other than AMD or Intel, or a virtual CPU whose name names none.",
+                              "enum": [
+                                "AMD",
+                                "Intel",
+                              ],
+                              "nullable": true,
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "vendor",
+                            "model",
+                            "generation",
+                            "baseFrequencyMhz",
+                            "isVirtual",
+                            "threads",
+                            "nodeCount",
+                          ],
+                          "type": "object",
+                        },
+                        "type": "array",
+                      },
+                      "cpuProfile": {
+                        "description": "Uniform when every node runs one model, mixed when they run several or some nodes report none, virtual when every reported name is a hypervisor's, unknown when no node reports a model.",
+                        "enum": [
+                          "uniform",
+                          "mixed",
+                          "virtual",
+                          "unknown",
+                        ],
+                        "type": "string",
+                      },
+                      "cpuUnreportedNodeCount": {
+                        "description": "Nodes that report no CPU model while others do. A deployment can land on them. Zero when no node reports a model.",
+                        "type": "number",
                       },
                       "createdHeight": {
                         "type": "number",
@@ -27433,6 +27634,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "isAudited",
                       "stats",
                       "gpuModels",
+                      "cpuModels",
+                      "cpuProfile",
+                      "cpuUnreportedNodeCount",
                       "attributes",
                       "host",
                       "organization",
@@ -27543,6 +27747,75 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "unknown",
                       ],
                       "type": "string",
+                    },
+                    "cpuModels": {
+                      "description": "Each CPU model the provider's nodes reported in its last successful snapshot, largest first. Empty when no node reports a model.",
+                      "items": {
+                        "properties": {
+                          "baseFrequencyMhz": {
+                            "description": "The base frequency written in the CPU name. Null when the name carries none.",
+                            "nullable": true,
+                            "type": "number",
+                          },
+                          "generation": {
+                            "description": "The generation the model number belongs to. Null when the model is not one Console recognises; it is never inferred.",
+                            "example": "Milan",
+                            "nullable": true,
+                            "type": "string",
+                          },
+                          "isVirtual": {
+                            "description": "True when the name is one a hypervisor reports instead of the physical CPU, such as QEMU Virtual CPU.",
+                            "type": "boolean",
+                          },
+                          "model": {
+                            "description": "The CPU name the node reports, without trademark marks, core count and frequency.",
+                            "example": "EPYC 7763",
+                            "type": "string",
+                          },
+                          "nodeCount": {
+                            "description": "Nodes that run this model.",
+                            "type": "number",
+                          },
+                          "threads": {
+                            "description": "Hardware threads of this model across the provider's nodes, as the nodes report them.",
+                            "type": "number",
+                          },
+                          "vendor": {
+                            "description": "Null when the node reports a vendor other than AMD or Intel, or a virtual CPU whose name names none.",
+                            "enum": [
+                              "AMD",
+                              "Intel",
+                            ],
+                            "nullable": true,
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "vendor",
+                          "model",
+                          "generation",
+                          "baseFrequencyMhz",
+                          "isVirtual",
+                          "threads",
+                          "nodeCount",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    "cpuProfile": {
+                      "description": "Uniform when every node runs one model, mixed when they run several or some nodes report none, virtual when every reported name is a hypervisor's, unknown when no node reports a model.",
+                      "enum": [
+                        "uniform",
+                        "mixed",
+                        "virtual",
+                        "unknown",
+                      ],
+                      "type": "string",
+                    },
+                    "cpuUnreportedNodeCount": {
+                      "description": "Nodes that report no CPU model while others do. A deployment can land on them. Zero when no node reports a model.",
+                      "type": "number",
                     },
                     "createdHeight": {
                       "type": "number",
@@ -27972,6 +28245,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     "hardwareCpuArch",
                     "reportedCpuArchs",
                     "cpuArchAgreement",
+                    "cpuModels",
+                    "cpuProfile",
+                    "cpuUnreportedNodeCount",
                     "gpuDrivers",
                     "hardwareGpuVendor",
                     "hardwareGpuModels",

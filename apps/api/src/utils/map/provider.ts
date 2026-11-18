@@ -4,6 +4,7 @@ import semver from "semver";
 
 import type { Auditor } from "@src/provider/http-schemas/auditor.schema";
 import type { ProviderList, StatsItem } from "@src/types/provider";
+import { describeProviderCpus } from "@src/utils/cpu-model/cpu-model";
 
 export const mapProviderToList = (
   provider: Provider,
@@ -66,6 +67,7 @@ export const mapProviderToList = (
     ipLon: provider.ipLon || null,
     stats,
     gpuModels: gpuModels,
+    ...describeProviderCpus(lastSuccessfulSnapshot?.nodes || []),
     uptime1d: provider.uptime1d || null,
     uptime7d: provider.uptime7d || null,
     uptime30d: provider.uptime30d || null,

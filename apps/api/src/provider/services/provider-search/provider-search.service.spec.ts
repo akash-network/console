@@ -86,6 +86,66 @@ describe(ProviderSearchService.name, () => {
       expect(result.providers).toEqual([cpuOnly]);
     });
 
+    it("keeps providers with a CPU from any of the given vendors, ignoring case", async () => {
+      const amd = createProviderListItem({ cpuModels: [createCpuModel({ vendor: "AMD" })] });
+      const mixed = createProviderListItem({ cpuModels: [createCpuModel({ vendor: "Intel", model: "Xeon Gold 6248R" }), createCpuModel({ vendor: "AMD" })] });
+      const { service } = setup({
+        providers: [
+          amd,
+          createProviderListItem({ cpuModels: [createCpuModel({ vendor: "Intel", model: "Xeon Gold 6248R" })] }),
+          createProviderListItem({ cpuModels: [createCpuModel({ vendor: null, model: "Neoverse-N1" })] }),
+          createProviderListItem(),
+          mixed
+        ]
+      });
+
+      const result = await service.search(createQuery({ cpuVendors: ["amd"] }));
+
+      expect(result.providers).toEqual([amd, mixed]);
+    });
+
+    it("keeps providers with any of the given CPU models, ignoring case", async () => {
+      const milan = createProviderListItem({ cpuModels: [createCpuModel({ model: "EPYC 7763" })] });
+      const xeon = createProviderListItem({ cpuModels: [createCpuModel({ vendor: "Intel", model: "Xeon Gold 6248R" })] });
+      const { service } = setup({ providers: [milan, createProviderListItem({ cpuModels: [createCpuModel({ model: "EPYC 9654" })] }), xeon] });
+
+      const result = await service.search(createQuery({ cpuModels: ["epyc 7763", "XEON GOLD 6248R"] }));
+
+      expect(result.providers).toEqual([milan, xeon]);
+    });
+
+    it("keeps providers with a CPU of any of the given generations and leaves out unrecognised ones", async () => {
+      const milan = createProviderListItem({ cpuModels: [createCpuModel({ generation: "Milan" })] });
+      const { service } = setup({
+        providers: [
+          milan,
+          createProviderListItem({ cpuModels: [createCpuModel({ model: "EPYC 9654", generation: "Genoa" })] }),
+          createProviderListItem({ cpuModels: [createCpuModel({ model: "EPYC 7B13", generation: null })] })
+        ]
+      });
+
+      const result = await service.search(createQuery({ cpuGenerations: ["milan"] }));
+
+      expect(result.providers).toEqual([milan]);
+    });
+
+    it("needs every CPU filter to match one and the same CPU model of the provider", async () => {
+      const amdMilan = createProviderListItem({ cpuModels: [createCpuModel({ vendor: "AMD", generation: "Milan" })] });
+      const xeonAndGenoa = createProviderListItem({
+        cpuModels: [
+          createCpuModel({ vendor: "Intel", model: "Xeon Gold 6248R", generation: "Cascade Lake" }),
+          createCpuModel({ vendor: "AMD", model: "EPYC 9654", generation: "Genoa" })
+        ]
+      });
+      const { service } = setup({ providers: [amdMilan, xeonAndGenoa] });
+
+      const amdGenoa = await service.search(createQuery({ cpuVendors: ["AMD"], cpuGenerations: ["Genoa"] }));
+      const intelGenoa = await service.search(createQuery({ cpuVendors: ["Intel"], cpuGenerations: ["Genoa"] }));
+
+      expect(amdGenoa.providers).toEqual([xeonAndGenoa]);
+      expect(intelGenoa.providers).toEqual([]);
+    });
+
     it("keeps providers with any of the given GPU models, ignoring case", async () => {
       const withH100 = createProviderListItem({ gpuModels: [createGpuModel("h100"), createGpuModel("t4")] });
       const withA100 = createProviderListItem({ gpuModels: [createGpuModel("A100")] });
@@ -229,6 +289,7 @@ describe(ProviderSearchService.name, () => {
         locationRegion: "na-ca-central",
         uptime30d: 0.995,
         gpuModels: [createGpuModel("h100"), createGpuModel("h100", { ram: "94Gi" }), createGpuModel("a100")],
+        cpuModels: [createCpuModel({ vendor: "AMD", model: "EPYC 7763", generation: "Milan" })],
         stats
       });
       const { service, providerService } = setup({ providers: [online, createProviderListItem({ isOnline: false })] });
@@ -248,12 +309,17 @@ describe(ProviderSearchService.name, () => {
           locationRegion: "na-ca-central",
           uptime30d: 0.995,
           gpuModels: ["h100", "a100"],
+          cpus: [{ vendor: "AMD", model: "EPYC 7763", generation: "Milan" }],
           stats
         }
       ]);
       expect(providerService.getProviderList).toHaveBeenCalledExactlyOnceWith(false);
     });
   });
+
+  function createCpuModel(overrides: Partial<ProviderList["cpuModels"][number]> = {}): ProviderList["cpuModels"][number] {
+    return { vendor: "AMD", model: "EPYC 7763", generation: "Milan", baseFrequencyMhz: null, isVirtual: false, threads: 128, nodeCount: 1, ...overrides };
+  }
 
   function createGpuModel(model: string, overrides: Partial<ProviderList["gpuModels"][number]> = {}): ProviderList["gpuModels"][number] {
     return { vendor: "nvidia", model, ram: "80Gi", interface: "SXM", ...overrides };
@@ -286,6 +352,7 @@ describe(ProviderSearchService.name, () => {
       leaseCount: 0,
       locationRegion: null,
       gpuModels: [],
+      cpuModels: [],
       stats: mock<ProviderList["stats"]>({ gpu: { ...gpu, total: gpu.available + gpu.pending + gpu.active } }),
       ...fields
     });

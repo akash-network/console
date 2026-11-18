@@ -256,6 +256,44 @@ describe("Providers", () => {
       expect(map(data.providers, "owner")).toEqual([europeH100.owner]);
     });
 
+    it("returns each provider's CPU models with the search results", async () => {
+      const xeon = await createProviderWithNodes([[{ vendor: "GenuineIntel", model: "Intel(R) Xeon(R) Gold 6248R CPU @ 3.00GHz", vcores: 96 }], []]);
+
+      const response = await app.request(`/v1/provider-search?addresses=${xeon.owner}`);
+
+      const { data } = (await response.json()) as ProviderSearchResponse;
+      expect(map(data.providers, "owner")).toEqual([xeon.owner]);
+      expect(data.providers[0].cpuProfile).toBe("mixed");
+      expect(data.providers[0].cpuUnreportedNodeCount).toBe(1);
+      expect(data.providers[0].cpuModels).toEqual([
+        { vendor: "Intel", model: "Xeon Gold 6248R", generation: "Cascade Lake", baseFrequencyMhz: 3000, isVirtual: false, threads: 96, nodeCount: 1 }
+      ]);
+    });
+
+    it("keeps the providers that run a CPU of the given vendor, model and generation, including the ones that also run others", async () => {
+      const [milan, genoa, xeon, mixed] = await Promise.all([
+        createProviderWithNodes([[{ vendor: "AuthenticAMD", model: "AMD EPYC 7763 64-Core Processor", vcores: 128 }]]),
+        createProviderWithNodes([[{ vendor: "AuthenticAMD", model: "AMD EPYC 9654 96-Core Processor", vcores: 192 }]]),
+        createProviderWithNodes([[{ vendor: "GenuineIntel", model: "Intel(R) Xeon(R) Gold 6248R CPU @ 3.00GHz", vcores: 96 }]]),
+        createProviderWithNodes([
+          [{ vendor: "AuthenticAMD", model: "AMD EPYC 7763 64-Core Processor", vcores: 128 }],
+          [{ vendor: "GenuineIntel", model: "Intel(R) Xeon(R) Gold 6248R CPU @ 3.00GHz", vcores: 96 }]
+        ])
+      ]);
+      const addresses = [milan, genoa, xeon, mixed].map(provider => provider.owner).join(",");
+
+      const ownersFor = async (filter: string) => {
+        const response = await app.request(`/v1/provider-search?addresses=${addresses}&${filter}`);
+        const { data } = (await response.json()) as ProviderSearchResponse;
+        return map(data.providers, "owner").sort();
+      };
+
+      expect(await ownersFor("cpuVendors=amd")).toEqual([milan.owner, genoa.owner, mixed.owner].sort());
+      expect(await ownersFor(`cpuModels=${encodeURIComponent("Xeon Gold 6248R")}`)).toEqual([xeon.owner, mixed.owner].sort());
+      expect(await ownersFor("cpuVendors=AMD&cpuGenerations=genoa")).toEqual([genoa.owner]);
+      expect(await ownersFor("cpuVendors=intel&cpuGenerations=milan")).toEqual([]);
+    });
+
     it("refuses more than 50 regions", async () => {
       const regions = Array.from({ length: 51 }, (_, index) => `region-${index}`).join(",");
 
@@ -307,6 +345,7 @@ describe("Providers", () => {
         locationRegion: "na-ca-central",
         uptime30d: 0.995,
         gpuModels: expect.arrayContaining(["h100", "a100"]),
+        cpus: [],
         stats: expect.objectContaining({ gpu: expect.objectContaining({ available: 4, active: 2, pending: 0 }) })
       });
       expect(location?.gpuModels).toHaveLength(2);
@@ -361,6 +400,35 @@ describe("Providers", () => {
       expect(data.hardwareCpuArch).toBeNull();
       expect(data.reportedCpuArchs).toEqual([]);
       expect(data.cpuArchAgreement).toBe("unknown");
+    });
+
+    it("lists each CPU model its nodes run and calls the provider mixed when there are several", async () => {
+      const provider = await createProviderWithNodes([
+        [{ vendor: "AuthenticAMD", model: "AMD EPYC 7763 64-Core Processor", vcores: 128 }],
+        [{ vendor: "AuthenticAMD", model: "AMD EPYC 7763 64-Core Processor", vcores: 128 }],
+        [{ vendor: "GenuineIntel", model: "Intel(R) Xeon(R) Gold 6248R CPU @ 3.00GHz", vcores: 96 }]
+      ]);
+
+      const response = await app.request(`/v1/providers/${provider.owner}`);
+
+      const data = (await response.json()) as ProviderResponse;
+      expect(response.status).toBe(200);
+      expect(data.cpuProfile).toBe("mixed");
+      expect(data.cpuModels).toEqual([
+        { vendor: "AMD", model: "EPYC 7763", generation: "Milan", baseFrequencyMhz: null, isVirtual: false, threads: 256, nodeCount: 2 },
+        { vendor: "Intel", model: "Xeon Gold 6248R", generation: "Cascade Lake", baseFrequencyMhz: 3000, isVirtual: false, threads: 96, nodeCount: 1 }
+      ]);
+    });
+
+    it("leaves the CPU profile unknown when the provider has no successful snapshot", async () => {
+      const provider = await createProvider();
+
+      const response = await app.request(`/v1/providers/${provider.owner}`);
+
+      const data = (await response.json()) as ProviderResponse;
+      expect(data.cpuProfile).toBe("unknown");
+      expect(data.cpuModels).toEqual([]);
+      expect(data.cpuUnreportedNodeCount).toBe(0);
     });
 
     it("lists the nvidia drivers enough independent workloads reported, most widely reported first, with the cuda version each supports", async () => {
@@ -542,6 +610,19 @@ describe("Providers", () => {
       });
     });
   });
+
+  async function createProviderWithNodes(nodes: { vendor: string; model: string; vcores: number }[][]) {
+    const provider = await createProvider();
+    const snapshot = await createProviderSnapshot({ owner: provider.owner, isOnline: true });
+    await provider.update({ lastSuccessfulSnapshotId: snapshot.id });
+
+    for (const cpus of nodes) {
+      const node = await createProviderSnapshotNode({ snapshotId: snapshot.id });
+      await Promise.all(cpus.map(cpu => createProviderSnapshotNodeCpu({ snapshotNodeId: node.id, ...cpu })));
+    }
+
+    return provider;
+  }
 
   async function createProviderInRegion(region: string, gpuModels: string[], overrides: Partial<CreationAttributes<Provider>> = {}) {
     const provider = await createProvider(overrides);

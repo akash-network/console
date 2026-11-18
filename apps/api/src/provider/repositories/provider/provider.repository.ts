@@ -4,6 +4,7 @@ import {
   ProviderAttributeSignature,
   ProviderSnapshot,
   ProviderSnapshotNode,
+  ProviderSnapshotNodeCPU,
   ProviderSnapshotNodeGPU
 } from "@akashnetwork/database/dbSchemas/akash";
 import { Op } from "sequelize";
@@ -97,7 +98,10 @@ export class ProviderRepository {
               model: ProviderSnapshotNode,
               attributes: ["id"],
               required: false,
-              include: [{ model: ProviderSnapshotNodeGPU, required: false }]
+              include: [
+                { model: ProviderSnapshotNodeGPU, required: false },
+                { model: ProviderSnapshotNodeCPU, required: false, separate: true, attributes: ["id", "snapshotNodeId", "vendor", "model", "vcores"] }
+              ]
             }
           ]
         }
