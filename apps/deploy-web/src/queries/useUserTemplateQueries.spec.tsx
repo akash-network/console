@@ -1,3 +1,4 @@
+import { ApiError } from "@akashnetwork/openapi-sdk";
 import { createProxy } from "@akashnetwork/react-query-proxy";
 import { QueryClient } from "@tanstack/react-query";
 import type { NextRouter } from "next/router";
@@ -6,6 +7,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { DEPENDENCIES } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { OrganizationProvider } from "@src/context/OrganizationProvider/OrganizationProvider";
+import { shouldReportError } from "@src/services/query-error-policy/query-error-policy";
 import { StaleOrganizationRecovery } from "@src/services/stale-organization-recovery/stale-organization-recovery";
 import { TabOrganization } from "@src/services/tab-organization/tab-organization";
 import type { OrganizationOutput } from "@src/types/organization";
@@ -18,6 +20,7 @@ import {
   useMyTemplates,
   useOrganizationTemplates,
   usePublishTemplateMutation,
+  useReportTemplateMutation,
   useTemplatePublishReadiness,
   useTemplateVersion,
   useTemplateVersions,
@@ -336,6 +339,56 @@ describe("useUserTemplateQueries", () => {
     });
   });
 
+  describe("template reads", () => {
+    it.each([
+      ["getUserTemplate", () => useMarketplaceTemplate("tpl-1")],
+      ["listUserTemplateVersions", () => useTemplateVersions("tpl-1", { enabled: true })],
+      ["getUserTemplateVersion", () => useTemplateVersion("tpl-1", 2)]
+    ] as const)("keeps a refused %s out of error reporting and reports a server fault", async (operationId, useRead) => {
+      const { result, queryClient } = setup({ useHook: useRead });
+
+      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+      const query = queryClient.getQueryCache().find({ queryKey: ["v1", operationId], exact: false });
+      expect(shouldReportError(new ApiError(410, { code: "template_removed" }, "410"), query?.meta)).toBe(false);
+      expect(shouldReportError(new ApiError(404, null, "404"), query?.meta)).toBe(false);
+      expect(shouldReportError(new ApiError(500, null, "500"), query?.meta)).toBe(true);
+    });
+  });
+
+  describe(useReportTemplateMutation.name, () => {
+    it("files the report with its reason and details", async () => {
+      const { result, createUserTemplateReport } = setup({ useHook: () => useReportTemplateMutation() });
+
+      await act(async () => {
+        await result.current.mutateAsync({ id: "tpl-1", data: { reason: "malware_or_miner", details: "Starts xmrig" } });
+      });
+
+      expect(createUserTemplateReport).toHaveBeenCalledWith({ id: "tpl-1", data: { reason: "malware_or_miner", details: "Starts xmrig" } });
+    });
+
+    it.each([
+      [409, "template_already_reported"],
+      [409, "template_not_reportable"],
+      [403, "template_report_own_organization"],
+      [410, "template_removed"],
+      [429, "template_rate_limited"],
+      [400, "validation_error"]
+    ])("keeps a %i %s out of error reporting", async (status, code) => {
+      const { result, queryClient, createUserTemplateReport } = setup({ useHook: () => useReportTemplateMutation() });
+      const refusal = new ApiError(status, { code, message: "Refused" }, String(status));
+      createUserTemplateReport.mockRejectedValue(refusal);
+
+      await act(async () => {
+        await expect(result.current.mutateAsync({ id: "tpl-1", data: { reason: "spam" } })).rejects.toBe(refusal);
+      });
+
+      const [mutation] = queryClient.getMutationCache().getAll();
+      expect(shouldReportError(refusal, mutation.meta)).toBe(false);
+      expect(shouldReportError(new ApiError(500, null, "500"), mutation.meta)).toBe(true);
+    });
+  });
+
   function setup<T>(input: { useHook: () => T; hasOrganizations?: boolean; listedTemplates?: (typeof LIST_ITEM)[][]; readinessError?: Error }) {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const getUserTemplate = vi.fn().mockResolvedValue({ data: TEMPLATE });
@@ -351,6 +404,7 @@ describe("useUserTemplateQueries", () => {
       ? vi.fn().mockRejectedValue(input.readinessError)
       : vi.fn().mockResolvedValue({ data: READINESS });
     const publishUserTemplate = vi.fn().mockResolvedValue({ data: TEMPLATE });
+    const createUserTemplateReport = vi.fn().mockResolvedValue({ data: { id: "report-1", reason: "spam", createdAt: "2026-11-19T10:00:00.000Z" } });
     const api = createProxy({
       v1: {
         getUserTemplate,
@@ -362,7 +416,8 @@ describe("useUserTemplateQueries", () => {
         updateUserTemplate,
         deleteUserTemplate,
         getUserTemplatePublishReadiness,
-        publishUserTemplate
+        publishUserTemplate,
+        createUserTemplateReport
       }
     }) as unknown as ApiService;
 
@@ -416,7 +471,8 @@ describe("useUserTemplateQueries", () => {
       updateUserTemplate,
       deleteUserTemplate,
       getUserTemplatePublishReadiness,
-      publishUserTemplate
+      publishUserTemplate,
+      createUserTemplateReport
     };
   }
 });

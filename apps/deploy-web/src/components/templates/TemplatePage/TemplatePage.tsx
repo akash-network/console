@@ -19,7 +19,7 @@ import {
 } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { formatDistanceToNowStrict } from "date-fns";
-import { ArrowRight, ChevronRight, RefreshCw, Share2, SlidersHorizontal, Star } from "lucide-react";
+import { ArrowRight, ChevronRight, Flag, RefreshCw, Share2, SlidersHorizontal, Star } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { NextSeo } from "next-seo";
@@ -29,8 +29,13 @@ import Layout from "@src/components/layout/Layout";
 import { NotFoundPage } from "@src/components/shared/NotFoundPage/NotFoundPage";
 import { DEPLOY_BADGE_SOURCE, isDeployBadgeArrival, TEMPLATE_ARRIVAL_SOURCE_PARAM } from "@src/components/templates/publishing/deployBadge";
 import { ShareTemplateDialog } from "@src/components/templates/publishing/ShareTemplateDialog/ShareTemplateDialog";
+import { readRemovedTemplate } from "@src/components/templates/removed/readRemovedTemplate";
+import { RemovedTemplateNotice } from "@src/components/templates/removed/RemovedTemplateNotice/RemovedTemplateNotice";
+import { canReportTemplate } from "@src/components/templates/reporting/reportEligibility";
+import { ReportTemplateDialog } from "@src/components/templates/reporting/ReportTemplateDialog/ReportTemplateDialog";
 import { TemplateIcon } from "@src/components/templates/TemplateIcon/TemplateIcon";
 import { TemplateVisibilityBadge } from "@src/components/templates/TemplateVisibilityBadge/TemplateVisibilityBadge";
+import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useAddFavoriteTemplate, useRemoveFavoriteTemplate } from "@src/queries/useTemplateQuery";
@@ -52,12 +57,15 @@ export const DEPENDENCIES = {
   TemplateVersionsTab,
   TemplateSettingsTab,
   ShareTemplateDialog,
+  ReportTemplateDialog,
+  RemovedTemplateNotice,
   useMarketplaceTemplate,
   useTemplateVersions,
   useTemplateVersion,
   useAddFavoriteTemplate,
   useRemoveFavoriteTemplate,
   useCustomUser,
+  useActiveOrganization,
   useSnackbar,
   useRouter
 };
@@ -89,12 +97,14 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
   const shownVersion = isCurrentShown ? currentVersion : otherVersionQuery.data;
   const router = d.useRouter();
   const { user } = d.useCustomUser();
+  const { organizations } = d.useActiveOrganization();
   const { enqueueSnackbar } = d.useSnackbar();
   const { mutateAsync: addFavorite } = d.useAddFavoriteTemplate(id);
   const { mutateAsync: removeFavorite } = d.useRemoveFavoriteTemplate(id);
   const [favoriteOverride, setFavoriteOverride] = useState<boolean>();
   const [isChangingFavorite, setIsChangingFavorite] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isReportOpen, setIsReportOpen] = useState(false);
   const { analyticsService } = useServices();
   const arrivalSource = router.query[TEMPLATE_ARRIVAL_SOURCE_PARAM];
   const hasRecordedArrival = useRef(false);
@@ -121,6 +131,16 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
 
   if (templateQuery.error instanceof ApiError && templateQuery.error.status === 404) return <d.NotFoundPage />;
 
+  const removedTemplate = readRemovedTemplate(templateQuery.error);
+  if (removedTemplate) {
+    return (
+      <d.Layout background="dots">
+        <d.NextSeo title="Template removed" noindex />
+        <d.RemovedTemplateNotice title={removedTemplate.title} isSignedIn={!!user} />
+      </d.Layout>
+    );
+  }
+
   if (!template) {
     return (
       <d.Layout background="dots" isLoading={templateQuery.isLoading}>
@@ -142,6 +162,11 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
   const activeTab = tabs.find(tab => tab === requestedTab) ?? "readme";
   const isFavorite = favoriteOverride ?? template.isFavorite;
   const usageParts = describeUsage(template.usage);
+  const canReport = canReportTemplate(template, { username: user?.username, organizations });
+
+  const signInToReport = () => {
+    router.push(UrlService.newLogin({ returnTo: UrlService.template(id) }));
+  };
 
   const changeTab = (tab: string) => {
     router.replace({ pathname: router.pathname, query: { ...router.query, tab } }, undefined, { shallow: true, scroll: false });
@@ -301,6 +326,15 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
             </TabsContent>
           )}
         </Tabs>
+
+        {canReport && (
+          <div className="mt-8 flex justify-end">
+            <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={() => (user ? setIsReportOpen(true) : signInToReport())}>
+              <Flag className="h-4 w-4" aria-hidden="true" />
+              Report this template
+            </Button>
+          </div>
+        )}
       </div>
 
       {isShareOpen && (
@@ -308,6 +342,15 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
           template={template}
           organization={template.publisher && { name: template.publisher.name, type: template.publisher.type }}
           onClose={() => setIsShareOpen(false)}
+        />
+      )}
+
+      {isReportOpen && (
+        <d.ReportTemplateDialog
+          template={template}
+          onClose={() => setIsReportOpen(false)}
+          onSignedOut={signInToReport}
+          onTemplateRemoved={() => void templateQuery.refetch()}
         />
       )}
     </d.Layout>
