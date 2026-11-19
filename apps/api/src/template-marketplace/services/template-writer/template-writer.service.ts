@@ -146,7 +146,7 @@ export class TemplateWriterService {
         userId,
         authorId,
         projectId,
-        copiedFromId: source?.id,
+        copiedFromId: input.copiedFromId,
         sdl: content.sdl,
         description: content.readme ?? "",
         ...legacyHardwareOf(hardware)

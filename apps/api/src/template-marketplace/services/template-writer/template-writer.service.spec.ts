@@ -33,6 +33,7 @@ import type { TemplateImageDigestJobService } from "@src/template-marketplace/se
 import type { TemplatePublisherNotifierService } from "@src/template-marketplace/services/template-publisher-notifier/template-publisher-notifier.service";
 import type { TemplateRateLimiterService } from "@src/template-marketplace/services/template-rate-limiter/template-rate-limiter.service";
 import { TemplateSdlValidatorService } from "@src/template-marketplace/services/template-sdl-validator/template-sdl-validator.service";
+import type { TemplateUsageService } from "@src/template-marketplace/services/template-usage/template-usage.service";
 import type { TemplateVersionHoldService } from "@src/template-marketplace/services/template-version-hold/template-version-hold.service";
 import { TemplateWriteAccessService } from "@src/template-marketplace/services/template-write-access/template-write-access.service";
 import type { UserOutput } from "@src/user/repositories";
@@ -178,6 +179,105 @@ describe(TemplateWriterService.name, () => {
       await expect(service.create({ title: "Copy", sdl: buildSdl(), askedValues: [], copiedFromId: faker.string.uuid() })).rejects.toMatchObject({
         status: 404
       });
+      expect(writableRepository.createTemplate).not.toHaveBeenCalled();
+    });
+
+    it("counts the copy as a fork of its source inside the transaction, once the limits are checked", async () => {
+      const source = createTemplateRow();
+      const { service, templateUsageService, marketplaceTemplateService, user, transactionSteps } = setup();
+      marketplaceTemplateService.findReadable.mockResolvedValue(source);
+      const activeOrganizationId = faker.string.uuid();
+      const { service: forkingService, templateUsageService: forkUsage, user: forker, transactionSteps: forkSteps } = setup({ activeOrganizationId });
+
+      await service.create({ title: "Own", sdl: buildSdl(), askedValues: [] });
+      await forkingService.create({ title: "Copy", sdl: buildSdl(), askedValues: [], copiedFromId: faker.string.uuid() });
+
+      expect(templateUsageService.recordFork).not.toHaveBeenCalled();
+      expect(transactionSteps).toEqual(["begin", "assertWithinLimits", "end"]);
+      expect(user.id).not.toBe(forker.id);
+      expect(forkUsage.recordFork).toHaveBeenCalledWith(expect.objectContaining({ id: expect.any(String) }), {
+        userId: forker.id,
+        organizationId: activeOrganizationId
+      });
+      expect(forkSteps).toEqual(["begin", "assertWithinLimits", "recordFork", "end"]);
+    });
+
+    it("copies what the source's readers deploy when the copy is sent without an SDL", async () => {
+      const currentVersionId = faker.string.uuid();
+      const source = createTemplateRow({ currentVersionId, sdl: "version: 'legacy'", description: "Legacy description" });
+      const askedValues = [textAskedValue("GREETING")];
+      const current = createVersion({ id: currentVersionId, sdl: buildSdl({ env: ["GREETING=hello"] }), readme: "# Source readme", askedValues });
+      const { service, writableRepository, templateVersionRepository, marketplaceTemplateService, templateUsageService } = setup({ template: source });
+      marketplaceTemplateService.findReadable.mockResolvedValue(source);
+      templateVersionRepository.findById.mockResolvedValue(current);
+
+      await service.create({ title: "Copy", copiedFromId: source.id });
+
+      expect(templateVersionRepository.findById).toHaveBeenCalledWith(currentVersionId);
+      expect(writableRepository.createTemplate).toHaveBeenCalledWith(
+        expect.objectContaining({ copiedFromId: source.id, sdl: current.sdl, description: "# Source readme" })
+      );
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(
+        expect.objectContaining({ sdl: current.sdl, readme: "# Source readme", askedValues, resources: expect.objectContaining({ cpu: 1 }) })
+      );
+      expect(templateUsageService.recordFork).toHaveBeenCalledWith(source, expect.anything());
+    });
+
+    it("copies the description a source shows in place of a readme its version does not have", async () => {
+      const currentVersionId = faker.string.uuid();
+      const source = createTemplateRow({ currentVersionId, description: "Shown as readme" });
+      const { service, templateVersionRepository, marketplaceTemplateService } = setup({ template: source });
+      marketplaceTemplateService.findReadable.mockResolvedValue(source);
+      templateVersionRepository.findById.mockResolvedValue(createVersion({ id: currentVersionId, readme: null }));
+
+      await service.create({ title: "Copy", copiedFromId: source.id });
+
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ readme: "Shown as readme" }));
+    });
+
+    it("copies the stored SDL of a source saved before versions, with no readme when it has no description", async () => {
+      const source = createTemplateRow({ currentVersionId: null, sdl: buildSdl({ count: 3 }), description: "" });
+      const { service, writableRepository, templateVersionRepository, marketplaceTemplateService } = setup({ template: source });
+      marketplaceTemplateService.findReadable.mockResolvedValue(source);
+
+      await service.create({ title: "Copy", copiedFromId: source.id });
+
+      expect(templateVersionRepository.findById).not.toHaveBeenCalled();
+      expect(writableRepository.createTemplate).toHaveBeenCalledWith(expect.objectContaining({ sdl: source.sdl, description: "" }));
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ sdl: source.sdl, readme: null, askedValues: [] }));
+    });
+
+    it("keeps the content a copy was sent with rather than the source's", async () => {
+      const source = createTemplateRow({ currentVersionId: faker.string.uuid() });
+      const { service, templateVersionRepository, marketplaceTemplateService } = setup({ template: source });
+      marketplaceTemplateService.findReadable.mockResolvedValue(source);
+      const sdl = buildSdl({ count: 5 });
+
+      await service.create({ title: "Copy", sdl, readme: "Edited", copiedFromId: source.id });
+
+      expect(templateVersionRepository.findById).not.toHaveBeenCalled();
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ sdl, readme: "Edited", askedValues: [] }));
+    });
+
+    it("refuses to copy a source whose content carries a secret's value, so none comes across", async () => {
+      const currentVersionId = faker.string.uuid();
+      const source = createTemplateRow({ currentVersionId });
+      const { service, writableRepository, templateVersionRepository, marketplaceTemplateService, templateUsageService } = setup({ template: source });
+      marketplaceTemplateService.findReadable.mockResolvedValue(source);
+      templateVersionRepository.findById.mockResolvedValue(
+        createVersion({ id: currentVersionId, sdl: buildSdl({ env: ["API_KEY=hunter2"] }), askedValues: [secretAskedValue("API_KEY")] })
+      );
+
+      await expect(service.create({ title: "Copy", copiedFromId: source.id })).rejects.toMatchObject({ status: 400, errorCode: "template_invalid" });
+      expect(writableRepository.createTemplate).not.toHaveBeenCalled();
+      expect(templateUsageService.recordFork).not.toHaveBeenCalled();
+    });
+
+    it("refuses a template sent with neither an SDL nor a source to copy", async () => {
+      const { service, writableRepository, marketplaceTemplateService } = setup();
+
+      await expect(service.create({ title: "Nothing" })).rejects.toMatchObject({ status: 400, message: "Send the SDL, or name the template to copy" });
+      expect(marketplaceTemplateService.findReadable).not.toHaveBeenCalled();
       expect(writableRepository.createTemplate).not.toHaveBeenCalled();
     });
 
@@ -1307,6 +1407,10 @@ describe(TemplateWriterService.name, () => {
     const templateVersionHoldService = mock<TemplateVersionHoldService>();
     templateVersionHoldService.findHoldReasons.mockResolvedValue(input.holdReasons ?? []);
     const templateImageDigestJobService = mock<TemplateImageDigestJobService>();
+    const templateUsageService = mock<TemplateUsageService>();
+    templateUsageService.recordFork.mockImplementation(async () => {
+      transactionSteps.push("recordFork");
+    });
     const service = new TemplateWriterService(
       repository,
       templateVersionRepository,
@@ -1320,6 +1424,7 @@ describe(TemplateWriterService.name, () => {
       templatePublisherNotifierService,
       templateVersionHoldService,
       templateImageDigestJobService,
+      templateUsageService,
       authService,
       txService,
       executionContextService
@@ -1340,6 +1445,7 @@ describe(TemplateWriterService.name, () => {
       templatePublisherNotifierService,
       templateVersionHoldService,
       templateImageDigestJobService,
+      templateUsageService,
       user,
       transactionSteps
     };
