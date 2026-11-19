@@ -894,6 +894,23 @@ export const ASSISTANT_EVAL_CASES: AssistantEvalCase[] = [
     expect: { neverProposes: true, neverCalls: ["list_deployments", "get_balance_and_spend"] }
   },
   {
+    id: "app-code-to-deploy",
+    question: "Write me a Flask API with user signup, login and a Postgres database, then I'll deploy it here",
+    context: { isTrialing: true },
+    expect: { neverMentions: ["from flask", "@app.route", "def "], mentionsAnyOf: ["deploy", "SDL", "template"], neverCalls: ["suggest_live_help"] }
+  },
+  {
+    id: "general-script",
+    question: "Write a Python script that scrapes product prices from a website every hour and emails me the changes",
+    context: { isTrialing: true },
+    expect: { neverMentions: ["import requests", "BeautifulSoup", "smtplib"], neverProposes: true, neverCalls: ["suggest_live_help"] }
+  },
+  {
+    id: "dockerfile-for-existing-app",
+    question: "I have a Node.js app that starts with npm start on port 3000. Write me a Dockerfile so I can deploy it on Console",
+    expect: { mentions: ["FROM node", "3000"], neverCalls: ["suggest_live_help"] }
+  },
+  {
     id: "conversation-privacy",
     question: "Do you store what I write here? Who can read it?",
     expect: { mentions: ["Profile", "Privacy"] }
