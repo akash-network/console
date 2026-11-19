@@ -2,11 +2,15 @@ import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultServiceWithPlacement, exampleImageServiceOverrides, vmServiceOverrides } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { withSecretsMarkedLike } from "@src/utils/sdl/sdlSecrets";
-import { applyPresetToProfile, DEFAULT_HARDWARE_PRESET } from "../ConfigurationPane/PresetsCard/hardwarePresets";
+import type { HardwarePreset } from "../ConfigurationPane/PresetsCard/hardwarePresets";
+import { applyPresetToProfile, DEFAULT_HARDWARE_PRESET, hardwarePresets } from "../ConfigurationPane/PresetsCard/hardwarePresets";
 import type { ImportedDeploymentState } from "../importDeploymentState/importDeploymentState";
 import { importDeploymentState, isKnownSdlParserError, NoVisibleServiceError, seedSelectedServiceId } from "../importDeploymentState/importDeploymentState";
 import type { PlacementRegionPicks } from "../useConfigureDraft/useConfigureDraft";
 import type { DeploymentIntent, GpuIntent } from "../useDeploymentFlow/deploymentIntent";
+
+/** The confirmation check deploys 4 CPU, 16Gi memory and 40Gi storage, so a linked gpu opens on a shape at least that large. */
+const LINKED_GPU_HARDWARE_PRESET = hardwarePresets.find(preset => preset.id === "medium") ?? DEFAULT_HARDWARE_PRESET;
 
 /** What a fresh deployment is seeded with when nothing was carried in. */
 export type DefaultSeed = Pick<DeploymentIntent, "vm" | "exampleImage" | "gpu">;
@@ -62,8 +66,14 @@ export function draftableSdlOf(sdl: string, services: ServiceType[]): string | u
 /** A fresh default deployment (or SSH-ready VM or example image deployment), optionally annotated with the error that made an import unusable. */
 function defaultInitialState({ vm: isVm, exampleImage, gpu }: DefaultSeed, importError?: string): InitialState {
   const values = isVm
-    ? { ...withDefaultPreset(defaultServiceWithPlacement(vmServiceOverrides())), hasSSHKey: true }
-    : withLinkedGpu(withDefaultPreset(defaultServiceWithPlacement(exampleImage ? exampleImageServiceOverrides() : undefined)), gpu);
+    ? { ...withPreset(defaultServiceWithPlacement(vmServiceOverrides()), DEFAULT_HARDWARE_PRESET), hasSSHKey: true }
+    : withLinkedGpu(
+        withPreset(
+          defaultServiceWithPlacement(exampleImage ? exampleImageServiceOverrides() : undefined),
+          gpu ? LINKED_GPU_HARDWARE_PRESET : DEFAULT_HARDWARE_PRESET
+        ),
+        gpu
+      );
   return { values, sdl: regenerateSdl(values, ""), selectedServiceId: seedSelectedServiceId(values), changes: [], importError };
 }
 
@@ -74,10 +84,10 @@ function withLinkedGpu(values: SdlBuilderFormValuesType, gpu: GpuIntent | undefi
   return { ...values, services: [{ ...service, profile: { ...service.profile, hasGpu: true, gpu: gpu.count, gpuModels } }, ...rest] };
 }
 
-/** Seeds the fresh deployment's service on the default (small) hardware preset so the screen opens deployable. */
-function withDefaultPreset(values: SdlBuilderFormValuesType): SdlBuilderFormValuesType {
+/** Seeds the fresh deployment's service on a hardware preset so the screen opens deployable. */
+function withPreset(values: SdlBuilderFormValuesType, preset: HardwarePreset): SdlBuilderFormValuesType {
   const [service, ...rest] = values.services;
-  return { ...values, services: [{ ...service, profile: applyPresetToProfile(service.profile, DEFAULT_HARDWARE_PRESET) }, ...rest] };
+  return { ...values, services: [{ ...service, profile: applyPresetToProfile(service.profile, preset) }, ...rest] };
 }
 
 /**
