@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, isNotNull, isNull, lt, lte, min, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
@@ -10,6 +10,15 @@ import { ExecutionContextService } from "@src/core/services/execution-context/ex
 type Table = ApiPgTables["GpuWaitlistEntries"];
 export type GpuWaitlistEntryInput = Partial<Table["$inferInsert"]>;
 export type GpuWaitlistEntryRow = Table["$inferSelect"];
+export type GpuWaitlistDemandRow = {
+  vendor: string;
+  model: string;
+  memory: string | null;
+  interface: string | null;
+  gpuCount: number;
+  waiting: number;
+  oldestJoinedAt: Date;
+};
 
 @singleton()
 export class GpuWaitlistEntryRepository extends OrgScopedRepository<Table, GpuWaitlistEntryInput, GpuWaitlistEntryRow> {
@@ -101,6 +110,25 @@ export class GpuWaitlistEntryRepository extends OrgScopedRepository<Table, GpuWa
       .where(unscoped.whereAccessibleBy(eq(this.table.status, "waiting")));
 
     return rows.map(row => row.poolKey);
+  }
+
+  async countWaitingBySetupAcrossOrganizations(): Promise<GpuWaitlistDemandRow[]> {
+    const rows = await this.cursor
+      .select({
+        vendor: this.table.vendor,
+        model: this.table.model,
+        memory: this.table.memory,
+        interface: this.table.interface,
+        gpuCount: this.table.gpuCount,
+        waiting: sql<number>`count(*)::int`,
+        oldestJoinedAt: min(this.table.joinedAt)
+      })
+      .from(this.table)
+      .where(eq(this.table.status, "waiting"))
+      .groupBy(this.table.vendor, this.table.model, this.table.memory, this.table.interface, this.table.gpuCount)
+      .orderBy(desc(sql`count(*)`), asc(this.table.model));
+
+    return rows.map(row => ({ ...row, oldestJoinedAt: row.oldestJoinedAt as Date }));
   }
 
   async findWaitingById(id: string): Promise<GpuWaitlistEntryRow | undefined> {

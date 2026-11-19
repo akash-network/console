@@ -5,6 +5,7 @@ import { leasesDurationInternalRouter } from "@src/dashboard";
 import { internalDeploymentNameRouter } from "@src/deployment/routes/deployment-name/internal-deployment-name.router";
 import { internalUnmetDemandRouter } from "@src/deployment/routes/unmet-demand/internal-unmet-demand.router";
 import { getGpuPricesInternalRouter, internalGpuMarketRouter, listGpuModelsInternalRouter, listGpusInternalRouter } from "@src/gpu";
+import { internalGpuWaitlistRouter } from "@src/gpu-waitlist";
 import { internalHardwareRequestRouter } from "@src/hardware-request/routes/internal-hardware-request.router";
 import emailDomainCheck from "./email-domain-check";
 import financial from "./financial";
@@ -15,6 +16,7 @@ export const internalOpenApiHonoHandlers: OpenApiHonoHandler[] = [
   internalDeploymentNameRouter,
   internalHardwareRequestRouter,
   internalGpuMarketRouter,
+  internalGpuWaitlistRouter,
   internalUnmetDemandRouter,
   approveAffiliateRouter,
   revokeAffiliateRouter,
