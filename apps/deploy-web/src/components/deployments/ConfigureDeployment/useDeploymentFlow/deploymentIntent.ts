@@ -54,7 +54,7 @@ interface ParseOptions {
   /** Without it the URL parses exactly as it did before the template marketplace: no template mode and no template version. */
   isTemplateModeEnabled: boolean;
   /** Without it the GPU params of a GPU alert link are ignored. */
-  isGpuAlertsEnabled?: boolean;
+  isGpuAlertsEnabled: boolean;
 }
 
 /**
@@ -70,7 +70,7 @@ interface ParseOptions {
  */
 export function parseDeploymentIntent(
   { dseqSegment, searchParams }: ParseInput,
-  { isTemplateModeEnabled, isGpuAlertsEnabled = false }: ParseOptions = { isTemplateModeEnabled: false }
+  { isTemplateModeEnabled, isGpuAlertsEnabled }: ParseOptions = { isTemplateModeEnabled: false, isGpuAlertsEnabled: false }
 ): DeploymentIntent {
   const templateMode = isTemplateModeEnabled ? toTemplateMode(searchParams.get("templateMode")) : undefined;
   if (templateMode) return parseTemplateIntent(templateMode, searchParams);

@@ -27,7 +27,7 @@ import { DeploymentFlowProvider } from "../DeploymentFlowProvider/DeploymentFlow
 import { ResumeDeploymentGuard } from "../ResumeDeploymentGuard/ResumeDeploymentGuard";
 import { ConfigureTemplateForm } from "../templateMode/ConfigureTemplateForm/ConfigureTemplateForm";
 import { useConfigureDraft } from "../useConfigureDraft/useConfigureDraft";
-import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
+import type { DeploymentIntent, GpuIntent } from "../useDeploymentFlow/deploymentIntent";
 import { parseDeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 import { buildConfigureUrl } from "../useDeploymentFlow/useDeploymentFlow";
@@ -288,9 +288,7 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({
   );
 };
 
-const trackedGpuLinks = new Set<string>();
-
-/** Only a link opened without a draft counts, and the organization switch remounts the screen, so each link is tracked once per page load. */
+/** Only a link opened without a draft counts, and the organization switch remounts the screen, so each link is tracked once per tab. */
 function useTrackLinkedGpuOpened(d: typeof DEPENDENCIES, intent: DeploymentIntent) {
   const { analyticsService } = d.useServices();
   const wasOpenedWithoutDraft = useRef(!intent.draftId).current;
@@ -299,13 +297,22 @@ function useTrackLinkedGpuOpened(d: typeof DEPENDENCIES, intent: DeploymentInten
   useEffect(
     function trackTheGpuAlertDeployOpened() {
       if (!gpu || !wasOpenedWithoutDraft) return;
-      const link = [gpu.model, gpu.count, gpu.memory, gpu.interface, intent.organizationId].join("|");
-      if (trackedGpuLinks.has(link)) return;
-      trackedGpuLinks.add(link);
+      if (!claimGpuLinkTracking(gpu)) return;
       analyticsService.track("gpu_alert_deploy_opened", { category: "deployments", model: gpu.model, gpuCount: gpu.count });
     },
-    [gpu, wasOpenedWithoutDraft, intent.organizationId, analyticsService]
+    [gpu, wasOpenedWithoutDraft, analyticsService]
   );
+}
+
+function claimGpuLinkTracking(gpu: GpuIntent): boolean {
+  const key = `gpuAlertDeployOpened:${[gpu.vendor, gpu.model, gpu.count, gpu.memory, gpu.interface].join("|")}`;
+  try {
+    if (sessionStorage.getItem(key)) return false;
+    sessionStorage.setItem(key, "1");
+  } catch {
+    return true;
+  }
+  return true;
 }
 
 type VersionedTemplate = {

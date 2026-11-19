@@ -229,6 +229,21 @@ describe(ConfigureDeployment.name, () => {
     expect(analyticsService.track).toHaveBeenCalledTimes(1);
   });
 
+  it("tracks once when the organization param is stripped from the url", () => {
+    const { analyticsService, currentUrl, router } = setup({
+      templateId: null,
+      gpuQuery: "gpuVendor=nvidia&gpuModel=h100&gpuCount=8&org=org-1",
+      routerWritesUrl: true
+    });
+
+    act(() => {
+      router.replace("/new-deployment/configure?gpuVendor=nvidia&gpuModel=h100&gpuCount=8");
+    });
+
+    expect(currentUrl()).not.toHaveProperty("org");
+    expect(analyticsService.track).toHaveBeenCalledTimes(1);
+  });
+
   it("does not track a link that is opened again with its draft id", () => {
     const { analyticsService } = setup({
       templateId: null,
@@ -1671,6 +1686,7 @@ describe(ConfigureDeployment.name, () => {
     urlTemplateVersion?: string;
     routerWritesUrl?: boolean;
   }) {
+    sessionStorage.clear();
     const store = createStore();
     store.set(sdlStore.deploySdl, input.deploySdl ?? null);
     const wrapper = ({ children }: PropsWithChildren) => <JotaiStoreProvider store={store}>{children}</JotaiStoreProvider>;

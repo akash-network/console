@@ -264,7 +264,10 @@ describe(parseDeploymentIntent.name, () => {
   describe("with template mode disabled", () => {
     it("parses a template mode URL exactly as before", () => {
       const query = "templateMode=new&templateId=abc&sdl-strategy=default&copyFromTemplateId=tpl-1&copyFromVersion=3&baseVersion=2&sourceDseq=12";
-      const intent = parseDeploymentIntent({ dseqSegment: "777", searchParams: new URLSearchParams(query) }, { isTemplateModeEnabled: false });
+      const intent = parseDeploymentIntent(
+        { dseqSegment: "777", searchParams: new URLSearchParams(query) },
+        { isTemplateModeEnabled: false, isGpuAlertsEnabled: false }
+      );
 
       expect(intent).toEqual({
         templateId: "abc",
@@ -361,6 +364,6 @@ describe(parseDeploymentIntent.name, () => {
   }
 
   function parseTemplateUrl(query: string, dseqSegment?: string) {
-    return parseDeploymentIntent({ dseqSegment, searchParams: new URLSearchParams(query) }, { isTemplateModeEnabled: true });
+    return parseDeploymentIntent({ dseqSegment, searchParams: new URLSearchParams(query) }, { isTemplateModeEnabled: true, isGpuAlertsEnabled: false });
   }
 });
