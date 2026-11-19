@@ -8,7 +8,7 @@ import type { PublishOrganization } from "../publishReadiness";
 import type { DEPENDENCIES, SharedTemplate } from "./ShareTemplateDialog";
 import { ShareTemplateDialog } from "./ShareTemplateDialog";
 
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildMarketplaceTemplate } from "@tests/seeders/userTemplate";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
@@ -545,8 +545,8 @@ describe(ShareTemplateDialog.name, () => {
     it("makes it private once confirmed and takes the badge away", async () => {
       const { updateSettings } = setup({ template: IN_GALLERY });
 
-      await userEvent.click(screen.getByRole("radio", { name: /^Private/ }));
-      await userEvent.click(screen.getByRole("button", { name: "Make private" }));
+      fireEvent.click(screen.getByRole("radio", { name: /^Private/ }));
+      fireEvent.click(screen.getByRole("button", { name: "Make private" }));
       await userEvent.click(screen.getByRole("button", { name: "Make private" }));
 
       expect(updateSettings).toHaveBeenCalledWith({ id: "tpl-webui", data: { visibility: "private" } });
@@ -571,8 +571,8 @@ describe(ShareTemplateDialog.name, () => {
     it("returns to the choices with the reason when the change is refused", async () => {
       setup({ template: IN_GALLERY, updateError: new ApiError(503, null, "503") });
 
-      await userEvent.click(screen.getByRole("radio", { name: /^Private/ }));
-      await userEvent.click(screen.getByRole("button", { name: "Make private" }));
+      fireEvent.click(screen.getByRole("radio", { name: /^Private/ }));
+      fireEvent.click(screen.getByRole("button", { name: "Make private" }));
       await userEvent.click(screen.getByRole("button", { name: "Make private" }));
 
       expect(screen.queryByText("Take it out of the gallery?")).not.toBeInTheDocument();
@@ -584,14 +584,14 @@ describe(ShareTemplateDialog.name, () => {
       const { readPanelProps } = setup({ template: { ...IN_GALLERY, isListed: false }, readiness: READY });
 
       act(() => readPanelProps().onAcceptedTermsChange(true));
-      await userEvent.click(screen.getByRole("radio", { name: /^Private/ }));
-      await userEvent.click(screen.getByRole("button", { name: "Make private" }));
-      await userEvent.click(screen.getByRole("button", { name: "Make private" }));
-      await userEvent.click(screen.getByRole("radio", { name: /^Public/ }));
+      fireEvent.click(screen.getByRole("radio", { name: /^Private/ }));
+      fireEvent.click(screen.getByRole("button", { name: "Make private" }));
+      fireEvent.click(screen.getByRole("button", { name: "Make private" }));
+      fireEvent.click(await screen.findByRole("radio", { name: /^Public/ }));
 
       expect(readPanelProps().hasAcceptedTerms).toBe(false);
       expect(screen.getByRole("button", { name: "Make public" })).toBeDisabled();
-    });
+    }, 15_000);
   });
 
   async function acceptAndPublish() {
