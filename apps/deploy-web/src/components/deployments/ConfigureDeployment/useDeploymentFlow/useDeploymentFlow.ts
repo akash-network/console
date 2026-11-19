@@ -1421,6 +1421,12 @@ export function buildConfigureUrl(intent: DeploymentIntent, dseq: string | undef
     bidStrategy,
     draftId: intent.draftId,
     vm: intent.vm,
-    exampleImage: intent.exampleImage
+    exampleImage: intent.exampleImage,
+    gpuVendor: intent.gpu?.vendor,
+    gpuModel: intent.gpu?.model,
+    gpuCount: intent.gpu?.count,
+    gpuMemory: intent.gpu?.memory,
+    gpuInterface: intent.gpu?.interface,
+    org: intent.organizationId
   });
 }
