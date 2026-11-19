@@ -159,11 +159,12 @@ function registryPathOf({ registry, repository }: ImageReference): string {
 function manifestUrlOf({ registry, tag = DEFAULT_TAG }: ImageReference, repositoryPath: string): URL {
   const host = registry === DOCKER_HUB_REGISTRY ? DOCKER_HUB_REGISTRY_HOST : registry;
 
-  if (!REGISTRY_HOST.test(host) || !repositoryPath.split("/").every(segment => REPOSITORY_SEGMENT.test(segment)) || !TAG.test(tag)) {
-    throw new UnresolvableImageError("invalid_reference");
-  }
+  const manifestUrl = `https://${host}/v2/${repositoryPath}/manifests/${tag}`;
+  const isWellFormed = REGISTRY_HOST.test(host) && repositoryPath.split("/").every(segment => REPOSITORY_SEGMENT.test(segment)) && TAG.test(tag);
 
-  return new URL(`https://${host}/v2/${repositoryPath}/manifests/${tag}`);
+  if (!isWellFormed || !URL.canParse(manifestUrl)) throw new UnresolvableImageError("invalid_reference");
+
+  return new URL(manifestUrl);
 }
 
 function parseEndpoint(url: string): URL {

@@ -801,6 +801,29 @@ describe(UserTemplatesService.name, () => {
       expect(templateVersionRepository.appendVersion).not.toHaveBeenCalled();
     });
 
+    it.each([
+      { name: "kept private", isPublic: undefined },
+      { name: "made private by the same save", isPublic: false }
+    ])("refuses a risky new version of a template that went through the gate and is $name", async ({ isPublic }) => {
+      const { service, userTemplateRepository, templateVersionRepository } = setup({ isMarketplaceOn: true, holdReasons: HOLD_REASONS });
+      const wasPublic = isPublic === false;
+      const stored = createVersionState({
+        visibility: wasPublic ? "public" : "private",
+        isPublic: wasPublic,
+        publishedAt: new Date("2026-10-01T00:00:00.000Z"),
+        currentVersionSdl: "version: '2.0'"
+      });
+      userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+      userTemplateRepository.findVersionState.mockResolvedValue(stored);
+
+      const error = await service
+        .saveTemplate("template-id", "user-id", { ...createTemplateInput(), sdl: VALID_SDL, isPublic })
+        .catch((rejection: unknown) => rejection);
+
+      expect(error).toMatchObject({ status: 409, errorCode: "template_version_review_required" });
+      expect(templateVersionRepository.appendVersion).not.toHaveBeenCalled();
+    });
+
     it("judges a public template that has no version yet against an empty SDL", async () => {
       const { service, userTemplateRepository, templateVersionHoldService } = setup({ isMarketplaceOn: true });
       const stored = createVersionState({ visibility: "public", isPublic: true, currentVersionId: null, currentVersionSdl: null });
@@ -828,6 +851,13 @@ describe(UserTemplatesService.name, () => {
         name: "the marketplace is off",
         isMarketplaceOn: false,
         stored: { visibility: "public" as const, isPublic: true },
+        isPublic: undefined,
+        keepsSdl: false
+      },
+      {
+        name: "the marketplace is off for a private template that went through the gate",
+        isMarketplaceOn: false,
+        stored: { visibility: "private" as const, isPublic: false, publishedAt: new Date("2026-10-01T00:00:00.000Z") },
         isPublic: undefined,
         keepsSdl: false
       },

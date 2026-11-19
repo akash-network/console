@@ -211,7 +211,7 @@ export class UserTemplatesService {
           })
         : undefined;
 
-      if (isNewVersion && this.#staysPublicWithMarketplaceOn(template, stored)) {
+      if (isNewVersion && this.#isJudgedForStaffReview(template, stored)) {
         await this.#assertNeedsNoStaffReview(id, template.sdl, stored);
       }
 
@@ -245,8 +245,11 @@ export class UserTemplatesService {
     await this.#templateRateLimiterService.assertWithinLimits(action, { userId: this.#authService.currentUser.id, organizationId });
   }
 
-  #staysPublicWithMarketplaceOn(template: TemplateInput, stored: TemplateVersionState): boolean {
-    return stored.visibility === "public" && template.isPublic !== false && this.#featureFlagsService.isEnabled(FeatureFlags.TEMPLATE_MARKETPLACE);
+  /** A template that went through the gate is judged while it is private too, or a risky version saved in private would go live unreviewed when it is published again. */
+  #isJudgedForStaffReview(template: TemplateInput, stored: TemplateVersionState): boolean {
+    const staysPublic = stored.visibility === "public" && template.isPublic !== false;
+
+    return this.#featureFlagsService.isEnabled(FeatureFlags.TEMPLATE_MARKETPLACE) && (staysPublic || !!stored.publishedAt);
   }
 
   /** This route makes every version it saves the current one, so a change that must wait for staff is refused here and saved from the editor instead. */
