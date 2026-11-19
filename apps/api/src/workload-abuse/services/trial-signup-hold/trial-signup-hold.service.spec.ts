@@ -90,17 +90,30 @@ describe(TrialSignupHoldService.name, () => {
   describe("generated email tag", () => {
     const taggedEmail = "veliarothmann5510+y177lq10ru@hotmail.com";
 
-    it("holds a trial whose email carries a generated tag and reports it once per window", async () => {
-      const { service, user, fingerprint, jobQueueService, logger } = setup({ tagMode: "enforce", email: taggedEmail });
+    it("holds a trial whose email carries a generated tag and reports it once per window when the device has linked accounts", async () => {
+      const { service, user, fingerprint, userRepository, jobQueueService, logger } = setup({
+        mode: "off",
+        linkedCount: 1,
+        tagMode: "enforce",
+        email: taggedEmail
+      });
 
       const held = await service.isHeld(user);
 
       expect(held).toBe(true);
       expect(logger.warn).toHaveBeenCalledWith({ event: "TRIAL_SIGNUP_HELD_FOR_GENERATED_EMAIL_TAG", userId: user.id });
+      expect(userRepository.findRecentlyActiveByFingerprint).toHaveBeenCalledWith(fingerprint, user.id, 45);
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(new ReviewTrialSignup({ userId: user.id, held: true }), {
         singletonKey: reviewHeldTrialSignupKeyFor(fingerprint),
         singletonSeconds: 45 * 60
       });
+    });
+
+    it("holds without reporting when the device has no linked accounts, so the report slot stays free", async () => {
+      const { service, user, jobQueueService } = setup({ tagMode: "enforce", email: taggedEmail });
+
+      expect(await service.isHeld(user)).toBe(true);
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
 
     it("holds a trial for a generated tag even when the linked accounts stay below the threshold", async () => {
@@ -142,11 +155,13 @@ describe(TrialSignupHoldService.name, () => {
     });
 
     it("holds without reporting when there is no fingerprint or review window to throttle the report on", async () => {
-      const noFingerprint = setup({ tagMode: "enforce", user: createUser({ email: taggedEmail, lastFingerprint: null }) });
-      const noWindow = setup({ tagMode: "enforce", email: taggedEmail, windowMinutes: undefined });
+      const noFingerprint = setup({ linkedCount: 1, tagMode: "enforce", user: createUser({ email: taggedEmail, lastFingerprint: null }) });
+      const noWindow = setup({ linkedCount: 1, tagMode: "enforce", email: taggedEmail, windowMinutes: undefined });
 
       expect(await noFingerprint.service.isHeld(noFingerprint.user)).toBe(true);
       expect(await noWindow.service.isHeld(noWindow.user)).toBe(true);
+      expect(noFingerprint.userRepository.findRecentlyActiveByFingerprint).not.toHaveBeenCalled();
+      expect(noWindow.userRepository.findRecentlyActiveByFingerprint).not.toHaveBeenCalled();
       expect(noFingerprint.jobQueueService.enqueue).not.toHaveBeenCalled();
       expect(noWindow.jobQueueService.enqueue).not.toHaveBeenCalled();
     });

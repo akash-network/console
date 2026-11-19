@@ -159,6 +159,7 @@ export const envSchema = z.object({
   /** `report` grants the trial and only logs the hold it would have placed; the hold needs the review window above to be set. */
   WORKLOAD_ABUSE_SIGNUP_HOLD_MODE: z.preprocess(blankToUndefined, z.enum(["off", "report", "enforce"]).default("report")),
   WORKLOAD_ABUSE_SIGNUP_HOLD_MIN_LINKED_ACCOUNTS: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().default(2)),
+  /** `report` grants the trial and only logs; unlike the device hold, `enforce` holds without a review window or fingerprint. */
   WORKLOAD_ABUSE_GENERATED_EMAIL_TAG_HOLD_MODE: z.preprocess(blankToUndefined, z.enum(["off", "report", "enforce"]).default("report"))
 });
 

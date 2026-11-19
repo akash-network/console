@@ -7,7 +7,8 @@ describe(hasGeneratedPlusTag.name, () => {
     "veliarothmann5510+y177lq10ru@hotmail.com",
     "driscolllipkind691+38h98gp62s@outlook.com",
     "user+ab12cd34@example.com",
-    "USER+AB12CD34@EXAMPLE.COM"
+    "USER+AB12CD34@EXAMPLE.COM",
+    "user+newsletter2026@example.com"
   ])("flags %s", email => {
     expect(hasGeneratedPlusTag(email)).toBe(true);
   });

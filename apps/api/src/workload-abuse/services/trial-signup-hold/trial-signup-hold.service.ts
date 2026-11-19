@@ -46,7 +46,7 @@ export class TrialSignupHoldService {
     }
 
     this.logger.warn({ event: "TRIAL_SIGNUP_HELD", ...context });
-    await this.#reportHeld(user);
+    await this.#reportHeld(user.id, user.lastFingerprint, windowMinutes);
 
     return true;
   }
@@ -61,28 +61,32 @@ export class TrialSignupHoldService {
     }
 
     this.logger.warn({ event: "TRIAL_SIGNUP_HELD_FOR_GENERATED_EMAIL_TAG", userId: user.id });
-    await this.#reportHeld(user);
+    await this.#reportHeldIfLinked(user);
 
     return true;
   }
 
-  /** Enqueued outside any surrounding transaction because the hold refuses by throwing; pg-boss throttles on fixed slots counted from the epoch, so attempts on either side of a slot boundary each report. */
-  async #reportHeld(user: HeldUser): Promise<void> {
+  /** The review post lists linked accounts, so an unlinked hold stays unreported and leaves the device's report slot to a later hold. */
+  async #reportHeldIfLinked(user: HeldUser): Promise<void> {
     const windowMinutes = this.config.get("WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES");
     if (!windowMinutes || !user.lastFingerprint) return;
 
-    const fingerprint = user.lastFingerprint;
+    const linkedAccounts = await this.userRepository.findRecentlyActiveByFingerprint(user.lastFingerprint, user.id, windowMinutes);
+    if (linkedAccounts.length) await this.#reportHeld(user.id, user.lastFingerprint, windowMinutes);
+  }
 
+  /** Enqueued outside any surrounding transaction because the hold refuses by throwing; pg-boss throttles on fixed slots counted from the epoch, so attempts on either side of a slot boundary each report. */
+  async #reportHeld(userId: UserOutput["id"], fingerprint: string, windowMinutes: number): Promise<void> {
     try {
       await this.txService.outsideTransaction(
         async () =>
-          await this.jobQueueService.enqueue(new ReviewTrialSignup({ userId: user.id, held: true }), {
+          await this.jobQueueService.enqueue(new ReviewTrialSignup({ userId, held: true }), {
             singletonKey: reviewHeldTrialSignupKeyFor(fingerprint),
             singletonSeconds: windowMinutes * 60
           })
       );
     } catch (error) {
-      this.logger.error({ event: "TRIAL_SIGNUP_HOLD_REPORT_FAILED", userId: user.id, error });
+      this.logger.error({ event: "TRIAL_SIGNUP_HOLD_REPORT_FAILED", userId, error });
     }
   }
 }
