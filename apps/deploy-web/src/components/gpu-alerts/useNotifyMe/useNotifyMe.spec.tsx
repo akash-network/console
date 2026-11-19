@@ -7,7 +7,7 @@ import { mock } from "vitest-mock-extended";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import { DEPENDENCIES, useNotifyMe } from "./useNotifyMe";
 
-import { act, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { type RenderAppHookOptions, setupQuery } from "@tests/unit/query-client";
 
 type ApiService = ReturnType<NonNullable<NonNullable<RenderAppHookOptions["services"]>["api"]>>;
@@ -16,7 +16,7 @@ const WAITING_ENTRY = { id: "entry-1", vendor: "nvidia", model: "h100", memory: 
 
 describe(useNotifyMe.name, () => {
   it("joins the waitlist and confirms the place in line", async () => {
-    const { result, joinGpuWaitlist, enqueueSnackbar, analyticsService } = setup({
+    const { result, joinGpuWaitlist, enqueueSnackbar } = setup({
       joinOutcome: Promise.resolve({ data: { ...WAITING_ENTRY, placeInLine: 7 } })
     });
 
@@ -26,8 +26,24 @@ describe(useNotifyMe.name, () => {
     expect(joinGpuWaitlist).toHaveBeenCalledWith({
       data: { vendor: "nvidia", model: "h100", memory: undefined, interface: undefined, gpuCount: 2, source: "gpu_menu" }
     });
-    expect(JSON.stringify(enqueueSnackbar.mock.calls[0][0])).toContain("You're #7 in line for NVIDIA H100");
-    expect(analyticsService.track).toHaveBeenCalledWith("gpu_alert_joined", expect.objectContaining({ source: "gpu_menu" }));
+    render(enqueueSnackbar.mock.calls[0][0]);
+    expect(screen.getByText("You're #7 in line for NVIDIA H100")).toBeInTheDocument();
+  });
+
+  it("tracks gpu_alert_joined with the source", async () => {
+    const { result, analyticsService } = setup({});
+
+    await act(async () => result.current.notify({ vendor: "nvidia", model: "h100", gpuCount: 2 }, "no_bids"));
+
+    await waitFor(() => expect(analyticsService.track).toHaveBeenCalledWith("gpu_alert_joined", expect.objectContaining({ source: "no_bids" })));
+  });
+
+  it("sends the setup's vendor", async () => {
+    const { result, joinGpuWaitlist } = setup({});
+
+    await act(async () => result.current.notify({ vendor: "amd", model: "mi300", gpuCount: 1 }, "gpu_menu"));
+
+    await waitFor(() => expect(joinGpuWaitlist).toHaveBeenCalledWith({ data: expect.objectContaining({ vendor: "amd", model: "mi300" }) }));
   });
 
   it("shows the API message when joining is refused", async () => {
@@ -37,7 +53,8 @@ describe(useNotifyMe.name, () => {
     await act(async () => result.current.notify({ vendor: "nvidia", model: "h100", gpuCount: 1 }, "no_fit"));
 
     await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalled());
-    expect(JSON.stringify(enqueueSnackbar.mock.calls[0][0])).toContain("You can only wait on 10 pools at once");
+    render(enqueueSnackbar.mock.calls[0][0]);
+    expect(screen.getByText("You can only wait on 10 pools at once")).toBeInTheDocument();
     expect(analyticsService.track).not.toHaveBeenCalled();
   });
 
@@ -49,15 +66,25 @@ describe(useNotifyMe.name, () => {
     expect(result.current.isWaiting({ vendor: "nvidia", model: "a100" })).toBe(false);
   });
 
-  it("does not query the waitlist while the flag is off", () => {
+  it("queries the waitlist while the flag is on and a user is signed in", async () => {
+    const { listGpuWaitlist } = setup({ entries: [WAITING_ENTRY] });
+
+    await waitFor(() => expect(listGpuWaitlist).toHaveBeenCalledOnce());
+  });
+
+  it("does not query the waitlist while the flag is off", async () => {
     const { listGpuWaitlist, result } = setup({ entries: [WAITING_ENTRY], isFlagOn: false });
+
+    await act(() => new Promise(resolve => setTimeout(resolve, 20)));
 
     expect(listGpuWaitlist).not.toHaveBeenCalled();
     expect(result.current.isEnabled).toBe(false);
   });
 
-  it("does not query the waitlist while signed out", () => {
+  it("does not query the waitlist while signed out", async () => {
     const { listGpuWaitlist, result } = setup({ entries: [WAITING_ENTRY], isSignedIn: false });
+
+    await act(() => new Promise(resolve => setTimeout(resolve, 20)));
 
     expect(listGpuWaitlist).not.toHaveBeenCalled();
     expect(result.current.isEnabled).toBe(false);

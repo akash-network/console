@@ -11,43 +11,31 @@ type ApiService = ReturnType<NonNullable<NonNullable<RenderAppHookOptions["servi
 
 const WAITLIST_KEY = ["v1", "listGpuWaitlist"];
 
-describe(useGpuWaitlistQuery.name, () => {
+describe("gpu waitlist queries", () => {
   it("unwraps the waiting entries from the response envelope", async () => {
     const entries = [{ id: "entry-1" }];
-    const { result, listGpuWaitlist } = setup({ listGpuWaitlist: vi.fn().mockResolvedValue({ data: entries }) });
+    const { result, listGpuWaitlist } = setup({ useHookUnderTest: () => useGpuWaitlistQuery(), listGpuWaitlist: vi.fn().mockResolvedValue({ data: entries }) });
 
     await waitFor(() => expect(result.current.data).toEqual(entries));
     expect(listGpuWaitlist).toHaveBeenCalledOnce();
-
-    function setup(operations: { listGpuWaitlist: ReturnType<typeof vi.fn> }) {
-      const api = createProxy({ v1: operations }) as unknown as ApiService;
-      const { result } = setupQuery(() => useGpuWaitlistQuery(), { services: { api: () => api, queryClient: () => new QueryClient() } });
-      return { result, ...operations };
-    }
   });
 
-  it("does not query while disabled", () => {
-    const listGpuWaitlist = vi.fn();
-    const api = createProxy({ v1: { listGpuWaitlist } }) as unknown as ApiService;
+  it("does not query while disabled", async () => {
+    const { listGpuWaitlist } = setup({ useHookUnderTest: () => useGpuWaitlistQuery({ enabled: false }) });
 
-    setupQuery(() => useGpuWaitlistQuery({ enabled: false }), { services: { api: () => api, queryClient: () => new QueryClient() } });
+    await act(() => new Promise(resolve => setTimeout(resolve, 20)));
 
     expect(listGpuWaitlist).not.toHaveBeenCalled();
   });
-});
 
-describe("waitlist mutations", () => {
   it.each([
     ["join", useJoinGpuWaitlistMutation, "joinGpuWaitlist", { data: { vendor: "nvidia", model: "h100", gpuCount: 2, source: "gpu_menu" } }],
     ["leave", useLeaveGpuWaitlistMutation, "leaveGpuWaitlist", { id: "entry-1" }],
     ["keep", useKeepGpuWaitlistEntryMutation, "keepGpuWaitlistEntry", { id: "entry-1" }]
   ] as const)("refreshes the waitlist after a %s", async (_, useMutationHook, operation, input) => {
-    const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
-    queryClient.setQueryData(WAITLIST_KEY, { data: [] });
     const run = vi.fn().mockResolvedValue({ data: {} });
-    const api = createProxy({ v1: { [operation]: run, listGpuWaitlist: vi.fn() } }) as unknown as ApiService;
+    const { result, queryClient } = setup({ useHookUnderTest: () => useMutationHook(), operations: { [operation]: run } });
 
-    const { result } = setupQuery(() => useMutationHook(), { services: { api: () => api, queryClient: () => queryClient } });
     await act(async () => {
       await result.current.mutateAsync(input as never);
     });
@@ -57,13 +45,23 @@ describe("waitlist mutations", () => {
   });
 
   it("refreshes the waitlist when leaving is refused", async () => {
-    const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
-    queryClient.setQueryData(WAITLIST_KEY, { data: [] });
-    const api = createProxy({ v1: { leaveGpuWaitlist: vi.fn().mockRejectedValue(new Error("gone")), listGpuWaitlist: vi.fn() } }) as unknown as ApiService;
+    const { result, queryClient } = setup({
+      useHookUnderTest: () => useLeaveGpuWaitlistMutation(),
+      operations: { leaveGpuWaitlist: vi.fn().mockRejectedValue(new Error("gone")) }
+    });
 
-    const { result } = setupQuery(() => useLeaveGpuWaitlistMutation(), { services: { api: () => api, queryClient: () => queryClient } });
     await act(() => result.current.mutateAsync({ id: "entry-1" }).catch(() => undefined));
 
     expect(queryClient.getQueryState(WAITLIST_KEY)?.isInvalidated).toBe(true);
   });
+
+  function setup<T>(input: { useHookUnderTest: () => T; listGpuWaitlist?: ReturnType<typeof vi.fn>; operations?: Record<string, ReturnType<typeof vi.fn>> }) {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    queryClient.setQueryData(WAITLIST_KEY, { data: [] });
+    const listGpuWaitlist = input.listGpuWaitlist ?? vi.fn();
+    const api = createProxy({ v1: { listGpuWaitlist, ...input.operations } }) as unknown as ApiService;
+    const { result } = setupQuery(input.useHookUnderTest, { services: { api: () => api, queryClient: () => queryClient } });
+
+    return { result, listGpuWaitlist, queryClient };
+  }
 });

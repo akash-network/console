@@ -746,6 +746,15 @@ describe(GpuCard.name, () => {
         expect(screen.getByRole("option", { name: "NVIDIA a100" })).toHaveAttribute("aria-disabled", "true");
       });
 
+      it("joins with one gpu while the gpu is off", async () => {
+        const { user, notify } = setup({ hasGpu: false, gpu: 0, availableGpus: ONLY_T4_AVAILABLE, isAlertsEnabled: true });
+
+        await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+        await user.click(await screen.findByRole("button", { name: "Notify me about NVIDIA a100" }));
+
+        expect(notify).toHaveBeenCalledWith(expect.objectContaining({ model: "a100", gpuCount: 1 }), "gpu_menu");
+      });
+
       it("shows the place in line when already waiting", async () => {
         const { user } = setup({ hasGpu: true, availableGpus: ONLY_T4_AVAILABLE, isAlertsEnabled: true, waitingPlaces: { a100: 5 } });
 

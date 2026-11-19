@@ -30,7 +30,16 @@ export function useNotifyMe(d = DEPENDENCIES) {
   function notify(setup: NotifyMeSetup, source: GpuWaitlistSource) {
     const { label, ...gpu } = setup;
     join.mutate(
-      { data: { vendor: "nvidia", model: gpu.model, memory: gpu.memory ?? undefined, interface: gpu.interface ?? undefined, gpuCount: gpu.gpuCount, source } },
+      {
+        data: {
+          vendor: gpu.vendor as "nvidia",
+          model: gpu.model,
+          memory: gpu.memory ?? undefined,
+          interface: gpu.interface ?? undefined,
+          gpuCount: gpu.gpuCount,
+          source
+        }
+      },
       {
         onSuccess: function confirmPlaceInLine({ data: entry }) {
           analyticsService.track("gpu_alert_joined", { category: "deployments", source, model: entry.model, gpuCount: entry.gpuCount });
