@@ -21,8 +21,8 @@ const QUOTED_SECRET_KEY_WITH_UNQUOTED_VALUE = new RegExp(String.raw`\b(${SECRET_
 
 const PRIVATE_KEY_BLOCK = /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g;
 
-/** Starts only where a run of token characters starts, since a start at every hyphen of a long run without dots backtracks quadratically. */
-const JSON_WEB_TOKEN = /(?<![\w-])eyJ[\w-]+\.eyJ[\w-]+\.[\w-]+/g;
+/** The header stops before a hyphen that opens another `eyJ`, or every such hyphen of a long run without dots would rescan the rest of the run. */
+const JSON_WEB_TOKEN = /\beyJ(?:\w|-(?!eyJ))+\.eyJ[\w-]+\.[\w-]+/g;
 
 /** Tokens whose shape alone says a provider issued them, whatever names or carries them. */
 const ISSUED_TOKEN_FORMATS = [

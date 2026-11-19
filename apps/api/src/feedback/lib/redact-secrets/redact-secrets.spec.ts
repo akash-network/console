@@ -37,20 +37,24 @@ describe(redactSecrets.name, () => {
     expect(redactSecrets(`token ${jwt} expired`)).toBe(`token ${REDACTED} expired`);
   });
 
-  it("replaces a JWT whose header repeats its own first letters after a hyphen", () => {
-    const jwt = `eyJ-eyJ${alphanumeric(12)}.eyJ${alphanumeric(20)}.${alphanumeric(16)}`;
+  it.each(["session-", "--jwt=", "path/", "a.b.", "eyJ-", "-"])("replaces a JWT that follows %s and keeps what is before it", prefix => {
+    const jwt = `eyJ${alphanumeric(12)}.eyJ${alphanumeric(20)}.${alphanumeric(16)}`;
+
+    expect(redactSecrets(`it sent ${prefix}${jwt} twice`)).toBe(`it sent ${prefix}${REDACTED} twice`);
+  });
+
+  it("replaces a JWT whose header and payload hold hyphens", () => {
+    const jwt = `eyJ${alphanumeric(6)}-${alphanumeric(6)}-e.eyJ${alphanumeric(10)}-eyJ${alphanumeric(10)}.${alphanumeric(8)}-${alphanumeric(8)}`;
 
     expect(redactSecrets(`it sent ${jwt} twice`)).toBe(`it sent ${REDACTED} twice`);
   });
 
-  it("replaces a JWT that follows a separator", () => {
-    const jwt = `eyJ${alphanumeric(12)}.eyJ${alphanumeric(20)}.${alphanumeric(16)}`;
-
-    expect(redactSecrets(`--jwt=${jwt} and path/${jwt}`)).toBe(`--jwt=${REDACTED} and path/${REDACTED}`);
-  });
-
-  it("stays fast on a long run of JWT starts without a dot", () => {
-    const text = "eyJ-".repeat(32_000);
+  it.each([
+    { shape: "JWT starts without a dot", text: "eyJ-".repeat(32_000) },
+    { shape: "JWT headers without a dot", text: "eyJa-".repeat(26_000) },
+    { shape: "JWT starts after a header and a dot", text: `eyJa.${"eyJ-".repeat(32_000)}` },
+    { shape: "headers that each reach a payload without a signature", text: "eyJa.eyJb ".repeat(13_000) }
+  ])("stays fast on a long run of $shape", ({ text }) => {
     const startedAt = performance.now();
 
     expect(redactSecrets(text)).toBe(text);
