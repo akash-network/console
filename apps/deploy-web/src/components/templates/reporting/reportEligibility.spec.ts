@@ -5,6 +5,8 @@ import { canReportTemplate } from "./reportEligibility";
 
 import { buildMarketplaceTemplate } from "@tests/seeders/userTemplate";
 
+const NEW_PUBLISHER_STANDING = { verified: false, memberSince: null, counts: { templates: 0, deploys: 0 } };
+
 const VISITOR: ReportViewer = { username: "casey", organizations: [{ type: "personal", slug: "casey" }] };
 
 describe(canReportTemplate.name, () => {
@@ -49,20 +51,26 @@ describe(canReportTemplate.name, () => {
   });
 
   it("offers no report to the owner of the personal account that published it", () => {
-    const template = buildTemplate({ publisher: { name: "casey", slug: null, type: "personal", handle: "casey" }, author: { username: "casey" } });
+    const template = buildTemplate({
+      publisher: { name: "casey", slug: null, type: "personal", handle: "casey", ...NEW_PUBLISHER_STANDING },
+      author: { username: "casey" }
+    });
 
     expect(canReportTemplate(template, VISITOR)).toBe(false);
   });
 
   it("lets someone else report a template published from a personal account", () => {
-    const template = buildTemplate({ publisher: { name: "sam", slug: null, type: "personal", handle: "sam" }, author: { username: "sam" } });
+    const template = buildTemplate({
+      publisher: { name: "sam", slug: null, type: "personal", handle: "sam", ...NEW_PUBLISHER_STANDING },
+      author: { username: "sam" }
+    });
 
     expect(canReportTemplate(template, VISITOR)).toBe(true);
     expect(canReportTemplate(template, { username: undefined, organizations: [] })).toBe(true);
   });
 
   it("lets a viewer without a username report a template whose author is gone", () => {
-    const template = buildTemplate({ publisher: { name: "sam", slug: null, type: "personal", handle: "sam" }, author: null });
+    const template = buildTemplate({ publisher: { name: "sam", slug: null, type: "personal", handle: "sam", ...NEW_PUBLISHER_STANDING }, author: null });
 
     expect(canReportTemplate(template, { username: undefined, organizations: [] })).toBe(true);
   });
@@ -72,7 +80,7 @@ describe(canReportTemplate.name, () => {
       visibility: "public",
       isListed: true,
       canEdit: false,
-      publisher: { name: "Northwind Labs", slug: "northwind-labs", type: "team", handle: "northwind-labs" },
+      publisher: { name: "Northwind Labs", slug: "northwind-labs", type: "team", handle: "northwind-labs", ...NEW_PUBLISHER_STANDING },
       author: { username: "sam" },
       ...overrides
     });

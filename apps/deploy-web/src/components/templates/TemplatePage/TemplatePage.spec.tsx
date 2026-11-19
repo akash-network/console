@@ -446,7 +446,15 @@ describe(TemplatePage.name, () => {
       setup({
         template: {
           ...PUBLIC_TEMPLATE,
-          publisher: { name: "sam.rivera", slug: null, type: "personal", handle: "sam-rivera" },
+          publisher: {
+            name: "sam.rivera",
+            slug: null,
+            type: "personal",
+            handle: "sam-rivera",
+            verified: false,
+            memberSince: null,
+            counts: { templates: 0, deploys: 0 }
+          },
           author: { username: "sam.rivera" }
         }
       });
