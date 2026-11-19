@@ -100,6 +100,7 @@ export const ROUTES_REQUIRING_INTERNAL_TOKEN = [
   "GET /internal/deployment-names/:owner/:dseq",
   "GET /internal/gpu-market-prices",
   "GET /internal/gpu-supply",
+  "GET /internal/v1/gpu-waitlist/demand",
   "GET /internal/hardware-requests",
   "GET /internal/hardware-requests/:id",
   "GET /internal/unmet-demand",
@@ -131,4 +132,10 @@ export const ROUTES_CHECKING_SIGN_IN_IN_HANDLER = [
   "POST /v1/alerts"
 ];
 
-export const MIDDLEWARE_ONLY_REGISTRATIONS = ["ALL /*", "ALL /dashboard/*", "ALL /internal/financial", "ALL /v1/gpu-waitlist/*"];
+export const MIDDLEWARE_ONLY_REGISTRATIONS = [
+  "ALL /*",
+  "ALL /dashboard/*",
+  "ALL /internal/financial",
+  "ALL /internal/v1/gpu-waitlist/*",
+  "ALL /v1/gpu-waitlist/*"
+];
