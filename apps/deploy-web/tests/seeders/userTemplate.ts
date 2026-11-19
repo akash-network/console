@@ -16,8 +16,10 @@ export const buildUserTemplateListItem = (overrides: Partial<UserTemplateListIte
     moderationStatus: "active",
     projectId: null,
     copiedFromId: null,
+    publishedAt: null,
     updatedAt,
     currentVersion: { version: 1, status: "live", createdAt: updatedAt },
+    latestVersion: null,
     lastEditedBy: { username: faker.internet.username() },
     canEdit: true,
     usage: { deploys: 0, lastDeployedAt: null },
@@ -32,6 +34,9 @@ export const buildTemplateVersionSummary = (overrides: Partial<TemplateVersionSu
   resources: null,
   status: "live",
   checkResults: null,
+  holdReasons: null,
+  reviewedAt: null,
+  reviewNote: null,
   changes: ["first_version"],
   createdBy: { username: faker.internet.username() },
   createdAt: faker.date.past().toISOString(),
@@ -47,6 +52,7 @@ export const buildTemplateVersion = (overrides: Partial<TemplateVersionDetail> =
     sdl: 'version: "2.0"\nservices:\n  web:\n    image: nginx:1.27\n',
     readme: null,
     askedValues: [],
+    imageDigests: {},
     ...overrides
   };
 };

@@ -9453,6 +9453,10 @@ export interface components {
       sdl: string;
       readme: string | null;
       askedValues: components["schemas"]["TemplateAskedValue"][];
+      /** @description The digest each image resolved to after the version was saved, by image as the SDL writes it; an image is missing until it resolves or when its registry does not answer anonymously */
+      imageDigests: {
+        [key: string]: string;
+      };
     };
     MarketplaceTemplate: {
       /** Format: uuid */
@@ -9521,7 +9525,7 @@ export interface components {
           };
         } | null;
         /**
-         * @description A `failed_checks` version failed the publish checks of a public template, never became the current version and is shown to editors only
+         * @description A `failed_checks` version failed the publish checks of a public template, a `held` one waits for staff review and a `rejected` one was turned down; none of them became the current version and they are shown to editors only
          * @enum {string}
          */
         status: "live" | "held" | "failed_checks" | "rejected";
@@ -9548,6 +9552,15 @@ export interface components {
               | "readme_changed"
             )[]
           | null;
+        /** @description Why the version was held for staff review, for callers who may change the template; null for everyone else and for a version that never waited */
+        holdReasons: components["schemas"]["TemplateVersionHoldReason"][] | null;
+        /**
+         * Format: date-time
+         * @description When staff approved or rejected the version, for callers who may change the template; null for everyone else
+         */
+        reviewedAt: string | null;
+        /** @description What staff wrote when they reviewed the version, for callers who may change the template; null for everyone else */
+        reviewNote: string | null;
         /** @description Null when the creator deleted their account or has no username */
         createdBy: {
           username: string;
@@ -9557,6 +9570,10 @@ export interface components {
         sdl: string;
         readme: string | null;
         askedValues: components["schemas"]["TemplateAskedValue"][];
+        /** @description The digest each image resolved to after the version was saved, by image as the SDL writes it; an image is missing until it resolves or when its registry does not answer anonymously */
+        imageDigests: {
+          [key: string]: string;
+        };
       } | null;
       /** @description Whether the caller may change the template */
       canEdit: boolean;
@@ -9693,6 +9710,11 @@ export interface components {
       projectId: string | null;
       /** Format: uuid */
       copiedFromId: string | null;
+      /**
+       * Format: date-time
+       * @description When the template first went public through the publish checks, kept after it is made private again; null before
+       */
+      publishedAt: string | null;
       /** Format: date-time */
       updatedAt: string;
       /** @description Null on a template an older API pod saved without a version */
@@ -9702,6 +9724,12 @@ export interface components {
         status: "live" | "held" | "failed_checks" | "rejected";
         /** Format: date-time */
         createdAt: string;
+      } | null;
+      /** @description The newest version saved, whatever its status; null for callers who may not change the template */
+      latestVersion: {
+        version: number;
+        /** @enum {string} */
+        status: "live" | "held" | "failed_checks" | "rejected";
       } | null;
       /** @description Who saved the current version, null when unknown or gone */
       lastEditedBy: {
@@ -9847,6 +9875,21 @@ export interface components {
     CreateUserTemplateVersionResponse: {
       data: components["schemas"]["TemplateVersion"];
     };
+    TemplateVersionHoldReason: {
+      /** @enum {string} */
+      kind: "official_template" | "image_repository_changed" | "global_port_added";
+      /** @description Why the version waits for review, as plain text */
+      message: string;
+      /** @description The SDL service the reason is about */
+      service?: string;
+      /** @description The image the version runs from a repository the current version does not */
+      image?: string;
+      /** @description The image the same service runs in the current version */
+      previousImage?: string;
+      /** @description The container port the version newly opens to the internet */
+      port?: number;
+      protocol?: string;
+    };
     TemplateVersionFields: {
       /** Format: uuid */
       id: string;
@@ -9867,7 +9910,7 @@ export interface components {
         };
       } | null;
       /**
-       * @description A `failed_checks` version failed the publish checks of a public template, never became the current version and is shown to editors only
+       * @description A `failed_checks` version failed the publish checks of a public template, a `held` one waits for staff review and a `rejected` one was turned down; none of them became the current version and they are shown to editors only
        * @enum {string}
        */
       status: "live" | "held" | "failed_checks" | "rejected";
@@ -9894,6 +9937,15 @@ export interface components {
             | "readme_changed"
           )[]
         | null;
+      /** @description Why the version was held for staff review, for callers who may change the template; null for everyone else and for a version that never waited */
+      holdReasons: components["schemas"]["TemplateVersionHoldReason"][] | null;
+      /**
+       * Format: date-time
+       * @description When staff approved or rejected the version, for callers who may change the template; null for everyone else
+       */
+      reviewedAt: string | null;
+      /** @description What staff wrote when they reviewed the version, for callers who may change the template; null for everyone else */
+      reviewNote: string | null;
       /** @description Null when the creator deleted their account or has no username */
       createdBy: {
         username: string;
