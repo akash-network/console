@@ -104,6 +104,17 @@ describe(TemplatePublisherService.name, () => {
       expect((await service.getCurrent()).canEdit).toBe(false);
     });
 
+    it("lets a member who may change this organization alone change its profile", async () => {
+      const profile = createProfile();
+      const { service } = setup({
+        profile,
+        rules: [{ action: "update", subject: "Organization", conditions: { id: profile.organizationId } }],
+        activeOrganizationId: profile.organizationId
+      });
+
+      expect((await service.getCurrent()).canEdit).toBe(true);
+    });
+
     it("answers 404 for an organization that has not published yet", async () => {
       const { service } = setup({ profile: undefined });
 

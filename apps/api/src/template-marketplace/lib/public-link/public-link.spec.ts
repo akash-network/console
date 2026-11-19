@@ -33,6 +33,7 @@ describe(parsePublicLink.name, () => {
     ["https://[2606:4700:4700::1111]/", "The link must name a website, not an address"],
     ["https://localhost/", "The link must name a public website"],
     ["https://intranet/", "The link must name a public website"],
+    ["https://dev/", "The link must name a public website"],
     ["https://lambdagarage.dev./", "The link must name a public website"],
     ["https://printer.local/", "The link must name a public website"],
     ["https://db.internal/", "The link must name a public website"],
