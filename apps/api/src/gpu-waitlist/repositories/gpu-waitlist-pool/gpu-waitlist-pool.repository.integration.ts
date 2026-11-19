@@ -38,6 +38,52 @@ describe(GpuWaitlistPoolRepository.name, () => {
     });
   });
 
+  describe("claimForCheck", () => {
+    it("claims only the pools not checked since the cooldown and marks them checked", async () => {
+      const { repository, poolKey } = setup();
+      const [neverChecked, cooledDown, recentlyChecked] = [`${poolKey}-never`, `${poolKey}-cooled`, `${poolKey}-recent`];
+      const checkedAt = new Date("2026-11-18T12:00:00Z");
+      const cooledDownBefore = new Date("2026-11-18T11:45:00Z");
+      await repository.upsert({ poolKey: neverChecked, lastFreeUnits: 1, lastMaxNodeFreeUnits: 1 });
+      await repository.upsert({ poolKey: cooledDown, lastFreeUnits: 1, lastMaxNodeFreeUnits: 1, lastCheckAt: cooledDownBefore });
+      await repository.upsert({ poolKey: recentlyChecked, lastFreeUnits: 1, lastMaxNodeFreeUnits: 1, lastCheckAt: new Date("2026-11-18T11:45:01Z") });
+
+      const claimed = await repository.claimForCheck({
+        poolKeys: [neverChecked, cooledDown, recentlyChecked, `${poolKey}-unknown`],
+        checkedAt,
+        cooledDownBefore
+      });
+
+      expect(claimed.sort()).toEqual([cooledDown, neverChecked].sort());
+      expect(await repository.findByPoolKeys([neverChecked, cooledDown, recentlyChecked])).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ poolKey: neverChecked, lastCheckAt: checkedAt }),
+          expect.objectContaining({ poolKey: cooledDown, lastCheckAt: checkedAt }),
+          expect.objectContaining({ poolKey: recentlyChecked, lastCheckAt: new Date("2026-11-18T11:45:01Z") })
+        ])
+      );
+    });
+
+    it("claims a pool once when two confirmations race for it", async () => {
+      const { repository, poolKey } = setup();
+      const checkedAt = new Date("2026-11-18T12:00:00Z");
+      await repository.upsert({ poolKey, lastFreeUnits: 1, lastMaxNodeFreeUnits: 1 });
+
+      const claims = await Promise.all([
+        repository.claimForCheck({ poolKeys: [poolKey], checkedAt, cooledDownBefore: new Date("2026-11-18T11:45:00Z") }),
+        repository.claimForCheck({ poolKeys: [poolKey], checkedAt, cooledDownBefore: new Date("2026-11-18T11:45:00Z") })
+      ]);
+
+      expect(claims.flat()).toEqual([poolKey]);
+    });
+
+    it("claims nothing for no key", async () => {
+      const { repository } = setup();
+
+      expect(await repository.claimForCheck({ poolKeys: [], checkedAt: new Date(), cooledDownBefore: new Date() })).toEqual([]);
+    });
+  });
+
   describe("findByPoolKeyAndLock", () => {
     it("returns undefined for an unknown pool", async () => {
       const { repository, poolKey } = setup();

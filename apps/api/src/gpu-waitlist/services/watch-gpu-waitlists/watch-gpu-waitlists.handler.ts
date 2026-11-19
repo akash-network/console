@@ -25,7 +25,7 @@ export const WATCH_GPU_WAITLISTS_KEY = "watchGpuWaitlists";
 /** Pool rows store supply in int4 columns, and a node reporting unlimited capacity counts as Number.MAX_SAFE_INTEGER. */
 const MAX_STORED_UNITS = 2147483647;
 
-type WatchedPool = { poolKey: string; supply: PoolSupply; isDue: boolean; closesWave: boolean; previous?: GpuWaitlistPoolRow };
+type WatchedPool = { poolKey: string; supply: PoolSupply; isDue: boolean; isRiseHeldByCooldown: boolean; closesWave: boolean; previous?: GpuWaitlistPoolRow };
 
 @singleton()
 export class WatchGpuWaitlistsHandler implements JobHandler<WatchGpuWaitlists> {
@@ -106,12 +106,15 @@ export class WatchGpuWaitlistsHandler implements JobHandler<WatchGpuWaitlists> {
     ]);
     const supply = summarizePoolSupply(rows, new Set(bidders), { memory, interface: gpuInterface });
     const fitsSomeone = Math.max(0, ...supply.nodeFreeUnits) >= Math.min(...entries.map(entry => entry.gpuCount));
+    const isCooledDown = this.#isCooledDown(previous, now);
+    const hasRisen = this.#hasRisen(supply, previous);
 
     return {
       poolKey,
       supply,
       previous,
-      isDue: fitsSomeone && this.#isCooledDown(previous, now) && (this.#hasRisen(supply, previous) || this.#isRoundDue(previous, now)),
+      isDue: fitsSomeone && isCooledDown && (hasRisen || this.#isRoundDue(previous, now)),
+      isRiseHeldByCooldown: fitsSomeone && hasRisen && !isCooledDown,
       closesWave: !fitsSomeone && !!previous?.waveStartedAt
     };
   }
@@ -142,13 +145,13 @@ export class WatchGpuWaitlistsHandler implements JobHandler<WatchGpuWaitlists> {
     return new Set(jobId ? poolKeys : []);
   }
 
-  /** A due pool no confirmation took keeps its previous free count, so it is still due on the next watch. */
-  #toPoolRow({ poolKey, supply, isDue, closesWave, previous }: WatchedPool, handedOver: Set<string>): GpuWaitlistPoolInput {
-    const isLeftDue = isDue && !handedOver.has(poolKey);
+  /** A rise no confirmation took, whether the cooldown held it back or no confirmation was queued, keeps the previous free count so it is still a rise on the next watch. */
+  #toPoolRow({ poolKey, supply, isDue, isRiseHeldByCooldown, closesWave, previous }: WatchedPool, handedOver: Set<string>): GpuWaitlistPoolInput {
+    const keepsBaseline = isRiseHeldByCooldown || (isDue && !handedOver.has(poolKey));
 
     return {
       poolKey,
-      lastFreeUnits: isLeftDue ? previous?.lastFreeUnits ?? 0 : toStoredUnits(supply.freeUnits),
+      lastFreeUnits: keepsBaseline ? previous?.lastFreeUnits ?? 0 : toStoredUnits(supply.freeUnits),
       lastMaxNodeFreeUnits: toStoredUnits(Math.max(0, ...supply.nodeFreeUnits)),
       ...(closesWave && { waveStartedAt: null })
     };

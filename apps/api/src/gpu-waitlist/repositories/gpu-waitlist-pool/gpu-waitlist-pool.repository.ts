@@ -1,4 +1,4 @@
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -24,6 +24,18 @@ export class GpuWaitlistPoolRepository {
     if (!poolKeys.length) return [];
 
     return await this.#cursor.select().from(this.table).where(inArray(this.table.poolKey, poolKeys));
+  }
+
+  async claimForCheck({ poolKeys, checkedAt, cooledDownBefore }: { poolKeys: string[]; checkedAt: Date; cooledDownBefore: Date }): Promise<string[]> {
+    if (!poolKeys.length) return [];
+
+    const claimed = await this.#cursor
+      .update(this.table)
+      .set({ lastCheckAt: checkedAt, updatedAt: sql`now()` })
+      .where(and(inArray(this.table.poolKey, poolKeys), or(isNull(this.table.lastCheckAt), lte(this.table.lastCheckAt, cooledDownBefore))))
+      .returning({ poolKey: this.table.poolKey });
+
+    return claimed.map(pool => pool.poolKey);
   }
 
   async findByPoolKeyAndLock(poolKey: string): Promise<GpuWaitlistPoolRow | undefined> {

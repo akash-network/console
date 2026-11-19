@@ -111,7 +111,7 @@ describe(WatchGpuWaitlistsHandler.name, () => {
     });
 
     it("waits for the cooldown between checks", async () => {
-      const { handler, confirmedPoolKeys } = setup({
+      const { handler, confirmedPoolKeys, upserts } = setup({
         pools: {
           h100: { gpuCounts: [1], supply: [{ units: 8 }], pool: { lastFreeUnits: 0, lastCheckAt: minutesAgo(14) } },
           a100: { gpuCounts: [1], supply: [{ units: 8 }], pool: { lastFreeUnits: 0, lastCheckAt: minutesAgo(15) } }
@@ -121,6 +121,25 @@ describe(WatchGpuWaitlistsHandler.name, () => {
       await handler.handle();
 
       expect(confirmedPoolKeys()).toEqual(["nvidia/a100/*/*"]);
+      expect(upserts).toEqual([
+        { poolKey: "nvidia/h100/*/*", lastFreeUnits: 0, lastMaxNodeFreeUnits: 8 },
+        { poolKey: "nvidia/a100/*/*", lastFreeUnits: 8, lastMaxNodeFreeUnits: 8 }
+      ]);
+    });
+
+    it("confirms a rise held back by the cooldown once the cooldown ends", async () => {
+      const { handler, jobQueueService, confirmedPoolKeys } = setup({
+        pools: { h100: { gpuCounts: [1], supply: [{ units: 8 }], pool: { lastFreeUnits: 0, lastCheckAt: minutesAgo(14) } } }
+      });
+
+      await handler.handle();
+      const confirmedDuringCooldown = confirmedPoolKeys();
+      jobQueueService.enqueue.mockClear();
+      vi.setSystemTime(new Date(NOW.getTime() + MINUTE_MS));
+      await handler.handle();
+
+      expect(confirmedDuringCooldown).toBeUndefined();
+      expect(confirmedPoolKeys()).toEqual(["nvidia/h100/*/*"]);
     });
 
     it("confirms another round of an open wave once its window has passed and supply still fits", async () => {
@@ -149,9 +168,15 @@ describe(WatchGpuWaitlistsHandler.name, () => {
       expect(confirmedPoolKeys()).toEqual(["nvidia/h100/*/*"]);
     });
 
-    it("does not start another round from the round time of a closed wave", async () => {
+    it("does not check a wave closed for lack of a live bid again until supply rises", async () => {
       const { handler, confirmedPoolKeys } = setup({
-        pools: { h100: { gpuCounts: [8], supply: [{ units: 8 }], pool: { lastFreeUnits: 8, waveStartedAt: null, lastRoundAt: minutesAgo(60) } } }
+        pools: {
+          h100: {
+            gpuCounts: [8],
+            supply: [{ units: 8 }],
+            pool: { lastFreeUnits: 8, waveStartedAt: null, lastRoundAt: minutesAgo(60), lastCheckAt: minutesAgo(16) }
+          }
+        }
       });
 
       await handler.handle();
@@ -328,11 +353,13 @@ describe(WatchGpuWaitlistsHandler.name, () => {
         );
       })
     });
+    const storedPools = new Map(pools.flatMap(({ poolKey, pool }) => (pool ? [[poolKey, aPoolRow({ poolKey, ...pool })] as const] : [])));
     const gpuWaitlistPoolRepository = mock<GpuWaitlistPoolRepository>({
-      findByPoolKeys: vi.fn(async () => pools.filter(({ pool }) => pool).map(({ poolKey, pool }) => aPoolRow({ poolKey, ...pool }))),
+      findByPoolKeys: vi.fn(async () => [...storedPools.values()]),
       upsert: vi.fn(async values => {
         writesInsideTransaction.push(`upsert:${insideTransaction}`);
         upserts.push(values);
+        storedPools.set(values.poolKey, { ...(storedPools.get(values.poolKey) ?? aPoolRow({ poolKey: values.poolKey })), ...values });
       })
     });
     const gpuSupplyHttpService = mock<GpuSupplyHttpService>({
@@ -395,45 +422,45 @@ describe(WatchGpuWaitlistsHandler.name, () => {
       confirmedPoolKeys
     };
   }
-
-  function anEntry(input: { poolKey: string; model: string; memory?: string; interface?: string; gpuCount: number; index: number }): GpuWaitlistEntryRow {
-    return {
-      id: `${input.poolKey}-${input.index}`,
-      userId: `user-${input.index}`,
-      organizationId: null,
-      vendor: "nvidia",
-      model: input.model,
-      memory: input.memory ?? null,
-      interface: input.interface ?? null,
-      poolKey: input.poolKey,
-      gpuCount: input.gpuCount,
-      source: "gpu_menu",
-      status: "waiting",
-      joinedAt: NOW,
-      lastNotifiedAt: null,
-      notifiedCount: 0,
-      stillWantedAskedAt: null,
-      endedAt: null,
-      createdAt: NOW,
-      updatedAt: NOW
-    };
-  }
-
-  function aPoolRow(overrides: Partial<GpuWaitlistPoolRow> & { poolKey: string }): GpuWaitlistPoolRow {
-    return {
-      lastFreeUnits: 0,
-      lastMaxNodeFreeUnits: 0,
-      lastCheckAt: null,
-      lastCheckPriceUsdPerHour: null,
-      waveStartedAt: null,
-      lastRoundAt: null,
-      waveNumber: 0,
-      updatedAt: NOW,
-      ...overrides
-    };
-  }
-
-  function aSupplyRow(overrides: Partial<GpuSupplyRow>): GpuSupplyRow {
-    return { owner: "bidder", node: 1, vendor: "nvidia", model: "h100", memory: "80Gi", interface: "sxm5", units: 8, nodeFreeUnits: null, ...overrides };
-  }
 });
+
+function anEntry(input: { poolKey: string; model: string; memory?: string; interface?: string; gpuCount: number; index: number }): GpuWaitlistEntryRow {
+  return {
+    id: `${input.poolKey}-${input.index}`,
+    userId: `user-${input.index}`,
+    organizationId: null,
+    vendor: "nvidia",
+    model: input.model,
+    memory: input.memory ?? null,
+    interface: input.interface ?? null,
+    poolKey: input.poolKey,
+    gpuCount: input.gpuCount,
+    source: "gpu_menu",
+    status: "waiting",
+    joinedAt: NOW,
+    lastNotifiedAt: null,
+    notifiedCount: 0,
+    stillWantedAskedAt: null,
+    endedAt: null,
+    createdAt: NOW,
+    updatedAt: NOW
+  };
+}
+
+function aPoolRow(overrides: Partial<GpuWaitlistPoolRow> & { poolKey: string }): GpuWaitlistPoolRow {
+  return {
+    lastFreeUnits: 0,
+    lastMaxNodeFreeUnits: 0,
+    lastCheckAt: null,
+    lastCheckPriceUsdPerHour: null,
+    waveStartedAt: null,
+    lastRoundAt: null,
+    waveNumber: 0,
+    updatedAt: NOW,
+    ...overrides
+  };
+}
+
+function aSupplyRow(overrides: Partial<GpuSupplyRow>): GpuSupplyRow {
+  return { owner: "bidder", node: 1, vendor: "nvidia", model: "h100", memory: "80Gi", interface: "sxm5", units: 8, nodeFreeUnits: null, ...overrides };
+}

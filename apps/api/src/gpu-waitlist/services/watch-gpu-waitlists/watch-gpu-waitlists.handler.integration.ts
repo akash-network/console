@@ -16,7 +16,7 @@ import { WatchGpuWaitlists } from "./watch-gpu-waitlists.job";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedGpuWaitlistEntry } from "@test/seeders/db/gpu-waitlist-entry.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
-import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
+import { deleteQueuedJobs, expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 
 const jobWorkers = useJobWorkers(() => [container.resolve(WatchGpuWaitlistsHandler), container.resolve(ConfirmGpuPoolsHandler)]);
 
@@ -35,6 +35,18 @@ describe(WatchGpuWaitlistsHandler.name, () => {
     expect(pool).toEqual(expect.objectContaining({ lastFreeUnits: 8, lastMaxNodeFreeUnits: 8, lastCheckAt: expect.any(Date) }));
     expect(check).toHaveBeenCalledWith([{ vendor: "nvidia", model: "h100", memory: "80Gi", interface: "sxm", count: 2 }]);
     expect(await findJobRows(WatchGpuWaitlists[JOB_NAME], { singletonKey: WATCH_GPU_WAITLISTS_KEY, state: "created" })).toHaveLength(1);
+  });
+
+  it("keeps a single queued watch when a replica seeds while the next run is scheduled", async () => {
+    const { enqueue } = await jobWorkers();
+    await deleteQueuedJobs(WatchGpuWaitlists[JOB_NAME]);
+    const scheduledAt = new Date(Date.now() + 5 * 60 * 1000);
+    await enqueue(new WatchGpuWaitlists(), { singletonKey: WATCH_GPU_WAITLISTS_KEY, startAfter: scheduledAt.toISOString() });
+
+    await container.resolve(WatchGpuWaitlistsHandler).seedNextRun();
+
+    const queued = await findJobRows(WatchGpuWaitlists[JOB_NAME], { singletonKey: WATCH_GPU_WAITLISTS_KEY, state: "created" });
+    expect(queued).toHaveLength(1);
   });
 
   async function setup() {

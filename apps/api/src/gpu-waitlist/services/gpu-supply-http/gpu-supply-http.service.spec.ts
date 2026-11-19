@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { GpuSupplyHttpService } from "./gpu-supply-http.service";
@@ -8,12 +8,27 @@ import { mockConfigService } from "@test/mocks/config-service.mock";
 const INVENTORY_URL = "http://provider-inventory:3092";
 
 describe(GpuSupplyHttpService.name, () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("asks the inventory for the free gpus of one model", async () => {
     const { service, fetchMock } = setup({ body: { data: [] } });
 
     await service.findSupply({ vendor: "nvidia", model: "h100" });
 
-    expect(fetchMock).toHaveBeenCalledWith(new URL(`${INVENTORY_URL}/v1/gpu-supply?vendor=nvidia&model=h100`));
+    expect(fetchMock).toHaveBeenCalledWith(new URL(`${INVENTORY_URL}/v1/gpu-supply?vendor=nvidia&model=h100`), { signal: expect.any(AbortSignal) });
+  });
+
+  it("gives up on the inventory after 10 seconds", async () => {
+    const { service, fetchMock } = setup({ body: { data: [] } });
+    const timeoutSignal = AbortSignal.abort();
+    const timeout = vi.spyOn(AbortSignal, "timeout").mockReturnValue(timeoutSignal);
+
+    await service.findSupply({ vendor: "nvidia", model: "h100" });
+
+    expect(timeout).toHaveBeenCalledWith(10_000);
+    expect(fetchMock).toHaveBeenCalledWith(expect.any(URL), { signal: timeoutSignal });
   });
 
   it("returns every provider node the inventory lists", async () => {
