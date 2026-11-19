@@ -733,6 +733,66 @@ describe(GpuCard.name, () => {
       expect(screen.getByText("Hardware request dialog")).toBeInTheDocument();
     });
 
+    describe("when gpu availability alerts are on", () => {
+      const ONLY_T4_AVAILABLE: AvailableGpuVendor[] = [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"])] }];
+
+      it("joins the waitlist with the service's gpu count from an unavailable model", async () => {
+        const { user, notify } = setup({ hasGpu: true, gpu: 3, availableGpus: ONLY_T4_AVAILABLE, isAlertsEnabled: true });
+
+        await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+        await user.click(await screen.findByRole("button", { name: "Notify me about NVIDIA a100" }));
+
+        expect(notify).toHaveBeenCalledWith({ vendor: "nvidia", model: "a100", gpuCount: 3, label: "NVIDIA a100" }, "gpu_menu");
+        expect(screen.getByRole("option", { name: "NVIDIA a100" })).toHaveAttribute("aria-disabled", "true");
+      });
+
+      it("shows the place in line when already waiting", async () => {
+        const { user } = setup({ hasGpu: true, availableGpus: ONLY_T4_AVAILABLE, isAlertsEnabled: true, waitingPlaces: { a100: 5 } });
+
+        await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+
+        expect(await screen.findByText("Waiting · #5")).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Notify me about NVIDIA a100" })).not.toBeInTheDocument();
+      });
+
+      it("hides notify me for non-nvidia models", async () => {
+        const { user } = setup({
+          hasGpu: true,
+          gpuModels: [{ vendor: "amd", name: "", memory: "", interface: "" }],
+          availableGpus: [{ vendor: "amd", models: [] }, ...ONLY_T4_AVAILABLE],
+          isAlertsEnabled: true
+        });
+
+        await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+        await screen.findByRole("group", { name: "Others" });
+
+        expect(screen.queryByRole("button", { name: /Notify me/ })).not.toBeInTheDocument();
+      });
+
+      it("offers to reserve dedicated capacity from the footer, still opening the quote flow", async () => {
+        const { user, GpuQuoteRequestFlow } = setup({ hasGpu: true, availableGpus: ONLY_T4_AVAILABLE, isAlertsEnabled: true, isQuoteFlowEnabled: true });
+
+        await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+        await user.click(await screen.findByRole("button", { name: "Need dedicated capacity? Reserve it" }));
+
+        expect(GpuQuoteRequestFlow).toHaveBeenCalled();
+      });
+    });
+
+    it("keeps today's picker when the flag is off", async () => {
+      const { user } = setup({
+        hasGpu: true,
+        availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"])] }],
+        isQuoteFlowEnabled: true
+      });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+      await screen.findByRole("group", { name: "Others" });
+
+      expect(screen.queryByRole("button", { name: /Notify me/ })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Looking for a GPU that isn't listed? Request it" })).toBeInTheDocument();
+    });
+
     describe("when gpu quote requests are on", () => {
       it("requests the searched gpu with this service's configuration instead of the old dialog", async () => {
         const { user, GpuQuoteRequestFlow, HardwareRequestDialog } = setup({ hasGpu: true, isQuoteFlowEnabled: true });
@@ -1233,6 +1293,8 @@ describe(GpuCard.name, () => {
     locked?: boolean;
     screened?: Record<string, Partial<ScreenedProviderCount>>;
     isQuoteFlowEnabled?: boolean;
+    isAlertsEnabled?: boolean;
+    waitingPlaces?: Record<string, number>;
     onUnlock?: () => void;
     onUnlockInterconnect?: () => void;
     dependencies?: Partial<typeof DEPENDENCIES>;
@@ -1264,7 +1326,18 @@ describe(GpuCard.name, () => {
     const useServices: typeof DEPENDENCIES.useServices = () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService });
     const HardwareRequestDialog = vi.fn<typeof DEPENDENCIES.HardwareRequestDialog>(() => <div>Hardware request dialog</div>);
     const GpuQuoteRequestFlow = vi.fn<typeof DEPENDENCIES.GpuQuoteRequestFlow>(() => <div>GPU quote request</div>);
-    const useFlag: typeof DEPENDENCIES.useFlag = flag => flag === "gpu_quote_requests" && !!input.isQuoteFlowEnabled;
+    const useFlag: typeof DEPENDENCIES.useFlag = flag =>
+      (flag === "gpu_quote_requests" && !!input.isQuoteFlowEnabled) || (flag === "gpu_availability_alerts" && !!input.isAlertsEnabled);
+    const notify = vi.fn();
+    const findEntry = (gpu: { model: string }) => (input.waitingPlaces?.[gpu.model] ? { placeInLine: input.waitingPlaces[gpu.model] } : undefined);
+    const useNotifyMe: typeof DEPENDENCIES.useNotifyMe = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useNotifyMe>>({
+        isEnabled: !!input.isAlertsEnabled,
+        notify,
+        findEntry: findEntry as ReturnType<typeof DEPENDENCIES.useNotifyMe>["findEntry"],
+        isWaiting: gpu => !!findEntry(gpu),
+        isPending: false
+      });
     const useScreenedGpuModelCounts = vi.fn<typeof DEPENDENCIES.useScreenedGpuModelCounts>((_serviceIndex, models) =>
       models.map(model => {
         const offered = input.availableGpus?.find(vendor => vendor.vendor === model.vendor)?.models.find(candidate => candidate.name === model.name);
@@ -1297,6 +1370,7 @@ describe(GpuCard.name, () => {
             HardwareRequestDialog,
             GpuQuoteRequestFlow,
             useFlag,
+            useNotifyMe,
             useScreenedGpuModelCounts,
             CustomTooltip,
             ...input.dependencies
@@ -1307,6 +1381,15 @@ describe(GpuCard.name, () => {
 
     const user = userEvent.setup();
 
-    return { user, getValues: () => getValues(), analyticsService, HardwareRequestDialog, GpuQuoteRequestFlow, useScreenedGpuModelCounts, CustomTooltip };
+    return {
+      user,
+      notify,
+      getValues: () => getValues(),
+      analyticsService,
+      HardwareRequestDialog,
+      GpuQuoteRequestFlow,
+      useScreenedGpuModelCounts,
+      CustomTooltip
+    };
   }
 });

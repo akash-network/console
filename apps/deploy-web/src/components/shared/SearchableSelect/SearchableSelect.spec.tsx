@@ -165,6 +165,20 @@ describe("SearchableSelect", () => {
   });
 
   describe("unavailable options", () => {
+    it("renders the unavailable action beside the row without making it part of the option", async () => {
+      const { user, onChange } = setup({
+        unavailableOptions: [{ value: "as-east", label: "as-east" }],
+        renderUnavailableAction: option => <button type="button">Notify {option.value}</button>
+      });
+      await user.click(screen.getByRole("combobox", { name: "Region" }));
+
+      const option = await screen.findByRole("option", { name: "as-east" });
+      const action = screen.getByRole("button", { name: "Notify as-east" });
+      expect(option).not.toContainElement(action);
+      await user.click(action);
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
     it("lists them after the other options under an Unavailable heading", async () => {
       const { user } = setup({ unavailableOptions: [{ value: "as-east", label: "as-east" }] });
 
@@ -323,6 +337,7 @@ describe("SearchableSelect", () => {
     unavailableOptions?: SearchableSelectOption[];
     optionsHeading?: { label: string; hintLabel?: string };
     unavailableHeading?: string;
+    renderUnavailableAction?: (option: SearchableSelectOption) => ReactNode;
     renderFooter?: (search: string, controls: { close: () => void }) => ReactNode;
     emptyOption?: { value: string; label: string; hint?: string; disabled?: boolean };
     emptyTriggerLabel?: string;
@@ -345,6 +360,7 @@ describe("SearchableSelect", () => {
           unavailableOptions={input.unavailableOptions}
           optionsHeading={input.optionsHeading}
           unavailableHeading={input.unavailableHeading}
+          renderUnavailableAction={input.renderUnavailableAction}
           renderFooter={input.renderFooter}
           onOpenChange={onOpenChange}
           ariaLabel="Region"
