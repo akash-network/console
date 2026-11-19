@@ -152,6 +152,21 @@ describe("configureFormState", () => {
       expect(state.sdl).toMatch(/units: 8/);
     });
 
+    it("opens on at least the shape the confirmation check deployed", () => {
+      const { sdl } = getInitialState(undefined, { vm: false, gpu: { vendor: "nvidia", model: "h100", count: 8 } });
+
+      expect(sdl).toMatch(/cpu:\s+units: 4\b/);
+      expect(sdl).toMatch(/memory:\s+size: 16Gi\b/);
+      expect(sdl).toMatch(/storage:\s+- size: 50Gi\b/);
+    });
+
+    it("keeps the small default shape when no gpu is linked", () => {
+      const { sdl } = getInitialState(undefined, { vm: false });
+
+      expect(sdl).toMatch(/cpu:\s+units: 1\b/);
+      expect(sdl).toMatch(/storage:\s+- size: 10Gi\b/);
+    });
+
     it("leaves the default service without a gpu when none is linked", () => {
       expect(getInitialState(undefined, { vm: false }).values.services[0].profile.hasGpu).toBe(false);
     });
