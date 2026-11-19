@@ -56,16 +56,25 @@ describe(NoBidsNotice.name, () => {
     const gpu: NotifiableGpuSetup = { vendor: "nvidia", model: "h100", memory: "80Gi", gpuCount: 4 };
 
     it("offers notify me after a deployment got no bids", async () => {
-      const { notify } = setup({ gpu, isAlertsEnabled: true });
+      const { notify } = setup({ gpu, gpuLabel: "H100", isQuoteFlowEnabled: true, isAlertsEnabled: true });
 
       expect(screen.queryByRole("button", { name: "Request compute" })).not.toBeInTheDocument();
       await userEvent.click(screen.getByRole("button", { name: "Notify me when available" }));
 
-      expect(notify).toHaveBeenCalledWith(gpu, "no_bids");
+      expect(notify).toHaveBeenCalledWith({ ...gpu, label: "H100" }, "no_bids");
     });
 
-    it("keeps reserve capacity as the secondary action", async () => {
-      const { onRequestCompute } = setup({ gpu, isAlertsEnabled: true });
+    it("keeps today's request label as the secondary action while quotes are off", async () => {
+      const { onRequestCompute } = setup({ gpu, isAlertsEnabled: true, requestLabel: "Request compute" });
+
+      expect(screen.queryByRole("button", { name: "Need it guaranteed? Reserve capacity" })).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "Request compute" }));
+
+      expect(onRequestCompute).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps reserve capacity as the secondary action while quotes are on", async () => {
+      const { onRequestCompute } = setup({ gpu, isAlertsEnabled: true, isQuoteFlowEnabled: true });
 
       await userEvent.click(screen.getByRole("button", { name: "Need it guaranteed? Reserve capacity" }));
 
@@ -95,7 +104,15 @@ describe(NoBidsNotice.name, () => {
   });
 
   function setup(
-    input: { requestLabel?: string; dseq?: string | null; gpu?: NotifiableGpuSetup | null; isAlertsEnabled?: boolean; waitingPlace?: number } = {}
+    input: {
+      requestLabel?: string;
+      dseq?: string | null;
+      gpu?: NotifiableGpuSetup | null;
+      gpuLabel?: string;
+      isQuoteFlowEnabled?: boolean;
+      isAlertsEnabled?: boolean;
+      waitingPlace?: number;
+    } = {}
   ) {
     const onRequestCompute = vi.fn();
     const AskAssistantButton = vi.fn(() => null);
@@ -104,7 +121,10 @@ describe(NoBidsNotice.name, () => {
       mock<ReturnType<typeof DEPENDENCIES.useNotifyMe>>({
         isEnabled: !!input.isAlertsEnabled,
         notify,
-        findEntry: () => (input.waitingPlace ? ({ placeInLine: input.waitingPlace } as never) : undefined),
+        findEntry: () =>
+          input.waitingPlace
+            ? mock<NonNullable<ReturnType<ReturnType<typeof DEPENDENCIES.useNotifyMe>["findEntry"]>>>({ placeInLine: input.waitingPlace })
+            : undefined,
         isPending: false
       });
     render(
@@ -112,6 +132,8 @@ describe(NoBidsNotice.name, () => {
         requestLabel={input.requestLabel}
         dseq={input.dseq ?? null}
         gpu={input.gpu}
+        gpuLabel={input.gpuLabel}
+        isQuoteFlowEnabled={input.isQuoteFlowEnabled}
         onRequestCompute={onRequestCompute}
         dependencies={{ ...DEPENDENCIES, AskAssistantButton, useNotifyMe: useNotifyMeStub }}
       />

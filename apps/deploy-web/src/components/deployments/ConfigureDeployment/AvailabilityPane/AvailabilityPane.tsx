@@ -76,7 +76,9 @@ export const AvailabilityPane: FC<Props> = ({
   const gpuSelection = d.useGpuSelection(placement.id);
   const scope = placementCount > 1 ? "this placement" : "your deployment";
   const notifyMe = d.useNotifyMe();
-  const notifiableGpu = notifyMe.isEnabled ? gpuAvailability.notifiableGpu : null;
+  const isGpuWhyNothingFits =
+    !screened.isLoading && !screened.isInvalid && !screened.isError && screened.providers.length === 0 && (gpuAvailability.noGpuCount ?? 0) > 0;
+  const notifiableGpu = notifyMe.isEnabled && isGpuWhyNothingFits ? gpuAvailability.notifiableGpu : null;
   const canSourceNoFit = isQuoteFlowEnabled && gpuAvailability.requestsGpu;
   const notBiddingCount = screened.isLoading || screened.isInvalid ? 0 : countNotBiddingProviders(screened.providers);
 
@@ -231,9 +233,12 @@ function NotifyNoFitCard({
         </Button>
       )}
       {onReserve && (
-        <Button type="button" variant="link" onClick={onReserve} className="h-auto justify-start p-0 text-xs">
-          Need it guaranteed? Reserve capacity
-        </Button>
+        <>
+          <Button type="button" variant="link" onClick={onReserve} className="h-auto justify-start p-0 text-xs">
+            Need it guaranteed? Reserve capacity
+          </Button>
+          <p className="text-xs text-muted-foreground">You can also lower a hardware requirement or widen the region.</p>
+        </>
       )}
     </section>
   );

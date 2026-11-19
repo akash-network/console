@@ -416,7 +416,8 @@ describe(AvailabilityPane.name, () => {
       const { notify } = setup({
         isAlertsEnabled: true,
         hasPlacementWithoutProviders: true,
-        gpuAvailability: { requestsGpu: true, requestedLabel: "H100", notifiableGpu: h100 }
+        eligibleCount: 0,
+        gpuAvailability: { requestsGpu: true, requestedLabel: "H100", notifiableGpu: h100, noGpuCount: 5 }
       });
 
       expect(screen.queryByRole("button", { name: "Request this hardware" })).not.toBeInTheDocument();
@@ -430,7 +431,8 @@ describe(AvailabilityPane.name, () => {
         isAlertsEnabled: true,
         isQuoteFlowEnabled: true,
         hasPlacementWithoutProviders: true,
-        gpuAvailability: { requestsGpu: true, notifiableGpu: h100 }
+        eligibleCount: 0,
+        gpuAvailability: { requestsGpu: true, notifiableGpu: h100, noGpuCount: 5 }
       });
 
       await userEvent.click(screen.getByRole("button", { name: "Need it guaranteed? Reserve capacity" }));
@@ -439,7 +441,13 @@ describe(AvailabilityPane.name, () => {
     });
 
     it("shows the place in line instead of the button once already waiting", () => {
-      setup({ isAlertsEnabled: true, waitingPlace: 4, hasPlacementWithoutProviders: true, gpuAvailability: { requestsGpu: true, notifiableGpu: h100 } });
+      setup({
+        isAlertsEnabled: true,
+        waitingPlace: 4,
+        hasPlacementWithoutProviders: true,
+        eligibleCount: 0,
+        gpuAvailability: { requestsGpu: true, notifiableGpu: h100, noGpuCount: 5 }
+      });
 
       expect(screen.getByText("Waiting · #4 in line")).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Notify me when available" })).not.toBeInTheDocument();
@@ -450,6 +458,7 @@ describe(AvailabilityPane.name, () => {
         isAlertsEnabled: true,
         isQuoteFlowEnabled: true,
         hasPlacementWithoutProviders: true,
+        eligibleCount: 0,
         gpuAvailability: { requestsGpu: false, notifiableGpu: null }
       });
 
@@ -457,11 +466,63 @@ describe(AvailabilityPane.name, () => {
       expect(screen.getByText("No provider can host this configuration right now. Change the resources or widen the region.")).toBeInTheDocument();
     });
 
+    it("keeps today's message when the region is why nothing fits", () => {
+      setup({
+        isAlertsEnabled: true,
+        isQuoteFlowEnabled: true,
+        hasPlacementWithoutProviders: true,
+        eligibleCount: 0,
+        gpuAvailability: { requestsGpu: true, noGpuCount: 0, notifiableGpu: h100 }
+      });
+
+      expect(screen.queryByRole("button", { name: "Notify me when available" })).not.toBeInTheDocument();
+      expect(screen.getByRole("region", { name: "We can source this for you" })).toBeInTheDocument();
+    });
+
+    it("keeps today's message when another placement is the one that fails", () => {
+      setup({
+        isAlertsEnabled: true,
+        isQuoteFlowEnabled: true,
+        placementCount: 2,
+        hasPlacementWithoutProviders: true,
+        eligibleCount: 3,
+        gpuAvailability: { requestsGpu: true, noGpuCount: 5, notifiableGpu: h100 }
+      });
+
+      expect(screen.queryByRole("button", { name: "Notify me when available" })).not.toBeInTheDocument();
+    });
+
+    it("leaves out the reserve link while quotes are off", () => {
+      setup({
+        isAlertsEnabled: true,
+        isQuoteFlowEnabled: false,
+        hasPlacementWithoutProviders: true,
+        eligibleCount: 0,
+        gpuAvailability: { requestsGpu: true, noGpuCount: 5, notifiableGpu: h100 }
+      });
+
+      expect(screen.getByRole("button", { name: "Notify me when available" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Need it guaranteed? Reserve capacity" })).not.toBeInTheDocument();
+    });
+
+    it("keeps the hint to lower a requirement or widen the region while quotes are on", () => {
+      setup({
+        isAlertsEnabled: true,
+        isQuoteFlowEnabled: true,
+        hasPlacementWithoutProviders: true,
+        eligibleCount: 0,
+        gpuAvailability: { requestsGpu: true, noGpuCount: 5, notifiableGpu: h100 }
+      });
+
+      expect(screen.getByText("You can also lower a hardware requirement or widen the region.")).toBeInTheDocument();
+    });
+
     it("keeps today's sourcing card for a gpu that cannot be waited for", () => {
       setup({
         isAlertsEnabled: true,
         isQuoteFlowEnabled: true,
         hasPlacementWithoutProviders: true,
+        eligibleCount: 0,
         gpuAvailability: { requestsGpu: true, notifiableGpu: null }
       });
 
@@ -473,7 +534,7 @@ describe(AvailabilityPane.name, () => {
     setup({
       isQuoteFlowEnabled: true,
       hasPlacementWithoutProviders: true,
-      gpuAvailability: { requestsGpu: true, notifiableGpu: { vendor: "nvidia", model: "h100", gpuCount: 1 } }
+      gpuAvailability: { requestsGpu: true, noGpuCount: 5, notifiableGpu: { vendor: "nvidia", model: "h100", gpuCount: 1 } }
     });
 
     expect(screen.queryByRole("button", { name: "Notify me when available" })).not.toBeInTheDocument();
@@ -546,7 +607,10 @@ describe(AvailabilityPane.name, () => {
       mock<ReturnType<typeof DEPENDENCIES.useNotifyMe>>({
         isEnabled: !!input.isAlertsEnabled,
         notify,
-        findEntry: () => (input.waitingPlace ? ({ placeInLine: input.waitingPlace } as never) : undefined),
+        findEntry: () =>
+          input.waitingPlace
+            ? mock<NonNullable<ReturnType<ReturnType<typeof DEPENDENCIES.useNotifyMe>["findEntry"]>>>({ placeInLine: input.waitingPlace })
+            : undefined,
         isPending: false
       });
     const useGpuQuantityAvailability = vi.fn((): GpuQuantityAvailability[] => input.gpuQuantities ?? []);
