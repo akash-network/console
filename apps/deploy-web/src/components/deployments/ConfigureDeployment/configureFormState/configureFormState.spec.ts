@@ -136,4 +136,30 @@ describe("configureFormState", () => {
       expect(draftableSdlOf("services: [: nope", [])).toBeUndefined();
     });
   });
+
+  describe("linked gpu setup", () => {
+    it("seeds the first service with the gpu and its models", () => {
+      const state = getInitialState(undefined, { vm: false, gpu: { vendor: "nvidia", model: "h100", count: 8, memory: "80Gi", interface: "sxm" } });
+
+      expect(state.values.services[0].profile).toMatchObject({
+        hasGpu: true,
+        gpu: 8,
+        gpuModels: [{ vendor: "nvidia", name: "h100", memory: "80Gi", interface: "sxm" }]
+      });
+      expect(state.sdl).toContain("model: h100");
+      expect(state.sdl).toContain("ram: 80Gi");
+      expect(state.sdl).toContain("interface: sxm");
+      expect(state.sdl).toMatch(/units: 8/);
+    });
+
+    it("leaves the default service without a gpu when none is linked", () => {
+      expect(getInitialState(undefined, { vm: false }).values.services[0].profile.hasGpu).toBe(false);
+    });
+
+    it("prefers a carried-in sdl over the linked gpu", () => {
+      const state = getInitialState(WEB_SDL, { vm: false, gpu: { vendor: "nvidia", model: "h100", count: 8 } });
+
+      expect(state.values.services[0].profile.hasGpu).toBeFalsy();
+    });
+  });
 });
