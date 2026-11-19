@@ -54,7 +54,7 @@ export const GpuRequestsPage: FC<Props> = ({ requestId, dependencies: d = DEPEND
 
   return (
     <d.Layout background="dots" disableContainer containerClassName="flex h-full flex-col justify-between">
-      <NextSeo title="GPU requests" />
+      <NextSeo title={showsQuoteRequests ? "GPU requests" : "GPU alerts"} />
       <d.SettingsLayout
         title={showsQuoteRequests ? "GPU requests" : "GPU alerts"}
         description={showsQuoteRequests ? "Hardware your organization asked us to source, and where each request stands." : ALERTS_ONLY_DESCRIPTION}

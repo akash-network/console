@@ -1,3 +1,4 @@
+import { ApiError } from "@akashnetwork/openapi-sdk";
 import { createProxy } from "@akashnetwork/react-query-proxy";
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
@@ -53,6 +54,24 @@ describe("gpu waitlist queries", () => {
     await act(() => result.current.mutateAsync({ id: "entry-1" }).catch(() => undefined));
 
     expect(queryClient.getQueryState(WAITLIST_KEY)?.isInvalidated).toBe(true);
+  });
+
+  it.each([
+    ["leave", useLeaveGpuWaitlistMutation, "leaveGpuWaitlist"],
+    ["keep", useKeepGpuWaitlistEntryMutation, "keepGpuWaitlistEntry"]
+  ] as const)("does not report a 404 on %s as a fault", async (_, useMutationHook, operation) => {
+    const { result, queryClient } = setup({
+      useHookUnderTest: () => useMutationHook(),
+      operations: { [operation]: vi.fn().mockRejectedValue(new ApiError(404, undefined, "gone")) }
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync({ id: "entry-1" } as never).catch(() => undefined);
+    });
+
+    const skipErrorReporting = queryClient.getMutationCache().getAll()[0].meta?.skipErrorReporting as (error: unknown) => boolean;
+    expect(skipErrorReporting(new ApiError(404, undefined, "gone"))).toBe(true);
+    expect(skipErrorReporting(new ApiError(500, undefined, "boom"))).toBe(false);
   });
 
   function setup<T>(input: { useHookUnderTest: () => T; listGpuWaitlist?: ReturnType<typeof vi.fn>; operations?: Record<string, ReturnType<typeof vi.fn>> }) {

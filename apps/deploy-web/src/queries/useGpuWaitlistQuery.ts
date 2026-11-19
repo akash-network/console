@@ -13,8 +13,15 @@ function isWaitlistLimitError(error: unknown): boolean {
   return isApiError(error) && (error.status === 409 || error.status === 429);
 }
 
+function isNotFoundError(error: unknown): boolean {
+  return isApiError(error) && error.status === 404;
+}
+
 /** Hitting a waitlist limit is the user's state rather than a fault, so it is shown to them instead of being reported. */
 const SKIP_REPORTING_WAITLIST_LIMIT = { skipErrorReporting: isWaitlistLimitError };
+
+/** An email link can outlive its entry, so a 404 means the entry already ended rather than a fault. */
+const SKIP_REPORTING_ENDED_ENTRY = { skipErrorReporting: isNotFoundError };
 
 function useRefreshWaitlist() {
   const { api } = useServices();
@@ -33,11 +40,11 @@ export function useJoinGpuWaitlistMutation() {
 export function useLeaveGpuWaitlistMutation() {
   const { api } = useServices();
 
-  return api.v1.leaveGpuWaitlist.useMutation({ onSettled: useRefreshWaitlist() });
+  return api.v1.leaveGpuWaitlist.useMutation({ onSettled: useRefreshWaitlist(), meta: SKIP_REPORTING_ENDED_ENTRY });
 }
 
 export function useKeepGpuWaitlistEntryMutation() {
   const { api } = useServices();
 
-  return api.v1.keepGpuWaitlistEntry.useMutation({ onSettled: useRefreshWaitlist() });
+  return api.v1.keepGpuWaitlistEntry.useMutation({ onSettled: useRefreshWaitlist(), meta: SKIP_REPORTING_ENDED_ENTRY });
 }

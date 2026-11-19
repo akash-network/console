@@ -11,7 +11,7 @@ import userEvent from "@testing-library/user-event";
 
 describe(LeaveGpuAlertDialog.name, () => {
   it("confirms that emails for this setup stop", () => {
-    setup({});
+    setup();
 
     expect(screen.getByRole("dialog", { name: "Leave this alert?" })).toHaveAccessibleDescription(
       "You'll stop getting emails when NVIDIA H100 frees up. You can join again any time."
@@ -19,7 +19,7 @@ describe(LeaveGpuAlertDialog.name, () => {
   });
 
   it("leaves the waitlist after confirming", async () => {
-    const { user, leave, enqueueSnackbar, onClose, analyticsService } = setup({});
+    const { user, leave, enqueueSnackbar, onClose, analyticsService } = setup();
     leave.mockImplementation((input, options) => options?.onSuccess?.(mock(), input, undefined));
 
     await user.click(screen.getByRole("button", { name: "Leave alert" }));
@@ -33,7 +33,7 @@ describe(LeaveGpuAlertDialog.name, () => {
   });
 
   it("says the alert has already ended when it is gone", async () => {
-    const { user, leave, enqueueSnackbar, onClose, analyticsService } = setup({});
+    const { user, leave, enqueueSnackbar, onClose, analyticsService } = setup();
     leave.mockImplementation((input, options) => options?.onError?.(new ApiError(404, undefined, "gone"), input, undefined));
 
     await user.click(screen.getByRole("button", { name: "Leave alert" }));
@@ -46,7 +46,7 @@ describe(LeaveGpuAlertDialog.name, () => {
   });
 
   it("reports other failures as errors", async () => {
-    const { user, leave, enqueueSnackbar } = setup({});
+    const { user, leave, enqueueSnackbar } = setup();
     leave.mockImplementation((input, options) => options?.onError?.(new Error("boom"), input, undefined));
 
     await user.click(screen.getByRole("button", { name: "Leave alert" }));
@@ -57,7 +57,7 @@ describe(LeaveGpuAlertDialog.name, () => {
   });
 
   it("closes without leaving", async () => {
-    const { user, leave, onClose } = setup({});
+    const { user, leave, onClose } = setup();
 
     await user.click(screen.getByRole("button", { name: "Keep alert" }));
 
@@ -65,7 +65,7 @@ describe(LeaveGpuAlertDialog.name, () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  function setup(_input: object) {
+  function setup() {
     const leave = vi.fn();
     const enqueueSnackbar = vi.fn();
     const onClose = vi.fn();

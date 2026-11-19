@@ -1,3 +1,4 @@
+import { StrictMode } from "react";
 import { ApiError } from "@akashnetwork/openapi-sdk";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -8,7 +9,10 @@ import { GpuAlertsSection } from "./GpuAlertsSection";
 
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MockComponents } from "@tests/unit/mocks";
+
+type KeepOptions = NonNullable<Parameters<ReturnType<typeof DEPENDENCIES.useKeepGpuWaitlistEntryMutation>["mutate"]>[1]>;
+type KeepSuccess = Parameters<NonNullable<KeepOptions["onSuccess"]>>;
+type KeepFailure = Parameters<NonNullable<KeepOptions["onError"]>>;
 
 type Entry = NonNullable<ReturnType<typeof DEPENDENCIES.useGpuWaitlistQuery>["data"]>[number];
 
@@ -45,7 +49,7 @@ describe(GpuAlertsSection.name, () => {
     expect(screen.getByRole("heading", { name: "No GPU alerts" })).toBeInTheDocument();
   });
 
-  it("leaves a waitlist after confirming", async () => {
+  it("opens the leave dialog for the chosen alert", async () => {
     const { LeaveGpuAlertDialog } = setup({ entries: [buildEntry()] });
 
     await userEvent.click(screen.getByRole("button", { name: "Leave" }));
@@ -110,7 +114,9 @@ describe(GpuAlertsSection.name, () => {
     expect(keepEntry).toHaveBeenCalledOnce();
     expect(keepEntry).toHaveBeenCalledWith({ id: "entry-1" }, expect.anything());
 
-    act(() => keepEntry.mock.lastCall![1]!.onSuccess!({ data: buildEntry({ placeInLine: 3 }) } as never, { id: "entry-1" } as never, undefined));
+    act(() =>
+      keepEntry.mock.lastCall![1]!.onSuccess!(mock<KeepSuccess[0]>({ data: buildEntry({ placeInLine: 3 }) }), mock<KeepSuccess[1]>(), mock<KeepSuccess[2]>())
+    );
 
     expect(analyticsService.track).toHaveBeenCalledWith("gpu_alert_kept", { category: "deployments", model: "h100", gpuCount: 2 });
     expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ subTitle: "You're #3 in line." }) }), {
@@ -121,7 +127,7 @@ describe(GpuAlertsSection.name, () => {
   it("says the alert has ended when keeping it is refused with 404", () => {
     const { keepEntry, enqueueSnackbar } = setup({ entries: [], query: { keepAlert: "entry-1" } });
 
-    act(() => keepEntry.mock.lastCall![1]!.onError!(new ApiError(404, undefined, "gone"), { id: "entry-1" } as never, undefined));
+    act(() => keepEntry.mock.lastCall![1]!.onError!(new ApiError(404, undefined, "gone"), mock<KeepFailure[1]>(), mock<KeepFailure[2]>()));
 
     expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "This alert has already ended" }) }), {
       variant: "info"
@@ -131,11 +137,41 @@ describe(GpuAlertsSection.name, () => {
   it("reports other keep failures as errors", () => {
     const { keepEntry, enqueueSnackbar } = setup({ entries: [], query: { keepAlert: "entry-1" } });
 
-    act(() => keepEntry.mock.lastCall![1]!.onError!(new Error("boom"), { id: "entry-1" } as never, undefined));
+    act(() => keepEntry.mock.lastCall![1]!.onError!(new Error("boom"), mock<KeepFailure[1]>(), mock<KeepFailure[2]>()));
 
     expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Couldn't keep your alert" }) }), {
       variant: "error"
     });
+  });
+
+  it("keeps an alert once under StrictMode", () => {
+    const { keepEntry } = setup({ entries: [buildEntry()], query: { keepAlert: "entry-1" }, strict: true });
+
+    expect(keepEntry).toHaveBeenCalledOnce();
+  });
+
+  it("keeps unrelated params when dropping the handled one", () => {
+    const { replace } = setup({ entries: [], query: { foo: "1", keepAlert: "x" }, asPath: "/gpu-requests?foo=1&keepAlert=x" });
+
+    expect(replace).toHaveBeenCalledWith("/gpu-requests?foo=1", undefined, { shallow: true });
+  });
+
+  it("drops both params when a link carries keep and leave", () => {
+    const { replace } = setup({
+      entries: [buildEntry()],
+      query: { keepAlert: "entry-1", leaveAlert: "entry-1" },
+      asPath: "/gpu-requests?keepAlert=entry-1&leaveAlert=entry-1"
+    });
+
+    expect(replace).toHaveBeenLastCalledWith("/gpu-requests", undefined, { shallow: true });
+  });
+
+  it("waits for a refetch before handling the leave link", () => {
+    const { LeaveGpuAlertDialog, replace, enqueueSnackbar } = setup({ entries: [buildEntry()], isFetching: true, query: { leaveAlert: "entry-1" } });
+
+    expect(LeaveGpuAlertDialog).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
+    expect(enqueueSnackbar).not.toHaveBeenCalled();
   });
 
   it("holds email links until the organization in the link is active", () => {
@@ -145,15 +181,13 @@ describe(GpuAlertsSection.name, () => {
     expect(LeaveGpuAlertDialog).not.toHaveBeenCalled();
   });
 
-  function setup(input: { entries?: Entry[]; isLoading?: boolean; query?: Record<string, string>; asPath?: string }) {
+  function setup(input: { entries?: Entry[]; isLoading?: boolean; isFetching?: boolean; strict?: boolean; query?: Record<string, string>; asPath?: string }) {
     const replace = vi.fn();
     const enqueueSnackbar = vi.fn();
     const keepEntry = vi.fn();
     const analyticsService = mock<AnalyticsService>();
     const LeaveGpuAlertDialog = vi.fn<typeof DEPENDENCIES.LeaveGpuAlertDialog>(() => <div>Leave dialog</div>);
-    const dependencies = MockComponents({} as typeof DEPENDENCIES, {} as never);
     const deps: typeof DEPENDENCIES = {
-      ...dependencies,
       LeaveGpuAlertDialog,
       useRouter: () =>
         Object.assign(mock<ReturnType<typeof DEPENDENCIES.useRouter>>(), {
@@ -172,11 +206,12 @@ describe(GpuAlertsSection.name, () => {
           isLoading: input.isLoading ?? false,
           isError: false,
           isSuccess: !input.isLoading,
-          isFetching: !!input.isLoading
+          isFetching: input.isFetching ?? !!input.isLoading
         })
     };
 
-    const element = <GpuAlertsSection dependencies={deps} />;
+    const panel = <GpuAlertsSection dependencies={deps} />;
+    const element = input.strict ? <StrictMode>{panel}</StrictMode> : panel;
     const { rerender } = render(element);
 
     return { replace, enqueueSnackbar, keepEntry, analyticsService, LeaveGpuAlertDialog, rerender: () => rerender(element) };
