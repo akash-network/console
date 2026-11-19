@@ -156,6 +156,12 @@ describe(useSettingsNavLinks.name, () => {
     expect(useAffiliateProfileQuery).toHaveBeenCalledWith({ enabled: false });
   });
 
+  it("offers GPU alerts when only gpu availability alerts are on", () => {
+    const { links } = setup({ isGpuAlertsEnabled: true, pathname: "/gpu-requests" });
+
+    expect(links.at(-1)).toMatchObject({ title: "GPU alerts", url: "/gpu-requests", isActive: true });
+  });
+
   function buildAffiliateProfile(): AffiliateProfile {
     return {
       code: "friendcode",
@@ -169,13 +175,15 @@ describe(useSettingsNavLinks.name, () => {
     pathname?: string;
     isAffiliateProgramEnabled?: boolean;
     isGpuQuoteRequestsEnabled?: boolean;
+    isGpuAlertsEnabled?: boolean;
     organization?: Pick<OrganizationOutput, "type" | "role">;
     affiliateProfile?: AffiliateProfile | null;
     isSignedIn?: boolean;
   }) {
     const enabledFlags = {
       affiliate_program: input.isAffiliateProgramEnabled ?? false,
-      gpu_quote_requests: input.isGpuQuoteRequestsEnabled ?? false
+      gpu_quote_requests: input.isGpuQuoteRequestsEnabled ?? false,
+      gpu_availability_alerts: input.isGpuAlertsEnabled ?? false
     };
     const useFlag = vi.fn<typeof DEPENDENCIES.useFlag>(flag => enabledFlags[flag as keyof typeof enabledFlags] ?? false);
     const useAffiliateProfileQuery = vi.fn<typeof DEPENDENCIES.useAffiliateProfileQuery>(() =>

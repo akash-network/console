@@ -6,5 +6,5 @@ export default GpuRequestsPage;
 
 export const getServerSideProps = defineServerSideProps({
   route: "/gpu-requests",
-  if: context => isFeatureEnabled("gpu_quote_requests", context)
+  if: async context => (await isFeatureEnabled("gpu_quote_requests", context)) || (await isFeatureEnabled("gpu_availability_alerts", context))
 });
