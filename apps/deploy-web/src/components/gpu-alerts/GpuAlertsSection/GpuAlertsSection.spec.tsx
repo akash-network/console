@@ -34,12 +34,16 @@ const buildEntry = (overrides?: Partial<Entry>): Entry => ({
 describe(GpuAlertsSection.name, () => {
   it("lists waitlists with their place in line", () => {
     setup({
-      entries: [buildEntry({ placeInLine: 4, lastNotifiedAt: "2026-11-10T12:00:00.000Z" }), buildEntry({ id: "entry-2", model: "a100", placeInLine: 9 })]
+      entries: [
+        buildEntry({ placeInLine: 4, lastNotifiedAt: "2026-11-10T12:00:00.000Z" }),
+        buildEntry({ id: "entry-2", model: "a100", gpuCount: 1, memory: "80Gi", interface: "sxm", placeInLine: 9 })
+      ]
     });
 
     expect(screen.getByText("#4 in line · Joined Nov 3, 2026 · Last emailed Nov 10, 2026")).toBeInTheDocument();
     expect(screen.getByText("#9 in line · Joined Nov 3, 2026 · Not emailed yet")).toBeInTheDocument();
-    expect(screen.getByText("H100 · 2 GPUs")).toBeInTheDocument();
+    expect(screen.getByText("2× H100")).toBeInTheDocument();
+    expect(screen.getByText("1× A100 80Gi SXM")).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Leave" })).toHaveLength(2);
   });
 
@@ -55,7 +59,7 @@ describe(GpuAlertsSection.name, () => {
     await userEvent.click(screen.getByRole("button", { name: "Leave" }));
 
     expect(LeaveGpuAlertDialog).toHaveBeenLastCalledWith(
-      expect.objectContaining({ entry: expect.objectContaining({ id: "entry-1" }), label: "H100 · 2 GPUs" }),
+      expect.objectContaining({ entry: expect.objectContaining({ id: "entry-1" }), label: "2× H100" }),
       expect.anything()
     );
     act(() => LeaveGpuAlertDialog.mock.lastCall![0].onClose());
@@ -198,7 +202,6 @@ describe(GpuAlertsSection.name, () => {
         }),
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
       useServices: () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService }),
-      useGpuModels: () => Object.assign(mock<ReturnType<typeof DEPENDENCIES.useGpuModels>>(), { data: undefined }),
       useKeepGpuWaitlistEntryMutation: () => Object.assign(mock<ReturnType<typeof DEPENDENCIES.useKeepGpuWaitlistEntryMutation>>(), { mutate: keepEntry }),
       useGpuWaitlistQuery: () =>
         Object.assign(mock<ReturnType<typeof DEPENDENCIES.useGpuWaitlistQuery>>(), {
