@@ -279,6 +279,48 @@ describe(MyTemplates.name, () => {
     });
   });
 
+  it("warns that a never-public template is deleted for the organization", async () => {
+    const { confirm } = setup({});
+
+    await openMenuOf(BATCH);
+    await userEvent.click(screen.getByRole("menuitem", { name: "Delete template" }));
+
+    expect(confirm).toHaveBeenCalledWith({
+      title: "Delete Batch embeddings worker?",
+      message: "The template and all its versions are deleted for everyone in the organization. Deployments made from it keep running."
+    });
+  });
+
+  it("says what deleting a template that was public once does to its gallery entry and its link", async () => {
+    const oncePublic = buildUserTemplateListItem({ title: "Postgres 16", visibility: "private", publishedAt: "2026-11-02T10:00:00.000Z" });
+    const { confirm } = setup({ templates: [oncePublic] });
+
+    await openMenuOf(oncePublic);
+    await userEvent.click(screen.getByRole("menuitem", { name: "Delete template" }));
+
+    expect(confirm).toHaveBeenCalledWith({
+      title: "Delete Postgres 16?",
+      message:
+        "The template and all its versions are deleted. It leaves the gallery, and anyone who opens its link is told it was removed. Deployments made from it keep running. This can't be undone."
+    });
+  });
+
+  it("drops the row of a template someone else already removed, without calling it a failure", async () => {
+    const { enqueueSnackbar } = setup({
+      deleteError: new ApiError(410, { code: "template_removed", message: "This template was removed", data: { title: BATCH.title } }, "410")
+    });
+
+    await openMenuOf(BATCH);
+    await userEvent.click(screen.getByRole("menuitem", { name: "Delete template" }));
+
+    expect(screen.queryByRole("row", { name: new RegExp(BATCH.title) })).not.toBeInTheDocument();
+    expect(enqueueSnackbar).toHaveBeenCalledTimes(1);
+    expect(enqueueSnackbar).toHaveBeenCalledWith(
+      expect.objectContaining({ props: expect.objectContaining({ title: "Batch embeddings worker was already removed", iconVariant: "info" }) }),
+      { variant: "info" }
+    );
+  });
+
   it("keeps the template when the delete is not confirmed", async () => {
     const { deleteTemplate } = setup({ isConfirmed: false });
 
