@@ -7,6 +7,7 @@ import { JOB_NAME } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { GpuWaitlistEntryRepository } from "@src/gpu-waitlist/repositories/gpu-waitlist-entry/gpu-waitlist-entry.repository";
+import { GpuWaitlistNetworkService } from "@src/gpu-waitlist/services/gpu-waitlist-network/gpu-waitlist-network.service";
 import { NOTIFICATIONS_CONFIG } from "@src/notifications/providers/notifications-config.provider";
 import { AskStillWantedHandler } from "./ask-still-wanted.handler";
 import { AskStillWanted } from "./ask-still-wanted.job";
@@ -16,6 +17,10 @@ import { ExpireGpuAlert } from "./expire-gpu-alert.job";
 import { seedGpuWaitlistEntry } from "@test/seeders/db/gpu-waitlist-entry.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
+
+vi.hoisted(() => {
+  process.env.GPU_WAITLIST_NETWORKS = "mainnet,testnet,sandbox";
+});
 
 const NOTIFICATION_PATH = "/internal/v1/jobs/notification";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -90,6 +95,18 @@ describe(AskStillWantedHandler.name, () => {
     const rows = await findJobRows<{ entryId: string }>(AskStillWanted[JOB_NAME], { state: "created" });
     const [next] = rows.filter(row => row.data.entryId === entry.id);
     expect(new Date(next.start_after).getTime() - Date.now()).toBeGreaterThan(23 * 60 * 60 * 1000);
+  });
+
+  it("sends nothing and asks nothing again on a network that does not serve gpu waitlists", async () => {
+    const { entry, notifications, run, findEntry } = await setup({ status: "waiting" });
+    vi.spyOn(container.resolve(GpuWaitlistNetworkService), "servesGpuWaitlists").mockReturnValue(false);
+
+    await run(entry.id);
+
+    expect(notifications).toEqual([]);
+    expect((await findEntry(entry.id))?.stillWantedAskedAt).toBeNull();
+    const rows = await findJobRows<{ entryId: string }>(AskStillWanted[JOB_NAME], { state: "created" });
+    expect(rows.filter(row => row.data.entryId === entry.id)).toEqual([]);
   });
 
   it("asks again later for nothing when the flag is off and the entry has already ended", async () => {

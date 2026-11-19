@@ -1,19 +1,28 @@
 import { faker } from "@faker-js/faker";
 import { container } from "tsyringe";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { GpuWaitlistEntryRepository } from "@src/gpu-waitlist/repositories/gpu-waitlist-entry/gpu-waitlist-entry.repository";
+import { GpuWaitlistNetworkService } from "@src/gpu-waitlist/services/gpu-waitlist-network/gpu-waitlist-network.service";
 import { GpuWaitlistFulfilmentService } from "./gpu-waitlist-fulfilment.service";
 
 import { seedGpuWaitlistEntry } from "@test/seeders/db/gpu-waitlist-entry.seeder";
 import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { seedPersonalOrganizationIdOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 
+vi.hoisted(() => {
+  process.env.GPU_WAITLIST_NETWORKS = "mainnet,testnet,sandbox";
+});
+
 function inAMinute() {
   return new Date(Date.now() + 60 * 1000);
 }
 
 describe(GpuWaitlistFulfilmentService.name, () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("ends the entry when the org leases that gpu model, whatever the memory and interface", async () => {
     const { service, findEntry, user, organizationId } = await setup();
     const entry = await seedGpuWaitlistEntry({ userId: user.id, organizationId, model: "H100", memory: "80Gi", interface: "sxm5", gpuCount: 8 });
@@ -114,6 +123,16 @@ describe(GpuWaitlistFulfilmentService.name, () => {
     });
 
     expect((await findEntry(entry.id))?.status).toBe("fulfilled");
+  });
+
+  it("ends nothing on a network that does not serve gpu waitlists, whose leases share users and organizations", async () => {
+    const { service, findEntry, user, organizationId } = await setup();
+    const entry = await seedGpuWaitlistEntry({ userId: user.id, organizationId, model: "h100", gpuCount: 1 });
+    vi.spyOn(container.resolve(GpuWaitlistNetworkService), "servesGpuWaitlists").mockReturnValue(false);
+
+    await service.fulfilForOffers({ userId: user.id, organizationId, leaseCreatedAt: inAMinute(), offers: [{ vendor: "nvidia", model: "h100", count: 8 }] });
+
+    expect((await findEntry(entry.id))?.status).toBe("waiting");
   });
 
   it("ends nothing for a lease with no gpu offers", async () => {

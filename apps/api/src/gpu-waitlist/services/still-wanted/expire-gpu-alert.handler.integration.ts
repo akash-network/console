@@ -6,12 +6,17 @@ import { JOB_NAME } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { GpuWaitlistEntryRepository } from "@src/gpu-waitlist/repositories/gpu-waitlist-entry/gpu-waitlist-entry.repository";
+import { GpuWaitlistNetworkService } from "@src/gpu-waitlist/services/gpu-waitlist-network/gpu-waitlist-network.service";
 import { ExpireGpuAlertHandler } from "./expire-gpu-alert.handler";
 import { ExpireGpuAlert } from "./expire-gpu-alert.job";
 
 import { seedGpuWaitlistEntry } from "@test/seeders/db/gpu-waitlist-entry.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
+
+vi.hoisted(() => {
+  process.env.GPU_WAITLIST_NETWORKS = "mainnet,testnet,sandbox";
+});
 
 const MINUTE_MS = 60 * 1000;
 const DAY_MS = 24 * 60 * MINUTE_MS;
@@ -70,6 +75,17 @@ describe(ExpireGpuAlertHandler.name, () => {
     expect((await findEntry(entry.id))?.status).toBe("waiting");
     const [next] = (await findJobRows<{ entryId: string }>(ExpireGpuAlert[JOB_NAME], { state: "created" })).filter(row => row.data.entryId === entry.id);
     expect(new Date(next.start_after).getTime() - Date.now()).toBeGreaterThan(23 * 60 * MINUTE_MS);
+  });
+
+  it("expires nothing and queues nothing on a network that does not serve gpu waitlists", async () => {
+    const { entry, run, findEntry } = await setup({ status: "waiting", askedMsAgo: 8 * DAY_MS });
+    vi.spyOn(container.resolve(GpuWaitlistNetworkService), "servesGpuWaitlists").mockReturnValue(false);
+
+    await run(entry.id);
+
+    expect((await findEntry(entry.id))?.status).toBe("waiting");
+    const rows = await findJobRows<{ entryId: string }>(ExpireGpuAlert[JOB_NAME], { state: "created" });
+    expect(rows.filter(row => row.data.entryId === entry.id)).toEqual([]);
   });
 
   it("queues nothing while the flag is off for an entry that already ended", async () => {

@@ -8,6 +8,7 @@ import { DeploymentConfigService } from "@src/deployment/services/deployment-con
 import { gpuAlertKeepUrl, gpuAlertLeaveUrl, gpuSetupLabel } from "@src/gpu-waitlist/lib/gpu-setup-links/gpu-setup-links";
 import { GPU_WAITLIST_CONFIG, type GpuWaitlistConfig } from "@src/gpu-waitlist/providers/config.provider";
 import { GpuWaitlistEntryRepository, type GpuWaitlistEntryRow } from "@src/gpu-waitlist/repositories/gpu-waitlist-entry/gpu-waitlist-entry.repository";
+import { GpuWaitlistNetworkService } from "@src/gpu-waitlist/services/gpu-waitlist-network/gpu-waitlist-network.service";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { gpuStillWantedNotification } from "@src/notifications/services/notification-templates/gpu-alert-still-wanted-notification";
 import { UserRepository } from "@src/user/repositories";
@@ -30,6 +31,7 @@ export class AskStillWantedHandler implements JobHandler<AskStillWanted> {
     private readonly jobQueueService: JobQueueService,
     private readonly txService: TxService,
     private readonly featureFlagsService: FeatureFlagsService,
+    private readonly gpuWaitlistNetworkService: GpuWaitlistNetworkService,
     @inject(GPU_WAITLIST_CONFIG) private readonly config: GpuWaitlistConfig,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -41,6 +43,11 @@ export class AskStillWantedHandler implements JobHandler<AskStillWanted> {
   }
 
   async handle({ entryId }: JobPayload<AskStillWanted>): Promise<void> {
+    if (!this.gpuWaitlistNetworkService.servesGpuWaitlists()) {
+      this.#logger.info({ event: "GPU_STILL_WANTED_SKIPPED", entryId, reason: "Network does not serve gpu waitlists" });
+      return;
+    }
+
     const entry = await this.gpuWaitlistEntryRepository.findByIdAcrossOrganizations(entryId);
     const skipReason = this.#skipReasonFor(entry);
 
