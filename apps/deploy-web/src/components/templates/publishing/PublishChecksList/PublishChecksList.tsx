@@ -7,6 +7,9 @@ import type { TemplatePublishCheck } from "@src/types/marketplace-template";
 import type { PublishCheckFix } from "../publishReadiness";
 import { publishCheckFixesOf, publishCheckLabelOf } from "../publishReadiness";
 
+/** Beside the message, a fix button leaves a phone-wide dialog about 120 px for the text; under the mark and message it gets the full row. */
+export const FIX_BELOW_ON_NARROW_SCREENS = "basis-full pl-8 sm:basis-auto sm:pl-0";
+
 const NO_REASON_GIVEN = "This check didn't pass.";
 
 export interface PublishChecksListProps {
@@ -41,7 +44,7 @@ const PublishCheckRow: FC<{ check: TemplatePublishCheck; renderFix: PublishCheck
           ))}
       </div>
       {fixes.length > 0 && (
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <div className={cn("flex shrink-0 flex-wrap items-center gap-2", FIX_BELOW_ON_NARROW_SCREENS)}>
           {fixes.map(fix => (
             <Fragment key={fix}>{renderFix?.(fix)}</Fragment>
           ))}

@@ -61,6 +61,12 @@ describe(PublishReadinessPanel.name, () => {
     expect(onVerifyEmail).toHaveBeenCalledTimes(1);
   });
 
+  it("puts a requirement's action under its explanation on a narrow screen and beside it from the sm breakpoint up", () => {
+    setup({ unmet: ["email_verified"] });
+
+    expect(screen.getByRole("button", { name: "Verify email" }).parentElement).toHaveClass("shrink-0", "basis-full", "pl-8", "sm:basis-auto", "sm:pl-0");
+  });
+
   it("explains the missing payment and opens Add credits for it", () => {
     const { AddFundsButton, onCreditsAdded } = setup({ unmet: ["organization_payment"] });
 
