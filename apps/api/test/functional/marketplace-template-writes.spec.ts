@@ -1,8 +1,9 @@
 import { faker } from "@faker-js/faker";
 import { asc, eq } from "drizzle-orm";
 import { container } from "tsyringe";
-import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
@@ -23,6 +24,10 @@ const MEBIBYTE = 1024 ** 2;
 const GIBIBYTE = 1024 ** 3;
 
 describe("Marketplace template writes", () => {
+  beforeAll(async () => {
+    await startJobQueues();
+  }, 20_000);
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -104,8 +109,10 @@ describe("Marketplace template writes", () => {
         moderationStatus: "active",
         projectId: otherProject.id,
         copiedFromId: null,
+        publishedAt: null,
         updatedAt: "2026-11-01T00:00:00.000Z",
         currentVersion: { version: 1, status: "live", createdAt: organizationWideVersion.createdAt.toISOString() },
+        latestVersion: null,
         lastEditedBy: { username: owner.username },
         canEdit: false,
         usage: { deploys: 0, lastDeployedAt: null }
@@ -537,9 +544,13 @@ describe("Marketplace template writes", () => {
           readme: "# Web",
           askedValues: [],
           resources: { cpu: 1, memoryBytes: 1024 * MEBIBYTE, storageBytes: 2 * GIBIBYTE },
+          imageDigests: {},
           status: "live",
           checkResults: null,
           changes: ["first_version"],
+          holdReasons: null,
+          reviewedAt: null,
+          reviewNote: null,
           createdBy: { username: member.username },
           createdAt: expect.any(String)
         },
@@ -816,9 +827,13 @@ describe("Marketplace template writes", () => {
         readme: "# Second",
         askedValues: [textAskedValue("GREETING")],
         resources: { cpu: 1.5, memoryBytes: 1536 * MEBIBYTE, storageBytes: 3 * GIBIBYTE },
+        imageDigests: {},
         status: "live",
         checkResults: null,
         changes: ["image_tag_changed", "asked_value_added", "readme_changed"],
+        holdReasons: null,
+        reviewedAt: null,
+        reviewNote: null,
         createdBy: { username: editor.username },
         createdAt: expect.any(String)
       });
