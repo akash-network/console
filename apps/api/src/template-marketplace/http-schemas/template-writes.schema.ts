@@ -31,17 +31,30 @@ const CategoriesSchema = z
 
 export const CreateUserTemplateRequestSchema = z
   .object({
-    data: z.object({
-      title: TitleSchema,
-      summary: SummarySchema.optional(),
-      icon: IconSchema.optional(),
-      categories: CategoriesSchema.optional(),
-      sdl: TemplateSdlSchema,
-      readme: ReadmeSchema.optional(),
-      askedValues: AskedValuesSchema.default([]).openapi({ description: "The values the deployer fills in, bound to the SDL's env vars" }),
-      projectId: z.string().uuid().optional().openapi({ description: "The project to file the template in, required when the caller may write to several" }),
-      copiedFromId: z.string().uuid().optional().openapi({ description: "The template this one was copied from, which the caller must be able to read" })
-    })
+    data: z
+      .object({
+        title: TitleSchema,
+        summary: SummarySchema.optional(),
+        icon: IconSchema.optional(),
+        categories: CategoriesSchema.optional(),
+        sdl: TemplateSdlSchema.optional().openapi({
+          description: "Required unless `copiedFromId` is sent without content, which copies the current version of that template"
+        }),
+        readme: ReadmeSchema.optional(),
+        askedValues: AskedValuesSchema.optional().openapi({ description: "The values the deployer fills in, bound to the SDL's env vars; none when left out" }),
+        projectId: z.string().uuid().optional().openapi({ description: "The project to file the template in, required when the caller may write to several" }),
+        copiedFromId: z.string().uuid().optional().openapi({
+          description: "The template this one was copied from, which the caller must be able to read; it counts as a fork of that template"
+        })
+      })
+      .refine(template => template.sdl !== undefined || template.copiedFromId !== undefined, {
+        message: "Send the SDL, or name the template to copy",
+        path: ["sdl"]
+      })
+      .refine(template => template.sdl !== undefined || (template.readme === undefined && template.askedValues === undefined), {
+        message: "A copy sent without an SDL takes its readme and asked values from the template it names",
+        path: ["sdl"]
+      })
   })
   .openapi("CreateUserTemplateRequest");
 
