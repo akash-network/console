@@ -234,12 +234,12 @@ describe(TemplateVersionsTab.name, () => {
     setup({ versions: [rejected, buildTemplateVersionSummary({ version: 1, status: "live" })], currentVersion: 1, canEdit: true });
 
     const [rejectedRow, publishedRow] = screen.getAllByRole("row").slice(1);
-    expect(within(rejectedRow).getByText("Rejected by Akash staff on Nov 5, 2026")).toBeInTheDocument();
+    expect(within(rejectedRow).getByText("Reviewed on Nov 5, 2026")).toBeInTheDocument();
     expect(within(rejectedRow).getByLabelText("Staff note on v2").textContent).toBe(
       "The new image is not the project's own.\nPublish it from the upstream repository."
     );
     expect(within(rejectedRow).getByLabelText("Staff note on v2")).toHaveClass("whitespace-pre-line");
-    expect(within(publishedRow).queryByText(/by Akash staff/)).not.toBeInTheDocument();
+    expect(within(publishedRow).queryByText(/by Akash staff|Reviewed on/)).not.toBeInTheDocument();
   });
 
   it("shows a rejection without a date or without a note", () => {
@@ -248,9 +248,9 @@ describe(TemplateVersionsTab.name, () => {
     setup({ versions: [undated, unexplained], currentVersion: undefined, canEdit: true });
 
     const [undatedRow, unexplainedRow] = screen.getAllByRole("row").slice(1);
-    expect(within(undatedRow).getByText("Rejected by Akash staff")).toBeInTheDocument();
+    expect(within(undatedRow).queryByText(/Reviewed on/)).not.toBeInTheDocument();
     expect(within(undatedRow).getByLabelText("Staff note on v3")).toHaveTextContent("Not the upstream image.");
-    expect(within(unexplainedRow).getByText("Rejected by Akash staff on Nov 5, 2026")).toBeInTheDocument();
+    expect(within(unexplainedRow).getByText("Reviewed on Nov 5, 2026")).toBeInTheDocument();
     expect(within(unexplainedRow).queryByLabelText("Staff note on v2")).not.toBeInTheDocument();
   });
 
@@ -258,7 +258,7 @@ describe(TemplateVersionsTab.name, () => {
     setup({ versions: [buildTemplateVersionSummary({ version: 2, status: "rejected" })], currentVersion: undefined, canEdit: false });
 
     expect(screen.getByText("Rejected by staff")).toBeInTheDocument();
-    expect(screen.queryByText(/by Akash staff/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Reviewed on/)).not.toBeInTheDocument();
   });
 
   it("shows when staff approved a version that was held", () => {
@@ -269,6 +269,13 @@ describe(TemplateVersionsTab.name, () => {
     expect(screen.getByLabelText("Staff note on v2")).toHaveTextContent("Checked the image.");
   });
 
+  it("shows an approval that carries a note but no date", () => {
+    const approved = buildTemplateVersionSummary({ version: 2, status: "live", reviewedAt: null, reviewNote: "Checked the image." });
+    setup({ versions: [approved], currentVersion: 2, canEdit: true });
+
+    expect(screen.getByText("Approved by Akash staff")).toBeInTheDocument();
+  });
+
   it.each(["held", "failed_checks"] as const)("shows no review outcome on a %s version", status => {
     setup({
       versions: [buildTemplateVersionSummary({ version: 2, status, reviewedAt: "2026-11-06T15:00:00.000Z", reviewNote: "Left over" })],
@@ -276,7 +283,7 @@ describe(TemplateVersionsTab.name, () => {
       canEdit: true
     });
 
-    expect(screen.queryByText(/by Akash staff/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/by Akash staff|Reviewed on/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Staff note on v2")).not.toBeInTheDocument();
   });
 

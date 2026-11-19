@@ -161,7 +161,7 @@ const VersionRow: FC<{ version: TemplateVersionSummary; isCurrent: boolean; isSh
         <ReasonList label={`Why v${version.version} waits for review`} reasons={holdReasons} icon={Clock} className="text-amber-700 dark:text-amber-500" />
         {review && (
           <div className="mt-1.5 max-w-[320px] text-[12.5px]">
-            <p className="text-muted-foreground">{review.outcome}</p>
+            {review.outcome && <p className="text-muted-foreground">{review.outcome}</p>}
             {review.note && (
               <p aria-label={`Staff note on v${version.version}`} className="mt-1 whitespace-pre-line break-words">
                 {review.note}
@@ -197,18 +197,18 @@ const ReasonList: FC<{ label: string; reasons: string[]; icon: LucideIcon; class
     </ul>
   ) : null;
 
-const REVIEW_OUTCOMES: Partial<Record<TemplateVersionSummary["status"], string>> = {
-  live: "Approved by Akash staff",
-  rejected: "Rejected by Akash staff"
+const REVIEW_OUTCOMES: Partial<Record<TemplateVersionSummary["status"], (reviewedOn: string | undefined) => string | undefined>> = {
+  live: reviewedOn => (reviewedOn ? `Approved by Akash staff on ${reviewedOn}` : "Approved by Akash staff"),
+  rejected: reviewedOn => reviewedOn && `Reviewed on ${reviewedOn}`
 };
 
-/** Staff review only versions that were held, so a version nobody reviewed says nothing about one. */
-function reviewOf(version: TemplateVersionSummary): { outcome: string; note: string | null } | undefined {
-  const outcome = REVIEW_OUTCOMES[version.status];
-  if (!outcome || (!version.reviewedAt && !version.reviewNote)) return undefined;
+/** Staff review only versions that were held, so a version nobody reviewed says nothing about one; a rejected row already says who rejected it. */
+function reviewOf(version: TemplateVersionSummary): { outcome: string | undefined; note: string | null } | undefined {
+  const describeOutcome = REVIEW_OUTCOMES[version.status];
+  if (!describeOutcome || (!version.reviewedAt && !version.reviewNote)) return undefined;
 
   return {
-    outcome: version.reviewedAt ? `${outcome} on ${format(new Date(version.reviewedAt), "MMM d, yyyy")}` : outcome,
+    outcome: describeOutcome(version.reviewedAt ? format(new Date(version.reviewedAt), "MMM d, yyyy") : undefined),
     note: version.reviewNote?.trim() || null
   };
 }
