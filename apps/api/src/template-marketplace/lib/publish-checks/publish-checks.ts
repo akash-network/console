@@ -101,9 +101,11 @@ const CREDENTIAL_LINE_SOURCES = { sdl: "the SDL", readme: "the README" };
 
 const MAX_REPORTED_CREDENTIAL_LINES = 20;
 
+const EVERYTHING_BUT_LINE_BREAKS = /[^\r\n]/g;
+
 /** Reads the text as written, so a key in a comment, an argument or the README is found too; an env value already reported under its variable is left out, as is a secret reference, whose name is not a key however it reads. */
 function findCredentialLineIssues(text: string, field: keyof typeof CREDENTIAL_LINE_SOURCES, valuesLeftOut: string[]): PublishCheckIssue[] {
-  const unreportedText = valuesLeftOut.reduce((rest, value) => rest.replaceAll(value, " ".repeat(value.length)), text);
+  const unreportedText = valuesLeftOut.reduce((rest, value) => rest.replaceAll(value, value.replace(EVERYTHING_BUT_LINE_BREAKS, " ")), text);
 
   return findLineNumbers(unreportedText, findKnownCredentialOffsets(unreportedText))
     .slice(0, MAX_REPORTED_CREDENTIAL_LINES)

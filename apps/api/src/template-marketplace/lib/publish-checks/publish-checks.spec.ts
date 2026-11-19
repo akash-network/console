@@ -281,6 +281,26 @@ describe(runPublishChecks.name, () => {
       expect(checkOf(results, "no_secrets")).toEqual({ key: "no_secrets", status: "passed", issues: [] });
     });
 
+    it("keeps the line numbers after an env value that ends with its own line break", () => {
+      const sdl = [
+        'version: "2.0"',
+        "services:",
+        "  web:",
+        "    image: nginx:1.27.2",
+        "    env:",
+        "      - |",
+        "        HUB=hf_abcdefghijklmnopqrstuv",
+        "# backup hf_zyxwvutsrqponmlkjihgfe"
+      ].join("\n");
+
+      const results = setup({ sdl });
+
+      expect(checkOf(results, "no_secrets").issues).toEqual([
+        expect.objectContaining({ service: "web", variable: "HUB" }),
+        expect.objectContaining({ field: "sdl", message: expect.stringContaining("Line 8 of the SDL") })
+      ]);
+    });
+
     it("still names a provider key that an ordinary env value happens to be part of", () => {
       const sdl = [
         'version: "2.0"',
