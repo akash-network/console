@@ -35,6 +35,8 @@ import { useSnackbar } from "notistack";
 import Layout from "@src/components/layout/Layout";
 import { ImportSdlButton } from "@src/components/new-deployment/ImportSdlButton/ImportSdlButton";
 import { ShareTemplateDialog } from "@src/components/templates/publishing/ShareTemplateDialog/ShareTemplateDialog";
+import { describeTemplateDeletion } from "@src/components/templates/removed/describeTemplateDeletion";
+import { readRemovedTemplate } from "@src/components/templates/removed/readRemovedTemplate";
 import { TemplateIcon } from "@src/components/templates/TemplateIcon/TemplateIcon";
 import { TemplateVisibilityBadge, VISIBILITY_LABELS } from "@src/components/templates/TemplateVisibilityBadge/TemplateVisibilityBadge";
 import { SUPPORT_EMAIL } from "@src/config/ui.config";
@@ -71,6 +73,8 @@ type Filters = {
   visibility: TemplateVisibility | null;
   status: string | null;
 };
+
+const NEVER_PUBLIC_DELETION = "The template and all its versions are deleted for everyone in the organization. Deployments made from it keep running.";
 
 const ANY = "any";
 const EMPTY_CELL = "–";
@@ -110,7 +114,7 @@ export function MyTemplates({ dependencies: d = DEPENDENCIES }: Props) {
   const confirmAndDelete = async (template: UserTemplateListItem) => {
     const isConfirmed = await confirm({
       title: `Delete ${template.title}?`,
-      message: "The template and all its versions are deleted for everyone in the organization. Deployments made from it keep running."
+      message: describeTemplateDeletion(template, NEVER_PUBLIC_DELETION)
     });
     if (!isConfirmed) return;
 
@@ -119,6 +123,11 @@ export function MyTemplates({ dependencies: d = DEPENDENCIES }: Props) {
       setDeletedIds(ids => [...ids, template.id]);
       enqueueSnackbar(<Snackbar title={`Deleted ${template.title}`} iconVariant="success" />, { variant: "success" });
     } catch (error) {
+      if (readRemovedTemplate(error)) {
+        setDeletedIds(ids => [...ids, template.id]);
+        enqueueSnackbar(<Snackbar title={`${template.title} was already removed`} iconVariant="info" />, { variant: "info" });
+        return;
+      }
       enqueueSnackbar(<Snackbar title="Couldn't delete the template" subTitle={describeDeleteFailure(error)} iconVariant="error" />, { variant: "error" });
     }
   };

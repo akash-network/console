@@ -27,6 +27,8 @@ import { useSnackbar } from "notistack";
 
 import { LengthCounter } from "@src/components/shared/LengthCounter/LengthCounter";
 import { describeTemplateRefusal } from "@src/components/templates/describeTemplateRefusal";
+import { describeTemplateDeletion } from "@src/components/templates/removed/describeTemplateDeletion";
+import { readRemovedTemplate } from "@src/components/templates/removed/readRemovedTemplate";
 import { MAX_TEMPLATE_CATEGORIES, TEMPLATE_CATEGORY_OPTIONS } from "@src/components/templates/templateCatalog";
 import { TEMPLATE_ICONS, TemplateIcon } from "@src/components/templates/TemplateIcon/TemplateIcon";
 import { VISIBILITY_LABELS } from "@src/components/templates/TemplateVisibilityBadge/TemplateVisibilityBadge";
@@ -266,6 +268,9 @@ const CategoryOption: FC<{
   );
 };
 
+const NEVER_PUBLIC_DELETION =
+  "The template and all its versions are deleted for everyone who can use it. Deployments made from it keep running. This can't be undone.";
+
 const DeleteTemplateDialog: FC<{ template: MarketplaceTemplate; onClose: () => void; dependencies: typeof DEPENDENCIES }> = ({
   template,
   onClose,
@@ -288,8 +293,11 @@ const DeleteTemplateDialog: FC<{ template: MarketplaceTemplate; onClose: () => v
       await deleteTemplate({ id: template.id });
       setIsDeleted(true);
     } catch (error) {
-      setFailure(describeFailure(error, "delete"));
-      return;
+      if (!readRemovedTemplate(error)) {
+        setFailure(describeFailure(error, "delete"));
+        return;
+      }
+      setIsDeleted(true);
     }
     enqueueSnackbar(<Snackbar title={`Deleted ${template.title}`} iconVariant="success" />, { variant: "success" });
     await router.push(UrlService.myTemplates());
@@ -300,9 +308,7 @@ const DeleteTemplateDialog: FC<{ template: MarketplaceTemplate; onClose: () => v
       <DialogV2Content className="max-w-lg" hideCloseButton={isDeleting}>
         <DialogV2Header>
           <DialogV2Title>Delete {template.title}?</DialogV2Title>
-          <DialogV2Description>
-            The template and all its versions are deleted for everyone who can use it. Deployments made from it keep running. This can&apos;t be undone.
-          </DialogV2Description>
+          <DialogV2Description>{describeTemplateDeletion(template, NEVER_PUBLIC_DELETION)}</DialogV2Description>
         </DialogV2Header>
         <DialogV2Body>
           <form id={formId} className="flex flex-col gap-4" onSubmit={confirmDelete}>
