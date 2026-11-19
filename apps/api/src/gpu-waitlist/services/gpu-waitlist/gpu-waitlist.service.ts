@@ -2,11 +2,13 @@ import createError from "http-errors";
 import { inject, singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
+import { JobQueueService } from "@src/core";
 import { TxService } from "@src/core/services/tx/tx.service";
 import type { JoinGpuWaitlistRequest } from "@src/gpu-waitlist/http-schemas/gpu-waitlist.schema";
 import { toPoolKey } from "@src/gpu-waitlist/lib/gpu-pool-key/gpu-pool-key";
 import { GPU_WAITLIST_CONFIG, type GpuWaitlistConfig } from "@src/gpu-waitlist/providers/config.provider";
 import { GpuWaitlistEntryRepository, type GpuWaitlistEntryRow } from "@src/gpu-waitlist/repositories/gpu-waitlist-entry/gpu-waitlist-entry.repository";
+import { AskStillWanted } from "@src/gpu-waitlist/services/still-wanted/ask-still-wanted.job";
 import { UserRepository } from "@src/user/repositories";
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -36,6 +38,7 @@ export class GpuWaitlistService {
     private readonly userRepository: UserRepository,
     private readonly authService: AuthService,
     private readonly txService: TxService,
+    private readonly jobQueueService: JobQueueService,
     @inject(GPU_WAITLIST_CONFIG) private readonly config: GpuWaitlistConfig
   ) {}
 
@@ -69,6 +72,28 @@ export class GpuWaitlistService {
     }
   }
 
+  async keep(id: string): Promise<GpuWaitlistEntryInLine> {
+    return await this.txService.transaction(async () => {
+      const kept = await this.gpuWaitlistEntryRepository
+        .accessibleBy(this.authService.ability, "update")
+        .updateBy({ id, status: "waiting" }, { stillWantedAskedAt: null }, { returning: true });
+
+      if (!kept) {
+        throw createError(404, "GPU waitlist entry not found");
+      }
+
+      await this.#scheduleStillWantedCheck(kept.id, new Date());
+
+      return await this.#withPlaceInLine(kept);
+    });
+  }
+
+  async #scheduleStillWantedCheck(entryId: string, from: Date): Promise<void> {
+    await this.jobQueueService.enqueue(new AskStillWanted({ entryId }), {
+      startAfter: new Date(from.getTime() + this.config.GPU_WAITLIST_STILL_WANTED_DAYS * DAY_MS)
+    });
+  }
+
   /** Leaving takes no user-row lock, so the entry read as waiting may have been left since. */
   async #refreshWhileWaiting(existing: GpuWaitlistEntryRow, input: JoinGpuWaitlistRequest["data"]): Promise<GpuWaitlistEntryRow | undefined> {
     return await this.gpuWaitlistEntryRepository
@@ -85,7 +110,10 @@ export class GpuWaitlistService {
       });
     }
 
-    return await this.gpuWaitlistEntryRepository.accessibleBy(this.authService.ability, "create").create({ ...input, userId, poolKey });
+    const entry = await this.gpuWaitlistEntryRepository.accessibleBy(this.authService.ability, "create").create({ ...input, userId, poolKey });
+    await this.#scheduleStillWantedCheck(entry.id, entry.joinedAt);
+
+    return entry;
   }
 
   async #withPlaceInLine(entry: GpuWaitlistEntryRow): Promise<GpuWaitlistEntryInLine> {

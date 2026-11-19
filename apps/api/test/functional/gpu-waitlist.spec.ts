@@ -1,7 +1,8 @@
 import { faker } from "@faker-js/faker";
 import { container } from "tsyringe";
-import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
@@ -27,6 +28,10 @@ describe("GPU waitlist", () => {
   const userAuthTokenService = container.resolve(UserAuthTokenService);
   const featureFlagsService = container.resolve(FeatureFlagsService);
   const entryRepository = container.resolve(GpuWaitlistEntryRepository);
+
+  beforeAll(async () => {
+    await startJobQueues();
+  }, 20_000);
 
   afterEach(() => {
     vi.restoreAllMocks();
@@ -268,6 +273,75 @@ describe("GPU waitlist", () => {
       expect(response.status).toBe(404);
     });
   });
+
+  describe("POST /v1/gpu-waitlist/{id}/keep", () => {
+    it("clears the question, keeps the place in line and returns the entry", async () => {
+      const { alice, bob } = await setup();
+      const poolModel = faker.string.alphanumeric(12).toLowerCase();
+      const first = await seedGpuWaitlistEntry({
+        userId: alice.user.id,
+        organizationId: alice.organizationId,
+        model: poolModel,
+        joinedAt: new Date(Date.now() - 3 * 60 * 60 * 1000),
+        stillWantedAskedAt: new Date(Date.now() - 24 * 60 * 60 * 1000)
+      });
+      await seedGpuWaitlistEntry({
+        userId: bob.user.id,
+        organizationId: bob.organizationId,
+        model: poolModel,
+        joinedAt: new Date(Date.now() - 2 * 60 * 60 * 1000)
+      });
+
+      const response = await keep(alice.headers, first.id);
+      const { data } = (await response.json()) as { data: Entry };
+
+      expect(response.status).toBe(200);
+      expect(data).toMatchObject({ id: first.id, status: "waiting", placeInLine: 1 });
+      expect((await entryRepository.findByIdAcrossOrganizations(first.id))?.stillWantedAskedAt).toBeNull();
+    });
+
+    it("answers 404 for another user's entry and leaves its question standing", async () => {
+      const { alice, bob } = await setup();
+      const askedAt = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const entry = await seedGpuWaitlistEntry({ userId: bob.user.id, organizationId: bob.organizationId, stillWantedAskedAt: askedAt });
+
+      const response = await keep(alice.headers, entry.id);
+
+      expect(response.status).toBe(404);
+      expect((await entryRepository.findByIdAcrossOrganizations(entry.id))?.stillWantedAskedAt).toEqual(askedAt);
+    });
+
+    it("answers 404 for an entry that is not waiting", async () => {
+      const { alice } = await setup();
+      const entry = await seedGpuWaitlistEntry({ userId: alice.user.id, organizationId: alice.organizationId, status: "expired" });
+
+      const response = await keep(alice.headers, entry.id);
+
+      expect(response.status).toBe(404);
+    });
+
+    it("answers like an unknown path while the flag is off", async () => {
+      const { alice } = await setup({ flagOn: false });
+      const entry = await seedGpuWaitlistEntry({ userId: alice.user.id, organizationId: alice.organizationId, stillWantedAskedAt: new Date() });
+
+      const response = await keep(alice.headers, entry.id);
+
+      expect(response.status).toBe(404);
+      expect((await entryRepository.findByIdAcrossOrganizations(entry.id))?.stillWantedAskedAt).not.toBeNull();
+    });
+
+    it("returns 401 when the user is not authenticated", async () => {
+      await setup();
+
+      const response = await keep(undefined, faker.string.uuid());
+
+      expect(response.status).toBe(401);
+    });
+  });
+
+  async function keep(headers: Record<string, string> | undefined, id: string) {
+    return await app.request(`/v1/gpu-waitlist/${id}/keep`, { method: "POST", headers });
+  }
 
   async function join(headers: Record<string, string> | undefined, data: Record<string, unknown>) {
     return await app.request("/v1/gpu-waitlist", {
