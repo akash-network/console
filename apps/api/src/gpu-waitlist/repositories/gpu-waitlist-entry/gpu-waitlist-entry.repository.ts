@@ -102,4 +102,31 @@ export class GpuWaitlistEntryRepository extends OrgScopedRepository<Table, GpuWa
 
     return rows.map(row => row.poolKey);
   }
+
+  async markWaitingFulfilledAcrossOrganizations({
+    userId,
+    organizationId,
+    gpus
+  }: {
+    userId: string | null;
+    organizationId: string | null;
+    gpus: { vendor: string; model: string }[];
+  }): Promise<string[]> {
+    const owner = organizationId ? eq(this.table.organizationId, organizationId) : userId ? eq(this.table.userId, userId) : undefined;
+
+    if (!owner || gpus.length === 0) return [];
+
+    const sameGpu = or(
+      ...gpus.map(({ vendor, model }) =>
+        and(sql`lower(${this.table.vendor}) = ${vendor.toLowerCase()}`, sql`lower(${this.table.model}) = ${model.toLowerCase()}`)
+      )
+    );
+    const fulfilled = await this.unscoped("gpu-waitlist-watcher")
+      .cursor.update(this.table)
+      .set({ status: "fulfilled", endedAt: new Date(), updatedAt: sql`now()` })
+      .where(and(eq(this.table.status, "waiting"), owner, sameGpu))
+      .returning({ id: this.table.id });
+
+    return fulfilled.map(({ id }) => id);
+  }
 }

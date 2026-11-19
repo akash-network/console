@@ -91,7 +91,8 @@ export default [
                 "request",
                 "approve",
                 "revoke",
-                "join"
+                "join",
+                "keep"
               ]
             },
             patch: { single: ["patch"] },

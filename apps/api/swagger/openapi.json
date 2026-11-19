@@ -29098,6 +29098,129 @@
         }
       }
     },
+    "/v1/gpu-waitlist/{id}/keep": {
+      "post": {
+        "operationId": "keepGpuWaitlistEntry",
+        "summary": "Keep waiting for a GPU setup after being asked if it is still wanted",
+        "tags": [
+          "GPU waitlist"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The waitlist entry with its place in line",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "vendor": {
+                          "type": "string"
+                        },
+                        "model": {
+                          "type": "string"
+                        },
+                        "memory": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "interface": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "gpuCount": {
+                          "type": "integer"
+                        },
+                        "source": {
+                          "type": "string",
+                          "enum": [
+                            "gpu_menu",
+                            "no_fit",
+                            "no_bids"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "waiting",
+                            "fulfilled",
+                            "left",
+                            "expired"
+                          ]
+                        },
+                        "placeInLine": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "joinedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "lastNotifiedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "vendor",
+                        "model",
+                        "memory",
+                        "interface",
+                        "gpuCount",
+                        "source",
+                        "status",
+                        "placeInLine",
+                        "joinedAt",
+                        "lastNotifiedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "The caller is not waiting with this id"
+          }
+        }
+      }
+    },
     "/v1/notification-address-confirmations": {
       "post": {
         "operationId": "createNotificationAddressConfirmation",

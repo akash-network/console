@@ -2,10 +2,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
+import type { JobQueueService } from "@src/core";
 import type { TxService } from "@src/core/services/tx/tx.service";
 import type { GpuWaitlistConfig } from "@src/gpu-waitlist/config/env.config";
 import type { JoinGpuWaitlistRequest } from "@src/gpu-waitlist/http-schemas/gpu-waitlist.schema";
 import type { GpuWaitlistEntryRepository, GpuWaitlistEntryRow } from "@src/gpu-waitlist/repositories/gpu-waitlist-entry/gpu-waitlist-entry.repository";
+import { AskStillWanted } from "@src/gpu-waitlist/services/still-wanted/ask-still-wanted.job";
 import type { UserRepository } from "@src/user/repositories";
 import { GpuWaitlistService } from "./gpu-waitlist.service";
 
@@ -14,6 +16,7 @@ import { createUser } from "@test/seeders/user.seeder";
 const NOW = new Date("2026-11-18T12:00:00.000Z").getTime();
 const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
 
 function minutesAgo(minutes: number) {
   return new Date(NOW - minutes * MINUTE_MS);
@@ -58,6 +61,26 @@ describe(GpuWaitlistService.name, () => {
 
       expect(repository.create).toHaveBeenCalledWith({ ...INPUT, userId: user.id, poolKey: "nvidia/h100/*/*" });
       expect(entry.placeInLine).toBe(3);
+    });
+
+    it("schedules the still-wanted question 30 days after a new entry joined", async () => {
+      const { service, jobQueueService } = setup();
+
+      const entry = await service.join(INPUT);
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new AskStillWanted({ entryId: entry.id }), {
+        startAfter: new Date(entry.joinedAt.getTime() + 30 * DAY_MS)
+      });
+    });
+
+    it("does not schedule another question when the same pool is joined again", async () => {
+      const existing = anEntry();
+      const { service, repository, jobQueueService } = setup({ existing });
+      repository.updateById.mockImplementation(vi.fn().mockResolvedValue(existing));
+
+      await service.join(INPUT);
+
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
 
     it("joining the same pool twice updates the gpu count and keeps the place in line", async () => {
@@ -189,6 +212,28 @@ describe(GpuWaitlistService.name, () => {
     });
   });
 
+  describe("keep", () => {
+    it("clears the question and schedules the next one 30 days out", async () => {
+      const kept = anEntry({ stillWantedAskedAt: null });
+      const { service, repository, jobQueueService } = setup({ placeInLine: 2 });
+      repository.updateBy.mockImplementation(vi.fn().mockResolvedValue(kept));
+
+      const entry = await service.keep("entry-1");
+
+      expect(repository.updateBy).toHaveBeenCalledWith({ id: "entry-1", status: "waiting" }, { stillWantedAskedAt: null }, { returning: true });
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new AskStillWanted({ entryId: "entry-1" }), { startAfter: new Date(NOW + 30 * DAY_MS) });
+      expect(entry).toMatchObject({ id: "entry-1", placeInLine: 2 });
+    });
+
+    it("answers 404 and schedules nothing when no waiting entry of the caller has the id", async () => {
+      const { service, repository, jobQueueService } = setup();
+      repository.updateBy.mockImplementation(vi.fn().mockResolvedValue(undefined));
+
+      await expect(service.keep("entry-1")).rejects.toMatchObject({ status: 404 });
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+  });
+
   function setup(input: { existing?: GpuWaitlistEntryRow; waitingCount?: number; joinTimes?: Date[]; placeInLine?: number } = {}) {
     vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
 
@@ -205,14 +250,16 @@ describe(GpuWaitlistService.name, () => {
     const authService = mock<AuthService>({ currentUser: user });
     const txService = mock<TxService>();
     txService.transaction.mockImplementation(async cb => await cb());
+    const jobQueueService = mock<JobQueueService>();
     const config = mock<GpuWaitlistConfig>({
       GPU_WAITLIST_MAX_ACTIVE_ENTRIES: 10,
       GPU_WAITLIST_JOIN_HOURLY_LIMIT: 10,
-      GPU_WAITLIST_JOIN_DAILY_LIMIT: 30
+      GPU_WAITLIST_JOIN_DAILY_LIMIT: 30,
+      GPU_WAITLIST_STILL_WANTED_DAYS: 30
     });
 
-    const service = new GpuWaitlistService(repository, userRepository, authService, txService, config);
+    const service = new GpuWaitlistService(repository, userRepository, authService, txService, jobQueueService, config);
 
-    return { service, repository, userRepository, authService, user };
+    return { service, repository, userRepository, authService, jobQueueService, user };
   }
 });
