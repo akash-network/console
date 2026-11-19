@@ -63,15 +63,16 @@ export type NotifiableGpuSetup = { vendor: "nvidia"; model: string; memory?: str
 
 /** Only a named nvidia model can be waited for, since the waitlist matches exact pools. */
 export function notifiableGpuOf(services: SdlBuilderFormValuesType["services"] | undefined, placementId: string): NotifiableGpuSetup | null {
-  const requested = requestedGpuOf(services, placementId);
-  if (requested?.vendor !== "nvidia" || !requested.name) return null;
   const gpuService = (services ?? []).find(service => isPlacementGpuService(service, placementId));
+  if (!gpuService) return null;
+  const requested = requestedGpuOf([gpuService], placementId);
+  if (requested?.vendor !== "nvidia" || !requested.name) return null;
   return {
     vendor: "nvidia",
     model: requested.name,
     memory: requested.memory,
     interface: requested.interface,
-    gpuCount: Math.max(1, gpuService?.profile.gpu ?? 1)
+    gpuCount: gpuService.profile.gpu ?? 1
   };
 }
 
