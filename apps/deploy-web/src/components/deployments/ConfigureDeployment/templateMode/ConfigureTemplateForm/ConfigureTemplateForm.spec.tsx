@@ -485,6 +485,26 @@ describe(ConfigureTemplateForm.name, () => {
     expect(allowLeaving).toHaveBeenCalled();
   });
 
+  it("leaves for the place a failed check is fixed, with the draft cleared like any other way out", async () => {
+    const { router, draft, allowLeaving } = setup({
+      template: { version: 4 },
+      savedVersion: {
+        status: "failed_checks",
+        checkResults: {
+          ranAt: "2026-11-18T18:00:00.000Z",
+          checks: [{ key: "text_within_limits", status: "failed", issues: [{ message: "The README is too long.", field: "readme" }] }]
+        }
+      }
+    });
+
+    await saveAChangedVersion();
+    fireEvent.click(screen.getByRole("button", { name: "Edit README" }));
+
+    expect(router.push).toHaveBeenCalledWith("/template/tpl-9?tab=readme");
+    expect(draft.clear).toHaveBeenCalled();
+    expect(allowLeaving).toHaveBeenCalled();
+  });
+
   it("shows no failed checks before anything was saved", () => {
     setup({ template: { version: 4 }, savedVersion: FAILED_VERSION });
 

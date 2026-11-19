@@ -341,13 +341,28 @@ describe("useUserTemplateQueries", () => {
 
   describe("template reads", () => {
     it.each([
-      ["getUserTemplate", () => useMarketplaceTemplate("tpl-1")],
-      ["listUserTemplateVersions", () => useTemplateVersions("tpl-1", { enabled: true })],
-      ["getUserTemplateVersion", () => useTemplateVersion("tpl-1", 2)]
+      [
+        "getUserTemplate",
+        function useTemplateRead() {
+          return useMarketplaceTemplate("tpl-1").isSuccess;
+        }
+      ],
+      [
+        "listUserTemplateVersions",
+        function useVersionsRead() {
+          return useTemplateVersions("tpl-1", { enabled: true }).isSuccess;
+        }
+      ],
+      [
+        "getUserTemplateVersion",
+        function useVersionRead() {
+          return useTemplateVersion("tpl-1", 2).isSuccess;
+        }
+      ]
     ] as const)("keeps a refused %s out of error reporting and reports a server fault", async (operationId, useRead) => {
       const { result, queryClient } = setup({ useHook: useRead });
 
-      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+      await waitFor(() => expect(result.current).toBe(true));
 
       const query = queryClient.getQueryCache().find({ queryKey: ["v1", operationId], exact: false });
       expect(shouldReportError(new ApiError(410, { code: "template_removed" }, "410"), query?.meta)).toBe(false);

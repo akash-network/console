@@ -2,7 +2,7 @@ import type { MarketplaceTemplate } from "@src/types/marketplace-template";
 
 export type ReportViewer = {
   username: string | undefined;
-  organizations: { type: "personal" | "team"; slug: string | null }[];
+  organizations: { type: "personal" | "team"; slug: string }[];
 };
 
 type ReportedTemplate = Pick<MarketplaceTemplate, "visibility" | "moderationStatus" | "canEdit" | "publisher" | "author">;
@@ -16,7 +16,7 @@ export function canReportTemplate(template: ReportedTemplate, viewer: ReportView
 
 function isPublishedByViewer({ publisher, author }: ReportedTemplate, viewer: ReportViewer): boolean {
   if (publisher?.type === "team") {
-    return viewer.organizations.some(organization => organization.type === "team" && !!organization.slug && organization.slug === publisher.slug);
+    return viewer.organizations.some(organization => organization.type === "team" && organization.slug === publisher.slug);
   }
 
   return !!viewer.username && author?.username === viewer.username;

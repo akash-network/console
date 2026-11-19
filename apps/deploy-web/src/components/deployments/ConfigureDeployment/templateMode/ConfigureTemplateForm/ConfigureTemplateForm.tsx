@@ -14,6 +14,7 @@ import Layout from "@src/components/layout/Layout";
 import { ConfigureDeployTargetChip } from "@src/components/projects/ConfigureDeployTargetChip/ConfigureDeployTargetChip";
 import { useConfigureDeployTarget } from "@src/components/projects/DeployTargetGate/DeployTargetGate";
 import { describeTemplateRefusal } from "@src/components/templates/describeTemplateRefusal";
+import { publishFixLinksOf } from "@src/components/templates/publishing/publishReadiness";
 import { readTemplateRateLimit } from "@src/components/templates/publishing/readPublishRefusal";
 import { useCreateTemplateMutation, useCreateTemplateVersionMutation } from "@src/queries/useUserTemplateQueries";
 import type { SdlBuilderFormValuesType } from "@src/types";
@@ -397,6 +398,8 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({
             <d.FailedChecksDialog
               version={failedVersion}
               liveVersion={template.currentVersion?.version}
+              fixLinks={publishFixLinksOf(template, template.publisher)}
+              onFollowFix={leaveFor}
               onKeepEditing={() => setFailedVersion(undefined)}
               onViewVersions={() => leaveFor(versionsUrlOf(template.id))}
             />
