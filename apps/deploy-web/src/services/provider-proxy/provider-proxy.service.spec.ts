@@ -262,137 +262,255 @@ describe(ProviderProxyService.name, () => {
 
   describe("downloadFileFromShell", () => {
     it("saves the command's stdout under the file's name once the provider reports exit code 0", async () => {
-      const { service, saveFile, logger, websocket } = setup();
+      const { download, saveFile, logger, websocket } = await startDownload({ filePath: "/very/long/path/to/config.json" });
 
-      const promise = downloadFile(service, { filePath: "/very/long/path/to/config.json" });
-      await dispatchWsEvent(websocket, new Event("open"));
       await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, '{"setting": "value"}');
       await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
 
-      expect(await promise).toEqual({ ok: true });
+      expect(await download).toEqual({ ok: true });
       expect(saveFile).toHaveBeenCalledWith(expect.any(Blob), "config.json");
       expect(await readSavedFile(saveFile)).toBe('{"setting": "value"}');
       expect(logger.info).toHaveBeenCalledWith({ event: "DOWNLOAD_FILE_FROM_SHELL_SUCCESS", size: 20 });
       expect(websocket.send).toHaveBeenCalledWith(expect.stringContaining("cmd0=cat&cmd1=%2Fvery%2Flong%2Fpath%2Fto%2Fconfig.json&"));
     });
 
-    it("joins stdout chunks in order and leaves stderr out of the saved file", async () => {
-      const { service, saveFile, websocket } = setup();
+    it("reads the file's size with a separate command before downloading it", async () => {
+      const { download, sizeSocket, websocket } = await startDownload({ filePath: "/app/my file.bin", sizeCheck: { stdout: "7\n", exitCode: 0 } });
 
-      const promise = downloadFile(service);
-      await dispatchWsEvent(websocket, new Event("open"));
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "content");
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
+
+      expect(await download).toEqual({ ok: true });
+      expect(sizeSocket.send).toHaveBeenCalledWith(
+        expect.stringContaining(`cmd0=sh&cmd1=-c&cmd2=${encodeURIComponent('wc -c < "$1"')}&cmd3=sh&cmd4=${encodeURIComponent("/app/my file.bin")}&`)
+      );
+    });
+
+    it("saves the file when it is as large as the size read before the download", async () => {
+      const { download, saveFile, websocket } = await startDownload({ sizeCheck: { stdout: "  12\n", exitCode: 0 } });
+
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "First ");
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "second");
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
+
+      expect(await download).toEqual({ ok: true });
+      expect(await readSavedFile(saveFile)).toBe("First second");
+    });
+
+    it("saves the file when it grew past the size read before the download", async () => {
+      const { download, saveFile, websocket } = await startDownload({ sizeCheck: { stdout: "5\n", exitCode: 0 } });
+
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "grown log");
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
+
+      expect(await download).toEqual({ ok: true });
+      expect(await readSavedFile(saveFile)).toBe("grown log");
+    });
+
+    it("returns an error without saving when fewer bytes arrive than the file still holds, although the provider reports exit code 0", async () => {
+      const { download, saveFile, logger, websocket, answerRecheck } = await startDownload({ sizeCheck: { stdout: "62914560\n", exitCode: 0 } });
+
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "cut off");
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
+      await answerRecheck({ stdout: "62914560\n", exitCode: 0 });
+
+      expect(await download).toEqual({
+        ok: false,
+        code: "unknown",
+        message: "The provider ended the download early (7 of 62914560 bytes). Try again."
+      });
+      expect(saveFile).not.toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith({ event: "DOWNLOAD_FILE_FROM_SHELL_INCOMPLETE", expectedSize: 62914560, receivedSize: 7 });
+    });
+
+    it("saves the file when it shrank to the received size between the size check and the download", async () => {
+      const { download, saveFile, websocket, answerRecheck } = await startDownload({ sizeCheck: { stdout: "12\n", exitCode: 0 } });
+
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "rotated");
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
+      await answerRecheck({ stdout: "7\n", exitCode: 0 });
+
+      expect(await download).toEqual({ ok: true });
+      expect(await readSavedFile(saveFile)).toBe("rotated");
+    });
+
+    it("compares the download with the new size when the file changed size but is still larger than what arrived", async () => {
+      const { download, saveFile, websocket, answerRecheck } = await startDownload({ sizeCheck: { stdout: "12\n", exitCode: 0 } });
+
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "cut off");
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
+      await answerRecheck({ stdout: "9\n", exitCode: 0 });
+
+      expect(await download).toEqual({ ok: false, code: "unknown", message: "The provider ended the download early (7 of 9 bytes). Try again." });
+      expect(saveFile).not.toHaveBeenCalled();
+    });
+
+    it("keeps the first size and returns an error when the size read again arrives without its line ending", async () => {
+      const { download, saveFile, websocket, answerRecheck } = await startDownload({ sizeCheck: { stdout: "12\n", exitCode: 0 } });
+
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "cut off");
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
+      await answerRecheck({ stdout: "1", exitCode: 0 });
+
+      expect(await download).toEqual({ ok: false, code: "unknown", message: "The provider ended the download early (7 of 12 bytes). Try again." });
+      expect(saveFile).not.toHaveBeenCalled();
+    });
+
+    it("saves the file without a size check when the size arrives without its line ending", async () => {
+      const { download, saveFile, websocket } = await startDownload({ sizeCheck: { stdout: "62914560", exitCode: 0 } });
+
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "content");
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
+
+      expect(await download).toEqual({ ok: true });
+      expect(await readSavedFile(saveFile)).toBe("content");
+    });
+
+    it("keeps the first size and returns an error when the size can't be read again", async () => {
+      const { download, saveFile, websocket, answerRecheck } = await startDownload({ sizeCheck: { stdout: "12\n", exitCode: 0 } });
+
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "cut off");
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
+      await answerRecheck({ stdout: "", exitCode: 1 });
+
+      expect(await download).toEqual({ ok: false, code: "unknown", message: "The provider ended the download early (7 of 12 bytes). Try again." });
+      expect(saveFile).not.toHaveBeenCalled();
+    });
+
+    it("returns cancelled without saving when the download is aborted while the size is read again", async () => {
+      const abortController = new AbortController();
+      const { download, saveFile, websocket, recheckSocket, createWebSocket } = await startDownload({
+        signal: abortController.signal,
+        sizeCheck: { stdout: "12\n", exitCode: 0 }
+      });
+
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "cut off");
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
+      await vi.waitFor(() => expect(createWebSocket).toHaveBeenCalledTimes(3));
+      await dispatchWsEvent(recheckSocket, new Event("open"));
+      abortController.abort();
+
+      expect(await download).toEqual({ ok: false, code: "cancelled" });
+      expect(saveFile).not.toHaveBeenCalled();
+    });
+
+    it("saves the file without a size check when the size command prints something other than a number", async () => {
+      const { download, saveFile, websocket } = await startDownload({ sizeCheck: { stdout: "62914560 /app/data.bin\n", exitCode: 0 } });
+
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "content");
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
+
+      expect(await download).toEqual({ ok: true });
+      expect(await readSavedFile(saveFile)).toBe("content");
+    });
+
+    it("saves the file without a size check when the size command fails", async () => {
+      const { download, saveFile, websocket } = await startDownload({ sizeCheck: { stdout: "62914560\n", exitCode: 127 } });
+
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "content");
+      await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
+
+      expect(await download).toEqual({ ok: true });
+      expect(await readSavedFile(saveFile)).toBe("content");
+    });
+
+    it("joins stdout chunks in order and leaves stderr out of the saved file", async () => {
+      const { download, saveFile, websocket } = await startDownload();
+
       await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "First chunk ");
       await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStderr, "warning: slow disk\n");
       await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "Second chunk");
       await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
 
-      expect(await promise).toEqual({ ok: true });
+      expect(await download).toEqual({ ok: true });
       expect(await readSavedFile(saveFile)).toBe("First chunk Second chunk");
     });
 
     it("saves stdout that looks like a result as file content", async () => {
-      const { service, saveFile, websocket } = setup();
+      const { download, saveFile, websocket } = await startDownload();
 
-      const promise = downloadFile(service);
-      await dispatchWsEvent(websocket, new Event("open"));
       await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, '{"exit_code": 1}');
       await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
 
-      expect(await promise).toEqual({ ok: true });
+      expect(await download).toEqual({ ok: true });
       expect(await readSavedFile(saveFile)).toBe('{"exit_code": 1}');
     });
 
     it("ignores messages that carry no shell frame", async () => {
-      const { service, saveFile, websocket } = setup();
+      const { download, saveFile, websocket } = await startDownload();
 
-      const promise = downloadFile(service);
-      await dispatchWsEvent(websocket, new Event("open"));
       await sendProxyMessage(websocket, {});
       await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "content");
       await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
 
-      expect(await promise).toEqual({ ok: true });
+      expect(await download).toEqual({ ok: true });
       expect(await readSavedFile(saveFile)).toBe("content");
     });
 
     it("returns the command's stderr as the error when it exits with a non-zero code", async () => {
-      const { service, saveFile, logger, websocket } = setup();
+      const { download, saveFile, logger, websocket } = await startDownload({ filePath: "/nonexistent/file.txt" });
       const stderr = "cat: /nonexistent/file.txt: No such file or directory";
 
-      const promise = downloadFile(service, { filePath: "/nonexistent/file.txt" });
-      await dispatchWsEvent(websocket, new Event("open"));
       await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "partial");
       await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStderr, `${stderr}\n`);
       await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":1}\n');
 
-      expect(await promise).toEqual({ ok: false, code: "unknown", message: stderr });
+      expect(await download).toEqual({ ok: false, code: "unknown", message: stderr });
       expect(saveFile).not.toHaveBeenCalled();
       expect(logger.error).toHaveBeenCalledWith({ event: "DOWNLOAD_FILE_FROM_SHELL_ERROR", error: stderr });
     });
 
     it("reports the exit code when a failing command writes nothing to stderr", async () => {
-      const { service, saveFile, websocket } = setup();
+      const { download, saveFile, websocket } = await startDownload();
 
-      const promise = downloadFile(service);
-      await dispatchWsEvent(websocket, new Event("open"));
       await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":2}\n');
 
-      expect(await promise).toEqual({ ok: false, code: "unknown", message: "The download command exited with code 2." });
+      expect(await download).toEqual({ ok: false, code: "unknown", message: "The download command exited with code 2." });
       expect(saveFile).not.toHaveBeenCalled();
     });
 
     it("returns the provider's message when the result carries one", async () => {
-      const { service, saveFile, websocket } = setup();
+      const { download, saveFile, websocket } = await startDownload();
 
-      const promise = downloadFile(service);
-      await dispatchWsEvent(websocket, new Event("open"));
       await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0,"message":"no active replicase for service"}\n');
 
-      expect(await promise).toEqual({ ok: false, code: "unknown", message: "no active replicase for service" });
+      expect(await download).toEqual({ ok: false, code: "unknown", message: "no active replicase for service" });
       expect(saveFile).not.toHaveBeenCalled();
     });
 
     it("returns an error when the command exits with code 0 without writing any content", async () => {
-      const { service, saveFile, websocket } = setup();
+      const { download, saveFile, websocket } = await startDownload();
 
-      const promise = downloadFile(service);
-      await dispatchWsEvent(websocket, new Event("open"));
       await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeResult, '{"exit_code":0}\n');
 
-      expect(await promise).toEqual({ ok: false, code: "unknown", message: "No file content received from server" });
+      expect(await download).toEqual({ ok: false, code: "unknown", message: "No file content received from server" });
       expect(saveFile).not.toHaveBeenCalled();
     });
 
     it("returns an error without saving when the provider reports an internal failure", async () => {
-      const { service, saveFile, websocket } = setup();
+      const { download, saveFile, websocket } = await startDownload();
 
-      const promise = downloadFile(service);
-      await dispatchWsEvent(websocket, new Event("open"));
       await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "partial");
       await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeFailure);
 
-      expect(await promise).toEqual({ ok: false, code: "unknown", message: "The provider failed to run the download command." });
+      expect(await download).toEqual({ ok: false, code: "unknown", message: "The provider failed to run the download command." });
       expect(saveFile).not.toHaveBeenCalled();
     });
 
     it("stops right away without saving the partial file when the provider connection closes before the result", async () => {
-      const { service, saveFile, websocket } = setup();
+      const { download, saveFile, websocket } = await startDownload();
 
-      const promise = downloadFile(service);
-      await dispatchWsEvent(websocket, new Event("open"));
       await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "partial");
       await sendProxyMessage(websocket, { type: "websocket", message: "", closed: true, code: 1006, reason: "" });
 
-      expect(await promise).toEqual({ ok: false, code: "unknown", message: "The connection to the provider closed before the file finished downloading." });
+      expect(await download).toEqual({ ok: false, code: "unknown", message: "The connection to the provider closed before the file finished downloading." });
       expect(saveFile).not.toHaveBeenCalled();
       expect(websocket.close).toHaveBeenCalled();
     });
 
     it("stops right away without saving the partial file when the provider connection fails before the result", async () => {
-      const { service, saveFile, websocket } = setup();
+      const { download, saveFile, websocket } = await startDownload();
 
-      const promise = downloadFile(service);
-      await dispatchWsEvent(websocket, new Event("open"));
       await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "partial");
       await sendProxyMessage(websocket, {
         type: "websocket",
@@ -400,36 +518,70 @@ describe(ProviderProxyService.name, () => {
         error: "Received error from provider websocket"
       });
 
-      expect(await promise).toEqual({ ok: false, code: "unknown", message: "The connection to the provider closed before the file finished downloading." });
+      expect(await download).toEqual({ ok: false, code: "unknown", message: "The connection to the provider closed before the file finished downloading." });
       expect(saveFile).not.toHaveBeenCalled();
       expect(websocket.close).toHaveBeenCalled();
     });
 
     it("returns an error without saving the partial file when the session ends before the result", async () => {
-      const { service, saveFile, websocket } = setup();
+      const { download, saveFile, websocket } = await startDownload();
 
-      const promise = downloadFile(service);
-      await dispatchWsEvent(websocket, new Event("open"));
       await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "partial");
       await dispatchWsEvent(websocket, new Event("close"));
 
-      expect(await promise).toEqual({ ok: false, code: "unknown", message: "The connection to the provider closed before the file finished downloading." });
+      expect(await download).toEqual({ ok: false, code: "unknown", message: "The connection to the provider closed before the file finished downloading." });
       expect(saveFile).not.toHaveBeenCalled();
     });
 
     it("returns cancelled without saving when the download is aborted", async () => {
-      const { service, saveFile, websocket } = setup();
       const abortController = new AbortController();
+      const { download, saveFile, websocket } = await startDownload({ signal: abortController.signal });
 
-      const promise = downloadFile(service, { signal: abortController.signal });
-      await dispatchWsEvent(websocket, new Event("open"));
       await sendShellFrame(websocket, LeaseShellCode.LeaseShellCodeStdout, "partial");
       abortController.abort();
 
-      expect(await promise).toEqual({ ok: false, code: "cancelled" });
+      expect(await download).toEqual({ ok: false, code: "cancelled" });
       expect(saveFile).not.toHaveBeenCalled();
       expect(websocket.close).toHaveBeenCalled();
     });
+
+    it("returns cancelled without starting the download when it is aborted during the size check", async () => {
+      const abortController = new AbortController();
+      const { service, saveFile, sockets, createWebSocket } = setupWithSocketSequence(2);
+
+      const download = downloadFile(service, { signal: abortController.signal });
+      await dispatchWsEvent(sockets[0], new Event("open"));
+      abortController.abort();
+
+      expect(await download).toEqual({ ok: false, code: "cancelled" });
+      expect(saveFile).not.toHaveBeenCalled();
+      expect(createWebSocket).toHaveBeenCalledTimes(1);
+    });
+
+    async function startDownload(input?: { filePath?: string; signal?: AbortSignal; sizeCheck?: SizeCheckAnswer }) {
+      const { service, saveFile, logger, sockets, createWebSocket } = setupWithSocketSequence(3);
+      const [sizeSocket, websocket, recheckSocket] = sockets;
+
+      const download = downloadFile(service, input);
+      await answerSizeCheck(sizeSocket, input?.sizeCheck ?? { stdout: "", exitCode: 127 });
+      await vi.waitFor(() => expect(createWebSocket).toHaveBeenCalledTimes(2));
+      await dispatchWsEvent(websocket, new Event("open"));
+
+      const answerRecheck = async (answer: SizeCheckAnswer) => {
+        await vi.waitFor(() => expect(createWebSocket).toHaveBeenCalledTimes(3));
+        await answerSizeCheck(recheckSocket, answer);
+      };
+
+      return { download, saveFile, logger, sizeSocket, websocket, recheckSocket, createWebSocket, answerRecheck };
+    }
+
+    type SizeCheckAnswer = { stdout: string; exitCode: number };
+
+    async function answerSizeCheck(socket: WebSocket, answer: SizeCheckAnswer) {
+      await dispatchWsEvent(socket, new Event("open"));
+      await sendShellFrame(socket, LeaseShellCode.LeaseShellCodeStdout, answer.stdout);
+      await sendShellFrame(socket, LeaseShellCode.LeaseShellCodeResult, `{"exit_code":${answer.exitCode}}\n`);
+    }
 
     function downloadFile(service: ProviderProxyService, input?: { filePath?: string; signal?: AbortSignal }) {
       return service.downloadFileFromShell({
