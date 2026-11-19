@@ -147,6 +147,7 @@ describe("GpuCard trial gate", () => {
       return result;
     };
     const useFieldError: typeof DEPENDENCIES.useFieldError = () => ({ error: undefined });
+    const useNotifyMe: typeof DEPENDENCIES.useNotifyMe = () => mock<ReturnType<typeof DEPENDENCIES.useNotifyMe>>({ isEnabled: false });
 
     const placementOptionsQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.usePlacementOptions>>(), {
       data: input.availableGpus && { regions: [], gpus: input.availableGpus }
@@ -169,7 +170,7 @@ describe("GpuCard trial gate", () => {
           serviceIndex={0}
           isBlockedModel={input.isBlockedModel}
           onUnlock={input.onUnlock}
-          dependencies={{ ...DEPENDENCIES, useGpuModels, useFieldError, usePlacementOptions, useScreenedGpuModelCounts }}
+          dependencies={{ ...DEPENDENCIES, useGpuModels, useFieldError, useNotifyMe, usePlacementOptions, useScreenedGpuModelCounts }}
         />
       </Wrapper>
     );

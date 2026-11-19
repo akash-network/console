@@ -20,6 +20,7 @@ import {
 } from "@akashnetwork/ui/components";
 import { ArrowRightIcon, GpuIcon, LockIcon, MessageSquareIcon, PlusIcon, TrashIcon, TriangleAlertIcon, XIcon } from "lucide-react";
 
+import { useNotifyMe } from "@src/components/gpu-alerts/useNotifyMe/useNotifyMe";
 import { answersForGpuModel } from "@src/components/gpu-requests/gpuQuoteDraft/gpuQuoteDraft";
 import { GpuQuoteRequestFlow } from "@src/components/gpu-requests/GpuQuoteRequestFlow/GpuQuoteRequestFlow";
 import type { SearchableSelectOption } from "@src/components/shared/SearchableSelect/SearchableSelect";
@@ -70,7 +71,8 @@ export const DEPENDENCIES = {
   GpuQuoteRequestFlow,
   useScreenedGpuModelCounts,
   CustomTooltip,
-  useFlag
+  useFlag,
+  useNotifyMe
 };
 
 type Props = {
@@ -387,6 +389,7 @@ function GpuModelFields({
       useScreenedGpuModelCounts={d.useScreenedGpuModelCounts}
       CustomTooltip={d.CustomTooltip}
       useFlag={d.useFlag}
+      useNotifyMe={d.useNotifyMe}
     />
   );
 
@@ -537,6 +540,7 @@ function FirstGpuModelPicker({
           useScreenedGpuModelCounts={d.useScreenedGpuModelCounts}
           CustomTooltip={d.CustomTooltip}
           useFlag={d.useFlag}
+          useNotifyMe={d.useNotifyMe}
         />
         {countField}
       </div>
@@ -559,6 +563,7 @@ type GpuModelControlProps = {
   useScreenedGpuModelCounts: typeof DEPENDENCIES.useScreenedGpuModelCounts;
   CustomTooltip: typeof DEPENDENCIES.CustomTooltip;
   useFlag: typeof DEPENDENCIES.useFlag;
+  useNotifyMe: typeof DEPENDENCIES.useNotifyMe;
 };
 
 function GpuModelControl({
@@ -573,10 +578,15 @@ function GpuModelControl({
   emptyTriggerLabel,
   useScreenedGpuModelCounts,
   CustomTooltip,
-  useFlag
+  useFlag,
+  useNotifyMe
 }: GpuModelControlProps) {
   const [isOpen, setIsOpen] = useState(false);
   const isQuoteFlowEnabled = useFlag("gpu_quote_requests");
+  const notifyMe = useNotifyMe();
+  const { control } = useFormContext<SdlBuilderFormValuesType>();
+  const gpuCount = useWatch({ control, name: `services.${serviceIndex}.profile.gpu` }) ?? 1;
+  const notifiableVendor = notifyMe.isEnabled && choices.vendor === "nvidia" ? choices.vendor : undefined;
   const screened = useScreenedModelOptions({ serviceIndex, choices, isOpen, useScreenedGpuModelCounts, CustomTooltip });
 
   if (isLoading) {
@@ -608,6 +618,9 @@ function GpuModelControl({
           notFoundMessage="No models found."
           optionsHeading={choices.isAvailabilityKnown ? { label: "Available", hintLabel: <AvailabilityColumnLabels /> } : { label: "All models" }}
           unavailableHeading="Others"
+          renderUnavailableAction={
+            notifiableVendor ? option => <NotifyMeAction option={option} vendor={notifiableVendor} gpuCount={gpuCount} notifyMe={notifyMe} /> : undefined
+          }
           emptyOption={{
             value: "",
             disabled: choices.anyModelBlocked,
@@ -626,6 +639,7 @@ function GpuModelControl({
           renderFooter={(search, { close }) => (
             <GpuRequestLink
               isQuoteFlowEnabled={isQuoteFlowEnabled}
+              isReservingCapacity={notifyMe.isEnabled}
               onClick={() => {
                 close();
                 onRequestGpu(search.trim());
@@ -641,7 +655,48 @@ function GpuModelControl({
   );
 }
 
-function GpuRequestLink({ isQuoteFlowEnabled, onClick }: { isQuoteFlowEnabled: boolean; onClick: () => void }) {
+function NotifyMeAction({
+  option,
+  vendor,
+  gpuCount,
+  notifyMe
+}: {
+  option: SearchableSelectOption;
+  vendor: string;
+  gpuCount: number;
+  notifyMe: ReturnType<typeof DEPENDENCIES.useNotifyMe>;
+}) {
+  const label = typeof option.label === "string" ? option.label : option.value;
+  const waiting = notifyMe.findEntry({ vendor, model: option.value });
+
+  if (waiting) {
+    return <span className="shrink-0 whitespace-nowrap px-2 text-xs text-muted-foreground">Waiting · #{waiting.placeInLine}</span>;
+  }
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="h-6 shrink-0 px-2 text-xs"
+      aria-label={`Notify me about ${label}`}
+      disabled={notifyMe.isPending}
+      onClick={() => notifyMe.notify({ vendor, model: option.value, gpuCount, label }, "gpu_menu")}
+    >
+      Notify me
+    </Button>
+  );
+}
+
+function GpuRequestLink({
+  isQuoteFlowEnabled,
+  isReservingCapacity,
+  onClick
+}: {
+  isQuoteFlowEnabled: boolean;
+  isReservingCapacity: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
@@ -649,7 +704,11 @@ function GpuRequestLink({ isQuoteFlowEnabled, onClick }: { isQuoteFlowEnabled: b
       className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
     >
       <MessageSquareIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
-      {isQuoteFlowEnabled ? (
+      {isReservingCapacity ? (
+        <span>
+          Need dedicated capacity? <span className="font-medium text-foreground">Reserve it</span>
+        </span>
+      ) : isQuoteFlowEnabled ? (
         <span>
           Looking for a GPU that isn&apos;t listed? <span className="font-medium text-foreground">Request it</span>
         </span>
@@ -851,6 +910,7 @@ function useGpuModelOptions({ gpuVendors, gpuCatalog, availableGpus, isBlockedMo
   const hasBlockedModel = selectableModels.some(model => isBlockedModel(vendor, model.name));
 
   return {
+    vendor,
     isAvailabilityKnown,
     vendorOptions,
     showVendor,

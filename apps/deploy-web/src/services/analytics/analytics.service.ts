@@ -180,7 +180,11 @@ export type AnalyticsEvent =
   | "gpu_request_sent"
   | "gpu_request_withdrawn"
   | "gpu_offer_accepted"
-  | "gpu_offer_declined";
+  | "gpu_offer_declined"
+  | "gpu_alert_joined"
+  | "gpu_alert_left"
+  | "gpu_alert_kept"
+  | "gpu_alert_deploy_opened";
 
 export type AnalyticsCategory = "user" | "billing" | "deployments" | "wallet" | "sdl_builder" | "transactions" | "profile" | "settings" | "onboarding";
 
