@@ -31,6 +31,32 @@ describe(redactSecrets.name, () => {
     expect(redactSecrets(`my deploy fails with ${secret} set in the env`)).toBe(`my deploy fails with ${REDACTED} set in the env`);
   });
 
+  it("replaces a JWT whose payload is longer than a thousand characters", () => {
+    const jwt = `eyJ${alphanumeric(12)}.eyJ${alphanumeric(1500)}.${alphanumeric(43)}`;
+
+    expect(redactSecrets(`token ${jwt} expired`)).toBe(`token ${REDACTED} expired`);
+  });
+
+  it("replaces a JWT whose header repeats its own first letters after a hyphen", () => {
+    const jwt = `eyJ-eyJ${alphanumeric(12)}.eyJ${alphanumeric(20)}.${alphanumeric(16)}`;
+
+    expect(redactSecrets(`it sent ${jwt} twice`)).toBe(`it sent ${REDACTED} twice`);
+  });
+
+  it("replaces a JWT that follows a separator", () => {
+    const jwt = `eyJ${alphanumeric(12)}.eyJ${alphanumeric(20)}.${alphanumeric(16)}`;
+
+    expect(redactSecrets(`--jwt=${jwt} and path/${jwt}`)).toBe(`--jwt=${REDACTED} and path/${REDACTED}`);
+  });
+
+  it("stays fast on a long run of JWT starts without a dot", () => {
+    const text = "eyJ-".repeat(32_000);
+    const startedAt = performance.now();
+
+    expect(redactSecrets(text)).toBe(text);
+    expect(performance.now() - startedAt).toBeLessThan(1_000);
+  });
+
   it("replaces a private key block with everything between its markers", () => {
     const privateKey = ["-----BEGIN RSA PRIVATE KEY-----", alphanumeric(40), alphanumeric(40), "-----END RSA PRIVATE KEY-----"].join("\n");
 
