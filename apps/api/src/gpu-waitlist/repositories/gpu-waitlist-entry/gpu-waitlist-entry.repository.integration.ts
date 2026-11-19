@@ -127,6 +127,32 @@ describe(GpuWaitlistEntryRepository.name, () => {
     });
   });
 
+  describe("countWaitingBySetupAcrossOrganizations", () => {
+    it("groups waiting entries by setup across users, with the oldest join time", async () => {
+      const { repository, poolModel, user } = await setup();
+      await seedGpuWaitlistEntry({ userId: user.id, model: poolModel, gpuCount: 8, memory: "80Gi", interface: "sxm", joinedAt: hoursAgo(1) });
+      await seedGpuWaitlistEntry({ userId: (await seedUser()).id, model: poolModel, gpuCount: 8, memory: "80Gi", interface: "sxm", joinedAt: hoursAgo(5) });
+      await seedGpuWaitlistEntry({ userId: (await seedUser()).id, model: poolModel, gpuCount: 1, joinedAt: hoursAgo(2) });
+
+      const rows = (await repository.countWaitingBySetupAcrossOrganizations()).filter(row => row.model === poolModel);
+
+      expect(rows).toEqual([
+        { vendor: "nvidia", model: poolModel, memory: "80Gi", interface: "sxm", gpuCount: 8, waiting: 2, oldestJoinedAt: hoursAgo(5) },
+        { vendor: "nvidia", model: poolModel, memory: null, interface: null, gpuCount: 1, waiting: 1, oldestJoinedAt: hoursAgo(2) }
+      ]);
+    });
+
+    it("ignores entries that are no longer waiting", async () => {
+      const { repository, poolModel, user } = await setup();
+      await seedGpuWaitlistEntry({ userId: user.id, model: poolModel, status: "left" });
+      await seedGpuWaitlistEntry({ userId: (await seedUser()).id, model: poolModel, status: "fulfilled" });
+
+      const rows = await repository.countWaitingBySetupAcrossOrganizations();
+
+      expect(rows.filter(row => row.model === poolModel)).toEqual([]);
+    });
+  });
+
   function hoursAgo(hours: number) {
     return new Date(Math.floor((Date.now() - hours * HOUR_MS) / 1000) * 1000);
   }

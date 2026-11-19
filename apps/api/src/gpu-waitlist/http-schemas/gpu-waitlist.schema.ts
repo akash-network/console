@@ -36,9 +36,24 @@ export const GpuWaitlistEntryResponseSchema = z.object({ data: GpuWaitlistEntryO
 
 export const ListGpuWaitlistResponseSchema = z.object({ data: z.array(GpuWaitlistEntryOutputSchema) });
 
+export const GpuWaitlistDemandResponseSchema = z.object({
+  data: z.array(
+    z.object({
+      vendor: z.string(),
+      model: z.string(),
+      memory: z.string().nullable(),
+      interface: z.string().nullable(),
+      gpuCount: z.number().int(),
+      waiting: z.number().int().min(1),
+      oldestJoinedAt: z.string().datetime()
+    })
+  )
+});
+
 export const GpuWaitlistEntryIdParamsSchema = z.object({ id: z.string().uuid() });
 
 export type JoinGpuWaitlistRequest = z.infer<typeof JoinGpuWaitlistRequestSchema>;
 export type GpuWaitlistEntryOutput = z.infer<typeof GpuWaitlistEntryOutputSchema>;
 export type GpuWaitlistEntryResponse = z.infer<typeof GpuWaitlistEntryResponseSchema>;
 export type ListGpuWaitlistResponse = z.infer<typeof ListGpuWaitlistResponseSchema>;
+export type GpuWaitlistDemandResponse = z.infer<typeof GpuWaitlistDemandResponseSchema>;
