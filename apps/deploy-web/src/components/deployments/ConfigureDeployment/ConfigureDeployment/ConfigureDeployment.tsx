@@ -10,6 +10,7 @@ import { useSnackbar } from "notistack";
 
 import Layout from "@src/components/layout/Layout";
 import { DeployTargetGate } from "@src/components/projects/DeployTargetGate/DeployTargetGate";
+import { useServices } from "@src/context/ServicesProvider";
 import { useTakeAutoDeployStart } from "@src/hooks/useAutoDeployStart/useAutoDeployStart";
 import { useFlag } from "@src/hooks/useFlag";
 import { usePublicTemplate, useTemplate } from "@src/queries/useTemplateQuery";
@@ -51,6 +52,7 @@ export const DEPENDENCIES = {
   useSearchParams,
   useParams,
   useSnackbar,
+  useServices,
   Snackbar
 };
 
@@ -145,6 +147,8 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({
     [draft.draftId, onDraftIdChange]
   );
 
+  useTrackLinkedGpuOpened(d, intent.gpu);
+
   const templateId = intent.templateId;
   const deploySdl = useAtomValue(sdlStore.deploySdl);
   const hardcodedTemplate: TemplateCreation | undefined = templateId ? hardcodedTemplates.find(template => template.code === templateId) : undefined;
@@ -171,7 +175,7 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({
 
   const fetchedSdl = fetchedTemplateId ? templateQuery.data?.deploy : versionedTemplate ? loadedTemplateSource?.version.sdl : userTemplateQuery.data?.sdl;
   const fetchedName = fetchedTemplateId ? templateQuery.data?.name : versionedTemplate ? loadedTemplateSource?.template.title : userTemplateQuery.data?.title;
-  const carriedInSdl = intent.vm || intent.exampleImage ? undefined : deploySdl?.content;
+  const carriedInSdl = intent.vm || intent.exampleImage || intent.gpu ? undefined : deploySdl?.content;
   const initialSdl = draft.persistedSdl ?? hardcodedTemplate?.content ?? (isFetchingTemplate ? fetchedSdl : carriedInSdl);
   const initialName = draft.persistedName ?? hardcodedTemplate?.name ?? (isFetchingTemplate ? fetchedName : undefined);
   const isStartingFromDefault = hasTemplateFailed && !initialSdl;
@@ -204,7 +208,8 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({
       dseq: intent.dseq,
       draftId: draft.draftId,
       vm: intent.vm,
-      exampleImage: intent.exampleImage
+      exampleImage: intent.exampleImage,
+      gpu: intent.gpu
     }),
     [
       intent.templateId,
@@ -219,7 +224,8 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({
       intent.dseq,
       draft.draftId,
       intent.vm,
-      intent.exampleImage
+      intent.exampleImage,
+      intent.gpu
     ]
   );
 
@@ -273,6 +279,20 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({
     </d.DeployTargetGate>
   );
 };
+
+function useTrackLinkedGpuOpened(d: typeof DEPENDENCIES, gpu: DeploymentIntent["gpu"]) {
+  const { analyticsService } = d.useServices();
+  const hasTracked = useRef(false);
+
+  useEffect(
+    function trackTheGpuAlertDeployOpened() {
+      if (!gpu || hasTracked.current) return;
+      hasTracked.current = true;
+      analyticsService.track("gpu_alert_deploy_opened", { category: "deployments", model: gpu.model, gpuCount: gpu.count });
+    },
+    [gpu, analyticsService]
+  );
+}
 
 type VersionedTemplate = {
   source: TemplateSource | undefined;

@@ -6,10 +6,10 @@ import { applyPresetToProfile, DEFAULT_HARDWARE_PRESET } from "../ConfigurationP
 import type { ImportedDeploymentState } from "../importDeploymentState/importDeploymentState";
 import { importDeploymentState, isKnownSdlParserError, NoVisibleServiceError, seedSelectedServiceId } from "../importDeploymentState/importDeploymentState";
 import type { PlacementRegionPicks } from "../useConfigureDraft/useConfigureDraft";
-import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
+import type { DeploymentIntent, GpuIntent } from "../useDeploymentFlow/deploymentIntent";
 
 /** What a fresh deployment is seeded with when nothing was carried in. */
-export type DefaultSeed = Pick<DeploymentIntent, "vm" | "exampleImage">;
+export type DefaultSeed = Pick<DeploymentIntent, "vm" | "exampleImage" | "gpu">;
 
 export interface InitialState {
   values: SdlBuilderFormValuesType;
@@ -60,11 +60,18 @@ export function draftableSdlOf(sdl: string, services: ServiceType[]): string | u
 }
 
 /** A fresh default deployment (or SSH-ready VM or example image deployment), optionally annotated with the error that made an import unusable. */
-function defaultInitialState({ vm: isVm, exampleImage }: DefaultSeed, importError?: string): InitialState {
+function defaultInitialState({ vm: isVm, exampleImage, gpu }: DefaultSeed, importError?: string): InitialState {
   const values = isVm
     ? { ...withDefaultPreset(defaultServiceWithPlacement(vmServiceOverrides())), hasSSHKey: true }
-    : withDefaultPreset(defaultServiceWithPlacement(exampleImage ? exampleImageServiceOverrides() : undefined));
+    : withLinkedGpu(withDefaultPreset(defaultServiceWithPlacement(exampleImage ? exampleImageServiceOverrides() : undefined)), gpu);
   return { values, sdl: regenerateSdl(values, ""), selectedServiceId: seedSelectedServiceId(values), changes: [], importError };
+}
+
+function withLinkedGpu(values: SdlBuilderFormValuesType, gpu: GpuIntent | undefined): SdlBuilderFormValuesType {
+  if (!gpu) return values;
+  const [service, ...rest] = values.services;
+  const gpuModels = [{ vendor: gpu.vendor, name: gpu.model, memory: gpu.memory, interface: gpu.interface }];
+  return { ...values, services: [{ ...service, profile: { ...service.profile, hasGpu: true, gpu: gpu.count, gpuModels } }, ...rest] };
 }
 
 /** Seeds the fresh deployment's service on the default (small) hardware preset so the screen opens deployable. */

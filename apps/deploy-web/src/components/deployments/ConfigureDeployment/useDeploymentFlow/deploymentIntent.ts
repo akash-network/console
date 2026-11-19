@@ -2,6 +2,14 @@ export type SdlStrategy = "default" | "edit";
 export type BidStrategy = "auto" | "select";
 export type TemplateMode = "new" | "edit";
 
+export interface GpuIntent {
+  vendor: "nvidia";
+  model: string;
+  count: number;
+  memory?: string;
+  interface?: string;
+}
+
 export interface DeploymentIntent {
   templateId?: string;
   /** A user-authored template (`?userTemplateId=`), resolved against the private user-template API rather than the public gallery. */
@@ -19,6 +27,8 @@ export interface DeploymentIntent {
   vm: boolean;
   /** Onboarding's Deploy image entry (`?exampleImage=true`): the form seeds a working example image instead of a blank one. */
   exampleImage?: boolean;
+  /** A GPU setup linked from a GPU alert email (`?gpuVendor=&gpuModel=&gpuCount=`): the form seeds its first service with it instead of the blank one. */
+  gpu?: GpuIntent;
   /** Authoring a template (`?templateMode=`) rather than deploying: `edit` saves a new version of `userTemplateId`. */
   templateMode?: TemplateMode;
   /** A new template copied from this template's `copyFromVersion`. */
@@ -29,6 +39,8 @@ export interface DeploymentIntent {
   /** The deployment a new template is saved from. */
   sourceDseq?: string;
 }
+
+const MAX_LINKED_GPU_COUNT = 64;
 
 interface ParseInput {
   /** The optional catch-all route segment (`/configure/[[...dseq]]`); the deployment's dseq once it exists. */
@@ -102,7 +114,23 @@ function parseDeployIntent(dseqSegment: string | undefined, searchParams: URLSea
   const bidStrategy = toBidStrategy(searchParams.get("bid-strategy"));
   const draftId = searchParams.get("draftId") || undefined;
   const exampleImage = !vm && searchParams.get("exampleImage") === "true";
-  return { templateId, userTemplateId, sdlStrategy, bidStrategy, dseq: dseqSegment || undefined, draftId, vm, exampleImage };
+  const gpu = vm || templateId || userTemplateId || draftId ? undefined : toGpuIntent(searchParams);
+  return { templateId, userTemplateId, sdlStrategy, bidStrategy, dseq: dseqSegment || undefined, draftId, vm, exampleImage, ...(gpu ? { gpu } : {}) };
+}
+
+function toGpuIntent(searchParams: URLSearchParams): GpuIntent | undefined {
+  const model = searchParams.get("gpuModel");
+  const count = searchParams.get("gpuCount") ?? "";
+  if (searchParams.get("gpuVendor") !== "nvidia" || !model || !/^\d+$/.test(count) || Number(count) < 1 || Number(count) > MAX_LINKED_GPU_COUNT)
+    return undefined;
+  const memory = searchParams.get("gpuMemory") || undefined;
+  const gpuInterface = toGpuInterface(searchParams.get("gpuInterface"));
+  return { vendor: "nvidia", model, count: Number(count), ...(memory ? { memory } : {}), ...(gpuInterface ? { interface: gpuInterface } : {}) };
+}
+
+/** Providers advertise the interconnect as `sxm` or `pcie`, so a generation suffix like `sxm5` would match no bid. */
+function toGpuInterface(value: string | null): string | undefined {
+  return value ? value.replace(/^sxm\d+$/, "sxm") : undefined;
 }
 
 function toTemplateMode(value: string | null): TemplateMode | undefined {

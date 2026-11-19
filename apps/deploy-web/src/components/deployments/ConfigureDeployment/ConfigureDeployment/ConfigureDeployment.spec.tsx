@@ -9,6 +9,7 @@ import { mock } from "vitest-mock-extended";
 
 import { useMarkAutoDeployStart, useTakeAutoDeployStart } from "@src/hooks/useAutoDeployStart/useAutoDeployStart";
 import type { Activity } from "@src/queries/useLatestActivitiesQuery";
+import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import sdlStore from "@src/store/sdlStore";
 import type { ITemplate, TemplateCreation } from "@src/types";
 import type { MarketplaceTemplate, TemplateAskedValue, TemplateVersionDetail } from "@src/types/marketplace-template";
@@ -182,6 +183,46 @@ describe(ConfigureDeployment.name, () => {
       expect.objectContaining({ initialSdl: undefined, intent: expect.objectContaining({ exampleImage: true }) }),
       expect.anything()
     );
+  });
+
+  it("starts the configuration with the linked gpu setup", () => {
+    const { ConfigureDeploymentForm, analyticsService } = setup({
+      templateId: null,
+      gpuQuery: "gpuVendor=nvidia&gpuModel=h100&gpuCount=8&gpuMemory=80Gi&gpuInterface=sxm",
+      deploySdl: mock<TemplateCreation>({ content: "carried: sdl" })
+    });
+
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        initialSdl: undefined,
+        intent: expect.objectContaining({ gpu: { vendor: "nvidia", model: "h100", count: 8, memory: "80Gi", interface: "sxm" } })
+      }),
+      expect.anything()
+    );
+    expect(analyticsService.track).toHaveBeenCalledTimes(1);
+    expect(analyticsService.track).toHaveBeenCalledWith("gpu_alert_deploy_opened", expect.objectContaining({ model: "h100", gpuCount: 8 }));
+  });
+
+  it("ignores the linked gpu setup when a template is given", () => {
+    const { ConfigureDeploymentForm, analyticsService } = setup({ templateId: helloWorldTemplate.code, gpuQuery: "gpuVendor=nvidia&gpuModel=h100&gpuCount=8" });
+
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(expect.objectContaining({ intent: expect.objectContaining({ gpu: undefined }) }), expect.anything());
+    expect(analyticsService.track).not.toHaveBeenCalled();
+  });
+
+  it("ignores the linked gpu setup when a draft is given", () => {
+    const { ConfigureDeploymentForm, analyticsService } = setup({
+      templateId: null,
+      draftId: "draft-1",
+      drafts: { "draft-1": { sdl: "restored: sdl" } },
+      gpuQuery: "gpuVendor=nvidia&gpuModel=h100&gpuCount=8"
+    });
+
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(
+      expect.objectContaining({ initialSdl: "restored: sdl", intent: expect.objectContaining({ gpu: undefined }) }),
+      expect.anything()
+    );
+    expect(analyticsService.track).not.toHaveBeenCalled();
   });
 
   it("still restores the draft's persisted SDL on a vm entry", () => {
@@ -1560,6 +1601,7 @@ describe(ConfigureDeployment.name, () => {
     deploySdl?: TemplateCreation | null;
     vm?: boolean;
     exampleImage?: boolean;
+    gpuQuery?: string;
     resume?: ResumeResolution;
     dseq?: string;
     autoDeployStart?: string;
@@ -1652,6 +1694,7 @@ describe(ConfigureDeployment.name, () => {
     if (input.bidStrategy) query["bid-strategy"] = input.bidStrategy;
     if (input.vm) query.vm = "true";
     if (input.exampleImage) query.exampleImage = "true";
+    new URLSearchParams(input.gpuQuery).forEach((value, key) => (query[key] = value));
     if (input.drafts && input.draftId) query.draftId = input.draftId;
     if (input.templateMode) query.templateMode = input.templateMode;
     if (input.templateMode && input.draftId) query.draftId = input.draftId;
@@ -1684,6 +1727,7 @@ describe(ConfigureDeployment.name, () => {
         <>{children(input.resume ?? { activeLeases: [] })}</>
       )
     );
+    const analyticsService = mock<AnalyticsService>();
     const dependencies: typeof DEPENDENCIES = {
       Layout: vi.fn(({ children }) => <div data-testid="layout-mock">{children}</div>) as never,
       NextSeo: vi.fn(() => null) as never,
@@ -1704,6 +1748,7 @@ describe(ConfigureDeployment.name, () => {
       useSearchParams: () => params as unknown as ReadonlyURLSearchParams,
       useParams: (() => (dseq ? { dseq: [dseq] } : {})) as never,
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
+      useServices: () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService }),
       Snackbar: vi.fn(() => null) as never
     };
 
@@ -1781,6 +1826,7 @@ describe(ConfigureDeployment.name, () => {
     };
 
     return {
+      analyticsService,
       ConfigureDeploymentForm,
       ConfigureTemplateForm,
       useMarketplaceTemplate,
