@@ -59,8 +59,51 @@ describe(GpuWaitlistService.name, () => {
 
       const entry = await service.join(INPUT);
 
-      expect(repository.create).toHaveBeenCalledWith({ ...INPUT, userId: user.id, poolKey: "nvidia/h100/*/*" });
+      expect(repository.create).toHaveBeenCalledWith({ ...INPUT, model: "h100", userId: user.id, poolKey: "nvidia/h100/*/*" });
       expect(entry.placeInLine).toBe(3);
+    });
+
+    it("files the setup with a trimmed lowercase model, memory in Gi and a lowercase interface", async () => {
+      const { service, repository } = setup();
+
+      await service.join({ ...INPUT, model: " H100-SXM ", memory: "80gi", interface: "SXM5" });
+
+      expect(repository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ model: "h100-sxm", memory: "80Gi", interface: "sxm5", poolKey: "nvidia/h100-sxm/80gi/sxm5" })
+      );
+    });
+
+    it.each(["80Gi", "80gi", "80GI", "80G", "80g", "80 Gi", "080Gi"])("files memory written as %s as 80Gi", async memory => {
+      const { service, repository } = setup();
+
+      await service.join({ ...INPUT, memory });
+
+      expect(repository.create).toHaveBeenCalledWith(expect.objectContaining({ memory: "80Gi" }));
+    });
+
+    it.each(["eighty", "80Mi", "80GB", "80", "Gi", "80Gi extra"])("refuses memory written as %s with 400 and files nothing", async memory => {
+      const { service, repository } = setup();
+
+      await expect(service.join({ ...INPUT, memory })).rejects.toMatchObject({ status: 400 });
+      expect(repository.create).not.toHaveBeenCalled();
+    });
+
+    it.each(["h100 sxm", "h100/sxm", "h100:80gi"])("refuses a model an SDL attribute cannot carry, such as %s, with 400", async model => {
+      const { service, repository } = setup();
+
+      await expect(service.join({ ...INPUT, model })).rejects.toMatchObject({ status: 400 });
+      expect(repository.create).not.toHaveBeenCalled();
+    });
+
+    it("finds an existing entry under the normalised pool key", async () => {
+      const existing = anEntry({ memory: "80Gi", poolKey: "nvidia/h100/80gi/*" });
+      const { service, repository } = setup({ existing });
+      repository.updateById.mockImplementation(vi.fn().mockResolvedValue(existing));
+
+      await service.join({ ...INPUT, memory: "80 G" });
+
+      expect(repository.findWaitingInPoolOf).toHaveBeenCalledWith("nvidia/h100/80gi/*");
+      expect(repository.create).not.toHaveBeenCalled();
     });
 
     it("schedules the still-wanted question 30 days after a new entry joined", async () => {

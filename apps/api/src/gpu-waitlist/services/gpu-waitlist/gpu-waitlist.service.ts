@@ -4,6 +4,7 @@ import { inject, singleton } from "tsyringe";
 import { AuthService } from "@src/auth/services/auth.service";
 import { JobQueueService } from "@src/core";
 import { TxService } from "@src/core/services/tx/tx.service";
+import { SDL_GPU_ATTRIBUTE_VALUE } from "@src/deployment/services/gpu-bids-creator/gpu-check-sdl";
 import type { JoinGpuWaitlistRequest } from "@src/gpu-waitlist/http-schemas/gpu-waitlist.schema";
 import { toPoolKey } from "@src/gpu-waitlist/lib/gpu-pool-key/gpu-pool-key";
 import { GPU_WAITLIST_CONFIG, type GpuWaitlistConfig } from "@src/gpu-waitlist/providers/config.provider";
@@ -13,6 +14,8 @@ import { UserRepository } from "@src/user/repositories";
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
+
+const GPU_MEMORY = /^(\d+)\s*(gi|g)$/i;
 
 type JoinWindow = { durationMs: number; limit: number; message: string };
 
@@ -31,6 +34,27 @@ function refusalIn({ durationMs, limit, message }: JoinWindow, joinTimes: Date[]
   return { message, retryAfterSeconds: Math.ceil((releasing.getTime() - windowStart) / 1000) };
 }
 
+/** A pool's oldest entry supplies the setup its checks deploy, so a setup no check could build would silence the whole pool. */
+function normaliseSetup(request: JoinGpuWaitlistRequest["data"]): JoinGpuWaitlistRequest["data"] {
+  const model = request.model.trim().toLowerCase();
+
+  if (!SDL_GPU_ATTRIBUTE_VALUE.test(model)) {
+    throw createError(400, "GPU model can only hold letters, digits, dots, dashes and underscores", { errorCode: "gpu_waitlist_invalid_model" });
+  }
+
+  return { ...request, model, memory: request.memory && normaliseMemory(request.memory), interface: request.interface?.toLowerCase() };
+}
+
+function normaliseMemory(memory: string): string {
+  const match = GPU_MEMORY.exec(memory);
+
+  if (!match) {
+    throw createError(400, "GPU memory must be a size in Gi, such as 80Gi", { errorCode: "gpu_waitlist_invalid_memory" });
+  }
+
+  return `${Number(match[1])}Gi`;
+}
+
 @singleton()
 export class GpuWaitlistService {
   constructor(
@@ -42,8 +66,9 @@ export class GpuWaitlistService {
     @inject(GPU_WAITLIST_CONFIG) private readonly config: GpuWaitlistConfig
   ) {}
 
-  async join(input: JoinGpuWaitlistRequest["data"]): Promise<GpuWaitlistEntryInLine> {
+  async join(request: JoinGpuWaitlistRequest["data"]): Promise<GpuWaitlistEntryInLine> {
     const userId = this.authService.currentUser.id;
+    const input = normaliseSetup(request);
     const poolKey = toPoolKey(input);
 
     return await this.txService.transaction(async () => {
