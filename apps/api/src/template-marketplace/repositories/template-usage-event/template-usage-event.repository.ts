@@ -70,7 +70,7 @@ export class TemplateUsageEventRepository {
     return template?.currentVersionId ?? null;
   }
 
-  /** Answers whether the fork was counted, which happens once per user and template on a network in any 24 hours; the caller's transaction must hold the user's row so two forks cannot both find none. */
+  /** The caller's transaction must hold the user's row, or two forks made at once would both find none counted in the last 24 hours. */
   async recordForkOncePerDay(fork: ForkEventInput): Promise<boolean> {
     const [counted] = await this.#cursor
       .select({ id: this.table.id })

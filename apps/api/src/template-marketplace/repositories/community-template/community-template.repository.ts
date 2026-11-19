@@ -45,7 +45,6 @@ export class CommunityTemplateRepository {
     return this.txManager.getPgTx() || this.pg;
   }
 
-  /** Lists what anyone may browse, newest first: the listed templates whose current version is live, of every publisher or of one. */
   async list({ organizationId, limit }: CommunityTemplateFilter): Promise<CommunityTemplateRow[]> {
     const rows = await this.#cursor
       .select({
@@ -77,7 +76,6 @@ export class CommunityTemplateRepository {
     return rows.map(row => ({ ...row, publishedAt: row.publishedAt! }));
   }
 
-  /** Counts what the publisher's page lists and the mainnet deploys of those templates from outside the publisher's own organization. */
   async countOfPublisher(organizationId: string): Promise<PublisherCounts> {
     const [counts] = await this.#cursor
       .select({
