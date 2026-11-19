@@ -487,7 +487,8 @@ describe(useProvidersExplorerModel.name, () => {
       { cpuVendors: ["AMD"], cpuGenerations: ["Milan"], regions: ["eu-east"] },
       false
     ],
-    ["two generations from one group", { cpuGenerations: ["Milan", "Cascade Lake"] }, false]
+    ["two generations from one group", { cpuGenerations: ["Milan", "Cascade Lake"] }, false],
+    ["a generation no CPU has, from one group only", { cpuGenerations: ["Turin"] }, false]
   ])("tells whether the CPU picks match no CPU on the map: %s", (_, change, expected) => {
     const locations = [
       createLocation({ owner: "akash1milan", locationRegion: "us-central", cpus: [{ vendor: "AMD", model: "EPYC 7763", generation: "Milan" }] }),
