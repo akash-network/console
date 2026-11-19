@@ -168,7 +168,7 @@ describe("Marketplace template publishing", () => {
         organizationId: team.id,
         projectId: project.id,
         title: "Official Llama",
-        sdl: buildSdl({ image: "acme/xmrig", env: ["HF_TOKEN=hf_abcdefghijklmnopqrstuv", "PORT=8080"] })
+        sdl: buildSdl({ image: "acme/xmrig", env: [`HF_TOKEN=${PROVIDER_KEY}`, "PORT=8080"] })
       });
 
       const { data } = (await (await actAs(owner)(`/v1/user-templates/${template.id}/publish-readiness`)).json()) as ReadinessBody;
@@ -207,7 +207,7 @@ describe("Marketplace template publishing", () => {
           field: "publisher_name"
         }
       ]);
-      expect(JSON.stringify(data)).not.toContain("hf_abcdefghijklmnopqrstuv");
+      expect(JSON.stringify(data)).not.toContain(PROVIDER_KEY);
     });
 
     it("fails the SDL check of a legacy template whose SDL was never validated", async () => {
