@@ -1,3 +1,4 @@
+export * from "./template-image-change/template-image-change.schema";
 export * from "./template-moderation-event/template-moderation-event.schema";
 export * from "./template-publisher/template-publisher.schema";
 export * from "./template-report/template-report.schema";

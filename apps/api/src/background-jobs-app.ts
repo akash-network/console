@@ -6,6 +6,7 @@ import { container } from "tsyringe";
 import { CORE_CONFIG, JobQueueService, startServer } from "@src/core";
 import { WatchGpuWaitlistsHandler } from "@src/gpu-waitlist/services/watch-gpu-waitlists/watch-gpu-waitlists.handler";
 import { healthzRouter } from "@src/healthz/routes/healthz.router";
+import { WatchPopularTemplateImagesHandler } from "@src/template-marketplace/services/watch-popular-template-images/watch-popular-template-images.handler";
 import { DailySignupSummaryHandler } from "@src/workload-abuse/services/daily-signup-summary/daily-signup-summary.handler";
 import { RequestContextInterceptor } from "./core/services/request-context-interceptor/request-context.interceptor";
 
@@ -24,5 +25,6 @@ export async function bootstrap(): Promise<void> {
     await container.resolve(JobQueueService).startWorkers();
     await container.resolve(DailySignupSummaryHandler).seedNextRun(new Date());
     await container.resolve(WatchGpuWaitlistsHandler).seedNextRun();
+    await container.resolve(WatchPopularTemplateImagesHandler).seedNextRun(new Date());
   }
 }

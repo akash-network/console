@@ -284,6 +284,7 @@ describe(MarketplaceTemplateRepository.name, () => {
         organizationId: organization.id,
         projectId: project.id,
         visibility: "organization",
+        publishedAt: new Date("2026-10-30T00:00:00Z"),
         updatedAt: new Date("2026-11-02T00:00:00Z")
       });
       const version = await container.resolve(TemplateVersionRepository).appendVersion({ templateId: newer.id, sdl: "version: '2.0'", createdById: author.id });
@@ -311,11 +312,12 @@ describe(MarketplaceTemplateRepository.name, () => {
           visibility: "organization",
           isListed: true,
           moderationStatus: "active",
+          publishedAt: new Date("2026-10-30T00:00:00Z"),
           updatedAt: new Date("2026-11-02T00:00:00Z"),
           currentVersion: { version: 1, status: "live", createdAt: version.createdAt },
           lastEditedByUsername: author.username
         },
-        expect.objectContaining({ id: older.id, currentVersion: null, lastEditedByUsername: null })
+        expect.objectContaining({ id: older.id, publishedAt: null, currentVersion: null, lastEditedByUsername: null })
       ]);
     });
 
@@ -514,6 +516,7 @@ describe(MarketplaceTemplateRepository.name, () => {
     authorId?: string;
     visibility: TemplateVisibility;
     moderationStatus?: TemplateModerationStatus;
+    publishedAt?: Date;
     updatedAt?: Date;
   }) {
     const { updatedAt, ...values } = input;

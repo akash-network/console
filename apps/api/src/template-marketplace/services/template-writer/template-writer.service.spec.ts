@@ -17,6 +17,7 @@ import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-
 import { EXPANDED_SDL_TOO_LARGE_MESSAGE } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import type { AskedValue } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
 import type { PublishCheckResults } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
+import type { TemplateVersionHoldReason } from "@src/template-marketplace/lib/version-hold/version-hold-reasons";
 import type {
   MarketplaceTemplateRepository,
   MarketplaceTemplateRow
@@ -28,9 +29,11 @@ import type {
   MarketplaceTemplateService
 } from "@src/template-marketplace/services/marketplace-template/marketplace-template.service";
 import type { PublishChecksService } from "@src/template-marketplace/services/publish-checks/publish-checks.service";
+import type { TemplateImageDigestJobService } from "@src/template-marketplace/services/template-image-digest-job/template-image-digest-job.service";
 import type { TemplatePublisherNotifierService } from "@src/template-marketplace/services/template-publisher-notifier/template-publisher-notifier.service";
 import type { TemplateRateLimiterService } from "@src/template-marketplace/services/template-rate-limiter/template-rate-limiter.service";
 import { TemplateSdlValidatorService } from "@src/template-marketplace/services/template-sdl-validator/template-sdl-validator.service";
+import type { TemplateVersionHoldService } from "@src/template-marketplace/services/template-version-hold/template-version-hold.service";
 import { TemplateWriteAccessService } from "@src/template-marketplace/services/template-write-access/template-write-access.service";
 import type { UserOutput } from "@src/user/repositories";
 import { TemplateWriterService } from "./template-writer.service";
@@ -304,8 +307,7 @@ describe(TemplateWriterService.name, () => {
 
       const result = await service.appendVersion(template.id, { sdl, readme: "# After", askedValues, baseVersion: 3 });
 
-      const { imageDigests: _imageDigests, ...published } = appended;
-      expect(result).toEqual(published);
+      expect(result).toEqual(appended);
       expect(transactionSteps).toEqual(["begin", "findAndLockForWrite", "assertWithinLimits", "appendVersion", "mirrorVersion", "end"]);
       expect(repository.findAndLockForWrite).toHaveBeenCalledWith(template.id);
       expect(templateVersionRepository.findByTemplateAndVersion).toHaveBeenCalledWith(template.id, 3);
@@ -608,6 +610,150 @@ describe(TemplateWriterService.name, () => {
       await service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [], baseVersion: 1 });
 
       expect(templateVersionRepository.findCurrent).not.toHaveBeenCalled();
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ expectedCurrentVersionId: base.id }));
+    });
+  });
+
+  describe("image digests", () => {
+    it("queues the digests of a new template's first version inside the transaction that saves it", async () => {
+      const { service, templateVersionRepository, templateImageDigestJobService, transactionSteps } = setup();
+      const first = createVersion();
+      templateVersionRepository.appendVersion.mockResolvedValue(first);
+      templateImageDigestJobService.schedule.mockImplementation(async () => {
+        transactionSteps.push("scheduleImageDigests");
+      });
+
+      await service.create({ title: "Web", sdl: buildSdl(), askedValues: [] });
+
+      expect(templateImageDigestJobService.schedule).toHaveBeenCalledWith(first.id);
+      expect(transactionSteps).toEqual(["begin", "assertWithinLimits", "scheduleImageDigests", "end"]);
+    });
+
+    it.each([
+      { status: "live" as const, visibility: "private" as const },
+      { status: "failed_checks" as const, visibility: "public" as const },
+      { status: "held" as const, visibility: "public" as const }
+    ])("queues the digests of a $status version of a $visibility template inside the transaction that saves it", async ({ status, visibility }) => {
+      const template = createTemplateRow({ visibility, isPublic: visibility === "public" });
+      const { service, templateVersionRepository, templateImageDigestJobService, transactionSteps } = setup({ template });
+      const appended = createVersion({ templateId: template.id, version: 2, status });
+      templateVersionRepository.appendVersion.mockResolvedValue(appended);
+      templateImageDigestJobService.schedule.mockImplementation(async () => {
+        transactionSteps.push("scheduleImageDigests");
+      });
+
+      await service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [], baseVersion: 1 });
+
+      expect(templateImageDigestJobService.schedule).toHaveBeenCalledWith(appended.id);
+      expect(transactionSteps.slice(0, 4)).toEqual(["begin", "findAndLockForWrite", "assertWithinLimits", "scheduleImageDigests"]);
+      expect(transactionSteps.at(-1)).toBe("end");
+    });
+  });
+
+  describe("held versions", () => {
+    const HOLD_REASONS: TemplateVersionHoldReason[] = [
+      { kind: "image_repository_changed", message: "Moves to another repository.", service: "web", image: "other/web:1", previousImage: "acme/web:1" }
+    ];
+
+    it("judges a passing version of a public template against the version people deploy today, on the locked template", async () => {
+      const template = createTemplateRow({ visibility: "public", isPublic: true, isOfficial: false });
+      const locked = { ...template, isOfficial: true };
+      const { service, templateVersionRepository, templateVersionHoldService } = setup({ template, locked, holdReasons: HOLD_REASONS });
+      const current = createVersion({ templateId: template.id, version: 1, sdl: buildSdl({ count: 2 }) });
+      templateVersionRepository.findCurrent.mockResolvedValue(current);
+      const sdl = buildSdl({ count: 3 });
+
+      await service.appendVersion(template.id, { sdl, askedValues: [], baseVersion: 1 });
+
+      expect(templateVersionRepository.findCurrent).toHaveBeenCalledWith(template.id);
+      expect(templateVersionHoldService.findHoldReasons).toHaveBeenCalledWith(locked, current.sdl, sdl);
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ checkResults: PASSED_CHECKS, holdReasons: HOLD_REASONS }));
+    });
+
+    it("judges against the legacy SDL of a public template that has no current version", async () => {
+      const template = createTemplateRow({ visibility: "public", isPublic: true, currentVersionId: null, sdl: "version: '2.0'" });
+      const { service, templateVersionRepository, templateVersionHoldService } = setup({ template });
+      templateVersionRepository.findCurrent.mockResolvedValue(undefined);
+      const sdl = buildSdl();
+
+      await service.appendVersion(template.id, { sdl, askedValues: [] });
+
+      expect(templateVersionHoldService.findHoldReasons).toHaveBeenCalledWith(template, "version: '2.0'", sdl);
+    });
+
+    it("tells the publisher about a held version inside the save's transaction, and mirrors nothing into the legacy columns", async () => {
+      const template = createTemplateRow({ visibility: "public", isPublic: true });
+      const { service, repository, templateVersionRepository, templatePublisherNotifierService, transactionSteps } = setup({
+        template,
+        holdReasons: HOLD_REASONS
+      });
+      const held = createVersion({ templateId: template.id, version: 2, status: "held", holdReasons: HOLD_REASONS });
+      templateVersionRepository.appendVersion.mockResolvedValue(held);
+
+      const result = await service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [], baseVersion: 1 });
+
+      expect(result).toEqual(held);
+      expect(templatePublisherNotifierService.notifyVersionHeld).toHaveBeenCalledWith(held.id);
+      expect(templatePublisherNotifierService.notifyVersionFailedChecks).not.toHaveBeenCalled();
+      expect(repository.mirrorVersion).not.toHaveBeenCalled();
+      expect(transactionSteps).toEqual(["begin", "findAndLockForWrite", "assertWithinLimits", "notifyVersionHeld", "end"]);
+    });
+
+    it("tells nobody that a version is held when it went live", async () => {
+      const template = createTemplateRow({ visibility: "public", isPublic: true });
+      const { service, templatePublisherNotifierService } = setup({ template });
+
+      await service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [], baseVersion: 1 });
+
+      expect(templatePublisherNotifierService.notifyVersionHeld).not.toHaveBeenCalled();
+    });
+
+    it("never holds a version that failed its checks", async () => {
+      const template = createTemplateRow({ visibility: "public", isPublic: true, isOfficial: true });
+      const { service, templateVersionRepository, templateVersionHoldService, templatePublisherNotifierService } = setup({
+        template,
+        checkResults: FAILED_CHECKS,
+        holdReasons: HOLD_REASONS
+      });
+      templateVersionRepository.appendVersion.mockResolvedValue(createVersion({ templateId: template.id, version: 2, status: "failed_checks" }));
+
+      await service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [], baseVersion: 1 });
+
+      expect(templateVersionHoldService.findHoldReasons).not.toHaveBeenCalled();
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ checkResults: FAILED_CHECKS, holdReasons: undefined }));
+      expect(templatePublisherNotifierService.notifyVersionHeld).not.toHaveBeenCalled();
+    });
+
+    it.each(["private", "organization"] as const)("never holds a version of a %s template", async visibility => {
+      const template = createTemplateRow({ visibility, isOfficial: true });
+      const { service, templateVersionRepository, templateVersionHoldService } = setup({ template, holdReasons: HOLD_REASONS });
+
+      await service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [], baseVersion: 1 });
+
+      expect(templateVersionHoldService.findHoldReasons).not.toHaveBeenCalled();
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ holdReasons: undefined }));
+    });
+
+    it.each(["held", "rejected"] as const)("holds a save edited from a %s version to the version that was current when it was saved", async status => {
+      const template = createTemplateRow({ visibility: "public", isPublic: true });
+      const base = createVersion({ templateId: template.id, version: 3, status });
+      const current = createVersion({ templateId: template.id, version: 2 });
+      const { service, templateVersionRepository } = setup({ template, base });
+      templateVersionRepository.findCurrent.mockResolvedValue(current);
+
+      await service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [], baseVersion: 3 });
+
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ expectedCurrentVersionId: current.id }));
+    });
+
+    it("refuses nothing itself for a save edited from a held version a newer one replaced, leaving the conflict to the append", async () => {
+      const template = createTemplateRow({ visibility: "public", isPublic: true });
+      const base = createVersion({ templateId: template.id, version: 3, status: "held" });
+      const { service, templateVersionRepository } = setup({ template, base });
+      templateVersionRepository.findCurrent.mockResolvedValue(createVersion({ templateId: template.id, version: 4 }));
+
+      await service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [], baseVersion: 3 });
+
       expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ expectedCurrentVersionId: base.id }));
     });
   });
@@ -1017,6 +1163,9 @@ describe(TemplateWriterService.name, () => {
       status: "live",
       checkResults: null,
       changes: ["first_version"],
+      holdReasons: null,
+      reviewedAt: null,
+      reviewNote: null,
       createdById: faker.string.uuid(),
       createdBy: null,
       createdAt: faker.date.recent(),
@@ -1032,6 +1181,7 @@ describe(TemplateWriterService.name, () => {
       locked?: MarketplaceTemplateRow | null;
       activeOrganizationId?: string | null;
       checkResults?: PublishCheckResults;
+      holdReasons?: TemplateVersionHoldReason[];
       rateLimitError?: Error;
     } = {}
   ) {
@@ -1086,6 +1236,12 @@ describe(TemplateWriterService.name, () => {
     templatePublisherNotifierService.notifyVersionFailedChecks.mockImplementation(async () => {
       transactionSteps.push("notifyVersionFailedChecks");
     });
+    templatePublisherNotifierService.notifyVersionHeld.mockImplementation(async () => {
+      transactionSteps.push("notifyVersionHeld");
+    });
+    const templateVersionHoldService = mock<TemplateVersionHoldService>();
+    templateVersionHoldService.findHoldReasons.mockResolvedValue(input.holdReasons ?? []);
+    const templateImageDigestJobService = mock<TemplateImageDigestJobService>();
     const service = new TemplateWriterService(
       repository,
       templateVersionRepository,
@@ -1097,6 +1253,8 @@ describe(TemplateWriterService.name, () => {
       publishChecksService,
       templateRateLimiterService,
       templatePublisherNotifierService,
+      templateVersionHoldService,
+      templateImageDigestJobService,
       authService,
       txService,
       executionContextService
@@ -1115,6 +1273,8 @@ describe(TemplateWriterService.name, () => {
       publishChecksService,
       templateRateLimiterService,
       templatePublisherNotifierService,
+      templateVersionHoldService,
+      templateImageDigestJobService,
       user,
       transactionSteps
     };

@@ -195,7 +195,14 @@ describe(NotifyTemplatePublishersHandler.name, () => {
     const { owner, addMember, seedPublicTemplate, answerNotifications, notify } = await setup();
     const author = await addMember("member");
     const { template } = await seedPublicTemplate({ title: "Postgres 16", createdById: owner.id });
-    const held = await seedTemplateVersion({ templateId: template.id, version: 2, status: "held", createdById: author.id, isCurrent: false });
+    const held = await seedTemplateVersion({
+      templateId: template.id,
+      version: 2,
+      status: "held",
+      createdById: author.id,
+      isCurrent: false,
+      holdReasons: [{ kind: "global_port_added", message: 'Service "web" opens port 22 (tcp) to the internet.', service: "web", port: 22, protocol: "tcp" }]
+    });
     const notifications = answerNotifications();
 
     await notify({ source: "version_held", versionId: held.id });
@@ -205,6 +212,9 @@ describe(NotifyTemplatePublishersHandler.name, () => {
       [author.id, `templateVersionHeld.${held.id}.${author.id}`, 'Version 2 of "Postgres 16" is waiting for review']
     ]);
     expect(notifications.sent[0].payload.description).not.toContain("What the checks found");
+    expect(notifications.sent[0].payload.description).toContain(
+      "<p><strong>Why it waits for review:</strong><br>Service &quot;web&quot; opens port 22 (tcp) to the internet.</p>"
+    );
   });
 
   it("adds the notice to the feed of a member with no email address and emails the others", async () => {

@@ -5,12 +5,15 @@ import { container } from "tsyringe";
 import type { ApiPgDatabase, ApiPgTables } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
 import { seedOrganization } from "./organization.seeder";
+import { seedUser } from "./user-with-wallet.seeder";
 
 type TemplateInsert = ApiPgTables["Templates"]["$inferInsert"];
 type TemplateVersionInsert = ApiPgTables["TemplateVersions"]["$inferInsert"];
 type TemplatePublisherInsert = ApiPgTables["TemplatePublishers"]["$inferInsert"];
 type TemplateReportInsert = ApiPgTables["TemplateReports"]["$inferInsert"];
 type TemplateModerationEventInsert = ApiPgTables["TemplateModerationEvents"]["$inferInsert"];
+type TemplateImageChangeInsert = ApiPgTables["TemplateImageChanges"]["$inferInsert"];
+type TemplateUsageEventInsert = ApiPgTables["TemplateUsageEvents"]["$inferInsert"];
 
 export const SEEDED_TEMPLATE_SDL = "version: '2.0'";
 
@@ -80,6 +83,44 @@ export async function seedTemplateModerationEvent(overrides: Partial<TemplateMod
     .returning();
 
   return event;
+}
+
+/** Each deploy is by another user, on mainnet, from outside every organization unless told otherwise, which is what makes a template popular. */
+export async function seedTemplateDeployers(templateId: string, count: number, overrides: Partial<TemplateUsageEventInsert> = {}) {
+  if (count === 0) return;
+
+  const users = await Promise.all(Array.from({ length: count }, () => seedUser()));
+
+  await db()
+    .insert(resolveTable("TemplateUsageEvents"))
+    .values(
+      users.map(user => ({
+        source: "console" as const,
+        templateRef: templateId,
+        action: "deploy" as const,
+        userId: user.id,
+        deploymentSettingId: faker.string.uuid(),
+        network: "mainnet",
+        ...overrides
+      }))
+    );
+}
+
+export async function seedTemplateImageChange(
+  overrides: Partial<TemplateImageChangeInsert> & Pick<TemplateImageChangeInsert, "templateId" | "templateVersionId">
+) {
+  const [change] = await db()
+    .insert(resolveTable("TemplateImageChanges"))
+    .values({ image: "nginx:1.27", oldDigest: `sha256:${"a".repeat(64)}`, newDigest: `sha256:${"b".repeat(64)}`, ...overrides })
+    .returning();
+
+  return change;
+}
+
+export async function findStoredTemplateImageChanges(templateId: string) {
+  const changes = resolveTable("TemplateImageChanges");
+
+  return await db().select().from(changes).where(eq(changes.templateId, templateId)).orderBy(changes.detectedAt, changes.image);
 }
 
 export async function seedTemplateFavorite(templateId: string, userId = `auth0|${faker.string.alphanumeric(24)}`) {

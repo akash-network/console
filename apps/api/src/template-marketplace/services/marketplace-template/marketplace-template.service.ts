@@ -21,6 +21,7 @@ import {
   type TemplateUsageSummary
 } from "@src/template-marketplace/repositories/template-usage-event/template-usage-event.repository";
 import {
+  type NewestTemplateVersion,
   type TemplateVersionOutput,
   TemplateVersionRepository,
   type TemplateVersionSummary
@@ -28,8 +29,12 @@ import {
 import type { TemplateModerationStatus, TemplateVisibility } from "@src/user/model-schemas/template/template.schema";
 import { UserTemplateRepository } from "@src/user/repositories/user-template/user-template.repository";
 
-/** `checkResults` is null for everyone but the template's editors, since an issue can quote a variable or an image an earlier version held. */
-export type PublishedTemplateVersion = Omit<TemplateVersionOutput, "imageDigests">;
+/** What the checks and staff found is null for everyone but the template's editors, since it can quote a variable or an image an earlier version held. */
+export type PublishedTemplateVersion = TemplateVersionOutput;
+
+type EditorOnlyVersionFields = Pick<TemplateVersionOutput, "checkResults" | "holdReasons" | "reviewedAt" | "reviewNote">;
+
+const NO_EDITOR_ONLY_VERSION_FIELDS: EditorOnlyVersionFields = { checkResults: null, holdReasons: null, reviewedAt: null, reviewNote: null };
 
 export interface MarketplaceTemplateOutput {
   id: string;
@@ -72,9 +77,12 @@ export interface UserTemplateListItem
     | "moderationStatus"
     | "projectId"
     | "copiedFromId"
+    | "publishedAt"
     | "updatedAt"
     | "currentVersion"
   > {
+  /** The newest version saved, whatever became of it, so an editor sees one that failed its checks or waits for review; null for members who cannot edit. */
+  latestVersion: NewestTemplateVersion | null;
   lastEditedBy: { username: string } | null;
   canEdit: boolean;
   usage: Pick<TemplateUsageSummary, "deploys" | "lastDeployedAt">;
@@ -90,10 +98,6 @@ const VERSION_NOT_FOUND = "Template version not found";
 
 function pickListedUsage({ deploys, lastDeployedAt }: TemplateUsageSummary): UserTemplateListItem["usage"] {
   return { deploys, lastDeployedAt };
-}
-
-function withoutImageDigests({ imageDigests: _imageDigests, ...version }: TemplateVersionOutput): PublishedTemplateVersion {
-  return version;
 }
 
 @singleton()
@@ -150,6 +154,8 @@ export class MarketplaceTemplateService {
     const rows = await readableRepository.listInOrganization({ ...query, organizationId, limit: MAX_LISTED_USER_TEMPLATES });
     const readableSourceIds = await readableRepository.findReadableIds([...new Set(rows.flatMap(row => row.copiedFromId ?? []))]);
     const usages = await this.templateUsageEventRepository.summarize(rows.map(row => row.id));
+    const editableIds = rows.filter(row => this.#canEditInActiveOrganization(row)).map(row => row.id);
+    const newestVersions = await this.templateVersionRepository.findNewestOf(editableIds);
 
     return rows.map(row => ({
       id: row.id,
@@ -162,15 +168,17 @@ export class MarketplaceTemplateService {
       moderationStatus: row.moderationStatus,
       projectId: row.projectId,
       copiedFromId: row.copiedFromId && readableSourceIds.has(row.copiedFromId) ? row.copiedFromId : null,
+      publishedAt: row.publishedAt,
       updatedAt: row.updatedAt,
       currentVersion: row.currentVersion,
+      latestVersion: newestVersions.get(row.id) ?? null,
       lastEditedBy: row.lastEditedByUsername ? { username: row.lastEditedByUsername } : null,
-      canEdit: this.#canEditInActiveOrganization(row),
+      canEdit: editableIds.includes(row.id),
       usage: pickListedUsage(usages.get(row.id) ?? NO_TEMPLATE_USAGE)
     }));
   }
 
-  /** Earlier versions may hold what the template no longer publishes, such as a removed key, and a version that failed its checks never was published, so only editors see past the current one. */
+  /** Earlier versions may hold what the template no longer publishes, such as a removed key, and a version that failed its checks, waits for review or was rejected never was published, so only editors see past the current one. */
   async listVersions(id: string): Promise<ListedTemplateVersion[]> {
     const template = await this.findReadable(id);
     const versions = await this.templateVersionRepository.listByTemplate(id);
@@ -180,7 +188,7 @@ export class MarketplaceTemplateService {
 
     return readableVersions.map(version => ({
       ...version,
-      checkResults: isEditor ? version.checkResults : null,
+      ...(!isEditor && NO_EDITOR_ONLY_VERSION_FIELDS),
       deploys: deploysByVersion.get(version.id) ?? 0
     }));
   }
@@ -228,8 +236,8 @@ export class MarketplaceTemplateService {
 
   #toPublishedVersion(version: TemplateVersionOutput, template: MarketplaceTemplateRow): PublishedTemplateVersion {
     return {
-      ...withoutImageDigests(version),
-      checkResults: this.#hasUpdateRule(template) ? version.checkResults : null,
+      ...version,
+      ...(!this.#hasUpdateRule(template) && NO_EDITOR_ONLY_VERSION_FIELDS),
       readme: version.readme ?? (template.description || null),
       resources: version.resources ?? summarizeTemplateHardware(version.sdl) ?? null
     };

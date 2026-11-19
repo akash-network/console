@@ -11,7 +11,12 @@ import {
   OrganizationMemberRepository,
   type OrganizationMemberWithUser
 } from "@src/organization/repositories/organization-member/organization-member.repository";
-import { failedCheckMessagesOf, type PublisherNoticeKind, publisherNoticeKindOf } from "@src/template-marketplace/lib/publisher-notice/publisher-notice";
+import {
+  failedCheckMessagesOf,
+  holdReasonMessagesOf,
+  type PublisherNoticeKind,
+  publisherNoticeKindOf
+} from "@src/template-marketplace/lib/publisher-notice/publisher-notice";
 import { MarketplaceTemplateRepository } from "@src/template-marketplace/repositories/marketplace-template/marketplace-template.repository";
 import { TemplateModerationEventRepository } from "@src/template-marketplace/repositories/template-moderation-event/template-moderation-event.repository";
 import { TemplatePublisherRepository } from "@src/template-marketplace/repositories/template-publisher/template-publisher.repository";
@@ -35,6 +40,13 @@ type Addressed = { recipient: OrganizationMemberWithUser; notification: CreateNo
 const PUBLISHER_CONTACT_ROLES: OrganizationRole[] = ["owner", "admin"];
 
 const UNNAMED_PUBLISHER = "your organization";
+
+function issuesToldBy({ kind, version }: PublisherNotice): string[] {
+  if (kind === "version_failed_checks") return failedCheckMessagesOf(version?.checkResults ?? null);
+  if (kind === "version_held") return holdReasonMessagesOf(version?.holdReasons ?? null);
+
+  return [];
+}
 
 /** Sends through the transactional path, so a member who unsubscribed from product updates still hears what happened to their organization's templates. */
 @singleton()
@@ -152,7 +164,7 @@ export class NotifyTemplatePublishersHandler implements JobHandler<NotifyTemplat
       templateTitle: notice.template?.title ?? null,
       versionNumber: notice.version?.version ?? null,
       reason: notice.reason,
-      issues: notice.kind === "version_failed_checks" ? failedCheckMessagesOf(notice.version?.checkResults ?? null) : [],
+      issues: issuesToldBy(notice),
       templateUrl: notice.template && `${this.deploymentConfigService.get("DEPLOY_WEB_BASE_URL")}/template/${notice.template.id}`
     };
 
