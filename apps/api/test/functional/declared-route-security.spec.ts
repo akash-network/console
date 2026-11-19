@@ -22,6 +22,10 @@ import {
   ROUTES_REQUIRING_PRIVATE_TOKEN
 } from "./declared-route-security.routes";
 
+vi.hoisted(() => {
+  process.env.GPU_WAITLIST_NETWORKS = "mainnet,testnet,sandbox";
+});
+
 const METHODS_SERVED_BY_ALL = ["GET", "POST", "PATCH", "DELETE"];
 
 const unknownSigningKey = generateKeyPair("RS256");
