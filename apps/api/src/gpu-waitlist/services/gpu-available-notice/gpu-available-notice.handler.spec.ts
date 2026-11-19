@@ -2,8 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { CreateLogger } from "@src/core";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import type { GpuWaitlistEntryRepository, GpuWaitlistEntryRow } from "@src/gpu-waitlist/repositories/gpu-waitlist-entry/gpu-waitlist-entry.repository";
+import type { GpuWaitlistNetworkService } from "@src/gpu-waitlist/services/gpu-waitlist-network/gpu-waitlist-network.service";
 import type {
   HardwareRequestAccountService,
   HardwareRequestAccountType
@@ -15,10 +18,10 @@ import { GpuAvailableNoticeHandler } from "./gpu-available-notice.handler";
 import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createUser } from "@test/seeders/user.seeder";
 
-const PAYLOAD = { entryId: "entry-1", waveNumber: 1, priceUsdPerHour: 2.5, version: 1 } as const;
+const PAYLOAD = { entryId: "entry-1", waveNumber: 1, pricePerGpuUsdPerHour: 2.5, version: 1 } as const;
 
 describe(GpuAvailableNoticeHandler.name, () => {
-  it("emails the waiting user with the setup, price and links", async () => {
+  it("emails the waiting user with the setup, price per gpu and links", async () => {
     const { handler, notificationService, user } = setup({});
 
     await handler.handle(PAYLOAD);
@@ -27,7 +30,7 @@ describe(GpuAvailableNoticeHandler.name, () => {
       notificationId: "gpuAvailable.entry-1.1",
       payload: {
         summary: "8× H100 80Gi SXM5 is available on Akash",
-        description: expect.stringContaining("from $2.50/hr"),
+        description: expect.stringContaining("from $2.50 per GPU/hr"),
         actions: [
           {
             label: "Deploy now",
@@ -110,6 +113,27 @@ describe(GpuAvailableNoticeHandler.name, () => {
     expect(logger.warn).toHaveBeenCalledWith({ event: "GPU_AVAILABLE_NOTICE_SKIPPED", entryId: "entry-1", reason: "User or email not found" });
   });
 
+  it("sends nothing and settles without a retry while the feature is off", async () => {
+    const { handler, notificationService, entryRepository, featureFlagsService, logger } = setup({ flagEnabled: false });
+
+    await expect(handler.handle(PAYLOAD)).resolves.toBeUndefined();
+
+    expect(featureFlagsService.isEnabled).toHaveBeenCalledWith(FeatureFlags.GPU_AVAILABILITY_ALERTS, {});
+    expect(entryRepository.findByIdAcrossOrganizations).not.toHaveBeenCalled();
+    expect(notificationService.createNotificationOnce).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith({ event: "GPU_AVAILABLE_NOTICE_SKIPPED", entryId: "entry-1", reason: "Feature flag is off" });
+  });
+
+  it("sends nothing on a network that does not serve gpu waitlists", async () => {
+    const { handler, notificationService, entryRepository, logger } = setup({ servesGpuWaitlists: false });
+
+    await expect(handler.handle(PAYLOAD)).resolves.toBeUndefined();
+
+    expect(entryRepository.findByIdAcrossOrganizations).not.toHaveBeenCalled();
+    expect(notificationService.createNotificationOnce).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith({ event: "GPU_AVAILABLE_NOTICE_SKIPPED", entryId: "entry-1", reason: "Network does not serve gpu waitlists" });
+  });
+
   it("needs no permissions and logs under its own name", () => {
     const { handler, createLogger } = setup({});
 
@@ -117,7 +141,13 @@ describe(GpuAvailableNoticeHandler.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: GpuAvailableNoticeHandler.name });
   });
 
-  function setup(input: { status?: GpuWaitlistEntryRow["status"]; accountType?: HardwareRequestAccountType; organizationId?: string }) {
+  function setup(input: {
+    status?: GpuWaitlistEntryRow["status"];
+    accountType?: HardwareRequestAccountType;
+    organizationId?: string;
+    flagEnabled?: boolean;
+    servesGpuWaitlists?: boolean;
+  }) {
     const user = createUser({ email: "jane@example.com" });
     const entry = mock<GpuWaitlistEntryRow>({
       id: "entry-1",
@@ -140,8 +170,19 @@ describe(GpuAvailableNoticeHandler.name, () => {
     const deploymentConfigService = mockConfigService<DeploymentConfigService>({ DEPLOY_WEB_BASE_URL: "https://console.example.com" });
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
-    const handler = new GpuAvailableNoticeHandler(entryRepository, userRepository, accountService, notificationService, deploymentConfigService, createLogger);
+    const featureFlagsService = mock<FeatureFlagsService>({ isEnabled: vi.fn(() => input.flagEnabled ?? true) });
+    const gpuWaitlistNetworkService = mock<GpuWaitlistNetworkService>({ servesGpuWaitlists: vi.fn(() => input.servesGpuWaitlists ?? true) });
+    const handler = new GpuAvailableNoticeHandler(
+      entryRepository,
+      userRepository,
+      accountService,
+      notificationService,
+      deploymentConfigService,
+      featureFlagsService,
+      gpuWaitlistNetworkService,
+      createLogger
+    );
 
-    return { handler, entryRepository, userRepository, accountService, notificationService, logger, createLogger, user };
+    return { handler, entryRepository, userRepository, accountService, notificationService, featureFlagsService, logger, createLogger, user };
   }
 });

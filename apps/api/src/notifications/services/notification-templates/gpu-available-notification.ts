@@ -6,7 +6,7 @@ import type { CreateNotificationInput } from "../notification/notification.servi
 export type GpuAvailableVars = {
   entryId: string;
   setupLabel: string;
-  priceUsdPerHour: number;
+  pricePerGpuUsdPerHour: number;
   isTrial: boolean;
   deployUrl: string;
   leaveUrl: string;
@@ -15,7 +15,7 @@ export type GpuAvailableVars = {
 
 export function gpuAvailableNotification(user: Pick<UserOutput, "id" | "email">, vars: GpuAvailableVars): CreateNotificationInput {
   const description = [
-    `<p>${escapeHtml(vars.setupLabel)} is available on Akash from $${vars.priceUsdPerHour.toFixed(2)}/hr.</p>`,
+    `<p>${escapeHtml(vars.setupLabel)} is available on Akash from $${vars.pricePerGpuUsdPerHour.toFixed(2)} per GPU/hr.</p>`,
     "<p>The first to deploy gets it, so we can't hold it for you.</p>",
     vars.isTrial ? "<p>Add a payment method to deploy GPUs.</p>" : ""
   ].join("");

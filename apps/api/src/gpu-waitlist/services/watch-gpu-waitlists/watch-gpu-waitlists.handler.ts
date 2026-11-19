@@ -10,20 +10,24 @@ import { GpuBidCheckRepository } from "@src/deployment/repositories/gpu-bid-chec
 import { MAX_GPU_SETUPS_PER_CHECK } from "@src/deployment/services/gpu-setup-check/gpu-setup-check.service";
 import { type PoolSupply, summarizePoolSupply } from "@src/gpu-waitlist/lib/pool-supply/pool-supply";
 import { GPU_WAITLIST_CONFIG, type GpuWaitlistConfig } from "@src/gpu-waitlist/providers/config.provider";
-import { GpuWaitlistEntryRepository } from "@src/gpu-waitlist/repositories/gpu-waitlist-entry/gpu-waitlist-entry.repository";
+import { GpuWaitlistEntryRepository, type GpuWaitlistEntryRow } from "@src/gpu-waitlist/repositories/gpu-waitlist-entry/gpu-waitlist-entry.repository";
 import {
   type GpuWaitlistPoolInput,
   GpuWaitlistPoolRepository,
   type GpuWaitlistPoolRow
 } from "@src/gpu-waitlist/repositories/gpu-waitlist-pool/gpu-waitlist-pool.repository";
 import { CONFIRM_GPU_POOLS_KEY, ConfirmGpuPools } from "@src/gpu-waitlist/services/confirm-gpu-pools/confirm-gpu-pools.job";
-import { GpuSupplyHttpService } from "@src/gpu-waitlist/services/gpu-supply-http/gpu-supply-http.service";
+import { GpuSupplyHttpService, type GpuSupplyRow } from "@src/gpu-waitlist/services/gpu-supply-http/gpu-supply-http.service";
+import { GpuWaitlistEligibilityService } from "@src/gpu-waitlist/services/gpu-waitlist-eligibility/gpu-waitlist-eligibility.service";
+import { GpuWaitlistNetworkService } from "@src/gpu-waitlist/services/gpu-waitlist-network/gpu-waitlist-network.service";
 import { WatchGpuWaitlists } from "./watch-gpu-waitlists.job";
 
 export const WATCH_GPU_WAITLISTS_KEY = "watchGpuWaitlists";
 
 /** Pool rows store supply in int4 columns, and a node reporting unlimited capacity counts as Number.MAX_SAFE_INTEGER. */
 const MAX_STORED_UNITS = 2147483647;
+
+type FindSupply = (model: { vendor: string; model: string }) => Promise<GpuSupplyRow[]>;
 
 type WatchedPool = { poolKey: string; supply: PoolSupply; isDue: boolean; isRiseHeldByCooldown: boolean; closesWave: boolean; previous?: GpuWaitlistPoolRow };
 
@@ -39,6 +43,8 @@ export class WatchGpuWaitlistsHandler implements JobHandler<WatchGpuWaitlists> {
   constructor(
     private readonly jobQueueService: JobQueueService,
     private readonly featureFlagsService: FeatureFlagsService,
+    private readonly gpuWaitlistNetworkService: GpuWaitlistNetworkService,
+    private readonly gpuWaitlistEligibilityService: GpuWaitlistEligibilityService,
     private readonly txService: TxService,
     private readonly gpuWaitlistEntryRepository: GpuWaitlistEntryRepository,
     private readonly gpuWaitlistPoolRepository: GpuWaitlistPoolRepository,
@@ -56,6 +62,8 @@ export class WatchGpuWaitlistsHandler implements JobHandler<WatchGpuWaitlists> {
 
   /** Every replica seeds on boot whatever the flag, so turning the flag on later finds the chain running; a failure waits for the next boot. */
   async seedNextRun(): Promise<void> {
+    if (!this.gpuWaitlistNetworkService.servesGpuWaitlists()) return;
+
     try {
       await this.jobQueueService.enqueue(new WatchGpuWaitlists(), { singletonKey: WATCH_GPU_WAITLISTS_KEY });
     } catch (error) {
@@ -64,6 +72,8 @@ export class WatchGpuWaitlistsHandler implements JobHandler<WatchGpuWaitlists> {
   }
 
   async handle(): Promise<void> {
+    if (!this.gpuWaitlistNetworkService.servesGpuWaitlists()) return;
+
     const now = new Date();
     await this.jobQueueService.enqueue(new WatchGpuWaitlists(), this.#nextRunOptions(now));
 
@@ -72,10 +82,11 @@ export class WatchGpuWaitlistsHandler implements JobHandler<WatchGpuWaitlists> {
     const poolKeys = await this.gpuWaitlistEntryRepository.findWaitingPoolKeysAcrossOrganizations();
     const previousByKey = new Map((await this.gpuWaitlistPoolRepository.findByPoolKeys(poolKeys)).map(pool => [pool.poolKey, pool]));
     const watched: WatchedPool[] = [];
+    const findSupply = this.#findSupplyOncePerModel();
 
     for (const poolKey of poolKeys) {
       try {
-        const pool = await this.#watchPool(poolKey, previousByKey.get(poolKey), now);
+        const pool = await this.#watchPool(poolKey, previousByKey.get(poolKey), now, findSupply);
         if (pool) watched.push(pool);
       } catch (error) {
         this.#logger.error({ event: "GPU_WAITLIST_WATCH_POOL_FAILED", poolKey, error });
@@ -95,28 +106,47 @@ export class WatchGpuWaitlistsHandler implements JobHandler<WatchGpuWaitlists> {
     return { singletonKey: WATCH_GPU_WAITLISTS_KEY, startAfter: addSeconds(now, this.config.GPU_WAITLIST_POLL_SECONDS).toISOString() };
   }
 
-  async #watchPool(poolKey: string, previous: GpuWaitlistPoolRow | undefined, now: Date): Promise<WatchedPool | undefined> {
+  /** Pools of one model with another memory or interface read the same inventory, so one tick fetches it once. */
+  #findSupplyOncePerModel(): FindSupply {
+    const supplyByModel = new Map<string, Promise<GpuSupplyRow[]>>();
+
+    return ({ vendor, model }) => {
+      const key = `${vendor}/${model}`.toLowerCase();
+      if (!supplyByModel.has(key)) supplyByModel.set(key, this.gpuSupplyHttpService.findSupply({ vendor, model }));
+
+      return supplyByModel.get(key)!;
+    };
+  }
+
+  async #watchPool(poolKey: string, previous: GpuWaitlistPoolRow | undefined, now: Date, findSupply: FindSupply): Promise<WatchedPool | undefined> {
     const entries = await this.gpuWaitlistEntryRepository.findWaitingInPoolAcrossOrganizations(poolKey);
     if (!entries.length) return undefined;
 
     const [{ vendor, model, memory, interface: gpuInterface }] = entries;
     const [rows, bidders] = await Promise.all([
-      this.gpuSupplyHttpService.findSupply({ vendor, model }),
+      findSupply({ vendor, model }),
       this.gpuBidCheckRepository.findProvidersWithBidsSince({ vendor, model, since: subDays(now, this.config.GPU_WAITLIST_BID_EVIDENCE_DAYS) })
     ]);
     const supply = summarizePoolSupply(rows, new Set(bidders), { memory, interface: gpuInterface });
-    const fitsSomeone = Math.max(0, ...supply.nodeFreeUnits) >= Math.min(...entries.map(entry => entry.gpuCount));
+    const largestFreeNode = Math.max(0, ...supply.nodeFreeUnits);
+    const fitting = entries.filter(entry => entry.gpuCount <= largestFreeNode);
+    const fitsSomeone = fitting.length > 0;
     const isCooledDown = this.#isCooledDown(previous, now);
     const hasRisen = this.#hasRisen(supply, previous);
+    const wouldCheck = fitsSomeone && isCooledDown && (hasRisen || this.#isRoundDue(previous, now));
 
     return {
       poolKey,
       supply,
       previous,
-      isDue: fitsSomeone && isCooledDown && (hasRisen || this.#isRoundDue(previous, now)),
+      isDue: wouldCheck && (await this.#canEmailAnyone(fitting, previous, now)),
       isRiseHeldByCooldown: fitsSomeone && hasRisen && !isCooledDown,
       closesWave: !fitsSomeone && !!previous?.waveStartedAt
     };
+  }
+
+  async #canEmailAnyone(fitting: GpuWaitlistEntryRow[], previous: GpuWaitlistPoolRow | undefined, now: Date): Promise<boolean> {
+    return (await this.gpuWaitlistEligibilityService.findFirstEligible(fitting, previous, now)) !== undefined;
   }
 
   #isCooledDown(previous: GpuWaitlistPoolRow | undefined, now: Date): boolean {

@@ -10,6 +10,7 @@ import { GpuSetupCheckService } from "@src/deployment/services/gpu-setup-check/g
 import { GpuWaitlistPoolRepository } from "@src/gpu-waitlist/repositories/gpu-waitlist-pool/gpu-waitlist-pool.repository";
 import { ConfirmGpuPoolsHandler } from "@src/gpu-waitlist/services/confirm-gpu-pools/confirm-gpu-pools.handler";
 import { ConfirmGpuPools } from "@src/gpu-waitlist/services/confirm-gpu-pools/confirm-gpu-pools.job";
+import { GpuWaitlistNetworkService } from "@src/gpu-waitlist/services/gpu-waitlist-network/gpu-waitlist-network.service";
 import { WATCH_GPU_WAITLISTS_KEY, WatchGpuWaitlistsHandler } from "./watch-gpu-waitlists.handler";
 import { WatchGpuWaitlists } from "./watch-gpu-waitlists.job";
 
@@ -17,6 +18,10 @@ import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedGpuWaitlistEntry } from "@test/seeders/db/gpu-waitlist-entry.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { deleteQueuedJobs, expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
+
+vi.hoisted(() => {
+  process.env.GPU_WAITLIST_NETWORKS = "mainnet,testnet,sandbox";
+});
 
 const jobWorkers = useJobWorkers(() => [container.resolve(WatchGpuWaitlistsHandler), container.resolve(ConfirmGpuPoolsHandler)]);
 
@@ -35,6 +40,22 @@ describe(WatchGpuWaitlistsHandler.name, () => {
     expect(pool).toEqual(expect.objectContaining({ lastFreeUnits: 8, lastMaxNodeFreeUnits: 8, lastCheckAt: expect.any(Date) }));
     expect(check).toHaveBeenCalledWith([{ vendor: "nvidia", model: "h100", memory: "80Gi", interface: "sxm", count: 2 }]);
     expect(await findJobRows(WatchGpuWaitlists[JOB_NAME], { singletonKey: WATCH_GPU_WAITLISTS_KEY, state: "created" })).toHaveLength(1);
+  });
+
+  it("stops the watch chain on a network that does not serve gpu waitlists", async () => {
+    const { check } = await setup();
+    vi.spyOn(container.resolve(GpuWaitlistNetworkService), "servesGpuWaitlists").mockReturnValue(false);
+    const { enqueue, startWorkers } = await jobWorkers();
+    await deleteQueuedJobs(WatchGpuWaitlists[JOB_NAME]);
+    const completedWatches = async () => await findJobRows(WatchGpuWaitlists[JOB_NAME], { singletonKey: WATCH_GPU_WAITLISTS_KEY, state: "completed" });
+    const completedBefore = (await completedWatches()).length;
+
+    await enqueue(new WatchGpuWaitlists(), { singletonKey: WATCH_GPU_WAITLISTS_KEY });
+    await startWorkers();
+    await vi.waitFor(async () => expect(await completedWatches()).toHaveLength(completedBefore + 1), { timeout: 30_000 });
+
+    expect(check).not.toHaveBeenCalled();
+    expect(await findJobRows(WatchGpuWaitlists[JOB_NAME], { singletonKey: WATCH_GPU_WAITLISTS_KEY, state: "created" })).toHaveLength(0);
   });
 
   it("keeps a single queued watch when a replica seeds while the next run is scheduled", async () => {

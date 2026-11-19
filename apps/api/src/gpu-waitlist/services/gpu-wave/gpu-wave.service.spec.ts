@@ -7,6 +7,7 @@ import type { GpuWaitlistConfig } from "@src/gpu-waitlist/providers/config.provi
 import type { GpuWaitlistEntryRepository, GpuWaitlistEntryRow } from "@src/gpu-waitlist/repositories/gpu-waitlist-entry/gpu-waitlist-entry.repository";
 import type { GpuWaitlistPoolRepository, GpuWaitlistPoolRow } from "@src/gpu-waitlist/repositories/gpu-waitlist-pool/gpu-waitlist-pool.repository";
 import { GpuAvailableNoticeJob } from "@src/gpu-waitlist/services/gpu-available-notice/gpu-available-notice.job";
+import { GpuWaitlistEligibilityService } from "@src/gpu-waitlist/services/gpu-waitlist-eligibility/gpu-waitlist-eligibility.service";
 import type {
   HardwareRequestAccountService,
   HardwareRequestAccountType
@@ -31,7 +32,7 @@ describe(GpuWaveService.name, () => {
 
       expect(recipients).toEqual(["a", "b", "c"]);
       expect(jobQueueService.enqueue).toHaveBeenCalledTimes(3);
-      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new GpuAvailableNoticeJob({ entryId: entries[0].id, waveNumber: 5, priceUsdPerHour: 2.5 }));
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new GpuAvailableNoticeJob({ entryId: entries[0].id, waveNumber: 5, pricePerGpuUsdPerHour: 2.5 }));
     });
 
     it("skips trial users and keeps their place", async () => {
@@ -300,7 +301,8 @@ describe(GpuWaveService.name, () => {
     const config = mock<GpuWaitlistConfig>({ GPU_WAITLIST_WAVE_MULTIPLIER: 3, GPU_WAITLIST_MAX_EMAILS_PER_ENTRY_PER_DAY: 2 });
     const logger = mock<ReturnType<CreateLogger>>();
 
-    const service = new GpuWaveService(entryRepository, poolRepository, accountService, jobQueueService, txService, config, () => logger);
+    const eligibilityService = new GpuWaitlistEligibilityService(accountService, config);
+    const service = new GpuWaveService(entryRepository, poolRepository, eligibilityService, jobQueueService, txService, config, () => logger);
 
     return {
       service,

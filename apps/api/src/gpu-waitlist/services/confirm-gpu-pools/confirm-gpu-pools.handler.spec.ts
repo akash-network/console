@@ -8,9 +8,15 @@ import type { GpuBidCheckRepository } from "@src/deployment/repositories/gpu-bid
 import type { GpuSetup, GpuSetupBid, GpuSetupCheckOutcome, GpuSetupCheckService } from "@src/deployment/services/gpu-setup-check/gpu-setup-check.service";
 import type { GpuWaitlistConfig } from "@src/gpu-waitlist/providers/config.provider";
 import type { GpuWaitlistEntryRepository, GpuWaitlistEntryRow } from "@src/gpu-waitlist/repositories/gpu-waitlist-entry/gpu-waitlist-entry.repository";
-import type { GpuWaitlistPoolRepository } from "@src/gpu-waitlist/repositories/gpu-waitlist-pool/gpu-waitlist-pool.repository";
+import type { GpuWaitlistPoolRepository, GpuWaitlistPoolRow } from "@src/gpu-waitlist/repositories/gpu-waitlist-pool/gpu-waitlist-pool.repository";
 import type { GpuSupplyHttpService, GpuSupplyRow } from "@src/gpu-waitlist/services/gpu-supply-http/gpu-supply-http.service";
+import { GpuWaitlistEligibilityService } from "@src/gpu-waitlist/services/gpu-waitlist-eligibility/gpu-waitlist-eligibility.service";
+import type { GpuWaitlistNetworkService } from "@src/gpu-waitlist/services/gpu-waitlist-network/gpu-waitlist-network.service";
 import type { GpuWaveService } from "@src/gpu-waitlist/services/gpu-wave/gpu-wave.service";
+import type {
+  HardwareRequestAccountService,
+  HardwareRequestAccountType
+} from "@src/hardware-request/services/hardware-request-account/hardware-request-account.service";
 import { ConfirmGpuPoolsHandler } from "./confirm-gpu-pools.handler";
 
 const NOW = new Date("2026-11-18T12:00:00.000Z");
@@ -68,7 +74,7 @@ describe(ConfirmGpuPoolsHandler.name, () => {
     await handler.handle({ poolKeys: [H100, A100], version: 1 });
 
     expect(gpuWaveService.startWave).toHaveBeenCalledTimes(1);
-    expect(gpuWaveService.startWave).toHaveBeenCalledWith(H100, { nodeFreeUnits: [8] }, 3);
+    expect(gpuWaveService.startWave).toHaveBeenCalledWith(H100, { nodeFreeUnits: [8] }, 3 / 8);
     expect(gpuWaitlistPoolRepository.update).toHaveBeenCalledWith(H100, { lastCheckPriceUsdPerHour: 3 });
     expect(gpuWaitlistPoolRepository.update).toHaveBeenCalledWith(A100, { waveStartedAt: null });
     expect(gpuWaitlistPoolRepository.update).not.toHaveBeenCalledWith(A100, { lastCheckPriceUsdPerHour: expect.anything() });
@@ -137,7 +143,87 @@ describe(ConfirmGpuPoolsHandler.name, () => {
     await handler.handle({ poolKeys: [H100], version: 1 });
 
     expect(gpuWaveService.startWave).toHaveBeenCalledWith(H100, { nodeFreeUnits: [2, 2] }, 4);
-    expect(logger.info).toHaveBeenCalledWith({ event: "GPU_WAITLIST_CONFIRM_WAVE_STARTED", poolKey: H100, priceUsdPerHour: 4, recipientCount: 2 });
+    expect(logger.info).toHaveBeenCalledWith({
+      event: "GPU_WAITLIST_CONFIRM_WAVE_STARTED",
+      poolKey: H100,
+      priceUsdPerHour: 4,
+      pricePerGpuUsdPerHour: 4,
+      recipientCount: 2
+    });
+  });
+
+  it("emails a price per gpu of the checked count and keeps the check's own price on the pool", async () => {
+    const { handler, gpuWaveService, gpuWaitlistPoolRepository, checkedSetups } = setup({
+      pools: { [H100]: { gpuCounts: [16, 4, 1], supply: [{ owner: "holder", units: 4 }], bids: [bid("holder", 10)] } },
+      bidders: ["holder"]
+    });
+
+    await handler.handle({ poolKeys: [H100], version: 1 });
+
+    expect(checkedSetups()[0].count).toBe(4);
+    expect(gpuWaveService.startWave).toHaveBeenCalledWith(H100, { nodeFreeUnits: [4] }, 2.5);
+    expect(gpuWaitlistPoolRepository.update).toHaveBeenCalledWith(H100, { lastCheckPriceUsdPerHour: 10 });
+  });
+
+  it("asks for the first request in line that fits and whose user can be emailed", async () => {
+    const { handler, checkedSetups } = setup({
+      pools: {
+        [H100]: {
+          gpuCounts: [1, 2, 4, 8],
+          supply: [{ units: 8 }],
+          entries: [{ userId: "trial-user" }, { lastNotifiedAt: minutesAgo(60), notifiedCount: 2 }, {}, {}]
+        }
+      },
+      accountTypes: { "trial-user": "trial" }
+    });
+
+    await handler.handle({ poolKeys: [H100], version: 1 });
+
+    expect(checkedSetups().map(({ count }) => count)).toEqual([4]);
+  });
+
+  it("skips users already emailed in the open episode when sizing the check", async () => {
+    const waveStartedAt = minutesAgo(30);
+    const { handler, checkedSetups } = setup({
+      pools: {
+        [H100]: { gpuCounts: [1, 2], supply: [{ units: 8 }], waveStartedAt, entries: [{ lastNotifiedAt: waveStartedAt, notifiedCount: 1 }, {}] }
+      }
+    });
+
+    await handler.handle({ poolKeys: [H100], version: 1 });
+
+    expect(checkedSetups().map(({ count }) => count)).toEqual([2]);
+  });
+
+  it("does not claim or check a pool where nobody a free node fits can be emailed", async () => {
+    const { handler, gpuSetupCheckService, gpuWaitlistPoolRepository, logger } = setup({
+      pools: { [H100]: { gpuCounts: [1, 16], supply: [{ units: 8 }], entries: [{ userId: "trial-user" }, {}] } },
+      accountTypes: { "trial-user": "trial" }
+    });
+
+    await handler.handle({ poolKeys: [H100], version: 1 });
+
+    expect(gpuWaitlistPoolRepository.claimForCheck).not.toHaveBeenCalled();
+    expect(gpuSetupCheckService.check).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith({ event: "GPU_WAITLIST_CONFIRM_NO_ELIGIBLE_FIT", poolKey: H100 });
+  });
+
+  it("leaves the episode of a pool whose setup the check found invalid alone and confirms the others", async () => {
+    const { handler, gpuWaveService, gpuWaitlistPoolRepository, logger } = setup({
+      pools: {
+        [H100]: { gpuCounts: [1], supply: [{ owner: "holder", units: 8 }], bids: [bid("holder", 2)] },
+        [A100]: { gpuCounts: [1], memory: "80Gi", interface: "SXM5", supply: [{ memory: "80Gi", interface: "sxm5", units: 8 }] }
+      },
+      bidders: ["holder", "bidder"],
+      invalidModels: ["a100"]
+    });
+
+    await handler.handle({ poolKeys: [H100, A100], version: 1 });
+
+    expect(gpuWaveService.startWave).toHaveBeenCalledTimes(1);
+    expect(gpuWaveService.startWave).toHaveBeenCalledWith(H100, expect.anything(), 2);
+    expect(gpuWaitlistPoolRepository.update).not.toHaveBeenCalledWith(A100, expect.anything());
+    expect(logger.warn).toHaveBeenCalledWith({ event: "GPU_WAITLIST_CONFIRM_SETUP_INVALID", poolKey: A100, setup: expect.objectContaining({ model: "a100" }) });
   });
 
   it("does not check free gpus of a provider without recent bid evidence", async () => {
@@ -263,6 +349,19 @@ describe(ConfirmGpuPoolsHandler.name, () => {
     expect(logger.error).toHaveBeenCalledWith({ event: "GPU_WAITLIST_CONFIRM_FAILED", poolKey: H100, error: waveError });
   });
 
+  it("does nothing on a network that does not serve gpu waitlists", async () => {
+    const { handler, gpuSetupCheckService, gpuWaitlistEntryRepository, gpuWaitlistPoolRepository } = setup({
+      pools: { [H100]: { gpuCounts: [8], supply: [{ units: 8 }] } },
+      servesGpuWaitlists: false
+    });
+
+    await handler.handle({ poolKeys: [H100], version: 1 });
+
+    expect(gpuWaitlistEntryRepository.findWaitingInPoolAcrossOrganizations).not.toHaveBeenCalled();
+    expect(gpuWaitlistPoolRepository.claimForCheck).not.toHaveBeenCalled();
+    expect(gpuSetupCheckService.check).not.toHaveBeenCalled();
+  });
+
   it("does nothing while the feature is off", async () => {
     const { handler, featureFlagsService, gpuSetupCheckService, gpuWaitlistEntryRepository } = setup({
       pools: { [H100]: { gpuCounts: [8], supply: [{ units: 8 }] } },
@@ -279,11 +378,23 @@ describe(ConfirmGpuPoolsHandler.name, () => {
   function setup(input: {
     pools: Record<
       string,
-      { gpuCounts: number[]; supply: Partial<GpuSupplyRow>[]; bids?: GpuSetupBid[]; memory?: string; interface?: string; lastCheckAt?: Date }
+      {
+        gpuCounts: number[];
+        supply: Partial<GpuSupplyRow>[];
+        bids?: GpuSetupBid[];
+        memory?: string;
+        interface?: string;
+        lastCheckAt?: Date;
+        waveStartedAt?: Date;
+        entries?: Partial<GpuWaitlistEntryRow>[];
+      }
     >;
     bidders?: string[];
     failingModels?: string[];
+    invalidModels?: string[];
     flagEnabled?: boolean;
+    servesGpuWaitlists?: boolean;
+    accountTypes?: Record<string, HardwareRequestAccountType>;
     outcome?: GpuSetupCheckOutcome;
     checkError?: Error;
     recipients?: string[];
@@ -298,12 +409,18 @@ describe(ConfirmGpuPoolsHandler.name, () => {
     const gpuWaitlistEntryRepository = mock<GpuWaitlistEntryRepository>({
       findWaitingInPoolAcrossOrganizations: vi.fn(async (poolKey: string) => {
         const pool = pools.find(candidate => candidate.poolKey === poolKey)!;
-        return pool.gpuCounts.map((gpuCount, index) =>
-          anEntry({ poolKey, model: pool.model, memory: pool.memory, interface: pool.interface, gpuCount, index })
-        );
+        return pool.gpuCounts.map((gpuCount, index) => ({
+          ...anEntry({ poolKey, model: pool.model, memory: pool.memory, interface: pool.interface, gpuCount, index }),
+          ...pool.entries?.[index]
+        }));
       })
     });
     const gpuWaitlistPoolRepository = mock<GpuWaitlistPoolRepository>({
+      findByPoolKeys: vi.fn(async (poolKeys: string[]) =>
+        pools
+          .filter(pool => poolKeys.includes(pool.poolKey))
+          .map(pool => mock<GpuWaitlistPoolRow>({ poolKey: pool.poolKey, waveStartedAt: pool.waveStartedAt ?? null }))
+      ),
       claimForCheck: vi.fn(async ({ poolKeys, checkedAt, cooledDownBefore }: Parameters<GpuWaitlistPoolRepository["claimForCheck"]>[0]) => {
         calls.push(`claim:${poolKeys.join(",")}`);
         const claimable = poolKeys.filter(poolKey => {
@@ -328,18 +445,32 @@ describe(ConfirmGpuPoolsHandler.name, () => {
         return (
           input.outcome ?? {
             status: "checked",
-            results: setups.map(setup => ({ setup, bids: pools.find(pool => pool.model === setup.model)!.bids ?? [] }))
+            results: setups.map(setup =>
+              input.invalidModels?.includes(setup.model)
+                ? { setup, status: "invalid", bids: [] }
+                : { setup, status: "checked", bids: pools.find(pool => pool.model === setup.model)!.bids ?? [] }
+            )
           }
         );
       })
     });
     const gpuWaveService = mock<GpuWaveService>({ startWave: vi.fn(async () => input.recipients ?? []) });
     const featureFlagsService = mock<FeatureFlagsService>({ isEnabled: vi.fn(() => input.flagEnabled ?? true) });
-    const config = mock<GpuWaitlistConfig>({ GPU_WAITLIST_BID_EVIDENCE_DAYS: 7, GPU_WAITLIST_CHECK_COOLDOWN_MINUTES: 15 });
+    const config = mock<GpuWaitlistConfig>({
+      GPU_WAITLIST_BID_EVIDENCE_DAYS: 7,
+      GPU_WAITLIST_CHECK_COOLDOWN_MINUTES: 15,
+      GPU_WAITLIST_MAX_EMAILS_PER_ENTRY_PER_DAY: 2
+    });
     const logger = mock<ReturnType<CreateLogger>>();
+    const gpuWaitlistNetworkService = mock<GpuWaitlistNetworkService>({ servesGpuWaitlists: vi.fn(() => input.servesGpuWaitlists ?? true) });
+    const accountService = mock<HardwareRequestAccountService>({
+      findAccountType: vi.fn(async ({ userId }) => input.accountTypes?.[userId!] ?? "paying")
+    });
 
     const handler = new ConfirmGpuPoolsHandler(
       featureFlagsService,
+      gpuWaitlistNetworkService,
+      new GpuWaitlistEligibilityService(accountService, config),
       gpuWaitlistEntryRepository,
       gpuWaitlistPoolRepository,
       gpuSupplyHttpService,
@@ -369,6 +500,10 @@ describe(ConfirmGpuPoolsHandler.name, () => {
     };
   }
 });
+
+function minutesAgo(minutes: number): Date {
+  return new Date(NOW.getTime() - minutes * MINUTE_MS);
+}
 
 function bid(provider: string, priceUsdPerHour: number): GpuSetupBid {
   return { provider, priceUsdPerHour };

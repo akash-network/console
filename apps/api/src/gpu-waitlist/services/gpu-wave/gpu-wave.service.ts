@@ -7,9 +7,8 @@ import { GPU_WAITLIST_CONFIG, type GpuWaitlistConfig } from "@src/gpu-waitlist/p
 import { GpuWaitlistEntryRepository, type GpuWaitlistEntryRow } from "@src/gpu-waitlist/repositories/gpu-waitlist-entry/gpu-waitlist-entry.repository";
 import { GpuWaitlistPoolRepository, type GpuWaitlistPoolRow } from "@src/gpu-waitlist/repositories/gpu-waitlist-pool/gpu-waitlist-pool.repository";
 import { GpuAvailableNoticeJob } from "@src/gpu-waitlist/services/gpu-available-notice/gpu-available-notice.job";
-import { HardwareRequestAccountService } from "@src/hardware-request/services/hardware-request-account/hardware-request-account.service";
+import { GpuWaitlistEligibilityService } from "@src/gpu-waitlist/services/gpu-waitlist-eligibility/gpu-waitlist-eligibility.service";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 const ACCOUNT_CHECK_CHUNK_SIZE = 10;
 
 export type GpuSupply = { nodeFreeUnits: number[] };
@@ -21,7 +20,7 @@ export class GpuWaveService {
   constructor(
     private readonly gpuWaitlistEntryRepository: GpuWaitlistEntryRepository,
     private readonly gpuWaitlistPoolRepository: GpuWaitlistPoolRepository,
-    private readonly hardwareRequestAccountService: HardwareRequestAccountService,
+    private readonly gpuWaitlistEligibilityService: GpuWaitlistEligibilityService,
     private readonly jobQueueService: JobQueueService,
     private readonly txService: TxService,
     @inject(GPU_WAITLIST_CONFIG) private readonly config: GpuWaitlistConfig,
@@ -30,7 +29,7 @@ export class GpuWaveService {
     this.#logger = createLogger({ context: GpuWaveService.name });
   }
 
-  async startWave(poolKey: string, supply: GpuSupply, priceUsdPerHour: number): Promise<string[]> {
+  async startWave(poolKey: string, supply: GpuSupply, pricePerGpuUsdPerHour: number): Promise<string[]> {
     return await this.txService.transaction(async () => {
       const pool = await this.gpuWaitlistPoolRepository.findByPoolKeyAndLock(poolKey);
 
@@ -51,7 +50,7 @@ export class GpuWaveService {
       const waveNumber = pool.waveNumber + 1;
 
       for (const entry of entries.filter(({ id }) => recipientIds.includes(id))) {
-        await this.#notify(entry, { waveNumber, priceUsdPerHour, now });
+        await this.#notify(entry, { waveNumber, pricePerGpuUsdPerHour, now });
       }
 
       await this.gpuWaitlistPoolRepository.update(poolKey, { waveNumber, lastRoundAt: now, waveStartedAt: pool.waveStartedAt ?? now });
@@ -61,14 +60,16 @@ export class GpuWaveService {
   }
 
   async #pickRecipients(entries: GpuWaitlistEntryRow[], pool: GpuWaitlistPoolRow, supply: GpuSupply, now: Date): Promise<string[]> {
-    const withinLimits = entries.filter(entry => this.#withinEmailLimits(entry, pool, now));
+    const withinLimits = entries.filter(entry => this.gpuWaitlistEligibilityService.isWithinEmailLimits(entry, pool, now));
     const multiplier = this.config.GPU_WAITLIST_WAVE_MULTIPLIER;
     const evaluated: WaveCandidate[] = [];
 
     for (let start = 0; start < withinLimits.length; start += ACCOUNT_CHECK_CHUNK_SIZE) {
       const chunk = withinLimits.slice(start, start + ACCOUNT_CHECK_CHUNK_SIZE);
       evaluated.push(
-        ...(await Promise.all(chunk.map(async entry => ({ id: entry.id, gpuCount: entry.gpuCount, isEligible: await this.#isNotTrialing(entry) }))))
+        ...(await Promise.all(
+          chunk.map(async entry => ({ id: entry.id, gpuCount: entry.gpuCount, isEligible: await this.gpuWaitlistEligibilityService.isNotTrialing(entry) }))
+        ))
       );
 
       const unchecked = withinLimits.slice(start + chunk.length);
@@ -89,24 +90,13 @@ export class GpuWaveService {
     return slotsIfAllUncheckedWereEligible === slots && picked.length === this.config.GPU_WAITLIST_WAVE_MULTIPLIER * slots;
   }
 
-  #withinEmailLimits(entry: GpuWaitlistEntryRow, pool: GpuWaitlistPoolRow, now: Date): boolean {
-    if (pool.waveStartedAt && entry.lastNotifiedAt && entry.lastNotifiedAt >= pool.waveStartedAt) return false;
-
-    return this.#emailsInLastDay(entry, now) < this.config.GPU_WAITLIST_MAX_EMAILS_PER_ENTRY_PER_DAY;
-  }
-
-  async #isNotTrialing(entry: GpuWaitlistEntryRow): Promise<boolean> {
-    return (await this.hardwareRequestAccountService.findAccountType({ userId: entry.userId, organizationId: entry.organizationId })) !== "trial";
-  }
-
-  #emailsInLastDay(entry: GpuWaitlistEntryRow, now: Date): number {
-    return entry.lastNotifiedAt && now.getTime() - entry.lastNotifiedAt.getTime() < DAY_MS ? entry.notifiedCount : 0;
-  }
-
-  async #notify(entry: GpuWaitlistEntryRow, { waveNumber, priceUsdPerHour, now }: { waveNumber: number; priceUsdPerHour: number; now: Date }): Promise<void> {
+  async #notify(
+    entry: GpuWaitlistEntryRow,
+    { waveNumber, pricePerGpuUsdPerHour, now }: { waveNumber: number; pricePerGpuUsdPerHour: number; now: Date }
+  ): Promise<void> {
     await this.gpuWaitlistEntryRepository
       .unscoped("gpu-waitlist-watcher")
-      .updateById(entry.id, { lastNotifiedAt: now, notifiedCount: this.#emailsInLastDay(entry, now) + 1 });
-    await this.jobQueueService.enqueue(new GpuAvailableNoticeJob({ entryId: entry.id, waveNumber, priceUsdPerHour }));
+      .updateById(entry.id, { lastNotifiedAt: now, notifiedCount: this.gpuWaitlistEligibilityService.emailsInLastDay(entry, now) + 1 });
+    await this.jobQueueService.enqueue(new GpuAvailableNoticeJob({ entryId: entry.id, waveNumber, pricePerGpuUsdPerHour }));
   }
 }

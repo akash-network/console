@@ -1,9 +1,10 @@
 import { faker } from "@faker-js/faker";
 import nock from "nock";
 import { container } from "tsyringe";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { JOB_NAME } from "@src/core";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { NOTIFICATIONS_CONFIG } from "@src/notifications/providers/notifications-config.provider";
 import { GpuAvailableNoticeHandler } from "./gpu-available-notice.handler";
 import { GpuAvailableNoticeJob } from "./gpu-available-notice.job";
@@ -12,6 +13,10 @@ import { seedGpuWaitlistEntry } from "@test/seeders/db/gpu-waitlist-entry.seeder
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { expectJobCompleted, useJobWorkers } from "@test/services/job-queue-harness";
 
+vi.hoisted(() => {
+  process.env.GPU_WAITLIST_NETWORKS = "mainnet,testnet,sandbox";
+});
+
 const NOTIFICATION_PATH = "/internal/v1/jobs/notification";
 
 const jobWorkers = useJobWorkers(() => [container.resolve(GpuAvailableNoticeHandler)]);
@@ -19,6 +24,7 @@ const jobWorkers = useJobWorkers(() => [container.resolve(GpuAvailableNoticeHand
 describe(GpuAvailableNoticeHandler.name, () => {
   afterEach(() => {
     nock.cleanAll();
+    vi.restoreAllMocks();
   });
 
   it("emails a waiting user whose own wallet is trialing, run the way a worker runs it", async () => {
@@ -47,6 +53,7 @@ describe(GpuAvailableNoticeHandler.name, () => {
     const { user } = await seedUserWithWallet({ isTrialing: input.isTrialing, user: { email: faker.internet.email() } });
     const entry = await seedGpuWaitlistEntry({ userId: user.id, status: input.status, model: "h100", memory: "80Gi", interface: "sxm5", gpuCount: 8 });
     const notifications: Record<string, unknown>[] = [];
+    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockReturnValue(true);
     nock(container.resolve(NOTIFICATIONS_CONFIG).NOTIFICATIONS_API_BASE_URL as string)
       .persist()
       .post(NOTIFICATION_PATH)
@@ -58,7 +65,7 @@ describe(GpuAvailableNoticeHandler.name, () => {
     async function run(entryId: string) {
       const { enqueue, startWorkers } = await jobWorkers();
       const singletonKey = faker.string.uuid();
-      await enqueue(new GpuAvailableNoticeJob({ entryId, waveNumber: 1, priceUsdPerHour: 2.5 }), { singletonKey });
+      await enqueue(new GpuAvailableNoticeJob({ entryId, waveNumber: 1, pricePerGpuUsdPerHour: 2.5 }), { singletonKey });
       await startWorkers();
       await expectJobCompleted(GpuAvailableNoticeJob[JOB_NAME], { singletonKey });
     }

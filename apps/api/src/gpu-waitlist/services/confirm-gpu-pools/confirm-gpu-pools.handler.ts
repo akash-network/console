@@ -5,12 +5,14 @@ import { type CreateLogger, type JobHandler, type JobPayload, type JobPermission
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { GpuBidCheckRepository } from "@src/deployment/repositories/gpu-bid-check/gpu-bid-check.repository";
-import { type GpuSetup, type GpuSetupBid, GpuSetupCheckService } from "@src/deployment/services/gpu-setup-check/gpu-setup-check.service";
+import { type GpuSetup, GpuSetupCheckService, type GpuSetupResult } from "@src/deployment/services/gpu-setup-check/gpu-setup-check.service";
 import { type PoolKind, type PoolSupply, summarizePoolSupply, toGpuSetupInterface } from "@src/gpu-waitlist/lib/pool-supply/pool-supply";
 import { GPU_WAITLIST_CONFIG, type GpuWaitlistConfig } from "@src/gpu-waitlist/providers/config.provider";
 import { GpuWaitlistEntryRepository } from "@src/gpu-waitlist/repositories/gpu-waitlist-entry/gpu-waitlist-entry.repository";
-import { GpuWaitlistPoolRepository } from "@src/gpu-waitlist/repositories/gpu-waitlist-pool/gpu-waitlist-pool.repository";
+import { GpuWaitlistPoolRepository, type GpuWaitlistPoolRow } from "@src/gpu-waitlist/repositories/gpu-waitlist-pool/gpu-waitlist-pool.repository";
 import { GpuSupplyHttpService, type GpuSupplyRow } from "@src/gpu-waitlist/services/gpu-supply-http/gpu-supply-http.service";
+import { GpuWaitlistEligibilityService } from "@src/gpu-waitlist/services/gpu-waitlist-eligibility/gpu-waitlist-eligibility.service";
+import { GpuWaitlistNetworkService } from "@src/gpu-waitlist/services/gpu-waitlist-network/gpu-waitlist-network.service";
 import { GpuWaveService } from "@src/gpu-waitlist/services/gpu-wave/gpu-wave.service";
 import { ConfirmGpuPools } from "./confirm-gpu-pools.job";
 
@@ -27,6 +29,8 @@ export class ConfirmGpuPoolsHandler implements JobHandler<ConfirmGpuPools> {
 
   constructor(
     private readonly featureFlagsService: FeatureFlagsService,
+    private readonly gpuWaitlistNetworkService: GpuWaitlistNetworkService,
+    private readonly gpuWaitlistEligibilityService: GpuWaitlistEligibilityService,
     private readonly gpuWaitlistEntryRepository: GpuWaitlistEntryRepository,
     private readonly gpuWaitlistPoolRepository: GpuWaitlistPoolRepository,
     private readonly gpuSupplyHttpService: GpuSupplyHttpService,
@@ -44,14 +48,16 @@ export class ConfirmGpuPoolsHandler implements JobHandler<ConfirmGpuPools> {
   }
 
   async handle({ poolKeys }: JobPayload<ConfirmGpuPools>): Promise<void> {
+    if (!this.gpuWaitlistNetworkService.servesGpuWaitlists()) return;
     if (!this.featureFlagsService.isEnabled(FeatureFlags.GPU_AVAILABILITY_ALERTS, {})) return;
 
     const now = new Date();
     const prepared: PoolToCheck[] = [];
+    const rowsByKey = new Map((await this.gpuWaitlistPoolRepository.findByPoolKeys(poolKeys)).map(row => [row.poolKey, row]));
 
     for (const poolKey of poolKeys) {
       try {
-        const pool = await this.#prepare(poolKey, now);
+        const pool = await this.#prepare(poolKey, rowsByKey.get(poolKey), now);
         if (pool) prepared.push(pool);
       } catch (error) {
         this.#logger.error({ event: "GPU_WAITLIST_CONFIRM_FAILED", poolKey, error });
@@ -59,19 +65,19 @@ export class ConfirmGpuPoolsHandler implements JobHandler<ConfirmGpuPools> {
     }
 
     const pools = await this.#claim(prepared, now);
-    const bidsByPool = await this.#check(pools);
-    if (!bidsByPool) return;
+    const results = await this.#check(pools);
+    if (!results) return;
 
     for (const [index, pool] of pools.entries()) {
       try {
-        await this.#startWaveOnLiveBid(pool, bidsByPool[index]);
+        await this.#startWaveOnLiveBid(pool, results[index]);
       } catch (error) {
         this.#logger.error({ event: "GPU_WAITLIST_CONFIRM_FAILED", poolKey: pool.poolKey, error });
       }
     }
   }
 
-  async #prepare(poolKey: string, now: Date): Promise<PoolToCheck | undefined> {
+  async #prepare(poolKey: string, row: GpuWaitlistPoolRow | undefined, now: Date): Promise<PoolToCheck | undefined> {
     const entries = await this.gpuWaitlistEntryRepository.findWaitingInPoolAcrossOrganizations(poolKey);
     if (!entries.length) return undefined;
 
@@ -83,10 +89,17 @@ export class ConfirmGpuPoolsHandler implements JobHandler<ConfirmGpuPools> {
     ]);
     const supply = summarizePoolSupply(rows, new Set(bidders), kind);
     const largestFreeNode = Math.max(0, ...supply.nodeFreeUnits);
-    const firstFitting = entries.find(entry => entry.gpuCount <= largestFreeNode);
+    const fitting = entries.filter(entry => entry.gpuCount <= largestFreeNode);
 
-    if (!firstFitting) {
+    if (!fitting.length) {
       this.#logger.info({ event: "GPU_WAITLIST_CONFIRM_NO_FIT", poolKey });
+      return undefined;
+    }
+
+    const firstEligible = await this.gpuWaitlistEligibilityService.findFirstEligible(fitting, row, now);
+
+    if (!firstEligible) {
+      this.#logger.info({ event: "GPU_WAITLIST_CONFIRM_NO_ELIGIBLE_FIT", poolKey });
       return undefined;
     }
 
@@ -96,7 +109,7 @@ export class ConfirmGpuPoolsHandler implements JobHandler<ConfirmGpuPools> {
       kind,
       supply,
       smallestGpuCount: Math.min(...entries.map(entry => entry.gpuCount)),
-      setup: { vendor: "nvidia", model, memory: memory ?? undefined, interface: toGpuSetupInterface(gpuInterface), count: firstFitting.gpuCount }
+      setup: { vendor: "nvidia", model, memory: memory ?? undefined, interface: toGpuSetupInterface(gpuInterface), count: firstEligible.gpuCount }
     };
   }
 
@@ -118,7 +131,7 @@ export class ConfirmGpuPoolsHandler implements JobHandler<ConfirmGpuPools> {
     return prepared.filter(pool => claimed.has(pool.poolKey));
   }
 
-  async #check(pools: PoolToCheck[]): Promise<GpuSetupBid[][] | undefined> {
+  async #check(pools: PoolToCheck[]): Promise<GpuSetupResult[] | undefined> {
     if (!pools.length) return undefined;
 
     const poolKeys = pools.map(pool => pool.poolKey);
@@ -136,15 +149,21 @@ export class ConfirmGpuPoolsHandler implements JobHandler<ConfirmGpuPools> {
         return undefined;
       }
 
-      return outcome.results.map(result => result.bids);
+      return outcome.results;
     } catch (error) {
       this.#logger.error({ event: "GPU_WAITLIST_CHECK_FAILED", poolKeys, error });
       return undefined;
     }
   }
 
-  async #startWaveOnLiveBid(pool: PoolToCheck, bids: GpuSetupBid[]): Promise<void> {
+  async #startWaveOnLiveBid(pool: PoolToCheck, { status, bids }: GpuSetupResult): Promise<void> {
     const { poolKey } = pool;
+
+    if (status === "invalid") {
+      this.#logger.warn({ event: "GPU_WAITLIST_CONFIRM_SETUP_INVALID", poolKey, setup: pool.setup });
+      return;
+    }
+
     const liveBids = bids.filter(bid => pool.supply.providers.includes(bid.provider));
     const liveSupply = summarizePoolSupply(pool.rows, new Set(liveBids.map(bid => bid.provider)), pool.kind);
 
@@ -155,9 +174,10 @@ export class ConfirmGpuPoolsHandler implements JobHandler<ConfirmGpuPools> {
     }
 
     const priceUsdPerHour = Math.min(...liveBids.map(bid => bid.priceUsdPerHour));
+    const pricePerGpuUsdPerHour = priceUsdPerHour / pool.setup.count;
     await this.gpuWaitlistPoolRepository.update(poolKey, { lastCheckPriceUsdPerHour: priceUsdPerHour });
-    const recipients = await this.gpuWaveService.startWave(poolKey, { nodeFreeUnits: liveSupply.nodeFreeUnits }, priceUsdPerHour);
+    const recipients = await this.gpuWaveService.startWave(poolKey, { nodeFreeUnits: liveSupply.nodeFreeUnits }, pricePerGpuUsdPerHour);
 
-    this.#logger.info({ event: "GPU_WAITLIST_CONFIRM_WAVE_STARTED", poolKey, priceUsdPerHour, recipientCount: recipients.length });
+    this.#logger.info({ event: "GPU_WAITLIST_CONFIRM_WAVE_STARTED", poolKey, priceUsdPerHour, pricePerGpuUsdPerHour, recipientCount: recipients.length });
   }
 }
