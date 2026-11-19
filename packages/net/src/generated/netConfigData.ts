@@ -1,6 +1,6 @@
 export const netConfigData = {
   mainnet: {
-    version: "v2.1.0",
+    version: "v2.2.0",
     faucetUrl: null,
     apiUrls: [
       "https://rpc.akt.dev/rest",
@@ -32,7 +32,7 @@ export const netConfigData = {
     ]
   },
   "sandbox-2": {
-    version: "v2.1.0",
+    version: "v2.2.0-rc1",
     faucetUrl: "http://faucet.sandbox-2.aksh.pw/",
     apiUrls: ["https://api.sandbox-2.aksh.pw:443"],
     rpcUrls: ["https://rpc.sandbox-2.aksh.pw:443"]

@@ -8,6 +8,7 @@ import { TxService } from "@src/core/services";
 import { TemplatePublisherRepository } from "./template-publisher.repository";
 
 import { seedOrganization } from "@test/seeders/db/organization.seeder";
+import { seedTemplatePublisher } from "@test/seeders/db/template.seeder";
 import { seedPersonalOrganizationOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe(TemplatePublisherRepository.name, () => {
@@ -141,6 +142,96 @@ describe(TemplatePublisherRepository.name, () => {
       expect(await repository.findByOrganizationId(organization.id)).toBeUndefined();
     });
   });
+
+  describe("findProfileByHandle", () => {
+    it("describes a team publisher by its organization, dated from when the team was created", async () => {
+      const { repository } = setup();
+      const creator = await seedUser({ username: `sam-${faker.string.alphanumeric(8)}` });
+      await backdateUser(creator.id, new Date("2024-01-05T00:00:00.000Z"));
+      const team = await seedOrganization({ createdByUserId: creator.id, createdAt: new Date("2025-03-10T00:00:00.000Z") });
+      const handle = createHandle();
+      const links = [{ url: "https://lambdagarage.dev/", label: "Site" }];
+      await seedTemplatePublisher({ organizationId: team.id, handle, bio: "We build GPU stacks.", links, isVerified: true });
+
+      expect(await repository.findProfileByHandle(handle)).toEqual({
+        organizationId: team.id,
+        name: team.name,
+        type: "team",
+        handle,
+        bio: "We build GPU stacks.",
+        links,
+        isVerified: true,
+        isSuspended: false,
+        memberSince: new Date("2025-03-10T00:00:00.000Z")
+      });
+    });
+
+    it("dates a personal publisher from when its owner signed up, or from its organization once the owner is gone", async () => {
+      const { repository } = setup();
+      const owner = await seedUser({ username: `sam-${faker.string.alphanumeric(8)}` });
+      const signedUpAt = new Date("2024-01-05T00:00:00.000Z");
+      await backdateUser(owner.id, signedUpAt);
+      const personal = await seedPersonalOrganizationOf(owner);
+      const orphaned = await seedOrganization({ type: "personal", createdByUserId: null, createdAt: new Date("2025-06-01T00:00:00.000Z") });
+      const [handle, orphanedHandle] = [createHandle(), createHandle()];
+      await seedTemplatePublisher({ organizationId: personal.id, handle });
+      await seedTemplatePublisher({ organizationId: orphaned.id, handle: orphanedHandle });
+
+      expect(await repository.findProfileByHandle(handle)).toMatchObject({ type: "personal", name: personal.name, memberSince: signedUpAt });
+      expect(await repository.findProfileByHandle(orphanedHandle)).toMatchObject({ memberSince: new Date("2025-06-01T00:00:00.000Z") });
+    });
+
+    it("tells a suspended publisher apart, and finds nothing for an unknown handle or a deleted organization", async () => {
+      const { repository } = setup();
+      const [suspended, deleted] = await Promise.all([seedOrganization(), seedOrganization({ deletedAt: new Date() })]);
+      const [suspendedHandle, deletedHandle] = [createHandle(), createHandle()];
+      await seedTemplatePublisher({ organizationId: suspended.id, handle: suspendedHandle, publishingSuspendedAt: new Date() });
+      await seedTemplatePublisher({ organizationId: deleted.id, handle: deletedHandle });
+
+      expect(await repository.findProfileByHandle(suspendedHandle)).toMatchObject({ organizationId: suspended.id, isSuspended: true });
+      expect(await repository.findProfileByHandle(deletedHandle)).toBeUndefined();
+      expect(await repository.findProfileByHandle(createHandle())).toBeUndefined();
+    });
+  });
+
+  describe("findProfileOfOrganization", () => {
+    it("finds the profile of that organization, and nothing before it first publishes", async () => {
+      const { repository } = setup();
+      const [published, other, unpublished] = await Promise.all([seedOrganization(), seedOrganization(), seedOrganization()]);
+      const handle = createHandle();
+      await seedTemplatePublisher({ organizationId: published.id, handle });
+      await seedTemplatePublisher({ organizationId: other.id });
+
+      expect(await repository.findProfileOfOrganization(published.id)).toMatchObject({ organizationId: published.id, handle, bio: null, links: [] });
+      expect(await repository.findProfileOfOrganization(unpublished.id)).toBeUndefined();
+    });
+  });
+
+  describe("updateProfile", () => {
+    it("changes only what it is given, on that organization's profile alone", async () => {
+      const { repository } = setup();
+      const [organization, other] = await Promise.all([seedOrganization(), seedOrganization()]);
+      const links = [{ url: "https://example.org/", label: null }];
+      await seedTemplatePublisher({ organizationId: organization.id, bio: "Before", links });
+      await seedTemplatePublisher({ organizationId: other.id, bio: "Theirs" });
+
+      await repository.updateProfile(organization.id, { bio: "After" });
+      const afterBio = await repository.findProfileOfOrganization(organization.id);
+      await repository.updateProfile(organization.id, { links: [] });
+      const afterLinks = await repository.findProfileOfOrganization(organization.id);
+      await repository.updateProfile(organization.id, { bio: null });
+
+      expect(afterBio).toMatchObject({ bio: "After", links });
+      expect(afterLinks).toMatchObject({ bio: "After", links: [] });
+      expect(await repository.findProfileOfOrganization(organization.id)).toMatchObject({ bio: null, links: [] });
+      expect(await repository.findProfileOfOrganization(other.id)).toMatchObject({ bio: "Theirs" });
+    });
+  });
+
+  async function backdateUser(id: string, createdAt: Date) {
+    const users = resolveTable("Users");
+    await container.resolve<ApiPgDatabase>(POSTGRES_DB).update(users).set({ createdAt }).where(eq(users.id, id));
+  }
 
   function createHandle() {
     return `acme-${faker.string.alphanumeric(12).toLowerCase()}`;

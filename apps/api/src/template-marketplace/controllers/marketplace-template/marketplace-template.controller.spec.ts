@@ -47,13 +47,13 @@ describe(MarketplaceTemplateController.name, () => {
     });
 
     it("answers a template never deployed without a last deploy", async () => {
-      const template = createTemplate({ usage: { deploys: 0, lastDeployedAt: null, stillUpAfter24h: null } });
+      const template = createTemplate({ usage: { deploys: 0, lastDeployedAt: null, stillUpAfter24h: null, forks: 0, favorites: 0 } });
       const { controller, service } = setup();
       service.getTemplate.mockResolvedValue(template);
 
       const result = await controller.getTemplate(template.id);
 
-      expect(result.data.usage).toEqual({ deploys: 0, lastDeployedAt: null, stillUpAfter24h: null });
+      expect(result.data.usage).toEqual({ deploys: 0, lastDeployedAt: null, stillUpAfter24h: null, forks: 0, favorites: 0 });
     });
   });
 
@@ -323,6 +323,7 @@ describe(MarketplaceTemplateController.name, () => {
       moderationStatus: "active",
       projectId: faker.string.uuid(),
       copiedFromId: null,
+      copiedFrom: null,
       createdAt: faker.date.past(),
       updatedAt: faker.date.recent(),
       publishedAt: null,
@@ -331,7 +332,7 @@ describe(MarketplaceTemplateController.name, () => {
       currentVersion: createVersion(),
       canEdit: false,
       isFavorite: false,
-      usage: { deploys: faker.number.int({ min: 1, max: 100 }), lastDeployedAt: faker.date.recent(), stillUpAfter24h: 0.8 },
+      usage: { deploys: faker.number.int({ min: 1, max: 100 }), lastDeployedAt: faker.date.recent(), stillUpAfter24h: 0.8, forks: 3, favorites: 7 },
       ...overrides
     };
   }
