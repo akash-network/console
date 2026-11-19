@@ -73,15 +73,16 @@ export const buildMarketplaceTemplate = (overrides: Partial<MarketplaceTemplate>
     moderationStatus: "active",
     projectId: null,
     copiedFromId: null,
+    copiedFrom: null,
     createdAt,
     updatedAt: createdAt,
     publishedAt: null,
     author: { username: faker.internet.username() },
-    publisher: { name: faker.company.name(), slug: null, type: "team", handle: null },
+    publisher: { name: faker.company.name(), slug: null, type: "team", handle: null, verified: false, memberSince: null, counts: { templates: 0, deploys: 0 } },
     currentVersion: buildTemplateVersion({ templateId: id }),
     canEdit: false,
     isFavorite: false,
-    usage: { deploys: 0, lastDeployedAt: null, stillUpAfter24h: null },
+    usage: { deploys: 0, lastDeployedAt: null, stillUpAfter24h: null, forks: 0, favorites: 0 },
     ...overrides
   };
 };

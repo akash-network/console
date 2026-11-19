@@ -706,6 +706,38 @@ export const operations = {
       queryParams: [],
       hasBody: true
     },
+    listCommunityTemplates: {
+      path: "/v1/community-templates",
+      method: "get",
+      operationId: "listCommunityTemplates",
+      pathParams: [],
+      queryParams: [],
+      hasBody: false
+    },
+    getCurrentTemplatePublisher: {
+      path: "/v1/template-publishers/current",
+      method: "get",
+      operationId: "getCurrentTemplatePublisher",
+      pathParams: [],
+      queryParams: [],
+      hasBody: false
+    },
+    updateCurrentTemplatePublisher: {
+      path: "/v1/template-publishers/current",
+      method: "patch",
+      operationId: "updateCurrentTemplatePublisher",
+      pathParams: [],
+      queryParams: [],
+      hasBody: true
+    },
+    getTemplatePublisher: {
+      path: "/v1/template-publishers/{handle}",
+      method: "get",
+      operationId: "getTemplatePublisher",
+      pathParams: ["handle"],
+      queryParams: [],
+      hasBody: false
+    },
     getUserTemplate: { path: "/v1/user-templates/{id}", method: "get", operationId: "getUserTemplate", pathParams: ["id"], queryParams: [], hasBody: false },
     updateUserTemplate: {
       path: "/v1/user-templates/{id}",
