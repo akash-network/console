@@ -19,7 +19,7 @@ vi.hoisted(() => {
   process.env.GPU_WAITLIST_NETWORKS = "mainnet,testnet,sandbox";
 });
 
-type Entry = { id: string; placeInLine: number; gpuCount: number; status: string; model: string };
+type Entry = { id: string; placeInLine: number; gpuCount: number; status: string; model: string; memory: string | null; interface: string | null };
 
 function aPool() {
   return { vendor: "nvidia", model: `H100-${faker.string.alphanumeric(10)}`, gpuCount: 8, source: "no_bids" };
@@ -98,6 +98,17 @@ describe("GPU waitlist", () => {
       expect(await entryRepository.countWaitingAcrossOrganizations(alice.user.id)).toBe(1);
     });
 
+    it("files the setup normalised, so differently written joins share one pool", async () => {
+      const pool = { ...aPool(), memory: "80gi", interface: "SXM5" };
+      const { alice, bob } = await setup();
+
+      const first = await join(alice.headers, { ...pool, model: ` ${pool.model} ` });
+      const second = await join(bob.headers, { ...pool, memory: "80 G" });
+
+      expect(((await first.json()) as { data: Entry }).data).toMatchObject({ model: pool.model.toLowerCase(), memory: "80Gi", interface: "sxm5" });
+      expect(((await second.json()) as { data: Entry }).data).toMatchObject({ memory: "80Gi", placeInLine: 2 });
+    });
+
     it("creates one entry when the same pool is joined twice at once", async () => {
       const pool = aPool();
       const { alice } = await setup();
@@ -116,7 +127,9 @@ describe("GPU waitlist", () => {
       { case: "a blank model", override: { model: "  " } },
       { case: "a model with a slash", override: { model: "a/b" } },
       { case: "a memory of a wildcard", override: { memory: "*" } },
-      { case: "a model that grows when lowercased", override: { model: "\u0130".repeat(100) } }
+      { case: "a model that grows when lowercased", override: { model: "\u0130".repeat(100) } },
+      { case: "a model an SDL attribute cannot carry", override: { model: "H100 SXM" } },
+      { case: "memory that is not a size in Gi", override: { memory: "80GB" } }
     ])("rejects $case", async ({ override }) => {
       const { alice } = await setup();
 
