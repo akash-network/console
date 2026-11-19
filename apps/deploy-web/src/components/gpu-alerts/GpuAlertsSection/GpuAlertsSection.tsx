@@ -1,6 +1,6 @@
 "use client";
 import type { FC } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { paths } from "@akashnetwork/console-api-types";
 import { isApiError } from "@akashnetwork/openapi-sdk";
 import { Button, Snackbar, Spinner } from "@akashnetwork/ui/components";
@@ -35,8 +35,20 @@ export const GpuAlertsSection: FC<Props> = ({ dependencies: d = DEPENDENCIES }) 
   const keepAlertId = singleQueryValue(router.query.keepAlert);
   const isOrganizationSettled = router.isReady && router.query.org === undefined;
 
-  const announceEnded = () => enqueueSnackbar(<Snackbar title="This alert has already ended" iconVariant="info" />, { variant: "info" });
-  const dropLinkParam = (name: string) => router.replace(withoutQueryParam(router.asPath, name), undefined, { shallow: true });
+  const pathWithoutHandledParams = useRef(router.asPath);
+  pathWithoutHandledParams.current = router.asPath;
+
+  const announceEnded = useCallback(
+    () => enqueueSnackbar(<Snackbar title="This alert has already ended" iconVariant="info" />, { variant: "info" }),
+    [enqueueSnackbar]
+  );
+  const dropLinkParam = useCallback(
+    (name: string) => {
+      pathWithoutHandledParams.current = withoutQueryParam(pathWithoutHandledParams.current, name);
+      router.replace(pathWithoutHandledParams.current, undefined, { shallow: true });
+    },
+    [router]
+  );
 
   useEffect(
     function openLeaveDialogFromEmailLink() {
