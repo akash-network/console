@@ -10,12 +10,11 @@ import { useRouter } from "next/router";
 import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { useGpuModels } from "@src/queries/useGpuQuery";
 import { useGpuWaitlistQuery, useKeepGpuWaitlistEntryMutation } from "@src/queries/useGpuWaitlistQuery";
-import { requestedGpuLabel } from "../../deployments/ConfigureDeployment/AvailabilityPane/gpuAvailability/gpuAvailability";
+import { describeGpuSetup } from "../describeGpuSetup/describeGpuSetup";
 import { LeaveGpuAlertDialog } from "./LeaveGpuAlertDialog";
 
-export const DEPENDENCIES = { LeaveGpuAlertDialog, useGpuWaitlistQuery, useKeepGpuWaitlistEntryMutation, useGpuModels, useRouter, useSnackbar, useServices };
+export const DEPENDENCIES = { LeaveGpuAlertDialog, useGpuWaitlistQuery, useKeepGpuWaitlistEntryMutation, useRouter, useSnackbar, useServices };
 
 type GpuAlertEntry = paths["/v1/gpu-waitlist"]["get"]["responses"][200]["content"]["application/json"]["data"][number];
 
@@ -26,7 +25,6 @@ export const GpuAlertsSection: FC<Props> = ({ dependencies: d = DEPENDENCIES }) 
   const { enqueueSnackbar } = d.useSnackbar();
   const { analyticsService } = d.useServices();
   const { data: entries, isLoading, isError, isSuccess, isFetching } = d.useGpuWaitlistQuery();
-  const { data: catalog } = d.useGpuModels();
   const { mutate: keepEntry } = d.useKeepGpuWaitlistEntryMutation();
   const [leaving, setLeaving] = useState<GpuAlertEntry | null>(null);
   const handledLeaveAlertId = useRef<string>();
@@ -123,7 +121,7 @@ export const GpuAlertsSection: FC<Props> = ({ dependencies: d = DEPENDENCIES }) 
           {entries.map(entry => (
             <li key={entry.id} className="flex items-center justify-between gap-4 rounded-xl border bg-card p-4">
               <div className="flex flex-col gap-1">
-                <span className="text-sm font-medium">{describeAlertSetup(entry, catalog)}</span>
+                <span className="text-sm font-medium">{describeGpuSetup(entry)}</span>
                 <span className="text-xs text-muted-foreground">
                   #{entry.placeInLine} in line · Joined {formatDay(entry.joinedAt)} ·{" "}
                   {entry.lastNotifiedAt ? `Last emailed ${formatDay(entry.lastNotifiedAt)}` : "Not emailed yet"}
@@ -136,17 +134,10 @@ export const GpuAlertsSection: FC<Props> = ({ dependencies: d = DEPENDENCIES }) 
           ))}
         </ul>
       )}
-      {leaving && <d.LeaveGpuAlertDialog entry={leaving} label={describeAlertSetup(leaving, catalog)} onClose={() => setLeaving(null)} />}
+      {leaving && <d.LeaveGpuAlertDialog entry={leaving} label={describeGpuSetup(leaving)} onClose={() => setLeaving(null)} />}
     </section>
   );
 };
-
-function describeAlertSetup(entry: GpuAlertEntry, catalog: Parameters<typeof requestedGpuLabel>[1]): string {
-  const model = requestedGpuLabel({ vendor: entry.vendor, name: entry.model }, catalog);
-  const details = [entry.memory, entry.interface].filter(Boolean).join(" ");
-  const gpus = `${entry.gpuCount} GPU${entry.gpuCount === 1 ? "" : "s"}`;
-  return [model, details, gpus].filter(Boolean).join(" · ");
-}
 
 function formatDay(isoDate: string): string {
   return format(new Date(isoDate), "MMM d, yyyy");
