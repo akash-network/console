@@ -48,9 +48,15 @@ describe("GPU waitlist", () => {
       const entry = await seedGpuWaitlistEntry({ userId: alice.user.id, organizationId: alice.organizationId });
       vi.spyOn(container.resolve(GpuWaitlistNetworkService), "servesGpuWaitlists").mockReturnValue(false);
 
-      const responses = await Promise.all([join(undefined, aPool()), join(alice.headers, aPool()), list(alice.headers), leave(alice.headers, entry.id)]);
+      const responses = await Promise.all([
+        join(undefined, aPool()),
+        join(alice.headers, aPool()),
+        list(alice.headers),
+        leave(alice.headers, entry.id),
+        keep(alice.headers, entry.id)
+      ]);
 
-      expect(responses.map(response => response.status)).toEqual([404, 404, 404, 404]);
+      expect(responses.map(response => response.status)).toEqual([404, 404, 404, 404, 404]);
     });
   });
 
