@@ -90,7 +90,10 @@ export function PrivacyPolicy() {
         </p>
         <p>We use these AI services to process this data:</p>
         <ul className="list-disc py-4 pl-8">
-          <li>AkashML, Akash&apos;s own AI inference service, runs the assistant and sorts feedback and saved conversations into topics.</li>
+          <li>
+            AkashML, Akash&apos;s own AI inference service, runs the assistant, checks each message for misuse, and sorts feedback and saved conversations into
+            topics. Repeated misuse pauses the assistant for your account until the end of the day (UTC).
+          </li>
           <li>TypeSafe may also be used to sort feedback and saved conversations into topics.</li>
         </ul>
         <p>Secrets in environment variables and SDL are removed before anything is sent to these services or stored.</p>
@@ -103,8 +106,9 @@ export function PrivacyPolicy() {
           </li>
         </ul>
         <p>
-          Stored conversations are deleted automatically 12 months after their last message, and feedback 12 months after you send it. You can delete your saved
-          conversations at any time in your account settings, under Privacy. Deleting your account deletes your conversations, feedback and usage records.
+          Stored conversations are deleted automatically 12 months after their last message, and feedback and problem reports 12 months after you send them. You
+          can delete your saved conversations at any time in your account settings, under Privacy. Deleting your account deletes your conversations, feedback,
+          problem reports and usage records.
         </p>
         <p>We do not use your conversations or feedback to train AI models.</p>
 

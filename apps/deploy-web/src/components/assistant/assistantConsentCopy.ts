@@ -1,6 +1,6 @@
 /** Changing any of this copy means bumping `version`, which asks every user to agree again. */
 export const ASSISTANT_CONSENT_COPY = {
-  version: "2026-11-draft-3",
+  version: "2026-11-19",
   title: "Before we start",
   intro: "The assistant answers using your account, so here's what happens with your data.",
   points: [
