@@ -1,8 +1,9 @@
 import { faker } from "@faker-js/faker";
 import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
@@ -18,6 +19,10 @@ import { seedPersonalOrganizationIdOf } from "@test/seeders/db/user-with-wallet.
 import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 
 describe("User templates", () => {
+  beforeAll(async () => {
+    await startJobQueues();
+  }, 20_000);
+
   const userRepository = container.resolve(UserRepository);
   const userTemplateRepository = container.resolve(UserTemplateRepository);
   const userAuthTokenService = container.resolve(UserAuthTokenService);
