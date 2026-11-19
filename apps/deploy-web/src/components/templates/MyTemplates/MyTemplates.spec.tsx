@@ -146,6 +146,31 @@ describe(MyTemplates.name, () => {
     expect(within(rowOf(failed)).getByText("v2 failed checks")).toHaveClass("text-red-600");
   });
 
+  it("flags a newest version that waits for review, linking to the versions of the template", () => {
+    const held = buildUserTemplateListItem({
+      id: "tpl-held",
+      title: "ComfyUI + Flux.1 dev",
+      visibility: "public",
+      isListed: true,
+      currentVersion: { version: 4, status: "live", createdAt: "2026-11-01T12:00:00.000Z" },
+      latestVersion: { version: 5, status: "held" }
+    });
+    setup({ templates: [held] });
+
+    expect(cellTexts(rowOf(held))[2]).toBe("In galleryv5 held for review");
+    expect(cellTexts(rowOf(held))[3]).toBe("v4");
+    expect(within(rowOf(held)).getByRole("link", { name: "v5 held for review" })).toHaveAttribute("href", "/template/tpl-held?tab=versions");
+  });
+
+  it("tells a public template that was taken out of the gallery from one that was never listed", () => {
+    const takenOut = buildUserTemplateListItem({ title: "Taken out", visibility: "public", isListed: false, publishedAt: "2026-11-02T10:00:00.000Z" });
+    const neverListed = buildUserTemplateListItem({ title: "Never listed", visibility: "public", isListed: false, publishedAt: null });
+    setup({ templates: [takenOut, neverListed] });
+
+    expect(cellTexts(rowOf(takenOut))[2]).toBe("Not in galleryIt was taken out of the gallery. Share to list it.");
+    expect(cellTexts(rowOf(neverListed))[2]).toBe("Not in galleryIt went public before publish checks existed. Share to list it.");
+  });
+
   it("opens the share dialog from the actions of a template the user may change, and closes it", async () => {
     const { ShareTemplateDialog } = setup({});
 
