@@ -317,28 +317,46 @@ describe(runPublishChecks.name, () => {
       expect(checkOf(results, "no_secrets").issues).toEqual([expect.objectContaining({ field: "sdl", message: expect.stringContaining("Line 7 of the SDL") })]);
     });
 
-    it("passes a secret reference whose name reads like a provider key", () => {
+    it("refuses a secret reference whose name is itself in a provider key format, since the name is published", () => {
       const results = setup({
         sdl: buildSdl({ web: { image: "nginx:1.27.2", env: ["HUB=ac-secret://hf_abcdefghijklmnopqrstuv"] } }),
         askedValues: [secretAskedValue({ key: "hf_abcdefghijklmnopqrstuv", bindings: [{ service: "web", env: "HUB" }] })]
       });
 
-      expect(checkOf(results, "no_secrets")).toEqual({ key: "no_secrets", status: "passed", issues: [] });
+      expect(checkOf(results, "no_secrets")).toEqual({
+        key: "no_secrets",
+        status: "failed",
+        issues: [expect.objectContaining({ field: "sdl", message: expect.stringContaining("Line 1 of the SDL") })]
+      });
     });
 
-    it("still names a provider key in a comment that shares its line with a secret reference", () => {
+    it("leaves out a value reported many times over only once, so a later one is still left out", () => {
+      const repeated = Array.from({ length: 51 }, (_, index) => `REPEATED_${index}=hf_abcdefghijklmnopqrstuv`);
+
+      const results = setup({ sdl: buildSdl({ web: { image: "nginx:1.27.2", env: [...repeated, "OTHER=hf_zyxwvutsrqponmlkjihgfe"] } }) });
+
+      expect(checkOf(results, "no_secrets").issues).toHaveLength(52);
+      expect(checkOf(results, "no_secrets").issues).not.toContainEqual(expect.objectContaining({ field: "sdl" }));
+    });
+
+    it("names by line the values past the fiftieth distinct one, rather than pass over the SDL once for each", () => {
+      const keys = Array.from({ length: 52 }, (_, index) => `hf_abcdefghijklmnopqrst${String(index).padStart(2, "0")}`);
       const sdl = [
         'version: "2.0"',
         "services:",
         "  web:",
         "    image: nginx:1.27.2",
         "    env:",
-        "      - HUB=ac-secret://hf_abcdefghijklmnopqrstuv # hf_zyxwvutsrqponmlkjihgfe"
+        ...keys.map((key, index) => `      - HUB_${index}=${key}`)
       ].join("\n");
 
-      const results = setup({ sdl, askedValues: [secretAskedValue({ key: "hf_abcdefghijklmnopqrstuv", bindings: [{ service: "web", env: "HUB" }] })] });
+      const results = setup({ sdl });
 
-      expect(checkOf(results, "no_secrets").issues).toEqual([expect.objectContaining({ field: "sdl", message: expect.stringContaining("Line 6 of the SDL") })]);
+      const lineIssues = checkOf(results, "no_secrets").issues.filter(issue => issue.field === "sdl");
+      expect(lineIssues).toEqual([
+        expect.objectContaining({ message: expect.stringContaining("Line 56 of the SDL") }),
+        expect.objectContaining({ message: expect.stringContaining("Line 57 of the SDL") })
+      ]);
     });
 
     it("reports a secret's saved value once, through the scan every save runs", () => {
