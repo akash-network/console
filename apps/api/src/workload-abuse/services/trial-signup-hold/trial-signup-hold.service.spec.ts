@@ -109,6 +109,16 @@ describe(TrialSignupHoldService.name, () => {
       });
     });
 
+    it("still holds the trial when the linked accounts cannot be read for the report", async () => {
+      const { service, user, userRepository, jobQueueService, logger } = setup({ mode: "off", tagMode: "enforce", email: taggedEmail });
+      const error = new Error("database unavailable");
+      userRepository.findRecentlyActiveByFingerprint.mockRejectedValue(error);
+
+      expect(await service.isHeld(user)).toBe(true);
+      expect(logger.error).toHaveBeenCalledWith({ event: "TRIAL_SIGNUP_HOLD_REPORT_FAILED", userId: user.id, error });
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
     it("holds without reporting when the device has no linked accounts, so the report slot stays free", async () => {
       const { service, user, jobQueueService } = setup({ tagMode: "enforce", email: taggedEmail });
 
