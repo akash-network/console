@@ -92,6 +92,15 @@ describe(AskStillWantedHandler.name, () => {
     expect(new Date(next.start_after).getTime() - Date.now()).toBeGreaterThan(23 * 60 * 60 * 1000);
   });
 
+  it("asks again later for nothing when the flag is off and the entry has already ended", async () => {
+    const { entry, run } = await setup({ status: "left", flagOn: false });
+
+    await run(entry.id);
+
+    const rows = await findJobRows<{ entryId: string }>(AskStillWanted[JOB_NAME], { state: "created" });
+    expect(rows.filter(row => row.data.entryId === entry.id)).toEqual([]);
+  });
+
   async function setup(input: { status: "waiting" | "left"; stillWantedAskedAt?: Date; flagOn?: boolean }) {
     vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(
       flag => (input.flagOn ?? true) || flag !== FeatureFlags.GPU_AVAILABILITY_ALERTS
