@@ -1813,7 +1813,7 @@ describe(ConfigureDeployment.name, () => {
       rerender(renderScreen());
     };
     const rerenderWithMarketplaceTemplate = (next: NonNullable<typeof input.marketplaceTemplate>) => {
-      marketplaceTemplateResult = { ...NO_QUERY, ...structuredClone(next) };
+      marketplaceTemplateResult = { ...NO_QUERY, ...structuredClone(next), error: null };
       rerender(renderScreen());
     };
     const navigate = (next: { templateId: string; sdlStrategy?: string; bidStrategy?: string; dseq?: string }) => {

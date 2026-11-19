@@ -10,21 +10,12 @@ import { AddFundsButton } from "@src/components/user/AddFundsButton";
 import type { TemplatePublishReadiness } from "@src/types/marketplace-template";
 import { COMMUNITY_TEMPLATE_TERMS_SUMMARY, CommunityTemplateTerms } from "../CommunityTemplateTerms/CommunityTemplateTerms";
 import { FIX_BELOW_ON_NARROW_SCREENS, PublishChecksList, PublishStatusMark } from "../PublishChecksList/PublishChecksList";
-import type { PublishCheckFix, PublishOrganization, PublishRequirementFix } from "../publishReadiness";
-import { describePublishRequirement } from "../publishReadiness";
+import type { PublishCheckFix, PublishFixLinks, PublishOrganization, PublishRequirementFix } from "../publishReadiness";
+import { describePublishRequirement, PUBLISH_CHECK_FIX_LABELS } from "../publishReadiness";
 
 export const DEPENDENCIES = { AddFundsButton };
 
 const ADD_CREDITS_CONTEXT = "template_publish";
-
-const CHECK_FIX_LABELS: Record<PublishCheckFix, string> = {
-  rename: "Rename",
-  "rename-organization": "Organization settings",
-  "edit-configuration": "Edit configuration",
-  "edit-readme": "Edit README"
-};
-
-export type PublishFixLinks = Partial<Record<PublishCheckFix, string>>;
 
 export interface PublishReadinessPanelProps {
   readiness: TemplatePublishReadiness;
@@ -87,7 +78,7 @@ export const PublishReadinessPanel: FC<PublishReadinessPanelProps> = ({
 
     return (
       <Link href={href} className={buttonVariants({ variant: "outline", size: "sm" })} onClick={onFollowFix}>
-        {CHECK_FIX_LABELS[fix]}
+        {PUBLISH_CHECK_FIX_LABELS[fix]}
       </Link>
     );
   };

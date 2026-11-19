@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import type { TemplatePublishCheck } from "@src/types/marketplace-template";
+import { UrlService } from "@src/utils/urlUtils";
 import type { PublishOrganization } from "./publishReadiness";
 import {
   countPublishBlockers,
   describePublishRequirement,
   failedPublishChecksOf,
+  PUBLISH_CHECK_FIX_LABELS,
   publishCheckFixesOf,
   publishCheckLabelOf,
+  publishFixLinksOf,
   readableKeyOf
 } from "./publishReadiness";
 
@@ -32,7 +35,7 @@ describe(publishCheckLabelOf.name, () => {
     ["images_allowed", "Images allowed"],
     ["fixed_tags", "Images use a fixed tag"],
     ["name_not_reserved", "Name not reserved"],
-    ["text_within_limits", "Text within limits"]
+    ["text_within_limits", "Title, summary and README within their length limits"]
   ])("names the %s check", (key, expected) => {
     expect(publishCheckLabelOf(key)).toBe(expected);
   });
@@ -42,7 +45,79 @@ describe(publishCheckLabelOf.name, () => {
   });
 });
 
+describe(publishFixLinksOf.name, () => {
+  it("points every fix of a team's template at the place it is made", () => {
+    expect(publishFixLinksOf({ id: "tpl-9", currentVersion: { version: 4 } }, TEAM)).toEqual({
+      rename: "/template/tpl-9?tab=settings",
+      "rename-organization": "/organization",
+      "edit-configuration": UrlService.configureTemplate({ mode: "edit", userTemplateId: "tpl-9", baseVersion: 4 }),
+      "edit-readme": "/template/tpl-9?tab=readme",
+      "edit-summary": "/template/tpl-9?tab=settings"
+    });
+  });
+
+  it.each([
+    ["a personal account", PERSONAL],
+    ["no organization", null]
+  ])("offers no organization settings for %s", (_, organization) => {
+    expect(publishFixLinksOf({ id: "tpl-9", currentVersion: { version: 4 } }, organization)["rename-organization"]).toBeUndefined();
+  });
+
+  it("edits a template without a version from no base version", () => {
+    expect(publishFixLinksOf({ id: "tpl-9", currentVersion: null }, TEAM)["edit-configuration"]).toBe(
+      UrlService.configureTemplate({ mode: "edit", userTemplateId: "tpl-9" })
+    );
+  });
+});
+
+describe("PUBLISH_CHECK_FIX_LABELS", () => {
+  it("names every fix", () => {
+    expect(PUBLISH_CHECK_FIX_LABELS).toEqual({
+      rename: "Rename",
+      "rename-organization": "Organization settings",
+      "edit-configuration": "Edit configuration",
+      "edit-readme": "Edit README",
+      "edit-summary": "Settings"
+    });
+  });
+});
+
 describe(publishCheckFixesOf.name, () => {
+  it.each([
+    ["title", "rename"],
+    ["summary", "edit-summary"],
+    ["readme", "edit-readme"]
+  ] as const)("sends a %s over its limit to %s", (field, fix) => {
+    expect(publishCheckFixesOf(buildCheck({ key: "text_within_limits", status: "failed", issues: [{ message: "Too long", field }] }))).toEqual([fix]);
+  });
+
+  it("offers one fix per field over its limit, title first", () => {
+    const check = buildCheck({
+      key: "text_within_limits",
+      status: "failed",
+      issues: [
+        { message: "The README is too long", field: "readme" },
+        { message: "The summary is too long", field: "summary" },
+        { message: "The title is too long", field: "title" },
+        { message: "The README is still too long", field: "readme" }
+      ]
+    });
+
+    expect(publishCheckFixesOf(check)).toEqual(["rename", "edit-summary", "edit-readme"]);
+  });
+
+  it.each([
+    ["names no field", [{ message: "Too long" }]],
+    ["names a field with no place to fix it", [{ message: "Too long", field: "publisher_name" as const }]],
+    ["has no reason", []]
+  ])("offers no fix for a text limit that %s", (_, issues) => {
+    expect(publishCheckFixesOf(buildCheck({ key: "text_within_limits", status: "failed", issues }))).toEqual([]);
+  });
+
+  it("offers no fix for text limits that passed", () => {
+    expect(publishCheckFixesOf(buildCheck({ key: "text_within_limits", status: "passed", issues: [{ message: "Fine", field: "title" }] }))).toEqual([]);
+  });
+
   it.each(["sdl_valid", "no_secrets", "images_allowed", "fixed_tags"] as const)("sends a failed %s check to Edit configuration", key => {
     expect(publishCheckFixesOf(buildCheck({ key, status: "failed", issues: [{ message: "Wrong" }] }))).toEqual(["edit-configuration"]);
   });
@@ -110,7 +185,7 @@ describe(publishCheckFixesOf.name, () => {
   });
 
   it("offers nothing for a failed check this build does not know", () => {
-    const unknownCheck = { ...buildCheck({ status: "failed", issues: [{ message: "Too long", field: "title" }] }), key: "text_within_limits" };
+    const unknownCheck = { ...buildCheck({ status: "failed", issues: [{ message: "Too long", field: "title" }] }), key: "ports_reviewed" };
 
     expect(publishCheckFixesOf(unknownCheck as TemplatePublishCheck)).toEqual([]);
   });

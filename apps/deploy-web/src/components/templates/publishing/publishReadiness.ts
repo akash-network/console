@@ -1,8 +1,19 @@
 import type { TemplatePublishCheck, TemplatePublishReadiness } from "@src/types/marketplace-template";
+import { UrlService } from "@src/utils/urlUtils";
 
 export type PublishOrganization = { name: string; type: "personal" | "team" };
 
-export type PublishCheckFix = "rename" | "rename-organization" | "edit-configuration" | "edit-readme";
+export type PublishCheckFix = "rename" | "rename-organization" | "edit-configuration" | "edit-readme" | "edit-summary";
+
+export type PublishFixLinks = Partial<Record<PublishCheckFix, string>>;
+
+export const PUBLISH_CHECK_FIX_LABELS: Record<PublishCheckFix, string> = {
+  rename: "Rename",
+  "rename-organization": "Organization settings",
+  "edit-configuration": "Edit configuration",
+  "edit-readme": "Edit README",
+  "edit-summary": "Settings"
+};
 
 export type PublishRequirementFix = "verify-email" | "add-credits" | "contact-support";
 
@@ -16,7 +27,7 @@ const CHECK_LABELS = new Map<string, string>([
   ["images_allowed", "Images allowed"],
   ["fixed_tags", "Images use a fixed tag"],
   ["name_not_reserved", "Name not reserved"],
-  ["text_within_limits", "Text within limits"]
+  ["text_within_limits", "Title, summary and README within their length limits"]
 ]);
 
 const CONFIGURATION_CHECK_KEYS = ["sdl_valid", "no_secrets", "images_allowed", "fixed_tags"];
@@ -26,6 +37,14 @@ const RESERVED_NAME_CHECK_KEY = "name_not_reserved";
 const PUBLISHER_NAME_FIELD = "publisher_name";
 
 const README_FIELD = "readme";
+
+const TEXT_LIMITS_CHECK_KEY = "text_within_limits";
+
+const TEXT_LIMIT_FIXES: { field: string; fix: PublishCheckFix }[] = [
+  { field: "title", fix: "rename" },
+  { field: "summary", fix: "edit-summary" },
+  { field: README_FIELD, fix: "edit-readme" }
+];
 
 /** The API adds checks and requirements over time, so a key this build has never seen still gets a readable name. */
 export function readableKeyOf(key: string): string {
@@ -40,6 +59,8 @@ export function publishCheckLabelOf(key: string): string {
 export function publishCheckFixesOf(check: TemplatePublishCheck): PublishCheckFix[] {
   if (check.status !== "failed") return [];
   if (CONFIGURATION_CHECK_KEYS.includes(check.key)) return configurationFixesOf(check);
+  if (check.key === TEXT_LIMITS_CHECK_KEY)
+    return TEXT_LIMIT_FIXES.filter(({ field }) => check.issues.some(issue => issue.field === field)).map(({ fix }) => fix);
   if (check.key !== RESERVED_NAME_CHECK_KEY) return [];
 
   const fixes: PublishCheckFix[] = [];
@@ -55,6 +76,22 @@ function configurationFixesOf(check: TemplatePublishCheck): PublishCheckFix[] {
   if (readmeIssues.length === 0 || readmeIssues.length < check.issues.length) fixes.push("edit-configuration");
   if (readmeIssues.length > 0) fixes.push("edit-readme");
   return fixes;
+}
+
+/** Organization settings exist for teams only, and the title and the summary are both edited on the Settings tab of the template. */
+export function publishFixLinksOf(
+  template: { id: string; currentVersion: { version: number } | null },
+  organization: PublishOrganization | null
+): PublishFixLinks {
+  const settingsUrl = `${UrlService.template(template.id)}?tab=settings`;
+
+  return {
+    rename: settingsUrl,
+    "rename-organization": organization?.type === "team" ? UrlService.organizationSettings() : undefined,
+    "edit-configuration": UrlService.configureTemplate({ mode: "edit", userTemplateId: template.id, baseVersion: template.currentVersion?.version }),
+    "edit-readme": `${UrlService.template(template.id)}?tab=readme`,
+    "edit-summary": settingsUrl
+  };
 }
 
 export function failedPublishChecksOf(checks: TemplatePublishCheck[]): TemplatePublishCheck[] {

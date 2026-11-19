@@ -671,7 +671,7 @@ describe(TemplatePage.name, () => {
     isLoadingVersions?: boolean;
     isFailingVersions?: boolean;
     isSignedIn?: boolean;
-    organizations?: { type: "personal" | "team"; slug: string | null }[];
+    organizations?: { type: "personal" | "team"; slug: string }[];
     isFavoriteFailing?: boolean;
     isFavoriteChangeHeld?: boolean;
     arrivalSource?: string;
@@ -710,7 +710,7 @@ describe(TemplatePage.name, () => {
     const removeFavoriteMutation = mock<FavoriteMutation>({ mutateAsync: removeFavorite });
     const customUser = mock<ReturnType<typeof DEPENDENCIES.useCustomUser>>({ user: input.isSignedIn === false ? undefined : { username: "sam.rivera" } });
     const activeOrganization = mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
-      organizations: (input.organizations ?? [{ type: "personal", slug: null }]).map(organization => mock<OrganizationOutput>(organization))
+      organizations: (input.organizations ?? [{ type: "personal", slug: "sam-rivera" }]).map(organization => mock<OrganizationOutput>(organization))
     });
     const snackbar = mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar });
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>({

@@ -5,7 +5,7 @@ import { canReportTemplate } from "./reportEligibility";
 
 import { buildMarketplaceTemplate } from "@tests/seeders/userTemplate";
 
-const VISITOR: ReportViewer = { username: "casey", organizations: [{ type: "personal", slug: null }] };
+const VISITOR: ReportViewer = { username: "casey", organizations: [{ type: "personal", slug: "casey" }] };
 
 describe(canReportTemplate.name, () => {
   it("lets someone outside the publishing organization report a public template", () => {
@@ -28,7 +28,7 @@ describe(canReportTemplate.name, () => {
     const viewer: ReportViewer = {
       username: "casey",
       organizations: [
-        { type: "personal", slug: null },
+        { type: "personal", slug: "casey" },
         { type: "team", slug: "northwind-labs" }
       ]
     };
@@ -40,13 +40,6 @@ describe(canReportTemplate.name, () => {
     const viewer: ReportViewer = { username: "casey", organizations: [{ type: "team", slug: "lambda-garage" }] };
 
     expect(canReportTemplate(buildTemplate({}), viewer)).toBe(true);
-  });
-
-  it("never matches a team by a missing slug", () => {
-    const template = buildTemplate({ publisher: { name: "Northwind Labs", slug: null, type: "team", handle: null } });
-    const viewer: ReportViewer = { username: "casey", organizations: [{ type: "team", slug: null }] };
-
-    expect(canReportTemplate(template, viewer)).toBe(true);
   });
 
   it("does not take a personal organization for the publishing team", () => {
