@@ -47,11 +47,15 @@ const UNRELEASED_FEEDBACK_ROUTES = [
 ];
 const UNRELEASED_TEMPLATE_MARKETPLACE_ROUTES = [
   "DELETE /v1/user-templates/{id}",
+  "GET /v1/community-templates",
+  "GET /v1/template-publishers/current",
+  "GET /v1/template-publishers/{handle}",
   "GET /v1/user-templates",
   "GET /v1/user-templates/{id}",
   "GET /v1/user-templates/{id}/publish-readiness",
   "GET /v1/user-templates/{id}/versions",
   "GET /v1/user-templates/{id}/versions/{version}",
+  "PATCH /v1/template-publishers/current",
   "PATCH /v1/user-templates/{id}",
   "POST /v1/user-templates",
   "POST /v1/user-templates/{id}/publish",

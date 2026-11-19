@@ -122,11 +122,12 @@ describe("Marketplace templates", () => {
           moderationStatus: "active",
           projectId: project.id,
           copiedFromId: null,
+          copiedFrom: null,
           createdAt: template.createdAt.toISOString(),
           updatedAt: stored.updatedAt.toISOString(),
           publishedAt: null,
           author: { username: author.username },
-          publisher: { name: team.name, slug: team.slug, type: "team", handle: null },
+          publisher: { name: team.name, slug: team.slug, type: "team", handle: null, verified: false, memberSince: null, counts: { templates: 0, deploys: 0 } },
           currentVersion: {
             id: version.id,
             templateId: template.id,
@@ -147,7 +148,7 @@ describe("Marketplace templates", () => {
           },
           canEdit: true,
           isFavorite: false,
-          usage: { deploys: 0, lastDeployedAt: null, stillUpAfter24h: null }
+          usage: { deploys: 0, lastDeployedAt: null, stillUpAfter24h: null, forks: 0, favorites: 0 }
         }
       });
     });
@@ -218,7 +219,7 @@ describe("Marketplace templates", () => {
         data: expect.objectContaining({
           id: template.id,
           author: null,
-          publisher: { name: publisher.name, slug: publisher.slug, type: "team", handle: null },
+          publisher: expect.objectContaining({ name: publisher.name, slug: publisher.slug, type: "team", handle: null }),
           canEdit: false
         })
       };
