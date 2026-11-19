@@ -159,6 +159,32 @@ describe("activityDestinations", () => {
       expect(activityDestinationOf(activity)).toEqual({ href: "/template/template-1", label: "View template" });
     });
 
+    it.each([
+      'Version 5 of "Postgres 16" is waiting for review',
+      'Version 5 of "Postgres 16" is live',
+      'Version 5 of "Postgres 16" was not approved',
+      'Version 12 of "Postgres 16" failed the publish checks'
+    ])("leads the version notice %s to the versions of its template", summary => {
+      const activity = buildActivity({ type: "template_update", status: "info", meta: { templateId: "template-1", summary } });
+
+      expect(activityDestinationOf(activity)).toEqual({ href: "/template/template-1?tab=versions", label: "View versions" });
+    });
+
+    it.each(['"Postgres 16" was hidden', '"Postgres 16" was removed', '"Version 2 of everything" is now an Official template', "Version of nothing"])(
+      "leads the template notice %s to its template",
+      summary => {
+        const activity = buildActivity({ type: "template_update", status: "info", meta: { templateId: "template-1", summary } });
+
+        expect(activityDestinationOf(activity)).toEqual({ href: "/template/template-1", label: "View template" });
+      }
+    );
+
+    it("leads a version notice about no template to the user's templates", () => {
+      const activity = buildActivity({ type: "template_update", status: "info", meta: { summary: 'Version 5 of "Postgres 16" is live' } });
+
+      expect(activityDestinationOf(activity)).toEqual({ href: "/templates/mine", label: "View templates" });
+    });
+
     it("leads a template update about the publisher rather than one template to the user's templates", () => {
       const activity = buildActivity({ type: "template_update", status: "info", meta: {} });
 

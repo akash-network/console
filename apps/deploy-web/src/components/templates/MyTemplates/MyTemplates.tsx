@@ -432,9 +432,15 @@ function TemplateRow({
           </p>
         )}
         {status.versionNote && (
-          <p className={cn("mt-1 w-fit rounded-md border border-border px-1.5 py-0.5 text-xs font-medium", STATUS_TONE_CLASSES[status.versionNote.tone].text)}>
+          <Link
+            href={`${UrlService.template(template.id)}?tab=versions`}
+            className={cn(
+              "mt-1 block w-fit rounded-md border border-border px-1.5 py-0.5 text-xs font-medium hover:underline",
+              STATUS_TONE_CLASSES[status.versionNote.tone].text
+            )}
+          >
             {status.versionNote.label}
-          </p>
+          </Link>
         )}
       </TableCell>
       <TableCell className="font-mono text-[13px]">{template.currentVersion ? `v${template.currentVersion.version}` : EMPTY_CELL}</TableCell>
