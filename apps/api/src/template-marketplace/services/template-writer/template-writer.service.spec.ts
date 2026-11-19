@@ -724,7 +724,22 @@ describe(TemplateWriterService.name, () => {
       expect(templatePublisherNotifierService.notifyVersionHeld).not.toHaveBeenCalled();
     });
 
-    it.each(["private", "organization"] as const)("never holds a version of a %s template", async visibility => {
+    it.each(["private", "organization"] as const)(
+      "judges a %s template that was public once, so a risky version saved out of sight waits for staff",
+      async visibility => {
+        const template = createTemplateRow({ visibility, publishedAt: new Date("2026-10-01T00:00:00.000Z") });
+        const { service, templateVersionRepository, templateVersionHoldService, publishChecksService } = setup({ template, holdReasons: HOLD_REASONS });
+        const sdl = buildSdl({ count: 3 });
+
+        await service.appendVersion(template.id, { sdl, askedValues: [], baseVersion: 1 });
+
+        expect(publishChecksService.run).not.toHaveBeenCalled();
+        expect(templateVersionHoldService.findHoldReasons).toHaveBeenCalledWith(template, expect.any(String), sdl);
+        expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ checkResults: undefined, holdReasons: HOLD_REASONS }));
+      }
+    );
+
+    it.each(["private", "organization"] as const)("never holds a version of a %s template that was never public", async visibility => {
       const template = createTemplateRow({ visibility, isOfficial: true });
       const { service, templateVersionRepository, templateVersionHoldService } = setup({ template, holdReasons: HOLD_REASONS });
 

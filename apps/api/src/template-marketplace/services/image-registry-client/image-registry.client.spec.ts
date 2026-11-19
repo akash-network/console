@@ -274,6 +274,8 @@ describe(ImageRegistryClient.name, () => {
       { image: "ghcr.io/acme/web:-tag", reason: "invalid_reference" },
       { image: `ghcr.io/acme/web:${"t".repeat(129)}`, reason: "invalid_reference" },
       { image: `ghcr.io/${"a".repeat(520)}:1`, reason: "invalid_reference" },
+      { image: "1.2.3.4.5/acme/web:1", reason: "invalid_reference" },
+      { image: "999.1.1.1/acme/web:1", reason: "invalid_reference" },
       { image: "", reason: "invalid_reference" }
     ])("refuses $image as $reason without sending anything", async ({ image, reason }) => {
       const { client, baseLookup } = setup();

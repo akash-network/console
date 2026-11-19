@@ -156,9 +156,22 @@ describe("Marketplace template held versions", () => {
       ).toEqual([]);
     });
 
-    it("holds no version of an Official template that is not public", async () => {
+    it("holds a version saved while a template that was public once is private, so publishing it again cannot skip the review", async () => {
       const { owner, actAs, seedPublicTemplate } = await setup();
-      const { template } = await seedPublicTemplate({ isOfficial: true, visibility: "organization" });
+      const { template, current } = await seedPublicTemplate({ isOfficial: true, visibility: "private" });
+
+      const response = await actAs(owner)(`/v1/user-templates/${template.id}/versions`, {
+        method: "POST",
+        body: { data: { sdl: buildSdl({ image: "ghcr.io/acme/nginx:1.25" }), askedValues: [], baseVersion: 1 } }
+      });
+
+      expect(((await response.json()) as VersionBody).data).toMatchObject({ status: "held", checkResults: null });
+      expect(await findStoredTemplate(template.id)).toMatchObject({ currentVersionId: current.id, sdl: buildSdl() });
+    });
+
+    it("holds no version of an Official template that was never public", async () => {
+      const { owner, actAs, seedPublicTemplate } = await setup();
+      const { template } = await seedPublicTemplate({ isOfficial: true, visibility: "organization", publishedAt: null });
 
       const response = await actAs(owner)(`/v1/user-templates/${template.id}/versions`, {
         method: "POST",

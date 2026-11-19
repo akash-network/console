@@ -182,7 +182,7 @@ export class TemplateWriterService {
         expectedCurrentVersionId: base && (await this.#currentVersionExpectedFrom(base, template)),
         readmesShown: { current: currentReadmeShown, next: readme },
         checkResults,
-        holdReasons: checkResults && hasPassedPublishChecks(checkResults) ? await this.#findHoldReasons(template, input.sdl) : undefined
+        holdReasons: this.#isJudgedForHold(template, checkResults) ? await this.#findHoldReasons(template, input.sdl) : undefined
       });
       await this.templateImageDigestJobService.schedule(appended.id);
 
@@ -263,6 +263,11 @@ export class TemplateWriterService {
     const current = await this.templateVersionRepository.findCurrent(template.id);
 
     return current && current.version < base.version ? current.id : base.id;
+  }
+
+  /** A template that was public once is judged while it is private too, or a risky version saved in private would go live unreviewed when it is published again. */
+  #isJudgedForHold(template: StoredTemplate, checkResults: PublishCheckResults | undefined): boolean {
+    return checkResults ? hasPassedPublishChecks(checkResults) : template.publishedAt !== null;
   }
 
   /** Compared with the version people deploy today, whichever version the save was edited from. */
