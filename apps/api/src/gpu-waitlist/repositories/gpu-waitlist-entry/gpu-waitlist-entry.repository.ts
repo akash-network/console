@@ -139,7 +139,7 @@ export class GpuWaitlistEntryRepository extends OrgScopedRepository<Table, GpuWa
           eq(this.table.id, id),
           eq(this.table.status, "waiting"),
           isNotNull(this.table.stillWantedAskedAt),
-          sql`${this.table.stillWantedAskedAt} <= now() - make_interval(days => ${graceDays})`
+          sql`${this.table.stillWantedAskedAt} <= now() - make_interval(hours => ${graceDays * 24})`
         )
       )
       .returning();

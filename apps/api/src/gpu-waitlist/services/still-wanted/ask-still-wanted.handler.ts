@@ -41,17 +41,17 @@ export class AskStillWantedHandler implements JobHandler<AskStillWanted> {
   }
 
   async handle({ entryId }: JobPayload<AskStillWanted>): Promise<void> {
-    if (!this.featureFlagsService.isEnabled(FeatureFlags.GPU_AVAILABILITY_ALERTS, {})) {
-      await this.jobQueueService.enqueue(new AskStillWanted({ entryId }), { startAfter: new Date(Date.now() + DAY_MS) });
-      this.#logger.info({ event: "GPU_STILL_WANTED_DEFERRED", entryId, reason: "Feature flag is off" });
-      return;
-    }
-
     const entry = await this.gpuWaitlistEntryRepository.findByIdAcrossOrganizations(entryId);
     const skipReason = this.#skipReasonFor(entry);
 
     if (skipReason || !entry) {
       this.#logger.info({ event: "GPU_STILL_WANTED_SKIPPED", entryId, reason: skipReason });
+      return;
+    }
+
+    if (!this.featureFlagsService.isEnabled(FeatureFlags.GPU_AVAILABILITY_ALERTS, {})) {
+      await this.jobQueueService.enqueue(new AskStillWanted({ entryId }), { startAfter: new Date(Date.now() + DAY_MS) });
+      this.#logger.info({ event: "GPU_STILL_WANTED_DEFERRED", entryId, reason: "Feature flag is off" });
       return;
     }
 

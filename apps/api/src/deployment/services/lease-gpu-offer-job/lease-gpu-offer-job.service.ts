@@ -29,6 +29,11 @@ export function recordLeaseGpuOffersKeyFor({ walletId, dseq }: RecordLeaseGpuOff
   return `recordLeaseGpuOffers.${walletId}.${dseq}`;
 }
 
+/** A job carrying a lease time gets its own key, so a queued sweep job without one cannot absorb it. */
+function singletonKeyOf(target: RecordLeaseGpuOffersTarget): string {
+  return target.leaseCreatedAt ? `${recordLeaseGpuOffersKeyFor(target)}.lease` : recordLeaseGpuOffersKeyFor(target);
+}
+
 /** Owns when a deployment's bid offers are recorded: as soon as a lease lands, and again from the sweep for a gpu deployment that has none. */
 @singleton()
 export class LeaseGpuOfferJobService {
@@ -45,7 +50,7 @@ export class LeaseGpuOfferJobService {
   }
 
   async schedule(target: RecordLeaseGpuOffersTarget): Promise<string | null> {
-    const jobId = await this.jobQueueService.enqueue(new RecordLeaseGpuOffers(target), { singletonKey: recordLeaseGpuOffersKeyFor(target) });
+    const jobId = await this.jobQueueService.enqueue(new RecordLeaseGpuOffers(target), { singletonKey: singletonKeyOf(target) });
 
     this.logger.info({ event: "LEASE_GPU_OFFERS_SCHEDULED", walletId: target.walletId, dseq: target.dseq, jobId });
 

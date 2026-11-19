@@ -27,6 +27,17 @@ function liveManaged(overrides: Partial<LiveManagedDeployment> = {}): LiveManage
 
 describe(LeaseGpuOfferJobService.name, () => {
   describe("schedule", () => {
+    it("keys a job that carries a lease time apart from the sweep's job", async () => {
+      const { service, jobQueueService } = setup({});
+      const leaseTarget = { ...TARGET, leaseCreatedAt: "2026-11-18T12:00:00.000Z" };
+
+      await service.schedule(leaseTarget);
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(expect.objectContaining({ data: leaseTarget }), {
+        singletonKey: `${recordLeaseGpuOffersKeyFor(TARGET)}.lease`
+      });
+    });
+
     it("holds one job per deployment and starts it right away", async () => {
       const { service, jobQueueService } = setup({});
 

@@ -1,8 +1,10 @@
 import { faker } from "@faker-js/faker";
 import { container } from "tsyringe";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { JOB_NAME } from "@src/core";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { GpuWaitlistEntryRepository } from "@src/gpu-waitlist/repositories/gpu-waitlist-entry/gpu-waitlist-entry.repository";
 import { ExpireGpuAlertHandler } from "./expire-gpu-alert.handler";
 import { ExpireGpuAlert } from "./expire-gpu-alert.job";
@@ -17,6 +19,10 @@ const DAY_MS = 24 * 60 * MINUTE_MS;
 const jobWorkers = useJobWorkers(() => [container.resolve(ExpireGpuAlertHandler)]);
 
 describe(ExpireGpuAlertHandler.name, () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("expires an entry nobody kept, run the way a worker runs it", async () => {
     const { entry, run, findEntry } = await setup({ status: "waiting", askedMsAgo: 7 * DAY_MS + MINUTE_MS });
 
@@ -56,6 +62,25 @@ describe(ExpireGpuAlertHandler.name, () => {
     expect(remainingMs).toBeLessThanOrEqual(5 * DAY_MS);
   });
 
+  it("expires nothing and checks again a day later while the flag is off", async () => {
+    const { entry, run, findEntry } = await setup({ status: "waiting", askedMsAgo: 8 * DAY_MS, flagOn: false });
+
+    await run(entry.id);
+
+    expect((await findEntry(entry.id))?.status).toBe("waiting");
+    const [next] = (await findJobRows<{ entryId: string }>(ExpireGpuAlert[JOB_NAME], { state: "created" })).filter(row => row.data.entryId === entry.id);
+    expect(new Date(next.start_after).getTime() - Date.now()).toBeGreaterThan(23 * 60 * MINUTE_MS);
+  });
+
+  it("queues nothing while the flag is off for an entry that already ended", async () => {
+    const { entry, run } = await setup({ status: "fulfilled", askedMsAgo: 8 * DAY_MS, flagOn: false });
+
+    await run(entry.id);
+
+    const rows = await findJobRows<{ entryId: string }>(ExpireGpuAlert[JOB_NAME], { state: "created" });
+    expect(rows.filter(row => row.data.entryId === entry.id)).toEqual([]);
+  });
+
   it("queues nothing more for an entry whose question was cleared", async () => {
     const { entry, run } = await setup({ status: "waiting", askedMsAgo: null });
 
@@ -73,7 +98,10 @@ describe(ExpireGpuAlertHandler.name, () => {
     expect((await findEntry(entry.id))?.status).toBe("fulfilled");
   });
 
-  async function setup(input: { status: "waiting" | "fulfilled"; askedMsAgo: number | null }) {
+  async function setup(input: { status: "waiting" | "fulfilled"; askedMsAgo: number | null; flagOn?: boolean }) {
+    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(
+      flag => (input.flagOn ?? true) || flag !== FeatureFlags.GPU_AVAILABILITY_ALERTS
+    );
     const user = await seedUser();
     const entry = await seedGpuWaitlistEntry({
       userId: user.id,
