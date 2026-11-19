@@ -28,6 +28,16 @@ describe(publisherHandleCandidates.name, () => {
     expect(candidates.filter(candidate => !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(candidate))).toEqual([]);
   });
 
+  it("never offers the word the route of the caller's own publisher answers to", () => {
+    const team = publisherHandleCandidates({ type: "team", slug: "current", ownerUsername: "sam" }, () => "abcd1234");
+    const personal = publisherHandleCandidates({ type: "personal", slug: "personal-0123456789ab", ownerUsername: "Current" }, () => "abcd1234");
+
+    expect(team[0]).toBe("current-2");
+    expect(team).toHaveLength(10);
+    expect(personal).not.toContain("current");
+    expect(personal).toContain("current-abcd1234");
+  });
+
   it("offers a personal organization's owner username, made lowercase and url-safe, rather than its slug", () => {
     const [first] = publisherHandleCandidates({ type: "personal", slug: "personal-0123456789ab", ownerUsername: "Sam.Rivera_42" }, () => "abcd1234");
 
