@@ -4,6 +4,7 @@ import { createRoute } from "@src/core/lib/create-route/create-route";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER } from "@src/core/services/openapi-docs/openapi-security";
+import { hideUnlessGpuWaitlistsAreServed } from "@src/gpu-waitlist/middlewares/gpu-waitlist-network-gate/gpu-waitlist-network-gate.middleware";
 import { GpuWaitlistController } from "../controllers/gpu-waitlist/gpu-waitlist.controller";
 import {
   GpuWaitlistEntryIdParamsSchema,
@@ -13,6 +14,8 @@ import {
 } from "../http-schemas/gpu-waitlist.schema";
 
 export const gpuWaitlistRouter = new OpenApiHonoHandler();
+
+gpuWaitlistRouter.use("/v1/gpu-waitlist/*", hideUnlessGpuWaitlistsAreServed);
 
 const joinGpuWaitlistRoute = createRoute({
   method: "post",

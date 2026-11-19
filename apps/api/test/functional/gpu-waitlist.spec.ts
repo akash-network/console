@@ -6,11 +6,16 @@ import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-au
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { GpuWaitlistEntryRepository } from "@src/gpu-waitlist/repositories/gpu-waitlist-entry/gpu-waitlist-entry.repository";
+import { GpuWaitlistNetworkService } from "@src/gpu-waitlist/services/gpu-waitlist-network/gpu-waitlist-network.service";
 import { app } from "@src/rest-app";
 
 import { seedGpuWaitlistEntry } from "@test/seeders/db/gpu-waitlist-entry.seeder";
 import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { seedPersonalOrganizationIdOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+
+vi.hoisted(() => {
+  process.env.GPU_WAITLIST_NETWORKS = "mainnet,testnet,sandbox";
+});
 
 type Entry = { id: string; placeInLine: number; gpuCount: number; status: string; model: string };
 
@@ -29,6 +34,23 @@ describe("GPU waitlist", () => {
 
   afterAll(async () => {
     await container.dispose();
+  });
+
+  describe("on a network that does not serve gpu waitlists", () => {
+    it("answers every gpu waitlist route like an unknown path, before authentication", async () => {
+      const { alice } = await setup();
+      const entry = await seedGpuWaitlistEntry({ userId: alice.user.id, organizationId: alice.organizationId });
+      vi.spyOn(container.resolve(GpuWaitlistNetworkService), "servesGpuWaitlists").mockReturnValue(false);
+
+      const responses = await Promise.all([
+        join(undefined, aPool()),
+        join(alice.headers, aPool()),
+        list(alice.headers),
+        leave(alice.headers, entry.id)
+      ]);
+
+      expect(responses.map(response => response.status)).toEqual([404, 404, 404, 404]);
+    });
   });
 
   describe("POST /v1/gpu-waitlist", () => {

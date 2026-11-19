@@ -4,7 +4,16 @@ function positiveInt(defaultValue: number) {
   return z.number({ coerce: true }).int().positive().optional().default(defaultValue);
 }
 
+const NETWORKS = ["mainnet", "testnet", "sandbox"] as const;
+
 export const envSchema = z.object({
+  /** Networks share the users database and waitlist rows carry no network, so only the networks listed here run waitlists. */
+  GPU_WAITLIST_NETWORKS: z
+    .string()
+    .optional()
+    .default("mainnet")
+    .transform(networks => networks.split(",").map(network => network.trim()))
+    .pipe(z.array(z.enum(NETWORKS))),
   GPU_WAITLIST_POLL_SECONDS: positiveInt(60),
   GPU_WAITLIST_BID_EVIDENCE_DAYS: positiveInt(7),
   GPU_WAITLIST_CHECK_COOLDOWN_MINUTES: positiveInt(15),
