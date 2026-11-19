@@ -49,7 +49,7 @@ export class TemplatePublisherService {
     private readonly executionContextService: ExecutionContextService
   ) {}
 
-  /** Holds nothing about the caller, so one answer per publisher serves everyone for a minute; a suspended publisher reads as unknown. */
+  /** Holds nothing about the caller, so one answer per publisher serves everyone for a minute. */
   @Memoize({ ttlInSeconds: PUBLISHER_PAGE_CACHE_SECONDS, maxEntries: MAX_CACHED_PUBLISHER_PAGES })
   async getPage(handle: string): Promise<TemplatePublisherPage> {
     const profile = await this.templatePublisherRepository.findProfileByHandle(handle);

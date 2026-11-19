@@ -68,7 +68,6 @@ export interface MarketplaceTemplateOutput {
   usage: TemplateUsageSummary & { favorites: number };
 }
 
-/** What the publisher's page says about it, empty until the organization first publishes a template. */
 export type PublisherCard = { verified: boolean; memberSince: Date | null; counts: PublisherCounts };
 
 const NOT_A_PUBLISHER_YET: PublisherCard = { verified: false, memberSince: null, counts: { templates: 0, deploys: 0 } };

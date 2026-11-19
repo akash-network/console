@@ -96,7 +96,7 @@ export class TemplateUsageService {
     });
   }
 
-  /** Runs in the caller's transaction, unlike the other recorders, since the lock it holds on the user is what keeps a day to one fork; a copy made inside the publishing organization is not one. */
+  /** Runs in the caller's transaction, unlike the other recorders, since the lock it holds on the user is what keeps a day to one fork. */
   async recordFork(source: ForkedTemplate, fork: { userId: string; organizationId: string }): Promise<void> {
     if (source.organizationId === fork.organizationId) return;
 
