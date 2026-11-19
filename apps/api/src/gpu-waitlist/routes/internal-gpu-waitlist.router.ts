@@ -6,9 +6,12 @@ import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/ope
 import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { GpuWaitlistDemandController } from "@src/gpu-waitlist/controllers/gpu-waitlist-demand/gpu-waitlist-demand.controller";
 import { GpuWaitlistDemandResponseSchema } from "@src/gpu-waitlist/http-schemas/gpu-waitlist.schema";
+import { hideUnlessGpuWaitlistsAreServed } from "@src/gpu-waitlist/middlewares/gpu-waitlist-network-gate/gpu-waitlist-network-gate.middleware";
 import { requireInternalToken } from "@src/middlewares/internal-token/internal-token.middleware";
 
 export const internalGpuWaitlistRouter = new OpenApiHonoHandler();
+
+internalGpuWaitlistRouter.use("/v1/gpu-waitlist/*", hideUnlessGpuWaitlistsAreServed);
 
 const getDemandRoute = createRoute({
   method: "get",

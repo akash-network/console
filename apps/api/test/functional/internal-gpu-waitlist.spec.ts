@@ -5,10 +5,15 @@ import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import { CORE_CONFIG } from "@src/core/providers/config.provider";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import { GpuWaitlistNetworkService } from "@src/gpu-waitlist/services/gpu-waitlist-network/gpu-waitlist-network.service";
 import { app } from "@src/rest-app";
 
 import { seedGpuWaitlistEntry } from "@test/seeders/db/gpu-waitlist-entry.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+
+vi.hoisted(() => {
+  process.env.GPU_WAITLIST_NETWORKS = "mainnet,testnet,sandbox";
+});
 
 describe("Internal GPU waitlist demand route", () => {
   const internalToken = container.resolve(CORE_CONFIG).INTERNAL_API_TOKEN;
@@ -54,6 +59,14 @@ describe("Internal GPU waitlist demand route", () => {
         { vendor: "nvidia", model, memory: "80Gi", interface: "sxm", gpuCount: 8, waiting: 2, oldestJoinedAt: oldest.toISOString() },
         { vendor: "nvidia", model, memory: null, interface: null, gpuCount: 1, waiting: 1, oldestJoinedAt: "2026-11-03T10:00:00.000Z" }
       ]);
+    });
+
+    it("answers 404 on a network that does not serve gpu waitlists, with or without the internal token", async () => {
+      setup({ flagOn: true });
+      vi.spyOn(container.resolve(GpuWaitlistNetworkService), "servesGpuWaitlists").mockReturnValue(false);
+
+      expect((await get({ token: internalToken })).status).toBe(404);
+      expect((await get({ token: undefined })).status).toBe(404);
     });
 
     it("answers 404 while the feature flag is off", async () => {
