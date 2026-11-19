@@ -8,6 +8,9 @@ import type { LeaseGpuOfferService } from "@src/deployment/services/lease-gpu-of
 import type { GpuWaitlistFulfilmentService } from "@src/gpu-waitlist/services/gpu-waitlist-fulfilment/gpu-waitlist-fulfilment.service";
 import { RecordLeaseGpuOffersHandler } from "./record-lease-gpu-offers.handler";
 
+const LEASE_CREATED_AT = "2026-11-18T12:00:00.000Z";
+const PAYLOAD = { walletId: 1, dseq: "100", leaseCreatedAt: LEASE_CREATED_AT, version: 1 } as const;
+
 const OFFER = {
   gseq: 1,
   oseq: 1,
@@ -21,12 +24,13 @@ describe(RecordLeaseGpuOffersHandler.name, () => {
   it("fulfils the waitlist entries of the wallet's account for the leased gpu models", async () => {
     const { handler, fulfilmentService } = setup({});
 
-    await handler.handle({ walletId: 1, dseq: "100", version: 1 });
+    await handler.handle(PAYLOAD);
 
     expect(fulfilmentService.fulfilForOffers).toHaveBeenCalledWith({
       userId: "user-1",
       organizationId: "org-1",
-      offers: [{ vendor: "nvidia", model: "a100", ram: "80Gi", interface: "sxm", count: 8 }]
+      leaseCreatedAt: new Date(LEASE_CREATED_AT),
+      offers: [{ vendor: "nvidia", model: "a100", count: 8 }]
     });
   });
 
@@ -35,16 +39,36 @@ describe(RecordLeaseGpuOffersHandler.name, () => {
     const error = new Error("database down");
     fulfilmentService.fulfilForOffers.mockRejectedValue(error);
 
-    await expect(handler.handle({ walletId: 1, dseq: "100", version: 1 })).resolves.toBeUndefined();
+    await expect(handler.handle(PAYLOAD)).resolves.toBeUndefined();
 
     expect(deploymentSettingRepository.mergeGpuOffers).toHaveBeenCalled();
     expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "GPU_WAITLIST_FULFILMENT_FAILED", dseq: "100", error }));
   });
 
+  it("adds up the cards of one model across the lease's memory and interface variants", async () => {
+    const variant = {
+      ...OFFER,
+      resources: [{ ...OFFER.resources[0], attributes: [{ key: "vendor/nvidia/model/a100/ram/40Gi/interface/pcie", value: "true" }] }]
+    };
+    const { handler, fulfilmentService } = setup({ offers: [{ ...OFFER, resources: [...OFFER.resources, ...variant.resources] }] });
+
+    await handler.handle(PAYLOAD);
+
+    expect(fulfilmentService.fulfilForOffers).toHaveBeenCalledWith(expect.objectContaining({ offers: [{ vendor: "nvidia", model: "a100", count: 16 }] }));
+  });
+
+  it("fulfils nothing when the job was not scheduled by a lease being created", async () => {
+    const { handler, fulfilmentService } = setup({});
+
+    await handler.handle({ walletId: 1, dseq: "100", version: 1 });
+
+    expect(fulfilmentService.fulfilForOffers).not.toHaveBeenCalled();
+  });
+
   it("fulfils nothing for a lease with no gpu offers", async () => {
     const { handler, fulfilmentService } = setup({ offers: [] });
 
-    await handler.handle({ walletId: 1, dseq: "100", version: 1 });
+    await handler.handle(PAYLOAD);
 
     expect(fulfilmentService.fulfilForOffers).not.toHaveBeenCalled();
   });

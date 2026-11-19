@@ -1,6 +1,8 @@
 import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, type JobHandler, type JobPayload, type JobPermissions, JobQueueService, LOGGER_FACTORY } from "@src/core";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { TxService } from "@src/core/services/tx/tx.service";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { gpuAlertKeepUrl, gpuAlertLeaveUrl, gpuSetupLabel } from "@src/gpu-waitlist/lib/gpu-setup-links/gpu-setup-links";
@@ -27,6 +29,7 @@ export class AskStillWantedHandler implements JobHandler<AskStillWanted> {
     private readonly deploymentConfigService: DeploymentConfigService,
     private readonly jobQueueService: JobQueueService,
     private readonly txService: TxService,
+    private readonly featureFlagsService: FeatureFlagsService,
     @inject(GPU_WAITLIST_CONFIG) private readonly config: GpuWaitlistConfig,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -38,6 +41,12 @@ export class AskStillWantedHandler implements JobHandler<AskStillWanted> {
   }
 
   async handle({ entryId }: JobPayload<AskStillWanted>): Promise<void> {
+    if (!this.featureFlagsService.isEnabled(FeatureFlags.GPU_AVAILABILITY_ALERTS, {})) {
+      await this.jobQueueService.enqueue(new AskStillWanted({ entryId }), { startAfter: new Date(Date.now() + DAY_MS) });
+      this.#logger.info({ event: "GPU_STILL_WANTED_DEFERRED", entryId, reason: "Feature flag is off" });
+      return;
+    }
+
     const entry = await this.gpuWaitlistEntryRepository.findByIdAcrossOrganizations(entryId);
     const skipReason = this.#skipReasonFor(entry);
 
@@ -53,11 +62,17 @@ export class AskStillWantedHandler implements JobHandler<AskStillWanted> {
       return;
     }
 
-    const askedAt = new Date();
     const baseUrl = this.deploymentConfigService.get("DEPLOY_WEB_BASE_URL");
 
     await this.txService.transaction(async () => {
-      await this.gpuWaitlistEntryRepository.unscoped("gpu-waitlist-watcher").updateById(entryId, { stillWantedAskedAt: askedAt });
+      const claimed = await this.gpuWaitlistEntryRepository.claimStillWantedQuestion(entryId);
+
+      if (!claimed?.stillWantedAskedAt) {
+        this.#logger.info({ event: "GPU_STILL_WANTED_SKIPPED", entryId, reason: "Entry was already asked or ended" });
+        return;
+      }
+
+      const askedAt = claimed.stillWantedAskedAt;
       await this.jobQueueService.enqueue(new ExpireGpuAlert({ entryId }), {
         startAfter: new Date(askedAt.getTime() + this.config.GPU_WAITLIST_STILL_WANTED_GRACE_DAYS * DAY_MS)
       });

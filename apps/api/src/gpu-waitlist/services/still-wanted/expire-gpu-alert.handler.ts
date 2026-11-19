@@ -1,14 +1,12 @@
 import { inject, singleton } from "tsyringe";
 
-import { type CreateLogger, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
+import { type CreateLogger, type JobHandler, type JobPayload, type JobPermissions, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { GPU_WAITLIST_CONFIG, type GpuWaitlistConfig } from "@src/gpu-waitlist/providers/config.provider";
-import { GpuWaitlistEntryRepository, type GpuWaitlistEntryRow } from "@src/gpu-waitlist/repositories/gpu-waitlist-entry/gpu-waitlist-entry.repository";
+import { GpuWaitlistEntryRepository } from "@src/gpu-waitlist/repositories/gpu-waitlist-entry/gpu-waitlist-entry.repository";
 import { ExpireGpuAlert } from "./expire-gpu-alert.job";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-/** The queue clock and this process's clock can differ slightly, and a job read as early would leave the entry waiting forever. */
-const CLOCK_SKEW_TOLERANCE_MS = 60 * 1000;
+const MIN_REQUEUE_DELAY_MS = 60 * 1000;
 
 @singleton()
 export class ExpireGpuAlertHandler implements JobHandler<ExpireGpuAlert> {
@@ -18,6 +16,7 @@ export class ExpireGpuAlertHandler implements JobHandler<ExpireGpuAlert> {
 
   constructor(
     private readonly gpuWaitlistEntryRepository: GpuWaitlistEntryRepository,
+    private readonly jobQueueService: JobQueueService,
     @inject(GPU_WAITLIST_CONFIG) private readonly config: GpuWaitlistConfig,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -29,26 +28,26 @@ export class ExpireGpuAlertHandler implements JobHandler<ExpireGpuAlert> {
   }
 
   async handle({ entryId }: JobPayload<ExpireGpuAlert>): Promise<void> {
-    const entry = await this.gpuWaitlistEntryRepository.findByIdAcrossOrganizations(entryId);
-    const skipReason = this.#skipReasonFor(entry);
+    const expired = await this.gpuWaitlistEntryRepository.expireUnansweredQuestion(entryId, this.config.GPU_WAITLIST_STILL_WANTED_GRACE_DAYS);
 
-    if (skipReason) {
-      this.#logger.info({ event: "GPU_ALERT_EXPIRY_SKIPPED", entryId, reason: skipReason });
+    if (expired) {
+      this.#logger.info({ event: "GPU_ALERT_EXPIRED", entryId });
       return;
     }
 
-    await this.gpuWaitlistEntryRepository.unscoped("gpu-waitlist-watcher").updateById(entryId, { status: "expired", endedAt: new Date() });
-    this.#logger.info({ event: "GPU_ALERT_EXPIRED", entryId });
+    await this.#requeueWhenQuestionIsStillPending(entryId);
   }
 
-  #skipReasonFor(entry: GpuWaitlistEntryRow | undefined): string | undefined {
-    if (!entry) return "Entry not found";
-    if (entry.status !== "waiting") return "Entry is no longer waiting";
-    if (!entry.stillWantedAskedAt) return "Entry was kept";
+  async #requeueWhenQuestionIsStillPending(entryId: string): Promise<void> {
+    const entry = await this.gpuWaitlistEntryRepository.findByIdAcrossOrganizations(entryId);
 
-    const graceMs = this.config.GPU_WAITLIST_STILL_WANTED_GRACE_DAYS * DAY_MS;
-    const askedMs = Date.now() - entry.stillWantedAskedAt.getTime();
+    if (entry?.status !== "waiting" || !entry.stillWantedAskedAt) {
+      this.#logger.info({ event: "GPU_ALERT_EXPIRY_SKIPPED", entryId, reason: entry ? "Entry is no longer waiting on an answer" : "Entry not found" });
+      return;
+    }
 
-    return askedMs + CLOCK_SKEW_TOLERANCE_MS < graceMs ? "Grace period has not passed" : undefined;
+    const dueAt = entry.stillWantedAskedAt.getTime() + this.config.GPU_WAITLIST_STILL_WANTED_GRACE_DAYS * DAY_MS;
+    await this.jobQueueService.enqueue(new ExpireGpuAlert({ entryId }), { startAfter: new Date(Math.max(dueAt, Date.now() + MIN_REQUEUE_DELAY_MS)) });
+    this.#logger.info({ event: "GPU_ALERT_EXPIRY_REQUEUED", entryId });
   }
 }

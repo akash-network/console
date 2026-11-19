@@ -10,11 +10,11 @@ import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder"
 import { seedPersonalOrganizationIdOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe(GpuWaitlistFulfilmentService.name, () => {
-  it("ends the entry when the org leases that gpu model, whatever the memory, interface and count", async () => {
+  it("ends the entry when the org leases that gpu model, whatever the memory and interface", async () => {
     const { service, findEntry, user, organizationId } = await setup();
     const entry = await seedGpuWaitlistEntry({ userId: user.id, organizationId, model: "H100", memory: "80Gi", interface: "sxm5", gpuCount: 8 });
 
-    await service.fulfilForOffers({ userId: user.id, organizationId, offers: [{ vendor: "NVIDIA", model: "h100" }] });
+    await service.fulfilForOffers({ userId: user.id, organizationId, leaseCreatedAt: new Date(), offers: [{ vendor: "NVIDIA", model: "h100", count: 8 }] });
 
     expect(await findEntry(entry.id)).toMatchObject({ status: "fulfilled", endedAt: expect.any(Date) });
   });
@@ -23,7 +23,7 @@ describe(GpuWaitlistFulfilmentService.name, () => {
     const { service, findEntry, user, organizationId } = await setup();
     const entry = await seedGpuWaitlistEntry({ userId: user.id, organizationId, model: "a100" });
 
-    await service.fulfilForOffers({ userId: user.id, organizationId, offers: [{ vendor: "nvidia", model: "h100" }] });
+    await service.fulfilForOffers({ userId: user.id, organizationId, leaseCreatedAt: new Date(), offers: [{ vendor: "nvidia", model: "h100", count: 8 }] });
 
     expect(await findEntry(entry.id)).toMatchObject({ status: "waiting", endedAt: null });
   });
@@ -33,7 +33,7 @@ describe(GpuWaitlistFulfilmentService.name, () => {
     const { organization: team } = await seedOrganizationWithOwner();
     const inTeam = await seedGpuWaitlistEntry({ userId: user.id, organizationId: team.id, model: "h100" });
 
-    await service.fulfilForOffers({ userId: user.id, organizationId, offers: [{ vendor: "nvidia", model: "h100" }] });
+    await service.fulfilForOffers({ userId: user.id, organizationId, leaseCreatedAt: new Date(), offers: [{ vendor: "nvidia", model: "h100", count: 8 }] });
 
     expect((await findEntry(inTeam.id))?.status).toBe("waiting");
   });
@@ -43,17 +43,70 @@ describe(GpuWaitlistFulfilmentService.name, () => {
     const own = await seedGpuWaitlistEntry({ userId: user.id, organizationId: null, model: "h100" });
     const other = await seedGpuWaitlistEntry({ userId: (await seedUser()).id, organizationId: null, model: "h100" });
 
-    await service.fulfilForOffers({ userId: user.id, organizationId: null, offers: [{ vendor: "nvidia", model: "h100" }] });
+    await service.fulfilForOffers({
+      userId: user.id,
+      organizationId: null,
+      leaseCreatedAt: new Date(),
+      offers: [{ vendor: "nvidia", model: "h100", count: 8 }]
+    });
 
     expect((await findEntry(own.id))?.status).toBe("fulfilled");
     expect((await findEntry(other.id))?.status).toBe("waiting");
+  });
+
+  it("leaves an entry waiting when no single lease holds as many cards as it wants", async () => {
+    const { service, findEntry, user, organizationId } = await setup();
+    const entry = await seedGpuWaitlistEntry({ userId: user.id, organizationId, model: "h100", gpuCount: 8 });
+
+    await service.fulfilForOffers({ userId: user.id, organizationId, leaseCreatedAt: new Date(), offers: [{ vendor: "nvidia", model: "h100", count: 4 }] });
+
+    expect((await findEntry(entry.id))?.status).toBe("waiting");
+  });
+
+  it("leaves an entry that joined after the lease was created", async () => {
+    const { service, findEntry, user, organizationId } = await setup();
+    const entry = await seedGpuWaitlistEntry({ userId: user.id, organizationId, model: "h100", gpuCount: 1, joinedAt: new Date() });
+
+    await service.fulfilForOffers({
+      userId: user.id,
+      organizationId,
+      leaseCreatedAt: new Date(Date.now() - 60 * 60 * 1000),
+      offers: [{ vendor: "nvidia", model: "h100", count: 8 }]
+    });
+
+    expect((await findEntry(entry.id))?.status).toBe("waiting");
+  });
+
+  it.each(["left", "expired"] as const)("leaves an entry of the same model that already ended as %s", async status => {
+    const { service, findEntry, user, organizationId } = await setup();
+    const entry = await seedGpuWaitlistEntry({ userId: user.id, organizationId, model: "h100", status });
+
+    await service.fulfilForOffers({ userId: user.id, organizationId, leaseCreatedAt: new Date(), offers: [{ vendor: "nvidia", model: "h100", count: 8 }] });
+
+    expect((await findEntry(entry.id))?.status).toBe(status);
+  });
+
+  it("ends a same-org teammate's waiting entry too", async () => {
+    const { service, findEntry } = await setup();
+    const { user: owner, organization } = await seedOrganizationWithOwner();
+    const teammate = await seedUser({ userId: faker.string.uuid() });
+    const entry = await seedGpuWaitlistEntry({ userId: teammate.id, organizationId: organization.id, model: "h100" });
+
+    await service.fulfilForOffers({
+      userId: owner.id,
+      organizationId: organization.id,
+      leaseCreatedAt: new Date(),
+      offers: [{ vendor: "nvidia", model: "h100", count: 8 }]
+    });
+
+    expect((await findEntry(entry.id))?.status).toBe("fulfilled");
   });
 
   it("ends nothing for a lease with no gpu offers", async () => {
     const { service, findEntry, user, organizationId } = await setup();
     const entry = await seedGpuWaitlistEntry({ userId: user.id, organizationId, model: "h100" });
 
-    await service.fulfilForOffers({ userId: user.id, organizationId, offers: [] });
+    await service.fulfilForOffers({ userId: user.id, organizationId, leaseCreatedAt: new Date(), offers: [] });
 
     expect((await findEntry(entry.id))?.status).toBe("waiting");
   });

@@ -36,7 +36,7 @@ export class RecordLeaseGpuOffersHandler implements JobHandler<RecordLeaseGpuOff
   }
 
   async handle(payload: JobPayload<RecordLeaseGpuOffers>): Promise<void> {
-    const { walletId, dseq } = payload;
+    const { walletId, dseq, leaseCreatedAt } = payload;
     const context = { job: RecordLeaseGpuOffers[JOB_NAME], walletId, dseq };
     const wallet = await this.userWalletRepository.findOneBy({ id: walletId });
 
@@ -53,21 +53,43 @@ export class RecordLeaseGpuOffersHandler implements JobHandler<RecordLeaseGpuOff
       throw new Error(`Deployment ${dseq} has no settings row to hold its gpu offers yet`);
     }
 
-    if (offers.length) await this.#fulfilWaitlistEntries({ wallet, offers, context });
+    if (offers.length && leaseCreatedAt) await this.#fulfilWaitlistEntries({ wallet, offers, leaseCreatedAt: new Date(leaseCreatedAt), context });
 
     this.logger.info({ event: "LEASE_GPU_OFFERS_RECORDED", ...context, liveLeases, offers: offers.length });
   }
 
   /** The lease is already recorded, so a waitlist failure is logged and never retried into a second read of the chain. */
-  async #fulfilWaitlistEntries({ wallet, offers, context }: { wallet: DeploymentWallet; offers: LeaseGpuOffer[]; context: object }): Promise<void> {
+  async #fulfilWaitlistEntries({
+    wallet,
+    offers,
+    leaseCreatedAt,
+    context
+  }: {
+    wallet: DeploymentWallet;
+    offers: LeaseGpuOffer[];
+    leaseCreatedAt: Date;
+    context: object;
+  }): Promise<void> {
     try {
       await this.gpuWaitlistFulfilmentService.fulfilForOffers({
         userId: wallet.userId,
         organizationId: wallet.organizationId,
-        offers: offers.flatMap(readOfferedGpus)
+        leaseCreatedAt,
+        offers: offers.flatMap(totalGpusOfLease)
       });
     } catch (error) {
       this.logger.error({ event: "GPU_WAITLIST_FULFILMENT_FAILED", ...context, error });
     }
   }
+}
+
+function totalGpusOfLease(offer: LeaseGpuOffer): { vendor: string; model: string; count: number }[] {
+  const totals = new Map<string, { vendor: string; model: string; count: number }>();
+
+  for (const { vendor, model, count } of readOfferedGpus(offer)) {
+    const key = `${vendor}/${model}`;
+    totals.set(key, { vendor, model, count: (totals.get(key)?.count ?? 0) + count });
+  }
+
+  return [...totals.values()];
 }

@@ -213,21 +213,33 @@ describe(GpuWaitlistService.name, () => {
   });
 
   describe("keep", () => {
-    it("clears the question and schedules the next one 30 days out", async () => {
+    it("clears a pending question and schedules the next one 30 days out", async () => {
       const kept = anEntry({ stillWantedAskedAt: null });
       const { service, repository, jobQueueService } = setup({ placeInLine: 2 });
-      repository.updateBy.mockImplementation(vi.fn().mockResolvedValue(kept));
+      repository.clearPendingStillWantedQuestion.mockResolvedValue(kept);
 
       const entry = await service.keep("entry-1");
 
-      expect(repository.updateBy).toHaveBeenCalledWith({ id: "entry-1", status: "waiting" }, { stillWantedAskedAt: null }, { returning: true });
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(new AskStillWanted({ entryId: "entry-1" }), { startAfter: new Date(NOW + 30 * DAY_MS) });
       expect(entry).toMatchObject({ id: "entry-1", placeInLine: 2 });
     });
 
+    it("returns the entry without scheduling anything when no question was pending", async () => {
+      const waiting = anEntry();
+      const { service, repository, jobQueueService } = setup();
+      repository.clearPendingStillWantedQuestion.mockResolvedValue(undefined);
+      repository.findWaitingById.mockResolvedValue(waiting);
+
+      const entry = await service.keep("entry-1");
+
+      expect(entry).toMatchObject({ id: "entry-1" });
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
     it("answers 404 and schedules nothing when no waiting entry of the caller has the id", async () => {
       const { service, repository, jobQueueService } = setup();
-      repository.updateBy.mockImplementation(vi.fn().mockResolvedValue(undefined));
+      repository.clearPendingStillWantedQuestion.mockResolvedValue(undefined);
+      repository.findWaitingById.mockResolvedValue(undefined);
 
       await expect(service.keep("entry-1")).rejects.toMatchObject({ status: 404 });
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();

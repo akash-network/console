@@ -16,6 +16,7 @@ export class RecordLeaseGpuOffers implements Job {
     public readonly data: {
       walletId: number;
       dseq: string;
+      leaseCreatedAt?: string;
     }
   ) {}
 }
