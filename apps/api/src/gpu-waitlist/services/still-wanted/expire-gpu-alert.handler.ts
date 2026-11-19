@@ -5,6 +5,7 @@ import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { GPU_WAITLIST_CONFIG, type GpuWaitlistConfig } from "@src/gpu-waitlist/providers/config.provider";
 import { GpuWaitlistEntryRepository } from "@src/gpu-waitlist/repositories/gpu-waitlist-entry/gpu-waitlist-entry.repository";
+import { GpuWaitlistNetworkService } from "@src/gpu-waitlist/services/gpu-waitlist-network/gpu-waitlist-network.service";
 import { ExpireGpuAlert } from "./expire-gpu-alert.job";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -20,6 +21,7 @@ export class ExpireGpuAlertHandler implements JobHandler<ExpireGpuAlert> {
     private readonly gpuWaitlistEntryRepository: GpuWaitlistEntryRepository,
     private readonly jobQueueService: JobQueueService,
     private readonly featureFlagsService: FeatureFlagsService,
+    private readonly gpuWaitlistNetworkService: GpuWaitlistNetworkService,
     @inject(GPU_WAITLIST_CONFIG) private readonly config: GpuWaitlistConfig,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -31,6 +33,11 @@ export class ExpireGpuAlertHandler implements JobHandler<ExpireGpuAlert> {
   }
 
   async handle({ entryId }: JobPayload<ExpireGpuAlert>): Promise<void> {
+    if (!this.gpuWaitlistNetworkService.servesGpuWaitlists()) {
+      this.#logger.info({ event: "GPU_ALERT_EXPIRY_SKIPPED", entryId, reason: "Network does not serve gpu waitlists" });
+      return;
+    }
+
     if (!this.featureFlagsService.isEnabled(FeatureFlags.GPU_AVAILABILITY_ALERTS, {})) {
       await this.#requeueWhenQuestionIsStillPending(entryId, Date.now() + DAY_MS);
       return;

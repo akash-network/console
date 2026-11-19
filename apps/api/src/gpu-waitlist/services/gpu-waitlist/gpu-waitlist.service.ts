@@ -75,13 +75,7 @@ export class GpuWaitlistService {
   async keep(id: string): Promise<GpuWaitlistEntryInLine> {
     return await this.txService.transaction(async () => {
       const repository = this.gpuWaitlistEntryRepository.accessibleBy(this.authService.ability, "update");
-      const cleared = await repository.clearPendingStillWantedQuestion(id);
-
-      if (cleared) {
-        await this.#scheduleStillWantedCheck(cleared.id, new Date());
-      }
-
-      const kept = cleared ?? (await repository.findWaitingById(id));
+      const kept = (await this.#answerPendingQuestion(repository, id)) ?? (await repository.findWaitingById(id));
 
       if (!kept) {
         throw createError(404, "GPU waitlist entry not found");
@@ -91,17 +85,34 @@ export class GpuWaitlistService {
     });
   }
 
+  async #answerPendingQuestion(repository: GpuWaitlistEntryRepository, id: string): Promise<GpuWaitlistEntryRow | undefined> {
+    const cleared = await repository.clearPendingStillWantedQuestion(id);
+
+    if (cleared) {
+      await this.#scheduleStillWantedCheck(cleared.id, new Date());
+    }
+
+    return cleared;
+  }
+
   async #scheduleStillWantedCheck(entryId: string, from: Date): Promise<void> {
     await this.jobQueueService.enqueue(new AskStillWanted({ entryId }), {
       startAfter: new Date(from.getTime() + this.config.GPU_WAITLIST_STILL_WANTED_DAYS * DAY_MS)
     });
   }
 
-  /** Leaving takes no user-row lock, so the entry read as waiting may have been left since. */
+  /** Joining again answers a pending still-wanted question the way keeping does, and finds nothing to refresh once a concurrent leave ended the entry. */
   async #refreshWhileWaiting(existing: GpuWaitlistEntryRow, input: JoinGpuWaitlistRequest["data"]): Promise<GpuWaitlistEntryRow | undefined> {
-    return await this.gpuWaitlistEntryRepository
-      .accessibleBy(this.authService.ability, "update")
-      .updateBy({ id: existing.id, status: "waiting" }, { gpuCount: input.gpuCount, source: input.source }, { returning: true });
+    const repository = this.gpuWaitlistEntryRepository.accessibleBy(this.authService.ability, "update");
+    const refreshed = await repository.updateBy(
+      { id: existing.id, status: "waiting" },
+      { gpuCount: input.gpuCount, source: input.source },
+      { returning: true }
+    );
+
+    if (!refreshed) return undefined;
+
+    return (await this.#answerPendingQuestion(repository, existing.id)) ?? refreshed;
   }
 
   async #enter(userId: string, poolKey: string, input: JoinGpuWaitlistRequest["data"]): Promise<GpuWaitlistEntryRow> {

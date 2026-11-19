@@ -76,11 +76,24 @@ describe(GpuWaitlistService.name, () => {
     it("does not schedule another question when the same pool is joined again", async () => {
       const existing = anEntry();
       const { service, repository, jobQueueService } = setup({ existing });
-      repository.updateById.mockImplementation(vi.fn().mockResolvedValue(existing));
+      repository.updateBy.mockImplementation(vi.fn().mockResolvedValue(existing));
 
       await service.join(INPUT);
 
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("answers a pending still-wanted question and schedules the next one when the same pool is joined again", async () => {
+      const existing = anEntry({ stillWantedAskedAt: new Date(NOW - DAY_MS) });
+      const { service, repository, jobQueueService } = setup({ existing });
+      repository.updateBy.mockImplementation(vi.fn().mockResolvedValue({ ...existing, gpuCount: 4 }));
+      repository.clearPendingStillWantedQuestion.mockResolvedValue({ ...existing, gpuCount: 4, stillWantedAskedAt: null });
+
+      const entry = await service.join(INPUT);
+
+      expect(repository.clearPendingStillWantedQuestion).toHaveBeenCalledWith(existing.id);
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new AskStillWanted({ entryId: existing.id }), { startAfter: new Date(NOW + 30 * DAY_MS) });
+      expect(entry).toMatchObject({ id: existing.id, gpuCount: 4, stillWantedAskedAt: null });
     });
 
     it("joining the same pool twice updates the gpu count and keeps the place in line", async () => {

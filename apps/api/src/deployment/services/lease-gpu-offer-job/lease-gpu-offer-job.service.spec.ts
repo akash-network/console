@@ -113,6 +113,28 @@ describe(LeaseGpuOfferJobService.name, () => {
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
 
+    it("counts a deployment whose lease-created job is queued rather than queueing a sweep job for it", async () => {
+      const { service, jobQueueService } = setup({
+        candidates: [liveManaged()],
+        onGpu: [{ owner: OWNER, dseq: TARGET.dseq }],
+        pending: [`${recordLeaseGpuOffersKeyFor(TARGET)}.lease`]
+      });
+
+      await expect(service.reconcile()).resolves.toMatchObject({ scheduled: 0, alreadyScheduled: 1 });
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("waits out the backoff for a deployment whose lease-created job ran recently", async () => {
+      const { service, jobQueueService } = setup({
+        candidates: [liveManaged()],
+        onGpu: [{ owner: OWNER, dseq: TARGET.dseq }],
+        recentlyTried: [`${recordLeaseGpuOffersKeyFor(TARGET)}.lease`]
+      });
+
+      await expect(service.reconcile()).resolves.toMatchObject({ scheduled: 0, recentlyTried: 1 });
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
     it("looks back over the configured backoff for recently finished jobs", async () => {
       const { service, jobQueueService } = setup({ candidates: [], onGpu: [] });
       const earliest = subHours(new Date(), 24).getTime();

@@ -28,6 +28,10 @@ import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seede
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { expectJobCompleted, findJobRows, makeJobDue } from "@test/services/job-queue-harness";
 
+vi.hoisted(() => {
+  process.env.GPU_WAITLIST_NETWORKS = "mainnet,testnet,sandbox";
+});
+
 const WORKER_OPTIONS = { concurrency: 1, pollingIntervalSeconds: 0.5 };
 const WAVE_SIZE = 3;
 const POOL_KEY = toPoolKey({ vendor: "nvidia", model: "h100" });
@@ -195,7 +199,7 @@ describe("GPU waitlist waves", () => {
   function fakeSetupCheck(provider: string) {
     vi.spyOn(container.resolve(GpuSetupCheckService), "check").mockImplementation(async setups => ({
       status: "checked",
-      results: setups.map(setup => ({ setup, bids: [{ provider, priceUsdPerHour: 2.5 }] }))
+      results: setups.map(setup => ({ setup, status: "checked", bids: [{ provider, priceUsdPerHour: 2.5 }] }))
     }));
   }
 

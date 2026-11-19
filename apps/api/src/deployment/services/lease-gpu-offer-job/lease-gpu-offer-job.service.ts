@@ -31,7 +31,15 @@ export function recordLeaseGpuOffersKeyFor({ walletId, dseq }: RecordLeaseGpuOff
 
 /** A job carrying a lease time gets its own key, so a queued sweep job without one cannot absorb it. */
 function singletonKeyOf(target: RecordLeaseGpuOffersTarget): string {
-  return target.leaseCreatedAt ? `${recordLeaseGpuOffersKeyFor(target)}.lease` : recordLeaseGpuOffersKeyFor(target);
+  return target.leaseCreatedAt ? leaseKeyFor(target) : recordLeaseGpuOffersKeyFor(target);
+}
+
+function leaseKeyFor(target: RecordLeaseGpuOffersTarget): string {
+  return `${recordLeaseGpuOffersKeyFor(target)}.lease`;
+}
+
+function hasJobFor(target: RecordLeaseGpuOffersTarget, keys: Set<string>): boolean {
+  return keys.has(recordLeaseGpuOffersKeyFor(target)) || keys.has(leaseKeyFor(target));
 }
 
 /** Owns when a deployment's bid offers are recorded: as soon as a lease lands, and again from the sweep for a gpu deployment that has none. */
@@ -74,12 +82,11 @@ export class LeaseGpuOfferJobService {
     for (const candidate of candidates) {
       if (!onGpu.has(`${candidate.address}.${candidate.dseq}`)) continue;
 
-      const key = recordLeaseGpuOffersKeyFor(candidate);
-      if (pendingKeys.has(key)) {
+      if (hasJobFor(candidate, pendingKeys)) {
         counts.alreadyScheduled++;
         continue;
       }
-      if (recentlyTriedKeys.has(key)) {
+      if (hasJobFor(candidate, recentlyTriedKeys)) {
         counts.recentlyTried++;
         continue;
       }
