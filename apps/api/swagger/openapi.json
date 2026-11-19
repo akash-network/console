@@ -35535,6 +35535,169 @@
         }
       }
     },
+    "/v1/community-templates": {
+      "get": {
+        "operationId": "listCommunityTemplates",
+        "summary": "List the public templates of the gallery, newest first, with how much each is used",
+        "tags": [
+          "Templates"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "At most 1000 templates, the same for every caller",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListCommunityTemplatesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/template-publishers/current": {
+      "get": {
+        "operationId": "getCurrentTemplatePublisher",
+        "summary": "Get the publisher profile of the active organization",
+        "tags": [
+          "Templates"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The profile, and whether the caller may change it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetCurrentTemplatePublisherResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The caller is not signed in"
+          },
+          "404": {
+            "description": "The active organization has not published a template yet"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "updateCurrentTemplatePublisher",
+        "summary": "Change the bio and the links on the publisher page of the active organization",
+        "tags": [
+          "Templates"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCurrentTemplatePublisherRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The profile changed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetCurrentTemplatePublisherResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body changes nothing, the bio is too long or not readable text, or a link is not an https link to a public website"
+          },
+          "401": {
+            "description": "The caller is not signed in"
+          },
+          "403": {
+            "description": "The caller is not an owner or an admin of the active organization"
+          },
+          "404": {
+            "description": "The active organization has not published a template yet"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      }
+    },
+    "/v1/template-publishers/{handle}": {
+      "get": {
+        "operationId": "getTemplatePublisher",
+        "summary": "Get a publisher's public page: who it is and the templates it lists in the gallery",
+        "tags": [
+          "Templates"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "description": "The publisher's handle, as templates name it"
+            },
+            "required": true,
+            "name": "handle",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The publisher page, the same for every caller",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetTemplatePublisherResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The handle is not one a publisher can have"
+          },
+          "404": {
+            "description": "No publisher has this handle, or its publishing is suspended"
+          }
+        }
+      }
+    },
     "/v1/user-templates/{id}": {
       "get": {
         "operationId": "getUserTemplate",
@@ -41837,6 +42000,25 @@
   },
   "components": {
     "schemas": {
+      "TemplatePublisherCounts": {
+        "type": "object",
+        "properties": {
+          "templates": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "The templates the publisher page lists"
+          },
+          "deploys": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Deploys made from Console on mainnet"
+          }
+        },
+        "required": [
+          "templates",
+          "deploys"
+        ]
+      },
       "TemplatePublishCheck": {
         "type": "object",
         "properties": {
@@ -46944,6 +47126,24 @@
             "format": "uuid",
             "description": "The template this one was copied from, null unless the caller may read it"
           },
+          "copiedFrom": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "description": "The template this one was copied from, null once the caller may no longer read it"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -46994,13 +47194,29 @@
                 "type": "string",
                 "nullable": true,
                 "description": "The name of the publisher page, null until the organization first publishes a template"
+              },
+              "verified": {
+                "type": "boolean",
+                "description": "Whether Akash staff verified who the publisher is"
+              },
+              "memberSince": {
+                "type": "string",
+                "nullable": true,
+                "format": "date-time",
+                "description": "When the person or the team joined Console, null until the organization first publishes a template"
+              },
+              "counts": {
+                "$ref": "#/components/schemas/TemplatePublisherCounts"
               }
             },
             "required": [
               "name",
               "slug",
               "type",
-              "handle"
+              "handle",
+              "verified",
+              "memberSince",
+              "counts"
             ],
             "description": "The organization the template belongs to, null for a template filed in none"
           },
@@ -47221,12 +47437,24 @@
                 "minimum": 0,
                 "maximum": 1,
                 "description": "The share of mainnet leases older than a day whose deployment was still running a day later, null below five such leases"
+              },
+              "forks": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Copies made on mainnet from outside the publishing organization, one per person a day"
+              },
+              "favorites": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "The people who keep the template among their favorites"
               }
             },
             "required": [
               "deploys",
               "lastDeployedAt",
-              "stillUpAfter24h"
+              "stillUpAfter24h",
+              "forks",
+              "favorites"
             ]
           }
         },
@@ -47242,6 +47470,7 @@
           "moderationStatus",
           "projectId",
           "copiedFromId",
+          "copiedFrom",
           "createdAt",
           "updatedAt",
           "publishedAt",
@@ -47375,7 +47604,8 @@
               "sdl": {
                 "type": "string",
                 "minLength": 1,
-                "maxLength": 131072
+                "maxLength": 131072,
+                "description": "Required unless `copiedFromId` is sent without content, which copies the current version of that template"
               },
               "readme": {
                 "type": "string",
@@ -47387,8 +47617,7 @@
                   "$ref": "#/components/schemas/TemplateAskedValue"
                 },
                 "maxItems": 50,
-                "default": [],
-                "description": "The values the deployer fills in, bound to the SDL's env vars"
+                "description": "The values the deployer fills in, bound to the SDL's env vars; none when left out"
               },
               "projectId": {
                 "type": "string",
@@ -47398,12 +47627,11 @@
               "copiedFromId": {
                 "type": "string",
                 "format": "uuid",
-                "description": "The template this one was copied from, which the caller must be able to read"
+                "description": "The template this one was copied from, which the caller must be able to read; it counts as a fork of that template"
               }
             },
             "required": [
-              "title",
-              "sdl"
+              "title"
             ]
           }
         },
@@ -47929,6 +48157,426 @@
             "required": [
               "reason"
             ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "CommunityTemplateUsage": {
+        "type": "object",
+        "properties": {
+          "deploys": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Deploys made from Console on mainnet"
+          },
+          "stillUpAfter24h": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0,
+            "maximum": 1,
+            "description": "The share of mainnet leases older than a day whose deployment was still running a day later, null below five such leases"
+          },
+          "forks": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Copies made on mainnet from outside the publishing organization, one per person a day"
+          }
+        },
+        "required": [
+          "deploys",
+          "stillUpAfter24h",
+          "forks"
+        ]
+      },
+      "TemplateScores": {
+        "type": "object",
+        "properties": {
+          "popular": {
+            "type": "number",
+            "nullable": true,
+            "description": "Null until scores are computed"
+          },
+          "trending": {
+            "type": "number",
+            "nullable": true,
+            "description": "Null until scores are computed"
+          },
+          "isTrending": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "popular",
+          "trending",
+          "isTrending"
+        ]
+      },
+      "CommunityTemplateCard": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string",
+            "nullable": true
+          },
+          "icon": {
+            "type": "string",
+            "nullable": true
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "isOfficial": {
+            "type": "boolean",
+            "description": "Whether Akash staff promoted the template; every other one is not reviewed by Akash"
+          },
+          "isFeatured": {
+            "type": "boolean"
+          },
+          "publisher": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "handle": {
+                "type": "string",
+                "description": "The name of the publisher page"
+              },
+              "verified": {
+                "type": "boolean",
+                "description": "Whether Akash staff verified who the publisher is"
+              }
+            },
+            "required": [
+              "name",
+              "handle",
+              "verified"
+            ]
+          },
+          "resources": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "cpu": {
+                "type": "number",
+                "description": "vCPUs across every service and replica"
+              },
+              "memoryBytes": {
+                "type": "number"
+              },
+              "storageBytes": {
+                "type": "number",
+                "description": "Ephemeral and persistent storage combined"
+              },
+              "gpu": {
+                "type": "object",
+                "properties": {
+                  "units": {
+                    "type": "number"
+                  },
+                  "models": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Model names, or a vendor name when any of its models will do; empty when any GPU will do"
+                  }
+                },
+                "required": [
+                  "units",
+                  "models"
+                ]
+              }
+            },
+            "required": [
+              "cpu",
+              "memoryBytes",
+              "storageBytes"
+            ],
+            "description": "What the current version asks for, null when its SDL cannot be read"
+          },
+          "versionCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "The versions that went live, the current one included"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the template first went public"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/CommunityTemplateUsage"
+          },
+          "scores": {
+            "$ref": "#/components/schemas/TemplateScores"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "summary",
+          "icon",
+          "categories",
+          "isOfficial",
+          "isFeatured",
+          "publisher",
+          "resources",
+          "versionCount",
+          "publishedAt",
+          "updatedAt",
+          "usage",
+          "scores"
+        ]
+      },
+      "ListCommunityTemplatesResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "templates": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CommunityTemplateCard"
+                }
+              },
+              "officialUsage": {
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/CommunityTemplateUsage"
+                },
+                "description": "The same numbers for the awesome-akash templates, by template id; a template nobody deployed is missing"
+              }
+            },
+            "required": [
+              "templates",
+              "officialUsage"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "CurrentTemplatePublisher": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "handle": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "personal",
+              "team"
+            ]
+          },
+          "bio": {
+            "type": "string",
+            "nullable": true,
+            "description": "Plain text written by the publisher, shown as stored"
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "description": "An https link to a public website"
+                },
+                "label": {
+                  "type": "string",
+                  "nullable": true,
+                  "description": "What the publisher calls the link, null to show its host"
+                }
+              },
+              "required": [
+                "url",
+                "label"
+              ]
+            }
+          },
+          "verified": {
+            "type": "boolean",
+            "description": "Whether Akash staff verified who the publisher is"
+          },
+          "memberSince": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the person or the team joined Console"
+          },
+          "canEdit": {
+            "type": "boolean",
+            "description": "Whether the caller may change the bio and the links"
+          }
+        },
+        "required": [
+          "name",
+          "handle",
+          "type",
+          "bio",
+          "links",
+          "verified",
+          "memberSince",
+          "canEdit"
+        ]
+      },
+      "GetCurrentTemplatePublisherResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CurrentTemplatePublisher"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "TemplatePublisherPage": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "handle": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "personal",
+              "team"
+            ]
+          },
+          "bio": {
+            "type": "string",
+            "nullable": true,
+            "description": "Plain text written by the publisher, shown as stored"
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "description": "An https link to a public website"
+                },
+                "label": {
+                  "type": "string",
+                  "nullable": true,
+                  "description": "What the publisher calls the link, null to show its host"
+                }
+              },
+              "required": [
+                "url",
+                "label"
+              ]
+            }
+          },
+          "verified": {
+            "type": "boolean",
+            "description": "Whether Akash staff verified who the publisher is"
+          },
+          "memberSince": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the person or the team joined Console"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/TemplatePublisherCounts"
+          },
+          "templates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommunityTemplateCard"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "handle",
+          "type",
+          "bio",
+          "links",
+          "verified",
+          "memberSince",
+          "counts",
+          "templates"
+        ]
+      },
+      "GetTemplatePublisherResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/TemplatePublisherPage"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "UpdateCurrentTemplatePublisherRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "bio": {
+                "type": "string",
+                "nullable": true,
+                "maxLength": 300,
+                "pattern": "^[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$",
+                "description": "Null or blank clears it"
+              },
+              "links": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "description": "An https link to a public website, without a port, a username or an address for a host"
+                    },
+                    "label": {
+                      "type": "string",
+                      "nullable": true,
+                      "minLength": 1,
+                      "maxLength": 40,
+                      "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
+                    }
+                  },
+                  "required": [
+                    "url"
+                  ]
+                },
+                "maxItems": 3,
+                "description": "Replaces every link"
+              }
+            }
           }
         },
         "required": [

@@ -24,7 +24,15 @@ const TEMPLATE = buildMarketplaceTemplate({
   categories: ["Chat"],
   visibility: "private",
   projectId: PROJECT.id,
-  publisher: { name: "Northwind Labs", slug: "northwind-labs", type: "team", handle: null },
+  publisher: {
+    name: "Northwind Labs",
+    slug: "northwind-labs",
+    type: "team",
+    handle: null,
+    verified: false,
+    memberSince: null,
+    counts: { templates: 0, deploys: 0 }
+  },
   canEdit: true
 });
 
