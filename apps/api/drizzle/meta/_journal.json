@@ -1065,6 +1065,13 @@
       "when": 1795240313632,
       "tag": "0151_template_reports_removal_moderation",
       "breakpoints": true
+    },
+    {
+      "idx": 152,
+      "version": "7",
+      "when": 1795240316117,
+      "tag": "0152_template_image_digests_held_versions",
+      "breakpoints": true
     }
   ]
 }

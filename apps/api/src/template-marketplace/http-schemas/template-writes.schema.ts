@@ -90,11 +90,20 @@ export const UserTemplateListItemSchema = z
     moderationStatus: z.enum(templateModerationStatusEnum.enumValues),
     projectId: z.string().uuid().nullable(),
     copiedFromId: z.string().uuid().nullable(),
+    publishedAt: z
+      .string()
+      .datetime()
+      .nullable()
+      .openapi({ description: "When the template first went public through the publish checks, kept after it is made private again; null before" }),
     updatedAt: z.string().datetime(),
     currentVersion: z
       .object({ version: z.number().int().positive(), status: z.enum(templateVersionStatusEnum.enumValues), createdAt: z.string().datetime() })
       .nullable()
       .openapi({ description: "Null on a template an older API pod saved without a version" }),
+    latestVersion: z
+      .object({ version: z.number().int().positive(), status: z.enum(templateVersionStatusEnum.enumValues) })
+      .nullable()
+      .openapi({ description: "The newest version saved, whatever its status; null for callers who may not change the template" }),
     lastEditedBy: z.object({ username: z.string() }).nullable().openapi({ description: "Who saved the current version, null when unknown or gone" }),
     canEdit: z.boolean().openapi({ description: "Whether the caller may change the template" }),
     usage: z.object({ deploys: DeploysSchema, lastDeployedAt: LastDeployedAtSchema })

@@ -7,6 +7,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 import type { AskedValue } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
 import type { PublishCheckResults } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
+import type { TemplateVersionHoldReason } from "@src/template-marketplace/lib/version-hold/version-hold-reasons";
+import type { TemplateVersionStatus } from "@src/template-marketplace/model-schemas/template-version/template-version.schema";
 import { TemplateVersionRepository } from "./template-version.repository";
 
 import { seedOrganization, seedProject } from "@test/seeders/db/organization.seeder";
@@ -74,6 +76,9 @@ describe(TemplateVersionRepository.name, () => {
         status: "live",
         checkResults: null,
         changes: ["first_version"],
+        holdReasons: null,
+        reviewedAt: null,
+        reviewNote: null,
         createdById: null,
         createdBy: null,
         createdAt: expect.any(Date)
@@ -393,26 +398,179 @@ describe(TemplateVersionRepository.name, () => {
   });
 
   describe("staff review columns", () => {
-    it("keeps the review note and time out of every version it reads or appends", async () => {
+    it("reads the review note and time staff wrote wherever it reads a version", async () => {
       const { repository } = setup();
       const template = await seedTemplate();
       const appended = await repository.appendVersion({ templateId: template.id, sdl: "sdl" });
+      const reviewedAt = new Date("2026-11-10T09:00:00.000Z");
       const versions = resolveTable("TemplateVersions");
       await container
         .resolve<ApiPgDatabase>(POSTGRES_DB)
         .update(versions)
-        .set({ reviewedAt: new Date(), reviewNote: "Approved after a look at the image." })
+        .set({ reviewedAt, reviewNote: "Approved after a look at the image." })
         .where(eq(versions.id, appended.id));
 
       const read = [
-        appended,
         await repository.findById(appended.id),
         await repository.findCurrent(template.id),
         await repository.findByTemplateAndVersion(template.id, 1),
-        await repository.appendVersion({ templateId: template.id, sdl: "sdl 2" })
+        (await repository.listByTemplate(template.id))[0]
       ];
 
-      expect(read.map(version => Object.keys(version!).filter(key => key.startsWith("review")))).toEqual([[], [], [], [], []]);
+      expect(read.map(version => [version?.reviewedAt, version?.reviewNote])).toEqual(Array(4).fill([reviewedAt, "Approved after a look at the image."]));
+    });
+  });
+
+  describe("when a version comes with reasons to hold it", () => {
+    const HOLD_REASONS: TemplateVersionHoldReason[] = [
+      { kind: "image_repository_changed", message: "Moves to another repository.", service: "web", image: "other/web:1", previousImage: "acme/web:1" },
+      { kind: "global_port_added", message: "Opens port 22.", service: "web", port: 22, protocol: "tcp" }
+    ];
+
+    it("stores it as held with its reasons, numbered after the current version, without making it current", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+      const live = await repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("acme/web:1"), checkResults: PASSED_CHECKS });
+
+      const held = await repository.appendVersion({
+        templateId: template.id,
+        sdl: sdlWithImage("other/web:1"),
+        checkResults: PASSED_CHECKS,
+        holdReasons: HOLD_REASONS
+      });
+
+      expect(held).toMatchObject({ version: 2, status: "held", holdReasons: HOLD_REASONS, checkResults: PASSED_CHECKS, changes: ["image_changed"] });
+      expect((await findStoredTemplate(template.id))?.currentVersionId).toBe(live.id);
+      expect(await repository.findById(held.id)).toMatchObject({ status: "held", holdReasons: HOLD_REASONS });
+      expect((await repository.listByTemplate(template.id)).map(({ version, status, holdReasons }) => ({ version, status, holdReasons }))).toEqual([
+        { version: 2, status: "held", holdReasons: HOLD_REASONS },
+        { version: 1, status: "live", holdReasons: null }
+      ]);
+    });
+
+    it("stores a version given no reason as live and current, with no reasons", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+
+      const live = await repository.appendVersion({ templateId: template.id, sdl: "sdl", checkResults: PASSED_CHECKS, holdReasons: [] });
+
+      expect(live).toMatchObject({ status: "live", holdReasons: null });
+      expect((await findStoredTemplate(template.id))?.currentVersionId).toBe(live.id);
+    });
+
+    it("stores a version that failed its checks as failed, never as held, and keeps no reasons for it", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+
+      const failed = await repository.appendVersion({ templateId: template.id, sdl: "sdl", checkResults: FAILED_CHECKS, holdReasons: HOLD_REASONS });
+
+      expect(failed).toMatchObject({ status: "failed_checks", holdReasons: null });
+    });
+
+    it("numbers a version saved while one is held past it, compares it with the current version and makes it current when nothing holds it", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+      await repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("acme/web:1"), checkResults: PASSED_CHECKS });
+      const held = await repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("other/web:1"), holdReasons: HOLD_REASONS });
+
+      const next = await repository.appendVersion({ templateId: template.id, sdl: sdlWithImage("acme/web:2"), checkResults: PASSED_CHECKS });
+
+      expect(next).toMatchObject({ version: 3, status: "live", changes: ["image_tag_changed"] });
+      expect((await findStoredTemplate(template.id))?.currentVersionId).toBe(next.id);
+      expect(await repository.findById(held.id)).toMatchObject({ status: "held" });
+    });
+  });
+
+  describe("recordImageDigests", () => {
+    it("adds the digests of that version alone and keeps the ones it already recorded", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+      const version = await repository.appendVersion({ templateId: template.id, sdl: "sdl" });
+      const other = await repository.appendVersion({ templateId: template.id, sdl: "other" });
+
+      await repository.recordImageDigests(version.id, { "nginx:1.27": "sha256:first" });
+      await repository.recordImageDigests(version.id, { "nginx:1.27": "sha256:moved", "ghcr.io/acme/web:1": "sha256:web" });
+
+      expect((await repository.findById(version.id))?.imageDigests).toEqual({ "nginx:1.27": "sha256:first", "ghcr.io/acme/web:1": "sha256:web" });
+      expect((await repository.findById(other.id))?.imageDigests).toEqual({});
+      expect(await repository.findById(version.id)).toMatchObject({ sdl: "sdl", status: "live", version: 1 });
+    });
+  });
+
+  describe("makeCurrent", () => {
+    it("points that template alone at the version", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+      const untouched = await seedTemplate();
+      const first = await repository.appendVersion({ templateId: template.id, sdl: "a" });
+      const second = await repository.appendVersion({ templateId: template.id, sdl: "b" });
+      const ofUntouched = await repository.appendVersion({ templateId: untouched.id, sdl: "c" });
+
+      await repository.makeCurrent(template.id, first.id);
+
+      expect((await findStoredTemplate(template.id))?.currentVersionId).toBe(first.id);
+      expect((await findStoredTemplate(untouched.id))?.currentVersionId).toBe(ofUntouched.id);
+      expect((await repository.findCurrent(template.id))?.id).not.toBe(second.id);
+    });
+  });
+
+  describe("hasNewerLiveOrHeld", () => {
+    it.each([
+      { newer: "live", expected: true },
+      { newer: "held", expected: true },
+      { newer: "failed_checks", expected: false },
+      { newer: "rejected", expected: false }
+    ] as const)("answers $expected when the version saved after it is $newer", async ({ newer, expected }) => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+      const other = await seedTemplate();
+      await seedVersion(template.id, 1, "live");
+      await seedVersion(template.id, 2, "held");
+      await seedVersion(template.id, 3, newer);
+      await seedVersion(other.id, 9, "live");
+
+      expect(await repository.hasNewerLiveOrHeld(template.id, 2)).toBe(expected);
+    });
+
+    it("looks past the version itself and the ones before it", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+      await seedVersion(template.id, 1, "live");
+      await seedVersion(template.id, 2, "live");
+
+      expect(await repository.hasNewerLiveOrHeld(template.id, 2)).toBe(false);
+      expect(await repository.hasNewerLiveOrHeld(template.id, 1)).toBe(true);
+    });
+  });
+
+  describe("findNewestOf", () => {
+    it("answers the newest version of each template asked for, whatever became of it, in one read", async () => {
+      const { repository } = setup();
+      const [held, failed, live, unasked, versionless] = await Promise.all([seedTemplate(), seedTemplate(), seedTemplate(), seedTemplate(), seedTemplate()]);
+      await seedVersion(held.id, 1, "live");
+      await seedVersion(held.id, 2, "rejected");
+      await seedVersion(held.id, 3, "held");
+      await seedVersion(failed.id, 1, "live");
+      await seedVersion(failed.id, 2, "failed_checks");
+      await seedVersion(live.id, 10, "live");
+      await seedVersion(live.id, 9, "held");
+      await seedVersion(unasked.id, 1, "live");
+
+      const newest = await repository.findNewestOf([held.id, failed.id, live.id, versionless.id]);
+
+      expect(newest).toEqual(
+        new Map([
+          [held.id, { version: 3, status: "held" }],
+          [failed.id, { version: 2, status: "failed_checks" }],
+          [live.id, { version: 10, status: "live" }]
+        ])
+      );
+    });
+
+    it("answers nothing for no template", async () => {
+      const { repository } = setup();
+
+      expect(await repository.findNewestOf([])).toEqual(new Map());
     });
   });
 
@@ -434,6 +592,9 @@ describe(TemplateVersionRepository.name, () => {
           status: "live",
           checkResults: null,
           changes: ["readme_changed"],
+          holdReasons: null,
+          reviewedAt: null,
+          reviewNote: null,
           createdById: null,
           createdBy: null,
           createdAt: second.createdAt
@@ -446,6 +607,9 @@ describe(TemplateVersionRepository.name, () => {
           status: "live",
           checkResults: null,
           changes: ["first_version"],
+          holdReasons: null,
+          reviewedAt: null,
+          reviewNote: null,
           createdById: null,
           createdBy: null,
           createdAt: first.createdAt
@@ -472,6 +636,10 @@ describe(TemplateVersionRepository.name, () => {
       .returning();
     createdTemplateIds.push(template.id);
     return template;
+  }
+
+  async function seedVersion(templateId: string, version: number, status: TemplateVersionStatus) {
+    await container.resolve<ApiPgDatabase>(POSTGRES_DB).insert(resolveTable("TemplateVersions")).values({ templateId, version, status, sdl: "sdl" });
   }
 
   function sdlWithImage(image: string) {

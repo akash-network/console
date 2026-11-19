@@ -90,7 +90,7 @@ describe(MarketplaceTemplateController.name, () => {
     it("answers the version summaries with ISO dates and without their creators' internal ids", async () => {
       const templateId = faker.string.uuid();
       const summaries: ListedTemplateVersion[] = [2, 1].map(version => {
-        const { sdl: _sdl, readme: _readme, askedValues: _askedValues, ...summary } = createVersion({ templateId, version });
+        const { sdl: _sdl, readme: _readme, askedValues: _askedValues, imageDigests: _imageDigests, ...summary } = createVersion({ templateId, version });
         return { ...summary, deploys: version * 3 };
       });
       const { controller, service } = setup();
@@ -113,6 +113,30 @@ describe(MarketplaceTemplateController.name, () => {
 
       expect(result).toEqual({ data: publishedVersionOf(version) });
       expect(service.getVersion).toHaveBeenCalledWith(version.templateId, 4);
+    });
+  });
+
+  describe("a reviewed version", () => {
+    it("answers when staff reviewed a version as an ISO date, with why it waited, what they wrote and its image digests", async () => {
+      const reviewedAt = new Date("2026-11-10T09:00:00.000Z");
+      const holdReasons = [{ kind: "official_template" as const, message: "Official templates are always reviewed." }];
+      const version = createVersion({ version: 4, status: "rejected", holdReasons, reviewedAt, reviewNote: "Runs a miner." });
+      const { sdl: _sdl, readme: _readme, askedValues: _askedValues, imageDigests: _imageDigests, ...summary } = version;
+      const { controller, service } = setup();
+      service.getVersion.mockResolvedValue(version);
+      service.listVersions.mockResolvedValue([{ ...summary, deploys: 0 }]);
+
+      const read = await controller.getVersion(version.templateId, 4);
+      const listed = await controller.listVersions(version.templateId);
+
+      expect(read.data).toMatchObject({
+        status: "rejected",
+        holdReasons,
+        reviewedAt: "2026-11-10T09:00:00.000Z",
+        reviewNote: "Runs a miner.",
+        imageDigests: { "nginx:1.27": "sha256:abc" }
+      });
+      expect(listed.data).toMatchObject([{ status: "rejected", holdReasons, reviewedAt: "2026-11-10T09:00:00.000Z", reviewNote: "Runs a miner." }]);
     });
   });
 
@@ -155,7 +179,13 @@ describe(MarketplaceTemplateController.name, () => {
   describe("listTemplates", () => {
     it("answers the organization's templates with ISO dates", async () => {
       const item = createListItem();
-      const unversioned = createListItem({ currentVersion: null, lastEditedBy: null, usage: { deploys: 0, lastDeployedAt: null } });
+      const unversioned = createListItem({
+        currentVersion: null,
+        latestVersion: null,
+        publishedAt: null,
+        lastEditedBy: null,
+        usage: { deploys: 0, lastDeployedAt: null }
+      });
       const { controller, service } = setup();
       service.listInOrganization.mockResolvedValue([item, unversioned]);
       const query = { visibility: "organization" as const, projectId: faker.string.uuid() };
@@ -167,6 +197,7 @@ describe(MarketplaceTemplateController.name, () => {
           {
             ...item,
             updatedAt: item.updatedAt.toISOString(),
+            publishedAt: item.publishedAt!.toISOString(),
             currentVersion: { ...item.currentVersion, createdAt: item.currentVersion!.createdAt.toISOString() },
             usage: { deploys: item.usage.deploys, lastDeployedAt: item.usage.lastDeployedAt!.toISOString() }
           },
@@ -236,8 +267,10 @@ describe(MarketplaceTemplateController.name, () => {
       moderationStatus: "active",
       projectId: faker.string.uuid(),
       copiedFromId: null,
+      publishedAt: faker.date.past(),
       updatedAt: faker.date.recent(),
       currentVersion: { version: 3, status: "live", createdAt: faker.date.recent() },
+      latestVersion: { version: 4, status: "held" },
       lastEditedBy: { username: faker.internet.userName() },
       canEdit: true,
       usage: { deploys: faker.number.int({ min: 1, max: 100 }), lastDeployedAt: faker.date.recent() },
@@ -245,8 +278,13 @@ describe(MarketplaceTemplateController.name, () => {
     };
   }
 
-  function publishedVersionOf<V extends { createdById: string | null; createdAt: Date }>({ createdById: _createdById, createdAt, ...version }: V) {
-    return { ...version, createdAt: createdAt.toISOString() };
+  function publishedVersionOf<V extends { createdById: string | null; createdAt: Date; reviewedAt: Date | null }>({
+    createdById: _createdById,
+    createdAt,
+    reviewedAt,
+    ...version
+  }: V) {
+    return { ...version, createdAt: createdAt.toISOString(), reviewedAt: reviewedAt?.toISOString() ?? null };
   }
 
   function createVersion(overrides: Partial<PublishedTemplateVersion> = {}): PublishedTemplateVersion {
@@ -258,9 +296,13 @@ describe(MarketplaceTemplateController.name, () => {
       readme: faker.lorem.paragraph(),
       askedValues: [],
       resources: { cpu: 1, memoryBytes: 1024, storageBytes: 1024 },
+      imageDigests: { "nginx:1.27": "sha256:abc" },
       status: "live",
       checkResults: null,
       changes: ["image_changed"],
+      holdReasons: null,
+      reviewedAt: null,
+      reviewNote: null,
       createdById: faker.string.uuid(),
       createdBy: { username: faker.internet.userName() },
       createdAt: faker.date.recent(),

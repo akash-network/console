@@ -33,12 +33,12 @@ import { TemplatePublishService } from "@src/template-marketplace/services/templ
 import { TemplateReportService } from "@src/template-marketplace/services/template-report/template-report.service";
 import { TemplateWriterService } from "@src/template-marketplace/services/template-writer/template-writer.service";
 
-function toVersionSummaryResponse({ createdById: _createdById, createdAt, ...version }: ListedTemplateVersion): TemplateVersionSummaryResponse {
-  return { ...version, createdAt: createdAt.toISOString() };
+function toVersionSummaryResponse({ createdById: _createdById, createdAt, reviewedAt, ...version }: ListedTemplateVersion): TemplateVersionSummaryResponse {
+  return { ...version, createdAt: createdAt.toISOString(), reviewedAt: reviewedAt?.toISOString() ?? null };
 }
 
-function toVersionResponse({ createdById: _createdById, createdAt, ...version }: PublishedTemplateVersion): GetUserTemplateVersionResponse["data"] {
-  return { ...version, createdAt: createdAt.toISOString() };
+function toVersionResponse({ createdById: _createdById, createdAt, reviewedAt, ...version }: PublishedTemplateVersion): GetUserTemplateVersionResponse["data"] {
+  return { ...version, createdAt: createdAt.toISOString(), reviewedAt: reviewedAt?.toISOString() ?? null };
 }
 
 function toTemplateResponse({
@@ -59,10 +59,11 @@ function toTemplateResponse({
   };
 }
 
-function toListItemResponse({ updatedAt, currentVersion, usage, ...item }: UserTemplateListItem): ListUserTemplatesResponse["data"][number] {
+function toListItemResponse({ updatedAt, publishedAt, currentVersion, usage, ...item }: UserTemplateListItem): ListUserTemplatesResponse["data"][number] {
   return {
     ...item,
     updatedAt: updatedAt.toISOString(),
+    publishedAt: publishedAt?.toISOString() ?? null,
     currentVersion: currentVersion && { ...currentVersion, createdAt: currentVersion.createdAt.toISOString() },
     usage: { ...usage, lastDeployedAt: usage.lastDeployedAt?.toISOString() ?? null }
   };

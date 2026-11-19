@@ -39,7 +39,7 @@ const EXPECTED: Record<PublisherNoticeKind, Expected> = {
     category: "templateVersionHeld",
     summary: 'Version 3 of "Postgres 16" is waiting for review',
     description:
-      `<p>Version 3 of ${TITLE} changes what a widely used template runs, so Akash staff review it before it goes live. ${CURRENT_STAYS}</p>` +
+      `<p>Akash staff review version 3 of ${TITLE} before it goes live. ${CURRENT_STAYS}</p>` +
       `<p>You don't need to do anything. We'll let you know once it's reviewed.</p>${REASON}${SUPPORT}`,
     actions: OPEN_TEMPLATE
   },
@@ -111,6 +111,20 @@ describe(templatePublisherNotification.name, () => {
     expect(result.payload.description).toContain(
       "then save a new version.</p><p><strong>What the checks found:</strong><br>The SDL sets a secret in plain text.<br>The image has no tag.</p>" + SUPPORT
     );
+  });
+
+  it("lists why a held version waits for review under its own heading", () => {
+    const result = templatePublisherNotification(
+      USER,
+      varsOf({ kind: "version_held", reason: null, issues: ['Service "web" opens port 22 (tcp) to the internet, which the current version does not.'] })
+    );
+
+    expect(result.payload.description).toContain(
+      "We'll let you know once it's reviewed.</p><p><strong>Why it waits for review:</strong><br>" +
+        "Service &quot;web&quot; opens port 22 (tcp) to the internet, which the current version does not.</p>" +
+        SUPPORT
+    );
+    expect(result.payload.description).not.toContain("What the checks found");
   });
 
   it("leaves the list of findings out when there are none", () => {
