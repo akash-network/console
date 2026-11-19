@@ -12,6 +12,12 @@ export type ConfigureDeploymentParams = {
   draftId?: string;
   vm?: boolean;
   exampleImage?: boolean;
+  gpuVendor?: string;
+  gpuModel?: string;
+  gpuCount?: number;
+  gpuMemory?: string;
+  gpuInterface?: string;
+  org?: string;
 };
 
 export const domainName = "https://console.akash.network";
@@ -98,9 +104,40 @@ export const UrlService = {
   newDeployment: ({ projectId }: { projectId?: string } = {}) => `/new-deployment${appendSearchParams({ projectId })}`,
 
   configureDeployment: (params: ConfigureDeploymentParams = {}) => {
-    const { dseq, templateId, userTemplateId, templateVersion, sdlStrategy, bidStrategy, draftId, vm, exampleImage } = params;
+    const {
+      dseq,
+      templateId,
+      userTemplateId,
+      templateVersion,
+      sdlStrategy,
+      bidStrategy,
+      draftId,
+      vm,
+      exampleImage,
+      gpuVendor,
+      gpuModel,
+      gpuCount,
+      gpuMemory,
+      gpuInterface,
+      org
+    } = params;
     const base = dseq ? `/new-deployment/configure/${dseq}` : "/new-deployment/configure";
-    return `${base}${appendSearchParams({ templateId, userTemplateId, templateVersion, "sdl-strategy": sdlStrategy, "bid-strategy": bidStrategy, draftId, vm, exampleImage })}`;
+    return `${base}${appendSearchParams({
+      templateId,
+      userTemplateId,
+      templateVersion,
+      "sdl-strategy": sdlStrategy,
+      "bid-strategy": bidStrategy,
+      draftId,
+      vm,
+      exampleImage,
+      gpuVendor,
+      gpuModel,
+      gpuCount,
+      gpuMemory,
+      gpuInterface,
+      org
+    })}`;
   },
 
   configureTemplate: (params: {

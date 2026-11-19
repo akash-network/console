@@ -78,9 +78,15 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
   const routeParams = d.useParams();
   const dseqSegment = Array.isArray(routeParams?.dseq) ? routeParams.dseq[0] : (routeParams?.dseq as string | undefined);
   const isTemplateMarketplaceEnabled = d.useFlag("template_marketplace");
-  const intent = parseDeploymentIntent(
-    { dseqSegment, searchParams: new URLSearchParams(searchParams?.toString() ?? "") },
-    { isTemplateModeEnabled: isTemplateMarketplaceEnabled }
+  const isGpuAlertsEnabled = d.useFlag("gpu_availability_alerts");
+  const searchParamsText = searchParams?.toString() ?? "";
+  const intent = useMemo(
+    () =>
+      parseDeploymentIntent(
+        { dseqSegment, searchParams: new URLSearchParams(searchParamsText) },
+        { isTemplateModeEnabled: isTemplateMarketplaceEnabled, isGpuAlertsEnabled }
+      ),
+    [dseqSegment, searchParamsText, isTemplateMarketplaceEnabled, isGpuAlertsEnabled]
   );
   const [hasStartedDeploying, setHasStartedDeploying] = useState(false);
   const autoDeployStart = d.useTakeAutoDeployStart(intent, { hasStartedDeploying });
@@ -147,7 +153,7 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({
     [draft.draftId, onDraftIdChange]
   );
 
-  useTrackLinkedGpuOpened(d, intent.gpu);
+  useTrackLinkedGpuOpened(d, intent);
 
   const templateId = intent.templateId;
   const deploySdl = useAtomValue(sdlStore.deploySdl);
@@ -209,7 +215,8 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({
       draftId: draft.draftId,
       vm: intent.vm,
       exampleImage: intent.exampleImage,
-      gpu: intent.gpu
+      gpu: intent.gpu,
+      ...(intent.organizationId ? { organizationId: intent.organizationId } : {})
     }),
     [
       intent.templateId,
@@ -225,7 +232,8 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({
       draft.draftId,
       intent.vm,
       intent.exampleImage,
-      intent.gpu
+      intent.gpu,
+      intent.organizationId
     ]
   );
 
@@ -280,17 +288,23 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({
   );
 };
 
-function useTrackLinkedGpuOpened(d: typeof DEPENDENCIES, gpu: DeploymentIntent["gpu"]) {
+const trackedGpuLinks = new Set<string>();
+
+/** Only a link opened without a draft counts, and the organization switch remounts the screen, so each link is tracked once per page load. */
+function useTrackLinkedGpuOpened(d: typeof DEPENDENCIES, intent: DeploymentIntent) {
   const { analyticsService } = d.useServices();
-  const hasTracked = useRef(false);
+  const wasOpenedWithoutDraft = useRef(!intent.draftId).current;
+  const gpu = intent.gpu;
 
   useEffect(
     function trackTheGpuAlertDeployOpened() {
-      if (!gpu || hasTracked.current) return;
-      hasTracked.current = true;
+      if (!gpu || !wasOpenedWithoutDraft) return;
+      const link = [gpu.model, gpu.count, gpu.memory, gpu.interface, intent.organizationId].join("|");
+      if (trackedGpuLinks.has(link)) return;
+      trackedGpuLinks.add(link);
       analyticsService.track("gpu_alert_deploy_opened", { category: "deployments", model: gpu.model, gpuCount: gpu.count });
     },
-    [gpu, analyticsService]
+    [gpu, wasOpenedWithoutDraft, intent.organizationId, analyticsService]
   );
 }
 

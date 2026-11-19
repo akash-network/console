@@ -293,8 +293,36 @@ describe(parseDeploymentIntent.name, () => {
       expect(parseGpuUrl("gpuVendor=nvidia&gpuModel=h100&gpuCount=1").gpu).toEqual({ vendor: "nvidia", model: "h100", count: 1 });
     });
 
-    it("keeps a pcie interface as given", () => {
+    it("keeps a pcie interface and folds a pcie generation", () => {
       expect(parseGpuUrl("gpuVendor=nvidia&gpuModel=a100&gpuCount=2&gpuInterface=pcie").gpu?.interface).toBe("pcie");
+      expect(parseGpuUrl("gpuVendor=nvidia&gpuModel=a100&gpuCount=2&gpuInterface=pcie4").gpu?.interface).toBe("pcie");
+    });
+
+    it("omits an unrecognized interface", () => {
+      expect(parseGpuUrl("gpuVendor=nvidia&gpuModel=a100&gpuCount=2&gpuInterface=nvlink").gpu).toEqual({ vendor: "nvidia", model: "a100", count: 2 });
+    });
+
+    it("normalizes the memory casing and drops a malformed memory", () => {
+      expect(parseGpuUrl("gpuVendor=nvidia&gpuModel=h100&gpuCount=2&gpuMemory=80gi").gpu?.memory).toBe("80Gi");
+      expect(parseGpuUrl("gpuVendor=nvidia&gpuModel=h100&gpuCount=2&gpuMemory=80GB").gpu?.memory).toBeUndefined();
+      expect(parseGpuUrl("gpuVendor=nvidia&gpuModel=h100&gpuCount=2&gpuMemory=Gi").gpu?.memory).toBeUndefined();
+    });
+
+    it("ignores the gpu setup when the alerts flag is off", () => {
+      const intent = parseDeploymentIntent({ dseqSegment: undefined, searchParams: new URLSearchParams("gpuVendor=nvidia&gpuModel=h100&gpuCount=2") });
+
+      expect(intent.gpu).toBeUndefined();
+    });
+
+    it("keeps the gpu setup alongside a draft id", () => {
+      const intent = parseGpuUrl("gpuVendor=nvidia&gpuModel=h100&gpuCount=2&draftId=draft-1");
+
+      expect(intent).toMatchObject({ draftId: "draft-1", gpu: { vendor: "nvidia", model: "h100", count: 2 } });
+    });
+
+    it("reads the organization the link asks for", () => {
+      expect(parseGpuUrl("gpuVendor=nvidia&gpuModel=h100&gpuCount=2&org=org-1").organizationId).toBe("org-1");
+      expect(parseGpuUrl("gpuVendor=nvidia&gpuModel=h100&gpuCount=2").organizationId).toBeUndefined();
     });
 
     it.each(["0", "65", "-1", "2.5", "abc", "", "1e1"])("ignores an invalid gpu count of %j", count => {
@@ -320,13 +348,16 @@ describe(parseDeploymentIntent.name, () => {
       expect(parseGpuUrl("gpuVendor=nvidia&gpuCount=2").gpu).toBeUndefined();
     });
 
-    it.each(["templateId=abc", "userTemplateId=tpl-1", "draftId=draft-1", "vm=true"])("ignores the gpu setup alongside %s", extra => {
+    it.each(["templateId=abc", "userTemplateId=tpl-1", "vm=true"])("ignores the gpu setup alongside %s", extra => {
       expect(parseGpuUrl(`gpuVendor=nvidia&gpuModel=h100&gpuCount=2&${extra}`).gpu).toBeUndefined();
     });
   });
 
   function parseGpuUrl(query: string) {
-    return parseDeploymentIntent({ dseqSegment: undefined, searchParams: new URLSearchParams(query) });
+    return parseDeploymentIntent(
+      { dseqSegment: undefined, searchParams: new URLSearchParams(query) },
+      { isTemplateModeEnabled: false, isGpuAlertsEnabled: true }
+    );
   }
 
   function parseTemplateUrl(query: string, dseqSegment?: string) {

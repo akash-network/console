@@ -1711,6 +1711,17 @@ describe(ConfigureDeploymentForm.name, () => {
       expect(screen.getByTestId("sdl").textContent).toContain(HELLO_WORLD_IMAGE);
     });
 
+    it("starts over from the linked gpu setup when the session is reset", async () => {
+      setup({ initialSdl: undefined, gpu: { vendor: "nvidia", model: "h100", count: 8 }, twoPanel: true, Workspace: ResetProbeWorkspace });
+      await userEvent.click(screen.getByRole("button", { name: "rename first service" }));
+      await waitFor(() => expect(screen.getByTestId("service-titles").textContent).toBe("renamed"));
+
+      await userEvent.click(screen.getByRole("button", { name: "reset" }));
+
+      await waitFor(() => expect(screen.getByTestId("service-titles").textContent).toBe("service-1"));
+      expect(screen.getByTestId("sdl").textContent).toContain("model: h100");
+    });
+
     it("restores the sdl a restored draft started from rather than the draft's own edits", async () => {
       setup({ initialSdl: TWO_SERVICE_SDL, persistedSdl: TWO_SERVICE_SDL, persistedStartingSdl: VALID_SDL, twoPanel: true, Workspace: ResetProbeWorkspace });
       expect(screen.getByTestId("service-titles").textContent).toBe("web,api");
@@ -1873,6 +1884,7 @@ describe(ConfigureDeploymentForm.name, () => {
     noBidsReceived?: boolean;
     vm?: boolean;
     exampleImage?: boolean;
+    gpu?: { vendor: "nvidia"; model: string; count: number };
     phase?: DeploymentFlow["phase"];
     pendingClose?: DeploymentFlow["pendingClose"];
     recommendedBidIds?: string[];
@@ -2018,7 +2030,8 @@ describe(ConfigureDeploymentForm.name, () => {
           dseq: undefined,
           draftId: input.draftId,
           vm: input.vm ?? false,
-          exampleImage: input.exampleImage
+          exampleImage: input.exampleImage,
+          gpu: input.gpu
         }}
         flow={flow}
         templateSource={input.templateSource}

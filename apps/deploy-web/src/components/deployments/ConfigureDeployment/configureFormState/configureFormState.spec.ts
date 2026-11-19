@@ -156,10 +156,12 @@ describe("configureFormState", () => {
       expect(getInitialState(undefined, { vm: false }).values.services[0].profile.hasGpu).toBe(false);
     });
 
-    it("prefers a carried-in sdl over the linked gpu", () => {
+    it("prefers a restored sdl over the linked gpu", () => {
       const state = getInitialState(WEB_SDL, { vm: false, gpu: { vendor: "nvidia", model: "h100", count: 8 } });
 
-      expect(state.values.services[0].profile.hasGpu).toBeFalsy();
+      expect(state.values.services[0].title).toBe("web");
+      expect(state.values.services[0].profile.hasGpu).toBe(false);
+      expect(state.sdl).not.toContain("h100");
     });
   });
 });
