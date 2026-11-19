@@ -187,8 +187,8 @@ export const ReportTemplateDialog: FC<ReportTemplateDialogProps> = ({ template, 
               <Button type="button" variant="ghost" disabled={isSending} onClick={onClose}>
                 Cancel
               </Button>
-              <LoadingButton type="submit" form={formId} loading={isSending} disabled={!reason || isSending} className="gap-1.5">
-                <Flag className="h-4 w-4" aria-hidden="true" />
+              <LoadingButton type="submit" form={formId} loading={isSending} disabled={!reason || isSending}>
+                <Flag className="mr-1.5 h-4 w-4" aria-hidden="true" />
                 Send report
               </LoadingButton>
             </DialogV2Footer>
