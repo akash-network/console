@@ -423,7 +423,7 @@ describe(AvailabilityPane.name, () => {
       expect(screen.queryByRole("button", { name: "Request this hardware" })).not.toBeInTheDocument();
       await userEvent.click(screen.getByRole("button", { name: "Notify me when available" }));
 
-      expect(notify).toHaveBeenCalledWith({ ...h100, label: "H100" }, "no_fit");
+      expect(notify).toHaveBeenCalledWith(h100, "no_fit");
     });
 
     it("keeps reserve capacity as the secondary action", async () => {
@@ -451,6 +451,22 @@ describe(AvailabilityPane.name, () => {
 
       expect(screen.getByText("Waiting · #4 in line")).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Notify me when available" })).not.toBeInTheDocument();
+    });
+
+    it("offers to switch the count when already waiting for another number of gpus", async () => {
+      const { notify } = setup({
+        isAlertsEnabled: true,
+        waitingPlace: 4,
+        waitingGpuCount: 1,
+        hasPlacementWithoutProviders: true,
+        eligibleCount: 0,
+        gpuAvailability: { requestsGpu: true, notifiableGpu: h100, noGpuCount: 5 }
+      });
+
+      expect(screen.getByText(/Waiting for 1×/)).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "Switch to 8×" }));
+
+      expect(notify).toHaveBeenCalledWith(h100, "no_fit");
     });
 
     it("leaves the cpu-only no-fit message unchanged", () => {
@@ -503,6 +519,7 @@ describe(AvailabilityPane.name, () => {
 
       expect(screen.getByRole("button", { name: "Notify me when available" })).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Need it guaranteed? Reserve capacity" })).not.toBeInTheDocument();
+      expect(screen.getByText("Change the resources or request compute.")).toBeInTheDocument();
     });
 
     it("keeps the hint to lower a requirement or widen the region while quotes are on", () => {
@@ -572,6 +589,7 @@ describe(AvailabilityPane.name, () => {
     blockedReason?: string;
     isAlertsEnabled?: boolean;
     waitingPlace?: number;
+    waitingGpuCount?: number;
   }) {
     const onChooseProvider = vi.fn();
     const onRequestCompute = vi.fn();
@@ -609,7 +627,10 @@ describe(AvailabilityPane.name, () => {
         notify,
         findEntry: () =>
           input.waitingPlace
-            ? mock<NonNullable<ReturnType<ReturnType<typeof DEPENDENCIES.useNotifyMe>["findEntry"]>>>({ placeInLine: input.waitingPlace })
+            ? mock<NonNullable<ReturnType<ReturnType<typeof DEPENDENCIES.useNotifyMe>["findEntry"]>>>({
+                placeInLine: input.waitingPlace,
+                gpuCount: input.waitingGpuCount ?? 8
+              })
             : undefined,
         isPending: false
       });

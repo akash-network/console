@@ -15,7 +15,7 @@ import type { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/
 import { lacksRequiredSshKey } from "@src/utils/sdl/sshKey";
 import { HELLO_WORLD_IMAGE } from "@src/utils/templates";
 import { AvailabilityPane } from "../AvailabilityPane/AvailabilityPane";
-import { notifiableGpuOf, requestedGpuLabel } from "../AvailabilityPane/gpuAvailability/gpuAvailability";
+import { notifiableGpuOf } from "../AvailabilityPane/gpuAvailability/gpuAvailability";
 import { ConfigureEditor } from "../ConfigureEditor/ConfigureEditor";
 import { ResetConfigurationButton } from "../ConfigureEditor/ResetConfigurationButton/ResetConfigurationButton";
 import { deployCtaState } from "../deployCtaState/deployCtaState";
@@ -359,7 +359,6 @@ export const ConfigureWorkspace: FC<Props> = ({
                           requestLabel={isQuoteFlowEnabled ? "Request this hardware" : "Request compute"}
                           dseq={flow.dseq}
                           gpu={noBidsGpu}
-                          gpuLabel={noBidsGpu ? requestedGpuLabel({ vendor: noBidsGpu.vendor, name: noBidsGpu.model }, gpuCatalog) : undefined}
                           isQuoteFlowEnabled={isQuoteFlowEnabled}
                           onRequestCompute={() => requestCompute("no_bids_notice", "capacity")}
                         />

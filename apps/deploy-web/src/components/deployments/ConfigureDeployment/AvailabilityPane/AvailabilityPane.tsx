@@ -5,6 +5,7 @@ import { cn } from "@akashnetwork/ui/utils";
 import { ArrowRightIcon, CalendarClockIcon, CircleAlertIcon, GpuIcon, InfoIcon, LoaderCircleIcon, MessageSquareIcon, PanelsTopLeftIcon } from "lucide-react";
 
 import { useNotifyMe } from "@src/components/gpu-alerts/useNotifyMe/useNotifyMe";
+import { WaitingForGpu } from "@src/components/gpu-alerts/WaitingForGpu/WaitingForGpu";
 import { AccountSpendGate } from "@src/components/user/AccountActionGate/AccountActionGate";
 import { useFlag } from "@src/hooks/useFlag";
 import { useNetworkProviderCount } from "@src/queries/useNetworkProviderCount";
@@ -131,7 +132,6 @@ export const AvailabilityPane: FC<Props> = ({
             <NotifyNoFitCard
               placementCount={placementCount}
               gpu={notifiableGpu}
-              label={gpuAvailability.requestedLabel}
               notifyMe={notifyMe}
               onReserve={isQuoteFlowEnabled ? onRequestComputeForNoFit : undefined}
             />
@@ -210,13 +210,11 @@ function NoFitCard({ placementCount, onRequest }: { placementCount: number; onRe
 function NotifyNoFitCard({
   placementCount,
   gpu,
-  label,
   notifyMe,
   onReserve
 }: {
   placementCount: number;
   gpu: NotifiableGpuSetup;
-  label: string;
   notifyMe: ReturnType<typeof DEPENDENCIES.useNotifyMe>;
   onReserve?: () => void;
 }) {
@@ -226,20 +224,26 @@ function NotifyNoFitCard({
     <section aria-label="Get notified when this GPU is available" className="flex flex-col gap-3 rounded-lg border border-foreground p-4">
       <p className="text-sm text-muted-foreground">{describeNoFit(placementCount)}</p>
       {waiting ? (
-        <p className="text-sm font-medium">Waiting · #{waiting.placeInLine} in line</p>
+        <WaitingForGpu
+          placeInLine={waiting.placeInLine}
+          waitingGpuCount={waiting.gpuCount}
+          gpuCount={gpu.gpuCount}
+          isPending={notifyMe.isPending}
+          onSwitch={() => notifyMe.notify(gpu, "no_fit")}
+        />
       ) : (
-        <Button type="button" disabled={notifyMe.isPending} onClick={() => notifyMe.notify({ ...gpu, label }, "no_fit")} className="gap-2 self-start">
+        <Button type="button" disabled={notifyMe.isPending} onClick={() => notifyMe.notify(gpu, "no_fit")} className="gap-2 self-start">
           Notify me when available
         </Button>
       )}
       {onReserve && (
-        <>
-          <Button type="button" variant="link" onClick={onReserve} className="h-auto justify-start p-0 text-xs">
-            Need it guaranteed? Reserve capacity
-          </Button>
-          <p className="text-xs text-muted-foreground">You can also lower a hardware requirement or widen the region.</p>
-        </>
+        <Button type="button" variant="link" onClick={onReserve} className="h-auto justify-start p-0 text-xs">
+          Need it guaranteed? Reserve capacity
+        </Button>
       )}
+      <p className="text-xs text-muted-foreground">
+        {onReserve ? "You can also lower a hardware requirement or widen the region." : "Change the resources or request compute."}
+      </p>
     </section>
   );
 }

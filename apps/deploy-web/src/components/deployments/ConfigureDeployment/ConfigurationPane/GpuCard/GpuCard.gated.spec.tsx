@@ -159,6 +159,8 @@ describe("GpuCard trial gate", () => {
         return { count: offered?.providerCount ?? 0, gpuCount: offered?.availableUnits ?? 0, isLoading: false };
       });
 
+    const useScreenedNoGpuCount: typeof DEPENDENCIES.useScreenedNoGpuCount = () => null;
+
     const Wrapper = ({ children }: PropsWithChildren) => {
       const form = useForm<SdlBuilderFormValuesType>({ defaultValues: values, mode: "onChange" });
       return <FormProvider {...form}>{children}</FormProvider>;
@@ -170,7 +172,7 @@ describe("GpuCard trial gate", () => {
           serviceIndex={0}
           isBlockedModel={input.isBlockedModel}
           onUnlock={input.onUnlock}
-          dependencies={{ ...DEPENDENCIES, useGpuModels, useFieldError, useNotifyMe, usePlacementOptions, useScreenedGpuModelCounts }}
+          dependencies={{ ...DEPENDENCIES, useGpuModels, useFieldError, useNotifyMe, usePlacementOptions, useScreenedGpuModelCounts, useScreenedNoGpuCount }}
         />
       </Wrapper>
     );
