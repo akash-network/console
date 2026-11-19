@@ -2,9 +2,9 @@ import { generateManifest } from "@akashnetwork/chain-sdk";
 import type { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import type { Bid, QueryBidResponse, QueryBidsResponse } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import type { EncodeObject } from "@cosmjs/proto-signing";
-import type { DeliverTxResponse, SigningStargateClient } from "@cosmjs/stargate";
-import { describe, expect, it, vi } from "vitest";
-import { mock, mockDeep } from "vitest-mock-extended";
+import { BroadcastTxError, type DeliverTxResponse, type SigningStargateClient } from "@cosmjs/stargate";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { mock, mockDeep, type MockProxy } from "vitest-mock-extended";
 
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { ChainSDK } from "@src/chain/providers/chain-sdk.provider";
@@ -18,8 +18,13 @@ import { type GpuCheckManifest, GpuCheckRunner } from "./gpu-check-runner.servic
 import { mockConfigService } from "@test/mocks/config-service.mock";
 
 const BOT_ADDRESS = "akash1bot";
+const SEQUENCE_MISMATCH = "account sequence mismatch, expected 16, got 15: incorrect account sequence";
 
 describe(GpuCheckRunner.name, () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   describe("connect", () => {
     it("connects with the bot wallet", async () => {
       const { runner, signingClient, signingClientFactory } = setup();
@@ -171,6 +176,70 @@ describe(GpuCheckRunner.name, () => {
       expect(signingClient.broadcastTx).toHaveBeenCalledTimes(1);
     });
 
+    it("logs a failed transaction with its code and raw log", async () => {
+      const { runner, session, signingClient, logger } = setup();
+      signingClient.broadcastTx.mockResolvedValueOnce(mock<DeliverTxResponse>({ code: 5, rawLog: "insufficient funds" }));
+
+      await expect(runner.run(session, [{ manifest: aManifest(["a100"]) }])).rejects.toThrow();
+
+      expect(logger.error).toHaveBeenCalledWith({ event: "GPU_CHECK_TX_FAILED", code: 5, rawLog: "insufficient funds" });
+    });
+
+    it.each([
+      {
+        failure: "the simulation",
+        failOnce: (signingClient: MockProxy<SigningStargateClient>) =>
+          signingClient.simulate.mockRejectedValueOnce(
+            new Error(`Query failed with (6): rpc error: code = Unknown desc = ${SEQUENCE_MISMATCH}: unknown request`)
+          )
+      },
+      {
+        failure: "the broadcast",
+        failOnce: (signingClient: MockProxy<SigningStargateClient>) =>
+          signingClient.broadcastTx.mockRejectedValueOnce(new BroadcastTxError(32, "sdk", SEQUENCE_MISMATCH))
+      },
+      {
+        failure: "the delivered transaction",
+        failOnce: (signingClient: MockProxy<SigningStargateClient>) =>
+          signingClient.broadcastTx.mockResolvedValueOnce(mock<DeliverTxResponse>({ code: 32, rawLog: SEQUENCE_MISMATCH }))
+      }
+    ])("signs the create transaction again with a fresh sequence after a block when $failure reports a sequence mismatch", async ({ failOnce }) => {
+      vi.useFakeTimers({ toFake: ["setTimeout"] });
+      const { runner, session, signingClient, logger } = setup();
+      failOnce(signingClient);
+
+      const run = runner.run(session, [{ manifest: aManifest(["a100"]) }]);
+      await untilWarned(logger, "GPU_CHECK_CREATE_SEQUENCE_MISMATCH");
+      await vi.advanceTimersByTimeAsync(6_999);
+      const createAttemptsBeforeABlock = createAttempts(signingClient);
+      const results = await settleWithTimers(run);
+
+      expect(createAttemptsBeforeABlock).toBe(1);
+      expect(createAttempts(signingClient)).toBe(2);
+      expect(results).toHaveLength(1);
+    });
+
+    it("gives up when the create transaction mismatches its sequence a second time", async () => {
+      vi.useFakeTimers({ toFake: ["setTimeout"] });
+      const { runner, session, signingClient } = setup();
+      signingClient.broadcastTx.mockRejectedValue(new BroadcastTxError(32, "sdk", SEQUENCE_MISMATCH));
+
+      const run = runner.run(session, [{ manifest: aManifest(["a100"]) }]);
+
+      await expect(settleWithTimers(run)).rejects.toThrow(SEQUENCE_MISMATCH);
+
+      expect(signingClient.broadcastTx).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not retry a create transaction that fails for another reason", async () => {
+      const { runner, session, signingClient } = setup();
+      signingClient.broadcastTx.mockRejectedValueOnce(new BroadcastTxError(5, "sdk", "insufficient funds"));
+
+      await expect(runner.run(session, [{ manifest: aManifest(["a100"]) }])).rejects.toThrow("insufficient funds");
+
+      expect(signingClient.broadcastTx).toHaveBeenCalledTimes(1);
+    });
+
     it("does nothing when there is nothing to check", async () => {
       const { runner, session, signingClient } = setup();
 
@@ -225,6 +294,31 @@ describe(GpuCheckRunner.name, () => {
 
   function sentTransactions(signingClient: SigningStargateClient): EncodeObject[][] {
     return vi.mocked(signingClient.sign).mock.calls.map(([, messages]) => [...messages]);
+  }
+
+  async function untilWarned(logger: ReturnType<CreateLogger>, event: string) {
+    while (!vi.mocked(logger.warn).mock.calls.some(([log]) => (log as { event?: string }).event === event)) {
+      await new Promise(resolve => setImmediate(resolve));
+    }
+  }
+
+  async function settleWithTimers<T>(promise: Promise<T>): Promise<T> {
+    let isSettled = false;
+    const settled = promise.finally(() => {
+      isSettled = true;
+    });
+    settled.catch(() => undefined);
+
+    while (!isSettled) {
+      await vi.advanceTimersByTimeAsync(1_000);
+      await new Promise(resolve => setImmediate(resolve));
+    }
+
+    return await settled;
+  }
+
+  function createAttempts(signingClient: SigningStargateClient): number {
+    return vi.mocked(signingClient.simulate).mock.calls.filter(([, messages]) => messages[0].typeUrl.endsWith("MsgCreateDeployment")).length;
   }
 
   function createdDseqs(signingClient: SigningStargateClient): bigint[] {

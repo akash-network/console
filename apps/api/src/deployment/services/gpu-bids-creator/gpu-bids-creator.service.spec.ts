@@ -417,6 +417,18 @@ describe(GpuBidsCreatorService.name, () => {
     expect(logger.info).toHaveBeenCalledWith({ event: "GPU_CHECK_LEFTOVER_DEPLOYMENT_CLOSED", dseq: "111" });
   });
 
+  it("leaves open the deployments created in the last 15 minutes, which may be another check still waiting for bids", async () => {
+    const now = Date.now();
+    const recentDseq = BigInt(now - 14 * 60 * 1000);
+    const oldDseq = BigInt(now - 16 * 60 * 1000);
+    const { service, signingClient } = setup({ models: [nvidia("h100")], leftoverDseqs: [recentDseq, oldDseq] });
+
+    await service.createGpuBids();
+
+    expect(closedDseqs(signingClient)).toContain(oldDseq);
+    expect(closedDseqs(signingClient)).not.toContain(recentDseq);
+  });
+
   it("keeps closing leftovers and checking when a leftover cannot be closed", async () => {
     const { service, signingClient, logger } = setup({ models: [nvidia("h100")], leftoverDseqs: [111n, 222n] });
     signingClient.broadcastTx.mockResolvedValueOnce(mock<DeliverTxResponse>({ code: 5, rawLog: "deployment closed" }));

@@ -12,6 +12,9 @@ export interface GpuCheck {
 
 export const GPU_CHECK_SHAPES: GpuCheckShape[] = ["pricing", "typical"];
 
+/** Gpu attributes come from what providers and users report, so anything an SDL attribute key cannot carry is skipped rather than written into the SDL. */
+export const SDL_GPU_ATTRIBUTE_VALUE = /^[\w.-]+$/;
+
 const RESOURCES: Record<GpuCheckShape, { cpu: { units: number }; memory: { size: string }; storage: { size: string } }> = {
   /** Kept tiny so a bid prices the gpu rather than the cpu, memory and storage around it; the price service spots the bot's bids by this cpu. */
   pricing: { cpu: { units: 0.1 }, memory: { size: "256Mi" }, storage: { size: "256Mi" } },

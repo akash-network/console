@@ -20,6 +20,9 @@ const GAS_MULTIPLIER = 2;
 
 const DEPOSIT_UACT = "500000";
 
+/** About one block, so a transaction the shared bot wallet signed elsewhere is committed and counted in the sequence the retry reads. */
+const SEQUENCE_MISMATCH_RETRY_DELAY_MS = 7_000;
+
 export interface GpuCheckManifest {
   groups: Parameters<typeof generateManifestVersion>[0];
   groupSpecs: GroupSpec[];
@@ -125,7 +128,15 @@ export class GpuCheckRunner {
       }))
     );
 
-    await this.#signAndBroadcast(owner, client, messages);
+    try {
+      await this.#signAndBroadcast(owner, client, messages);
+    } catch (error) {
+      if (!isSequenceMismatch(error)) throw error;
+
+      this.#logger.warn({ event: "GPU_CHECK_CREATE_SEQUENCE_MISMATCH", dseqs, error });
+      await new Promise(resolve => setTimeout(resolve, SEQUENCE_MISMATCH_RETRY_DELAY_MS));
+      await this.#signAndBroadcast(owner, client, messages);
+    }
   }
 
   /** Each close is its own transaction because its gas grows with the bids placed, and a failed one is left to the next run's leftover cleanup so the bids already read are not lost. */
@@ -147,10 +158,15 @@ export class GpuCheckRunner {
     const txResult = await client.broadcastTx(Uint8Array.from(TxRaw.encode(txRaw).finish()));
 
     if (txResult.code !== 0) {
-      this.#logger.error(txResult);
+      this.#logger.error({ event: "GPU_CHECK_TX_FAILED", code: txResult.code, rawLog: txResult.rawLog });
       throw new Error(`Error broadcasting transaction: ${txResult.rawLog}`);
     }
 
     return txResult;
   }
+}
+
+/** The bot wallet also signs for the gpu-pricing-bot CronJob, and cosmjs reads the sequence when it signs, so the two can race for the same one. */
+function isSequenceMismatch(error: unknown): boolean {
+  return error instanceof Error && error.message.includes("account sequence mismatch");
 }

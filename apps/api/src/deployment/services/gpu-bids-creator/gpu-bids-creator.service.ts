@@ -15,13 +15,10 @@ import {
   type GpuCheckSession
 } from "@src/deployment/services/gpu-check-runner/gpu-check-runner.service";
 import { type GpuModel, PlacementOptionsHttpService } from "@src/deployment/services/placement-options-http/placement-options-http.service";
-import { buildGpuCheckSdl, GPU_CHECK_SHAPES, type GpuCheck, toPlacementName } from "./gpu-check-sdl";
+import { buildGpuCheckSdl, GPU_CHECK_SHAPES, type GpuCheck, SDL_GPU_ATTRIBUTE_VALUE, toPlacementName } from "./gpu-check-sdl";
 
 /** The chain SDK's SDL schema accepts no other gpu vendor, so a deployment for any other would fail validation and stop the run. */
 const SDL_GPU_VENDOR = "nvidia";
-
-/** Model names come from what providers report, so anything an SDL attribute key cannot carry is skipped rather than written into the SDL. */
-const SDL_GPU_MODEL_NAME = /^[\w.-]+$/;
 
 /** The chain refuses a deployment with more placement groups than this. */
 const MAX_GROUPS_PER_DEPLOYMENT = 20;
@@ -30,6 +27,9 @@ const MODELS_PER_DEPLOYMENT = MAX_GROUPS_PER_DEPLOYMENT / GPU_CHECK_SHAPES.lengt
 
 /** One page per run is enough, since each run closes what it finds and leaves the rest to the next. */
 const LEFTOVER_DEPLOYMENTS_PAGE_SIZE = 100n;
+
+/** Check deployments take their creation time in ms as dseq, and one younger than this may still be inside an on-demand setup check's bid window. */
+const MIN_LEFTOVER_AGE_MS = 15 * 60 * 1000;
 
 const CHECK_RETENTION_DAYS = 30;
 
@@ -122,7 +122,7 @@ export class GpuBidsCreatorService {
   async #closeLeftoverDeployments(session: GpuCheckSession): Promise<void> {
     let dseqs: string[];
     try {
-      dseqs = await this.#findActiveDeploymentDseqs(session.owner);
+      dseqs = await this.#findLeftoverDeploymentDseqs(session.owner);
     } catch (error) {
       this.#logger.error({ event: "GPU_CHECK_LEFTOVER_DEPLOYMENTS_UNREAD", error });
       return;
@@ -138,13 +138,15 @@ export class GpuBidsCreatorService {
     }
   }
 
-  async #findActiveDeploymentDseqs(owner: string): Promise<string[]> {
+  async #findLeftoverDeploymentDseqs(owner: string): Promise<string[]> {
     const { deployments } = await this.#chainSdk.akash.deployment.v1beta4.getDeployments({
       filters: { owner, state: "active" },
       pagination: { limit: LEFTOVER_DEPLOYMENTS_PAGE_SIZE }
     });
 
-    return deployments.flatMap(({ deployment }) => (deployment?.id ? [deployment.id.dseq.toString()] : []));
+    const createdBefore = Date.now() - MIN_LEFTOVER_AGE_MS;
+
+    return deployments.flatMap(({ deployment }) => (deployment?.id && Number(deployment.id.dseq) < createdBefore ? [deployment.id.dseq.toString()] : []));
   }
 
   async #deleteExpiredChecks(): Promise<void> {
@@ -203,7 +205,7 @@ export class GpuBidsCreatorService {
 }
 
 function isExpressibleInSdl({ vendor, model }: GpuModel): boolean {
-  return vendor === SDL_GPU_VENDOR && SDL_GPU_MODEL_NAME.test(model);
+  return vendor === SDL_GPU_VENDOR && SDL_GPU_ATTRIBUTE_VALUE.test(model);
 }
 
 /** A model counts as bid on by a provider that bid on any of its shapes, so declining only the tiny pricing order is not a miss. */

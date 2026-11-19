@@ -7,7 +7,7 @@ import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.p
 import { DEPLOYMENT_CONFIG, type DeploymentConfig } from "@src/deployment/config/config.provider";
 import { type GpuBidCheckInsert, GpuBidCheckRepository } from "@src/deployment/repositories/gpu-bid-check/gpu-bid-check.repository";
 import { GpuSetupCheckRunRepository } from "@src/deployment/repositories/gpu-setup-check-run/gpu-setup-check-run.repository";
-import { buildGpuCheckSdl } from "@src/deployment/services/gpu-bids-creator/gpu-check-sdl";
+import { buildGpuCheckSdl, SDL_GPU_ATTRIBUTE_VALUE } from "@src/deployment/services/gpu-bids-creator/gpu-check-sdl";
 import { type GpuCheckManifest, GpuCheckRunner, type GpuCheckRunResult } from "@src/deployment/services/gpu-check-runner/gpu-check-runner.service";
 import { blockPriceToUsd } from "@src/gpu/lib/block-price/block-price";
 import { DayRepository } from "@src/gpu/repositories/day.repository";
@@ -28,10 +28,14 @@ export interface GpuSetupBid {
   priceUsdPerHour: number;
 }
 
-export type GpuSetupCheckOutcome =
-  | { status: "checked"; results: Array<{ setup: GpuSetup; bids: GpuSetupBid[] }> }
-  | { status: "cap_reached" }
-  | { status: "unavailable" };
+/** An invalid setup is left out of the check deployment, so it has no bids. */
+export interface GpuSetupResult {
+  setup: GpuSetup;
+  status: "checked" | "invalid";
+  bids: GpuSetupBid[];
+}
+
+export type GpuSetupCheckOutcome = { status: "checked"; results: GpuSetupResult[] } | { status: "cap_reached" } | { status: "unavailable" };
 
 @singleton()
 export class GpuSetupCheckService {
@@ -54,7 +58,10 @@ export class GpuSetupCheckService {
     if (setups.length > MAX_GPU_SETUPS_PER_CHECK) {
       throw new BadRequest(`At most ${MAX_GPU_SETUPS_PER_CHECK} gpu setups can be checked at once`);
     }
-    if (setups.length === 0) return { status: "checked", results: [] };
+
+    const planned = setups.map(setup => ({ setup, isValid: this.#isValid(setup) }));
+    const checkable = planned.filter(({ isValid }) => isValid);
+    if (checkable.length === 0) return { status: "checked", results: setups.map(setup => ({ setup, status: "invalid", bids: [] })) };
 
     const runsToday = await this.gpuSetupCheckRunRepository.countCreatedSince(startOfUtcDay(new Date()));
     if (runsToday >= this.#deploymentConfig.GPU_SETUP_CHECK_DAILY_CAP) return { status: "cap_reached" };
@@ -62,24 +69,47 @@ export class GpuSetupCheckService {
     const session = await this.gpuCheckRunner.connect();
     if (!session) return { status: "unavailable" };
 
-    const manifest = buildManifest(setups);
-    const [runResult] = await this.gpuCheckRunner.run(session, [{ manifest }]);
+    const checkableSetups = checkable.map(({ setup }) => setup);
+    const [runResult] = await this.gpuCheckRunner.run(session, [{ manifest: buildManifest(checkableSetups) }]);
     const checkedAt = new Date();
 
-    await this.gpuSetupCheckRunRepository.insert({ dseq: runResult.dseq, setupCount: setups.length });
-    await this.gpuBidCheckRepository.insertMany(setups.flatMap((setup, index) => toCheckRows(setup, index, runResult, checkedAt)));
+    await this.gpuSetupCheckRunRepository.insert({ dseq: runResult.dseq, setupCount: checkableSetups.length });
+    await this.gpuBidCheckRepository.insertMany(checkableSetups.flatMap((setup, index) => toCheckRows(setup, index, runResult, checkedAt)));
 
     const aktPrice = await this.dayRepository.getLatestAktPrice();
-    const results = setups.map((setup, index) => ({ setup, bids: toSetupBids(bidsOfGroup(runResult.bids, index), aktPrice) }));
+    const results = planned.map((plan): GpuSetupResult => {
+      if (!plan.isValid) return { setup: plan.setup, status: "invalid", bids: [] };
+
+      return { setup: plan.setup, status: "checked", bids: toSetupBids(bidsOfGroup(runResult.bids, checkable.indexOf(plan)), aktPrice) };
+    });
     this.#logger.info({
       event: "GPU_SETUP_CHECK_COMPLETED",
       dseq: runResult.dseq,
-      setupCount: setups.length,
+      setupCount: checkableSetups.length,
       bidderCount: results.flatMap(({ bids }) => bids).length
     });
 
     return { status: "checked", results };
   }
+
+  /** Setups come from what users asked to wait for, so one that cannot be deployed is dropped on its own rather than failing the check of every other. */
+  #isValid(setup: GpuSetup): boolean {
+    const reason = findInvalidReason(setup);
+    if (reason) this.#logger.warn({ event: "GPU_SETUP_CHECK_SETUP_INVALID", setup, reason });
+
+    return !reason;
+  }
+}
+
+function findInvalidReason(setup: GpuSetup): string | undefined {
+  if (!SDL_GPU_ATTRIBUTE_VALUE.test(setup.model) || (setup.memory && !SDL_GPU_ATTRIBUTE_VALUE.test(setup.memory))) {
+    return "The model or memory cannot be written into an SDL attribute";
+  }
+
+  const manifest = generateManifest(buildSdl([setup]));
+  if (!manifest.ok) return manifest.value.map(error => error.message).join(", ");
+
+  return undefined;
 }
 
 function startOfUtcDay(date: Date): Date {
@@ -88,12 +118,14 @@ function startOfUtcDay(date: Date): Date {
   return utcMidnight;
 }
 
-function buildManifest(setups: GpuSetup[]): GpuCheckManifest {
-  const manifest = generateManifest(
-    buildGpuCheckSdl(
-      setups.map(({ model, memory, interface: gpuInterface, count }) => ({ model, memory, interface: gpuInterface, units: count, shape: "typical" }))
-    )
+function buildSdl(setups: GpuSetup[]) {
+  return buildGpuCheckSdl(
+    setups.map(({ model, memory, interface: gpuInterface, count }) => ({ model, memory, interface: gpuInterface, units: count, shape: "typical" }))
   );
+}
+
+function buildManifest(setups: GpuSetup[]): GpuCheckManifest {
+  const manifest = generateManifest(buildSdl(setups));
 
   if (!manifest.ok) {
     throw new BadRequest(`Invalid gpu setup: ${manifest.value.map(error => error.message).join(", ")}`);

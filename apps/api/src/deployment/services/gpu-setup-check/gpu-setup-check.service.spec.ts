@@ -47,12 +47,13 @@ describe(GpuSetupCheckService.name, () => {
       results: [
         {
           setup: setups[0],
+          status: "checked",
           bids: [
             { provider: "akash1b", priceUsdPerHour: hourlyUsd(500) },
             { provider: "akash1a", priceUsdPerHour: hourlyUsd(1000) }
           ]
         },
-        { setup: setups[1], bids: [{ provider: "akash1a", priceUsdPerHour: hourlyUsd(1000 * 2) }] }
+        { setup: setups[1], status: "checked", bids: [{ provider: "akash1a", priceUsdPerHour: hourlyUsd(1000 * 2) }] }
       ]
     });
   });
@@ -62,7 +63,7 @@ describe(GpuSetupCheckService.name, () => {
 
     const outcome = await service.check([aSetup()]);
 
-    expect(outcome).toEqual({ status: "checked", results: [{ setup: expect.anything(), bids: [] }] });
+    expect(outcome).toEqual({ status: "checked", results: [{ setup: expect.anything(), status: "checked", bids: [] }] });
   });
 
   it("refuses to deploy once the daily cap is reached", async () => {
@@ -120,6 +121,63 @@ describe(GpuSetupCheckService.name, () => {
     ]);
   });
 
+  it("leaves an invalid setup out of the deployment and checks the others", async () => {
+    const setups = [aSetup({ model: "h100" }), aSetup({ model: "a100", interface: "nvlink" }), aSetup({ model: "l40s" })];
+    const { service, gpuCheckRunner, gpuSetupCheckRunRepository, gpuBidCheckRepository, logger } = setup({
+      dseq: "123",
+      bids: [aBid({ gseq: 1, provider: "akash1a", amount: "1000" }), aBid({ gseq: 2, provider: "akash1b", amount: "2000" })]
+    });
+
+    const outcome = await service.check(setups);
+
+    const [, deployments] = gpuCheckRunner.run.mock.calls[0];
+    expect(deployments[0].manifest.groupModels).toEqual(["h100", "l40s"]);
+    expect(outcome).toEqual({
+      status: "checked",
+      results: [
+        { setup: setups[0], status: "checked", bids: [{ provider: "akash1a", priceUsdPerHour: hourlyUsd(1000) }] },
+        { setup: setups[1], status: "invalid", bids: [] },
+        { setup: setups[2], status: "checked", bids: [{ provider: "akash1b", priceUsdPerHour: hourlyUsd(2000) }] }
+      ]
+    });
+    expect(gpuSetupCheckRunRepository.insert).toHaveBeenCalledWith({ dseq: "123", setupCount: 2 });
+    expect(gpuBidCheckRepository.insertMany).toHaveBeenCalledWith([
+      expect.objectContaining({ provider: "akash1a", model: "h100" }),
+      expect.objectContaining({ provider: "akash1b", model: "l40s" })
+    ]);
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "GPU_SETUP_CHECK_SETUP_INVALID", setup: setups[1] }));
+  });
+
+  it.each([
+    { field: "model", setup: { model: "h100 sxm" } },
+    { field: "memory", setup: { memory: "80 Gi" } }
+  ])("treats a setup whose $field an SDL attribute cannot carry as invalid", async ({ setup: invalid }) => {
+    const { service, gpuCheckRunner } = setup();
+
+    const outcome = await service.check([aSetup(invalid), aSetup({ model: "a100" })]);
+
+    expect(gpuCheckRunner.run.mock.calls[0][1][0].manifest.groupModels).toEqual(["a100"]);
+    expect(outcome).toMatchObject({ status: "checked", results: [{ status: "invalid" }, { status: "checked" }] });
+  });
+
+  it("deploys nothing and spends nothing from the cap when every setup is invalid", async () => {
+    const setups = [aSetup({ model: "h100", interface: "nvlink" })];
+    const { service, gpuCheckRunner, gpuSetupCheckRunRepository } = setup();
+
+    const outcome = await service.check(setups);
+
+    expect(outcome).toEqual({ status: "checked", results: [{ setup: setups[0], status: "invalid", bids: [] }] });
+    expect(gpuCheckRunner.connect).not.toHaveBeenCalled();
+    expect(gpuSetupCheckRunRepository.countCreatedSince).not.toHaveBeenCalled();
+  });
+
+  it("checks nothing when given no setups", async () => {
+    const { service, gpuCheckRunner } = setup();
+
+    expect(await service.check([])).toEqual({ status: "checked", results: [] });
+    expect(gpuCheckRunner.connect).not.toHaveBeenCalled();
+  });
+
   it("rejects more than 20 setups", async () => {
     const { service, gpuCheckRunner } = setup();
 
@@ -165,10 +223,11 @@ describe(GpuSetupCheckService.name, () => {
     const dayRepository = mock<DayRepository>();
     dayRepository.getLatestAktPrice.mockResolvedValue("aktPrice" in input ? input.aktPrice! : 1);
     const deploymentConfig = mock<DeploymentConfig>({ GPU_SETUP_CHECK_DAILY_CAP: input.dailyCap ?? 100 });
-    const createLogger = vi.fn<CreateLogger>(() => mock<ReturnType<CreateLogger>>());
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
 
     const service = new GpuSetupCheckService(gpuCheckRunner, gpuSetupCheckRunRepository, gpuBidCheckRepository, dayRepository, deploymentConfig, createLogger);
 
-    return { service, gpuCheckRunner, gpuSetupCheckRunRepository, gpuBidCheckRepository, dayRepository };
+    return { service, gpuCheckRunner, gpuSetupCheckRunRepository, gpuBidCheckRepository, dayRepository, logger };
   }
 });
