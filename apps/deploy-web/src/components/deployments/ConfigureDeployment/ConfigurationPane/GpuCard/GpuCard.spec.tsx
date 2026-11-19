@@ -740,9 +740,9 @@ describe(GpuCard.name, () => {
         const { user, notify } = setup({ hasGpu: true, gpu: 3, availableGpus: ONLY_T4_AVAILABLE, isAlertsEnabled: true });
 
         await user.click(screen.getByRole("combobox", { name: "GPU model" }));
-        await user.click(await screen.findByRole("button", { name: "Notify me about NVIDIA a100" }));
+        await user.click(await screen.findByRole("button", { name: "Notify me about 3× A100" }));
 
-        expect(notify).toHaveBeenCalledWith({ vendor: "nvidia", model: "a100", gpuCount: 3, label: "NVIDIA a100" }, "gpu_menu");
+        expect(notify).toHaveBeenCalledWith({ vendor: "nvidia", model: "a100", gpuCount: 3 }, "gpu_menu");
         expect(screen.getByRole("option", { name: "NVIDIA a100" })).toHaveAttribute("aria-disabled", "true");
       });
 
@@ -750,7 +750,7 @@ describe(GpuCard.name, () => {
         const { user, notify } = setup({ hasGpu: false, gpu: 0, availableGpus: ONLY_T4_AVAILABLE, isAlertsEnabled: true });
 
         await user.click(screen.getByRole("combobox", { name: "GPU model" }));
-        await user.click(await screen.findByRole("button", { name: "Notify me about NVIDIA a100" }));
+        await user.click(await screen.findByRole("button", { name: "Notify me about 1× A100" }));
 
         expect(notify).toHaveBeenCalledWith(expect.objectContaining({ model: "a100", gpuCount: 1 }), "gpu_menu");
       });
@@ -761,7 +761,77 @@ describe(GpuCard.name, () => {
         await user.click(screen.getByRole("combobox", { name: "GPU model" }));
 
         expect(await screen.findByText("Waiting · #5")).toBeInTheDocument();
-        expect(screen.queryByRole("button", { name: "Notify me about NVIDIA a100" })).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Notify me about 1× A100" })).not.toBeInTheDocument();
+      });
+
+      it("offers notify me on a model every provider failed to screen once the configuration fits without a gpu", async () => {
+        const { user, notify } = setup({
+          hasGpu: true,
+          availableGpus: ONLY_T4_AVAILABLE,
+          screened: { t4: { count: 0, gpuCount: 0 } },
+          noGpuCount: 2,
+          isAlertsEnabled: true
+        });
+
+        await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+        await user.click(await screen.findByRole("button", { name: "Notify me about 1× T4" }));
+
+        expect(notify).toHaveBeenCalledWith({ vendor: "nvidia", model: "t4", gpuCount: 1 }, "gpu_menu");
+      });
+
+      it.each([
+        ["no provider fits the configuration without a gpu", 0],
+        ["the no-gpu screening has not answered yet", null]
+      ])("keeps the others rows without an action when %s", async (_reason, noGpuCount) => {
+        const { user } = setup({
+          hasGpu: true,
+          availableGpus: ONLY_T4_AVAILABLE,
+          screened: { t4: { count: 0, gpuCount: 0 } },
+          noGpuCount,
+          isAlertsEnabled: true
+        });
+
+        await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+        await screen.findByRole("group", { name: "Others" });
+
+        expect(screen.queryByRole("button", { name: /Notify me/ })).not.toBeInTheDocument();
+        expect(screen.getByRole("option", { name: "NVIDIA a100" })).toHaveAttribute("aria-disabled", "true");
+      });
+
+      it("screens the no-gpu configuration only while the picker is open", async () => {
+        const { user, useScreenedNoGpuCount } = setup({ hasGpu: true, availableGpus: ONLY_T4_AVAILABLE, isAlertsEnabled: true });
+
+        expect(useScreenedNoGpuCount).toHaveBeenLastCalledWith(0, false);
+        await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+
+        expect(useScreenedNoGpuCount).toHaveBeenLastCalledWith(0, true);
+      });
+
+      it("offers to switch the count when already waiting for another number of gpus", async () => {
+        const { user, notify } = setup({
+          hasGpu: true,
+          gpu: 8,
+          availableGpus: ONLY_T4_AVAILABLE,
+          isAlertsEnabled: true,
+          waitingPlaces: { a100: 5 },
+          waitingGpuCount: 1
+        });
+
+        await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+        expect(await screen.findByText(/Waiting for 1×/)).toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: "Switch to 8×" }));
+
+        expect(notify).toHaveBeenCalledWith({ vendor: "nvidia", model: "a100", gpuCount: 8 }, "gpu_menu");
+      });
+
+      it("keeps today's footer text and action while quotes are off", async () => {
+        const { user, HardwareRequestDialog } = setup({ hasGpu: true, availableGpus: ONLY_T4_AVAILABLE, isAlertsEnabled: true });
+
+        await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+        await user.click(await screen.findByRole("button", { name: "Don't see the GPU you need? Contact us" }));
+
+        expect(screen.queryByText("Need dedicated capacity?")).not.toBeInTheDocument();
+        expect(HardwareRequestDialog).toHaveBeenCalled();
       });
 
       it("hides notify me for non-nvidia models", async () => {
@@ -1304,6 +1374,8 @@ describe(GpuCard.name, () => {
     isQuoteFlowEnabled?: boolean;
     isAlertsEnabled?: boolean;
     waitingPlaces?: Record<string, number>;
+    waitingGpuCount?: number;
+    noGpuCount?: number | null;
     onUnlock?: () => void;
     onUnlockInterconnect?: () => void;
     dependencies?: Partial<typeof DEPENDENCIES>;
@@ -1338,7 +1410,8 @@ describe(GpuCard.name, () => {
     const useFlag: typeof DEPENDENCIES.useFlag = flag =>
       (flag === "gpu_quote_requests" && !!input.isQuoteFlowEnabled) || (flag === "gpu_availability_alerts" && !!input.isAlertsEnabled);
     const notify = vi.fn();
-    const findEntry = (gpu: { model: string }) => (input.waitingPlaces?.[gpu.model] ? { placeInLine: input.waitingPlaces[gpu.model] } : undefined);
+    const findEntry = (gpu: { model: string }) =>
+      input.waitingPlaces?.[gpu.model] ? { placeInLine: input.waitingPlaces[gpu.model], gpuCount: input.waitingGpuCount ?? 1 } : undefined;
     const useNotifyMe: typeof DEPENDENCIES.useNotifyMe = () =>
       mock<ReturnType<typeof DEPENDENCIES.useNotifyMe>>({
         isEnabled: !!input.isAlertsEnabled,
@@ -1353,6 +1426,8 @@ describe(GpuCard.name, () => {
         return { count: offered?.providerCount ?? 0, gpuCount: offered?.availableUnits ?? 0, isLoading: false, ...input.screened?.[model.name] };
       })
     );
+
+    const useScreenedNoGpuCount = vi.fn<typeof DEPENDENCIES.useScreenedNoGpuCount>(() => (input.noGpuCount === undefined ? 5 : input.noGpuCount));
 
     const CustomTooltip = vi.fn<typeof DEPENDENCIES.CustomTooltip>(ComponentMock);
 
@@ -1381,6 +1456,7 @@ describe(GpuCard.name, () => {
             useFlag,
             useNotifyMe,
             useScreenedGpuModelCounts,
+            useScreenedNoGpuCount,
             CustomTooltip,
             ...input.dependencies
           }}
@@ -1398,6 +1474,7 @@ describe(GpuCard.name, () => {
       HardwareRequestDialog,
       GpuQuoteRequestFlow,
       useScreenedGpuModelCounts,
+      useScreenedNoGpuCount,
       CustomTooltip
     };
   }

@@ -20,7 +20,9 @@ import {
 } from "@akashnetwork/ui/components";
 import { ArrowRightIcon, GpuIcon, LockIcon, MessageSquareIcon, PlusIcon, TrashIcon, TriangleAlertIcon, XIcon } from "lucide-react";
 
+import { describeGpuSetup } from "@src/components/gpu-alerts/describeGpuSetup/describeGpuSetup";
 import { useNotifyMe } from "@src/components/gpu-alerts/useNotifyMe/useNotifyMe";
+import { WaitingForGpu } from "@src/components/gpu-alerts/WaitingForGpu/WaitingForGpu";
 import { answersForGpuModel } from "@src/components/gpu-requests/gpuQuoteDraft/gpuQuoteDraft";
 import { GpuQuoteRequestFlow } from "@src/components/gpu-requests/GpuQuoteRequestFlow/GpuQuoteRequestFlow";
 import type { SearchableSelectOption } from "@src/components/shared/SearchableSelect/SearchableSelect";
@@ -56,7 +58,7 @@ import { SELECT_TRUNCATE_VALUE } from "../selectStyles";
 import { UnlockGpusButton } from "../UnlockGpusButton/UnlockGpusButton";
 import { useServiceGpu } from "../useServiceGpu/useServiceGpu";
 import type { ScreenedGpuModel } from "./useScreenedGpuModelCounts/useScreenedGpuModelCounts";
-import { useScreenedGpuModelCounts } from "./useScreenedGpuModelCounts/useScreenedGpuModelCounts";
+import { useScreenedGpuModelCounts, useScreenedNoGpuCount } from "./useScreenedGpuModelCounts/useScreenedGpuModelCounts";
 import { summarizeGpu } from "./gpuSummary";
 
 export const DEPENDENCIES = {
@@ -70,6 +72,7 @@ export const DEPENDENCIES = {
   HardwareRequestDialog,
   GpuQuoteRequestFlow,
   useScreenedGpuModelCounts,
+  useScreenedNoGpuCount,
   CustomTooltip,
   useFlag,
   useNotifyMe
@@ -387,6 +390,7 @@ function GpuModelFields({
       disabled={locked}
       emptyTriggerLabel={isGpuOn ? undefined : "Select"}
       useScreenedGpuModelCounts={d.useScreenedGpuModelCounts}
+      useScreenedNoGpuCount={d.useScreenedNoGpuCount}
       CustomTooltip={d.CustomTooltip}
       useFlag={d.useFlag}
       useNotifyMe={d.useNotifyMe}
@@ -538,6 +542,7 @@ function FirstGpuModelPicker({
           disabled={locked}
           emptyTriggerLabel="Select"
           useScreenedGpuModelCounts={d.useScreenedGpuModelCounts}
+          useScreenedNoGpuCount={d.useScreenedNoGpuCount}
           CustomTooltip={d.CustomTooltip}
           useFlag={d.useFlag}
           useNotifyMe={d.useNotifyMe}
@@ -561,6 +566,7 @@ type GpuModelControlProps = {
   disabled: boolean;
   emptyTriggerLabel?: string;
   useScreenedGpuModelCounts: typeof DEPENDENCIES.useScreenedGpuModelCounts;
+  useScreenedNoGpuCount: typeof DEPENDENCIES.useScreenedNoGpuCount;
   CustomTooltip: typeof DEPENDENCIES.CustomTooltip;
   useFlag: typeof DEPENDENCIES.useFlag;
   useNotifyMe: typeof DEPENDENCIES.useNotifyMe;
@@ -577,6 +583,7 @@ function GpuModelControl({
   disabled,
   emptyTriggerLabel,
   useScreenedGpuModelCounts,
+  useScreenedNoGpuCount,
   CustomTooltip,
   useFlag,
   useNotifyMe
@@ -586,7 +593,9 @@ function GpuModelControl({
   const notifyMe = useNotifyMe();
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const gpuCount = Math.max(1, useWatch({ control, name: `services.${serviceIndex}.profile.gpu` }) ?? 1);
-  const notifiableVendor = notifyMe.isEnabled && choices.vendor === "nvidia" ? choices.vendor : undefined;
+  const noGpuCount = useScreenedNoGpuCount(serviceIndex, isOpen && notifyMe.isEnabled);
+  const isGpuWhyNothingFits = (noGpuCount ?? 0) > 0;
+  const notifiableVendor = notifyMe.isEnabled && isGpuWhyNothingFits && choices.vendor === "nvidia" ? choices.vendor : undefined;
   const screened = useScreenedModelOptions({ serviceIndex, choices, isOpen, useScreenedGpuModelCounts, CustomTooltip });
 
   if (isLoading) {
@@ -639,7 +648,7 @@ function GpuModelControl({
           renderFooter={(search, { close }) => (
             <GpuRequestLink
               isQuoteFlowEnabled={isQuoteFlowEnabled}
-              isReservingCapacity={notifyMe.isEnabled}
+              isReservingCapacity={notifyMe.isEnabled && isQuoteFlowEnabled}
               onClick={() => {
                 close();
                 onRequestGpu(search.trim());
@@ -666,11 +675,21 @@ function NotifyMeAction({
   gpuCount: number;
   notifyMe: ReturnType<typeof DEPENDENCIES.useNotifyMe>;
 }) {
-  const label = typeof option.label === "string" ? option.label : option.value;
-  const waiting = notifyMe.findEntry({ vendor, model: option.value });
+  const setup = { vendor, model: option.value, gpuCount };
+  const waiting = notifyMe.findEntry(setup);
+  const joinWithCurrentCount = () => notifyMe.notify(setup, "gpu_menu");
 
   if (waiting) {
-    return <span className="shrink-0 whitespace-nowrap px-2 text-xs text-muted-foreground">Waiting · #{waiting.placeInLine}</span>;
+    return (
+      <WaitingForGpu
+        placeInLine={waiting.placeInLine}
+        waitingGpuCount={waiting.gpuCount}
+        gpuCount={gpuCount}
+        isPending={notifyMe.isPending}
+        onSwitch={joinWithCurrentCount}
+        isCompact
+      />
+    );
   }
 
   return (
@@ -679,9 +698,9 @@ function NotifyMeAction({
       variant="outline"
       size="sm"
       className="h-6 shrink-0 px-2 text-xs"
-      aria-label={`Notify me about ${label}`}
+      aria-label={`Notify me about ${describeGpuSetup(setup)}`}
       disabled={notifyMe.isPending}
-      onClick={() => notifyMe.notify({ vendor, model: option.value, gpuCount, label }, "gpu_menu")}
+      onClick={joinWithCurrentCount}
     >
       Notify me
     </Button>

@@ -4,6 +4,7 @@ import { CircleAlertIcon, MessageSquareIcon } from "lucide-react";
 
 import { AskAssistantButton } from "@src/components/assistant/AskAssistantButton/AskAssistantButton";
 import { useNotifyMe } from "@src/components/gpu-alerts/useNotifyMe/useNotifyMe";
+import { WaitingForGpu } from "@src/components/gpu-alerts/WaitingForGpu/WaitingForGpu";
 import type { NotifiableGpuSetup } from "../../AvailabilityPane/gpuAvailability/gpuAvailability";
 
 export const DEPENDENCIES = { AskAssistantButton, useNotifyMe };
@@ -14,7 +15,6 @@ type Props = {
   requestLabel?: string;
   dseq: string | null;
   gpu?: NotifiableGpuSetup | null;
-  gpuLabel?: string;
   isQuoteFlowEnabled?: boolean;
   onRequestCompute: () => void;
   dependencies?: typeof DEPENDENCIES;
@@ -24,7 +24,6 @@ export const NoBidsNotice: FC<Props> = ({
   requestLabel = "Request compute",
   dseq,
   gpu,
-  gpuLabel,
   isQuoteFlowEnabled = false,
   onRequestCompute,
   dependencies: d = DEPENDENCIES
@@ -48,15 +47,15 @@ export const NoBidsNotice: FC<Props> = ({
           {notifiableGpu ? (
             <>
               {waiting ? (
-                <p className="text-sm font-medium">Waiting · #{waiting.placeInLine} in line</p>
+                <WaitingForGpu
+                  placeInLine={waiting.placeInLine}
+                  waitingGpuCount={waiting.gpuCount}
+                  gpuCount={notifiableGpu.gpuCount}
+                  isPending={notifyMe.isPending}
+                  onSwitch={() => notifyMe.notify(notifiableGpu, "no_bids")}
+                />
               ) : (
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={notifyMe.isPending}
-                  onClick={() => notifyMe.notify({ ...notifiableGpu, label: gpuLabel }, "no_bids")}
-                  className="gap-2"
-                >
+                <Button type="button" size="sm" disabled={notifyMe.isPending} onClick={() => notifyMe.notify(notifiableGpu, "no_bids")} className="gap-2">
                   Notify me when available
                 </Button>
               )}

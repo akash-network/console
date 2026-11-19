@@ -20,14 +20,27 @@ describe(useNotifyMe.name, () => {
       joinOutcome: Promise.resolve({ data: { ...WAITING_ENTRY, placeInLine: 7 } })
     });
 
-    await act(async () => result.current.notify({ vendor: "nvidia", model: "h100", gpuCount: 2, label: "NVIDIA H100" }, "gpu_menu"));
+    await act(async () => result.current.notify({ vendor: "nvidia", model: "h100", gpuCount: 2 }, "gpu_menu"));
 
     await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalled());
     expect(joinGpuWaitlist).toHaveBeenCalledWith({
       data: { vendor: "nvidia", model: "h100", memory: undefined, interface: undefined, gpuCount: 2, source: "gpu_menu" }
     });
     render(enqueueSnackbar.mock.calls[0][0]);
-    expect(screen.getByText("You're #7 in line for NVIDIA H100")).toBeInTheDocument();
+    expect(screen.getByText("You're #7 in line for 2× H100")).toBeInTheDocument();
+    expect(screen.getByText("We'll email you when it frees up. Whoever deploys first gets it.")).toBeInTheDocument();
+  });
+
+  it("describes the joined setup with its memory and interface", async () => {
+    const { result, enqueueSnackbar } = setup({
+      joinOutcome: Promise.resolve({ data: { ...WAITING_ENTRY, gpuCount: 8, memory: "80Gi", interface: "sxm" } })
+    });
+
+    await act(async () => result.current.notify({ vendor: "nvidia", model: "h100", gpuCount: 8, memory: "80Gi", interface: "sxm" }, "no_fit"));
+
+    await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalled());
+    render(enqueueSnackbar.mock.calls[0][0]);
+    expect(screen.getByText("You're #4 in line for 8× H100 80Gi SXM")).toBeInTheDocument();
   });
 
   it("tracks gpu_alert_joined with the source", async () => {
@@ -99,6 +112,7 @@ describe(useNotifyMe.name, () => {
     const api = createProxy({ v1: { listGpuWaitlist, joinGpuWaitlist } }) as unknown as ApiService;
     const dependencies: typeof DEPENDENCIES = {
       ...DEPENDENCIES,
+      useServices: () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService }),
       useFlag: () => input.isFlagOn ?? true,
       useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: input.isSignedIn === false ? undefined : { id: "me" } }),
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar })
