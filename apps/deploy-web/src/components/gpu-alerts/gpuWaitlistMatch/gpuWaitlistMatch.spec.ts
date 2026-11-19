@@ -3,19 +3,26 @@ import { describe, expect, it } from "vitest";
 import { findWaitingEntry } from "./gpuWaitlistMatch";
 
 describe(findWaitingEntry.name, () => {
-  it("matches an entry on vendor and model regardless of case", () => {
-    const entry = { vendor: "nvidia", model: "h100", memory: null, interface: null };
+  it("matches an entry on every part regardless of case", () => {
+    const entry = { vendor: "nvidia", model: "h100", memory: "80Gi", interface: "sxm5" };
 
-    expect(findWaitingEntry([entry], { vendor: "NVIDIA", model: "H100" })).toBe(entry);
+    expect(findWaitingEntry([entry], { vendor: "NVIDIA", model: "H100", memory: "80gi", interface: "SXM5" })).toBe(entry);
   });
 
-  it("treats a missing memory or interface on the entry as a wildcard", () => {
+  it("matches a model-level entry only with a model-level setup", () => {
     const entry = { vendor: "nvidia", model: "h100", memory: null, interface: null };
 
-    expect(findWaitingEntry([entry], { vendor: "nvidia", model: "h100", memory: "80Gi", interface: "sxm5" })).toBe(entry);
+    expect(findWaitingEntry([entry], { vendor: "nvidia", model: "H100" })).toBe(entry);
+    expect(findWaitingEntry([entry], { vendor: "nvidia", model: "h100", memory: undefined, interface: null })).toBe(entry);
   });
 
-  it("does not match an entry that is more specific than the setup", () => {
+  it("does not count a model-level entry as waiting for a specific memory size", () => {
+    const entry = { vendor: "nvidia", model: "h100", memory: null, interface: null };
+
+    expect(findWaitingEntry([entry], { vendor: "nvidia", model: "h100", memory: "80Gi" })).toBeUndefined();
+  });
+
+  it("does not count a specific entry as waiting for the whole model", () => {
     const entry = { vendor: "nvidia", model: "h100", memory: "80Gi", interface: null };
 
     expect(findWaitingEntry([entry], { vendor: "nvidia", model: "h100" })).toBeUndefined();

@@ -585,7 +585,7 @@ function GpuModelControl({
   const isQuoteFlowEnabled = useFlag("gpu_quote_requests");
   const notifyMe = useNotifyMe();
   const { control } = useFormContext<SdlBuilderFormValuesType>();
-  const gpuCount = useWatch({ control, name: `services.${serviceIndex}.profile.gpu` }) ?? 1;
+  const gpuCount = Math.max(1, useWatch({ control, name: `services.${serviceIndex}.profile.gpu` }) ?? 1);
   const notifiableVendor = notifyMe.isEnabled && choices.vendor === "nvidia" ? choices.vendor : undefined;
   const screened = useScreenedModelOptions({ serviceIndex, choices, isOpen, useScreenedGpuModelCounts, CustomTooltip });
 

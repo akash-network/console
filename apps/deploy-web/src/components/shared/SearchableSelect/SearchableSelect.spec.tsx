@@ -179,6 +179,25 @@ describe("SearchableSelect", () => {
       expect(onChange).not.toHaveBeenCalled();
     });
 
+    it("keeps Enter on the unavailable action from picking another option", async () => {
+      const onAction = vi.fn();
+      const { user, onChange } = setup({
+        unavailableOptions: [{ value: "as-east", label: "as-east" }],
+        renderUnavailableAction: option => (
+          <button type="button" onClick={onAction}>
+            Notify {option.value}
+          </button>
+        )
+      });
+      await user.click(screen.getByRole("combobox", { name: "Region" }));
+
+      screen.getByRole("button", { name: "Notify as-east" }).focus();
+      await user.keyboard("{Enter}");
+
+      expect(onAction).toHaveBeenCalledOnce();
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
     it("lists them after the other options under an Unavailable heading", async () => {
       const { user } = setup({ unavailableOptions: [{ value: "as-east", label: "as-east" }] });
 

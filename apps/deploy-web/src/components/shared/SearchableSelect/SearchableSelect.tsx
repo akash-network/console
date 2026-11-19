@@ -1,4 +1,4 @@
-import type { FC, ReactNode } from "react";
+import type { FC, KeyboardEvent, ReactNode } from "react";
 import { useId, useState } from "react";
 import {
   Button,
@@ -182,7 +182,7 @@ const SearchableSelectList: FC<SharedProps & { selection: Selection }> = ({
     return (
       <div key={option.value} className="flex items-center gap-1 pr-2">
         {renderOption(unavailable, "pl-6 flex-1")}
-        {action}
+        <div onKeyDown={stopCommandKeyHandling}>{action}</div>
       </div>
     );
   }
@@ -254,6 +254,11 @@ const SearchableSelectList: FC<SharedProps & { selection: Selection }> = ({
     </Popover>
   );
 };
+
+/** cmdk handles Enter and the arrow keys on its root and would pick another row instead of pressing the action. */
+function stopCommandKeyHandling(event: KeyboardEvent<HTMLElement>) {
+  event.stopPropagation();
+}
 
 const SectionHeading: FC<{ label: string; hintLabel?: ReactNode }> = ({ label, hintLabel }) => (
   <span className="flex items-center justify-between gap-2 font-mono uppercase tracking-wider">
