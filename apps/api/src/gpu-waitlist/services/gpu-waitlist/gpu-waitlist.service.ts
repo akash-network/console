@@ -74,15 +74,18 @@ export class GpuWaitlistService {
 
   async keep(id: string): Promise<GpuWaitlistEntryInLine> {
     return await this.txService.transaction(async () => {
-      const kept = await this.gpuWaitlistEntryRepository
-        .accessibleBy(this.authService.ability, "update")
-        .updateBy({ id, status: "waiting" }, { stillWantedAskedAt: null }, { returning: true });
+      const repository = this.gpuWaitlistEntryRepository.accessibleBy(this.authService.ability, "update");
+      const cleared = await repository.clearPendingStillWantedQuestion(id);
+
+      if (cleared) {
+        await this.#scheduleStillWantedCheck(cleared.id, new Date());
+      }
+
+      const kept = cleared ?? (await repository.findWaitingById(id));
 
       if (!kept) {
         throw createError(404, "GPU waitlist entry not found");
       }
-
-      await this.#scheduleStillWantedCheck(kept.id, new Date());
 
       return await this.#withPlaceInLine(kept);
     });

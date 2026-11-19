@@ -28,7 +28,7 @@ describe(ManagedDeploymentLeaseCreatedHandler.name, () => {
 
     await handler.handle(PAYLOAD);
 
-    expect(gpuOfferJobService.schedule).toHaveBeenCalledWith({ walletId: 7, dseq: "12345" });
+    expect(gpuOfferJobService.schedule).toHaveBeenCalledWith({ walletId: 7, dseq: "12345", leaseCreatedAt: "2026-09-21T10:00:00.000Z" });
   });
 
   it("swallows a scheduling failure, because the deployment does not depend on the read", async () => {

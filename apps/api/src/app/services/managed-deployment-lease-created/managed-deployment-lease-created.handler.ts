@@ -75,7 +75,7 @@ export class ManagedDeploymentLeaseCreatedHandler implements JobHandler<ManagedD
 
   async #scheduleOfferRecord(payload: EventPayload<ManagedDeploymentLeaseCreated>): Promise<void> {
     try {
-      await this.gpuOfferJobService.schedule({ walletId: payload.walletId, dseq: payload.dseq });
+      await this.gpuOfferJobService.schedule({ walletId: payload.walletId, dseq: payload.dseq, leaseCreatedAt: payload.createdAt });
     } catch (error) {
       this.logger.error({
         event: "LEASE_GPU_OFFERS_SCHEDULE_FAILED",

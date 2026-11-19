@@ -13,6 +13,7 @@ import { app } from "@src/rest-app";
 import { seedGpuWaitlistEntry } from "@test/seeders/db/gpu-waitlist-entry.seeder";
 import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { seedPersonalOrganizationIdOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { findJobRows } from "@test/services/job-queue-harness";
 
 vi.hoisted(() => {
   process.env.GPU_WAITLIST_NETWORKS = "mainnet,testnet,sandbox";
@@ -298,6 +299,20 @@ describe("GPU waitlist", () => {
       expect(response.status).toBe(200);
       expect(data).toMatchObject({ id: first.id, status: "waiting", placeInLine: 1 });
       expect((await entryRepository.findByIdAcrossOrganizations(first.id))?.stillWantedAskedAt).toBeNull();
+      const jobs = await findJobRows<{ entryId: string }>("AskStillWanted", { state: "created" });
+      const [next] = jobs.filter(job => job.data.entryId === first.id);
+      expect(new Date(next.start_after).getTime() - Date.now()).toBeGreaterThan(29 * 24 * 60 * 60 * 1000);
+    });
+
+    it("answers 200 and queues no second question when none was pending", async () => {
+      const { alice } = await setup();
+      const entry = await seedGpuWaitlistEntry({ userId: alice.user.id, organizationId: alice.organizationId });
+
+      const response = await keep(alice.headers, entry.id);
+
+      expect(response.status).toBe(200);
+      const jobs = await findJobRows<{ entryId: string }>("AskStillWanted");
+      expect(jobs.filter(job => job.data.entryId === entry.id)).toEqual([]);
     });
 
     it("answers 404 for another user's entry and leaves its question standing", async () => {

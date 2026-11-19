@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
@@ -103,28 +103,78 @@ export class GpuWaitlistEntryRepository extends OrgScopedRepository<Table, GpuWa
     return rows.map(row => row.poolKey);
   }
 
+  async findWaitingById(id: string): Promise<GpuWaitlistEntryRow | undefined> {
+    const [entry] = await this.cursor
+      .select()
+      .from(this.table)
+      .where(this.whereAccessibleBy(and(eq(this.table.id, id), eq(this.table.status, "waiting"))))
+      .limit(1);
+
+    return entry;
+  }
+
+  async clearPendingStillWantedQuestion(id: string): Promise<GpuWaitlistEntryRow | undefined> {
+    const where = this.whereAccessibleBy(and(eq(this.table.id, id), eq(this.table.status, "waiting"), isNotNull(this.table.stillWantedAskedAt)));
+    const [cleared] = await this.updateWhere(where, { stillWantedAskedAt: null }, { returning: true });
+
+    return cleared && this.toOutput(cleared);
+  }
+
+  async claimStillWantedQuestion(id: string): Promise<GpuWaitlistEntryRow | undefined> {
+    const [claimed] = await this.unscoped("gpu-waitlist-watcher")
+      .cursor.update(this.table)
+      .set({ stillWantedAskedAt: sql`now()`, updatedAt: sql`now()` })
+      .where(and(eq(this.table.id, id), eq(this.table.status, "waiting"), isNull(this.table.stillWantedAskedAt)))
+      .returning();
+
+    return claimed;
+  }
+
+  async expireUnansweredQuestion(id: string, graceDays: number): Promise<GpuWaitlistEntryRow | undefined> {
+    const [expired] = await this.unscoped("gpu-waitlist-watcher")
+      .cursor.update(this.table)
+      .set({ status: "expired", endedAt: sql`now()`, updatedAt: sql`now()` })
+      .where(
+        and(
+          eq(this.table.id, id),
+          eq(this.table.status, "waiting"),
+          isNotNull(this.table.stillWantedAskedAt),
+          sql`${this.table.stillWantedAskedAt} <= now() - make_interval(days => ${graceDays})`
+        )
+      )
+      .returning();
+
+    return expired;
+  }
+
   async markWaitingFulfilledAcrossOrganizations({
     userId,
     organizationId,
+    joinedBefore,
     gpus
   }: {
     userId: string | null;
     organizationId: string | null;
-    gpus: { vendor: string; model: string }[];
+    joinedBefore: Date;
+    gpus: { vendor: string; model: string; count: number }[];
   }): Promise<string[]> {
     const owner = organizationId ? eq(this.table.organizationId, organizationId) : userId ? eq(this.table.userId, userId) : undefined;
 
     if (!owner || gpus.length === 0) return [];
 
-    const sameGpu = or(
-      ...gpus.map(({ vendor, model }) =>
-        and(sql`lower(${this.table.vendor}) = ${vendor.toLowerCase()}`, sql`lower(${this.table.model}) = ${model.toLowerCase()}`)
+    const coveredByLease = or(
+      ...gpus.map(({ vendor, model, count }) =>
+        and(
+          sql`lower(${this.table.vendor}) = ${vendor.toLowerCase()}`,
+          sql`lower(${this.table.model}) = ${model.toLowerCase()}`,
+          lte(this.table.gpuCount, count)
+        )
       )
     );
     const fulfilled = await this.unscoped("gpu-waitlist-watcher")
       .cursor.update(this.table)
       .set({ status: "fulfilled", endedAt: new Date(), updatedAt: sql`now()` })
-      .where(and(eq(this.table.status, "waiting"), owner, sameGpu))
+      .where(and(eq(this.table.status, "waiting"), owner, lt(this.table.joinedAt, joinedBefore), coveredByLease))
       .returning({ id: this.table.id });
 
     return fulfilled.map(({ id }) => id);
