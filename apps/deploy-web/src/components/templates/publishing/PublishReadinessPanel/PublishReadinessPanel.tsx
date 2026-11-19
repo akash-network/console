@@ -9,7 +9,7 @@ import Link from "next/link";
 import { AddFundsButton } from "@src/components/user/AddFundsButton";
 import type { TemplatePublishReadiness } from "@src/types/marketplace-template";
 import { COMMUNITY_TEMPLATE_TERMS_SUMMARY, CommunityTemplateTerms } from "../CommunityTemplateTerms/CommunityTemplateTerms";
-import { PublishChecksList, PublishStatusMark } from "../PublishChecksList/PublishChecksList";
+import { FIX_BELOW_ON_NARROW_SCREENS, PublishChecksList, PublishStatusMark } from "../PublishChecksList/PublishChecksList";
 import type { PublishCheckFix, PublishOrganization, PublishRequirementFix } from "../publishReadiness";
 import { describePublishRequirement } from "../publishReadiness";
 
@@ -108,7 +108,7 @@ export const PublishReadinessPanel: FC<PublishReadinessPanelProps> = ({
                   <p className="break-words text-sm font-medium">{copy.label}</p>
                   {!requirement.met && <p className="break-words text-[13px] text-muted-foreground">{copy.help}</p>}
                 </div>
-                {!requirement.met && copy.fix && <div className="shrink-0">{renderRequirementFix(copy.fix)}</div>}
+                {!requirement.met && copy.fix && <div className={cn("shrink-0", FIX_BELOW_ON_NARROW_SCREENS)}>{renderRequirementFix(copy.fix)}</div>}
               </li>
             );
           })}

@@ -86,6 +86,19 @@ describe(PublishChecksList.name, () => {
     expect(screen.getByRole("button", { name: "Fix: rename-organization" })).toBeInTheDocument();
   });
 
+  it("puts the fixes under the message on a narrow screen and beside it from the sm breakpoint up", () => {
+    setup({ checks: [{ key: "fixed_tags", status: "failed", issues: [{ message: "No tag" }] }], hasFixes: true });
+
+    expect(screen.getByRole("button", { name: "Fix: edit-configuration" }).parentElement).toHaveClass(
+      "flex-wrap",
+      "shrink-0",
+      "basis-full",
+      "pl-8",
+      "sm:basis-auto",
+      "sm:pl-0"
+    );
+  });
+
   it("offers no fix where the list is only a report", () => {
     setup({ checks: [{ key: "fixed_tags", status: "failed", issues: [{ message: "No tag" }] }] });
 
