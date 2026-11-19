@@ -60,6 +60,19 @@ describe(GpuWaitlistEligibilityService.name, () => {
       expect(await service.findFirstEligible([entry("trial")], undefined, NOW)).toBeUndefined();
     });
 
+    it("reads an account once across calls that share answers, and apart for another organization", async () => {
+      const { service, accountService } = setup({ accountTypes: { a: "trial" } });
+      const answers = new Map();
+
+      await service.findFirstEligible([entry("a")], undefined, NOW, answers);
+      await service.findFirstEligible([entry("a"), entry("a", { organizationId: "org-1" })], undefined, NOW, answers);
+
+      expect(accountService.findAccountType.mock.calls.map(([owner]) => owner)).toEqual([
+        { userId: "user-a", organizationId: null },
+        { userId: "user-a", organizationId: "org-1" }
+      ]);
+    });
+
     it("reads the account of the entry's organization", async () => {
       const { service, accountService } = setup();
 

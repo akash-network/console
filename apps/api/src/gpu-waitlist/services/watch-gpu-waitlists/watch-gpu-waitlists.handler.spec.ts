@@ -336,6 +336,55 @@ describe(WatchGpuWaitlistsHandler.name, () => {
       expect(confirmedPoolKeys()).toBeUndefined();
     });
 
+    it("reads a user's account once per watch, however many pools they wait in", async () => {
+      const { handler, accountService, confirmedPoolKeys } = setup({
+        pools: {
+          h100: { gpuCounts: [1], supply: [{ units: 2 }], entries: [{ userId: "shared-user" }] },
+          a100: { gpuCounts: [1], supply: [{ units: 2 }], entries: [{ userId: "shared-user" }] }
+        }
+      });
+
+      await handler.handle();
+
+      expect(confirmedPoolKeys()).toEqual(["nvidia/h100/*/*", "nvidia/a100/*/*"]);
+      expect(accountService.findAccountType.mock.calls.map(([owner]) => owner.userId)).toEqual(["shared-user"]);
+    });
+
+    it("reads the account again on the next watch", async () => {
+      const { handler, accountService } = setup({
+        pools: { h100: { gpuCounts: [1], supply: [{ units: 2 }], entries: [{ userId: "paying-user" }] } },
+        confirmationQueued: true
+      });
+
+      await handler.handle();
+      await handler.handle();
+
+      expect(accountService.findAccountType.mock.calls.map(([owner]) => owner.userId)).toEqual(["paying-user", "paying-user"]);
+    });
+
+    it("closes an open episode where only trial users fit, and does not walk it again while supply holds", async () => {
+      const { handler, accountService, upserts, confirmedPoolKeys } = setup({
+        pools: {
+          h100: {
+            gpuCounts: [8, 8],
+            supply: [{ units: 8 }],
+            pool: { lastFreeUnits: 8, waveStartedAt: minutesAgo(30), lastRoundAt: minutesAgo(20), lastCheckAt: minutesAgo(30) },
+            entries: [{ userId: "trial-a" }, { userId: "trial-b" }]
+          }
+        },
+        accountTypes: { "trial-a": "trial", "trial-b": "trial" }
+      });
+
+      await handler.handle();
+      const readsOnFirstWatch = accountService.findAccountType.mock.calls.length;
+      await handler.handle();
+
+      expect(upserts[0]).toEqual({ poolKey: "nvidia/h100/*/*", lastFreeUnits: 8, lastMaxNodeFreeUnits: 8, waveStartedAt: null });
+      expect(readsOnFirstWatch).toBe(2);
+      expect(accountService.findAccountType).toHaveBeenCalledTimes(2);
+      expect(confirmedPoolKeys()).toBeUndefined();
+    });
+
     it("reads no account for a pool that is not due anyway", async () => {
       const { handler, accountService } = setup({ pools: { h100: { gpuCounts: [8], supply: [{ units: 8 }], pool: { lastFreeUnits: 8 } } } });
 

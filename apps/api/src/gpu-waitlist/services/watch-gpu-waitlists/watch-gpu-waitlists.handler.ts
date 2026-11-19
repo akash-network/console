@@ -18,7 +18,7 @@ import {
 } from "@src/gpu-waitlist/repositories/gpu-waitlist-pool/gpu-waitlist-pool.repository";
 import { CONFIRM_GPU_POOLS_KEY, ConfirmGpuPools } from "@src/gpu-waitlist/services/confirm-gpu-pools/confirm-gpu-pools.job";
 import { GpuSupplyHttpService, type GpuSupplyRow } from "@src/gpu-waitlist/services/gpu-supply-http/gpu-supply-http.service";
-import { GpuWaitlistEligibilityService } from "@src/gpu-waitlist/services/gpu-waitlist-eligibility/gpu-waitlist-eligibility.service";
+import { GpuWaitlistEligibilityService, type TrialAnswers } from "@src/gpu-waitlist/services/gpu-waitlist-eligibility/gpu-waitlist-eligibility.service";
 import { GpuWaitlistNetworkService } from "@src/gpu-waitlist/services/gpu-waitlist-network/gpu-waitlist-network.service";
 import { WatchGpuWaitlists } from "./watch-gpu-waitlists.job";
 
@@ -28,6 +28,8 @@ export const WATCH_GPU_WAITLISTS_KEY = "watchGpuWaitlists";
 const MAX_STORED_UNITS = 2147483647;
 
 type FindSupply = (model: { vendor: string; model: string }) => Promise<GpuSupplyRow[]>;
+
+type Tick = { now: Date; findSupply: FindSupply; trialAnswers: TrialAnswers };
 
 type WatchedPool = { poolKey: string; supply: PoolSupply; isDue: boolean; isRiseHeldByCooldown: boolean; closesWave: boolean; previous?: GpuWaitlistPoolRow };
 
@@ -82,11 +84,11 @@ export class WatchGpuWaitlistsHandler implements JobHandler<WatchGpuWaitlists> {
     const poolKeys = await this.gpuWaitlistEntryRepository.findWaitingPoolKeysAcrossOrganizations();
     const previousByKey = new Map((await this.gpuWaitlistPoolRepository.findByPoolKeys(poolKeys)).map(pool => [pool.poolKey, pool]));
     const watched: WatchedPool[] = [];
-    const findSupply = this.#findSupplyOncePerModel();
+    const tick: Tick = { now, findSupply: this.#findSupplyOncePerModel(), trialAnswers: new Map() };
 
     for (const poolKey of poolKeys) {
       try {
-        const pool = await this.#watchPool(poolKey, previousByKey.get(poolKey), now, findSupply);
+        const pool = await this.#watchPool(poolKey, previousByKey.get(poolKey), tick);
         if (pool) watched.push(pool);
       } catch (error) {
         this.#logger.error({ event: "GPU_WAITLIST_WATCH_POOL_FAILED", poolKey, error });
@@ -118,7 +120,8 @@ export class WatchGpuWaitlistsHandler implements JobHandler<WatchGpuWaitlists> {
     };
   }
 
-  async #watchPool(poolKey: string, previous: GpuWaitlistPoolRow | undefined, now: Date, findSupply: FindSupply): Promise<WatchedPool | undefined> {
+  /** An open episode where nobody who fits can be emailed is closed, so the pool is walked again only after a fresh rise instead of on every tick. */
+  async #watchPool(poolKey: string, previous: GpuWaitlistPoolRow | undefined, { now, findSupply, trialAnswers }: Tick): Promise<WatchedPool | undefined> {
     const entries = await this.gpuWaitlistEntryRepository.findWaitingInPoolAcrossOrganizations(poolKey);
     if (!entries.length) return undefined;
 
@@ -134,19 +137,20 @@ export class WatchGpuWaitlistsHandler implements JobHandler<WatchGpuWaitlists> {
     const isCooledDown = this.#isCooledDown(previous, now);
     const hasRisen = this.#hasRisen(supply, previous);
     const wouldCheck = fitsSomeone && isCooledDown && (hasRisen || this.#isRoundDue(previous, now));
+    const isDue = wouldCheck && (await this.#canEmailAnyone(fitting, previous, now, trialAnswers));
 
     return {
       poolKey,
       supply,
       previous,
-      isDue: wouldCheck && (await this.#canEmailAnyone(fitting, previous, now)),
+      isDue,
       isRiseHeldByCooldown: fitsSomeone && hasRisen && !isCooledDown,
-      closesWave: !fitsSomeone && !!previous?.waveStartedAt
+      closesWave: !!previous?.waveStartedAt && (!fitsSomeone || (wouldCheck && !isDue))
     };
   }
 
-  async #canEmailAnyone(fitting: GpuWaitlistEntryRow[], previous: GpuWaitlistPoolRow | undefined, now: Date): Promise<boolean> {
-    return (await this.gpuWaitlistEligibilityService.findFirstEligible(fitting, previous, now)) !== undefined;
+  async #canEmailAnyone(fitting: GpuWaitlistEntryRow[], previous: GpuWaitlistPoolRow | undefined, now: Date, trialAnswers: TrialAnswers): Promise<boolean> {
+    return (await this.gpuWaitlistEligibilityService.findFirstEligible(fitting, previous, now, trialAnswers)) !== undefined;
   }
 
   #isCooledDown(previous: GpuWaitlistPoolRow | undefined, now: Date): boolean {

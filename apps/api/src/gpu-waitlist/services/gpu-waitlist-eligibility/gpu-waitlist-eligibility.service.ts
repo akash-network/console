@@ -9,6 +9,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type GpuWaitlistEpisode = Pick<GpuWaitlistPoolRow, "waveStartedAt"> | undefined;
 
+/** Answers per account owner, shared by the callers of one run so a user waiting in several pools is read once. */
+export type TrialAnswers = Map<string, Promise<boolean>>;
+
 @singleton()
 export class GpuWaitlistEligibilityService {
   constructor(
@@ -26,16 +29,31 @@ export class GpuWaitlistEligibilityService {
     return entry.lastNotifiedAt && now.getTime() - entry.lastNotifiedAt.getTime() < DAY_MS ? entry.notifiedCount : 0;
   }
 
-  async isNotTrialing(entry: GpuWaitlistEntryRow): Promise<boolean> {
-    return (await this.hardwareRequestAccountService.findAccountType({ userId: entry.userId, organizationId: entry.organizationId })) !== "trial";
+  async isNotTrialing(entry: GpuWaitlistEntryRow, answers: TrialAnswers = new Map()): Promise<boolean> {
+    const owner = `${entry.userId}/${entry.organizationId}`;
+
+    if (!answers.has(owner)) {
+      answers.set(owner, this.#readIsNotTrialing(entry));
+    }
+
+    return await answers.get(owner)!;
   }
 
   /** Reads accounts only for entries within their email limits, in line order, and stops at the first eligible one. */
-  async findFirstEligible(entries: GpuWaitlistEntryRow[], episode: GpuWaitlistEpisode, now: Date): Promise<GpuWaitlistEntryRow | undefined> {
+  async findFirstEligible(
+    entries: GpuWaitlistEntryRow[],
+    episode: GpuWaitlistEpisode,
+    now: Date,
+    answers: TrialAnswers = new Map()
+  ): Promise<GpuWaitlistEntryRow | undefined> {
     for (const entry of entries) {
-      if (this.isWithinEmailLimits(entry, episode, now) && (await this.isNotTrialing(entry))) return entry;
+      if (this.isWithinEmailLimits(entry, episode, now) && (await this.isNotTrialing(entry, answers))) return entry;
     }
 
     return undefined;
+  }
+
+  async #readIsNotTrialing({ userId, organizationId }: GpuWaitlistEntryRow): Promise<boolean> {
+    return (await this.hardwareRequestAccountService.findAccountType({ userId, organizationId })) !== "trial";
   }
 }
