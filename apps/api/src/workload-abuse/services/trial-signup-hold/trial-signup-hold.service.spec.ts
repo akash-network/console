@@ -87,17 +87,109 @@ describe(TrialSignupHoldService.name, () => {
     expect(logger.error).toHaveBeenCalledWith({ event: "TRIAL_SIGNUP_HOLD_REPORT_FAILED", userId: user.id, error });
   });
 
+  describe("generated email tag", () => {
+    const taggedEmail = "veliarothmann5510+y177lq10ru@hotmail.com";
+
+    it("holds a trial whose email carries a generated tag and reports it once per window when the device has linked accounts", async () => {
+      const { service, user, fingerprint, userRepository, jobQueueService, logger } = setup({
+        mode: "off",
+        linkedCount: 1,
+        tagMode: "enforce",
+        email: taggedEmail
+      });
+
+      const held = await service.isHeld(user);
+
+      expect(held).toBe(true);
+      expect(logger.warn).toHaveBeenCalledWith({ event: "TRIAL_SIGNUP_HELD_FOR_GENERATED_EMAIL_TAG", userId: user.id });
+      expect(userRepository.findRecentlyActiveByFingerprint).toHaveBeenCalledWith(fingerprint, user.id, 45);
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new ReviewTrialSignup({ userId: user.id, held: true }), {
+        singletonKey: reviewHeldTrialSignupKeyFor(fingerprint),
+        singletonSeconds: 45 * 60
+      });
+    });
+
+    it("still holds the trial when the linked accounts cannot be read for the report", async () => {
+      const { service, user, userRepository, jobQueueService, logger } = setup({ mode: "off", tagMode: "enforce", email: taggedEmail });
+      const error = new Error("database unavailable");
+      userRepository.findRecentlyActiveByFingerprint.mockRejectedValue(error);
+
+      expect(await service.isHeld(user)).toBe(true);
+      expect(logger.error).toHaveBeenCalledWith({ event: "TRIAL_SIGNUP_HOLD_REPORT_FAILED", userId: user.id, error });
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("holds without reporting when the device has no linked accounts, so the report slot stays free", async () => {
+      const { service, user, jobQueueService } = setup({ tagMode: "enforce", email: taggedEmail });
+
+      expect(await service.isHeld(user)).toBe(true);
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("holds a trial for a generated tag even when the linked accounts stay below the threshold", async () => {
+      const { service, user } = setup({ mode: "enforce", linkedCount: 1, tagMode: "enforce", email: taggedEmail });
+
+      expect(await service.isHeld(user)).toBe(true);
+    });
+
+    it("places a single hold when both rules apply", async () => {
+      const { service, user, logger } = setup({ mode: "enforce", linkedCount: 2, tagMode: "enforce", email: taggedEmail });
+
+      expect(await service.isHeld(user)).toBe(true);
+      expect(logger.warn).toHaveBeenCalledTimes(1);
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "TRIAL_SIGNUP_HELD" }));
+    });
+
+    it("only logs the hold it would have placed in report mode", async () => {
+      const { service, user, jobQueueService, logger } = setup({ tagMode: "report", email: taggedEmail });
+
+      expect(await service.isHeld(user)).toBe(false);
+      expect(logger.info).toHaveBeenCalledWith({ event: "TRIAL_SIGNUP_GENERATED_EMAIL_TAG_HOLD_DRY_RUN", userId: user.id });
+      expect(logger.warn).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("ignores the tag when off", async () => {
+      const { service, user, logger } = setup({ tagMode: "off", email: taggedEmail });
+
+      expect(await service.isHeld(user)).toBe(false);
+      expect(logger.info).not.toHaveBeenCalled();
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it("does not hold a trial whose email carries no generated tag", async () => {
+      const { service, user, logger } = setup({ tagMode: "enforce", email: "veliarothmann5510+newsletter@hotmail.com" });
+
+      expect(await service.isHeld(user)).toBe(false);
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it("holds without reporting when there is no fingerprint or review window to throttle the report on", async () => {
+      const noFingerprint = setup({ linkedCount: 1, tagMode: "enforce", user: createUser({ email: taggedEmail, lastFingerprint: null }) });
+      const noWindow = setup({ linkedCount: 1, tagMode: "enforce", email: taggedEmail, windowMinutes: undefined });
+
+      expect(await noFingerprint.service.isHeld(noFingerprint.user)).toBe(true);
+      expect(await noWindow.service.isHeld(noWindow.user)).toBe(true);
+      expect(noFingerprint.userRepository.findRecentlyActiveByFingerprint).not.toHaveBeenCalled();
+      expect(noWindow.userRepository.findRecentlyActiveByFingerprint).not.toHaveBeenCalled();
+      expect(noFingerprint.jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(noWindow.jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+  });
+
   function setup(
     input: {
       mode?: "off" | "report" | "enforce";
+      tagMode?: "off" | "report" | "enforce";
       linkedCount?: number;
       minLinkedAccounts?: number;
       windowMinutes?: number;
+      email?: string;
       user?: UserOutput;
     } = {}
   ) {
     const fingerprint = faker.string.hexadecimal({ length: 64 });
-    const user = input.user ?? createUser({ lastFingerprint: fingerprint });
+    const user = input.user ?? createUser({ lastFingerprint: fingerprint, ...(input.email && { email: input.email }) });
     const linkedAccounts = Array.from({ length: input.linkedCount ?? 0 }, () => ({ id: faker.string.uuid(), email: faker.internet.email() }));
     const userRepository = mock<UserRepository>({ findRecentlyActiveByFingerprint: vi.fn().mockResolvedValue(linkedAccounts) });
     const jobQueueService = mock<JobQueueService>({ enqueue: vi.fn().mockResolvedValue("job-id") });
@@ -105,6 +197,7 @@ describe(TrialSignupHoldService.name, () => {
     const config = mockConfig<WorkloadAbuseConfigService>({
       WORKLOAD_ABUSE_SIGNUP_HOLD_MODE: input.mode ?? "report",
       WORKLOAD_ABUSE_SIGNUP_HOLD_MIN_LINKED_ACCOUNTS: input.minLinkedAccounts ?? 2,
+      WORKLOAD_ABUSE_GENERATED_EMAIL_TAG_HOLD_MODE: input.tagMode ?? "report",
       WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES: "windowMinutes" in input ? input.windowMinutes : 45
     });
     const logger = mock<ReturnType<CreateLogger>>();

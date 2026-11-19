@@ -3,8 +3,11 @@ import { inject, singleton } from "tsyringe";
 import { type CreateLogger, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { TxService } from "@src/core/services/tx/tx.service";
 import { type UserOutput, UserRepository } from "@src/user/repositories";
+import { hasGeneratedPlusTag } from "@src/workload-abuse/lib/generated-email-tag/generated-email-tag";
 import { reviewHeldTrialSignupKeyFor, ReviewTrialSignup } from "@src/workload-abuse/services/review-trial-signup/review-trial-signup.handler";
 import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
+
+type HeldUser = Pick<UserOutput, "id" | "email" | "lastFingerprint">;
 
 /** Counts only accounts active within the review window, so a hold lifts by itself once they leave it. */
 @singleton()
@@ -21,7 +24,13 @@ export class TrialSignupHoldService {
     this.logger = createLogger({ context: TrialSignupHoldService.name });
   }
 
-  async isHeld(user: Pick<UserOutput, "id" | "lastFingerprint">): Promise<boolean> {
+  async isHeld(user: HeldUser): Promise<boolean> {
+    if (await this.#isHeldForLinkedAccounts(user)) return true;
+
+    return await this.#isHeldForGeneratedEmailTag(user);
+  }
+
+  async #isHeldForLinkedAccounts(user: HeldUser): Promise<boolean> {
     const mode = this.config.get("WORKLOAD_ABUSE_SIGNUP_HOLD_MODE");
     const windowMinutes = this.config.get("WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES");
     if (mode === "off" || !windowMinutes || !user.lastFingerprint) return false;
@@ -40,6 +49,34 @@ export class TrialSignupHoldService {
     await this.#reportHeld(user.id, user.lastFingerprint, windowMinutes);
 
     return true;
+  }
+
+  async #isHeldForGeneratedEmailTag(user: HeldUser): Promise<boolean> {
+    const mode = this.config.get("WORKLOAD_ABUSE_GENERATED_EMAIL_TAG_HOLD_MODE");
+    if (mode === "off" || !hasGeneratedPlusTag(user.email)) return false;
+
+    if (mode === "report") {
+      this.logger.info({ event: "TRIAL_SIGNUP_GENERATED_EMAIL_TAG_HOLD_DRY_RUN", userId: user.id });
+      return false;
+    }
+
+    this.logger.warn({ event: "TRIAL_SIGNUP_HELD_FOR_GENERATED_EMAIL_TAG", userId: user.id });
+    await this.#reportHeldIfLinked(user);
+
+    return true;
+  }
+
+  /** The review post lists linked accounts, so an unlinked hold stays unreported and leaves the device's report slot to a later hold. */
+  async #reportHeldIfLinked(user: HeldUser): Promise<void> {
+    const windowMinutes = this.config.get("WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES");
+    if (!windowMinutes || !user.lastFingerprint) return;
+
+    try {
+      const linkedAccounts = await this.userRepository.findRecentlyActiveByFingerprint(user.lastFingerprint, user.id, windowMinutes);
+      if (linkedAccounts.length) await this.#reportHeld(user.id, user.lastFingerprint, windowMinutes);
+    } catch (error) {
+      this.logger.error({ event: "TRIAL_SIGNUP_HOLD_REPORT_FAILED", userId: user.id, error });
+    }
   }
 
   /** Enqueued outside any surrounding transaction because the hold refuses by throwing; pg-boss throttles on fixed slots counted from the epoch, so attempts on either side of a slot boundary each report. */
