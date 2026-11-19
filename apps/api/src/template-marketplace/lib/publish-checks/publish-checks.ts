@@ -1,6 +1,7 @@
 import { yaml } from "@akashnetwork/chain-sdk";
 
 import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
+import { isSdlReference } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import type { AskedValue } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
 import { findSecretValueIssues, readSdlEnvValues } from "@src/template-marketplace/lib/asked-values/find-secret-value-issues";
 import { type BlockedImageKind, findBlockedImageKind } from "./blocked-images";
@@ -65,7 +66,8 @@ function findSecretIssues({ sdl, readme, askedValues }: PublishCheckInput): Publ
       .filter(askedValue => askedValue.type === "secret")
       .flatMap(askedValue => askedValue.bindings.map(binding => bindingKey(binding.service, binding.env)))
   );
-  const credentialEnvValues = readSdlEnvValues(sdl).flatMap(entry => {
+  const envValues = readSdlEnvValues(sdl);
+  const credentialEnvValues = envValues.flatMap(entry => {
     const sign = findCredentialSign(entry.value, entry.variable);
 
     return sign ? [{ ...entry, sign }] : [];
@@ -80,11 +82,12 @@ function findSecretIssues({ sdl, readme, askedValues }: PublishCheckInput): Publ
       })
     );
   const envValuesReportedByVariable = credentialEnvValues.map(({ value }) => value);
+  const secretReferences = envValues.map(({ value }) => value).filter(isSdlReference);
 
   return [
     ...findSecretValueIssues(sdl, askedValues).map(message => ({ message })),
     ...envIssues,
-    ...findCredentialLineIssues(sdl, "sdl", envValuesReportedByVariable),
+    ...findCredentialLineIssues(sdl, "sdl", [...envValuesReportedByVariable, ...secretReferences]),
     ...askedValues.flatMap(findDefaultIssue),
     ...findReadmeSecretIssues(readme ?? "")
   ];
@@ -98,9 +101,9 @@ const CREDENTIAL_LINE_SOURCES = { sdl: "the SDL", readme: "the README" };
 
 const MAX_REPORTED_CREDENTIAL_LINES = 20;
 
-/** Reads the text as written, so a key in a comment, an argument or the README is found too; an env value already reported under its variable is left out, which hides nothing, since that report alone fails the check. */
-function findCredentialLineIssues(text: string, field: keyof typeof CREDENTIAL_LINE_SOURCES, reportedValues: string[]): PublishCheckIssue[] {
-  const unreportedText = reportedValues.reduce((rest, value) => rest.replaceAll(value, " ".repeat(value.length)), text);
+/** Reads the text as written, so a key in a comment, an argument or the README is found too; an env value already reported under its variable is left out, as is a secret reference, whose name is not a key however it reads. */
+function findCredentialLineIssues(text: string, field: keyof typeof CREDENTIAL_LINE_SOURCES, valuesLeftOut: string[]): PublishCheckIssue[] {
+  const unreportedText = valuesLeftOut.reduce((rest, value) => rest.replaceAll(value, " ".repeat(value.length)), text);
 
   return findLineNumbers(unreportedText, findKnownCredentialOffsets(unreportedText))
     .slice(0, MAX_REPORTED_CREDENTIAL_LINES)

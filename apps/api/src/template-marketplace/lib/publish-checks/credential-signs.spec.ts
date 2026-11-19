@@ -4,6 +4,8 @@ import { findCredentialSign, holdsKnownCredentialFormat } from "./credential-sig
 
 const RANDOM_TOKEN = "q7Rk2ZpX9vLm4TnB8sWd3YhC6";
 
+const MNEMONIC = "abandon ability able about above absent absorb abstract absurd abuse access accident";
+
 describe(findCredentialSign.name, () => {
   it.each([
     { shape: "an OpenAI style key", value: "sk-abcdefghijklmnop1234" },
@@ -18,6 +20,54 @@ describe(findCredentialSign.name, () => {
     { shape: "a 24-word mnemonic", value: Array.from({ length: 24 }, () => "ladder").join(" ") },
     { shape: "a mnemonic split over lines", value: Array.from({ length: 15 }, () => "zoo").join("\n") },
     { shape: "a mnemonic after other words", value: "seed: abandon ability able about above absent absorb abstract absurd abuse access accident" },
+    { shape: "a mnemonic in double quotes", value: `"${MNEMONIC}"` },
+    { shape: "a mnemonic in single quotes", value: `'${MNEMONIC}'` },
+    { shape: "a mnemonic in backticks", value: `\`${MNEMONIC}\`` },
+    { shape: "a mnemonic in a code fence", value: `\`\`\`\n${MNEMONIC}\n\`\`\`` },
+    {
+      shape: "a mnemonic with each word quoted",
+      value: MNEMONIC.split(" ")
+        .map(word => `"${word}",`)
+        .join(" ")
+    },
+    { shape: "a mnemonic separated by commas", value: MNEMONIC.split(" ").join(", ") },
+    { shape: "a mnemonic separated by semicolons", value: MNEMONIC.split(" ").join("; ") },
+    {
+      shape: "a mnemonic numbered with dots",
+      value: MNEMONIC.split(" ")
+        .map((word, index) => `${index + 1}. ${word}`)
+        .join("\n")
+    },
+    {
+      shape: "a mnemonic numbered with brackets",
+      value: MNEMONIC.split(" ")
+        .map((word, index) => `${index + 1}) ${word}`)
+        .join(" ")
+    },
+    {
+      shape: "a mnemonic numbered with colons",
+      value: MNEMONIC.split(" ")
+        .map((word, index) => `${index + 1}: ${word}`)
+        .join(" ")
+    },
+    {
+      shape: "a mnemonic numbered with bare numbers",
+      value: MNEMONIC.split(" ")
+        .map((word, index) => `${index + 1} ${word}`)
+        .join(" ")
+    },
+    {
+      shape: "a mnemonic as a dashed list",
+      value: MNEMONIC.split(" ")
+        .map(word => `- ${word}`)
+        .join("\n")
+    },
+    {
+      shape: "a mnemonic as a starred list",
+      value: MNEMONIC.split(" ")
+        .map(word => `* ${word}`)
+        .join("\n")
+    },
     { shape: "a private key header without the rest of its block", value: "-----BEGIN EC PRIVATE KEY-----" },
     { shape: "a provider token after a placeholder word", value: "your-token hf_abcdefghijklmnopqrstuv" }
   ])("reads $shape as a known format whatever the variable is called", ({ value }) => {
@@ -210,6 +260,25 @@ describe(holdsKnownCredentialFormat.name, () => {
     `postgres://app:${"hunter2".repeat(2)}@db:5432/app`,
     "you are now using the fast model with some safe default values",
     "abandon ability able about above absent absorb abstract absurd abuse access",
+    "`abandon ability able about above absent absorb abstract absurd abuse access`",
+    MNEMONIC.split(" ").join("."),
+    MNEMONIC.split(" ").join("-"),
+    MNEMONIC.split(" ").join(" . "),
+    MNEMONIC.split(" ").join(" 1.5 "),
+    MNEMONIC.split(" ").join(" -- "),
+    MNEMONIC.split(" ")
+      .map(word => `${word}.`)
+      .join(" "),
+    MNEMONIC.split(" ")
+      .map(word => `(${word})`)
+      .join(" "),
+    MNEMONIC.split(" ")
+      .map(word => `x"${word}`)
+      .join(" "),
+    MNEMONIC.split(" ")
+      .map(word => `${word}"x`)
+      .join(" "),
+    MNEMONIC.toUpperCase(),
     "abandon ability able about above absent xyzzy absorb abstract absurd abuse access accident"
   ])("finds none in %j, which names no format a provider issues", text => {
     expect(holdsKnownCredentialFormat(text)).toBe(false);

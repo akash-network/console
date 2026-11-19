@@ -281,6 +281,46 @@ describe(runPublishChecks.name, () => {
       expect(checkOf(results, "no_secrets")).toEqual({ key: "no_secrets", status: "passed", issues: [] });
     });
 
+    it("still names a provider key that an ordinary env value happens to be part of", () => {
+      const sdl = [
+        'version: "2.0"',
+        "services:",
+        "  web:",
+        "    image: nginx:1.27.2",
+        "    env:",
+        "      - MODE=abcdefghij",
+        "# hf_abcdefghijklmnopqrstuv"
+      ].join("\n");
+
+      const results = setup({ sdl });
+
+      expect(checkOf(results, "no_secrets").issues).toEqual([expect.objectContaining({ field: "sdl", message: expect.stringContaining("Line 7 of the SDL") })]);
+    });
+
+    it("passes a secret reference whose name reads like a provider key", () => {
+      const results = setup({
+        sdl: buildSdl({ web: { image: "nginx:1.27.2", env: ["HUB=ac-secret://hf_abcdefghijklmnopqrstuv"] } }),
+        askedValues: [secretAskedValue({ key: "hf_abcdefghijklmnopqrstuv", bindings: [{ service: "web", env: "HUB" }] })]
+      });
+
+      expect(checkOf(results, "no_secrets")).toEqual({ key: "no_secrets", status: "passed", issues: [] });
+    });
+
+    it("still names a provider key in a comment that shares its line with a secret reference", () => {
+      const sdl = [
+        'version: "2.0"',
+        "services:",
+        "  web:",
+        "    image: nginx:1.27.2",
+        "    env:",
+        "      - HUB=ac-secret://hf_abcdefghijklmnopqrstuv # hf_zyxwvutsrqponmlkjihgfe"
+      ].join("\n");
+
+      const results = setup({ sdl, askedValues: [secretAskedValue({ key: "hf_abcdefghijklmnopqrstuv", bindings: [{ service: "web", env: "HUB" }] })] });
+
+      expect(checkOf(results, "no_secrets").issues).toEqual([expect.objectContaining({ field: "sdl", message: expect.stringContaining("Line 6 of the SDL") })]);
+    });
+
     it("reports a secret's saved value once, through the scan every save runs", () => {
       const results = setup({
         sdl: buildSdl({ web: { image: "nginx:1.27.2", env: ["HF_TOKEN=hf_abcdefghijklmnopqrstuv"] } }),

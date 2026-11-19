@@ -35,7 +35,7 @@ const LATEST_TAG_ISSUE = {
   image: "nginx:latest"
 };
 
-const PROVIDER_KEY = "hf_abcdefghijklmnopqrstuv";
+const PROVIDER_KEY = `hf_${faker.string.alphanumeric(22)}`;
 const README_KEY_ISSUE = {
   message: "Line 3 of the README holds a key or token in a format providers issue. Remove it before the template is public; anyone could read and use it.",
   field: "readme"

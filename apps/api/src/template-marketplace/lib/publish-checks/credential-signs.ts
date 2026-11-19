@@ -130,19 +130,25 @@ function isOpaque(value: string): boolean {
   return value.length >= MIN_OPAQUE_LENGTH && !/\s/.test(value) && /[A-Za-z]/.test(value) && /\d/.test(value);
 }
 
-/** A run of mnemonic words is found wherever it sits and however its lines break, since ordinary prose never strings twelve of them together. */
+const LIST_MARKER = /^(?:\d+[.):]?|[-*])$/;
+
+const QUOTED_OR_LISTED_WORD = /^["'`]*([a-z]+)["'`,;]*$/;
+
+/** A run of mnemonic words is found wherever it sits, however its lines break and whether it is quoted, numbered or listed, since ordinary prose never strings twelve of them together. */
 function findMnemonicOffsets(text: string): number[] {
   const offsets: number[] = [];
   let runStart = 0;
   let runLength = 0;
 
-  for (const word of text.matchAll(/\S+/g)) {
-    if (!MNEMONIC_WORDS.has(word[0])) {
+  for (const token of text.matchAll(/\S+/g)) {
+    if (LIST_MARKER.test(token[0])) continue;
+
+    if (!MNEMONIC_WORDS.has(token[0].match(QUOTED_OR_LISTED_WORD)?.[1] ?? "")) {
       runLength = 0;
       continue;
     }
 
-    if (runLength === 0) runStart = word.index;
+    if (runLength === 0) runStart = token.index;
     runLength++;
     if (runLength === MIN_MNEMONIC_WORDS) offsets.push(runStart);
   }
