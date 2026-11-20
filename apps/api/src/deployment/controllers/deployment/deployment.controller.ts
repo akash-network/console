@@ -48,6 +48,7 @@ import { DeploymentReaderService } from "@src/deployment/services/deployment-rea
 import { DeploymentSdlSourceService } from "@src/deployment/services/deployment-sdl-source/deployment-sdl-source.service";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import { SpendRateService } from "@src/deployment/services/spend-rate/spend-rate.service";
+import { submittedSdlOf } from "@src/deployment/utils/submitted-sdl/submitted-sdl";
 
 @singleton()
 export class DeploymentController {
@@ -90,7 +91,7 @@ export class DeploymentController {
   ): Promise<CreateDeploymentResponse | CreateDeploymentAcceptedResponse> {
     const userId = this.authService.currentUser.id;
     const recordGpuBids = origin.authMethod === "bearer";
-    const { service, overrides, ...fields } = input;
+    const { service, overrides, definition, ...fields } = input;
     const create = { ...fields, sdl: await this.deploymentSdlSourceService.resolve(input), userId, recordGpuBids };
 
     if (query.async) {
@@ -152,17 +153,25 @@ export class DeploymentController {
     query: ReplaceDeploymentDefinitionQuery = { async: false }
   ): Promise<{ data: ReplaceDeploymentDefinitionResponse["data"] | ReplaceDeploymentDefinitionAcceptedResponse["data"] }> {
     const userId = this.authService.currentUser.id;
+    const { definition, ...fields } = input;
+    const replacement = { ...fields, sdl: submittedSdlOf(input) };
 
     if (query.async) {
-      return { data: await this.deploymentWriterService.replaceDefinitionInBackgroundByUserIdAndDseq(userId, dseq, input, this.authService.ability) };
+      return { data: await this.deploymentWriterService.replaceDefinitionInBackgroundByUserIdAndDseq(userId, dseq, replacement, this.authService.ability) };
     }
 
-    return { data: await this.deploymentWriterService.replaceDefinitionByUserIdAndDseq(userId, dseq, input, this.authService.ability) };
+    return { data: await this.deploymentWriterService.replaceDefinitionByUserIdAndDseq(userId, dseq, replacement, this.authService.ability) };
   }
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
   async createDefinition(dseq: string, input: CreateDeploymentDefinitionRequest["data"]): Promise<CreateDeploymentDefinitionResponse> {
-    const result = await this.deploymentWriterService.recordDefinitionByUserIdAndDseq(this.authService.currentUser.id, dseq, input, this.authService.ability);
+    const { definition, ...fields } = input;
+    const result = await this.deploymentWriterService.recordDefinitionByUserIdAndDseq(
+      this.authService.currentUser.id,
+      dseq,
+      { ...fields, sdl: submittedSdlOf(input) },
+      this.authService.ability
+    );
     return { data: result };
   }
 

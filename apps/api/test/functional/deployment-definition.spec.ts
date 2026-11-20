@@ -1,3 +1,5 @@
+import type { SDLInput } from "@akashnetwork/chain-sdk";
+import { yaml } from "@akashnetwork/chain-sdk";
 import { faker } from "@faker-js/faker";
 import { CompactEncrypt } from "jose";
 import nock from "nock";
@@ -114,6 +116,16 @@ describe("Deployment definitions", () => {
       const setting = await settingOf(user);
       expect(setting).toMatchObject({ sdl: expect.stringContaining("image: nginx"), manifestVersion: await versionOf(sdl) });
       expect(await response.json()).toEqual({ data: { sdl: setting!.sdl, manifestVersion: setting!.manifestVersion } });
+    });
+
+    it("records a definition sent as JSON that resolves to the version the deployment runs", async () => {
+      const sdl = sdlWithEnv(["LOG_LEVEL=debug"]);
+      const { apiKey, user } = await setup({ runs: { sdl } });
+
+      const response = await record(apiKey, { definition: yaml.raw<SDLInput>(sdl) });
+
+      expect(response.status).toBe(201);
+      expect(await settingOf(user)).toMatchObject({ sdl: expect.stringContaining("image: nginx"), manifestVersion: await versionOf(sdl) });
     });
 
     it("seals every value of an sdl that carries no seal, as a create does", async () => {
@@ -265,7 +277,7 @@ describe("Deployment definitions", () => {
     });
   });
 
-  function record(apiKey: string, data: { sdl: string; sealedSecrets?: string }) {
+  function record(apiKey: string, data: { sdl?: string; definition?: SDLInput; sealedSecrets?: string }) {
     return app.request(`/v1/deployments/${DSEQ}/definition`, {
       method: "POST",
       body: JSON.stringify({ data }),

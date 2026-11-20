@@ -30,7 +30,7 @@ import { MAX_SUBMITTED_SDL_LENGTH, SDL_MAX_LENGTH } from "@src/deployment/config
 import {
   assignsAnyServiceField,
   CreateDeploymentAcceptedResponse,
-  CreateDeploymentDefinitionRequest,
+  CreateDeploymentDefinitionInput,
   CreateDeploymentDefinitionResponse,
   CreateDeploymentInput,
   CreateDeploymentResponse,
@@ -39,7 +39,7 @@ import {
   PatchDeploymentRequest,
   PatchDeploymentResponse,
   ReplaceDeploymentDefinitionAcceptedResponse,
-  ReplaceDeploymentDefinitionRequest,
+  ReplaceDeploymentDefinitionInput,
   ReplaceDeploymentDefinitionResponse,
   UpdateDeploymentRequest
 } from "@src/deployment/http-schemas/deployment.schema";
@@ -999,7 +999,7 @@ export class DeploymentWriterService {
   public async replaceDefinitionByUserIdAndDseq(
     userId: string,
     dseq: string,
-    input: ReplaceDeploymentDefinitionRequest["data"],
+    input: ReplaceDeploymentDefinitionInput,
     ability: AnyAbility
   ): Promise<ReplaceDeploymentDefinitionResponse["data"]> {
     return await this.#saveAndApply(await this.#prepareReplace(userId, dseq, input, ability), ability);
@@ -1008,7 +1008,7 @@ export class DeploymentWriterService {
   public async replaceDefinitionInBackgroundByUserIdAndDseq(
     userId: string,
     dseq: string,
-    input: ReplaceDeploymentDefinitionRequest["data"],
+    input: ReplaceDeploymentDefinitionInput,
     ability: AnyAbility
   ): Promise<ReplaceDeploymentDefinitionAcceptedResponse["data"]> {
     return await this.#saveForBackgroundApply(await this.#prepareReplace(userId, dseq, input, ability), ability);
@@ -1197,7 +1197,7 @@ export class DeploymentWriterService {
   }
 
   /** Every check that can refuse the replacement runs here, as for a patch, so a refusal leaves the row untouched. */
-  async #prepareReplace(userId: string, dseq: string, input: ReplaceDeploymentDefinitionRequest["data"], ability: AnyAbility): Promise<PatchWrite> {
+  async #prepareReplace(userId: string, dseq: string, input: ReplaceDeploymentDefinitionInput, ability: AnyAbility): Promise<PatchWrite> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
     const filedUserId = await this.signerService.filedUserIdOf(wallet, userId, dseq);
     const stored = await this.#findStoredDefinition({ userId: filedUserId, dseq }, ability, NOT_REPLACEABLE_MESSAGE);
@@ -1320,7 +1320,7 @@ export class DeploymentWriterService {
   public async recordDefinitionByUserIdAndDseq(
     userId: string,
     dseq: string,
-    input: CreateDeploymentDefinitionRequest["data"],
+    input: CreateDeploymentDefinitionInput,
     ability: AnyAbility
   ): Promise<CreateDeploymentDefinitionResponse["data"]> {
     const { sdl, storedDocument, derived } = this.#storedSdlOf(input.sdl, sealedEnvOf(input), dseq);
