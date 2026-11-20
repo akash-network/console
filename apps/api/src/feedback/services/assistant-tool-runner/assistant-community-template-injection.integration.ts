@@ -68,13 +68,15 @@ describe(AssistantToolRunnerService.name, () => {
         runTool("propose_create_deployment", { templateId: inTitle.id }),
         runTool("propose_create_deployment", { templateId: inSummary.id, name: "from-a-template" }),
         runTool("check_availability", { templateId: inTitle.id }),
-        runTool("propose_open_in_editor", { templateId: inTitle.id, sdl: SDL_OF_COMMUNITY_TEMPLATE })
+        runTool("propose_open_in_editor", { templateId: inTitle.id, sdl: SDL_OF_COMMUNITY_TEMPLATE }),
+        runTool("propose_create_deployment", { templateId: inTitle.id, sdl: SDL_OF_COMMUNITY_TEMPLATE }),
+        runTool("check_availability", { templateId: inSummary.id, sdl: SDL_OF_COMMUNITY_TEMPLATE })
       ]);
 
-      expect(outcomes.map(({ kind }) => kind)).toEqual(["result", "result", "result", "result"]);
-      expect(outcomes.map(outcome => (outcome as { ok: boolean }).ok)).toEqual([false, false, false, false]);
-      expect(outcomes.map(outcome => contentOf(outcome).error)).toEqual(Array(4).fill(OPENS_IN_CONFIGURE_ONLY));
-      expect(outcomes.map(outcome => contentOf(outcome).data)).toEqual(Array(4).fill(undefined));
+      expect(outcomes.map(({ kind }) => kind)).toEqual(Array(6).fill("result"));
+      expect(outcomes.map(outcome => (outcome as { ok: boolean }).ok)).toEqual(Array(6).fill(false));
+      expect(outcomes.map(outcome => contentOf(outcome).error)).toEqual(Array(6).fill(OPENS_IN_CONFIGURE_ONLY));
+      expect(outcomes.map(outcome => contentOf(outcome).data)).toEqual(Array(6).fill(undefined));
     });
 
     it("suggests the template only as a link to Configure, flagged as not reviewed by Akash and carrying none of its text", async () => {

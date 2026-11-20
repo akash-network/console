@@ -39381,7 +39381,7 @@
                                         "console",
                                         "awesome_akash"
                                       ],
-                                      "description": "console: the id of a Console template; awesome_akash: a gallery id"
+                                      "description": "console: the id of a template saved in Console; awesome_akash: the id of a gallery template or of one built into Console"
                                     },
                                     "reviewedByAkash": {
                                       "type": "boolean",
@@ -41166,7 +41166,7 @@
                                         "console",
                                         "awesome_akash"
                                       ],
-                                      "description": "console: the id of a Console template; awesome_akash: a gallery id"
+                                      "description": "console: the id of a template saved in Console; awesome_akash: the id of a gallery template or of one built into Console"
                                     },
                                     "reviewedByAkash": {
                                       "type": "boolean",

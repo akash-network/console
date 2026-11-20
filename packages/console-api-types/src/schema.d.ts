@@ -22539,7 +22539,7 @@ export interface operations {
                       /** @description Describes the template the card opens, while the template marketplace is on */
                       template?: {
                         /**
-                         * @description console: the id of a Console template; awesome_akash: a gallery id
+                         * @description console: the id of a template saved in Console; awesome_akash: the id of a gallery template or of one built into Console
                          * @enum {string}
                          */
                         source: "console" | "awesome_akash";
@@ -23078,7 +23078,7 @@ export interface operations {
                       /** @description Describes the template the card opens, while the template marketplace is on */
                       template?: {
                         /**
-                         * @description console: the id of a Console template; awesome_akash: a gallery id
+                         * @description console: the id of a template saved in Console; awesome_akash: the id of a gallery template or of one built into Console
                          * @enum {string}
                          */
                         source: "console" | "awesome_akash";

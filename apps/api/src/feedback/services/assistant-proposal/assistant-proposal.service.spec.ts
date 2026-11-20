@@ -213,6 +213,27 @@ describe(AssistantProposalService.name, () => {
       expect(action).toMatchObject({ templateId: "hello-world", providersAbleToBid: 4 });
     });
 
+    it("refuses a marketplace template's id even when an SDL comes with it, before anything is screened", async () => {
+      const { service, accountTools, bidTools } = setup();
+      const refusal = new AssistantToolError("This template only opens in Configure.");
+      accountTools.refuseMarketplaceTemplate.mockImplementation(() => {
+        throw refusal;
+      });
+
+      await expect(propose(service, "create_deployment", { templateId: COMMUNITY_TEMPLATE_ID, sdl: ASSISTANT_TEST_SDL })).rejects.toBe(refusal);
+
+      expect(accountTools.refuseMarketplaceTemplate).toHaveBeenCalledWith(COMMUNITY_TEMPLATE_ID);
+      expect(bidTools.checkAvailability).not.toHaveBeenCalled();
+    });
+
+    it("asks about no template when only an SDL is given", async () => {
+      const { service, accountTools } = setup();
+
+      await propose(service, "create_deployment", { sdl: ASSISTANT_TEST_SDL });
+
+      expect(accountTools.refuseMarketplaceTemplate).not.toHaveBeenCalled();
+    });
+
     it("holds back a generated SDL given with a template without repeating it or treating it as the template's", async () => {
       const { service, bidTools } = setup();
       bidTools.checkAvailability.mockResolvedValue(availabilityOf(0));

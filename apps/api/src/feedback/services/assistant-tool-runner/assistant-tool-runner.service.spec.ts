@@ -430,6 +430,21 @@ describe(AssistantToolRunnerService.name, () => {
       expect(outcome).toMatchObject({ ok: true, summary: "Checked which providers could bid" });
     });
 
+    it("refuses to screen an SDL that comes with a marketplace template's id", async () => {
+      const { runner, accountTools, bidTools, proposalService } = setup();
+      const templateId = "3f2c9a54-7d1e-4b8a-9c61-0e5d2a7b4f10";
+      accountTools.refuseMarketplaceTemplate.mockImplementation(() => {
+        throw new AssistantToolError("This template only opens in Configure.");
+      });
+
+      const outcome = await runner.run(call("check_availability", { templateId, sdl: "generated sdl" }), { isTrialing: false, withheldTemplateSdls: [] });
+
+      expect(accountTools.refuseMarketplaceTemplate).toHaveBeenCalledWith(templateId);
+      expect(outcome).toMatchObject({ ok: false, content: toolContentOf("check_availability", { error: "This template only opens in Configure." }) });
+      expect(proposalService.pricedSdl).not.toHaveBeenCalled();
+      expect(bidTools.checkAvailability).not.toHaveBeenCalled();
+    });
+
     it("refuses a call that names neither a template nor an SDL", async () => {
       const { runner, bidTools } = setup();
 
@@ -452,6 +467,7 @@ describe(AssistantToolRunnerService.name, () => {
 
       await runner.run(call("check_availability", { sdl: "generated sdl" }), context);
 
+      expect(accountTools.refuseMarketplaceTemplate).not.toHaveBeenCalled();
       expect(accountTools.templateSdl).not.toHaveBeenCalled();
       expect(proposalService.pricedSdl).toHaveBeenCalledWith("generated sdl", context);
       expect(bidTools.checkAvailability).toHaveBeenCalledWith("priced sdl", { isTrialing: false });

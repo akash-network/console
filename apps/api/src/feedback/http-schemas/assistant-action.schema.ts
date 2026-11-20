@@ -221,7 +221,9 @@ export const AssistantActionSchema = z
       sdl: z.string().nullable(),
       template: z
         .object({
-          source: z.enum(templateSourceEnum.enumValues).openapi({ description: "console: the id of a Console template; awesome_akash: a gallery id" }),
+          source: z.enum(templateSourceEnum.enumValues).openapi({
+            description: "console: the id of a template saved in Console; awesome_akash: the id of a gallery template or of one built into Console"
+          }),
           reviewedByAkash: z.boolean().openapi({ description: "False for a community template, which is shown as not reviewed by Akash" })
         })
         .optional()
