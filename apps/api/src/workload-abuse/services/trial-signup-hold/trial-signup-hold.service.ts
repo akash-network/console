@@ -4,6 +4,7 @@ import { type CreateLogger, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { TxService } from "@src/core/services/tx/tx.service";
 import { type UserOutput, UserRepository } from "@src/user/repositories";
 import { hasGeneratedPlusTag } from "@src/workload-abuse/lib/generated-email-tag/generated-email-tag";
+import { type EmailDomainAssessment, EmailDomainReputationService } from "@src/workload-abuse/services/email-domain-reputation/email-domain-reputation.service";
 import { reviewHeldTrialSignupKeyFor, ReviewTrialSignup } from "@src/workload-abuse/services/review-trial-signup/review-trial-signup.handler";
 import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 
@@ -19,6 +20,7 @@ export class TrialSignupHoldService {
     private readonly jobQueueService: JobQueueService,
     private readonly txService: TxService,
     private readonly config: WorkloadAbuseConfigService,
+    private readonly emailDomainReputationService: EmailDomainReputationService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: TrialSignupHoldService.name });
@@ -26,8 +28,9 @@ export class TrialSignupHoldService {
 
   async isHeld(user: HeldUser): Promise<boolean> {
     if (await this.#isHeldForLinkedAccounts(user)) return true;
+    if (await this.#isHeldForGeneratedEmailTag(user)) return true;
 
-    return await this.#isHeldForGeneratedEmailTag(user);
+    return await this.#isHeldForEmailDomainReputation(user);
   }
 
   async #isHeldForLinkedAccounts(user: HeldUser): Promise<boolean> {
@@ -64,6 +67,36 @@ export class TrialSignupHoldService {
     await this.#reportHeldIfLinked(user);
 
     return true;
+  }
+
+  async #isHeldForEmailDomainReputation(user: HeldUser): Promise<boolean> {
+    const mode = this.config.get("WORKLOAD_ABUSE_EMAIL_DOMAIN_HOLD_MODE");
+    if (mode === "off") return false;
+
+    const assessment = await this.#findEmailDomainSignals(user);
+    if (!assessment?.signals.length) return false;
+
+    const context = { userId: user.id, domain: assessment.domain, signals: assessment.signals };
+
+    if (mode === "report") {
+      this.logger.info({ event: "TRIAL_SIGNUP_EMAIL_DOMAIN_HOLD_DRY_RUN", ...context });
+      return false;
+    }
+
+    this.logger.warn({ event: "TRIAL_SIGNUP_HELD_FOR_EMAIL_DOMAIN", ...context });
+    await this.#reportHeldIfLinked(user);
+
+    return true;
+  }
+
+  /** Fails open, since every signal is a heuristic and a database or DNS fault must not cost a real user their trial. */
+  async #findEmailDomainSignals(user: HeldUser): Promise<EmailDomainAssessment | null> {
+    try {
+      return await this.emailDomainReputationService.findSignals(user);
+    } catch (error) {
+      this.logger.error({ event: "TRIAL_SIGNUP_EMAIL_DOMAIN_CHECK_FAILED", userId: user.id, error });
+      return null;
+    }
   }
 
   /** The review post lists linked accounts, so an unlinked hold stays unreported and leaves the device's report slot to a later hold. */

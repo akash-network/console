@@ -257,6 +257,35 @@ describe("workload abuse env config", () => {
     expect(() => setup({ WORKLOAD_ABUSE_GENERATED_EMAIL_TAG_HOLD_MODE: "detect" })).toThrow(/WORKLOAD_ABUSE_GENERATED_EMAIL_TAG_HOLD_MODE/);
   });
 
+  it("defaults the email domain hold to report when unset or blank", () => {
+    expect(setup().WORKLOAD_ABUSE_EMAIL_DOMAIN_HOLD_MODE).toBe("report");
+    expect(setup({ WORKLOAD_ABUSE_EMAIL_DOMAIN_HOLD_MODE: " " }).WORKLOAD_ABUSE_EMAIL_DOMAIN_HOLD_MODE).toBe("report");
+  });
+
+  it("reads the email domain hold mode and rejects an unknown one", () => {
+    expect(setup({ WORKLOAD_ABUSE_EMAIL_DOMAIN_HOLD_MODE: "enforce" }).WORKLOAD_ABUSE_EMAIL_DOMAIN_HOLD_MODE).toBe("enforce");
+    expect(setup({ WORKLOAD_ABUSE_EMAIL_DOMAIN_HOLD_MODE: "off" }).WORKLOAD_ABUSE_EMAIL_DOMAIN_HOLD_MODE).toBe("off");
+    expect(() => setup({ WORKLOAD_ABUSE_EMAIL_DOMAIN_HOLD_MODE: "detect" })).toThrow(/WORKLOAD_ABUSE_EMAIL_DOMAIN_HOLD_MODE/);
+  });
+
+  it("defaults the email domain burst to 5 sign-ups within 24 hours when unset or blank", () => {
+    const blank = setup({ WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_MIN_SIGNUPS: " ", WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_WINDOW_HOURS: " " });
+
+    expect(setup().WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_MIN_SIGNUPS).toBe(5);
+    expect(setup().WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_WINDOW_HOURS).toBe(24);
+    expect(blank.WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_MIN_SIGNUPS).toBe(5);
+    expect(blank.WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_WINDOW_HOURS).toBe(24);
+  });
+
+  it("reads the email domain burst and rejects a value that is not a positive integer", () => {
+    const parsed = setup({ WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_MIN_SIGNUPS: "8", WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_WINDOW_HOURS: "6" });
+
+    expect(parsed.WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_MIN_SIGNUPS).toBe(8);
+    expect(parsed.WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_WINDOW_HOURS).toBe(6);
+    expect(() => setup({ WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_MIN_SIGNUPS: "0" })).toThrow(/WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_MIN_SIGNUPS/);
+    expect(() => setup({ WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_WINDOW_HOURS: "1.5" })).toThrow(/WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_WINDOW_HOURS/);
+  });
+
   it("requires an account hash secret of at least 32 characters", () => {
     const secret = "s".repeat(32);
 
