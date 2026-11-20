@@ -18,7 +18,10 @@ import type {
   ReplaceDeploymentDefinitionAcceptedResponse,
   ReplaceDeploymentDefinitionQuery,
   ReplaceDeploymentDefinitionRequest,
-  ReplaceDeploymentDefinitionResponse
+  ReplaceDeploymentDefinitionResponse,
+  ValidateDeploymentDefinitionRequest,
+  ValidateDeploymentRequest,
+  ValidateDeploymentResponse
 } from "@src/deployment/http-schemas/deployment.schema";
 import {
   CloseDeploymentResponse,
@@ -44,6 +47,7 @@ import {
 } from "@src/deployment/http-schemas/deployment.schema";
 import type { GetDeploymentInfoResponse } from "@src/deployment/http-schemas/deployment-rpc.schema";
 import type { ListDeploymentSecretsResponse } from "@src/deployment/http-schemas/deployment-secret.schema";
+import { DeploymentDefinitionCheckService } from "@src/deployment/services/deployment-definition-check/deployment-definition-check.service";
 import { DeploymentListService } from "@src/deployment/services/deployment-list/deployment-list.service";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { DeploymentSdlSourceService } from "@src/deployment/services/deployment-sdl-source/deployment-sdl-source.service";
@@ -62,7 +66,8 @@ export class DeploymentController {
     private readonly spendRateService: SpendRateService,
     private readonly deploymentListService: DeploymentListService,
     private readonly deploymentSdlSourceService: DeploymentSdlSourceService,
-    private readonly deploymentSecretsReaderService: DeploymentSecretsReaderService
+    private readonly deploymentSecretsReaderService: DeploymentSecretsReaderService,
+    private readonly deploymentDefinitionCheckService: DeploymentDefinitionCheckService
   ) {}
 
   @Protected([
@@ -172,6 +177,27 @@ export class DeploymentController {
     }
 
     return { data: await this.deploymentWriterService.replaceDefinitionByUserIdAndDseq(userId, dseq, replacement, this.authService.ability) };
+  }
+
+  @Protected([{ action: "sign", subject: "UserWallet" }])
+  async validate(input: ValidateDeploymentRequest["data"]): Promise<ValidateDeploymentResponse> {
+    const { definition, ...fields } = input;
+    const check = await this.deploymentDefinitionCheckService.checkNew(this.authService.currentUser.id, { ...fields, sdl: submittedSdlOf(input) });
+
+    return { data: check };
+  }
+
+  @Protected([{ action: "sign", subject: "UserWallet" }])
+  async validateDefinition(dseq: string, input: ValidateDeploymentDefinitionRequest["data"]): Promise<ValidateDeploymentResponse> {
+    const { definition, ...fields } = input;
+    const check = await this.deploymentDefinitionCheckService.checkReplacement(
+      this.authService.currentUser.id,
+      dseq,
+      { ...fields, sdl: submittedSdlOf(input) },
+      this.authService.ability
+    );
+
+    return { data: check };
   }
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
