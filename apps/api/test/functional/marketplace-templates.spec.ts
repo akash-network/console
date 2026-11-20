@@ -119,6 +119,7 @@ describe("Marketplace templates", () => {
           visibility: "organization",
           isListed: true,
           isOfficial: false,
+          importedRef: null,
           moderationStatus: "active",
           projectId: project.id,
           copiedFromId: null,
