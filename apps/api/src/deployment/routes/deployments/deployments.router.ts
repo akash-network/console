@@ -37,13 +37,13 @@ import {
   PatchDeploymentAcceptedResponseSchema,
   PatchDeploymentParamsSchema,
   PatchDeploymentQuerySchema,
+  PatchDeploymentRequestSchema,
+  PatchDeploymentResponseSchema,
   ReplaceDeploymentDefinitionAcceptedResponseSchema,
   ReplaceDeploymentDefinitionParamsSchema,
   ReplaceDeploymentDefinitionQuerySchema,
   ReplaceDeploymentDefinitionRequestSchema,
   ReplaceDeploymentDefinitionResponseSchema,
-  PatchDeploymentRequestSchema,
-  PatchDeploymentResponseSchema,
   UpdateDeploymentRequestSchema,
   UpdateDeploymentResponseSchema
 } from "@src/deployment/http-schemas/deployment.schema";
@@ -695,7 +695,7 @@ const replaceDefinitionRoute = createRoute({
   summary: "Replace a deployment's whole definition",
   description:
     "Replaces the SDL the console stored for this deployment with the one submitted, then updates the deployment and pushes the manifest to its providers, as a patch does. Secrets carry over: write `NAME=ac-secret://NAME` wherever a secret stands, and a reference the request supplies no value for keeps the value the deployment stores, so the SDL GET /v1/deployments/{dseq} returns can be edited and sent back without re-entering any secret. A stored value no reference names any longer is dropped. A value the deployment stores in the clear and the request leaves unchanged stays readable; added and changed values are sealed as `secretEnv` says. The network cannot change a running deployment's groups, compute resources, replica counts or globally exposed ports, so such a change is refused before anything is recorded.",
-  operationId: "replaceDeploymentDefinition",
+  operationId: "updateDeploymentDefinition",
   tags: ["Deployments"],
   security: SECURITY_BEARER_OR_API_KEY,
   /** Sized like the create route, because a replacement may carry a seal and the default allowance would shadow the stated secret limits. */

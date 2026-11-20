@@ -4795,6 +4795,306 @@ describe(DeploymentWriterService.name, () => {
       });
     });
 
+    describe("replaceDefinitionByUserIdAndDseq", () => {
+      const REPLACED_VERSION = Buffer.from(new Uint8Array([1, 2, 3])).toString("base64");
+
+      function storedSdlWithImage(image: string, sdl = STORED_SDL) {
+        return sdl.replace("image: nginx", `image: ${image}`);
+      }
+
+      it("records the submitted sdl, keeping every held value a reference still names", async () => {
+        const { service, ability, deploymentSettingRepository, sealedFor } = setup({ held: { s0_e0: "token", s0_e1: "postgres://db" } });
+
+        await service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: storedSdlWithImage("nginx:1.27") }, ability);
+
+        const [{ sdl }] = vi.mocked(deploymentSettingRepository.replaceDefinitionIfVersionMatches).mock.calls[0];
+        expect(sdl).toContain("image: nginx:1.27");
+        expect(sealedFor()).toEqual({ s0_e0: "token", s0_e1: "postgres://db" });
+      });
+
+      it("drops a held value no reference names any longer", async () => {
+        const { service, ability, sealedFor } = setup({ held: { s0_e0: "token", s0_e1: "postgres://db" } });
+
+        await service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: STORED_SDL.replace("      - DATABASE_URL=ac-secret://s0_e1\n", "") }, ability);
+
+        expect(sealedFor()).toEqual({ s0_e0: "token" });
+      });
+
+      it("answers a reference from the held values, opened under the row's organization", async () => {
+        const { service, ability, sdlSecretsService } = setup({ held: { s0_e0: "token" }, organizationId: "organization-of-the-row" });
+
+        await service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: STORED_SDL, sealedSecrets: CLIENT_SEAL }, ability);
+
+        expect(sdlSecretsService.openStored).toHaveBeenCalledWith({
+          userId: "user-1",
+          organizationId: "organization-of-the-row",
+          dseq: "1234",
+          sealedSecrets: STORED_TOKEN
+        });
+        expect(sdlSecretsService.receive).toHaveBeenCalledWith(
+          expect.objectContaining({ rawSdl: STORED_SDL, sealedSecrets: CLIENT_SEAL, inherited: { s0_e0: "token" } })
+        );
+      });
+
+      it("opens nothing for a deployment that stores no token", async () => {
+        const { service, ability, sdlSecretsService } = setup({ storedToken: null });
+
+        await service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: STORED_SDL_WITH_PLAINTEXT.replace("API_TOKEN=ac-secret://s0_e0", "API_TOKEN=x"), secretEnv: [] }, ability);
+
+        expect(sdlSecretsService.openStored).not.toHaveBeenCalled();
+        expect(sdlSecretsService.receive).toHaveBeenCalledWith(expect.objectContaining({ inherited: {} }));
+      });
+
+      it("prefers a supplied value over the held one", async () => {
+        const { service, ability, sealedFor } = setup({ held: { s0_e0: "token", s0_e1: "postgres://db" }, received: { s0_e0: "rotated" } });
+
+        await service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: STORED_SDL, sealedSecrets: CLIENT_SEAL }, ability);
+
+        expect(sealedFor()).toEqual({ s0_e0: "rotated", s0_e1: "postgres://db" });
+      });
+
+      it("refuses what the secrets intake refuses, recording nothing", async () => {
+        const { service, ability, deploymentSettingRepository } = setup({
+          receiveErrors: [{ schemaPath: "", instancePath: "/services/web/env/1", keyword: "sdl-reference", params: {}, message: "no value supplied" }]
+        });
+
+        await expect(service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: STORED_SDL }, ability)).rejects.toMatchObject({
+          status: 400,
+          message: "Invalid SDL: no value supplied"
+        });
+        expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).not.toHaveBeenCalled();
+      });
+
+      it("answers 404 naming the definition route for a deployment the console recorded no sdl for", async () => {
+        const { service, ability } = setup({ setting: undefined });
+
+        await expect(service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: STORED_SDL }, ability)).rejects.toMatchObject({
+          status: 404,
+          message: expect.stringContaining("POST /v1/deployments/{dseq}/definition")
+        });
+      });
+
+      it("refuses an sdl that is not yaml before opening anything", async () => {
+        const { service, ability, sdlSecretsService } = setup();
+
+        await expect(service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: "services: [" }, ability)).rejects.toMatchObject({ status: 400 });
+        expect(sdlSecretsService.openStored).not.toHaveBeenCalled();
+      });
+
+      it("refuses a resource change before recording anything", async () => {
+        const { service, ability, deploymentSettingRepository } = setup({
+          onChainGroupSpecs: [{ ...createDeploymentInfoGroupSeed({ name: "patched-group" }).group_spec, resources: [] }]
+        });
+
+        await expect(service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: STORED_SDL }, ability)).rejects.toMatchObject({ status: 422 });
+        expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).not.toHaveBeenCalled();
+      });
+
+      describe("plain values", () => {
+        it("keeps one the deployment stores in the clear readable when it comes back unchanged", async () => {
+          const { service, ability, deploymentSettingRepository, sealedFor } = setup({ sdl: STORED_SDL_WITH_PLAINTEXT, held: { s0_e0: "token" } });
+
+          await service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: storedSdlWithImage("nginx:1.27", STORED_SDL_WITH_PLAINTEXT) }, ability);
+
+          const [{ sdl }] = vi.mocked(deploymentSettingRepository.replaceDefinitionIfVersionMatches).mock.calls[0];
+          expect(sdl).toContain("LOG_LEVEL=debug");
+          expect(sealedFor()).toEqual({ s0_e0: "token" });
+        });
+
+        it("keeps one readable when it only moves within its service's list", async () => {
+          const stored = STORED_SDL_WITH_PLAINTEXT.replace("      - LOG_LEVEL=debug", "      - LOG_LEVEL=debug\n      - MODE=production");
+          const reordered = STORED_SDL_WITH_PLAINTEXT.replace("      - LOG_LEVEL=debug", "      - MODE=production\n      - LOG_LEVEL=debug");
+          const { service, ability, deploymentSettingRepository } = setup({ sdl: stored, held: { s0_e0: "token" } });
+
+          await service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: reordered }, ability);
+
+          const [{ sdl }] = vi.mocked(deploymentSettingRepository.replaceDefinitionIfVersionMatches).mock.calls[0];
+          expect(sdl).toContain("LOG_LEVEL=debug");
+          expect(sdl).toContain("MODE=production");
+        });
+
+        it("seals one whose value changed when the request says nothing about which values are secret", async () => {
+          const { service, ability, deploymentSettingRepository, sealedFor } = setup({ sdl: STORED_SDL_WITH_PLAINTEXT, held: { s0_e0: "token" } });
+
+          await service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: STORED_SDL_WITH_PLAINTEXT.replace("LOG_LEVEL=debug", "LOG_LEVEL=trace") }, ability);
+
+          const [{ sdl }] = vi.mocked(deploymentSettingRepository.replaceDefinitionIfVersionMatches).mock.calls[0];
+          expect(sdl).toContain("LOG_LEVEL=ac-secret://s1_e0");
+          expect(sealedFor()).toEqual({ s0_e0: "token", s1_e0: "trace" });
+        });
+
+        it("seals one a service it did not hold before sets", async () => {
+          const renamed = STORED_SDL_WITH_PLAINTEXT.replaceAll("worker", "jobs");
+          const { service, ability, deploymentSettingRepository } = setup({ sdl: STORED_SDL_WITH_PLAINTEXT, held: { s0_e0: "token" } });
+
+          await service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: renamed }, ability);
+
+          const [{ sdl }] = vi.mocked(deploymentSettingRepository.replaceDefinitionIfVersionMatches).mock.calls[0];
+          expect(sdl).not.toContain("LOG_LEVEL=debug");
+        });
+
+        it("keeps a changed one readable when secretEnv is empty", async () => {
+          const { service, ability, deploymentSettingRepository } = setup({ sdl: STORED_SDL_WITH_PLAINTEXT, held: { s0_e0: "token" } });
+
+          await service.replaceDefinitionByUserIdAndDseq(
+            "user-1",
+            "1234",
+            { sdl: STORED_SDL_WITH_PLAINTEXT.replace("LOG_LEVEL=debug", "LOG_LEVEL=trace"), secretEnv: [] },
+            ability
+          );
+
+          const [{ sdl }] = vi.mocked(deploymentSettingRepository.replaceDefinitionIfVersionMatches).mock.calls[0];
+          expect(sdl).toContain("LOG_LEVEL=trace");
+        });
+
+        it("seals an unchanged one once secretEnv names it", async () => {
+          const { service, ability, deploymentSettingRepository, sealedFor } = setup({ sdl: STORED_SDL_WITH_PLAINTEXT, held: { s0_e0: "token" } });
+
+          await service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: STORED_SDL_WITH_PLAINTEXT, secretEnv: ["LOG_LEVEL"] }, ability);
+
+          const [{ sdl }] = vi.mocked(deploymentSettingRepository.replaceDefinitionIfVersionMatches).mock.calls[0];
+          expect(sdl).not.toContain("LOG_LEVEL=debug");
+          expect(sealedFor()).toEqual({ s0_e0: "token", s1_e0: "debug" });
+        });
+
+        it("refuses a secretEnv name no service sets", async () => {
+          const { service, ability } = setup({ sdl: STORED_SDL_WITH_PLAINTEXT, held: { s0_e0: "token" } });
+
+          await expect(
+            service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: STORED_SDL_WITH_PLAINTEXT, secretEnv: ["MISSPELT"] }, ability)
+          ).rejects.toMatchObject({ status: 400, message: expect.stringContaining("MISSPELT") });
+        });
+
+        it("keeps a changed one readable beside a seal", async () => {
+          const { service, ability, deploymentSettingRepository } = setup({ sdl: STORED_SDL_WITH_PLAINTEXT, held: { s0_e0: "token" } });
+
+          await service.replaceDefinitionByUserIdAndDseq(
+            "user-1",
+            "1234",
+            { sdl: STORED_SDL_WITH_PLAINTEXT.replace("LOG_LEVEL=debug", "LOG_LEVEL=trace"), sealedSecrets: CLIENT_SEAL },
+            ability
+          );
+
+          const [{ sdl }] = vi.mocked(deploymentSettingRepository.replaceDefinitionIfVersionMatches).mock.calls[0];
+          expect(sdl).toContain("LOG_LEVEL=trace");
+        });
+      });
+
+      describe("what it writes", () => {
+        it("guards the write on the version it read when the request names none", async () => {
+          const { service, ability, deploymentSettingRepository } = setup();
+
+          await service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: STORED_SDL }, ability);
+
+          expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).toHaveBeenCalledWith(
+            expect.objectContaining({ expectedManifestVersion: STORED_VERSION, manifestVersion: REPLACED_VERSION, sealedSecrets: "resealed.token.aaa.bbb.ccc" })
+          );
+        });
+
+        it("guards the write on the version the request names", async () => {
+          const { service, ability, deploymentSettingRepository } = setup();
+
+          await service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: STORED_SDL, ifManifestVersion: "RVhQRUNURUQ=" }, ability);
+
+          expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).toHaveBeenCalledWith(
+            expect.objectContaining({ expectedManifestVersion: "RVhQRUNURUQ=" })
+          );
+        });
+
+        it("answers 409 with a code when the row moved on", async () => {
+          const { service, ability } = setup({ written: undefined });
+
+          await expect(service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: STORED_SDL }, ability)).rejects.toMatchObject({
+            status: 409,
+            errorCode: "deployment_definition_changed"
+          });
+        });
+
+        it("renames the deployment it replaces", async () => {
+          const { service, ability, deploymentSettingRepository } = setup();
+
+          const result = await service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: STORED_SDL, name: "renamed" }, ability);
+
+          expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).toHaveBeenCalledWith(expect.objectContaining({ name: "renamed" }));
+          expect(result.name).toBe("renamed");
+        });
+
+        it("resolves the stored form of the document with the merged values, under the wallet's trial limits", async () => {
+          const { service, ability, sdlService } = setup({ held: { s0_e0: "token", s0_e1: "postgres://db" }, isTrialing: true });
+
+          await service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: STORED_SDL }, ability);
+
+          expect(sdlService.generateResolvedManifest).toHaveBeenCalledWith({
+            sdl: expect.stringContaining("API_TOKEN=ac-secret://s0_e0"),
+            secrets: { s0_e0: "token", s0_e1: "postgres://db" },
+            isTrialing: true
+          });
+        });
+
+        it("bounds the whole set it would store", async () => {
+          const { service, ability } = setup({ held: { s0_e0: "token", s0_e1: "postgres://db" }, maxCount: 1 });
+
+          await expect(service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: STORED_SDL }, ability)).rejects.toMatchObject({ status: 400 });
+        });
+
+        it("logs what it replaced without any value", async () => {
+          const { service, ability, logger } = setup({ held: { s0_e0: "token", s0_e1: "postgres://db" }, received: { s0_e0: "rotated" } });
+
+          await service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: STORED_SDL, sealedSecrets: CLIENT_SEAL, ifManifestVersion: STORED_VERSION }, ability);
+
+          expect(logger.info).toHaveBeenCalledWith({
+            event: "DEPLOYMENT_DEFINITION_REPLACED",
+            userId: "user-1",
+            dseq: "1234",
+            serviceCount: 1,
+            keptSecretCount: 1,
+            secretCount: 2,
+            guarded: true
+          });
+        });
+
+        it("updates the deployment, pushes the manifest and answers with the version it recorded", async () => {
+          const { service, ability, signerService, providerService } = setup();
+
+          const result = await service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: STORED_SDL }, ability);
+
+          expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledTimes(1);
+          expect(providerService.sendManifest).toHaveBeenCalledTimes(1);
+          expect(result.manifestVersion).toBe(REPLACED_VERSION);
+        });
+
+        it("records the services it changed, removed and added", async () => {
+          const replaced = STORED_SDL_WITH_PLAINTEXT.replace("image: nginx", "image: nginx:1.27").replaceAll("worker", "jobs");
+          const { service, ability, activityService } = setup({ sdl: STORED_SDL_WITH_PLAINTEXT, held: { s0_e0: "token" } });
+
+          await service.replaceDefinitionByUserIdAndDseq("user-1", "1234", { sdl: replaced, secretEnv: [] }, ability);
+
+          const [[recorded]] = activityService.record.mock.calls;
+          expect(recorded.meta).toMatchObject({
+            changes: {
+              services: [
+                { service: "web", image: "nginx:1.27" },
+                { service: "worker", removedEnv: ["LOG_LEVEL"] },
+                { service: "jobs", image: "busybox", addedEnv: ["LOG_LEVEL"] }
+              ]
+            }
+          });
+        });
+      });
+
+      describe("replaceDefinitionInBackgroundByUserIdAndDseq", () => {
+        it("saves the definition with its pending activity, its apply and a check on it, and answers with both", async () => {
+          const { service, ability, transactionLog, signerService } = setup();
+
+          const accepted = await service.replaceDefinitionInBackgroundByUserIdAndDseq("user-1", "1234", { sdl: storedSdlWithImage("nginx:1.27") }, ability);
+
+          expect(transactionLog).toEqual(["begin", "write", "activity", ApplyDeploymentUpdate[JOB_NAME], ReconcileDeploymentUpdate[JOB_NAME], "commit"]);
+          expect(accepted).toEqual({ activityId: expect.any(String), manifestVersion: REPLACED_VERSION });
+          expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+        });
+      });
+    });
+
     function setup(input?: {
       sdl?: string;
       setting?: DeploymentSettingsOutput | undefined;
@@ -4812,6 +5112,8 @@ describe(DeploymentWriterService.name, () => {
       isTrialing?: boolean;
       onChainGroupSpecs?: OnChainGroupSpec[];
       replacedBy?: string;
+      received?: Record<string, string>;
+      receiveErrors?: ValidationError[];
       organizationId?: string;
       storedName?: string | null;
     }) {
@@ -4889,11 +5191,13 @@ describe(DeploymentWriterService.name, () => {
           };
       const sdlService = mock<SdlService>();
       sdlService.generateResolvedManifest.mockResolvedValue(resolved);
+      sdlService.parse.mockImplementation(raw => ({ ok: true, value: yaml.raw<SDLInput>(raw) }));
 
       const sdlSecretsService = mock<SdlSecretsService>();
       if (input?.openStoredError) sdlSecretsService.openStored.mockRejectedValue(input.openStoredError);
       else sdlSecretsService.openStored.mockResolvedValue(input?.held ?? {});
       sdlSecretsService.receiveForMerge.mockResolvedValue(input?.supplied ?? {});
+      sdlSecretsService.receive.mockResolvedValue(input?.receiveErrors ? { ok: false, value: input.receiveErrors } : { ok: true, value: input?.received ?? {} });
       sdlSecretsService.sealForStorage.mockResolvedValue("resealed.token.aaa.bbb.ccc");
       const maxCount = input?.maxCount;
       sdlSecretsService.assertStorable.mockImplementation(secrets => {
