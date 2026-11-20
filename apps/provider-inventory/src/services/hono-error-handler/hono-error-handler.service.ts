@@ -56,6 +56,18 @@ export class HonoErrorHandlerService {
       );
     }
 
+    if (error instanceof URIError) {
+      return c.json(
+        {
+          error: "BadRequestError",
+          message: "Malformed URI encoding",
+          code: "validation_error",
+          type: "validation_error"
+        },
+        { status: 400 }
+      );
+    }
+
     return c.json(
       {
         error: "InternalServerError",
