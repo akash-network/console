@@ -13,15 +13,20 @@ const SEARCH_URL_DELAY_MS = 300;
 /** The pages router answers null until it is ready, which the app router typing leaves out. */
 export const DEPENDENCIES: { useRouter: typeof useRouter; useSearchParams: () => ReadonlyURLSearchParams | null } = { useRouter, useSearchParams };
 
-interface GalleryUrlState {
+export interface GalleryUrlState {
   category: string | null;
   search: string;
   source: GallerySource;
   sort: GallerySort;
 }
 
-/** Keeps the gallery's category, search, source and sort in the link, and follows the link when something else changes it, such as the Templates nav entry. */
-export function useTemplateGalleryUrlState(dependencies: typeof DEPENDENCIES = DEPENDENCIES) {
+const toGalleryUrl = (state: GalleryUrlState) => UrlService.templates(state.category, state.search, { source: state.source, sort: state.sort });
+
+/**
+ * Keeps the gallery's category, search, source and sort in the link, and follows the link when something else changes it, such as the Templates nav entry.
+ * Another page listing templates passes its own `toUrl`, which must keep its identity between renders.
+ */
+export function useTemplateGalleryUrlState(dependencies: typeof DEPENDENCIES = DEPENDENCIES, toUrl: (state: GalleryUrlState) => string = toGalleryUrl) {
   const router = dependencies.useRouter();
   const searchParams = dependencies.useSearchParams();
   const urlCategory = searchParams?.get("category") || null;
@@ -39,9 +44,9 @@ export function useTemplateGalleryUrlState(dependencies: typeof DEPENDENCIES = D
       if (isLinkAlreadyThere && unsettledWrites.current.length === 0) return;
 
       unsettledWrites.current = isLinkAlreadyThere ? [] : [...unsettledWrites.current, next];
-      router.replace(UrlService.templates(next.category, next.search, { source: next.source, sort: next.sort }));
+      router.replace(toUrl(next));
     },
-    [router]
+    [router, toUrl]
   );
   const writeUrlLater = useMemo(() => debounce(writeUrl, SEARCH_URL_DELAY_MS), [writeUrl]);
 
