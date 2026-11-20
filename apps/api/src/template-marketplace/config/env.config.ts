@@ -49,7 +49,10 @@ export const envSchema = z.object({
   TEMPLATE_SCORE_POPULAR_WINDOW_DAYS: days(180),
   TEMPLATE_SCORE_TRENDING_WINDOW_DAYS: days(7),
   TEMPLATE_SCORE_TRENDING_MIN_VOLUME: positiveInteger(5),
-  TEMPLATE_TRENDING_ROW_MIN_TEMPLATES: positiveInteger(4)
+  TEMPLATE_TRENDING_ROW_MIN_TEMPLATES: positiveInteger(4),
+  /** The organization that owns the templates imported from the awesome-akash gallery; the import does nothing while it is unset. */
+  TEMPLATE_IMPORT_ORGANIZATION_ID: z.preprocess(blankToUndefined, z.string().uuid().optional()),
+  TEMPLATE_IMPORT_INTERVAL_SECONDS: windowSeconds(6 * HOUR_SECONDS)
 });
 
 export type TemplateMarketplaceConfig = z.infer<typeof envSchema>;

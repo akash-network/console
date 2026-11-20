@@ -1327,6 +1327,8 @@ describe(TemplateWriterService.name, () => {
       publishedAt: null,
       removedAt: null,
       removedBy: null,
+      importedRef: null,
+      importedContentHash: null,
       createdAt: faker.date.past(),
       updatedAt: faker.date.recent(),
       authorUsername: faker.internet.userName(),

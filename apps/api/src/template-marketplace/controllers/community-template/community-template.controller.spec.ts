@@ -93,6 +93,7 @@ describe(CommunityTemplateController.name, () => {
       categories: [],
       isOfficial: false,
       isFeatured: false,
+      importedRef: null,
       publisher: { name: "Lambda Garage", handle: "lambda-garage", verified: false },
       resources: null,
       versionCount: 1,

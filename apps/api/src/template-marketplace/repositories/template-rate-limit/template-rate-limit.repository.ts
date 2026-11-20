@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, type SQL, sql } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, type SQL, sql } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
@@ -46,7 +46,7 @@ export class TemplateRateLimitRepository {
     return newestOverLimit ? Math.max(1, Number(newestOverLimit.secondsUntilRoom)) : undefined;
   }
 
-  /** A template's first version is counted as the template it comes with, so creating one never uses up version saves. */
+  /** A template's first version is counted as the template it comes with, so creating one never uses up version saves, and what the awesome-akash import writes is counted against nobody. */
   #countedRows(action: RateLimitedTemplateAction, scope: RateLimitScope): CountedRows {
     const isLaterVersion = gt(this.versions.version, 1);
 
@@ -59,13 +59,11 @@ export class TemplateRateLimitRepository {
       }[action];
     }
 
+    const writtenByItsMembers = and(eq(this.templates.organizationId, scope.organizationId), isNull(this.templates.importedRef));
+
     return {
-      create: { happenedAt: this.templates.createdAt, where: eq(this.templates.organizationId, scope.organizationId) },
-      version: {
-        happenedAt: this.versions.createdAt,
-        where: and(eq(this.templates.organizationId, scope.organizationId), isLaterVersion),
-        joinsTemplates: true
-      },
+      create: { happenedAt: this.templates.createdAt, where: writtenByItsMembers },
+      version: { happenedAt: this.versions.createdAt, where: and(writtenByItsMembers, isLaterVersion), joinsTemplates: true },
       publish: { happenedAt: this.acceptances.acceptedAt, where: eq(this.acceptances.organizationId, scope.organizationId) },
       report: { happenedAt: this.reports.createdAt, where: eq(this.reports.reporterOrganizationId, scope.organizationId) }
     }[action];

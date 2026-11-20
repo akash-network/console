@@ -8,6 +8,7 @@ import { MarketplaceTemplateController } from "@src/template-marketplace/control
 import {
   GetUserTemplateResponseSchema,
   GetUserTemplateVersionResponseSchema,
+  ImportedTemplateParamsSchema,
   ListUserTemplateVersionsResponseSchema,
   UserTemplateParamsSchema,
   UserTemplateVersionParamsSchema
@@ -33,6 +34,9 @@ import { MAX_LISTED_USER_TEMPLATES } from "@src/template-marketplace/services/ma
 export const marketplaceTemplatesRouter = new OpenApiHonoHandler();
 
 const NOT_FOUND_DESCRIPTION = "The template does not exist or the caller may not read it";
+
+const IMPORTED_READ_ONLY_DESCRIPTION =
+  "The template is imported from the awesome-akash repository and can only be changed there (`template_imported_read_only`)";
 
 const REMOVED_DESCRIPTION = "The template was public once and has since been removed (`template_removed`, with the `title` it had)";
 
@@ -62,6 +66,34 @@ const getUserTemplateRoute = createRoute({
 marketplaceTemplatesRouter.openapi(getUserTemplateRoute, async function routeGetUserTemplate(c) {
   const { id } = c.req.valid("param");
   return c.json(await container.resolve(MarketplaceTemplateController).getTemplate(id), 200);
+});
+
+const getImportedTemplateRoute = createRoute({
+  method: "get",
+  operationId: "getImportedTemplate",
+  path: "/v1/imported-templates/{importedRef}",
+  summary: "Get the template imported from the awesome-akash repository under a gallery id, with its current version",
+  tags: ["Templates"],
+  security: SECURITY_NONE,
+  readsOrganizationContext: true,
+  featureFlag: FeatureFlags.TEMPLATE_MARKETPLACE,
+  request: {
+    params: ImportedTemplateParamsSchema
+  },
+  responses: {
+    200: {
+      description: "The template, the same as its id answers",
+      content: { "application/json": { schema: GetUserTemplateResponseSchema } }
+    },
+    400: { description: "The gallery id is not one a template can have" },
+    404: { description: "No template was imported under this gallery id, or the caller may not read it" },
+    410: { description: REMOVED_DESCRIPTION }
+  }
+});
+
+marketplaceTemplatesRouter.openapi(getImportedTemplateRoute, async function routeGetImportedTemplate(c) {
+  const { importedRef } = c.req.valid("param");
+  return c.json(await container.resolve(MarketplaceTemplateController).getImportedTemplate(importedRef), 200);
 });
 
 const listUserTemplateVersionsRoute = createRoute({
@@ -181,7 +213,7 @@ const createUserTemplateVersionRoute = createRoute({
     401: { description: "The caller is not signed in" },
     403: { description: "The caller may read the template but not change it" },
     404: { description: NOT_FOUND_DESCRIPTION },
-    409: { description: "Another version was saved after the base version (`template_version_conflict`)" },
+    409: { description: `Another version was saved after the base version (\`template_version_conflict\`). ${IMPORTED_READ_ONLY_DESCRIPTION}` },
     429: { description: RATE_LIMITED_DESCRIPTION }
   }
 });
@@ -242,7 +274,8 @@ const updateUserTemplateRoute = createRoute({
     },
     401: { description: "The caller is not signed in" },
     403: { description: OUTSIDE_ORGANIZATION_DESCRIPTION },
-    404: { description: NOT_FOUND_DESCRIPTION }
+    404: { description: NOT_FOUND_DESCRIPTION },
+    409: { description: IMPORTED_READ_ONLY_DESCRIPTION }
   }
 });
 
@@ -271,7 +304,8 @@ const getUserTemplatePublishReadinessRoute = createRoute({
     400: { description: "The id is not a uuid" },
     401: { description: "The caller is not signed in" },
     403: { description: OUTSIDE_ORGANIZATION_DESCRIPTION },
-    404: { description: NOT_FOUND_DESCRIPTION }
+    404: { description: NOT_FOUND_DESCRIPTION },
+    409: { description: IMPORTED_READ_ONLY_DESCRIPTION }
   }
 });
 
@@ -303,7 +337,9 @@ const publishUserTemplateRoute = createRoute({
       description: `A requirement is unmet (\`template_publish_requirements_unmet\`, with the \`unmet\` keys). ${OUTSIDE_ORGANIZATION_DESCRIPTION}`
     },
     404: { description: NOT_FOUND_DESCRIPTION },
-    409: { description: "The terms accepted are not the current ones (`template_terms_version_mismatch`, with the current `termsVersion`)" },
+    409: {
+      description: `The terms accepted are not the current ones (\`template_terms_version_mismatch\`, with the current \`termsVersion\`). ${IMPORTED_READ_ONLY_DESCRIPTION}`
+    },
     429: { description: RATE_LIMITED_DESCRIPTION }
   }
 });
@@ -365,6 +401,7 @@ const deleteUserTemplateRoute = createRoute({
     401: { description: "The caller is not signed in" },
     403: { description: OUTSIDE_ORGANIZATION_DESCRIPTION },
     404: { description: NOT_FOUND_DESCRIPTION },
+    409: { description: IMPORTED_READ_ONLY_DESCRIPTION },
     410: { description: REMOVED_DESCRIPTION }
   }
 });

@@ -92,7 +92,8 @@ describe(TemplateUsageEventRepository.name, () => {
         templateId: template.id,
         versionNumber: 7,
         isOfficial: false,
-        visibility: template.visibility
+        visibility: template.visibility,
+        importedRef: null
       });
 
       await db
@@ -100,7 +101,22 @@ describe(TemplateUsageEventRepository.name, () => {
         .set({ isOfficial: true, visibility: "public" })
         .where(eq(resolveTable("Templates").id, template.id));
 
-      expect(await repository.findTemplateOfVersion(version.id)).toEqual({ templateId: template.id, versionNumber: 7, isOfficial: true, visibility: "public" });
+      expect(await repository.findTemplateOfVersion(version.id)).toEqual({
+        templateId: template.id,
+        versionNumber: 7,
+        isOfficial: true,
+        visibility: "public",
+        importedRef: null
+      });
+    });
+
+    it("names the gallery id of an imported template", async () => {
+      const { repository } = setup();
+      const importedRef = newImportedRef();
+      const imported = await seedPublishedTemplate({ importedRef, visibility: "public", isOfficial: true });
+      const version = await seedTemplateVersion({ templateId: imported.id });
+
+      expect(await repository.findTemplateOfVersion(version.id)).toMatchObject({ templateId: imported.id, importedRef });
     });
 
     it("finds nothing once the template is deleted", async () => {
@@ -113,15 +129,16 @@ describe(TemplateUsageEventRepository.name, () => {
     });
   });
 
-  describe("findCurrentVersionIdOfTemplate", () => {
-    it("finds the template's current version, and nothing for a template without one", async () => {
+  describe("findReferencedTemplate", () => {
+    it("finds the template's current version and the gallery id of an imported one, and nothing for a template that is gone", async () => {
       const { repository } = setup();
       const { template, version } = await seedTemplateWithVersion();
-      const versionless = await seedTemplate();
+      const importedRef = newImportedRef();
+      const imported = await seedPublishedTemplate({ importedRef });
 
-      expect(await repository.findCurrentVersionIdOfTemplate(template.id)).toBe(version.id);
-      expect(await repository.findCurrentVersionIdOfTemplate(versionless.id)).toBeNull();
-      expect(await repository.findCurrentVersionIdOfTemplate(faker.string.uuid())).toBeNull();
+      expect(await repository.findReferencedTemplate(template.id)).toEqual({ currentVersionId: version.id, importedRef: null });
+      expect(await repository.findReferencedTemplate(imported.id)).toEqual({ currentVersionId: null, importedRef });
+      expect(await repository.findReferencedTemplate(faker.string.uuid())).toBeUndefined();
     });
   });
 
@@ -130,7 +147,7 @@ describe(TemplateUsageEventRepository.name, () => {
       const { repository } = setup();
       const [user, otherUser, organization] = await Promise.all([seedUser(), seedUser(), seedOrganization()]);
       const [templateRef, otherTemplateRef, templateVersionId] = [faker.string.uuid(), faker.string.uuid(), faker.string.uuid()];
-      const fork = { templateRef, templateVersionId, userId: user.id, organizationId: organization.id, network: "mainnet" };
+      const fork = { source: "console" as const, templateRef, templateVersionId, userId: user.id, organizationId: organization.id, network: "mainnet" };
 
       const counted = [
         await repository.recordForkOncePerDay(fork),
@@ -160,7 +177,7 @@ describe(TemplateUsageEventRepository.name, () => {
       const { repository } = setup();
       const user = await seedUser();
       const templateRef = faker.string.uuid();
-      const fork = { templateRef, templateVersionId: null, userId: user.id, organizationId: null, network: "mainnet" };
+      const fork = { source: "console" as const, templateRef, templateVersionId: null, userId: user.id, organizationId: null, network: "mainnet" };
       await seedEvents([
         { templateRef, action: "fork", userId: user.id, createdAt: subHours(new Date(), 25) },
         { templateRef, action: "deploy", userId: user.id, createdAt: new Date() },
@@ -170,6 +187,22 @@ describe(TemplateUsageEventRepository.name, () => {
       const counted = [await repository.recordForkOncePerDay(fork), await repository.recordForkOncePerDay(fork)];
 
       expect(counted).toEqual([true, false]);
+    });
+
+    it("counts a fork of an imported template under its awesome-akash id, apart from a Console template's of the same name", async () => {
+      const { repository } = setup();
+      const user = await seedUser();
+      const templateRef = newImportedRef();
+      const fork = { source: "awesome_akash" as const, templateRef, templateVersionId: null, userId: user.id, organizationId: null, network: "mainnet" };
+
+      const counted = [
+        await repository.recordForkOncePerDay(fork),
+        await repository.recordForkOncePerDay(fork),
+        await repository.recordForkOncePerDay({ ...fork, source: "console" })
+      ];
+
+      expect(counted).toEqual([true, false, true]);
+      expect((await repository.summarizeAwesomeAkash(10_000)).get(templateRef)).toMatchObject({ forks: 1 });
     });
   });
 
@@ -227,6 +260,37 @@ describe(TemplateUsageEventRepository.name, () => {
 
       expect(summaries.get(published.id)).toMatchObject({ deploys: 2, stillUpAfter24h: 0.8, forks: 1 });
       expect(summaries.get(kept.id)).toMatchObject({ deploys: 5, stillUpAfter24h: 0.9, forks: 2 });
+    });
+
+    it("summarizes an imported template by the awesome-akash events of its gallery id, its own organization's and those from before the import included", async () => {
+      const { repository } = setup();
+      const [akash, stranger] = await Promise.all([seedOrganization(), seedOrganization()]);
+      const importedRef = newImportedRef();
+      const [imported, community] = await Promise.all([
+        seedPublishedTemplate({ organizationId: akash.id, visibility: "public", isOfficial: true, importedRef }),
+        seedPublishedTemplate({ organizationId: stranger.id, visibility: "public" })
+      ]);
+      const dayOld = subHours(new Date(), 25);
+      const beforeTheImport = subHours(new Date(), 24 * 90);
+      await seedEvents([
+        ...times(3, () => ({ source: "awesome_akash" as const, templateRef: importedRef, action: "deploy" as const, createdAt: beforeTheImport })),
+        ...times(5, () => ({ source: "awesome_akash" as const, templateRef: importedRef, action: "lease_created" as const, createdAt: dayOld })),
+        ...times(4, () => ({ source: "awesome_akash" as const, templateRef: importedRef, action: "still_running_24h" as const })),
+        { source: "awesome_akash", templateRef: importedRef, action: "deploy", organizationId: akash.id },
+        { source: "awesome_akash", templateRef: importedRef, action: "deploy", templateVersionId: faker.string.uuid() },
+        { source: "awesome_akash", templateRef: importedRef, action: "fork", organizationId: stranger.id },
+        { source: "awesome_akash", templateRef: importedRef, action: "deploy", network: "sandbox" },
+        { source: "console", templateRef: imported.id, action: "deploy" },
+        { source: "console", templateRef: importedRef, action: "deploy" },
+        { source: "awesome_akash", templateRef: community.id, action: "deploy" },
+        { source: "awesome_akash", templateRef: newImportedRef(), action: "deploy" },
+        { source: "console", templateRef: community.id, action: "deploy" }
+      ]);
+
+      const summaries = await repository.summarize([imported.id, community.id]);
+
+      expect(summaries.get(imported.id)).toMatchObject({ deploys: 5, stillUpAfter24h: 0.8, forks: 1 });
+      expect(summaries.get(community.id)).toMatchObject({ deploys: 1, forks: 0 });
     });
 
     it("reports no still-up share below five day-old leases", async () => {
@@ -359,6 +423,32 @@ describe(TemplateUsageEventRepository.name, () => {
       await seedEvents([{ templateRef: template, templateVersionId: faker.string.uuid(), action: "deploy" }]);
 
       expect(await repository.countDeploysByVersion(template)).toEqual(new Map());
+    });
+
+    it("counts an imported template's deploys per version from the awesome-akash events that name one", async () => {
+      const { repository } = setup();
+      const importedRef = newImportedRef();
+      const imported = await seedPublishedTemplate({ importedRef, visibility: "public" });
+      const [first, second] = [faker.string.uuid(), faker.string.uuid()];
+      await seedEvents([
+        { source: "awesome_akash", templateRef: importedRef, templateVersionId: first, action: "deploy" },
+        { source: "awesome_akash", templateRef: importedRef, templateVersionId: second, action: "deploy" },
+        { source: "awesome_akash", templateRef: importedRef, templateVersionId: second, action: "deploy" },
+        { source: "awesome_akash", templateRef: importedRef, templateVersionId: null, action: "deploy" },
+        { source: "awesome_akash", templateRef: importedRef, templateVersionId: second, action: "deploy", network: "sandbox" },
+        { source: "awesome_akash", templateRef: importedRef, templateVersionId: second, action: "fork" },
+        { source: "console", templateRef: imported.id, templateVersionId: second, action: "deploy" },
+        { source: "awesome_akash", templateRef: newImportedRef(), templateVersionId: second, action: "deploy" }
+      ]);
+
+      const counts = await repository.countDeploysByVersion(imported.id);
+
+      expect(counts).toEqual(
+        new Map([
+          [first, 1],
+          [second, 2]
+        ])
+      );
     });
   });
 
@@ -508,6 +598,10 @@ describe(TemplateUsageEventRepository.name, () => {
     await db()
       .insert(resolveTable("TemplateUsageEvents"))
       .values(events.map(event => ({ ...buildEvent({ templateVersionId: null }), ...event })));
+  }
+
+  function newImportedRef() {
+    return `akash-network-awesome-akash-${faker.string.alphanumeric(16)}`;
   }
 
   function times<T>(count: number, build: () => T): T[] {

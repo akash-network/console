@@ -13,12 +13,24 @@ function withoutTrailingHyphens(candidate: string): string {
 
 export type HandleSource = { type: "personal" | "team"; slug: string; ownerUsername: string | null };
 
-/** A personal organization's slug is derived from its owner's internal id, so its handle comes from the username instead; a name that reads as Akash's gets a neutral handle. */
-export function publisherHandleCandidates({ type, slug, ownerUsername }: HandleSource, randomSuffix?: () => string): string[] {
-  const wanted = type === "team" ? slug : ownerUsername ?? "";
-  const allowed = findReservedWords(wanted).length > 0 ? "" : wanted;
+function wantedHandleOf({ type, slug, ownerUsername }: HandleSource): string {
+  return type === "team" ? slug : ownerUsername ?? "";
+}
 
-  return slugCandidates(allowed, FALLBACK_HANDLE_PREFIX, randomSuffix)
+function handleCandidatesFrom(wanted: string, randomSuffix?: () => string): string[] {
+  return slugCandidates(wanted, FALLBACK_HANDLE_PREFIX, randomSuffix)
     .map(withoutTrailingHyphens)
     .filter(candidate => !HANDLES_TAKEN_BY_ROUTES.includes(candidate));
+}
+
+/** A personal organization's slug is derived from its owner's internal id, so its handle comes from the username instead; a name that reads as Akash's gets a neutral handle. */
+export function publisherHandleCandidates(source: HandleSource, randomSuffix?: () => string): string[] {
+  const wanted = wantedHandleOf(source);
+
+  return handleCandidatesFrom(findReservedWords(wanted).length > 0 ? "" : wanted, randomSuffix);
+}
+
+/** The organization the awesome-akash import publishes for is Akash's own, so its handle may hold a word kept from every other publisher. */
+export function officialPublisherHandleCandidates(source: HandleSource, randomSuffix?: () => string): string[] {
+  return handleCandidatesFrom(wantedHandleOf(source), randomSuffix);
 }
