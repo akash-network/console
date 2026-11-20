@@ -39371,6 +39371,28 @@
                                 "sdl": {
                                   "type": "string",
                                   "nullable": true
+                                },
+                                "template": {
+                                  "type": "object",
+                                  "properties": {
+                                    "source": {
+                                      "type": "string",
+                                      "enum": [
+                                        "console",
+                                        "awesome_akash"
+                                      ],
+                                      "description": "console: the id of a Console template; awesome_akash: a gallery id"
+                                    },
+                                    "reviewedByAkash": {
+                                      "type": "boolean",
+                                      "description": "False for a community template, which is shown as not reviewed by Akash"
+                                    }
+                                  },
+                                  "required": [
+                                    "source",
+                                    "reviewedByAkash"
+                                  ],
+                                  "description": "Describes the template the card opens, while the template marketplace is on"
                                 }
                               },
                               "required": [
@@ -41134,6 +41156,28 @@
                                 "sdl": {
                                   "type": "string",
                                   "nullable": true
+                                },
+                                "template": {
+                                  "type": "object",
+                                  "properties": {
+                                    "source": {
+                                      "type": "string",
+                                      "enum": [
+                                        "console",
+                                        "awesome_akash"
+                                      ],
+                                      "description": "console: the id of a Console template; awesome_akash: a gallery id"
+                                    },
+                                    "reviewedByAkash": {
+                                      "type": "boolean",
+                                      "description": "False for a community template, which is shown as not reviewed by Akash"
+                                    }
+                                  },
+                                  "required": [
+                                    "source",
+                                    "reviewedByAkash"
+                                  ],
+                                  "description": "Describes the template the card opens, while the template marketplace is on"
                                 }
                               },
                               "required": [
@@ -48196,15 +48240,16 @@
           "popular": {
             "type": "number",
             "nullable": true,
-            "description": "Null until scores are computed"
+            "description": "People whose deployment was still running after a day, weighted toward recent ones; null while nobody counted, which sorts as zero"
           },
           "trending": {
             "type": "number",
             "nullable": true,
-            "description": "Null until scores are computed"
+            "description": "Growth of that count over the last window against the one before, negative when it fell; null while nobody counted"
           },
           "isTrending": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether it grew and reached the minimum volume, which is what the trending row lists"
           }
         },
         "required": [
@@ -48360,14 +48405,21 @@
               "officialUsage": {
                 "type": "object",
                 "additionalProperties": {
-                  "$ref": "#/components/schemas/CommunityTemplateUsage"
+                  "$ref": "#/components/schemas/OfficialTemplateUsage"
                 },
                 "description": "The same numbers for the awesome-akash templates, by template id; a template nobody deployed is missing"
+              },
+              "trendingRowMinTemplates": {
+                "type": "integer",
+                "minimum": 0,
+                "exclusiveMinimum": true,
+                "description": "The fewest trending templates worth a row of their own"
               }
             },
             "required": [
               "templates",
-              "officialUsage"
+              "officialUsage",
+              "trendingRowMinTemplates"
             ]
           }
         },
@@ -48795,6 +48847,24 @@
           "reviewNote",
           "createdBy",
           "createdAt"
+        ]
+      },
+      "OfficialTemplateUsage": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CommunityTemplateUsage"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "scores": {
+                "$ref": "#/components/schemas/TemplateScores"
+              }
+            },
+            "required": [
+              "scores"
+            ]
+          }
         ]
       }
     },
