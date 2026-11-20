@@ -166,6 +166,18 @@ describe(useCommunityGallery.name, () => {
     ]);
   });
 
+  it("brings the trending row in when a refresh of the gallery has enough trending templates", () => {
+    const trending = [1, 2, 3].map(rank =>
+      buildCommunityTemplateCard({ title: `Trending ${rank}`, scores: { popular: null, trending: rank, isTrending: true } })
+    );
+    const { result, rerenderWith } = setup({});
+    expect(galleryOf(result).trendingEntries).toEqual([]);
+
+    rerenderWith({ community: { templates: trending, officialUsage: {} } });
+
+    expect(galleryOf(result).trendingEntries).toHaveLength(3);
+  });
+
   it("hides the trending row while searching, but not for a search of spaces", () => {
     const trending = [1, 2, 3].map(rank =>
       buildCommunityTemplateCard({ title: `Trending ${rank}`, scores: { popular: null, trending: rank, isTrending: true } })
