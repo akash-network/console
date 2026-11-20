@@ -44,6 +44,12 @@ describe(toImportedTemplate.name, () => {
     expect(imported.readme).toBe("r".repeat(50_000));
   });
 
+  it("cuts a name after the spaces around it are gone", () => {
+    const imported = toImportedTemplate(createGalleryTemplate({ name: `  ${"t".repeat(90)}` }), []);
+
+    expect(imported.title).toBe("t".repeat(80));
+  });
+
   it("writes a name and a summary on one line, without control characters or text direction overrides", () => {
     const imported = toImportedTemplate(createGalleryTemplate({ name: "  Open‮ WebUI\n+\tvLLM\u0000 ", summary: "First line\r\nsecond⁦ line\u007f" }), []);
 
@@ -147,6 +153,13 @@ describe(findImportedTemplateChanges.name, () => {
 
     expect(changes).toEqual({ settings, hasNewContent: false });
     expect(hasImportedTemplateChanges(changes)).toBe(true);
+  });
+
+  it("writes the categories when only one of several moved", () => {
+    const stored = createState(createContent({ categories: ["AI - GPU", "Tools"] }));
+    const changes = findImportedTemplateChanges(stored, createContent({ categories: ["AI - GPU", "Hosting"] }));
+
+    expect(changes.settings).toEqual({ categories: ["AI - GPU", "Hosting"] });
   });
 
   it("keeps the categories staff chose, whatever the gallery files the template under", () => {
