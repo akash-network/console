@@ -26,9 +26,9 @@ export class CommunityTemplateController {
   ) {}
 
   async listTemplates(): Promise<ListCommunityTemplatesResponse> {
-    const { templates, officialUsage } = await this.communityTemplateService.getGallery();
+    const { templates, ...gallery } = await this.communityTemplateService.getGallery();
 
-    return { data: { templates: templates.map(toCardResponse), officialUsage } };
+    return { data: { templates: templates.map(toCardResponse), ...gallery } };
   }
 
   async getPublisher(handle: string): Promise<GetTemplatePublisherResponse> {
