@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { pgTable, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
+import { index, pgTable, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { Templates } from "@src/user/model-schemas/template/template.schema";
 
@@ -17,7 +17,9 @@ export const TemplateFavorites = pgTable(
     addedDate: timestamp("addedDate").notNull()
   },
   table => ({
-    userIdTemplateIdUnique: uniqueIndex("templateFavorite_userId_templateId_unique").on(table.userId, table.templateId)
+    userIdTemplateIdUnique: uniqueIndex("templateFavorite_userId_templateId_unique").on(table.userId, table.templateId),
+    /** Leads with the template, so counting a template's favorites seeks instead of reading every favorite. */
+    templateIdUserIdIdx: index("templateFavorite_templateId_userId_idx").on(table.templateId, table.userId)
   })
 );
 
