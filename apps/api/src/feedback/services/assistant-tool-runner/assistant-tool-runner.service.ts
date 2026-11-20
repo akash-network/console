@@ -68,9 +68,14 @@ export function toolContentOf(tool: string, payload: ToolPayload): string {
   return truncated(serializedResultOf(tool, payload), MAX_TOOL_RESULT_LENGTH);
 }
 
-/** Redacted before it is serialized, since a redaction over the JSON text can remove the backslash that keeps an author's quote inside its string. */
+/** Redacted as parsed JSON and serialized again, since a redaction over the JSON text can remove the backslash that keeps an author's quote inside its string. */
 function serializedResultOf(tool: string, payload: ToolPayload): string {
-  return JSON.stringify(redactSecretFields({ tool, ...payload }));
+  return JSON.stringify(redactSecretFields(asJsonData({ tool, ...payload })));
+}
+
+/** Dates and anything else with its own JSON form take that form first, or the redaction would walk them as empty objects. */
+function asJsonData(value: object): unknown {
+  return JSON.parse(JSON.stringify(value));
 }
 
 type ToolPayload = { data: unknown; untrustedData?: unknown } | { untrustedData: unknown } | { error: string; untrustedData?: unknown };
