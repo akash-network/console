@@ -8,7 +8,7 @@ import { type ApiPgDatabase, type ApiPgTables, POSTGRES_DB, resolveTable } from 
 import { CommunityTemplateRepository } from "./community-template.repository";
 
 import { seedOrganization } from "@test/seeders/db/organization.seeder";
-import { seedTemplate, seedTemplateDeployers, seedTemplatePublisher, seedTemplateVersion } from "@test/seeders/db/template.seeder";
+import { seedTemplate, seedTemplateDeployers, seedTemplatePublisher, seedTemplateScore, seedTemplateVersion } from "@test/seeders/db/template.seeder";
 
 type TemplateInsert = ApiPgTables["Templates"]["$inferInsert"];
 type TemplateVersionInsert = ApiPgTables["TemplateVersions"]["$inferInsert"];
@@ -51,9 +51,61 @@ describe(CommunityTemplateRepository.name, () => {
           publisher: { name: organization.name, handle: publisher.handle, isVerified: true },
           resources: RESOURCES,
           sdlWithoutResources: null,
-          versionCount: 2
+          versionCount: 2,
+          score: null
         }
       ]);
+    });
+
+    it("carries the score stored for the Console template, and none for a template never scored or scored under another source", async () => {
+      const { repository, organization } = await setup();
+      const [scored, unscored, namesake] = await Promise.all([
+        seedTemplate({ ...listed(organization.id), publishedAt: subDays(new Date(), 1) }),
+        seedTemplate({ ...listed(organization.id), publishedAt: subDays(new Date(), 2) }),
+        seedTemplate({ ...listed(organization.id), publishedAt: subDays(new Date(), 3) })
+      ]);
+      await Promise.all([scored, unscored, namesake].map(template => seedTemplateVersion({ templateId: template.id })));
+      await seedTemplateScore({ templateRef: scored.id, popularScore: 0, trendingScore: -0.4, isTrending: false });
+      await seedTemplateScore({ templateRef: namesake.id, source: "awesome_akash", popularScore: 50, trendingScore: 3, isTrending: true });
+
+      const rows = await repository.list({ organizationId: organization.id, limit: 10 });
+
+      expect(rows.map(({ id, score }) => ({ id, score }))).toEqual([
+        { id: scored.id, score: { popularScore: 0, trendingScore: -0.4, isTrending: false } },
+        { id: unscored.id, score: null },
+        { id: namesake.id, score: null }
+      ]);
+    });
+
+    it("keeps the most popular templates past the limit, then the newest of the unscored, and still reads newest first", async () => {
+      const { repository, organization } = await setup();
+      const [oldFavorite, olderRunnerUp, newUnscored, newerUnscored, newestBarelyUsed] = await Promise.all(
+        [9, 8, 3, 2, 1].map(daysAgo => seedTemplate({ ...listed(organization.id), publishedAt: subDays(new Date(), daysAgo) }))
+      );
+      await Promise.all(
+        [oldFavorite, olderRunnerUp, newUnscored, newerUnscored, newestBarelyUsed].map(template => seedTemplateVersion({ templateId: template.id }))
+      );
+      await seedTemplateScore({ templateRef: oldFavorite.id, popularScore: 40 });
+      await seedTemplateScore({ templateRef: olderRunnerUp.id, popularScore: 12 });
+      await seedTemplateScore({ templateRef: newestBarelyUsed.id, popularScore: 0.5 });
+
+      const twoKept = await repository.list({ organizationId: organization.id, limit: 2 });
+      const fourKept = await repository.list({ organizationId: organization.id, limit: 4 });
+
+      expect(twoKept.map(row => row.id)).toEqual([olderRunnerUp.id, oldFavorite.id]);
+      expect(fourKept.map(row => row.id)).toEqual([newestBarelyUsed.id, newerUnscored.id, olderRunnerUp.id, oldFavorite.id]);
+    });
+
+    it("orders templates published at the same moment by id", async () => {
+      const { repository, organization } = await setup();
+      const publishedAt = subDays(new Date(), 1);
+      const templates = await Promise.all([1, 2, 3].map(() => seedTemplate({ ...listed(organization.id), publishedAt })));
+      await Promise.all(templates.map(template => seedTemplateVersion({ templateId: template.id })));
+      await seedTemplateScore({ templateRef: templates[0].id, popularScore: 1 });
+
+      const rows = await repository.list({ organizationId: organization.id, limit: 10 });
+
+      expect(rows.map(row => row.id)).toEqual(templates.map(template => template.id).sort());
     });
 
     it("hands over the SDL only of a current version that recorded no resources", async () => {

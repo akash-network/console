@@ -3,10 +3,12 @@ import { singleton } from "tsyringe";
 import { Memoize } from "@src/caching/helpers";
 import type { TemplateHardware } from "@src/template/types/template";
 import { summarizeTemplateHardware } from "@src/template/utils/template-hardware/template-hardware";
+import { InjectTemplateMarketplaceConfig, type TemplateMarketplaceConfig } from "@src/template-marketplace/providers/config.provider";
 import {
   CommunityTemplateRepository,
   type CommunityTemplateRow
 } from "@src/template-marketplace/repositories/community-template/community-template.repository";
+import { type ServedTemplateScore, TemplateScoreRepository } from "@src/template-marketplace/repositories/template-score/template-score.repository";
 import {
   NO_TEMPLATE_USAGE,
   TemplateUsageEventRepository,
@@ -15,7 +17,7 @@ import {
 
 export type CommunityTemplateUsage = Pick<TemplateUsageSummary, "deploys" | "stillUpAfter24h" | "forks">;
 
-/** Popular and trending scores are computed by a later job, and until then every template reads as not scored. */
+/** A template with no counted usage has no score yet, which sorts like a zero. */
 export type TemplateScores = { popular: number | null; trending: number | null; isTrending: boolean };
 
 export type CommunityTemplateCard = Pick<
@@ -28,7 +30,13 @@ export type CommunityTemplateCard = Pick<
   scores: TemplateScores;
 };
 
-export type CommunityGallery = { templates: CommunityTemplateCard[]; officialUsage: Record<string, CommunityTemplateUsage> };
+export type OfficialTemplateUsage = CommunityTemplateUsage & { scores: TemplateScores };
+
+export type CommunityGallery = {
+  templates: CommunityTemplateCard[];
+  officialUsage: Record<string, OfficialTemplateUsage>;
+  trendingRowMinTemplates: number;
+};
 
 export const MAX_LISTED_COMMUNITY_TEMPLATES = 1000;
 
@@ -42,13 +50,17 @@ function toCardUsage({ deploys, stillUpAfter24h, forks }: TemplateUsageSummary):
   return { deploys, stillUpAfter24h, forks };
 }
 
-function toCard({ sdlWithoutResources, publisher, ...row }: CommunityTemplateRow, usage: TemplateUsageSummary): CommunityTemplateCard {
+function toScores(score: ServedTemplateScore | null | undefined): TemplateScores {
+  return score ? { popular: score.popularScore, trending: score.trendingScore, isTrending: score.isTrending } : NOT_SCORED;
+}
+
+function toCard({ sdlWithoutResources, publisher, score, ...row }: CommunityTemplateRow, usage: TemplateUsageSummary): CommunityTemplateCard {
   return {
     ...row,
     publisher: { name: publisher.name, handle: publisher.handle, verified: publisher.isVerified },
     resources: row.resources ?? ((sdlWithoutResources && summarizeTemplateHardware(sdlWithoutResources)) || null),
     usage: toCardUsage(usage),
-    scores: NOT_SCORED
+    scores: toScores(score)
   };
 }
 
@@ -56,7 +68,9 @@ function toCard({ sdlWithoutResources, publisher, ...row }: CommunityTemplateRow
 export class CommunityTemplateService {
   constructor(
     private readonly communityTemplateRepository: CommunityTemplateRepository,
-    private readonly templateUsageEventRepository: TemplateUsageEventRepository
+    private readonly templateUsageEventRepository: TemplateUsageEventRepository,
+    private readonly templateScoreRepository: TemplateScoreRepository,
+    @InjectTemplateMarketplaceConfig() private readonly config: TemplateMarketplaceConfig
   ) {}
 
   /** Holds nothing about the caller, so one answer serves everyone for a minute. */
@@ -67,7 +81,13 @@ export class CommunityTemplateService {
       this.templateUsageEventRepository.summarizeAwesomeAkash(MAX_OFFICIAL_TEMPLATES_WITH_USAGE)
     ]);
 
-    return { templates, officialUsage: Object.fromEntries([...officialUsages].map(([id, usage]) => [id, toCardUsage(usage)])) };
+    const officialScores = await this.templateScoreRepository.findByRefs("awesome_akash", [...officialUsages.keys()]);
+
+    return {
+      templates,
+      officialUsage: Object.fromEntries([...officialUsages].map(([id, usage]) => [id, { ...toCardUsage(usage), scores: toScores(officialScores.get(id)) }])),
+      trendingRowMinTemplates: this.config.TEMPLATE_TRENDING_ROW_MIN_TEMPLATES
+    };
   }
 
   async listCards(organizationId?: string): Promise<CommunityTemplateCard[]> {
