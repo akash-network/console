@@ -12,4 +12,5 @@ CREATE TABLE "template_scores" (
 );
 --> statement-breakpoint
 CREATE INDEX "templateFavorite_templateId_userId_idx" ON "templateFavorite" USING btree ("templateId","userId");--> statement-breakpoint
+CREATE INDEX "template_usage_events_network_action_created_idx" ON "template_usage_events" USING btree ("network","action","created_at");--> statement-breakpoint
 RESET lock_timeout;

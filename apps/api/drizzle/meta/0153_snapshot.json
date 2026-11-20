@@ -1,5 +1,5 @@
 {
-  "id": "e2393948-ddb8-4b81-8c60-f23306e0b467",
+  "id": "645454ec-23ac-4f56-a587-e6a33688fa22",
   "prevId": "81d62d56-30cb-40f5-a27c-1223c514712a",
   "version": "7",
   "dialect": "postgresql",
@@ -9286,6 +9286,33 @@
             },
             {
               "expression": "network",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "template_usage_events_network_action_created_idx": {
+          "name": "template_usage_events_network_action_created_idx",
+          "columns": [
+            {
+              "expression": "network",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "action",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
