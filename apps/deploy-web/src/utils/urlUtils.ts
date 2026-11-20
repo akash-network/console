@@ -1,3 +1,5 @@
+import type { GallerySort, GallerySource } from "@src/components/templates/communityGallery/galleryView";
+import { DEFAULT_GALLERY_SORT, DEFAULT_GALLERY_SOURCE } from "@src/components/templates/communityGallery/galleryView";
 import { UrlReturnToStack } from "@src/hooks/useReturnTo/UrlReturnToStack";
 import type { FaqAnchorType } from "@src/pages/faq";
 import networkStore from "@src/store/networkStore";
@@ -80,7 +82,8 @@ export const UrlService = {
   gpuRequest: (id: string) => `/gpu-requests/${id}`,
   activity: () => "/activity",
   deploymentDetails: (dseq: string, tab?: string, logsMode?: string) => `/deployments/${dseq}${appendSearchParams({ tab, logsMode })}`,
-  templates: (category?: string | null, search?: string) => `/templates${appendSearchParams({ category, search })}`,
+  templates: (category?: string | null, search?: string, view: { source?: GallerySource; sort?: GallerySort } = {}) =>
+    `/templates${appendSearchParams({ category, search, source: view.source === DEFAULT_GALLERY_SOURCE ? undefined : view.source, sort: view.sort === DEFAULT_GALLERY_SORT ? undefined : view.sort })}`,
   templateDetails: (templateId: string) => `/templates/${templateId}`,
   myTemplates: () => "/templates/mine",
   providers: (sort?: string) => `/providers${appendSearchParams({ sort })}`,

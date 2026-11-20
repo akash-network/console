@@ -3,6 +3,8 @@ import { ReadonlyURLSearchParams } from "next/navigation";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { GalleryEntryListProps } from "@src/components/templates/communityGallery/GalleryEntryList/GalleryEntryList";
+import type { CommunityGallery, CommunityGalleryInput } from "@src/components/templates/communityGallery/useCommunityGallery";
 import type { EnhancedTemplateCategory, TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
 import { UrlService } from "@src/utils/urlUtils";
 import type { TemplateCardProps } from "./TemplateCard/TemplateCard";
@@ -14,6 +16,7 @@ import { DEPENDENCIES, TemplateGallery } from "./TemplateGallery";
 
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { buildGalleryEntry } from "@tests/seeders/communityTemplate";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(TemplateGallery.name, () => {
@@ -255,12 +258,180 @@ describe(TemplateGallery.name, () => {
     };
   }
 
-  function setup(input: {
-    categories: EnhancedTemplateCategory[];
-    isLoading?: boolean;
-    url?: { category?: string; search?: string };
-    dependencies?: Partial<typeof DEPENDENCIES>;
-  }) {
+  describe("when template_marketplace is on", () => {
+    const CATEGORIES = [makeCategory("Games", ["Minecraft"])];
+
+    it("builds the community gallery from the categories and the view in the link", () => {
+      const { useCommunityGallery } = setupMarketplace({ url: { category: "Games", search: "craft", source: "community", sort: "newest" } });
+
+      expect(useCommunityGallery).toHaveBeenLastCalledWith({
+        isEnabled: true,
+        categories: CATEGORIES,
+        view: expect.objectContaining({ category: "Games", search: "craft", source: "community", sort: "newest" })
+      });
+    });
+
+    it("keeps the community gallery off while the flag is off", () => {
+      const useCommunityGallery = vi.fn<typeof DEPENDENCIES.useCommunityGallery>(() => null);
+      setup({ categories: CATEGORIES, dependencies: { useCommunityGallery } });
+
+      expect(useCommunityGallery).toHaveBeenLastCalledWith(expect.objectContaining({ isEnabled: false }));
+      expect(screen.getByRole("region", { name: "Games" })).toBeInTheDocument();
+      expect(screen.queryByRole("group", { name: "Show templates from" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("group", { name: "Sort by" })).not.toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: "Search templates" })).toHaveAttribute("placeholder", "Search templates");
+    });
+
+    it("lists both sources in one list instead of a section per category", () => {
+      const shownEntries = [buildGalleryEntry({ title: "Open WebUI" }), buildGalleryEntry({ title: "Llama" })];
+      const { GalleryEntryList } = setupMarketplace({ gallery: { shownEntries }, url: { search: "web" } });
+
+      expect(GalleryEntryList.mock.lastCall?.[0]).toMatchObject({
+        title: "All templates · Popular",
+        entries: shownEntries,
+        search: "web",
+        showsCommunityNote: true
+      });
+      expect(screen.queryByRole("region", { name: "Games" })).not.toBeInTheDocument();
+    });
+
+    it("titles the list after the source and the sort, and leaves the community note out of Official", () => {
+      const { GalleryEntryList, rerenderWithUrl } = setupMarketplace({ url: { source: "official", sort: "trending" } });
+
+      expect(GalleryEntryList.mock.lastCall?.[0]).toMatchObject({ title: "Official templates · Trending", showsCommunityNote: false });
+
+      rerenderWithUrl({ source: "community", sort: "newest" });
+
+      expect(GalleryEntryList.mock.lastCall?.[0]).toMatchObject({ title: "Community templates · Newest", showsCommunityNote: true });
+    });
+
+    it.each([
+      ["source", { source: "official" }],
+      ["sort", { sort: "newest" }],
+      ["category", { category: "Games" }],
+      ["search", { search: "craft" }]
+    ])("starts the list over at its first page when the %s changes", (_, url) => {
+      const { countListMounts, rerenderWithUrl } = setupMarketplace({});
+
+      rerenderWithUrl({});
+      expect(countListMounts()).toBe(1);
+
+      rerenderWithUrl(url);
+      expect(countListMounts()).toBe(2);
+    });
+
+    it("shows the source filter with the gallery's counts and puts the picked source in the link", async () => {
+      const { router } = setupMarketplace({ gallery: { sourceCounts: { all: 12, official: 8, community: 4 } }, url: { category: "Games" } });
+
+      expect(screen.getByRole("button", { name: "All 12" })).toHaveAttribute("aria-pressed", "true");
+      await userEvent.click(screen.getByRole("button", { name: "Community 4" }));
+
+      expect(router.replace).toHaveBeenCalledWith("/templates?category=Games&source=community");
+      expect(screen.getByRole("button", { name: "Community 4" })).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("shows the sort from the link and puts the picked sort in the link", async () => {
+      const { router } = setupMarketplace({ url: { sort: "trending" } });
+
+      expect(within(screen.getByRole("group", { name: "Sort by" })).getByRole("button", { name: "Trending" })).toHaveAttribute("aria-pressed", "true");
+      await userEvent.click(screen.getByRole("button", { name: "Newest" }));
+
+      expect(router.replace).toHaveBeenCalledWith("/templates?sort=newest");
+    });
+
+    it("passes the gallery's use case filters and selected category to the rail", () => {
+      const filters = [
+        { category: null, label: "All", count: 9 },
+        { category: "Wallet", label: "Wallet", count: 2 }
+      ];
+      const { TemplateUseCaseNav } = setupMarketplace({ gallery: { filters }, url: { category: "Wallet" } });
+
+      expect(TemplateUseCaseNav).toHaveBeenLastCalledWith(expect.objectContaining({ filters, selectedCategory: "Wallet" }), expect.anything());
+      expect(screen.getByRole("button", { name: "Filter by use case: Wallet 2" })).toBeInTheDocument();
+    });
+
+    it("hands the trending templates to the trending row", () => {
+      const trendingEntries = [buildGalleryEntry(), buildGalleryEntry(), buildGalleryEntry()];
+      const { TrendingTemplatesRow } = setupMarketplace({ gallery: { trendingEntries } });
+
+      expect(TrendingTemplatesRow).toHaveBeenLastCalledWith({ entries: trendingEntries }, expect.anything());
+    });
+
+    it("searches publishers too", () => {
+      setupMarketplace({});
+
+      expect(screen.getByRole("textbox", { name: "Search templates" })).toHaveAttribute("placeholder", "Search templates or publishers");
+    });
+
+    it("waits for the community gallery before listing anything", () => {
+      const { GalleryEntryList } = setupMarketplace({ gallery: { isLoadingCommunity: true } });
+
+      expect(screen.getByRole("status", { name: "Loading community templates" })).toBeInTheDocument();
+      expect(GalleryEntryList).not.toHaveBeenCalled();
+    });
+
+    it("shows no loading state once the community gallery is there", () => {
+      const { GalleryEntryList } = setupMarketplace({});
+
+      expect(screen.queryByRole("status", { name: "Loading community templates" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      expect(GalleryEntryList).toHaveBeenCalled();
+    });
+
+    it("says community templates could not be loaded, still lists the rest and retries on request", async () => {
+      const retryCommunity = vi.fn();
+      const { GalleryEntryList } = setupMarketplace({ gallery: { hasCommunityFailed: true, retryCommunity } });
+
+      expect(screen.getByRole("alert")).toHaveTextContent("Couldn't load community templates. Official templates are listed without their usage numbers.");
+      expect(GalleryEntryList).toHaveBeenCalled();
+
+      await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+      expect(retryCommunity).toHaveBeenCalledOnce();
+    });
+
+    it("leaves the no-match message to the list", () => {
+      setupMarketplace({ gallery: { shownEntries: [] }, url: { search: "zzz" } });
+
+      expect(screen.queryByText("No templates match “zzz”")).not.toBeInTheDocument();
+    });
+
+    function setupMarketplace(input: { gallery?: Partial<CommunityGallery>; url?: GalleryUrl }) {
+      const gallery: CommunityGallery = {
+        selectedCategory: null,
+        filters: [{ category: null, label: "All", count: 1 }],
+        sourceCounts: { all: 1, official: 1, community: 0 },
+        shownEntries: [],
+        trendingEntries: [],
+        isLoadingCommunity: false,
+        hasCommunityFailed: false,
+        retryCommunity: vi.fn(),
+        ...input.gallery
+      };
+      const useCommunityGallery = vi.fn<typeof DEPENDENCIES.useCommunityGallery>((galleryInput: CommunityGalleryInput) => ({
+        ...gallery,
+        selectedCategory: galleryInput.view.category
+      }));
+      let listMounts = 0;
+      const GalleryEntryList = vi.fn((_props: GalleryEntryListProps) => {
+        React.useState(() => ++listMounts);
+        return null;
+      });
+      const TrendingTemplatesRow = vi.fn((_props: Parameters<typeof DEPENDENCIES.TrendingTemplatesRow>[0]) => null);
+
+      const rendered = setup({
+        categories: CATEGORIES,
+        url: input.url,
+        dependencies: { useFlag: flag => flag === "template_marketplace", useCommunityGallery, GalleryEntryList, TrendingTemplatesRow }
+      });
+
+      return { ...rendered, useCommunityGallery, GalleryEntryList, TrendingTemplatesRow, countListMounts: () => listMounts };
+    }
+  });
+
+  type GalleryUrl = { category?: string; search?: string; source?: string; sort?: string };
+
+  function setup(input: { categories: EnhancedTemplateCategory[]; isLoading?: boolean; url?: GalleryUrl; dependencies?: Partial<typeof DEPENDENCIES> }) {
     const router = mock<ReturnType<typeof URL_STATE_DEPENDENCIES.useRouter>>();
     let templatesResult = toTemplatesResult(input.categories, input.isLoading ?? false);
     let searchParams = toSearchParams(input.url);
@@ -277,7 +448,7 @@ describe(TemplateGallery.name, () => {
 
     const { rerender } = render(<TemplateGallery dependencies={dependencies} />);
 
-    const rerenderWithUrl = (url: { category?: string; search?: string }) => {
+    const rerenderWithUrl = (url: GalleryUrl) => {
       searchParams = toSearchParams(url);
       rerender(<TemplateGallery dependencies={dependencies} />);
     };
@@ -294,10 +465,12 @@ describe(TemplateGallery.name, () => {
     return { isLoading, categories, templates: categories.flatMap(category => category.templates) };
   }
 
-  function toSearchParams(url: { category?: string; search?: string } = {}) {
+  function toSearchParams(url: GalleryUrl = {}) {
     const params = new URLSearchParams();
     if (url.category) params.set("category", url.category);
     if (url.search) params.set("search", url.search);
+    if (url.source) params.set("source", url.source);
+    if (url.sort) params.set("sort", url.sort);
     return new ReadonlyURLSearchParams(params);
   }
 });

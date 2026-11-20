@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { isClientError, SKIP_REPORTING_REFUSED_INPUT } from "@src/services/query-error-policy/query-error-policy";
-import type { MarketplaceTemplate } from "@src/types/marketplace-template";
+import type { CommunityTemplateGallery, MarketplaceTemplate } from "@src/types/marketplace-template";
 
 /** A template link outlives its template, and the page answers a deleted, removed or private one itself. */
 const SKIP_REPORTING_UNREADABLE_TEMPLATE = { skipErrorReporting: isClientError };
@@ -33,6 +33,20 @@ export function useTemplateVersion(id: string | undefined, version: number | und
     { id: id ?? "", version: version ?? 0 },
     { enabled: !!id && version !== undefined, meta: SKIP_REPORTING_UNREADABLE_TEMPLATE, select: response => response.data }
   );
+}
+
+/** The API serves one answer to everyone and refreshes it once a minute, so asking more often only repeats it. */
+const COMMUNITY_GALLERY_STALE_MS = 60_000;
+
+export function useCommunityTemplates({ enabled }: { enabled: boolean }) {
+  const { api } = useServices();
+
+  return api.v1.listCommunityTemplates.useQuery(undefined, {
+    enabled,
+    staleTime: COMMUNITY_GALLERY_STALE_MS,
+    meta: SKIP_REPORTING_REFUSED_INPUT,
+    select: (response): CommunityTemplateGallery => response.data
+  });
 }
 
 export function useMyTemplates() {

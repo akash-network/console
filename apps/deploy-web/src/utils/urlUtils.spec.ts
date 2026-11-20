@@ -108,6 +108,27 @@ describe(UrlService.configureTemplate.name, () => {
   });
 });
 
+describe(UrlService.templates.name, () => {
+  it("returns the bare gallery without a category, a search or a view", () => {
+    expect(UrlService.templates()).toBe("/templates");
+  });
+
+  it("carries the category and the search", () => {
+    expect(UrlService.templates("AI - GPU", "llama")).toBe("/templates?category=AI+-+GPU&search=llama");
+  });
+
+  it("carries a source and a sort other than the defaults", () => {
+    expect(UrlService.templates(null, "", { source: "community", sort: "newest" })).toBe("/templates?source=community&sort=newest");
+    expect(UrlService.templates("Games", "", { source: "official", sort: "trending" })).toBe("/templates?category=Games&source=official&sort=trending");
+  });
+
+  it("leaves the default source and sort out of the link", () => {
+    expect(UrlService.templates(null, "", { source: "all", sort: "popular" })).toBe("/templates");
+    expect(UrlService.templates(null, "x", { source: "all", sort: "newest" })).toBe("/templates?search=x&sort=newest");
+    expect(UrlService.templates(null, "x", { source: "official", sort: "popular" })).toBe("/templates?search=x&source=official");
+  });
+});
+
 describe(UrlService.myTemplates.name, () => {
   it("returns the My templates page", () => {
     expect(UrlService.myTemplates()).toBe("/templates/mine");

@@ -2,9 +2,19 @@
 import type { ChangeEvent, FC } from "react";
 import { useId, useMemo, useState } from "react";
 import { Button, buttonVariants, Input, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, Spinner } from "@akashnetwork/ui/components";
-import { Search, SlidersHorizontal, X } from "lucide-react";
+import { RefreshCw, Search, SlidersHorizontal, X } from "lucide-react";
 import Link from "next/link";
 
+import {
+  GALLERY_SORT_LABELS,
+  GALLERY_SOURCE_LABELS,
+  GallerySortControl,
+  GallerySourceFilter
+} from "@src/components/templates/communityGallery/GalleryControls/GalleryControls";
+import { GalleryEntryList } from "@src/components/templates/communityGallery/GalleryEntryList/GalleryEntryList";
+import { TrendingTemplatesRow } from "@src/components/templates/communityGallery/TrendingTemplatesRow/TrendingTemplatesRow";
+import type { CommunityGallery } from "@src/components/templates/communityGallery/useCommunityGallery";
+import { useCommunityGallery } from "@src/components/templates/communityGallery/useCommunityGallery";
 import type { TemplateSection } from "@src/components/templates/templateGalleryModel";
 import { findSelectedCategory, isPopularTemplate, listUseCaseFilters, selectTemplateSections } from "@src/components/templates/templateGalleryModel";
 import { useFlag } from "@src/hooks/useFlag";
@@ -23,11 +33,14 @@ export const DEPENDENCIES = {
   useFlag,
   useTemplateGalleryUrlState,
   useTemplates,
+  useCommunityGallery,
   Layout,
   CustomNextSeo,
   OrganizationTemplatesSection,
   TemplateCard,
-  TemplateUseCaseNav
+  TemplateUseCaseNav,
+  GalleryEntryList,
+  TrendingTemplatesRow
 };
 
 export const TemplateGallery: FC<{ dependencies?: typeof DEPENDENCIES }> = ({ dependencies: d = DEPENDENCIES }) => {
@@ -36,13 +49,16 @@ export const TemplateGallery: FC<{ dependencies?: typeof DEPENDENCIES }> = ({ de
   const { isLoading, categories } = d.useTemplates();
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
 
+  const communityGallery = d.useCommunityGallery({ isEnabled: !!isMarketplaceEnabled, categories, view: urlState });
+
   const search = urlState.search;
-  const selectedCategory = findSelectedCategory(categories, urlState.category);
-  const filters = useMemo(() => listUseCaseFilters(categories), [categories]);
+  const selectedCategory = communityGallery ? communityGallery.selectedCategory : findSelectedCategory(categories, urlState.category);
+  const awesomeAkashFilters = useMemo(() => listUseCaseFilters(categories), [categories]);
+  const filters = communityGallery ? communityGallery.filters : awesomeAkashFilters;
   const selectedFilter = filters.find(filter => filter.category === selectedCategory) ?? filters[0];
   const sections = useMemo(() => selectTemplateSections({ categories, category: selectedCategory, search }), [categories, selectedCategory, search]);
   const trimmedSearch = search.trim();
-  const hasNoMatch = categories.length > 0 && sections.length === 0 && !!trimmedSearch;
+  const hasNoMatch = !communityGallery && categories.length > 0 && sections.length === 0 && !!trimmedSearch;
 
   const changeSearch = (event: ChangeEvent<HTMLInputElement>) => urlState.changeSearch(event.target.value);
 
@@ -81,11 +97,12 @@ export const TemplateGallery: FC<{ dependencies?: typeof DEPENDENCIES }> = ({ de
           <div className="min-w-0 flex-1 md:overflow-y-auto">
             <div className="container flex flex-col gap-6 px-4 pb-8 pt-5 sm:px-6">
               <div className="flex flex-wrap items-center gap-2">
+                {communityGallery && <GallerySourceFilter selected={urlState.source} counts={communityGallery.sourceCounts} onSelect={urlState.selectSource} />}
                 <Input
                   value={search}
                   onChange={changeSearch}
                   aria-label="Search templates"
-                  placeholder="Search templates"
+                  placeholder={communityGallery ? "Search templates or publishers" : "Search templates"}
                   type="text"
                   className="w-full sm:max-w-[380px]"
                   startIcon={<Search className="ml-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />}
@@ -108,7 +125,16 @@ export const TemplateGallery: FC<{ dependencies?: typeof DEPENDENCIES }> = ({ de
                     <span className="font-mono text-xs text-muted-foreground">{selectedFilter.count}</span>
                   </Button>
                 )}
+
+                {communityGallery && (
+                  <div className="flex items-center gap-2.5 sm:ml-auto">
+                    <span className="text-[13px] text-muted-foreground">Sort</span>
+                    <GallerySortControl selected={urlState.sort} onSelect={urlState.selectSort} />
+                  </div>
+                )}
               </div>
+
+              {communityGallery && <d.TrendingTemplatesRow entries={communityGallery.trendingEntries} />}
 
               <d.OrganizationTemplatesSection />
 
@@ -118,9 +144,11 @@ export const TemplateGallery: FC<{ dependencies?: typeof DEPENDENCIES }> = ({ de
                 </div>
               )}
 
-              {sections.map(section => (
-                <TemplateSectionView key={section.title} section={section} dependencies={d} />
-              ))}
+              {communityGallery ? (
+                <CommunityGalleryView gallery={communityGallery} view={urlState} dependencies={d} />
+              ) : (
+                sections.map(section => <TemplateSectionView key={section.title} section={section} dependencies={d} />)
+              )}
 
               {hasNoMatch && (
                 <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card px-6 py-14 text-center">
@@ -144,6 +172,41 @@ export const TemplateGallery: FC<{ dependencies?: typeof DEPENDENCIES }> = ({ de
         </SheetContent>
       </Sheet>
     </d.Layout>
+  );
+};
+
+const CommunityGalleryView: FC<{
+  gallery: CommunityGallery;
+  view: Pick<ReturnType<typeof useTemplateGalleryUrlState>, "source" | "sort" | "search">;
+  dependencies: typeof DEPENDENCIES;
+}> = ({ gallery, view, dependencies: d }) => {
+  if (gallery.isLoadingCommunity) {
+    return (
+      <div role="status" aria-label="Loading community templates" className="flex justify-center py-12">
+        <Spinner size="large" />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {gallery.hasCommunityFailed && (
+        <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-[13px] text-muted-foreground">
+          <span className="mr-auto">Couldn&apos;t load community templates. Official templates are listed without their usage numbers.</span>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={gallery.retryCommunity}>
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+            Retry
+          </Button>
+        </div>
+      )}
+      <d.GalleryEntryList
+        key={`${view.source}|${view.sort}|${gallery.selectedCategory ?? ""}|${view.search}`}
+        title={`${GALLERY_SOURCE_LABELS[view.source]} templates · ${GALLERY_SORT_LABELS[view.sort]}`}
+        entries={gallery.shownEntries}
+        search={view.search}
+        showsCommunityNote={view.source !== "official"}
+      />
+    </>
   );
 };
 
