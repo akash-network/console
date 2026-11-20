@@ -47,6 +47,18 @@ describe(buildGpuCheckSdl.name, () => {
   });
 });
 
+describe("gpu attributes", () => {
+  it("requests the given number of gpus with memory and interface attributes", () => {
+    const sdl = buildGpuCheckSdl([{ model: "h100", shape: "typical", units: 4, memory: "80Gi", interface: "sxm" }]);
+
+    expect(sdl.profiles.compute.gpu00.resources.gpu).toEqual({
+      units: 4,
+      attributes: { vendor: { nvidia: [{ model: "h100", ram: "80Gi", interface: "sxm" }] } }
+    });
+    expect(generateManifest(sdl).ok).toBe(true);
+  });
+});
+
 describe(toPlacementName.name, () => {
   it("pads the index so names sort in index order", () => {
     expect([toPlacementName(0), toPlacementName(9), toPlacementName(19)]).toEqual(["gpu00", "gpu09", "gpu19"]);
