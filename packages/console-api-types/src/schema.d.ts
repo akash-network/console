@@ -1166,7 +1166,7 @@ export interface paths {
           };
           content?: never;
         };
-        /** @description Invalid input, or a new template needs a project (`project_required`) */
+        /** @description Invalid input, a new template needs a project (`project_required`), or with the template marketplace on a save to a public template fails its publish checks (`template_publish_checks_failed`) */
         400: {
           headers: {
             [name: string]: unknown;
@@ -1250,6 +1250,13 @@ export interface paths {
       responses: {
         /** @description Template description saved successfully */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Invalid input, or with the template marketplace on the description is shown as a public template's README and holds a credential (`template_publish_checks_failed`) */
+        400: {
           headers: {
             [name: string]: unknown;
           };
