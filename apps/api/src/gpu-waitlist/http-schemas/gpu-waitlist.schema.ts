@@ -1,8 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
+import { MAX_GPUS_PER_SETUP } from "@src/deployment/services/gpu-setup-check/gpu-setup-check.service";
 import { gpuWaitlistEntrySourceEnum, gpuWaitlistEntryStatusEnum, MAX_GPU_FIELD_LENGTH } from "@src/gpu-waitlist/model-schemas";
-
-const MAX_GPU_COUNT = 64;
 
 const gpuField = z.string().trim().min(1).max(MAX_GPU_FIELD_LENGTH);
 
@@ -12,7 +11,7 @@ export const JoinGpuWaitlistRequestSchema = z.object({
     model: gpuField,
     memory: gpuField.optional(),
     interface: gpuField.optional(),
-    gpuCount: z.number().int().min(1).max(MAX_GPU_COUNT),
+    gpuCount: z.number().int().min(1).max(MAX_GPUS_PER_SETUP),
     source: z.enum(gpuWaitlistEntrySourceEnum.enumValues)
   })
 });

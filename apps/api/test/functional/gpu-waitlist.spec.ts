@@ -42,12 +42,7 @@ describe("GPU waitlist", () => {
       const entry = await seedGpuWaitlistEntry({ userId: alice.user.id, organizationId: alice.organizationId });
       vi.spyOn(container.resolve(GpuWaitlistNetworkService), "servesGpuWaitlists").mockReturnValue(false);
 
-      const responses = await Promise.all([
-        join(undefined, aPool()),
-        join(alice.headers, aPool()),
-        list(alice.headers),
-        leave(alice.headers, entry.id)
-      ]);
+      const responses = await Promise.all([join(undefined, aPool()), join(alice.headers, aPool()), list(alice.headers), leave(alice.headers, entry.id)]);
 
       expect(responses.map(response => response.status)).toEqual([404, 404, 404, 404]);
     });
@@ -110,7 +105,7 @@ describe("GPU waitlist", () => {
     it.each([
       { case: "a non-nvidia vendor", override: { vendor: "amd" } },
       { case: "zero GPUs", override: { gpuCount: 0 } },
-      { case: "more than 64 GPUs", override: { gpuCount: 65 } },
+      { case: "more GPUs than the chain accepts in one group", override: { gpuCount: 25 } },
       { case: "an unknown source", override: { source: "email" } },
       { case: "a blank model", override: { model: "  " } }
     ])("rejects $case", async ({ override }) => {
