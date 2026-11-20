@@ -7,17 +7,25 @@ import { EmailDomainMailHostRepository } from "./email-domain-mail-host.reposito
 
 describe(EmailDomainMailHostRepository.name, () => {
   describe("upsertProfile", () => {
-    it("stores a new profile and overwrites it on the next lookup", async () => {
+    it("stores a new profile", async () => {
       const { repository, domain, mxIp } = setup();
+
       await repository.upsertProfile({ domain, mxHosts: [`mail.${domain}`], selfHostedMxIps: [mxIp], hasWebsite: true });
-      const [{ updatedAt: firstUpdatedAt }] = await repository.find({ domain });
+
+      await expect(repository.find({ domain })).resolves.toMatchObject([{ domain, mxHosts: [`mail.${domain}`], selfHostedMxIps: [mxIp], hasWebsite: true }]);
+    });
+
+    it("overwrites an existing profile and refreshes its update time", async () => {
+      const { repository, domain, mxIp } = setup();
+      const previousUpdatedAt = new Date("2026-01-01T00:00:00Z");
+      await repository.create({ domain, mxHosts: [`mail.${domain}`], selfHostedMxIps: [mxIp], hasWebsite: true, updatedAt: previousUpdatedAt });
 
       await repository.upsertProfile({ domain, mxHosts: ["route1.mx.cloudflare.net"], selfHostedMxIps: [], hasWebsite: false });
 
       const rows = await repository.find({ domain });
       expect(rows).toHaveLength(1);
       expect(rows[0]).toMatchObject({ domain, mxHosts: ["route1.mx.cloudflare.net"], selfHostedMxIps: [], hasWebsite: false });
-      expect(rows[0].updatedAt.getTime()).toBeGreaterThanOrEqual(firstUpdatedAt.getTime());
+      expect(rows[0].updatedAt.getTime()).toBeGreaterThan(previousUpdatedAt.getTime());
     });
   });
 
@@ -52,9 +60,9 @@ describe(EmailDomainMailHostRepository.name, () => {
 
     it("ignores domains sharing the address that are not blocked, and blocks on lookalike domains", async () => {
       const { repository, blockedEmailDomainRepository, domain, mxIp, saveProfile } = setup();
-      const unblocked = `${faker.string.alphanumeric(12).toLowerCase()}.makeup`;
-      await saveProfile(unblocked, [mxIp]);
-      await blockedEmailDomainRepository.create({ domain: `x${unblocked}`, status: "blocked" });
+      const blocked = `${faker.string.alphanumeric(12).toLowerCase()}.makeup`;
+      await saveProfile(`x${blocked}`, [mxIp]);
+      await blockedEmailDomainRepository.create({ domain: blocked, status: "blocked" });
 
       await expect(repository.findBlockedDomainSharingMxIps([mxIp], domain)).resolves.toBeUndefined();
     });

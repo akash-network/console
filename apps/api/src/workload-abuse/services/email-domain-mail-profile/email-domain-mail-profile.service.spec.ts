@@ -60,9 +60,11 @@ describe(EmailDomainMailProfileService.name, () => {
   it("counts an IPv6 address or a www host as a website", async () => {
     const ipv6 = setup({ aaaa: { "ipv6-only.dev": ["2001:db8::1"] } });
     const www = setup({ a: { "www.www-only.dev": ["45.10.0.2"] } });
+    const ipv6Www = setup({ aaaa: { "www.ipv6-www.dev": ["2001:db8::2"] } });
 
     expect((await ipv6.service.findProfile("ipv6-only.dev"))?.hasWebsite).toBe(true);
     expect((await www.service.findProfile("www-only.dev"))?.hasWebsite).toBe(true);
+    expect((await ipv6Www.service.findProfile("ipv6-www.dev"))?.hasWebsite).toBe(true);
   });
 
   it("keeps only the ten most preferred mail hosts and looks up only those", async () => {
