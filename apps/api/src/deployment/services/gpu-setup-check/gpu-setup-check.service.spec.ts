@@ -174,6 +174,7 @@ describe(GpuSetupCheckService.name, () => {
     { problem: "a model that is not a string", invalid: { model: 100 }, reason: "The model or memory cannot be written into an SDL attribute" },
     { problem: "a model too long to record", invalid: { model: "a".repeat(256) }, reason: "The model or memory cannot be written into an SDL attribute" },
     { problem: "a memory that is not a string", invalid: { memory: 80 }, reason: "The model or memory cannot be written into an SDL attribute" },
+    { problem: "more gpus than the chain accepts in one group", invalid: { count: 25 }, reason: "The chain accepts at most 24 gpus per group" },
     { problem: "a fractional count", invalid: { count: 1.5 }, reason: expect.any(String) },
     { problem: "an infinite count", invalid: { count: Infinity }, reason: expect.any(String) },
     { problem: "an interface that is not a string", invalid: { interface: 1 }, reason: expect.any(String) },
@@ -187,6 +188,14 @@ describe(GpuSetupCheckService.name, () => {
     expect(gpuCheckRunner.run.mock.calls[0][1][0].manifest.groupModels).toEqual(["a100"]);
     expect(outcome).toMatchObject({ status: "checked", results: [{ status: "invalid" }, { status: "checked" }] });
     expect(logger.warn).toHaveBeenCalledWith({ event: "GPU_SETUP_CHECK_SETUP_INVALID", setup: invalidSetup, reason });
+  });
+
+  it("checks a setup with as many gpus as the chain accepts in one group", async () => {
+    const { service } = setup();
+
+    const outcome = await service.check([aSetup({ count: 24 })]);
+
+    expect(outcome).toMatchObject({ status: "checked", results: [{ status: "checked" }] });
   });
 
   it("checks a setup whose model is as long as the record allows", async () => {

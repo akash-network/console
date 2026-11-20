@@ -23,6 +23,9 @@ export const MAX_GPU_SETUPS_PER_CHECK = 20;
 /** The gpu_bid_checks model column is a varchar(255), so a longer model could not be recorded once its deployment has been paid for. */
 const MAX_MODEL_LENGTH = 255;
 
+/** The chain refuses a group resource with more gpu units than this (maxUnitGPU in its deployment validation). */
+export const MAX_GPUS_PER_SETUP = 24;
+
 export interface GpuSetup {
   vendor: "nvidia";
   model: string;
@@ -113,6 +116,8 @@ export class GpuSetupCheckService {
 
 function findInvalidReason(setup: GpuSetup): string | undefined {
   if (setup.vendor !== "nvidia") return "Only nvidia gpus can be checked";
+
+  if (setup.count > MAX_GPUS_PER_SETUP) return `The chain accepts at most ${MAX_GPUS_PER_SETUP} gpus per group`;
 
   if (!isSdlAttribute(setup.model) || setup.model.length > MAX_MODEL_LENGTH || (setup.memory && !isSdlAttribute(setup.memory))) {
     return "The model or memory cannot be written into an SDL attribute";
