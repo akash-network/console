@@ -136,6 +136,14 @@ describe(EditPublisherProfileDialog.name, () => {
     expect(saveProfile).not.toHaveBeenCalled();
   });
 
+  it("counts the bio without the spaces around it", () => {
+    setup({});
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Bio" }), { target: { value: "  abc \n" } });
+
+    expect(screen.getByLabelText("3 of 300 characters used")).toHaveTextContent("3 / 300");
+  });
+
   it("allows saving a bio of exactly the limit", () => {
     setup({});
 

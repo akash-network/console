@@ -16,6 +16,10 @@ describe(readPublisherLink.name, () => {
     });
   });
 
+  it("drops every trailing slash of the path it shows", () => {
+    expect(readPublisherLink({ url: "https://lambdagarage.dev/docs//", label: null }).text).toBe("lambdagarage.dev/docs");
+  });
+
   it("shows the real host beside a label, so the label cannot pass for another site", () => {
     expect(readPublisherLink({ url: "https://evil.example.org/login", label: "github.com/akash-network" })).toEqual({
       href: "https://evil.example.org/login",
