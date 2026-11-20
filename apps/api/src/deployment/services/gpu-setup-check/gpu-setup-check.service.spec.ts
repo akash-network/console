@@ -73,7 +73,7 @@ describe(GpuSetupCheckService.name, () => {
 
     expect(outcome).toEqual({ status: "cap_reached" });
     expect(gpuCheckRunner.run).not.toHaveBeenCalled();
-    expect(gpuSetupCheckRunRepository.insert).not.toHaveBeenCalled();
+    expect(gpuSetupCheckRunRepository.create).not.toHaveBeenCalled();
   });
 
   it("counts runs since UTC midnight", async () => {
@@ -103,7 +103,7 @@ describe(GpuSetupCheckService.name, () => {
 
     await service.check([aSetup(), aSetup()]);
 
-    expect(gpuSetupCheckRunRepository.insert).toHaveBeenCalledWith({ dseq: "123", setupCount: 2 });
+    expect(gpuSetupCheckRunRepository.create).toHaveBeenCalledWith({ dseq: "123", setupCount: 2 });
   });
 
   it("still counts a run against the cap when its bids cannot be read", async () => {
@@ -111,7 +111,7 @@ describe(GpuSetupCheckService.name, () => {
 
     await expect(service.check([aSetup()])).rejects.toThrow("bids unreadable");
 
-    expect(gpuSetupCheckRunRepository.insert).toHaveBeenCalledWith({ dseq: "123", setupCount: 1 });
+    expect(gpuSetupCheckRunRepository.create).toHaveBeenCalledWith({ dseq: "123", setupCount: 1 });
     expect(gpuBidCheckRepository.insertMany).not.toHaveBeenCalled();
   });
 
@@ -149,7 +149,7 @@ describe(GpuSetupCheckService.name, () => {
         { setup: setups[2], status: "checked", bids: [{ provider: "akash1b", priceUsdPerHour: hourlyUsd(2000) }] }
       ]
     });
-    expect(gpuSetupCheckRunRepository.insert).toHaveBeenCalledWith({ dseq: "123", setupCount: 2 });
+    expect(gpuSetupCheckRunRepository.create).toHaveBeenCalledWith({ dseq: "123", setupCount: 2 });
     expect(gpuBidCheckRepository.insertMany).toHaveBeenCalledWith([
       expect.objectContaining({ provider: "akash1a", model: "h100" }),
       expect.objectContaining({ provider: "akash1b", model: "l40s" })

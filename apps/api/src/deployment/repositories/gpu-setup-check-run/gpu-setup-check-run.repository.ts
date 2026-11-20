@@ -7,7 +7,6 @@ import { TxService } from "@src/core/services";
 
 type Table = ApiPgTables["GpuSetupCheckRuns"];
 export type GpuSetupCheckRunInput = Partial<Table["$inferInsert"]>;
-export type GpuSetupCheckRunInsert = Table["$inferInsert"];
 export type GpuSetupCheckRunOutput = Table["$inferSelect"];
 
 @singleton()
@@ -22,10 +21,6 @@ export class GpuSetupCheckRunRepository extends BaseRepository<Table, GpuSetupCh
 
   accessibleBy(...abilityParams: AbilityParams) {
     return new GpuSetupCheckRunRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
-  }
-
-  async insert(run: GpuSetupCheckRunInsert): Promise<void> {
-    await this.cursor.insert(this.table).values(run);
   }
 
   async countCreatedSince(since: Date): Promise<number> {

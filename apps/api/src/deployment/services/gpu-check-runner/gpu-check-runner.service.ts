@@ -51,7 +51,7 @@ export interface GpuCheckSession {
 
 export interface GpuCheckRunOptions {
   /** Runs before the bid window, and the deployments are still closed when it throws, so a run that fails later is already accounted for. */
-  onCreated?: (dseqs: string[]) => Promise<void>;
+  onCreated?: (dseqs: string[]) => Promise<unknown>;
 }
 
 @singleton()

@@ -82,7 +82,7 @@ export class GpuSetupCheckService {
 
     const checkableSetups = checkable.map(({ setup }) => setup);
     const [settledRun] = await this.gpuCheckRunner.run(session, [{ manifest: buildManifest(checkableSetups) }], {
-      onCreated: ([dseq]) => this.gpuSetupCheckRunRepository.insert({ dseq, setupCount: checkableSetups.length })
+      onCreated: ([dseq]) => this.gpuSetupCheckRunRepository.create({ dseq, setupCount: checkableSetups.length })
     });
     const runResult = resultOrThrow(settledRun);
     const checkedAt = new Date();

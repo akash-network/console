@@ -171,11 +171,15 @@ describe(GpuCheckRunner.name, () => {
     it("starts no close while a bid read is still in flight", async () => {
       const { runner, session, signingClient, chainSdk } = setup();
       let releaseSecondRead!: () => void;
-      chainSdk.akash.market.v1beta5.getBids
-        .mockRejectedValueOnce(new Error("rpc unavailable"))
-        .mockReturnValueOnce(new Promise(resolve => (releaseSecondRead = () => resolve(bidsResponse([])))));
+      let markSecondReadStarted!: () => void;
+      const secondReadStarted = new Promise<void>(resolve => (markSecondReadStarted = resolve));
+      chainSdk.akash.market.v1beta5.getBids.mockRejectedValueOnce(new Error("rpc unavailable")).mockImplementationOnce(() => {
+        markSecondReadStarted();
+        return new Promise(resolve => (releaseSecondRead = () => resolve(bidsResponse([]))));
+      });
 
       const run = runner.run(session, [{ manifest: aManifest(["a100"]) }, { manifest: aManifest(["h100"]) }]);
+      await secondReadStarted;
       await new Promise(resolve => setImmediate(resolve));
       expect(closedDseqs(signingClient)).toHaveLength(0);
 
