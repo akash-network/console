@@ -6,7 +6,7 @@ export const ASSISTANT_CONSENT_COPY = {
   points: [
     "Your messages, and the deployment and billing details it looks up to answer, are processed by an AI model running on Akash (AkashML).",
     "It never changes anything without you clicking Confirm.",
-    "Secrets in env vars and SDL are removed before anything is sent or saved."
+    "Secrets we recognize in env vars and SDL, such as passwords and tokens, are removed before anything is sent or saved."
   ],
   reviewOptInLabel: "Let the Akash team review my conversations to improve Console",
   reviewOptInDescription:
