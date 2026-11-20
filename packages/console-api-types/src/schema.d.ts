@@ -9955,10 +9955,11 @@ export interface components {
       forks: number;
     };
     TemplateScores: {
-      /** @description Null until scores are computed */
+      /** @description People whose deployment was still running after a day, weighted toward recent ones; null while nobody counted, which sorts as zero */
       popular: number | null;
-      /** @description Null until scores are computed */
+      /** @description Growth of that count over the last window against the one before, negative when it fell; null while nobody counted */
       trending: number | null;
+      /** @description Whether it grew and reached the minimum volume, which is what the trending row lists */
       isTrending: boolean;
     };
     CommunityTemplateCard: {
@@ -10008,8 +10009,10 @@ export interface components {
         templates: components["schemas"]["CommunityTemplateCard"][];
         /** @description The same numbers for the awesome-akash templates, by template id; a template nobody deployed is missing */
         officialUsage: {
-          [key: string]: components["schemas"]["CommunityTemplateUsage"];
+          [key: string]: components["schemas"]["OfficialTemplateUsage"];
         };
+        /** @description The fewest trending templates worth a row of their own */
+        trendingRowMinTemplates: number;
       };
     };
     CurrentTemplatePublisher: {
@@ -10156,6 +10159,9 @@ export interface components {
       } | null;
       /** Format: date-time */
       createdAt: string;
+    };
+    OfficialTemplateUsage: components["schemas"]["CommunityTemplateUsage"] & {
+      scores: components["schemas"]["TemplateScores"];
     };
   };
   responses: never;
@@ -22537,6 +22543,16 @@ export interface operations {
                       dseq: string | null;
                       templateId: string | null;
                       sdl: string | null;
+                      /** @description Describes the template the card opens, while the template marketplace is on */
+                      template?: {
+                        /**
+                         * @description console: the id of a Console template; awesome_akash: a gallery id
+                         * @enum {string}
+                         */
+                        source: "console" | "awesome_akash";
+                        /** @description False for a community template, which is shown as not reviewed by Akash */
+                        reviewedByAkash: boolean;
+                      };
                     }
                   | {
                       /** @enum {string} */
@@ -23066,6 +23082,16 @@ export interface operations {
                       dseq: string | null;
                       templateId: string | null;
                       sdl: string | null;
+                      /** @description Describes the template the card opens, while the template marketplace is on */
+                      template?: {
+                        /**
+                         * @description console: the id of a Console template; awesome_akash: a gallery id
+                         * @enum {string}
+                         */
+                        source: "console" | "awesome_akash";
+                        /** @description False for a community template, which is shown as not reviewed by Akash */
+                        reviewedByAkash: boolean;
+                      };
                     }
                   | {
                       /** @enum {string} */
