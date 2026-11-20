@@ -291,15 +291,15 @@ const DeleteTemplateDialog: FC<{ template: MarketplaceTemplate; onClose: () => v
 
     try {
       await deleteTemplate({ id: template.id });
-      setIsDeleted(true);
+      enqueueSnackbar(<Snackbar title={`Deleted ${template.title}`} iconVariant="success" />, { variant: "success" });
     } catch (error) {
       if (!readRemovedTemplate(error)) {
         setFailure(describeFailure(error, "delete"));
         return;
       }
-      setIsDeleted(true);
+      enqueueSnackbar(<Snackbar title={`${template.title} was already removed`} iconVariant="info" />, { variant: "info" });
     }
-    enqueueSnackbar(<Snackbar title={`Deleted ${template.title}`} iconVariant="success" />, { variant: "success" });
+    setIsDeleted(true);
     await router.push(UrlService.myTemplates());
   };
 
