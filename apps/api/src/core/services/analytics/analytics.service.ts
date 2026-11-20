@@ -31,7 +31,11 @@ type AnalyticsEvent =
   | "affiliate_commission_held"
   | "affiliate_commission_released"
   | "affiliate_commission_canceled"
-  | "affiliate_commission_reversed";
+  | "affiliate_commission_reversed"
+  | "template_deployed"
+  | "template_lease_created"
+  | "template_still_running_24h"
+  | "template_forked";
 
 @singleton()
 export class AnalyticsService {
