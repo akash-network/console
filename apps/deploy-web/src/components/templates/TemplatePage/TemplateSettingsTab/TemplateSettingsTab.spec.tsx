@@ -315,7 +315,10 @@ describe(TemplateSettingsTab.name, () => {
 
     expect(deleteTemplate).toHaveBeenCalledWith({ id: "tpl-webui" });
     expect(router.push).toHaveBeenCalledWith(UrlService.myTemplates());
-    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), { variant: "success" });
+    expect(enqueueSnackbar).toHaveBeenCalledWith(
+      expect.objectContaining({ props: expect.objectContaining({ title: "Deleted Open WebUI + vLLM", iconVariant: "success" }) }),
+      { variant: "success" }
+    );
   });
 
   it("warns that a never-public template is deleted for everyone who can use it", async () => {
@@ -338,8 +341,8 @@ describe(TemplateSettingsTab.name, () => {
     );
   });
 
-  it("leaves for My templates when the template turns out to be removed already", async () => {
-    const { user, router } = setup({
+  it("leaves for My templates, saying so, when the template turns out to be removed already", async () => {
+    const { user, router, enqueueSnackbar } = setup({
       deleteError: new ApiError(410, { code: "template_removed", message: "This template was removed", data: { title: "Open WebUI + vLLM" } }, "410")
     });
 
@@ -349,6 +352,10 @@ describe(TemplateSettingsTab.name, () => {
     await user.click(within(dialog).getByRole("button", { name: "Delete template" }));
 
     expect(router.push).toHaveBeenCalledWith(UrlService.myTemplates());
+    expect(enqueueSnackbar).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ props: expect.objectContaining({ title: "Open WebUI + vLLM was already removed", iconVariant: "info" }) }),
+      { variant: "info" }
+    );
     expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Delete template" })).toBeDisabled();
   });
