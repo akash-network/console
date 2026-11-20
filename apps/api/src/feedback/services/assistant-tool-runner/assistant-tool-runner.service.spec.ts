@@ -60,6 +60,25 @@ describe(AssistantToolRunnerService.name, () => {
       });
     });
 
+    it("keeps a date as its ISO string, an invalid one as null, and drops what JSON has no form for", () => {
+      const trialEndsAt = new Date("2026-12-01T10:00:00.000Z");
+
+      const content = toolContentOf("get_balance_and_spend", {
+        data: { trialEndsAt, checkedAt: new Date("not a date"), spend: [{ since: trialEndsAt, note: undefined }] }
+      });
+
+      expect(JSON.parse(content)).toEqual({
+        tool: "get_balance_and_spend",
+        data: { trialEndsAt: "2026-12-01T10:00:00.000Z", checkedAt: null, spend: [{ since: "2026-12-01T10:00:00.000Z" }] }
+      });
+    });
+
+    it("redacts a secret inside a value that serializes itself", () => {
+      const content = toolContentOf("get_deployment", { data: { env: { toJSON: () => ({ line: "DB_PASSWORD=hunter2" }) } } });
+
+      expect(JSON.parse(content)).toEqual({ tool: "get_deployment", data: { env: { line: `DB_PASSWORD=${REDACTED}` } } });
+    });
+
     it("redacts what a secret-like key holds and stays JSON the next reader can parse", () => {
       const content = toolContentOf("get_deployment", { data: { env: { API_TOKEN: "hunter2", PORT: "8080" }, maxTokens: 512, secrets: [{ name: "DB_URL" }] } });
 
