@@ -114,10 +114,15 @@ export class ImportedTemplateRepository {
       isListed: this.table.isListed,
       moderationStatus: this.table.moderationStatus,
       importedContentHash: this.table.importedContentHash,
-      hasStaffCategories: sql<boolean>`exists (
-        select 1 from ${this.moderationEvents}
-        where ${this.moderationEvents.templateId} = ${this.table.id} and ${this.moderationEvents.action} = 'edit_categories'
-      )`
+      hasStaffCategories: sql<boolean>`${this.#hasStaffCategories}`
     };
+  }
+
+  /** Nested in the selected field, where drizzle would otherwise drop the table names and compare the log's own id with itself. */
+  get #hasStaffCategories() {
+    return sql`exists (
+      select 1 from ${this.moderationEvents}
+      where ${this.moderationEvents.templateId} = ${this.table.id} and ${this.moderationEvents.action} = 'edit_categories'
+    )`;
   }
 }

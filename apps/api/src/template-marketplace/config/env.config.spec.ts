@@ -27,7 +27,8 @@ describe("envSchema", () => {
       TEMPLATE_SCORE_POPULAR_WINDOW_DAYS: 180,
       TEMPLATE_SCORE_TRENDING_WINDOW_DAYS: 7,
       TEMPLATE_SCORE_TRENDING_MIN_VOLUME: 5,
-      TEMPLATE_TRENDING_ROW_MIN_TEMPLATES: 4
+      TEMPLATE_TRENDING_ROW_MIN_TEMPLATES: 4,
+      TEMPLATE_IMPORT_INTERVAL_SECONDS: 21600
     });
   });
 
@@ -56,7 +57,9 @@ describe("envSchema", () => {
         TEMPLATE_SCORE_POPULAR_WINDOW_DAYS: "19",
         TEMPLATE_SCORE_TRENDING_WINDOW_DAYS: "20",
         TEMPLATE_SCORE_TRENDING_MIN_VOLUME: "21",
-        TEMPLATE_TRENDING_ROW_MIN_TEMPLATES: "22"
+        TEMPLATE_TRENDING_ROW_MIN_TEMPLATES: "22",
+        TEMPLATE_IMPORT_ORGANIZATION_ID: "7f1c2a34-5b6d-4e7f-8a9b-0c1d2e3f4a5b",
+        TEMPLATE_IMPORT_INTERVAL_SECONDS: "23"
       })
     ).toEqual({
       TEMPLATE_CREATE_LIMIT_PER_USER: 1,
@@ -81,8 +84,22 @@ describe("envSchema", () => {
       TEMPLATE_SCORE_POPULAR_WINDOW_DAYS: 19,
       TEMPLATE_SCORE_TRENDING_WINDOW_DAYS: 20,
       TEMPLATE_SCORE_TRENDING_MIN_VOLUME: 21,
-      TEMPLATE_TRENDING_ROW_MIN_TEMPLATES: 22
+      TEMPLATE_TRENDING_ROW_MIN_TEMPLATES: 22,
+      TEMPLATE_IMPORT_ORGANIZATION_ID: "7f1c2a34-5b6d-4e7f-8a9b-0c1d2e3f4a5b",
+      TEMPLATE_IMPORT_INTERVAL_SECONDS: 23
     });
+  });
+
+  it.each([undefined, "", "   "])("names no organization for the awesome-akash import when the setting is %j", unset => {
+    const config = envSchema.parse({ TEMPLATE_IMPORT_ORGANIZATION_ID: unset });
+
+    expect(config.TEMPLATE_IMPORT_ORGANIZATION_ID).toBeUndefined();
+  });
+
+  it("refuses an import organization that is not a uuid, and an import interval longer than 366 days", () => {
+    expect(() => envSchema.parse({ TEMPLATE_IMPORT_ORGANIZATION_ID: "akash" })).toThrow();
+    expect(() => envSchema.parse({ TEMPLATE_IMPORT_INTERVAL_SECONDS: 366 * 24 * 60 * 60 + 1 })).toThrow();
+    expect(envSchema.parse({ TEMPLATE_IMPORT_INTERVAL_SECONDS: 366 * 24 * 60 * 60 }).TEMPLATE_IMPORT_INTERVAL_SECONDS).toBe(31_622_400);
   });
 
   it.each(["", "   "])("falls back to the default for a limit set to %j", blank => {
