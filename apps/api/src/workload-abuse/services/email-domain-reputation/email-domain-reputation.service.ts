@@ -32,15 +32,20 @@ export class EmailDomainReputationService {
 
   async findSignals(user: AssessedUser): Promise<EmailDomainAssessment> {
     const domain = extractEmailDomain(user.email);
-    const hasPrivateDomain = !!domain && !isPublicEmailProvider(domain);
 
-    const signals = await Promise.all([
-      this.#findDeviceSharedWithBlockedDomain(user),
-      hasPrivateDomain ? this.#findMailServerSignals(domain) : [],
-      hasPrivateDomain ? this.#findSignupBurst(domain) : []
-    ]);
+    const signals = await Promise.all([this.#findDeviceSharedWithBlockedDomain(user), domain ? this.#findDomainSignals(domain) : []]);
 
     return { domain, signals: signals.flat() };
+  }
+
+  /** An operator's allow on the domain or a parent exempts it, so a reviewed false positive can be cleared for one domain without changing the mode. */
+  async #findDomainSignals(domain: string): Promise<EmailDomainSignal[]> {
+    if (isPublicEmailProvider(domain)) return [];
+    if ((await this.blockedEmailDomainRepository.findNearestRule(domain))?.status === "allowed") return [];
+
+    const signals = await Promise.all([this.#findMailServerSignals(domain), this.#findSignupBurst(domain)]);
+
+    return signals.flat();
   }
 
   async #findMailServerSignals(domain: string): Promise<EmailDomainSignal[]> {

@@ -2,6 +2,7 @@ import type { MxRecord } from "node:dns";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { cacheRegistry } from "@src/caching/cache-registry";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { TxService } from "@src/core/services/tx/tx.service";
 import type { DnsResolver } from "@src/workload-abuse/providers/dns-resolver.provider";
@@ -65,6 +66,25 @@ describe(EmailDomainMailProfileService.name, () => {
     expect((await ipv6.service.findProfile("ipv6-only.dev"))?.hasWebsite).toBe(true);
     expect((await www.service.findProfile("www-only.dev"))?.hasWebsite).toBe(true);
     expect((await ipv6Www.service.findProfile("ipv6-www.dev"))?.hasWebsite).toBe(true);
+  });
+
+  it("does not count a placeholder address as a website", async () => {
+    const placeholder = setup({ a: { "parked.dev": ["127.0.0.1"], "www.parked.dev": ["10.0.0.5"] } });
+    const mixed = setup({ a: { "mixed.dev": ["127.0.0.1", "45.10.0.7"] } });
+
+    expect((await placeholder.service.findProfile("parked.dev"))?.hasWebsite).toBe(false);
+    expect((await mixed.service.findProfile("mixed.dev"))?.hasWebsite).toBe(true);
+  });
+
+  it("registers its cache so a registry-wide clear empties it", async () => {
+    const { service, resolver } = setup({ a: { "example-corp.com": ["45.10.0.3"] } });
+    await service.findProfile("example-corp.com");
+
+    cacheRegistry.clearAll();
+    await service.findProfile("example-corp.com");
+
+    expect(cacheRegistry.getStats().some(stats => stats.name.startsWith(EmailDomainMailProfileService.name))).toBe(true);
+    expect(resolver.resolveMx).toHaveBeenCalledTimes(2);
   });
 
   it("keeps only the ten most preferred mail hosts and looks up only those", async () => {

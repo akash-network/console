@@ -156,6 +156,21 @@ describe(EmailDomainReputationService.name, () => {
     });
   });
 
+  it("checks only the device of a domain an operator allowed", async () => {
+    const { service, user, profileService, userRepository, blockedEmailDomainRepository } = setup({
+      email: "team@forwarding-startup.dev",
+      profile: { mxHosts: ["route1.mx.cloudflare.net"], hasWebsite: false },
+      recentSignups: 9,
+      allowedDomains: ["forwarding-startup.dev"]
+    });
+
+    expect(await service.findSignals(user)).toEqual({ domain: "forwarding-startup.dev", signals: [] });
+    expect(blockedEmailDomainRepository.findNearestRule).toHaveBeenCalledWith("forwarding-startup.dev");
+    expect(profileService.findProfile).not.toHaveBeenCalled();
+    expect(userRepository.countVerifiedCreatedWithEmailDomainSince).not.toHaveBeenCalled();
+    expect(userRepository.findRecentlyActiveByFingerprint).toHaveBeenCalled();
+  });
+
   it("checks only the device of a public provider address", async () => {
     const { service, user, profileService, userRepository } = setup({ email: "someone@gmail.com", recentSignups: 100 });
 

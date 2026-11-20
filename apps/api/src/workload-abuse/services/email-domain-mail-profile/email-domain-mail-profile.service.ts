@@ -54,7 +54,7 @@ export class EmailDomainMailProfileService {
 
   async #resolveProfile(domain: string): Promise<EmailDomainMailProfile | null> {
     try {
-      const [mxRecords, ...websiteAddresses] = await Promise.all([
+      const [mxRecords, domainIpv4, domainIpv6, wwwIpv4, wwwIpv6] = await Promise.all([
         this.#resolveOrEmpty(() => this.resolver.resolveMx(domain)),
         this.#resolveOrEmpty(() => this.resolver.resolve4(domain)),
         this.#resolveOrEmpty(() => this.resolver.resolve6(domain)),
@@ -63,8 +63,9 @@ export class EmailDomainMailProfileService {
       ]);
       const mxHosts = selectPreferredMxHosts(mxRecords);
       const selfHostedMxIps = await this.#resolveSelfHostedMxIps(domain, mxHosts);
+      const hasWebsite = [...domainIpv4, ...wwwIpv4].some(isPublicIpv4) || domainIpv6.length + wwwIpv6.length > 0;
 
-      return { domain, mxHosts, selfHostedMxIps, hasWebsite: websiteAddresses.some(addresses => addresses.length > 0) };
+      return { domain, mxHosts, selfHostedMxIps, hasWebsite };
     } catch (error) {
       this.logger.warn({ event: "EMAIL_DOMAIN_MAIL_PROFILE_LOOKUP_FAILED", domain, error });
       return null;
