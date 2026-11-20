@@ -8,12 +8,20 @@ import { DEPLOYMENT_CONFIG, type DeploymentConfig } from "@src/deployment/config
 import { type GpuBidCheckInsert, GpuBidCheckRepository } from "@src/deployment/repositories/gpu-bid-check/gpu-bid-check.repository";
 import { GpuSetupCheckRunRepository } from "@src/deployment/repositories/gpu-setup-check-run/gpu-setup-check-run.repository";
 import { buildGpuCheckSdl, SDL_GPU_ATTRIBUTE_VALUE } from "@src/deployment/services/gpu-bids-creator/gpu-check-sdl";
-import { type GpuCheckManifest, GpuCheckRunner, type GpuCheckRunResult } from "@src/deployment/services/gpu-check-runner/gpu-check-runner.service";
+import {
+  type GpuCheckManifest,
+  GpuCheckRunner,
+  type GpuCheckRunResult,
+  resultOrThrow
+} from "@src/deployment/services/gpu-check-runner/gpu-check-runner.service";
 import { blockPriceToUsd } from "@src/gpu/lib/block-price/block-price";
 import { DayRepository } from "@src/gpu/repositories/day.repository";
 
 /** The chain refuses a deployment with more placement groups than this. */
 export const MAX_GPU_SETUPS_PER_CHECK = 20;
+
+/** The gpu_bid_checks model column is a varchar(255), so a longer model could not be recorded once its deployment has been paid for. */
+const MAX_MODEL_LENGTH = 255;
 
 export interface GpuSetup {
   vendor: "nvidia";
@@ -70,9 +78,10 @@ export class GpuSetupCheckService {
     if (!session) return { status: "unavailable" };
 
     const checkableSetups = checkable.map(({ setup }) => setup);
-    const [runResult] = await this.gpuCheckRunner.run(session, [{ manifest: buildManifest(checkableSetups) }], {
+    const [settledRun] = await this.gpuCheckRunner.run(session, [{ manifest: buildManifest(checkableSetups) }], {
       onCreated: ([dseq]) => this.gpuSetupCheckRunRepository.insert({ dseq, setupCount: checkableSetups.length })
     });
+    const runResult = resultOrThrow(settledRun);
     const checkedAt = new Date();
 
     await this.gpuBidCheckRepository.insertMany(checkableSetups.flatMap((setup, index) => toCheckRows(setup, index, runResult, checkedAt)));
@@ -103,14 +112,24 @@ export class GpuSetupCheckService {
 }
 
 function findInvalidReason(setup: GpuSetup): string | undefined {
-  if (!SDL_GPU_ATTRIBUTE_VALUE.test(setup.model) || (setup.memory && !SDL_GPU_ATTRIBUTE_VALUE.test(setup.memory))) {
+  if (setup.vendor !== "nvidia") return "Only nvidia gpus can be checked";
+
+  if (!isSdlAttribute(setup.model) || setup.model.length > MAX_MODEL_LENGTH || (setup.memory && !isSdlAttribute(setup.memory))) {
     return "The model or memory cannot be written into an SDL attribute";
   }
 
-  const manifest = generateManifest(buildSdl([setup]));
-  if (!manifest.ok) return manifest.value.map(error => error.message).join(", ");
+  try {
+    const manifest = generateManifest(buildSdl([setup]));
+    if (!manifest.ok) return manifest.value.map(error => error.message).join(", ");
+  } catch (error) {
+    return String(error);
+  }
 
   return undefined;
+}
+
+function isSdlAttribute(value: unknown): value is string {
+  return typeof value === "string" && SDL_GPU_ATTRIBUTE_VALUE.test(value);
 }
 
 function startOfUtcDay(date: Date): Date {

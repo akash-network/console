@@ -12,7 +12,8 @@ import {
   type GpuCheckManifest,
   GpuCheckRunner,
   type GpuCheckRunResult,
-  type GpuCheckSession
+  type GpuCheckSession,
+  resultOrThrow
 } from "@src/deployment/services/gpu-check-runner/gpu-check-runner.service";
 import { type GpuModel, PlacementOptionsHttpService } from "@src/deployment/services/placement-options-http/placement-options-http.service";
 import { buildGpuCheckSdl, GPU_CHECK_SHAPES, type GpuCheck, SDL_GPU_ATTRIBUTE_VALUE, toPlacementName } from "./gpu-check-sdl";
@@ -27,9 +28,6 @@ const MODELS_PER_DEPLOYMENT = MAX_GROUPS_PER_DEPLOYMENT / GPU_CHECK_SHAPES.lengt
 
 /** One page per run is enough, since each run closes what it finds and leaves the rest to the next. */
 const LEFTOVER_DEPLOYMENTS_PAGE_SIZE = 100n;
-
-/** Check deployments take their creation time in ms as dseq, and one younger than this may still be inside an on-demand setup check's bid window. */
-const MIN_LEFTOVER_AGE_MS = 15 * 60 * 1000;
 
 const CHECK_RETENTION_DAYS = 30;
 
@@ -89,7 +87,7 @@ export class GpuBidsCreatorService {
 
       for (const [index, batch] of batches.entries()) {
         try {
-          results.push(await this.#recordBatch(batch, manifests[index], runResults[index]));
+          results.push(await this.#recordBatch(batch, manifests[index], resultOrThrow(runResults[index])));
         } catch (error) {
           failures.push(error);
           this.#logger.error({ event: "GPU_CHECK_BATCH_FAILED", models: batch, error });
@@ -144,9 +142,10 @@ export class GpuBidsCreatorService {
       pagination: { limit: LEFTOVER_DEPLOYMENTS_PAGE_SIZE }
     });
 
-    const createdBefore = Date.now() - MIN_LEFTOVER_AGE_MS;
-
-    return deployments.flatMap(({ deployment }) => (deployment?.id && Number(deployment.id.dseq) < createdBefore ? [deployment.id.dseq.toString()] : []));
+    return deployments.flatMap(({ deployment }) => {
+      const dseq = deployment?.id?.dseq.toString();
+      return dseq && this.gpuCheckRunner.isOlderThanAnyRun(dseq) ? [dseq] : [];
+    });
   }
 
   async #deleteExpiredChecks(): Promise<void> {

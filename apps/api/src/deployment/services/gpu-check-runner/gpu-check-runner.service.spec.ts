@@ -13,7 +13,7 @@ import type { DeploymentConfig } from "@src/deployment/config/config.provider";
 import type { BidScreeningHttpService } from "@src/deployment/services/bid-screening-http/bid-screening-http.service";
 import type { GpuBotSigningClientFactory } from "@src/deployment/services/gpu-bids-creator/gpu-bot-signing-client.factory";
 import { buildGpuCheckSdl, GPU_CHECK_SHAPES } from "@src/deployment/services/gpu-bids-creator/gpu-check-sdl";
-import { type GpuCheckManifest, GpuCheckRunner } from "./gpu-check-runner.service";
+import { type GpuCheckManifest, GpuCheckRunner, resultOrThrow } from "./gpu-check-runner.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
 
@@ -89,7 +89,7 @@ describe(GpuCheckRunner.name, () => {
         bidsResponse([aBid({ dseq: String(filters!.dseq), gseq: 1, provider: `akash1on${filters!.dseq}` })])
       );
 
-      const results = await runner.run(session, [{ manifest: aManifest(["a100"]) }, { manifest: aManifest(["h100"]) }]);
+      const results = (await runner.run(session, [{ manifest: aManifest(["a100"]) }, { manifest: aManifest(["h100"]) }])).map(resultOrThrow);
 
       const [first, second] = sentTransactions(signingClient)[0].map(message => (message.value as MsgCreateDeployment).id!.dseq.toString());
       expect(results.map(({ dseq }) => dseq)).toEqual([first, second]);
@@ -103,7 +103,7 @@ describe(GpuCheckRunner.name, () => {
         .mockResolvedValueOnce(["akash1second"])
         .mockRejectedValue(new Error("inventory unavailable"));
 
-      const results = await runner.run(session, [{ manifest: aManifest(["a100"]) }, { manifest: aManifest(["h100"]) }]);
+      const results = (await runner.run(session, [{ manifest: aManifest(["a100"]) }, { manifest: aManifest(["h100"]) }])).map(resultOrThrow);
 
       expect(results.map(({ screenedByGroup }) => screenedByGroup)).toEqual([[["akash1first"], ["akash1second"]], null]);
     });
@@ -126,13 +126,30 @@ describe(GpuCheckRunner.name, () => {
       expect(closedDseqs(signingClient)).toEqual(createdDseqs(signingClient));
     });
 
-    it("closes every deployment even when reading bids fails", async () => {
+    it("closes every deployment and rejects each result when reading bids fails", async () => {
       const { runner, session, signingClient, chainSdk } = setup();
       chainSdk.akash.market.v1beta5.getBids.mockRejectedValue(new Error("rpc unavailable"));
 
-      await expect(runner.run(session, [{ manifest: aManifest(["a100"]) }, { manifest: aManifest(["h100"]) }])).rejects.toThrow("rpc unavailable");
+      const results = await runner.run(session, [{ manifest: aManifest(["a100"]) }, { manifest: aManifest(["h100"]) }]);
 
+      expect(results).toEqual([
+        { status: "rejected", reason: new Error("rpc unavailable") },
+        { status: "rejected", reason: new Error("rpc unavailable") }
+      ]);
       expect(closedDseqs(signingClient)).toEqual(createdDseqs(signingClient));
+    });
+
+    it("still returns the bids of the other deployments when one read fails", async () => {
+      const { runner, session, signingClient, chainSdk } = setup();
+      chainSdk.akash.market.v1beta5.getBids.mockImplementation(async ({ filters }) => {
+        if (String(filters!.dseq) === String(createdDseqs(signingClient)[0])) throw new Error("rpc unavailable");
+        return bidsResponse([aBid({ dseq: String(filters!.dseq), gseq: 1, provider: "akash1bidder" })]);
+      });
+
+      const [first, second] = await runner.run(session, [{ manifest: aManifest(["a100"]) }, { manifest: aManifest(["h100"]) }]);
+
+      expect(first).toEqual({ status: "rejected", reason: new Error("rpc unavailable") });
+      expect(resultOrThrow(second).bids.map(({ id }) => id!.provider)).toEqual(["akash1bidder"]);
     });
 
     it("closes the other deployments and still returns the bids read when one close fails", async () => {
@@ -144,7 +161,7 @@ describe(GpuCheckRunner.name, () => {
         .mockResolvedValueOnce(mock<DeliverTxResponse>({ code: 0, rawLog: "" }))
         .mockResolvedValueOnce(mock<DeliverTxResponse>({ code: 5, rawLog: "deployment closed" }));
 
-      const results = await runner.run(session, [{ manifest: aManifest(["a100"]) }, { manifest: aManifest(["h100"]) }]);
+      const results = (await runner.run(session, [{ manifest: aManifest(["a100"]) }, { manifest: aManifest(["h100"]) }])).map(resultOrThrow);
 
       expect(results.map(({ bids }) => bids.length)).toEqual([1, 1]);
       expect(closedDseqs(signingClient)).toHaveLength(2);
@@ -163,7 +180,7 @@ describe(GpuCheckRunner.name, () => {
       expect(closedDseqs(signingClient)).toHaveLength(0);
 
       releaseSecondRead();
-      await expect(run).rejects.toThrow("rpc unavailable");
+      await run;
       expect(closedDseqs(signingClient)).toHaveLength(2);
     });
 
@@ -286,6 +303,25 @@ describe(GpuCheckRunner.name, () => {
       await runner.run(session, [{ manifest: aManifest(["a100"]) }]);
 
       expect(signingClient.sign).toHaveBeenCalledWith(BOT_ADDRESS, expect.any(Array), expect.objectContaining({ gas: "410962" }), "");
+    });
+  });
+
+  describe("isOlderThanAnyRun", () => {
+    it("treats a deployment created more than the bid window plus ten minutes ago as older than any run", () => {
+      vi.useFakeTimers({ now: new Date("2026-11-20T12:00:00Z") });
+      const { runner } = setup({ bidWindowSeconds: 90 });
+      const longestRunStart = Date.now() - 90_000 - 10 * 60 * 1000;
+
+      expect(runner.isOlderThanAnyRun(String(longestRunStart - 1))).toBe(true);
+      expect(runner.isOlderThanAnyRun(String(longestRunStart))).toBe(false);
+    });
+
+    it("leaves a longer bid window more time before a deployment counts as older than any run", () => {
+      vi.useFakeTimers({ now: new Date("2026-11-20T12:00:00Z") });
+      const { runner } = setup({ bidWindowSeconds: 30 * 60 });
+
+      expect(runner.isOlderThanAnyRun(String(Date.now() - 35 * 60 * 1000))).toBe(false);
+      expect(runner.isOlderThanAnyRun(String(Date.now() - 41 * 60 * 1000))).toBe(true);
     });
   });
 

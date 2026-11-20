@@ -23,6 +23,9 @@ const DEPOSIT_UACT = "500000";
 /** About one block, so a transaction the shared bot wallet signed elsewhere is committed and counted in the sequence the retry reads. */
 const SEQUENCE_MISMATCH_RETRY_DELAY_MS = 7_000;
 
+/** How long past its bid window a run may still hold its deployments open, covering screening, broadcast confirmations and the sequence retry. */
+const MAX_RUN_OVERHEAD_MS = 10 * 60 * 1000;
+
 export interface GpuCheckManifest {
   groups: Parameters<typeof generateManifestVersion>[0];
   groupSpecs: GroupSpec[];
@@ -78,7 +81,12 @@ export class GpuCheckRunner {
     return { client, owner: address };
   }
 
-  async run(session: GpuCheckSession, deployments: GpuCheckDeployment[], { onCreated }: GpuCheckRunOptions = {}): Promise<GpuCheckRunResult[]> {
+  /** Each deployment's bids are read on their own, so one failed read rejects only that deployment's result. */
+  async run(
+    session: GpuCheckSession,
+    deployments: GpuCheckDeployment[],
+    { onCreated }: GpuCheckRunOptions = {}
+  ): Promise<PromiseSettledResult<GpuCheckRunResult>[]> {
     if (deployments.length === 0) return [];
 
     const screenedByDeployment = await Promise.all(deployments.map(({ manifest }) => this.#screenGroups(manifest.groupSpecs)));
@@ -91,15 +99,22 @@ export class GpuCheckRunner {
     try {
       await onCreated?.(dseqs);
       await new Promise(resolve => setTimeout(resolve, this.#deploymentConfig.GPU_BOT_BID_WINDOW_SECONDS * 1000));
-      const bidReads = await Promise.allSettled(dseqs.map(dseq => findDeploymentBids(this.#chainSdk, session.owner, dseq)));
-      const failedRead = bidReads.find(read => read.status === "rejected");
-      if (failedRead) throw failedRead.reason;
-      const bidsByDeployment = bidReads.map(read => (read as PromiseFulfilledResult<Bid[]>).value);
-
-      return dseqs.map((dseq, index) => ({ dseq, bids: bidsByDeployment[index], screenedByGroup: screenedByDeployment[index] }));
+      return await Promise.allSettled(
+        dseqs.map(async (dseq, index) => ({
+          dseq,
+          bids: await findDeploymentBids(this.#chainSdk, session.owner, dseq),
+          screenedByGroup: screenedByDeployment[index]
+        }))
+      );
     } finally {
       await this.#closeDeployments(session, dseqs);
     }
+  }
+
+  /** Check deployments take their creation time in ms as dseq, so a younger one may still belong to a run waiting for bids. */
+  isOlderThanAnyRun(dseq: string): boolean {
+    const maxRunDurationMs = this.#deploymentConfig.GPU_BOT_BID_WINDOW_SECONDS * 1000 + MAX_RUN_OVERHEAD_MS;
+    return Number(dseq) < Date.now() - maxRunDurationMs;
   }
 
   async closeDeployment({ client, owner }: GpuCheckSession, dseq: string) {
@@ -170,6 +185,11 @@ export class GpuCheckRunner {
 
     return txResult;
   }
+}
+
+export function resultOrThrow<T>(settled: PromiseSettledResult<T>): T {
+  if (settled.status === "rejected") throw settled.reason;
+  return settled.value;
 }
 
 /** The bot wallet also signs for the gpu-pricing-bot CronJob, and cosmjs reads the sequence when it signs, so the two can race for the same one. */

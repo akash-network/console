@@ -106,8 +106,8 @@ describe(GpuSetupCheckService.name, () => {
     expect(gpuSetupCheckRunRepository.insert).toHaveBeenCalledWith({ dseq: "123", setupCount: 2 });
   });
 
-  it("still counts a run against the cap when it fails after creating its deployment", async () => {
-    const { service, gpuSetupCheckRunRepository, gpuBidCheckRepository } = setup({ dseq: "123", runError: new Error("bids unreadable") });
+  it("still counts a run against the cap when its bids cannot be read", async () => {
+    const { service, gpuSetupCheckRunRepository, gpuBidCheckRepository } = setup({ dseq: "123", bidReadError: new Error("bids unreadable") });
 
     await expect(service.check([aSetup()])).rejects.toThrow("bids unreadable");
 
@@ -169,6 +169,34 @@ describe(GpuSetupCheckService.name, () => {
     expect(outcome).toMatchObject({ status: "checked", results: [{ status: "invalid" }, { status: "checked" }] });
   });
 
+  it.each([
+    { problem: "another vendor", invalid: { vendor: "amd" }, reason: "Only nvidia gpus can be checked" },
+    { problem: "a model that is not a string", invalid: { model: 100 }, reason: "The model or memory cannot be written into an SDL attribute" },
+    { problem: "a model too long to record", invalid: { model: "a".repeat(256) }, reason: "The model or memory cannot be written into an SDL attribute" },
+    { problem: "a memory that is not a string", invalid: { memory: 80 }, reason: "The model or memory cannot be written into an SDL attribute" },
+    { problem: "a fractional count", invalid: { count: 1.5 }, reason: expect.any(String) },
+    { problem: "an infinite count", invalid: { count: Infinity }, reason: expect.any(String) },
+    { problem: "an interface that is not a string", invalid: { interface: 1 }, reason: expect.any(String) },
+    { problem: "an interface the SDL does not know", invalid: { interface: "nvlink" }, reason: expect.stringMatching(/\S/) }
+  ])("treats a setup with $problem as invalid on its own instead of failing the check", async ({ invalid, reason }) => {
+    const invalidSetup = { ...aSetup(), ...invalid } as GpuSetup;
+    const { service, gpuCheckRunner, logger } = setup();
+
+    const outcome = await service.check([invalidSetup, aSetup({ model: "a100" })]);
+
+    expect(gpuCheckRunner.run.mock.calls[0][1][0].manifest.groupModels).toEqual(["a100"]);
+    expect(outcome).toMatchObject({ status: "checked", results: [{ status: "invalid" }, { status: "checked" }] });
+    expect(logger.warn).toHaveBeenCalledWith({ event: "GPU_SETUP_CHECK_SETUP_INVALID", setup: invalidSetup, reason });
+  });
+
+  it("checks a setup whose model is as long as the record allows", async () => {
+    const { service } = setup();
+
+    const outcome = await service.check([aSetup({ model: "a".repeat(255) })]);
+
+    expect(outcome).toMatchObject({ status: "checked", results: [{ status: "checked" }] });
+  });
+
   it("deploys nothing and spends nothing from the cap when every setup is invalid", async () => {
     const setups = [aSetup({ model: "h100", interface: "nvlink" })];
     const { service, gpuCheckRunner, gpuSetupCheckRunRepository } = setup();
@@ -218,7 +246,7 @@ describe(GpuSetupCheckService.name, () => {
       connected?: boolean;
       dseq?: string;
       screenedByGroup?: string[][] | null;
-      runError?: Error;
+      bidReadError?: Error;
     } = {}
   ) {
     const gpuCheckRunner = mock<GpuCheckRunner>();
@@ -226,8 +254,8 @@ describe(GpuSetupCheckService.name, () => {
     const dseq = input.dseq ?? "1";
     gpuCheckRunner.run.mockImplementation(async (_session, _deployments, options) => {
       await options?.onCreated?.([dseq]);
-      if (input.runError) throw input.runError;
-      return [{ dseq, bids: input.bids ?? [], screenedByGroup: input.screenedByGroup ?? null } satisfies GpuCheckRunResult];
+      if (input.bidReadError) return [{ status: "rejected", reason: input.bidReadError }];
+      return [{ status: "fulfilled", value: { dseq, bids: input.bids ?? [], screenedByGroup: input.screenedByGroup ?? null } satisfies GpuCheckRunResult }];
     });
 
     const gpuSetupCheckRunRepository = mock<GpuSetupCheckRunRepository>();

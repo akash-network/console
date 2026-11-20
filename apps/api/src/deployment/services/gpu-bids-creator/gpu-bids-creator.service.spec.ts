@@ -362,8 +362,28 @@ describe(GpuBidsCreatorService.name, () => {
     await expect(service.createGpuBids()).rejects.toThrow("2 of 2 gpu check deployments failed");
 
     expect(closedDseqs(signingClient)).toHaveLength(2);
-    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "GPU_CHECK_RUN_FAILED", error: new Error("rpc unavailable") }));
+    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "GPU_CHECK_BATCH_FAILED", error: new Error("rpc unavailable") }));
+    expect(gpuBidCheckRepository.insertMany).not.toHaveBeenCalled();
     expect(gpuBidCheckRepository.deleteCheckedBefore).toHaveBeenCalledTimes(1);
+  });
+
+  it("records the batches whose bids were read when another batch's read fails", async () => {
+    const { service, signingClient, chainSdk, gpuBidCheckRepository, logger } = setup({
+      models: Array.from({ length: 11 }, (_, index) => nvidia(`model${index}`))
+    });
+    chainSdk.akash.market.v1beta5.getBids.mockReset();
+    chainSdk.akash.market.v1beta5.getBids.mockImplementation(async ({ filters }) => {
+      if (String(filters!.dseq) === createdDseq(signingClient)) throw new Error("rpc unavailable");
+      return bidsResponse([aBid({ gseq: 1, provider: "akash1bidder" })]);
+    });
+
+    await expect(service.createGpuBids()).rejects.toThrow("1 of 2 gpu check deployments failed");
+
+    expect(closedDseqs(signingClient)).toHaveLength(2);
+    expect(gpuBidCheckRepository.insertMany).toHaveBeenCalledExactlyOnceWith([expect.objectContaining({ provider: "akash1bidder", model: "model10", bid: true })]);
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "GPU_CHECK_BATCH_FAILED", models: expect.arrayContaining(["model0"]), error: new Error("rpc unavailable") })
+    );
   });
 
   it("keeps recording the other batches when recording one fails", async () => {
@@ -417,10 +437,10 @@ describe(GpuBidsCreatorService.name, () => {
     expect(logger.info).toHaveBeenCalledWith({ event: "GPU_CHECK_LEFTOVER_DEPLOYMENT_CLOSED", dseq: "111" });
   });
 
-  it("leaves open the deployments created in the last 15 minutes, which may be another check still waiting for bids", async () => {
+  it("leaves open the deployments young enough to belong to another check still waiting for bids", async () => {
     const now = Date.now();
-    const recentDseq = BigInt(now - 14 * 60 * 1000);
-    const oldDseq = BigInt(now - 16 * 60 * 1000);
+    const recentDseq = BigInt(now - 9 * 60 * 1000);
+    const oldDseq = BigInt(now - 11 * 60 * 1000);
     const { service, signingClient } = setup({ models: [nvidia("h100")], leftoverDseqs: [recentDseq, oldDseq] });
 
     await service.createGpuBids();
