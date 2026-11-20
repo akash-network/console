@@ -16,6 +16,8 @@ export const MAX_ECHOED_REFERENCE_LENGTH = 120;
 /** The halves of a private registry credential a reference may stand in for: `host` and `email` are left out because neither carries a secret. */
 const CREDENTIAL_REFERENCE_FIELDS = ["username", "password"] as const;
 
+export type CredentialReferenceField = (typeof CREDENTIAL_REFERENCE_FIELDS)[number];
+
 type SdlReferenceRead = { type: "plain" } | { type: "reserved" } | { type: "reference"; kind: string; name: string };
 
 /** Tests the whole grammar, because a value that merely opens with the prefix is not a reference and must not be treated as one. */
@@ -59,7 +61,12 @@ export interface SdlReferenceResolver {
 }
 
 /** One position in an SDL where a reference may stand, holding the write back so a caller of the walk never has to know how that position spells a value. */
-export interface SdlReferenceSlot {
+export type SdlReferenceSlot = SdlReferenceSlotPosition & SdlReferenceSite;
+
+/** What a position stands for: an `env` entry's variable, or the half of a private registry credential, which no variable names. */
+type SdlReferenceSite = { envVariable: string; credentialField?: undefined } | { envVariable?: undefined; credentialField: CredentialReferenceField };
+
+interface SdlReferenceSlotPosition {
   serviceName: string;
   /** Where the service falls in `Object.entries` order — not the document's own order, since an integer-like name sorts first — because a name may spell anything and a reference name may not. */
   serviceIndex: number;
@@ -71,8 +78,6 @@ export interface SdlReferenceSlot {
   value: string;
   /** Whether a value here may be quoted back to the caller, which a private registry credential never may: A1 makes it a secret whatever it holds. */
   valueIsAlwaysSecret: boolean;
-  /** Absent for a registry credential, which no variable names. */
-  envVariable?: string;
   replace(resolved: string): void;
 }
 
@@ -81,6 +86,11 @@ export interface SdlReferenceDeclaration extends SdlReferenceTarget {
   kind: string;
   reference: string;
   instancePath: string;
+}
+
+export interface SdlReferenceUsage {
+  name: string;
+  slot: SdlReferenceSlot;
 }
 
 type SdlReferenceVisitor = (reference: SdlReferenceDeclaration, slot: SdlReferenceSlot) => ValidationError | undefined;
@@ -179,6 +189,7 @@ function credentialSlotsOf({ serviceName, serviceIndex }: ServiceLocation, servi
       position: `c_${field}`,
       value,
       valueIsAlwaysSecret: true,
+      credentialField: field,
       replace: (resolved: string) => {
         credentials[field] = resolved;
       }
@@ -238,6 +249,19 @@ export class SdlReferenceService {
     });
 
     return declarations;
+  }
+
+  /** Where each reference of `kind` stands, in walk order, for a caller that needs the site a reference fills rather than only its name. */
+  usagesOf(sdl: SDLInput, kind: string): SdlReferenceUsage[] {
+    const usages: SdlReferenceUsage[] = [];
+
+    this.#eachReference(sdl, (declaration, slot) => {
+      if (declaration.kind === kind) usages.push({ name: declaration.name, slot });
+
+      return undefined;
+    });
+
+    return usages;
   }
 
   /** A reserved value counts as one, because it stands exactly where a reference stands and nothing may accept a client's manifest for the position it holds. */

@@ -2220,6 +2220,26 @@ export interface paths {
     patch: operations["patchDeployment"];
     trace?: never;
   };
+  "/v1/deployments/{dseq}/secrets": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List a deployment's secrets
+     * @description Lists each secret the SDL the console stored for this deployment references, by name, with every service environment variable or private registry credential it fills. Names and places are read from the stored SDL alone: no value is ever returned, and none is decrypted to answer.
+     */
+    get: operations["listDeploymentSecrets"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/deployments/{dseq}/info": {
     parameters: {
       query?: never;
@@ -12103,6 +12123,88 @@ export interface operations {
       };
       /** @description The key management service is temporarily unreachable. Transient and worth retrying, unlike the 500 above */
       503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+    };
+  };
+  listDeploymentSecrets: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        /** @description Deployment sequence number */
+        dseq: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Returns the deployment's secrets without their values */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** @description Each secret the deployment's SDL references, listed once and sorted by name. Values are never returned. */
+              secrets: {
+                /** @description Name the secret is stored under, as an `ac-secret://NAME` reference in the deployment's SDL spells it. Includes names the console chose itself when it sealed a value for you, such as `s0_e1`. */
+                name: string;
+                /** @description Every place the SDL uses the secret, in the order the SDL lists its services, environment variables before registry credentials within a service. An entry carries `env` for an environment variable and `credential` for a registry credential. */
+                usedBy: (
+                  | {
+                      /** @description Name of the service, as the deployment's SDL declares it. */
+                      service: string;
+                      /** @description Environment variable of the service whose value is the secret. */
+                      env: string;
+                    }
+                  | {
+                      /** @description Name of the service, as the deployment's SDL declares it. */
+                      service: string;
+                      /**
+                       * @description Half of the service's private registry credentials the secret fills.
+                       * @enum {string}
+                       */
+                      credential: "username" | "password";
+                    }
+                )[];
+              }[];
+            };
+          };
+        };
+      };
+      /** @description No deployment of yours matches `dseq`, or the console holds no definition for it */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+      /** @description The SDL recorded for this deployment could not be read: `code` is `stored_sdl_unreadable`, which is permanent, so a retry cannot help */
+      500: {
         headers: {
           [name: string]: unknown;
         };
