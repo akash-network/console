@@ -114,8 +114,8 @@ export function PrivacyPolicy() {
           problem reports and usage records.
         </p>
         <p>
-          Feedback and saved conversations are grouped into topics, each with a short title and summary written by AI. A topic does not name you or link to your
-          account, and it stays after the feedback it came from is deleted.
+          Feedback, problem reports and saved conversations are grouped into topics, each with a short title and summary written by AI. A topic does not name
+          you or link to your account, and it stays after what it came from is deleted.
         </p>
         <p>We do not use your conversations or feedback to train AI models.</p>
 
