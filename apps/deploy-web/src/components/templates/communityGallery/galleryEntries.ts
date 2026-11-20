@@ -45,7 +45,10 @@ export interface GalleryEntry {
   searchText: string;
 }
 
-export function buildGalleryEntries(input: { categories: EnhancedTemplateCategory[]; community: CommunityTemplateGallery | undefined }): GalleryEntry[] {
+export function buildGalleryEntries(input: {
+  categories: EnhancedTemplateCategory[];
+  community: Pick<CommunityTemplateGallery, "templates" | "officialUsage"> | undefined;
+}): GalleryEntry[] {
   return [...toAwesomeAkashEntries(input.categories, input.community?.officialUsage ?? {}), ...(input.community?.templates ?? []).map(toCommunityEntry)];
 }
 
