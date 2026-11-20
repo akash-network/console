@@ -37,6 +37,11 @@ import {
   PatchDeploymentAcceptedResponseSchema,
   PatchDeploymentParamsSchema,
   PatchDeploymentQuerySchema,
+  ReplaceDeploymentDefinitionAcceptedResponseSchema,
+  ReplaceDeploymentDefinitionParamsSchema,
+  ReplaceDeploymentDefinitionQuerySchema,
+  ReplaceDeploymentDefinitionRequestSchema,
+  ReplaceDeploymentDefinitionResponseSchema,
   PatchDeploymentRequestSchema,
   PatchDeploymentResponseSchema,
   UpdateDeploymentRequestSchema,
@@ -410,7 +415,7 @@ const updateRoute = createRoute({
   path: "/v1/deployments/{dseq}",
   summary: "Update a deployment (deprecated)",
   description:
-    "Deprecated. Resubmits the whole SDL, so rotating one secret means re-supplying every other value the document carries, and the console cannot return a stored value for you to resupply. Use PATCH /v1/deployments/{dseq} instead. This endpoint will be removed in a future release.",
+    "Deprecated. Resubmits the whole SDL, so rotating one secret means re-supplying every other value the document carries, and the console cannot return a stored value for you to resupply. Use PUT /v1/deployments/{dseq}/definition to resubmit a whole SDL while keeping stored secrets, or PATCH /v1/deployments/{dseq} to change part of one. This endpoint will be removed in a future release.",
   operationId: "updateDeployment",
   deprecated: true,
   tags: ["Deployments"],
@@ -682,6 +687,114 @@ deploymentsRouter.openapi(createDefinitionRoute, async function routeCreateDeplo
   const { data } = c.req.valid("json");
   const result = await container.resolve(DeploymentController).createDefinition(dseq, data);
   return c.json(result, 201);
+});
+
+const replaceDefinitionRoute = createRoute({
+  method: "put",
+  path: "/v1/deployments/{dseq}/definition",
+  summary: "Replace a deployment's whole definition",
+  description:
+    "Replaces the SDL the console stored for this deployment with the one submitted, then updates the deployment and pushes the manifest to its providers, as a patch does. Secrets carry over: write `NAME=ac-secret://NAME` wherever a secret stands, and a reference the request supplies no value for keeps the value the deployment stores, so the SDL GET /v1/deployments/{dseq} returns can be edited and sent back without re-entering any secret. A stored value no reference names any longer is dropped. A value the deployment stores in the clear and the request leaves unchanged stays readable; added and changed values are sealed as `secretEnv` says. The network cannot change a running deployment's groups, compute resources, replica counts or globally exposed ports, so such a change is refused before anything is recorded.",
+  operationId: "replaceDeploymentDefinition",
+  tags: ["Deployments"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  /** Sized like the create route, because a replacement may carry a seal and the default allowance would shadow the stated secret limits. */
+  bodyLimit: { maxSize: CREATE_DEPLOYMENT_BODY_LIMIT_BYTES },
+  request: {
+    params: ReplaceDeploymentDefinitionParamsSchema,
+    query: ReplaceDeploymentDefinitionQuerySchema,
+    body: {
+      content: {
+        "application/json": {
+          schema: ReplaceDeploymentDefinitionRequestSchema
+        }
+      }
+    }
+  },
+  responses: {
+    200: {
+      description: "The definition was replaced and the deployment updated",
+      content: {
+        "application/json": {
+          schema: ReplaceDeploymentDefinitionResponseSchema
+        }
+      }
+    },
+    202: {
+      description: "The definition passed every check and was saved, and will be applied in the background",
+      content: {
+        "application/json": {
+          schema: ReplaceDeploymentDefinitionAcceptedResponseSchema
+        }
+      }
+    },
+    400: {
+      description:
+        "The SDL is not valid, leaves a secret reference with neither a value in `sealedSecrets` nor one the deployment stores, supplies a name no service references, names a variable in `secretEnv` that no service sets, or carries a `sealedSecrets` value that is malformed, tampered with, expired or not a flat object of string values",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    403: {
+      description: `The \`sealedSecrets\` value was sealed for a different user, or bound to a different SDL than the one submitted. ${PROJECT_FORBIDDEN_DESCRIPTION}`,
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    404: {
+      description:
+        "No SDL is recorded for this deployment, so there is nothing to replace. Record the definition it runs with POST /v1/deployments/{dseq}/definition first",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    409: {
+      description: `The deployment definition changed between this request reading it and writing it, or since the \`ifManifestVersion\` it names: \`code\` is \`deployment_definition_changed\`, and reloading the definition cures it. A 409 without that code answers a seal made against a retired key, which a fresh seal cures. ${RECORD_UNFILED_DESCRIPTION}. ${SECRETS_SEALED_FOR_DEPARTED_MEMBER_DESCRIPTION}`,
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    422: {
+      description:
+        "The SDL changes the groups, compute resources, replica counts or globally exposed ports the deployment was created with, which only a new deployment can take: `code` is `deployment_resources_changed`, and nothing is recorded, no deployment update is sent and no provider is contacted",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    500: {
+      description:
+        "The deployment's stored state could not be read: `code` is `stored_secrets_unreadable` when the sealed secrets would not open and `stored_sdl_unreadable` when the recorded SDL would not parse. Both are permanent rather than transient, so a retry cannot help",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    503: {
+      description: "The key management service is temporarily unreachable. Transient and worth retrying, unlike the 500 above",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    }
+  }
+});
+deploymentsRouter.openapi(replaceDefinitionRoute, async function routeReplaceDeploymentDefinition(c) {
+  const { dseq } = c.req.valid("param");
+  const { data } = c.req.valid("json");
+  const result = await container.resolve(DeploymentController).replaceDefinition(dseq, data, c.req.valid("query"));
+  return "activityId" in result.data ? c.json({ data: result.data }, 202) : c.json({ data: result.data }, 200);
 });
 
 const listRoute = createRoute({
