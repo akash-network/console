@@ -535,6 +535,47 @@ describe(ConfigureTemplateForm.name, () => {
     expect(screen.getByText(RATE_LIMIT_MESSAGE)).toBeInTheDocument();
   });
 
+  it.each([
+    [
+      "was removed",
+      new ApiError(410, { code: "template_removed", data: { title: "Open WebUI" } }, "POST → 410"),
+      "The template you forked was removed, so a copy of it can't be saved."
+    ],
+    [
+      "can no longer be opened",
+      new ApiError(404, { message: "Template not found" }, "POST → 404"),
+      "You can no longer open the template you forked, so a copy of it can't be saved."
+    ]
+  ])("says the forked template %s when the copy is refused for it, and stays on the page", async (_, saveError, message) => {
+    const { enqueueSnackbar, router } = setup({ intent: { ...NEW_INTENT, copyFromTemplateId: "tpl-source", copyFromVersion: 2 }, saveError });
+
+    await saveANewTemplate();
+
+    expect(router.push).not.toHaveBeenCalled();
+    render(enqueueSnackbar.mock.calls[0][0] as ReactElement);
+    expect(screen.getByText("Couldn't save the template")).toBeInTheDocument();
+    expect(screen.getByText(message)).toBeInTheDocument();
+  });
+
+  it("shows the server's wording when a fork runs into a rate limit", async () => {
+    const { enqueueSnackbar } = setup({ intent: { ...NEW_INTENT, copyFromTemplateId: "tpl-source", copyFromVersion: 2 }, saveError: RATE_LIMIT_REFUSAL });
+
+    await saveANewTemplate();
+
+    render(enqueueSnackbar.mock.calls[0][0] as ReactElement);
+    expect(screen.getByText(RATE_LIMIT_MESSAGE)).toBeInTheDocument();
+  });
+
+  it("does not blame a forked template when a template that copies nothing is refused with a 404", async () => {
+    const { enqueueSnackbar } = setup({ intent: NEW_INTENT, saveError: new ApiError(404, { message: "Project not found" }, "POST → 404") });
+
+    await saveANewTemplate();
+
+    render(enqueueSnackbar.mock.calls[0][0] as ReactElement);
+    expect(screen.getByText("Try again in a moment.")).toBeInTheDocument();
+    expect(screen.queryByText(/template you forked/)).not.toBeInTheDocument();
+  });
+
   it("asks to try again when the save fails for another reason", async () => {
     const { enqueueSnackbar } = setup({ template: { version: 4 }, saveError: new Error("network down") });
 
@@ -916,6 +957,13 @@ describe(ConfigureTemplateForm.name, () => {
 
     expect(SdlPreviewPane.mock.lastCall?.[0].sdl).toContain("LOG_LEVEL=debug");
   });
+
+  async function saveANewTemplate() {
+    fireEvent.click(screen.getByRole("button", { name: "Save template" }));
+    const dialog = within(screen.getByRole("dialog", { name: "Save template" }));
+    fireEvent.change(dialog.getByRole("textbox", { name: "Title" }), { target: { value: "Support chat" } });
+    await act(() => fireEvent.click(dialog.getByRole("button", { name: "Save template" })));
+  }
 
   function setup(input: {
     intent?: DeploymentIntent;
