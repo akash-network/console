@@ -1,7 +1,9 @@
 import { faker } from "@faker-js/faker";
+import { sql } from "drizzle-orm";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
+import { type ApiPgDatabase, POSTGRES_DB } from "@src/core/providers";
 import { GpuWaitlistEntryRepository } from "./gpu-waitlist-entry.repository";
 
 import { seedGpuWaitlistEntry } from "@test/seeders/db/gpu-waitlist-entry.seeder";
@@ -31,6 +33,19 @@ describe(GpuWaitlistEntryRepository.name, () => {
 
       expect(await repository.findPlaceInLineAcrossOrganizations(entries[0])).toBe(1);
       expect(await repository.findPlaceInLineAcrossOrganizations(entries[1])).toBe(2);
+    });
+
+    it("orders entries that joined within the same millisecond by the column's microseconds", async () => {
+      const { repository, poolModel } = await setup();
+      const earlier = await seedGpuWaitlistEntry({ userId: (await seedUser()).id, model: poolModel });
+      const later = await seedGpuWaitlistEntry({ userId: (await seedUser()).id, model: poolModel });
+      const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
+      await db.execute(sql`update gpu_waitlist_entries set joined_at = '2026-11-18T12:00:00.123100Z' where id = ${earlier.id}`);
+      await db.execute(sql`update gpu_waitlist_entries set joined_at = '2026-11-18T12:00:00.123900Z' where id = ${later.id}`);
+
+      const laterAsRead = await repository.findById(later.id);
+
+      expect(await repository.findPlaceInLineAcrossOrganizations(laterAsRead!)).toBe(2);
     });
 
     it("skips entries that left, were fulfilled, or wait for another pool", async () => {

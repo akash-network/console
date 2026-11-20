@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, gt, lt, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -51,7 +52,10 @@ export class GpuWaitlistEntryRepository extends OrgScopedRepository<Table, GpuWa
       .orderBy(asc(this.table.joinedAt), asc(this.table.id));
   }
 
-  async findPlaceInLineAcrossOrganizations(entry: Pick<GpuWaitlistEntryRow, "id" | "poolKey" | "joinedAt">): Promise<number> {
+  /** Reads the entry's join time in SQL, because a JavaScript Date drops the microseconds the column orders by. */
+  async findPlaceInLineAcrossOrganizations(entry: Pick<GpuWaitlistEntryRow, "id" | "poolKey">): Promise<number> {
+    const target = alias(this.table, "target");
+    const entryJoinedAt = sql`(${this.cursor.select({ joinedAt: target.joinedAt }).from(target).where(eq(target.id, entry.id))})`;
     const [{ ahead }] = await this.cursor
       .select({ ahead: sql<number>`count(*)::int` })
       .from(this.table)
@@ -59,7 +63,7 @@ export class GpuWaitlistEntryRepository extends OrgScopedRepository<Table, GpuWa
         and(
           eq(this.table.poolKey, entry.poolKey),
           eq(this.table.status, "waiting"),
-          or(lt(this.table.joinedAt, entry.joinedAt), and(eq(this.table.joinedAt, entry.joinedAt), lt(this.table.id, entry.id)))
+          or(lt(this.table.joinedAt, entryJoinedAt), and(eq(this.table.joinedAt, entryJoinedAt), lt(this.table.id, entry.id)))
         )
       );
 

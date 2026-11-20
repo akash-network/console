@@ -28596,22 +28596,25 @@
                       "model": {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 100
+                        "maxLength": 100,
+                        "pattern": "^[\\w.-]+$"
                       },
                       "memory": {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 100
+                        "maxLength": 100,
+                        "pattern": "^[\\w.-]+$"
                       },
                       "interface": {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 100
+                        "maxLength": 100,
+                        "pattern": "^[\\w.-]+$"
                       },
                       "gpuCount": {
                         "type": "integer",
                         "minimum": 1,
-                        "maximum": 64
+                        "maximum": 24
                       },
                       "source": {
                         "type": "string",

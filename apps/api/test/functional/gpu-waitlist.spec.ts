@@ -51,7 +51,7 @@ describe("GPU waitlist", () => {
   describe("POST /v1/gpu-waitlist", () => {
     it("returns 401 when the user is not authenticated", async () => {
       const pool = aPool();
-      setup({ flagOn: true });
+      await setup({ flagOn: true });
 
       const response = await join(undefined, pool);
 
