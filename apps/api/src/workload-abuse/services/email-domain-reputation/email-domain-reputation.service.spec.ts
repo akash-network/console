@@ -76,8 +76,33 @@ describe(EmailDomainReputationService.name, () => {
 
       const { signals } = await service.findSignals(user);
 
-      expect(signals).toEqual([{ signal: "signup_burst", signups: 5 }]);
+      expect(signals).toEqual([{ signal: "signup_burst", burstDomain: "step-sis.help", signups: 5 }]);
       expect(userRepository.countVerifiedCreatedWithEmailDomainSince).toHaveBeenCalledWith("step-sis.help", 12);
+    });
+
+    it("counts the whole registrable domain for an address on a subdomain", async () => {
+      const { service, user, userRepository } = setup({ email: "fawdtvw831@tempmail.tweaksph.com", recentSignups: 22 });
+
+      const { signals } = await service.findSignals(user);
+
+      expect(signals).toEqual([{ signal: "signup_burst", burstDomain: "tweaksph.com", signups: 22 }]);
+      expect(userRepository.countVerifiedCreatedWithEmailDomainSince).toHaveBeenCalledWith("tweaksph.com", 24);
+    });
+
+    it("keeps owners on a shared suffix apart", async () => {
+      const { service, user, userRepository } = setup({ email: "hendra.wijaya72@duskvale.web.id", recentSignups: 1 });
+
+      await service.findSignals(user);
+
+      expect(userRepository.countVerifiedCreatedWithEmailDomainSince).toHaveBeenCalledWith("duskvale.web.id", 24);
+    });
+
+    it("counts the domain itself when it has no registrable part", async () => {
+      const { service, user, userRepository } = setup({ email: "someone@web.id", recentSignups: 1 });
+
+      await service.findSignals(user);
+
+      expect(userRepository.countVerifiedCreatedWithEmailDomainSince).toHaveBeenCalledWith("web.id", 24);
     });
 
     it("ignores sign-ups below the minimum", async () => {
@@ -159,7 +184,7 @@ describe(EmailDomainReputationService.name, () => {
 
     expect(signals).toEqual([
       { signal: "mail_server_shared_with_blocked_domain", blockedDomain: "gaanja.garden" },
-      { signal: "signup_burst", signups: 14 }
+      { signal: "signup_burst", burstDomain: "step-sis.help", signups: 14 }
     ]);
   });
 

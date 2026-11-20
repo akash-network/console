@@ -1,7 +1,7 @@
 import { singleton } from "tsyringe";
 
 import { type UserOutput, UserRepository } from "@src/user/repositories";
-import { extractEmailDomain } from "@src/workload-abuse/lib/email-domain/email-domain";
+import { extractEmailDomain, getRegistrableDomain } from "@src/workload-abuse/lib/email-domain/email-domain";
 import { isPublicEmailProvider } from "@src/workload-abuse/lib/email-domain/public-email-providers";
 import { isForwardingOnly } from "@src/workload-abuse/lib/mail-forwarding/mail-forwarding";
 import { BlockedEmailDomainRepository } from "@src/workload-abuse/repositories/blocked-email-domain/blocked-email-domain.repository";
@@ -12,7 +12,7 @@ import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workloa
 export type EmailDomainSignal =
   | { signal: "mail_server_shared_with_blocked_domain"; blockedDomain: string }
   | { signal: "device_shared_with_blocked_domain"; linkedUserId: string; blockedDomain: string }
-  | { signal: "signup_burst"; signups: number }
+  | { signal: "signup_burst"; burstDomain: string; signups: number }
   | { signal: "forwarding_only_without_website" };
 
 type AssessedUser = Pick<UserOutput, "id" | "email" | "lastFingerprint">;
@@ -74,9 +74,14 @@ export class EmailDomainReputationService {
     return blocked?.rule ? [{ signal: "device_shared_with_blocked_domain", linkedUserId: blocked.linkedUserId, blockedDomain: blocked.rule.domain }] : [];
   }
 
+  /** Counts the whole registrable domain, so rotating subdomains such as inbox. and tempmail. cannot keep each one under the minimum. */
   async #findSignupBurst(domain: string): Promise<EmailDomainSignal[]> {
-    const signups = await this.userRepository.countVerifiedCreatedWithEmailDomainSince(domain, this.config.get("WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_WINDOW_HOURS"));
+    const burstDomain = getRegistrableDomain(domain) ?? domain;
+    const signups = await this.userRepository.countVerifiedCreatedWithEmailDomainSince(
+      burstDomain,
+      this.config.get("WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_WINDOW_HOURS")
+    );
 
-    return signups >= this.config.get("WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_MIN_SIGNUPS") ? [{ signal: "signup_burst", signups }] : [];
+    return signups >= this.config.get("WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_MIN_SIGNUPS") ? [{ signal: "signup_burst", burstDomain, signups }] : [];
   }
 }
