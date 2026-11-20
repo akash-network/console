@@ -543,7 +543,7 @@ describe(ConfigureTemplateForm.name, () => {
     ],
     [
       "can no longer be opened",
-      new ApiError(404, { message: "Template not found" }, "POST → 404"),
+      new ApiError(404, { code: "template_copy_source_not_found", message: "The template to copy was not found" }, "POST → 404"),
       "You can no longer open the template you forked, so a copy of it can't be saved."
     ]
   ])("says the forked template %s when the copy is refused for it, and stays on the page", async (_, saveError, message) => {
@@ -566,8 +566,11 @@ describe(ConfigureTemplateForm.name, () => {
     expect(screen.getByText(RATE_LIMIT_MESSAGE)).toBeInTheDocument();
   });
 
-  it("does not blame a forked template when a template that copies nothing is refused with a 404", async () => {
-    const { enqueueSnackbar } = setup({ intent: NEW_INTENT, saveError: new ApiError(404, { message: "Project not found" }, "POST → 404") });
+  it.each([
+    ["a template that copies nothing", NEW_INTENT],
+    ["a fork", { ...NEW_INTENT, copyFromTemplateId: "tpl-source", copyFromVersion: 2 }]
+  ])("does not blame a forked template when %s is refused for a project that is gone", async (_, intent) => {
+    const { enqueueSnackbar } = setup({ intent, saveError: new ApiError(404, { message: "Project not found" }, "POST → 404") });
 
     await saveANewTemplate();
 

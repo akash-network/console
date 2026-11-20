@@ -9,7 +9,16 @@ describe(readForkRefusal.name, () => {
   });
 
   it("reads a source the caller can no longer open", () => {
-    expect(readForkRefusal(new ApiError(404, { message: "Template not found" }, "POST → 404"))).toBe("source_unreadable");
+    const error = new ApiError(404, { code: "template_copy_source_not_found", message: "The template to copy was not found" }, "POST → 404");
+
+    expect(readForkRefusal(error)).toBe("source_unreadable");
+  });
+
+  it("leaves a 404 about anything else, such as a project that is gone, to the other readers", () => {
+    expect(readForkRefusal(new ApiError(404, { message: "Project not found" }, "POST → 404"))).toBeUndefined();
+    expect(readForkRefusal(new ApiError(404, { code: "not_found", message: "Template not found" }, "POST → 404"))).toBeUndefined();
+    expect(readForkRefusal(new ApiError(404, null, "POST → 404"))).toBeUndefined();
+    expect(readForkRefusal(new ApiError(404, "template_copy_source_not_found", "POST → 404"))).toBeUndefined();
   });
 
   it.each([400, 401, 403, 409, 429, 500])("leaves a %i to the other readers", status => {
