@@ -1,6 +1,7 @@
 import { createMongoAbility, ForbiddenError } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import subDays from "date-fns/subDays";
+import subHours from "date-fns/subHours";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -296,6 +297,41 @@ describe(UserRepository.name, () => {
     });
   });
 
+  describe("countVerifiedCreatedWithEmailDomainSince", () => {
+    it("counts the verified accounts on the domain and its subdomains created within the window", async () => {
+      const { userRepository, domain, createUserOnDomain } = setupDomain();
+      await createUserOnDomain({ createdAt: subHours(new Date(), 2), emailVerified: true });
+      await createUserOnDomain({ createdAt: subHours(new Date(), 5), emailVerified: true }, `eu.${domain}`);
+      await createUserOnDomain({ createdAt: subHours(new Date(), 2), emailVerified: true }, domain.toUpperCase());
+
+      await expect(userRepository.countVerifiedCreatedWithEmailDomainSince(domain, 24)).resolves.toBe(3);
+    });
+
+    it("leaves out accounts created before the window", async () => {
+      const { userRepository, domain, createUserOnDomain } = setupDomain();
+      await createUserOnDomain({ createdAt: subHours(new Date(), 2), emailVerified: true });
+      await createUserOnDomain({ createdAt: subHours(new Date(), 30), emailVerified: true });
+
+      await expect(userRepository.countVerifiedCreatedWithEmailDomainSince(domain, 24)).resolves.toBe(1);
+    });
+
+    it("leaves out unverified accounts, which anyone can create on someone else's domain", async () => {
+      const { userRepository, domain, createUserOnDomain } = setupDomain();
+      await createUserOnDomain({ createdAt: subHours(new Date(), 2), emailVerified: true });
+      await createUserOnDomain({ createdAt: subHours(new Date(), 2), emailVerified: false });
+
+      await expect(userRepository.countVerifiedCreatedWithEmailDomainSince(domain, 24)).resolves.toBe(1);
+    });
+
+    it("leaves out domains that merely contain it", async () => {
+      const { userRepository, domain, createUserOnDomain } = setupDomain();
+      await createUserOnDomain({ createdAt: subHours(new Date(), 2), emailVerified: true }, `x${domain}`);
+      await createUserOnDomain({ createdAt: subHours(new Date(), 2), emailVerified: true }, `${domain}.attacker.net`);
+
+      await expect(userRepository.countVerifiedCreatedWithEmailDomainSince(domain, 24)).resolves.toBe(0);
+    });
+  });
+
   describe("hasVerifiedEmail", () => {
     it("answers true for an address a verified account uses, whatever its case and padding", async () => {
       const { userRepository, domain } = setupDomain();
@@ -332,7 +368,7 @@ describe(UserRepository.name, () => {
     const userRepository = container.resolve(UserRepository);
     const domain = `${faker.string.alphanumeric(16).toLowerCase()}.com`;
 
-    async function createUserOnDomain(overrides: { createdAt: Date }, onDomain = domain) {
+    async function createUserOnDomain(overrides: { createdAt: Date; emailVerified?: boolean }, onDomain = domain) {
       return await userRepository.create({
         userId: faker.string.uuid(),
         email: `${faker.string.alphanumeric(10)}@${onDomain}`,

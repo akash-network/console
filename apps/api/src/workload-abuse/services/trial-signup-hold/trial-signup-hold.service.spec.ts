@@ -5,12 +5,15 @@ import { mock } from "vitest-mock-extended";
 import type { CreateLogger, JobQueueService } from "@src/core";
 import type { TxService } from "@src/core/services/tx/tx.service";
 import type { UserOutput, UserRepository } from "@src/user/repositories";
+import type { EmailDomainReputationService, EmailDomainSignal } from "@src/workload-abuse/services/email-domain-reputation/email-domain-reputation.service";
 import { reviewHeldTrialSignupKeyFor, ReviewTrialSignup } from "@src/workload-abuse/services/review-trial-signup/review-trial-signup.handler";
 import type { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 import { TrialSignupHoldService } from "./trial-signup-hold.service";
 
 import { createUser } from "@test/seeders/user.seeder";
 import { mockConfig } from "@test/services/mock-config.service";
+
+const DOMAIN = "sendhelp.mom";
 
 describe(TrialSignupHoldService.name, () => {
   it("names its logger after itself", () => {
@@ -177,10 +180,76 @@ describe(TrialSignupHoldService.name, () => {
     });
   });
 
+  describe("email domain reputation", () => {
+    const signals: EmailDomainSignal[] = [{ signal: "mail_server_shared_with_blocked_domain", blockedDomain: "step-sis.help" }];
+
+    it("holds a trial with email domain signals and reports it once per window when the device has linked accounts", async () => {
+      const { service, user, fingerprint, emailDomainReputationService, jobQueueService, logger } = setup({
+        mode: "off",
+        tagMode: "off",
+        domainMode: "enforce",
+        domainSignals: signals,
+        linkedCount: 1
+      });
+
+      const held = await service.isHeld(user);
+
+      expect(held).toBe(true);
+      expect(emailDomainReputationService.findSignals).toHaveBeenCalledWith(user);
+      expect(logger.warn).toHaveBeenCalledWith({ event: "TRIAL_SIGNUP_HELD_FOR_EMAIL_DOMAIN", userId: user.id, domain: DOMAIN, signals });
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new ReviewTrialSignup({ userId: user.id, held: true }), {
+        singletonKey: reviewHeldTrialSignupKeyFor(fingerprint),
+        singletonSeconds: 45 * 60
+      });
+    });
+
+    it("only logs the hold it would have placed in report mode", async () => {
+      const { service, user, jobQueueService, logger } = setup({ mode: "off", tagMode: "off", domainMode: "report", domainSignals: signals });
+
+      expect(await service.isHeld(user)).toBe(false);
+      expect(logger.info).toHaveBeenCalledWith({ event: "TRIAL_SIGNUP_EMAIL_DOMAIN_HOLD_DRY_RUN", userId: user.id, domain: DOMAIN, signals });
+      expect(logger.warn).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("does not hold a trial without email domain signals", async () => {
+      const { service, user, logger } = setup({ mode: "off", tagMode: "off", domainMode: "enforce", domainSignals: [] });
+
+      expect(await service.isHeld(user)).toBe(false);
+      expect(logger.info).not.toHaveBeenCalled();
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it("assesses nothing when off", async () => {
+      const { service, user, emailDomainReputationService } = setup({ mode: "off", tagMode: "off", domainMode: "off", domainSignals: signals });
+
+      expect(await service.isHeld(user)).toBe(false);
+      expect(emailDomainReputationService.findSignals).not.toHaveBeenCalled();
+    });
+
+    it("grants the trial and logs the failure when the assessment fails", async () => {
+      const { service, user, emailDomainReputationService, logger } = setup({ mode: "off", tagMode: "off", domainMode: "enforce" });
+      const error = new Error("database unavailable");
+      emailDomainReputationService.findSignals.mockRejectedValue(error);
+
+      expect(await service.isHeld(user)).toBe(false);
+      expect(logger.error).toHaveBeenCalledWith({ event: "TRIAL_SIGNUP_EMAIL_DOMAIN_CHECK_FAILED", userId: user.id, error });
+    });
+
+    it("skips the assessment once an earlier rule holds the trial", async () => {
+      const { service, user, emailDomainReputationService } = setup({ tagMode: "enforce", email: "veliarothmann5510+y177lq10ru@hotmail.com", domainMode: "enforce" });
+
+      expect(await service.isHeld(user)).toBe(true);
+      expect(emailDomainReputationService.findSignals).not.toHaveBeenCalled();
+    });
+  });
+
   function setup(
     input: {
       mode?: "off" | "report" | "enforce";
       tagMode?: "off" | "report" | "enforce";
+      domainMode?: "off" | "report" | "enforce";
+      domainSignals?: EmailDomainSignal[];
       linkedCount?: number;
       minLinkedAccounts?: number;
       windowMinutes?: number;
@@ -198,12 +267,16 @@ describe(TrialSignupHoldService.name, () => {
       WORKLOAD_ABUSE_SIGNUP_HOLD_MODE: input.mode ?? "report",
       WORKLOAD_ABUSE_SIGNUP_HOLD_MIN_LINKED_ACCOUNTS: input.minLinkedAccounts ?? 2,
       WORKLOAD_ABUSE_GENERATED_EMAIL_TAG_HOLD_MODE: input.tagMode ?? "report",
+      WORKLOAD_ABUSE_EMAIL_DOMAIN_HOLD_MODE: input.domainMode ?? "report",
       WORKLOAD_ABUSE_SIGNUP_REVIEW_WINDOW_MINUTES: "windowMinutes" in input ? input.windowMinutes : 45
     });
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
-    const service = new TrialSignupHoldService(userRepository, jobQueueService, txService, config, createLogger);
+    const emailDomainReputationService = mock<EmailDomainReputationService>({
+      findSignals: vi.fn().mockResolvedValue({ domain: DOMAIN, signals: input.domainSignals ?? [] })
+    });
+    const service = new TrialSignupHoldService(userRepository, jobQueueService, txService, config, emailDomainReputationService, createLogger);
 
-    return { service, user, fingerprint, linkedAccounts, userRepository, jobQueueService, txService, logger, createLogger };
+    return { service, user, fingerprint, linkedAccounts, userRepository, jobQueueService, txService, logger, createLogger, emailDomainReputationService };
   }
 });

@@ -160,7 +160,11 @@ export const envSchema = z.object({
   WORKLOAD_ABUSE_SIGNUP_HOLD_MODE: z.preprocess(blankToUndefined, z.enum(["off", "report", "enforce"]).default("report")),
   WORKLOAD_ABUSE_SIGNUP_HOLD_MIN_LINKED_ACCOUNTS: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().default(2)),
   /** `report` grants the trial and only logs; unlike the device hold, `enforce` holds without a review window or fingerprint. */
-  WORKLOAD_ABUSE_GENERATED_EMAIL_TAG_HOLD_MODE: z.preprocess(blankToUndefined, z.enum(["off", "report", "enforce"]).default("report"))
+  WORKLOAD_ABUSE_GENERATED_EMAIL_TAG_HOLD_MODE: z.preprocess(blankToUndefined, z.enum(["off", "report", "enforce"]).default("report")),
+  /** `report` grants the trial and only logs the email domain signals that would have held it. */
+  WORKLOAD_ABUSE_EMAIL_DOMAIN_HOLD_MODE: z.preprocess(blankToUndefined, z.enum(["off", "report", "enforce"]).default("report")),
+  WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_MIN_SIGNUPS: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().default(5)),
+  WORKLOAD_ABUSE_EMAIL_DOMAIN_BURST_WINDOW_HOURS: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().default(24))
 });
 
 export type WorkloadAbuseConfig = z.infer<typeof envSchema>;
