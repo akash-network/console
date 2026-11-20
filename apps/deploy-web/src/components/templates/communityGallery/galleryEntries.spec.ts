@@ -66,10 +66,13 @@ describe("galleryEntries", () => {
     it("gives an awesome-akash template the usage the API reports for its id", () => {
       const [used, unused] = buildGalleryEntries({
         categories: [makeCategory("AI - GPU", [makeTemplate({ id: "llama" }), makeTemplate({ id: "comfy" })])],
-        community: makeCommunity({ officialUsage: { llama: { deploys: 9, stillUpAfter24h: 0.8, forks: 0 } } })
+        community: makeCommunity({
+          officialUsage: { llama: { deploys: 9, stillUpAfter24h: 0.8, forks: 0, scores: scoresOf({ popular: 4.5, trending: 2, isTrending: true }) } }
+        })
       });
 
       expect(used.usage).toEqual({ deploys: 9, stillUpAfter24h: 0.8, forks: 0 });
+      expect(used.scores).toEqual({ popular: 4.5, trending: 2, isTrending: true });
       expect(unused.usage).toEqual({ deploys: 0, stillUpAfter24h: null, forks: 0 });
     });
 
@@ -344,24 +347,31 @@ describe("galleryEntries", () => {
     it("is empty while fewer templates than the minimum are trending", () => {
       const entries = [...makeTrending(MIN_TRENDING_TEMPLATES - 1), buildGalleryEntry({ title: "Not trending", scores: scoresOf({ trending: 99 }) })];
 
-      expect(selectTrendingEntries(entries)).toEqual([]);
+      expect(selectTrendingEntries(entries, MIN_TRENDING_TEMPLATES)).toEqual([]);
     });
 
     it("shows the trending templates once the minimum is met, strongest first", () => {
       const entries = makeTrending(MIN_TRENDING_TEMPLATES);
 
-      expect(titlesOf(selectTrendingEntries(entries))).toEqual(["Trending 3", "Trending 2", "Trending 1"]);
+      expect(titlesOf(selectTrendingEntries(entries, MIN_TRENDING_TEMPLATES))).toEqual(["Trending 3", "Trending 2", "Trending 1"]);
+    });
+
+    it("takes the minimum it is given, so the API decides how full the row must be", () => {
+      const entries = makeTrending(MIN_TRENDING_TEMPLATES);
+
+      expect(selectTrendingEntries(entries, MIN_TRENDING_TEMPLATES + 1)).toEqual([]);
+      expect(selectTrendingEntries(entries, 1)).toHaveLength(MIN_TRENDING_TEMPLATES);
     });
 
     it("stops at the length of the row", () => {
-      const trending = selectTrendingEntries(makeTrending(MAX_TRENDING_TEMPLATES + 2));
+      const trending = selectTrendingEntries(makeTrending(MAX_TRENDING_TEMPLATES + 2), MIN_TRENDING_TEMPLATES);
 
       expect(trending).toHaveLength(MAX_TRENDING_TEMPLATES);
       expect(trending[0].title).toBe(`Trending ${MAX_TRENDING_TEMPLATES + 2}`);
     });
 
     it("is empty with the placeholder scores the API sends before scores are computed", () => {
-      expect(selectTrendingEntries([buildGalleryEntry(), buildGalleryEntry(), buildGalleryEntry(), buildGalleryEntry()])).toEqual([]);
+      expect(selectTrendingEntries([buildGalleryEntry(), buildGalleryEntry(), buildGalleryEntry(), buildGalleryEntry()], 1)).toEqual([]);
     });
   });
 
@@ -398,6 +408,6 @@ describe("galleryEntries", () => {
   }
 
   function makeCommunity(overrides: Partial<CommunityTemplateGallery>): CommunityTemplateGallery {
-    return { templates: [], officialUsage: {}, ...overrides };
+    return { templates: [], officialUsage: {}, trendingRowMinTemplates: MIN_TRENDING_TEMPLATES, ...overrides };
   }
 });

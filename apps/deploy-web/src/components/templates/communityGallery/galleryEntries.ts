@@ -8,7 +8,7 @@ import type { GallerySort, GallerySource } from "./galleryView";
 
 export const GALLERY_PAGE_SIZE = 24;
 
-/** A shorter row reads as an empty shelf, so it hides instead. */
+/** Stands in until the API has said how many trending templates the row takes. */
 export const MIN_TRENDING_TEMPLATES = 3;
 export const MAX_TRENDING_TEMPLATES = 4;
 
@@ -21,8 +21,7 @@ const AWESOME_AKASH_PUBLISHER = "Akash Network";
 const NO_USAGE: CommunityTemplateUsage = { deploys: 0, stillUpAfter24h: null, forks: 0 };
 const NO_SCORES: TemplateScores = { popular: null, trending: null, isTrending: false };
 
-/** The scores API may widen each awesome-akash usage with its scores; until then they rank by deploys. */
-type OfficialUsage = CommunityTemplateUsage & { scores?: TemplateScores };
+type OfficialUsage = CommunityTemplateGallery["officialUsage"][string];
 
 export interface GalleryEntry {
   key: string;
@@ -166,9 +165,10 @@ export function filterGalleryEntries(entries: GalleryEntry[], filter: { source: 
   );
 }
 
-export function selectTrendingEntries(entries: GalleryEntry[]): GalleryEntry[] {
+/** A row shorter than the minimum reads as an empty shelf, so it hides instead. */
+export function selectTrendingEntries(entries: GalleryEntry[], minTemplates: number): GalleryEntry[] {
   const trending = entries.filter(entry => entry.scores.isTrending);
-  if (trending.length < MIN_TRENDING_TEMPLATES) return [];
+  if (trending.length < minTemplates) return [];
 
   return sortGalleryEntries(trending, "trending").slice(0, MAX_TRENDING_TEMPLATES);
 }

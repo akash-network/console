@@ -40,7 +40,11 @@ const COMMUNITY: CommunityTemplateGallery = {
       publisher: { name: "Quarry", handle: "quarry", verified: false }
     })
   ],
-  officialUsage: { llama: { deploys: 20, stillUpAfter24h: null, forks: 0 }, minecraft: { deploys: 70, stillUpAfter24h: null, forks: 0 } }
+  officialUsage: {
+    llama: { deploys: 20, stillUpAfter24h: null, forks: 0, scores: { popular: null, trending: null, isTrending: false } },
+    minecraft: { deploys: 70, stillUpAfter24h: null, forks: 0, scores: { popular: null, trending: null, isTrending: false } }
+  },
+  trendingRowMinTemplates: 3
 };
 
 describe(useCommunityGallery.name, () => {
@@ -134,7 +138,7 @@ describe(useCommunityGallery.name, () => {
     expect(titlesOf(result)).toEqual(["Minecraft", "Open WebUI", "Pocket wallet"]);
     expect(galleryOf(result).filters.map(filter => filter.label)).toEqual(["All", "Games", "AI - GPU", "Wallet"]);
 
-    rerenderWith({ categories: CATEGORIES, community: { templates: [], officialUsage: {} } });
+    rerenderWith({ categories: CATEGORIES, community: galleryWith([]) });
     expect(titlesOf(result)).toEqual(["ComfyUI", "Llama", "Minecraft"]);
   });
 
@@ -159,11 +163,20 @@ describe(useCommunityGallery.name, () => {
     );
 
     expect(galleryOf(setup({}).result).trendingEntries).toEqual([]);
-    expect(galleryOf(setup({ community: { templates: trending, officialUsage: {} } }).result).trendingEntries.map(entry => entry.title)).toEqual([
+    expect(galleryOf(setup({ community: galleryWith(trending) }).result).trendingEntries.map(entry => entry.title)).toEqual([
       "Trending 3",
       "Trending 2",
       "Trending 1"
     ]);
+  });
+
+  it("fills the trending row from as many templates as the API asks for", () => {
+    const trending = [1, 2, 3].map(rank =>
+      buildCommunityTemplateCard({ title: `Trending ${rank}`, scores: { popular: null, trending: rank, isTrending: true } })
+    );
+
+    expect(galleryOf(setup({ community: galleryWith(trending, 4) }).result).trendingEntries).toEqual([]);
+    expect(galleryOf(setup({ community: galleryWith(trending.slice(0, 2), 2) }).result).trendingEntries).toHaveLength(2);
   });
 
   it("brings the trending row in when a refresh of the gallery has enough trending templates", () => {
@@ -173,7 +186,7 @@ describe(useCommunityGallery.name, () => {
     const { result, rerenderWith } = setup({});
     expect(galleryOf(result).trendingEntries).toEqual([]);
 
-    rerenderWith({ community: { templates: trending, officialUsage: {} } });
+    rerenderWith({ community: galleryWith(trending) });
 
     expect(galleryOf(result).trendingEntries).toHaveLength(3);
   });
@@ -182,7 +195,7 @@ describe(useCommunityGallery.name, () => {
     const trending = [1, 2, 3].map(rank =>
       buildCommunityTemplateCard({ title: `Trending ${rank}`, scores: { popular: null, trending: rank, isTrending: true } })
     );
-    const community = { templates: trending, officialUsage: {} };
+    const community = galleryWith(trending);
 
     expect(galleryOf(setup({ community, view: { search: "trending" } }).result).trendingEntries).toEqual([]);
     expect(galleryOf(setup({ community, view: { search: "   " } }).result).trendingEntries).toHaveLength(3);
@@ -201,6 +214,10 @@ describe(useCommunityGallery.name, () => {
 
     expect(refetch).toHaveBeenCalledOnce();
   });
+
+  function galleryWith(templates: CommunityTemplateGallery["templates"], trendingRowMinTemplates = 3): CommunityTemplateGallery {
+    return { templates, officialUsage: {}, trendingRowMinTemplates };
+  }
 
   function galleryOf(result: { current: CommunityGallery | null }) {
     return result.current as CommunityGallery;

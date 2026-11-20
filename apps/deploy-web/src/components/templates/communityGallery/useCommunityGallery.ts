@@ -9,6 +9,7 @@ import {
   filterGalleryEntries,
   listGalleryCategories,
   listGalleryUseCaseFilters,
+  MIN_TRENDING_TEMPLATES,
   selectTrendingEntries,
   sortGalleryEntries
 } from "./galleryEntries";
@@ -48,7 +49,8 @@ export function useCommunityGallery({ isEnabled, categories, view }: CommunityGa
     () => filterGalleryEntries(sortedEntries, { source: view.source, category: selectedCategory, search: view.search }),
     [sortedEntries, view.source, selectedCategory, view.search]
   );
-  const trendingEntries = useMemo(() => selectTrendingEntries(entries), [entries]);
+  const minTrendingTemplates = community?.trendingRowMinTemplates ?? MIN_TRENDING_TEMPLATES;
+  const trendingEntries = useMemo(() => selectTrendingEntries(entries, minTrendingTemplates), [entries, minTrendingTemplates]);
 
   if (!isEnabled) return null;
 
