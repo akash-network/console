@@ -37516,6 +37516,9 @@
           },
           "404": {
             "description": "The template does not exist or the caller may not read it"
+          },
+          "409": {
+            "description": "The template is imported from the awesome-akash repository and can only be changed there (`template_imported_read_only`)"
           }
         }
       }
@@ -37586,7 +37589,7 @@
             "description": "The template does not exist or the caller may not read it"
           },
           "409": {
-            "description": "The terms accepted are not the current ones (`template_terms_version_mismatch`, with the current `termsVersion`)"
+            "description": "The terms accepted are not the current ones (`template_terms_version_mismatch`, with the current `termsVersion`). The template is imported from the awesome-akash repository and can only be changed there (`template_imported_read_only`)"
           },
           "429": {
             "description": "The caller or the organization reached a limit; `Retry-After` tells when to try again (`template_rate_limited`)"
@@ -37944,6 +37947,9 @@
           },
           "404": {
             "description": "The template does not exist or the caller may not read it"
+          },
+          "409": {
+            "description": "The template is imported from the awesome-akash repository and can only be changed there (`template_imported_read_only`)"
           }
         }
       },
@@ -37993,6 +37999,60 @@
           },
           "404": {
             "description": "The template does not exist or the caller may not read it"
+          },
+          "409": {
+            "description": "The template is imported from the awesome-akash repository and can only be changed there (`template_imported_read_only`)"
+          },
+          "410": {
+            "description": "The template was public once and has since been removed (`template_removed`, with the `title` it had)"
+          }
+        }
+      }
+    },
+    "/v1/imported-templates/{importedRef}": {
+      "get": {
+        "operationId": "getImportedTemplate",
+        "summary": "Get the template imported from the awesome-akash repository under a gallery id, with its current version",
+        "tags": [
+          "Templates"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 255,
+              "pattern": "^[^/\\\\]+$",
+              "description": "The awesome-akash gallery id of the template",
+              "example": "akash-network-awesome-akash-comfyui"
+            },
+            "required": true,
+            "name": "importedRef",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The template, the same as its id answers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUserTemplateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The gallery id is not one a template can have"
+          },
+          "404": {
+            "description": "No template was imported under this gallery id, or the caller may not read it"
           },
           "410": {
             "description": "The template was public once and has since been removed (`template_removed`, with the `title` it had)"
@@ -38112,7 +38172,7 @@
             "description": "The template does not exist or the caller may not read it"
           },
           "409": {
-            "description": "Another version was saved after the base version (`template_version_conflict`)"
+            "description": "Another version was saved after the base version (`template_version_conflict`). The template is imported from the awesome-akash repository and can only be changed there (`template_imported_read_only`)"
           },
           "429": {
             "description": "The caller or the organization reached a limit; `Retry-After` tells when to try again (`template_rate_limited`)"
@@ -49294,6 +49354,11 @@
               "removed"
             ]
           },
+          "importedRef": {
+            "type": "string",
+            "nullable": true,
+            "description": "The awesome-akash gallery id of a template imported from that repository, which is read-only here and stands for the gallery entry of the same id; null for every other template"
+          },
           "projectId": {
             "type": "string",
             "nullable": true,
@@ -49648,6 +49713,7 @@
           "isListed",
           "isOfficial",
           "moderationStatus",
+          "importedRef",
           "projectId",
           "copiedFromId",
           "copiedFrom",
@@ -50425,6 +50491,11 @@
           "isFeatured": {
             "type": "boolean"
           },
+          "importedRef": {
+            "type": "string",
+            "nullable": true,
+            "description": "The awesome-akash gallery id of a template imported from that repository, which is read-only here and stands for the gallery entry of the same id; null for every other template"
+          },
           "publisher": {
             "type": "object",
             "properties": {
@@ -50517,6 +50588,7 @@
           "categories",
           "isOfficial",
           "isFeatured",
+          "importedRef",
           "publisher",
           "resources",
           "versionCount",

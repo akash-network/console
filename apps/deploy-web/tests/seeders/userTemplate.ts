@@ -74,6 +74,7 @@ export const buildMarketplaceTemplate = (overrides: Partial<MarketplaceTemplate>
     projectId: null,
     copiedFromId: null,
     copiedFrom: null,
+    importedRef: null,
     createdAt,
     updatedAt: createdAt,
     publishedAt: null,

@@ -788,6 +788,14 @@ export const operations = {
       queryParams: [],
       hasBody: false
     },
+    getImportedTemplate: {
+      path: "/v1/imported-templates/{importedRef}",
+      method: "get",
+      operationId: "getImportedTemplate",
+      pathParams: ["importedRef"],
+      queryParams: [],
+      hasBody: false
+    },
     listUserTemplateVersions: {
       path: "/v1/user-templates/{id}/versions",
       method: "get",
