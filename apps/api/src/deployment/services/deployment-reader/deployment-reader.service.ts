@@ -43,6 +43,7 @@ import { type ArchivePageQuery, DeploymentArchiveReaderService } from "@src/depl
 import { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
 import { LeaseGpuService } from "@src/deployment/services/lease-gpu/lease-gpu.service";
 import type { OnChainGroupSpec } from "@src/deployment/utils/changed-group-resources/changed-group-resources";
+import { definitionOf } from "@src/deployment/utils/sdl-definition/sdl-definition";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import type { ProviderList } from "@src/types/provider";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
@@ -126,7 +127,10 @@ export class DeploymentReaderService {
       return { name, consoleSettings: null };
     }
 
-    return { name, consoleSettings: { sdl: setting.sdl, manifestVersion: setting.manifestVersion, templateId: setting.templateId } };
+    return {
+      name,
+      consoleSettings: { sdl: setting.sdl, definition: definitionOf(setting.sdl), manifestVersion: setting.manifestVersion, templateId: setting.templateId }
+    };
   }
 
   /** Under the same double scoping as the single read, and skipped entirely for an empty page so a list with nothing on it costs no query. */

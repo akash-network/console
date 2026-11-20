@@ -1,6 +1,7 @@
 import { faker } from "@faker-js/faker";
 
 import type { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
+import { definitionOf } from "@src/deployment/utils/sdl-definition/sdl-definition";
 import { createAkashAddress } from "./akash-address.seeder";
 
 type DeploymentData = GetDeploymentResponse["data"];
@@ -70,6 +71,7 @@ export function createGetDeploymentResponseData(
       state: { owner, state: "open", transferred: [], settled_at: "0", funds: [{ denom: "uact", amount: "5000000" }], deposits: [] }
     },
     name: overrides.name === undefined ? faker.word.noun() : overrides.name,
-    consoleSettings: sdl === null ? null : { sdl, manifestVersion: overrides.manifestVersion ?? faker.string.alphanumeric(44), templateId: null }
+    consoleSettings:
+      sdl === null ? null : { sdl, definition: definitionOf(sdl), manifestVersion: overrides.manifestVersion ?? faker.string.alphanumeric(44), templateId: null }
   };
 }
