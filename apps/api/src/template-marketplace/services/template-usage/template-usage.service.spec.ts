@@ -62,12 +62,13 @@ describe(TemplateUsageService.name, () => {
     });
 
     it("records nothing for a deployment from no template", async () => {
-      const { service, templateUsageEventRepository } = setup();
+      const { service, templateUsageEventRepository, logger } = setup();
 
       await service.recordDeployed(buildDefinition(), { isTrialing: false });
 
       expect(templateUsageEventRepository.findTemplateOfVersion).not.toHaveBeenCalled();
       expect(templateUsageEventRepository.record).not.toHaveBeenCalled();
+      expect(logger.warn).not.toHaveBeenCalled();
     });
 
     it("records nothing for a version whose template is gone", async () => {
@@ -612,6 +613,12 @@ describe(TemplateUsageService.name, () => {
         templateRef: templateId,
         templateVersionId
       });
+    });
+
+    it("answers nothing for a deployment from no template", async () => {
+      const { service } = setup();
+
+      await expect(service.templateRefOf({ templateId: null, templateVersionId: null })).resolves.toBeUndefined();
     });
   });
 

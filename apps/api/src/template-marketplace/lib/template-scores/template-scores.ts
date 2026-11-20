@@ -100,7 +100,7 @@ function popularOf(userDays: StillRunningUserDays[], { trialWeight, popularHalfL
   };
 }
 
-/** Growth is measured against at least the minimum volume, so a template with a tiny or empty previous window cannot post a huge rate, and reads as flat while neither window reaches it. */
+/** Growth is measured against at least the minimum volume, so a tiny or empty previous window cannot post a huge rate, and it reads as flat while neither window reaches it; growth above zero therefore means the last window reached it. */
 function trendingOf(userDays: StillRunningUserDays[], { trialWeight, trendingWindowDays, trendingMinVolume }: ScoringSettings) {
   const current = weightedUserDays(agedWithin(userDays, 0, trendingWindowDays), trialWeight);
   const previous = weightedUserDays(agedWithin(userDays, trendingWindowDays, 2 * trendingWindowDays), trialWeight);
@@ -109,7 +109,7 @@ function trendingOf(userDays: StillRunningUserDays[], { trialWeight, trendingWin
 
   return {
     score,
-    isTrending: current.weighted >= trendingMinVolume && score > 0,
+    isTrending: score > 0,
     breakdown: { windowDays: trendingWindowDays, minVolume: trendingMinVolume, trialWeight, current, previous, meetsMinVolume }
   };
 }

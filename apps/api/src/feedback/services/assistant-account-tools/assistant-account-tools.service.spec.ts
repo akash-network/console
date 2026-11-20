@@ -321,6 +321,26 @@ describe(AssistantAccountToolsService.name, () => {
         expect(byCategory.templates).toMatchObject([{ id: categorized.id, category: "Multiplayer", summary: "", gpu: null }]);
       });
 
+      it("finds a community template by a word of its title, of any of its categories or of its summary", async () => {
+        const community = createCard({ title: "Rooms", summary: "Realtime lobbies", categories: ["Games", "Multiplayer"] });
+        const { service } = setup({ isMarketplaceOn: true, cards: [community, createCard({ title: "Unrelated", summary: null, categories: [] })] });
+
+        const found = await Promise.all(
+          ["rooms", "games", "multiplayer", "lobbies", "gamesmultiplayer", "null"].map(query => service.listTemplates({ query, includeCommunity: true }))
+        );
+
+        expect(found.map(({ templates }) => templates.map(({ id }) => id))).toEqual([[community.id], [community.id], [community.id], [community.id], [], []]);
+      });
+
+      it("lists ten templates at most", async () => {
+        const cards = Array.from({ length: 12 }, (_, index) => createCard({ title: `Rooms ${index}` }));
+        const { service } = setup({ isMarketplaceOn: true, cards });
+
+        const { templates } = await service.listTemplates({ query: "rooms", includeCommunity: true });
+
+        expect(templates.map(({ id }) => id)).toEqual(cards.slice(0, 10).map(({ id }) => id));
+      });
+
       it("reads the marketplace again once its gallery is rebuilt", async () => {
         const { service, communityTemplateService } = setup({ isMarketplaceOn: true, cards: [createCard({ title: "Rooms" })] });
         const first = await service.listTemplates({ query: "rooms", includeCommunity: true });
