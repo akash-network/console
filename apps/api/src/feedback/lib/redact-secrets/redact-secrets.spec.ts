@@ -1,7 +1,16 @@
 import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 
-import { countRedactions, holdsIssuedCredential, holdsUrlPassword, REDACTED, redactEmailAddresses, redactSecrets, redactSecretStrings } from "./redact-secrets";
+import {
+  countRedactions,
+  holdsIssuedCredential,
+  holdsUrlPassword,
+  REDACTED,
+  redactEmailAddresses,
+  redactSecretFields,
+  redactSecrets,
+  redactSecretStrings
+} from "./redact-secrets";
 
 describe(redactSecrets.name, () => {
   it.each([
@@ -368,6 +377,54 @@ describe(redactSecretStrings.name, () => {
 
   it("replaces secrets in a bare string", () => {
     expect(redactSecretStrings(`token=${faker.string.alphanumeric(12)}`)).toBe(`token=${REDACTED}`);
+  });
+});
+
+describe(redactSecretFields.name, () => {
+  it("replaces what a secret-like key holds, as text or as a number, at any depth", () => {
+    const value = {
+      env: { API_TOKEN: faker.string.alphanumeric(12), "db password": faker.string.alphanumeric(8), PORT: "8080" },
+      services: [{ accessKey: faker.number.int({ min: 1000, max: 9999 }), image: "nginx" }]
+    };
+
+    expect(redactSecretFields(value)).toEqual({
+      env: { API_TOKEN: REDACTED, "db password": REDACTED, PORT: "8080" },
+      services: [{ accessKey: REDACTED, image: "nginx" }]
+    });
+  });
+
+  it("keeps what cannot carry a secret under a secret-like key, and reads on into what it contains", () => {
+    const value = { hasSecrets: true, nextPageToken: null, secrets: [{ name: "DB_URL", env: `PGPASSWORD=${faker.string.alphanumeric(12)}` }] };
+
+    expect(redactSecretFields(value)).toEqual({
+      hasSecrets: true,
+      nextPageToken: null,
+      secrets: [{ name: "DB_URL", env: `PGPASSWORD=${REDACTED}` }]
+    });
+  });
+
+  it("leaves a key alone when the secret word is not in its last word", () => {
+    const value = { "token count": 12, "secret santa list": "Ada, Grace", tokenizer: "bpe" };
+
+    expect(redactSecretFields(value)).toEqual({ "token count": 12, "secret santa list": "Ada, Grace", tokenizer: REDACTED });
+  });
+
+  it("replaces secrets in strings and keeps the other values unchanged", () => {
+    const value = { sdl: `env:\n  - HF_TOKEN=${faker.string.alphanumeric(24)}`, count: 2, enabled: false, diagnosis: null, nested: [1, true, null] };
+
+    expect(redactSecretFields(value)).toEqual({ ...value, sdl: `env:\n  - HF_TOKEN=${REDACTED}` });
+    expect(redactSecretFields(`token=${faker.string.alphanumeric(12)}`)).toBe(`token=${REDACTED}`);
+    expect(redactSecretFields(7)).toBe(7);
+    expect(redactSecretFields(null)).toBeNull();
+  });
+
+  it("does not change the value it is given", () => {
+    const password = faker.string.alphanumeric(12);
+    const value = { env: { password } };
+
+    redactSecretFields(value);
+
+    expect(value).toEqual({ env: { password } });
   });
 });
 

@@ -6,6 +6,7 @@ import { mock } from "vitest-mock-extended";
 import MemoryCacheEngine from "@src/caching/memoryCacheEngine";
 import { LOGGER_FACTORY } from "@src/core";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import { redactSecrets } from "@src/feedback/lib/redact-secrets/redact-secrets";
 import type { ChatToolCall } from "@src/feedback/services/akashml-client/akashml.client";
 import { AssistantAccountToolsService } from "@src/feedback/services/assistant-account-tools/assistant-account-tools.service";
 import { AssistantBidToolsService } from "@src/feedback/services/assistant-bid-tools/assistant-bid-tools.service";
@@ -45,8 +46,8 @@ describe(AssistantToolRunnerService.name, () => {
       expect(Object.keys(content)).toEqual(["tool", "untrustedData"]);
       expect(content.tool).toBe("list_templates");
       expect(listed.map(({ id }) => id).sort()).toEqual([inTitle.id, inSummary.id, inReadme.id].sort());
-      expect(listed.find(({ id }) => id === inTitle.id)).toMatchObject({ name: `${text} ${marker}`, publisher: publisherName });
-      expect(listed.find(({ id }) => id === inSummary.id)).toMatchObject({ summary: text });
+      expect(listed.find(({ id }) => id === inTitle.id)).toMatchObject({ name: redactSecrets(`${text} ${marker}`), publisher: redactSecrets(publisherName) });
+      expect(listed.find(({ id }) => id === inSummary.id)).toMatchObject({ summary: redactSecrets(text) });
       expect(listed.every(({ source, reviewedByAkash }) => source === "community" && reviewedByAkash === false)).toBe(true);
       expect((outcome as { content: string }).content).not.toContain(readmeMarker);
       expect((outcome as { content: string }).content).not.toContain(SDL_OF_COMMUNITY_TEMPLATE);
