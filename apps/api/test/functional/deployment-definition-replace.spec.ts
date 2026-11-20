@@ -1,3 +1,5 @@
+import type { SDLInput } from "@akashnetwork/chain-sdk";
+import { yaml } from "@akashnetwork/chain-sdk";
 import { faker } from "@faker-js/faker";
 import { CompactEncrypt } from "jose";
 import nock from "nock";
@@ -178,6 +180,39 @@ describe("PUT /v1/deployments/{dseq}/definition", () => {
       });
 
       expect(response.status).toBe(403);
+    });
+  });
+
+  describe("a definition sent as JSON", () => {
+    it("keeps every stored value its references still name", async () => {
+      const { apiKey, user, secrets } = await setup();
+      const definition = yaml.raw<SDLInput>(sdlWith(["API_TOKEN=ac-secret://s0_e0", "DATABASE_URL=ac-secret://s0_e1"], { image: "nginx:1.27" }));
+
+      const response = await replace(apiKey, { definition });
+
+      expect(response.status).toBe(200);
+      expect((await settingOf(user))?.sdl).toContain("nginx:1.27");
+      await expect(openStored(user)).resolves.toEqual(secrets);
+    });
+
+    it("takes a value from a seal bound to the definition's compact JSON", async () => {
+      const { apiKey, user, secrets } = await setup();
+      const rotated = randomUUID();
+      const definition = yaml.raw<SDLInput>(sdlWith(["API_TOKEN=ac-secret://s0_e0", "DATABASE_URL=ac-secret://s0_e1"]));
+
+      const response = await replace(apiKey, { definition, sealedSecrets: await sealFor(user, { s0_e0: rotated }, JSON.stringify(definition)) });
+
+      expect(response.status).toBe(200);
+      await expect(openStored(user)).resolves.toEqual({ s0_e0: rotated, s0_e1: secrets.s0_e1 });
+    });
+
+    it("refuses a request carrying both spellings", async () => {
+      const { apiKey } = await setup();
+      const sdl = sdlWith(["API_TOKEN=ac-secret://s0_e0", "DATABASE_URL=ac-secret://s0_e1"]);
+
+      const response = await replace(apiKey, { sdl, definition: yaml.raw<SDLInput>(sdl) });
+
+      expect(response.status).toBe(400);
     });
   });
 
