@@ -9964,6 +9964,73 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 "properties": {
                   "data": {
                     "properties": {
+                      "definition": {
+                        "additionalProperties": {
+                          "nullable": true,
+                        },
+                        "description": "The SDL as a JSON object, with the same fields an SDL document has (\`version\`, \`services\`, \`profiles\`, \`deployment\` and, where used, \`endpoints\`), as an alternative to the SDL text. Validated like the text, with each problem reported at its path. Reference a secret as \`NAME=ac-secret://NAME\` in an env entry. A \`sealedSecrets\` sent beside it is bound to the definition's compact JSON, \`JSON.stringify(definition)\` with its keys in the order sent.",
+                        "example": {
+                          "deployment": {
+                            "web": {
+                              "dcloud": {
+                                "count": 1,
+                                "profile": "web",
+                              },
+                            },
+                          },
+                          "profiles": {
+                            "compute": {
+                              "web": {
+                                "resources": {
+                                  "cpu": {
+                                    "units": 0.5,
+                                  },
+                                  "memory": {
+                                    "size": "512Mi",
+                                  },
+                                  "storage": [
+                                    {
+                                      "size": "1Gi",
+                                    },
+                                  ],
+                                },
+                              },
+                            },
+                            "placement": {
+                              "dcloud": {
+                                "pricing": {
+                                  "web": {
+                                    "amount": 1000,
+                                    "denom": "uact",
+                                  },
+                                },
+                              },
+                            },
+                          },
+                          "services": {
+                            "web": {
+                              "env": [
+                                "MODE=production",
+                                "API_KEY=ac-secret://API_KEY",
+                              ],
+                              "expose": [
+                                {
+                                  "as": 80,
+                                  "port": 80,
+                                  "to": [
+                                    {
+                                      "global": true,
+                                    },
+                                  ],
+                                },
+                              ],
+                              "image": "nginx:1.27.2",
+                            },
+                          },
+                          "version": "2.0",
+                        },
+                        "type": "object",
+                      },
                       "deposit": {
                         "deprecated": true,
                         "description": "Deprecated and ignored. The platform funds every deployment automatically from your account credits.",
@@ -10140,7 +10207,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "type": "integer",
                       },
                       "sdl": {
-                        "description": "SDL to deploy. Send exactly one of \`sdl\`, \`service\`, or \`templateId\` without \`sdl\`.",
+                        "description": "SDL to deploy. Send exactly one of \`sdl\`, \`definition\`, \`service\`, or \`templateId\` on its own.",
                         "maxLength": 524288,
                         "type": "string",
                       },
@@ -13081,7 +13148,75 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 "properties": {
                   "data": {
                     "properties": {
+                      "definition": {
+                        "additionalProperties": {
+                          "nullable": true,
+                        },
+                        "description": "The SDL as a JSON object, with the same fields an SDL document has (\`version\`, \`services\`, \`profiles\`, \`deployment\` and, where used, \`endpoints\`), as an alternative to the SDL text. Validated like the text, with each problem reported at its path. Reference a secret as \`NAME=ac-secret://NAME\` in an env entry. A \`sealedSecrets\` sent beside it is bound to the definition's compact JSON, \`JSON.stringify(definition)\` with its keys in the order sent.",
+                        "example": {
+                          "deployment": {
+                            "web": {
+                              "dcloud": {
+                                "count": 1,
+                                "profile": "web",
+                              },
+                            },
+                          },
+                          "profiles": {
+                            "compute": {
+                              "web": {
+                                "resources": {
+                                  "cpu": {
+                                    "units": 0.5,
+                                  },
+                                  "memory": {
+                                    "size": "512Mi",
+                                  },
+                                  "storage": [
+                                    {
+                                      "size": "1Gi",
+                                    },
+                                  ],
+                                },
+                              },
+                            },
+                            "placement": {
+                              "dcloud": {
+                                "pricing": {
+                                  "web": {
+                                    "amount": 1000,
+                                    "denom": "uact",
+                                  },
+                                },
+                              },
+                            },
+                          },
+                          "services": {
+                            "web": {
+                              "env": [
+                                "MODE=production",
+                                "API_KEY=ac-secret://API_KEY",
+                              ],
+                              "expose": [
+                                {
+                                  "as": 80,
+                                  "port": 80,
+                                  "to": [
+                                    {
+                                      "global": true,
+                                    },
+                                  ],
+                                },
+                              ],
+                              "image": "nginx:1.27.2",
+                            },
+                          },
+                          "version": "2.0",
+                        },
+                        "type": "object",
+                      },
                       "sdl": {
+                        "description": "SDL the deployment runs. Send it or \`definition\`, not both.",
                         "maxLength": 524288,
                         "type": "string",
                       },
@@ -13091,9 +13226,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "type": "string",
                       },
                     },
-                    "required": [
-                      "sdl",
-                    ],
                     "type": "object",
                   },
                 },
@@ -13374,6 +13506,73 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 "properties": {
                   "data": {
                     "properties": {
+                      "definition": {
+                        "additionalProperties": {
+                          "nullable": true,
+                        },
+                        "description": "The SDL as a JSON object, with the same fields an SDL document has (\`version\`, \`services\`, \`profiles\`, \`deployment\` and, where used, \`endpoints\`), as an alternative to the SDL text. Validated like the text, with each problem reported at its path. Reference a secret as \`NAME=ac-secret://NAME\` in an env entry. A \`sealedSecrets\` sent beside it is bound to the definition's compact JSON, \`JSON.stringify(definition)\` with its keys in the order sent.",
+                        "example": {
+                          "deployment": {
+                            "web": {
+                              "dcloud": {
+                                "count": 1,
+                                "profile": "web",
+                              },
+                            },
+                          },
+                          "profiles": {
+                            "compute": {
+                              "web": {
+                                "resources": {
+                                  "cpu": {
+                                    "units": 0.5,
+                                  },
+                                  "memory": {
+                                    "size": "512Mi",
+                                  },
+                                  "storage": [
+                                    {
+                                      "size": "1Gi",
+                                    },
+                                  ],
+                                },
+                              },
+                            },
+                            "placement": {
+                              "dcloud": {
+                                "pricing": {
+                                  "web": {
+                                    "amount": 1000,
+                                    "denom": "uact",
+                                  },
+                                },
+                              },
+                            },
+                          },
+                          "services": {
+                            "web": {
+                              "env": [
+                                "MODE=production",
+                                "API_KEY=ac-secret://API_KEY",
+                              ],
+                              "expose": [
+                                {
+                                  "as": 80,
+                                  "port": 80,
+                                  "to": [
+                                    {
+                                      "global": true,
+                                    },
+                                  ],
+                                },
+                              ],
+                              "image": "nginx:1.27.2",
+                            },
+                          },
+                          "version": "2.0",
+                        },
+                        "type": "object",
+                      },
                       "ifManifestVersion": {
                         "description": "Base64 manifest version this request expects to be current, as GET /v1/deployments/{dseq} returns it in \`consoleSettings.manifestVersion\`. Rejected with 409 if the deployment has moved on, unless it moved on to the version this very request produces, which makes a retry of it succeed. Omitting it still guards on the version the request read, as for a patch.",
                         "maxLength": 64,
@@ -13387,7 +13586,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "type": "string",
                       },
                       "sdl": {
-                        "description": "The whole SDL the deployment should run from now on, as GET /v1/deployments/{dseq} returns it in \`consoleSettings.sdl\` or edited. Reference a secret as \`NAME=ac-secret://NAME\` in an env entry, or as \`ac-secret://NAME\` in a registry credential: a reference the request supplies no value for keeps the value the deployment stores, and a stored value no reference names any longer is dropped.",
+                        "description": "The whole SDL the deployment should run from now on, as GET /v1/deployments/{dseq} returns it in \`consoleSettings.sdl\` or edited. Send it or \`definition\`, not both. Reference a secret as \`NAME=ac-secret://NAME\` in an env entry, or as \`ac-secret://NAME\` in a registry credential: a reference the request supplies no value for keeps the value the deployment stores, and a stored value no reference names any longer is dropped.",
                         "example": "version: "2.0"
 services:
   web:
@@ -13420,9 +13619,6 @@ services:
                         "type": "array",
                       },
                     },
-                    "required": [
-                      "sdl",
-                    ],
                     "type": "object",
                   },
                 },

@@ -13172,7 +13172,7 @@ export interface operations {
       content: {
         "application/json": {
           data: {
-            /** @description SDL to deploy. Send exactly one of `sdl`, `service`, or `templateId` without `sdl`. */
+            /** @description SDL to deploy. Send exactly one of `sdl`, `definition`, `service`, or `templateId` on its own. */
             sdl?: string;
             /** @description Name for this deployment, shown wherever it is listed. Omit it and the console names the deployment after the services the SDL declares, joined with `+`. */
             name?: string;
@@ -13207,6 +13207,72 @@ export interface operations {
              * @description ID of the template version the SDL came from. Readers of the template may name its current version and its editors any version. Cannot be combined with `templateId`.
              */
             templateVersionId?: string;
+            /**
+             * @description The SDL as a JSON object, with the same fields an SDL document has (`version`, `services`, `profiles`, `deployment` and, where used, `endpoints`), as an alternative to the SDL text. Validated like the text, with each problem reported at its path. Reference a secret as `NAME=ac-secret://NAME` in an env entry. A `sealedSecrets` sent beside it is bound to the definition's compact JSON, `JSON.stringify(definition)` with its keys in the order sent.
+             * @example {
+             *       "version": "2.0",
+             *       "services": {
+             *         "web": {
+             *           "image": "nginx:1.27.2",
+             *           "env": [
+             *             "MODE=production",
+             *             "API_KEY=ac-secret://API_KEY"
+             *           ],
+             *           "expose": [
+             *             {
+             *               "port": 80,
+             *               "as": 80,
+             *               "to": [
+             *                 {
+             *                   "global": true
+             *                 }
+             *               ]
+             *             }
+             *           ]
+             *         }
+             *       },
+             *       "profiles": {
+             *         "compute": {
+             *           "web": {
+             *             "resources": {
+             *               "cpu": {
+             *                 "units": 0.5
+             *               },
+             *               "memory": {
+             *                 "size": "512Mi"
+             *               },
+             *               "storage": [
+             *                 {
+             *                   "size": "1Gi"
+             *                 }
+             *               ]
+             *             }
+             *           }
+             *         },
+             *         "placement": {
+             *           "dcloud": {
+             *             "pricing": {
+             *               "web": {
+             *                 "denom": "uact",
+             *                 "amount": 1000
+             *               }
+             *             }
+             *           }
+             *         }
+             *       },
+             *       "deployment": {
+             *         "web": {
+             *           "dcloud": {
+             *             "profile": "web",
+             *             "count": 1
+             *           }
+             *         }
+             *       }
+             *     }
+             */
+            definition?: {
+              [key: string]: unknown;
+            };
             /** @description Creates a deployment without an SDL: the console writes the SDL of one service named `app` from these inputs and stores it, so the deployment reads, patches and redeploys like any other. Address the service as `app` in PATCH /v1/deployments/{dseq}. */
             service?: {
               /**
@@ -13649,7 +13715,7 @@ export interface operations {
         "application/json": {
           data: {
             /**
-             * @description The whole SDL the deployment should run from now on, as GET /v1/deployments/{dseq} returns it in `consoleSettings.sdl` or edited. Reference a secret as `NAME=ac-secret://NAME` in an env entry, or as `ac-secret://NAME` in a registry credential: a reference the request supplies no value for keeps the value the deployment stores, and a stored value no reference names any longer is dropped.
+             * @description The whole SDL the deployment should run from now on, as GET /v1/deployments/{dseq} returns it in `consoleSettings.sdl` or edited. Send it or `definition`, not both. Reference a secret as `NAME=ac-secret://NAME` in an env entry, or as `ac-secret://NAME` in a registry credential: a reference the request supplies no value for keeps the value the deployment stores, and a stored value no reference names any longer is dropped.
              * @example version: "2.0"
              *     services:
              *       web:
@@ -13662,7 +13728,7 @@ export interface operations {
              *             to:
              *               - global: true
              */
-            sdl: string;
+            sdl?: string;
             /** @description Renames the deployment. Omitting it keeps the name the deployment already carries. */
             name?: string;
             /** @description Compact JWE sealing a flat name-to-value map, bound to the SDL in this request, holding only the secrets this request sets. Omitted names keep the values the deployment stores. Its presence also says no env value it does not name is secret, as on create. */
@@ -13676,6 +13742,72 @@ export interface operations {
             secretEnv?: string[];
             /** @description Base64 manifest version this request expects to be current, as GET /v1/deployments/{dseq} returns it in `consoleSettings.manifestVersion`. Rejected with 409 if the deployment has moved on, unless it moved on to the version this very request produces, which makes a retry of it succeed. Omitting it still guards on the version the request read, as for a patch. */
             ifManifestVersion?: string;
+            /**
+             * @description The SDL as a JSON object, with the same fields an SDL document has (`version`, `services`, `profiles`, `deployment` and, where used, `endpoints`), as an alternative to the SDL text. Validated like the text, with each problem reported at its path. Reference a secret as `NAME=ac-secret://NAME` in an env entry. A `sealedSecrets` sent beside it is bound to the definition's compact JSON, `JSON.stringify(definition)` with its keys in the order sent.
+             * @example {
+             *       "version": "2.0",
+             *       "services": {
+             *         "web": {
+             *           "image": "nginx:1.27.2",
+             *           "env": [
+             *             "MODE=production",
+             *             "API_KEY=ac-secret://API_KEY"
+             *           ],
+             *           "expose": [
+             *             {
+             *               "port": 80,
+             *               "as": 80,
+             *               "to": [
+             *                 {
+             *                   "global": true
+             *                 }
+             *               ]
+             *             }
+             *           ]
+             *         }
+             *       },
+             *       "profiles": {
+             *         "compute": {
+             *           "web": {
+             *             "resources": {
+             *               "cpu": {
+             *                 "units": 0.5
+             *               },
+             *               "memory": {
+             *                 "size": "512Mi"
+             *               },
+             *               "storage": [
+             *                 {
+             *                   "size": "1Gi"
+             *                 }
+             *               ]
+             *             }
+             *           }
+             *         },
+             *         "placement": {
+             *           "dcloud": {
+             *             "pricing": {
+             *               "web": {
+             *                 "denom": "uact",
+             *                 "amount": 1000
+             *               }
+             *             }
+             *           }
+             *         }
+             *       },
+             *       "deployment": {
+             *         "web": {
+             *           "dcloud": {
+             *             "profile": "web",
+             *             "count": 1
+             *           }
+             *         }
+             *       }
+             *     }
+             */
+            definition?: {
+              [key: string]: unknown;
+            };
           };
         };
       };
@@ -13970,9 +14102,76 @@ export interface operations {
       content: {
         "application/json": {
           data: {
-            sdl: string;
             /** @description Compact JWE sealing a flat name-to-value map of the secrets this SDL references, encrypted to the console's public sealing key. Fetch that key and the claims to sign from GET /v1/sdl-secrets-context. Values are never returned by any endpoint once sealed. */
             sealedSecrets?: string;
+            /** @description SDL the deployment runs. Send it or `definition`, not both. */
+            sdl?: string;
+            /**
+             * @description The SDL as a JSON object, with the same fields an SDL document has (`version`, `services`, `profiles`, `deployment` and, where used, `endpoints`), as an alternative to the SDL text. Validated like the text, with each problem reported at its path. Reference a secret as `NAME=ac-secret://NAME` in an env entry. A `sealedSecrets` sent beside it is bound to the definition's compact JSON, `JSON.stringify(definition)` with its keys in the order sent.
+             * @example {
+             *       "version": "2.0",
+             *       "services": {
+             *         "web": {
+             *           "image": "nginx:1.27.2",
+             *           "env": [
+             *             "MODE=production",
+             *             "API_KEY=ac-secret://API_KEY"
+             *           ],
+             *           "expose": [
+             *             {
+             *               "port": 80,
+             *               "as": 80,
+             *               "to": [
+             *                 {
+             *                   "global": true
+             *                 }
+             *               ]
+             *             }
+             *           ]
+             *         }
+             *       },
+             *       "profiles": {
+             *         "compute": {
+             *           "web": {
+             *             "resources": {
+             *               "cpu": {
+             *                 "units": 0.5
+             *               },
+             *               "memory": {
+             *                 "size": "512Mi"
+             *               },
+             *               "storage": [
+             *                 {
+             *                   "size": "1Gi"
+             *                 }
+             *               ]
+             *             }
+             *           }
+             *         },
+             *         "placement": {
+             *           "dcloud": {
+             *             "pricing": {
+             *               "web": {
+             *                 "denom": "uact",
+             *                 "amount": 1000
+             *               }
+             *             }
+             *           }
+             *         }
+             *       },
+             *       "deployment": {
+             *         "web": {
+             *           "dcloud": {
+             *             "profile": "web",
+             *             "count": 1
+             *           }
+             *         }
+             *       }
+             *     }
+             */
+            definition?: {
+              [key: string]: unknown;
+            };
           };
         };
       };

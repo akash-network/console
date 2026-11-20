@@ -8600,7 +8600,7 @@
                       "sdl": {
                         "type": "string",
                         "maxLength": 524288,
-                        "description": "SDL to deploy. Send exactly one of `sdl`, `service`, or `templateId` without `sdl`."
+                        "description": "SDL to deploy. Send exactly one of `sdl`, `definition`, `service`, or `templateId` on its own."
                       },
                       "name": {
                         "type": "string",
@@ -8656,6 +8656,73 @@
                         "type": "string",
                         "format": "uuid",
                         "description": "ID of the template version the SDL came from. Readers of the template may name its current version and its editors any version. Cannot be combined with `templateId`."
+                      },
+                      "definition": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "nullable": true
+                        },
+                        "description": "The SDL as a JSON object, with the same fields an SDL document has (`version`, `services`, `profiles`, `deployment` and, where used, `endpoints`), as an alternative to the SDL text. Validated like the text, with each problem reported at its path. Reference a secret as `NAME=ac-secret://NAME` in an env entry. A `sealedSecrets` sent beside it is bound to the definition's compact JSON, `JSON.stringify(definition)` with its keys in the order sent.",
+                        "example": {
+                          "version": "2.0",
+                          "services": {
+                            "web": {
+                              "image": "nginx:1.27.2",
+                              "env": [
+                                "MODE=production",
+                                "API_KEY=ac-secret://API_KEY"
+                              ],
+                              "expose": [
+                                {
+                                  "port": 80,
+                                  "as": 80,
+                                  "to": [
+                                    {
+                                      "global": true
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          },
+                          "profiles": {
+                            "compute": {
+                              "web": {
+                                "resources": {
+                                  "cpu": {
+                                    "units": 0.5
+                                  },
+                                  "memory": {
+                                    "size": "512Mi"
+                                  },
+                                  "storage": [
+                                    {
+                                      "size": "1Gi"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "placement": {
+                              "dcloud": {
+                                "pricing": {
+                                  "web": {
+                                    "denom": "uact",
+                                    "amount": 1000
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "deployment": {
+                            "web": {
+                              "dcloud": {
+                                "profile": "web",
+                                "count": 1
+                              }
+                            }
+                          }
+                        }
                       },
                       "service": {
                         "type": "object",
@@ -10859,19 +10926,84 @@
                   "data": {
                     "type": "object",
                     "properties": {
-                      "sdl": {
-                        "type": "string",
-                        "maxLength": 524288
-                      },
                       "sealedSecrets": {
                         "type": "string",
                         "minLength": 1,
                         "description": "Compact JWE sealing a flat name-to-value map of the secrets this SDL references, encrypted to the console's public sealing key. Fetch that key and the claims to sign from GET /v1/sdl-secrets-context. Values are never returned by any endpoint once sealed."
+                      },
+                      "sdl": {
+                        "type": "string",
+                        "maxLength": 524288,
+                        "description": "SDL the deployment runs. Send it or `definition`, not both."
+                      },
+                      "definition": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "nullable": true
+                        },
+                        "description": "The SDL as a JSON object, with the same fields an SDL document has (`version`, `services`, `profiles`, `deployment` and, where used, `endpoints`), as an alternative to the SDL text. Validated like the text, with each problem reported at its path. Reference a secret as `NAME=ac-secret://NAME` in an env entry. A `sealedSecrets` sent beside it is bound to the definition's compact JSON, `JSON.stringify(definition)` with its keys in the order sent.",
+                        "example": {
+                          "version": "2.0",
+                          "services": {
+                            "web": {
+                              "image": "nginx:1.27.2",
+                              "env": [
+                                "MODE=production",
+                                "API_KEY=ac-secret://API_KEY"
+                              ],
+                              "expose": [
+                                {
+                                  "port": 80,
+                                  "as": 80,
+                                  "to": [
+                                    {
+                                      "global": true
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          },
+                          "profiles": {
+                            "compute": {
+                              "web": {
+                                "resources": {
+                                  "cpu": {
+                                    "units": 0.5
+                                  },
+                                  "memory": {
+                                    "size": "512Mi"
+                                  },
+                                  "storage": [
+                                    {
+                                      "size": "1Gi"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "placement": {
+                              "dcloud": {
+                                "pricing": {
+                                  "web": {
+                                    "denom": "uact",
+                                    "amount": 1000
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "deployment": {
+                            "web": {
+                              "dcloud": {
+                                "profile": "web",
+                                "count": 1
+                              }
+                            }
+                          }
+                        }
                       }
-                    },
-                    "required": [
-                      "sdl"
-                    ]
+                    }
                   }
                 },
                 "required": [
@@ -11155,7 +11287,7 @@
                       "sdl": {
                         "type": "string",
                         "maxLength": 524288,
-                        "description": "The whole SDL the deployment should run from now on, as GET /v1/deployments/{dseq} returns it in `consoleSettings.sdl` or edited. Reference a secret as `NAME=ac-secret://NAME` in an env entry, or as `ac-secret://NAME` in a registry credential: a reference the request supplies no value for keeps the value the deployment stores, and a stored value no reference names any longer is dropped.",
+                        "description": "The whole SDL the deployment should run from now on, as GET /v1/deployments/{dseq} returns it in `consoleSettings.sdl` or edited. Send it or `definition`, not both. Reference a secret as `NAME=ac-secret://NAME` in an env entry, or as `ac-secret://NAME` in a registry credential: a reference the request supplies no value for keeps the value the deployment stores, and a stored value no reference names any longer is dropped.",
                         "example": "version: \"2.0\"\nservices:\n  web:\n    image: nginx:1.27.2\n    env:\n      - MODE=production\n      - API_KEY=ac-secret://API_KEY\n    expose:\n      - port: 80\n        to:\n          - global: true\n"
                       },
                       "name": {
@@ -11185,11 +11317,75 @@
                         "minLength": 1,
                         "maxLength": 64,
                         "description": "Base64 manifest version this request expects to be current, as GET /v1/deployments/{dseq} returns it in `consoleSettings.manifestVersion`. Rejected with 409 if the deployment has moved on, unless it moved on to the version this very request produces, which makes a retry of it succeed. Omitting it still guards on the version the request read, as for a patch."
+                      },
+                      "definition": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "nullable": true
+                        },
+                        "description": "The SDL as a JSON object, with the same fields an SDL document has (`version`, `services`, `profiles`, `deployment` and, where used, `endpoints`), as an alternative to the SDL text. Validated like the text, with each problem reported at its path. Reference a secret as `NAME=ac-secret://NAME` in an env entry. A `sealedSecrets` sent beside it is bound to the definition's compact JSON, `JSON.stringify(definition)` with its keys in the order sent.",
+                        "example": {
+                          "version": "2.0",
+                          "services": {
+                            "web": {
+                              "image": "nginx:1.27.2",
+                              "env": [
+                                "MODE=production",
+                                "API_KEY=ac-secret://API_KEY"
+                              ],
+                              "expose": [
+                                {
+                                  "port": 80,
+                                  "as": 80,
+                                  "to": [
+                                    {
+                                      "global": true
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          },
+                          "profiles": {
+                            "compute": {
+                              "web": {
+                                "resources": {
+                                  "cpu": {
+                                    "units": 0.5
+                                  },
+                                  "memory": {
+                                    "size": "512Mi"
+                                  },
+                                  "storage": [
+                                    {
+                                      "size": "1Gi"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "placement": {
+                              "dcloud": {
+                                "pricing": {
+                                  "web": {
+                                    "denom": "uact",
+                                    "amount": 1000
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "deployment": {
+                            "web": {
+                              "dcloud": {
+                                "profile": "web",
+                                "count": 1
+                              }
+                            }
+                          }
+                        }
                       }
-                    },
-                    "required": [
-                      "sdl"
-                    ]
+                    }
                   }
                 },
                 "required": [
