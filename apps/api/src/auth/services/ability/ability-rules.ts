@@ -167,6 +167,12 @@ function userKeyedRules(user: RuleUser): AbilityRule[] {
     { action: "read", subject: "User", conditions: { id: user.id } },
     { action: "read", subject: "LeaseGpu", conditions: { userId: user.id } },
     { action: ["create", "read"], subject: "HardwareRequest", conditions: { userId: user.id } },
+    {
+      action: ["create", "read", "update"],
+      subject: "GpuWaitlistEntry",
+      conditions: { userId: user.id },
+      enabledIf: FeatureFlags.GPU_AVAILABILITY_ALERTS
+    },
     { action: ["read", "update"], subject: "Activity", conditions: { userId: user.id } },
     { action: "manage", subject: "FavoriteProvider", conditions: { userId: user.id } },
     { action: "manage", subject: "ConfigureDraft", conditions: { userId: user.id } },

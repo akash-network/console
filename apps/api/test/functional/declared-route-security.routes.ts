@@ -131,4 +131,4 @@ export const ROUTES_CHECKING_SIGN_IN_IN_HANDLER = [
   "POST /v1/alerts"
 ];
 
-export const MIDDLEWARE_ONLY_REGISTRATIONS = ["ALL /*", "ALL /dashboard/*", "ALL /internal/financial"];
+export const MIDDLEWARE_ONLY_REGISTRATIONS = ["ALL /*", "ALL /dashboard/*", "ALL /internal/financial", "ALL /v1/gpu-waitlist/*"];

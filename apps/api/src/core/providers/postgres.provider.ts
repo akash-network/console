@@ -15,6 +15,7 @@ import { APP_INITIALIZER, ON_APP_START } from "@src/core/providers/app-initializ
 import * as deploymentSchemas from "@src/deployment/model-schemas";
 import * as feedbackSchemas from "@src/feedback/model-schemas";
 import * as gpuSchemas from "@src/gpu/model-schemas";
+import * as gpuWaitlistSchemas from "@src/gpu-waitlist/model-schemas";
 import * as hardwareRequestSchemas from "@src/hardware-request/model-schemas";
 import * as organizationSchemas from "@src/organization/model-schemas";
 import * as secretSchemas from "@src/secret/model-schemas";
@@ -71,6 +72,7 @@ const schema = {
   ...feedbackSchemas,
   ...affiliateSchemas,
   ...gpuSchemas,
+  ...gpuWaitlistSchemas,
   ...templateMarketplaceSchemas
 };
 const getDrizzleOptions = (config: Pick<CoreConfig, "SQL_LOG_FORMAT">) => ({

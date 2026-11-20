@@ -13,6 +13,7 @@ export const UNSCOPED_REASONS = [
   "gpu-request-account-standing",
   "gpu-request-broker",
   "gpu-request-claim",
+  "gpu-waitlist-watcher",
   "gpu-win-back-catch-up",
   "invitation-by-token",
   "invitation-by-verified-email",

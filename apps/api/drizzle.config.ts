@@ -22,6 +22,7 @@ export default defineConfig({
     "feedback",
     "affiliate",
     "gpu",
+    "gpu-waitlist",
     "template-marketplace"
   ].map(schema => `./src/${schema}/model-schemas`),
   out: "./drizzle",

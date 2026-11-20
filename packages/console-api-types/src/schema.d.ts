@@ -7384,6 +7384,44 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/gpu-waitlist": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List the GPU setups the caller is waiting for, newest first */
+    get: operations["listGpuWaitlist"];
+    put?: never;
+    /**
+     * Wait for a GPU setup that has no bids right now
+     * @description Joining the same setup again updates the GPU count and keeps the place in line. Waiting does not hold capacity: the first to deploy gets it.
+     */
+    post: operations["joinGpuWaitlist"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/gpu-waitlist/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Stop waiting for a GPU setup */
+    delete: operations["leaveGpuWaitlist"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/notification-address-confirmations": {
     parameters: {
       query?: never;
@@ -15593,6 +15631,183 @@ export interface operations {
       };
       /** @description The caller can accept the offer, the offer is not open or has expired, or the request is already settled */
       409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  listGpuWaitlist: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The caller's waiting entries */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              vendor: string;
+              model: string;
+              memory: string | null;
+              interface: string | null;
+              gpuCount: number;
+              /** @enum {string} */
+              source: "gpu_menu" | "no_fit" | "no_bids";
+              /** @enum {string} */
+              status: "waiting" | "fulfilled" | "left" | "expired";
+              placeInLine: number;
+              /** Format: date-time */
+              joinedAt: string;
+              /** Format: date-time */
+              lastNotifiedAt: string | null;
+            }[];
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  joinGpuWaitlist: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data: {
+            /** @enum {string} */
+            vendor: "nvidia";
+            model: string;
+            memory?: string;
+            interface?: string;
+            gpuCount: number;
+            /** @enum {string} */
+            source: "gpu_menu" | "no_fit" | "no_bids";
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description The waitlist entry with its place in line */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              vendor: string;
+              model: string;
+              memory: string | null;
+              interface: string | null;
+              gpuCount: number;
+              /** @enum {string} */
+              source: "gpu_menu" | "no_fit" | "no_bids";
+              /** @enum {string} */
+              status: "waiting" | "fulfilled" | "left" | "expired";
+              placeInLine: number;
+              /** Format: date-time */
+              joinedAt: string;
+              /** Format: date-time */
+              lastNotifiedAt: string | null;
+            };
+          };
+        };
+      };
+      /** @description Invalid request body */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The user is already waiting for the maximum number of GPU setups */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Too many waitlists joined recently */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  leaveGpuWaitlist: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The caller left the waitlist */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller is not waiting with this id */
+      404: {
         headers: {
           [name: string]: unknown;
         };

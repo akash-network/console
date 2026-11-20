@@ -44,6 +44,7 @@ import { getSDLSecretsContextRouter } from "@src/deployment/routes/get-sdl-secre
 import { leasesRouter } from "@src/deployment/routes/leases/leases.router";
 import { assistantConversationRouter, assistantPrivacyRouter, feedbackRouter } from "@src/feedback";
 import { gpuRouter } from "@src/gpu";
+import { gpuWaitlistRouter } from "@src/gpu-waitlist";
 import { hardwareRequestRouter } from "@src/hardware-request";
 import { notificationAddressConfirmationsRouter } from "@src/notifications/routes/notification-address-confirmations/notification-address-confirmations.router";
 import {
@@ -152,6 +153,7 @@ export const openApiHonoHandlers: OpenApiHonoHandler[] = [
   placementOptionsRouter,
   attestationRouter,
   hardwareRequestRouter,
+  gpuWaitlistRouter,
   notificationAddressConfirmationsRouter,
   activityRouter,
   favoriteProvidersRouter,

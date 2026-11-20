@@ -90,11 +90,12 @@ export default [
                 "withdraw",
                 "request",
                 "approve",
-                "revoke"
+                "revoke",
+                "join"
               ]
             },
             patch: { single: ["patch"] },
-            delete: { single: ["close"] }
+            delete: { single: ["close", "leave"] }
           }
         }
       ]
