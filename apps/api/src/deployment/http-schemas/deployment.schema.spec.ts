@@ -9,10 +9,13 @@ import {
   ListDeploymentsQuerySchema,
   ListWithResourcesParamsSchema,
   PatchDeploymentRequestSchema,
+  ReplaceDeploymentDefinitionRequestSchema,
   UpdateDeploymentRequestSchema
 } from "./deployment.schema";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+
+const DEFINITION = { version: "2.0", services: { web: { image: "nginx" } }, profiles: {}, deployment: {} };
 
 describe("UpdateDeploymentRequestSchema", () => {
   it("accepts an sdl up to the largest submittable length", () => {
@@ -52,6 +55,22 @@ describe("CreateDeploymentRequestSchema", () => {
       expect(parse({ templateId: "nginx" }).success).toBe(true);
     });
 
+    it("accepts a definition in place of an sdl, keeping its keys in the order they were sent", () => {
+      const definition = { version: "2.0", deployment: {}, services: {}, profiles: {} };
+
+      expect(Object.keys(parse({ sdl: undefined, definition }).data?.data.definition ?? {})).toEqual(["version", "deployment", "services", "profiles"]);
+    });
+
+    it("accepts a definition beside the template it came from", () => {
+      expect(parse({ sdl: undefined, definition: DEFINITION, templateId: "nginx" }).success).toBe(true);
+    });
+
+    it("refuses a definition longer than the largest submittable length once serialized", () => {
+      const definition = { version: "2.0", padding: "d".repeat(MAX_SUBMITTED_SDL_LENGTH) };
+
+      expect(parse({ sdl: undefined, definition }).success).toBe(false);
+    });
+
     it("accepts a service in place of an sdl", () => {
       expect(parse({ sdl: undefined, service }).data?.data.service).toEqual(service);
     });
@@ -62,8 +81,8 @@ describe("CreateDeploymentRequestSchema", () => {
     });
 
     it.each([
-      ["nothing to deploy", { sdl: undefined }, "Send one of sdl, service or templateId"],
-      ["only a template version", { sdl: undefined, templateVersionId: "0f2d8a52-62f2-4c8f-8f0b-3f1f0c9d2a11" }, "Send one of sdl, service or templateId"],
+      ["nothing to deploy", { sdl: undefined }, "Send one of sdl, definition, service or templateId"],
+      ["only a template version", { sdl: undefined, templateVersionId: "0f2d8a52-62f2-4c8f-8f0b-3f1f0c9d2a11" }, "Send one of sdl, definition, service or templateId"],
       ["an sdl beside a service", { service }, "Send either sdl or service, not both"],
       ["an empty sdl beside a service", { sdl: "", service }, "Send either sdl or service, not both"],
       ["a service beside a template", { sdl: undefined, service, templateId: "nginx" }, "service cannot be combined with templateId or templateVersionId"],
@@ -72,8 +91,15 @@ describe("CreateDeploymentRequestSchema", () => {
         { sdl: undefined, service, templateVersionId: "0f2d8a52-62f2-4c8f-8f0b-3f1f0c9d2a11" },
         "service cannot be combined with templateId or templateVersionId"
       ],
-      ["overrides beside an sdl", { templateId: "nginx", overrides }, "overrides apply only to a deployment created from templateId without sdl"],
-      ["overrides without a template", { sdl: undefined, overrides }, "overrides apply only to a deployment created from templateId without sdl"]
+      ["overrides beside an sdl", { templateId: "nginx", overrides }, "overrides apply only to a deployment created from templateId without sdl or definition"],
+      ["overrides without a template", { sdl: undefined, overrides }, "overrides apply only to a deployment created from templateId without sdl or definition"],
+      ["a definition beside an sdl", { definition: DEFINITION }, "Send definition on its own, without sdl or service"],
+      ["a definition beside a service", { sdl: undefined, definition: DEFINITION, service }, "Send definition on its own, without sdl or service"],
+      [
+        "overrides beside a definition",
+        { sdl: undefined, definition: DEFINITION, templateId: "nginx", overrides },
+        "overrides apply only to a deployment created from templateId without sdl or definition"
+      ]
     ])("refuses %s", (_, rest, message) => {
       const result = parse(rest);
 
@@ -200,9 +226,42 @@ describe("CreateDeploymentRequestSchema", () => {
 });
 
 describe("CreateDeploymentDefinitionRequestSchema", () => {
-  it("still requires the sdl a definition is recorded from", () => {
+  it("requires the document a definition is recorded from, as sdl or as definition", () => {
     expect(CreateDeploymentDefinitionRequestSchema.safeParse({ data: {} }).success).toBe(false);
     expect(CreateDeploymentDefinitionRequestSchema.safeParse({ data: { sdl: "version: '2.0'" } }).success).toBe(true);
+    expect(CreateDeploymentDefinitionRequestSchema.safeParse({ data: { definition: DEFINITION } }).success).toBe(true);
+  });
+
+  it("refuses both spellings at once", () => {
+    const result = CreateDeploymentDefinitionRequestSchema.safeParse({ data: { sdl: "version: '2.0'", definition: DEFINITION } });
+
+    expect((result as { error: { issues: unknown[] } }).error.issues).toContainEqual(
+      expect.objectContaining({ message: "Send either sdl or definition, exactly one of them", path: ["data"] })
+    );
+  });
+});
+
+describe("ReplaceDeploymentDefinitionRequestSchema", () => {
+  it("accepts the document as sdl or as definition", () => {
+    expect(ReplaceDeploymentDefinitionRequestSchema.safeParse({ data: { sdl: "version: '2.0'" } }).success).toBe(true);
+    expect(ReplaceDeploymentDefinitionRequestSchema.safeParse({ data: { definition: DEFINITION, secretEnv: [] } }).success).toBe(true);
+  });
+
+  it.each([
+    ["neither", {}],
+    ["both", { sdl: "version: '2.0'", definition: DEFINITION }]
+  ])("refuses %s", (_, data) => {
+    const result = ReplaceDeploymentDefinitionRequestSchema.safeParse({ data });
+
+    expect((result as { error: { issues: unknown[] } }).error.issues).toContainEqual(
+      expect.objectContaining({ message: "Send either sdl or definition, exactly one of them", path: ["data"] })
+    );
+  });
+
+  it("refuses a definition naming __proto__ rather than dropping it", () => {
+    const result = ReplaceDeploymentDefinitionRequestSchema.safeParse({ data: { definition: JSON.parse('{"__proto__": {}, "version": "2.0"}') } });
+
+    expect(result.success).toBe(false);
   });
 });
 

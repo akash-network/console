@@ -223,6 +223,39 @@ const DeploymentNameSchema = z.string().trim().min(1).max(MAX_DEPLOYMENT_NAME_LE
 
 const SubmittedSdlSchema = z.string().max(MAX_SUBMITTED_SDL_LENGTH);
 
+/** A record rather than an object schema, so the keys keep the order they were sent in and the compact JSON a seal is bound to is the one the caller serialized. */
+const SdlDefinitionSchema = z
+  .record(RecordKeySchema, z.unknown())
+  .refine(definition => JSON.stringify(definition).length <= MAX_SUBMITTED_SDL_LENGTH, {
+    message: `The definition must not exceed ${MAX_SUBMITTED_SDL_LENGTH} characters once serialized as compact JSON`
+  })
+  .openapi({
+    description:
+      "The SDL as a JSON object, with the same fields an SDL document has (`version`, `services`, `profiles`, `deployment` and, where used, `endpoints`), as an alternative to the SDL text. Validated like the text, with each problem reported at its path. Reference a secret as `NAME=ac-secret://NAME` in an env entry. A `sealedSecrets` sent beside it is bound to the definition's compact JSON, `JSON.stringify(definition)` with its keys in the order sent.",
+    example: {
+      version: "2.0",
+      services: {
+        web: {
+          image: "nginx:1.27.2",
+          env: ["MODE=production", "API_KEY=ac-secret://API_KEY"],
+          expose: [{ port: 80, as: 80, to: [{ global: true }] }]
+        }
+      },
+      profiles: {
+        compute: { web: { resources: { cpu: { units: 0.5 }, memory: { size: "512Mi" }, storage: [{ size: "1Gi" }] } } },
+        placement: { dcloud: { pricing: { web: { denom: "uact", amount: 1000 } } } }
+      },
+      deployment: { web: { dcloud: { profile: "web", count: 1 } } }
+    }
+  });
+
+/** Exactly one of the two spellings of a document, so a request carrying both is refused rather than one of them silently ignored. */
+function namesOneDocument(data: { sdl?: string; definition?: Record<string, unknown> }): boolean {
+  return (data.sdl === undefined) !== (data.definition === undefined);
+}
+
+const ONE_DOCUMENT = { message: "Send either sdl or definition, exactly one of them" };
+
 const CreateDeploymentFieldsSchema = z.object({
   sdl: SubmittedSdlSchema,
   name: DeploymentNameSchema.optional().openapi({
@@ -561,14 +594,24 @@ export const CreateDeploymentServiceSchema = z.object({
     .openapi({ description: "Environment variables, keyed by name. `secretEnv` says which values are secret, as it does for an SDL." })
 });
 
-type CreateDeploymentSource = { sdl?: string; service?: object; overrides?: object; templateId?: string; templateVersionId?: string };
+type CreateDeploymentSource = {
+  sdl?: string;
+  definition?: object;
+  service?: object;
+  overrides?: object;
+  templateId?: string;
+  templateVersionId?: string;
+};
 
-/** One of `sdl`, `service` and a `templateId` sent on its own says what to deploy, so a request naming two or none is refused rather than guessed at. */
+/** One of `sdl`, `definition`, `service` and a `templateId` sent on its own says what to deploy, so a request naming two or none is refused rather than guessed at. */
 function sourceRefusalOf(data: CreateDeploymentSource): string | undefined {
+  const hasDocument = data.sdl !== undefined || data.definition !== undefined;
+
+  if (data.definition !== undefined && (data.sdl !== undefined || data.service)) return "Send definition on its own, without sdl or service";
   if (data.service && data.sdl !== undefined) return "Send either sdl or service, not both";
   if (data.service && (data.templateId || data.templateVersionId)) return "service cannot be combined with templateId or templateVersionId";
-  if (data.overrides && (data.sdl !== undefined || !data.templateId)) return "overrides apply only to a deployment created from templateId without sdl";
-  if (data.sdl === undefined && !data.service && !data.templateId) return "Send one of sdl, service or templateId";
+  if (data.overrides && (hasDocument || !data.templateId)) return "overrides apply only to a deployment created from templateId without sdl or definition";
+  if (!hasDocument && !data.service && !data.templateId) return "Send one of sdl, definition, service or templateId";
 
   return undefined;
 }
@@ -576,8 +619,9 @@ function sourceRefusalOf(data: CreateDeploymentSource): string | undefined {
 export const CreateDeploymentRequestSchema = z.object({
   data: CreateDeploymentFieldsSchema.extend({
     sdl: SubmittedSdlSchema.optional().openapi({
-      description: "SDL to deploy. Send exactly one of `sdl`, `service`, or `templateId` without `sdl`."
+      description: "SDL to deploy. Send exactly one of `sdl`, `definition`, `service`, or `templateId` on its own."
     }),
+    definition: SdlDefinitionSchema.optional(),
     service: CreateDeploymentServiceSchema.optional().openapi({
       description: `Creates a deployment without an SDL: the console writes the SDL of one service named \`${GENERATED_SERVICE_NAME}\` from these inputs and stores it, so the deployment reads, patches and redeploys like any other. Address the service as \`${GENERATED_SERVICE_NAME}\` in PATCH /v1/deployments/{dseq}.`
     }),
@@ -673,30 +717,33 @@ export const ReplaceDeploymentDefinitionParamsSchema = z.object({
 });
 
 export const ReplaceDeploymentDefinitionRequestSchema = z.object({
-  data: z.object({
-    sdl: SubmittedSdlSchema.openapi({
-      description:
-        "The whole SDL the deployment should run from now on, as GET /v1/deployments/{dseq} returns it in `consoleSettings.sdl` or edited. Reference a secret as `NAME=ac-secret://NAME` in an env entry, or as `ac-secret://NAME` in a registry credential: a reference the request supplies no value for keeps the value the deployment stores, and a stored value no reference names any longer is dropped.",
-      example:
-        'version: "2.0"\nservices:\n  web:\n    image: nginx:1.27.2\n    env:\n      - MODE=production\n      - API_KEY=ac-secret://API_KEY\n    expose:\n      - port: 80\n        to:\n          - global: true\n'
-    }),
-    name: DeploymentNameSchema.optional().openapi({
-      description: "Renames the deployment. Omitting it keeps the name the deployment already carries."
-    }),
-    sealedSecrets: SealedSecretsSchema.optional().openapi({
-      description:
-        "Compact JWE sealing a flat name-to-value map, bound to the SDL in this request, holding only the secrets this request sets. Omitted names keep the values the deployment stores. Its presence also says no env value it does not name is secret, as on create."
-    }),
-    secretEnv: SecretEnvSchema.optional().openapi({
-      description:
-        "Names of the environment variables whose values are secret, in every service the SDL declares. The console seals each named value, which no endpoint returns afterwards, and stores every other value the request adds or changes as submitted. An empty list keeps every added or changed value readable. Omit it and the console seals every value the request adds or changes, unless the request carries `sealedSecrets`. A value left as the deployment stores it keeps what it holds either way. Needs no client-side encryption.",
-      example: ["API_KEY"]
-    }),
-    ifManifestVersion: z.string().min(1).max(MAX_MANIFEST_VERSION_LENGTH).optional().openapi({
-      description:
-        "Base64 manifest version this request expects to be current, as GET /v1/deployments/{dseq} returns it in `consoleSettings.manifestVersion`. Rejected with 409 if the deployment has moved on, unless it moved on to the version this very request produces, which makes a retry of it succeed. Omitting it still guards on the version the request read, as for a patch."
+  data: z
+    .object({
+      sdl: SubmittedSdlSchema.optional().openapi({
+        description:
+          "The whole SDL the deployment should run from now on, as GET /v1/deployments/{dseq} returns it in `consoleSettings.sdl` or edited. Send it or `definition`, not both. Reference a secret as `NAME=ac-secret://NAME` in an env entry, or as `ac-secret://NAME` in a registry credential: a reference the request supplies no value for keeps the value the deployment stores, and a stored value no reference names any longer is dropped.",
+        example:
+          'version: "2.0"\nservices:\n  web:\n    image: nginx:1.27.2\n    env:\n      - MODE=production\n      - API_KEY=ac-secret://API_KEY\n    expose:\n      - port: 80\n        to:\n          - global: true\n'
+      }),
+      name: DeploymentNameSchema.optional().openapi({
+        description: "Renames the deployment. Omitting it keeps the name the deployment already carries."
+      }),
+      sealedSecrets: SealedSecretsSchema.optional().openapi({
+        description:
+          "Compact JWE sealing a flat name-to-value map, bound to the SDL in this request, holding only the secrets this request sets. Omitted names keep the values the deployment stores. Its presence also says no env value it does not name is secret, as on create."
+      }),
+      secretEnv: SecretEnvSchema.optional().openapi({
+        description:
+          "Names of the environment variables whose values are secret, in every service the SDL declares. The console seals each named value, which no endpoint returns afterwards, and stores every other value the request adds or changes as submitted. An empty list keeps every added or changed value readable. Omit it and the console seals every value the request adds or changes, unless the request carries `sealedSecrets`. A value left as the deployment stores it keeps what it holds either way. Needs no client-side encryption.",
+        example: ["API_KEY"]
+      }),
+      ifManifestVersion: z.string().min(1).max(MAX_MANIFEST_VERSION_LENGTH).optional().openapi({
+        description:
+          "Base64 manifest version this request expects to be current, as GET /v1/deployments/{dseq} returns it in `consoleSettings.manifestVersion`. Rejected with 409 if the deployment has moved on, unless it moved on to the version this very request produces, which makes a retry of it succeed. Omitting it still guards on the version the request read, as for a patch."
+      }),
+      definition: SdlDefinitionSchema.optional()
     })
-  })
+    .refine(namesOneDocument, ONE_DOCUMENT)
 });
 
 export const ReplaceDeploymentDefinitionQuerySchema = z.object({
@@ -732,7 +779,12 @@ export const CreateDeploymentDefinitionParamsSchema = z.object({
 });
 
 export const CreateDeploymentDefinitionRequestSchema = z.object({
-  data: CreateDeploymentFieldsSchema.pick({ sdl: true, sealedSecrets: true })
+  data: CreateDeploymentFieldsSchema.pick({ sealedSecrets: true })
+    .extend({
+      sdl: SubmittedSdlSchema.optional().openapi({ description: "SDL the deployment runs. Send it or `definition`, not both." }),
+      definition: SdlDefinitionSchema.optional()
+    })
+    .refine(namesOneDocument, ONE_DOCUMENT)
 });
 
 export const CreateDeploymentDefinitionResponseSchema = z.object({
@@ -968,7 +1020,7 @@ export type GetDeploymentResponse = z.infer<typeof GetDeploymentResponseSchema>;
 export type CreateDeploymentRequest = z.infer<typeof CreateDeploymentRequestSchema>;
 export type CreateDeploymentService = z.infer<typeof CreateDeploymentServiceSchema>;
 /** A create once its source has been turned into the SDL it deploys, which is the only form the rest of a create knows. */
-export type CreateDeploymentInput = Omit<CreateDeploymentRequest["data"], "sdl" | "service" | "overrides"> & { sdl: string };
+export type CreateDeploymentInput = Omit<CreateDeploymentRequest["data"], "sdl" | "definition" | "service" | "overrides"> & { sdl: string };
 export type CreateDeploymentResponse = z.infer<typeof CreateDeploymentResponseSchema>;
 export type CreateDeploymentQuery = z.infer<typeof CreateDeploymentQuerySchema>;
 export type CreateDeploymentAcceptedResponse = z.infer<typeof CreateDeploymentAcceptedResponseSchema>;
@@ -984,10 +1036,13 @@ export type PatchDeploymentResponse = z.infer<typeof PatchDeploymentResponseSche
 export type PatchDeploymentQuery = z.infer<typeof PatchDeploymentQuerySchema>;
 export type PatchDeploymentAcceptedResponse = z.infer<typeof PatchDeploymentAcceptedResponseSchema>;
 export type ReplaceDeploymentDefinitionRequest = z.infer<typeof ReplaceDeploymentDefinitionRequestSchema>;
+/** A replacement once its document is spelled as SDL text, which is the only form the writer knows. */
+export type ReplaceDeploymentDefinitionInput = Omit<ReplaceDeploymentDefinitionRequest["data"], "sdl" | "definition"> & { sdl: string };
 export type ReplaceDeploymentDefinitionQuery = z.infer<typeof ReplaceDeploymentDefinitionQuerySchema>;
 export type ReplaceDeploymentDefinitionResponse = z.infer<typeof ReplaceDeploymentDefinitionResponseSchema>;
 export type ReplaceDeploymentDefinitionAcceptedResponse = z.infer<typeof ReplaceDeploymentDefinitionAcceptedResponseSchema>;
 export type CreateDeploymentDefinitionRequest = z.infer<typeof CreateDeploymentDefinitionRequestSchema>;
+export type CreateDeploymentDefinitionInput = Omit<CreateDeploymentDefinitionRequest["data"], "sdl" | "definition"> & { sdl: string };
 export type CreateDeploymentDefinitionResponse = z.infer<typeof CreateDeploymentDefinitionResponseSchema>;
 export type UpdateDeploymentResponse = z.infer<typeof UpdateDeploymentResponseSchema>;
 export type ListWithResourcesParams = z.infer<typeof ListWithResourcesParamsSchema>;

@@ -58,6 +58,17 @@ describe(DeploymentSdlSourceService.name, () => {
       expect(templateGalleryService.getTemplateById).not.toHaveBeenCalled();
     });
 
+    it("answers a definition as its compact JSON, which reads as the same document, without reading the gallery", async () => {
+      const { service, templateGalleryService } = setup();
+      const definition = load(TEMPLATE_SDL) as Record<string, unknown>;
+
+      const sdl = await service.resolve({ definition, templateId: "nginx" });
+
+      expect(sdl).toBe(JSON.stringify(definition));
+      expect(load(sdl)).toEqual(definition);
+      expect(templateGalleryService.getTemplateById).not.toHaveBeenCalled();
+    });
+
     it("writes the SDL of one service from simple inputs", async () => {
       const { service, templateGalleryService } = setup();
 
