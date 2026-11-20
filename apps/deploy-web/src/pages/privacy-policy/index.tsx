@@ -91,10 +91,10 @@ export function PrivacyPolicy() {
         <p>We use these AI services to process this data:</p>
         <ul className="list-disc py-4 pl-8">
           <li>
-            AkashML, Akash&apos;s own AI inference service, runs the assistant, checks each message for misuse, and sorts feedback and saved conversations into
-            topics. Repeated misuse pauses the assistant for your account until the end of the day (UTC).
+            AkashML, Akash&apos;s own AI inference service, runs the assistant, checks each message for misuse, and sorts feedback, problem reports and saved
+            conversations into topics. Repeated misuse pauses the assistant for your account until the end of the day (UTC).
           </li>
-          <li>TypeSafe may also be used to sort feedback and saved conversations into topics.</li>
+          <li>TypeSafe may also be used to sort feedback, problem reports and saved conversations into topics.</li>
         </ul>
         <p>
           Before anything is sent to these services or stored, we remove the secrets we recognize in environment variables and SDL, such as passwords, tokens
