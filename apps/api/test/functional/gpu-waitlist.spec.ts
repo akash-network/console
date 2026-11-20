@@ -107,7 +107,10 @@ describe("GPU waitlist", () => {
       { case: "zero GPUs", override: { gpuCount: 0 } },
       { case: "more GPUs than the chain accepts in one group", override: { gpuCount: 25 } },
       { case: "an unknown source", override: { source: "email" } },
-      { case: "a blank model", override: { model: "  " } }
+      { case: "a blank model", override: { model: "  " } },
+      { case: "a model with a slash", override: { model: "a/b" } },
+      { case: "a memory of a wildcard", override: { memory: "*" } },
+      { case: "a model that grows when lowercased", override: { model: "\u0130".repeat(100) } }
     ])("rejects $case", async ({ override }) => {
       const { alice } = await setup();
 

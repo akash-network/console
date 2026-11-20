@@ -1,9 +1,10 @@
 import { z } from "@hono/zod-openapi";
 
+import { SDL_GPU_ATTRIBUTE_VALUE } from "@src/deployment/services/gpu-bids-creator/gpu-check-sdl";
 import { MAX_GPUS_PER_SETUP } from "@src/deployment/services/gpu-setup-check/gpu-setup-check.service";
 import { gpuWaitlistEntrySourceEnum, gpuWaitlistEntryStatusEnum, MAX_GPU_FIELD_LENGTH } from "@src/gpu-waitlist/model-schemas";
 
-const gpuField = z.string().trim().min(1).max(MAX_GPU_FIELD_LENGTH);
+const gpuField = z.string().trim().min(1).max(MAX_GPU_FIELD_LENGTH).regex(SDL_GPU_ATTRIBUTE_VALUE, "Use only letters, digits, dots, dashes and underscores");
 
 export const JoinGpuWaitlistRequestSchema = z.object({
   data: z.object({

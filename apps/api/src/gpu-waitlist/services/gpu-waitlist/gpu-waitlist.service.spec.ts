@@ -63,13 +63,24 @@ describe(GpuWaitlistService.name, () => {
     it("joining the same pool twice updates the gpu count and keeps the place in line", async () => {
       const existing = anEntry();
       const { service, repository } = setup({ existing });
-      repository.updateById.mockImplementation(vi.fn().mockResolvedValue({ ...existing, gpuCount: 4, source: "no_bids" }));
+      repository.updateBy.mockImplementation(vi.fn().mockResolvedValue({ ...existing, gpuCount: 4, source: "no_bids" }));
 
       const entry = await service.join(INPUT);
 
-      expect(repository.updateById).toHaveBeenCalledWith(existing.id, { gpuCount: 4, source: "no_bids" }, { returning: true });
+      expect(repository.updateBy).toHaveBeenCalledWith({ id: existing.id, status: "waiting" }, { gpuCount: 4, source: "no_bids" }, { returning: true });
       expect(repository.create).not.toHaveBeenCalled();
       expect(entry).toMatchObject({ id: existing.id, gpuCount: 4, joinedAt: existing.joinedAt });
+    });
+
+    it("files a new entry when the waiting entry was left before the refresh", async () => {
+      const existing = anEntry();
+      const { service, repository, user } = setup({ existing });
+      repository.updateBy.mockImplementation(vi.fn().mockResolvedValue(undefined));
+
+      const entry = await service.join(INPUT);
+
+      expect(repository.create).toHaveBeenCalledWith({ ...INPUT, userId: user.id, poolKey: "nvidia/h100/*/*" });
+      expect(entry.status).toBe("waiting");
     });
 
     it("refuses an 11th active entry", async () => {
@@ -82,11 +93,11 @@ describe(GpuWaitlistService.name, () => {
     it("lets a user at the cap refresh an entry they already hold", async () => {
       const existing = anEntry();
       const { service, repository } = setup({ waitingCount: 10, existing });
-      repository.updateById.mockImplementation(vi.fn().mockResolvedValue(existing));
+      repository.updateBy.mockImplementation(vi.fn().mockResolvedValue(existing));
 
       await service.join(INPUT);
 
-      expect(repository.updateById).toHaveBeenCalled();
+      expect(repository.updateBy).toHaveBeenCalled();
     });
 
     it("refuses joins past the hourly limit with Retry-After", async () => {
@@ -127,11 +138,11 @@ describe(GpuWaitlistService.name, () => {
       const existing = anEntry();
       const joinTimes = Array.from({ length: 10 }, (_, index) => minutesAgo(30 - index));
       const { service, repository } = setup({ existing, joinTimes });
-      repository.updateById.mockImplementation(vi.fn().mockResolvedValue(existing));
+      repository.updateBy.mockImplementation(vi.fn().mockResolvedValue(existing));
 
       await service.join(INPUT);
 
-      expect(repository.updateById).toHaveBeenCalled();
+      expect(repository.updateBy).toHaveBeenCalled();
     });
 
     it("locks the user row before looking for an existing entry or checking limits", async () => {

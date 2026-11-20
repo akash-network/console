@@ -47,7 +47,7 @@ export class GpuWaitlistService {
       await this.userRepository.findOneByAndLock({ id: userId }, { strength: "no key update" });
 
       const existing = await this.gpuWaitlistEntryRepository.accessibleBy(this.authService.ability, "read").findWaitingInPoolOf(poolKey);
-      const entry = existing ? await this.#refresh(existing, input) : await this.#enter(userId, poolKey, input);
+      const entry = (existing && (await this.#refreshWhileWaiting(existing, input))) || (await this.#enter(userId, poolKey, input));
 
       return await this.#withPlaceInLine(entry);
     });
@@ -69,12 +69,11 @@ export class GpuWaitlistService {
     }
   }
 
-  async #refresh(existing: GpuWaitlistEntryRow, input: JoinGpuWaitlistRequest["data"]): Promise<GpuWaitlistEntryRow> {
-    const refreshed = await this.gpuWaitlistEntryRepository
+  /** Leaving takes no user-row lock, so the entry read as waiting may have been left since. */
+  async #refreshWhileWaiting(existing: GpuWaitlistEntryRow, input: JoinGpuWaitlistRequest["data"]): Promise<GpuWaitlistEntryRow | undefined> {
+    return await this.gpuWaitlistEntryRepository
       .accessibleBy(this.authService.ability, "update")
-      .updateById(existing.id, { gpuCount: input.gpuCount, source: input.source }, { returning: true });
-
-    return refreshed;
+      .updateBy({ id: existing.id, status: "waiting" }, { gpuCount: input.gpuCount, source: input.source }, { returning: true });
   }
 
   async #enter(userId: string, poolKey: string, input: JoinGpuWaitlistRequest["data"]): Promise<GpuWaitlistEntryRow> {
