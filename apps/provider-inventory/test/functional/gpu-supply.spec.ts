@@ -62,6 +62,14 @@ describe("GET /v1/gpu-supply", () => {
     expect(response.status).toBe(400);
   });
 
+  it("rejects a request whose query has a malformed percent escape", async () => {
+    const { request } = await setup();
+
+    const response = await request("/v1/gpu-supply?vendor=%ZZ&model=h100");
+
+    expect(response.status).toBe(400);
+  });
+
   async function setup() {
     const app = new Hono<AppEnv>();
     app.route("/", gpuSupplyRouter);
