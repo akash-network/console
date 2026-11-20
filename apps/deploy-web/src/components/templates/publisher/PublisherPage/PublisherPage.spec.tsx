@@ -96,6 +96,7 @@ describe(PublisherPage.name, () => {
 
     expect(screen.queryByRole("list", { name: "Links" })).not.toBeInTheDocument();
     expect(screen.getByText("Member since Mar 2025")).toBeInTheDocument();
+    expect(screen.getByRole("banner").querySelectorAll("p")).toHaveLength(1);
   });
 
   it("renders markup in the name, the bio and the links as text", () => {
@@ -235,6 +236,47 @@ describe(PublisherPage.name, () => {
     rerender();
 
     expect(GalleryEntryList.mock.lastCall?.[0].entries).toBe(firstEntries);
+  });
+
+  it("follows a sort, a search and a list of templates that change while the page is open", () => {
+    const { rerender } = setup({});
+    expect(shownTitles()).toEqual(["Open WebUI + vLLM", "Llama.cpp CPU server", "Embeddings API"]);
+
+    rerender({ sort: "newest" });
+    expect(shownTitles()).toEqual(["Embeddings API", "Llama.cpp CPU server", "Open WebUI + vLLM"]);
+
+    rerender({ sort: "newest", search: "llama" });
+    expect(shownTitles()).toEqual(["Llama.cpp CPU server"]);
+
+    rerender({ sort: "newest", templates: [buildCommunityTemplateCard({ title: "Brand new" })] });
+    expect(shownTitles()).toEqual(["Brand new"]);
+  });
+
+  it("brings the community note back when a community template joins the Official ones", () => {
+    const { GalleryEntryList, rerender } = setup({ publisher: { templates: [buildCommunityTemplateCard({ isOfficial: true })] } });
+    expect(GalleryEntryList).toHaveBeenLastCalledWith(expect.objectContaining({ showsCommunityNote: false }), expect.anything());
+
+    rerender({ templates: [buildCommunityTemplateCard({ isOfficial: true }), buildCommunityTemplateCard({ isOfficial: false })] });
+
+    expect(GalleryEntryList).toHaveBeenLastCalledWith(expect.objectContaining({ showsCommunityNote: true, title: "2 templates · Popular" }), expect.anything());
+  });
+
+  it("writes the link of the publisher the page moved to", () => {
+    const { useTemplateGalleryUrlState, rerender } = setup({});
+
+    rerender({ handle: "northwind-labs" });
+
+    const toUrl = useTemplateGalleryUrlState.mock.lastCall?.[1] as NonNullable<Parameters<typeof DEPENDENCIES.useTemplateGalleryUrlState>[1]>;
+    expect(toUrl({ category: null, search: "", source: "all", sort: "newest" })).toBe("/template-publishers/northwind-labs?sort=newest");
+  });
+
+  it("treats a search of spaces as no search when wording the empty list", () => {
+    const { GalleryEntryList } = setup({ search: "   ", publisher: { templates: [] } });
+
+    expect(GalleryEntryList).toHaveBeenLastCalledWith(
+      expect.objectContaining({ emptyHint: "This publisher lists no templates right now." }),
+      expect.anything()
+    );
   });
 
   it("drops the community note when every template is Official", () => {
@@ -429,10 +471,11 @@ describe(PublisherPage.name, () => {
     return {
       ...view,
       user: userEvent.setup(),
-      rerender: (next: { sort?: GallerySort; search?: string } = {}) => {
+      rerender: (next: { sort?: GallerySort; search?: string; templates?: TemplatePublisherPage["templates"]; handle?: string } = {}) => {
         urlState.sort = next.sort ?? input.sort ?? "popular";
         urlState.search = next.search ?? input.search ?? "";
-        view.rerender(<PublisherPage handle="lambda-garage" dependencies={dependencies} />);
+        if (next.templates && publisherQuery.data) publisherQuery.data = { ...publisherQuery.data, templates: next.templates };
+        view.rerender(<PublisherPage handle={next.handle ?? "lambda-garage"} dependencies={dependencies} />);
       },
       refetch,
       urlState,

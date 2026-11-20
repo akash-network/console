@@ -97,12 +97,14 @@ describe("publisherProfileRules", () => {
       ["https://intranet.corp/", "The link must name a public website"],
       ["https://printer.local/", "The link must name a public website"],
       ["https://hidden.onion/", "The link must name a public website"],
+      ["https://lambdagarage/", "The link must name a public website"],
       ["https://lambdagarage.d/", "The link must name a public website"],
       ["https://lambdagarage.d3v/", "The link must name a public website"],
       ["https://lambda_garage.dev/", "The link must name a public website"],
       ["https://-lambdagarage.dev/", "The link must name a public website"],
       [`https://lambdagarage.dev/${"a".repeat(201 - "https://lambdagarage.dev/".length)}`, "The link is longer than 200 characters"],
-      [`https://lambdagarage.dev/${"é".repeat(60)}`, "The link is longer than 200 characters"]
+      [`https://lambdagarage.dev/${"é".repeat(60)}`, "The link is longer than 200 characters"],
+      [`https://lambdagarage.dev:443/${"a".repeat(201 - "https://lambdagarage.dev:443/".length)}`, "The link is longer than 200 characters"]
     ])("refuses %s", (url, issue) => {
       const issues = findPublisherProfileIssues({ bio: "", links: [{ url, label: "" }] });
 

@@ -39,6 +39,21 @@ describe(readPublisherProfileRefusal.name, () => {
     expect(readPublisherProfileRefusal(error)).toEqual({ kind: "invalid", issues: ["Something else"] });
   });
 
+  it("skips an issue whose message is not text and names a field by its name whatever follows it", () => {
+    const error = new ApiError(
+      400,
+      {
+        data: [
+          { path: ["data", "bio"], message: 42 },
+          { path: ["data", "bio", 0], message: "Unexpected" }
+        ]
+      },
+      "400"
+    );
+
+    expect(readPublisherProfileRefusal(error)).toEqual({ kind: "invalid", issues: ["Bio: Unexpected"] });
+  });
+
   it("leaves a field it does not know unnamed", () => {
     const error = new ApiError(400, { data: [{ path: ["data", "avatar"], message: "Unrecognized key" }] }, "400");
 
