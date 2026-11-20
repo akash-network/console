@@ -169,9 +169,23 @@ describe("Marketplace template held versions", () => {
       expect(await findStoredTemplate(template.id)).toMatchObject({ currentVersionId: current.id, sdl: buildSdl() });
     });
 
-    it("holds no version of an Official template that was never public", async () => {
+    it("holds a risky version of a popular template that was public before the publish gate and is private now", async () => {
       const { owner, actAs, seedPublicTemplate } = await setup();
-      const { template } = await seedPublicTemplate({ isOfficial: true, visibility: "organization", publishedAt: null });
+      const { template, current } = await seedPublicTemplate({ visibility: "private", publishedAt: null });
+      await seedTemplateDeployers(template.id, POPULAR_FROM);
+
+      const response = await actAs(owner)(`/v1/user-templates/${template.id}/versions`, {
+        method: "POST",
+        body: { data: { sdl: buildSdl({ image: "ghcr.io/acme/nginx:1.25" }), askedValues: [], baseVersion: 1 } }
+      });
+
+      expect(((await response.json()) as VersionBody).data).toMatchObject({ status: "held", holdReasons: [{ kind: "image_repository_changed" }] });
+      expect((await findStoredTemplate(template.id)).currentVersionId).toBe(current.id);
+    });
+
+    it("holds no risky version of a private template that nobody outside its organization deploys", async () => {
+      const { owner, actAs, seedPublicTemplate } = await setup();
+      const { template } = await seedPublicTemplate({ visibility: "organization", publishedAt: null });
 
       const response = await actAs(owner)(`/v1/user-templates/${template.id}/versions`, {
         method: "POST",

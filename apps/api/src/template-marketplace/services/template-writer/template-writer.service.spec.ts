@@ -319,7 +319,8 @@ describe(TemplateWriterService.name, () => {
         resources: { cpu: 1.5, memoryBytes: 1536 * MEBIBYTE, storageBytes: 3 * GIBIBYTE },
         createdById: user.id,
         expectedCurrentVersionId: base.id,
-        readmesShown: { current: "# Before", next: "# After" }
+        readmesShown: { current: "# Before", next: "# After" },
+        holdReasons: []
       });
       expect(repository.mirrorVersion).toHaveBeenCalledWith(template.id, {
         sdl,
@@ -602,14 +603,13 @@ describe(TemplateWriterService.name, () => {
       expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ expectedCurrentVersionId: failedBase.id }));
     });
 
-    it("looks up no current version for a save edited from a live one", async () => {
+    it("saves on the version it was edited from when that one is live", async () => {
       const template = createTemplateRow();
       const base = createVersion({ templateId: template.id, version: 1, status: "live" });
       const { service, templateVersionRepository } = setup({ template, base });
 
       await service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [], baseVersion: 1 });
 
-      expect(templateVersionRepository.findCurrent).not.toHaveBeenCalled();
       expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ expectedCurrentVersionId: base.id }));
     });
   });
@@ -724,10 +724,15 @@ describe(TemplateWriterService.name, () => {
       expect(templatePublisherNotifierService.notifyVersionHeld).not.toHaveBeenCalled();
     });
 
-    it.each(["private", "organization"] as const)(
-      "judges a %s template that was public once, so a risky version saved out of sight waits for staff",
-      async visibility => {
-        const template = createTemplateRow({ visibility, publishedAt: new Date("2026-10-01T00:00:00.000Z") });
+    it.each([
+      { visibility: "private" as const, publishedAt: new Date("2026-10-01T00:00:00.000Z") },
+      { visibility: "organization" as const, publishedAt: new Date("2026-10-01T00:00:00.000Z") },
+      { visibility: "private" as const, publishedAt: null },
+      { visibility: "organization" as const, publishedAt: null }
+    ])(
+      "judges a $visibility template published at $publishedAt, so a risky version saved out of sight waits for staff",
+      async ({ visibility, publishedAt }) => {
+        const template = createTemplateRow({ visibility, publishedAt });
         const { service, templateVersionRepository, templateVersionHoldService, publishChecksService } = setup({ template, holdReasons: HOLD_REASONS });
         const sdl = buildSdl({ count: 3 });
 
@@ -739,14 +744,14 @@ describe(TemplateWriterService.name, () => {
       }
     );
 
-    it.each(["private", "organization"] as const)("never holds a version of a %s template that was never public", async visibility => {
-      const template = createTemplateRow({ visibility, isOfficial: true });
-      const { service, templateVersionRepository, templateVersionHoldService } = setup({ template, holdReasons: HOLD_REASONS });
+    it.each(["private", "organization"] as const)("saves a version of a %s template that nothing holds without a reason", async visibility => {
+      const template = createTemplateRow({ visibility });
+      const { service, templateVersionRepository, templatePublisherNotifierService } = setup({ template });
 
       await service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [], baseVersion: 1 });
 
-      expect(templateVersionHoldService.findHoldReasons).not.toHaveBeenCalled();
-      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ holdReasons: undefined }));
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ checkResults: undefined, holdReasons: [] }));
+      expect(templatePublisherNotifierService.notifyVersionHeld).not.toHaveBeenCalled();
     });
 
     it.each(["held", "rejected"] as const)("holds a save edited from a %s version to the version that was current when it was saved", async status => {

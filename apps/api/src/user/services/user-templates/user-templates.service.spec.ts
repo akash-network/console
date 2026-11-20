@@ -16,8 +16,8 @@ import type { TemplateVersionHoldReason } from "@src/template-marketplace/lib/ve
 import type { TemplateRemovalRepository } from "@src/template-marketplace/repositories/template-removal/template-removal.repository";
 import type { TemplateVersionOutput, TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
 import type { PublishChecksService } from "@src/template-marketplace/services/publish-checks/publish-checks.service";
-import type { TemplateRateLimiterService } from "@src/template-marketplace/services/template-rate-limiter/template-rate-limiter.service";
 import type { TemplateImageDigestJobService } from "@src/template-marketplace/services/template-image-digest-job/template-image-digest-job.service";
+import type { TemplateRateLimiterService } from "@src/template-marketplace/services/template-rate-limiter/template-rate-limiter.service";
 import type { TemplateUsageService } from "@src/template-marketplace/services/template-usage/template-usage.service";
 import type { TemplateVersionHoldService } from "@src/template-marketplace/services/template-version-hold/template-version-hold.service";
 import type { UserOutput } from "@src/user/repositories";
@@ -802,17 +802,24 @@ describe(UserTemplatesService.name, () => {
     });
 
     it.each([
-      { name: "kept private", isPublic: undefined },
-      { name: "made private by the same save", isPublic: false }
-    ])("refuses a risky new version of a template that went through the gate and is $name", async ({ isPublic }) => {
+      {
+        name: "went through the gate and is kept private",
+        visibility: "private" as const,
+        isPublic: undefined,
+        publishedAt: new Date("2026-10-01T00:00:00.000Z")
+      },
+      {
+        name: "went through the gate and is made private by the same save",
+        visibility: "public" as const,
+        isPublic: false,
+        publishedAt: new Date("2026-10-01T00:00:00.000Z")
+      },
+      { name: "was public before the gate and is made private by the same save", visibility: "public" as const, isPublic: false, publishedAt: null },
+      { name: "was public before the gate and is private now", visibility: "private" as const, isPublic: undefined, publishedAt: null },
+      { name: "is shared with its organization", visibility: "organization" as const, isPublic: undefined, publishedAt: null }
+    ])("refuses a risky new version of a template that $name", async ({ visibility, isPublic, publishedAt }) => {
       const { service, userTemplateRepository, templateVersionRepository } = setup({ isMarketplaceOn: true, holdReasons: HOLD_REASONS });
-      const wasPublic = isPublic === false;
-      const stored = createVersionState({
-        visibility: wasPublic ? "public" : "private",
-        isPublic: wasPublic,
-        publishedAt: new Date("2026-10-01T00:00:00.000Z"),
-        currentVersionSdl: "version: '2.0'"
-      });
+      const stored = createVersionState({ visibility, isPublic: visibility === "public", publishedAt, currentVersionSdl: "version: '2.0'" });
       userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
       userTemplateRepository.findVersionState.mockResolvedValue(stored);
 
@@ -859,27 +866,6 @@ describe(UserTemplatesService.name, () => {
         isMarketplaceOn: false,
         stored: { visibility: "private" as const, isPublic: false, publishedAt: new Date("2026-10-01T00:00:00.000Z") },
         isPublic: undefined,
-        keepsSdl: false
-      },
-      {
-        name: "the template is private",
-        isMarketplaceOn: true,
-        stored: { visibility: "private" as const, isPublic: false },
-        isPublic: undefined,
-        keepsSdl: false
-      },
-      {
-        name: "the template is shared with its organization",
-        isMarketplaceOn: true,
-        stored: { visibility: "organization" as const },
-        isPublic: undefined,
-        keepsSdl: false
-      },
-      {
-        name: "the save makes the template private",
-        isMarketplaceOn: true,
-        stored: { visibility: "public" as const, isPublic: true },
-        isPublic: false,
         keepsSdl: false
       },
       { name: "the save keeps the SDL", isMarketplaceOn: true, stored: { visibility: "public" as const, isPublic: true }, isPublic: undefined, keepsSdl: true }

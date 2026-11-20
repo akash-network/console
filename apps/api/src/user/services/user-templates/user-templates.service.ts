@@ -17,8 +17,8 @@ import { createVersionReviewRequiredError } from "@src/template-marketplace/lib/
 import { TemplateRemovalRepository } from "@src/template-marketplace/repositories/template-removal/template-removal.repository";
 import { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
 import { PublishChecksService } from "@src/template-marketplace/services/publish-checks/publish-checks.service";
-import { TemplateRateLimiterService } from "@src/template-marketplace/services/template-rate-limiter/template-rate-limiter.service";
 import { TemplateImageDigestJobService } from "@src/template-marketplace/services/template-image-digest-job/template-image-digest-job.service";
+import { TemplateRateLimiterService } from "@src/template-marketplace/services/template-rate-limiter/template-rate-limiter.service";
 import { TemplateUsageService } from "@src/template-marketplace/services/template-usage/template-usage.service";
 import { TemplateVersionHoldService } from "@src/template-marketplace/services/template-version-hold/template-version-hold.service";
 import type { TemplateVisibility } from "@src/user/model-schemas/template/template.schema";
@@ -211,7 +211,7 @@ export class UserTemplatesService {
           })
         : undefined;
 
-      if (isNewVersion && this.#isJudgedForStaffReview(template, stored)) {
+      if (isNewVersion && this.#featureFlagsService.isEnabled(FeatureFlags.TEMPLATE_MARKETPLACE)) {
         await this.#assertNeedsNoStaffReview(id, template.sdl, stored);
       }
 
@@ -245,14 +245,7 @@ export class UserTemplatesService {
     await this.#templateRateLimiterService.assertWithinLimits(action, { userId: this.#authService.currentUser.id, organizationId });
   }
 
-  /** A template that went through the gate is judged while it is private too, or a risky version saved in private would go live unreviewed when it is published again. */
-  #isJudgedForStaffReview(template: TemplateInput, stored: TemplateVersionState): boolean {
-    const staysPublic = stored.visibility === "public" && template.isPublic !== false;
-
-    return this.#featureFlagsService.isEnabled(FeatureFlags.TEMPLATE_MARKETPLACE) && (staysPublic || !!stored.publishedAt);
-  }
-
-  /** This route makes every version it saves the current one, so a change that must wait for staff is refused here and saved from the editor instead. */
+  /** This route makes every version it saves the current one, so a change that must wait for staff is refused here and saved from the editor instead, whatever the template's visibility: a risky version saved in private would go live unreviewed when it is published again. */
   async #assertNeedsNoStaffReview(id: string, sdl: string, stored: TemplateVersionState): Promise<void> {
     const holdReasons = await this.#templateVersionHoldService.findHoldReasons(
       { id, organizationId: stored.organizationId, isOfficial: stored.isOfficial },
