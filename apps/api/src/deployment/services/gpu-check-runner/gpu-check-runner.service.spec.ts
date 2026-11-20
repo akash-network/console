@@ -167,6 +167,38 @@ describe(GpuCheckRunner.name, () => {
       expect(closedDseqs(signingClient)).toHaveLength(2);
     });
 
+    it("reports the created dseqs before reading bids", async () => {
+      const { runner, session, signingClient, chainSdk } = setup();
+      const onCreated = vi.fn().mockResolvedValue(undefined);
+
+      await runner.run(session, [{ manifest: aManifest(["a100"]) }, { manifest: aManifest(["h100"]) }], { onCreated });
+
+      expect(onCreated).toHaveBeenCalledExactlyOnceWith(createdDseqs(signingClient).map(String));
+      expect(onCreated.mock.invocationCallOrder[0]).toBeLessThan(chainSdk.akash.market.v1beta5.getBids.mock.invocationCallOrder[0]);
+    });
+
+    it("closes every deployment without reading bids when reporting the creation fails", async () => {
+      const { runner, session, signingClient, chainSdk } = setup();
+      const onCreated = vi.fn().mockRejectedValue(new Error("database unavailable"));
+
+      await expect(runner.run(session, [{ manifest: aManifest(["a100"]) }, { manifest: aManifest(["h100"]) }], { onCreated })).rejects.toThrow(
+        "database unavailable"
+      );
+
+      expect(chainSdk.akash.market.v1beta5.getBids).not.toHaveBeenCalled();
+      expect(closedDseqs(signingClient)).toEqual(createdDseqs(signingClient));
+    });
+
+    it("reports no creation when the create transaction fails", async () => {
+      const { runner, session, signingClient } = setup();
+      signingClient.broadcastTx.mockResolvedValueOnce(mock<DeliverTxResponse>({ code: 5, rawLog: "insufficient funds" }));
+      const onCreated = vi.fn().mockResolvedValue(undefined);
+
+      await expect(runner.run(session, [{ manifest: aManifest(["a100"]) }], { onCreated })).rejects.toThrow("insufficient funds");
+
+      expect(onCreated).not.toHaveBeenCalled();
+    });
+
     it("closes nothing when the create transaction fails", async () => {
       const { runner, session, signingClient } = setup();
       signingClient.broadcastTx.mockResolvedValueOnce(mock<DeliverTxResponse>({ code: 5, rawLog: "insufficient funds" }));

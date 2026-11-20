@@ -70,10 +70,11 @@ export class GpuSetupCheckService {
     if (!session) return { status: "unavailable" };
 
     const checkableSetups = checkable.map(({ setup }) => setup);
-    const [runResult] = await this.gpuCheckRunner.run(session, [{ manifest: buildManifest(checkableSetups) }]);
+    const [runResult] = await this.gpuCheckRunner.run(session, [{ manifest: buildManifest(checkableSetups) }], {
+      onCreated: ([dseq]) => this.gpuSetupCheckRunRepository.insert({ dseq, setupCount: checkableSetups.length })
+    });
     const checkedAt = new Date();
 
-    await this.gpuSetupCheckRunRepository.insert({ dseq: runResult.dseq, setupCount: checkableSetups.length });
     await this.gpuBidCheckRepository.insertMany(checkableSetups.flatMap((setup, index) => toCheckRows(setup, index, runResult, checkedAt)));
 
     const aktPrice = await this.dayRepository.getLatestAktPrice();

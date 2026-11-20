@@ -46,6 +46,11 @@ export interface GpuCheckSession {
   owner: string;
 }
 
+export interface GpuCheckRunOptions {
+  /** Runs before the bid window, and the deployments are still closed when it throws, so a run that fails later is already accounted for. */
+  onCreated?: (dseqs: string[]) => Promise<void>;
+}
+
 @singleton()
 export class GpuCheckRunner {
   readonly #deploymentConfig: DeploymentConfig;
@@ -73,7 +78,7 @@ export class GpuCheckRunner {
     return { client, owner: address };
   }
 
-  async run(session: GpuCheckSession, deployments: GpuCheckDeployment[]): Promise<GpuCheckRunResult[]> {
+  async run(session: GpuCheckSession, deployments: GpuCheckDeployment[], { onCreated }: GpuCheckRunOptions = {}): Promise<GpuCheckRunResult[]> {
     if (deployments.length === 0) return [];
 
     const screenedByDeployment = await Promise.all(deployments.map(({ manifest }) => this.#screenGroups(manifest.groupSpecs)));
@@ -84,6 +89,7 @@ export class GpuCheckRunner {
     this.#logger.info({ event: "GPU_CHECK_DEPLOYMENT_CREATED", dseqs });
 
     try {
+      await onCreated?.(dseqs);
       await new Promise(resolve => setTimeout(resolve, this.#deploymentConfig.GPU_BOT_BID_WINDOW_SECONDS * 1000));
       const bidReads = await Promise.allSettled(dseqs.map(dseq => findDeploymentBids(this.#chainSdk, session.owner, dseq)));
       const failedRead = bidReads.find(read => read.status === "rejected");

@@ -106,6 +106,15 @@ describe(GpuSetupCheckService.name, () => {
     expect(gpuSetupCheckRunRepository.insert).toHaveBeenCalledWith({ dseq: "123", setupCount: 2 });
   });
 
+  it("still counts a run against the cap when it fails after creating its deployment", async () => {
+    const { service, gpuSetupCheckRunRepository, gpuBidCheckRepository } = setup({ dseq: "123", runError: new Error("bids unreadable") });
+
+    await expect(service.check([aSetup()])).rejects.toThrow("bids unreadable");
+
+    expect(gpuSetupCheckRunRepository.insert).toHaveBeenCalledWith({ dseq: "123", setupCount: 1 });
+    expect(gpuBidCheckRepository.insertMany).not.toHaveBeenCalled();
+  });
+
   it("records bids as setup-check evidence", async () => {
     const { service, gpuBidCheckRepository } = setup({
       dseq: "123",
@@ -209,13 +218,17 @@ describe(GpuSetupCheckService.name, () => {
       connected?: boolean;
       dseq?: string;
       screenedByGroup?: string[][] | null;
+      runError?: Error;
     } = {}
   ) {
     const gpuCheckRunner = mock<GpuCheckRunner>();
     gpuCheckRunner.connect.mockResolvedValue(input.connected === false ? null : mock<GpuCheckSession>());
-    gpuCheckRunner.run.mockResolvedValue([
-      { dseq: input.dseq ?? "1", bids: input.bids ?? [], screenedByGroup: input.screenedByGroup ?? null } satisfies GpuCheckRunResult
-    ]);
+    const dseq = input.dseq ?? "1";
+    gpuCheckRunner.run.mockImplementation(async (_session, _deployments, options) => {
+      await options?.onCreated?.([dseq]);
+      if (input.runError) throw input.runError;
+      return [{ dseq, bids: input.bids ?? [], screenedByGroup: input.screenedByGroup ?? null } satisfies GpuCheckRunResult];
+    });
 
     const gpuSetupCheckRunRepository = mock<GpuSetupCheckRunRepository>();
     gpuSetupCheckRunRepository.countCreatedSince.mockResolvedValue(input.runsToday ?? 0);
