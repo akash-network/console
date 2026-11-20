@@ -375,6 +375,17 @@ describe(PublisherPage.name, () => {
       expect(screen.queryByRole("button", { name: "Close form" })).not.toBeInTheDocument();
     });
 
+    it("keeps the open form, on the profile it was opened with, when the session ends under it", async () => {
+      const { user, EditPublisherProfileDialog, rerender } = setup({ ownProfile: OWN_PROFILE });
+      await user.click(screen.getByRole("button", { name: "Edit profile" }));
+
+      rerender({ isSignedIn: false });
+
+      expect(screen.getByRole("button", { name: "Close form" })).toBeInTheDocument();
+      expect(EditPublisherProfileDialog).toHaveBeenLastCalledWith(expect.objectContaining({ profile: OWN_PROFILE }), expect.anything());
+      expect(screen.queryByRole("button", { name: "Edit profile" })).not.toBeInTheDocument();
+    });
+
     it("shows no notice while the public page shows the saved profile", () => {
       setup({ ownProfile: OWN_PROFILE });
 
@@ -471,7 +482,8 @@ describe(PublisherPage.name, () => {
     return {
       ...view,
       user: userEvent.setup(),
-      rerender: (next: { sort?: GallerySort; search?: string; templates?: TemplatePublisherPage["templates"]; handle?: string } = {}) => {
+      rerender: (next: { sort?: GallerySort; search?: string; templates?: TemplatePublisherPage["templates"]; handle?: string; isSignedIn?: boolean } = {}) => {
+        if (next.isSignedIn === false) customUser.user = undefined;
         urlState.sort = next.sort ?? input.sort ?? "popular";
         urlState.search = next.search ?? input.search ?? "";
         if (next.templates && publisherQuery.data) publisherQuery.data = { ...publisherQuery.data, templates: next.templates };
