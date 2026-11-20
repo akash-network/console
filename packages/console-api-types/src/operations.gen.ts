@@ -253,6 +253,15 @@ export const operations = {
       queryParams: ["async"],
       hasBody: true
     },
+    validateDeployment: { path: "/v1/deployments/validate", method: "post", operationId: "validateDeployment", pathParams: [], queryParams: [], hasBody: true },
+    validateDeploymentDefinition: {
+      path: "/v1/deployments/{dseq}/definition/validate",
+      method: "post",
+      operationId: "validateDeploymentDefinition",
+      pathParams: ["dseq"],
+      queryParams: [],
+      hasBody: true
+    },
     getSpendRate: { path: "/v1/spend-rate", method: "get", operationId: "getSpendRate", pathParams: [], queryParams: [], hasBody: false },
     updateDeploymentProject: {
       path: "/v1/deployments/{dseq}/project",
