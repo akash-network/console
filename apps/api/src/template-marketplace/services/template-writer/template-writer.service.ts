@@ -97,6 +97,8 @@ function assertTitleNotReserved(title: string): void {
   }
 }
 
+export const TEMPLATE_COPY_SOURCE_NOT_FOUND_ERROR_CODE = "template_copy_source_not_found";
+
 @singleton()
 export class TemplateWriterService {
   constructor(
@@ -123,7 +125,7 @@ export class TemplateWriterService {
     const { id: authorId, userId } = this.authService.currentUser;
     const organizationId = this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId;
     assert(userId && organizationId && ability.can("create", "Template"), 403, "You cannot create templates");
-    const source = input.copiedFromId ? await this.marketplaceTemplateService.findReadable(input.copiedFromId) : undefined;
+    const source = input.copiedFromId ? await this.#findCopySource(input.copiedFromId) : undefined;
     const content = await this.#contentOf(input, source);
     this.#assertValid(content.sdl, content.askedValues);
 
@@ -238,6 +240,16 @@ export class TemplateWriterService {
       await this.templateWriteAccessService.lockWritable(id, "delete");
       await this.templateRemovalRepository.remove(id, "owner");
     });
+  }
+
+  /** Has its own code, or a client could not tell this 404 from the one a project that is gone answers with. */
+  async #findCopySource(id: string): Promise<MarketplaceTemplateRow> {
+    try {
+      return await this.marketplaceTemplateService.findReadable(id);
+    } catch (error) {
+      if (!createError.isHttpError(error) || error.status !== 404) throw error;
+      throw createError(404, "The template to copy was not found", { errorCode: TEMPLATE_COPY_SOURCE_NOT_FOUND_ERROR_CODE });
+    }
   }
 
   /** A copy sent without an SDL takes what the source's readers deploy: its current version, never a newer one that failed its checks or waits for review. */

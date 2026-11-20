@@ -551,11 +551,11 @@ describe("Community templates", () => {
       expect(await findStoredUsageEvents(source.id)).toEqual([]);
     });
 
-    it.each<[string, Partial<TemplateInsert>, number]>([
-      ["private", { visibility: "private", isPublic: false }, 404],
-      ["hidden by staff", { moderationStatus: "hidden" }, 404],
-      ["removed after it was public", { moderationStatus: "removed", visibility: "private", isPublic: false }, 410]
-    ])("refuses to copy a template that is %s with %s, creating nothing", async (_state, state, status) => {
+    it.each<[string, Partial<TemplateInsert>, number, string]>([
+      ["private", { visibility: "private", isPublic: false }, 404, "template_copy_source_not_found"],
+      ["hidden by staff", { moderationStatus: "hidden" }, 404, "template_copy_source_not_found"],
+      ["removed after it was public", { moderationStatus: "removed", visibility: "private", isPublic: false }, 410, "template_removed"]
+    ])("refuses to copy a template that is %s with %s, creating nothing", async (_state, state, status, code) => {
       const { team } = await setup();
       const { template: source } = await publish(team.id, state);
       const { forkerOrganization, fork } = await setupForker();
@@ -563,6 +563,7 @@ describe("Community templates", () => {
       const response = await fork({ title: "Copy", copiedFromId: source.id });
 
       expect(response.status).toBe(status);
+      expect(await response.json()).toMatchObject({ code });
       expect(await countTemplatesOf(forkerOrganization.id)).toBe(0);
       expect(await findStoredUsageEvents(source.id)).toEqual([]);
     });

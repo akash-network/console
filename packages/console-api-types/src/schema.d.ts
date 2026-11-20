@@ -20089,7 +20089,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The project or the template copied from does not exist or the caller may not read it */
+      /** @description The project does not exist, or the template copied from does not exist or the caller may not read it (`template_copy_source_not_found`) */
       404: {
         headers: {
           [name: string]: unknown;
