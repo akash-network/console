@@ -253,6 +253,14 @@ export const operations = {
       queryParams: [],
       hasBody: true
     },
+    updateDeploymentDefinition: {
+      path: "/v1/deployments/{dseq}/definition",
+      method: "put",
+      operationId: "updateDeploymentDefinition",
+      pathParams: ["dseq"],
+      queryParams: ["async"],
+      hasBody: true
+    },
     getSpendRate: { path: "/v1/spend-rate", method: "get", operationId: "getSpendRate", pathParams: [], queryParams: [], hasBody: false },
     updateDeploymentProject: {
       path: "/v1/deployments/{dseq}/project",

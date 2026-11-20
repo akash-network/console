@@ -2226,7 +2226,7 @@ export interface paths {
     /**
      * Update a deployment (deprecated)
      * @deprecated
-     * @description Deprecated. Resubmits the whole SDL, so rotating one secret means re-supplying every other value the document carries, and the console cannot return a stored value for you to resupply. Use PATCH /v1/deployments/{dseq} instead. This endpoint will be removed in a future release.
+     * @description Deprecated. Resubmits the whole SDL, so rotating one secret means re-supplying every other value the document carries, and the console cannot return a stored value for you to resupply. Use PUT /v1/deployments/{dseq}/definition to resubmit a whole SDL while keeping stored secrets, or PATCH /v1/deployments/{dseq} to change part of one. This endpoint will be removed in a future release.
      */
     put: operations["updateDeployment"];
     post?: never;
@@ -2345,7 +2345,11 @@ export interface paths {
       cookie?: never;
     };
     get?: never;
-    put?: never;
+    /**
+     * Replace a deployment's whole definition
+     * @description Replaces the SDL the console stored for this deployment with the one submitted, then updates the deployment and pushes the manifest to its providers, as a patch does. Secrets carry over: write `NAME=ac-secret://NAME` wherever a secret stands, and a reference the request supplies no value for keeps the value the deployment stores, so the SDL GET /v1/deployments/{dseq} returns can be edited and sent back without re-entering any secret. A stored value no reference names any longer is dropped. A value the deployment stores in the clear and the request leaves unchanged stays readable; added and changed values are sealed as `secretEnv` says. The network cannot change a running deployment's groups, compute resources, replica counts or globally exposed ports, so such a change is refused before anything is recorded.
+     */
+    put: operations["updateDeploymentDefinition"];
     /**
      * Record the definition of a deployment the console holds none for
      * @description Records the SDL of a deployment the console holds no definition for, such as one created before the console recorded definitions or created outside it. The SDL and its sealed secrets are taken as on create, and the secrets are stored the same way. The SDL is recorded only if it resolves to the manifest version the deployment already runs, so recording sends no deployment update and no manifest, and a closed deployment can be given its definition too. Afterwards the deployment reads back and takes patches like any other. To apply an SDL that differs from what the deployment runs, update the deployment with it instead.
@@ -13608,6 +13612,330 @@ export interface operations {
         };
       };
       /** @description With `code` `deposit_price_unavailable`, the deposit could not be priced against its project's budget. Transient and worth retrying */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+    };
+  };
+  updateDeploymentDefinition: {
+    parameters: {
+      query?: {
+        async?: "true" | "false";
+      };
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        /** @description Deployment sequence number */
+        dseq: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": {
+          data: {
+            /**
+             * @description The whole SDL the deployment should run from now on, as GET /v1/deployments/{dseq} returns it in `consoleSettings.sdl` or edited. Reference a secret as `NAME=ac-secret://NAME` in an env entry, or as `ac-secret://NAME` in a registry credential: a reference the request supplies no value for keeps the value the deployment stores, and a stored value no reference names any longer is dropped.
+             * @example version: "2.0"
+             *     services:
+             *       web:
+             *         image: nginx:1.27.2
+             *         env:
+             *           - MODE=production
+             *           - API_KEY=ac-secret://API_KEY
+             *         expose:
+             *           - port: 80
+             *             to:
+             *               - global: true
+             */
+            sdl: string;
+            /** @description Renames the deployment. Omitting it keeps the name the deployment already carries. */
+            name?: string;
+            /** @description Compact JWE sealing a flat name-to-value map, bound to the SDL in this request, holding only the secrets this request sets. Omitted names keep the values the deployment stores. Its presence also says no env value it does not name is secret, as on create. */
+            sealedSecrets?: string;
+            /**
+             * @description Names of the environment variables whose values are secret, in every service the SDL declares. The console seals each named value, which no endpoint returns afterwards, and stores every other value the request adds or changes as submitted. An empty list keeps every added or changed value readable. Omit it and the console seals every value the request adds or changes, unless the request carries `sealedSecrets`. A value left as the deployment stores it keeps what it holds either way. Needs no client-side encryption.
+             * @example [
+             *       "API_KEY"
+             *     ]
+             */
+            secretEnv?: string[];
+            /** @description Base64 manifest version this request expects to be current, as GET /v1/deployments/{dseq} returns it in `consoleSettings.manifestVersion`. Rejected with 409 if the deployment has moved on, unless it moved on to the version this very request produces, which makes a retry of it succeed. Omitting it still guards on the version the request read, as for a patch. */
+            ifManifestVersion?: string;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description The definition was replaced and the deployment updated */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              deployment: {
+                id: {
+                  owner: string;
+                  dseq: string;
+                };
+                state: string;
+                hash: string;
+                created_at: string;
+              };
+              leases: {
+                id: {
+                  owner: string;
+                  dseq: string;
+                  gseq: number;
+                  oseq: number;
+                  provider: string;
+                  bseq: number;
+                };
+                state: string;
+                price: {
+                  denom: string;
+                  amount: string;
+                };
+                created_at: string;
+                closed_on: string;
+                reason?: string;
+                /** @description Present only on a lease its provider has flagged for reclamation. `deadline` is unix seconds; `reason` is a `lease_closed_reason_*` enum name. */
+                reclamation?: {
+                  window?: string;
+                  started_at?: string;
+                  deadline?: string;
+                  reason?: string;
+                };
+                /** @description GPUs the console observed running inside this lease's containers, as distinct from the models its group requested. Absent until the console has looked, and for a lease it cannot look inside. */
+                detectedGpus?: {
+                  services: {
+                    service: string;
+                    gpus: {
+                      /** @description Canonical vendor key, e.g. `nvidia`. Null for a card the console's model catalog does not list. */
+                      vendor: string | null;
+                      /** @description Canonical SDL model key, e.g. `h100`. Null for a card the console's model catalog does not list. */
+                      model: string | null;
+                      /** @description Marketing-correct label, e.g. `H100`, falling back to what the driver reported for an unlisted card. */
+                      displayName: string;
+                      /** @description Per-card memory as the driver reports it, in MiB. */
+                      memoryMb: number;
+                      /** @description `sxm` or `pcie` when the catalog names one, else null. */
+                      interface: string | null;
+                      /** @description Identical cards folded into one entry. */
+                      count: number;
+                    }[];
+                  }[];
+                  driverVersion: string | null;
+                  /** Format: date-time */
+                  detectedAt: string;
+                };
+                /** @description GPUs the provider offered for this lease in the bid it was created from, which is what an `Any model` request resolves to. Absent until the console has recorded the bid, and for a lease whose deployment the console does not manage. */
+                offeredGpus?: {
+                  gpus: {
+                    /** @description Vendor key the provider offered, e.g. `nvidia`. */
+                    vendor: string;
+                    /** @description SDL model key the provider offered, e.g. `a100`. */
+                    model: string;
+                    /** @description Marketing-correct label for the model, e.g. `A100`. */
+                    displayName: string;
+                    /** @description Per-card memory, e.g. `80Gi`, when the offer names it. Providers name it only when the SDL asked for it. */
+                    ram: string | null;
+                    /** @description `sxm` or `pcie` when the offer names it. Providers name it only when the SDL asked for it. */
+                    interface: string | null;
+                    /** @description Cards of this model offered across every replica, identical ones folded into one entry. */
+                    count: number;
+                  }[];
+                  /** Format: date-time */
+                  recordedAt: string;
+                };
+                status: {
+                  forwarded_ports: {
+                    [key: string]: {
+                      port: number;
+                      externalPort: number;
+                      host?: string;
+                      available?: number;
+                    }[];
+                  };
+                  ips: {
+                    [key: string]: {
+                      IP: string;
+                      Port: number;
+                      ExternalPort: number;
+                      Protocol: string;
+                    }[];
+                  };
+                  services: {
+                    [key: string]: {
+                      name: string;
+                      available: number;
+                      total: number;
+                      uris: string[];
+                      observed_generation: number;
+                      replicas: number;
+                      updated_replicas: number;
+                      ready_replicas: number;
+                      available_replicas: number;
+                    };
+                  };
+                } | null;
+              }[];
+              escrow_account: {
+                id: {
+                  scope: string;
+                  xid: string;
+                };
+                state: {
+                  owner: string;
+                  state: string;
+                  transferred: {
+                    denom: string;
+                    amount: string;
+                  }[];
+                  settled_at: string;
+                  funds: {
+                    denom: string;
+                    amount: string;
+                  }[];
+                  deposits: {
+                    owner: string;
+                    height: string;
+                    source: string;
+                    balance: {
+                      denom: string;
+                      amount: string;
+                    };
+                  }[];
+                };
+              };
+              /** @description The name this deployment carries, or null for one created before the console recorded names. */
+              name: string | null;
+              /** @description Base64 manifest version this request recorded, which the deployment is now on. */
+              manifestVersion: string;
+            };
+          };
+        };
+      };
+      /** @description The definition passed every check and was saved, and will be applied in the background */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /**
+               * Format: uuid
+               * @description The activity that reports how applying the definition ends.
+               */
+              activityId: string;
+              /** @description Base64 manifest version this request saved. Pass it as `ifManifestVersion` to change the deployment again while this one is still being applied. */
+              manifestVersion: string;
+            };
+          };
+        };
+      };
+      /** @description The SDL is not valid, leaves a secret reference with neither a value in `sealedSecrets` nor one the deployment stores, supplies a name no service references, names a variable in `secretEnv` that no service sets, or carries a `sealedSecrets` value that is malformed, tampered with, expired or not a flat object of string values */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+      /** @description The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted. With `code` `project_forbidden`, the deployment is filed in a project the caller cannot change */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+      /** @description No SDL is recorded for this deployment, so there is nothing to replace. Record the definition it runs with POST /v1/deployments/{dseq}/definition first */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+      /** @description The deployment definition changed between this request reading it and writing it, or since the `ifManifestVersion` it names: `code` is `deployment_definition_changed`, and reloading the definition cures it. A 409 without that code answers a seal made against a retired key, which a fresh seal cures. With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With `code` `stored_secrets_unavailable`, the stored secrets were sealed for a member who deleted their account, so update the deployment with its full SDL and secret values */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+      /** @description The SDL changes the groups, compute resources, replica counts or globally exposed ports the deployment was created with, which only a new deployment can take: `code` is `deployment_resources_changed`, and nothing is recorded, no deployment update is sent and no provider is contacted */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+      /** @description The deployment's stored state could not be read: `code` is `stored_secrets_unreadable` when the sealed secrets would not open and `stored_sdl_unreadable` when the recorded SDL would not parse. Both are permanent rather than transient, so a retry cannot help */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+      /** @description The key management service is temporarily unreachable. Transient and worth retrying, unlike the 500 above */
       503: {
         headers: {
           [name: string]: unknown;

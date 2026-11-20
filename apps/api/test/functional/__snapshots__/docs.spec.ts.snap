@@ -12300,7 +12300,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
       },
       "put": {
         "deprecated": true,
-        "description": "Deprecated. Resubmits the whole SDL, so rotating one secret means re-supplying every other value the document carries, and the console cannot return a stored value for you to resupply. Use PATCH /v1/deployments/{dseq} instead. This endpoint will be removed in a future release.",
+        "description": "Deprecated. Resubmits the whole SDL, so rotating one secret means re-supplying every other value the document carries, and the console cannot return a stored value for you to resupply. Use PUT /v1/deployments/{dseq}/definition to resubmit a whole SDL while keeping stored secrets, or PATCH /v1/deployments/{dseq} to change part of one. This endpoint will be removed in a future release.",
         "operationId": "updateDeployment",
         "parameters": [
           {
@@ -13328,6 +13328,904 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
           },
         ],
         "summary": "Record the definition of a deployment the console holds none for",
+        "tags": [
+          "Deployments",
+        ],
+      },
+      "put": {
+        "description": "Replaces the SDL the console stored for this deployment with the one submitted, then updates the deployment and pushes the manifest to its providers, as a patch does. Secrets carry over: write \`NAME=ac-secret://NAME\` wherever a secret stands, and a reference the request supplies no value for keeps the value the deployment stores, so the SDL GET /v1/deployments/{dseq} returns can be edited and sent back without re-entering any secret. A stored value no reference names any longer is dropped. A value the deployment stores in the clear and the request leaves unchanged stays readable; added and changed values are sealed as \`secretEnv\` says. The network cannot change a running deployment's groups, compute resources, replica counts or globally exposed ports, so such a change is refused before anything is recorded.",
+        "operationId": "updateDeploymentDefinition",
+        "parameters": [
+          {
+            "description": "Deployment sequence number",
+            "in": "path",
+            "name": "dseq",
+            "required": true,
+            "schema": {
+              "description": "Deployment sequence number",
+              "pattern": "^0*[1-9]\\d*$",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "async",
+            "required": false,
+            "schema": {
+              "description": "With \`true\`, the definition is saved during the request and applied in the background: once it is saved, the request answers 202 with an \`activityId\` to follow at \`GET /v1/activities/{id}\` and the \`manifestVersion\` it saved. Every refusal and conflict still answers on the request and saves nothing.",
+              "enum": [
+                "true",
+                "false",
+              ],
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "ifManifestVersion": {
+                        "description": "Base64 manifest version this request expects to be current, as GET /v1/deployments/{dseq} returns it in \`consoleSettings.manifestVersion\`. Rejected with 409 if the deployment has moved on, unless it moved on to the version this very request produces, which makes a retry of it succeed. Omitting it still guards on the version the request read, as for a patch.",
+                        "maxLength": 64,
+                        "minLength": 1,
+                        "type": "string",
+                      },
+                      "name": {
+                        "description": "Renames the deployment. Omitting it keeps the name the deployment already carries.",
+                        "maxLength": 256,
+                        "minLength": 1,
+                        "type": "string",
+                      },
+                      "sdl": {
+                        "description": "The whole SDL the deployment should run from now on, as GET /v1/deployments/{dseq} returns it in \`consoleSettings.sdl\` or edited. Reference a secret as \`NAME=ac-secret://NAME\` in an env entry, or as \`ac-secret://NAME\` in a registry credential: a reference the request supplies no value for keeps the value the deployment stores, and a stored value no reference names any longer is dropped.",
+                        "example": "version: "2.0"
+services:
+  web:
+    image: nginx:1.27.2
+    env:
+      - MODE=production
+      - API_KEY=ac-secret://API_KEY
+    expose:
+      - port: 80
+        to:
+          - global: true
+",
+                        "maxLength": 524288,
+                        "type": "string",
+                      },
+                      "sealedSecrets": {
+                        "description": "Compact JWE sealing a flat name-to-value map, bound to the SDL in this request, holding only the secrets this request sets. Omitted names keep the values the deployment stores. Its presence also says no env value it does not name is secret, as on create.",
+                        "minLength": 1,
+                        "type": "string",
+                      },
+                      "secretEnv": {
+                        "description": "Names of the environment variables whose values are secret, in every service the SDL declares. The console seals each named value, which no endpoint returns afterwards, and stores every other value the request adds or changes as submitted. An empty list keeps every added or changed value readable. Omit it and the console seals every value the request adds or changes, unless the request carries \`sealedSecrets\`. A value left as the deployment stores it keeps what it holds either way. Needs no client-side encryption.",
+                        "example": [
+                          "API_KEY",
+                        ],
+                        "items": {
+                          "pattern": "^[-._a-zA-Z][-._a-zA-Z0-9]*$",
+                          "type": "string",
+                        },
+                        "type": "array",
+                      },
+                    },
+                    "required": [
+                      "sdl",
+                    ],
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "deployment": {
+                          "properties": {
+                            "created_at": {
+                              "type": "string",
+                            },
+                            "hash": {
+                              "type": "string",
+                            },
+                            "id": {
+                              "properties": {
+                                "dseq": {
+                                  "pattern": "^0*[1-9]\\d*$",
+                                  "type": "string",
+                                },
+                                "owner": {
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "owner",
+                                "dseq",
+                              ],
+                              "type": "object",
+                            },
+                            "state": {
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "id",
+                            "state",
+                            "hash",
+                            "created_at",
+                          ],
+                          "type": "object",
+                        },
+                        "escrow_account": {
+                          "properties": {
+                            "id": {
+                              "properties": {
+                                "scope": {
+                                  "type": "string",
+                                },
+                                "xid": {
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "scope",
+                                "xid",
+                              ],
+                              "type": "object",
+                            },
+                            "state": {
+                              "properties": {
+                                "deposits": {
+                                  "items": {
+                                    "properties": {
+                                      "balance": {
+                                        "properties": {
+                                          "amount": {
+                                            "type": "string",
+                                          },
+                                          "denom": {
+                                            "type": "string",
+                                          },
+                                        },
+                                        "required": [
+                                          "denom",
+                                          "amount",
+                                        ],
+                                        "type": "object",
+                                      },
+                                      "height": {
+                                        "type": "string",
+                                      },
+                                      "owner": {
+                                        "type": "string",
+                                      },
+                                      "source": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "owner",
+                                      "height",
+                                      "source",
+                                      "balance",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                                "funds": {
+                                  "items": {
+                                    "properties": {
+                                      "amount": {
+                                        "type": "string",
+                                      },
+                                      "denom": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                                "owner": {
+                                  "type": "string",
+                                },
+                                "settled_at": {
+                                  "type": "string",
+                                },
+                                "state": {
+                                  "type": "string",
+                                },
+                                "transferred": {
+                                  "items": {
+                                    "properties": {
+                                      "amount": {
+                                        "type": "string",
+                                      },
+                                      "denom": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                              },
+                              "required": [
+                                "owner",
+                                "state",
+                                "transferred",
+                                "settled_at",
+                                "funds",
+                                "deposits",
+                              ],
+                              "type": "object",
+                            },
+                          },
+                          "required": [
+                            "id",
+                            "state",
+                          ],
+                          "type": "object",
+                        },
+                        "leases": {
+                          "items": {
+                            "properties": {
+                              "closed_on": {
+                                "type": "string",
+                              },
+                              "created_at": {
+                                "type": "string",
+                              },
+                              "detectedGpus": {
+                                "description": "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested. Absent until the console has looked, and for a lease it cannot look inside.",
+                                "properties": {
+                                  "detectedAt": {
+                                    "format": "date-time",
+                                    "type": "string",
+                                  },
+                                  "driverVersion": {
+                                    "nullable": true,
+                                    "type": "string",
+                                  },
+                                  "services": {
+                                    "items": {
+                                      "properties": {
+                                        "gpus": {
+                                          "items": {
+                                            "properties": {
+                                              "count": {
+                                                "description": "Identical cards folded into one entry.",
+                                                "exclusiveMinimum": true,
+                                                "minimum": 0,
+                                                "type": "integer",
+                                              },
+                                              "displayName": {
+                                                "description": "Marketing-correct label, e.g. \`H100\`, falling back to what the driver reported for an unlisted card.",
+                                                "type": "string",
+                                              },
+                                              "interface": {
+                                                "description": "\`sxm\` or \`pcie\` when the catalog names one, else null.",
+                                                "nullable": true,
+                                                "type": "string",
+                                              },
+                                              "memoryMb": {
+                                                "description": "Per-card memory as the driver reports it, in MiB.",
+                                                "type": "integer",
+                                              },
+                                              "model": {
+                                                "description": "Canonical SDL model key, e.g. \`h100\`. Null for a card the console's model catalog does not list.",
+                                                "nullable": true,
+                                                "type": "string",
+                                              },
+                                              "vendor": {
+                                                "description": "Canonical vendor key, e.g. \`nvidia\`. Null for a card the console's model catalog does not list.",
+                                                "nullable": true,
+                                                "type": "string",
+                                              },
+                                            },
+                                            "required": [
+                                              "vendor",
+                                              "model",
+                                              "displayName",
+                                              "memoryMb",
+                                              "interface",
+                                              "count",
+                                            ],
+                                            "type": "object",
+                                          },
+                                          "type": "array",
+                                        },
+                                        "service": {
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "service",
+                                        "gpus",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "type": "array",
+                                  },
+                                },
+                                "required": [
+                                  "services",
+                                  "driverVersion",
+                                  "detectedAt",
+                                ],
+                                "type": "object",
+                              },
+                              "id": {
+                                "properties": {
+                                  "bseq": {
+                                    "type": "number",
+                                  },
+                                  "dseq": {
+                                    "pattern": "^0*[1-9]\\d*$",
+                                    "type": "string",
+                                  },
+                                  "gseq": {
+                                    "type": "number",
+                                  },
+                                  "oseq": {
+                                    "type": "number",
+                                  },
+                                  "owner": {
+                                    "type": "string",
+                                  },
+                                  "provider": {
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "owner",
+                                  "dseq",
+                                  "gseq",
+                                  "oseq",
+                                  "provider",
+                                  "bseq",
+                                ],
+                                "type": "object",
+                              },
+                              "offeredGpus": {
+                                "description": "GPUs the provider offered for this lease in the bid it was created from, which is what an \`Any model\` request resolves to. Absent until the console has recorded the bid, and for a lease whose deployment the console does not manage.",
+                                "properties": {
+                                  "gpus": {
+                                    "items": {
+                                      "properties": {
+                                        "count": {
+                                          "description": "Cards of this model offered across every replica, identical ones folded into one entry.",
+                                          "exclusiveMinimum": true,
+                                          "minimum": 0,
+                                          "type": "integer",
+                                        },
+                                        "displayName": {
+                                          "description": "Marketing-correct label for the model, e.g. \`A100\`.",
+                                          "type": "string",
+                                        },
+                                        "interface": {
+                                          "description": "\`sxm\` or \`pcie\` when the offer names it. Providers name it only when the SDL asked for it.",
+                                          "nullable": true,
+                                          "type": "string",
+                                        },
+                                        "model": {
+                                          "description": "SDL model key the provider offered, e.g. \`a100\`.",
+                                          "type": "string",
+                                        },
+                                        "ram": {
+                                          "description": "Per-card memory, e.g. \`80Gi\`, when the offer names it. Providers name it only when the SDL asked for it.",
+                                          "nullable": true,
+                                          "type": "string",
+                                        },
+                                        "vendor": {
+                                          "description": "Vendor key the provider offered, e.g. \`nvidia\`.",
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "vendor",
+                                        "model",
+                                        "displayName",
+                                        "ram",
+                                        "interface",
+                                        "count",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "type": "array",
+                                  },
+                                  "recordedAt": {
+                                    "format": "date-time",
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "gpus",
+                                  "recordedAt",
+                                ],
+                                "type": "object",
+                              },
+                              "price": {
+                                "properties": {
+                                  "amount": {
+                                    "type": "string",
+                                  },
+                                  "denom": {
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "denom",
+                                  "amount",
+                                ],
+                                "type": "object",
+                              },
+                              "reason": {
+                                "type": "string",
+                              },
+                              "reclamation": {
+                                "description": "Present only on a lease its provider has flagged for reclamation. \`deadline\` is unix seconds; \`reason\` is a \`lease_closed_reason_*\` enum name.",
+                                "properties": {
+                                  "deadline": {
+                                    "type": "string",
+                                  },
+                                  "reason": {
+                                    "type": "string",
+                                  },
+                                  "started_at": {
+                                    "type": "string",
+                                  },
+                                  "window": {
+                                    "type": "string",
+                                  },
+                                },
+                                "type": "object",
+                              },
+                              "state": {
+                                "type": "string",
+                              },
+                              "status": {
+                                "nullable": true,
+                                "properties": {
+                                  "forwarded_ports": {
+                                    "additionalProperties": {
+                                      "items": {
+                                        "properties": {
+                                          "available": {
+                                            "type": "number",
+                                          },
+                                          "externalPort": {
+                                            "type": "number",
+                                          },
+                                          "host": {
+                                            "type": "string",
+                                          },
+                                          "port": {
+                                            "type": "number",
+                                          },
+                                        },
+                                        "required": [
+                                          "port",
+                                          "externalPort",
+                                        ],
+                                        "type": "object",
+                                      },
+                                      "type": "array",
+                                    },
+                                    "type": "object",
+                                  },
+                                  "ips": {
+                                    "additionalProperties": {
+                                      "items": {
+                                        "properties": {
+                                          "ExternalPort": {
+                                            "type": "number",
+                                          },
+                                          "IP": {
+                                            "type": "string",
+                                          },
+                                          "Port": {
+                                            "type": "number",
+                                          },
+                                          "Protocol": {
+                                            "type": "string",
+                                          },
+                                        },
+                                        "required": [
+                                          "IP",
+                                          "Port",
+                                          "ExternalPort",
+                                          "Protocol",
+                                        ],
+                                        "type": "object",
+                                      },
+                                      "type": "array",
+                                    },
+                                    "type": "object",
+                                  },
+                                  "services": {
+                                    "additionalProperties": {
+                                      "properties": {
+                                        "available": {
+                                          "type": "number",
+                                        },
+                                        "available_replicas": {
+                                          "type": "number",
+                                        },
+                                        "name": {
+                                          "type": "string",
+                                        },
+                                        "observed_generation": {
+                                          "type": "number",
+                                        },
+                                        "ready_replicas": {
+                                          "type": "number",
+                                        },
+                                        "replicas": {
+                                          "type": "number",
+                                        },
+                                        "total": {
+                                          "type": "number",
+                                        },
+                                        "updated_replicas": {
+                                          "type": "number",
+                                        },
+                                        "uris": {
+                                          "items": {
+                                            "type": "string",
+                                          },
+                                          "type": "array",
+                                        },
+                                      },
+                                      "required": [
+                                        "name",
+                                        "available",
+                                        "total",
+                                        "uris",
+                                        "observed_generation",
+                                        "replicas",
+                                        "updated_replicas",
+                                        "ready_replicas",
+                                        "available_replicas",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "type": "object",
+                                  },
+                                },
+                                "required": [
+                                  "forwarded_ports",
+                                  "ips",
+                                  "services",
+                                ],
+                                "type": "object",
+                              },
+                            },
+                            "required": [
+                              "id",
+                              "state",
+                              "price",
+                              "created_at",
+                              "closed_on",
+                              "status",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                        "manifestVersion": {
+                          "description": "Base64 manifest version this request recorded, which the deployment is now on.",
+                          "type": "string",
+                        },
+                        "name": {
+                          "description": "The name this deployment carries, or null for one created before the console recorded names.",
+                          "nullable": true,
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "deployment",
+                        "leases",
+                        "escrow_account",
+                        "name",
+                        "manifestVersion",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The definition was replaced and the deployment updated",
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "activityId": {
+                          "description": "The activity that reports how applying the definition ends.",
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "manifestVersion": {
+                          "description": "Base64 manifest version this request saved. Pass it as \`ifManifestVersion\` to change the deployment again while this one is still being applied.",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "activityId",
+                        "manifestVersion",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The definition passed every check and was saved, and will be applied in the background",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The SDL is not valid, leaves a secret reference with neither a value in \`sealedSecrets\` nor one the deployment stores, supplies a name no service references, names a variable in \`secretEnv\` that no service sets, or carries a \`sealedSecrets\` value that is malformed, tampered with, expired or not a flat object of string values",
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The \`sealedSecrets\` value was sealed for a different user, or bound to a different SDL than the one submitted. With \`code\` \`project_forbidden\`, the deployment is filed in a project the caller cannot change",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "No SDL is recorded for this deployment, so there is nothing to replace. Record the definition it runs with POST /v1/deployments/{dseq}/definition first",
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The deployment definition changed between this request reading it and writing it, or since the \`ifManifestVersion\` it names: \`code\` is \`deployment_definition_changed\`, and reloading the definition cures it. A 409 without that code answers a seal made against a retired key, which a fresh seal cures. With \`code\` \`deployment_record_unfiled\`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With \`code\` \`stored_secrets_unavailable\`, the stored secrets were sealed for a member who deleted their account, so update the deployment with its full SDL and secret values",
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The SDL changes the groups, compute resources, replica counts or globally exposed ports the deployment was created with, which only a new deployment can take: \`code\` is \`deployment_resources_changed\`, and nothing is recorded, no deployment update is sent and no provider is contacted",
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The deployment's stored state could not be read: \`code\` is \`stored_secrets_unreadable\` when the sealed secrets would not open and \`stored_sdl_unreadable\` when the recorded SDL would not parse. Both are permanent rather than transient, so a retry cannot help",
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The key management service is temporarily unreachable. Transient and worth retrying, unlike the 500 above",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Replace a deployment's whole definition",
         "tags": [
           "Deployments",
         ],
