@@ -1194,6 +1194,20 @@ export interface paths {
           };
           content?: never;
         };
+        /** @description With the template marketplace on, a save that would make a template public; publish it from its Share dialog instead (`template_publish_gate_required`) */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description With the template marketplace on, the caller or the organization reached a limit; `Retry-After` tells when to try again (`template_rate_limited`) */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
       };
     };
     delete?: never;
