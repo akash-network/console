@@ -45,8 +45,11 @@ import {
   ReplaceDeploymentDefinitionRequestSchema,
   ReplaceDeploymentDefinitionResponseSchema,
   UpdateDeploymentRequestSchema,
-  UpdateDeploymentResponseSchema
-} from "@src/deployment/http-schemas/deployment.schema";
+  UpdateDeploymentResponseSchema,
+  ValidateDeploymentDefinitionParamsSchema,
+  ValidateDeploymentDefinitionRequestSchema,
+  ValidateDeploymentRequestSchema,
+  ValidateDeploymentResponseSchema } from "@src/deployment/http-schemas/deployment.schema";
 import {
   DeploymentProjectParamsSchema,
   GetDeploymentLocationResponseSchema,
@@ -750,6 +753,64 @@ deploymentsRouter.openapi(replaceDefinitionRoute, async function routeReplaceDep
   const { data } = c.req.valid("json");
   const result = await container.resolve(DeploymentController).replaceDefinition(dseq, data, c.req.valid("query"));
   return "activityId" in result.data ? c.json({ data: result.data }, 202) : c.json({ data: result.data }, 200);
+});
+
+const CHECK_REFUSALS_DESCRIPTION =
+  "Every problem with the document and its secrets answers 200 with `valid` false and the problems listed; an error status means the check itself could not run";
+
+const validateRoute = createRoute({
+  method: "post",
+  path: "/v1/deployments/validate",
+  summary: "Check a definition before creating a deployment from it",
+  description: `Runs the checks POST /v1/deployments would run on the document and its secrets, and reports every problem at once, each at its path in the document. Creates, records, seals and sends nothing. ${CHECK_REFUSALS_DESCRIPTION}.`,
+  operationId: "validateDeployment",
+  tags: ["Deployments"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  /** Sized like the create route it previews, whose seal it may carry. */
+  bodyLimit: { maxSize: CREATE_DEPLOYMENT_BODY_LIMIT_BYTES },
+  request: {
+    body: { content: { "application/json": { schema: ValidateDeploymentRequestSchema } } }
+  },
+  responses: {
+    200: { description: "The check ran", content: { "application/json": { schema: ValidateDeploymentResponseSchema } } },
+    400: { description: "Neither or both of `sdl` and `definition` were sent, or the `sealedSecrets` value is malformed, tampered with or expired", content: { "application/json": { schema: ErrorResponseSchema } } },
+    403: { description: "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted", content: { "application/json": { schema: ErrorResponseSchema } } },
+    404: { description: "No deployment you can change matches `inheritSecretsFrom`", content: { "application/json": { schema: ErrorResponseSchema } } },
+    503: { description: "The key management service is temporarily unreachable. Transient and worth retrying", content: { "application/json": { schema: ErrorResponseSchema } } }
+  }
+});
+deploymentsRouter.openapi(validateRoute, async function routeValidateDeployment(c) {
+  const { data } = c.req.valid("json");
+  return c.json(await container.resolve(DeploymentController).validate(data), 200);
+});
+
+const validateDefinitionRoute = createRoute({
+  method: "post",
+  path: "/v1/deployments/{dseq}/definition/validate",
+  summary: "Check a definition before replacing a deployment's with it",
+  description: `Runs the checks PUT /v1/deployments/{dseq}/definition would run against this deployment, including changes only a new deployment can take, and reports every problem at once. \`keptSecrets\` lists the references that would keep the value the deployment stores. Records, seals and sends nothing. ${CHECK_REFUSALS_DESCRIPTION}.`,
+  operationId: "validateDeploymentDefinition",
+  tags: ["Deployments"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  /** Sized like the replace route it previews, whose seal it may carry. */
+  bodyLimit: { maxSize: CREATE_DEPLOYMENT_BODY_LIMIT_BYTES },
+  request: {
+    params: ValidateDeploymentDefinitionParamsSchema,
+    body: { content: { "application/json": { schema: ValidateDeploymentDefinitionRequestSchema } } }
+  },
+  responses: {
+    200: { description: "The check ran", content: { "application/json": { schema: ValidateDeploymentResponseSchema } } },
+    400: { description: "Neither or both of `sdl` and `definition` were sent, or the `sealedSecrets` value is malformed, tampered with or expired", content: { "application/json": { schema: ErrorResponseSchema } } },
+    403: { description: "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted", content: { "application/json": { schema: ErrorResponseSchema } } },
+    404: { description: "No SDL is recorded for this deployment, so there is nothing to check a replacement against", content: { "application/json": { schema: ErrorResponseSchema } } },
+    500: { description: "The deployment's stored SDL or secrets could not be read. Permanent rather than transient", content: { "application/json": { schema: ErrorResponseSchema } } },
+    503: { description: "The key management service is temporarily unreachable. Transient and worth retrying", content: { "application/json": { schema: ErrorResponseSchema } } }
+  }
+});
+deploymentsRouter.openapi(validateDefinitionRoute, async function routeValidateDeploymentDefinition(c) {
+  const { dseq } = c.req.valid("param");
+  const { data } = c.req.valid("json");
+  return c.json(await container.resolve(DeploymentController).validateDefinition(dseq, data), 200);
 });
 
 const listRoute = createRoute({
