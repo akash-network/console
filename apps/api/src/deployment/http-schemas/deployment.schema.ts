@@ -174,6 +174,13 @@ const ConsoleSettingsSchema = z.object({
   manifestVersion: z.string().openapi({
     description: "Base64 of the manifest version the console recorded for this deployment. Deliberately not a hash of the `sdl` above."
   }),
+  definition: z
+    .record(z.string(), z.unknown())
+    .nullable()
+    .openapi({
+      description:
+        "The same stored SDL as a JSON object, in the shape `definition` takes on PUT /v1/deployments/{dseq}/definition, so it can be edited and sent back as it is. Secrets appear only as their `ac-secret://NAME` references. Null only if the stored SDL cannot be read as a document."
+    }),
   templateId: z.string().nullable().openapi({
     description: "ID of the gallery template the deployment was created from, or null when it was not created from one."
   })
@@ -788,7 +795,7 @@ export const CreateDeploymentDefinitionRequestSchema = z.object({
 });
 
 export const CreateDeploymentDefinitionResponseSchema = z.object({
-  data: ConsoleSettingsSchema.omit({ templateId: true })
+  data: ConsoleSettingsSchema.omit({ templateId: true, definition: true })
 });
 
 export const deploymentListMaxLimit = 100;
