@@ -173,7 +173,6 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
     isPublic && shownVersionNumber !== undefined
       ? UrlService.configureTemplate({ mode: "new", copyFromTemplateId: id, copyFromVersion: shownVersionNumber })
       : undefined;
-  const liveVersionCount = versionsQuery.data?.filter(version => version.status === "live").length;
 
   const signInToReport = () => {
     router.push(UrlService.newLogin({ returnTo: UrlService.template(id) }));
@@ -368,7 +367,7 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
 
           {isPublic && template.publisher && (
             <div className="mt-6">
-              <d.TemplatePublisherCard publisher={template.publisher} publishedAt={template.publishedAt} versionCount={liveVersionCount} />
+              <d.TemplatePublisherCard publisher={template.publisher} publishedAt={template.publishedAt} currentVersion={currentVersion?.version} />
             </div>
           )}
         </div>
