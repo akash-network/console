@@ -172,14 +172,34 @@ describe(TemplateWriterService.name, () => {
       expect(writableRepository.createTemplate).toHaveBeenCalledWith(expect.objectContaining({ copiedFromId }));
     });
 
-    it("refuses copying from a template the caller cannot read", async () => {
+    it("refuses copying from a template the caller cannot read, under a code that names the source", async () => {
       const { service, writableRepository, marketplaceTemplateService } = setup();
       marketplaceTemplateService.findReadable.mockRejectedValue(createError(404, "Template not found"));
 
       await expect(service.create({ title: "Copy", sdl: buildSdl(), askedValues: [], copiedFromId: faker.string.uuid() })).rejects.toMatchObject({
-        status: 404
+        status: 404,
+        message: "The template to copy was not found",
+        errorCode: "template_copy_source_not_found"
       });
       expect(writableRepository.createTemplate).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["a removed source", createError(410, "This template was removed", { errorCode: "template_removed" })],
+      ["a failure that is not an HTTP refusal", new Error("connection lost")]
+    ])("passes on %s as it is when the copy source cannot be read", async (_case, failure) => {
+      const { service, marketplaceTemplateService } = setup();
+      marketplaceTemplateService.findReadable.mockRejectedValue(failure);
+
+      await expect(service.create({ title: "Copy", sdl: buildSdl(), askedValues: [], copiedFromId: faker.string.uuid() })).rejects.toBe(failure);
+    });
+
+    it("leaves a project that is gone its plain 404, so it is not taken for the copy source", async () => {
+      const { service, deploymentProjectService } = setup();
+      const projectGone = createError(404, "Project not found");
+      deploymentProjectService.resolveFilingProject.mockRejectedValue(projectGone);
+
+      await expect(service.create({ title: "Copy", sdl: buildSdl(), askedValues: [], copiedFromId: faker.string.uuid() })).rejects.toBe(projectGone);
     });
 
     it("counts the copy as a fork of its source inside the transaction, once the limits are checked", async () => {
