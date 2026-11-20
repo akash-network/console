@@ -81,6 +81,45 @@ export function PrivacyPolicy() {
         </ul>
 
         <Title subTitle className="my-4">
+          AI assistant and feedback
+        </Title>
+
+        <p>
+          Akash Console has an in-app AI assistant, and asks for your feedback through a rating card after a deployment and a feedback form. When you use the
+          assistant, it processes your messages and the account, deployment and billing details it looks up to answer you.
+        </p>
+        <p>We use these AI services to process this data:</p>
+        <ul className="list-disc py-4 pl-8">
+          <li>
+            AkashML, Akash&apos;s own AI inference service, runs the assistant, checks each message for misuse, and sorts feedback, problem reports and saved
+            conversations into topics. Repeated misuse pauses the assistant for your account until the end of the day (UTC).
+          </li>
+          <li>TypeSafe may also be used to sort feedback, problem reports and saved conversations into topics.</li>
+        </ul>
+        <p>
+          Before anything is sent to these services or stored, we remove the secrets we recognize in environment variables and SDL, such as passwords, tokens
+          and API keys. This is automatic and may miss a secret in an unusual format, so don&apos;t share secrets with the assistant.
+        </p>
+        <p>We store:</p>
+        <ul className="list-disc py-4 pl-8">
+          <li>Your assistant conversations, only if you let the Akash team review them, or when you send us a problem report about one.</li>
+          <li>The feedback you submit.</li>
+          <li>
+            For every assistant answer, a usage record that does not contain the text of your messages or of the answer. We keep these records for 90 days.
+          </li>
+        </ul>
+        <p>
+          Stored conversations are deleted automatically 12 months after their last message, and feedback and problem reports 12 months after you send them. You
+          can delete your saved conversations at any time in your account settings, under Privacy. Deleting your account deletes your conversations, feedback,
+          problem reports and usage records.
+        </p>
+        <p>
+          Feedback, problem reports and saved conversations are grouped into topics, each with a short title and summary written by AI. A topic does not name
+          you or link to your account, and it stays after what it came from is deleted.
+        </p>
+        <p>We do not use your conversations or feedback to train AI models.</p>
+
+        <Title subTitle className="my-4">
           Log Files
         </Title>
 

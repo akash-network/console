@@ -14,7 +14,9 @@ describe("SendFeedbackDialog", () => {
 
     expect(screen.getByRole("dialog", { name: "Send feedback" })).toBeInTheDocument();
     expect(screen.getAllByRole("radio").map(radio => radio.textContent)).toEqual(["Bug", "Feature request", "Other"]);
-    expect(screen.getByText(/Sent to the Akash team with the page you're on, and sorted into topics by TypeSafe/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Sent to the Akash team with the page you're on\. AI services we use \(AkashML, and in some cases TypeSafe\) sort it into topics\./)
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Privacy policy" })).toHaveAttribute("href", "/privacy-policy");
   });
 

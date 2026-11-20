@@ -9,7 +9,7 @@ type Props = {
 
 export const FeedbackConsentNote: FC<Props> = ({ sentWith }) => (
   <p className="text-xs text-muted-foreground">
-    Sent to the Akash team with {sentWith}, and sorted into topics by TypeSafe, an AI service we use for this.{" "}
+    Sent to the Akash team with {sentWith}. AI services we use (AkashML, and in some cases TypeSafe) sort it into topics.{" "}
     <Link href={UrlService.privacyPolicy()} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground">
       Privacy policy
     </Link>
