@@ -5,6 +5,7 @@ import { BadgeCheck, GitFork, History, Rocket, ShieldAlert } from "lucide-react"
 import Link from "next/link";
 
 import type { GalleryEntry } from "@src/components/templates/communityGallery/galleryEntries";
+import { PublisherLink } from "@src/components/templates/communityGallery/PublisherLink/PublisherLink";
 import { PublisherName } from "@src/components/templates/communityGallery/PublisherName/PublisherName";
 import { formatCount, formatStillUp } from "@src/components/templates/communityGallery/usageNumbers";
 import { HardwareProfile } from "@src/components/templates/TemplateCard/TemplateCard";
@@ -13,33 +14,48 @@ import { UrlService } from "@src/utils/urlUtils";
 
 export const COMMUNITY_CARD_NOTE = "Community · not reviewed by Akash";
 
-export const AWESOME_AKASH_PUBLISHER = { name: "Akash Network", verified: true };
+export const AWESOME_AKASH_PUBLISHER = { name: "Akash Network", handle: null, verified: true };
 
 export function galleryEntryHref(entry: Pick<GalleryEntry, "origin" | "id">): string {
   return entry.origin === "console" ? UrlService.template(entry.id) : UrlService.templateDetails(entry.id);
 }
 
-export const GalleryEntryCard: FC<{ entry: GalleryEntry }> = ({ entry }) => {
+export interface GalleryEntryCardProps {
+  entry: GalleryEntry;
+  /** False on the publisher's own page, where the name would only link to the page it is on. */
+  linksPublisher?: boolean;
+}
+
+/** The title link stretches over the whole card and the publisher link sits above it, so the card holds two links and neither is inside the other. */
+export const GalleryEntryCard: FC<GalleryEntryCardProps> = ({ entry, linksPublisher = true }) => {
   const publisher = entry.publisher ?? AWESOME_AKASH_PUBLISHER;
 
   return (
-    <Link
-      href={galleryEntryHref(entry)}
-      prefetch={false}
-      className="group flex flex-col rounded-[14px] border border-border bg-card px-[18px] pb-3.5 pt-4 text-card-foreground !no-underline shadow-sm transition-[box-shadow,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-blue-600/45 hover:shadow-[0_4px_12px_-6px_rgba(0,0,0,0.12),0_0_0_1px_rgba(37,99,235,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
+    <article className="group relative flex flex-col rounded-[14px] border border-border bg-card px-[18px] pb-3.5 pt-4 text-card-foreground shadow-sm transition-[box-shadow,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-blue-600/45 hover:shadow-[0_4px_12px_-6px_rgba(0,0,0,0.12),0_0_0_1px_rgba(37,99,235,0.18)]">
       <div className="flex items-center gap-2.5">
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-muted">
           <TemplateIcon icon={entry.icon} className="h-4 w-4" />
         </span>
-        <h3 className="min-w-0 flex-1 truncate text-base font-bold tracking-tight">{entry.title}</h3>
+        <h3 className="min-w-0 flex-1 truncate text-base font-bold tracking-tight">
+          <Link
+            href={galleryEntryHref(entry)}
+            prefetch={false}
+            className="text-card-foreground !no-underline after:absolute after:inset-0 after:rounded-[14px] after:content-[''] focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring"
+          >
+            {entry.title}
+          </Link>
+        </h3>
         {entry.isOfficial ? <OfficialBadge /> : entry.scores.isTrending && <TrendingBadge />}
       </div>
 
       <p className="mt-2.5 line-clamp-2 min-h-[34px] break-words text-[12.5px] leading-[17px] text-muted-foreground">{entry.summary}</p>
 
       <p className="mt-3 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] leading-[18px] text-muted-foreground">
-        <PublisherName name={publisher.name} verified={publisher.verified} />
+        {linksPublisher ? (
+          <PublisherLink publisher={publisher} className="relative z-[1]" />
+        ) : (
+          <PublisherName name={publisher.name} verified={publisher.verified} />
+        )}
         {entry.origin === "awesome-akash" && <span>· awesome-akash</span>}
         {entry.usage.stillUpAfter24h !== null && <span>· {formatStillUp(entry.usage.stillUpAfter24h)}</span>}
       </p>
@@ -61,7 +77,7 @@ export const GalleryEntryCard: FC<{ entry: GalleryEntry }> = ({ entry }) => {
           {entry.usage.deploys > 0 && <UsageStat icon={Rocket} label="Deploys" value={entry.usage.deploys} />}
         </ul>
       </div>
-    </Link>
+    </article>
   );
 };
 
