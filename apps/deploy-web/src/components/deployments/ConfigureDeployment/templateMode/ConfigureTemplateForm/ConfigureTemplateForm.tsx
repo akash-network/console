@@ -14,6 +14,7 @@ import Layout from "@src/components/layout/Layout";
 import { ConfigureDeployTargetChip } from "@src/components/projects/ConfigureDeployTargetChip/ConfigureDeployTargetChip";
 import { useConfigureDeployTarget } from "@src/components/projects/DeployTargetGate/DeployTargetGate";
 import { describeTemplateRefusal } from "@src/components/templates/describeTemplateRefusal";
+import { FORK_REFUSAL_MESSAGES, readForkRefusal } from "@src/components/templates/fork/readForkRefusal";
 import { publishFixLinksOf } from "@src/components/templates/publishing/publishReadiness";
 import { readTemplateRateLimit } from "@src/components/templates/publishing/readPublishRefusal";
 import { useCreateTemplateMutation, useCreateTemplateVersionMutation } from "@src/queries/useUserTemplateQueries";
@@ -256,7 +257,8 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({
       });
       leaveFor(UrlService.template(response.data.id));
     } catch (error) {
-      toastSaveFailure(error);
+      const forkRefusal = intent.copyFromTemplateId ? readForkRefusal(error) : undefined;
+      toastSaveFailure(error, forkRefusal && FORK_REFUSAL_MESSAGES[forkRefusal]);
     }
   }
 
@@ -296,11 +298,11 @@ const TemplateForm: FC<Omit<Props, "askedValues">> = ({
     );
   }
 
-  function toastSaveFailure(error: unknown) {
+  function toastSaveFailure(error: unknown, knownReason?: string) {
     enqueueSnackbar(
       <d.Snackbar
         title="Couldn't save the template"
-        subTitle={describeTemplateRefusal(error) ?? readTemplateRateLimit(error) ?? "Try again in a moment."}
+        subTitle={knownReason ?? describeTemplateRefusal(error) ?? readTemplateRateLimit(error) ?? "Try again in a moment."}
         iconVariant="error"
       />,
       {
