@@ -57,7 +57,8 @@ export const PublisherPage: FC<PublisherPageProps> = ({ handle, dependencies: d 
   const ownProfileQuery = d.useCurrentTemplatePublisher({ enabled: !!user });
   const toPublisherUrl = useCallback((state: GalleryUrlState) => UrlService.templatePublisher(handle, { search: state.search, sort: state.sort }), [handle]);
   const urlState = d.useTemplateGalleryUrlState(undefined, toPublisherUrl);
-  const [isEditing, setIsEditing] = useState(false);
+  /** Held apart from the viewer's own profile, which goes away when the session ends: the open form must outlive that to say so and keep what was typed. */
+  const [profileBeingEdited, setProfileBeingEdited] = useState<CurrentTemplatePublisher>();
 
   const templates = publisher?.templates;
   const entries = useMemo(
@@ -143,7 +144,7 @@ export const PublisherPage: FC<PublisherPageProps> = ({ handle, dependencies: d 
               <PublisherCount label="Total deploys" count={publisher.counts.deploys} />
             </dl>
             {ownProfile?.canEdit && (
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setIsEditing(true)}>
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setProfileBeingEdited(ownProfile)}>
                 <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
                 Edit profile
               </Button>
@@ -191,7 +192,7 @@ export const PublisherPage: FC<PublisherPageProps> = ({ handle, dependencies: d 
         />
       </div>
 
-      {isEditing && ownProfile && <d.EditPublisherProfileDialog profile={ownProfile} onClose={() => setIsEditing(false)} />}
+      {profileBeingEdited && <d.EditPublisherProfileDialog profile={profileBeingEdited} onClose={() => setProfileBeingEdited(undefined)} />}
     </d.Layout>
   );
 };
