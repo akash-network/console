@@ -28798,8 +28798,7 @@
                       "memory": {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 100,
-                        "pattern": "^[\\w.-]+$"
+                        "maxLength": 100
                       },
                       "interface": {
                         "type": "string",
