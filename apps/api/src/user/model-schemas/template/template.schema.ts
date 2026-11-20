@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { bigint, boolean, foreignKey, index, pgEnum, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { bigint, boolean, foreignKey, index, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
 // eslint-disable-next-line import-x/no-cycle
 import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
@@ -52,6 +52,10 @@ export const Templates = pgTable(
     /** Set with a `removed` moderation status: the row of a once-public template stays, emptied, so its link can say it was removed. */
     removedAt: timestamp("removed_at", { withTimezone: true }),
     removedBy: templateRemovedByEnum("removed_by"),
+    /** The awesome-akash gallery id of a template the import owns, which no route may change; kept on a removed row so the import never brings it back. */
+    importedRef: varchar("imported_ref", { length: 255 }),
+    /** What the import last wrote as a version, so a version staff rolled back from is not written again until the gallery changes. */
+    importedContentHash: varchar("imported_content_hash", { length: 64 }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
@@ -62,6 +66,7 @@ export const Templates = pgTable(
     userIdIdx: index("template_userId_idx").on(table.userId),
     organizationIdProjectIdIdx: index("template_organization_id_project_id_idx").on(table.organizationId, table.projectId),
     authorIdCreatedAtIdx: index("template_author_id_created_at_idx").on(table.authorId, table.createdAt),
+    importedRefUnique: uniqueIndex("template_imported_ref_unique").on(table.importedRef),
     projectFk: foreignKey({
       name: "template_organization_id_project_id_fk",
       columns: [table.organizationId, table.projectId],
