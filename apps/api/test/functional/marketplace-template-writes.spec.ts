@@ -800,7 +800,7 @@ describe("Marketplace template writes", () => {
       });
 
       expect(response.status).toBe(404);
-      expect(await response.json()).toMatchObject({ message: "Template not found" });
+      expect(await response.json()).toMatchObject({ code: "template_copy_source_not_found", message: "The template to copy was not found" });
       expect(await templatesAuthoredBy(owner)).toEqual([]);
     });
   });
