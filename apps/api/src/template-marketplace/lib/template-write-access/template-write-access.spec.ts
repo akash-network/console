@@ -27,6 +27,29 @@ describe(findTemplateWriteRefusal.name, () => {
     expect(findTemplateWriteRefusal({ organizationId }, "update", access)).toBe("outside_active_organization");
   });
 
+  it.each<[string, string | undefined]>([
+    ["a member its rules let manage every template of the organization", "org-1"],
+    ["a caller of another organization", "org-2"],
+    ["a caller outside any organization", undefined]
+  ])("refuses an imported template to %s, before the organization and the rules are consulted", (_case, activeOrganizationId) => {
+    const access = accessOf(activeOrganizationId, [{ action: "manage", subject: "Template" }]);
+    const imported = { organizationId: "org-1", importedRef: "akash-network-awesome-akash-comfyui" };
+
+    expect([findTemplateWriteRefusal(imported, "update", access), findTemplateWriteRefusal(imported, "delete", access)]).toEqual([
+      "imported_read_only",
+      "imported_read_only"
+    ]);
+  });
+
+  it("judges a template the import does not own by the organization and the rules, whether its gallery id is null or missing", () => {
+    const access = accessOf("org-1", [{ action: "manage", subject: "Template" }]);
+
+    expect([
+      findTemplateWriteRefusal({ organizationId: "org-1", importedRef: null }, "update", access),
+      findTemplateWriteRefusal({ organizationId: "org-1" }, "update", access)
+    ]).toEqual([undefined, undefined]);
+  });
+
   it("refuses a template that names no organization when the request has no active organization either", () => {
     const access = accessOf(undefined, [{ action: "manage", subject: "Template" }]);
 
