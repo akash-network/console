@@ -19,7 +19,7 @@ import {
 } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { formatDistanceToNowStrict } from "date-fns";
-import { ArrowRight, ChevronRight, Flag, RefreshCw, Share2, SlidersHorizontal, Star } from "lucide-react";
+import { ArrowRight, ChevronRight, Flag, GitFork, RefreshCw, Share2, SlidersHorizontal, Star, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { NextSeo } from "next-seo";
@@ -27,6 +27,7 @@ import { useSnackbar } from "notistack";
 
 import Layout from "@src/components/layout/Layout";
 import { NotFoundPage } from "@src/components/shared/NotFoundPage/NotFoundPage";
+import { OfficialBadge } from "@src/components/templates/communityGallery/GalleryEntryCard/GalleryEntryCard";
 import { DEPLOY_BADGE_SOURCE, isDeployBadgeArrival, TEMPLATE_ARRIVAL_SOURCE_PARAM } from "@src/components/templates/publishing/deployBadge";
 import { ShareTemplateDialog } from "@src/components/templates/publishing/ShareTemplateDialog/ShareTemplateDialog";
 import { readRemovedTemplate } from "@src/components/templates/removed/readRemovedTemplate";
@@ -43,7 +44,9 @@ import { useMarketplaceTemplate, useTemplateVersion, useTemplateVersions } from 
 import type { MarketplaceTemplate, TemplateVersionDetail, TemplateVersionSummary } from "@src/types/marketplace-template";
 import { UrlService } from "@src/utils/urlUtils";
 import { TemplateConfigurationTab } from "./TemplateConfigurationTab/TemplateConfigurationTab";
+import { TemplatePublisherCard } from "./TemplatePublisherCard/TemplatePublisherCard";
 import { TemplateReadmeTab } from "./TemplateReadmeTab/TemplateReadmeTab";
+import { TemplateReviewNotice } from "./TemplateReviewNotice/TemplateReviewNotice";
 import { TemplateSettingsTab } from "./TemplateSettingsTab/TemplateSettingsTab";
 import { TemplateVersionsTab } from "./TemplateVersionsTab/TemplateVersionsTab";
 
@@ -59,6 +62,8 @@ export const DEPENDENCIES = {
   ShareTemplateDialog,
   ReportTemplateDialog,
   RemovedTemplateNotice,
+  TemplateReviewNotice,
+  TemplatePublisherCard,
   useMarketplaceTemplate,
   useTemplateVersions,
   useTemplateVersion,
@@ -163,6 +168,12 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
   const isFavorite = favoriteOverride ?? template.isFavorite;
   const usageParts = describeUsage(template.usage);
   const canReport = canReportTemplate(template, { username: user?.username, organizations });
+  const isPublic = template.visibility === "public";
+  const forkUrl =
+    isPublic && shownVersionNumber !== undefined
+      ? UrlService.configureTemplate({ mode: "new", copyFromTemplateId: id, copyFromVersion: shownVersionNumber })
+      : undefined;
+  const liveVersionCount = versionsQuery.data?.filter(version => version.status === "live").length;
 
   const signInToReport = () => {
     router.push(UrlService.newLogin({ returnTo: UrlService.template(id) }));
@@ -229,10 +240,22 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
               </span>
               <h1 className="min-w-0 break-words text-[26px] font-bold leading-tight tracking-tight">{template.title}</h1>
               <TemplateVisibilityBadge visibility={template.visibility} />
+              {isPublic && (template.isOfficial ? <OfficialBadge /> : <CommunityBadge />)}
               {currentVersion && <span className="rounded-md border border-border px-2 py-0.5 font-mono text-xs">v{currentVersion.version} current</span>}
             </div>
             {template.summary && <p className="mt-3 max-w-3xl text-[15px] text-muted-foreground">{template.summary}</p>}
             {usageParts.length > 0 && <p className="mt-2 text-[13px] text-muted-foreground">{usageParts.join(" · ")}</p>}
+            {template.copiedFrom && (
+              <p className="mt-2 flex min-w-0 items-center gap-1.5 text-[13px] text-muted-foreground">
+                <GitFork className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span className="min-w-0 truncate">
+                  Forked from{" "}
+                  <Link href={UrlService.template(template.copiedFrom.id)} className="font-medium text-foreground underline-offset-2 hover:underline">
+                    {template.copiedFrom.title}
+                  </Link>
+                </span>
+              </p>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -257,6 +280,15 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
                 Edit configuration
               </Link>
             )}
+            {forkUrl && (
+              <Link
+                href={user ? forkUrl : UrlService.newLogin({ returnTo: forkUrl })}
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
+              >
+                <GitFork className="h-4 w-4" aria-hidden="true" />
+                Fork
+              </Link>
+            )}
             <Link
               href={UrlService.configureDeployment({ userTemplateId: id, templateVersion: shownVersionNumber })}
               className={cn(buttonVariants({ size: "sm" }), "gap-1.5")}
@@ -267,65 +299,79 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
           </div>
         </header>
 
-        <Tabs value={activeTab} onValueChange={changeTab} className="mt-6">
-          <div className="flex flex-wrap items-center justify-between gap-x-6 border-b border-border">
-            <TabsList className="flex h-auto justify-start gap-6 overflow-x-auto rounded-none bg-transparent p-0">
-              <TabsTrigger value="readme" className={TAB_TRIGGER_CLASSES}>
-                README
-              </TabsTrigger>
-              <TabsTrigger value="configuration" className={TAB_TRIGGER_CLASSES}>
-                Configuration
-              </TabsTrigger>
-              <TabsTrigger value="versions" className={TAB_TRIGGER_CLASSES}>
-                Versions {versionsQuery.data && <span className="rounded-full bg-muted px-1.5 font-mono text-xs">{versionsQuery.data.length}</span>}
-              </TabsTrigger>
-              {template.canEdit && (
-                <TabsTrigger value="settings" className={TAB_TRIGGER_CLASSES}>
-                  Settings
-                </TabsTrigger>
-              )}
-            </TabsList>
-            {template.canEdit && (
-              <p className="py-2 text-[12.5px] text-muted-foreground">
-                Edit configuration and Settings show only to members of {template.publisher?.name ?? "your organization"}
-              </p>
-            )}
+        {isPublic && (
+          <div className="mt-5">
+            <d.TemplateReviewNotice isOfficial={template.isOfficial} publisherName={template.publisher?.name} />
           </div>
+        )}
 
-          <TabsContent value="readme" forceMount className="mt-5 data-[state=inactive]:hidden">
-            {renderShownVersion(version => (
-              <d.TemplateReadmeTab key={selectedVersion ?? "current"} templateId={id} version={version} canEdit={template.canEdit && isCurrentShown} />
-            ))}
-          </TabsContent>
-          <TabsContent value="configuration" className="mt-5">
-            {renderShownVersion(version => (
-              <d.TemplateConfigurationTab version={version} />
-            ))}
-          </TabsContent>
-          <TabsContent value="versions" className="mt-5">
-            {versionsQuery.data ? (
-              <d.TemplateVersionsTab
-                templateId={id}
-                versions={versionsQuery.data}
-                currentVersion={currentVersion?.version}
-                shownVersion={shownVersionNumber}
-                canEdit={template.canEdit}
-                onView={selectVersion}
-              />
-            ) : versionsQuery.isError ? (
-              <TabNotice>Couldn&apos;t load the versions.</TabNotice>
-            ) : (
-              <div role="status" aria-label="Loading versions" className="flex justify-center py-14">
-                <Spinner size="medium" />
-              </div>
-            )}
-          </TabsContent>
-          {template.canEdit && (
-            <TabsContent value="settings" className="mt-5">
-              <d.TemplateSettingsTab template={template} />
+        <div className={cn(isPublic && template.publisher && "lg:grid lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start lg:gap-6")}>
+          <Tabs value={activeTab} onValueChange={changeTab} className="mt-6 min-w-0">
+            <div className="flex flex-wrap items-center justify-between gap-x-6 border-b border-border">
+              <TabsList className="flex h-auto justify-start gap-6 overflow-x-auto rounded-none bg-transparent p-0">
+                <TabsTrigger value="readme" className={TAB_TRIGGER_CLASSES}>
+                  README
+                </TabsTrigger>
+                <TabsTrigger value="configuration" className={TAB_TRIGGER_CLASSES}>
+                  Configuration
+                </TabsTrigger>
+                <TabsTrigger value="versions" className={TAB_TRIGGER_CLASSES}>
+                  Versions {versionsQuery.data && <span className="rounded-full bg-muted px-1.5 font-mono text-xs">{versionsQuery.data.length}</span>}
+                </TabsTrigger>
+                {template.canEdit && (
+                  <TabsTrigger value="settings" className={TAB_TRIGGER_CLASSES}>
+                    Settings
+                  </TabsTrigger>
+                )}
+              </TabsList>
+              {template.canEdit && (
+                <p className="py-2 text-[12.5px] text-muted-foreground">
+                  Edit configuration and Settings show only to members of {template.publisher?.name ?? "your organization"}
+                </p>
+              )}
+            </div>
+
+            <TabsContent value="readme" forceMount className="mt-5 data-[state=inactive]:hidden">
+              {renderShownVersion(version => (
+                <d.TemplateReadmeTab key={selectedVersion ?? "current"} templateId={id} version={version} canEdit={template.canEdit && isCurrentShown} />
+              ))}
             </TabsContent>
+            <TabsContent value="configuration" className="mt-5">
+              {renderShownVersion(version => (
+                <d.TemplateConfigurationTab version={version} />
+              ))}
+            </TabsContent>
+            <TabsContent value="versions" className="mt-5">
+              {versionsQuery.data ? (
+                <d.TemplateVersionsTab
+                  templateId={id}
+                  versions={versionsQuery.data}
+                  currentVersion={currentVersion?.version}
+                  shownVersion={shownVersionNumber}
+                  canEdit={template.canEdit}
+                  onView={selectVersion}
+                />
+              ) : versionsQuery.isError ? (
+                <TabNotice>Couldn&apos;t load the versions.</TabNotice>
+              ) : (
+                <div role="status" aria-label="Loading versions" className="flex justify-center py-14">
+                  <Spinner size="medium" />
+                </div>
+              )}
+            </TabsContent>
+            {template.canEdit && (
+              <TabsContent value="settings" className="mt-5">
+                <d.TemplateSettingsTab template={template} />
+              </TabsContent>
+            )}
+          </Tabs>
+
+          {isPublic && template.publisher && (
+            <div className="mt-6">
+              <d.TemplatePublisherCard publisher={template.publisher} publishedAt={template.publishedAt} versionCount={liveVersionCount} />
+            </div>
           )}
-        </Tabs>
+        </div>
 
         {canReport && (
           <div className="mt-8 flex justify-end">
@@ -378,6 +424,13 @@ const VersionPicker: FC<{
   </Select>
 );
 
+const CommunityBadge: FC = () => (
+  <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-muted px-2 py-0.5 font-mono text-[11.5px] font-medium text-muted-foreground">
+    <Users className="h-3 w-3" aria-hidden="true" />
+    Community
+  </span>
+);
+
 const TabNotice: FC<{ children: ReactNode }> = ({ children }) => (
   <p className="rounded-[14px] border border-dashed border-border bg-card px-6 py-14 text-center text-sm text-muted-foreground">{children}</p>
 );
@@ -387,5 +440,7 @@ function describeUsage(usage: MarketplaceTemplate["usage"]): string[] {
   if (usage.deploys > 0) parts.push(`${NUMBER_FORMAT.format(usage.deploys)} ${usage.deploys === 1 ? "deploy" : "deploys"}`);
   if (usage.stillUpAfter24h !== null) parts.push(`${Math.round(usage.stillUpAfter24h * 100)}% still up after 24 h`);
   if (usage.lastDeployedAt) parts.push(`Last deployed ${formatDistanceToNowStrict(new Date(usage.lastDeployedAt), { addSuffix: true })}`);
+  if (usage.forks > 0) parts.push(`${NUMBER_FORMAT.format(usage.forks)} ${usage.forks === 1 ? "fork" : "forks"}`);
+  if (usage.favorites > 0) parts.push(`${NUMBER_FORMAT.format(usage.favorites)} ${usage.favorites === 1 ? "favorite" : "favorites"}`);
   return parts;
 }
