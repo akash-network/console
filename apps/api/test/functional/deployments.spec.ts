@@ -485,7 +485,7 @@ describe("Deployments API", () => {
 
       expect(response.status).toBe(200);
       const result = (await response.json()) as { data: { consoleSettings: unknown } };
-      expect(result.data.consoleSettings).toEqual({ sdl, manifestVersion: "BAUG", templateId: null });
+      expect(result.data.consoleSettings).toEqual({ sdl, definition: yaml.raw(sdl), manifestVersion: "BAUG", templateId: null });
     });
 
     it("returns the gallery template the console recorded for the deployment", async () => {
@@ -582,8 +582,8 @@ describe("Deployments API", () => {
         return (await response.json()) as { data: { consoleSettings: { sdl: string } | null } };
       };
 
-      expect((await readAs(first.userApiKeySecret)).data.consoleSettings).toEqual({ sdl: firstSdl, manifestVersion: "BAUG", templateId: null });
-      expect((await readAs(second.userApiKeySecret)).data.consoleSettings).toEqual({ sdl: secondSdl, manifestVersion: "BAUH", templateId: null });
+      expect((await readAs(first.userApiKeySecret)).data.consoleSettings).toEqual({ sdl: firstSdl, definition: yaml.raw(firstSdl), manifestVersion: "BAUG", templateId: null });
+      expect((await readAs(second.userApiKeySecret)).data.consoleSettings).toEqual({ sdl: secondSdl, definition: yaml.raw(secondSdl), manifestVersion: "BAUH", templateId: null });
     });
 
     it("returns the name the console recorded for the deployment", async () => {

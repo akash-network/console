@@ -10765,6 +10765,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "description": "What the console recorded for this deployment, or null when it recorded nothing.",
                           "nullable": true,
                           "properties": {
+                            "definition": {
+                              "additionalProperties": {
+                                "nullable": true,
+                              },
+                              "description": "The same stored SDL as a JSON object, in the shape \`definition\` takes on PUT /v1/deployments/{dseq}/definition, so it can be edited and sent back as it is. Secrets appear only as their \`ac-secret://NAME\` references. Null only if the stored SDL cannot be read as a document.",
+                              "nullable": true,
+                              "type": "object",
+                            },
                             "manifestVersion": {
                               "description": "Base64 of the manifest version the console recorded for this deployment. Deliberately not a hash of the \`sdl\` above.",
                               "type": "string",
@@ -10782,6 +10790,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "required": [
                             "sdl",
                             "manifestVersion",
+                            "definition",
                             "templateId",
                           ],
                           "type": "object",

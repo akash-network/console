@@ -50,7 +50,16 @@ describe(DeploymentReaderService.name, () => {
 
       const result = await service.findByUserIdAndDseq(wallet.userId, "12345");
 
-      expect(result.consoleSettings).toEqual({ sdl: "version: '2.0'", manifestVersion: "BAUG", templateId: null });
+      expect(result.consoleSettings).toEqual({ sdl: "version: '2.0'", definition: { version: "2.0" }, manifestVersion: "BAUG", templateId: null });
+    });
+
+    it("returns the recorded sdl as JSON too, its secret references and all", async () => {
+      const sdl = ['version: "2.0"', "services:", "  web:", "    image: nginx", "    env:", "      - API_KEY=ac-secret://API_KEY", ""].join("\n");
+      const { service, wallet } = setup({ recorded: { sdl, manifestVersion: "BAUG" } });
+
+      const result = await service.findByUserIdAndDseq(wallet.userId, "12345");
+
+      expect(result.consoleSettings?.definition).toEqual({ version: "2.0", services: { web: { image: "nginx", env: ["API_KEY=ac-secret://API_KEY"] } } });
     });
 
     it("returns the template the deployment was created from", async () => {
