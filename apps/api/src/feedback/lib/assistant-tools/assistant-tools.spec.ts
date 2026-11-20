@@ -135,6 +135,16 @@ describe("assistant tools", () => {
     expect(assistantChatToolsFor({ configureFormOpen: true, communityTemplates: false })).toBe(assistantChatTools());
   });
 
+  it("builds the template search without the community parameter and every other read tool with all of its own", () => {
+    const parametersOf = (toolName: string) =>
+      Object.keys(buildAssistantChatTools().find(({ function: { name } }) => name === toolName)?.function.parameters.properties as object);
+
+    expect(parametersOf("list_templates")).toEqual(["query"]);
+    expect(parametersOf("list_deployments")).toEqual(["state", "search"]);
+    expect(parametersOf("check_availability")).toEqual(["templateId", "sdl"]);
+    expect(parametersOf("read_console_api")).toEqual(["path", "query"]);
+  });
+
   it("offers community templates in the template search, as unreviewed and for Configure only, while the template marketplace is on", () => {
     const tools = assistantChatToolsFor({ configureFormOpen: true, communityTemplates: true });
     const search = tools.find(({ function: { name } }) => name === "list_templates");

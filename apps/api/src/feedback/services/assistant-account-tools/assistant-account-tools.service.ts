@@ -97,7 +97,7 @@ function listedMarketplaceTemplateOf({ id, title, summary, categories, isOfficia
     source: isOfficial ? "official" : "community",
     summary: (summary ?? "").slice(0, MAX_TEMPLATE_SUMMARY_LENGTH),
     gpu: resources?.gpu ?? null,
-    terms: new Set(tokenize(`${title} ${categories.join(" ")} ${summary ?? ""}`)),
+    terms: new Set(tokenize([title, ...categories, summary].join(" "))),
     reviewedByAkash: isOfficial,
     publisher: publisher.name
   };
