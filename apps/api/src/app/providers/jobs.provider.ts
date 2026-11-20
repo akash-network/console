@@ -60,6 +60,7 @@ import { ProjectBudgetAlertHandler } from "@src/organization/services/project-bu
 import { PurgeOrganizationInvitationEmailsHandler } from "@src/organization/services/purge-organization-invitation-emails/purge-organization-invitation-emails.handler";
 import { TeamOrganizationDeletedHandler } from "@src/organization/services/team-organization-deleted/team-organization-deleted.handler";
 import { CheckTemplateDeploymentStillRunningHandler } from "@src/template-marketplace/services/check-template-deployment-still-running/check-template-deployment-still-running.handler";
+import { ImportAwesomeAkashTemplatesHandler } from "@src/template-marketplace/services/import-awesome-akash-templates/import-awesome-akash-templates.handler";
 import { NotifyTemplatePublishersHandler } from "@src/template-marketplace/services/notify-template-publishers/notify-template-publishers.handler";
 import { RecomputeTemplateScoresHandler } from "@src/template-marketplace/services/recompute-template-scores/recompute-template-scores.handler";
 import { ResolveTemplateVersionImageDigestsHandler } from "@src/template-marketplace/services/resolve-template-version-image-digests/resolve-template-version-image-digests.handler";
@@ -144,6 +145,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(ResolveTemplateVersionImageDigestsHandler),
     container.resolve(WatchPopularTemplateImagesHandler),
     container.resolve(RecomputeTemplateScoresHandler),
+    container.resolve(ImportAwesomeAkashTemplatesHandler),
     container.resolve(EnforceTrialAbuseHandler),
     container.resolve(LockBlockedDomainWalletHandler),
     container.resolve(BlockEmailDomainOfWalletHandler),

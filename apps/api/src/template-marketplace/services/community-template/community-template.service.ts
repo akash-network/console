@@ -22,7 +22,7 @@ export type TemplateScores = { popular: number | null; trending: number | null; 
 
 export type CommunityTemplateCard = Pick<
   CommunityTemplateRow,
-  "id" | "title" | "summary" | "icon" | "categories" | "isOfficial" | "isFeatured" | "versionCount" | "publishedAt" | "updatedAt"
+  "id" | "title" | "summary" | "icon" | "categories" | "isOfficial" | "isFeatured" | "importedRef" | "versionCount" | "publishedAt" | "updatedAt"
 > & {
   publisher: { name: string; handle: string; verified: boolean };
   resources: TemplateHardware | null;

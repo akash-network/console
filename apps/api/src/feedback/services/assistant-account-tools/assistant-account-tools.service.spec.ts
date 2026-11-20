@@ -516,6 +516,7 @@ describe(AssistantAccountToolsService.name, () => {
       categories: ["Web"],
       isOfficial: false,
       isFeatured: false,
+      importedRef: null,
       versionCount: 1,
       publishedAt: new Date("2026-11-01T00:00:00.000Z"),
       updatedAt: new Date("2026-11-02T00:00:00.000Z"),

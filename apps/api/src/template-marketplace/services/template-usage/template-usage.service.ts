@@ -24,7 +24,7 @@ export type TemplateRef = { source: TemplateSource; templateRef: string; templat
 
 export type DeployedDefinition = Pick<DeploymentSettingsOutput, "id" | "userId" | "organizationId" | "dseq" | "templateId" | "templateVersionId">;
 
-export type ForkedTemplate = { id: string; organizationId: string; currentVersionId: string | null };
+export type ForkedTemplate = { id: string; organizationId: string; currentVersionId: string | null; importedRef?: string | null };
 
 const STILL_RUNNING_CHECK_DELAY_HOURS = 24;
 
@@ -50,7 +50,12 @@ function trackedSourceOf({ isOfficial, visibility }: Pick<VersionedTemplate, "is
 }
 
 function trackedConsoleTemplate(template: VersionedTemplate): TrackedTemplate {
-  return { source: trackedSourceOf(template), template_id: template.templateId, template_version: template.versionNumber };
+  return { source: trackedSourceOf(template), template_id: template.importedRef ?? template.templateId, template_version: template.versionNumber };
+}
+
+/** An imported template keeps the awesome-akash reference its usage was recorded under before the import, so a deployment counts once whichever way it names the template. */
+function usageKeyOf(templateId: string, importedRef: string | null | undefined): Pick<TemplateRef, "source" | "templateRef"> {
+  return importedRef ? { source: "awesome_akash", templateRef: importedRef } : { source: "console", templateRef: templateId };
 }
 
 function trackedAwesomeAkashTemplate(templateId: string): TrackedTemplate | undefined {
@@ -123,10 +128,11 @@ export class TemplateUsageService {
 
   async recordFavorite(templateId: string, action: "favorite" | "unfavorite"): Promise<void> {
     await this.#recordSafely({ action, templateId }, async () => {
+      const template = await this.templateUsageEventRepository.findReferencedTemplate(templateId);
+
       await this.templateUsageEventRepository.record({
-        source: "console",
-        templateRef: templateId,
-        templateVersionId: await this.templateUsageEventRepository.findCurrentVersionIdOfTemplate(templateId),
+        ...usageKeyOf(templateId, template?.importedRef),
+        templateVersionId: template?.currentVersionId ?? null,
         action,
         userId: this.executionContextService.get("CURRENT_USER")?.id ?? null,
         organizationId: this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId ?? null,
@@ -140,7 +146,7 @@ export class TemplateUsageService {
     if (source.organizationId === fork.organizationId) return;
 
     const isCounted = await this.templateUsageEventRepository.recordForkOncePerDay({
-      templateRef: source.id,
+      ...usageKeyOf(source.id, source.importedRef),
       templateVersionId: source.currentVersionId,
       userId: fork.userId,
       organizationId: fork.organizationId,
@@ -212,7 +218,7 @@ export class TemplateUsageService {
     if (templateVersionId) {
       const template = await this.templateUsageEventRepository.findTemplateOfVersion(templateVersionId);
 
-      return template && { ref: { source: "console", templateRef: template.templateId, templateVersionId }, tracked: trackedConsoleTemplate(template) };
+      return template && { ref: { ...usageKeyOf(template.templateId, template.importedRef), templateVersionId }, tracked: trackedConsoleTemplate(template) };
     }
 
     if (templateId)

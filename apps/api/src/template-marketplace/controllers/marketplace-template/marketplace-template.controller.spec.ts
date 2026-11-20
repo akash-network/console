@@ -321,6 +321,7 @@ describe(MarketplaceTemplateController.name, () => {
       isListed: false,
       isOfficial: false,
       moderationStatus: "active",
+      importedRef: null,
       projectId: faker.string.uuid(),
       copiedFromId: null,
       copiedFrom: null,

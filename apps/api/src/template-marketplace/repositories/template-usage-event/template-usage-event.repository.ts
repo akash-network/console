@@ -5,6 +5,7 @@ import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@
 import { TxService } from "@src/core/services";
 import type { TemplateUsageAction } from "@src/template-marketplace/model-schemas/template-usage-event/template-usage-event.schema";
 import { publiclyReadableTemplate } from "@src/template-marketplace/repositories/marketplace-template/publicly-readable-template";
+import { isCountedForTemplate, namesTemplateUsage } from "@src/template-marketplace/repositories/marketplace-template/template-usage-reference";
 
 type Table = ApiPgTables["TemplateUsageEvents"];
 type TemplateVersionsTable = ApiPgTables["TemplateVersions"];
@@ -12,13 +13,21 @@ type TemplatesTable = ApiPgTables["Templates"];
 
 export type TemplateUsageEventInput = Omit<Table["$inferInsert"], "id">;
 
-export type ForkEventInput = Pick<TemplateUsageEventInput, "templateRef" | "templateVersionId" | "organizationId" | "network"> & { userId: string };
+export type ForkEventInput = Pick<TemplateUsageEventInput, "source" | "templateRef" | "templateVersionId" | "organizationId" | "network"> & { userId: string };
 
 export type TemplateUsageSummary = { deploys: number; lastDeployedAt: Date | null; stillUpAfter24h: number | null; forks: number };
 
 export type WatchedTemplate = { templateId: string; currentVersionId: string };
 
-export type VersionedTemplate = { templateId: string; versionNumber: number; isOfficial: boolean; visibility: TemplatesTable["$inferSelect"]["visibility"] };
+export type VersionedTemplate = {
+  templateId: string;
+  versionNumber: number;
+  isOfficial: boolean;
+  visibility: TemplatesTable["$inferSelect"]["visibility"];
+  importedRef: string | null;
+};
+
+export type ReferencedTemplate = { currentVersionId: string | null; importedRef: string | null };
 
 export const NO_TEMPLATE_USAGE: TemplateUsageSummary = { deploys: 0, lastDeployedAt: null, stillUpAfter24h: null, forks: 0 };
 
@@ -60,7 +69,8 @@ export class TemplateUsageEventRepository {
         templateId: this.templateVersions.templateId,
         versionNumber: this.templateVersions.version,
         isOfficial: this.templates.isOfficial,
-        visibility: this.templates.visibility
+        visibility: this.templates.visibility,
+        importedRef: this.templates.importedRef
       })
       .from(this.templateVersions)
       .innerJoin(this.templates, eq(this.templates.id, this.templateVersions.templateId))
@@ -69,13 +79,13 @@ export class TemplateUsageEventRepository {
     return version;
   }
 
-  async findCurrentVersionIdOfTemplate(templateId: string): Promise<string | null> {
+  async findReferencedTemplate(templateId: string): Promise<ReferencedTemplate | undefined> {
     const [template] = await this.#cursor
-      .select({ currentVersionId: this.templates.currentVersionId })
+      .select({ currentVersionId: this.templates.currentVersionId, importedRef: this.templates.importedRef })
       .from(this.templates)
       .where(eq(this.templates.id, templateId));
 
-    return template?.currentVersionId ?? null;
+    return template;
   }
 
   /** The caller's transaction must hold the user's row, or two forks made at once would both find none counted in the last 24 hours. */
@@ -85,7 +95,7 @@ export class TemplateUsageEventRepository {
       .from(this.table)
       .where(
         and(
-          eq(this.table.source, "console"),
+          eq(this.table.source, fork.source),
           eq(this.table.templateRef, fork.templateRef),
           eq(this.table.action, "fork"),
           eq(this.table.userId, fork.userId),
@@ -95,30 +105,30 @@ export class TemplateUsageEventRepository {
       )
       .limit(1);
 
-    return counted ? false : await this.record({ ...fork, source: "console", action: "fork" });
+    return counted ? false : await this.record({ ...fork, action: "fork" });
   }
 
-  /** Counts Console templates' mainnet events only, so testnet and sandbox trials never inflate what pages show, and leaves a public template's own organization out of its numbers. */
+  /** Counts mainnet events only, so testnet and sandbox trials never inflate what pages show, and leaves a public template's own organization out of its numbers. */
   async summarize(templateIds: string[]): Promise<Map<string, TemplateUsageSummary>> {
     if (!templateIds.length) return new Map();
 
     const rows = await this.#cursor
-      .select({ templateRef: this.table.templateRef, ...this.#usageCounts })
+      .select({ templateId: this.templates.id, ...this.#usageCounts })
       .from(this.table)
-      .innerJoin(this.templates, eq(this.table.templateRef, sql`${this.templates.id}::text`))
+      .innerJoin(this.templates, this.#namesTemplate)
       .where(
         and(
-          this.#shownTemplateEvents,
+          eq(this.table.network, SHOWN_NETWORK),
           inArray(this.templates.id, templateIds),
           inArray(this.table.action, SUMMARIZED_ACTIONS),
-          or(ne(this.templates.visibility, "public"), sql`${this.table.organizationId} is distinct from ${this.templates.organizationId}`)
+          or(ne(this.templates.visibility, "public"), isCountedForTemplate(this.table.organizationId))
         )
       )
-      .groupBy(this.table.templateRef);
+      .groupBy(this.templates.id);
     const summaries = new Map(templateIds.map(id => [id, NO_TEMPLATE_USAGE]));
 
-    for (const { templateRef, ...counts } of rows) {
-      summaries.set(templateRef, toUsageSummary(counts));
+    for (const { templateId, ...counts } of rows) {
+      summaries.set(templateId, toUsageSummary(counts));
     }
 
     return summaries;
@@ -148,7 +158,10 @@ export class TemplateUsageEventRepository {
     const rows = await this.#cursor
       .select({ versionId: this.table.templateVersionId, deploys: sql<number>`count(*)`.mapWith(Number) })
       .from(this.table)
-      .where(and(this.#shownTemplateEvents, eq(this.table.templateRef, templateId), eq(this.table.action, "deploy"), isNotNull(this.table.templateVersionId)))
+      .innerJoin(this.templates, this.#namesTemplate)
+      .where(
+        and(eq(this.table.network, SHOWN_NETWORK), eq(this.templates.id, templateId), eq(this.table.action, "deploy"), isNotNull(this.table.templateVersionId))
+      )
       .groupBy(this.table.templateVersionId);
 
     return new Map(rows.map(({ versionId, deploys }) => [versionId!, deploys]));
@@ -204,6 +217,10 @@ export class TemplateUsageEventRepository {
 
   get #weeklyDeploys() {
     return and(this.#shownTemplateEvents, eq(this.table.action, "deploy"), gte(this.table.createdAt, sql`now() - interval '7 days'`));
+  }
+
+  get #namesTemplate() {
+    return namesTemplateUsage(this.table.source, this.table.templateRef);
   }
 
   get #shownTemplateEvents() {

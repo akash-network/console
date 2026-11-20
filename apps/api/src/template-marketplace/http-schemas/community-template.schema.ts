@@ -35,6 +35,10 @@ export const CommunityTemplateCardSchema = z
     categories: z.array(z.string()),
     isOfficial: z.boolean().openapi({ description: "Whether Akash staff promoted the template; every other one is not reviewed by Akash" }),
     isFeatured: z.boolean(),
+    importedRef: z.string().nullable().openapi({
+      description:
+        "The awesome-akash gallery id of a template imported from that repository, which is read-only here and stands for the gallery entry of the same id; null for every other template"
+    }),
     publisher: z.object({
       name: z.string(),
       handle: z.string().openapi({ description: "The name of the publisher page" }),
