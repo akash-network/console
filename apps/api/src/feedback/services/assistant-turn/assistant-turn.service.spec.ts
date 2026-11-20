@@ -12,6 +12,7 @@ import { type AssistantStreamEvent, MAX_CLIENT_TOOL_RESULTS } from "@src/feedbac
 import { assistantDailyLimitReached } from "@src/feedback/lib/assistant-errors/assistant-errors";
 import { ASSISTANT_PROMPT_VERSION } from "@src/feedback/lib/assistant-prompt-version/assistant-prompt-version";
 import { assistantChatToolsFor } from "@src/feedback/lib/assistant-tools/assistant-tools";
+import { redactSecrets } from "@src/feedback/lib/redact-secrets/redact-secrets";
 import type { AssistantPendingTurnRepository } from "@src/feedback/repositories/assistant-pending-turn/assistant-pending-turn.repository";
 import type { AssistantTurnTraceRepository } from "@src/feedback/repositories/assistant-turn-trace/assistant-turn-trace.repository";
 import {
@@ -170,7 +171,7 @@ describe(AssistantTurnService.name, () => {
     expect(events.map(({ type }) => type)).toEqual(["tool_started", "tool_result_summary", "text_delta", "done"]);
     expect(pendingTurnRepository.hold).not.toHaveBeenCalled();
     const [, [{ messages }]] = akashMlClient.streamChatCompletion.mock.calls;
-    const textAsTheToolQuotesIt = JSON.stringify(text).slice(1, -1);
+    const textAsTheToolQuotesIt = JSON.stringify(redactSecrets(text)).slice(1, -1);
     const carryingTheText = messages.filter(message => String(message.content).includes(textAsTheToolQuotesIt));
     expect(carryingTheText).toEqual([{ role: "tool", tool_call_id: "c1", content: searched }]);
     expect(Object.keys(JSON.parse(searched))).toEqual(["tool", "untrustedData"]);

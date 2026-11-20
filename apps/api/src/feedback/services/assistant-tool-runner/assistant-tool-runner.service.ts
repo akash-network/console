@@ -32,7 +32,7 @@ import {
   proposalActionTypeOf,
   splitProposalArguments
 } from "@src/feedback/lib/assistant-tools/assistant-tools";
-import { redactSecrets } from "@src/feedback/lib/redact-secrets/redact-secrets";
+import { redactSecretFields, redactSecrets } from "@src/feedback/lib/redact-secrets/redact-secrets";
 import type { ChatTool, ChatToolCall } from "@src/feedback/services/akashml-client/akashml.client";
 import { AssistantAccountToolsService } from "@src/feedback/services/assistant-account-tools/assistant-account-tools.service";
 import { AssistantBidToolsService } from "@src/feedback/services/assistant-bid-tools/assistant-bid-tools.service";
@@ -65,7 +65,12 @@ export function truncated(text: string, maxLength: number): string {
 
 /** Tool results reach the model as JSON data, redacted and bounded, so their content cannot pass for instructions or flood the context. */
 export function toolContentOf(tool: string, payload: ToolPayload): string {
-  return truncated(redactSecrets(JSON.stringify({ tool, ...payload })), MAX_TOOL_RESULT_LENGTH);
+  return truncated(serializedResultOf(tool, payload), MAX_TOOL_RESULT_LENGTH);
+}
+
+/** Redacted before it is serialized, since a redaction over the JSON text can remove the backslash that keeps an author's quote inside its string. */
+function serializedResultOf(tool: string, payload: ToolPayload): string {
+  return JSON.stringify(redactSecretFields({ tool, ...payload }));
 }
 
 type ToolPayload = { data: unknown; untrustedData?: unknown } | { untrustedData: unknown } | { error: string; untrustedData?: unknown };
@@ -78,7 +83,7 @@ export function readContentOf(tool: ReadToolName, data: unknown): string {
 }
 
 function fitsToolResult(tool: string, payload: ToolPayload): boolean {
-  return redactSecrets(JSON.stringify({ tool, ...payload })).length <= MAX_TOOL_RESULT_LENGTH;
+  return serializedResultOf(tool, payload).length <= MAX_TOOL_RESULT_LENGTH;
 }
 
 /** Only Console's note stays under data since the screening result quotes the SDL, and an SDL too long for the cap is left out rather than cut into broken JSON. */
