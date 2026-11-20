@@ -212,22 +212,34 @@ export class AssistantAccountToolsService {
     };
   }
 
-  async templateSdl(id: string): Promise<string> {
+  /** A marketplace template is never deployed, screened or edited from a card, whatever SDL comes with its id. */
+  refuseMarketplaceTemplate(id: string): void {
     if (this.#isMarketplaceTemplateId(id)) throw new AssistantToolError(OPENS_IN_CONFIGURE_ONLY_MESSAGE, JSON.stringify(id));
+  }
+
+  async templateSdl(id: string): Promise<string> {
+    this.refuseMarketplaceTemplate(id);
 
     return consoleTemplateById(id)?.sdl ?? (await this.#galleryTemplateSdl(id));
   }
 
-  /** Answers nothing with the marketplace off, and refuses a marketplace id the gallery does not list, which would otherwise pass for a reviewed template. */
+  /** Answers nothing with the marketplace off, and refuses an id no list holds, which would otherwise pass for a reviewed template. */
   async templateReview(id: string): Promise<TemplateReview | undefined> {
     if (!this.#isMarketplaceOn()) return undefined;
-    if (!MARKETPLACE_TEMPLATE_ID.test(id)) return { source: "awesome_akash", reviewedByAkash: true };
+    if (!MARKETPLACE_TEMPLATE_ID.test(id)) return await this.#galleryTemplateReview(id);
 
     const { templates } = await this.communityTemplateService.getGallery();
     const template = templates.find(card => card.id === id.toLowerCase());
     if (!template) throw new AssistantToolError(NOT_LISTED_MESSAGE, JSON.stringify(id));
 
     return { source: "console", reviewedByAkash: template.isOfficial };
+  }
+
+  async #galleryTemplateReview(id: string): Promise<TemplateReview> {
+    const isListed = consoleTemplateById(id) !== undefined || (await this.#galleryTemplates()).some(template => template.id === id);
+    if (!isListed) throw new AssistantToolError(NOT_LISTED_MESSAGE, JSON.stringify(id));
+
+    return { source: "awesome_akash", reviewedByAkash: true };
   }
 
   #isMarketplaceOn(): boolean {

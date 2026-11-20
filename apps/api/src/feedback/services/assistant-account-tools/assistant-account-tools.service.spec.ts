@@ -421,6 +421,34 @@ describe(AssistantAccountToolsService.name, () => {
     });
   });
 
+  describe("refuseMarketplaceTemplate", () => {
+    it("refuses a marketplace template's id in any letter case, and says how to open it in Configure instead", () => {
+      const { service } = setup({ isMarketplaceOn: true });
+
+      expect(() => service.refuseMarketplaceTemplate(MARKETPLACE_ID)).toThrow(
+        expect.objectContaining({
+          name: "AssistantToolError",
+          message: expect.stringContaining("Call propose_open_in_editor with this templateId and no sdl."),
+          untrustedDetail: JSON.stringify(MARKETPLACE_ID)
+        })
+      );
+      expect(() => service.refuseMarketplaceTemplate(MARKETPLACE_ID.toUpperCase())).toThrow(expect.objectContaining({ name: "AssistantToolError" }));
+    });
+
+    it("lets a gallery or Console id through", () => {
+      const { service } = setup({ isMarketplaceOn: true });
+
+      expect(() => service.refuseMarketplaceTemplate("hello-world")).not.toThrow();
+      expect(() => service.refuseMarketplaceTemplate(`${MARKETPLACE_ID}-copy`)).not.toThrow();
+    });
+
+    it("lets a UUID through while the template marketplace is off", () => {
+      const { service } = setup();
+
+      expect(() => service.refuseMarketplaceTemplate(MARKETPLACE_ID)).not.toThrow();
+    });
+  });
+
   describe("templateReview", () => {
     it("says nothing about a template while the template marketplace is off", async () => {
       const { service, communityTemplateService } = setup({ cards: [createCard({ id: MARKETPLACE_ID })] });
@@ -430,15 +458,33 @@ describe(AssistantAccountToolsService.name, () => {
       expect(communityTemplateService.getGallery).not.toHaveBeenCalled();
     });
 
-    it("reads a gallery or Console template as reviewed by Akash", async () => {
+    it("reads a template the gallery lists as reviewed by Akash", async () => {
       const { service, communityTemplateService } = setup({ isMarketplaceOn: true });
 
       expect(await service.templateReview("akash-network-awesome-akash-dart")).toEqual({ source: "awesome_akash", reviewedByAkash: true });
-      expect(await service.templateReview("hello-world")).toEqual({ source: "awesome_akash", reviewedByAkash: true });
-      expect(await service.templateReview(`${MARKETPLACE_ID}-copy`)).toEqual({ source: "awesome_akash", reviewedByAkash: true });
-      expect(await service.templateReview(`my-${MARKETPLACE_ID}`)).toEqual({ source: "awesome_akash", reviewedByAkash: true });
+      expect(await service.templateReview("comfyui")).toEqual({ source: "awesome_akash", reviewedByAkash: true });
       expect(communityTemplateService.getGallery).not.toHaveBeenCalled();
     });
+
+    it("reads Console's own template as reviewed by Akash without the gallery", async () => {
+      const { service, templateController } = setup({ isMarketplaceOn: true });
+
+      expect(await service.templateReview("hello-world")).toEqual({ source: "awesome_akash", reviewedByAkash: true });
+      expect(templateController.getTemplatesListJson).not.toHaveBeenCalled();
+    });
+
+    it.each(["made-up-template", `${MARKETPLACE_ID}-copy`, `my-${MARKETPLACE_ID}`, "NGINX"])(
+      "refuses %s, which neither Console nor the gallery lists",
+      async id => {
+        const { service } = setup({ isMarketplaceOn: true, cards: [createCard({ id: MARKETPLACE_ID })] });
+
+        await expect(service.templateReview(id)).rejects.toMatchObject({
+          name: "AssistantToolError",
+          message: "No listed template has this id. Call list_templates.",
+          untrustedDetail: JSON.stringify(id)
+        });
+      }
+    );
 
     it("reads a listed community template as not reviewed, and one Akash promoted as reviewed", async () => {
       const community = createCard();

@@ -175,6 +175,7 @@ export class AssistantProposalService {
   }
 
   async #createDeployment(args: ProposalArguments<"create_deployment">, context: ProposalContext): Promise<AssistantActionOf<"create_deployment">> {
+    if (args.templateId) this.accountTools.refuseMarketplaceTemplate(args.templateId);
     if (args.sdl) this.#assertMountableVolumes(args.sdl);
     const sdl = args.sdl ? this.pricedSdl(args.sdl, context) : await this.accountTools.templateSdl(args.templateId as string);
 
