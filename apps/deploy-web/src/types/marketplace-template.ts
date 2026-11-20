@@ -27,3 +27,11 @@ export type TemplateCheckResults = NonNullable<TemplateVersionSummary["checkResu
 export type TemplateVersionHoldReason = components["schemas"]["TemplateVersionHoldReason"];
 
 export type TemplateReportReason = components["schemas"]["CreateTemplateReportRequest"]["data"]["reason"];
+
+export type CommunityTemplateCard = components["schemas"]["CommunityTemplateCard"];
+
+export type CommunityTemplateUsage = components["schemas"]["CommunityTemplateUsage"];
+
+export type TemplateScores = components["schemas"]["TemplateScores"];
+
+export type CommunityTemplateGallery = components["schemas"]["ListCommunityTemplatesResponse"]["data"];

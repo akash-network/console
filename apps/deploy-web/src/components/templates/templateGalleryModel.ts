@@ -51,7 +51,7 @@ export function selectPopularTemplates(templates: TemplateOutputSummaryWithCateg
   return sortByPromotion(uniqueTemplates).slice(0, count);
 }
 
-function toSearchTerms(search: string): string[] {
+export function toSearchTerms(search: string): string[] {
   return search.toLowerCase().match(/\S+/g) ?? [];
 }
 
@@ -64,7 +64,7 @@ function sortByPromotion(templates: TemplateOutputSummaryWithCategory[]): Templa
   return [...templates].sort((a, b) => promotionRank(a) - promotionRank(b));
 }
 
-function promotionRank(template: TemplateOutputSummaryWithCategory): number {
+export function promotionRank(template: TemplateOutputSummaryWithCategory): number {
   const featuredIndex = FEATURED_TEMPLATE_IDS.indexOf(template.id);
   if (featuredIndex !== -1) return featuredIndex - FEATURED_TEMPLATE_IDS.length;
   if (template.tags?.includes("recommended")) return 0;
