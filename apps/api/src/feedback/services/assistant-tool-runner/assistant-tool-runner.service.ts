@@ -4,6 +4,8 @@ import { inject, singleton } from "tsyringe";
 import { z, ZodError, type ZodIssue } from "zod";
 
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { type AssistantAction, type AssistantDiagnosis, AssistantDiagnosisSchema } from "@src/feedback/http-schemas/assistant-action.schema";
 import type { AssistantLiveHelpReason } from "@src/feedback/http-schemas/assistant-conversation.schema";
 import { assistantKnowledge } from "@src/feedback/lib/assistant-knowledge/assistant-knowledge";
@@ -219,6 +221,7 @@ export class AssistantToolRunnerService {
     private readonly accountTools: AssistantAccountToolsService,
     private readonly consoleApi: AssistantConsoleApiService,
     private readonly proposalService: AssistantProposalService,
+    private readonly featureFlags: FeatureFlagsService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.#logger = createLogger({ context: AssistantToolRunnerService.name });
@@ -226,11 +229,13 @@ export class AssistantToolRunnerService {
 
   /** Falls back to the tools without the route catalog, so a docs outage costs the assistant one tool's catalog rather than the turn. */
   async chatTools({ configureFormOpen }: { configureFormOpen: boolean }): Promise<ChatTool[]> {
+    const communityTemplates = this.featureFlags.isEnabled(FeatureFlags.TEMPLATE_MARKETPLACE);
+
     try {
-      return assistantChatToolsFor({ configureFormOpen, consoleApiCatalog: await this.consoleApi.catalog() });
+      return assistantChatToolsFor({ configureFormOpen, communityTemplates, consoleApiCatalog: await this.consoleApi.catalog() });
     } catch (error) {
       this.#logger.warn({ event: "ASSISTANT_CONSOLE_API_CATALOG_FAILED", error });
-      return assistantChatToolsFor({ configureFormOpen });
+      return assistantChatToolsFor({ configureFormOpen, communityTemplates });
     }
   }
 

@@ -1,3 +1,4 @@
+import { faker } from "@faker-js/faker";
 import createError from "http-errors";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -7,12 +8,17 @@ import type { WalletController } from "@src/billing/controllers/wallet/wallet.co
 import type { WalletSettingController } from "@src/billing/controllers/wallet-settings/wallet-settings.controller";
 import type { WalletSettingsResponse } from "@src/billing/http-schemas/wallet.schema";
 import type { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { DeploymentController } from "@src/deployment/controllers/deployment/deployment.controller";
 import { AssistantUsdService } from "@src/feedback/services/assistant-usd/assistant-usd.service";
 import type { TemplateController } from "@src/template/controllers/template/template.controller";
 import type { Template } from "@src/template/types/template";
+import type { CommunityTemplateCard, CommunityTemplateService } from "@src/template-marketplace/services/community-template/community-template.service";
 import type { UserOutput } from "@src/user/repositories";
 import { AssistantAccountToolsService } from "./assistant-account-tools.service";
+
+const MARKETPLACE_ID = "3f2c9a54-7d1e-4b8a-9c61-0e5d2a7b4f10";
 
 const GALLERY = {
   data: [
@@ -205,6 +211,125 @@ describe(AssistantAccountToolsService.name, () => {
 
       expect(await service.listTemplates({ query: "kubernetes" })).toEqual({ templates: [] });
     });
+
+    it("searches no community template while the template marketplace is off, even when asked to", async () => {
+      const { service, communityTemplateService } = setup({ cards: [createCard({ title: "Dart server kit" })] });
+
+      const { templates } = await service.listTemplates({ query: "dart", includeCommunity: true });
+
+      expect(templates).toEqual([
+        {
+          id: "akash-network-awesome-akash-dart",
+          name: "Dart",
+          category: "Web",
+          source: "community",
+          summary: "A hello world web server written in Dart",
+          gpu: null
+        }
+      ]);
+      expect(communityTemplateService.getGallery).not.toHaveBeenCalled();
+    });
+
+    describe("when the template marketplace is on", () => {
+      it("says of every template whether Akash reviewed it, and calls a gallery template nobody curated official", async () => {
+        const { service } = setup({ isMarketplaceOn: true });
+
+        const { templates } = await service.listTemplates({});
+
+        expect(templates.map(({ id, source, reviewedByAkash }) => ({ id, source, reviewedByAkash }))).toEqual([
+          { id: "hello-world", source: "console", reviewedByAkash: true },
+          { id: "llama-3-8b", source: "official", reviewedByAkash: true },
+          { id: "comfyui", source: "console_curated", reviewedByAkash: true },
+          { id: "nginx", source: "console_curated", reviewedByAkash: true },
+          { id: "akash-network-awesome-akash-dart", source: "official", reviewedByAkash: true }
+        ]);
+        expect(templates[0]).not.toHaveProperty("publisher");
+      });
+
+      it("suggests the templates Akash promoted and leaves out the community ones unless asked for them", async () => {
+        const promoted = createCard({ title: "Dart API starter", isOfficial: true, publisher: { name: "Akash Labs", handle: "akash-labs", verified: true } });
+        const community = createCard({ title: "Dart game server" });
+        const { service } = setup({ isMarketplaceOn: true, cards: [promoted, community] });
+
+        const { templates } = await service.listTemplates({ query: "dart" });
+
+        expect(templates.map(({ id }) => id)).toEqual(["akash-network-awesome-akash-dart", promoted.id]);
+        expect(templates[1]).toEqual({
+          id: promoted.id,
+          name: "Dart API starter",
+          category: "Web",
+          source: "official",
+          reviewedByAkash: true,
+          summary: "Runs a small web service",
+          gpu: null,
+          publisher: "Akash Labs"
+        });
+      });
+
+      it("lists a community template when asked, as not reviewed by Akash, under its publisher's name", async () => {
+        const community = createCard({
+          title: "Dart game server",
+          summary: "Realtime rooms",
+          categories: ["Games", "Web"],
+          resources: { cpu: 4, memoryBytes: 1, storageBytes: 1, gpu: { units: 2, models: ["a100"] } }
+        });
+        const { service } = setup({ isMarketplaceOn: true, cards: [community] });
+
+        const { templates } = await service.listTemplates({ query: "realtime games", includeCommunity: true });
+
+        expect(templates).toEqual([
+          {
+            id: community.id,
+            name: "Dart game server",
+            category: "Games",
+            source: "community",
+            reviewedByAkash: false,
+            summary: "Realtime rooms",
+            gpu: { units: 2, models: ["a100"] },
+            publisher: "Lambda Garage"
+          }
+        ]);
+      });
+
+      it("leaves out community templates when the request says not to include them", async () => {
+        const { service } = setup({ isMarketplaceOn: true, cards: [createCard({ title: "Dart game server" })] });
+
+        const { templates } = await service.listTemplates({ query: "dart game", includeCommunity: false });
+
+        expect(templates.map(({ id }) => id)).toEqual(["akash-network-awesome-akash-dart"]);
+      });
+
+      it("ranks an official template above a community one that matches as well, and below a curated one", async () => {
+        const community = createCard({ title: "Static web" });
+        const promoted = createCard({ title: "Web static", isOfficial: true });
+        const { service } = setup({ isMarketplaceOn: true, cards: [community, promoted] });
+
+        const { templates } = await service.listTemplates({ query: "static", includeCommunity: true });
+
+        expect(templates.map(({ id }) => id)).toEqual(["nginx", promoted.id, community.id]);
+      });
+
+      it("finds a community template by its category, trims its summary and files one without a category under Community", async () => {
+        const community = createCard({ title: "Rooms", summary: "x".repeat(300), categories: [] });
+        const categorized = createCard({ title: "Lobby", summary: null, categories: ["Multiplayer"], resources: null });
+        const { service } = setup({ isMarketplaceOn: true, cards: [community, categorized] });
+
+        const all = await service.listTemplates({ includeCommunity: true });
+        const byCategory = await service.listTemplates({ query: "multiplayer", includeCommunity: true });
+
+        expect(all.templates.find(({ id }) => id === community.id)).toMatchObject({ category: "Community", summary: "x".repeat(200) });
+        expect(byCategory.templates).toMatchObject([{ id: categorized.id, category: "Multiplayer", summary: "", gpu: null }]);
+      });
+
+      it("reads the marketplace again once its gallery is rebuilt", async () => {
+        const { service, communityTemplateService } = setup({ isMarketplaceOn: true, cards: [createCard({ title: "Rooms" })] });
+        const first = await service.listTemplates({ query: "rooms", includeCommunity: true });
+
+        expect(await service.listTemplates({ query: "rooms", includeCommunity: true })).toEqual(first);
+        communityTemplateService.getGallery.mockResolvedValue({ templates: [], officialUsage: {}, trendingRowMinTemplates: 4 });
+        expect(await service.listTemplates({ query: "rooms", includeCommunity: true })).toEqual({ templates: [] });
+      });
+    });
   });
 
   describe("templateSdl", () => {
@@ -244,9 +369,99 @@ describe(AssistantAccountToolsService.name, () => {
 
       await expect(service.templateSdl("nginx")).rejects.toBe(error);
     });
+
+    it("never hands over the SDL of a marketplace template, and says how to open it in Configure instead", async () => {
+      const community = createCard();
+      const { service, templateController } = setup({ isMarketplaceOn: true, cards: [community] });
+
+      await expect(service.templateSdl(community.id)).rejects.toMatchObject({
+        name: "AssistantToolError",
+        message:
+          "A template whose id is a UUID is never deployed or screened from here: it only opens in Configure, where the user reviews it. Call propose_open_in_editor with this templateId and no sdl.",
+        untrustedDetail: JSON.stringify(community.id)
+      });
+      await expect(service.templateSdl(community.id.toUpperCase())).rejects.toMatchObject({ name: "AssistantToolError" });
+      expect(templateController.getTemplateById).not.toHaveBeenCalled();
+    });
+
+    it("still reads gallery templates with the template marketplace on", async () => {
+      const { service, templateController } = setup({ isMarketplaceOn: true });
+      templateController.getTemplateById.mockResolvedValue({ data: mock<Template>({ deploy: "gallery sdl" }) });
+
+      expect(await service.templateSdl("akash-network-awesome-akash-dart")).toBe("gallery sdl");
+      expect(await service.templateSdl("hello-world")).toContain("hello-akash-world");
+    });
+
+    it("looks a UUID up in the gallery like any id while the template marketplace is off", async () => {
+      const { service, templateController } = setup();
+      templateController.getTemplateById.mockRejectedValue(createError(404, "Template not found"));
+
+      await expect(service.templateSdl(MARKETPLACE_ID)).rejects.toMatchObject({ message: "No template has this id. Call list_templates or pass an sdl." });
+      expect(templateController.getTemplateById).toHaveBeenCalledWith(MARKETPLACE_ID);
+    });
   });
 
-  function setup() {
+  describe("templateReview", () => {
+    it("says nothing about a template while the template marketplace is off", async () => {
+      const { service, communityTemplateService } = setup({ cards: [createCard({ id: MARKETPLACE_ID })] });
+
+      expect(await service.templateReview(MARKETPLACE_ID)).toBeUndefined();
+      expect(await service.templateReview("nginx")).toBeUndefined();
+      expect(communityTemplateService.getGallery).not.toHaveBeenCalled();
+    });
+
+    it("reads a gallery or Console template as reviewed by Akash", async () => {
+      const { service, communityTemplateService } = setup({ isMarketplaceOn: true });
+
+      expect(await service.templateReview("akash-network-awesome-akash-dart")).toEqual({ source: "awesome_akash", reviewedByAkash: true });
+      expect(await service.templateReview("hello-world")).toEqual({ source: "awesome_akash", reviewedByAkash: true });
+      expect(await service.templateReview(`${MARKETPLACE_ID}-copy`)).toEqual({ source: "awesome_akash", reviewedByAkash: true });
+      expect(await service.templateReview(`my-${MARKETPLACE_ID}`)).toEqual({ source: "awesome_akash", reviewedByAkash: true });
+      expect(communityTemplateService.getGallery).not.toHaveBeenCalled();
+    });
+
+    it("reads a listed community template as not reviewed, and one Akash promoted as reviewed", async () => {
+      const community = createCard();
+      const promoted = createCard({ isOfficial: true });
+      const { service } = setup({ isMarketplaceOn: true, cards: [community, promoted] });
+
+      expect(await service.templateReview(community.id)).toEqual({ source: "console", reviewedByAkash: false });
+      expect(await service.templateReview(community.id.toUpperCase())).toEqual({ source: "console", reviewedByAkash: false });
+      expect(await service.templateReview(promoted.id)).toEqual({ source: "console", reviewedByAkash: true });
+    });
+
+    it("refuses a marketplace id the gallery does not list, which nothing vouches for", async () => {
+      const { service } = setup({ isMarketplaceOn: true, cards: [createCard()] });
+
+      await expect(service.templateReview(MARKETPLACE_ID)).rejects.toMatchObject({
+        name: "AssistantToolError",
+        message: "No listed template has this id. Call list_templates.",
+        untrustedDetail: JSON.stringify(MARKETPLACE_ID)
+      });
+    });
+  });
+
+  function createCard(overrides: Partial<CommunityTemplateCard> = {}): CommunityTemplateCard {
+    return {
+      id: faker.string.uuid(),
+      title: "Web starter",
+      summary: "Runs a small web service",
+      icon: null,
+      categories: ["Web"],
+      isOfficial: false,
+      isFeatured: false,
+      versionCount: 1,
+      publishedAt: new Date("2026-11-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-11-02T00:00:00.000Z"),
+      publisher: { name: "Lambda Garage", handle: "lambda-garage", verified: false },
+      resources: { cpu: 1, memoryBytes: 1, storageBytes: 1 },
+      usage: { deploys: 0, stillUpAfter24h: null, forks: 0 },
+      scores: { popular: null, trending: null, isTrending: false },
+      ...overrides
+    };
+  }
+
+  function setup(input: { isMarketplaceOn?: boolean; cards?: CommunityTemplateCard[] } = {}) {
     const authService = mock<AuthService>({ currentUser: mock<UserOutput>({ id: "user-1" }) });
     const walletController = mock<WalletController>();
     const walletSettingController = mock<WalletSettingController>();
@@ -255,15 +470,21 @@ describe(AssistantAccountToolsService.name, () => {
     const gallery = Buffer.from(JSON.stringify(GALLERY));
     templateController.getTemplatesListJson.mockResolvedValue(gallery);
     const usdService = new AssistantUsdService(mock<DenomExchangeService>());
+    const communityTemplateService = mock<CommunityTemplateService>();
+    communityTemplateService.getGallery.mockResolvedValue({ templates: input.cards ?? [], officialUsage: {}, trendingRowMinTemplates: 4 });
+    const featureFlags = mock<FeatureFlagsService>();
+    featureFlags.isEnabled.mockImplementation(flag => flag === FeatureFlags.TEMPLATE_MARKETPLACE && input.isMarketplaceOn === true);
     const service = new AssistantAccountToolsService(
       authService,
       walletController,
       walletSettingController,
       deploymentController,
       templateController,
-      usdService
+      usdService,
+      communityTemplateService,
+      featureFlags
     );
 
-    return { service, walletController, walletSettingController, deploymentController, templateController };
+    return { service, walletController, walletSettingController, deploymentController, templateController, communityTemplateService };
   }
 });

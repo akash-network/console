@@ -124,6 +124,47 @@ describe("assistant tools", () => {
     expect(isConfigureFormToolName("read_logs")).toBe(false);
   });
 
+  it("offers the template search as it always was while the template marketplace is off", () => {
+    const search = assistantChatToolsFor({ configureFormOpen: true }).find(({ function: { name } }) => name === "list_templates");
+
+    expect(search?.function.description).toBe(
+      "Searches Console's own templates and the template gallery by name and summary. Each template has a source: console (built by Console), console_curated (recommended by Console) or community."
+    );
+    expect(Object.keys(search?.function.parameters.properties as object)).toEqual(["query"]);
+    expect(JSON.stringify(assistantChatTools())).not.toContain("includeCommunity");
+    expect(assistantChatToolsFor({ configureFormOpen: true, communityTemplates: false })).toBe(assistantChatTools());
+  });
+
+  it("offers community templates in the template search, as unreviewed and for Configure only, while the template marketplace is on", () => {
+    const tools = assistantChatToolsFor({ configureFormOpen: true, communityTemplates: true });
+    const search = tools.find(({ function: { name } }) => name === "list_templates");
+
+    expect(search?.function.parameters.properties).toEqual({
+      query: { type: "string", maxLength: 300, description: "Words to match, such as a model or app name" },
+      includeCommunity: {
+        type: "boolean",
+        description:
+          "Also lists community templates, which Akash has not reviewed. Set it only when the user asks for community templates or no other template fits."
+      }
+    });
+    expect(search?.function.parameters.required).toBeUndefined();
+    expect(search?.function.description).toMatch(/community \(published by another user\)/);
+    expect(search?.function.description).toMatch(/reviewedByAkash says whether Akash reviewed it/);
+    expect(search?.function.description).toMatch(/Community templates are listed only with includeCommunity; suggest the others first/);
+    expect(search?.function.description).toMatch(/say that Akash has not reviewed a community template whenever you name one/);
+    expect(search?.function.description).toMatch(/never deployed or screened from a card: propose it with propose_open_in_editor and its templateId alone/);
+    expect(tools.filter(tool => tool !== search)).toEqual(assistantChatTools().filter(({ function: { name } }) => name !== "list_templates"));
+    expect(tools.map(({ function: { name } }) => name)).toEqual(assistantChatTools().map(({ function: { name } }) => name));
+  });
+
+  it("offers the community search without the configure form tools and with the catalog too", () => {
+    const tools = assistantChatToolsFor({ configureFormOpen: false, communityTemplates: true, consoleApiCatalog: "Projects: /v1/projects" });
+
+    expect(tools.map(({ function: { name } }) => name)).toEqual(assistantChatToolsFor({ configureFormOpen: false }).map(({ function: { name } }) => name));
+    expect(JSON.stringify(tools.find(({ function: { name } }) => name === "list_templates"))).toContain("includeCommunity");
+    expect(tools.find(({ function: { name } }) => name === "read_console_api")?.function.description).toMatch(/\nProjects: \/v1\/projects$/);
+  });
+
   it("takes a form edit that names fields to change, never pricing", () => {
     const edit = PROPOSAL_TOOL_ARGUMENTS.edit_configure_form;
 
