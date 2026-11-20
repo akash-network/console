@@ -3,6 +3,8 @@ import debounce from "lodash/debounce";
 import type { ReadonlyURLSearchParams } from "next/navigation";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import type { GallerySort, GallerySource } from "@src/components/templates/communityGallery/galleryView";
+import { DEFAULT_GALLERY_SORT, DEFAULT_GALLERY_SOURCE, GALLERY_SORTS, GALLERY_SOURCES } from "@src/components/templates/communityGallery/galleryView";
 import { UrlService } from "@src/utils/urlUtils";
 
 /** Long enough to skip most keystrokes, short enough that a link copied right after typing still carries the search. */
@@ -14,16 +16,20 @@ export const DEPENDENCIES: { useRouter: typeof useRouter; useSearchParams: () =>
 interface GalleryUrlState {
   category: string | null;
   search: string;
+  source: GallerySource;
+  sort: GallerySort;
 }
 
-/** Keeps the gallery's category and search in the link, and follows the link when something else changes it, such as the Templates nav entry. */
+/** Keeps the gallery's category, search, source and sort in the link, and follows the link when something else changes it, such as the Templates nav entry. */
 export function useTemplateGalleryUrlState(dependencies: typeof DEPENDENCIES = DEPENDENCIES) {
   const router = dependencies.useRouter();
   const searchParams = dependencies.useSearchParams();
   const urlCategory = searchParams?.get("category") || null;
   const urlSearch = searchParams?.get("search") ?? "";
-  const [state, setState] = useState<GalleryUrlState>({ category: urlCategory, search: urlSearch });
-  const lastSeenUrl = useRef<GalleryUrlState>({ category: urlCategory, search: urlSearch });
+  const urlSource = GALLERY_SOURCES.find(source => source === searchParams?.get("source")) ?? DEFAULT_GALLERY_SOURCE;
+  const urlSort = GALLERY_SORTS.find(sort => sort === searchParams?.get("sort")) ?? DEFAULT_GALLERY_SORT;
+  const [state, setState] = useState<GalleryUrlState>({ category: urlCategory, search: urlSearch, source: urlSource, sort: urlSort });
+  const lastSeenUrl = useRef<GalleryUrlState>({ category: urlCategory, search: urlSearch, source: urlSource, sort: urlSort });
   /** The page's own writes the link has yet to show, oldest first; a write back to the link it is on never shows as a change, so it replaces this queue instead of joining it. */
   const unsettledWrites = useRef<GalleryUrlState[]>([]);
 
@@ -33,7 +39,7 @@ export function useTemplateGalleryUrlState(dependencies: typeof DEPENDENCIES = D
       if (isLinkAlreadyThere && unsettledWrites.current.length === 0) return;
 
       unsettledWrites.current = isLinkAlreadyThere ? [] : [...unsettledWrites.current, next];
-      router.replace(UrlService.templates(next.category, next.search));
+      router.replace(UrlService.templates(next.category, next.search, { source: next.source, sort: next.sort }));
     },
     [router]
   );
@@ -41,7 +47,7 @@ export function useTemplateGalleryUrlState(dependencies: typeof DEPENDENCIES = D
 
   useEffect(
     function followUrlChangedElsewhere() {
-      const url = { category: urlCategory, search: urlSearch };
+      const url = { category: urlCategory, search: urlSearch, source: urlSource, sort: urlSort };
       lastSeenUrl.current = url;
 
       const settledIndex = unsettledWrites.current.findIndex(write => isSameUrlState(write, url));
@@ -54,7 +60,7 @@ export function useTemplateGalleryUrlState(dependencies: typeof DEPENDENCIES = D
       unsettledWrites.current = [];
       setState(current => (isSameUrlState(current, url) ? current : url));
     },
-    [urlCategory, urlSearch, writeUrlLater]
+    [urlCategory, urlSearch, urlSource, urlSort, writeUrlLater]
   );
 
   useEffect(
@@ -66,26 +72,28 @@ export function useTemplateGalleryUrlState(dependencies: typeof DEPENDENCIES = D
     [writeUrlLater]
   );
 
-  const selectCategory = (category: string | null) => {
-    setState(current => ({ ...current, category }));
+  const writeNow = (change: Partial<GalleryUrlState>) => {
+    setState(current => ({ ...current, ...change }));
     writeUrlLater.cancel();
-    writeUrl({ category, search: state.search });
+    writeUrl({ ...state, ...change });
   };
+
+  const selectCategory = (category: string | null) => writeNow({ category });
+
+  const selectSource = (source: GallerySource) => writeNow({ source });
+
+  const selectSort = (sort: GallerySort) => writeNow({ sort });
 
   const changeSearch = (search: string) => {
     setState(current => ({ ...current, search }));
-    writeUrlLater({ category: state.category, search });
+    writeUrlLater({ ...state, search });
   };
 
-  const clearSearch = () => {
-    setState(current => ({ ...current, search: "" }));
-    writeUrlLater.cancel();
-    writeUrl({ category: state.category, search: "" });
-  };
+  const clearSearch = () => writeNow({ search: "" });
 
-  return { category: state.category, search: state.search, selectCategory, changeSearch, clearSearch };
+  return { ...state, selectCategory, selectSource, selectSort, changeSearch, clearSearch };
 }
 
 function isSameUrlState(a: GalleryUrlState, b: GalleryUrlState): boolean {
-  return a.category === b.category && a.search === b.search;
+  return a.category === b.category && a.search === b.search && a.source === b.source && a.sort === b.sort;
 }

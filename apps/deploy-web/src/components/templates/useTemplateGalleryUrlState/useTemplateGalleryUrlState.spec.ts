@@ -242,14 +242,93 @@ describe(useTemplateGalleryUrlState.name, () => {
     expect(router.replace).not.toHaveBeenCalled();
   });
 
-  function setup(input: { url: { category?: string; search?: string } | null }) {
+  it("starts from the source and the sort in the link", () => {
+    const { result } = setup({ url: { source: "community", sort: "newest" } });
+
+    expect(result.current.source).toBe("community");
+    expect(result.current.sort).toBe("newest");
+  });
+
+  it("starts from all sources, sorted by Popular, for a bare link and for values it does not know", () => {
+    expect(setup({ url: {} }).result.current).toMatchObject({ source: "all", sort: "popular" });
+    expect(setup({ url: null }).result.current).toMatchObject({ source: "all", sort: "popular" });
+    expect(setup({ url: { source: "staff", sort: "random" } }).result.current).toMatchObject({ source: "all", sort: "popular" });
+  });
+
+  it("puts the picked source in the link at once, keeping the category, the search and the sort", () => {
+    const { result, router } = setup({ url: { category: "Games", search: "craft", sort: "newest" } });
+
+    act(() => result.current.selectSource("community"));
+
+    expect(result.current.source).toBe("community");
+    expect(router.replace).toHaveBeenCalledWith("/templates?category=Games&search=craft&source=community&sort=newest");
+  });
+
+  it("puts the picked sort in the link at once, keeping the category, the search and the source", () => {
+    const { result, router } = setup({ url: { category: "Games", search: "craft", source: "official" } });
+
+    act(() => result.current.selectSort("trending"));
+
+    expect(result.current.sort).toBe("trending");
+    expect(router.replace).toHaveBeenCalledWith("/templates?category=Games&search=craft&source=official&sort=trending");
+  });
+
+  it("drops the source and the sort from the link when the defaults are picked again", () => {
+    const { result, router, rerenderWithUrl } = setup({ url: { source: "community", sort: "newest" } });
+
+    act(() => result.current.selectSource("all"));
+    expect(router.replace).toHaveBeenLastCalledWith("/templates?sort=newest");
+    rerenderWithUrl({ sort: "newest" });
+
+    act(() => result.current.selectSort("popular"));
+    expect(router.replace).toHaveBeenLastCalledWith("/templates");
+  });
+
+  it("does not write a source or a sort the link already has", () => {
+    const { result, router } = setup({ url: { source: "community", sort: "newest" } });
+
+    act(() => result.current.selectSource("community"));
+    act(() => result.current.selectSort("newest"));
+
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  it("keeps the source and the sort when the category or the search changes", async () => {
+    const { result, router } = setup({ url: { source: "community", sort: "newest" } });
+
+    act(() => result.current.selectCategory("Games"));
+    expect(router.replace).toHaveBeenLastCalledWith("/templates?category=Games&source=community&sort=newest");
+
+    act(() => result.current.changeSearch("craft"));
+    await vi.waitFor(() => expect(router.replace).toHaveBeenLastCalledWith("/templates?category=Games&search=craft&source=community&sort=newest"));
+
+    act(() => result.current.clearSearch());
+    expect(router.replace).toHaveBeenLastCalledWith("/templates?category=Games&source=community&sort=newest");
+  });
+
+  it("takes the source and the sort from the link when it changes outside the page", () => {
+    const { result, rerenderWithUrl } = setup({ url: { source: "community", sort: "newest" } });
+
+    rerenderWithUrl({});
+
+    expect(result.current.source).toBe("all");
+    expect(result.current.sort).toBe("popular");
+
+    rerenderWithUrl({ source: "official" });
+    expect(result.current.source).toBe("official");
+
+    rerenderWithUrl({ source: "official", sort: "trending" });
+    expect(result.current.sort).toBe("trending");
+  });
+
+  function setup(input: { url: { category?: string; search?: string; source?: string; sort?: string } | null }) {
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>();
     let searchParams = toSearchParams(input.url);
     const dependencies = { useRouter: () => router, useSearchParams: () => searchParams };
 
     const { result, rerender, unmount } = renderHook(() => useTemplateGalleryUrlState(dependencies));
 
-    const rerenderWithUrl = (url: { category?: string; search?: string }) => {
+    const rerenderWithUrl = (url: { category?: string; search?: string; source?: string; sort?: string }) => {
       searchParams = toSearchParams(url);
       rerender();
     };
@@ -257,12 +336,14 @@ describe(useTemplateGalleryUrlState.name, () => {
     return { result, router, rerenderWithUrl, unmount };
   }
 
-  function toSearchParams(url: { category?: string; search?: string } | null) {
+  function toSearchParams(url: { category?: string; search?: string; source?: string; sort?: string } | null) {
     if (!url) return null;
 
     const params = new URLSearchParams();
     if (url.category) params.set("category", url.category);
     if (url.search) params.set("search", url.search);
+    if (url.source) params.set("source", url.source);
+    if (url.sort) params.set("sort", url.sort);
     return new ReadonlyURLSearchParams(params);
   }
 });
