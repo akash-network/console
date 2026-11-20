@@ -36,9 +36,9 @@ const DEPLOYMENTS_OUTSIDE_SCOPE = 6;
 
 const DEPLOYMENTS_IN_SCOPE = 50;
 
-const VARIABLES_AND_SECRETS_KEYWORDS = "secrets variables environment env vars sealed";
+const ENVIRONMENT_SEARCH_TERMS = "secrets variables environment env vars sealed";
 
-export const VARIABLES_AND_SECRETS_GUIDE_URL = "https://akash.network/docs/learn/core-concepts/environment-secrets/";
+export const ENVIRONMENT_GUIDE_URL = "https://akash.network/docs/learn/core-concepts/environment-secrets/";
 
 const DEPLOYMENT_DETAIL_PATH = /^\/deployments\/(\d+)\/?$/;
 
@@ -107,10 +107,10 @@ export function useCommandMenuItems(
       id: "action-variables-and-secrets-guide",
       label: "Learn about variables & secrets",
       icon: BookOpen,
-      keywords: `${VARIABLES_AND_SECRETS_KEYWORDS} docs help`,
+      keywords: `${ENVIRONMENT_SEARCH_TERMS} docs help`,
       staysOnPage: true,
       action: "open_variables_and_secrets_guide",
-      run: () => window.open(VARIABLES_AND_SECRETS_GUIDE_URL, "_blank", "noopener,noreferrer")
+      run: () => window.open(ENVIRONMENT_GUIDE_URL, "_blank", "noopener,noreferrer")
     }
   ];
 
@@ -175,7 +175,7 @@ function toEditVariablesAndSecretsItem(open: () => void): CommandItem {
     id: "action-edit-variables-and-secrets",
     label: "Edit variables & secrets",
     icon: LockKeyhole,
-    keywords: VARIABLES_AND_SECRETS_KEYWORDS,
+    keywords: ENVIRONMENT_SEARCH_TERMS,
     action: "edit_variables_and_secrets",
     run: open
   };
