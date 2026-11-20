@@ -48,6 +48,7 @@ const UNRELEASED_FEEDBACK_ROUTES = [
 const UNRELEASED_TEMPLATE_MARKETPLACE_ROUTES = [
   "DELETE /v1/user-templates/{id}",
   "GET /v1/community-templates",
+  "GET /v1/imported-templates/{importedRef}",
   "GET /v1/template-publishers/current",
   "GET /v1/template-publishers/{handle}",
   "GET /v1/user-templates",
