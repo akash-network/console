@@ -98,7 +98,7 @@ describe(GpuWaitlistService.name, () => {
     it("finds an existing entry under the normalised pool key", async () => {
       const existing = anEntry({ memory: "80Gi", poolKey: "nvidia/h100/80gi/*" });
       const { service, repository } = setup({ existing });
-      repository.updateById.mockImplementation(vi.fn().mockResolvedValue(existing));
+      repository.updateBy.mockImplementation(vi.fn().mockResolvedValue(existing));
 
       await service.join({ ...INPUT, memory: "80 G" });
 
@@ -158,7 +158,7 @@ describe(GpuWaitlistService.name, () => {
 
       const entry = await service.join(INPUT);
 
-      expect(repository.create).toHaveBeenCalledWith({ ...INPUT, userId: user.id, poolKey: "nvidia/h100/*/*" });
+      expect(repository.create).toHaveBeenCalledWith(expect.objectContaining({ model: "h100", userId: user.id, poolKey: "nvidia/h100/*/*" }));
       expect(entry.status).toBe("waiting");
     });
 
