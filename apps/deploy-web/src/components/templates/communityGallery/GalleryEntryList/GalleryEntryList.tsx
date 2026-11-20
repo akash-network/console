@@ -12,6 +12,8 @@ const OVERLINE_CLASSES = "font-mono text-[11px] font-medium uppercase leading-4 
 
 export const COMMUNITY_GALLERY_NOTE = "Community templates are shared by Akash users and are not reviewed by Akash.";
 
+const GALLERY_EMPTY_HINT = "Try a different search, another use case, or All templates.";
+
 export const DEPENDENCIES = { GalleryEntryCard };
 
 export interface GalleryEntryListProps {
@@ -19,11 +21,21 @@ export interface GalleryEntryListProps {
   entries: GalleryEntry[];
   search: string;
   showsCommunityNote: boolean;
+  emptyHint?: string;
+  linksPublishers?: boolean;
   dependencies?: typeof DEPENDENCIES;
 }
 
 /** The caller remounts the list with a key when the filters or the sort change, which starts it over at the first page. */
-export const GalleryEntryList: FC<GalleryEntryListProps> = ({ title, entries, search, showsCommunityNote, dependencies: d = DEPENDENCIES }) => {
+export const GalleryEntryList: FC<GalleryEntryListProps> = ({
+  title,
+  entries,
+  search,
+  showsCommunityNote,
+  emptyHint = GALLERY_EMPTY_HINT,
+  linksPublishers = true,
+  dependencies: d = DEPENDENCIES
+}) => {
   const headingId = useId();
   const [shownCount, setShownCount] = useState(GALLERY_PAGE_SIZE);
   const trimmedSearch = search.trim();
@@ -46,12 +58,12 @@ export const GalleryEntryList: FC<GalleryEntryListProps> = ({ title, entries, se
         <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card px-6 py-14 text-center">
           <Search className="h-[22px] w-[22px] text-muted-foreground" aria-hidden="true" />
           <p className="text-sm font-semibold">{trimmedSearch ? `No templates match “${trimmedSearch}”` : "No templates here yet"}</p>
-          <p className="text-[12.5px] text-muted-foreground">Try a different search, another use case, or All templates.</p>
+          <p className="text-[12.5px] text-muted-foreground">{emptyHint}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 min-[1400px]:grid-cols-3">
           {entries.slice(0, shownCount).map(entry => (
-            <d.GalleryEntryCard key={entry.key} entry={entry} />
+            <d.GalleryEntryCard key={entry.key} entry={entry} linksPublisher={linksPublishers} />
           ))}
         </div>
       )}
