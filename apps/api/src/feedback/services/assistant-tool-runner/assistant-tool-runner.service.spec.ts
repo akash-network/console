@@ -4,6 +4,8 @@ import { mock } from "vitest-mock-extended";
 import { ZodError } from "zod";
 
 import type { CreateLogger } from "@src/core";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { AssistantAction } from "@src/feedback/http-schemas/assistant-action.schema";
 import { assistantKnowledge } from "@src/feedback/lib/assistant-knowledge/assistant-knowledge";
 import { AssistantProposalWithheldError, AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
@@ -713,6 +715,22 @@ describe(AssistantToolRunnerService.name, () => {
       expect(tools.find(tool => tool.function.name === "read_console_api")?.function.description).toMatch(/\nProjects: \/v1\/projects List the projects$/);
     });
 
+    it("offers the community template search only while the template marketplace is on, with or without the catalog", async () => {
+      const { runner, consoleApi, featureFlags } = setup();
+      featureFlags.isEnabled.mockImplementation(flag => flag === FeatureFlags.TEMPLATE_MARKETPLACE);
+      consoleApi.catalog.mockResolvedValueOnce("Projects: /v1/projects List the projects").mockRejectedValueOnce(new Error("docs unavailable"));
+
+      const withCatalog = await runner.chatTools({ configureFormOpen: true });
+      const withoutCatalog = await runner.chatTools({ configureFormOpen: false });
+
+      expect(withCatalog).toEqual(
+        assistantChatToolsFor({ configureFormOpen: true, communityTemplates: true, consoleApiCatalog: "Projects: /v1/projects List the projects" })
+      );
+      expect(withoutCatalog).toEqual(assistantChatToolsFor({ configureFormOpen: false, communityTemplates: true }));
+      expect(JSON.stringify(withCatalog)).toContain("includeCommunity");
+      expect(JSON.stringify(withoutCatalog)).toContain("includeCommunity");
+    });
+
     it("keeps every tool without the catalog when it cannot be loaded", async () => {
       const { runner, consoleApi, logger } = setup();
       const error = new Error("docs unavailable");
@@ -733,15 +751,18 @@ describe(AssistantToolRunnerService.name, () => {
     const consoleApi = mock<AssistantConsoleApiService>();
     const proposalService = mock<AssistantProposalService>();
     const logger = mock<ReturnType<CreateLogger>>();
+    const featureFlags = mock<FeatureFlagsService>();
+    featureFlags.isEnabled.mockReturnValue(false);
     const runner = new AssistantToolRunnerService(
       deploymentTools,
       bidTools,
       accountTools,
       consoleApi,
       proposalService,
+      featureFlags,
       vi.fn<CreateLogger>(() => logger)
     );
 
-    return { runner, deploymentTools, bidTools, accountTools, consoleApi, proposalService, logger };
+    return { runner, deploymentTools, bidTools, accountTools, consoleApi, proposalService, featureFlags, logger };
   }
 });

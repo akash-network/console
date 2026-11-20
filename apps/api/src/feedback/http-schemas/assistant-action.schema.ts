@@ -3,6 +3,7 @@ import { z } from "@hono/zod-openapi";
 import { PatchServiceSchema } from "@src/deployment/http-schemas/deployment.schema";
 import { MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "@src/deployment/http-schemas/runtime-limit";
 import { deploymentCloseReasonEnum } from "@src/deployment/model-schemas";
+import { templateSourceEnum } from "@src/template-marketplace/model-schemas/template-usage-event/template-usage-event.schema";
 
 export const AssistantDseqSchema = z.string().regex(/^[1-9]\d{0,19}$/, "A dseq is a positive integer");
 
@@ -217,7 +218,14 @@ export const AssistantActionSchema = z
       tier: DEEP_LINK,
       dseq: AssistantDseqSchema.nullable(),
       templateId: z.string().nullable(),
-      sdl: z.string().nullable()
+      sdl: z.string().nullable(),
+      template: z
+        .object({
+          source: z.enum(templateSourceEnum.enumValues).openapi({ description: "console: the id of a Console template; awesome_akash: a gallery id" }),
+          reviewedByAkash: z.boolean().openapi({ description: "False for a community template, which is shown as not reviewed by Akash" })
+        })
+        .optional()
+        .openapi({ description: "Describes the template the card opens, while the template marketplace is on" })
     }),
     z.object({
       type: z.literal("edit_configure_form"),

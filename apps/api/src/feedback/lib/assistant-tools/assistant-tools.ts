@@ -16,6 +16,14 @@ import {
 
 const PROPOSAL_TOOL_PREFIX = "propose_";
 
+const LIST_TEMPLATES_TOOL_NAME = "list_templates" satisfies ReadToolName;
+
+const COMMUNITY_TEMPLATES_PARAMETER = "includeCommunity";
+
+/** What the model reads with the template marketplace on, in place of the description below. */
+const LIST_TEMPLATES_WITH_COMMUNITY_DESCRIPTION =
+  "Searches Console's own templates and the template gallery by name and summary. Each template has a source: console (built by Console), console_curated (recommended by Console), official (reviewed by Akash) or community (published by another user), and reviewedByAkash says whether Akash reviewed it. Community templates are listed only with includeCommunity; suggest the others first, and say that Akash has not reviewed a community template whenever you name one. A template whose id is a UUID is never deployed or screened from a card: propose it with propose_open_in_editor and its templateId alone, which opens Configure for the user to review.";
+
 export const CONSOLE_API_READ_TOOL_NAME = "read_console_api" satisfies ReadToolName;
 
 const READ_TOOL_DESCRIPTIONS: Record<ReadToolName, string> = {
@@ -189,9 +197,20 @@ function withConsoleApiCatalog(tool: ChatTool, catalog: string): ChatTool {
   return { ...tool, function: { ...tool.function, description: `${tool.function.description}\n${catalog}` } };
 }
 
+/** Offers the search without its community parameter, which means nothing while the template marketplace is off. */
+function readToolSchemaOf(name: string, schema: z.ZodTypeAny): z.ZodTypeAny {
+  return name === LIST_TEMPLATES_TOOL_NAME ? READ_TOOL_ARGUMENTS[LIST_TEMPLATES_TOOL_NAME].omit({ [COMMUNITY_TEMPLATES_PARAMETER]: true }) : schema;
+}
+
+function withCommunityTemplates(tool: ChatTool): ChatTool {
+  if (tool.function.name !== LIST_TEMPLATES_TOOL_NAME) return tool;
+
+  return toolOf(LIST_TEMPLATES_TOOL_NAME, LIST_TEMPLATES_WITH_COMMUNITY_DESCRIPTION, READ_TOOL_ARGUMENTS[LIST_TEMPLATES_TOOL_NAME]);
+}
+
 export function buildAssistantChatTools(): ChatTool[] {
   return [
-    ...Object.entries(READ_TOOL_ARGUMENTS).map(([name, schema]) => toolOf(name, READ_TOOL_DESCRIPTIONS[name as ReadToolName], schema)),
+    ...Object.entries(READ_TOOL_ARGUMENTS).map(([name, schema]) => toolOf(name, READ_TOOL_DESCRIPTIONS[name as ReadToolName], readToolSchemaOf(name, schema))),
     ...Object.entries(CLIENT_TOOL_ARGUMENTS).map(([name, schema]) => toolOf(name, CLIENT_TOOL_DESCRIPTIONS[name as ClientToolName], schema)),
     ...Object.keys(PROPOSAL_TOOL_ARGUMENTS).map(type => proposalToolOf(type as ProposalActionType)),
     toolOf(LIVE_HELP_TOOL_NAME, LIVE_HELP_TOOL_DESCRIPTION, LIVE_HELP_TOOL_ARGUMENTS)
@@ -211,9 +230,21 @@ export function assistantChatTools(consoleApiCatalog = ""): ChatTool[] {
 }
 
 /** The configure form tools are offered only while the browser says the form is open, since an older browser could not answer them. */
-export function assistantChatToolsFor({ configureFormOpen, consoleApiCatalog = "" }: { configureFormOpen: boolean; consoleApiCatalog?: string }): ChatTool[] {
-  if (configureFormOpen) return assistantChatTools(consoleApiCatalog);
+export function assistantChatToolsFor({
+  configureFormOpen,
+  consoleApiCatalog = "",
+  communityTemplates = false
+}: {
+  configureFormOpen: boolean;
+  consoleApiCatalog?: string;
+  communityTemplates?: boolean;
+}): ChatTool[] {
+  const tools = configureFormOpen ? assistantChatTools(consoleApiCatalog) : assistantChatToolsWithoutConfigureForm(consoleApiCatalog);
 
+  return communityTemplates ? tools.map(withCommunityTemplates) : tools;
+}
+
+function assistantChatToolsWithoutConfigureForm(consoleApiCatalog: string): ChatTool[] {
   chatToolsWithoutConfigureForm ??= assistantChatTools().filter(tool => !isConfigureFormToolName(tool.function.name));
   return withConsoleApiCatalogOf(chatToolsWithoutConfigureForm, consoleApiCatalog);
 }

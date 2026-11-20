@@ -6,6 +6,8 @@ import { z } from "zod";
 import { AuthService } from "@src/auth/services/auth.service";
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
 import { WalletSettingController } from "@src/billing/controllers/wallet-settings/wallet-settings.controller";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { DeploymentController } from "@src/deployment/controllers/deployment/deployment.controller";
 import type { DeploymentSpendRate } from "@src/deployment/http-schemas/deployment.schema";
 import { tokenize } from "@src/feedback/lib/assistant-knowledge/assistant-knowledge";
@@ -14,6 +16,12 @@ import type { ReadToolArguments } from "@src/feedback/lib/assistant-tools/assist
 import { CONSOLE_TEMPLATES, consoleTemplateById } from "@src/feedback/lib/console-templates/console-templates";
 import { AssistantUsdService } from "@src/feedback/services/assistant-usd/assistant-usd.service";
 import { TemplateController } from "@src/template/controllers/template/template.controller";
+import type { TemplateSource as TemplateCatalog } from "@src/template-marketplace/model-schemas/template-usage-event/template-usage-event.schema";
+import {
+  type CommunityGallery,
+  type CommunityTemplateCard,
+  CommunityTemplateService
+} from "@src/template-marketplace/services/community-template/community-template.service";
 
 const LISTED_TEMPLATES_LIMIT = 10;
 const MAX_TEMPLATE_SUMMARY_LENGTH = 200;
@@ -38,10 +46,25 @@ const TemplateGallerySchema = z.object({
   )
 });
 
-type TemplateSource = "console" | "console_curated" | "community";
+type TemplateSource = "console" | "console_curated" | "official" | "community";
 
 /** Worth up to one matched query word, so a Console template wins a close match but not one a community template matches clearly better. */
-const SOURCE_BONUS: Record<TemplateSource, number> = { console: 1, console_curated: 0.5, community: 0 };
+const SOURCE_BONUS: Record<TemplateSource, number> = { console: 1, console_curated: 0.5, official: 0.25, community: 0 };
+
+const MARKETPLACE_TEMPLATE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const UNCATEGORIZED_MARKETPLACE_TEMPLATE = "Community";
+
+const OPENS_IN_CONFIGURE_ONLY_MESSAGE =
+  "A template whose id is a UUID is never deployed or screened from here: it only opens in Configure, where the user reviews it. Call propose_open_in_editor with this templateId and no sdl.";
+
+const NOT_LISTED_MESSAGE = "No listed template has this id. Call list_templates.";
+
+/** What the web labels a suggested template with: where its id resolves, and whether Akash reviewed what it deploys. */
+export interface TemplateReview {
+  source: TemplateCatalog;
+  reviewedByAkash: boolean;
+}
 
 const CURATED_TAGS = new Set(["recommended", "popular"]);
 
@@ -53,6 +76,31 @@ interface ListedTemplate {
   summary: string;
   gpu: { units: number; models: string[] } | null;
   terms: Set<string>;
+  /** False only for a template another user published that Akash staff did not promote. */
+  reviewedByAkash: boolean;
+  publisher?: string;
+}
+
+type TemplateSearchResult = Pick<ListedTemplate, "id" | "name" | "category" | "source" | "summary" | "gpu"> &
+  Partial<Pick<ListedTemplate, "reviewedByAkash" | "publisher">>;
+
+/** With the marketplace on, an awesome-akash template nobody curated is an official one, and community means written by another user. */
+function marketplaceSourceOf({ source, reviewedByAkash }: ListedTemplate): TemplateSource {
+  return source === "community" && reviewedByAkash ? "official" : source;
+}
+
+function listedMarketplaceTemplateOf({ id, title, summary, categories, isOfficial, publisher, resources }: CommunityTemplateCard): ListedTemplate {
+  return {
+    id,
+    name: title,
+    category: categories[0] ?? UNCATEGORIZED_MARKETPLACE_TEMPLATE,
+    source: isOfficial ? "official" : "community",
+    summary: (summary ?? "").slice(0, MAX_TEMPLATE_SUMMARY_LENGTH),
+    gpu: resources?.gpu ?? null,
+    terms: new Set(tokenize(`${title} ${categories.join(" ")} ${summary ?? ""}`)),
+    reviewedByAkash: isOfficial,
+    publisher: publisher.name
+  };
 }
 
 const BUILT_IN_TEMPLATES: ListedTemplate[] = CONSOLE_TEMPLATES.map(({ id, name, summary }) => ({
@@ -62,12 +110,13 @@ const BUILT_IN_TEMPLATES: ListedTemplate[] = CONSOLE_TEMPLATES.map(({ id, name, 
   source: "console",
   summary,
   gpu: null,
-  terms: new Set(tokenize(`${id} ${name} ${summary}`))
+  terms: new Set(tokenize(`${id} ${name} ${summary}`)),
+  reviewedByAkash: true
 }));
 
-function relevanceOf(template: ListedTemplate, terms: string[]): number {
+function relevanceOf(template: ListedTemplate, terms: string[], source: TemplateSource): number {
   const hits = terms.filter(term => template.terms.has(term)).length;
-  return hits > 0 ? hits + SOURCE_BONUS[template.source] : 0;
+  return hits > 0 ? hits + SOURCE_BONUS[source] : 0;
 }
 
 async function settledOrNull<T>(read: Promise<T>): Promise<T | null> {
@@ -82,6 +131,7 @@ async function settledOrNull<T>(read: Promise<T>): Promise<T | null> {
 @singleton()
 export class AssistantAccountToolsService {
   #gallery: { source: Buffer; templates: ListedTemplate[] } | undefined;
+  #marketplace: { source: CommunityGallery; templates: ListedTemplate[] } | undefined;
 
   constructor(
     private readonly authService: AuthService,
@@ -89,7 +139,9 @@ export class AssistantAccountToolsService {
     private readonly walletSettingController: WalletSettingController,
     private readonly deploymentController: DeploymentController,
     private readonly templateController: TemplateController,
-    private readonly usdService: AssistantUsdService
+    private readonly usdService: AssistantUsdService,
+    private readonly communityTemplateService: CommunityTemplateService,
+    private readonly featureFlags: FeatureFlagsService
   ) {}
 
   async getBalanceAndSpend(_: ReadToolArguments<"get_balance_and_spend">) {
@@ -131,24 +183,67 @@ export class AssistantAccountToolsService {
     );
   }
 
-  async listTemplates({ query }: ReadToolArguments<"list_templates">) {
-    const templates = [...BUILT_IN_TEMPLATES, ...(await this.#galleryTemplates())];
+  /** Templates other users published join the search only with the marketplace on, and the unreviewed ones only when asked for. */
+  async listTemplates({ query, includeCommunity }: ReadToolArguments<"list_templates">) {
+    const isMarketplaceOn = this.#isMarketplaceOn();
+    const marketplaceTemplates = isMarketplaceOn ? await this.#marketplaceTemplates() : [];
+    const templates = [
+      ...BUILT_IN_TEMPLATES,
+      ...(await this.#galleryTemplates()),
+      ...marketplaceTemplates.filter(({ reviewedByAkash }) => includeCommunity === true || reviewedByAkash)
+    ];
+    const sourceOf = (template: ListedTemplate) => (isMarketplaceOn ? marketplaceSourceOf(template) : template.source);
     const terms = tokenize(query ?? "");
     const matches = terms.length
       ? templates
-          .map(template => ({ template, relevance: relevanceOf(template, terms) }))
+          .map(template => ({ template, relevance: relevanceOf(template, terms, sourceOf(template)) }))
           .filter(({ relevance }) => relevance > 0)
           .sort((left, right) => right.relevance - left.relevance)
           .map(({ template }) => template)
       : templates;
 
     return {
-      templates: matches.slice(0, LISTED_TEMPLATES_LIMIT).map(({ id, name, category, source, summary, gpu }) => ({ id, name, category, source, summary, gpu }))
+      templates: matches.slice(0, LISTED_TEMPLATES_LIMIT).map((template): TemplateSearchResult => {
+        const { id, name, category, source, summary, gpu, reviewedByAkash, publisher } = template;
+        if (!isMarketplaceOn) return { id, name, category, source, summary, gpu };
+
+        return { id, name, category, source: sourceOf(template), reviewedByAkash, summary, gpu, ...(publisher !== undefined && { publisher }) };
+      })
     };
   }
 
   async templateSdl(id: string): Promise<string> {
+    if (this.#isMarketplaceTemplateId(id)) throw new AssistantToolError(OPENS_IN_CONFIGURE_ONLY_MESSAGE, JSON.stringify(id));
+
     return consoleTemplateById(id)?.sdl ?? (await this.#galleryTemplateSdl(id));
+  }
+
+  /** Answers nothing with the marketplace off, and refuses a marketplace id the gallery does not list, which would otherwise pass for a reviewed template. */
+  async templateReview(id: string): Promise<TemplateReview | undefined> {
+    if (!this.#isMarketplaceOn()) return undefined;
+    if (!MARKETPLACE_TEMPLATE_ID.test(id)) return { source: "awesome_akash", reviewedByAkash: true };
+
+    const { templates } = await this.communityTemplateService.getGallery();
+    const template = templates.find(card => card.id === id.toLowerCase());
+    if (!template) throw new AssistantToolError(NOT_LISTED_MESSAGE, JSON.stringify(id));
+
+    return { source: "console", reviewedByAkash: template.isOfficial };
+  }
+
+  #isMarketplaceOn(): boolean {
+    return this.featureFlags.isEnabled(FeatureFlags.TEMPLATE_MARKETPLACE);
+  }
+
+  #isMarketplaceTemplateId(id: string): boolean {
+    return MARKETPLACE_TEMPLATE_ID.test(id) && this.#isMarketplaceOn();
+  }
+
+  /** Mapped once per gallery reading, which the gallery itself keeps for a minute. */
+  async #marketplaceTemplates(): Promise<ListedTemplate[]> {
+    const source = await this.communityTemplateService.getGallery();
+    if (this.#marketplace?.source !== source) this.#marketplace = { source, templates: source.templates.map(listedMarketplaceTemplateOf) };
+
+    return this.#marketplace.templates;
   }
 
   async #galleryTemplateSdl(id: string): Promise<string> {
@@ -175,7 +270,8 @@ export class AssistantAccountToolsService {
         source: tags?.some(tag => CURATED_TAGS.has(tag)) ? ("console_curated" as const) : ("community" as const),
         summary: (summary ?? "").slice(0, MAX_TEMPLATE_SUMMARY_LENGTH),
         gpu: hardware?.gpu ?? null,
-        terms: new Set(tokenize(`${id} ${name} ${title} ${summary ?? ""}`))
+        terms: new Set(tokenize(`${id} ${name} ${title} ${summary ?? ""}`)),
+        reviewedByAkash: true
       }))
     );
     this.#gallery = { source, templates };
