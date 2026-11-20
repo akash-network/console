@@ -16,6 +16,8 @@ export type CommandAction =
   | "keyboard_shortcuts"
   | "open_assistant"
   | "open_deployment"
+  | "edit_variables_and_secrets"
+  | "open_variables_and_secrets_guide"
   | `go_to_${CommandPageId}`;
 
 /** "mod" is ⌘ on a Mac and Ctrl elsewhere; any other token is the key as printed on the keycap. */
