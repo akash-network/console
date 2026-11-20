@@ -3,6 +3,7 @@ import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { TxService } from "@src/core/services";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { DeploymentProjectService } from "@src/deployment/services/deployment-project/deployment-project.service";
@@ -14,6 +15,7 @@ import { findReadmeSecretIssues } from "@src/template-marketplace/lib/publish-ch
 import { createChecksFailedError, createPublishGateRequiredError } from "@src/template-marketplace/lib/publish-requirements/publish-refusals";
 import { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
 import { PublishChecksService } from "@src/template-marketplace/services/publish-checks/publish-checks.service";
+import { TemplateRateLimiterService } from "@src/template-marketplace/services/template-rate-limiter/template-rate-limiter.service";
 import { TemplateUsageService } from "@src/template-marketplace/services/template-usage/template-usage.service";
 import type { TemplateVisibility } from "@src/user/model-schemas/template/template.schema";
 import {
@@ -46,6 +48,8 @@ export class UserTemplatesService {
   readonly #templateUsageService: TemplateUsageService;
   readonly #publishChecksService: PublishChecksService;
   readonly #featureFlagsService: FeatureFlagsService;
+  readonly #templateRateLimiterService: TemplateRateLimiterService;
+  readonly #executionContextService: ExecutionContextService;
 
   constructor(
     userTemplateRepository: UserTemplateRepository,
@@ -55,7 +59,9 @@ export class UserTemplatesService {
     txService: TxService,
     templateUsageService: TemplateUsageService,
     publishChecksService: PublishChecksService,
-    featureFlagsService: FeatureFlagsService
+    featureFlagsService: FeatureFlagsService,
+    templateRateLimiterService: TemplateRateLimiterService,
+    executionContextService: ExecutionContextService
   ) {
     this.#userTemplateRepository = userTemplateRepository;
     this.#authService = authService;
@@ -65,6 +71,8 @@ export class UserTemplatesService {
     this.#templateUsageService = templateUsageService;
     this.#publishChecksService = publishChecksService;
     this.#featureFlagsService = featureFlagsService;
+    this.#templateRateLimiterService = templateRateLimiterService;
+    this.#executionContextService = executionContextService;
   }
 
   async getTemplateById(id: string, userId: string = ""): Promise<(TemplateOutput & { isFavorite?: boolean }) | null> {
@@ -105,6 +113,7 @@ export class UserTemplatesService {
     const authorId = this.#authService.currentUser.id;
 
     return await this.#txService.transaction(async () => {
+      await this.#assertWithinRateLimits("create", this.#executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId);
       const templateId = await repository.createTemplate(userId, template, { projectId: filingProjectId, copiedFromId: id, authorId });
       await this.#templateVersionRepository.appendVersion({ templateId, sdl: template.sdl, resources, createdById: authorId });
 
@@ -169,6 +178,7 @@ export class UserTemplatesService {
       const nextReadmeShown = readmeShownBy(isNewVersion ? carried.readme : stored.currentVersionReadme, template.description ?? stored.description);
 
       if (this.#wouldPublishOutsidePublishGate(template.isPublic, stored.visibility)) throw createPublishGateRequiredError();
+      if (isNewVersion) await this.#assertWithinRateLimits("version", stored.organizationId);
 
       const checkResults = this.#staysPublicAfterPublishGate(template, stored)
         ? await this.#findPassingPublishChecks(template, stored.organizationId, {
@@ -197,6 +207,13 @@ export class UserTemplatesService {
   /** A template that went through the publish gate stays held to its checks, since this route can save neither a failed version nor the reason. */
   #staysPublicAfterPublishGate(template: TemplateInput, stored: TemplateVersionState): boolean {
     return stored.visibility === "public" && template.isPublic !== false && this.#wentThroughPublishGate(stored);
+  }
+
+  /** The limits count rows whichever route wrote them, so without this the route would keep writing past them. */
+  async #assertWithinRateLimits(action: "create" | "version", organizationId: string | undefined): Promise<void> {
+    if (!organizationId || !this.#featureFlagsService.isEnabled(FeatureFlags.TEMPLATE_MARKETPLACE)) return;
+
+    await this.#templateRateLimiterService.assertWithinLimits(action, { userId: this.#authService.currentUser.id, organizationId });
   }
 
   /** With the marketplace on, only the publish route makes a template public, since it alone knows the requirements, the terms and the checks. */

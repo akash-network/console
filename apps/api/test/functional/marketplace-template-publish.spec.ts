@@ -831,6 +831,52 @@ describe("Marketplace template publishing", () => {
       expect(await storedTemplate(published.id)).toMatchObject({ visibility: "private", isPublic: false, sdl: save.sdl });
     });
 
+    it("answers 429 once the caller saved too many versions this hour, as the versions route does", async () => {
+      const { owner, team, project, actAs } = await setup();
+      const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id });
+      await seedVersions({ templateId: template.id, createdById: owner.id, count: 60, minutesAgo: 30 });
+
+      const response = await actAs(owner)("/v1/user/saveTemplate", {
+        method: "POST",
+        body: { ...legacySaveOf(template, buildSdl({ image: "nginx:1.26" })), isPublic: false }
+      });
+
+      expect(response.status).toBe(429);
+      expect(Number(response.headers.get("retry-after"))).toBeGreaterThan(29 * 60);
+      expect(await response.json()).toMatchObject({ code: "template_rate_limited", data: { action: "version", scope: "user", limit: 60 } });
+      expect(await versionsOf(template.id)).toHaveLength(61);
+    });
+
+    it("answers 429 once the caller created too many templates this hour, as the create route does", async () => {
+      const { owner, team, project, actAs } = await setup();
+      await Promise.all(
+        Array.from({ length: 20 }, () => seedTemplate({ author: owner, organizationId: team.id, projectId: project.id, withoutVersion: true }))
+      );
+
+      const response = await actAs(owner)("/v1/user/saveTemplate", {
+        method: "POST",
+        body: { sdl: buildSdl(), title: "Web", cpu: 1000, ram: 1024 * MEBIBYTE, storage: 2 * GIBIBYTE, isPublic: false }
+      });
+
+      expect(response.status).toBe(429);
+      expect(await response.json()).toMatchObject({ code: "template_rate_limited", data: { action: "create", scope: "user", limit: 20 } });
+      expect(await templatesIn(team.id)).toHaveLength(20);
+    });
+
+    it("keeps saving past the limits while template_marketplace is off", async () => {
+      const { owner, team, project, actAs } = await setup({ isMarketplaceOn: false });
+      const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id });
+      await seedVersions({ templateId: template.id, createdById: owner.id, count: 60, minutesAgo: 30 });
+
+      const response = await actAs(owner)("/v1/user/saveTemplate", {
+        method: "POST",
+        body: { ...legacySaveOf(template, buildSdl({ image: "nginx:1.26" })), isPublic: false }
+      });
+
+      expect(response.status).toBe(200);
+      expect(await versionsOf(template.id)).toHaveLength(62);
+    });
+
     it("saves as it always did while template_marketplace is off", async () => {
       const { owner, team, project, actAs } = await setup({ isMarketplaceOn: false });
       const published = await seedTemplate({
