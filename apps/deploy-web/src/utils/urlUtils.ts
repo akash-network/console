@@ -86,6 +86,8 @@ export const UrlService = {
     `/templates${appendSearchParams({ category, search, source: view.source === DEFAULT_GALLERY_SOURCE ? undefined : view.source, sort: view.sort === DEFAULT_GALLERY_SORT ? undefined : view.sort })}`,
   templateDetails: (templateId: string) => `/templates/${templateId}`,
   myTemplates: () => "/templates/mine",
+  templatePublisher: (handle: string, view: { search?: string; sort?: GallerySort } = {}) =>
+    `/template-publishers/${encodeURIComponent(handle)}${appendSearchParams({ search: view.search, sort: view.sort === DEFAULT_GALLERY_SORT ? undefined : view.sort })}`,
   providers: (sort?: string) => `/providers${appendSearchParams({ sort })}`,
   providerDetail: (owner: string) => `/providers/${owner}${appendSearchParams({ network: networkStore.selectedNetworkId })}`,
   alerts: () => "/alerts",

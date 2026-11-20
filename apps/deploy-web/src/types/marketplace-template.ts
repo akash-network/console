@@ -35,3 +35,11 @@ export type CommunityTemplateUsage = components["schemas"]["CommunityTemplateUsa
 export type TemplateScores = components["schemas"]["TemplateScores"];
 
 export type CommunityTemplateGallery = components["schemas"]["ListCommunityTemplatesResponse"]["data"];
+
+export type TemplatePublisherPage = components["schemas"]["TemplatePublisherPage"];
+
+export type TemplatePublisherLink = TemplatePublisherPage["links"][number];
+
+export type CurrentTemplatePublisher = components["schemas"]["CurrentTemplatePublisher"];
+
+export type TemplatePublisherProfileChange = components["schemas"]["UpdateCurrentTemplatePublisherRequest"]["data"];
