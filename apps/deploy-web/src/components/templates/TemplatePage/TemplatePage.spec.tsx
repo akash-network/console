@@ -138,25 +138,20 @@ describe(TemplatePage.name, () => {
       expect(TemplatePublisherCard).not.toHaveBeenCalled();
     });
 
-    it("shows the publisher card with the publish date and the number of live versions", () => {
-      const versions = [
-        buildTemplateVersionSummary({ version: 3, status: "held" }),
-        buildTemplateVersionSummary({ version: 2, status: "live" }),
-        buildTemplateVersionSummary({ version: 1, status: "live" })
-      ];
-      const { TemplatePublisherCard } = setup({ template: COMMUNITY_TEMPLATE, versions });
+    it("shows the publisher card with the publish date and the current version", () => {
+      const { TemplatePublisherCard } = setup({ template: COMMUNITY_TEMPLATE });
 
       const props = TemplatePublisherCard.mock.lastCall?.[0];
-      expect(props).toMatchObject({ publishedAt: "2026-10-30T12:00:00.000Z", versionCount: 2 });
+      expect(props).toMatchObject({ publishedAt: "2026-10-30T12:00:00.000Z", currentVersion: CURRENT_VERSION.version });
       expect(props?.publisher.name).toBe("Lambda Garage");
       expect(props?.publisher.verified).toBe(true);
       expect(props?.publisher.counts.deploys).toBe(18400);
     });
 
-    it("shows the publisher card without a version count while the versions load", () => {
-      const { TemplatePublisherCard } = setup({ template: COMMUNITY_TEMPLATE, isLoadingVersions: true });
+    it("shows the publisher card without a version for a template that has none", () => {
+      const { TemplatePublisherCard } = setup({ template: { ...COMMUNITY_TEMPLATE, currentVersion: null } });
 
-      expect(TemplatePublisherCard).toHaveBeenLastCalledWith(expect.objectContaining({ versionCount: undefined }), expect.anything());
+      expect(TemplatePublisherCard).toHaveBeenLastCalledWith(expect.objectContaining({ currentVersion: undefined }), expect.anything());
     });
 
     it.each(["private", "organization"] as const)("shows neither the notice, the badge nor the publisher card on a %s template", visibility => {

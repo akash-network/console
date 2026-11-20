@@ -44,29 +44,29 @@ describe(TemplatePublisherCard.name, () => {
     expect(screen.queryByRole("img", { name: "Verified by Akash" })).not.toBeInTheDocument();
   });
 
-  it("shows when the template was published and how many versions it has", () => {
-    setup({ publishedAt: "2026-10-30T12:00:00.000Z", versionCount: 4 });
+  it("shows when the template was published and which version is current", () => {
+    setup({ publishedAt: "2026-10-30T12:00:00.000Z", currentVersion: 4 });
 
     expect(screen.getByText("Published").nextElementSibling).toHaveTextContent("Oct 30, 2026");
-    expect(screen.getByText("Versions").nextElementSibling).toHaveTextContent("4");
+    expect(screen.getByText("Current version").nextElementSibling).toHaveTextContent("v4");
   });
 
   it("leaves the publish date out of a template that never went through the publish checks", () => {
-    setup({ publishedAt: null, versionCount: 2 });
+    setup({ publishedAt: null, currentVersion: 2 });
 
     expect(screen.queryByText("Published")).not.toBeInTheDocument();
-    expect(screen.getByText("Versions")).toBeInTheDocument();
+    expect(screen.getByText("Current version")).toBeInTheDocument();
   });
 
-  it("leaves the versions out until they load", () => {
-    setup({ publishedAt: "2026-10-30T12:00:00.000Z", versionCount: undefined });
+  it("leaves the current version out of a template that has none", () => {
+    setup({ publishedAt: "2026-10-30T12:00:00.000Z", currentVersion: undefined });
 
     expect(screen.getByText("Published")).toBeInTheDocument();
-    expect(screen.queryByText("Versions")).not.toBeInTheDocument();
+    expect(screen.queryByText("Current version")).not.toBeInTheDocument();
   });
 
-  it("shows no facts list with neither a publish date nor versions", () => {
-    const { container } = setup({ publishedAt: null, versionCount: undefined });
+  it("shows no facts list with neither a publish date nor a current version", () => {
+    const { container } = setup({ publishedAt: null, currentVersion: undefined });
 
     expect(container.querySelector("dl")).toBeNull();
   });
@@ -84,7 +84,7 @@ describe(TemplatePublisherCard.name, () => {
     expect(container.querySelector("img")).toBeNull();
   });
 
-  function setup(input: { publisher?: Partial<TemplatePublisherCardProps["publisher"]>; publishedAt?: string | null; versionCount?: number }) {
+  function setup(input: { publisher?: Partial<TemplatePublisherCardProps["publisher"]>; publishedAt?: string | null; currentVersion?: number }) {
     const publisher: TemplatePublisherCardProps["publisher"] = {
       name: "Northwind Labs",
       slug: "northwind-labs",
@@ -97,7 +97,11 @@ describe(TemplatePublisherCard.name, () => {
     };
 
     return render(
-      <TemplatePublisherCard publisher={publisher} publishedAt={input.publishedAt === undefined ? null : input.publishedAt} versionCount={input.versionCount} />
+      <TemplatePublisherCard
+        publisher={publisher}
+        publishedAt={input.publishedAt === undefined ? null : input.publishedAt}
+        currentVersion={input.currentVersion}
+      />
     );
   }
 });
