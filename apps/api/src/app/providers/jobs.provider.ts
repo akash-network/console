@@ -61,7 +61,9 @@ import { PurgeOrganizationInvitationEmailsHandler } from "@src/organization/serv
 import { TeamOrganizationDeletedHandler } from "@src/organization/services/team-organization-deleted/team-organization-deleted.handler";
 import { CheckTemplateDeploymentStillRunningHandler } from "@src/template-marketplace/services/check-template-deployment-still-running/check-template-deployment-still-running.handler";
 import { NotifyTemplatePublishersHandler } from "@src/template-marketplace/services/notify-template-publishers/notify-template-publishers.handler";
+import { ResolveTemplateVersionImageDigestsHandler } from "@src/template-marketplace/services/resolve-template-version-image-digests/resolve-template-version-image-digests.handler";
 import { TemplateModerationRecordedHandler } from "@src/template-marketplace/services/template-moderation-recorded/template-moderation-recorded.handler";
+import { WatchPopularTemplateImagesHandler } from "@src/template-marketplace/services/watch-popular-template-images/watch-popular-template-images.handler";
 import { AccountStatusChangedHandler } from "@src/user/services/account-status-changed/account-status-changed.handler";
 import { ApplyAccountTerminationHandler } from "@src/user/services/apply-account-termination/apply-account-termination.handler";
 import { CloseAccountDeploymentsHandler } from "@src/user/services/close-account-deployments/close-account-deployments.handler";
@@ -138,6 +140,8 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(CheckTemplateDeploymentStillRunningHandler),
     container.resolve(TemplateModerationRecordedHandler),
     container.resolve(NotifyTemplatePublishersHandler),
+    container.resolve(ResolveTemplateVersionImageDigestsHandler),
+    container.resolve(WatchPopularTemplateImagesHandler),
     container.resolve(EnforceTrialAbuseHandler),
     container.resolve(LockBlockedDomainWalletHandler),
     container.resolve(BlockEmailDomainOfWalletHandler),

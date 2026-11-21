@@ -6,16 +6,17 @@ import { AuthService } from "@src/auth/services/auth.service";
 import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { DeploymentProjectService } from "@src/deployment/services/deployment-project/deployment-project.service";
-import type { TemplateHardware } from "@src/template/types/template";
 import { summarizeTemplateHardware } from "@src/template/utils/template-hardware/template-hardware";
 import type { AskedValue } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
 import { findAskedValueIssues } from "@src/template-marketplace/lib/asked-values/find-asked-value-issues";
 import { findSecretValueIssues } from "@src/template-marketplace/lib/asked-values/find-secret-value-issues";
-import { type PublishCheckResults, toPublishCheck } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
+import { legacyHardwareOf } from "@src/template-marketplace/lib/legacy-mirror/legacy-version-mirror";
+import { hasPassedPublishChecks, type PublishCheckResults, toPublishCheck } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
 import { findReservedTitleIssues } from "@src/template-marketplace/lib/publish-checks/publish-checks";
 import { createChecksFailedError } from "@src/template-marketplace/lib/publish-requirements/publish-refusals";
 import type { TemplateCategory, TemplateIcon } from "@src/template-marketplace/lib/template-catalog/template-catalog";
 import { createTemplateInvalidError } from "@src/template-marketplace/lib/template-invalid/template-invalid-error";
+import type { TemplateVersionHoldReason } from "@src/template-marketplace/lib/version-hold/version-hold-reasons";
 import {
   MarketplaceTemplateRepository,
   type TemplateSettingsUpdate
@@ -32,9 +33,11 @@ import {
   type PublishedTemplateVersion
 } from "@src/template-marketplace/services/marketplace-template/marketplace-template.service";
 import { PublishChecksService } from "@src/template-marketplace/services/publish-checks/publish-checks.service";
+import { TemplateImageDigestJobService } from "@src/template-marketplace/services/template-image-digest-job/template-image-digest-job.service";
 import { TemplatePublisherNotifierService } from "@src/template-marketplace/services/template-publisher-notifier/template-publisher-notifier.service";
 import { TemplateRateLimiterService } from "@src/template-marketplace/services/template-rate-limiter/template-rate-limiter.service";
 import { TemplateSdlValidatorService } from "@src/template-marketplace/services/template-sdl-validator/template-sdl-validator.service";
+import { TemplateVersionHoldService } from "@src/template-marketplace/services/template-version-hold/template-version-hold.service";
 import { type StoredTemplate, TemplateWriteAccessService } from "@src/template-marketplace/services/template-write-access/template-write-access.service";
 
 export type CreateUserTemplateInput = {
@@ -66,20 +69,14 @@ export type TemplateSettingsPatch = {
 
 const BASE_VERSION_REQUIRED_ERROR_CODE = "template_base_version_required";
 
-type LegacyHardware = { cpu: number; ram: number; storage: number };
-
-/** The legacy columns hold millicpu and bytes, which is what the legacy template page reads. */
-function legacyHardwareOf(hardware: TemplateHardware | undefined): LegacyHardware {
-  return {
-    cpu: Math.round((hardware?.cpu ?? 0) * 1000),
-    ram: hardware?.memoryBytes ?? 0,
-    storage: hardware?.storageBytes ?? 0
-  };
-}
-
 /** A version saved before readmes were recorded shows the legacy description instead, so that is what an omitted readme carries forward. */
 function readmeShownFor(base: TemplateVersionOutput | undefined, template: StoredTemplate): string | null {
   return base?.readme ?? (template.description || null);
+}
+
+/** A base that a newer version replaced keeps its own id, so the append answers the conflict. */
+function currentVersionExpectedFrom(base: TemplateVersionOutput, current: TemplateVersionOutput | undefined): string {
+  return current && current.version < base.version ? current.id : base.id;
 }
 
 /** The legacy `isPublic` flag must stay equal to a public visibility, and settings only set private or organization ones. */
@@ -113,6 +110,8 @@ export class TemplateWriterService {
     private readonly publishChecksService: PublishChecksService,
     private readonly templateRateLimiterService: TemplateRateLimiterService,
     private readonly templatePublisherNotifierService: TemplatePublisherNotifierService,
+    private readonly templateVersionHoldService: TemplateVersionHoldService,
+    private readonly templateImageDigestJobService: TemplateImageDigestJobService,
     private readonly authService: AuthService,
     private readonly txService: TxService,
     private readonly executionContextService: ExecutionContextService
@@ -148,7 +147,7 @@ export class TemplateWriterService {
         description: input.readme ?? "",
         ...legacyHardwareOf(hardware)
       });
-      await this.templateVersionRepository.appendVersion({
+      const firstVersion = await this.templateVersionRepository.appendVersion({
         templateId: id,
         sdl: input.sdl,
         readme: input.readme ?? null,
@@ -156,6 +155,7 @@ export class TemplateWriterService {
         resources: hardware ?? null,
         createdById: authorId
       });
+      await this.templateImageDigestJobService.schedule(firstVersion.id);
 
       return id;
     });
@@ -170,12 +170,13 @@ export class TemplateWriterService {
     const hardware = summarizeTemplateHardware(input.sdl);
     const createdById = this.authService.currentUser.id;
 
-    const { imageDigests: _imageDigests, ...version } = await this.txService.transaction(async () => {
+    return await this.txService.transaction(async () => {
       const template = await this.templateWriteAccessService.lockWritable(id, "update");
       await this.templateRateLimiterService.assertWithinLimits("version", { userId: createdById, organizationId: template.organizationId });
       const base = template.currentVersionId ? await this.#findBaseVersion(id, input.baseVersion) : undefined;
-      const currentReadmeShown = readmeShownFor(base, template);
-      const readme = input.readme === undefined ? currentReadmeShown : input.readme;
+      const current = await this.#findVersionShownToday(base, template);
+      const readme = input.readme === undefined ? readmeShownFor(base, template) : input.readme;
+      const checkResults = template.visibility === "public" ? await this.#runPublishChecks(template, { ...input, readme }) : undefined;
       const appended = await this.templateVersionRepository.appendVersion({
         templateId: id,
         sdl: input.sdl,
@@ -183,10 +184,12 @@ export class TemplateWriterService {
         askedValues: input.askedValues,
         resources: hardware ?? null,
         createdById,
-        expectedCurrentVersionId: base && (await this.#currentVersionExpectedFrom(base, template)),
-        readmesShown: { current: currentReadmeShown, next: readme },
-        checkResults: template.visibility === "public" ? await this.#runPublishChecks(template, { ...input, readme }) : undefined
+        expectedCurrentVersionId: base && currentVersionExpectedFrom(base, current),
+        readmesShown: { current: readmeShownFor(current, template), next: readme },
+        checkResults,
+        holdReasons: this.#isJudgedForHold(checkResults) ? await this.#findHoldReasons(template, input.sdl) : undefined
       });
+      await this.templateImageDigestJobService.schedule(appended.id);
 
       if (appended.status === "live") {
         await this.marketplaceTemplateRepository.mirrorVersion(id, {
@@ -198,11 +201,12 @@ export class TemplateWriterService {
       if (appended.status === "failed_checks") {
         await this.templatePublisherNotifierService.notifyVersionFailedChecks({ versionId: appended.id, savedByUserId: createdById });
       }
+      if (appended.status === "held") {
+        await this.templatePublisherNotifierService.notifyVersionHeld(appended.id);
+      }
 
       return appended;
     });
-
-    return version;
   }
 
   async updateSettings(id: string, patch: TemplateSettingsPatch): Promise<MarketplaceTemplateOutput> {
@@ -257,13 +261,23 @@ export class TemplateWriterService {
     return base;
   }
 
-  /** A version that failed its checks never became the current one, so a save edited from it is held to the version that was current when it failed. */
-  async #currentVersionExpectedFrom(base: TemplateVersionOutput, template: StoredTemplate): Promise<string | undefined> {
-    if (base.status !== "failed_checks") return base.id;
+  /** A version that failed its checks, waits for review or was rejected never became the current one, so a save edited from it is compared with the version people read today and held to it. */
+  async #findVersionShownToday(base: TemplateVersionOutput | undefined, template: StoredTemplate): Promise<TemplateVersionOutput | undefined> {
+    if (!base || base.status === "live") return base;
 
+    return await this.templateVersionRepository.findCurrent(template.id);
+  }
+
+  /** A template that is not public is judged too, or a risky version of a popular or Official one saved in private would go live unreviewed when it is published again. */
+  #isJudgedForHold(checkResults: PublishCheckResults | undefined): boolean {
+    return !checkResults || hasPassedPublishChecks(checkResults);
+  }
+
+  /** Compared with the version people deploy today, whichever version the save was edited from. */
+  async #findHoldReasons(template: StoredTemplate, sdl: string): Promise<TemplateVersionHoldReason[]> {
     const current = await this.templateVersionRepository.findCurrent(template.id);
 
-    return current && current.version < base.version ? current.id : base.id;
+    return await this.templateVersionHoldService.findHoldReasons(template, current?.sdl ?? template.sdl, sdl);
   }
 
   async #runPublishChecks(template: StoredTemplate, input: AppendUserTemplateVersionInput & { readme: string | null }): Promise<PublishCheckResults> {

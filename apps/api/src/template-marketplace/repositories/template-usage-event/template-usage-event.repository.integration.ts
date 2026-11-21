@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import { subHours } from "date-fns";
+import { subDays, subHours } from "date-fns";
 import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
@@ -9,6 +9,7 @@ import { TemplateVersionRepository } from "@src/template-marketplace/repositorie
 import { type TemplateUsageEventInput, TemplateUsageEventRepository } from "./template-usage-event.repository";
 
 import { seedOrganization, seedProject } from "@test/seeders/db/organization.seeder";
+import { seedTemplate as seedPublishedTemplate, seedTemplateDeployers, seedTemplatePublisher, seedTemplateVersion } from "@test/seeders/db/template.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe(TemplateUsageEventRepository.name, () => {
@@ -183,6 +184,133 @@ describe(TemplateUsageEventRepository.name, () => {
       );
     });
   });
+
+  describe("countWeeklyDeployers", () => {
+    it("counts each person who deployed the template on mainnet in the last week once, from outside the publishing organization", async () => {
+      const { repository } = setup();
+      const template = await seedPublishedTemplate({ visibility: "public" });
+      const [repeatDeployer, member] = await Promise.all([seedUser(), seedUser()]);
+      const otherOrganization = await seedOrganization();
+      await seedTemplateDeployers(template.id, 3);
+      await seedTemplateDeployers(template.id, 2, { organizationId: otherOrganization.id });
+      await seedEvents([
+        { templateRef: template.id, userId: repeatDeployer.id },
+        { templateRef: template.id, userId: repeatDeployer.id },
+        { templateRef: template.id, userId: member.id, organizationId: template.organizationId }
+      ]);
+
+      expect(await repository.countWeeklyDeployers(template.id, template.organizationId)).toBe(6);
+    });
+
+    it("leaves out other networks, other sources, other actions, other templates, deploys older than a week and deploys by nobody known", async () => {
+      const { repository } = setup();
+      const template = await seedPublishedTemplate({ visibility: "public" });
+      const other = await seedPublishedTemplate({ visibility: "public" });
+      await seedTemplateDeployers(template.id, 1);
+      await seedTemplateDeployers(template.id, 1, { network: "sandbox" });
+      await seedTemplateDeployers(template.id, 1, { source: "awesome_akash" });
+      await seedTemplateDeployers(template.id, 1, { action: "lease_created" });
+      await seedTemplateDeployers(template.id, 1, { action: "fork", deploymentSettingId: null });
+      await seedTemplateDeployers(template.id, 1, { createdAt: subDays(new Date(), 8) });
+      await seedTemplateDeployers(other.id, 4);
+      await seedEvents([{ templateRef: template.id, userId: null }]);
+
+      expect(await repository.countWeeklyDeployers(template.id, template.organizationId)).toBe(1);
+    });
+
+    it("counts a deploy made just inside the week and none for a template nobody deployed", async () => {
+      const { repository } = setup();
+      const template = await seedPublishedTemplate({ visibility: "public" });
+      const undeployed = await seedPublishedTemplate({ visibility: "public" });
+      await seedTemplateDeployers(template.id, 1, { createdAt: subHours(new Date(), 7 * 24 - 1) });
+
+      expect(await repository.countWeeklyDeployers(template.id, template.organizationId)).toBe(1);
+      expect(await repository.countWeeklyDeployers(undeployed.id, undeployed.organizationId)).toBe(0);
+    });
+  });
+
+  describe("findWatchedTemplates", () => {
+    it("lists the current versions of public templates with enough weekly deployers outside their organization, most deployed first", async () => {
+      const { repository } = setup();
+      const popular = await seedWatchable(4);
+      const mostPopular = await seedWatchable(6);
+      const justPopular = await seedWatchable(3);
+      const tooQuiet = await seedWatchable(2);
+      const selfDeployed = await seedWatchable(2);
+      await seedTemplateDeployers(selfDeployed.template.id, 5, { organizationId: selfDeployed.template.organizationId });
+      const oldFame = await seedWatchable(0);
+      await seedTemplateDeployers(oldFame.template.id, 5, { createdAt: subDays(new Date(), 8) });
+      const sandboxFame = await seedWatchable(0);
+      await seedTemplateDeployers(sandboxFame.template.id, 5, { network: "sandbox" });
+
+      const watched = await findWatchedAmong(repository, [popular, mostPopular, justPopular, tooQuiet, selfDeployed, oldFame, sandboxFame], 3);
+
+      expect(watched).toEqual([
+        { templateId: mostPopular.template.id, currentVersionId: mostPopular.version.id },
+        { templateId: popular.template.id, currentVersionId: popular.version.id },
+        { templateId: justPopular.template.id, currentVersionId: justPopular.version.id }
+      ]);
+    });
+
+    it("lists an Official template however few people deploy it", async () => {
+      const { repository } = setup();
+      const official = await seedWatchable(0, { isOfficial: true });
+      const community = await seedWatchable(0);
+
+      expect(await findWatchedAmong(repository, [official, community], 3)).toEqual([
+        { templateId: official.template.id, currentVersionId: official.version.id }
+      ]);
+    });
+
+    it.each([
+      { name: "hidden", template: { moderationStatus: "hidden" as const } },
+      { name: "removed", template: { moderationStatus: "removed" as const } },
+      { name: "private", template: { visibility: "private" as const } },
+      { name: "shared with its organization only", template: { visibility: "organization" as const } }
+    ])("skips a popular template that is $name", async ({ template }) => {
+      const { repository } = setup();
+      const skipped = await seedWatchable(5, { isOfficial: true, ...template });
+
+      expect(await findWatchedAmong(repository, [skipped], 3)).toEqual([]);
+    });
+
+    it("skips a popular template of a suspended publisher and one that has no current version", async () => {
+      const { repository } = setup();
+      const suspended = await seedWatchable(5);
+      await seedTemplatePublisher({ organizationId: suspended.template.organizationId, publishingSuspendedAt: new Date() });
+      const versionless = await seedPublishedTemplate({ visibility: "public" });
+      await seedTemplateDeployers(versionless.id, 5);
+
+      expect(await findWatchedAmong(repository, [suspended, { template: versionless }], 3)).toEqual([]);
+    });
+
+    it("stops at the limit, keeping the most deployed", async () => {
+      const { repository } = setup();
+      const threshold = 1000;
+      const first = await seedWatchable(0, { isOfficial: true });
+      await seedWatchable(0, { isOfficial: true });
+      await seedTemplateDeployers(first.template.id, 2);
+
+      const watched = await repository.findWatchedTemplates({ minWeeklyDeployers: threshold, limit: 1 });
+
+      expect(watched).toEqual([{ templateId: first.template.id, currentVersionId: first.version.id }]);
+    });
+  });
+
+  async function seedWatchable(deployers: number, overrides: Parameters<typeof seedPublishedTemplate>[0] = {}) {
+    const template = await seedPublishedTemplate({ visibility: "public", ...overrides });
+    const version = await seedTemplateVersion({ templateId: template.id });
+    await seedTemplateDeployers(template.id, deployers);
+
+    return { template, version };
+  }
+
+  async function findWatchedAmong(repository: TemplateUsageEventRepository, seeded: { template: { id: string } }[], minWeeklyDeployers: number) {
+    const ids = seeded.map(({ template }) => template.id);
+    const watched = await repository.findWatchedTemplates({ minWeeklyDeployers, limit: 10_000 });
+
+    return watched.filter(({ templateId }) => ids.includes(templateId));
+  }
 
   function buildEvent(overrides: Partial<TemplateUsageEventInput> = {}): TemplateUsageEventInput {
     return {

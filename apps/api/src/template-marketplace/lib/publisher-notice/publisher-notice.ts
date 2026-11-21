@@ -1,4 +1,5 @@
 import type { PublishCheckResults } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
+import type { TemplateVersionHoldReason } from "@src/template-marketplace/lib/version-hold/version-hold-reasons";
 import type { TemplateModerationAction } from "@src/template-marketplace/model-schemas/template-moderation-event/template-moderation-event.schema";
 
 export const PUBLISHER_NOTICE_KINDS = [
@@ -38,7 +39,15 @@ export const MAX_ISSUES_IN_NOTICE = 5;
 
 /** What the failed checks said, in the order the checks ran, for a notice that has no room for all of a long list. */
 export function failedCheckMessagesOf(checkResults: PublishCheckResults | null): string[] {
-  const messages = (checkResults?.checks ?? []).filter(check => check.status === "failed").flatMap(check => check.issues.map(issue => issue.message));
+  return fittedToNotice((checkResults?.checks ?? []).filter(check => check.status === "failed").flatMap(check => check.issues.map(issue => issue.message)));
+}
+
+/** Why a version waits for staff review, for the notice telling its publisher so. */
+export function holdReasonMessagesOf(holdReasons: TemplateVersionHoldReason[] | null): string[] {
+  return fittedToNotice((holdReasons ?? []).map(reason => reason.message));
+}
+
+function fittedToNotice(messages: string[]): string[] {
   const hiddenCount = messages.length - MAX_ISSUES_IN_NOTICE;
 
   return hiddenCount > 0 ? [...messages.slice(0, MAX_ISSUES_IN_NOTICE), `And ${hiddenCount} more.`] : messages;

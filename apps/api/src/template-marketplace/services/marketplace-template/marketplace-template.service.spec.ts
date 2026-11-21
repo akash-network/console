@@ -6,6 +6,7 @@ import { mock } from "vitest-mock-extended";
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { PublishCheckResults } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
+import type { TemplateVersionHoldReason } from "@src/template-marketplace/lib/version-hold/version-hold-reasons";
 import type {
   MarketplaceTemplateRepository,
   MarketplaceTemplateRow,
@@ -53,14 +54,18 @@ const CHECK_RESULTS: PublishCheckResults = {
 
 describe(MarketplaceTemplateService.name, () => {
   describe("getTemplate", () => {
-    it("describes a readable template with its author, publisher and current version without image digests", async () => {
+    it("describes a readable template with its author, publisher and current version, image digests included", async () => {
       const template = createTemplateRow({ authorUsername: "alice", publisher: { name: "Team", slug: "team", type: "team", handle: "team" } });
-      const version = createVersion({ templateId: template.id, readme: "# Readme", resources: { cpu: 1, memoryBytes: 2, storageBytes: 3 } });
+      const version = createVersion({
+        templateId: template.id,
+        readme: "# Readme",
+        resources: { cpu: 1, memoryBytes: 2, storageBytes: 3 },
+        imageDigests: { "nginx:1.27": "sha256:abc" }
+      });
       const { service } = setup({ template, currentVersion: version, activeOrganizationId: template.organizationId });
 
       const result = await service.getTemplate(template.id);
 
-      const { imageDigests: _imageDigests, ...publishedVersion } = version;
       expect(result).toEqual({
         id: template.id,
         title: template.title,
@@ -78,7 +83,7 @@ describe(MarketplaceTemplateService.name, () => {
         publishedAt: null,
         author: { username: "alice" },
         publisher: { name: "Team", slug: "team", type: "team", handle: "team" },
-        currentVersion: publishedVersion,
+        currentVersion: version,
         canEdit: false,
         isFavorite: false,
         usage: { deploys: 0, lastDeployedAt: null, stillUpAfter24h: null }
@@ -441,6 +446,92 @@ describe(MarketplaceTemplateService.name, () => {
     });
   });
 
+  describe("held and reviewed versions", () => {
+    const HOLD_REASONS: TemplateVersionHoldReason[] = [{ kind: "global_port_added", message: "Opens port 22.", service: "web", port: 22, protocol: "tcp" }];
+    const REVIEWED_AT = new Date("2026-11-10T09:00:00.000Z");
+    const REVIEW = { holdReasons: HOLD_REASONS, reviewedAt: REVIEWED_AT, reviewNote: "Looks fine." };
+
+    it.each(["held", "rejected"] as const)(
+      "lists a %s version, with why it waited and what staff decided, to a caller who may edit the template",
+      async status => {
+        const template = createTemplateRow();
+        const reviewed = createSummary({ templateId: template.id, version: 2, status, ...REVIEW });
+        const current = createSummary({ id: template.currentVersionId!, templateId: template.id, version: 1 });
+        const { service, templateVersionRepository } = setup({ template, rules: [{ action: "update", subject: "Template" }] });
+        templateVersionRepository.listByTemplate.mockResolvedValue([reviewed, current]);
+
+        const result = await service.listVersions(template.id);
+
+        expect(result.map(({ version, status, holdReasons, reviewedAt, reviewNote }) => ({ version, status, holdReasons, reviewedAt, reviewNote }))).toEqual([
+          { version: 2, status, ...REVIEW },
+          { version: 1, status: "live", holdReasons: null, reviewedAt: null, reviewNote: null }
+        ]);
+      }
+    );
+
+    it.each(["held", "rejected"] as const)("lists no %s version, and nothing staff wrote about the current one, to a caller who may not edit", async status => {
+      const template = createTemplateRow();
+      const reviewed = createSummary({ templateId: template.id, version: 3, status, ...REVIEW });
+      const current = createSummary({ id: template.currentVersionId!, templateId: template.id, version: 2, checkResults: CHECK_RESULTS, ...REVIEW });
+      const { service, templateVersionRepository } = setup({ template });
+      templateVersionRepository.listByTemplate.mockResolvedValue([reviewed, current]);
+
+      const result = await service.listVersions(template.id);
+
+      expect(result).toEqual([{ ...current, checkResults: null, holdReasons: null, reviewedAt: null, reviewNote: null, deploys: 0 }]);
+    });
+
+    it.each(["held", "rejected"] as const)(
+      "reads a %s version with why it waited and what staff decided to a caller who may edit the template",
+      async status => {
+        const template = createTemplateRow();
+        const reviewed = createVersion({ templateId: template.id, version: 2, status, ...REVIEW });
+        const { service, templateVersionRepository } = setup({ template, rules: [{ action: "update", subject: "Template" }] });
+        templateVersionRepository.findByTemplateAndVersion.mockResolvedValue(reviewed);
+
+        expect(await service.getVersion(template.id, 2)).toMatchObject({ id: reviewed.id, status, ...REVIEW });
+      }
+    );
+
+    it.each(["held", "rejected"] as const)("answers 404 for a %s version to a caller who may not edit the template", async status => {
+      const template = createTemplateRow();
+      const { service, templateVersionRepository } = setup({ template });
+      templateVersionRepository.findByTemplateAndVersion.mockResolvedValue(createVersion({ templateId: template.id, version: 2, status }));
+
+      await expect(service.getVersion(template.id, 2)).rejects.toMatchObject({ status: 404 });
+    });
+
+    it("withholds why the current version once waited and what staff wrote from a caller who may not edit the template", async () => {
+      const version = createVersion({ version: 3, ...REVIEW });
+      const template = createTemplateRow({ currentVersionId: version.id });
+      const { service, templateVersionRepository } = setup({ template, currentVersion: version });
+      templateVersionRepository.findByTemplateAndVersion.mockResolvedValue(version);
+
+      expect(await service.getVersion(template.id, 3)).toMatchObject({ holdReasons: null, reviewedAt: null, reviewNote: null });
+      expect((await service.getTemplate(template.id)).currentVersion).toMatchObject({ holdReasons: null, reviewedAt: null, reviewNote: null });
+    });
+
+    it("shows an editor why the current version once waited and what staff wrote", async () => {
+      const version = createVersion({ version: 3, ...REVIEW });
+      const template = createTemplateRow({ currentVersionId: version.id });
+      const { service } = setup({ template, currentVersion: version, rules: [{ action: "update", subject: "Template" }] });
+
+      expect((await service.getTemplate(template.id)).currentVersion).toMatchObject(REVIEW);
+    });
+
+    it("lets only an editor deploy a held version", async () => {
+      const template = createTemplateRow();
+      const held = createVersion({ templateId: template.id, version: 2, status: "held" });
+      const forEditor = setup({ template, rules: [{ action: "update", subject: "Template" }] });
+      forEditor.templateVersionRepository.findById.mockResolvedValue(held);
+      const forReader = setup({ template });
+      forReader.templateVersionRepository.findById.mockResolvedValue(held);
+
+      expect(await forEditor.service.findDeployableVersion(held.id)).toEqual({ templateId: template.id, versionId: held.id });
+      await expect(forReader.service.findDeployableVersion(held.id)).rejects.toMatchObject({ status: 404 });
+    });
+  });
+
   describe("getVersion", () => {
     it("reads a version that failed its checks, with what they found, to a caller who may edit the template", async () => {
       const template = createTemplateRow({ visibility: "public" });
@@ -473,7 +564,7 @@ describe(MarketplaceTemplateService.name, () => {
       expect(result.checkResults).toBeNull();
     });
 
-    it("reads the current version without its image digests", async () => {
+    it("reads the current version with its image digests", async () => {
       const version = createVersion({ version: 3, imageDigests: { "nginx:latest": "sha256:abc" } });
       const template = createTemplateRow({ currentVersionId: version.id });
       const { service, templateVersionRepository } = setup({ template });
@@ -481,8 +572,7 @@ describe(MarketplaceTemplateService.name, () => {
 
       const result = await service.getVersion(template.id, 3);
 
-      const { imageDigests: _imageDigests, ...published } = version;
-      expect(result).toEqual(published);
+      expect(result).toEqual(version);
       expect(templateVersionRepository.findByTemplateAndVersion).toHaveBeenCalledWith(template.id, 3);
     });
 
@@ -631,8 +721,10 @@ describe(MarketplaceTemplateService.name, () => {
           moderationStatus: editable.moderationStatus,
           projectId,
           copiedFromId: editable.copiedFromId,
+          publishedAt: editable.publishedAt,
           updatedAt: editable.updatedAt,
           currentVersion: editable.currentVersion,
+          latestVersion: null,
           lastEditedBy: { username: "alice" },
           canEdit: true,
           usage: { deploys: 0, lastDeployedAt: null }
@@ -680,6 +772,30 @@ describe(MarketplaceTemplateService.name, () => {
       expect(templateUsageEventRepository.summarize).toHaveBeenCalledWith([deployed.id, quiet.id]);
     });
 
+    it("tells when each template first went public and, to a caller who may edit it only, what became of its newest version", async () => {
+      const organizationId = faker.string.uuid();
+      const projectId = faker.string.uuid();
+      const publishedAt = new Date("2026-11-01T10:00:00.000Z");
+      const editable = createListRow({ organizationId, projectId, publishedAt });
+      const readOnly = createListRow({ organizationId, projectId: faker.string.uuid() });
+      const rules: RawRuleOf<MongoAbility>[] = [
+        { action: "read", subject: "Template", conditions: { organizationId } },
+        { action: "update", subject: "Template", conditions: { organizationId, projectId } }
+      ];
+      const { service, readableRepository, templateVersionRepository } = setup({ rules, activeOrganizationId: organizationId });
+      readableRepository.listInOrganization.mockResolvedValue([editable, readOnly]);
+      templateVersionRepository.findNewestOf.mockResolvedValue(new Map([[editable.id, { version: 3, status: "held" }]]));
+
+      const result = await service.listInOrganization({});
+
+      expect(result.map(({ id, publishedAt, latestVersion, canEdit }) => ({ id, publishedAt, latestVersion, canEdit }))).toEqual([
+        { id: editable.id, publishedAt, latestVersion: { version: 3, status: "held" }, canEdit: true },
+        { id: readOnly.id, publishedAt: null, latestVersion: null, canEdit: false }
+      ]);
+      expect(templateVersionRepository.findNewestOf).toHaveBeenCalledTimes(1);
+      expect(templateVersionRepository.findNewestOf).toHaveBeenCalledWith([editable.id]);
+    });
+
     it("lists nothing to a caller whose rules reach no template", async () => {
       const { service, repository } = setup({ rules: [], activeOrganizationId: faker.string.uuid() });
 
@@ -709,6 +825,7 @@ describe(MarketplaceTemplateService.name, () => {
       visibility: "private",
       isListed: true,
       moderationStatus: "active",
+      publishedAt: null,
       updatedAt: faker.date.recent(),
       currentVersion: { version: 2, status: "live", createdAt: faker.date.recent() },
       lastEditedByUsername: faker.internet.userName(),
@@ -764,6 +881,9 @@ describe(MarketplaceTemplateService.name, () => {
       status: "live",
       checkResults: null,
       changes: ["first_version"],
+      holdReasons: null,
+      reviewedAt: null,
+      reviewNote: null,
       createdById: faker.string.uuid(),
       createdBy: { username: faker.internet.userName() },
       createdAt: faker.date.recent(),
@@ -802,6 +922,7 @@ describe(MarketplaceTemplateService.name, () => {
     repository.findReadable.mockResolvedValue(template);
     const templateVersionRepository = mock<TemplateVersionRepository>();
     templateVersionRepository.findById.mockResolvedValue("currentVersion" in input ? input.currentVersion : createVersion());
+    templateVersionRepository.findNewestOf.mockResolvedValue(new Map());
     const userTemplateRepository = mock<UserTemplateRepository>();
     userTemplateRepository.isFavorite.mockResolvedValue(false);
     const executionContextService = mock<ExecutionContextService>();

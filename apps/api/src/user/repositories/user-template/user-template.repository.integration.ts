@@ -584,6 +584,7 @@ describe(UserTemplateRepository.name, () => {
         organizationId: template.organizationId,
         isPublic: true,
         visibility: "public",
+        isOfficial: false,
         publishedAt: null,
         summary: null,
         description: "# Description",

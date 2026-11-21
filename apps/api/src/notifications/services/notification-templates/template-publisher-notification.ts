@@ -14,6 +14,7 @@ export type TemplatePublisherNoticeVars = {
   templateTitle: string | null;
   versionNumber: number | null;
   reason: string | null;
+  /** What the publish checks found, or why a version waits for review. */
   issues: string[];
   templateUrl: string | undefined;
 };
@@ -24,6 +25,7 @@ type NoticeCopy = {
   category: string;
   headline: (subject: Subject) => string;
   body: (subject: Subject) => string;
+  issuesHeading?: string;
   /** A negative outcome states the staff reason and where to ask about it. */
   isNegative: boolean;
   linksToTemplate: boolean;
@@ -61,8 +63,9 @@ const NOTICES: Record<PublisherNoticeKind, NoticeCopy> = {
     category: "templateVersionHeld",
     headline: ({ version, title }) => `${version} of ${title} is waiting for review`,
     body: ({ version, title }) =>
-      `<p>${version} of ${title} changes what a widely used template runs, so Akash staff review it before it goes live. ${CURRENT_VERSION_STAYS}</p>` +
+      `<p>Akash staff review ${version.toLowerCase()} of ${title} before it goes live. ${CURRENT_VERSION_STAYS}</p>` +
       "<p>You don't need to do anything. We'll let you know once it's reviewed.</p>",
+    issuesHeading: "Why it waits for review:",
     isNegative: true,
     linksToTemplate: true
   },
@@ -121,6 +124,8 @@ const NOTICES: Record<PublisherNoticeKind, NoticeCopy> = {
   }
 };
 
+const CHECK_ISSUES_HEADING = "What the checks found:";
+
 const SUPPORT_PARAGRAPH = `<p>If you think this is a mistake or have questions, email <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a>.</p>`;
 
 /** Titles, organization names, reasons and check messages are written by people, so the body escapes each and the headline stays plain text. */
@@ -134,7 +139,7 @@ export function templatePublisherNotification(user: { id: string; email: string 
       summary: copy.headline({ version, title: quotedTitleOf(vars.templateTitle), publisher: onOneLine(vars.publisherName) }),
       description:
         copy.body({ version, title: emphasized(vars.templateTitle ?? "your template"), publisher: emphasized(vars.publisherName) }) +
-        issuesParagraph(vars.issues) +
+        issuesParagraph(copy.issuesHeading ?? CHECK_ISSUES_HEADING, vars.issues) +
         (copy.isNegative ? userReasonParagraph(vars.reason) + SUPPORT_PARAGRAPH : ""),
       actions: linkedActions({ label: "Open template", url: copy.linksToTemplate ? vars.templateUrl : undefined })
     },
@@ -146,8 +151,8 @@ function emphasized(text: string): string {
   return `<strong>${escapeHtml(text)}</strong>`;
 }
 
-function issuesParagraph(issues: string[]): string {
-  return issues.length > 0 ? `<p><strong>What the checks found:</strong><br>${issues.map(issue => escapeHtml(issue)).join("<br>")}</p>` : "";
+function issuesParagraph(heading: string, issues: string[]): string {
+  return issues.length > 0 ? `<p><strong>${heading}</strong><br>${issues.map(issue => escapeHtml(issue)).join("<br>")}</p>` : "";
 }
 
 function quotedTitleOf(title: string | null): string {
