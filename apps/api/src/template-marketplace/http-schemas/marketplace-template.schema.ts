@@ -94,6 +94,23 @@ const TemplateVersionFieldsSchema = z
 
 export const DeploysSchema = z.number().int().nonnegative().openapi({ description: "Deploys made from Console on mainnet" });
 
+export const ForksSchema = z
+  .number()
+  .int()
+  .nonnegative()
+  .openapi({ description: "Copies made on mainnet from outside the publishing organization, one per person a day" });
+
+export const StillUpAfter24hSchema = z.number().min(0).max(1).nullable().openapi({
+  description: "The share of mainnet leases older than a day whose deployment was still running a day later, null below five such leases"
+});
+
+export const PublisherCountsSchema = z
+  .object({
+    templates: z.number().int().nonnegative().openapi({ description: "The templates the publisher page lists" }),
+    deploys: DeploysSchema
+  })
+  .openapi("TemplatePublisherCounts");
+
 export const TemplateVersionSummarySchema = TemplateVersionFieldsSchema.extend({
   deploys: DeploysSchema
 }).openapi("TemplateVersionSummary");
@@ -134,6 +151,10 @@ export const MarketplaceTemplateSchema = z
       .nullable()
       .openapi({ description: "The project the template is filed in, null for one filed in none or outside the active organization" }),
     copiedFromId: z.string().uuid().nullable().openapi({ description: "The template this one was copied from, null unless the caller may read it" }),
+    copiedFrom: z
+      .object({ id: z.string().uuid(), title: z.string() })
+      .nullable()
+      .openapi({ description: "The template this one was copied from, null once the caller may no longer read it" }),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
     publishedAt: z
@@ -147,7 +168,14 @@ export const MarketplaceTemplateSchema = z
         name: z.string(),
         slug: z.string().nullable().openapi({ description: "Null for a personal organization" }),
         type: z.enum(organizationTypeEnum.enumValues),
-        handle: z.string().nullable().openapi({ description: "The name of the publisher page, null until the organization first publishes a template" })
+        handle: z.string().nullable().openapi({ description: "The name of the publisher page, null until the organization first publishes a template" }),
+        verified: z.boolean().openapi({ description: "Whether Akash staff verified who the publisher is" }),
+        memberSince: z
+          .string()
+          .datetime()
+          .nullable()
+          .openapi({ description: "When the person or the team joined Console, null until the organization first publishes a template" }),
+        counts: PublisherCountsSchema
       })
       .nullable()
       .openapi({ description: "The organization the template belongs to, null for a template filed in none" }),
@@ -159,9 +187,9 @@ export const MarketplaceTemplateSchema = z
     usage: z.object({
       deploys: DeploysSchema,
       lastDeployedAt: LastDeployedAtSchema,
-      stillUpAfter24h: z.number().min(0).max(1).nullable().openapi({
-        description: "The share of mainnet leases older than a day whose deployment was still running a day later, null below five such leases"
-      })
+      stillUpAfter24h: StillUpAfter24hSchema,
+      forks: ForksSchema,
+      favorites: z.number().int().nonnegative().openapi({ description: "The people who keep the template among their favorites" })
     })
   })
   .openapi("MarketplaceTemplate");

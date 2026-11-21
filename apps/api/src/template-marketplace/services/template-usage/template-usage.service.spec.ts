@@ -292,6 +292,46 @@ describe(TemplateUsageService.name, () => {
     });
   });
 
+  describe("recordFork", () => {
+    it("counts a copy made from outside the publishing organization against the version it copied, in the caller's own transaction", async () => {
+      const { service, templateUsageEventRepository, txService } = setup({ network: "sandbox" });
+      const source = { id: faker.string.uuid(), organizationId: faker.string.uuid(), currentVersionId: faker.string.uuid() };
+      const fork = { userId: faker.string.uuid(), organizationId: faker.string.uuid() };
+
+      await service.recordFork(source, fork);
+
+      expect(templateUsageEventRepository.recordForkOncePerDay).toHaveBeenCalledWith({
+        templateRef: source.id,
+        templateVersionId: source.currentVersionId,
+        userId: fork.userId,
+        organizationId: fork.organizationId,
+        network: "sandbox"
+      });
+      expect(txService.outsideTransaction).not.toHaveBeenCalled();
+    });
+
+    it("counts no copy made inside the publishing organization", async () => {
+      const { service, templateUsageEventRepository } = setup();
+      const organizationId = faker.string.uuid();
+
+      await service.recordFork({ id: faker.string.uuid(), organizationId, currentVersionId: null }, { userId: faker.string.uuid(), organizationId });
+
+      expect(templateUsageEventRepository.recordForkOncePerDay).not.toHaveBeenCalled();
+    });
+
+    it("fails the copy when the fork cannot be recorded, since both share one transaction", async () => {
+      const { service, templateUsageEventRepository } = setup();
+      templateUsageEventRepository.recordForkOncePerDay.mockRejectedValue(new Error("connection lost"));
+
+      await expect(
+        service.recordFork(
+          { id: faker.string.uuid(), organizationId: faker.string.uuid(), currentVersionId: null },
+          { userId: faker.string.uuid(), organizationId: faker.string.uuid() }
+        )
+      ).rejects.toThrow("connection lost");
+    });
+  });
+
   describe("recordFavorite", () => {
     it.each(["favorite", "unfavorite"] as const)("records a %s of the template's current version by the caller in their active organization", async action => {
       const templateId = faker.string.uuid();

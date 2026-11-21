@@ -19,6 +19,7 @@ import { createTemplateInvalidError } from "@src/template-marketplace/lib/templa
 import type { TemplateVersionHoldReason } from "@src/template-marketplace/lib/version-hold/version-hold-reasons";
 import {
   MarketplaceTemplateRepository,
+  type MarketplaceTemplateRow,
   type TemplateSettingsUpdate
 } from "@src/template-marketplace/repositories/marketplace-template/marketplace-template.repository";
 import { TemplateRemovalRepository } from "@src/template-marketplace/repositories/template-removal/template-removal.repository";
@@ -37,6 +38,7 @@ import { TemplateImageDigestJobService } from "@src/template-marketplace/service
 import { TemplatePublisherNotifierService } from "@src/template-marketplace/services/template-publisher-notifier/template-publisher-notifier.service";
 import { TemplateRateLimiterService } from "@src/template-marketplace/services/template-rate-limiter/template-rate-limiter.service";
 import { TemplateSdlValidatorService } from "@src/template-marketplace/services/template-sdl-validator/template-sdl-validator.service";
+import { TemplateUsageService } from "@src/template-marketplace/services/template-usage/template-usage.service";
 import { TemplateVersionHoldService } from "@src/template-marketplace/services/template-version-hold/template-version-hold.service";
 import { type StoredTemplate, TemplateWriteAccessService } from "@src/template-marketplace/services/template-write-access/template-write-access.service";
 
@@ -45,12 +47,15 @@ export type CreateUserTemplateInput = {
   summary?: string;
   icon?: TemplateIcon;
   categories?: TemplateCategory[];
-  sdl: string;
+  /** Left out of a copy, which then takes the content of the version people deploy from the template it names. */
+  sdl?: string;
   readme?: string;
-  askedValues: AskedValue[];
+  askedValues?: AskedValue[];
   projectId?: string;
   copiedFromId?: string;
 };
+
+type TemplateContent = { sdl: string; readme?: string; askedValues: AskedValue[] };
 
 export type AppendUserTemplateVersionInput = {
   sdl: string;
@@ -97,6 +102,8 @@ function assertTitleNotReserved(title: string): void {
   }
 }
 
+export const TEMPLATE_COPY_SOURCE_NOT_FOUND_ERROR_CODE = "template_copy_source_not_found";
+
 @singleton()
 export class TemplateWriterService {
   constructor(
@@ -112,6 +119,7 @@ export class TemplateWriterService {
     private readonly templatePublisherNotifierService: TemplatePublisherNotifierService,
     private readonly templateVersionHoldService: TemplateVersionHoldService,
     private readonly templateImageDigestJobService: TemplateImageDigestJobService,
+    private readonly templateUsageService: TemplateUsageService,
     private readonly authService: AuthService,
     private readonly txService: TxService,
     private readonly executionContextService: ExecutionContextService
@@ -122,14 +130,12 @@ export class TemplateWriterService {
     const { id: authorId, userId } = this.authService.currentUser;
     const organizationId = this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId;
     assert(userId && organizationId && ability.can("create", "Template"), 403, "You cannot create templates");
-    this.#assertValid(input.sdl, input.askedValues);
-
-    if (input.copiedFromId) {
-      await this.marketplaceTemplateService.findReadable(input.copiedFromId);
-    }
+    const source = input.copiedFromId ? await this.#findCopySource(input.copiedFromId) : undefined;
+    const content = await this.#contentOf(input, source);
+    this.#assertValid(content.sdl, content.askedValues);
 
     const projectId = await this.deploymentProjectService.resolveFilingProject(input.projectId, "Template");
-    const hardware = summarizeTemplateHardware(input.sdl);
+    const hardware = summarizeTemplateHardware(content.sdl);
     const repository = this.marketplaceTemplateRepository.accessibleBy(ability, "create");
 
     const templateId = await this.txService.transaction(async () => {
@@ -143,19 +149,23 @@ export class TemplateWriterService {
         authorId,
         projectId,
         copiedFromId: input.copiedFromId,
-        sdl: input.sdl,
-        description: input.readme ?? "",
+        sdl: content.sdl,
+        description: content.readme ?? "",
         ...legacyHardwareOf(hardware)
       });
       const firstVersion = await this.templateVersionRepository.appendVersion({
         templateId: id,
-        sdl: input.sdl,
-        readme: input.readme ?? null,
-        askedValues: input.askedValues,
+        sdl: content.sdl,
+        readme: content.readme ?? null,
+        askedValues: content.askedValues,
         resources: hardware ?? null,
         createdById: authorId
       });
       await this.templateImageDigestJobService.schedule(firstVersion.id);
+
+      if (source) {
+        await this.templateUsageService.recordFork(source, { userId: authorId, organizationId });
+      }
 
       return id;
     });
@@ -235,6 +245,30 @@ export class TemplateWriterService {
       await this.templateWriteAccessService.lockWritable(id, "delete");
       await this.templateRemovalRepository.remove(id, "owner");
     });
+  }
+
+  /** Has its own code, or a client could not tell this 404 from the one a project that is gone answers with. */
+  async #findCopySource(id: string): Promise<MarketplaceTemplateRow> {
+    try {
+      return await this.marketplaceTemplateService.findReadable(id);
+    } catch (error) {
+      if (!createError.isHttpError(error) || error.status !== 404) throw error;
+      throw createError(404, "The template to copy was not found", { errorCode: TEMPLATE_COPY_SOURCE_NOT_FOUND_ERROR_CODE });
+    }
+  }
+
+  /** A copy sent without an SDL takes what the source's readers deploy: its current version, never a newer one that failed its checks or waits for review. */
+  async #contentOf(input: CreateUserTemplateInput, source: MarketplaceTemplateRow | undefined): Promise<TemplateContent> {
+    if (input.sdl !== undefined) return { sdl: input.sdl, readme: input.readme, askedValues: input.askedValues ?? [] };
+    if (!source) throw createError(400, "Send the SDL, or name the template to copy");
+
+    const current = source.currentVersionId ? await this.templateVersionRepository.findById(source.currentVersionId) : undefined;
+
+    return {
+      sdl: current?.sdl ?? source.sdl,
+      readme: current?.readme ?? (source.description || undefined),
+      askedValues: current?.askedValues ?? []
+    };
   }
 
   /** A version saved through the legacy route was never validated, so it is held to a new save's SDL and secret checks before more members can read it. */

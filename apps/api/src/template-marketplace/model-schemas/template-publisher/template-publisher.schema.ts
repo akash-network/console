@@ -6,6 +6,8 @@ import { Organizations } from "@src/organization/model-schemas/organization/orga
 export const MAX_PUBLISHER_HANDLE_LENGTH = 64;
 export const MAX_PUBLISHER_BIO_LENGTH = 300;
 
+export type TemplatePublisherLink = { url: string; label: string | null };
+
 export const TemplatePublishers = pgTable(
   "template_publishers",
   {
@@ -16,7 +18,7 @@ export const TemplatePublishers = pgTable(
     handle: varchar("handle", { length: MAX_PUBLISHER_HANDLE_LENGTH }).notNull().unique(),
     bio: varchar("bio", { length: MAX_PUBLISHER_BIO_LENGTH }),
     links: jsonb("links")
-      .$type<string[]>()
+      .$type<TemplatePublisherLink[]>()
       .notNull()
       .default(sql`'[]'::jsonb`),
     isVerified: boolean("verified").default(false).notNull(),

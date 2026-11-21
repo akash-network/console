@@ -18,6 +18,8 @@ export type TemplateRef = { source: TemplateSource; templateRef: string; templat
 
 export type DeployedDefinition = Pick<DeploymentSettingsOutput, "id" | "userId" | "organizationId" | "dseq" | "templateId" | "templateVersionId">;
 
+export type ForkedTemplate = { id: string; organizationId: string; currentVersionId: string | null };
+
 const STILL_RUNNING_CHECK_DELAY_HOURS = 24;
 
 @singleton()
@@ -91,6 +93,19 @@ export class TemplateUsageService {
         organizationId: this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId ?? null,
         network: this.coreConfig.get("NETWORK")
       });
+    });
+  }
+
+  /** Runs in the caller's transaction, unlike the other recorders, since the lock it holds on the user is what keeps a day to one fork. */
+  async recordFork(source: ForkedTemplate, fork: { userId: string; organizationId: string }): Promise<void> {
+    if (source.organizationId === fork.organizationId) return;
+
+    await this.templateUsageEventRepository.recordForkOncePerDay({
+      templateRef: source.id,
+      templateVersionId: source.currentVersionId,
+      userId: fork.userId,
+      organizationId: fork.organizationId,
+      network: this.coreConfig.get("NETWORK")
     });
   }
 

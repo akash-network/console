@@ -27,9 +27,17 @@ const TEMPLATE = buildMarketplaceTemplate({
   summary: "Private ChatGPT-style chat on your own GPU.",
   icon: "message-square",
   visibility: "organization",
-  publisher: { name: "Northwind Labs", slug: "northwind-labs", type: "team", handle: null },
+  publisher: {
+    name: "Northwind Labs",
+    slug: "northwind-labs",
+    type: "team",
+    handle: null,
+    verified: false,
+    memberSince: null,
+    counts: { templates: 0, deploys: 0 }
+  },
   currentVersion: CURRENT_VERSION,
-  usage: { deploys: 0, lastDeployedAt: null, stillUpAfter24h: null }
+  usage: { deploys: 0, lastDeployedAt: null, stillUpAfter24h: null, forks: 0, favorites: 0 }
 });
 
 describe(TemplatePage.name, () => {
@@ -60,7 +68,7 @@ describe(TemplatePage.name, () => {
     setup({
       template: {
         ...TEMPLATE,
-        usage: { deploys: 1284, stillUpAfter24h: 0.936, lastDeployedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString() }
+        usage: { deploys: 1284, stillUpAfter24h: 0.936, lastDeployedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), forks: 0, favorites: 0 }
       }
     });
 
@@ -68,7 +76,7 @@ describe(TemplatePage.name, () => {
   });
 
   it("drops the usage parts that have no data", () => {
-    setup({ template: { ...TEMPLATE, usage: { deploys: 1, stillUpAfter24h: null, lastDeployedAt: null } } });
+    setup({ template: { ...TEMPLATE, usage: { deploys: 1, stillUpAfter24h: null, lastDeployedAt: null, forks: 0, favorites: 0 } } });
 
     expect(screen.getByText("1 deploy")).toBeInTheDocument();
     expect(screen.queryByText(/still up after 24 h/)).not.toBeInTheDocument();

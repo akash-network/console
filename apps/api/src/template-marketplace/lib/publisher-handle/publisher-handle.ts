@@ -3,6 +3,9 @@ import { findReservedWords } from "@src/template-marketplace/lib/publish-checks/
 
 const FALLBACK_HANDLE_PREFIX = "publisher";
 
+/** `/v1/template-publishers/current` is the caller's own publisher, so no publisher may be reached by that word. */
+export const HANDLES_TAKEN_BY_ROUTES: readonly string[] = ["current"];
+
 /** A slug is cut to its length limit after its ends are trimmed, which can leave a hyphen the handle format refuses. */
 function withoutTrailingHyphens(candidate: string): string {
   return candidate.replace(/-+$/, "");
@@ -15,5 +18,7 @@ export function publisherHandleCandidates({ type, slug, ownerUsername }: HandleS
   const wanted = type === "team" ? slug : ownerUsername ?? "";
   const allowed = findReservedWords(wanted).length > 0 ? "" : wanted;
 
-  return slugCandidates(allowed, FALLBACK_HANDLE_PREFIX, randomSuffix).map(withoutTrailingHyphens);
+  return slugCandidates(allowed, FALLBACK_HANDLE_PREFIX, randomSuffix)
+    .map(withoutTrailingHyphens)
+    .filter(candidate => !HANDLES_TAKEN_BY_ROUTES.includes(candidate));
 }

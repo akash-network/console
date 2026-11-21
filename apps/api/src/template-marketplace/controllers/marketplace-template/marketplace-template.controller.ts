@@ -46,11 +46,13 @@ function toTemplateResponse({
   updatedAt,
   publishedAt,
   currentVersion,
+  publisher,
   usage,
   ...template
 }: MarketplaceTemplateOutput): GetUserTemplateResponse["data"] {
   return {
     ...template,
+    publisher: publisher && { ...publisher, memberSince: publisher.memberSince?.toISOString() ?? null },
     createdAt: createdAt.toISOString(),
     updatedAt: updatedAt.toISOString(),
     publishedAt: publishedAt?.toISOString() ?? null,
