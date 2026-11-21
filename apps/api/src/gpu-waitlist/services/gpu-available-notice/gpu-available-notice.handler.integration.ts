@@ -65,7 +65,7 @@ describe(GpuAvailableNoticeHandler.name, () => {
     async function run(entryId: string) {
       const { enqueue, startWorkers } = await jobWorkers();
       const singletonKey = faker.string.uuid();
-      await enqueue(new GpuAvailableNoticeJob({ entryId, waveNumber: 1, pricePerGpuUsdPerHour: 2.5 }), { singletonKey });
+      await enqueue(new GpuAvailableNoticeJob({ entryId, waveNumber: 1, pricePerGpuUsdPerHour: 2.5, pickedGpuCount: 8 }), { singletonKey });
       await startWorkers();
       await expectJobCompleted(GpuAvailableNoticeJob[JOB_NAME], { singletonKey });
     }

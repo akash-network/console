@@ -5,5 +5,5 @@ export class GpuAvailableNoticeJob implements Job {
   readonly name = GpuAvailableNoticeJob[JOB_NAME];
   readonly version = 1;
 
-  constructor(public readonly data: { entryId: string; waveNumber: number; pricePerGpuUsdPerHour: number }) {}
+  constructor(public readonly data: { entryId: string; waveNumber: number; pricePerGpuUsdPerHour: number; pickedGpuCount: number }) {}
 }

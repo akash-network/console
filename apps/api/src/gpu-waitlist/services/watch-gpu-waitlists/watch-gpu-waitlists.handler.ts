@@ -99,7 +99,7 @@ export class WatchGpuWaitlistsHandler implements JobHandler<WatchGpuWaitlists> {
       const handedOver = await this.#handOverDuePools(watched);
 
       for (const pool of watched) {
-        await this.gpuWaitlistPoolRepository.upsert(this.#toPoolRow(pool, handedOver));
+        await this.gpuWaitlistPoolRepository.upsert(this.#toPoolRow(pool, handedOver), pool.previous);
         if (pool.closesWave && pool.previous) await this.gpuWaitlistPoolRepository.closeWaveIfUnchanged(pool.poolKey, pool.previous);
       }
     });

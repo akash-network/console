@@ -36,7 +36,7 @@ export class GpuAvailableNoticeHandler implements JobHandler<GpuAvailableNoticeJ
     return [];
   }
 
-  async handle({ entryId, waveNumber, pricePerGpuUsdPerHour }: JobPayload<GpuAvailableNoticeJob>): Promise<void> {
+  async handle({ entryId, waveNumber, pricePerGpuUsdPerHour, pickedGpuCount }: JobPayload<GpuAvailableNoticeJob>): Promise<void> {
     const stopReason = this.#findStopReason();
 
     if (stopReason) {
@@ -48,6 +48,11 @@ export class GpuAvailableNoticeHandler implements JobHandler<GpuAvailableNoticeJ
 
     if (entry?.status !== "waiting") {
       this.#logger.info({ event: "GPU_AVAILABLE_NOTICE_SKIPPED", entryId, reason: entry ? "Entry is no longer waiting" : "Entry not found" });
+      return;
+    }
+
+    if (entry.gpuCount > pickedGpuCount) {
+      this.#logger.info({ event: "GPU_AVAILABLE_NOTICE_SKIPPED", entryId, reason: "Entry now asks for more GPUs than the wave picked it for" });
       return;
     }
 

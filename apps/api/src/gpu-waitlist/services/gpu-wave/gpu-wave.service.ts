@@ -97,6 +97,6 @@ export class GpuWaveService {
     await this.gpuWaitlistEntryRepository
       .unscoped("gpu-waitlist-watcher")
       .updateById(entry.id, { lastNotifiedAt: now, notifiedCount: this.gpuWaitlistEligibilityService.emailsInLastDay(entry, now) + 1 });
-    await this.jobQueueService.enqueue(new GpuAvailableNoticeJob({ entryId: entry.id, waveNumber, pricePerGpuUsdPerHour }));
+    await this.jobQueueService.enqueue(new GpuAvailableNoticeJob({ entryId: entry.id, waveNumber, pricePerGpuUsdPerHour, pickedGpuCount: entry.gpuCount }));
   }
 }

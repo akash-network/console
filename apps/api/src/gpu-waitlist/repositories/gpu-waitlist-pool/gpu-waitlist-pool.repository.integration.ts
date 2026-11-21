@@ -17,6 +17,34 @@ describe(GpuWaitlistPoolRepository.name, () => {
 
       expect(await repository.findByPoolKeyAndLock(poolKey)).toEqual(expect.objectContaining({ lastFreeUnits: 3, lastMaxNodeFreeUnits: 2, waveNumber: 2 }));
     });
+
+    it("overwrites the free count when it still holds the observed value", async () => {
+      const { repository, poolKey } = setup();
+      await repository.upsert({ poolKey, lastFreeUnits: 8, lastMaxNodeFreeUnits: 8 });
+
+      await repository.upsert({ poolKey, lastFreeUnits: 6, lastMaxNodeFreeUnits: 4 }, { lastFreeUnits: 8 });
+
+      expect(await repository.findByPoolKeyAndLock(poolKey)).toEqual(expect.objectContaining({ lastFreeUnits: 6, lastMaxNodeFreeUnits: 4 }));
+    });
+
+    it("keeps a free count a confirmation gave back after the pool was observed, and still records the largest node", async () => {
+      const { repository, poolKey } = setup();
+      await repository.upsert({ poolKey, lastFreeUnits: 8, lastMaxNodeFreeUnits: 8 });
+      const observed = await repository.findByPoolKeyAndLock(poolKey);
+      await repository.resetFreeUnits([poolKey]);
+
+      await repository.upsert({ poolKey, lastFreeUnits: 8, lastMaxNodeFreeUnits: 6 }, observed);
+
+      expect(await repository.findByPoolKeyAndLock(poolKey)).toEqual(expect.objectContaining({ lastFreeUnits: 0, lastMaxNodeFreeUnits: 6 }));
+    });
+
+    it("creates a pool it observed as missing", async () => {
+      const { repository, poolKey } = setup();
+
+      await repository.upsert({ poolKey, lastFreeUnits: 5, lastMaxNodeFreeUnits: 5 }, { lastFreeUnits: 0 });
+
+      expect(await repository.findByPoolKeyAndLock(poolKey)).toEqual(expect.objectContaining({ lastFreeUnits: 5, lastMaxNodeFreeUnits: 5 }));
+    });
   });
 
   describe("findByPoolKeys", () => {
@@ -187,12 +215,12 @@ describe(GpuWaitlistPoolRepository.name, () => {
 
       const first = txService.transaction(async () => {
         await repository.findByPoolKeyAndLock(poolKey);
-        await repository.update(poolKey, { waveNumber: 7 });
         firstHoldsLock.resolve();
         await secondStarted.promise;
-        await waitUntilABackendWaitsOnALock(txService.getPgTx()!);
+        await waitUntilAnotherBackendWaitsOnThisOne(txService.getPgTx()!);
+        await repository.update(poolKey, { waveNumber: 7 });
       });
-      await firstHoldsLock.promise;
+      await Promise.race([firstHoldsLock.promise, first]);
       const second = txService.transaction(async () => (await repository.findByPoolKeyAndLock(poolKey))?.waveNumber);
       secondStarted.resolve();
       await first;
@@ -205,13 +233,13 @@ describe(GpuWaitlistPoolRepository.name, () => {
     return { repository: container.resolve(GpuWaitlistPoolRepository), poolKey: `pool-${faker.string.alphanumeric(16).toLowerCase()}` };
   }
 
-  async function waitUntilABackendWaitsOnALock(connection: ApiTransaction) {
+  async function waitUntilAnotherBackendWaitsOnThisOne(connection: ApiTransaction) {
     const deadline = Date.now() + 5000;
 
     while (Date.now() < deadline) {
       await connection.execute(sql`select pg_stat_clear_snapshot()`);
       const rows = await connection.execute<{ waiting: number }>(
-        sql`select count(*)::int as waiting from pg_stat_activity where wait_event_type = 'Lock' and datname = current_database()`
+        sql`select count(*)::int as waiting from pg_stat_activity where pg_backend_pid() = any(pg_blocking_pids(pid))`
       );
 
       if (rows[0].waiting > 0) return;
@@ -219,6 +247,6 @@ describe(GpuWaitlistPoolRepository.name, () => {
       await new Promise(resolve => setTimeout(resolve, 20));
     }
 
-    throw new Error("No backend waited on a lock within 5 seconds");
+    throw new Error("No backend waited on this transaction's lock within 5 seconds");
   }
 });

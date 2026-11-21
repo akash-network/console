@@ -43,6 +43,17 @@ describe(WatchGpuWaitlistsHandler.name, () => {
       expect(upserts).toEqual([{ poolKey: "nvidia/h100/*/*", lastFreeUnits: 8, lastMaxNodeFreeUnits: 8 }]);
     });
 
+    it("writes the new free count only over the count it read, so a rise a confirmation gave back meanwhile survives", async () => {
+      const { handler, gpuWaitlistPoolRepository } = setup({ pools: { h100: { gpuCounts: [8], supply: [{ units: 8 }], pool: { lastFreeUnits: 4 } } } });
+
+      await handler.handle();
+
+      expect(gpuWaitlistPoolRepository.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({ poolKey: "nvidia/h100/*/*" }),
+        expect.objectContaining({ poolKey: "nvidia/h100/*/*", lastFreeUnits: 4 })
+      );
+    });
+
     it("confirms a pool it sees for the first time and creates its row", async () => {
       const { handler, upserts, confirmedPoolKeys } = setup({ pools: { h100: { gpuCounts: [1], supply: [{ units: 2 }] } } });
 

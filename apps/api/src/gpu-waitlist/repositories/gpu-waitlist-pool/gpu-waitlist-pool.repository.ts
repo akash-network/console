@@ -44,13 +44,17 @@ export class GpuWaitlistPoolRepository {
     return pool;
   }
 
-  async upsert(input: GpuWaitlistPoolInput): Promise<void> {
+  /** Keeps a free count another writer changed since `observed` was read, so a rise a confirmation gave back survives a watch that read the pool before it. */
+  async upsert(input: GpuWaitlistPoolInput, observed?: Pick<GpuWaitlistPoolRow, "lastFreeUnits">): Promise<void> {
     const { poolKey, ...values } = input;
+    const lastFreeUnits = observed
+      ? sql`case when ${this.table.lastFreeUnits} = ${observed.lastFreeUnits} then excluded.last_free_units else ${this.table.lastFreeUnits} end`
+      : values.lastFreeUnits;
 
     await this.#cursor
       .insert(this.table)
       .values(input)
-      .onConflictDoUpdate({ target: this.table.poolKey, set: { ...values, updatedAt: sql`now()` } });
+      .onConflictDoUpdate({ target: this.table.poolKey, set: { ...values, lastFreeUnits, updatedAt: sql`now()` } });
   }
 
   /** Leaves the episode open when a round started since the caller read the pool, so a confirmation that just emailed people keeps its wave. */

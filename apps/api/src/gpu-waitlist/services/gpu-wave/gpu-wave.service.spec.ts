@@ -32,7 +32,7 @@ describe(GpuWaveService.name, () => {
 
       expect(recipients).toEqual(["a", "b", "c"]);
       expect(jobQueueService.enqueue).toHaveBeenCalledTimes(3);
-      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new GpuAvailableNoticeJob({ entryId: entries[0].id, waveNumber: 5, pricePerGpuUsdPerHour: 2.5 }));
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new GpuAvailableNoticeJob({ entryId: entries[0].id, waveNumber: 5, pricePerGpuUsdPerHour: 2.5, pickedGpuCount: entries[0].gpuCount }));
     });
 
     it("skips trial users and keeps their place", async () => {

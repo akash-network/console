@@ -18,7 +18,7 @@ import { GpuAvailableNoticeHandler } from "./gpu-available-notice.handler";
 import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createUser } from "@test/seeders/user.seeder";
 
-const PAYLOAD = { entryId: "entry-1", waveNumber: 1, pricePerGpuUsdPerHour: 2.5, version: 1 } as const;
+const PAYLOAD = { entryId: "entry-1", waveNumber: 1, pricePerGpuUsdPerHour: 2.5, pickedGpuCount: 8, version: 1 } as const;
 
 describe(GpuAvailableNoticeHandler.name, () => {
   it("emails the waiting user with the setup, price per gpu and links", async () => {
@@ -91,6 +91,29 @@ describe(GpuAvailableNoticeHandler.name, () => {
     await handler.handle(PAYLOAD);
 
     expect(notificationService.createNotificationOnce).not.toHaveBeenCalled();
+  });
+
+  it("skips and logs when the entry now asks for more GPUs than the wave picked it for", async () => {
+    const { handler, notificationService, logger } = setup({});
+
+    await handler.handle({ ...PAYLOAD, pickedGpuCount: 7 });
+
+    expect(notificationService.createNotificationOnce).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith({
+      event: "GPU_AVAILABLE_NOTICE_SKIPPED",
+      entryId: "entry-1",
+      reason: "Entry now asks for more GPUs than the wave picked it for"
+    });
+  });
+
+  it("emails an entry that now asks for fewer GPUs than the wave picked it for, with the count it asks for", async () => {
+    const { handler, notificationService } = setup({});
+
+    await handler.handle({ ...PAYLOAD, pickedGpuCount: 9 });
+
+    expect(notificationService.createNotificationOnce).toHaveBeenCalledWith(
+      expect.objectContaining({ payload: expect.objectContaining({ summary: "8× H100 80Gi SXM5 is available on Akash" }) })
+    );
   });
 
   it("skips and logs when the entry is gone", async () => {
