@@ -113,6 +113,7 @@ export class GpuWaitlistEntryRepository extends OrgScopedRepository<Table, GpuWa
   }
 
   async countWaitingBySetupAcrossOrganizations(): Promise<GpuWaitlistDemandRow[]> {
+    const waitingPeople = sql<number>`count(distinct ${this.table.userId})::int`;
     const rows = await this.cursor
       .select({
         vendor: this.table.vendor,
@@ -120,13 +121,13 @@ export class GpuWaitlistEntryRepository extends OrgScopedRepository<Table, GpuWa
         memory: this.table.memory,
         interface: this.table.interface,
         gpuCount: this.table.gpuCount,
-        waiting: sql<number>`count(*)::int`,
+        waiting: waitingPeople,
         oldestJoinedAt: min(this.table.joinedAt)
       })
       .from(this.table)
       .where(eq(this.table.status, "waiting"))
       .groupBy(this.table.vendor, this.table.model, this.table.memory, this.table.interface, this.table.gpuCount)
-      .orderBy(desc(sql`count(*)`), asc(this.table.model));
+      .orderBy(desc(waitingPeople), asc(this.table.model));
 
     return rows.map(row => ({ ...row, oldestJoinedAt: row.oldestJoinedAt as Date }));
   }

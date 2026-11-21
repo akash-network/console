@@ -10,6 +10,7 @@ import { seedGpuWaitlistEntry } from "@test/seeders/db/gpu-waitlist-entry.seeder
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 
 const HOUR_MS = 60 * 60 * 1000;
+const NOW_MS = Math.floor(Date.now() / 1000) * 1000;
 
 describe(GpuWaitlistEntryRepository.name, () => {
   describe("findPlaceInLineAcrossOrganizations", () => {
@@ -142,6 +143,32 @@ describe(GpuWaitlistEntryRepository.name, () => {
       ]);
     });
 
+    it("counts a person once when they wait for the same setup twice", async () => {
+      const { repository, poolModel, user } = await setup();
+      await seedGpuWaitlistEntry({ userId: user.id, model: poolModel, gpuCount: 2, joinedAt: hoursAgo(3) });
+      await seedGpuWaitlistEntry({ userId: user.id, model: poolModel, gpuCount: 2, joinedAt: hoursAgo(1) });
+
+      const rows = (await repository.countWaitingBySetupAcrossOrganizations()).filter(row => row.model === poolModel);
+
+      expect(rows).toEqual([expect.objectContaining({ gpuCount: 2, waiting: 1, oldestJoinedAt: hoursAgo(3) })]);
+    });
+
+    it("orders setups by how many people wait for them", async () => {
+      const { repository, poolModel, user } = await setup();
+      await seedGpuWaitlistEntry({ userId: user.id, model: poolModel, gpuCount: 1 });
+      await seedGpuWaitlistEntry({ userId: user.id, model: poolModel, gpuCount: 1 });
+      await seedGpuWaitlistEntry({ userId: user.id, model: poolModel, gpuCount: 1 });
+      await seedGpuWaitlistEntry({ userId: user.id, model: poolModel, gpuCount: 4 });
+      await seedGpuWaitlistEntry({ userId: (await seedUser()).id, model: poolModel, gpuCount: 4 });
+
+      const rows = (await repository.countWaitingBySetupAcrossOrganizations()).filter(row => row.model === poolModel);
+
+      expect(rows.map(row => [row.gpuCount, row.waiting])).toEqual([
+        [4, 2],
+        [1, 1]
+      ]);
+    });
+
     it("ignores entries that are no longer waiting", async () => {
       const { repository, poolModel, user } = await setup();
       await seedGpuWaitlistEntry({ userId: user.id, model: poolModel, status: "left" });
@@ -154,7 +181,7 @@ describe(GpuWaitlistEntryRepository.name, () => {
   });
 
   function hoursAgo(hours: number) {
-    return new Date(Math.floor((Date.now() - hours * HOUR_MS) / 1000) * 1000);
+    return new Date(NOW_MS - hours * HOUR_MS);
   }
 
   async function setup() {
