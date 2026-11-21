@@ -78,4 +78,14 @@ export class OrganizationRepository extends BaseRepository<Table, OrganizationIn
 
     await tx.select({ id: Users.id }).from(Users).where(eq(Users.id, userId)).for("no key update");
   }
+
+  async findCreatorProjectLimit(organizationId: string): Promise<number | null> {
+    const [creator] = await this.cursor
+      .select({ projectsPerOrganizationLimit: Users.projectsPerOrganizationLimit })
+      .from(this.table)
+      .innerJoin(Users, eq(Users.id, this.table.createdByUserId))
+      .where(eq(this.table.id, organizationId));
+
+    return creator?.projectsPerOrganizationLimit ?? null;
+  }
 }

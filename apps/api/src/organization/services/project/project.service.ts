@@ -163,7 +163,7 @@ export class ProjectService {
 
   /** Counts after the insert, so a caller who may not create projects is refused for that first; the organization lock makes parallel creations count one at a time. */
   async #refuseOverProjectLimit(organizationId: string): Promise<void> {
-    const limit = this.config.PROJECTS_PER_ORGANIZATION_LIMIT;
+    const limit = (await this.organizationRepository.findCreatorProjectLimit(organizationId)) ?? this.config.PROJECTS_PER_ORGANIZATION_LIMIT;
     if ((await this.projectRepository.count({ organizationId, deletedAt: null })) <= limit) return;
 
     this.#logger.info({ event: "PROJECT_LIMIT_REACHED", organizationId, limit });

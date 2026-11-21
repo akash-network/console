@@ -65,6 +65,30 @@ describe(OrganizationRepository.name, () => {
     });
   });
 
+  describe("findCreatorProjectLimit", () => {
+    it("finds the project limit set on the organization's creator", async () => {
+      const { repository } = await setup();
+      const creator = await seedUser({ userId: faker.string.uuid(), projectsPerOrganizationLimit: 100 });
+      const organization = await seedOrganization({ createdByUserId: creator.id, type: "team" });
+
+      expect(await repository.findCreatorProjectLimit(organization.id)).toBe(100);
+    });
+
+    it("finds no limit when the creator has none set", async () => {
+      const { repository, user } = await setup();
+      const organization = await seedOrganization({ createdByUserId: user.id, type: "team" });
+
+      expect(await repository.findCreatorProjectLimit(organization.id)).toBeNull();
+    });
+
+    it("finds no limit when the organization has no creator", async () => {
+      const { repository } = await setup();
+      const organization = await seedOrganization({ createdByUserId: null, type: "team" });
+
+      expect(await repository.findCreatorProjectLimit(organization.id)).toBeNull();
+    });
+  });
+
   async function setup() {
     const repository = container.resolve(OrganizationRepository);
     const user = await seedUser({ userId: faker.string.uuid(), username: `user-${faker.string.alphanumeric(10)}` });

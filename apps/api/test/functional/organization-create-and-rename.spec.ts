@@ -97,6 +97,21 @@ describe("Organization creation and renaming", () => {
       expect(await response.json()).toMatchObject({ code: "organization_limit_reached", data: { limit } });
     });
 
+    it("lets a caller whose limit was raised create organizations past the configured limit, up to their own", async () => {
+      const configuredLimit = container.resolve(ORGANIZATION_CONFIG).TEAM_ORGANIZATIONS_PER_USER_LIMIT;
+      const { user, bearer } = await setupCaller({ teamOrganizationLimit: configuredLimit + 1 });
+      for (let index = 0; index < configuredLimit; index++) {
+        await seedOrganization({ createdByUserId: user.id, type: "team" });
+      }
+
+      const last = await createOrganization({ authorization: bearer }, { name: "Acme Corp" });
+      const pastLimit = await createOrganization({ authorization: bearer }, { name: "Acme Corp 2" });
+
+      expect(last.status).toBe(201);
+      expect(pastLimit.status).toBe(403);
+      expect(await pastLimit.json()).toMatchObject({ code: "organization_limit_reached", data: { limit: configuredLimit + 1 } });
+    });
+
     it("lets a caller create an organization again once one of theirs is deleted", async () => {
       const { user, bearer } = await setupCaller({});
       const limit = container.resolve(ORGANIZATION_CONFIG).TEAM_ORGANIZATIONS_PER_USER_LIMIT;
@@ -385,14 +400,18 @@ describe("Organization creation and renaming", () => {
     return apiKey;
   }
 
-  async function setupCaller(input: { teamRole?: OrganizationRole }) {
+  async function setupCaller(input: { teamRole?: OrganizationRole; teamOrganizationLimit?: number }) {
     const {
       user,
       organization: personal,
       project: personalProject
     } = await seedOrganizationWithOwner({
       type: "personal",
-      user: { userId: `auth0|${faker.string.alphanumeric(24)}`, username: `user-${faker.string.alphanumeric(12)}` }
+      user: {
+        userId: `auth0|${faker.string.alphanumeric(24)}`,
+        username: `user-${faker.string.alphanumeric(12)}`,
+        teamOrganizationLimit: input.teamOrganizationLimit ?? null
+      }
     });
     const { organization: team } = await seedOrganizationWithOwner();
     await seedOrganizationMember({ organizationId: team.id, userId: user.id, role: input.teamRole ?? "member" });
