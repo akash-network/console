@@ -10,14 +10,14 @@ export type PublishRequirementCopy = { label: string; help: string; fix?: Publis
 
 type Requirement = { key: string; met: boolean };
 
-const CHECK_LABELS: Record<string, string> = {
-  sdl_valid: "SDL is valid",
-  no_secrets: "No secrets in values",
-  images_allowed: "Images allowed",
-  fixed_tags: "Images use a fixed tag",
-  name_not_reserved: "Name not reserved",
-  text_within_limits: "Text within limits"
-};
+const CHECK_LABELS = new Map<string, string>([
+  ["sdl_valid", "SDL is valid"],
+  ["no_secrets", "No secrets in values"],
+  ["images_allowed", "Images allowed"],
+  ["fixed_tags", "Images use a fixed tag"],
+  ["name_not_reserved", "Name not reserved"],
+  ["text_within_limits", "Text within limits"]
+]);
 
 const CONFIGURATION_CHECK_KEYS = ["sdl_valid", "no_secrets", "images_allowed", "fixed_tags"];
 
@@ -34,7 +34,7 @@ export function readableKeyOf(key: string): string {
 }
 
 export function publishCheckLabelOf(key: string): string {
-  return CHECK_LABELS[key] ?? readableKeyOf(key);
+  return CHECK_LABELS.get(key) ?? readableKeyOf(key);
 }
 
 export function publishCheckFixesOf(check: TemplatePublishCheck): PublishCheckFix[] {
