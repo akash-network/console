@@ -17,6 +17,11 @@ import { createOrganizationContext } from "@test/seeders/organization-context.se
 
 const SWITCH_ORGANIZATION = { status: 403, message: "Switch to the template's organization to change it", errorCode: "organization_forbidden" };
 const NOT_PERMITTED = { status: 403, message: "You cannot change this template" };
+const IMPORTED_READ_ONLY = {
+  status: 409,
+  message: "This template is imported from the awesome-akash repository and can only be changed there",
+  errorCode: "template_imported_read_only"
+};
 
 describe(TemplateWriteAccessService.name, () => {
   describe("findWritable", () => {
@@ -41,6 +46,17 @@ describe(TemplateWriteAccessService.name, () => {
       const { service, template } = setup({ activeOrganizationId });
 
       await expect(service.findWritable(template.id, "update")).rejects.toMatchObject(SWITCH_ORGANIZATION);
+    });
+
+    it.each([
+      { caller: "a member who may manage every template of its organization", activeOrganizationId: undefined },
+      { caller: "a caller of another organization", activeOrganizationId: faker.string.uuid() },
+      { caller: "a caller outside any organization", activeOrganizationId: null }
+    ])("refuses an imported template to $caller with a conflict of its own, for an update and for a delete", async ({ activeOrganizationId }) => {
+      const { service, template } = setup({ activeOrganizationId, importedRef: "akash-network-awesome-akash-comfyui" });
+
+      await expect(service.findWritable(template.id, "update")).rejects.toMatchObject(IMPORTED_READ_ONLY);
+      await expect(service.findWritable(template.id, "delete")).rejects.toMatchObject(IMPORTED_READ_ONLY);
     });
 
     it("refuses a caller whose rules allow another action only", async () => {
@@ -74,6 +90,13 @@ describe(TemplateWriteAccessService.name, () => {
       await expect(service.lockWritable(template.id, "update")).resolves.toMatchObject({ id: template.id, moderationStatus: "hidden" });
     });
 
+    it("refuses the write when the locked row is an imported template, whoever locks it", async () => {
+      const { service, template } = setup({ locked: { importedRef: "akash-network-awesome-akash-comfyui" } });
+
+      await expect(service.lockWritable(template.id, "update")).rejects.toMatchObject(IMPORTED_READ_ONLY);
+      await expect(service.lockWritable(template.id, "delete")).rejects.toMatchObject(IMPORTED_READ_ONLY);
+    });
+
     it("refuses the write when the template left the active organization after it was read", async () => {
       const { service, template } = setup({ locked: { organizationId: faker.string.uuid() } });
 
@@ -91,8 +114,20 @@ describe(TemplateWriteAccessService.name, () => {
     });
   });
 
-  function setup(input: { rules?: RawRuleOf<MongoAbility>[]; activeOrganizationId?: string | null; locked?: Partial<MarketplaceTemplateRow> | null } = {}) {
-    const template = mock<MarketplaceTemplateRow>({ id: faker.string.uuid(), organizationId: faker.string.uuid(), moderationStatus: "active" });
+  function setup(
+    input: {
+      rules?: RawRuleOf<MongoAbility>[];
+      activeOrganizationId?: string | null;
+      locked?: Partial<MarketplaceTemplateRow> | null;
+      importedRef?: string;
+    } = {}
+  ) {
+    const template = mock<MarketplaceTemplateRow>({
+      id: faker.string.uuid(),
+      organizationId: faker.string.uuid(),
+      moderationStatus: "active",
+      importedRef: input.importedRef ?? null
+    });
     const authService = mock<AuthService>();
     authService.ability = createMongoAbility<MongoAbility>(input.rules ?? [{ action: "manage", subject: "Template" }]);
     const repository = mock<MarketplaceTemplateRepository>();
@@ -109,7 +144,7 @@ describe(TemplateWriteAccessService.name, () => {
     return { service, template, repository, marketplaceTemplateService };
   }
 
-  function pickRow({ id, organizationId, moderationStatus, projectId }: MarketplaceTemplateRow) {
-    return mock<MarketplaceTemplateRow>({ id, organizationId, moderationStatus, projectId });
+  function pickRow({ id, organizationId, moderationStatus, projectId, importedRef }: MarketplaceTemplateRow) {
+    return mock<MarketplaceTemplateRow>({ id, organizationId, moderationStatus, projectId, importedRef });
   }
 });

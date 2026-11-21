@@ -8266,6 +8266,23 @@ export interface paths {
     patch: operations["updateUserTemplate"];
     trace?: never;
   };
+  "/v1/imported-templates/{importedRef}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get the template imported from the awesome-akash repository under a gallery id, with its current version */
+    get: operations["getImportedTemplate"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/user-templates/{id}/versions": {
     parameters: {
       query?: never;
@@ -9529,6 +9546,8 @@ export interface components {
       isOfficial: boolean;
       /** @enum {string} */
       moderationStatus: "active" | "hidden" | "removed";
+      /** @description The awesome-akash gallery id of a template imported from that repository, which is read-only here and stands for the gallery entry of the same id; null for every other template */
+      importedRef: string | null;
       /**
        * Format: uuid
        * @description The project the template is filed in, null for one filed in none or outside the active organization
@@ -9972,6 +9991,8 @@ export interface components {
       /** @description Whether Akash staff promoted the template; every other one is not reviewed by Akash */
       isOfficial: boolean;
       isFeatured: boolean;
+      /** @description The awesome-akash gallery id of a template imported from that repository, which is read-only here and stands for the gallery entry of the same id; null for every other template */
+      importedRef: string | null;
       publisher: {
         name: string;
         /** @description The name of the publisher page */
@@ -20164,6 +20185,13 @@ export interface operations {
         };
         content?: never;
       };
+      /** @description The template is imported from the awesome-akash repository and can only be changed there (`template_imported_read_only`) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
     };
   };
   publishUserTemplate: {
@@ -20223,7 +20251,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The terms accepted are not the current ones (`template_terms_version_mismatch`, with the current `termsVersion`) */
+      /** @description The terms accepted are not the current ones (`template_terms_version_mismatch`, with the current `termsVersion`). The template is imported from the awesome-akash repository and can only be changed there (`template_imported_read_only`) */
       409: {
         headers: {
           [name: string]: unknown;
@@ -20570,6 +20598,13 @@ export interface operations {
         };
         content?: never;
       };
+      /** @description The template is imported from the awesome-akash repository and can only be changed there (`template_imported_read_only`) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
       /** @description The template was public once and has since been removed (`template_removed`, with the `title` it had) */
       410: {
         headers: {
@@ -20631,6 +20666,61 @@ export interface operations {
       };
       /** @description The template does not exist or the caller may not read it */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The template is imported from the awesome-akash repository and can only be changed there (`template_imported_read_only`) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  getImportedTemplate: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        importedRef: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The template, the same as its id answers */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GetUserTemplateResponse"];
+        };
+      };
+      /** @description The gallery id is not one a template can have */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No template was imported under this gallery id, or the caller may not read it */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The template was public once and has since been removed (`template_removed`, with the `title` it had) */
+      410: {
         headers: {
           [name: string]: unknown;
         };
@@ -20743,7 +20833,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description Another version was saved after the base version (`template_version_conflict`) */
+      /** @description Another version was saved after the base version (`template_version_conflict`). The template is imported from the awesome-akash repository and can only be changed there (`template_imported_read_only`) */
       409: {
         headers: {
           [name: string]: unknown;

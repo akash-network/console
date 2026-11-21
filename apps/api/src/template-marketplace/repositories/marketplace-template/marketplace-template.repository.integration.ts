@@ -184,6 +184,30 @@ describe(MarketplaceTemplateRepository.name, () => {
     });
   });
 
+  describe("findIdByImportedRef", () => {
+    it("finds the template imported under a gallery id, whatever its state and whoever asks, and nothing for another id", async () => {
+      const { repository } = await setup();
+      const [listedRef, hiddenRef] = [
+        `akash-network-awesome-akash-${faker.string.alphanumeric(16)}`,
+        `akash-network-awesome-akash-${faker.string.alphanumeric(16)}`
+      ];
+      const [listed, hidden, own] = await Promise.all([
+        seedTemplate({ visibility: "public", importedRef: listedRef }),
+        seedTemplate({ visibility: "public", moderationStatus: "hidden", importedRef: hiddenRef }),
+        seedTemplate({ visibility: "public" })
+      ]);
+      const elsewhere = repository.accessibleBy(
+        abilityOf([{ action: "read", subject: "Template", conditions: { organizationId: faker.string.uuid() } }]),
+        "read"
+      );
+
+      expect(await Promise.all([repository.findIdByImportedRef(listedRef), elsewhere.findIdByImportedRef(listedRef)])).toEqual([listed.id, listed.id]);
+      expect(await repository.findIdByImportedRef(hiddenRef)).toBe(hidden.id);
+      expect(await repository.findIdByImportedRef(own.id)).toBeUndefined();
+      expect(await repository.findIdByImportedRef(listedRef.toUpperCase())).toBeUndefined();
+    });
+  });
+
   describe("findPubliclyReadable", () => {
     it("answers the organization and current version of an active public template, whatever the caller's rules", async () => {
       const { repository, organization, project } = await setup();
@@ -312,6 +336,7 @@ describe(MarketplaceTemplateRepository.name, () => {
           visibility: "organization",
           isListed: true,
           moderationStatus: "active",
+          importedRef: null,
           publishedAt: new Date("2026-10-30T00:00:00Z"),
           updatedAt: new Date("2026-11-02T00:00:00Z"),
           currentVersion: { version: 1, status: "live", createdAt: version.createdAt },
@@ -319,6 +344,17 @@ describe(MarketplaceTemplateRepository.name, () => {
         },
         expect.objectContaining({ id: older.id, publishedAt: null, currentVersion: null, lastEditedByUsername: null })
       ]);
+    });
+
+    it("names the gallery id of an imported template of the organization, which tells its members it cannot be edited", async () => {
+      const { repository, organization } = await setup();
+      const importedRef = `akash-network-awesome-akash-${faker.string.alphanumeric(16)}`;
+      const imported = await seedTemplate({ organizationId: organization.id, visibility: "public", importedRef });
+      const readable = repository.accessibleBy(abilityOf([{ action: "read", subject: "Template" }]), "read");
+
+      const listed = await runInOrganization(organization.id, () => readable.listInOrganization({ organizationId: organization.id, limit: 200 }));
+
+      expect(listed).toEqual([expect.objectContaining({ id: imported.id, importedRef, projectId: null })]);
     });
 
     it("keeps templates outside the rules attached", async () => {
@@ -518,6 +554,7 @@ describe(MarketplaceTemplateRepository.name, () => {
     moderationStatus?: TemplateModerationStatus;
     publishedAt?: Date;
     updatedAt?: Date;
+    importedRef?: string;
   }) {
     const { updatedAt, ...values } = input;
     const [template] = await container

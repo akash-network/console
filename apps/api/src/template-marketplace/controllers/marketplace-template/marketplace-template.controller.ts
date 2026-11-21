@@ -84,6 +84,10 @@ export class MarketplaceTemplateController {
     return { data: toTemplateResponse(await this.marketplaceTemplateService.getTemplate(id)) };
   }
 
+  async getImportedTemplate(importedRef: string): Promise<GetUserTemplateResponse> {
+    return { data: toTemplateResponse(await this.marketplaceTemplateService.getImportedTemplate(importedRef)) };
+  }
+
   async createTemplate({ data }: CreateUserTemplateRequest): Promise<CreateUserTemplateResponse> {
     return { data: toTemplateResponse(await this.templateWriterService.create(data)) };
   }

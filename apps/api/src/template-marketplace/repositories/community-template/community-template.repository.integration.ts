@@ -46,6 +46,7 @@ describe(CommunityTemplateRepository.name, () => {
           categories: ["Web"],
           isOfficial: true,
           isFeatured: true,
+          importedRef: null,
           publishedAt,
           updatedAt: stored.updatedAt,
           publisher: { name: organization.name, handle: publisher.handle, isVerified: true },
@@ -74,6 +75,33 @@ describe(CommunityTemplateRepository.name, () => {
         { id: scored.id, score: { popularScore: 0, trendingScore: -0.4, isTrending: false } },
         { id: unscored.id, score: null },
         { id: namesake.id, score: null }
+      ]);
+    });
+
+    it("names the gallery id of an imported template and carries the score stored under that awesome-akash id, never one stored under its own id", async () => {
+      const { repository, organization } = await setup();
+      const importedRef = `akash-network-awesome-akash-${faker.string.alphanumeric(16)}`;
+      const unscoredRef = `akash-network-awesome-akash-${faker.string.alphanumeric(16)}`;
+      const [imported, unscored, community] = await Promise.all([
+        seedTemplate({ ...listed(organization.id), isOfficial: true, importedRef, publishedAt: subDays(new Date(), 1) }),
+        seedTemplate({ ...listed(organization.id), isOfficial: true, importedRef: unscoredRef, publishedAt: subDays(new Date(), 2) }),
+        seedTemplate({ ...listed(organization.id), publishedAt: subDays(new Date(), 3) })
+      ]);
+      await Promise.all([imported, unscored, community].map(template => seedTemplateVersion({ templateId: template.id })));
+      await Promise.all([
+        seedTemplateScore({ templateRef: importedRef, source: "awesome_akash", popularScore: 12.5, trendingScore: 0.5, isTrending: true }),
+        seedTemplateScore({ templateRef: imported.id, popularScore: 99, trendingScore: 9, isTrending: false }),
+        seedTemplateScore({ templateRef: importedRef, source: "console", popularScore: 77, trendingScore: 7, isTrending: false }),
+        seedTemplateScore({ templateRef: unscored.id, popularScore: 55, trendingScore: 5, isTrending: true }),
+        seedTemplateScore({ templateRef: community.id, popularScore: 3, trendingScore: 0, isTrending: false })
+      ]);
+
+      const rows = await repository.list({ organizationId: organization.id, limit: 10 });
+
+      expect(rows.map(({ id, importedRef, score }) => ({ id, importedRef, score }))).toEqual([
+        { id: imported.id, importedRef, score: { popularScore: 12.5, trendingScore: 0.5, isTrending: true } },
+        { id: unscored.id, importedRef: unscoredRef, score: null },
+        { id: community.id, importedRef: null, score: { popularScore: 3, trendingScore: 0, isTrending: false } }
       ]);
     });
 
@@ -221,6 +249,26 @@ describe(CommunityTemplateRepository.name, () => {
       await seedTemplateDeployers(foreign.id, 9);
 
       expect(await repository.countOfPublisher(organization.id)).toEqual({ templates: 2, deploys: 5 });
+    });
+
+    it("counts an imported template's deploys by its awesome-akash id, those of its own organization included", async () => {
+      const { repository, organization } = await setup();
+      const importedRef = `akash-network-awesome-akash-${faker.string.alphanumeric(16)}`;
+      const [imported, community] = await Promise.all([
+        seedTemplate({ ...listed(organization.id), isOfficial: true, importedRef }),
+        seedTemplate(listed(organization.id))
+      ]);
+      await Promise.all([imported, community].map(template => seedTemplateVersion({ templateId: template.id })));
+      await seedTemplateDeployers(importedRef, 3, { source: "awesome_akash" });
+      await seedTemplateDeployers(importedRef, 2, { source: "awesome_akash", organizationId: organization.id });
+      await seedTemplateDeployers(importedRef, 4, { source: "awesome_akash", network: "sandbox" });
+      await seedTemplateDeployers(imported.id, 5);
+      await seedTemplateDeployers(importedRef, 6);
+      await seedTemplateDeployers(community.id, 1);
+      await seedTemplateDeployers(community.id, 7, { organizationId: organization.id });
+      await seedTemplateDeployers(community.id, 8, { source: "awesome_akash" });
+
+      expect(await repository.countOfPublisher(organization.id)).toEqual({ templates: 2, deploys: 6 });
     });
 
     it("counts nothing for an organization that lists no template", async () => {

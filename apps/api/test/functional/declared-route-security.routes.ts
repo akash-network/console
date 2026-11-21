@@ -37,6 +37,7 @@ export const ROUTES_OPEN_WITHOUT_SIGN_IN = [
   "GET /v1/graph-data/:dataName",
   "GET /v1/healthz/liveness",
   "GET /v1/healthz/readiness",
+  "GET /v1/imported-templates/:importedRef",
   "GET /v1/leases-duration/:owner",
   "GET /v1/market-data/:coin?",
   "GET /v1/network-capacity",

@@ -128,6 +128,7 @@ describe("Community templates", () => {
         icon: "globe",
         categories: ["Web"],
         isOfficial: false,
+        importedRef: null,
         isFeatured: true,
         publisher: { name: team.name, handle, verified: true },
         resources: RESOURCES,

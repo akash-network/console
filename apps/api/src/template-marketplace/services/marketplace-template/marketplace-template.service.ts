@@ -48,6 +48,8 @@ export interface MarketplaceTemplateOutput {
   isListed: boolean;
   isOfficial: boolean;
   moderationStatus: TemplateModerationStatus;
+  /** The awesome-akash gallery id of a template the import owns, which nobody may change here. */
+  importedRef: string | null;
   /** Withheld outside the template's organization, whose project layout is its own. */
   projectId: string | null;
   /** Withheld unless the caller may read the template it was copied from. */
@@ -102,6 +104,8 @@ export type UserTemplateListQuery = { visibility?: TemplateVisibility; projectId
 
 export const MAX_LISTED_USER_TEMPLATES = 200;
 
+const TEMPLATE_NOT_FOUND = "Template not found";
+
 const VERSION_NOT_FOUND = "Template version not found";
 
 function pickListedUsage({ deploys, lastDeployedAt }: TemplateUsageSummary): UserTemplateListItem["usage"] {
@@ -140,6 +144,7 @@ export class MarketplaceTemplateService {
       isListed: template.isListed,
       isOfficial: template.isOfficial,
       moderationStatus: template.moderationStatus,
+      importedRef: template.importedRef,
       projectId: isInActiveOrganization(template, this.#activeOrganizationId) ? template.projectId : null,
       copiedFromId: copiedFrom?.id ?? null,
       copiedFrom: copiedFrom ? { id: copiedFrom.id, title: copiedFrom.title } : null,
@@ -157,6 +162,14 @@ export class MarketplaceTemplateService {
       isFavorite: favoritingUserId ? await this.userTemplateRepository.isFavorite(id, favoritingUserId) : false,
       usage: { ...(usages.get(id) ?? NO_TEMPLATE_USAGE), favorites: await this.userTemplateRepository.countFavorites(id) }
     };
+  }
+
+  /** Lets a page opened by a gallery id load the imported template in one request. */
+  async getImportedTemplate(importedRef: string): Promise<MarketplaceTemplateOutput> {
+    const id = await this.marketplaceTemplateRepository.findIdByImportedRef(importedRef);
+    assert(id, 404, TEMPLATE_NOT_FOUND);
+
+    return await this.getTemplate(id);
   }
 
   async #describePublisher(organizationId: string): Promise<PublisherCard> {
@@ -247,7 +260,7 @@ export class MarketplaceTemplateService {
 
     const removedTitle = await this.templateRemovalRepository.findRemovedTitle(id);
 
-    throw removedTitle === undefined ? createError(404, "Template not found") : createTemplateRemovedError(removedTitle);
+    throw removedTitle === undefined ? createError(404, TEMPLATE_NOT_FOUND) : createTemplateRemovedError(removedTitle);
   }
 
   async #findReadableOrNone(id: string): Promise<MarketplaceTemplateRow | undefined> {

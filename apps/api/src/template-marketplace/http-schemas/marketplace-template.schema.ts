@@ -1,7 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
 import { organizationTypeEnum } from "@src/organization/model-schemas/organization/organization.schema";
-import { TemplateHardwareSchema } from "@src/template/http-schemas/template.schema";
+import { TemplateHardwareSchema, TemplateIdSchema } from "@src/template/http-schemas/template.schema";
 import { AskedValueSchema } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
 import { PUBLISH_CHECK_ISSUE_FIELDS, PUBLISH_CHECK_KEYS, PUBLISH_CHECK_STATUSES } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
 import { TEMPLATE_VERSION_CHANGES } from "@src/template-marketplace/lib/version-changes/summarize-version-changes";
@@ -9,11 +9,20 @@ import { TEMPLATE_VERSION_HOLD_KINDS } from "@src/template-marketplace/lib/versi
 import { templateVersionStatusEnum } from "@src/template-marketplace/model-schemas/template-version/template-version.schema";
 import { templateModerationStatusEnum, templateVisibilityEnum } from "@src/user/model-schemas/template/template.schema";
 
+export const MAX_IMPORTED_REF_LENGTH = 255;
+
 /** The `version` column is a Postgres integer, which refuses anything larger with a 500. */
 export const MAX_VERSION_NUMBER = 2_147_483_647;
 
 export const UserTemplateParamsSchema = z.object({
   id: z.string().uuid()
+});
+
+export const ImportedTemplateParamsSchema = z.object({
+  importedRef: TemplateIdSchema.max(MAX_IMPORTED_REF_LENGTH).openapi({
+    description: "The awesome-akash gallery id of the template",
+    example: "akash-network-awesome-akash-comfyui"
+  })
 });
 
 export const UserTemplateVersionParamsSchema = UserTemplateParamsSchema.extend({
@@ -145,6 +154,10 @@ export const MarketplaceTemplateSchema = z
     isListed: z.boolean(),
     isOfficial: z.boolean(),
     moderationStatus: z.enum(templateModerationStatusEnum.enumValues),
+    importedRef: z.string().nullable().openapi({
+      description:
+        "The awesome-akash gallery id of a template imported from that repository, which is read-only here and stands for the gallery entry of the same id; null for every other template"
+    }),
     projectId: z
       .string()
       .uuid()
