@@ -19,6 +19,7 @@ import {
   TeamOrganizationDeleted
 } from "@src/organization/services/team-organization-deleted/team-organization-deleted.handler";
 import { DataKeyRepository } from "@src/secret/repositories/data-key/data-key.repository";
+import { TemplateRemovalRepository } from "@src/template-marketplace/repositories/template-removal/template-removal.repository";
 import { AccountDeletionEligibilityService } from "@src/user/services/account-deletion-eligibility/account-deletion-eligibility.service";
 
 export const ACTIVE_DEPLOYMENTS_ERROR_CODE = "active_deployments";
@@ -45,6 +46,7 @@ export class TeamOrganizationDeletionService {
     private readonly paymentMethodRepository: PaymentMethodRepository,
     private readonly deploymentDepositRepository: DeploymentDepositRepository,
     private readonly dataKeyRepository: DataKeyRepository,
+    private readonly templateRemovalRepository: TemplateRemovalRepository,
     private readonly autoReloadShutoffService: AutoReloadShutoffService,
     private readonly jobQueueService: JobQueueService,
     private readonly txService: TxService,
@@ -117,7 +119,7 @@ export class TeamOrganizationDeletionService {
     }
   }
 
-  /** Marks the row deleted rather than removing it, so what the team paid and deployed stays on record; its data keys go, so what was sealed for it does not. */
+  /** Marks the row deleted rather than removing it, so what the team paid and deployed stays on record; its data keys go, so what was sealed for it does not, and its templates are removed as their owner deleting them would. */
   async erase({ id: organizationId, wallet }: LockedTeam, deletedByUserId: string): Promise<void> {
     const deletedAt = new Date();
 
@@ -128,6 +130,7 @@ export class TeamOrganizationDeletionService {
       .unscoped("organization-deletion")
       .updateBy({ organizationId, status: "pending" }, { status: "revoked", revokedAt: deletedAt });
     await this.apiKeyRepository.unscoped("organization-deletion").deleteBy({ organizationId });
+    await this.templateRemovalRepository.removeAllOfOrganization(organizationId, "owner");
     await this.paymentMethodRepository.unscoped("organization-deletion").deleteBy({ organizationId });
     if (wallet) await this.autoReloadShutoffService.turnOff(wallet, "organization-deletion");
     await this.jobQueueService.enqueue(new TeamOrganizationDeleted({ organizationId, deletedByUserId }), TEAM_ORGANIZATION_DELETED_RETRY_OPTIONS);

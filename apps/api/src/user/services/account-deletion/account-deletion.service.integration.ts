@@ -31,6 +31,7 @@ import {
   TeamOrganizationDeleted,
   TeamOrganizationDeletedHandler
 } from "@src/organization/services/team-organization-deleted/team-organization-deleted.handler";
+import { TemplateRemovalRepository } from "@src/template-marketplace/repositories/template-removal/template-removal.repository";
 import { AccountDeletionTokenRepository } from "@src/user/repositories/account-deletion-token/account-deletion-token.repository";
 import { UserTemplateRepository } from "@src/user/repositories/user-template/user-template.repository";
 import { PurgeDeletedAccount, PurgeDeletedAccountHandler } from "@src/user/services/purge-deleted-account/purge-deleted-account.handler";
@@ -44,6 +45,7 @@ import { findDeploymentDeposit, seedDeploymentDeposit } from "@test/seeders/db/d
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { seedAssistantConsent, seedAssistantConversation, seedFeedbackSubmission, seedFeedbackTheme } from "@test/seeders/db/feedback.seeder";
 import { seedOrganizationActivity, seedOrganizationInvitation, seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
+import { findStoredTemplate, seedTemplate as seedStoredTemplate, seedTemplateVersion } from "@test/seeders/db/template.seeder";
 import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { seedWalletSetting } from "@test/seeders/db/wallet-setting.seeder";
 import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
@@ -233,6 +235,66 @@ describe(AccountDeletionService.name, () => {
       expect.objectContaining({ id: teammateTemplate.id, userId: team.owner.userId })
     ]);
     expect(await templateRepository.isFavorite(teamTemplate.id, team.owner.userId!)).toBe(true);
+  });
+
+  it("keeps only the removed page of the personal templates that were once public", async () => {
+    const { service, db, account, token, answerActiveDeployments } = await setup();
+    answerActiveDeployments([]);
+    const personal = { organizationId: account.organization.id, userId: account.user.userId!, authorId: account.user.id };
+    const removedAt = new Date("2026-11-10T10:00:00.000Z");
+    const [published, removedByStaff, neverPublic] = await Promise.all([
+      seedStoredTemplate({ ...personal, title: "Llama 3.1 Chat", visibility: "public", publishedAt: new Date() }),
+      seedStoredTemplate({ ...personal, title: "Removed earlier", publishedAt: new Date(), moderationStatus: "removed", removedBy: "staff", removedAt }),
+      seedStoredTemplate({ ...personal, title: "Private notes" })
+    ]);
+    await seedTemplateVersion({ templateId: published.id, createdById: account.user.id });
+
+    await service.confirm({ token });
+
+    const ids = [published.id, removedByStaff.id, neverPublic.id];
+    const tombstones = resolveTable("TemplateTombstones");
+    expect(
+      await db
+        .select()
+        .from(resolveTable("Templates"))
+        .where(inArray(resolveTable("Templates").id, ids))
+    ).toEqual([]);
+    expect(
+      await db
+        .select()
+        .from(resolveTable("TemplateVersions"))
+        .where(eq(resolveTable("TemplateVersions").templateId, published.id))
+    ).toEqual([]);
+    expect(await db.select().from(tombstones).where(inArray(tombstones.templateId, ids)).orderBy(tombstones.title)).toEqual([
+      { templateId: published.id, title: "Llama 3.1 Chat", removedAt: expect.any(Date) },
+      { templateId: removedByStaff.id, title: "Removed earlier", removedAt }
+    ]);
+    expect(await container.resolve(TemplateRemovalRepository).findRemovedTitle(published.id)).toBe("Llama 3.1 Chat");
+    expect(await container.resolve(TemplateRemovalRepository).findRemovedTitle(neverPublic.id)).toBeUndefined();
+  });
+
+  it("removes the templates of a team going with the account as their owner deleting them would", async () => {
+    const { service, account, token, answerActiveDeployments, ownTeam } = await setup();
+    answerActiveDeployments([]);
+    const team = await ownTeam();
+    const filed = { organizationId: team.organization.id, projectId: team.project.id, userId: account.user.userId!, authorId: account.user.id };
+    const [published, neverPublic] = await Promise.all([
+      seedStoredTemplate({ ...filed, title: "Team chat stack", visibility: "public", publishedAt: new Date(), description: "A description" }),
+      seedStoredTemplate({ ...filed, title: "Team notes" })
+    ]);
+
+    await service.confirm({ token });
+
+    expect(await findStoredTemplate(published.id)).toMatchObject({
+      title: "Team chat stack",
+      organizationId: team.organization.id,
+      moderationStatus: "removed",
+      removedBy: "owner",
+      sdl: "",
+      description: null,
+      isPublic: false
+    });
+    expect(await findStoredTemplate(neverPublic.id)).toBeUndefined();
   });
 
   it("keeps the team's activity feed without the address the account was invited at or its name", async () => {

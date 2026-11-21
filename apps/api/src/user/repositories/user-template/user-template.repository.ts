@@ -1,4 +1,4 @@
-import { and, eq, or, type SQL } from "drizzle-orm";
+import { and, eq, isNotNull, ne, or, type SQL } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { singleton } from "tsyringe";
 
@@ -9,6 +9,8 @@ import { ExecutionContextService } from "@src/core/services/execution-context/ex
 import { writtenForTeamBy } from "@src/organization/lib/team-records/team-records";
 import type { AskedValue } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
 import { TemplateVersions } from "@src/template-marketplace/model-schemas/template-version/template-version.schema";
+import { publisherInGoodStanding } from "@src/template-marketplace/repositories/marketplace-template/publicly-readable-template";
+import type { RemovedTemplateRow } from "@src/template-marketplace/repositories/template-removal/template-removal.repository";
 import type { TemplateVisibility } from "@src/user/model-schemas/template/template.schema";
 import { Users } from "@src/user/model-schemas/user/user.schema";
 
@@ -52,6 +54,7 @@ export interface TemplateVersionState {
   isPublic: boolean;
   visibility: TemplateVisibility;
   publishedAt: Date | null;
+  summary: string | null;
   description: string | null;
   currentVersionId: string | null;
   currentVersionSdl: string | null;
@@ -90,12 +93,19 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
   }
 
   async findById(id: string, readerUserId = ""): Promise<TemplateOutput | undefined> {
-    return await this.#findOne(and(eq(this.table.id, id), this.#readableBy(readerUserId)));
+    const [item] = await this.cursor
+      .select({ template: this.table, username: Users.username })
+      .from(this.table)
+      .leftJoin(Users, eq(this.table.userId, Users.userId))
+      .where(and(eq(this.table.id, id), this.#readableBy(readerUserId)))
+      .limit(1);
+
+    return item && this.#toFullOutput(item.template, item.username);
   }
 
   async findAllByUserId(userId: string): Promise<TemplateOutput[]> {
     const items = await this.cursor.query.Templates.findMany({
-      where: this.whereAccessibleBy(eq(this.table.userId, userId)),
+      where: this.whereAccessibleBy(and(eq(this.table.userId, userId), this.#notRemoved())),
       with: { user: { columns: { username: true } } }
     });
     return items.map(item => this.#toFullOutput(item, item.user?.username));
@@ -118,7 +128,7 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
       })
       .from(this.table)
       .innerJoin(Users, eq(this.table.userId, Users.userId))
-      .where(this.unscoped("public-templates").whereAccessibleBy(and(eq(Users.username, username), eq(this.table.isPublic, true))));
+      .where(this.unscoped("public-templates").whereAccessibleBy(and(eq(Users.username, username), this.#publiclyReadable())));
     return items.map(item => this.#toFullOutput(item, item.username));
   }
 
@@ -191,6 +201,7 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
         isPublic: this.table.isPublic,
         visibility: this.table.visibility,
         publishedAt: this.table.publishedAt,
+        summary: this.table.summary,
         description: this.table.description,
         currentVersionId: this.table.currentVersionId
       })
@@ -233,9 +244,27 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
       .where(this.unscoped("account-deletion").whereAccessibleBy(writtenForTeamBy(this.table, userId)));
   }
 
-  async deleteAllOwnedBy(userId: string): Promise<void> {
+  /** Answers the rows it deleted, so the caller can keep the removed page of those that were once public. */
+  async deleteAllOwnedBy(userId: string): Promise<RemovedTemplateRow[]> {
     await this.cursor.delete(this.favoriteTable).where(eq(this.favoriteTable.userId, userId));
-    await this.cursor.delete(this.table).where(this.unscoped("account-deletion").whereAccessibleBy(eq(this.table.userId, userId)));
+
+    return await this.cursor
+      .delete(this.table)
+      .where(this.unscoped("account-deletion").whereAccessibleBy(eq(this.table.userId, userId)))
+      .returning({ id: this.table.id, title: this.table.title, publishedAt: this.table.publishedAt, removedAt: this.table.removedAt });
+  }
+
+  /** Marks a once-public template removed instead of deleting it and answers whether it did, so the caller empties the row that stays behind its link. */
+  async markRemovedIfEverPublic(id: string, userId: string): Promise<boolean> {
+    const marked = await this.writeChecked(cursor =>
+      cursor
+        .update(this.table)
+        .set({ moderationStatus: "removed" })
+        .where(and(this.#authoredBy(id, userId), isNotNull(this.table.publishedAt)))
+        .returning()
+    );
+
+    return marked.length > 0;
   }
 
   async deleteById(id: string | string[], userId?: string): Promise<void> {
@@ -259,18 +288,18 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
     return version;
   }
 
-  async #findOne(where: SQL | undefined): Promise<TemplateOutput | undefined> {
-    const item = await this.cursor.query.Templates.findFirst({
-      where,
-      with: { user: { columns: { username: true } } }
-    });
-    if (!item) return undefined;
-    return this.#toFullOutput(item, item.user?.username);
+  /** Public templates are readable by anyone unless staff hid them or suspended their publisher; any other only by its author, inside the active organization and within the rules attached. */
+  #readableBy(readerUserId: string): SQL | undefined {
+    return and(this.#notRemoved(), or(this.#publiclyReadable(), this.#privateTemplatesOf(readerUserId)));
   }
 
-  /** Public templates are readable by anyone; a private one only by its author, inside the active organization and within the rules attached. */
-  #readableBy(readerUserId: string) {
-    return or(eq(this.table.isPublic, true), this.#privateTemplatesOf(readerUserId));
+  #publiclyReadable(): SQL | undefined {
+    return and(eq(this.table.isPublic, true), eq(this.table.moderationStatus, "active"), publisherInGoodStanding());
+  }
+
+  /** A removed template keeps its emptied row behind its link, which no legacy route reads, changes or deletes. */
+  #notRemoved(): SQL {
+    return ne(this.table.moderationStatus, "removed");
   }
 
   #privateTemplatesOf(readerUserId: string) {
@@ -278,7 +307,7 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
   }
 
   #authoredBy(id: string, userId: string) {
-    return this.whereInOrganization(and(eq(this.table.id, id), eq(this.table.userId, userId)));
+    return this.whereInOrganization(and(eq(this.table.id, id), eq(this.table.userId, userId), this.#notRemoved()));
   }
 
   #toFullOutput(template: Partial<TemplateRow>, username?: string | null): TemplateOutput {

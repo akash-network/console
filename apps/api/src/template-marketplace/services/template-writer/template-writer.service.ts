@@ -20,6 +20,7 @@ import {
   MarketplaceTemplateRepository,
   type TemplateSettingsUpdate
 } from "@src/template-marketplace/repositories/marketplace-template/marketplace-template.repository";
+import { TemplateRemovalRepository } from "@src/template-marketplace/repositories/template-removal/template-removal.repository";
 import {
   TEMPLATE_VERSION_CONFLICT_ERROR_CODE,
   type TemplateVersionOutput,
@@ -31,6 +32,7 @@ import {
   type PublishedTemplateVersion
 } from "@src/template-marketplace/services/marketplace-template/marketplace-template.service";
 import { PublishChecksService } from "@src/template-marketplace/services/publish-checks/publish-checks.service";
+import { TemplatePublisherNotifierService } from "@src/template-marketplace/services/template-publisher-notifier/template-publisher-notifier.service";
 import { TemplateRateLimiterService } from "@src/template-marketplace/services/template-rate-limiter/template-rate-limiter.service";
 import { TemplateSdlValidatorService } from "@src/template-marketplace/services/template-sdl-validator/template-sdl-validator.service";
 import { type StoredTemplate, TemplateWriteAccessService } from "@src/template-marketplace/services/template-write-access/template-write-access.service";
@@ -103,12 +105,14 @@ export class TemplateWriterService {
   constructor(
     private readonly marketplaceTemplateRepository: MarketplaceTemplateRepository,
     private readonly templateVersionRepository: TemplateVersionRepository,
+    private readonly templateRemovalRepository: TemplateRemovalRepository,
     private readonly marketplaceTemplateService: MarketplaceTemplateService,
     private readonly deploymentProjectService: DeploymentProjectService,
     private readonly templateSdlValidatorService: TemplateSdlValidatorService,
     private readonly templateWriteAccessService: TemplateWriteAccessService,
     private readonly publishChecksService: PublishChecksService,
     private readonly templateRateLimiterService: TemplateRateLimiterService,
+    private readonly templatePublisherNotifierService: TemplatePublisherNotifierService,
     private readonly authService: AuthService,
     private readonly txService: TxService,
     private readonly executionContextService: ExecutionContextService
@@ -191,6 +195,9 @@ export class TemplateWriterService {
           ...legacyHardwareOf(hardware)
         });
       }
+      if (appended.status === "failed_checks") {
+        await this.templatePublisherNotifierService.notifyVersionFailedChecks({ versionId: appended.id, savedByUserId: createdById });
+      }
 
       return appended;
     });
@@ -222,7 +229,7 @@ export class TemplateWriterService {
 
     await this.txService.transaction(async () => {
       await this.templateWriteAccessService.lockWritable(id, "delete");
-      await this.marketplaceTemplateRepository.deleteTemplate(id);
+      await this.templateRemovalRepository.remove(id, "owner");
     });
   }
 
@@ -265,6 +272,7 @@ export class TemplateWriterService {
       readme: input.readme,
       askedValues: input.askedValues,
       title: template.title,
+      summary: template.summary,
       organizationId: template.organizationId
     });
   }

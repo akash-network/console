@@ -21,7 +21,10 @@ const CONFIG = envSchema.parse({
   TEMPLATE_VERSION_LIMIT_WINDOW_SECONDS: "7200",
   TEMPLATE_PUBLISH_LIMIT_PER_USER: "31",
   TEMPLATE_PUBLISH_LIMIT_PER_ORGANIZATION: "32",
-  TEMPLATE_PUBLISH_LIMIT_WINDOW_SECONDS: "86400"
+  TEMPLATE_PUBLISH_LIMIT_WINDOW_SECONDS: "86400",
+  TEMPLATE_REPORT_LIMIT_PER_USER: "41",
+  TEMPLATE_REPORT_LIMIT_PER_ORGANIZATION: "42",
+  TEMPLATE_REPORT_LIMIT_WINDOW_SECONDS: "43200"
 });
 
 describe(TemplateRateLimiterService.name, () => {
@@ -40,6 +43,11 @@ describe(TemplateRateLimiterService.name, () => {
       action: "publish",
       perUser: { counted: "published templates", scope: "user", max: 31, windowSeconds: 86400 },
       perOrganization: { counted: "published templates", scope: "organization", max: 32, windowSeconds: 86400 }
+    },
+    {
+      action: "report",
+      perUser: { counted: "template reports", scope: "user", max: 41, windowSeconds: 43200 },
+      perOrganization: { counted: "template reports", scope: "organization", max: 42, windowSeconds: 43200 }
     }
   ])("lets a $action through under the configured limits of the user and the organization", async ({ action, perUser, perOrganization }) => {
     const { service, actor, templateRateLimitRepository } = setup();

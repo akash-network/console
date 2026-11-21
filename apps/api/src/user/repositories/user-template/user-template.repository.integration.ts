@@ -12,6 +12,7 @@ import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { type TemplateInput, UserTemplateRepository } from "./user-template.repository";
 
 import { seedOrganization, seedProject } from "@test/seeders/db/organization.seeder";
+import { seedTemplatePublisher } from "@test/seeders/db/template.seeder";
 import { seedPersonalOrganizationIdOf } from "@test/seeders/db/user-with-wallet.seeder";
 import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 
@@ -584,6 +585,7 @@ describe(UserTemplateRepository.name, () => {
         isPublic: true,
         visibility: "public",
         publishedAt: null,
+        summary: null,
         description: "# Description",
         currentVersionId: null,
         currentVersionSdl: null
@@ -599,6 +601,16 @@ describe(UserTemplateRepository.name, () => {
       await container.resolve<ApiPgDatabase>(POSTGRES_DB).update(templates).set({ publishedAt }).where(eq(templates.id, template.id));
 
       expect(await userTemplateRepository.findVersionState(template.id, user.userId!)).toMatchObject({ publishedAt });
+    });
+
+    it("returns the summary the publish checks hold to its limit", async () => {
+      const { userTemplateRepository } = setup();
+      const user = await createTestUser();
+      const template = await createTestTemplate({ userId: user.userId! });
+      const templates = resolveTable("Templates");
+      await container.resolve<ApiPgDatabase>(POSTGRES_DB).update(templates).set({ summary: "A short summary" }).where(eq(templates.id, template.id));
+
+      expect(await userTemplateRepository.findVersionState(template.id, user.userId!)).toMatchObject({ summary: "A short summary" });
     });
 
     it("returns the sdl of the current version rather than the one stored on the template", async () => {
@@ -843,6 +855,208 @@ describe(UserTemplateRepository.name, () => {
       expect(results[0].id).toBe(template1.id);
     });
   });
+
+  describe("moderated templates", () => {
+    it("keeps a hidden public template from everyone but its author", async () => {
+      const { userTemplateRepository } = setup();
+      const [author, reader] = [await createTestUser(), await createTestUser()];
+      const template = await createTestTemplate({ userId: author.userId!, isPublic: true });
+      await updateStoredTemplate(template.id, { moderationStatus: "hidden" });
+
+      expect(await userTemplateRepository.findById(template.id, reader.userId!)).toBeUndefined();
+      expect(await userTemplateRepository.findById(template.id, "")).toBeUndefined();
+      expect(await userTemplateRepository.findById(template.id, author.userId!)).toMatchObject({ id: template.id });
+    });
+
+    it("keeps the public templates of a suspended publisher from everyone but their author", async () => {
+      const { userTemplateRepository } = setup();
+      const [author, reader] = [await createTestUser(), await createTestUser()];
+      const template = await createTestTemplate({ userId: author.userId!, isPublic: true });
+      await seedTemplatePublisher({ organizationId: template.organizationId, publishingSuspendedAt: new Date(), publishingSuspendedReason: "Spam" });
+
+      expect(await userTemplateRepository.findById(template.id, reader.userId!)).toBeUndefined();
+      expect(await userTemplateRepository.findById(template.id, "")).toBeUndefined();
+      expect(await userTemplateRepository.findById(template.id, author.userId!)).toMatchObject({ id: template.id });
+    });
+
+    it("returns the public templates of a publisher in good standing", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const template = await createTestTemplate({ userId: author.userId!, isPublic: true });
+      await seedTemplatePublisher({ organizationId: template.organizationId });
+
+      expect(await userTemplateRepository.findById(template.id, "")).toMatchObject({ id: template.id, username: author.username });
+    });
+
+    it("returns a removed template to nobody, its author included", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const template = await createTestTemplate({ userId: author.userId!, isPublic: true });
+      await updateStoredTemplate(template.id, { moderationStatus: "removed" });
+
+      expect(await userTemplateRepository.findById(template.id, author.userId!)).toBeUndefined();
+      expect(await userTemplateRepository.findById(template.id, "")).toBeUndefined();
+    });
+
+    it("lists by username only the public templates that are neither hidden, removed nor of a suspended publisher", async () => {
+      const { userTemplateRepository } = setup();
+      const [author, suspended] = [await createTestUser(), await createTestUser()];
+      const [shown, hidden, removed, ofSuspended] = [
+        await createTestTemplate({ userId: author.userId!, isPublic: true }),
+        await createTestTemplate({ userId: author.userId!, isPublic: true }),
+        await createTestTemplate({ userId: author.userId!, isPublic: true }),
+        await createTestTemplate({ userId: suspended.userId!, isPublic: true })
+      ];
+      await updateStoredTemplate(hidden.id, { moderationStatus: "hidden" });
+      await updateStoredTemplate(removed.id, { moderationStatus: "removed" });
+      await seedTemplatePublisher({ organizationId: ofSuspended.organizationId, publishingSuspendedAt: new Date() });
+
+      expect((await userTemplateRepository.findAllByUsername(author.username!)).map(template => template.id)).toEqual([shown.id]);
+      expect(await userTemplateRepository.findAllByUsername(suspended.username!)).toEqual([]);
+    });
+
+    it("lists an author's own templates without the removed ones and with the hidden ones", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const [kept, hidden, removed] = [
+        await createTestTemplate({ userId: author.userId! }),
+        await createTestTemplate({ userId: author.userId!, isPublic: true }),
+        await createTestTemplate({ userId: author.userId!, isPublic: true })
+      ];
+      await updateStoredTemplate(hidden.id, { moderationStatus: "hidden" });
+      await updateStoredTemplate(removed.id, { moderationStatus: "removed" });
+
+      const listed = await userTemplateRepository.findAllByUserId(author.userId!);
+
+      expect(listed.map(template => template.id).sort()).toEqual([kept.id, hidden.id].sort());
+    });
+
+    it("drops a favorite from the list once its template is hidden or removed, and records none on one", async () => {
+      const { userTemplateRepository } = setup();
+      const [author, fan] = [await createTestUser(), await createTestUser()];
+      const [shown, hidden, removed] = [
+        await createTestTemplate({ userId: author.userId!, isPublic: true }),
+        await createTestTemplate({ userId: author.userId!, isPublic: true }),
+        await createTestTemplate({ userId: author.userId!, isPublic: true })
+      ];
+      for (const template of [shown, hidden, removed]) await recordFavorite({ userId: fan.userId!, templateId: template.id });
+      await updateStoredTemplate(hidden.id, { moderationStatus: "hidden" });
+      await updateStoredTemplate(removed.id, { moderationStatus: "removed" });
+      await userTemplateRepository.removeFavorite(fan.userId!, hidden.id);
+
+      expect((await userTemplateRepository.getFavoriteTemplates(fan.userId!)).map(template => template.id)).toEqual([shown.id]);
+      expect(await userTemplateRepository.addFavorite(fan.userId!, hidden.id)).toBe(false);
+    });
+
+    it("lets no legacy write reach a removed template", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const template = await createTestTemplate({ userId: author.userId!, isPublic: true });
+      const organizationId = template.organizationId;
+      await updateStoredTemplate(template.id, { moderationStatus: "removed", publishedAt: new Date() });
+      const removed = await findStoredTemplate(template.id);
+
+      const [isAuthored, state, isMarked] = await runInOrganization(organizationId, async () => {
+        await userTemplateRepository.updateTemplate(template.id, author.userId!, { title: "Renamed" });
+        await userTemplateRepository.deleteById(template.id, author.userId!);
+
+        return [
+          await userTemplateRepository.isAuthoredBy(template.id, author.userId!),
+          await container.resolve(TxService).transaction(() => userTemplateRepository.findVersionState(template.id, author.userId!)),
+          await userTemplateRepository.markRemovedIfEverPublic(template.id, author.userId!)
+        ];
+      });
+
+      expect(isAuthored).toBe(false);
+      expect(state).toBeUndefined();
+      expect(isMarked).toBe(false);
+      expect(await findStoredTemplate(template.id)).toEqual(removed);
+    });
+  });
+
+  describe("markRemovedIfEverPublic", () => {
+    it("marks a template that went through the publish gate removed and says so", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const template = await createTestTemplate({ userId: author.userId!, isPublic: true });
+      await updateStoredTemplate(template.id, { publishedAt: new Date() });
+
+      const isMarked = await runInOrganization(template.organizationId, () => userTemplateRepository.markRemovedIfEverPublic(template.id, author.userId!));
+
+      expect(isMarked).toBe(true);
+      expect(await findStoredTemplate(template.id)).toMatchObject({ id: template.id, moderationStatus: "removed" });
+    });
+
+    it("leaves a template that never went through the publish gate for its caller to delete", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const template = await createTestTemplate({ userId: author.userId!, isPublic: true });
+
+      const isMarked = await runInOrganization(template.organizationId, () => userTemplateRepository.markRemovedIfEverPublic(template.id, author.userId!));
+
+      expect(isMarked).toBe(false);
+      expect(await findStoredTemplate(template.id)).toEqual(template);
+    });
+
+    it("marks nothing on a once-public template another user wrote", async () => {
+      const { userTemplateRepository } = setup();
+      const [author, other] = [await createTestUser(), await createTestUser()];
+      const template = await createTestTemplate({ userId: author.userId!, isPublic: true });
+      await updateStoredTemplate(template.id, { publishedAt: new Date() });
+
+      const isMarked = await runInOrganization(template.organizationId, () => userTemplateRepository.markRemovedIfEverPublic(template.id, other.userId!));
+
+      expect(isMarked).toBe(false);
+      expect(await findStoredTemplate(template.id)).toMatchObject({ moderationStatus: "active" });
+    });
+
+    it("refuses to mark a template outside the rules attached and keeps it active", async () => {
+      const { userTemplateRepository } = setup();
+      const user = await createTestUser();
+      const { organization, defaultProject, otherProject } = await seedOrganizationWithProjects();
+      const template = await createTestTemplate({ userId: user.userId!, isPublic: true }, organization.id);
+      await updateStoredTemplate(template.id, { publishedAt: new Date() });
+      const ability = abilityOnProjects(organization.id, { read: [defaultProject.id], manage: [otherProject.id] });
+
+      const marked = runInOrganization(organization.id, () =>
+        userTemplateRepository.accessibleBy(ability, "delete").markRemovedIfEverPublic(template.id, user.userId!)
+      );
+
+      await expect(marked).rejects.toBeInstanceOf(ForbiddenError);
+      expect(await findStoredTemplate(template.id)).toMatchObject({ moderationStatus: "active" });
+    });
+  });
+
+  describe("deleteAllOwnedBy", () => {
+    it("deletes the user's templates and favorites and answers what it deleted, leaving other users' alone", async () => {
+      const { userTemplateRepository } = setup();
+      const [user, other] = [await createTestUser(), await createTestUser()];
+      const publishedAt = new Date("2026-11-01T10:00:00.000Z");
+      const [published, neverPublic, ofOther] = [
+        await createTestTemplate({ userId: user.userId!, isPublic: true, title: "Llama 3.1 Chat" }),
+        await createTestTemplate({ userId: user.userId!, title: "Private notes" }),
+        await createTestTemplate({ userId: other.userId!, isPublic: true })
+      ];
+      await updateStoredTemplate(published.id, { publishedAt });
+      await recordFavorite({ userId: user.userId!, templateId: ofOther.id });
+
+      const deleted = await userTemplateRepository.deleteAllOwnedBy(user.userId!);
+
+      expect([...deleted].sort((a, b) => a.title.localeCompare(b.title))).toEqual([
+        { id: published.id, title: "Llama 3.1 Chat", publishedAt, removedAt: null },
+        { id: neverPublic.id, title: "Private notes", publishedAt: null, removedAt: null }
+      ]);
+      expect(await findStoredTemplate(published.id)).toBeUndefined();
+      expect(await findStoredTemplate(neverPublic.id)).toBeUndefined();
+      expect(await findStoredTemplate(ofOther.id)).toBeDefined();
+      expect(await userTemplateRepository.isFavorite(ofOther.id, user.userId!)).toBe(false);
+    });
+  });
+
+  async function updateStoredTemplate(id: string, patch: { moderationStatus?: "active" | "hidden" | "removed"; publishedAt?: Date }) {
+    const templates = resolveTable("Templates");
+    await container.resolve<ApiPgDatabase>(POSTGRES_DB).update(templates).set(patch).where(eq(templates.id, id));
+  }
 
   async function createTestUser(overrides: { userId?: string; username?: string; email?: string; emailVerified?: boolean } = {}) {
     const userRepository = container.resolve(UserRepository);

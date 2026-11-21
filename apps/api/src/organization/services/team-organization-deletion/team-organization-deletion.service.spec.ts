@@ -21,6 +21,7 @@ import {
 } from "@src/organization/services/team-organization-deleted/team-organization-deleted.handler";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import type { DataKeyRepository } from "@src/secret/repositories/data-key/data-key.repository";
+import type { TemplateRemovalRepository } from "@src/template-marketplace/repositories/template-removal/template-removal.repository";
 import type {
   AccountDeletionEligibility,
   AccountDeletionEligibilityService
@@ -38,8 +39,18 @@ import { createOrganizationWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(TeamOrganizationDeletionService.name, () => {
   it("locks the team and its wallet, assesses them and erases the team, all in one transaction", async () => {
-    const { service, team, wallet, calls, organizationRepository, invitationRepository, apiKeyRepository, paymentMethodRepository, walletSettingRepository } =
-      setup();
+    const {
+      service,
+      team,
+      wallet,
+      calls,
+      organizationRepository,
+      invitationRepository,
+      apiKeyRepository,
+      paymentMethodRepository,
+      walletSettingRepository,
+      templateRemovalRepository
+    } = setup();
 
     await service.delete(team.id, { acknowledgedForfeitUsd: 0 });
 
@@ -48,6 +59,7 @@ describe(TeamOrganizationDeletionService.name, () => {
     const [, { deletedAt }] = organizationRepository.updateById.mock.calls[0] as [string, { deletedAt: Date }];
     expect(invitationRepository.updateBy).toHaveBeenCalledWith({ organizationId: team.id, status: "pending" }, { status: "revoked", revokedAt: deletedAt });
     expect(apiKeyRepository.deleteBy).toHaveBeenCalledWith({ organizationId: team.id });
+    expect(templateRemovalRepository.removeAllOfOrganization).toHaveBeenCalledWith(team.id, "owner");
     expect(paymentMethodRepository.deleteBy).toHaveBeenCalledWith({ organizationId: team.id });
     expect(walletSettingRepository.updateBy).toHaveBeenCalledWith({ walletId: wallet.id }, { autoReloadEnabled: false });
     expect(calls).toEqual([
@@ -60,6 +72,7 @@ describe(TeamOrganizationDeletionService.name, () => {
       "destroyDataKeys",
       "revokeInvitations",
       "deleteApiKeys",
+      "removeTemplates",
       "deletePaymentMethods",
       "turnOffAutoReload",
       "cancelReloadCheck",
@@ -361,6 +374,8 @@ describe(TeamOrganizationDeletionService.name, () => {
     depositRepository.findPendingDseqsOf.mockImplementation(track("findPendingDeposits", input.pendingDseqs ?? []));
     const dataKeyRepository = mock<DataKeyRepository>();
     dataKeyRepository.deleteAllOfOrganization.mockImplementation(track("destroyDataKeys", 2));
+    const templateRemovalRepository = mock<TemplateRemovalRepository>();
+    templateRemovalRepository.removeAllOfOrganization.mockImplementation(track("removeTemplates"));
     const walletReloadJobService = mock<WalletReloadJobService>();
     walletReloadJobService.cancelReloadCheck.mockImplementation(track("cancelReloadCheck"));
     walletReloadJobService.cancelCreditsLowCheck.mockImplementation(track("cancelCreditsLowCheck"));
@@ -392,6 +407,7 @@ describe(TeamOrganizationDeletionService.name, () => {
       paymentMethodRepository,
       depositRepository,
       dataKeyRepository,
+      templateRemovalRepository,
       new AutoReloadShutoffService(walletSettingRepository, walletReloadJobService),
       jobQueueService,
       txService,
@@ -413,6 +429,7 @@ describe(TeamOrganizationDeletionService.name, () => {
       paymentMethodRepository,
       depositRepository,
       dataKeyRepository,
+      templateRemovalRepository,
       walletReloadJobService,
       jobQueueService,
       txService,

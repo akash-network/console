@@ -23,6 +23,7 @@ import {
 } from "@src/organization/services/account-teams/account-teams.service";
 import { DepartedMemberAlertsService } from "@src/organization/services/departed-member-alerts/departed-member-alerts.service";
 import { LAST_OWNER_ERROR_CODE } from "@src/organization/services/organization-member/organization-member.service";
+import { TemplateRemovalRepository } from "@src/template-marketplace/repositories/template-removal/template-removal.repository";
 import { AccountDeletionTokenRepository } from "@src/user/repositories/account-deletion-token/account-deletion-token.repository";
 import { type UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
 import { UserTemplateRepository } from "@src/user/repositories/user-template/user-template.repository";
@@ -58,6 +59,7 @@ export class AccountDeletionService {
     private readonly userRepository: UserRepository,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly userTemplateRepository: UserTemplateRepository,
+    private readonly templateRemovalRepository: TemplateRemovalRepository,
     private readonly workloadProbeEvidenceRepository: WorkloadProbeEvidenceRepository,
     private readonly organizationRepository: OrganizationRepository,
     private readonly organizationMemberRepository: OrganizationMemberRepository,
@@ -249,7 +251,7 @@ export class AccountDeletionService {
       const personalOrganization = await this.organizationRepository.findPersonalByUserId(user.id);
 
       await this.teamRecordRetentionService.releaseFromTeams(lockedUser);
-      if (lockedUser.userId) await this.userTemplateRepository.deleteAllOwnedBy(lockedUser.userId);
+      if (lockedUser.userId) await this.templateRemovalRepository.keepRemovedPagesOf(await this.userTemplateRepository.deleteAllOwnedBy(lockedUser.userId));
       if (wallet) await this.workloadProbeEvidenceRepository.deleteByWalletId(wallet.id);
       await this.departedMemberAlertsService.stopEveryTeamAlertTo(user.id);
       await this.feedbackErasureService.eraseAccountFeedback(user.id);

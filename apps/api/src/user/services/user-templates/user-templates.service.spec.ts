@@ -12,6 +12,7 @@ import type { FeatureFlagsService } from "@src/core/services/feature-flags/featu
 import type { DeploymentProjectService } from "@src/deployment/services/deployment-project/deployment-project.service";
 import { summarizeTemplateHardware } from "@src/template/utils/template-hardware/template-hardware";
 import type { PublishCheckResults } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
+import type { TemplateRemovalRepository } from "@src/template-marketplace/repositories/template-removal/template-removal.repository";
 import type { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
 import type { PublishChecksService } from "@src/template-marketplace/services/publish-checks/publish-checks.service";
 import type { TemplateRateLimiterService } from "@src/template-marketplace/services/template-rate-limiter/template-rate-limiter.service";
@@ -547,7 +548,13 @@ describe(UserTemplatesService.name, () => {
           isMarketplaceOn: true,
           checkResults: FAILED_CHECKS
         });
-        const stored = createVersionState({ visibility: "public", isPublic: true, publishedAt: new Date(), currentVersionAskedValues: [] });
+        const stored = createVersionState({
+          visibility: "public",
+          isPublic: true,
+          publishedAt: new Date(),
+          summary: "A stored summary",
+          currentVersionAskedValues: []
+        });
         userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
         userTemplateRepository.findVersionState.mockResolvedValue(stored);
         const template = createTemplateInput();
@@ -563,6 +570,7 @@ describe(UserTemplatesService.name, () => {
           readme: template.description,
           askedValues: [],
           title: template.title,
+          summary: "A stored summary",
           organizationId: stored.organizationId
         });
         expect(userTemplateRepository.updateTemplate).not.toHaveBeenCalled();
@@ -652,6 +660,51 @@ describe(UserTemplatesService.name, () => {
         await service.saveTemplate("template-id", "user-id", template);
 
         expect(publishChecksService.run).toHaveBeenCalledWith(expect.objectContaining({ askedValues }));
+      });
+
+      it("checks a save that keeps the SDL under the readme the current version keeps showing", async () => {
+        const { service, userTemplateRepository, publishChecksService } = setup({ isMarketplaceOn: true });
+        const template = createTemplateInput();
+        userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+        userTemplateRepository.findVersionState.mockResolvedValue(
+          createVersionState({
+            visibility: "public",
+            isPublic: true,
+            publishedAt: new Date(),
+            currentVersionSdl: template.sdl,
+            currentVersionReadme: "# Kept readme"
+          })
+        );
+
+        await service.saveTemplate("template-id", "user-id", template);
+
+        expect(publishChecksService.run).toHaveBeenCalledWith(expect.objectContaining({ readme: "# Kept readme" }));
+      });
+
+      it("checks a new version under the description it carries as its readme", async () => {
+        const { service, userTemplateRepository, publishChecksService } = setup({ isMarketplaceOn: true });
+        const template = { ...createTemplateInput(), description: "A new description" };
+        userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+        userTemplateRepository.findVersionState.mockResolvedValue(
+          createVersionState({ visibility: "public", isPublic: true, publishedAt: new Date(), currentVersionReadme: "# Old readme" })
+        );
+
+        await service.saveTemplate("template-id", "user-id", template);
+
+        expect(publishChecksService.run).toHaveBeenCalledWith(expect.objectContaining({ readme: "A new description" }));
+      });
+
+      it("checks the stored description as the readme of a save that sends none", async () => {
+        const { service, userTemplateRepository, publishChecksService } = setup({ isMarketplaceOn: true });
+        const { description: _description, ...template } = createTemplateInput();
+        userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+        userTemplateRepository.findVersionState.mockResolvedValue(
+          createVersionState({ visibility: "public", isPublic: true, publishedAt: new Date(), description: "A stored description" })
+        );
+
+        await service.saveTemplate("template-id", "user-id", template);
+
+        expect(publishChecksService.run).toHaveBeenCalledWith(expect.objectContaining({ readme: "A stored description" }));
       });
 
       it.each([
@@ -798,17 +851,31 @@ describe(UserTemplatesService.name, () => {
   });
 
   describe("deleteTemplate", () => {
-    it("calls repository deleteById with correct parameters", async () => {
-      const { service, userTemplateRepository, ability } = setup();
+    it("deletes a template that was never public, within the caller's delete rules", async () => {
+      const { service, userTemplateRepository, templateRemovalRepository, txService, ability } = setup();
       const userId = faker.string.uuid();
       const id = faker.string.uuid();
-
-      userTemplateRepository.deleteById.mockResolvedValue();
+      userTemplateRepository.markRemovedIfEverPublic.mockResolvedValue(false);
 
       await service.deleteTemplate(userId, id);
 
       expect(userTemplateRepository.accessibleBy).toHaveBeenCalledWith(ability, "delete");
+      expect(userTemplateRepository.markRemovedIfEverPublic).toHaveBeenCalledWith(id, userId);
       expect(userTemplateRepository.deleteById).toHaveBeenCalledWith(id, userId);
+      expect(templateRemovalRepository.emptyRemoved).not.toHaveBeenCalled();
+      expect(txService.transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it("empties a once-public template it marked removed instead of deleting it", async () => {
+      const { service, userTemplateRepository, templateRemovalRepository } = setup();
+      const userId = faker.string.uuid();
+      const id = faker.string.uuid();
+      userTemplateRepository.markRemovedIfEverPublic.mockResolvedValue(true);
+
+      await service.deleteTemplate(userId, id);
+
+      expect(templateRemovalRepository.emptyRemoved).toHaveBeenCalledWith(id, "owner");
+      expect(userTemplateRepository.deleteById).not.toHaveBeenCalled();
     });
   });
 
@@ -959,6 +1026,7 @@ describe(UserTemplatesService.name, () => {
     executionContextService.get
       .calledWith("ORGANIZATION_CONTEXT")
       .mockReturnValue(input.hasNoOrganization ? undefined : createOrganizationContext({ organizationId: activeOrganizationId }));
+    const templateRemovalRepository = mock<TemplateRemovalRepository>();
     const service = new UserTemplatesService(
       userTemplateRepository,
       authService,
@@ -969,7 +1037,8 @@ describe(UserTemplatesService.name, () => {
       publishChecksService,
       featureFlagsService,
       templateRateLimiterService,
-      executionContextService
+      executionContextService,
+      templateRemovalRepository
     );
 
     return {
@@ -983,7 +1052,8 @@ describe(UserTemplatesService.name, () => {
       templateUsageService,
       publishChecksService,
       templateRateLimiterService,
-      activeOrganizationId
+      activeOrganizationId,
+      templateRemovalRepository
     };
   }
 
@@ -993,6 +1063,7 @@ describe(UserTemplatesService.name, () => {
       isPublic: false,
       visibility: "private",
       publishedAt: null,
+      summary: null,
       description: null,
       currentVersionId: faker.string.uuid(),
       currentVersionSdl: faker.lorem.paragraph(),

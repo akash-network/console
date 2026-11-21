@@ -8178,6 +8178,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/user-templates/{id}/reports": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Report the current version of a public template to Akash staff, without the publisher learning who did */
+    post: operations["createUserTemplateReport"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/user-templates/{id}": {
     parameters: {
       query?: never;
@@ -8189,7 +8206,7 @@ export interface paths {
     get: operations["getUserTemplate"];
     put?: never;
     post?: never;
-    /** Delete a template the caller may delete, with its versions and favorites */
+    /** Delete a template the caller may delete; one that was ever public keeps its link as a removed page */
     delete: operations["deleteUserTemplate"];
     options?: never;
     head?: never;
@@ -8522,7 +8539,7 @@ export interface components {
   schemas: {
     TemplatePublishCheck: {
       /** @enum {string} */
-      key: "sdl_valid" | "no_secrets" | "images_allowed" | "fixed_tags" | "name_not_reserved";
+      key: "sdl_valid" | "no_secrets" | "images_allowed" | "fixed_tags" | "name_not_reserved" | "text_within_limits";
       /** @enum {string} */
       status: "passed" | "failed";
       issues: {
@@ -8535,10 +8552,10 @@ export interface components {
         /** @description The container image the issue is about */
         image?: string;
         /**
-         * @description The name a reserved word was found in, or the text a line holding a credential was found in
+         * @description The name a reserved word was found in, the text a line holding a credential was found in, or the text that is over its length limit
          * @enum {string}
          */
-        field?: "title" | "publisher_name" | "sdl" | "readme";
+        field?: "title" | "publisher_name" | "sdl" | "summary" | "readme";
       }[];
     };
     AlertCreateInput: {
@@ -9507,7 +9524,7 @@ export interface components {
          * @description A `failed_checks` version failed the publish checks of a public template, never became the current version and is shown to editors only
          * @enum {string}
          */
-        status: "live" | "held" | "failed_checks";
+        status: "live" | "held" | "failed_checks" | "rejected";
         /** @description What the publish checks found, for callers who may change the template; null for everyone else and for a version they never ran on */
         checkResults: {
           /** Format: date-time */
@@ -9682,7 +9699,7 @@ export interface components {
       currentVersion: {
         version: number;
         /** @enum {string} */
-        status: "live" | "held" | "failed_checks";
+        status: "live" | "held" | "failed_checks" | "rejected";
         /** Format: date-time */
         createdAt: string;
       } | null;
@@ -9809,6 +9826,24 @@ export interface components {
         acceptedTermsVersion: string;
       };
     };
+    CreateTemplateReportResponse: {
+      data: {
+        /** Format: uuid */
+        id: string;
+        /** @enum {string} */
+        reason: "malware_or_miner" | "leaks_secrets" | "impersonation" | "spam" | "broken" | "other";
+        /** Format: date-time */
+        createdAt: string;
+      };
+    };
+    CreateTemplateReportRequest: {
+      data: {
+        /** @enum {string} */
+        reason: "malware_or_miner" | "leaks_secrets" | "impersonation" | "spam" | "broken" | "other";
+        /** @description What the reporter saw, as plain text; staff read it and the publisher never does */
+        details?: string;
+      };
+    };
     CreateUserTemplateVersionResponse: {
       data: components["schemas"]["TemplateVersion"];
     };
@@ -9835,7 +9870,7 @@ export interface components {
        * @description A `failed_checks` version failed the publish checks of a public template, never became the current version and is shown to editors only
        * @enum {string}
        */
-      status: "live" | "held" | "failed_checks";
+      status: "live" | "held" | "failed_checks" | "rejected";
       /** @description What the publish checks found, for callers who may change the template; null for everyone else and for a version they never ran on */
       checkResults: {
         /** Format: date-time */
@@ -15992,7 +16027,8 @@ export interface operations {
           | "deployment_closed_alert"
           | "deployment_reclaim_alert"
           | "deployment_rename"
-          | "gpu_request_update";
+          | "gpu_request_update"
+          | "template_update";
       };
       header?: {
         /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
@@ -16018,7 +16054,7 @@ export interface operations {
                 /** Format: uuid */
                 id: string;
                 /**
-                 * @description What the action was, which kind of alert fired (`wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`), or `gpu_request_update` when the team moved one of the user's GPU requests along.
+                 * @description What the action was, which kind of alert fired (`wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`), `gpu_request_update` when the team moved one of the user's GPU requests along, or `template_update` when staff or the publish checks decided something about a template the user's organization published.
                  * @enum {string}
                  */
                 type:
@@ -16030,7 +16066,8 @@ export interface operations {
                   | "deployment_closed_alert"
                   | "deployment_reclaim_alert"
                   | "deployment_rename"
-                  | "gpu_request_update";
+                  | "gpu_request_update"
+                  | "template_update";
                 /**
                  * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`. `info` for an alert that fired, which has no outcome.
                  * @enum {string}
@@ -16103,6 +16140,11 @@ export interface operations {
                   hardwareRequestId?: string;
                   /** @description The status the GPU request moved to, on a `gpu_request_update`. */
                   hardwareRequestStatus?: string;
+                  /**
+                   * Format: uuid
+                   * @description The template a `template_update` is about, absent on one about the publisher.
+                   */
+                  templateId?: string;
                 };
                 /**
                  * Format: date-time
@@ -16170,7 +16212,7 @@ export interface operations {
               /** Format: uuid */
               id: string;
               /**
-               * @description What the action was, which kind of alert fired (`wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`), or `gpu_request_update` when the team moved one of the user's GPU requests along.
+               * @description What the action was, which kind of alert fired (`wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`), `gpu_request_update` when the team moved one of the user's GPU requests along, or `template_update` when staff or the publish checks decided something about a template the user's organization published.
                * @enum {string}
                */
               type:
@@ -16182,7 +16224,8 @@ export interface operations {
                 | "deployment_closed_alert"
                 | "deployment_reclaim_alert"
                 | "deployment_rename"
-                | "gpu_request_update";
+                | "gpu_request_update"
+                | "template_update";
               /**
                * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`. `info` for an alert that fired, which has no outcome.
                * @enum {string}
@@ -16255,6 +16298,11 @@ export interface operations {
                 hardwareRequestId?: string;
                 /** @description The status the GPU request moved to, on a `gpu_request_update`. */
                 hardwareRequestStatus?: string;
+                /**
+                 * Format: uuid
+                 * @description The template a `template_update` is about, absent on one about the publisher.
+                 */
+                templateId?: string;
               };
               /**
                * Format: date-time
@@ -19929,6 +19977,86 @@ export interface operations {
       };
     };
   };
+  createUserTemplateReport: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateTemplateReportRequest"];
+      };
+    };
+    responses: {
+      /** @description The report filed */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CreateTemplateReportResponse"];
+        };
+      };
+      /** @description The id is not a uuid, the reason is unknown, or the details are too long or not readable text */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller is not signed in */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller belongs to the organization that published the template (`template_report_own_organization`) */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The template does not exist or the caller may not read it */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller already reported this version (`template_already_reported`), or the template is not public, is hidden or has no version (`template_not_reportable`) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The template was public once and has since been removed (`template_removed`, with the `title` it had) */
+      410: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller or the organization reached a limit; `Retry-After` tells when to try again (`template_rate_limited`) */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   getUserTemplate: {
     parameters: {
       query?: never;
@@ -19963,6 +20091,13 @@ export interface operations {
       };
       /** @description The template does not exist or the caller may not read it */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The template was public once and has since been removed (`template_removed`, with the `title` it had) */
+      410: {
         headers: {
           [name: string]: unknown;
         };
@@ -20016,6 +20151,13 @@ export interface operations {
       };
       /** @description The template does not exist or the caller may not read it */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The template was public once and has since been removed (`template_removed`, with the `title` it had) */
+      410: {
         headers: {
           [name: string]: unknown;
         };
@@ -20116,6 +20258,13 @@ export interface operations {
       };
       /** @description The template does not exist or the caller may not read it */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The template was public once and has since been removed (`template_removed`, with the `title` it had) */
+      410: {
         headers: {
           [name: string]: unknown;
         };
@@ -20231,6 +20380,13 @@ export interface operations {
       };
       /** @description The template or the version does not exist, or the caller may not read the template */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The template was public once and has since been removed (`template_removed`, with the `title` it had) */
+      410: {
         headers: {
           [name: string]: unknown;
         };

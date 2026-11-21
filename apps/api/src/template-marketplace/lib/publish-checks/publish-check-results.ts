@@ -1,4 +1,4 @@
-export const PUBLISH_CHECK_KEYS = ["sdl_valid", "no_secrets", "images_allowed", "fixed_tags", "name_not_reserved"] as const;
+export const PUBLISH_CHECK_KEYS = ["sdl_valid", "no_secrets", "images_allowed", "fixed_tags", "name_not_reserved", "text_within_limits"] as const;
 
 export type PublishCheckKey = (typeof PUBLISH_CHECK_KEYS)[number];
 
@@ -6,7 +6,7 @@ export const PUBLISH_CHECK_STATUSES = ["passed", "failed"] as const;
 
 export type PublishCheckStatus = (typeof PUBLISH_CHECK_STATUSES)[number];
 
-export const PUBLISH_CHECK_ISSUE_FIELDS = ["title", "publisher_name", "sdl", "readme"] as const;
+export const PUBLISH_CHECK_ISSUE_FIELDS = ["title", "publisher_name", "sdl", "summary", "readme"] as const;
 
 export type PublishCheckIssueField = (typeof PUBLISH_CHECK_ISSUE_FIELDS)[number];
 

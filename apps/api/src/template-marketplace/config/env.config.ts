@@ -25,7 +25,10 @@ export const envSchema = z.object({
   TEMPLATE_VERSION_LIMIT_WINDOW_SECONDS: windowSeconds(HOUR_SECONDS),
   TEMPLATE_PUBLISH_LIMIT_PER_USER: positiveInteger(10),
   TEMPLATE_PUBLISH_LIMIT_PER_ORGANIZATION: positiveInteger(30),
-  TEMPLATE_PUBLISH_LIMIT_WINDOW_SECONDS: windowSeconds(DAY_SECONDS)
+  TEMPLATE_PUBLISH_LIMIT_WINDOW_SECONDS: windowSeconds(DAY_SECONDS),
+  TEMPLATE_REPORT_LIMIT_PER_USER: positiveInteger(10),
+  TEMPLATE_REPORT_LIMIT_PER_ORGANIZATION: positiveInteger(30),
+  TEMPLATE_REPORT_LIMIT_WINDOW_SECONDS: windowSeconds(DAY_SECONDS)
 });
 
 export type TemplateMarketplaceConfig = z.infer<typeof envSchema>;

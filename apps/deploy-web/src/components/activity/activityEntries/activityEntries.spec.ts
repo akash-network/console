@@ -134,6 +134,25 @@ describe(activityEntriesOf.name, () => {
     expect(entry).toMatchObject({ title: "GPU request: 1× A100 is being sourced", href: "/gpu-requests/request-1", systemIcon: "activity" });
   });
 
+  it("describes a template update by its summary, linking to the template", () => {
+    const [entry] = entriesOf([
+      buildActivity({
+        type: "template_update",
+        status: "info",
+        initiator: "system",
+        meta: { templateId: "template-1", summary: '"Postgres 16" was hidden' }
+      })
+    ]);
+
+    expect(entry).toMatchObject({ title: '"Postgres 16" was hidden', href: "/template/template-1", systemIcon: "activity" });
+  });
+
+  it("describes a template update without a summary", () => {
+    const [entry] = entriesOf([buildActivity({ type: "template_update", status: "info", initiator: "system", meta: {} })]);
+
+    expect(entry.title).toBe("There's news about one of your templates");
+  });
+
   it("describes a GPU request update without a summary", () => {
     const [entry] = entriesOf([buildActivity({ type: "gpu_request_update", status: "info", initiator: "system", meta: {} })]);
 

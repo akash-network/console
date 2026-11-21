@@ -13,6 +13,7 @@ import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { MarketplaceTemplateRepository } from "./marketplace-template.repository";
 
 import { seedOrganization, seedProject } from "@test/seeders/db/organization.seeder";
+import { seedTemplatePublisher } from "@test/seeders/db/template.seeder";
 import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 import { holdTransaction, waitForLockWait } from "@test/services/lock-wait";
 
@@ -107,6 +108,31 @@ describe(MarketplaceTemplateRepository.name, () => {
       expect(found.map(row => row?.id)).toEqual([undefined, template.id]);
     });
 
+    it("hides a suspended publisher's public templates from a reader without rules but not from one within them, until it is reinstated", async () => {
+      const { repository, organization, project } = await setup();
+      const other = await seedOrganization();
+      const [template, ofAnotherPublisher] = await Promise.all([
+        seedTemplate({ organizationId: organization.id, projectId: project.id, visibility: "public" }),
+        seedTemplate({ organizationId: other.id, visibility: "public" })
+      ]);
+      await Promise.all([
+        seedTemplatePublisher({ organizationId: organization.id, publishingSuspendedAt: new Date(), publishingSuspendedReason: "Spam" }),
+        seedTemplatePublisher({ organizationId: other.id })
+      ]);
+      const readable = repository.accessibleBy(abilityOf([{ action: "read", subject: "Template", conditions: { organizationId: organization.id } }]), "read");
+
+      const found = await Promise.all([
+        repository.findReadable(template.id),
+        readable.findReadable(template.id),
+        repository.findReadable(ofAnotherPublisher.id)
+      ]);
+      await reinstatePublisher(organization.id);
+      const foundOnceReinstated = await repository.findReadable(template.id);
+
+      expect(found.map(row => row?.id)).toEqual([undefined, template.id, ofAnotherPublisher.id]);
+      expect(foundOnceReinstated?.id).toBe(template.id);
+    });
+
     it("hides a removed template even from a rule without conditions", async () => {
       const { repository, organization, project } = await setup();
       const [removed, kept] = await Promise.all([
@@ -139,10 +165,60 @@ describe(MarketplaceTemplateRepository.name, () => {
       expect(found).toEqual(new Set([withinRules.id, publicElsewhere.id]));
     });
 
+    it("drops the public templates of a suspended publisher for a reader outside its organization", async () => {
+      const { repository } = await setup();
+      const [suspended, inGoodStanding] = await Promise.all([seedOrganization(), seedOrganization()]);
+      const [hiddenBySuspension, shown] = await Promise.all([
+        seedTemplate({ organizationId: suspended.id, visibility: "public" }),
+        seedTemplate({ organizationId: inGoodStanding.id, visibility: "public" })
+      ]);
+      await seedTemplatePublisher({ organizationId: suspended.id, publishingSuspendedAt: new Date() });
+
+      expect(await repository.findReadableIds([hiddenBySuspension.id, shown.id])).toEqual(new Set([shown.id]));
+    });
+
     it("finds nothing for no ids", async () => {
       const { repository } = await setup();
 
       expect(await repository.findReadableIds([])).toEqual(new Set());
+    });
+  });
+
+  describe("findPubliclyReadable", () => {
+    it("answers the organization and current version of an active public template, whatever the caller's rules", async () => {
+      const { repository, organization, project } = await setup();
+      const template = await seedTemplate({ organizationId: organization.id, projectId: project.id, visibility: "public" });
+      const version = await container.resolve(TemplateVersionRepository).appendVersion({ templateId: template.id, sdl: "version: '2.0'" });
+      const readable = repository.accessibleBy(abilityOf([{ action: "manage", subject: "all" }]), "read");
+
+      const found = await Promise.all([repository.findPubliclyReadable(template.id), readable.findPubliclyReadable(template.id)]);
+
+      expect(found).toEqual([
+        { id: template.id, organizationId: organization.id, currentVersionId: version.id },
+        { id: template.id, organizationId: organization.id, currentVersionId: version.id }
+      ]);
+    });
+
+    it("answers nothing for a private, organization, hidden or removed template, one of a suspended publisher and an unknown id", async () => {
+      const { repository, organization, project } = await setup();
+      const suspended = await seedOrganization();
+      await seedTemplatePublisher({ organizationId: suspended.id, publishingSuspendedAt: new Date() });
+      const filed = { organizationId: organization.id, projectId: project.id };
+      const templates = await Promise.all([
+        seedTemplate({ ...filed, visibility: "private" }),
+        seedTemplate({ ...filed, visibility: "organization" }),
+        seedTemplate({ ...filed, visibility: "public", moderationStatus: "hidden" }),
+        seedTemplate({ ...filed, visibility: "public", moderationStatus: "removed" }),
+        seedTemplate({ organizationId: suspended.id, visibility: "public" })
+      ]);
+      const readable = repository.accessibleBy(abilityOf([{ action: "manage", subject: "all" }]), "read");
+
+      const found = await Promise.all([
+        ...templates.map(template => readable.findPubliclyReadable(template.id)),
+        readable.findPubliclyReadable(faker.string.uuid())
+      ]);
+
+      expect(found).toEqual([undefined, undefined, undefined, undefined, undefined, undefined]);
     });
   });
 
@@ -368,23 +444,29 @@ describe(MarketplaceTemplateRepository.name, () => {
     });
   });
 
-  describe("deleteTemplate", () => {
-    it("deletes that template alone with its versions and favorites, whichever organization is active", async () => {
+  describe("findOfAnyOrganization", () => {
+    it("reads a private, hidden or removed template of any organization, with no organization in context", async () => {
       const { repository, organization, project } = await setup();
       const other = await seedOrganization();
-      const [template, untouched] = await Promise.all([
-        seedTemplate({ organizationId: organization.id, projectId: project.id, visibility: "private" }),
-        seedTemplate({ organizationId: organization.id, projectId: project.id, visibility: "private" })
+      const templates = await Promise.all([
+        seedTemplate({ organizationId: other.id, visibility: "private" }),
+        seedTemplate({ organizationId: other.id, visibility: "public", moderationStatus: "hidden" }),
+        seedTemplate({ organizationId: organization.id, projectId: project.id, visibility: "private", moderationStatus: "removed" })
       ]);
-      await container.resolve(TemplateVersionRepository).appendVersion({ templateId: template.id, sdl: "version: '2.0'" });
-      await seedFavorite(template.id);
 
-      await runInOrganization(other.id, () => repository.deleteTemplate(template.id));
+      const found = await Promise.all(templates.map(template => repository.findOfAnyOrganization(template.id)));
 
-      expect(await storedTemplate(template.id)).toBeUndefined();
-      expect(await rowsOf("TemplateVersions", template.id)).toEqual([]);
-      expect(await rowsOf("TemplateFavorites", template.id)).toEqual([]);
-      expect(await storedTemplate(untouched.id)).toEqual(untouched);
+      expect(found.map(template => [template?.id, template?.title, template?.organizationId])).toEqual([
+        [templates[0].id, templates[0].title, other.id],
+        [templates[1].id, templates[1].title, other.id],
+        [templates[2].id, templates[2].title, organization.id]
+      ]);
+    });
+
+    it("finds nothing for an id no template has", async () => {
+      const { repository } = await setup();
+
+      expect(await repository.findOfAnyOrganization(faker.string.uuid())).toBeUndefined();
     });
   });
 
@@ -457,22 +539,18 @@ describe(MarketplaceTemplateRepository.name, () => {
     return await storedTemplate(template.id);
   }
 
+  async function reinstatePublisher(organizationId: string) {
+    const publishers = resolveTable("TemplatePublishers");
+    await container
+      .resolve<ApiPgDatabase>(POSTGRES_DB)
+      .update(publishers)
+      .set({ publishingSuspendedAt: null, publishingSuspendedReason: null })
+      .where(eq(publishers.organizationId, organizationId));
+  }
+
   async function setUpdatedAt(id: string, updatedAt: Date) {
     const templates = resolveTable("Templates");
     await container.resolve<ApiPgDatabase>(POSTGRES_DB).update(templates).set({ updatedAt }).where(eq(templates.id, id));
-  }
-
-  async function seedFavorite(templateId: string) {
-    await container
-      .resolve<ApiPgDatabase>(POSTGRES_DB)
-      .insert(resolveTable("TemplateFavorites"))
-      .values({ userId: `auth0|${faker.string.alphanumeric(24)}`, templateId, addedDate: new Date() });
-  }
-
-  async function rowsOf(tableName: "TemplateVersions" | "TemplateFavorites", templateId: string) {
-    const table = resolveTable(tableName);
-
-    return await container.resolve<ApiPgDatabase>(POSTGRES_DB).select().from(table).where(eq(table.templateId, templateId));
   }
 
   function createTemplateInput(overrides: { authorId: string; projectId?: string; copiedFromId?: string }) {

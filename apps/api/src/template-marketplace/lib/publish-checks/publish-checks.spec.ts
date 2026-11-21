@@ -18,7 +18,8 @@ describe(runPublishChecks.name, () => {
         { key: "no_secrets", status: "passed", issues: [] },
         { key: "images_allowed", status: "passed", issues: [] },
         { key: "fixed_tags", status: "passed", issues: [] },
-        { key: "name_not_reserved", status: "passed", issues: [] }
+        { key: "name_not_reserved", status: "passed", issues: [] },
+        { key: "text_within_limits", status: "passed", issues: [] }
       ]
     });
   });
@@ -546,6 +547,63 @@ describe(runPublishChecks.name, () => {
     });
   });
 
+  describe("text_within_limits", () => {
+    it("passes a title, a summary and a README exactly at their limits", () => {
+      const results = setup({ title: "t".repeat(80), summary: "s".repeat(200), readme: "r".repeat(50_000) });
+
+      expect(checkOf(results, "text_within_limits")).toEqual({ key: "text_within_limits", status: "passed", issues: [] });
+    });
+
+    it("passes a template with neither a summary nor a README", () => {
+      const results = setup({ summary: null, readme: null });
+
+      expect(checkOf(results, "text_within_limits").status).toBe("passed");
+    });
+
+    it("fails a title one character over its limit and says where to shorten it", () => {
+      const results = setup({ title: "t".repeat(81) });
+
+      expect(checkOf(results, "text_within_limits")).toEqual({
+        key: "text_within_limits",
+        status: "failed",
+        issues: [
+          {
+            message: "The title is 81 characters long, and a public template allows 80. Shorten it in the template's settings.",
+            field: "title"
+          }
+        ]
+      });
+    });
+
+    it("fails a summary one character over its limit", () => {
+      const results = setup({ summary: "s".repeat(201) });
+
+      expect(checkOf(results, "text_within_limits").issues).toEqual([
+        {
+          message: "The summary is 201 characters long, and a public template allows 200. Shorten it in the template's settings.",
+          field: "summary"
+        }
+      ]);
+    });
+
+    it("fails a README one character over its limit", () => {
+      const results = setup({ readme: "r".repeat(50_001) });
+
+      expect(checkOf(results, "text_within_limits").issues).toEqual([
+        {
+          message: "The README is 50001 characters long, and a public template allows 50000. Shorten it and save a new version.",
+          field: "readme"
+        }
+      ]);
+    });
+
+    it("names every text over its limit, title first", () => {
+      const results = setup({ title: "t".repeat(255), summary: "s".repeat(300), readme: "r".repeat(60_000) });
+
+      expect(checkOf(results, "text_within_limits").issues.map(issue => issue.field)).toEqual(["title", "summary", "readme"]);
+    });
+  });
+
   function checkOf(results: ReturnType<typeof runPublishChecks>, key: PublishCheckKey): PublishCheck {
     return results.checks.find(check => check.key === key)!;
   }
@@ -568,6 +626,7 @@ describe(runPublishChecks.name, () => {
       readme: null,
       askedValues: [],
       title: "Llama 3.1 Chat",
+      summary: "Chat with Llama 3.1 on one GPU.",
       publisherName: "Sam Rivera",
       sdlIssues: [],
       ranAt: RAN_AT,

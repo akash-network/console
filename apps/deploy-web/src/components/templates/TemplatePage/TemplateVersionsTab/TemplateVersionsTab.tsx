@@ -34,7 +34,8 @@ const CHANGE_LABELS: Record<VersionChange, string> = {
 const STATUS_LABELS: Record<TemplateVersionSummary["status"], string> = {
   live: "Published",
   held: "Held for staff review",
-  failed_checks: "Failed checks"
+  failed_checks: "Failed checks",
+  rejected: "Rejected by staff"
 };
 
 const MAX_LINES_PER_BLOCK = 50;
