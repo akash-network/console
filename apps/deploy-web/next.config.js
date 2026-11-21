@@ -35,6 +35,10 @@ const nextConfig = {
     qualities: [75]
   },
   output: "standalone",
+  /** The preview image renderer loads its layout engine, rasterizer and fonts from disk at run time, which import tracing alone can miss. */
+  outputFileTracingIncludes: {
+    "/api/og/**": ["../../node_modules/next/dist/compiled/@vercel/og/**", "./public/fonts/og/**"]
+  },
   typescript: {
     tsconfigPath: "./tsconfig.build.json"
   },

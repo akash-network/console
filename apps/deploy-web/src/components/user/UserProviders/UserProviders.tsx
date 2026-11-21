@@ -13,7 +13,7 @@ import type { FCWithChildren } from "@src/types/component";
  * UserProviders is a client only component because it uses the UserProvider
  * which is a client only component.
  */
-export const UserProviders: FCWithChildren = ({ children }) => {
+export const UserProviders: FCWithChildren<{ isRenderedForVisitor?: boolean }> = ({ children, isRenderedForVisitor }) => {
   const { internalApiHttpClient } = useServices();
   const getProfile = useCallback(
     async (url: string) => {
@@ -28,7 +28,7 @@ export const UserProviders: FCWithChildren = ({ children }) => {
       <SessionExpirySync />
       <AccountStatusSync />
       <AccountSwitchSync />
-      <UserInitLoader>
+      <UserInitLoader isRenderedForVisitor={isRenderedForVisitor}>
         <UserTracker>{children}</UserTracker>
       </UserInitLoader>
     </UserProvider>

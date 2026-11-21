@@ -47,6 +47,7 @@ export default defineConfig({
       },
       {
         extends: true,
+        plugins: [react()],
         test: {
           name: "unit-node",
           environment: "node",

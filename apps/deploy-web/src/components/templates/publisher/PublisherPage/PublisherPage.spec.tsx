@@ -72,7 +72,39 @@ describe(PublisherPage.name, () => {
     expect(screen.getByText("Templates", { selector: "dt" }).nextElementSibling).toHaveTextContent("3");
     expect(screen.getByText("Total deploys").nextElementSibling).toHaveTextContent("18.4K");
     expect(screen.getByRole("link", { name: "Templates" })).toHaveAttribute("href", "/templates");
-    expect(NextSeo).toHaveBeenCalledWith({ title: "Lambda Garage · Templates" }, expect.anything());
+    expect(NextSeo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Lambda Garage · Templates",
+        description: "We build GPU inference stacks for small teams.",
+        canonical: `https://console.akash.network/template-publishers/${PUBLISHER.handle}`,
+        noindex: false,
+        openGraph: expect.objectContaining({
+          images: [expect.objectContaining({ url: `https://console.akash.network/api/og/template-publisher/${PUBLISHER.handle}` })]
+        })
+      }),
+      expect.anything()
+    );
+  });
+
+  it("names the same address whatever sort and search are applied", () => {
+    const { NextSeo } = setup({ sort: "newest", search: "llama" });
+
+    expect(NextSeo).toHaveBeenCalledWith(
+      expect.objectContaining({ canonical: `https://console.akash.network/template-publishers/${PUBLISHER.handle}` }),
+      expect.anything()
+    );
+  });
+
+  it("keeps a publisher that lists no template out of search engines", () => {
+    const { NextSeo } = setup({ publisher: { templates: [], counts: { templates: 0, deploys: 0 } } });
+
+    expect(NextSeo).toHaveBeenCalledWith(expect.objectContaining({ noindex: true }), expect.anything());
+  });
+
+  it("keeps the publisher's own view of the page out of search engines", () => {
+    const { NextSeo } = setup({ ownProfile: OWN_PROFILE });
+
+    expect(NextSeo).toHaveBeenCalledWith(expect.objectContaining({ noindex: true }), expect.anything());
   });
 
   it("names a personal publisher as one", () => {

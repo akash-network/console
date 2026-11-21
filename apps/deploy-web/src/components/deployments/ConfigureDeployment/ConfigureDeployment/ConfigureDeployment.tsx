@@ -13,6 +13,8 @@ import { DeployTargetGate } from "@src/components/projects/DeployTargetGate/Depl
 import type { RemovedTemplate } from "@src/components/templates/removed/readRemovedTemplate";
 import { readRemovedTemplate } from "@src/components/templates/removed/readRemovedTemplate";
 import { RemovedTemplateNotice } from "@src/components/templates/removed/RemovedTemplateNotice/RemovedTemplateNotice";
+import { describeAwesomeAkashTemplate, describeConsoleTemplate } from "@src/components/templates/templateEvents/templateEvents";
+import { useTrackTemplateEvent } from "@src/components/templates/templateEvents/useTrackTemplateEvent";
 import { useTakeAutoDeployStart } from "@src/hooks/useAutoDeployStart/useAutoDeployStart";
 import { useFlag } from "@src/hooks/useFlag";
 import { usePublicTemplate, useTemplate } from "@src/queries/useTemplateQuery";
@@ -55,6 +57,7 @@ export const DEPENDENCIES = {
   useSearchParams,
   useParams,
   useSnackbar,
+  useTrackTemplateEvent,
   Snackbar
 };
 
@@ -163,6 +166,7 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({
   const templateSource = hasFallenBackToForm ? undefined : loadedTemplateSource;
   const { enqueueSnackbar } = d.useSnackbar();
   const templateVersion = intent.templateVersion ?? versionedTemplate?.pinnedVersion;
+  useTrackConfigureOpenedFromTemplate({ d, intent, versionedTemplate });
   usePinTemplateVersionInUrl({ d, intent, draft, versionedTemplate: hasFallenBackToForm ? undefined : versionedTemplate });
 
   const isFetchingTemplate = !!fetchedTemplateId || !!fetchedUserTemplateId || !!versionedTemplate;
@@ -286,6 +290,29 @@ type VersionedTemplate = {
   pinnedVersion: number | undefined;
   pinVersion: (version: TemplateVersionDetail) => void;
 };
+
+/**
+ * Counts each time Configure opens for a template, whichever button, card or badge led here.
+ * A reload or a resumed draft arrives with its draft id in the address and is the same open, so it is not counted again.
+ */
+function useTrackConfigureOpenedFromTemplate({
+  d,
+  intent,
+  versionedTemplate
+}: {
+  d: typeof DEPENDENCIES;
+  intent: DeploymentIntent;
+  versionedTemplate: VersionedTemplate | undefined;
+}) {
+  const isMarketplaceEnabled = d.useFlag("template_marketplace");
+  const [isFreshOpen] = useState(() => !intent.draftId);
+  const consoleTemplate = versionedTemplate?.source;
+  const openedTemplate = versionedTemplate
+    ? consoleTemplate && describeConsoleTemplate(consoleTemplate.template, consoleTemplate.version.version)
+    : describeAwesomeAkashTemplate(intent.templateId);
+
+  d.useTrackTemplateEvent("template_configure_opened", isMarketplaceEnabled && isFreshOpen ? openedTemplate : undefined);
+}
 
 /** A fresh session pins the current version it starts from, so a reload resolves the version its draft was built on; a draft restored without one keeps resolving the current version. */
 function usePinTemplateVersionInUrl({

@@ -12,19 +12,27 @@ import type { ActionCardProps } from "../actionCardTypes";
 import { assertOpensInEditor } from "../assertOpensInEditor/assertOpensInEditor";
 import { DeploymentLink } from "../DeploymentLink/DeploymentLink";
 import { keepsPricing, PRICING_CHANGE_MESSAGE } from "../pricingGuard/pricingGuard";
+import { TemplateSuggestionCard } from "../TemplateSuggestionCard/TemplateSuggestionCard";
 import { useDeploymentName } from "../useDeploymentName/useDeploymentName";
 import { keepsSecretsWithTheirServices } from "./keepsSecretsWithTheirServices";
 
-export const DEPENDENCIES = { useDeploymentDefinition, useRedeploy, useRouter, useDeploymentName, ActionCardChrome };
+export const DEPENDENCIES = { useDeploymentDefinition, useRedeploy, useRouter, useDeploymentName, ActionCardChrome, TemplateSuggestionCard };
 
 const DEFINITION_UNAVAILABLE_MESSAGE = "This deployment's configuration isn't available here. Redeploy it from its page instead.";
 
+type Props = ActionCardProps<"open_in_editor"> & { dependencies?: typeof DEPENDENCIES };
+
+/** An action that describes its template is a suggestion from the marketplace and gets the template's own card; any other opens the editor as before. */
+export const OpenInEditorCard: FC<Props> = ({ action, decision, dependencies: d = DEPENDENCIES }) => {
+  if (action.template && action.templateId) {
+    return <d.TemplateSuggestionCard templateId={action.templateId} template={action.template} decision={decision} />;
+  }
+
+  return <EditorCard action={action} decision={decision} dependencies={d} />;
+};
+
 /** Opens Configure the way redeploy does; an SDL based on a deployment is refused if it would move its pricing, and inherits its secrets only where they stay with their services. */
-export const OpenInEditorCard: FC<ActionCardProps<"open_in_editor"> & { dependencies?: typeof DEPENDENCIES }> = ({
-  action,
-  decision,
-  dependencies: d = DEPENDENCIES
-}) => {
+const EditorCard: FC<Props> = ({ action, decision, dependencies: d = DEPENDENCIES }) => {
   const definition = d.useDeploymentDefinition(action.dseq, { acceptReferences: true });
   const deploymentName = d.useDeploymentName(action.dseq, definition.name);
   const redeploy = d.useRedeploy();

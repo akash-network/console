@@ -58,21 +58,93 @@ describe(TemplatePage.name, () => {
     const { NextSeo } = setup({ template: { ...TEMPLATE, summary: null } });
 
     expect(screen.queryByText("Private ChatGPT-style chat on your own GPU.")).not.toBeInTheDocument();
-    expect(NextSeo).toHaveBeenCalledWith({ title: "Open WebUI + vLLM", description: undefined }, expect.anything());
+    expect(NextSeo).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Open WebUI + vLLM · Template", description: "A template you can deploy on Akash Network from Akash Console." }),
+      expect.anything()
+    );
   });
 
   it("describes the page with the template's summary", () => {
     const { NextSeo } = setup({});
 
-    expect(NextSeo).toHaveBeenCalledWith({ title: "Open WebUI + vLLM", description: "Private ChatGPT-style chat on your own GPU." }, expect.anything());
+    expect(NextSeo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Open WebUI + vLLM · Template",
+        description: "Private ChatGPT-style chat on your own GPU.",
+        openGraph: expect.objectContaining({ title: "Open WebUI + vLLM" })
+      }),
+      expect.anything()
+    );
   });
 
-  it("shows deploys, the still-up share and the last deploy", () => {
+  describe("the page view event", () => {
+    it("names the template and its current version once the template has loaded", () => {
+      const { useTrackTemplateEvent } = setup({ template: { ...TEMPLATE, visibility: "public" } });
+
+      expect(useTrackTemplateEvent).toHaveBeenLastCalledWith("template_page_viewed", { source: "community", templateId: TEMPLATE_ID, templateVersion: 3 });
+    });
+
+    it("names a private template as private and one without a version with none", () => {
+      const { useTrackTemplateEvent } = setup({ template: { ...TEMPLATE, visibility: "private", currentVersion: null } });
+
+      expect(useTrackTemplateEvent).toHaveBeenLastCalledWith("template_page_viewed", { source: "private", templateId: TEMPLATE_ID, templateVersion: null });
+    });
+
+    it("names nothing while the template loads", () => {
+      const { useTrackTemplateEvent } = setup({ isLoading: true });
+
+      expect(useTrackTemplateEvent).toHaveBeenLastCalledWith("template_page_viewed", undefined);
+    });
+
+    it("names nothing for a template that cannot be read", () => {
+      const { useTrackTemplateEvent } = setup({ error: new ApiError(404, { message: "Not found" }, "404") });
+
+      expect(useTrackTemplateEvent).toHaveBeenLastCalledWith("template_page_viewed", undefined);
+    });
+  });
+
+  describe("head tags", () => {
+    const LISTED_TEMPLATE = { ...TEMPLATE, visibility: "public" as const, isListed: true, publishedAt: "2026-10-01T00:00:00.000Z" };
+
+    it("lets a listed template be indexed at its own address, with its preview image", () => {
+      const { NextSeo } = setup({ template: LISTED_TEMPLATE, isSignedIn: false });
+
+      expect(NextSeo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          noindex: false,
+          canonical: "https://console.akash.network/template/tpl-webui",
+          openGraph: expect.objectContaining({
+            url: "https://console.akash.network/template/tpl-webui",
+            images: [expect.objectContaining({ url: "https://console.akash.network/api/og/template/tpl-webui" })]
+          })
+        }),
+        expect.anything()
+      );
+    });
+
+    it("names the same address whatever tab is open", () => {
+      const { NextSeo } = setup({ template: LISTED_TEMPLATE, tab: "configuration" });
+
+      expect(NextSeo).toHaveBeenCalledWith(expect.objectContaining({ canonical: "https://console.akash.network/template/tpl-webui" }), expect.anything());
+    });
+
+    it("keeps a public template the gallery does not list out of search engines", () => {
+      const { NextSeo } = setup({ template: { ...LISTED_TEMPLATE, isListed: false }, isSignedIn: false });
+
+      expect(NextSeo).toHaveBeenCalledWith(expect.objectContaining({ noindex: true }), expect.anything());
+    });
+
+    it("keeps the owner's view, with its Settings tab, out of search engines", () => {
+      const { NextSeo } = setup({ template: { ...LISTED_TEMPLATE, canEdit: true }, tab: "settings" });
+
+      expect(NextSeo).toHaveBeenCalledWith(expect.objectContaining({ noindex: true }), expect.anything());
+    });
+  });
+
+  it("shows deploys, the still-up share and how long before the read the last deploy was", () => {
     setup({
-      template: {
-        ...TEMPLATE,
-        usage: { deploys: 1284, stillUpAfter24h: 0.936, lastDeployedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), forks: 0, favorites: 0 }
-      }
+      readAt: Date.parse("2026-01-10T12:00:00.000Z"),
+      template: { ...TEMPLATE, usage: { deploys: 1284, stillUpAfter24h: 0.936, lastDeployedAt: "2026-01-10T10:00:00.000Z", forks: 0, favorites: 0 } }
     });
 
     expect(screen.getByText("1,284 deploys · 94% still up after 24 h · Last deployed 2 hours ago")).toBeInTheDocument();
@@ -705,10 +777,43 @@ describe(TemplatePage.name, () => {
     expect(screen.getByRole("button", { name: "Favorite" })).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("offers no favorite without a session", () => {
+  it("sends a visitor who favorites to sign in and back to the template, without asking the API", async () => {
+    const { router, addFavorite, removeFavorite } = setup({ isSignedIn: false });
+    expect(screen.getByRole("button", { name: "Favorite" })).toHaveAttribute("aria-pressed", "false");
+
+    await userEvent.click(screen.getByRole("button", { name: "Favorite" }));
+
+    expect(router.push).toHaveBeenCalledWith(UrlService.newLogin({ returnTo: UrlService.template(TEMPLATE_ID) }));
+    expect(addFavorite).not.toHaveBeenCalled();
+    expect(removeFavorite).not.toHaveBeenCalled();
+  });
+
+  it("sends a visitor who deploys to sign in and on to Configure with the template", () => {
     setup({ isSignedIn: false });
 
-    expect(screen.queryByRole("button", { name: "Favorite" })).not.toBeInTheDocument();
+    const deployUrl = UrlService.configureDeployment({ userTemplateId: TEMPLATE_ID, templateVersion: CURRENT_VERSION.version });
+    expect(screen.getByRole("link", { name: "Deploy" })).toHaveAttribute("href", UrlService.newLogin({ returnTo: deployUrl }));
+    expect(UrlService.newLogin({ returnTo: deployUrl })).toContain(encodeURIComponent(deployUrl));
+  });
+
+  describe("when the server already learned the template was removed", () => {
+    it("shows the removed page with the title and asks the API for nothing", () => {
+      const { RemovedTemplateNotice, NextSeo, useMarketplaceTemplate, useTemplateVersions } = setup({
+        removedOnServer: { title: "Open WebUI + vLLM" },
+        isSignedIn: false
+      });
+
+      expect(RemovedTemplateNotice).toHaveBeenCalledWith({ title: "Open WebUI + vLLM", isSignedIn: false }, expect.anything());
+      expect(NextSeo).toHaveBeenCalledWith(expect.objectContaining({ title: "Template removed", noindex: true }), expect.anything());
+      expect(useMarketplaceTemplate).toHaveBeenCalledWith(undefined);
+      expect(useTemplateVersions).toHaveBeenCalledWith(TEMPLATE_ID, { enabled: false });
+    });
+
+    it("shows the removed page without a title when the API no longer gives one", () => {
+      const { RemovedTemplateNotice } = setup({ removedOnServer: { title: null }, isSignedIn: false });
+
+      expect(RemovedTemplateNotice).toHaveBeenCalledWith({ title: undefined, isSignedIn: false }, expect.anything());
+    });
   });
 
   describe("sharing", () => {
@@ -819,7 +924,9 @@ describe(TemplatePage.name, () => {
     organizations?: { type: "personal" | "team"; slug: string }[];
     isFavoriteFailing?: boolean;
     isFavoriteChangeHeld?: boolean;
+    readAt?: number;
     arrivalSource?: string;
+    removedOnServer?: { title: string | null };
     TemplateReadmeTab?: typeof DEPENDENCIES.TemplateReadmeTab;
   }) {
     const refetch = vi.fn();
@@ -835,11 +942,19 @@ describe(TemplatePage.name, () => {
     const addFavorite = vi.fn<FavoriteMutation["mutateAsync"]>(changeFavorite);
     const removeFavorite = vi.fn<FavoriteMutation["mutateAsync"]>(changeFavorite);
 
-    let templateQuery: TemplateQuery = input.isLoading
-      ? mock<TemplateQuery>({ data: undefined, isLoading: true, isError: false, error: null, refetch })
-      : input.error
-        ? mock<TemplateQuery>({ data: undefined, isLoading: false, isError: true, error: input.error, refetch })
-        : mock<TemplateQuery>({ data: structuredClone(input.template ?? TEMPLATE), isLoading: false, isError: false, error: null, refetch });
+    let templateQuery: TemplateQuery =
+      input.isLoading || input.removedOnServer
+        ? mock<TemplateQuery>({ data: undefined, isLoading: true, isError: false, error: null, refetch })
+        : input.error
+          ? mock<TemplateQuery>({ data: undefined, isLoading: false, isError: true, error: input.error, refetch })
+          : mock<TemplateQuery>({
+              data: structuredClone(input.template ?? TEMPLATE),
+              dataUpdatedAt: input.readAt ?? Date.now(),
+              isLoading: false,
+              isError: false,
+              error: null,
+              refetch
+            });
     let versionsQuery = input.isLoadingVersions
       ? mock<VersionsQuery>({ data: undefined, isError: false })
       : input.isFailingVersions
@@ -905,6 +1020,7 @@ describe(TemplatePage.name, () => {
     const TemplateReviewNotice = vi.fn<typeof DEPENDENCIES.TemplateReviewNotice>(() => null);
     const TemplatePublisherCard = vi.fn<typeof DEPENDENCIES.TemplatePublisherCard>(() => null);
 
+    const useTrackTemplateEvent = vi.fn<typeof DEPENDENCIES.useTrackTemplateEvent>();
     const dependencies = MockComponents(DEPENDENCIES, {
       Layout,
       NotFoundPage,
@@ -927,18 +1043,26 @@ describe(TemplatePage.name, () => {
       useRemoveFavoriteTemplate: () => removeFavoriteMutation,
       useCustomUser: () => customUser,
       useSnackbar: () => snackbar,
-      useRouter: () => router
+      useRouter: () => router,
+      useTrackTemplateEvent
     });
 
     const renderPage = () => (
       <TestContainerProvider services={{ analyticsService: () => analyticsService }}>
-        <TemplatePage id={TEMPLATE_ID} dependencies={dependencies} />
+        <TemplatePage id={TEMPLATE_ID} removedTemplate={input.removedOnServer} dependencies={dependencies} />
       </TestContainerProvider>
     );
     const { unmount, rerender } = render(renderPage());
 
     const receiveFromServer = (next: { template: MarketplaceTemplate; versions?: TemplateVersionSummary[] }) => {
-      templateQuery = mock<TemplateQuery>({ data: structuredClone(next.template), isLoading: false, isError: false, error: null, refetch });
+      templateQuery = mock<TemplateQuery>({
+        data: structuredClone(next.template),
+        dataUpdatedAt: Date.now(),
+        isLoading: false,
+        isError: false,
+        error: null,
+        refetch
+      });
       versionsQuery = mock<VersionsQuery>({ data: structuredClone(next.versions ?? VERSIONS), isError: false });
       rerender(renderPage());
     };
@@ -968,7 +1092,8 @@ describe(TemplatePage.name, () => {
       TemplateVersionsTab,
       TemplateSettingsTab,
       TemplateIcon,
-      NextSeo
+      NextSeo,
+      useTrackTemplateEvent
     };
   }
 });

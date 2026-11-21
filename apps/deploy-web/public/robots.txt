@@ -1,5 +1,7 @@
 # https://www.robotstxt.org/robotstxt.html
 User-agent: *
+# Link preview images of public templates and publishers, which crawlers must be able to fetch despite the /api/ rule below
+Allow: /api/og/
 Disallow: /maintenance
 
 # Prevent google from crawling urls found in the NextJS json (https://github.com/vercel/next.js/discussions/37833)

@@ -2,7 +2,6 @@
 import type { ChangeEvent, FC } from "react";
 import { useCallback, useMemo, useState } from "react";
 import { Button, buttonVariants, Input, Spinner } from "@akashnetwork/ui/components";
-import { format } from "date-fns";
 import { ArrowLeft, CalendarDays, Pencil, RefreshCw, Search, User, Users, X } from "lucide-react";
 import Link from "next/link";
 import { NextSeo } from "next-seo";
@@ -13,6 +12,8 @@ import { buildGalleryEntries, filterGalleryEntries, sortGalleryEntries } from "@
 import { GalleryEntryList } from "@src/components/templates/communityGallery/GalleryEntryList/GalleryEntryList";
 import { PublisherInitials, VerifiedPublisherMark } from "@src/components/templates/communityGallery/PublisherName/PublisherName";
 import { formatCount, pluralize } from "@src/components/templates/communityGallery/usageNumbers";
+import { formatCalendarMonth } from "@src/components/templates/marketplaceDates/marketplaceDates";
+import { buildPublisherSeo } from "@src/components/templates/marketplaceSeo/marketplaceSeo";
 import { EditPublisherProfileDialog } from "@src/components/templates/publisher/EditPublisherProfileDialog/EditPublisherProfileDialog";
 import { PublisherLinkList } from "@src/components/templates/publisher/PublisherLinkList/PublisherLinkList";
 import type { GalleryUrlState } from "@src/components/templates/useTemplateGalleryUrlState/useTemplateGalleryUrlState";
@@ -103,7 +104,7 @@ export const PublisherPage: FC<PublisherPageProps> = ({ handle, dependencies: d 
 
   return (
     <d.Layout background="dots" disableContainer>
-      <d.NextSeo title={`${publisher.name} · Templates`} />
+      <d.NextSeo {...buildPublisherSeo(publisher, { isOwnProfile: !!ownProfile })} />
 
       <div className="container flex flex-col gap-6 px-4 pb-16 pt-6 sm:px-6">
         <Link
@@ -132,7 +133,7 @@ export const PublisherPage: FC<PublisherPageProps> = ({ handle, dependencies: d 
                 <d.PublisherLinkList links={profile.links} />
                 <p className="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground">
                   <CalendarDays className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                  Member since {format(new Date(publisher.memberSince), "MMM yyyy")}
+                  Member since {formatCalendarMonth(publisher.memberSince)}
                 </p>
               </div>
             </div>
