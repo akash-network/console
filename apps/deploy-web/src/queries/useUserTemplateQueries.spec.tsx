@@ -16,15 +16,18 @@ import {
   useCommunityTemplates,
   useCreateTemplateMutation,
   useCreateTemplateVersionMutation,
+  useCurrentTemplatePublisher,
   useDeleteMarketplaceTemplateMutation,
   useMarketplaceTemplate,
   useMyTemplates,
   useOrganizationTemplates,
   usePublishTemplateMutation,
   useReportTemplateMutation,
+  useTemplatePublisher,
   useTemplatePublishReadiness,
   useTemplateVersion,
   useTemplateVersions,
+  useUpdateTemplatePublisherMutation,
   useUpdateTemplateSettingsMutation
 } from "./useUserTemplateQueries";
 
@@ -36,6 +39,8 @@ type ApiService = ReturnType<NonNullable<NonNullable<RenderAppHookOptions["servi
 const LIST_KEY = ["v1", "listUserTemplates"];
 const TEMPLATE_KEY = ["v1", "getUserTemplate", { id: "tpl-1" }];
 const VERSIONS_KEY = ["v1", "listUserTemplateVersions", { id: "tpl-1" }];
+const PUBLISHER_KEY = ["v1", "getTemplatePublisher", { handle: "lambda-garage" }];
+const OWN_PUBLISHER_KEY = ["v1", "getCurrentTemplatePublisher"];
 const READINESS_KEY = ["v1", "getUserTemplatePublishReadiness", { id: "tpl-1" }];
 const READINESS = {
   termsVersion: "2026-11",
@@ -203,6 +208,105 @@ describe("useUserTemplateQueries", () => {
       const query = queryClient.getQueryCache().find({ queryKey: ["v1", "listCommunityTemplates"] });
       expect(shouldReportError(new ApiError(404, null, "404"), query?.meta)).toBe(false);
       expect(shouldReportError(new ApiError(500, null, "500"), query?.meta)).toBe(true);
+    });
+  });
+
+  describe(useTemplatePublisher.name, () => {
+    it("unwraps the publisher page and asks once while the answer is fresh", async () => {
+      const { result, getTemplatePublisher, queryClient } = setup({ useHook: () => useTemplatePublisher("lambda-garage") });
+
+      await waitFor(() => expect(result.current.data).toEqual(PUBLISHER_PAGE));
+      expect(getTemplatePublisher).toHaveBeenCalledExactlyOnceWith({ handle: "lambda-garage" });
+      expect(queryClient.getQueryCache().find({ queryKey: PUBLISHER_KEY })?.isStale()).toBe(false);
+    });
+
+    it("does not report an unknown or suspended publisher, and reports a server error", async () => {
+      const { result, queryClient } = setup({ useHook: () => useTemplatePublisher("lambda-garage") });
+      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+      const query = queryClient.getQueryCache().find({ queryKey: PUBLISHER_KEY });
+      expect(shouldReportError(new ApiError(404, null, "404"), query?.meta)).toBe(false);
+      expect(shouldReportError(new ApiError(500, null, "500"), query?.meta)).toBe(true);
+    });
+  });
+
+  describe(useCurrentTemplatePublisher.name, () => {
+    it("unwraps the active organization's publisher profile", async () => {
+      const { result, getCurrentTemplatePublisher } = setup({ useHook: () => useCurrentTemplatePublisher({ enabled: true }) });
+
+      await waitFor(() => expect(result.current.data).toEqual(OWN_PUBLISHER));
+      expect(getCurrentTemplatePublisher).toHaveBeenCalledExactlyOnceWith(undefined);
+    });
+
+    it("asks again for the organization switched to", async () => {
+      const { result, getCurrentTemplatePublisher, switchOrganization, queryClient } = setup({
+        useHook: () => useCurrentTemplatePublisher({ enabled: true })
+      });
+      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+      switchOrganization("org-2");
+
+      await waitFor(() => expect(getCurrentTemplatePublisher).toHaveBeenCalledTimes(2));
+      expect(queryClient.getQueryCache().find({ queryKey: [...OWN_PUBLISHER_KEY, "org-2"] })).toBeDefined();
+    });
+
+    it("does not load when the caller turns it off", () => {
+      const { result, getCurrentTemplatePublisher } = setup({ useHook: () => useCurrentTemplatePublisher({ enabled: false }) });
+
+      expect(result.current.fetchStatus).toBe("idle");
+      expect(getCurrentTemplatePublisher).not.toHaveBeenCalled();
+    });
+
+    it("does not load without an active organization", () => {
+      const { result, getCurrentTemplatePublisher } = setup({ useHook: () => useCurrentTemplatePublisher({ enabled: true }), hasOrganizations: false });
+
+      expect(result.current.fetchStatus).toBe("idle");
+      expect(getCurrentTemplatePublisher).not.toHaveBeenCalled();
+    });
+
+    it("does not report an organization that has not published yet, and reports a server error", async () => {
+      const { result, queryClient } = setup({ useHook: () => useCurrentTemplatePublisher({ enabled: true }) });
+      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+      const query = queryClient.getQueryCache().find({ queryKey: [...OWN_PUBLISHER_KEY, "org-1"] });
+      expect(shouldReportError(new ApiError(404, null, "404"), query?.meta)).toBe(false);
+      expect(shouldReportError(new ApiError(500, null, "500"), query?.meta)).toBe(true);
+    });
+  });
+
+  describe(useUpdateTemplatePublisherMutation.name, () => {
+    it("keeps the saved profile as the organization's own and refreshes its public page", async () => {
+      const saved = { ...OWN_PUBLISHER, bio: "A new bio." };
+      const { result, updateCurrentTemplatePublisher, getTemplatePublisher, getCurrentTemplatePublisher } = setup({
+        useHook: () => ({
+          page: useTemplatePublisher("lambda-garage"),
+          otherPage: useTemplatePublisher("northwind-labs"),
+          own: useCurrentTemplatePublisher({ enabled: true }),
+          update: useUpdateTemplatePublisherMutation()
+        })
+      });
+      await waitFor(() => expect(result.current.own.isSuccess && result.current.page.isSuccess && result.current.otherPage.isSuccess).toBe(true));
+      updateCurrentTemplatePublisher.mockResolvedValueOnce({ data: saved });
+
+      await act(() => result.current.update.mutateAsync({ data: { bio: "A new bio.", links: [] } }));
+
+      expect(updateCurrentTemplatePublisher).toHaveBeenCalledExactlyOnceWith({ data: { bio: "A new bio.", links: [] } });
+      await waitFor(() => expect(result.current.own.data).toEqual(saved));
+      expect(getCurrentTemplatePublisher).toHaveBeenCalledOnce();
+      await waitFor(() =>
+        expect(getTemplatePublisher.mock.calls).toEqual([[{ handle: "lambda-garage" }], [{ handle: "northwind-labs" }], [{ handle: "lambda-garage" }]])
+      );
+    });
+
+    it("does not report a refusal, such as a member who may not edit, and reports a server error", async () => {
+      const { result, queryClient } = setup({ useHook: () => useUpdateTemplatePublisherMutation() });
+
+      await act(() => result.current.mutateAsync({ data: { bio: null } }));
+
+      const meta = queryClient.getMutationCache().getAll()[0].options.meta;
+      expect(shouldReportError(new ApiError(403, null, "403"), meta)).toBe(false);
+      expect(shouldReportError(new ApiError(400, null, "400"), meta)).toBe(false);
+      expect(shouldReportError(new ApiError(500, null, "500"), meta)).toBe(true);
     });
   });
 
@@ -452,6 +556,9 @@ describe("useUserTemplateQueries", () => {
       ? vi.fn().mockRejectedValue(input.readinessError)
       : vi.fn().mockResolvedValue({ data: READINESS });
     const publishUserTemplate = vi.fn().mockResolvedValue({ data: TEMPLATE });
+    const getTemplatePublisher = vi.fn().mockResolvedValue({ data: PUBLISHER_PAGE });
+    const getCurrentTemplatePublisher = vi.fn().mockResolvedValue({ data: OWN_PUBLISHER });
+    const updateCurrentTemplatePublisher = vi.fn().mockResolvedValue({ data: OWN_PUBLISHER });
     const createUserTemplateReport = vi.fn().mockResolvedValue({ data: { id: "report-1", reason: "spam", createdAt: "2026-11-19T10:00:00.000Z" } });
     const api = createProxy({
       v1: {
@@ -466,7 +573,10 @@ describe("useUserTemplateQueries", () => {
         deleteUserTemplate,
         getUserTemplatePublishReadiness,
         publishUserTemplate,
-        createUserTemplateReport
+        createUserTemplateReport,
+        getTemplatePublisher,
+        getCurrentTemplatePublisher,
+        updateCurrentTemplatePublisher
       }
     }) as unknown as ApiService;
 
@@ -522,7 +632,10 @@ describe("useUserTemplateQueries", () => {
       deleteUserTemplate,
       getUserTemplatePublishReadiness,
       publishUserTemplate,
-      createUserTemplateReport
+      createUserTemplateReport,
+      getTemplatePublisher,
+      getCurrentTemplatePublisher,
+      updateCurrentTemplatePublisher
     };
   }
 });
@@ -545,4 +658,6 @@ const TEMPLATE = { id: "tpl-1", title: "Llama server", usage: { ...USAGE, stillU
 const VERSION = { version: 2, deploys: 1 };
 
 const COMMUNITY_GALLERY = { templates: [{ id: "tpl-1", title: "Llama server" }], officialUsage: { llama: { deploys: 3, stillUpAfter24h: null, forks: 0 } } };
+const OWN_PUBLISHER = { name: "Lambda Garage", handle: "lambda-garage", bio: null, links: [], canEdit: true };
+const PUBLISHER_PAGE = { name: "Lambda Garage", handle: "lambda-garage", bio: null, links: [], templates: [] };
 const LIST_ITEM = { id: "tpl-1", title: "Llama server", usage: USAGE };

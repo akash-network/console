@@ -17,8 +17,8 @@ export async function loadTemplateRouteProps(id: string, context: AppTypedContex
   return { props: { id, template: response.data } };
 }
 
-/** A shared template link must keep working on the legacy page while the flag service is down. */
-async function isMarketplaceEnabled(context: AppTypedContext) {
+/** A shared template or profile link must keep working on the legacy page while the flag service is down. */
+export async function isMarketplaceEnabled(context: AppTypedContext) {
   try {
     return await isFeatureEnabled("template_marketplace", context);
   } catch (error) {

@@ -27,7 +27,7 @@ import {
 import { usePopup } from "@akashnetwork/ui/context";
 import { cn, copyTextToClipboard } from "@akashnetwork/ui/utils";
 import { format } from "date-fns";
-import { ChevronRight, Copy, Ellipsis, ExternalLink, Folder, Link2, Pencil, Plus, RefreshCw, Search, Share2, Trash2 } from "lucide-react";
+import { ChevronRight, Copy, Ellipsis, ExternalLink, Folder, Link2, Pencil, Plus, RefreshCw, Search, Share2, Store, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { NextSeo } from "next-seo";
 import { useSnackbar } from "notistack";
@@ -43,7 +43,7 @@ import { SUPPORT_EMAIL } from "@src/config/ui.config";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useProjectsQuery } from "@src/queries/useProjectsQuery";
-import { useDeleteMarketplaceTemplateMutation, useMyTemplates } from "@src/queries/useUserTemplateQueries";
+import { useCurrentTemplatePublisher, useDeleteMarketplaceTemplateMutation, useMyTemplates } from "@src/queries/useUserTemplateQueries";
 import type { TemplateVisibility, UserTemplateListItem } from "@src/types/marketplace-template";
 import type { Project } from "@src/types/project";
 import { getBaseUrl, UrlService } from "@src/utils/urlUtils";
@@ -56,6 +56,7 @@ export const DEPENDENCIES = {
   ImportSdlButton,
   ShareTemplateDialog,
   useMyTemplates,
+  useCurrentTemplatePublisher,
   useDeleteMarketplaceTemplateMutation,
   useActiveOrganization,
   useProjectsQuery,
@@ -94,6 +95,7 @@ const FILTER_TRIGGER_CLASSES = "w-full gap-1 sm:w-[180px]";
 
 export function MyTemplates({ dependencies: d = DEPENDENCIES }: Props) {
   const templatesQuery = d.useMyTemplates();
+  const publisherHandle = d.useCurrentTemplatePublisher({ enabled: true }).data?.handle;
   const { activeOrganization, projectsEnabled } = d.useActiveOrganization();
   const { data: projects } = d.useProjectsQuery({ enabled: projectsEnabled });
   const { mutateAsync: deleteTemplate } = d.useDeleteMarketplaceTemplateMutation();
@@ -167,7 +169,13 @@ export function MyTemplates({ dependencies: d = DEPENDENCIES }: Props) {
               <h1 className="text-xl font-bold leading-7 tracking-[-0.02em]">My templates</h1>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {publisherHandle && (
+                <Link href={UrlService.templatePublisher(publisherHandle)} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}>
+                  <Store className="h-4 w-4" aria-hidden="true" />
+                  Publisher page
+                </Link>
+              )}
               <d.ImportSdlButton configureUrl={draftId => UrlService.configureTemplate({ mode: "new", draftId })} />
               <Link href={UrlService.configureTemplate({ mode: "new" })} className={cn(buttonVariants({ size: "sm" }), "gap-1.5")}>
                 <Plus className="h-4 w-4" aria-hidden="true" />

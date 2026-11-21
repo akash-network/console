@@ -2,10 +2,15 @@ import { ReadonlyURLSearchParams } from "next/navigation";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { DEPENDENCIES } from "./useTemplateGalleryUrlState";
+import type { DEPENDENCIES, GalleryUrlState } from "./useTemplateGalleryUrlState";
 import { useTemplateGalleryUrlState } from "./useTemplateGalleryUrlState";
 
 import { act, renderHook } from "@testing-library/react";
+
+const linkBuilders = {
+  first: (state: GalleryUrlState) => `/template-publishers/first?sort=${state.sort}`,
+  second: (state: GalleryUrlState) => `/template-publishers/second?sort=${state.sort}`
+};
 
 describe(useTemplateGalleryUrlState.name, () => {
   it("starts from the category and search in the link", () => {
@@ -321,12 +326,37 @@ describe(useTemplateGalleryUrlState.name, () => {
     expect(result.current.sort).toBe("trending");
   });
 
-  function setup(input: { url: { category?: string; search?: string; source?: string; sort?: string } | null }) {
+  it("writes the link another page asks for instead of the gallery's", async () => {
+    const toUrl = vi.fn((state: GalleryUrlState) => `/template-publishers/lambda-garage?sort=${state.sort}&search=${state.search}`);
+    const { result, router } = setup({ url: { sort: "trending" }, toUrl });
+
+    act(() => result.current.selectSort("newest"));
+    expect(router.replace).toHaveBeenLastCalledWith("/template-publishers/lambda-garage?sort=newest&search=");
+    expect(toUrl).toHaveBeenLastCalledWith({ category: null, search: "", source: "all", sort: "newest" });
+
+    act(() => result.current.changeSearch("webui"));
+    await vi.waitFor(() => expect(router.replace).toHaveBeenLastCalledWith("/template-publishers/lambda-garage?sort=newest&search=webui"));
+  });
+
+  it("writes with the link builder of the latest render", () => {
+    const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>();
+    const dependencies = { useRouter: () => router, useSearchParams: () => null };
+    const { result, rerender } = renderHook(({ handle }) => useTemplateGalleryUrlState(dependencies, linkBuilders[handle]), {
+      initialProps: { handle: "first" as "first" | "second" }
+    });
+
+    rerender({ handle: "second" });
+    act(() => result.current.selectSort("newest"));
+
+    expect(router.replace).toHaveBeenLastCalledWith("/template-publishers/second?sort=newest");
+  });
+
+  function setup(input: { url: { category?: string; search?: string; source?: string; sort?: string } | null; toUrl?: (state: GalleryUrlState) => string }) {
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>();
     let searchParams = toSearchParams(input.url);
     const dependencies = { useRouter: () => router, useSearchParams: () => searchParams };
 
-    const { result, rerender, unmount } = renderHook(() => useTemplateGalleryUrlState(dependencies));
+    const { result, rerender, unmount } = renderHook(() => useTemplateGalleryUrlState(dependencies, input.toUrl));
 
     const rerenderWithUrl = (url: { category?: string; search?: string; source?: string; sort?: string }) => {
       searchParams = toSearchParams(url);

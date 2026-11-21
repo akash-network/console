@@ -71,9 +71,17 @@ describe(TemplatePublisherCard.name, () => {
     expect(container.querySelector("dl")).toBeNull();
   });
 
-  it("links to no publisher page, which does not exist yet", () => {
-    setup({ publisher: { handle: "lambda-garage" } });
+  it("links the name and View publisher to the publisher page", () => {
+    setup({ publisher: { name: "Lambda Garage", handle: "lambda-garage" } });
 
+    expect(screen.getByRole("link", { name: "Lambda Garage" })).toHaveAttribute("href", "/template-publishers/lambda-garage");
+    expect(screen.getByRole("link", { name: "View publisher" })).toHaveAttribute("href", "/template-publishers/lambda-garage");
+  });
+
+  it("links nowhere while the organization has no publisher page", () => {
+    setup({ publisher: { name: "Lambda Garage", handle: null } });
+
+    expect(screen.getByText("Lambda Garage")).toBeInTheDocument();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 
