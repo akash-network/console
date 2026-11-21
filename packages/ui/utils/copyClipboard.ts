@@ -1,4 +1,13 @@
+const MODAL_SELECTOR = '[role="dialog"], [role="alertdialog"]';
+
+/** A modal keeps focus inside itself, so a scratch field outside it never gets the focus and the copy command takes whatever the modal has selected. */
+function findScratchFieldHost(): HTMLElement {
+  return document.activeElement?.closest<HTMLElement>(MODAL_SELECTOR) ?? document.body;
+}
+
 function fallbackCopyTextToClipboard(text: string): boolean {
+  const previouslyFocused = document.activeElement;
+  const host = findScratchFieldHost();
   const textArea = document.createElement("textarea");
   textArea.value = text;
 
@@ -7,16 +16,17 @@ function fallbackCopyTextToClipboard(text: string): boolean {
   textArea.style.left = "0";
   textArea.style.position = "fixed";
 
-  document.body.appendChild(textArea);
+  host.appendChild(textArea);
   textArea.focus();
   textArea.select();
 
   try {
-    return document.execCommand("copy");
+    return document.activeElement === textArea && document.execCommand("copy");
   } catch {
     return false;
   } finally {
-    document.body.removeChild(textArea);
+    host.removeChild(textArea);
+    if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus();
   }
 }
 

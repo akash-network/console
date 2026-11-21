@@ -110,6 +110,14 @@ const nextConfig = {
 
     return config;
   },
+  /** READMEs outside Console embed this badge, and its file name carries no hash, so it is cached long but never `immutable`. */
+  headers: async () => [
+    {
+      source: "/images/deploy-with-akash-btn.svg",
+      locale: false,
+      headers: [{ key: "Cache-Control", value: "public, max-age=604800, stale-while-revalidate=2592000" }]
+    }
+  ],
   redirects: async () => {
     return [
       {

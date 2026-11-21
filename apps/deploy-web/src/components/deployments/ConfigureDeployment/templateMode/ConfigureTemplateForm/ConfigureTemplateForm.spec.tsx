@@ -7,7 +7,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { DeployTarget } from "@src/hooks/useDeployTarget/useDeployTarget";
 import type { SdlBuilderFormValuesType } from "@src/types";
-import type { MarketplaceTemplate, TemplateAskedValue } from "@src/types/marketplace-template";
+import type { MarketplaceTemplate, TemplateAskedValue, TemplateVersionDetail } from "@src/types/marketplace-template";
 import { importDeploymentState } from "../../importDeploymentState/importDeploymentState";
 import type { DeploymentIntent } from "../../useDeploymentFlow/deploymentIntent";
 import { useTemplateMode } from "../TemplateModeProvider/TemplateModeProvider";
@@ -117,6 +117,21 @@ const MODEL_ASKED: TemplateAskedValue = {
   help: "Which model LiteLLM serves.",
   bindings: [{ service: "web", env: "MODEL" }]
 };
+
+const FAILED_VERSION: Partial<TemplateVersionDetail> = {
+  status: "failed_checks",
+  checkResults: {
+    ranAt: "2026-11-18T18:00:00.000Z",
+    checks: [
+      { key: "sdl_valid", status: "passed", issues: [] },
+      { key: "fixed_tags", status: "failed", issues: [{ message: "webui uses open-webui:latest. Pick a version tag." }] }
+    ]
+  }
+};
+
+const RATE_LIMIT_MESSAGE = "You reached the limit of 60 saved versions per hour. Try again in 12 minutes.";
+
+const RATE_LIMIT_REFUSAL = new ApiError(429, { code: "template_rate_limited", message: RATE_LIMIT_MESSAGE }, "POST → 429");
 
 const NEW_INTENT: DeploymentIntent = { templateMode: "new", draftId: "draft-1", sdlStrategy: "edit", bidStrategy: "select", vm: false, exampleImage: false };
 
@@ -383,6 +398,73 @@ describe(ConfigureTemplateForm.name, () => {
     render(enqueueSnackbar.mock.calls[0][0] as ReactElement);
     expect(screen.getByText("Couldn't save the template")).toBeInTheDocument();
     expect(screen.getByText('Env "API_KEY" in service "web" holds a secret value')).toBeInTheDocument();
+  });
+
+  it("tells the editor a version that failed the publish checks is saved but not live, and stays on the page", async () => {
+    const { router, draft, allowLeaving } = setup({ template: { version: 4 }, savedVersion: FAILED_VERSION });
+
+    await saveAChangedVersion();
+
+    const dialog = within(screen.getByRole("dialog", { name: "v5 is saved, but it isn't live" }));
+    expect(dialog.getByText(/so people keep deploying v4\./)).toBeInTheDocument();
+    expect(dialog.getByText("webui uses open-webui:latest. Pick a version tag.")).toBeInTheDocument();
+    expect(router.push).not.toHaveBeenCalled();
+    expect(draft.clear).not.toHaveBeenCalled();
+    expect(allowLeaving).not.toHaveBeenCalled();
+  });
+
+  it("lets the editor fix a failed version and save again from the same base version", async () => {
+    const { createVersion } = setup({ template: { version: 4 }, savedVersion: FAILED_VERSION });
+
+    await saveAChangedVersion();
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await act(() => fireEvent.click(screen.getByRole("button", { name: "Save new version" })));
+
+    expect(createVersion).toHaveBeenCalledTimes(2);
+    expect(createVersion).toHaveBeenLastCalledWith({ id: "tpl-9", data: expect.objectContaining({ baseVersion: 4 }) });
+    expect(screen.getByRole("dialog", { name: "v5 is saved, but it isn't live" })).toBeInTheDocument();
+  });
+
+  it("opens the versions of the template from a failed version", async () => {
+    const { router, draft, allowLeaving } = setup({ template: { version: 4 }, savedVersion: FAILED_VERSION });
+
+    await saveAChangedVersion();
+    fireEvent.click(screen.getByRole("button", { name: "View versions" }));
+
+    expect(router.push).toHaveBeenCalledWith("/template/tpl-9?tab=versions");
+    expect(draft.clear).toHaveBeenCalled();
+    expect(allowLeaving).toHaveBeenCalled();
+  });
+
+  it("shows no failed checks before anything was saved", () => {
+    setup({ template: { version: 4 }, savedVersion: FAILED_VERSION });
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("shows the server's wording when a new version runs into a rate limit", async () => {
+    const { enqueueSnackbar, router } = setup({ template: { version: 4 }, saveError: RATE_LIMIT_REFUSAL });
+
+    await saveAChangedVersion();
+
+    expect(router.push).not.toHaveBeenCalled();
+    render(enqueueSnackbar.mock.calls[0][0] as ReactElement);
+    expect(screen.getByText("Couldn't save the template")).toBeInTheDocument();
+    expect(screen.getByText(RATE_LIMIT_MESSAGE)).toBeInTheDocument();
+  });
+
+  it("shows the server's wording when a new template runs into a rate limit", async () => {
+    const { enqueueSnackbar, router } = setup({ intent: NEW_INTENT, saveError: RATE_LIMIT_REFUSAL });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save template" }));
+    const dialog = within(screen.getByRole("dialog", { name: "Save template" }));
+    fireEvent.change(dialog.getByRole("textbox", { name: "Title" }), { target: { value: "Support chat" } });
+    await act(() => fireEvent.click(dialog.getByRole("button", { name: "Save template" })));
+
+    expect(router.push).not.toHaveBeenCalled();
+    render(enqueueSnackbar.mock.calls[0][0] as ReactElement);
+    expect(screen.getByText(RATE_LIMIT_MESSAGE)).toBeInTheDocument();
   });
 
   it("asks to try again when the save fails for another reason", async () => {
@@ -774,6 +856,7 @@ describe(ConfigureTemplateForm.name, () => {
     suggestedSummary?: string;
     template?: { version: number | null; askedValues?: TemplateAskedValue[] };
     saveError?: unknown;
+    savedVersion?: Partial<TemplateVersionDetail>;
     hasNoInitialSdl?: boolean;
     restoredDraft?: { sdl: string; startingSdl: string };
     hasNoProject?: boolean;
@@ -810,7 +893,7 @@ describe(ConfigureTemplateForm.name, () => {
     });
     const createVersion = vi.fn(async (_input: { id: string; data: Record<string, any> }) => {
       if (input.saveError) throw input.saveError;
-      return { data: buildMarketplaceTemplate({ id: "tpl-9" }) };
+      return { data: buildTemplateVersion({ templateId: "tpl-9", version: (input.template?.version ?? 0) + 1, ...input.savedVersion }) };
     });
     const createTemplateMutation = mock<ReturnType<typeof DEPENDENCIES.useCreateTemplateMutation>>({
       mutateAsync: createTemplate as never,
@@ -851,6 +934,7 @@ describe(ConfigureTemplateForm.name, () => {
       Layout: (({ children }: { children: ReactNode }) => <>{children}</>) as typeof DEPENDENCIES.Layout,
       ConfigureTemplateHeader: DEPENDENCIES.ConfigureTemplateHeader,
       SaveTemplateDialog: DEPENDENCIES.SaveTemplateDialog,
+      FailedChecksDialog: DEPENDENCIES.FailedChecksDialog,
       Snackbar: DEPENDENCIES.Snackbar,
       ConfigureEditor,
       SdlImportExport,

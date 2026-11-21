@@ -17,6 +17,8 @@ import {
   useMarketplaceTemplate,
   useMyTemplates,
   useOrganizationTemplates,
+  usePublishTemplateMutation,
+  useTemplatePublishReadiness,
   useTemplateVersion,
   useTemplateVersions,
   useUpdateTemplateSettingsMutation
@@ -30,6 +32,14 @@ type ApiService = ReturnType<NonNullable<NonNullable<RenderAppHookOptions["servi
 const LIST_KEY = ["v1", "listUserTemplates"];
 const TEMPLATE_KEY = ["v1", "getUserTemplate", { id: "tpl-1" }];
 const VERSIONS_KEY = ["v1", "listUserTemplateVersions", { id: "tpl-1" }];
+const READINESS_KEY = ["v1", "getUserTemplatePublishReadiness", { id: "tpl-1" }];
+const READINESS = {
+  termsVersion: "2026-11",
+  requirements: [{ key: "email_verified", met: true }],
+  checks: [{ key: "sdl_valid", status: "passed", issues: [] }],
+  ranAt: "2026-11-18T18:00:00.000Z",
+  canPublish: true
+};
 
 describe("useUserTemplateQueries", () => {
   describe(useMarketplaceTemplate.name, () => {
@@ -45,6 +55,81 @@ describe("useUserTemplateQueries", () => {
 
       expect(result.current.fetchStatus).toBe("idle");
       expect(getUserTemplate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe(useTemplatePublishReadiness.name, () => {
+    it("unwraps the readiness of the template", async () => {
+      const { result, getUserTemplatePublishReadiness } = setup({ useHook: () => useTemplatePublishReadiness("tpl-1", { enabled: true }) });
+
+      await waitFor(() => expect(result.current.data).toEqual(READINESS));
+      expect(getUserTemplatePublishReadiness).toHaveBeenCalledWith({ id: "tpl-1" });
+    });
+
+    it("runs no checks until they are asked for", () => {
+      const { result, getUserTemplatePublishReadiness } = setup({ useHook: () => useTemplatePublishReadiness("tpl-1", { enabled: false }) });
+
+      expect(result.current.fetchStatus).toBe("idle");
+      expect(getUserTemplatePublishReadiness).not.toHaveBeenCalled();
+    });
+
+    it("never reuses a result, so every opening shows a fresh run", async () => {
+      const { result, queryClient } = setup({ useHook: () => useTemplatePublishReadiness("tpl-1", { enabled: true }) });
+
+      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+      const [query] = queryClient.getQueryCache().findAll({ queryKey: READINESS_KEY });
+
+      expect(result.current.isStale).toBe(true);
+      expect(query.options).toEqual(expect.objectContaining({ gcTime: 0, retry: false, refetchOnWindowFocus: false }));
+    });
+
+    it("leaves a refusal to the dialog, without a retry", async () => {
+      const { result, queryClient, getUserTemplatePublishReadiness } = setup({
+        useHook: () => useTemplatePublishReadiness("tpl-1", { enabled: true }),
+        readinessError: new Error("refused")
+      });
+
+      await waitFor(() => expect(result.current.isError).toBe(true));
+
+      expect(getUserTemplatePublishReadiness).toHaveBeenCalledTimes(1);
+      const [query] = queryClient.getQueryCache().findAll({ queryKey: READINESS_KEY });
+      expect(query.meta?.skipErrorReporting).toEqual(expect.any(Function));
+    });
+  });
+
+  describe(usePublishTemplateMutation.name, () => {
+    it("writes the published template into its own query and refreshes its versions and the lists", async () => {
+      const { result, publishUserTemplate, queryClient } = setup({ useHook: () => usePublishTemplateMutation() });
+      const published = { ...TEMPLATE, visibility: "public", isListed: true };
+      publishUserTemplate.mockResolvedValue({ data: published });
+      queryClient.setQueryData(TEMPLATE_KEY, { data: TEMPLATE });
+      queryClient.setQueryData(VERSIONS_KEY, { data: [VERSION] });
+      queryClient.setQueryData(LIST_KEY, { data: [LIST_ITEM] });
+      queryClient.setQueryData(["v1", "listUserTemplateVersions", { id: "tpl-2" }], { data: [VERSION] });
+
+      await act(() => result.current.mutateAsync({ id: "tpl-1", data: { acceptedTermsVersion: "2026-11" } }));
+
+      expect(publishUserTemplate).toHaveBeenCalledWith({ id: "tpl-1", data: { acceptedTermsVersion: "2026-11" } });
+      expect(queryClient.getQueryData(TEMPLATE_KEY)).toEqual({ data: published });
+      expect(queryClient.getQueryState(VERSIONS_KEY)?.isInvalidated).toBe(true);
+      expect(queryClient.getQueryState(LIST_KEY)?.isInvalidated).toBe(true);
+      expect(queryClient.getQueryState(["v1", "listUserTemplateVersions", { id: "tpl-2" }])?.isInvalidated).toBe(false);
+    });
+
+    it("leaves a refusal to the dialog and changes nothing", async () => {
+      const { result, publishUserTemplate, queryClient } = setup({ useHook: () => usePublishTemplateMutation() });
+      publishUserTemplate.mockRejectedValue(new Error("refused"));
+      queryClient.setQueryData(TEMPLATE_KEY, { data: TEMPLATE });
+      queryClient.setQueryData(LIST_KEY, { data: [LIST_ITEM] });
+
+      await act(async () => {
+        await expect(result.current.mutateAsync({ id: "tpl-1", data: { acceptedTermsVersion: "2026-11" } })).rejects.toThrow("refused");
+      });
+
+      expect(queryClient.getQueryData(TEMPLATE_KEY)).toEqual({ data: TEMPLATE });
+      expect(queryClient.getQueryState(LIST_KEY)?.isInvalidated).toBe(false);
+      const [mutation] = queryClient.getMutationCache().getAll();
+      expect(mutation.meta?.skipErrorReporting).toEqual(expect.any(Function));
     });
   });
 
@@ -251,7 +336,7 @@ describe("useUserTemplateQueries", () => {
     });
   });
 
-  function setup<T>(input: { useHook: () => T; hasOrganizations?: boolean; listedTemplates?: (typeof LIST_ITEM)[][] }) {
+  function setup<T>(input: { useHook: () => T; hasOrganizations?: boolean; listedTemplates?: (typeof LIST_ITEM)[][]; readinessError?: Error }) {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const getUserTemplate = vi.fn().mockResolvedValue({ data: TEMPLATE });
     const listUserTemplateVersions = vi.fn().mockResolvedValue({ data: [VERSION] });
@@ -262,6 +347,10 @@ describe("useUserTemplateQueries", () => {
     const createUserTemplateVersion = vi.fn().mockResolvedValue({ data: VERSION });
     const updateUserTemplate = vi.fn().mockResolvedValue({ data: TEMPLATE });
     const deleteUserTemplate = vi.fn().mockResolvedValue(undefined);
+    const getUserTemplatePublishReadiness = input.readinessError
+      ? vi.fn().mockRejectedValue(input.readinessError)
+      : vi.fn().mockResolvedValue({ data: READINESS });
+    const publishUserTemplate = vi.fn().mockResolvedValue({ data: TEMPLATE });
     const api = createProxy({
       v1: {
         getUserTemplate,
@@ -271,7 +360,9 @@ describe("useUserTemplateQueries", () => {
         createUserTemplate,
         createUserTemplateVersion,
         updateUserTemplate,
-        deleteUserTemplate
+        deleteUserTemplate,
+        getUserTemplatePublishReadiness,
+        publishUserTemplate
       }
     }) as unknown as ApiService;
 
@@ -323,7 +414,9 @@ describe("useUserTemplateQueries", () => {
       createUserTemplate,
       createUserTemplateVersion,
       updateUserTemplate,
-      deleteUserTemplate
+      deleteUserTemplate,
+      getUserTemplatePublishReadiness,
+      publishUserTemplate
     };
   }
 });
