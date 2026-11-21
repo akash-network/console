@@ -1,0 +1,1 @@
+ALTER TABLE "gpu_waitlist_pools" ADD COLUMN "last_round_at" timestamp with time zone;

@@ -9,6 +9,7 @@ export const GpuWaitlistPools = pgTable("gpu_waitlist_pools", {
   lastCheckAt: timestamp("last_check_at", { withTimezone: true }),
   lastCheckPriceUsdPerHour: numeric("last_check_price_usd_per_hour", { mode: "number" }),
   waveStartedAt: timestamp("wave_started_at", { withTimezone: true }),
+  lastRoundAt: timestamp("last_round_at", { withTimezone: true }),
   waveNumber: integer("wave_number").notNull().default(0),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
 });

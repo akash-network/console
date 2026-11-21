@@ -7,6 +7,8 @@ import { APP_INITIALIZER, ON_APP_START } from "@src/core/providers/app-initializ
 import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import { DeleteUnbackedDeploymentSetting } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
 import { MoveDeploymentAlertsJob } from "@src/deployment/services/move-deployment-alerts/move-deployment-alerts.job";
+import { ConfirmGpuPools } from "@src/gpu-waitlist/services/confirm-gpu-pools/confirm-gpu-pools.job";
+import { WatchGpuWaitlists } from "@src/gpu-waitlist/services/watch-gpu-waitlists/watch-gpu-waitlists.job";
 import { PurgeOrganizationInvitationEmailsJob } from "@src/organization/services/purge-organization-invitation-emails/purge-organization-invitation-emails.job";
 import { startJobQueues } from "./jobs.provider";
 
@@ -51,6 +53,15 @@ describe("jobs.provider", () => {
 
     const [handlers] = jobQueue.registerHandlers.mock.calls[0];
     expect(handlers.map(handler => handler.accepts)).toContain(SyncAffiliateCommission);
+  });
+
+  it("creates the queues of the gpu waitlist watch and the confirmation it enqueues", async () => {
+    const { jobQueue } = setup();
+
+    await startJobQueues();
+
+    const [handlers] = jobQueue.registerHandlers.mock.calls[0];
+    expect(handlers.map(handler => handler.accepts)).toEqual(expect.arrayContaining([WatchGpuWaitlists, ConfirmGpuPools]));
   });
 
   function setup() {

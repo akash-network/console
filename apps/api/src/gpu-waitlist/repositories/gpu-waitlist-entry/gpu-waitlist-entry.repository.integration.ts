@@ -72,6 +72,21 @@ describe(GpuWaitlistEntryRepository.name, () => {
     });
   });
 
+  describe("findByIdAcrossOrganizations", () => {
+    it("returns the entry with the id, whatever its status", async () => {
+      const { repository, poolModel, user } = await setup();
+      const entry = await seedGpuWaitlistEntry({ userId: user.id, model: poolModel, status: "left" });
+
+      expect(await repository.findByIdAcrossOrganizations(entry.id)).toEqual(entry);
+    });
+
+    it("returns undefined for an unknown id", async () => {
+      const { repository } = await setup();
+
+      expect(await repository.findByIdAcrossOrganizations(faker.string.uuid())).toBeUndefined();
+    });
+  });
+
   describe("findJoinTimesAcrossOrganizationsSince", () => {
     it("lists the user's joins after the cutoff, whatever their status, oldest first", async () => {
       const { repository, user } = await setup();

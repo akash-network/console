@@ -49,6 +49,45 @@ describe(GpuBidCheckRepository.name, () => {
     });
   });
 
+  describe("findProvidersWithBidsSince", () => {
+    it("lists each provider that bid on the model since the cutoff once, whatever the source", async () => {
+      const { repository, aCheck } = setup();
+      const model = aModel();
+      const [botBidder, setupBidder] = [createAkashAddress(), createAkashAddress()];
+      await repository.insertMany([
+        aCheck({ provider: botBidder, model, source: "pricing-bot", checkedAt: CUTOFF }),
+        aCheck({ provider: botBidder, model, source: "pricing-bot", checkedAt: new Date("2026-10-18T00:00:00Z") }),
+        aCheck({ provider: setupBidder, model, source: "setup-check", checkedAt: new Date("2026-10-18T00:00:00Z") })
+      ]);
+
+      const providers = await repository.findProvidersWithBidsSince({ vendor: "nvidia", model, since: CUTOFF });
+
+      expect(providers.sort()).toEqual([botBidder, setupBidder].sort());
+    });
+
+    it("leaves out providers that did not bid, bid before the cutoff or bid on another model", async () => {
+      const { repository, aCheck } = setup();
+      const model = aModel();
+      await repository.insertMany([
+        aCheck({ model, bid: false, checkedAt: new Date("2026-10-18T00:00:00Z") }),
+        aCheck({ model, bid: true, checkedAt: new Date("2026-10-17T11:59:59Z") }),
+        aCheck({ model: aModel(), bid: true, checkedAt: new Date("2026-10-18T00:00:00Z") }),
+        aCheck({ model, vendor: "amd", bid: true, checkedAt: new Date("2026-10-18T00:00:00Z") })
+      ]);
+
+      expect(await repository.findProvidersWithBidsSince({ vendor: "nvidia", model, since: CUTOFF })).toEqual([]);
+    });
+
+    it("matches the model whatever its case", async () => {
+      const { repository, aCheck } = setup();
+      const model = aModel();
+      const provider = createAkashAddress();
+      await repository.insertMany([aCheck({ provider, model: model.toUpperCase(), checkedAt: new Date("2026-10-18T00:00:00Z") })]);
+
+      expect(await repository.findProvidersWithBidsSince({ vendor: "NVIDIA", model: model.toLowerCase(), since: CUTOFF })).toEqual([provider]);
+    });
+  });
+
   describe("findPricingBotHistory", () => {
     it("counts the model's checks since the cutoff, the ones listing the provider, whether it bid since and its last bid since the last bid cutoff", async () => {
       const { repository, aCheck } = setup();
