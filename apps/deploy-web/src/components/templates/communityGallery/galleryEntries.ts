@@ -49,7 +49,20 @@ export function buildGalleryEntries(input: {
   categories: EnhancedTemplateCategory[];
   community: Pick<CommunityTemplateGallery, "templates" | "officialUsage"> | undefined;
 }): GalleryEntry[] {
-  return [...toAwesomeAkashEntries(input.categories, input.community?.officialUsage ?? {}), ...(input.community?.templates ?? []).map(toCommunityEntry)];
+  const awesomeAkash = toAwesomeAkashEntries(input.categories, input.community?.officialUsage ?? {});
+  const community = input.community?.templates ?? [];
+  const importedRefs = new Set(community.map(template => template.importedRef));
+  const galleryRanks = new Map(awesomeAkash.map(entry => [entry.id, entry.curatedRank]));
+
+  return [
+    ...awesomeAkash.filter(entry => !importedRefs.has(entry.id)),
+    ...community.map(template => toCommunityEntry(template, galleryRankOf(template, galleryRanks)))
+  ];
+}
+
+/** An imported template stands in for the awesome-akash entry it copies, so it keeps that entry's place among the promoted ones. */
+function galleryRankOf(template: CommunityTemplateCard, galleryRanks: Map<string, number>): number {
+  return (template.importedRef !== null ? galleryRanks.get(template.importedRef) : undefined) ?? UNPROMOTED_RANK;
 }
 
 /** A template listed under several categories becomes one entry carrying all of them. */
@@ -94,7 +107,7 @@ function toAwesomeAkashEntry(template: TemplateOutputSummaryWithCategory, catego
   };
 }
 
-function toCommunityEntry(template: CommunityTemplateCard): GalleryEntry {
+function toCommunityEntry(template: CommunityTemplateCard, galleryRank: number): GalleryEntry {
   return {
     key: `console:${template.id}`,
     origin: "console",
@@ -111,7 +124,7 @@ function toCommunityEntry(template: CommunityTemplateCard): GalleryEntry {
     publishedAt: new Date(template.publishedAt).getTime(),
     usage: template.usage,
     scores: template.scores,
-    curatedRank: template.isFeatured ? STAFF_FEATURED_RANK : UNPROMOTED_RANK,
+    curatedRank: template.isFeatured ? STAFF_FEATURED_RANK : galleryRank,
     searchText: toSearchText(template.title, template.summary, template.publisher.name)
   };
 }

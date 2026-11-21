@@ -112,6 +112,34 @@ describe("galleryEntries", () => {
       expect(entries.map(entry => entry.curatedRank)).toEqual([2, 1, 0]);
     });
 
+    it("shows an imported template in place of the awesome-akash entry it copies", () => {
+      const imported = buildCommunityTemplateCard({ title: "Llama 3", isOfficial: true, importedRef: "llama" });
+      const entries = buildGalleryEntries({
+        categories: [makeCategory("AI - GPU", [makeTemplate({ id: "llama" }), makeTemplate({ id: "comfy" })])],
+        community: makeCommunity({ templates: [imported, buildCommunityTemplateCard({ id: "0b6f6f0c-6d0f-4b53-9d5c-0c7d2d6f0002" })] })
+      });
+
+      expect(entries.map(entry => entry.key)).toEqual(["awesome-akash:comfy", `console:${imported.id}`, "console:0b6f6f0c-6d0f-4b53-9d5c-0c7d2d6f0002"]);
+    });
+
+    it("gives an imported template the promotion order of the entry it copies, behind what staff featured", () => {
+      const categories = [makeCategory("Tools", [makeTemplate({ id: "pick", tags: ["recommended"] }), makeTemplate({ id: "liked", tags: ["popular"] })])];
+      const entries = buildGalleryEntries({
+        categories,
+        community: makeCommunity({
+          templates: [
+            buildCommunityTemplateCard({ importedRef: "pick" }),
+            buildCommunityTemplateCard({ importedRef: "liked" }),
+            buildCommunityTemplateCard({ importedRef: "liked", isFeatured: true }),
+            buildCommunityTemplateCard({ importedRef: "left-the-gallery" }),
+            buildCommunityTemplateCard()
+          ]
+        })
+      });
+
+      expect(entries.map(entry => entry.curatedRank)).toEqual([0, 1, -1, 2, 2]);
+    });
+
     it("turns a community card into an entry that keeps its publisher and numbers", () => {
       const card = buildCommunityTemplateCard({
         id: "0b6f6f0c-6d0f-4b53-9d5c-0c7d2d6f0001",
