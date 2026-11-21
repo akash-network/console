@@ -8,6 +8,7 @@ import type { DeploymentsListSource } from "@src/components/deployments/Deployme
 import { useApiDeploymentsListSource } from "@src/components/deployments/DeploymentsList/useApiDeploymentsListSource";
 import { useAddCredits } from "@src/hooks/useAddCredits";
 import { ADD_FUNDS_EMAIL_VERIFICATION_MESSAGE } from "@src/hooks/useAddFundsVerifiedLoginRequiredEventHandler";
+import { useCanManageDeployment } from "@src/hooks/useCanManageDeployment/useCanManageDeployment";
 import { useRunWhenEmailVerified } from "@src/hooks/useEmailVerificationRequiredEventHandler";
 import type { ListedDeploymentDto } from "@src/types/deployment";
 import { rememberThemeChoice } from "@src/utils/themeChoice/themeChoice";
@@ -17,7 +18,16 @@ import { COMMAND_PAGES, DEPLOYMENT_START_COMMANDS, goToShortcut, SHOW_SHORTCUTS_
 import type { CommandSection, ParsedQuery, SearchableItem } from "./commandMenuSearch";
 import { useStartDeployment } from "./useStartDeployment";
 
-export const DEPENDENCIES = { useRouter, usePathname, useTheme, useAddCredits, useRunWhenEmailVerified, useStartDeployment, useApiDeploymentsListSource };
+export const DEPENDENCIES = {
+  useRouter,
+  usePathname,
+  useTheme,
+  useAddCredits,
+  useRunWhenEmailVerified,
+  useStartDeployment,
+  useApiDeploymentsListSource,
+  useCanManageDeployment
+};
 
 export interface CommandItem extends SearchableItem {
   icon?: LucideIcon;
@@ -48,6 +58,7 @@ export function useCommandMenuItems(
 ): CommandSection<CommandItem>[] {
   const router = dependencies.useRouter();
   const openedDseq = dependencies.usePathname()?.match(DEPLOYMENT_DETAIL_PATH)?.[1];
+  const { canManage: canManageOpenedDeployment } = dependencies.useCanManageDeployment(openedDseq ?? "");
   const { resolvedTheme, setTheme } = dependencies.useTheme();
   const openAddCredits = dependencies.useAddCredits();
   const runWhenEmailVerified = dependencies.useRunWhenEmailVerified();
@@ -102,7 +113,7 @@ export function useCommandMenuItems(
       action: "keyboard_shortcuts",
       run: onShowShortcuts
     },
-    ...(openedDseq ? [toEditVariablesAndSecretsItem(() => router.push(UrlService.deploymentDetails(openedDseq, "UPDATE")))] : []),
+    ...(openedDseq && canManageOpenedDeployment ? [toEditVariablesAndSecretsItem(() => router.push(UrlService.deploymentDetails(openedDseq, "UPDATE")))] : []),
     {
       id: "action-variables-and-secrets-guide",
       label: "Learn about variables & secrets",

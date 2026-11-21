@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DeploymentsListSource, DeploymentsListSourceInput } from "@src/components/deployments/DeploymentsList/useApiDeploymentsListSource";
+import type { DeploymentManagement } from "@src/hooks/useCanManageDeployment/useCanManageDeployment";
 import type { LeaseDto, ListedDeploymentDto } from "@src/types/deployment";
 import { parseQuery, rankSections } from "./commandMenuSearch";
 import type { CommandItem } from "./useCommandMenuItems";
@@ -130,6 +131,24 @@ describe(useCommandMenuItems.name, () => {
         keywords: "secrets variables environment env vars sealed",
         action: "edit_variables_and_secrets"
       });
+    });
+
+    it("asks whether the caller may manage the deployment being viewed", () => {
+      const { useCanManageDeployment } = setup({ pathname: "/deployments/100" });
+
+      expect(useCanManageDeployment).toHaveBeenCalledWith("100");
+    });
+
+    it("asks about no deployment away from a deployment page", () => {
+      const { useCanManageDeployment } = setup({ pathname: "/deployments" });
+
+      expect(useCanManageDeployment).toHaveBeenCalledWith("");
+    });
+
+    it("leaves out editing variables and secrets when the caller may not manage the deployment being viewed", () => {
+      const { itemsOf } = setup({ pathname: "/deployments/100", canManage: false });
+
+      expect(itemsOf("actions").map(item => item.id)).not.toContain("action-edit-variables-and-secrets");
     });
 
     it("opens the update tab of the deployment being viewed", () => {
@@ -331,6 +350,7 @@ describe(useCommandMenuItems.name, () => {
     resolvedTheme?: string;
     isEmailVerified?: boolean;
     pathname?: string | null;
+    canManage?: boolean;
   }) {
     document.cookie = "theme=; path=/; Max-Age=0";
     const push = vi.fn();
@@ -342,6 +362,7 @@ describe(useCommandMenuItems.name, () => {
       if (input.isEmailVerified ?? true) proceed();
     });
     const useApiDeploymentsListSource = vi.fn((_request: DeploymentsListSourceInput) => listSource(input.active ?? [], input.closed ?? []));
+    const useCanManageDeployment = vi.fn((_dseq: string) => mock<DeploymentManagement>({ canManage: input.canManage ?? true }));
 
     const dependencies: typeof DEPENDENCIES = {
       useRouter: () => mock<AppRouterInstance>({ push }),
@@ -350,7 +371,8 @@ describe(useCommandMenuItems.name, () => {
       useAddCredits: () => openAddCredits,
       useRunWhenEmailVerified: () => runWhenEmailVerified,
       useStartDeployment: () => startDeployment,
-      useApiDeploymentsListSource
+      useApiDeploymentsListSource,
+      useCanManageDeployment
     };
 
     const { result } = renderHook(() => useCommandMenuItems({ parsed: parseQuery(input.input ?? input.query ?? ""), onShowShortcuts }, dependencies));
@@ -361,6 +383,6 @@ describe(useCommandMenuItems.name, () => {
         .find(item => item.label === label)
         ?.run();
 
-    return { sections, itemsOf, run, push, onShowShortcuts, setTheme, openAddCredits, runWhenEmailVerified, startDeployment, useApiDeploymentsListSource };
+    return { sections, itemsOf, run, push, onShowShortcuts, setTheme, openAddCredits, runWhenEmailVerified, startDeployment, useApiDeploymentsListSource, useCanManageDeployment };
   }
 });

@@ -17,7 +17,7 @@ export interface DeploymentManagement {
 export function useCanManageDeployment(dseq: string, dependencies: typeof DEPENDENCIES = DEPENDENCIES): DeploymentManagement {
   const { isEnabled, canChangeDeployments } = dependencies.useProjectsUi();
   const access = dependencies.useProjectAccess();
-  const locationQuery = dependencies.useDeploymentLocationQuery(dseq, { enabled: isEnabled });
+  const locationQuery = dependencies.useDeploymentLocationQuery(dseq, { enabled: isEnabled && !!dseq });
   const canManage = canChangeDeployments && access.canManageDeployments(locationQuery.data?.projectId);
   const isUndecided = canChangeDeployments && !canManage;
   const isLocationUnreadable = isEnabled && !locationQuery.data && locationQuery.isError;
