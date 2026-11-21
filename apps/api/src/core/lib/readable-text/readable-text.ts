@@ -2,7 +2,7 @@ import type { z } from "@hono/zod-openapi";
 
 /** Spelled as code point ranges rather than Unicode properties because its OpenAPI `pattern` is compiled without the `u` flag. */
 // eslint-disable-next-line no-control-regex
-const WITHOUT_CONTROL_CHARACTERS = /^[^\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]*$/;
+const WITHOUT_CONTROL_CHARACTERS = /^[^\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u2028\u2029\u202a-\u202e\u2066-\u2069]*$/;
 
 /** Spelled as code point ranges rather than Unicode properties because its OpenAPI `pattern` is compiled without the `u` flag. */
 const WITHOUT_CONTROL_CHARACTERS_BUT_LINE_BREAKS_AND_TABS =
@@ -15,6 +15,10 @@ export function readableName(schema: z.ZodString): z.ZodString {
   return schema
     .regex(WITHOUT_CONTROL_CHARACTERS, "The name cannot contain control characters")
     .regex(VISIBLE_CHARACTER, "The name needs at least one visible character");
+}
+
+export function readableLine(schema: z.ZodString): z.ZodString {
+  return schema.regex(WITHOUT_CONTROL_CHARACTERS, "The text cannot contain control characters");
 }
 
 export function readableText(schema: z.ZodString): z.ZodString {

@@ -1,10 +1,14 @@
 import { z } from "@hono/zod-openapi";
 
+import { readableLine, readableName, readableText } from "@src/core/lib/readable-text/readable-text";
+
 const MAX_ASKED_VALUES = 50;
 const MAX_BINDINGS = 20;
 const MAX_CHOICES = 50;
 const MAX_CHOICE_LENGTH = 200;
 const MAX_DEFAULT_LENGTH = 4096;
+const MAX_LABEL_LENGTH = 80;
+const MAX_HELP_LENGTH = 500;
 const MAX_SERVICE_NAME_LENGTH = 63;
 const MAX_ENV_NAME_LENGTH = 255;
 const KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
@@ -17,13 +21,13 @@ const BindingSchema = z.object({
 
 const commonFields = {
   key: z.string().regex(KEY_PATTERN),
-  label: z.string().min(1).max(80),
-  help: z.string().max(500).optional(),
+  label: readableName(z.string().min(1).max(MAX_LABEL_LENGTH)),
+  help: readableText(z.string().max(MAX_HELP_LENGTH)).optional(),
   required: z.boolean(),
   bindings: z.array(BindingSchema).min(1).max(MAX_BINDINGS)
 };
 
-const defaultField = z.string().max(MAX_DEFAULT_LENGTH).optional();
+const defaultField = readableText(z.string().max(MAX_DEFAULT_LENGTH)).optional();
 
 const TextAskedValueSchema = z
   .object({
@@ -58,7 +62,10 @@ const ChoiceAskedValueSchema = z
   .object({
     ...commonFields,
     type: z.literal("choice"),
-    choices: z.array(z.string().max(MAX_CHOICE_LENGTH)).min(1).max(MAX_CHOICES),
+    choices: z
+      .array(readableLine(z.string().max(MAX_CHOICE_LENGTH)))
+      .min(1)
+      .max(MAX_CHOICES),
     default: defaultField
   })
   .strict();

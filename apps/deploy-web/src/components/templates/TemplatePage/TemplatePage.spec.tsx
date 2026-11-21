@@ -11,6 +11,7 @@ import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildMarketplaceTemplate, buildTemplateVersion, buildTemplateVersionSummary } from "@tests/seeders/userTemplate";
 import { MockComponents } from "@tests/unit/mocks";
+import { findActiveContent, USER_CONTENT_ATTACKS } from "@tests/unit/userContentAttacks";
 
 type TemplateQuery = ReturnType<typeof DEPENDENCIES.useMarketplaceTemplate>;
 type VersionsQuery = ReturnType<typeof DEPENDENCIES.useTemplateVersions>;
@@ -476,6 +477,14 @@ describe(TemplatePage.name, () => {
 
     const breadcrumb = screen.getByRole("navigation", { name: "Breadcrumb" });
     expect(within(breadcrumb).getByRole("link", { name: "Templates" })).toHaveAttribute("href", UrlService.templates());
+  });
+
+  it.each(USER_CONTENT_ATTACKS)("shows a title, summary and publisher holding $name as inert text", ({ payload }) => {
+    setup({ template: { ...TEMPLATE, canEdit: true, title: payload, summary: payload, publisher: { name: payload, slug: null, type: "team" } } });
+
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(payload);
+    expect(document.body.textContent).toContain(`show only to members of ${payload}`);
+    expect(findActiveContent(document.body)).toEqual([]);
   });
 
   function stubClipboard(clipboard: Pick<Clipboard, "writeText">) {

@@ -6,6 +6,7 @@ import type { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplate
 import { TemplateCard } from "./TemplateCard";
 
 import { render, screen } from "@testing-library/react";
+import { findActiveContent, USER_CONTENT_ATTACKS } from "@tests/unit/userContentAttacks";
 
 const GiB = 1024 ** 3;
 
@@ -74,16 +75,24 @@ describe(TemplateCard.name, () => {
     expect(screen.queryByRole("list", { name: "Hardware" })).not.toBeInTheDocument();
   });
 
-  function setup(input: { isPopular: boolean; hardware?: TemplateHardware }) {
+  it.each(USER_CONTENT_ATTACKS)("shows a name and summary holding $name as inert text", ({ payload }) => {
+    const { container } = setup({ isPopular: false, name: payload, summary: payload });
+
+    expect(screen.getByRole("heading").textContent).toBe(payload);
+    expect(container.textContent).toBe(`${payload}${payload}View`);
+    expect(findActiveContent(container)).toEqual([]);
+  });
+
+  function setup(input: { isPopular: boolean; hardware?: TemplateHardware; name?: string; summary?: string }) {
     const template: TemplateOutputSummaryWithCategory = {
       id: "akash-network-awesome-akash-llama-3",
-      name: "Llama 3",
-      summary: "Chat with an open model",
+      name: input.name ?? "Llama 3",
+      summary: input.summary ?? "Chat with an open model",
       deploy: "",
       logoUrl: null,
       category: "AI - GPU",
       hardware: input.hardware
     };
-    render(<TemplateCard template={template} isPopular={input.isPopular} />);
+    return render(<TemplateCard template={template} isPopular={input.isPopular} />);
   }
 });

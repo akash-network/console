@@ -34,6 +34,7 @@ import { useActiveOrganization } from "@src/context/OrganizationProvider/Organiz
 import { useProjectsQuery } from "@src/queries/useProjectsQuery";
 import { useDeleteMarketplaceTemplateMutation, useUpdateTemplateSettingsMutation } from "@src/queries/useUserTemplateQueries";
 import type { MarketplaceTemplate, TemplateCategory, TemplateIconId } from "@src/types/marketplace-template";
+import { toSingleLine } from "@src/utils/singleLineText/singleLineText";
 import { UrlService } from "@src/utils/urlUtils";
 
 export const DEPENDENCIES = {
@@ -89,7 +90,7 @@ export const TemplateSettingsTab: FC<TemplateSettingsTabProps> = ({ template, de
   const icon = edits.icon === undefined ? findKnownIcon(template.icon) : edits.icon;
   const categories = edits.categories ?? findKnownCategories(template.categories);
   const titleLength = title.trim().length;
-  const summaryLength = summary.trim().length;
+  const summaryLength = toSingleLine(summary).length;
   const projectName = projects?.find(project => project.id === template.projectId)?.name ?? "its project";
   const organizationName = template.publisher?.name ?? activeOrganization?.name ?? "your organization";
   const visibilityValue = edits.visibility ?? (template.visibility === "public" ? "" : template.visibility);
@@ -355,7 +356,7 @@ function findChanges(
 ): Changes {
   const changes: Changes = {};
   if (form.title.trim() !== template.title.trim()) changes.title = form.title.trim();
-  if (form.summary.trim() !== (template.summary ?? "").trim()) changes.summary = form.summary.trim() || null;
+  if (toSingleLine(form.summary) !== toSingleLine(template.summary ?? "")) changes.summary = toSingleLine(form.summary) || null;
   if (form.icon !== findKnownIcon(template.icon)) changes.icon = form.icon;
   if (!isSameSet(form.categories, findKnownCategories(template.categories))) changes.categories = form.categories;
   if (form.visibility && form.visibility !== template.visibility) changes.visibility = form.visibility;

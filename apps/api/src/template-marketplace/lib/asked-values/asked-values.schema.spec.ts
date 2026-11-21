@@ -86,6 +86,44 @@ describe("AskedValuesSchema", () => {
     expect(AskedValueSchema.safeParse(askedValue({ default: "a".repeat(4097) })).success).toBe(false);
   });
 
+  it("refuses a label that hides or reorders its text, or shows nothing", () => {
+    const parses = (label: string) => AskedValueSchema.safeParse(askedValue({ label })).success;
+
+    expect(parses("Admin email \u{1f4e7}")).toBe(true);
+    expect(parses("Admin\u0000email")).toBe(false);
+    expect(parses("Admin\nemail")).toBe(false);
+    expect(parses("Admin \u202eliame")).toBe(false);
+    expect(parses("\u200b\u200b")).toBe(false);
+    expect(parses("   ")).toBe(false);
+  });
+
+  it("refuses help text with control characters other than line breaks and tabs", () => {
+    const parses = (help: string) => AskedValueSchema.safeParse(askedValue({ help })).success;
+
+    expect(parses("")).toBe(true);
+    expect(parses("The address that signs in first.\n\tUse a real inbox.")).toBe(true);
+    expect(parses("The address\u001b[31m that signs in first")).toBe(false);
+    expect(parses("The address \u202ethat signs in first")).toBe(false);
+  });
+
+  it.each(["text", "number", "choice"])("refuses a %s default with control characters other than line breaks and tabs", type => {
+    const parses = (value: string) => AskedValueSchema.safeParse(askedValue({ type, default: value, ...(type === "choice" && { choices: ["a"] }) })).success;
+
+    expect(parses("first line\nsecond\tline")).toBe(true);
+    expect(parses("value\u0000")).toBe(false);
+    expect(parses("value\u202e")).toBe(false);
+  });
+
+  it("refuses a choice with any control character", () => {
+    const parses = (choice: string) => AskedValueSchema.safeParse(askedValue({ type: "choice", choices: ["a", choice] })).success;
+
+    expect(parses("meta-llama/Llama-3.1-8B-Instruct")).toBe(true);
+    expect(parses("")).toBe(true);
+    expect(parses("small\nlarge")).toBe(false);
+    expect(parses("small\tlarge")).toBe(false);
+    expect(parses("small\u202eegral")).toBe(false);
+  });
+
   it("requires between 1 and 20 bindings", () => {
     const bindings = (count: number) => Array.from({ length: count }, (_, index) => ({ service: "web", env: `ENV_${index}` }));
 

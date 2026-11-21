@@ -57,6 +57,25 @@ describe(TemplateSettingsTab.name, () => {
     expect(updateSettings).toHaveBeenCalledWith({ id: "tpl-webui", data: { summary: "Chat with any model." } });
   });
 
+  it("saves a summary typed or pasted over several lines as one line", async () => {
+    const { user, updateSettings } = setup({});
+    const summary = screen.getByRole("textbox", { name: "Summary" });
+
+    await replaceText(user, summary, "Chat with any model.\n\nRuns on your own GPU.");
+    await user.type(summary, "{Enter}No setup.");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(updateSettings).toHaveBeenCalledWith({ id: "tpl-webui", data: { summary: "Chat with any model. Runs on your own GPU. No setup." } });
+  });
+
+  it("keeps Save off for a summary whose only change is a line break at its end", async () => {
+    const { user } = setup({});
+
+    await user.type(screen.getByRole("textbox", { name: "Summary" }), "{Enter}");
+
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+  });
+
   it("keeps Save off until something changes and again once the change is undone", async () => {
     const { user } = setup({});
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();

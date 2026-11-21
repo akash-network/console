@@ -8,6 +8,7 @@ import { DEPENDENCIES, OrganizationTemplatesSection } from "./OrganizationTempla
 import { render, screen, within } from "@testing-library/react";
 import { buildUserTemplateListItem } from "@tests/seeders/userTemplate";
 import { MockComponents } from "@tests/unit/mocks";
+import { findActiveContent, USER_CONTENT_ATTACKS } from "@tests/unit/userContentAttacks";
 
 const COMFY = buildUserTemplateListItem({
   id: "tpl-comfy",
@@ -116,6 +117,14 @@ describe(OrganizationTemplatesSection.name, () => {
     const section = screen.getByRole("region", { name: "Your organization" });
     expect(within(section).getByRole("link", { name: /Other org worker/ })).toHaveAttribute("href", UrlService.template(OTHER_ORGANIZATION_TEMPLATE.id));
     expect(within(section).queryByText("ComfyUI + Flux.1 dev")).not.toBeInTheDocument();
+  });
+
+  it.each(USER_CONTENT_ATTACKS)("shows a title and summary holding $name as inert text", ({ payload }) => {
+    setup({ templates: [buildUserTemplateListItem({ title: payload, summary: payload, visibility: "organization" })] });
+
+    expect(screen.getByRole("heading", { level: 3 }).textContent).toBe(payload);
+    expect(document.body.textContent).toContain(`v1${payload}`);
+    expect(findActiveContent(document.body)).toEqual([]);
   });
 
   function setup(input: { templates?: UserTemplateListItem[]; isLoading?: boolean; isError?: boolean; isSignedIn?: boolean; isFlagOn?: boolean }) {
