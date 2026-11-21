@@ -4,6 +4,7 @@ import { container } from "tsyringe";
 
 import type { ApiPgDatabase, ApiPgTables } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
+import { scoreTemplate, type ScoringSettings } from "@src/template-marketplace/lib/template-scores/template-scores";
 import { seedOrganization } from "./organization.seeder";
 import { seedUser } from "./user-with-wallet.seeder";
 
@@ -16,6 +17,14 @@ type TemplateImageChangeInsert = ApiPgTables["TemplateImageChanges"]["$inferInse
 type TemplateUsageEventInsert = ApiPgTables["TemplateUsageEvents"]["$inferInsert"];
 
 export const SEEDED_TEMPLATE_SDL = "version: '2.0'";
+
+export const SEEDED_SCORING_SETTINGS: ScoringSettings = {
+  trialWeight: 0.25,
+  popularHalfLifeDays: 30,
+  popularWindowDays: 180,
+  trendingWindowDays: 7,
+  trendingMinVolume: 5
+};
 
 function db() {
   return container.resolve<ApiPgDatabase>(POSTGRES_DB);
@@ -104,6 +113,39 @@ export async function seedTemplateDeployers(templateId: string, count: number, o
         ...overrides
       }))
     );
+}
+
+/** One mainnet event of a Console template by a new user from outside every organization, unless told otherwise. */
+export async function seedTemplateUsageEvent(overrides: Partial<TemplateUsageEventInsert> & Pick<TemplateUsageEventInsert, "templateRef" | "action">) {
+  const [event] = await db()
+    .insert(resolveTable("TemplateUsageEvents"))
+    .values({
+      source: "console",
+      deploymentSettingId: faker.string.uuid(),
+      network: "mainnet",
+      ...overrides,
+      userId: "userId" in overrides ? overrides.userId : (await seedUser()).id
+    })
+    .returning();
+
+  return event;
+}
+
+type TemplateScoreInsert = ApiPgTables["TemplateScores"]["$inferInsert"];
+
+export async function seedTemplateScore(overrides: Partial<TemplateScoreInsert> & Pick<TemplateScoreInsert, "templateRef">) {
+  const [score] = await db()
+    .insert(resolveTable("TemplateScores"))
+    .values({ source: "console", breakdown: scoreTemplate([], 0, SEEDED_SCORING_SETTINGS).breakdown, ...overrides })
+    .returning();
+
+  return score;
+}
+
+export async function findStoredTemplateScores() {
+  const scores = resolveTable("TemplateScores");
+
+  return await db().select().from(scores).orderBy(scores.source, scores.templateRef);
 }
 
 export async function seedTemplateImageChange(

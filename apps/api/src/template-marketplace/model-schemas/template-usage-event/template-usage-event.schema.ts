@@ -42,6 +42,8 @@ export const TemplateUsageEvents = pgTable(
       table.createdAt,
       table.network
     ),
+    /** Serves the score job, which reads one action of one network over a time window whatever the template. */
+    networkActionCreatedIdx: index("template_usage_events_network_action_created_idx").on(table.network, table.action, table.createdAt),
     userIdIdx: index("template_usage_events_user_id_idx").on(table.userId),
     organizationIdIdx: index("template_usage_events_organization_id_idx").on(table.organizationId),
     deploymentActionUnique: uniqueIndex("template_usage_events_deployment_action_unique")

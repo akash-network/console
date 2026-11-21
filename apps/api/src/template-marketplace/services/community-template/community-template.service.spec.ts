@@ -3,10 +3,12 @@ import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import MemoryCacheEngine from "@src/caching/memoryCacheEngine";
+import type { TemplateMarketplaceConfig } from "@src/template-marketplace/providers/config.provider";
 import type {
   CommunityTemplateRepository,
   CommunityTemplateRow
 } from "@src/template-marketplace/repositories/community-template/community-template.repository";
+import type { ServedTemplateScore, TemplateScoreRepository } from "@src/template-marketplace/repositories/template-score/template-score.repository";
 import type {
   TemplateUsageEventRepository,
   TemplateUsageSummary
@@ -37,7 +39,22 @@ const SDL = [
 
 describe(CommunityTemplateService.name, () => {
   describe("listCards", () => {
-    it("describes each listed template as a card with its usage, not scored yet", async () => {
+    it("carries the popular and trending score the recompute job stored for a template", async () => {
+      const scored = createRow({ score: { popularScore: 12.5, trendingScore: -0.3, isTrending: false } });
+      const trending = createRow({ score: { popularScore: 0, trendingScore: 1.5, isTrending: true } });
+      const { service } = setup({ rows: [scored, trending, createRow()] });
+
+      const cards = await service.listCards();
+
+      expect(cards.map(card => card.scores)).toEqual([
+        { popular: 12.5, trending: -0.3, isTrending: false },
+        { popular: 0, trending: 1.5, isTrending: true },
+        { popular: null, trending: null, isTrending: false }
+      ]);
+      expect(cards[0]).not.toHaveProperty("score");
+    });
+
+    it("describes each listed template as a card with its usage, not scored while nobody counted", async () => {
       const row = createRow({ publisher: { name: "Lambda Garage", handle: "lambda-garage", isVerified: true } });
       const usage: TemplateUsageSummary = { deploys: 1284, lastDeployedAt: faker.date.recent(), stillUpAfter24h: 0.94, forks: 37 };
       const { service, communityTemplateRepository, templateUsageEventRepository } = setup({ rows: [row], usages: new Map([[row.id, usage]]) });
@@ -109,15 +126,18 @@ describe(CommunityTemplateService.name, () => {
         ["akash-network-awesome-akash-nginx", { deploys: 9, lastDeployedAt: faker.date.recent(), stillUpAfter24h: 0.5, forks: 0 }],
         ["constructor", { deploys: 1, lastDeployedAt: null, stillUpAfter24h: null, forks: 0 }]
       ]);
-      const { service, templateUsageEventRepository } = setup({ rows: [row], officialUsages });
+      const officialScores = new Map([["akash-network-awesome-akash-nginx", { popularScore: 7.25, trendingScore: 0.8, isTrending: true }]]);
+      const { service, templateUsageEventRepository, templateScoreRepository } = setup({ rows: [row], officialUsages, officialScores });
 
       const gallery = await service.getGallery();
 
       expect(gallery.templates.map(card => card.id)).toEqual([row.id]);
       expect(gallery.officialUsage).toEqual({
-        "akash-network-awesome-akash-nginx": { deploys: 9, stillUpAfter24h: 0.5, forks: 0 },
-        constructor: { deploys: 1, stillUpAfter24h: null, forks: 0 }
+        "akash-network-awesome-akash-nginx": { deploys: 9, stillUpAfter24h: 0.5, forks: 0, scores: { popular: 7.25, trending: 0.8, isTrending: true } },
+        constructor: { deploys: 1, stillUpAfter24h: null, forks: 0, scores: { popular: null, trending: null, isTrending: false } }
       });
+      expect(templateScoreRepository.findByRefs).toHaveBeenCalledWith("awesome_akash", ["akash-network-awesome-akash-nginx", "constructor"]);
+      expect(gallery.trendingRowMinTemplates).toBe(6);
       expect(Object.keys(gallery.officialUsage)).toEqual(["akash-network-awesome-akash-nginx", "constructor"]);
       expect(templateUsageEventRepository.summarizeAwesomeAkash).toHaveBeenCalledWith(MAX_OFFICIAL_TEMPLATES_WITH_USAGE);
     });
@@ -148,12 +168,18 @@ describe(CommunityTemplateService.name, () => {
       resources: { cpu: 0.5, memoryBytes: 536_870_912, storageBytes: 1_073_741_824 },
       sdlWithoutResources: null,
       versionCount: faker.number.int({ min: 1, max: 9 }),
+      score: null,
       ...overrides
     };
   }
 
   function setup(
-    input: { rows?: CommunityTemplateRow[]; usages?: Map<string, TemplateUsageSummary>; officialUsages?: Map<string, TemplateUsageSummary> } = {}
+    input: {
+      rows?: CommunityTemplateRow[];
+      usages?: Map<string, TemplateUsageSummary>;
+      officialUsages?: Map<string, TemplateUsageSummary>;
+      officialScores?: Map<string, ServedTemplateScore>;
+    } = {}
   ) {
     MemoryCacheEngine.clearAllCaches();
     const communityTemplateRepository = mock<CommunityTemplateRepository>();
@@ -161,8 +187,11 @@ describe(CommunityTemplateService.name, () => {
     const templateUsageEventRepository = mock<TemplateUsageEventRepository>();
     templateUsageEventRepository.summarize.mockResolvedValue(input.usages ?? new Map());
     templateUsageEventRepository.summarizeAwesomeAkash.mockResolvedValue(input.officialUsages ?? new Map());
-    const service = new CommunityTemplateService(communityTemplateRepository, templateUsageEventRepository);
+    const templateScoreRepository = mock<TemplateScoreRepository>();
+    templateScoreRepository.findByRefs.mockResolvedValue(input.officialScores ?? new Map());
+    const config = mock<TemplateMarketplaceConfig>({ TEMPLATE_TRENDING_ROW_MIN_TEMPLATES: 6 });
+    const service = new CommunityTemplateService(communityTemplateRepository, templateUsageEventRepository, templateScoreRepository, config);
 
-    return { service, communityTemplateRepository, templateUsageEventRepository };
+    return { service, communityTemplateRepository, templateUsageEventRepository, templateScoreRepository };
   }
 });

@@ -12,6 +12,7 @@ import { type AssistantStreamEvent, MAX_CLIENT_TOOL_RESULTS } from "@src/feedbac
 import { assistantDailyLimitReached } from "@src/feedback/lib/assistant-errors/assistant-errors";
 import { ASSISTANT_PROMPT_VERSION } from "@src/feedback/lib/assistant-prompt-version/assistant-prompt-version";
 import { assistantChatToolsFor } from "@src/feedback/lib/assistant-tools/assistant-tools";
+import { redactSecrets } from "@src/feedback/lib/redact-secrets/redact-secrets";
 import type { AssistantPendingTurnRepository } from "@src/feedback/repositories/assistant-pending-turn/assistant-pending-turn.repository";
 import type { AssistantTurnTraceRepository } from "@src/feedback/repositories/assistant-turn-trace/assistant-turn-trace.repository";
 import {
@@ -50,6 +51,8 @@ import {
   TOO_MANY_TOOL_CALLS_ERROR,
   TURN_TIMEOUT_MS
 } from "./assistant-turn.service";
+
+import { PROMPT_INJECTIONS } from "@test/seeders/prompt-injection.seeder";
 
 const NOW = new Date("2026-11-04T12:00:00.000Z");
 const USAGE = { promptTokens: 100, completionTokens: 20 };
@@ -148,6 +151,31 @@ describe(AssistantTurnService.name, () => {
     expect(offered[0]).toEqual(expect.arrayContaining(["read_configure_form", "propose_edit_configure_form"]));
     expect(offered[1]).not.toContain("read_configure_form");
     expect(offered[1]).not.toContain("propose_edit_configure_form");
+  });
+
+  it.each(PROMPT_INJECTIONS)("runs the template search and nothing else when a community template carries $name", async ({ text }) => {
+    const { akashMlClient, toolRunner, pendingTurnRepository, run } = setup();
+    const search = toolCall("c1", "list_templates", { query: "chat", includeCommunity: true });
+    const searched = readContentOf("list_templates", {
+      templates: [{ id: "3f2c9a54-7d1e-4b8a-9c61-0e5d2a7b4f10", name: text, summary: text, publisher: text, source: "community", reviewedByAkash: false }]
+    });
+    akashMlClient.streamChatCompletion
+      .mockImplementationOnce(streamed({ toolCalls: [search] }))
+      .mockImplementationOnce(streamed({ content: "One community template matches." }));
+    toolRunner.run.mockResolvedValue({ kind: "result", content: searched, summary: "Searched the template gallery", ok: true });
+
+    const events = await run({ messages: [{ role: "user", content: "what should I deploy for a team chat?" }] });
+
+    expect(toolRunner.run).toHaveBeenCalledTimes(1);
+    expect(toolRunner.run).toHaveBeenCalledWith(search, expect.anything());
+    expect(events.map(({ type }) => type)).toEqual(["tool_started", "tool_result_summary", "text_delta", "done"]);
+    expect(pendingTurnRepository.hold).not.toHaveBeenCalled();
+    const [, [{ messages }]] = akashMlClient.streamChatCompletion.mock.calls;
+    const textAsTheToolQuotesIt = JSON.stringify(redactSecrets(text)).slice(1, -1);
+    const carryingTheText = messages.filter(message => String(message.content).includes(textAsTheToolQuotesIt));
+    expect(carryingTheText).toEqual([{ role: "tool", tool_call_id: "c1", content: searched }]);
+    expect(Object.keys(JSON.parse(searched))).toEqual(["tool", "untrustedData"]);
+    expect(events.filter(event => JSON.stringify(event).includes(text.slice(0, 20)))).toEqual([]);
   });
 
   it("emits each piece of the answer as the model streams it, and stores the answer whole", async () => {

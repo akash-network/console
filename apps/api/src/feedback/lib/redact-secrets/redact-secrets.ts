@@ -89,6 +89,23 @@ export function redactSecretStrings<T>(value: T): T {
   return value;
 }
 
+const SECRET_LIKE_KEY = new RegExp(String.raw`\b${SECRET_KEY_NAME}$`, "i");
+
+/** Redacts strings as their authors wrote them and what a secret-like key holds, so the result serializes with no quote left for a redaction to un-escape. */
+export function redactSecretFields<T>(value: T): T {
+  if (typeof value === "string") return redactSecrets(value) as T;
+  if (Array.isArray(value)) return value.map(redactSecretFields) as T;
+  if (value === null || typeof value !== "object") return value;
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, held]) => [key, SECRET_LIKE_KEY.test(key) && isSecretCarrier(held) ? REDACTED : redactSecretFields(held)])
+  ) as T;
+}
+
+function isSecretCarrier(held: unknown): boolean {
+  return typeof held === "string" || typeof held === "number";
+}
+
 /** Bounded like an address can be, so a long run of word characters without an @ cannot backtrack quadratically. */
 const EMAIL_ADDRESS = /\b[\w.%+-]{1,64}@(?:[A-Za-z0-9-]{1,63}\.){1,8}[A-Za-z]{2,24}\b/g;
 

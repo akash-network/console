@@ -4,6 +4,8 @@ import { inject, singleton } from "tsyringe";
 import { z, ZodError, type ZodIssue } from "zod";
 
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { type AssistantAction, type AssistantDiagnosis, AssistantDiagnosisSchema } from "@src/feedback/http-schemas/assistant-action.schema";
 import type { AssistantLiveHelpReason } from "@src/feedback/http-schemas/assistant-conversation.schema";
 import { assistantKnowledge } from "@src/feedback/lib/assistant-knowledge/assistant-knowledge";
@@ -30,7 +32,7 @@ import {
   proposalActionTypeOf,
   splitProposalArguments
 } from "@src/feedback/lib/assistant-tools/assistant-tools";
-import { redactSecrets } from "@src/feedback/lib/redact-secrets/redact-secrets";
+import { redactSecretFields, redactSecrets } from "@src/feedback/lib/redact-secrets/redact-secrets";
 import type { ChatTool, ChatToolCall } from "@src/feedback/services/akashml-client/akashml.client";
 import { AssistantAccountToolsService } from "@src/feedback/services/assistant-account-tools/assistant-account-tools.service";
 import { AssistantBidToolsService } from "@src/feedback/services/assistant-bid-tools/assistant-bid-tools.service";
@@ -63,7 +65,17 @@ export function truncated(text: string, maxLength: number): string {
 
 /** Tool results reach the model as JSON data, redacted and bounded, so their content cannot pass for instructions or flood the context. */
 export function toolContentOf(tool: string, payload: ToolPayload): string {
-  return truncated(redactSecrets(JSON.stringify({ tool, ...payload })), MAX_TOOL_RESULT_LENGTH);
+  return truncated(serializedResultOf(tool, payload), MAX_TOOL_RESULT_LENGTH);
+}
+
+/** Redacted as parsed JSON and serialized again, since a redaction over the JSON text can remove the backslash that keeps an author's quote inside its string. */
+function serializedResultOf(tool: string, payload: ToolPayload): string {
+  return JSON.stringify(redactSecretFields(asJsonData({ tool, ...payload })));
+}
+
+/** Dates and anything else with its own JSON form take that form first, or the redaction would walk them as empty objects. */
+function asJsonData(value: object): unknown {
+  return JSON.parse(JSON.stringify(value));
 }
 
 type ToolPayload = { data: unknown; untrustedData?: unknown } | { untrustedData: unknown } | { error: string; untrustedData?: unknown };
@@ -76,7 +88,7 @@ export function readContentOf(tool: ReadToolName, data: unknown): string {
 }
 
 function fitsToolResult(tool: string, payload: ToolPayload): boolean {
-  return redactSecrets(JSON.stringify({ tool, ...payload })).length <= MAX_TOOL_RESULT_LENGTH;
+  return serializedResultOf(tool, payload).length <= MAX_TOOL_RESULT_LENGTH;
 }
 
 /** Only Console's note stays under data since the screening result quotes the SDL, and an SDL too long for the cap is left out rather than cut into broken JSON. */
@@ -219,6 +231,7 @@ export class AssistantToolRunnerService {
     private readonly accountTools: AssistantAccountToolsService,
     private readonly consoleApi: AssistantConsoleApiService,
     private readonly proposalService: AssistantProposalService,
+    private readonly featureFlags: FeatureFlagsService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.#logger = createLogger({ context: AssistantToolRunnerService.name });
@@ -226,11 +239,13 @@ export class AssistantToolRunnerService {
 
   /** Falls back to the tools without the route catalog, so a docs outage costs the assistant one tool's catalog rather than the turn. */
   async chatTools({ configureFormOpen }: { configureFormOpen: boolean }): Promise<ChatTool[]> {
+    const communityTemplates = this.featureFlags.isEnabled(FeatureFlags.TEMPLATE_MARKETPLACE);
+
     try {
-      return assistantChatToolsFor({ configureFormOpen, consoleApiCatalog: await this.consoleApi.catalog() });
+      return assistantChatToolsFor({ configureFormOpen, communityTemplates, consoleApiCatalog: await this.consoleApi.catalog() });
     } catch (error) {
       this.#logger.warn({ event: "ASSISTANT_CONSOLE_API_CATALOG_FAILED", error });
-      return assistantChatToolsFor({ configureFormOpen });
+      return assistantChatToolsFor({ configureFormOpen, communityTemplates });
     }
   }
 
@@ -333,6 +348,7 @@ export class AssistantToolRunnerService {
   }
 
   async #checkAvailability({ templateId, sdl }: ReadToolArguments<"check_availability">, context: ProposalContext) {
+    if (templateId) this.accountTools.refuseMarketplaceTemplate(templateId);
     const checkedSdl = sdl ? this.proposalService.pricedSdl(sdl, context) : await this.accountTools.templateSdl(templateId as string);
     return await this.bidTools.checkAvailability(checkedSdl, { isTrialing: context.isTrialing === true });
   }

@@ -49,7 +49,13 @@ export const READ_TOOL_ARGUMENTS = {
   get_bids: z.object({ dseq: Dseq }),
   get_balance_and_spend: z.object({}),
   get_lease_close_reason: z.object({ dseq: Dseq }),
-  list_templates: z.object({ query: z.string().max(MAX_TEXT_LENGTH).optional().openapi({ description: "Words to match, such as a model or app name" }) }),
+  list_templates: z.object({
+    query: z.string().max(MAX_TEXT_LENGTH).optional().openapi({ description: "Words to match, such as a model or app name" }),
+    includeCommunity: z.boolean().optional().openapi({
+      description:
+        "Also lists community templates, which Akash has not reviewed. Set it only when the user asks for community templates or no other template fits."
+    })
+  }),
   search_docs: z.object({ query: ShortText }),
   check_availability: z.object({ templateId: TemplateId.optional(), sdl: GeneratedSdl.optional() }).refine(givesTemplateOrSdl, TEMPLATE_OR_SDL),
   read_console_api: z.object({

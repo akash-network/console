@@ -1,6 +1,6 @@
 import { createMongoAbility, ForbiddenError, type MongoAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -98,6 +98,40 @@ describe(UserTemplateRepository.name, () => {
       const result = await userTemplateRepository.isFavorite(template.id, user2.userId!);
 
       expect(result).toBe(false);
+    });
+  });
+
+  describe("countFavorites", () => {
+    it("counts the users who favorited the template and nobody else's favorites", async () => {
+      const { userTemplateRepository } = setup();
+      const [author, fan, otherFan] = await Promise.all([createTestUser(), createTestUser(), createTestUser()]);
+      const template = await createTestTemplate({ userId: author.userId! });
+      const otherTemplate = await createTestTemplate({ userId: author.userId! });
+      await recordFavorite({ userId: author.userId!, templateId: template.id });
+      await recordFavorite({ userId: fan.userId!, templateId: template.id });
+      await recordFavorite({ userId: otherFan.userId!, templateId: template.id });
+      await recordFavorite({ userId: fan.userId!, templateId: otherTemplate.id });
+
+      expect(await userTemplateRepository.countFavorites(template.id)).toBe(3);
+      expect(await userTemplateRepository.countFavorites(otherTemplate.id)).toBe(1);
+    });
+
+    it("counts none for a template nobody favorited", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const template = await createTestTemplate({ userId: author.userId! });
+
+      expect(await userTemplateRepository.countFavorites(template.id)).toBe(0);
+    });
+
+    it("has an index that leads with the template to seek the count by", async () => {
+      const indexes = await container.resolve<ApiPgDatabase>(POSTGRES_DB).execute<{
+        indexdef: string;
+      }>(sql`select indexdef from pg_indexes where tablename = 'templateFavorite' and indexname = 'templateFavorite_templateId_userId_idx'`);
+
+      expect([...indexes]).toEqual([
+        { indexdef: 'CREATE INDEX "templateFavorite_templateId_userId_idx" ON public."templateFavorite" USING btree ("templateId", "userId")' }
+      ]);
     });
   });
 

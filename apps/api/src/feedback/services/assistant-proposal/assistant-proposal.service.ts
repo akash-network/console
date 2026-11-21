@@ -175,6 +175,7 @@ export class AssistantProposalService {
   }
 
   async #createDeployment(args: ProposalArguments<"create_deployment">, context: ProposalContext): Promise<AssistantActionOf<"create_deployment">> {
+    if (args.templateId) this.accountTools.refuseMarketplaceTemplate(args.templateId);
     if (args.sdl) this.#assertMountableVolumes(args.sdl);
     const sdl = args.sdl ? this.pricedSdl(args.sdl, context) : await this.accountTools.templateSdl(args.templateId as string);
 
@@ -210,12 +211,16 @@ export class AssistantProposalService {
   }
 
   async #openInEditor({ dseq, templateId, sdl }: ProposalArguments<"open_in_editor">, context: ProposalContext): Promise<AssistantActionOf<"open_in_editor">> {
+    if (sdl && templateId) this.accountTools.refuseMarketplaceTemplate(templateId);
+    const template = templateId ? await this.accountTools.templateReview(templateId) : undefined;
+
     return {
       type: "open_in_editor",
       tier: "deep_link",
       dseq: dseq ?? null,
       templateId: templateId ?? null,
-      sdl: sdl ? await this.#editorSdl(sdl, { dseq, templateId }, context) : null
+      sdl: sdl ? await this.#editorSdl(sdl, { dseq, templateId }, context) : null,
+      ...(template && { template })
     };
   }
 
@@ -245,7 +250,8 @@ export class AssistantProposalService {
       dseq,
       choices: choices.map(({ gseq, oseq, provider }) => {
         const match = bids.find(({ bid }) => bid.state === "open" && bid.id.gseq === gseq && bid.id.oseq === oseq && bid.id.provider === provider);
-        if (!match) throw new AssistantToolError(`There is no open bid from this provider for group ${gseq}/${oseq}. Read the bids again with get_bids.`, provider);
+        if (!match)
+          throw new AssistantToolError(`There is no open bid from this provider for group ${gseq}/${oseq}. Read the bids again with get_bids.`, provider);
 
         return { gseq, oseq, provider, price: match.bid.price };
       })
