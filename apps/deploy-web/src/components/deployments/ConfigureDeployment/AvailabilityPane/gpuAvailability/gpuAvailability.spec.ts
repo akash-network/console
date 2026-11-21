@@ -5,7 +5,7 @@ import type { PlacementOptions } from "@src/queries/usePlacementOptions";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import type { GpuVendor } from "@src/types/gpu";
 import { defaultService } from "@src/utils/sdl/data";
-import { candidateGpuModels, listGpuAvailabilityRows, rankGpuAlternatives, requestedGpuLabel, requestedGpuOf } from "./gpuAvailability";
+import { candidateGpuModels, listGpuAvailabilityRows, notifiableGpuOf, rankGpuAlternatives, requestedGpuLabel, requestedGpuOf } from "./gpuAvailability";
 
 const CATALOG: GpuVendor[] = [
   {
@@ -54,6 +54,32 @@ describe(requestedGpuOf.name, () => {
 
   it("returns null without services", () => {
     expect(requestedGpuOf(undefined, "p1")).toBeNull();
+  });
+});
+
+describe(notifiableGpuOf.name, () => {
+  it("passes the memory, interface and count of the requested pool through", () => {
+    const services = [withGpu(defaultService("p1"), 4, [{ vendor: "nvidia", name: "h100", memory: "80Gi", interface: "sxm" }])];
+
+    expect(notifiableGpuOf(services, "p1")).toEqual({ vendor: "nvidia", model: "h100", memory: "80Gi", interface: "sxm", gpuCount: 4 });
+  });
+
+  it("leaves memory and interface out when the placement does not specify them", () => {
+    const services = [withGpu(defaultService("p1"), 1, [{ vendor: "nvidia", name: "h100", memory: "", interface: "" }])];
+
+    expect(notifiableGpuOf(services, "p1")).toEqual({ vendor: "nvidia", model: "h100", memory: undefined, interface: undefined, gpuCount: 1 });
+  });
+
+  it.each([
+    ["a model-less request", [withGpu(defaultService("p1"), 1, [{ vendor: "nvidia" }])]],
+    ["a non-nvidia vendor", [withGpu(defaultService("p1"), 1, [{ vendor: "amd", name: "mi300" }])]],
+    ["no GPU", [withGpu(defaultService("p1"), 0, [])]]
+  ])("returns null for %s", (_, services) => {
+    expect(notifiableGpuOf(services, "p1")).toBeNull();
+  });
+
+  it("returns null without services", () => {
+    expect(notifiableGpuOf(undefined, "p1")).toBeNull();
   });
 });
 

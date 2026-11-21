@@ -4,7 +4,7 @@ import { useFormContext, useWatch } from "react-hook-form";
 import type { ScreenedProviderCount } from "@src/queries/useScreenedProviders";
 import { useScreenedProviderCounts } from "@src/queries/useScreenedProviders";
 import type { SdlBuilderFormValuesType } from "@src/types";
-import { screeningRequestOf, withServiceGpuModel } from "../../../AvailabilityPane/gpuVariants/gpuVariants";
+import { screeningRequestOf, withoutGpu, withServiceGpuModel } from "../../../AvailabilityPane/gpuVariants/gpuVariants";
 
 export const DEPENDENCIES = { useScreenedProviderCounts };
 
@@ -30,4 +30,23 @@ export function useScreenedGpuModelCounts(
   );
 
   return dependencies.useScreenedProviderCounts(requests);
+}
+
+/** What the pane screens as "no GPU", so a model is only worth waiting for when the rest of the configuration fits without it. */
+export function useScreenedNoGpuCount(serviceIndex: number, isEnabled: boolean, dependencies: typeof DEPENDENCIES = DEPENDENCIES): number | null {
+  const { control } = useFormContext<SdlBuilderFormValuesType>();
+  const values = useWatch({ control }) as SdlBuilderFormValuesType;
+  const placement = values.placements.find(candidate => candidate.id === values.services[serviceIndex]?.placementId);
+  const requests = useMemo(
+    () => [
+      {
+        key: "no-gpu",
+        request: isEnabled && placement ? screeningRequestOf(withoutGpu(values, placement.id), placement.name) : null,
+        regions: placement?.regions
+      }
+    ],
+    [isEnabled, placement, values]
+  );
+
+  return dependencies.useScreenedProviderCounts(requests)[0].count;
 }

@@ -9,6 +9,8 @@ type Service = SdlBuilderFormValuesType["services"][number];
 export interface RequestedGpu {
   vendor: string;
   name?: string;
+  memory?: string;
+  interface?: string;
 }
 
 export interface GpuModelCandidate {
@@ -52,7 +54,26 @@ export function requestedGpuOf(services: SdlBuilderFormValuesType["services"] | 
   const gpuService = (services ?? []).find(service => isPlacementGpuService(service, placementId));
   if (!gpuService) return null;
   const [model] = gpuService.profile.gpuModels ?? [];
-  return model ? { vendor: model.vendor, name: model.name || undefined } : { vendor: "nvidia" };
+  return model
+    ? { vendor: model.vendor, name: model.name || undefined, memory: model.memory || undefined, interface: model.interface || undefined }
+    : { vendor: "nvidia" };
+}
+
+export type NotifiableGpuSetup = { vendor: "nvidia"; model: string; memory?: string; interface?: string; gpuCount: number };
+
+/** Only a named nvidia model can be waited for, since the waitlist matches exact pools. */
+export function notifiableGpuOf(services: SdlBuilderFormValuesType["services"] | undefined, placementId: string): NotifiableGpuSetup | null {
+  const gpuService = (services ?? []).find(service => isPlacementGpuService(service, placementId));
+  if (!gpuService) return null;
+  const requested = requestedGpuOf([gpuService], placementId);
+  if (requested?.vendor !== "nvidia" || !requested.name) return null;
+  return {
+    vendor: "nvidia",
+    model: requested.name,
+    memory: requested.memory,
+    interface: requested.interface,
+    gpuCount: gpuService.profile.gpu ?? 1
+  };
 }
 
 export function requestedGpuLabel(requested: RequestedGpu | null, catalog: GpuVendor[] | undefined): string {

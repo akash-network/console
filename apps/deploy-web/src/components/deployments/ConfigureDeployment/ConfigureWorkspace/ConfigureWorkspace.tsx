@@ -15,6 +15,7 @@ import type { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/
 import { lacksRequiredSshKey } from "@src/utils/sdl/sshKey";
 import { HELLO_WORLD_IMAGE } from "@src/utils/templates";
 import { AvailabilityPane } from "../AvailabilityPane/AvailabilityPane";
+import { notifiableGpuOf } from "../AvailabilityPane/gpuAvailability/gpuAvailability";
 import { ConfigureEditor } from "../ConfigureEditor/ConfigureEditor";
 import { ResetConfigurationButton } from "../ConfigureEditor/ResetConfigurationButton/ResetConfigurationButton";
 import { deployCtaState } from "../deployCtaState/deployCtaState";
@@ -156,6 +157,7 @@ export const ConfigureWorkspace: FC<Props> = ({
   const { data: gpuCatalog } = d.useGpuModels();
   const hasPlacementWithoutProviders = d.useHasPlacementWithoutProviders(sdl, placements);
   const isQuoteFlowEnabled = d.useFlag("gpu_quote_requests");
+  const noBidsGpu = placements.map(placement => notifiableGpuOf(services, placement.id)).find(gpu => gpu !== null) ?? null;
   const [hardwareRequest, setHardwareRequest] = useState<HardwareRequest | null>(null);
   const [quoteSource, setQuoteSource] = useState<QuoteRequestSource | null>(null);
   const [isProvidersSheetOpen, setIsProvidersSheetOpen] = useState(false);
@@ -356,6 +358,8 @@ export const ConfigureWorkspace: FC<Props> = ({
                         <d.NoBidsNotice
                           requestLabel={isQuoteFlowEnabled ? "Request this hardware" : "Request compute"}
                           dseq={flow.dseq}
+                          gpu={noBidsGpu}
+                          isQuoteFlowEnabled={isQuoteFlowEnabled}
                           onRequestCompute={() => requestCompute("no_bids_notice", "capacity")}
                         />
                       ) : undefined

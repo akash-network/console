@@ -1,4 +1,4 @@
-import type { FC, ReactNode } from "react";
+import type { FC, KeyboardEvent, ReactNode } from "react";
 import { useId, useState } from "react";
 import {
   Button,
@@ -44,6 +44,8 @@ type SharedProps = {
   /** Groups `options` under a heading, with an optional column label above the hints, and separates every section. */
   optionsHeading?: { label: string; hintLabel?: ReactNode };
   unavailableHeading?: string;
+  /** Rendered beside each unavailable row, outside its item, so a control in it is never part of the row's selection. */
+  renderUnavailableAction?: (option: SearchableSelectOption) => ReactNode;
   renderFooter?: (search: string, controls: { close: () => void }) => ReactNode;
   onOpenChange?: (open: boolean) => void;
   /** Accessible name of the trigger (which exposes `role="combobox"`). */
@@ -129,6 +131,7 @@ const SearchableSelectList: FC<SharedProps & { selection: Selection }> = ({
   unavailableOptions = [],
   optionsHeading,
   unavailableHeading = "Unavailable",
+  renderUnavailableAction,
   renderFooter,
   onOpenChange,
   ariaLabel,
@@ -168,6 +171,20 @@ const SearchableSelectList: FC<SharedProps & { selection: Selection }> = ({
 
   function renderOption(option: SearchableSelectOption, className?: string) {
     return <SearchableSelectItem key={option.value} option={option} checked={checkedValues?.has(option.value)} onSelect={selectValue} className={className} />;
+  }
+
+  function renderUnavailableOption(option: SearchableSelectOption) {
+    const unavailable = { ...option, disabled: !checkedValues?.has(option.value) };
+    const action = renderUnavailableAction?.(option);
+    if (!action) {
+      return renderOption(unavailable, "pl-6");
+    }
+    return (
+      <div key={option.value} className="flex items-center gap-1 pr-2">
+        {renderOption(unavailable, "pl-6 flex-1")}
+        <div onKeyDown={stopCommandKeyHandling}>{action}</div>
+      </div>
+    );
   }
 
   return (
@@ -223,7 +240,7 @@ const SearchableSelectList: FC<SharedProps & { selection: Selection }> = ({
               <>
                 {optionsHeading && <CommandSeparator className="my-1" />}
                 <CommandGroup heading={optionsHeading ? <SectionHeading label={unavailableHeading} /> : unavailableHeading} className="p-0">
-                  {filteredUnavailableOptions.map(option => renderOption({ ...option, disabled: !checkedValues?.has(option.value) }, "pl-6"))}
+                  {filteredUnavailableOptions.map(option => renderUnavailableOption(option))}
                 </CommandGroup>
               </>
             )}
@@ -237,6 +254,15 @@ const SearchableSelectList: FC<SharedProps & { selection: Selection }> = ({
     </Popover>
   );
 };
+
+/** cmdk handles Enter, the arrow keys and its ctrl bindings on its root and would pick another row instead of pressing the action. */
+const KEYS_CMDK_HANDLES = new Set(["Enter", "ArrowUp", "ArrowDown", "Home", "End"]);
+
+function stopCommandKeyHandling(event: KeyboardEvent<HTMLElement>) {
+  if (KEYS_CMDK_HANDLES.has(event.key) || event.ctrlKey) {
+    event.stopPropagation();
+  }
+}
 
 const SectionHeading: FC<{ label: string; hintLabel?: ReactNode }> = ({ label, hintLabel }) => (
   <span className="flex items-center justify-between gap-2 font-mono uppercase tracking-wider">

@@ -493,6 +493,24 @@ describe(ConfigureWorkspace.name, () => {
       expect(((marketplaceProps().notice as ReactElement).props as ComponentProps<typeof NoBidsNotice>).dseq).toBe("42");
     });
 
+    it("hands the no-bids notice the nvidia gpu pool the deployment asked for", () => {
+      const { marketplaceProps } = setup({ phase: "quoting", noBidsReceived: true, apiGpuModels: ["h100"] });
+
+      expect(((marketplaceProps().notice as ReactElement).props as ComponentProps<typeof NoBidsNotice>).gpu).toEqual({
+        vendor: "nvidia",
+        model: "h100",
+        memory: undefined,
+        interface: undefined,
+        gpuCount: 1
+      });
+    });
+
+    it("hands the no-bids notice no gpu when the deployment asks for none", () => {
+      const { marketplaceProps } = setup({ phase: "quoting", noBidsReceived: true });
+
+      expect(((marketplaceProps().notice as ReactElement).props as ComponentProps<typeof NoBidsNotice>).gpu).toBeNull();
+    });
+
     it("keeps the waiting card while the wait for a first bid is still running", () => {
       const { marketplaceProps } = setup({ phase: "quoting" });
 

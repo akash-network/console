@@ -4,6 +4,8 @@ import { Button, CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { ArrowRightIcon, CalendarClockIcon, CircleAlertIcon, GpuIcon, InfoIcon, LoaderCircleIcon, MessageSquareIcon, PanelsTopLeftIcon } from "lucide-react";
 
+import { useNotifyMe } from "@src/components/gpu-alerts/useNotifyMe/useNotifyMe";
+import { WaitingForGpu } from "@src/components/gpu-alerts/WaitingForGpu/WaitingForGpu";
 import { AccountSpendGate } from "@src/components/user/AccountActionGate/AccountActionGate";
 import { useFlag } from "@src/hooks/useFlag";
 import { useNetworkProviderCount } from "@src/queries/useNetworkProviderCount";
@@ -11,7 +13,7 @@ import { countNotBiddingProviders, sumAvailableGpus, useScreenedProviders } from
 import type { PlacementType } from "@src/types";
 import { describeGpuAvailability } from "@src/utils/providerUtils";
 import { InvalidSpecReasons } from "../InvalidSpecReasons/InvalidSpecReasons";
-import type { GpuAvailabilityRow } from "./gpuAvailability/gpuAvailability";
+import type { GpuAvailabilityRow, NotifiableGpuSetup } from "./gpuAvailability/gpuAvailability";
 import { listGpuAvailabilityRows } from "./gpuAvailability/gpuAvailability";
 import { NotBiddingNotice } from "./NotBiddingNotice/NotBiddingNotice";
 import type { GpuAvailability } from "./useGpuAvailability/useGpuAvailability";
@@ -31,6 +33,7 @@ export const DEPENDENCIES = {
   InvalidSpecReasons,
   NotBiddingNotice,
   useFlag,
+  useNotifyMe,
   AccountSpendGate
 };
 
@@ -73,6 +76,10 @@ export const AvailabilityPane: FC<Props> = ({
   const gpuQuantities = d.useGpuQuantityAvailability(placement);
   const gpuSelection = d.useGpuSelection(placement.id);
   const scope = placementCount > 1 ? "this placement" : "your deployment";
+  const notifyMe = d.useNotifyMe();
+  const isGpuWhyNothingFits =
+    !screened.isLoading && !screened.isInvalid && !screened.isError && screened.providers.length === 0 && (gpuAvailability.noGpuCount ?? 0) > 0;
+  const notifiableGpu = notifyMe.isEnabled && isGpuWhyNothingFits ? gpuAvailability.notifiableGpu : null;
   const canSourceNoFit = isQuoteFlowEnabled && gpuAvailability.requestsGpu;
   const notBiddingCount = screened.isLoading || screened.isInvalid ? 0 : countNotBiddingProviders(screened.providers);
 
@@ -121,8 +128,18 @@ export const AvailabilityPane: FC<Props> = ({
               {blockedReason}
             </p>
           )}
-          {hasPlacementWithoutProviders && canSourceNoFit && <NoFitCard placementCount={placementCount} onRequest={onRequestComputeForNoFit} />}
-          {hasPlacementWithoutProviders && !canSourceNoFit && (
+          {hasPlacementWithoutProviders && notifiableGpu && (
+            <NotifyNoFitCard
+              placementCount={placementCount}
+              gpu={notifiableGpu}
+              notifyMe={notifyMe}
+              onReserve={isQuoteFlowEnabled ? onRequestComputeForNoFit : undefined}
+            />
+          )}
+          {hasPlacementWithoutProviders && !notifiableGpu && canSourceNoFit && (
+            <NoFitCard placementCount={placementCount} onRequest={onRequestComputeForNoFit} />
+          )}
+          {hasPlacementWithoutProviders && !notifiableGpu && !canSourceNoFit && (
             <p className="text-sm text-muted-foreground">
               {describeNoFit(placementCount)} {isQuoteFlowEnabled ? "Change the resources or widen the region." : "Change the resources or request compute."}
             </p>
@@ -186,6 +203,47 @@ function NoFitCard({ placementCount, onRequest }: { placementCount: number; onRe
         <ArrowRightIcon className="h-4 w-4" aria-hidden="true" />
       </Button>
       <p className="text-xs text-muted-foreground">You can also lower a hardware requirement or widen the region.</p>
+    </section>
+  );
+}
+
+function NotifyNoFitCard({
+  placementCount,
+  gpu,
+  notifyMe,
+  onReserve
+}: {
+  placementCount: number;
+  gpu: NotifiableGpuSetup;
+  notifyMe: ReturnType<typeof DEPENDENCIES.useNotifyMe>;
+  onReserve?: () => void;
+}) {
+  const waiting = notifyMe.findEntry(gpu);
+
+  return (
+    <section aria-label="Get notified when this GPU is available" className="flex flex-col gap-3 rounded-lg border border-foreground p-4">
+      <p className="text-sm text-muted-foreground">{describeNoFit(placementCount)}</p>
+      {waiting ? (
+        <WaitingForGpu
+          placeInLine={waiting.placeInLine}
+          waitingGpuCount={waiting.gpuCount}
+          gpuCount={gpu.gpuCount}
+          isPending={notifyMe.isPending}
+          onSwitch={() => notifyMe.notify(gpu, "no_fit")}
+        />
+      ) : (
+        <Button type="button" disabled={notifyMe.isPending} onClick={() => notifyMe.notify(gpu, "no_fit")} className="gap-2 self-start">
+          Notify me when available
+        </Button>
+      )}
+      {onReserve && (
+        <Button type="button" variant="link" onClick={onReserve} className="h-auto justify-start p-0 text-xs">
+          Need it guaranteed? Reserve capacity
+        </Button>
+      )}
+      <p className="text-xs text-muted-foreground">
+        {onReserve ? "You can also lower a hardware requirement or widen the region." : "Change the resources or request compute."}
+      </p>
     </section>
   );
 }
