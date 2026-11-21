@@ -14,7 +14,11 @@ import type {
   CreateDeploymentQuery,
   ListDeploymentsQuery,
   PatchDeploymentAcceptedResponse,
-  PatchDeploymentQuery
+  PatchDeploymentQuery,
+  ReplaceDeploymentDefinitionAcceptedResponse,
+  ReplaceDeploymentDefinitionQuery,
+  ReplaceDeploymentDefinitionRequest,
+  ReplaceDeploymentDefinitionResponse
 } from "@src/deployment/http-schemas/deployment.schema";
 import {
   CloseDeploymentResponse,
@@ -139,6 +143,21 @@ export class DeploymentController {
     }
 
     return { data: await this.deploymentWriterService.patchByUserIdAndDseq(userId, dseq, input, this.authService.ability) };
+  }
+
+  @Protected([{ action: "sign", subject: "UserWallet" }])
+  async replaceDefinition(
+    dseq: string,
+    input: ReplaceDeploymentDefinitionRequest["data"],
+    query: ReplaceDeploymentDefinitionQuery = { async: false }
+  ): Promise<{ data: ReplaceDeploymentDefinitionResponse["data"] | ReplaceDeploymentDefinitionAcceptedResponse["data"] }> {
+    const userId = this.authService.currentUser.id;
+
+    if (query.async) {
+      return { data: await this.deploymentWriterService.replaceDefinitionInBackgroundByUserIdAndDseq(userId, dseq, input, this.authService.ability) };
+    }
+
+    return { data: await this.deploymentWriterService.replaceDefinitionByUserIdAndDseq(userId, dseq, input, this.authService.ability) };
   }
 
   @Protected([{ action: "sign", subject: "UserWallet" }])

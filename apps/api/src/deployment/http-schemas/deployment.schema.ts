@@ -668,6 +668,65 @@ export const PatchDeploymentAcceptedResponseSchema = z.object({
   })
 });
 
+export const ReplaceDeploymentDefinitionParamsSchema = z.object({
+  dseq: DseqSchema.describe("Deployment sequence number")
+});
+
+export const ReplaceDeploymentDefinitionRequestSchema = z.object({
+  data: z.object({
+    sdl: SubmittedSdlSchema.openapi({
+      description:
+        "The whole SDL the deployment should run from now on, as GET /v1/deployments/{dseq} returns it in `consoleSettings.sdl` or edited. Reference a secret as `NAME=ac-secret://NAME` in an env entry, or as `ac-secret://NAME` in a registry credential: a reference the request supplies no value for keeps the value the deployment stores, and a stored value no reference names any longer is dropped.",
+      example:
+        'version: "2.0"\nservices:\n  web:\n    image: nginx:1.27.2\n    env:\n      - MODE=production\n      - API_KEY=ac-secret://API_KEY\n    expose:\n      - port: 80\n        to:\n          - global: true\n'
+    }),
+    name: DeploymentNameSchema.optional().openapi({
+      description: "Renames the deployment. Omitting it keeps the name the deployment already carries."
+    }),
+    sealedSecrets: SealedSecretsSchema.optional().openapi({
+      description:
+        "Compact JWE sealing a flat name-to-value map, bound to the SDL in this request, holding only the secrets this request sets. Omitted names keep the values the deployment stores. Its presence also says no env value it does not name is secret, as on create."
+    }),
+    secretEnv: SecretEnvSchema.optional().openapi({
+      description:
+        "Names of the environment variables whose values are secret, in every service the SDL declares. The console seals each named value, which no endpoint returns afterwards, and stores every other value the request adds or changes as submitted. An empty list keeps every added or changed value readable. Omit it and the console seals every value the request adds or changes, unless the request carries `sealedSecrets`. A value left as the deployment stores it keeps what it holds either way. Needs no client-side encryption.",
+      example: ["API_KEY"]
+    }),
+    ifManifestVersion: z.string().min(1).max(MAX_MANIFEST_VERSION_LENGTH).optional().openapi({
+      description:
+        "Base64 manifest version this request expects to be current, as GET /v1/deployments/{dseq} returns it in `consoleSettings.manifestVersion`. Rejected with 409 if the deployment has moved on, unless it moved on to the version this very request produces, which makes a retry of it succeed. Omitting it still guards on the version the request read, as for a patch."
+    })
+  })
+});
+
+export const ReplaceDeploymentDefinitionQuerySchema = z.object({
+  async: z
+    .enum(["true", "false"])
+    .optional()
+    .transform(value => value === "true")
+    .openapi({
+      description:
+        "With `true`, the definition is saved during the request and applied in the background: once it is saved, the request answers 202 with an `activityId` to follow at `GET /v1/activities/{id}` and the `manifestVersion` it saved. Every refusal and conflict still answers on the request and saves nothing."
+    })
+});
+
+export const ReplaceDeploymentDefinitionResponseSchema = z.object({
+  data: DeploymentResponseSchema.extend({
+    name: DeploymentNameResponseSchema,
+    manifestVersion: z.string().openapi({ description: "Base64 manifest version this request recorded, which the deployment is now on." })
+  })
+});
+
+export const ReplaceDeploymentDefinitionAcceptedResponseSchema = z.object({
+  data: z.object({
+    activityId: z.string().uuid().openapi({ description: "The activity that reports how applying the definition ends." }),
+    manifestVersion: z.string().openapi({
+      description:
+        "Base64 manifest version this request saved. Pass it as `ifManifestVersion` to change the deployment again while this one is still being applied."
+    })
+  })
+});
+
 export const CreateDeploymentDefinitionParamsSchema = z.object({
   dseq: DseqSchema.describe("Deployment sequence number")
 });
@@ -924,6 +983,10 @@ export type PatchDeploymentRequest = z.infer<typeof PatchDeploymentRequestSchema
 export type PatchDeploymentResponse = z.infer<typeof PatchDeploymentResponseSchema>;
 export type PatchDeploymentQuery = z.infer<typeof PatchDeploymentQuerySchema>;
 export type PatchDeploymentAcceptedResponse = z.infer<typeof PatchDeploymentAcceptedResponseSchema>;
+export type ReplaceDeploymentDefinitionRequest = z.infer<typeof ReplaceDeploymentDefinitionRequestSchema>;
+export type ReplaceDeploymentDefinitionQuery = z.infer<typeof ReplaceDeploymentDefinitionQuerySchema>;
+export type ReplaceDeploymentDefinitionResponse = z.infer<typeof ReplaceDeploymentDefinitionResponseSchema>;
+export type ReplaceDeploymentDefinitionAcceptedResponse = z.infer<typeof ReplaceDeploymentDefinitionAcceptedResponseSchema>;
 export type CreateDeploymentDefinitionRequest = z.infer<typeof CreateDeploymentDefinitionRequestSchema>;
 export type CreateDeploymentDefinitionResponse = z.infer<typeof CreateDeploymentDefinitionResponseSchema>;
 export type UpdateDeploymentResponse = z.infer<typeof UpdateDeploymentResponseSchema>;
