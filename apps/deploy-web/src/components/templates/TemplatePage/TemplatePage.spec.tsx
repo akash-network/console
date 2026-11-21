@@ -58,13 +58,57 @@ describe(TemplatePage.name, () => {
     const { NextSeo } = setup({ template: { ...TEMPLATE, summary: null } });
 
     expect(screen.queryByText("Private ChatGPT-style chat on your own GPU.")).not.toBeInTheDocument();
-    expect(NextSeo).toHaveBeenCalledWith({ title: "Open WebUI + vLLM", description: undefined }, expect.anything());
+    expect(NextSeo).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Open WebUI + vLLM", description: "A template you can deploy on Akash Network from Akash Console." }),
+      expect.anything()
+    );
   });
 
   it("describes the page with the template's summary", () => {
     const { NextSeo } = setup({});
 
-    expect(NextSeo).toHaveBeenCalledWith({ title: "Open WebUI + vLLM", description: "Private ChatGPT-style chat on your own GPU." }, expect.anything());
+    expect(NextSeo).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Open WebUI + vLLM", description: "Private ChatGPT-style chat on your own GPU." }),
+      expect.anything()
+    );
+  });
+
+  describe("head tags", () => {
+    const LISTED_TEMPLATE = { ...TEMPLATE, visibility: "public" as const, isListed: true, publishedAt: "2026-10-01T00:00:00.000Z" };
+
+    it("lets a listed template be indexed at its own address, with its preview image", () => {
+      const { NextSeo } = setup({ template: LISTED_TEMPLATE, isSignedIn: false });
+
+      expect(NextSeo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          noindex: false,
+          canonical: "https://console.akash.network/template/tpl-webui",
+          openGraph: expect.objectContaining({
+            url: "https://console.akash.network/template/tpl-webui",
+            images: [expect.objectContaining({ url: "https://console.akash.network/api/og/template/tpl-webui" })]
+          })
+        }),
+        expect.anything()
+      );
+    });
+
+    it("names the same address whatever tab is open", () => {
+      const { NextSeo } = setup({ template: LISTED_TEMPLATE, tab: "configuration" });
+
+      expect(NextSeo).toHaveBeenCalledWith(expect.objectContaining({ canonical: "https://console.akash.network/template/tpl-webui" }), expect.anything());
+    });
+
+    it("keeps a public template the gallery does not list out of search engines", () => {
+      const { NextSeo } = setup({ template: { ...LISTED_TEMPLATE, isListed: false }, isSignedIn: false });
+
+      expect(NextSeo).toHaveBeenCalledWith(expect.objectContaining({ noindex: true }), expect.anything());
+    });
+
+    it("keeps the owner's view, with its Settings tab, out of search engines", () => {
+      const { NextSeo } = setup({ template: { ...LISTED_TEMPLATE, canEdit: true }, tab: "settings" });
+
+      expect(NextSeo).toHaveBeenCalledWith(expect.objectContaining({ noindex: true }), expect.anything());
+    });
   });
 
   it("shows deploys, the still-up share and the last deploy", () => {

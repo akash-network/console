@@ -21,6 +21,9 @@ const PWA_ASSET_PATHNAME = /^\/(sw\.js|manifest\.json)$/;
 /** Kubernetes probes hit this path, so a maintenance 307 here would get the pod restarted. */
 const HEALTHCHECK_PATHNAME = "/api/healthz";
 
+/** A preview image is the same for every caller and shared caches keep it, so it must leave without a cookie made for whoever asked first. */
+const PREVIEW_IMAGE_PATHNAME_PREFIX = "/api/og/";
+
 const SECURITY_TXT_CACHE_SECONDS = 24 * 60 * 60;
 
 export function middleware(request: NextRequest) {
@@ -29,6 +32,8 @@ export function middleware(request: NextRequest) {
       headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": `public, max-age=${SECURITY_TXT_CACHE_SECONDS}` }
     });
   }
+
+  if (request.nextUrl.pathname.startsWith(PREVIEW_IMAGE_PATHNAME_PREFIX)) return NextResponse.next();
 
   const contentSecurityPolicyInput = {
     mainnetApiUrl: process.env.NEXT_PUBLIC_BASE_API_MAINNET_URL,

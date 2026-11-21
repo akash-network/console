@@ -28,6 +28,7 @@ import { useSnackbar } from "notistack";
 import Layout from "@src/components/layout/Layout";
 import { NotFoundPage } from "@src/components/shared/NotFoundPage/NotFoundPage";
 import { OfficialBadge } from "@src/components/templates/communityGallery/GalleryEntryCard/GalleryEntryCard";
+import { buildTemplateSeo } from "@src/components/templates/marketplaceSeo/marketplaceSeo";
 import { DEPLOY_BADGE_SOURCE, isDeployBadgeArrival, TEMPLATE_ARRIVAL_SOURCE_PARAM } from "@src/components/templates/publishing/deployBadge";
 import { ShareTemplateDialog } from "@src/components/templates/publishing/ShareTemplateDialog/ShareTemplateDialog";
 import { readRemovedTemplate } from "@src/components/templates/removed/readRemovedTemplate";
@@ -218,7 +219,7 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, removedTemplate: remov
 
   return (
     <d.Layout background="dots" disableContainer>
-      <d.NextSeo title={template.title} description={template.summary ?? undefined} />
+      <d.NextSeo {...buildTemplateSeo(template)} />
 
       <div className="container px-4 pb-16 pt-6 sm:px-6">
         <nav aria-label="Breadcrumb" className="mb-4">

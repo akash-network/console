@@ -13,6 +13,7 @@ import { buildGalleryEntries, filterGalleryEntries, sortGalleryEntries } from "@
 import { GalleryEntryList } from "@src/components/templates/communityGallery/GalleryEntryList/GalleryEntryList";
 import { PublisherInitials, VerifiedPublisherMark } from "@src/components/templates/communityGallery/PublisherName/PublisherName";
 import { formatCount, pluralize } from "@src/components/templates/communityGallery/usageNumbers";
+import { buildPublisherSeo } from "@src/components/templates/marketplaceSeo/marketplaceSeo";
 import { EditPublisherProfileDialog } from "@src/components/templates/publisher/EditPublisherProfileDialog/EditPublisherProfileDialog";
 import { PublisherLinkList } from "@src/components/templates/publisher/PublisherLinkList/PublisherLinkList";
 import type { GalleryUrlState } from "@src/components/templates/useTemplateGalleryUrlState/useTemplateGalleryUrlState";
@@ -103,7 +104,7 @@ export const PublisherPage: FC<PublisherPageProps> = ({ handle, dependencies: d 
 
   return (
     <d.Layout background="dots" disableContainer>
-      <d.NextSeo title={`${publisher.name} · Templates`} />
+      <d.NextSeo {...buildPublisherSeo(publisher, { isOwnProfile: !!ownProfile })} />
 
       <div className="container flex flex-col gap-6 px-4 pb-16 pt-6 sm:px-6">
         <Link

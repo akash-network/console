@@ -15,6 +15,7 @@ import { ApiUrlService } from "../api-url/api-url.service";
 import { clientIpForwardingInterceptor } from "../client-ip-forwarding/client-ip-forwarding.interceptor";
 import { createChildContainer } from "../container/createContainer";
 import { FeatureFlagService } from "../feature-flag/feature-flag.service";
+import { MarketplacePreviewImageService } from "../marketplace-preview-image/marketplace-preview-image.service";
 import { MarketplaceVisitorReadsService } from "../marketplace-visitor-reads/marketplace-visitor-reads.service";
 import { SessionService } from "../session/session.service";
 import { TurnstileVerifierService } from "../turnstile-verifier/turnstile-verifier.service";
@@ -49,6 +50,13 @@ export const services = createChildContainer(rootContainer, {
   visitorApi: () => createApiSdk({ baseUrl: services.apiUrlService.getBaseApiUrlFor(services.privateConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID) }),
   visitorApiQueries: () => createProxy(services.visitorApi),
   marketplaceVisitorReads: () => new MarketplaceVisitorReadsService(services.visitorApi, services.template, services.logger),
+  marketplacePreviewImages: () =>
+    new MarketplacePreviewImageService(
+      services.marketplaceVisitorReads,
+      () => services.featureFlagService.getFlag("template_marketplace"),
+      async content => (await import("@src/lib/nextjs/previewImage/renderPreviewImage")).renderPreviewImage(content),
+      services.logger
+    ),
   privateConfig: () => Object.freeze(serverEnvConfig),
   consoleApiHttpClient: () =>
     services.applyAxiosInterceptors(services.createAxios(), {
