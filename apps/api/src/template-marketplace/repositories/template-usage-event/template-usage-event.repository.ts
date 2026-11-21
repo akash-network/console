@@ -172,7 +172,14 @@ export class TemplateUsageEventRepository {
     const [{ deployers }] = await this.#cursor
       .select({ deployers: this.#distinctDeployers })
       .from(this.table)
-      .where(and(this.#weeklyDeploys, eq(this.table.templateRef, templateId), sql`${this.table.organizationId} is distinct from ${publishingOrganizationId}`));
+      .where(
+        and(
+          this.#weeklyDeploys,
+          eq(this.table.source, "console"),
+          eq(this.table.templateRef, templateId),
+          sql`${this.table.organizationId} is distinct from ${publishingOrganizationId}`
+        )
+      );
 
     return deployers;
   }
@@ -182,14 +189,7 @@ export class TemplateUsageEventRepository {
     const rows = await this.#cursor
       .select({ templateId: this.templates.id, currentVersionId: this.templates.currentVersionId })
       .from(this.templates)
-      .leftJoin(
-        this.table,
-        and(
-          this.#weeklyDeploys,
-          eq(this.table.templateRef, sql`${this.templates.id}::text`),
-          sql`${this.table.organizationId} is distinct from ${this.templates.organizationId}`
-        )
-      )
+      .leftJoin(this.table, and(this.#weeklyDeploys, this.#namesTemplate, isCountedForTemplate(this.table.organizationId)))
       .where(and(publiclyReadableTemplate(), isNotNull(this.templates.currentVersionId)))
       .groupBy(this.templates.id)
       .having(or(eq(this.templates.isOfficial, true), gte(this.#distinctDeployers, minWeeklyDeployers)))
@@ -216,15 +216,11 @@ export class TemplateUsageEventRepository {
   }
 
   get #weeklyDeploys() {
-    return and(this.#shownTemplateEvents, eq(this.table.action, "deploy"), gte(this.table.createdAt, sql`now() - interval '7 days'`));
+    return and(eq(this.table.network, SHOWN_NETWORK), eq(this.table.action, "deploy"), gte(this.table.createdAt, sql`now() - interval '7 days'`));
   }
 
   get #namesTemplate() {
     return namesTemplateUsage(this.table.source, this.table.templateRef);
-  }
-
-  get #shownTemplateEvents() {
-    return and(eq(this.table.source, "console"), eq(this.table.network, SHOWN_NETWORK));
   }
 }
 

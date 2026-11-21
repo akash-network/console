@@ -492,6 +492,33 @@ describe(TemplateUsageEventRepository.name, () => {
       ]);
     });
 
+    it("ranks an imported template by the deployers recorded under its gallery id, its own organization's included", async () => {
+      const { repository } = setup();
+      const importedRef = newImportedRef();
+      const imported = await seedWatchable(0, { importedRef });
+      await seedTemplateDeployers(importedRef, 3, { source: "awesome_akash" });
+      await seedTemplateDeployers(importedRef, 2, { source: "awesome_akash", organizationId: imported.template.organizationId });
+      const community = await seedWatchable(4);
+      const official = await seedWatchable(0, { isOfficial: true });
+
+      expect(await findWatchedAmong(repository, [official, community, imported], 3)).toEqual([
+        { templateId: imported.template.id, currentVersionId: imported.version.id },
+        { templateId: community.template.id, currentVersionId: community.version.id },
+        { templateId: official.template.id, currentVersionId: official.version.id }
+      ]);
+    });
+
+    it("counts no deployment recorded under another source for a template's place in the watch list", async () => {
+      const { repository } = setup();
+      const community = await seedWatchable(1);
+      await seedTemplateDeployers(community.template.id, 5, { source: "awesome_akash" });
+      const importedRef = newImportedRef();
+      const imported = await seedWatchable(0, { importedRef });
+      await seedTemplateDeployers(importedRef, 5, { source: "console" });
+
+      expect(await findWatchedAmong(repository, [community, imported], 3)).toEqual([]);
+    });
+
     it.each([
       { name: "hidden", template: { moderationStatus: "hidden" as const } },
       { name: "removed", template: { moderationStatus: "removed" as const } },
