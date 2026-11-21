@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { AskedValue } from "./asked-values.schema";
-import { findSecretValueIssues } from "./find-secret-value-issues";
+import { findSecretValueIssues, readSdlEnvValues } from "./find-secret-value-issues";
 
 describe(findSecretValueIssues.name, () => {
   it.each([
@@ -215,4 +215,49 @@ describe(findSecretValueIssues.name, () => {
   function textValue(key: string): AskedValue {
     return { type: "text", key, label: key, required: true, bindings: [{ service: "web", env: key }] };
   }
+});
+
+describe(readSdlEnvValues.name, () => {
+  it("reads each service's env entries, a bare name as an empty value", () => {
+    const sdl = JSON.stringify({ services: { web: { env: ["PORT=8080", "DEBUG", "URL=https://example.com/?a=b"] }, worker: { env: ["QUEUE=jobs"] } } });
+
+    expect(readSdlEnvValues(sdl)).toEqual([
+      { service: "web", variable: "PORT", value: "8080" },
+      { service: "web", variable: "DEBUG", value: "" },
+      { service: "web", variable: "URL", value: "https://example.com/?a=b" },
+      { service: "worker", variable: "QUEUE", value: "jobs" }
+    ]);
+  });
+
+  it("reads an env written as a mapping, with values that are not text turned into text", () => {
+    const sdl = JSON.stringify({ services: { web: { env: { PORT: 8080, EMPTY: null, NAME: "web" } } } });
+
+    expect(readSdlEnvValues(sdl)).toEqual([
+      { service: "web", variable: "PORT", value: "8080" },
+      { service: "web", variable: "EMPTY", value: "" },
+      { service: "web", variable: "NAME", value: "web" }
+    ]);
+  });
+
+  it("skips services that are not mappings, services without an env and entries that are not text", () => {
+    const sdl = JSON.stringify({ services: { text: "nginx", list: [], bare: { image: "nginx" }, web: { env: [{ PORT: 8080 }, 42, "PORT=8080"] } } });
+
+    expect(readSdlEnvValues(sdl)).toEqual([{ service: "web", variable: "PORT", value: "8080" }]);
+  });
+
+  it.each([
+    ["an SDL that cannot be parsed", "services: [unclosed"],
+    ["an SDL that is a list", "- just\n- a list\n"],
+    ["an SDL without services", "version: '2.0'\n"],
+    ["services written as a list", "services:\n  - web\n"]
+  ])("reads nothing from %s", (_, sdl) => {
+    expect(readSdlEnvValues(sdl)).toEqual([]);
+  });
+
+  it("reads nothing from an SDL whose anchors expand past the submittable length", () => {
+    const levels = Array.from({ length: 10 }, (_, level) => `  l${level + 1}: &l${level + 1} [${Array.from({ length: 10 }, () => `*l${level}`).join(", ")}]`);
+    const sdl = `x:\n  l0: &l0 [a]\n${levels.join("\n")}\nservices:\n  web:\n    env: *l10\n`;
+
+    expect(readSdlEnvValues(sdl)).toEqual([]);
+  });
 });

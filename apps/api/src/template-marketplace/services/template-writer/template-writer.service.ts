@@ -1,27 +1,23 @@
-import type { ValidationError } from "@akashnetwork/chain-sdk";
 import assert from "http-assert";
 import createError from "http-errors";
 import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
-import { ORGANIZATION_FORBIDDEN_ERROR_CODE } from "@src/core/repositories/org-scoped.repository";
 import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { DeploymentProjectService } from "@src/deployment/services/deployment-project/deployment-project.service";
-import { SdlService, type YamlErrorParams } from "@src/deployment/services/sdl/sdl.service";
-import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
-import { generateManifestReportingBuildFailures } from "@src/deployment/utils/sdl-manifest/sdl-manifest";
 import type { TemplateHardware } from "@src/template/types/template";
 import { summarizeTemplateHardware } from "@src/template/utils/template-hardware/template-hardware";
 import type { AskedValue } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
 import { findAskedValueIssues } from "@src/template-marketplace/lib/asked-values/find-asked-value-issues";
 import { findSecretValueIssues } from "@src/template-marketplace/lib/asked-values/find-secret-value-issues";
+import { type PublishCheckResults, toPublishCheck } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
+import { findReservedTitleIssues } from "@src/template-marketplace/lib/publish-checks/publish-checks";
+import { createChecksFailedError } from "@src/template-marketplace/lib/publish-requirements/publish-refusals";
 import type { TemplateCategory, TemplateIcon } from "@src/template-marketplace/lib/template-catalog/template-catalog";
 import { createTemplateInvalidError } from "@src/template-marketplace/lib/template-invalid/template-invalid-error";
-import { findTemplateWriteRefusal, type TemplateWriteAction } from "@src/template-marketplace/lib/template-write-access/template-write-access";
 import {
   MarketplaceTemplateRepository,
-  type MarketplaceTemplateRow,
   type TemplateSettingsUpdate
 } from "@src/template-marketplace/repositories/marketplace-template/marketplace-template.repository";
 import {
@@ -34,6 +30,10 @@ import {
   MarketplaceTemplateService,
   type PublishedTemplateVersion
 } from "@src/template-marketplace/services/marketplace-template/marketplace-template.service";
+import { PublishChecksService } from "@src/template-marketplace/services/publish-checks/publish-checks.service";
+import { TemplateRateLimiterService } from "@src/template-marketplace/services/template-rate-limiter/template-rate-limiter.service";
+import { TemplateSdlValidatorService } from "@src/template-marketplace/services/template-sdl-validator/template-sdl-validator.service";
+import { type StoredTemplate, TemplateWriteAccessService } from "@src/template-marketplace/services/template-write-access/template-write-access.service";
 
 export type CreateUserTemplateInput = {
   title: string;
@@ -62,13 +62,7 @@ export type TemplateSettingsPatch = {
   visibility?: "private" | "organization";
 };
 
-type StoredTemplate = Omit<MarketplaceTemplateRow, "authorUsername" | "publisher">;
-
 const BASE_VERSION_REQUIRED_ERROR_CODE = "template_base_version_required";
-const TEMPLATE_NOT_FOUND = "Template not found";
-
-const UNREADABLE_SDL_ISSUE = "The SDL could not be read";
-const NO_SERVICES_ISSUE = "The SDL defines no services";
 
 type LegacyHardware = { cpu: number; ram: number; storage: number };
 
@@ -95,17 +89,13 @@ function settingsUpdateOf({ summary, ...patch }: TemplateSettingsPatch): Templat
   };
 }
 
-function isMapping(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
+/** A public template's title is held to the reserved-name check alone, since a rename changes nothing else the checks read. */
+function assertTitleNotReserved(title: string): void {
+  const issues = findReservedTitleIssues(title);
 
-function toIssue({ keyword, message, params }: ValidationError): string {
-  if (keyword !== "yaml") return message;
-
-  const { reason, line, column }: Partial<YamlErrorParams> = params;
-  const position = line && column ? ` (line ${line}, column ${column})` : "";
-
-  return `${UNREADABLE_SDL_ISSUE}: ${reason}${position}`;
+  if (issues.length > 0) {
+    throw createChecksFailedError({ ranAt: new Date().toISOString(), checks: [toPublishCheck("name_not_reserved", issues)] });
+  }
 }
 
 @singleton()
@@ -115,8 +105,10 @@ export class TemplateWriterService {
     private readonly templateVersionRepository: TemplateVersionRepository,
     private readonly marketplaceTemplateService: MarketplaceTemplateService,
     private readonly deploymentProjectService: DeploymentProjectService,
-    private readonly sdlService: SdlService,
-    private readonly sdlReferenceService: SdlReferenceService,
+    private readonly templateSdlValidatorService: TemplateSdlValidatorService,
+    private readonly templateWriteAccessService: TemplateWriteAccessService,
+    private readonly publishChecksService: PublishChecksService,
+    private readonly templateRateLimiterService: TemplateRateLimiterService,
     private readonly authService: AuthService,
     private readonly txService: TxService,
     private readonly executionContextService: ExecutionContextService
@@ -125,7 +117,8 @@ export class TemplateWriterService {
   async create(input: CreateUserTemplateInput): Promise<MarketplaceTemplateOutput> {
     const ability = this.authService.ability;
     const { id: authorId, userId } = this.authService.currentUser;
-    assert(userId && ability.can("create", "Template"), 403, "You cannot create templates");
+    const organizationId = this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId;
+    assert(userId && organizationId && ability.can("create", "Template"), 403, "You cannot create templates");
     this.#assertValid(input.sdl, input.askedValues);
 
     if (input.copiedFromId) {
@@ -137,6 +130,7 @@ export class TemplateWriterService {
     const repository = this.marketplaceTemplateRepository.accessibleBy(ability, "create");
 
     const templateId = await this.txService.transaction(async () => {
+      await this.templateRateLimiterService.assertWithinLimits("create", { userId: authorId, organizationId });
       const id = await repository.createTemplate({
         title: input.title,
         summary: input.summary || null,
@@ -167,13 +161,14 @@ export class TemplateWriterService {
 
   /** The base version is checked again under the append lock, so of two editors saving from the same base only the first succeeds. */
   async appendVersion(id: string, input: AppendUserTemplateVersionInput): Promise<PublishedTemplateVersion> {
-    await this.#findWritable(id, "update");
+    await this.templateWriteAccessService.findWritable(id, "update");
     this.#assertValid(input.sdl, input.askedValues);
     const hardware = summarizeTemplateHardware(input.sdl);
     const createdById = this.authService.currentUser.id;
 
     const { imageDigests: _imageDigests, ...version } = await this.txService.transaction(async () => {
-      const template = await this.#lockWritable(id, "update");
+      const template = await this.templateWriteAccessService.lockWritable(id, "update");
+      await this.templateRateLimiterService.assertWithinLimits("version", { userId: createdById, organizationId: template.organizationId });
       const base = template.currentVersionId ? await this.#findBaseVersion(id, input.baseVersion) : undefined;
       const currentReadmeShown = readmeShownFor(base, template);
       const readme = input.readme === undefined ? currentReadmeShown : input.readme;
@@ -184,14 +179,18 @@ export class TemplateWriterService {
         askedValues: input.askedValues,
         resources: hardware ?? null,
         createdById,
-        expectedCurrentVersionId: base?.id,
-        readmesShown: { current: currentReadmeShown, next: readme }
+        expectedCurrentVersionId: base && (await this.#currentVersionExpectedFrom(base, template)),
+        readmesShown: { current: currentReadmeShown, next: readme },
+        checkResults: template.visibility === "public" ? await this.#runPublishChecks(template, { ...input, readme }) : undefined
       });
-      await this.marketplaceTemplateRepository.mirrorVersion(id, {
-        sdl: input.sdl,
-        description: readme ?? "",
-        ...legacyHardwareOf(hardware)
-      });
+
+      if (appended.status === "live") {
+        await this.marketplaceTemplateRepository.mirrorVersion(id, {
+          sdl: input.sdl,
+          description: readme ?? "",
+          ...legacyHardwareOf(hardware)
+        });
+      }
 
       return appended;
     });
@@ -200,13 +199,16 @@ export class TemplateWriterService {
   }
 
   async updateSettings(id: string, patch: TemplateSettingsPatch): Promise<MarketplaceTemplateOutput> {
-    await this.#findWritable(id, "update");
+    await this.templateWriteAccessService.findWritable(id, "update");
 
     await this.txService.transaction(async () => {
-      const template = await this.#lockWritable(id, "update");
+      const template = await this.templateWriteAccessService.lockWritable(id, "update");
 
       if (template.visibility === "private" && patch.visibility === "organization") {
         await this.#assertNoSecretValueSaved(template);
+      }
+      if (template.visibility === "public" && patch.visibility === undefined && patch.title !== undefined) {
+        assertTitleNotReserved(patch.title);
       }
 
       await this.marketplaceTemplateRepository.updateSettings(id, settingsUpdateOf(patch));
@@ -216,10 +218,10 @@ export class TemplateWriterService {
   }
 
   async delete(id: string): Promise<void> {
-    await this.#findWritable(id, "delete");
+    await this.templateWriteAccessService.findWritable(id, "delete");
 
     await this.txService.transaction(async () => {
-      await this.#lockWritable(id, "delete");
+      await this.templateWriteAccessService.lockWritable(id, "delete");
       await this.marketplaceTemplateRepository.deleteTemplate(id);
     });
   }
@@ -228,7 +230,7 @@ export class TemplateWriterService {
   async #assertNoSecretValueSaved(template: StoredTemplate): Promise<void> {
     const current = await this.templateVersionRepository.findCurrent(template.id);
     const sdl = current?.sdl ?? template.sdl;
-    const sdlIssues = this.#findSdlIssues(sdl);
+    const sdlIssues = this.templateSdlValidatorService.findIssues(sdl);
     const issues = sdlIssues.length > 0 ? sdlIssues : findSecretValueIssues(sdl, current?.askedValues ?? []);
 
     if (issues.length > 0) throw createTemplateInvalidError(issues);
@@ -248,53 +250,31 @@ export class TemplateWriterService {
     return base;
   }
 
-  /** Answers 404 for a template the caller may not read, before any 403, so its existence does not leak. */
-  async #findWritable(id: string, action: TemplateWriteAction): Promise<void> {
-    this.#assertWritable(await this.marketplaceTemplateService.findReadable(id), action);
+  /** A version that failed its checks never became the current one, so a save edited from it is held to the version that was current when it failed. */
+  async #currentVersionExpectedFrom(base: TemplateVersionOutput, template: StoredTemplate): Promise<string | undefined> {
+    if (base.status !== "failed_checks") return base.id;
+
+    const current = await this.templateVersionRepository.findCurrent(template.id);
+
+    return current && current.version < base.version ? current.id : base.id;
   }
 
-  /** The row read before the transaction may since have moved, been re-scoped or deleted, so the write is authorized again on the row it locks. */
-  async #lockWritable(id: string, action: TemplateWriteAction): Promise<StoredTemplate> {
-    const template = await this.marketplaceTemplateRepository.findAndLockForWrite(id);
-    assert(template && template.moderationStatus !== "removed", 404, TEMPLATE_NOT_FOUND);
-    this.#assertWritable(template, action);
-
-    return template;
-  }
-
-  #assertWritable(template: StoredTemplate, action: TemplateWriteAction): void {
-    const activeOrganizationId = this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId;
-    const refusal = findTemplateWriteRefusal(template, action, { ability: this.authService.ability, activeOrganizationId });
-
-    if (refusal === "outside_active_organization") {
-      throw createError(403, "Switch to the template's organization to change it", { errorCode: ORGANIZATION_FORBIDDEN_ERROR_CODE });
-    }
-
-    assert(!refusal, 403, "You cannot change this template");
+  async #runPublishChecks(template: StoredTemplate, input: AppendUserTemplateVersionInput & { readme: string | null }): Promise<PublishCheckResults> {
+    return await this.publishChecksService.run({
+      sdl: input.sdl,
+      readme: input.readme,
+      askedValues: input.askedValues,
+      title: template.title,
+      organizationId: template.organizationId
+    });
   }
 
   #assertValid(sdl: string, askedValues: AskedValue[]): void {
-    const sdlIssues = this.#findSdlIssues(sdl);
+    const sdlIssues = this.templateSdlValidatorService.findIssues(sdl);
     const issues = sdlIssues.length > 0 ? sdlIssues : [...findAskedValueIssues(sdl, askedValues), ...findSecretValueIssues(sdl, askedValues)];
 
     if (issues.length > 0) {
       throw createTemplateInvalidError(issues);
     }
-  }
-
-  /** Holds a template to what a deployment of it must pass, so a malformed env or credentials block cannot slip a plaintext secret past the value checks. */
-  #findSdlIssues(sdl: string): string[] {
-    const parsed = this.sdlService.parse(sdl);
-
-    if (!parsed.ok) return parsed.value.map(toIssue);
-    if (!isMapping(parsed.value)) return [UNREADABLE_SDL_ISSUE];
-    if (!isMapping(parsed.value.services) || Object.keys(parsed.value.services).length === 0) return [NO_SERVICES_ISSUE];
-
-    const referenceErrors = this.sdlReferenceService.validate(parsed.value);
-    if (referenceErrors.length > 0) return referenceErrors.map(toIssue);
-
-    const manifest = generateManifestReportingBuildFailures(parsed.value);
-
-    return manifest.ok ? [] : manifest.value.map(toIssue);
   }
 }

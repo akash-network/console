@@ -9,6 +9,7 @@ import type {
   PublishedTemplateVersion,
   UserTemplateListItem
 } from "@src/template-marketplace/services/marketplace-template/marketplace-template.service";
+import type { TemplatePublishService } from "@src/template-marketplace/services/template-publish/template-publish.service";
 import type { TemplateWriterService } from "@src/template-marketplace/services/template-writer/template-writer.service";
 import { MarketplaceTemplateController } from "./marketplace-template.controller";
 
@@ -52,6 +53,35 @@ describe(MarketplaceTemplateController.name, () => {
       const result = await controller.getTemplate(template.id);
 
       expect(result.data.usage).toEqual({ deploys: 0, lastDeployedAt: null, stillUpAfter24h: null });
+    });
+  });
+
+  describe("getPublishReadiness", () => {
+    it("answers what the publish service found", async () => {
+      const readiness = mock<Awaited<ReturnType<TemplatePublishService["getReadiness"]>>>({ canPublish: false, termsVersion: "2026-11" });
+      const { controller, publisher } = setup();
+      publisher.getReadiness.mockResolvedValue(readiness);
+      const id = faker.string.uuid();
+
+      const result = await controller.getPublishReadiness(id);
+
+      expect(result).toEqual({ data: readiness });
+      expect(publisher.getReadiness).toHaveBeenCalledWith(id);
+    });
+  });
+
+  describe("publishTemplate", () => {
+    it("publishes under the terms accepted and answers the template with when it went public", async () => {
+      const publishedAt = new Date("2026-11-18T10:00:00.000Z");
+      const template = createTemplate({ visibility: "public", isListed: true, publishedAt });
+      const { controller, publisher } = setup();
+      publisher.publish.mockResolvedValue(template);
+
+      const result = await controller.publishTemplate(template.id, { data: { acceptedTermsVersion: "2026-11" } });
+
+      expect(result.data).toMatchObject({ id: template.id, visibility: "public", publishedAt: "2026-11-18T10:00:00.000Z" });
+      expect(result.data.createdAt).toBe(template.createdAt.toISOString());
+      expect(publisher.publish).toHaveBeenCalledWith(template.id, "2026-11");
     });
   });
 
@@ -214,6 +244,7 @@ describe(MarketplaceTemplateController.name, () => {
       askedValues: [],
       resources: { cpu: 1, memoryBytes: 1024, storageBytes: 1024 },
       status: "live",
+      checkResults: null,
       changes: ["image_changed"],
       createdById: faker.string.uuid(),
       createdBy: { username: faker.internet.userName() },
@@ -237,6 +268,7 @@ describe(MarketplaceTemplateController.name, () => {
       copiedFromId: null,
       createdAt: faker.date.past(),
       updatedAt: faker.date.recent(),
+      publishedAt: null,
       author: { username: faker.internet.userName() },
       publisher: null,
       currentVersion: createVersion(),
@@ -250,8 +282,9 @@ describe(MarketplaceTemplateController.name, () => {
   function setup() {
     const service = mock<MarketplaceTemplateService>();
     const writer = mock<TemplateWriterService>();
-    const controller = new MarketplaceTemplateController(service, writer);
+    const publisher = mock<TemplatePublishService>();
+    const controller = new MarketplaceTemplateController(service, writer, publisher);
 
-    return { controller, service, writer };
+    return { controller, service, writer, publisher };
   }
 });

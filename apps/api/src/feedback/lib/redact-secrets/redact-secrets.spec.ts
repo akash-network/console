@@ -1,7 +1,7 @@
 import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 
-import { countRedactions, REDACTED, redactEmailAddresses, redactSecrets, redactSecretStrings } from "./redact-secrets";
+import { countRedactions, holdsIssuedCredential, holdsUrlPassword, REDACTED, redactEmailAddresses, redactSecrets, redactSecretStrings } from "./redact-secrets";
 
 describe(redactSecrets.name, () => {
   it.each([
@@ -15,9 +15,50 @@ describe(redactSecrets.name, () => {
     { shape: "a Slack token", secret: `xoxb-${digits(10)}-${alphanumeric(12)}` },
     { shape: "an AWS access key id", secret: `AKIA${upperAlphanumeric(16)}` },
     { shape: "an AWS temporary access key id", secret: `ASIA${upperAlphanumeric(16)}` },
+    { shape: "a Stripe secret key", secret: `sk_live_${alphanumeric(24)}` },
+    { shape: "a Stripe restricted test key", secret: `rk_test_${alphanumeric(16)}` },
+    { shape: "a Google API key", secret: `AIza${alphanumeric(35)}` },
+    { shape: "a GitLab personal token", secret: `glpat-${alphanumeric(20)}` },
+    { shape: "an npm token", secret: `npm_${alphanumeric(36)}` },
+    { shape: "a SendGrid key", secret: `SG.${alphanumeric(22)}.${alphanumeric(43)}` },
+    { shape: "a Replicate token", secret: `r8_${alphanumeric(37)}` },
+    { shape: "a Groq key", secret: `gsk_${alphanumeric(52)}` },
+    { shape: "an NVIDIA API key", secret: `nvapi-${alphanumeric(64)}` },
+    { shape: "a Docker Hub token", secret: `dckr_pat_${alphanumeric(27)}` },
+    { shape: "a Tailscale key", secret: `tskey-auth-${alphanumeric(24)}` },
     { shape: "a JWT", secret: `eyJ${alphanumeric(12)}.eyJ${alphanumeric(20)}.${alphanumeric(16)}-_${alphanumeric(4)}` }
   ])("replaces $shape in the middle of a sentence", ({ secret }) => {
     expect(redactSecrets(`my deploy fails with ${secret} set in the env`)).toBe(`my deploy fails with ${REDACTED} set in the env`);
+  });
+
+  it("replaces a JWT whose payload is longer than a thousand characters", () => {
+    const jwt = `eyJ${alphanumeric(12)}.eyJ${alphanumeric(1500)}.${alphanumeric(43)}`;
+
+    expect(redactSecrets(`token ${jwt} expired`)).toBe(`token ${REDACTED} expired`);
+  });
+
+  it.each(["session-", "--jwt=", "path/", "a.b.", "eyJ-", "-"])("replaces a JWT that follows %s and keeps what is before it", prefix => {
+    const jwt = `eyJ${alphanumeric(12)}.eyJ${alphanumeric(20)}.${alphanumeric(16)}`;
+
+    expect(redactSecrets(`it sent ${prefix}${jwt} twice`)).toBe(`it sent ${prefix}${REDACTED} twice`);
+  });
+
+  it("replaces a JWT whose header and payload hold hyphens", () => {
+    const jwt = `eyJ${alphanumeric(6)}-${alphanumeric(6)}-e.eyJ${alphanumeric(10)}-eyJ${alphanumeric(10)}.${alphanumeric(8)}-${alphanumeric(8)}`;
+
+    expect(redactSecrets(`it sent ${jwt} twice`)).toBe(`it sent ${REDACTED} twice`);
+  });
+
+  it.each([
+    { shape: "JWT starts without a dot", text: "eyJ-".repeat(32_000) },
+    { shape: "JWT headers without a dot", text: "eyJa-".repeat(26_000) },
+    { shape: "JWT starts after a header and a dot", text: `eyJa.${"eyJ-".repeat(32_000)}` },
+    { shape: "headers that each reach a payload without a signature", text: "eyJa.eyJb ".repeat(13_000) }
+  ])("stays fast on a long run of $shape", ({ text }) => {
+    const startedAt = performance.now();
+
+    expect(redactSecrets(text)).toBe(text);
+    expect(performance.now() - startedAt).toBeLessThan(1_000);
   });
 
   it("replaces a private key block with everything between its markers", () => {
@@ -207,6 +248,16 @@ describe(redactSecrets.name, () => {
     expect(redactSecrets(`${first} then ${second}`)).toBe(`${REDACTED} then ${REDACTED}`);
   });
 
+  it.each([
+    { carrier: "a quoted key with an unquoted value", prefix: '"password": ' },
+    { carrier: "a bearer scheme", prefix: "Bearer " },
+    { carrier: "an unquoted key", prefix: "api_key=" }
+  ])("replaces the whole value of $carrier that starts with a provider token", ({ prefix }) => {
+    const text = `${prefix}sk_live_${alphanumeric(24)}.private-tail`;
+
+    expect(redactSecrets(text)).toBe(`${prefix}${REDACTED}`);
+  });
+
   it("keeps text without secrets unchanged", () => {
     const text = "The deployment never got bids for an H100, what should I change?";
 
@@ -224,6 +275,47 @@ describe(redactSecrets.name, () => {
   function digits(length: number) {
     return faker.string.numeric(length);
   }
+});
+
+const CONNECTION_STRING_WITH_PASSWORD = `postgres://app:${"hunter2".repeat(2)}@db:5432/app`;
+
+describe(holdsIssuedCredential.name, () => {
+  it.each([
+    { shape: "a Hugging Face token", build: () => `hf_${faker.string.alphanumeric({ length: 24, casing: "mixed" })}` },
+    { shape: "a GitHub token", build: () => `ghp_${faker.string.alphanumeric({ length: 36, casing: "mixed" })}` },
+    { shape: "a private key block", build: () => `-----BEGIN PRIVATE KEY-----\n${faker.string.alphanumeric(64)}\n-----END PRIVATE KEY-----` }
+  ])("finds $shape among other words", ({ build }) => {
+    expect(holdsIssuedCredential(`export it as ${build()} before you start`)).toBe(true);
+  });
+
+  it("finds a token every time it is asked about the same text", () => {
+    const text = `hf_${faker.string.alphanumeric({ length: 24, casing: "mixed" })}`;
+
+    expect([holdsIssuedCredential(text), holdsIssuedCredential(text), holdsIssuedCredential(text)]).toEqual([true, true, true]);
+  });
+
+  it.each(["--max_tokens=512", "token: abc", "Bearer abc123", CONNECTION_STRING_WITH_PASSWORD, "Set HF_TOKEN to your own token."])(
+    "does not take %s for an issued credential",
+    text => {
+      expect(holdsIssuedCredential(text)).toBe(false);
+    }
+  );
+});
+
+describe(holdsUrlPassword.name, () => {
+  it("finds a password in a connection string", () => {
+    expect(holdsUrlPassword(CONNECTION_STRING_WITH_PASSWORD)).toBe(true);
+  });
+
+  it("finds a password every time it is asked about the same text", () => {
+    const text = "redis://default:hunter2@cache:6379";
+
+    expect([holdsUrlPassword(text), holdsUrlPassword(text)]).toEqual([true, true]);
+  });
+
+  it.each(["https://example.com/docs", "postgres://app@db:5432/app", "user:pass"])("finds none in %s", text => {
+    expect(holdsUrlPassword(text)).toBe(false);
+  });
 });
 
 describe(countRedactions.name, () => {

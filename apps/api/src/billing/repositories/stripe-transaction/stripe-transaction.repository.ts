@@ -272,6 +272,26 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
     return !!item;
   }
 
+  /** A card payment that settled and was neither refunded in full nor lost to a dispute; credits granted by a coupon, staff or a commission are not payments. */
+  async hasSucceededPayment(organizationId: string): Promise<boolean> {
+    const [item] = await this.cursor
+      .select({ id: this.table.id })
+      .from(this.table)
+      .where(
+        this.whereAccessibleBy(
+          and(
+            eq(this.table.organizationId, organizationId),
+            eq(this.table.type, "payment_intent"),
+            eq(this.table.status, "succeeded"),
+            isNull(this.table.disputeLostAt)
+          )
+        )
+      )
+      .limit(1);
+
+    return !!item;
+  }
+
   #completedPaidBy(owner: BillingOwner): SQL | undefined {
     return and(ownedBy(this.table, owner), eq(this.table.type, "payment_intent"), inArray(this.table.status, ["succeeded", "refunded"]));
   }

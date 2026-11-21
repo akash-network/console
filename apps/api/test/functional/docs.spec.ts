@@ -49,10 +49,12 @@ const UNRELEASED_TEMPLATE_MARKETPLACE_ROUTES = [
   "DELETE /v1/user-templates/{id}",
   "GET /v1/user-templates",
   "GET /v1/user-templates/{id}",
+  "GET /v1/user-templates/{id}/publish-readiness",
   "GET /v1/user-templates/{id}/versions",
   "GET /v1/user-templates/{id}/versions/{version}",
   "PATCH /v1/user-templates/{id}",
   "POST /v1/user-templates",
+  "POST /v1/user-templates/{id}/publish",
   "POST /v1/user-templates/{id}/versions"
 ];
 

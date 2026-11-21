@@ -48,8 +48,10 @@ type TemplateRecordInput = TemplateInput & {
 type TemplateRow = ApiPgTables["Templates"]["$inferSelect"];
 
 export interface TemplateVersionState {
+  organizationId: string;
   isPublic: boolean;
   visibility: TemplateVisibility;
+  publishedAt: Date | null;
   description: string | null;
   currentVersionId: string | null;
   currentVersionSdl: string | null;
@@ -185,8 +187,10 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
   async findVersionState(id: string, userId: string): Promise<TemplateVersionState | undefined> {
     const [state] = await this.cursor
       .select({
+        organizationId: this.table.organizationId,
         isPublic: this.table.isPublic,
         visibility: this.table.visibility,
+        publishedAt: this.table.publishedAt,
         description: this.table.description,
         currentVersionId: this.table.currentVersionId
       })

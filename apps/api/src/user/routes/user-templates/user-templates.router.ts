@@ -72,7 +72,8 @@ const saveTemplateRoute = createRoute({
       description: "Template saved successfully"
     },
     400: {
-      description: "Invalid input, or a new template needs a project (`project_required`)"
+      description:
+        "Invalid input, a new template needs a project (`project_required`), or with the template marketplace on a save to a public template fails its publish checks (`template_publish_checks_failed`)"
     },
     401: {
       description: "Unauthorized"
@@ -82,6 +83,14 @@ const saveTemplateRoute = createRoute({
     },
     404: {
       description: "Project not found"
+    },
+    409: {
+      description:
+        "With the template marketplace on, a save that would make a template public; publish it from its Share dialog instead (`template_publish_gate_required`)"
+    },
+    429: {
+      description:
+        "With the template marketplace on, the caller or the organization reached a limit; `Retry-After` tells when to try again (`template_rate_limited`)"
     }
   }
 });
@@ -113,6 +122,10 @@ const saveTemplateDescRoute = createRoute({
   responses: {
     200: {
       description: "Template description saved successfully"
+    },
+    400: {
+      description:
+        "Invalid input, or with the template marketplace on the description is shown as a public template's README and holds a credential (`template_publish_checks_failed`)"
     },
     401: {
       description: "Unauthorized"

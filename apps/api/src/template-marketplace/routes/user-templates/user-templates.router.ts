@@ -13,6 +13,11 @@ import {
   UserTemplateVersionParamsSchema
 } from "@src/template-marketplace/http-schemas/marketplace-template.schema";
 import {
+  GetPublishReadinessResponseSchema,
+  PublishUserTemplateRequestSchema,
+  PublishUserTemplateResponseSchema
+} from "@src/template-marketplace/http-schemas/template-publish.schema";
+import {
   CreateUserTemplateRequestSchema,
   CreateUserTemplateResponseSchema,
   CreateUserTemplateVersionRequestSchema,
@@ -112,6 +117,8 @@ marketplaceTemplatesRouter.openapi(getUserTemplateVersionRoute, async function r
 /** Field caps bound characters, not bytes, so a body with every field at its cap can exceed the default limit once JSON-escaped. */
 const MAX_TEMPLATE_WRITE_BODY_BYTES = 1024 * 1024;
 
+const RATE_LIMITED_DESCRIPTION = "The caller or the organization reached a limit; `Retry-After` tells when to try again (`template_rate_limited`)";
+
 const TEMPLATE_INVALID_DESCRIPTION = "The body is invalid, or the SDL or its asked values are refused (`template_invalid`, with the `issues` found)";
 
 const createUserTemplateRoute = createRoute({
@@ -134,7 +141,8 @@ const createUserTemplateRoute = createRoute({
     400: { description: `${TEMPLATE_INVALID_DESCRIPTION}, or a project must be named (\`project_required\`)` },
     401: { description: "The caller is not signed in" },
     403: { description: "The caller may not create templates" },
-    404: { description: "The project or the template copied from does not exist or the caller may not read it" }
+    404: { description: "The project or the template copied from does not exist or the caller may not read it" },
+    429: { description: RATE_LIMITED_DESCRIPTION }
   }
 });
 
@@ -146,7 +154,7 @@ const createUserTemplateVersionRoute = createRoute({
   method: "post",
   operationId: "createUserTemplateVersion",
   path: "/v1/user-templates/{id}/versions",
-  summary: "Save a new version of a template the caller may change",
+  summary: "Save a new version of a template the caller may change, held to the publish checks when the template is public",
   tags: ["Templates"],
   security: SECURITY_BEARER_OR_API_KEY,
   featureFlag: FeatureFlags.TEMPLATE_MARKETPLACE,
@@ -157,14 +165,15 @@ const createUserTemplateVersionRoute = createRoute({
   },
   responses: {
     201: {
-      description: "The version saved",
+      description: "The version saved; with status `failed_checks` it did not become the current version, and `checkResults` says why",
       content: { "application/json": { schema: CreateUserTemplateVersionResponseSchema } }
     },
     400: { description: TEMPLATE_INVALID_DESCRIPTION },
     401: { description: "The caller is not signed in" },
     403: { description: "The caller may read the template but not change it" },
     404: { description: NOT_FOUND_DESCRIPTION },
-    409: { description: "Another version was saved after the base version (`template_version_conflict`)" }
+    409: { description: "Another version was saved after the base version (`template_version_conflict`)" },
+    429: { description: RATE_LIMITED_DESCRIPTION }
   }
 });
 
@@ -218,7 +227,10 @@ const updateUserTemplateRoute = createRoute({
       description: "The template changed",
       content: { "application/json": { schema: UpdateUserTemplateResponseSchema } }
     },
-    400: { description: "The body changes no setting, or a setting is outside the catalog or its limits" },
+    400: {
+      description:
+        "The body changes no setting, a setting is outside the catalog or its limits, or the new title of a public template uses a reserved word (`template_publish_checks_failed`)"
+    },
     401: { description: "The caller is not signed in" },
     403: { description: OUTSIDE_ORGANIZATION_DESCRIPTION },
     404: { description: NOT_FOUND_DESCRIPTION }
@@ -228,6 +240,68 @@ const updateUserTemplateRoute = createRoute({
 marketplaceTemplatesRouter.openapi(updateUserTemplateRoute, async function routeUpdateUserTemplate(c) {
   const { id } = c.req.valid("param");
   return c.json(await container.resolve(MarketplaceTemplateController).updateTemplate(id, c.req.valid("json")), 200);
+});
+
+const getUserTemplatePublishReadinessRoute = createRoute({
+  method: "get",
+  // eslint-disable-next-line akash/operation-id-format
+  operationId: "getUserTemplatePublishReadiness",
+  path: "/v1/user-templates/{id}/publish-readiness",
+  summary: "Tell what still stands between a template the caller may change and making it public",
+  tags: ["Templates"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  featureFlag: FeatureFlags.TEMPLATE_MARKETPLACE,
+  request: {
+    params: UserTemplateParamsSchema
+  },
+  responses: {
+    200: {
+      description: "The requirements on the caller and the organization, and the publish checks run on the current version",
+      content: { "application/json": { schema: GetPublishReadinessResponseSchema } }
+    },
+    400: { description: "The id is not a uuid" },
+    401: { description: "The caller is not signed in" },
+    403: { description: OUTSIDE_ORGANIZATION_DESCRIPTION },
+    404: { description: NOT_FOUND_DESCRIPTION }
+  }
+});
+
+marketplaceTemplatesRouter.openapi(getUserTemplatePublishReadinessRoute, async function routeGetUserTemplatePublishReadiness(c) {
+  const { id } = c.req.valid("param");
+  return c.json(await container.resolve(MarketplaceTemplateController).getPublishReadiness(id), 200);
+});
+
+const publishUserTemplateRoute = createRoute({
+  method: "post",
+  operationId: "publishUserTemplate",
+  path: "/v1/user-templates/{id}/publish",
+  summary: "Make a template public and list it in the gallery, once its requirements are met and its checks pass",
+  tags: ["Templates"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  featureFlag: FeatureFlags.TEMPLATE_MARKETPLACE,
+  request: {
+    params: UserTemplateParamsSchema,
+    body: { content: { "application/json": { schema: PublishUserTemplateRequestSchema } }, required: true }
+  },
+  responses: {
+    200: {
+      description: "The template, now public",
+      content: { "application/json": { schema: PublishUserTemplateResponseSchema } }
+    },
+    400: { description: "The body is invalid, or the current version fails the publish checks (`template_publish_checks_failed`, with the `checks`)" },
+    401: { description: "The caller is not signed in" },
+    403: {
+      description: `A requirement is unmet (\`template_publish_requirements_unmet\`, with the \`unmet\` keys). ${OUTSIDE_ORGANIZATION_DESCRIPTION}`
+    },
+    404: { description: NOT_FOUND_DESCRIPTION },
+    409: { description: "The terms accepted are not the current ones (`template_terms_version_mismatch`, with the current `termsVersion`)" },
+    429: { description: RATE_LIMITED_DESCRIPTION }
+  }
+});
+
+marketplaceTemplatesRouter.openapi(publishUserTemplateRoute, async function routePublishUserTemplate(c) {
+  const { id } = c.req.valid("param");
+  return c.json(await container.resolve(MarketplaceTemplateController).publishTemplate(id, c.req.valid("json")), 200);
 });
 
 const deleteUserTemplateRoute = createRoute({

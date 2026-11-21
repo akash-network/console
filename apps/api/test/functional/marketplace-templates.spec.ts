@@ -119,8 +119,9 @@ describe("Marketplace templates", () => {
           copiedFromId: null,
           createdAt: template.createdAt.toISOString(),
           updatedAt: stored.updatedAt.toISOString(),
+          publishedAt: null,
           author: { username: author.username },
-          publisher: { name: team.name, slug: team.slug, type: "team" },
+          publisher: { name: team.name, slug: team.slug, type: "team", handle: null },
           currentVersion: {
             id: version.id,
             templateId: template.id,
@@ -130,6 +131,7 @@ describe("Marketplace templates", () => {
             askedValues: [],
             resources: { cpu: 1, memoryBytes: 2, storageBytes: 3 },
             status: "live",
+            checkResults: null,
             changes: ["first_version"],
             createdBy: { username: author.username },
             createdAt: version.createdAt.toISOString()
@@ -207,7 +209,7 @@ describe("Marketplace templates", () => {
         data: expect.objectContaining({
           id: template.id,
           author: null,
-          publisher: { name: publisher.name, slug: publisher.slug, type: "team" },
+          publisher: { name: publisher.name, slug: publisher.slug, type: "team", handle: null },
           canEdit: false
         })
       };
@@ -348,6 +350,7 @@ describe("Marketplace templates", () => {
           askedValues: [],
           resources: null,
           status: "live",
+          checkResults: null,
           changes: ["first_version"],
           createdBy: null,
           createdAt: first.createdAt.toISOString()
@@ -474,7 +477,18 @@ describe("Marketplace templates", () => {
   }
 
   function summaryOf(templateId: string, { id, version, changes, createdAt }: { id: string; version: number; changes: string[] | null; createdAt: Date }) {
-    return { id, templateId, version, resources: null, status: "live", changes, createdBy: null, createdAt: createdAt.toISOString(), deploys: 0 };
+    return {
+      id,
+      templateId,
+      version,
+      resources: null,
+      status: "live",
+      checkResults: null,
+      changes,
+      createdBy: null,
+      createdAt: createdAt.toISOString(),
+      deploys: 0
+    };
   }
 
   async function seedTemplate(input: {

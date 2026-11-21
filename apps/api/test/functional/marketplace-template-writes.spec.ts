@@ -526,8 +526,9 @@ describe("Marketplace template writes", () => {
         copiedFromId: null,
         createdAt: expect.any(String),
         updatedAt: expect.any(String),
+        publishedAt: null,
         author: { username: member.username },
-        publisher: { name: team.name, slug: team.slug, type: "team" },
+        publisher: { name: team.name, slug: team.slug, type: "team", handle: null },
         currentVersion: {
           id: expect.any(String),
           templateId: data.id,
@@ -537,6 +538,7 @@ describe("Marketplace template writes", () => {
           askedValues: [],
           resources: { cpu: 1, memoryBytes: 1024 * MEBIBYTE, storageBytes: 2 * GIBIBYTE },
           status: "live",
+          checkResults: null,
           changes: ["first_version"],
           createdBy: { username: member.username },
           createdAt: expect.any(String)
@@ -815,6 +817,7 @@ describe("Marketplace template writes", () => {
         askedValues: [textAskedValue("GREETING")],
         resources: { cpu: 1.5, memoryBytes: 1536 * MEBIBYTE, storageBytes: 3 * GIBIBYTE },
         status: "live",
+        checkResults: null,
         changes: ["image_tag_changed", "asked_value_added", "readme_changed"],
         createdBy: { username: editor.username },
         createdAt: expect.any(String)
