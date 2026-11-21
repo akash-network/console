@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { type AnyPgColumn, boolean, index, pgEnum, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { type AnyPgColumn, boolean, check, index, integer, pgEnum, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
 // eslint-disable-next-line import-x/no-cycle
 import { UserWallets } from "@src/billing/model-schemas/user-wallet/user-wallet.schema";
@@ -44,11 +44,17 @@ export const Users = pgTable(
     timezonePickedAt: timestamp("timezone_picked_at", { withTimezone: true }),
     lastUsedOrganizationId: uuid("last_used_organization_id").references((): AnyPgColumn => Organizations.id, { onDelete: "set null" }),
     accountStatus: accountStatusEnum("account_status").default("active").notNull(),
+    /** Set by staff in the admin app; null falls back to TEAM_ORGANIZATIONS_PER_USER_LIMIT. */
+    teamOrganizationLimit: integer("team_organization_limit"),
+    /** Applies to every organization this user created; null falls back to PROJECTS_PER_ORGANIZATION_LIMIT. */
+    projectsPerOrganizationLimit: integer("projects_per_organization_limit"),
     createdAt: timestamp("created_at").defaultNow()
   },
   table => ({
     lastFingerprintIdx: index("userSetting_last_fingerprint_idx").on(table.lastFingerprint),
-    accountStatusIdx: index("userSetting_account_status_idx").on(table.accountStatus)
+    accountStatusIdx: index("userSetting_account_status_idx").on(table.accountStatus),
+    teamOrganizationLimitPositive: check("userSetting_team_organization_limit_positive", sql`${table.teamOrganizationLimit} > 0`),
+    projectsPerOrganizationLimitPositive: check("userSetting_projects_per_organization_limit_positive", sql`${table.projectsPerOrganizationLimit} > 0`)
   })
 );
 

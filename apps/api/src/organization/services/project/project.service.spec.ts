@@ -307,6 +307,18 @@ describe(ProjectService.name, () => {
       await expect(atLimit.service.create({ name: "web" })).resolves.toMatchObject({ id: atLimit.project.id });
       await expect(pastLimit.service.create({ name: "web" })).rejects.toMatchObject({ errorCode: PROJECT_LIMIT_REACHED_ERROR_CODE, data: { limit: 3 } });
     });
+
+    it("applies the limit set on the organization's creator over the configured one", async () => {
+      const atRaisedLimit = setup({ projectLimit: 10, creatorProjectLimit: 100, liveProjectCount: 100 });
+      const pastRaisedLimit = setup({ projectLimit: 10, creatorProjectLimit: 100, liveProjectCount: 101 });
+
+      await expect(atRaisedLimit.service.create({ name: "web" })).resolves.toMatchObject({ id: atRaisedLimit.project.id });
+      await expect(pastRaisedLimit.service.create({ name: "web" })).rejects.toMatchObject({
+        errorCode: PROJECT_LIMIT_REACHED_ERROR_CODE,
+        data: { limit: 100 }
+      });
+      expect(pastRaisedLimit.organizationRepository.findCreatorProjectLimit).toHaveBeenCalledWith(pastRaisedLimit.context.organizationId);
+    });
   });
 
   it("creates its logger under its own name", () => {
@@ -507,6 +519,7 @@ describe(ProjectService.name, () => {
       username?: string | null;
       openDeployments?: OpenDeployment[];
       projectLimit?: number;
+      creatorProjectLimit?: number | null;
       liveProjectCount?: number;
       abilityOf?: (user: Parameters<typeof organizationRules>[0]) => AuthService["ability"];
       listed?: ProjectWithLastActivity[];
@@ -528,7 +541,8 @@ describe(ProjectService.name, () => {
     });
     projectRepository.accessibleBy.mockReturnValue(projectRepository);
     const organizationRepository = mock<OrganizationRepository>({
-      findOneByAndLock: vi.fn().mockResolvedValue(createOrganization({ id: context?.organizationId }))
+      findOneByAndLock: vi.fn().mockResolvedValue(createOrganization({ id: context?.organizationId })),
+      findCreatorProjectLimit: vi.fn().mockResolvedValue(input.creatorProjectLimit ?? null)
     });
     const deploymentSettingRepository = mock<DeploymentSettingRepository>({
       findOpenInProject: vi.fn().mockResolvedValue(input.openDeployments ?? []),

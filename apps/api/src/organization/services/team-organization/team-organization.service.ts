@@ -120,7 +120,7 @@ export class TeamOrganizationService {
   }
 
   async #assertBelowCreationLimit(userId: string): Promise<void> {
-    const limit = this.config.TEAM_ORGANIZATIONS_PER_USER_LIMIT;
+    const limit = this.authService.currentUser.teamOrganizationLimit ?? this.config.TEAM_ORGANIZATIONS_PER_USER_LIMIT;
     if ((await this.organizationRepository.countLiveTeamsCreatedBy(userId)) < limit) return;
 
     this.#logger.info({ event: "ORGANIZATION_LIMIT_REACHED", userId, limit });

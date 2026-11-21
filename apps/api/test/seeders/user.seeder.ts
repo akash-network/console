@@ -28,6 +28,8 @@ export function createUser({
   timezonePickedAt = null,
   lastUsedOrganizationId = null,
   accountStatus = "active",
+  teamOrganizationLimit = null,
+  projectsPerOrganizationLimit = null,
   createdAt = faker.date.recent(),
   trial = false
 }: Partial<UserOutput> = {}): UserOutput {
@@ -57,6 +59,8 @@ export function createUser({
     timezonePickedAt,
     lastUsedOrganizationId,
     accountStatus,
+    teamOrganizationLimit,
+    projectsPerOrganizationLimit,
     createdAt,
     trial
   };

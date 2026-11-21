@@ -129,6 +129,16 @@ describe(TeamOrganizationService.name, () => {
       await expect(atLimit.service.create("Acme Corp")).rejects.toMatchObject({ errorCode: ORGANIZATION_LIMIT_REACHED_ERROR_CODE, data: { limit: 5 } });
     });
 
+    it("applies the caller's own limit over the configured one", async () => {
+      const underRaisedLimit = setup({ teamLimit: 3, userTeamLimit: 10, createdTeamCount: 9 });
+      const atRaisedLimit = setup({ teamLimit: 3, userTeamLimit: 10, createdTeamCount: 10 });
+      const atLoweredLimit = setup({ teamLimit: 3, userTeamLimit: 1, createdTeamCount: 1 });
+
+      await expect(underRaisedLimit.service.create("Acme Corp")).resolves.toMatchObject({ organization: underRaisedLimit.organization });
+      await expect(atRaisedLimit.service.create("Acme Corp")).rejects.toMatchObject({ errorCode: ORGANIZATION_LIMIT_REACHED_ERROR_CODE, data: { limit: 10 } });
+      await expect(atLoweredLimit.service.create("Acme Corp")).rejects.toMatchObject({ errorCode: ORGANIZATION_LIMIT_REACHED_ERROR_CODE, data: { limit: 1 } });
+    });
+
     it("refuses a name the caller already uses for another organization, without writing anything", async () => {
       const { service, organizationRepository, organizationActivityService, logger } = setup({ nameTaken: true });
 
@@ -351,6 +361,7 @@ describe(TeamOrganizationService.name, () => {
       context?: OrganizationContext;
       apiKey?: ApiKeyOutput;
       teamLimit?: number;
+      userTeamLimit?: number | null;
       createdTeamCount?: number;
       nameTaken?: boolean;
       renamed?: OrganizationOutput | null;
@@ -358,7 +369,7 @@ describe(TeamOrganizationService.name, () => {
     } = {}
   ) {
     const calls: string[] = [];
-    const user = createUser();
+    const user = createUser({ teamOrganizationLimit: input.userTeamLimit ?? null });
     const ability = createMongoAbility();
     const organization = createOrganization({ createdByUserId: user.id });
     const membership = createOrganizationMember({ organizationId: organization.id, userId: user.id, role: "owner" });

@@ -241,6 +241,21 @@ describe("Projects", () => {
       expect(await liveProjectNamesOf(team.id)).not.toContain("past limit");
     });
 
+    it("lets any member grow the organization to the limit set on its creator rather than the configured one", async () => {
+      const configuredLimit = container.resolve(ORGANIZATION_CONFIG).PROJECTS_PER_ORGANIZATION_LIMIT;
+      const { request, team } = await setupCaller({ role: "admin", ownerProjectLimit: configuredLimit + 1 });
+      for (let index = 1; index < configuredLimit; index++) {
+        await seedProject({ organizationId: team.id });
+      }
+
+      const last = await request("/v1/projects", { method: "POST", body: { data: { name: "last" } } });
+      const pastLimit = await request("/v1/projects", { method: "POST", body: { data: { name: "past limit" } } });
+
+      expect(last.status).toBe(201);
+      expect(pastLimit.status).toBe(403);
+      expect(await pastLimit.json()).toMatchObject({ code: "project_limit_reached", data: { limit: configuredLimit + 1 } });
+    });
+
     it("accepts a name without a latin letter or digit under a generated slug", async () => {
       const { request } = await setupCaller({ role: "owner" });
 
@@ -569,8 +584,14 @@ describe("Projects", () => {
     return { userId: `auth0|${faker.string.alphanumeric(24)}`, username: `user-${faker.string.alphanumeric(12)}` };
   }
 
-  async function setupCaller(input: { role: OrganizationRole }) {
-    const { user: owner, organization: team, project: defaultProject } = await seedOrganizationWithOwner({ user: createSignedUpUserInput() });
+  async function setupCaller(input: { role: OrganizationRole; ownerProjectLimit?: number }) {
+    const {
+      user: owner,
+      organization: team,
+      project: defaultProject
+    } = await seedOrganizationWithOwner({
+      user: { ...createSignedUpUserInput(), projectsPerOrganizationLimit: input.ownerProjectLimit ?? null }
+    });
     const caller = input.role === "owner" ? owner : await seedUser(createSignedUpUserInput());
     if (input.role !== "owner") {
       await seedOrganizationMember({ organizationId: team.id, userId: caller.id, role: input.role });
