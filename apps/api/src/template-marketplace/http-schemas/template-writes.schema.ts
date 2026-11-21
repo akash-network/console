@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
 
+import { readableLine, readableName, readableText } from "@src/core/lib/readable-text/readable-text";
 import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import { AskedValuesSchema } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
 import {
@@ -16,11 +17,11 @@ import { DeploysSchema, LastDeployedAtSchema, MarketplaceTemplateSchema, MAX_VER
 
 const TemplateSdlSchema = z.string().min(1).max(SDL_MAX_LENGTH);
 
-const ReadmeSchema = z.string().max(MAX_TEMPLATE_README_LENGTH);
+const ReadmeSchema = readableText(z.string().max(MAX_TEMPLATE_README_LENGTH));
 
-const TitleSchema = z.string().trim().min(1).max(MAX_TEMPLATE_TITLE_LENGTH);
+const TitleSchema = readableName(z.string().trim().min(1).max(MAX_TEMPLATE_TITLE_LENGTH));
 
-const SummarySchema = z.string().trim().max(MAX_TEMPLATE_SUMMARY_LENGTH);
+const SummarySchema = readableLine(z.string().trim().max(MAX_TEMPLATE_SUMMARY_LENGTH));
 
 const IconSchema = z.enum(TEMPLATE_ICONS);
 

@@ -12,6 +12,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildMarketplaceTemplate, buildTemplateVersion } from "@tests/seeders/userTemplate";
 import { MockComponents } from "@tests/unit/mocks";
+import { findActiveContent, USER_CONTENT_ATTACKS } from "@tests/unit/userContentAttacks";
 
 const TEMPLATE_SDL = [
   "version: '2.0'",
@@ -440,6 +441,21 @@ describe(TemplateVariablesCard.name, () => {
     expect(screen.getByRole("region", { name: "Plain nginx" })).toBeInTheDocument();
     expect(screen.queryByText("Variables")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Reset to defaults" })).not.toBeInTheDocument();
+  });
+
+  it.each(USER_CONTENT_ATTACKS)("shows a title, label, help text and choice holding $name as inert text", ({ payload }) => {
+    setup({
+      template: { title: payload },
+      askedValues: [
+        { type: "text", key: "WEBUI_NAME", label: payload, help: payload, required: false, bindings: [{ service: "webui", env: "WEBUI_NAME" }] },
+        { type: "choice", key: "DEFAULT_MODELS", label: "Model", choices: [payload], required: false, bindings: [{ service: "webui", env: "DEFAULT_MODELS" }] }
+      ]
+    });
+
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toBe(payload);
+    expect(document.body.textContent).toContain(`${payload}OptionalWEBUI_NAME${payload}`);
+    expect(screen.getByRole("option", { name: payload.replace(/\s+/g, " ").trim() }).textContent).toBe(payload);
+    expect(findActiveContent(document.body)).toEqual([]);
   });
 
   function setup(input: {

@@ -4,6 +4,7 @@ import type { TemplateAskedValue } from "@src/types/marketplace-template";
 import { AskedValuesList } from "./AskedValuesList";
 
 import { render, screen, within } from "@testing-library/react";
+import { findActiveContent, USER_CONTENT_ATTACKS } from "@tests/unit/userContentAttacks";
 
 const MODEL: TemplateAskedValue = {
   key: "MODEL_ID",
@@ -79,6 +80,14 @@ describe(AskedValuesList.name, () => {
     const { container } = setup({ askedValues: [] });
 
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it.each(USER_CONTENT_ATTACKS)("shows a label, help text and default holding $name as inert text", ({ payload }) => {
+    const { container } = setup({ askedValues: [{ ...ADMIN_EMAIL, label: payload, help: payload, default: payload }] });
+
+    expect(container.textContent).toContain(`${payload}Required${payload}`);
+    expect(container.textContent).toContain(`default ${payload}`);
+    expect(findActiveContent(container)).toEqual([]);
   });
 
   function expectRow(row: HTMLElement, expected: { label: string; key: string; value: string; isRequired: boolean; isSecret: boolean }) {

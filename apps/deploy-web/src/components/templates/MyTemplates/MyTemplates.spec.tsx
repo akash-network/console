@@ -15,6 +15,7 @@ import { buildProject } from "@tests/seeders/project";
 import { buildUserTemplateListItem } from "@tests/seeders/userTemplate";
 import { MockComponents } from "@tests/unit/mocks";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
+import { findActiveContent, USER_CONTENT_ATTACKS } from "@tests/unit/userContentAttacks";
 
 const SUPPORT_URL = "https://akash.network/support";
 const ML_RESEARCH = buildProject({ id: "project-ml", name: "ml-research" });
@@ -312,6 +313,13 @@ describe(MyTemplates.name, () => {
 
     expect(screen.getByText("No templates yet")).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+
+  it.each(USER_CONTENT_ATTACKS)("shows a title and editor name holding $name as inert text", ({ payload }) => {
+    setup({ templates: [buildUserTemplateListItem({ title: payload, summary: payload, lastEditedBy: { username: payload } })] });
+
+    expect(screen.getAllByRole("row")[1].textContent).toContain(`${payload}Edited by ${payload}`);
+    expect(findActiveContent(document.body)).toEqual([]);
   });
 
   function rowOf(template: UserTemplateListItem) {
