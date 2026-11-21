@@ -1,5 +1,6 @@
 import { StrictMode } from "react";
 import { ApiError } from "@akashnetwork/openapi-sdk";
+import { format } from "date-fns";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -40,8 +41,10 @@ describe(GpuAlertsSection.name, () => {
       ]
     });
 
-    expect(screen.getByText("#4 in line · Joined Nov 3, 2026 · Last emailed Nov 10, 2026")).toBeInTheDocument();
-    expect(screen.getByText("#9 in line · Joined Nov 3, 2026 · Not emailed yet")).toBeInTheDocument();
+    const joined = format(new Date("2026-11-03T12:00:00.000Z"), "MMM d, yyyy");
+    const lastEmailed = format(new Date("2026-11-10T12:00:00.000Z"), "MMM d, yyyy");
+    expect(screen.getByText(`#4 in line · Joined ${joined} · Last emailed ${lastEmailed}`)).toBeInTheDocument();
+    expect(screen.getByText(`#9 in line · Joined ${joined} · Not emailed yet`)).toBeInTheDocument();
     expect(screen.getByText("2× H100")).toBeInTheDocument();
     expect(screen.getByText("1× A100 80Gi SXM")).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Leave" })).toHaveLength(2);
