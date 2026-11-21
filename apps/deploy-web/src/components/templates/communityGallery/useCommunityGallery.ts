@@ -13,7 +13,9 @@ import {
   selectTrendingEntries,
   sortGalleryEntries
 } from "./galleryEntries";
-import type { GallerySort, GallerySource } from "./galleryView";
+import type { GalleryFirstPage } from "./galleryFirstPage";
+import type { GalleryView } from "./galleryView";
+import { isSameGalleryView } from "./galleryView";
 
 interface CommunityTemplatesQuery {
   data: CommunityTemplateGallery | undefined;
@@ -27,11 +29,18 @@ export const DEPENDENCIES: { useCommunityTemplates: (options: { enabled: boolean
 export interface CommunityGalleryInput {
   isEnabled: boolean;
   categories: EnhancedTemplateCategory[];
-  view: { category: string | null; search: string; source: GallerySource; sort: GallerySort };
+  /** True until the awesome-akash list has answered for the first time. */
+  isLoadingCategories?: boolean;
+  view: GalleryView;
+  /** The first screen a server render worked out, shown until both lists have loaded in the browser. */
+  firstPage?: GalleryFirstPage;
 }
 
 /** Null while the marketplace is off, so the gallery keeps showing the awesome-akash sections alone. */
-export function useCommunityGallery({ isEnabled, categories, view }: CommunityGalleryInput, dependencies: typeof DEPENDENCIES = DEPENDENCIES) {
+export function useCommunityGallery(
+  { isEnabled, categories, isLoadingCategories = false, view, firstPage }: CommunityGalleryInput,
+  dependencies: typeof DEPENDENCIES = DEPENDENCIES
+) {
   const communityQuery = dependencies.useCommunityTemplates({ enabled: isEnabled });
   const community = communityQuery.data;
   const refetchCommunity = communityQuery.refetch;
@@ -54,15 +63,33 @@ export function useCommunityGallery({ isEnabled, categories, view }: CommunityGa
 
   if (!isEnabled) return null;
 
+  const retryCommunity = () => void refetchCommunity();
+  const isAwaitingLists = communityQuery.isLoading || isLoadingCategories;
+
+  if (firstPage && isAwaitingLists && isSameGalleryView(firstPage.view, view)) {
+    return {
+      selectedCategory: firstPage.selectedCategory,
+      filters: firstPage.filters,
+      sourceCounts: firstPage.sourceCounts,
+      shownEntries: firstPage.shownEntries,
+      trendingEntries: firstPage.trendingEntries,
+      isShowingFirstPage: true,
+      isLoadingCommunity: false,
+      hasCommunityFailed: false,
+      retryCommunity
+    };
+  }
+
   return {
     selectedCategory,
     filters,
     sourceCounts,
     shownEntries,
     trendingEntries: view.search.trim() ? [] : trendingEntries,
+    isShowingFirstPage: false,
     isLoadingCommunity: communityQuery.isLoading,
     hasCommunityFailed: communityQuery.isError,
-    retryCommunity: () => void refetchCommunity()
+    retryCommunity
   };
 }
 

@@ -12,11 +12,13 @@ import {
   GallerySourceFilter
 } from "@src/components/templates/communityGallery/GalleryControls/GalleryControls";
 import { GalleryEntryList } from "@src/components/templates/communityGallery/GalleryEntryList/GalleryEntryList";
+import type { GalleryFirstPage } from "@src/components/templates/communityGallery/galleryFirstPage";
 import { TrendingTemplatesRow } from "@src/components/templates/communityGallery/TrendingTemplatesRow/TrendingTemplatesRow";
 import type { CommunityGallery } from "@src/components/templates/communityGallery/useCommunityGallery";
 import { useCommunityGallery } from "@src/components/templates/communityGallery/useCommunityGallery";
 import type { TemplateSection } from "@src/components/templates/templateGalleryModel";
 import { findSelectedCategory, isPopularTemplate, listUseCaseFilters, selectTemplateSections } from "@src/components/templates/templateGalleryModel";
+import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useFlag } from "@src/hooks/useFlag";
 import { useTemplates } from "@src/queries/useTemplateQuery";
 import { domainName, UrlService } from "@src/utils/urlUtils";
@@ -31,6 +33,7 @@ const OVERLINE_CLASSES = "font-mono text-[11px] font-medium uppercase leading-4 
 
 export const DEPENDENCIES = {
   useFlag,
+  useCustomUser,
   useTemplateGalleryUrlState,
   useTemplates,
   useCommunityGallery,
@@ -43,13 +46,21 @@ export const DEPENDENCIES = {
   TrendingTemplatesRow
 };
 
-export const TemplateGallery: FC<{ dependencies?: typeof DEPENDENCIES }> = ({ dependencies: d = DEPENDENCIES }) => {
+export interface TemplateGalleryProps {
+  /** The first screen a server render worked out for a visitor, shown until the browser has loaded the lists. */
+  firstPage?: GalleryFirstPage;
+  dependencies?: typeof DEPENDENCIES;
+}
+
+export const TemplateGallery: FC<TemplateGalleryProps> = ({ firstPage, dependencies: d = DEPENDENCIES }) => {
   const isMarketplaceEnabled = d.useFlag("template_marketplace");
   const urlState = d.useTemplateGalleryUrlState();
   const { isLoading, categories } = d.useTemplates();
+  const { user } = d.useCustomUser();
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+  const isLoadingCategories = isLoading && categories.length === 0;
 
-  const communityGallery = d.useCommunityGallery({ isEnabled: !!isMarketplaceEnabled, categories, view: urlState });
+  const communityGallery = d.useCommunityGallery({ isEnabled: !!isMarketplaceEnabled, categories, isLoadingCategories, view: urlState, firstPage });
 
   const search = urlState.search;
   const selectedCategory = communityGallery ? communityGallery.selectedCategory : findSelectedCategory(categories, urlState.category);
@@ -78,7 +89,7 @@ export const TemplateGallery: FC<{ dependencies?: typeof DEPENDENCIES }> = ({ de
       <div className="flex w-full flex-col md:h-page-viewport">
         <div className="flex min-h-[60px] shrink-0 items-center gap-4 border-b border-border bg-background px-4 py-2.5 sm:px-6">
           <h1 className="mr-auto text-xl font-bold tracking-tight">Templates</h1>
-          {isMarketplaceEnabled && (
+          {isMarketplaceEnabled && user && (
             <Link href={UrlService.myTemplates()} className={buttonVariants({ variant: "outline", size: "sm" })}>
               My templates
             </Link>
@@ -138,7 +149,7 @@ export const TemplateGallery: FC<{ dependencies?: typeof DEPENDENCIES }> = ({ de
 
               <d.OrganizationTemplatesSection />
 
-              {isLoading && categories.length === 0 && (
+              {isLoadingCategories && !communityGallery?.isShowingFirstPage && (
                 <div className="flex justify-center py-12">
                   <Spinner size="large" />
                 </div>

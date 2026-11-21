@@ -87,11 +87,13 @@ const TAB_TRIGGER_CLASSES =
 
 export interface TemplatePageProps {
   id: string;
+  /** Set when a server render already learned the template was removed, so the page says so without asking the API again. */
+  removedTemplate?: { title: string | null };
   dependencies?: typeof DEPENDENCIES;
 }
 
-export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPENDENCIES }) => {
-  const templateQuery = d.useMarketplaceTemplate(id);
+export const TemplatePage: FC<TemplatePageProps> = ({ id, removedTemplate: removedOnServer, dependencies: d = DEPENDENCIES }) => {
+  const templateQuery = d.useMarketplaceTemplate(removedOnServer ? undefined : id);
   const template = templateQuery.data;
   const versionsQuery = d.useTemplateVersions(id, { enabled: !!template });
   const [selectedVersion, setSelectedVersion] = useState<number>();
@@ -136,7 +138,7 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
 
   if (templateQuery.error instanceof ApiError && templateQuery.error.status === 404) return <d.NotFoundPage />;
 
-  const removedTemplate = readRemovedTemplate(templateQuery.error);
+  const removedTemplate = removedOnServer ? { title: removedOnServer.title ?? undefined } : readRemovedTemplate(templateQuery.error);
   if (removedTemplate) {
     return (
       <d.Layout background="dots">
@@ -174,7 +176,9 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
       ? UrlService.configureTemplate({ mode: "new", copyFromTemplateId: id, copyFromVersion: shownVersionNumber })
       : undefined;
 
-  const signInToReport = () => {
+  const deployUrl = UrlService.configureDeployment({ userTemplateId: id, templateVersion: shownVersionNumber });
+
+  const signInAndReturnToTemplate = () => {
     router.push(UrlService.newLogin({ returnTo: UrlService.template(id) }));
   };
 
@@ -261,9 +265,13 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
             {template.canEdit && versionsQuery.data && shownVersionNumber !== undefined && (
               <VersionPicker versions={versionsQuery.data} selected={shownVersionNumber} currentVersion={currentVersion?.version} onSelect={selectVersion} />
             )}
-            {user && (
+            {user ? (
               <Button variant="outline" size="icon" aria-label="Favorite" aria-pressed={isFavorite} aria-busy={isChangingFavorite} onClick={toggleFavorite}>
                 <Star className={cn("h-4 w-4", isFavorite && "fill-current text-primary")} aria-hidden="true" />
+              </Button>
+            ) : (
+              <Button variant="outline" size="icon" aria-label="Favorite" aria-pressed={false} onClick={signInAndReturnToTemplate}>
+                <Star className="h-4 w-4" aria-hidden="true" />
               </Button>
             )}
             <Button variant="outline" size={template.canEdit ? "sm" : "icon"} aria-label="Share" className="gap-1.5" onClick={() => setIsShareOpen(true)}>
@@ -288,10 +296,7 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
                 Fork
               </Link>
             )}
-            <Link
-              href={UrlService.configureDeployment({ userTemplateId: id, templateVersion: shownVersionNumber })}
-              className={cn(buttonVariants({ size: "sm" }), "gap-1.5")}
-            >
+            <Link href={user ? deployUrl : UrlService.newLogin({ returnTo: deployUrl })} className={cn(buttonVariants({ size: "sm" }), "gap-1.5")}>
               Deploy
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
@@ -374,7 +379,12 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
 
         {canReport && (
           <div className="mt-8 flex justify-end">
-            <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={() => (user ? setIsReportOpen(true) : signInToReport())}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-muted-foreground"
+              onClick={() => (user ? setIsReportOpen(true) : signInAndReturnToTemplate())}
+            >
               <Flag className="h-4 w-4" aria-hidden="true" />
               Report this template
             </Button>
@@ -394,7 +404,7 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, dependencies: d = DEPE
         <d.ReportTemplateDialog
           template={template}
           onClose={() => setIsReportOpen(false)}
-          onSignedOut={signInToReport}
+          onSignedOut={signInAndReturnToTemplate}
           onTemplateRemoved={() => void templateQuery.refetch()}
         />
       )}

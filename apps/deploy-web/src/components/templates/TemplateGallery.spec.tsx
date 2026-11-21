@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { GalleryEntryListProps } from "@src/components/templates/communityGallery/GalleryEntryList/GalleryEntryList";
+import type { GalleryFirstPage } from "@src/components/templates/communityGallery/galleryFirstPage";
 import type { CommunityGallery, CommunityGalleryInput } from "@src/components/templates/communityGallery/useCommunityGallery";
 import type { EnhancedTemplateCategory, TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
 import { UrlService } from "@src/utils/urlUtils";
@@ -232,6 +233,12 @@ describe(TemplateGallery.name, () => {
     expect(screen.queryByRole("link", { name: "My templates" })).not.toBeInTheDocument();
   });
 
+  it("offers a visitor no link to My templates", () => {
+    setup({ categories: [makeCategory("Games", ["Minecraft"])], isSignedIn: false, dependencies: { useFlag: flag => flag === "template_marketplace" } });
+
+    expect(screen.queryByRole("link", { name: "My templates" })).not.toBeInTheDocument();
+  });
+
   it("puts the organization section above the category sections and keeps it while searching", () => {
     const OrganizationTemplatesSection = vi.fn(() => <section aria-label="Your organization" />);
     setup({ categories: [makeCategory("Games", ["Minecraft", "Tetris"])], url: { search: "tetris" }, dependencies: { OrganizationTemplatesSection } });
@@ -267,6 +274,8 @@ describe(TemplateGallery.name, () => {
       expect(useCommunityGallery).toHaveBeenLastCalledWith({
         isEnabled: true,
         categories: CATEGORIES,
+        isLoadingCategories: false,
+        firstPage: undefined,
         view: expect.objectContaining({ category: "Games", search: "craft", source: "community", sort: "newest" })
       });
     });
@@ -390,19 +399,55 @@ describe(TemplateGallery.name, () => {
       expect(retryCommunity).toHaveBeenCalledOnce();
     });
 
+    it("hands the hook the first screen the server worked out and whether the awesome-akash list is still loading", () => {
+      const firstPage = mock<GalleryFirstPage>();
+      const { useCommunityGallery, rerenderWithTemplates } = setupMarketplace({ firstPage, categories: [], isLoading: true });
+
+      expect(useCommunityGallery).toHaveBeenLastCalledWith(expect.objectContaining({ firstPage, isLoadingCategories: true, categories: [] }));
+
+      rerenderWithTemplates(CATEGORIES);
+
+      expect(useCommunityGallery).toHaveBeenLastCalledWith(expect.objectContaining({ firstPage, isLoadingCategories: false, categories: CATEGORIES }));
+    });
+
+    it("counts a refresh of a list it already has as loaded", () => {
+      const { useCommunityGallery } = setupMarketplace({ isLoading: true });
+
+      expect(useCommunityGallery).toHaveBeenLastCalledWith(expect.objectContaining({ isLoadingCategories: false }));
+    });
+
+    it("shows no spinner over the first screen the server worked out", () => {
+      setupMarketplace({ gallery: { isShowingFirstPage: true }, categories: [], isLoading: true });
+
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    });
+
+    it("shows the spinner while the lists load and there is no first screen to show", () => {
+      setupMarketplace({ gallery: { isShowingFirstPage: false }, categories: [], isLoading: true });
+
+      expect(screen.getByRole("status")).toBeInTheDocument();
+    });
+
     it("leaves the no-match message to the list", () => {
       setupMarketplace({ gallery: { shownEntries: [] }, url: { search: "zzz" } });
 
       expect(screen.queryByText("No templates match “zzz”")).not.toBeInTheDocument();
     });
 
-    function setupMarketplace(input: { gallery?: Partial<CommunityGallery>; url?: GalleryUrl }) {
+    function setupMarketplace(input: {
+      gallery?: Partial<CommunityGallery>;
+      url?: GalleryUrl;
+      firstPage?: GalleryFirstPage;
+      categories?: EnhancedTemplateCategory[];
+      isLoading?: boolean;
+    }) {
       const gallery: CommunityGallery = {
         selectedCategory: null,
         filters: [{ category: null, label: "All", count: 1 }],
         sourceCounts: { all: 1, official: 1, community: 0 },
         shownEntries: [],
         trendingEntries: [],
+        isShowingFirstPage: false,
         isLoadingCommunity: false,
         hasCommunityFailed: false,
         retryCommunity: vi.fn(),
@@ -420,7 +465,9 @@ describe(TemplateGallery.name, () => {
       const TrendingTemplatesRow = vi.fn((_props: Parameters<typeof DEPENDENCIES.TrendingTemplatesRow>[0]) => null);
 
       const rendered = setup({
-        categories: CATEGORIES,
+        categories: input.categories ?? CATEGORIES,
+        isLoading: input.isLoading,
+        firstPage: input.firstPage,
         url: input.url,
         dependencies: { useFlag: flag => flag === "template_marketplace", useCommunityGallery, GalleryEntryList, TrendingTemplatesRow }
       });
@@ -431,7 +478,14 @@ describe(TemplateGallery.name, () => {
 
   type GalleryUrl = { category?: string; search?: string; source?: string; sort?: string };
 
-  function setup(input: { categories: EnhancedTemplateCategory[]; isLoading?: boolean; url?: GalleryUrl; dependencies?: Partial<typeof DEPENDENCIES> }) {
+  function setup(input: {
+    categories: EnhancedTemplateCategory[];
+    isLoading?: boolean;
+    isSignedIn?: boolean;
+    firstPage?: GalleryFirstPage;
+    url?: GalleryUrl;
+    dependencies?: Partial<typeof DEPENDENCIES>;
+  }) {
     const router = mock<ReturnType<typeof URL_STATE_DEPENDENCIES.useRouter>>();
     let templatesResult = toTemplatesResult(input.categories, input.isLoading ?? false);
     let searchParams = toSearchParams(input.url);
@@ -441,21 +495,23 @@ describe(TemplateGallery.name, () => {
     const dependencies = MockComponents(DEPENDENCIES, {
       useTemplateGalleryUrlState: () => useTemplateGalleryUrlState({ useRouter: () => router, useSearchParams: () => searchParams }),
       useTemplates: () => templatesResult,
+      useCustomUser: () =>
+        mock<ReturnType<typeof DEPENDENCIES.useCustomUser>>({ user: input.isSignedIn === false ? undefined : { userId: "auth0|ada" }, isLoading: false }),
       TemplateCard,
       TemplateUseCaseNav,
       ...input.dependencies
     });
 
-    const { rerender } = render(<TemplateGallery dependencies={dependencies} />);
+    const { rerender } = render(<TemplateGallery firstPage={input.firstPage} dependencies={dependencies} />);
 
     const rerenderWithUrl = (url: GalleryUrl) => {
       searchParams = toSearchParams(url);
-      rerender(<TemplateGallery dependencies={dependencies} />);
+      rerender(<TemplateGallery firstPage={input.firstPage} dependencies={dependencies} />);
     };
 
     const rerenderWithTemplates = (categories: EnhancedTemplateCategory[]) => {
       templatesResult = toTemplatesResult(categories, false);
-      rerender(<TemplateGallery dependencies={dependencies} />);
+      rerender(<TemplateGallery firstPage={input.firstPage} dependencies={dependencies} />);
     };
 
     return { router, TemplateCard, TemplateUseCaseNav, rerenderWithUrl, rerenderWithTemplates };

@@ -1,6 +1,6 @@
 import type { GetServerSidePropsResult } from "next";
 
-import { isMarketplaceEnabled } from "@src/components/templates/TemplateRoute/loadTemplateRouteProps";
+import { isMarketplaceEnabled } from "@src/components/templates/visitorPages/resolveMarketplaceAudience";
 import type { AppTypedContext } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 import type { ITemplate } from "@src/types";
 import type { MarketplaceTemplate } from "@src/types/marketplace-template";

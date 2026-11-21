@@ -62,6 +62,15 @@ describe(TemplateDetail.name, () => {
     );
   });
 
+  it("sends a visitor who deploys to sign in and on to Configure with the template", () => {
+    setup({ isSignedIn: false });
+
+    expect(screen.getByRole("link", { name: "Deploy template" })).toHaveAttribute(
+      "href",
+      "/login?tab=login&returnTo=%2Fnew-deployment%2Fconfigure%3FtemplateId%3Dakash-network-awesome-akash-comfyui"
+    );
+  });
+
   it("goes back to the previous page when the user arrived from within Console", () => {
     const { router, clickAndReportPrevented } = setup({ hasInAppHistory: true });
 
@@ -126,7 +135,7 @@ describe(TemplateDetail.name, () => {
     expect(useFlag).toHaveBeenCalledWith("onboarding_intent_first");
   });
 
-  function setup(input: { template?: Partial<ApiTemplate>; hasInAppHistory?: boolean; isTrialing?: boolean; isIntentFirst?: boolean }) {
+  function setup(input: { template?: Partial<ApiTemplate>; hasInAppHistory?: boolean; isTrialing?: boolean; isIntentFirst?: boolean; isSignedIn?: boolean }) {
     const template: ApiTemplate = {
       id: "akash-network-awesome-akash-comfyui",
       name: "ComfyUI",
@@ -152,6 +161,8 @@ describe(TemplateDetail.name, () => {
     const dependencies = MockComponents(DEPENDENCIES, {
       useRouter: () => router,
       useHasInAppHistory: () => input.hasInAppHistory ?? false,
+      useUser: () =>
+        mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: input.isSignedIn === false ? undefined : { userId: "auth0|ada" }, isLoading: false }),
       useWallet,
       useFlag,
       useServices,
