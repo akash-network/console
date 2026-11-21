@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
-import { Keyboard, LayoutGrid, Moon, Sun, Wallet } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { BookOpen, Keyboard, LayoutGrid, LockKeyhole, Moon, Sun, Wallet } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 
 import { DEPLOYMENT_STATUS_DOT_CLASSES, getDeploymentStatus } from "@src/components/deployments/DeploymentDetail/DeploymentStatusBadge";
@@ -17,7 +17,7 @@ import { COMMAND_PAGES, DEPLOYMENT_START_COMMANDS, goToShortcut, SHOW_SHORTCUTS_
 import type { CommandSection, ParsedQuery, SearchableItem } from "./commandMenuSearch";
 import { useStartDeployment } from "./useStartDeployment";
 
-export const DEPENDENCIES = { useRouter, useTheme, useAddCredits, useRunWhenEmailVerified, useStartDeployment, useApiDeploymentsListSource };
+export const DEPENDENCIES = { useRouter, usePathname, useTheme, useAddCredits, useRunWhenEmailVerified, useStartDeployment, useApiDeploymentsListSource };
 
 export interface CommandItem extends SearchableItem {
   icon?: LucideIcon;
@@ -36,11 +36,18 @@ const DEPLOYMENTS_OUTSIDE_SCOPE = 6;
 
 const DEPLOYMENTS_IN_SCOPE = 50;
 
+const ENVIRONMENT_SEARCH_TERMS = "secrets variables environment env vars sealed";
+
+export const ENVIRONMENT_GUIDE_URL = "https://akash.network/docs/learn/core-concepts/environment-secrets/";
+
+const DEPLOYMENT_DETAIL_PATH = /^\/deployments\/(\d+)\/?$/;
+
 export function useCommandMenuItems(
   { parsed, onShowShortcuts }: { parsed: ParsedQuery; onShowShortcuts: () => void },
   dependencies: typeof DEPENDENCIES = DEPENDENCIES
 ): CommandSection<CommandItem>[] {
   const router = dependencies.useRouter();
+  const openedDseq = dependencies.usePathname()?.match(DEPLOYMENT_DETAIL_PATH)?.[1];
   const { resolvedTheme, setTheme } = dependencies.useTheme();
   const openAddCredits = dependencies.useAddCredits();
   const runWhenEmailVerified = dependencies.useRunWhenEmailVerified();
@@ -94,6 +101,16 @@ export function useCommandMenuItems(
       shortcut: SHOW_SHORTCUTS_SHORTCUT,
       action: "keyboard_shortcuts",
       run: onShowShortcuts
+    },
+    ...(openedDseq ? [toEditVariablesAndSecretsItem(() => router.push(UrlService.deploymentDetails(openedDseq, "UPDATE")))] : []),
+    {
+      id: "action-variables-and-secrets-guide",
+      label: "Learn about variables & secrets",
+      icon: BookOpen,
+      keywords: `${ENVIRONMENT_SEARCH_TERMS} docs help`,
+      staysOnPage: true,
+      action: "open_variables_and_secrets_guide",
+      run: () => window.open(ENVIRONMENT_GUIDE_URL, "_blank", "noopener,noreferrer")
     }
   ];
 
@@ -149,6 +166,17 @@ function toDeploymentItem({ deployment, status }: ReturnType<typeof listDeployme
     isMonospace: true,
     statusDotClassName: DEPLOYMENT_STATUS_DOT_CLASSES[status.tone],
     action: "open_deployment",
+    run: open
+  };
+}
+
+function toEditVariablesAndSecretsItem(open: () => void): CommandItem {
+  return {
+    id: "action-edit-variables-and-secrets",
+    label: "Edit variables & secrets",
+    icon: LockKeyhole,
+    keywords: ENVIRONMENT_SEARCH_TERMS,
+    action: "edit_variables_and_secrets",
     run: open
   };
 }
