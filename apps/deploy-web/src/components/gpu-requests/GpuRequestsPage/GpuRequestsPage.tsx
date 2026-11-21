@@ -5,9 +5,11 @@ import { Button, Spinner } from "@akashnetwork/ui/components";
 import { InboxIcon, PlusIcon } from "lucide-react";
 import { NextSeo } from "next-seo";
 
+import { GpuAlertsSection } from "@src/components/gpu-alerts/GpuAlertsSection/GpuAlertsSection";
 import Layout from "@src/components/layout/Layout";
 import { SettingsLayout } from "@src/components/layout/SettingsLayout/SettingsLayout";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import { useUser } from "@src/hooks/useUser";
 import { useHardwareRequestsQuery } from "@src/queries/useHardwareRequestsQuery";
 import { GpuQuoteRequestFlow } from "../GpuQuoteRequestFlow/GpuQuoteRequestFlow";
@@ -25,10 +27,14 @@ export const DEPENDENCIES = {
   GpuRequestCard,
   GpuRequestOffers,
   WithdrawGpuRequestDialog,
+  GpuAlertsSection,
+  useFlag,
   useHardwareRequestsQuery,
   useUser,
   useActiveOrganization
 };
+
+const ALERTS_ONLY_DESCRIPTION = "GPUs you asked us to email you about.";
 
 type Props = {
   requestId?: string;
@@ -36,7 +42,9 @@ type Props = {
 };
 
 export const GpuRequestsPage: FC<Props> = ({ requestId, dependencies: d = DEPENDENCIES }) => {
-  const { data: requests, isLoading, isError } = d.useHardwareRequestsQuery();
+  const showsQuoteRequests = d.useFlag("gpu_quote_requests");
+  const showsAlerts = d.useFlag("gpu_availability_alerts");
+  const { data: requests, isLoading, isError } = d.useHardwareRequestsQuery({ enabled: showsQuoteRequests });
   const { user } = d.useUser();
   const { activeOrganization } = d.useActiveOrganization();
   const viewer = { userId: user?.id, role: activeOrganization?.role };
@@ -46,24 +54,24 @@ export const GpuRequestsPage: FC<Props> = ({ requestId, dependencies: d = DEPEND
 
   return (
     <d.Layout background="dots" disableContainer containerClassName="flex h-full flex-col justify-between">
-      <NextSeo title="GPU requests" />
+      <NextSeo title={showsQuoteRequests ? "GPU requests" : "GPU alerts"} />
       <d.SettingsLayout
-        title="GPU requests"
-        description="Hardware your organization asked us to source, and where each request stands."
-        headerActions={newestFirst.length > 0 && <NewRequestButton onClick={() => setIsRequesting(true)} />}
+        title={showsQuoteRequests ? "GPU requests" : "GPU alerts"}
+        description={showsQuoteRequests ? "Hardware your organization asked us to source, and where each request stands." : ALERTS_ONLY_DESCRIPTION}
+        headerActions={showsQuoteRequests && newestFirst.length > 0 && <NewRequestButton onClick={() => setIsRequesting(true)} />}
       >
-        {isLoading && (
+        {showsQuoteRequests && isLoading && (
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
             <Spinner size="small" />
             Loading your requests…
           </p>
         )}
-        {isError && (
+        {showsQuoteRequests && isError && (
           <p role="alert" className="text-sm text-muted-foreground">
             Couldn&apos;t load your requests. Try again in a moment.
           </p>
         )}
-        {requests?.length === 0 && (
+        {showsQuoteRequests && requests?.length === 0 && (
           <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed bg-card px-6 py-14 text-center">
             <span className="flex h-10 w-10 items-center justify-center rounded-lg border bg-muted">
               <InboxIcon className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
@@ -77,7 +85,7 @@ export const GpuRequestsPage: FC<Props> = ({ requestId, dependencies: d = DEPEND
             </div>
           </div>
         )}
-        {newestFirst.length > 0 && (
+        {showsQuoteRequests && newestFirst.length > 0 && (
           <ul className="flex flex-col gap-4">
             {newestFirst.map(request => (
               <li key={request.id}>
@@ -91,6 +99,7 @@ export const GpuRequestsPage: FC<Props> = ({ requestId, dependencies: d = DEPEND
             ))}
           </ul>
         )}
+        {showsAlerts && <d.GpuAlertsSection />}
       </d.SettingsLayout>
       {isRequesting && <d.GpuQuoteRequestFlow source="requests_page" onClose={() => setIsRequesting(false)} />}
       {withdrawing && <d.WithdrawGpuRequestDialog request={withdrawing} onClose={() => setWithdrawing(null)} />}
