@@ -98,7 +98,11 @@ describe(GpuWaitlistService.name, () => {
     it.each(["nvlink", "SX M", "infiniband"])("refuses an interface outside the PCIe and SXM families, such as %s, with 400", async gpuInterface => {
       const { service, repository } = setup();
 
-      await expect(service.join({ ...INPUT, interface: gpuInterface })).rejects.toMatchObject({ status: 400 });
+      await expect(service.join({ ...INPUT, interface: gpuInterface })).rejects.toMatchObject({
+        status: 400,
+        message: "GPU interface must name the PCIe or SXM family, such as sxm5",
+        errorCode: "gpu_waitlist_invalid_interface"
+      });
       expect(repository.create).not.toHaveBeenCalled();
     });
 
