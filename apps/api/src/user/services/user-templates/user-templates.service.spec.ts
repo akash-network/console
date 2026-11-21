@@ -6,13 +6,21 @@ import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { TxService } from "@src/core/services";
+import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { DeploymentProjectService } from "@src/deployment/services/deployment-project/deployment-project.service";
 import { summarizeTemplateHardware } from "@src/template/utils/template-hardware/template-hardware";
+import type { PublishCheckResults } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
 import type { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
+import type { PublishChecksService } from "@src/template-marketplace/services/publish-checks/publish-checks.service";
+import type { TemplateRateLimiterService } from "@src/template-marketplace/services/template-rate-limiter/template-rate-limiter.service";
 import type { TemplateUsageService } from "@src/template-marketplace/services/template-usage/template-usage.service";
 import type { UserOutput } from "@src/user/repositories";
 import type { TemplateInput, TemplateOutput, TemplateVersionState, UserTemplateRepository } from "../../repositories/user-template/user-template.repository";
 import { UserTemplatesService } from "./user-templates.service";
+
+import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 
 const VALID_SDL = `
 version: "2.0"
@@ -41,6 +49,12 @@ deployment:
       profile: web
       count: 1
 `;
+
+const PASSED_CHECKS: PublishCheckResults = { ranAt: "2026-11-18T10:00:00.000Z", checks: [{ key: "fixed_tags", status: "passed", issues: [] }] };
+const FAILED_CHECKS: PublishCheckResults = {
+  ranAt: "2026-11-18T10:00:00.000Z",
+  checks: [{ key: "fixed_tags", status: "failed", issues: [{ message: "Pin the tag", service: "web", image: "nginx" }] }]
+};
 
 describe(UserTemplatesService.name, () => {
   describe("getTemplateById", () => {
@@ -185,6 +199,83 @@ describe(UserTemplatesService.name, () => {
       expect(userTemplateRepository.updateTemplate).toHaveBeenCalledWith(id, userId, data);
       expect(userTemplateRepository.createTemplate).not.toHaveBeenCalled();
       expect(deploymentProjectService.resolveFilingProject).not.toHaveBeenCalled();
+    });
+
+    describe("rate limits", () => {
+      it("holds a new template to the create limits of the caller and the active organization while template_marketplace is on", async () => {
+        const { service, userTemplateRepository, templateRateLimiterService, user, activeOrganizationId } = setup({ isMarketplaceOn: true });
+        const refusal = new Error("too many templates");
+        templateRateLimiterService.assertWithinLimits.mockRejectedValue(refusal);
+
+        await expect(service.saveTemplate(undefined, faker.string.uuid(), { ...createTemplateInput(), isPublic: false })).rejects.toBe(refusal);
+
+        expect(templateRateLimiterService.assertWithinLimits).toHaveBeenCalledWith("create", { userId: user.id, organizationId: activeOrganizationId });
+        expect(userTemplateRepository.createTemplate).not.toHaveBeenCalled();
+      });
+
+      it("holds a new version to the version limits of the caller and the template's organization while template_marketplace is on", async () => {
+        const { service, userTemplateRepository, templateVersionRepository, templateRateLimiterService, user } = setup({ isMarketplaceOn: true });
+        const stored = createVersionState({ currentVersionId: faker.string.uuid(), currentVersionSdl: VALID_SDL });
+        userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+        userTemplateRepository.findVersionState.mockResolvedValue(stored);
+        const refusal = new Error("too many versions");
+        templateRateLimiterService.assertWithinLimits.mockRejectedValue(refusal);
+
+        await expect(
+          service.saveTemplate(faker.string.uuid(), faker.string.uuid(), { ...createTemplateInput(), isPublic: false, sdl: `${VALID_SDL}\n` })
+        ).rejects.toBe(refusal);
+
+        expect(templateRateLimiterService.assertWithinLimits).toHaveBeenCalledWith("version", { userId: user.id, organizationId: stored.organizationId });
+        expect(userTemplateRepository.updateTemplate).not.toHaveBeenCalled();
+        expect(templateVersionRepository.appendVersion).not.toHaveBeenCalled();
+      });
+
+      it("counts nothing against a save that keeps the current SDL", async () => {
+        const { service, userTemplateRepository, templateRateLimiterService } = setup({ isMarketplaceOn: true });
+        userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+        userTemplateRepository.findVersionState.mockResolvedValue(createVersionState({ currentVersionId: faker.string.uuid(), currentVersionSdl: VALID_SDL }));
+
+        await service.saveTemplate(faker.string.uuid(), faker.string.uuid(), { ...createTemplateInput(), isPublic: false, sdl: VALID_SDL });
+
+        expect(templateRateLimiterService.assertWithinLimits).not.toHaveBeenCalled();
+        expect(userTemplateRepository.updateTemplate).toHaveBeenCalled();
+      });
+
+      it.each([
+        { shape: "template_marketplace is off", options: { isMarketplaceOn: false } },
+        { shape: "the request has no active organization", options: { isMarketplaceOn: true, hasNoOrganization: true } }
+      ])("creates a template without consulting the limits when $shape", async ({ options }) => {
+        const { service, userTemplateRepository, templateRateLimiterService } = setup(options);
+        userTemplateRepository.createTemplate.mockResolvedValue(faker.string.uuid());
+
+        await service.saveTemplate(undefined, faker.string.uuid(), { ...createTemplateInput(), isPublic: false });
+
+        expect(templateRateLimiterService.assertWithinLimits).not.toHaveBeenCalled();
+        expect(userTemplateRepository.createTemplate).toHaveBeenCalled();
+      });
+
+      it("saves a new version without consulting the limits while template_marketplace is off", async () => {
+        const { service, userTemplateRepository, templateVersionRepository, templateRateLimiterService } = setup({ isMarketplaceOn: false });
+        userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+        userTemplateRepository.findVersionState.mockResolvedValue(createVersionState({ currentVersionId: faker.string.uuid(), currentVersionSdl: VALID_SDL }));
+
+        await service.saveTemplate(faker.string.uuid(), faker.string.uuid(), { ...createTemplateInput(), isPublic: false, sdl: `${VALID_SDL}\n` });
+
+        expect(templateRateLimiterService.assertWithinLimits).not.toHaveBeenCalled();
+        expect(templateVersionRepository.appendVersion).toHaveBeenCalled();
+      });
+    });
+
+    it("refuses to create a public template outside the publish gate while template_marketplace is on", async () => {
+      const { service, userTemplateRepository } = setup({ isMarketplaceOn: true });
+      userTemplateRepository.isAuthoredBy.mockResolvedValue(false);
+
+      await expect(service.saveTemplate(undefined, "user-id", { ...createTemplateInput(), isPublic: true })).rejects.toMatchObject({
+        status: 409,
+        errorCode: "template_publish_gate_required"
+      });
+
+      expect(userTemplateRepository.createTemplate).not.toHaveBeenCalled();
     });
 
     it("creates a template under the caller's create rules in the project resolved for templates", async () => {
@@ -449,6 +540,184 @@ describe(UserTemplatesService.name, () => {
       await expect(service.saveTemplate(undefined, faker.string.uuid(), createTemplateInput())).rejects.toBeInstanceOf(ForbiddenError);
       expect(deploymentProjectService.resolveFilingProject).not.toHaveBeenCalled();
     });
+
+    describe("when the template went through the publish gate", () => {
+      it("refuses a save that fails the publish checks and writes nothing", async () => {
+        const { service, userTemplateRepository, templateVersionRepository, publishChecksService } = setup({
+          isMarketplaceOn: true,
+          checkResults: FAILED_CHECKS
+        });
+        const stored = createVersionState({ visibility: "public", isPublic: true, publishedAt: new Date(), currentVersionAskedValues: [] });
+        userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+        userTemplateRepository.findVersionState.mockResolvedValue(stored);
+        const template = createTemplateInput();
+
+        await expect(service.saveTemplate("template-id", "user-id", template)).rejects.toMatchObject({
+          status: 400,
+          errorCode: "template_publish_checks_failed",
+          data: { checks: FAILED_CHECKS.checks }
+        });
+
+        expect(publishChecksService.run).toHaveBeenCalledWith({
+          sdl: template.sdl,
+          readme: template.description,
+          askedValues: [],
+          title: template.title,
+          organizationId: stored.organizationId
+        });
+        expect(userTemplateRepository.updateTemplate).not.toHaveBeenCalled();
+        expect(templateVersionRepository.appendVersion).not.toHaveBeenCalled();
+      });
+
+      it("saves a new version that passes the publish checks", async () => {
+        const { service, userTemplateRepository, templateVersionRepository } = setup({ isMarketplaceOn: true });
+        userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+        userTemplateRepository.findVersionState.mockResolvedValue(createVersionState({ visibility: "public", isPublic: true, publishedAt: new Date() }));
+
+        await service.saveTemplate("template-id", "user-id", createTemplateInput());
+
+        expect(userTemplateRepository.updateTemplate).toHaveBeenCalledTimes(1);
+        expect(templateVersionRepository.appendVersion).toHaveBeenCalledTimes(1);
+        expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ checkResults: PASSED_CHECKS }));
+      });
+
+      it("checks the README of the current version on a save that keeps the SDL", async () => {
+        const { service, userTemplateRepository, publishChecksService } = setup({ isMarketplaceOn: true });
+        const template = createTemplateInput();
+        userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+        userTemplateRepository.findVersionState.mockResolvedValue(
+          createVersionState({
+            visibility: "public",
+            isPublic: true,
+            publishedAt: new Date(),
+            currentVersionSdl: template.sdl,
+            currentVersionReadme: "# Stored"
+          })
+        );
+
+        await service.saveTemplate("template-id", "user-id", template);
+
+        expect(publishChecksService.run).toHaveBeenCalledWith(expect.objectContaining({ readme: "# Stored" }));
+      });
+
+      it.each([
+        { shape: "a template taken out of the gallery", stored: { visibility: "private" as const, isPublic: false, publishedAt: new Date() } },
+        { shape: "a template that never went through the gate", stored: { visibility: "private" as const, isPublic: false, publishedAt: null } },
+        { shape: "a template shared with its organization", stored: { visibility: "organization" as const, isPublic: false, publishedAt: null } }
+      ])("refuses to make $shape public outside the publish gate and writes nothing", async ({ stored }) => {
+        const { service, userTemplateRepository, templateVersionRepository, publishChecksService } = setup({ isMarketplaceOn: true });
+        userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+        userTemplateRepository.findVersionState.mockResolvedValue(createVersionState(stored));
+
+        await expect(service.saveTemplate("template-id", "user-id", { ...createTemplateInput(), isPublic: true })).rejects.toMatchObject({
+          status: 409,
+          errorCode: "template_publish_gate_required"
+        });
+
+        expect(publishChecksService.run).not.toHaveBeenCalled();
+        expect(userTemplateRepository.updateTemplate).not.toHaveBeenCalled();
+        expect(templateVersionRepository.appendVersion).not.toHaveBeenCalled();
+      });
+
+      it("keeps saving a template shared with its organization that stays out of the gallery", async () => {
+        const { service, userTemplateRepository, templateVersionRepository, publishChecksService } = setup({
+          isMarketplaceOn: true,
+          checkResults: FAILED_CHECKS
+        });
+        userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+        userTemplateRepository.findVersionState.mockResolvedValue(createVersionState({ visibility: "organization", isPublic: false, publishedAt: new Date() }));
+        const { isPublic: _isPublic, ...template } = createTemplateInput();
+
+        await service.saveTemplate("template-id", "user-id", template);
+
+        expect(publishChecksService.run).not.toHaveBeenCalled();
+        expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ checkResults: undefined }));
+      });
+
+      it("checks a save that keeps the SDL under the asked values of the current version", async () => {
+        const { service, userTemplateRepository, publishChecksService } = setup({ isMarketplaceOn: true });
+        const template = createTemplateInput();
+        const askedValues = [{ key: "PORT", label: "Port", type: "text" as const, required: false, bindings: [{ service: "web", env: "PORT" }] }];
+        userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+        userTemplateRepository.findVersionState.mockResolvedValue(
+          createVersionState({
+            visibility: "public",
+            isPublic: true,
+            publishedAt: new Date(),
+            currentVersionSdl: template.sdl,
+            currentVersionAskedValues: askedValues
+          })
+        );
+
+        await service.saveTemplate("template-id", "user-id", template);
+
+        expect(publishChecksService.run).toHaveBeenCalledWith(expect.objectContaining({ askedValues }));
+      });
+
+      it.each([
+        {
+          shape: "template_marketplace is off",
+          isMarketplaceOn: false,
+          isPublic: true,
+          stored: { visibility: "public" as const, isPublic: true, publishedAt: new Date() }
+        },
+        {
+          shape: "template_marketplace is off and the save makes the template public again",
+          isMarketplaceOn: false,
+          isPublic: true,
+          stored: { visibility: "private" as const, isPublic: false, publishedAt: new Date() }
+        },
+        {
+          shape: "the template never went through the gate",
+          isMarketplaceOn: true,
+          isPublic: true,
+          stored: { visibility: "public" as const, isPublic: true, publishedAt: null }
+        },
+        {
+          shape: "template_marketplace is off and a template that never went through the gate is made public",
+          isMarketplaceOn: false,
+          isPublic: true,
+          stored: { visibility: "private" as const, isPublic: false, publishedAt: null }
+        },
+        {
+          shape: "the template is no longer public and stays private",
+          isMarketplaceOn: true,
+          isPublic: false,
+          stored: { visibility: "private" as const, isPublic: false, publishedAt: new Date() }
+        }
+      ])("runs no publish check when $shape", async ({ isMarketplaceOn, isPublic, stored }) => {
+        const { service, userTemplateRepository, templateVersionRepository, publishChecksService } = setup({ isMarketplaceOn, checkResults: FAILED_CHECKS });
+        userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+        userTemplateRepository.findVersionState.mockResolvedValue(createVersionState(stored));
+
+        await service.saveTemplate("template-id", "user-id", { ...createTemplateInput(), isPublic });
+
+        expect(publishChecksService.run).not.toHaveBeenCalled();
+        expect(templateVersionRepository.appendVersion).toHaveBeenCalledTimes(1);
+      });
+
+      it("runs no publish check on a save that makes the template private", async () => {
+        const { service, userTemplateRepository, publishChecksService } = setup({ isMarketplaceOn: true, checkResults: FAILED_CHECKS });
+        userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+        userTemplateRepository.findVersionState.mockResolvedValue(createVersionState({ visibility: "public", isPublic: true, publishedAt: new Date() }));
+
+        await service.saveTemplate("template-id", "user-id", { ...createTemplateInput(), isPublic: false });
+
+        expect(publishChecksService.run).not.toHaveBeenCalled();
+        expect(userTemplateRepository.updateTemplate).toHaveBeenCalledTimes(1);
+      });
+
+      it("checks a save that leaves the public flag unnamed", async () => {
+        const { service, userTemplateRepository, publishChecksService } = setup({ isMarketplaceOn: true });
+        userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+        userTemplateRepository.findVersionState.mockResolvedValue(createVersionState({ visibility: "public", isPublic: true, publishedAt: new Date() }));
+        const { isPublic: _isPublic, ...template } = createTemplateInput();
+
+        await service.saveTemplate("template-id", "user-id", template);
+
+        expect(publishChecksService.run).toHaveBeenCalledTimes(1);
+      });
+    });
   });
 
   describe("update", () => {
@@ -467,6 +736,64 @@ describe(UserTemplatesService.name, () => {
 
       expect(userTemplateRepository.accessibleBy).toHaveBeenCalledWith(ability, "update");
       expect(userTemplateRepository.updateTemplate).toHaveBeenCalledWith(id, userId, data);
+    });
+
+    it("refuses a description holding a provider key when a published template shows it as its README", async () => {
+      const { service, userTemplateRepository } = setup({ isMarketplaceOn: true });
+      userTemplateRepository.findVersionState.mockResolvedValue(
+        createVersionState({ visibility: "public", isPublic: true, publishedAt: new Date(), currentVersionReadme: null })
+      );
+
+      await expect(service.update("template-id", "user-id", { description: "Run it with hf_abcdefghijklmnopqrstuv" })).rejects.toMatchObject({
+        status: 400,
+        errorCode: "template_publish_checks_failed",
+        data: { checks: [{ key: "no_secrets", status: "failed", issues: [expect.objectContaining({ field: "readme" })] }] }
+      });
+
+      expect(userTemplateRepository.updateTemplate).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      {
+        shape: "template_marketplace is off",
+        isMarketplaceOn: false,
+        stored: { visibility: "public" as const, publishedAt: new Date(), currentVersionReadme: null }
+      },
+      {
+        shape: "the template is private",
+        isMarketplaceOn: true,
+        stored: { visibility: "private" as const, publishedAt: new Date(), currentVersionReadme: null }
+      },
+      {
+        shape: "the template never went through the gate",
+        isMarketplaceOn: true,
+        stored: { visibility: "public" as const, publishedAt: null, currentVersionReadme: null }
+      },
+      {
+        shape: "the version has a README of its own",
+        isMarketplaceOn: true,
+        stored: { visibility: "public" as const, publishedAt: new Date(), currentVersionReadme: "# Mine" }
+      }
+    ])("saves any description when $shape", async ({ isMarketplaceOn, stored }) => {
+      const { service, userTemplateRepository } = setup({ isMarketplaceOn });
+      userTemplateRepository.findVersionState.mockResolvedValue(createVersionState(stored));
+      const data = { description: "Run it with hf_abcdefghijklmnopqrstuv" };
+
+      await service.update("template-id", "user-id", data);
+
+      expect(userTemplateRepository.updateTemplate).toHaveBeenCalledWith("template-id", "user-id", data);
+    });
+
+    it("saves an ordinary description of a published template, and a change that leaves the description alone", async () => {
+      const { service, userTemplateRepository } = setup({ isMarketplaceOn: true });
+      userTemplateRepository.findVersionState.mockResolvedValue(
+        createVersionState({ visibility: "public", isPublic: true, publishedAt: new Date(), currentVersionReadme: null })
+      );
+
+      await service.update("template-id", "user-id", { description: "Chat with your own models." });
+      await service.update("template-id", "user-id", { title: "Renamed" });
+
+      expect(userTemplateRepository.updateTemplate).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -608,7 +935,7 @@ describe(UserTemplatesService.name, () => {
     });
   });
 
-  function setup(input: { canReadTemplates?: boolean } = {}) {
+  function setup(input: { canReadTemplates?: boolean; isMarketplaceOn?: boolean; checkResults?: PublishCheckResults; hasNoOrganization?: boolean } = {}) {
     const ability = createMongoAbility<MongoAbility>(input.canReadTemplates === false ? [] : [{ action: "read", subject: "Template" }]);
     const userTemplateRepository: MockProxy<UserTemplateRepository> = mock<UserTemplateRepository>();
     userTemplateRepository.accessibleBy.mockReturnValue(userTemplateRepository);
@@ -622,13 +949,27 @@ describe(UserTemplatesService.name, () => {
     const txService = mock<TxService>();
     txService.transaction.mockImplementation(async cb => await cb());
     const templateUsageService = mock<TemplateUsageService>();
+    const publishChecksService = mock<PublishChecksService>();
+    publishChecksService.run.mockResolvedValue(input.checkResults ?? PASSED_CHECKS);
+    const featureFlagsService = mock<FeatureFlagsService>();
+    featureFlagsService.isEnabled.mockImplementation(flag => flag === FeatureFlags.TEMPLATE_MARKETPLACE && !!input.isMarketplaceOn);
+    const templateRateLimiterService = mock<TemplateRateLimiterService>();
+    const activeOrganizationId = faker.string.uuid();
+    const executionContextService = mock<ExecutionContextService>();
+    executionContextService.get
+      .calledWith("ORGANIZATION_CONTEXT")
+      .mockReturnValue(input.hasNoOrganization ? undefined : createOrganizationContext({ organizationId: activeOrganizationId }));
     const service = new UserTemplatesService(
       userTemplateRepository,
       authService,
       deploymentProjectService,
       templateVersionRepository,
       txService,
-      templateUsageService
+      templateUsageService,
+      publishChecksService,
+      featureFlagsService,
+      templateRateLimiterService,
+      executionContextService
     );
 
     return {
@@ -639,14 +980,19 @@ describe(UserTemplatesService.name, () => {
       txService,
       user,
       ability,
-      templateUsageService
+      templateUsageService,
+      publishChecksService,
+      templateRateLimiterService,
+      activeOrganizationId
     };
   }
 
   function createVersionState(overrides: Partial<TemplateVersionState> = {}): TemplateVersionState {
     return {
+      organizationId: faker.string.uuid(),
       isPublic: false,
       visibility: "private",
+      publishedAt: null,
       description: null,
       currentVersionId: faker.string.uuid(),
       currentVersionSdl: faker.lorem.paragraph(),

@@ -7,6 +7,7 @@ import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.
 import { type ApiTransaction, TxService } from "@src/core/services";
 import type { TemplateHardware } from "@src/template/types/template";
 import type { AskedValue } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
+import { hasPassedPublishChecks, type PublishCheckResults } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
 import {
   summarizeVersionChanges,
   type TemplateVersionChange,
@@ -31,6 +32,8 @@ export type TemplateVersionOutput = {
   resources: TemplateHardware | null;
   imageDigests: Record<string, string>;
   status: TemplateVersionStatus;
+  /** Null on a version saved while the template was not public and never published since. */
+  checkResults: PublishCheckResults | null;
   changes: TemplateVersionChange[] | null;
   createdById: string | null;
   createdBy: { username: string } | null;
@@ -49,6 +52,8 @@ export type AppendTemplateVersionInput = {
   expectedCurrentVersionId?: string;
   /** A version without a readme shows the legacy description, so readme changes are told between what readers see rather than the stored columns. */
   readmesShown?: { current: string | null; next: string | null };
+  /** Given for a version of a public template; a version that failed them is stored without becoming the current one. */
+  checkResults?: PublishCheckResults;
 };
 
 export const TEMPLATE_VERSION_CONFLICT_ERROR_CODE = "template_version_conflict";
@@ -104,11 +109,15 @@ export class TemplateVersionRepository extends BaseRepository<Table, TemplateVer
           askedValues: input.askedValues,
           resources: input.resources,
           changes: summarizeVersionChanges(current, { sdl: input.sdl, readme: nextReadmeShown, askedValues: input.askedValues ?? [] }),
+          checkResults: input.checkResults,
+          status: input.checkResults && !hasPassedPublishChecks(input.checkResults) ? "failed_checks" : "live",
           createdById: input.createdById
         })
         .returning();
 
-      await tx.update(this.templates).set({ currentVersionId: row.id }).where(eq(this.templates.id, input.templateId));
+      if (row.status === "live") {
+        await tx.update(this.templates).set({ currentVersionId: row.id }).where(eq(this.templates.id, input.templateId));
+      }
 
       return this.toOutput(row, await this.#readUsername(tx, row.createdById));
     });
@@ -153,6 +162,7 @@ export class TemplateVersionRepository extends BaseRepository<Table, TemplateVer
         version: this.table.version,
         resources: this.table.resources,
         status: this.table.status,
+        checkResults: this.table.checkResults,
         changes: this.table.changes,
         createdById: this.table.createdById,
         username: this.users.username,
@@ -164,6 +174,11 @@ export class TemplateVersionRepository extends BaseRepository<Table, TemplateVer
       .orderBy(desc(this.table.version));
 
     return rows.map(({ username, ...row }) => ({ ...row, createdBy: username ? { username } : null }));
+  }
+
+  /** The one column written after a version is saved: what the publish gate found in content that stays as it was. */
+  async recordCheckResults(id: string, checkResults: PublishCheckResults): Promise<void> {
+    await this.cursor.update(this.table).set({ checkResults }).where(eq(this.table.id, id));
   }
 
   async #readContent(tx: ApiTransaction, versionId: string): Promise<VersionContent | undefined> {
@@ -208,7 +223,6 @@ export class TemplateVersionRepository extends BaseRepository<Table, TemplateVer
   }
 
   protected toOutput(row: Partial<Row>, username?: string | null): TemplateVersionOutput {
-    const { checkResults: _checkResults, ...output } = row;
-    return { ...output, createdBy: username ? { username } : null } as TemplateVersionOutput;
+    return { ...row, createdBy: username ? { username } : null } as TemplateVersionOutput;
   }
 }

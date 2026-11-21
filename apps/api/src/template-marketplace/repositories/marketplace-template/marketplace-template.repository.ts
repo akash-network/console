@@ -15,7 +15,8 @@ type Row = Table["$inferSelect"];
 
 export type MarketplaceTemplateRow = Row & {
   authorUsername: string | null;
-  publisher: { name: string; slug: string; type: OrganizationType } | null;
+  /** `handle` is null until the organization first publishes a template. */
+  publisher: { name: string; slug: string; type: OrganizationType; handle: string | null } | null;
 };
 
 export type NewTemplateInput = {
@@ -73,6 +74,7 @@ export class MarketplaceTemplateRepository extends OrgScopedRepository<Table, Pa
     @InjectPgTable("Users") private readonly users: ApiPgTables["Users"],
     @InjectPgTable("Organizations") private readonly organizations: ApiPgTables["Organizations"],
     @InjectPgTable("TemplateVersions") private readonly versions: ApiPgTables["TemplateVersions"],
+    @InjectPgTable("TemplatePublishers") private readonly publishers: ApiPgTables["TemplatePublishers"],
     protected readonly txManager: TxService,
     protected readonly executionContextService: ExecutionContextService
   ) {
@@ -86,6 +88,7 @@ export class MarketplaceTemplateRepository extends OrgScopedRepository<Table, Pa
       this.users,
       this.organizations,
       this.versions,
+      this.publishers,
       this.txManager,
       this.executionContextService
     ) as this;
@@ -114,6 +117,14 @@ export class MarketplaceTemplateRepository extends OrgScopedRepository<Table, Pa
   /** Unscoped, so it must run only after the writer has authorized the change to this template. */
   async updateSettings(id: string, settings: TemplateSettingsUpdate): Promise<void> {
     await this.unscoped("template-writers").updateById(id, settings);
+  }
+
+  /** Unscoped, so it must run only after the publish gate has passed on the locked row; `published_at` keeps the first time. */
+  async markPublished(id: string): Promise<void> {
+    await this.cursor
+      .update(this.table)
+      .set({ visibility: "public", isPublic: true, isListed: true, publishedAt: sql`coalesce(${this.table.publishedAt}, now())` })
+      .where(eq(this.table.id, id));
   }
 
   /** Unscoped, so it must run only after the writer has authorized the delete; versions and favorites cascade. */
@@ -164,22 +175,25 @@ export class MarketplaceTemplateRepository extends OrgScopedRepository<Table, Pa
         authorUsername: this.users.username,
         publisherName: this.organizations.name,
         publisherSlug: this.organizations.slug,
-        publisherType: this.organizations.type
+        publisherType: this.organizations.type,
+        publisherHandle: this.publishers.handle
       })
       .from(this.table)
       .leftJoin(this.users, eq(this.users.id, this.table.authorId))
       .leftJoin(this.organizations, eq(this.organizations.id, this.table.organizationId))
+      .leftJoin(this.publishers, eq(this.publishers.organizationId, this.table.organizationId))
       .where(and(eq(this.table.id, id), ne(this.table.moderationStatus, "removed"), or(this.#publiclyReadable(), this.#readableThroughRules())))
       .limit(1);
 
     if (!result) return undefined;
 
-    const { template, authorUsername, publisherName, publisherSlug, publisherType } = result;
+    const { template, authorUsername, publisherName, publisherSlug, publisherType, publisherHandle } = result;
 
     return {
       ...template,
       authorUsername,
-      publisher: publisherName && publisherSlug && publisherType ? { name: publisherName, slug: publisherSlug, type: publisherType } : null
+      publisher:
+        publisherName && publisherSlug && publisherType ? { name: publisherName, slug: publisherSlug, type: publisherType, handle: publisherHandle } : null
     };
   }
 

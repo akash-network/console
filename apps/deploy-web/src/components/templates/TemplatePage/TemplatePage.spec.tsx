@@ -27,7 +27,7 @@ const TEMPLATE = buildMarketplaceTemplate({
   summary: "Private ChatGPT-style chat on your own GPU.",
   icon: "message-square",
   visibility: "organization",
-  publisher: { name: "Northwind Labs", slug: "northwind-labs", type: "team" },
+  publisher: { name: "Northwind Labs", slug: "northwind-labs", type: "team", handle: null },
   currentVersion: CURRENT_VERSION,
   usage: { deploys: 0, lastDeployedAt: null, stillUpAfter24h: null }
 });

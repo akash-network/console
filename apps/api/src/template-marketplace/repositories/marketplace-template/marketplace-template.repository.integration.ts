@@ -27,8 +27,25 @@ describe(MarketplaceTemplateRepository.name, () => {
       expect(found).toEqual({
         ...template,
         authorUsername: author.username,
-        publisher: { name: organization.name, slug: organization.slug, type: organization.type }
+        publisher: { name: organization.name, slug: organization.slug, type: organization.type, handle: null }
       });
+    });
+
+    it("names the publisher handle once the organization has published", async () => {
+      const { repository, organization, project } = await setup();
+      const other = await seedOrganization();
+      await container
+        .resolve<ApiPgDatabase>(POSTGRES_DB)
+        .insert(resolveTable("TemplatePublishers"))
+        .values([
+          { organizationId: organization.id, handle: `acme-${faker.string.alphanumeric(8).toLowerCase()}` },
+          { organizationId: other.id, handle: `other-${faker.string.alphanumeric(8).toLowerCase()}` }
+        ]);
+      const template = await seedTemplate({ organizationId: organization.id, projectId: project.id, visibility: "public" });
+
+      const found = await repository.findReadable(template.id);
+
+      expect(found?.publisher?.handle).toMatch(/^acme-/);
     });
 
     it("names no author for a template whose author is gone, still naming its publisher", async () => {
@@ -301,6 +318,53 @@ describe(MarketplaceTemplateRepository.name, () => {
 
       expect(await storedTemplate(template.id)).toMatchObject({ ...settings, organizationId: organization.id, isListed: true, sdl: template.sdl });
       expect(await storedTemplate(untouched.id)).toEqual(untouched);
+    });
+  });
+
+  describe("markPublished", () => {
+    it("makes that template alone public and listed and stamps when it first went public", async () => {
+      const { repository, organization, project } = await setup();
+      const [template, untouched] = await Promise.all([
+        seedTemplate({ organizationId: organization.id, projectId: project.id, visibility: "private" }),
+        seedTemplate({ organizationId: organization.id, projectId: project.id, visibility: "private" })
+      ]);
+      await container
+        .resolve<ApiPgDatabase>(POSTGRES_DB)
+        .update(resolveTable("Templates"))
+        .set({ isListed: false })
+        .where(eq(resolveTable("Templates").id, template.id));
+
+      await repository.markPublished(template.id);
+
+      expect(await storedTemplate(template.id)).toMatchObject({ visibility: "public", isPublic: true, isListed: true, publishedAt: expect.any(Date) });
+      expect(await storedTemplate(untouched.id)).toMatchObject({ visibility: "private", isPublic: false, publishedAt: null });
+    });
+
+    it("keeps the first publication time when a template is published again", async () => {
+      const { repository, organization, project } = await setup();
+      const template = await seedTemplate({ organizationId: organization.id, projectId: project.id, visibility: "private" });
+      const firstPublishedAt = new Date("2026-10-01T00:00:00.000Z");
+      await container
+        .resolve<ApiPgDatabase>(POSTGRES_DB)
+        .update(resolveTable("Templates"))
+        .set({ publishedAt: firstPublishedAt })
+        .where(eq(resolveTable("Templates").id, template.id));
+
+      await repository.markPublished(template.id);
+
+      expect(await storedTemplate(template.id)).toMatchObject({ visibility: "public", publishedAt: firstPublishedAt });
+    });
+
+    it("keeps the publication time when the settings move the template out of public", async () => {
+      const { repository, organization, project } = await setup();
+      const template = await seedTemplate({ organizationId: organization.id, projectId: project.id, visibility: "private" });
+      await repository.markPublished(template.id);
+      const { publishedAt } = await storedTemplate(template.id);
+
+      await repository.updateSettings(template.id, { visibility: "private", isPublic: false });
+
+      expect(await storedTemplate(template.id)).toMatchObject({ visibility: "private", isPublic: false, publishedAt });
+      expect(publishedAt).toBeInstanceOf(Date);
     });
   });
 

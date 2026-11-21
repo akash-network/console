@@ -580,12 +580,25 @@ describe(UserTemplateRepository.name, () => {
       const template = await createTestTemplate({ userId: user.userId!, isPublic: true, description: "# Description" });
 
       expect(await userTemplateRepository.findVersionState(template.id, user.userId!)).toEqual({
+        organizationId: template.organizationId,
         isPublic: true,
         visibility: "public",
+        publishedAt: null,
         description: "# Description",
         currentVersionId: null,
         currentVersionSdl: null
       });
+    });
+
+    it("tells when the template went through the publish gate", async () => {
+      const { userTemplateRepository } = setup();
+      const user = await createTestUser();
+      const template = await createTestTemplate({ userId: user.userId!, isPublic: true });
+      const publishedAt = new Date("2026-11-10T08:00:00.000Z");
+      const templates = resolveTable("Templates");
+      await container.resolve<ApiPgDatabase>(POSTGRES_DB).update(templates).set({ publishedAt }).where(eq(templates.id, template.id));
+
+      expect(await userTemplateRepository.findVersionState(template.id, user.userId!)).toMatchObject({ publishedAt });
     });
 
     it("returns the sdl of the current version rather than the one stored on the template", async () => {

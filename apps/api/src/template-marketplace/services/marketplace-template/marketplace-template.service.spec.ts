@@ -5,6 +5,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import type { PublishCheckResults } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
 import type {
   MarketplaceTemplateRepository,
   MarketplaceTemplateRow,
@@ -44,10 +45,15 @@ const SDL = [
   "      count: 1"
 ].join("\n");
 
+const CHECK_RESULTS: PublishCheckResults = {
+  ranAt: "2026-11-18T10:00:00.000Z",
+  checks: [{ key: "fixed_tags", status: "failed", issues: [{ message: "Pin the tag", service: "web", image: "nginx" }] }]
+};
+
 describe(MarketplaceTemplateService.name, () => {
   describe("getTemplate", () => {
     it("describes a readable template with its author, publisher and current version without image digests", async () => {
-      const template = createTemplateRow({ authorUsername: "alice", publisher: { name: "Team", slug: "team", type: "team" } });
+      const template = createTemplateRow({ authorUsername: "alice", publisher: { name: "Team", slug: "team", type: "team", handle: "team" } });
       const version = createVersion({ templateId: template.id, readme: "# Readme", resources: { cpu: 1, memoryBytes: 2, storageBytes: 3 } });
       const { service } = setup({ template, currentVersion: version, activeOrganizationId: template.organizationId });
 
@@ -68,8 +74,9 @@ describe(MarketplaceTemplateService.name, () => {
         copiedFromId: template.copiedFromId,
         createdAt: template.createdAt,
         updatedAt: template.updatedAt,
+        publishedAt: null,
         author: { username: "alice" },
-        publisher: { name: "Team", slug: "team", type: "team" },
+        publisher: { name: "Team", slug: "team", type: "team", handle: "team" },
         currentVersion: publishedVersion,
         canEdit: false,
         isFavorite: false,
@@ -166,12 +173,34 @@ describe(MarketplaceTemplateService.name, () => {
     });
 
     it("withholds the slug of a personal organization publisher", async () => {
-      const template = createTemplateRow({ publisher: { name: "Alice", slug: "personal-slug", type: "personal" } });
+      const template = createTemplateRow({ publisher: { name: "Alice", slug: "personal-slug", type: "personal", handle: null } });
       const { service } = setup({ template });
 
       const result = await service.getTemplate(template.id);
 
-      expect(result.publisher).toEqual({ name: "Alice", slug: null, type: "personal" });
+      expect(result.publisher).toEqual({ name: "Alice", slug: null, type: "personal", handle: null });
+    });
+
+    it("tells when the template first went public", async () => {
+      const publishedAt = new Date("2026-11-10T08:00:00.000Z");
+      const template = createTemplateRow({ publishedAt });
+      const { service } = setup({ template });
+
+      const result = await service.getTemplate(template.id);
+
+      expect(result.publishedAt).toEqual(publishedAt);
+    });
+
+    it("shows what the publish checks found on the current version to a caller who may edit the template only", async () => {
+      const template = createTemplateRow({ visibility: "public" });
+      const currentVersion = createVersion({ templateId: template.id, checkResults: CHECK_RESULTS });
+      const asEditor = setup({ template, currentVersion, rules: [{ action: "update", subject: "Template" }] });
+      const asReader = setup({ template, currentVersion, rules: [{ action: "read", subject: "Template" }] });
+
+      const [forEditor, forReader] = await Promise.all([asEditor.service.getTemplate(template.id), asReader.service.getTemplate(template.id)]);
+
+      expect(forEditor.currentVersion?.checkResults).toEqual(CHECK_RESULTS);
+      expect(forReader.currentVersion?.checkResults).toBeNull();
     });
 
     it("falls back to the legacy description and the SDL's hardware for a version that recorded neither", async () => {
@@ -309,6 +338,33 @@ describe(MarketplaceTemplateService.name, () => {
   });
 
   describe("listVersions", () => {
+    it("lists a version that failed its checks, with what they found, to a caller who may edit the template", async () => {
+      const template = createTemplateRow({ visibility: "public" });
+      const failed = createSummary({ templateId: template.id, version: 2, status: "failed_checks", checkResults: CHECK_RESULTS });
+      const current = createSummary({ id: template.currentVersionId!, templateId: template.id, version: 1 });
+      const { service, templateVersionRepository } = setup({ template, rules: [{ action: "update", subject: "Template" }] });
+      templateVersionRepository.listByTemplate.mockResolvedValue([failed, current]);
+
+      const result = await service.listVersions(template.id);
+
+      expect(result.map(({ version, status, checkResults }) => ({ version, status, checkResults }))).toEqual([
+        { version: 2, status: "failed_checks", checkResults: CHECK_RESULTS },
+        { version: 1, status: "live", checkResults: null }
+      ]);
+    });
+
+    it("lists neither a failed version nor any check result to a caller who may not edit the template", async () => {
+      const template = createTemplateRow({ visibility: "public" });
+      const failed = createSummary({ templateId: template.id, version: 2, status: "failed_checks", checkResults: CHECK_RESULTS });
+      const current = createSummary({ id: template.currentVersionId!, templateId: template.id, version: 1, checkResults: CHECK_RESULTS });
+      const { service, templateVersionRepository } = setup({ template, rules: [{ action: "read", subject: "Template" }] });
+      templateVersionRepository.listByTemplate.mockResolvedValue([failed, current]);
+
+      const result = await service.listVersions(template.id);
+
+      expect(result.map(({ version, checkResults }) => ({ version, checkResults }))).toEqual([{ version: 1, checkResults: null }]);
+    });
+
     it("lists every version of the template to a caller who may edit it", async () => {
       const template = createTemplateRow();
       const summaries = [createSummary({ templateId: template.id, version: 2 }), createSummary({ templateId: template.id, version: 1 })];
@@ -357,6 +413,37 @@ describe(MarketplaceTemplateService.name, () => {
   });
 
   describe("getVersion", () => {
+    it("reads a version that failed its checks, with what they found, to a caller who may edit the template", async () => {
+      const template = createTemplateRow({ visibility: "public" });
+      const failed = createVersion({ templateId: template.id, version: 2, status: "failed_checks", checkResults: CHECK_RESULTS });
+      const { service, templateVersionRepository } = setup({ template, rules: [{ action: "update", subject: "Template" }] });
+      templateVersionRepository.findByTemplateAndVersion.mockResolvedValue(failed);
+
+      const result = await service.getVersion(template.id, 2);
+
+      expect(result).toMatchObject({ id: failed.id, status: "failed_checks", checkResults: CHECK_RESULTS });
+    });
+
+    it("answers 404 for a version that failed its checks to a caller who may not edit the template", async () => {
+      const template = createTemplateRow({ visibility: "public" });
+      const failed = createVersion({ templateId: template.id, version: 2, status: "failed_checks", checkResults: CHECK_RESULTS });
+      const { service, templateVersionRepository } = setup({ template, rules: [{ action: "read", subject: "Template" }] });
+      templateVersionRepository.findByTemplateAndVersion.mockResolvedValue(failed);
+
+      await expect(service.getVersion(template.id, 2)).rejects.toMatchObject({ status: 404, message: "Template version not found" });
+    });
+
+    it("withholds the check results of the current version from a caller who may not edit the template", async () => {
+      const version = createVersion({ version: 3, checkResults: CHECK_RESULTS });
+      const template = createTemplateRow({ visibility: "public", currentVersionId: version.id });
+      const { service, templateVersionRepository } = setup({ template, rules: [{ action: "read", subject: "Template" }] });
+      templateVersionRepository.findByTemplateAndVersion.mockResolvedValue(version);
+
+      const result = await service.getVersion(template.id, 3);
+
+      expect(result.checkResults).toBeNull();
+    });
+
     it("reads the current version without its image digests", async () => {
       const version = createVersion({ version: 3, imageDigests: { "nginx:latest": "sha256:abc" } });
       const template = createTemplateRow({ currentVersionId: version.id });
@@ -417,6 +504,22 @@ describe(MarketplaceTemplateService.name, () => {
   });
 
   describe("findDeployableVersion", () => {
+    it("lets only an editor deploy a version that failed its checks", async () => {
+      const template = createTemplateRow({ visibility: "public" });
+      const failed = createVersion({ templateId: template.id, version: 2, status: "failed_checks", checkResults: CHECK_RESULTS });
+      const asEditor = setup({ template, rules: [{ action: "update", subject: "Template" }] });
+      const asReader = setup({ template, rules: [{ action: "read", subject: "Template" }] });
+      asEditor.templateVersionRepository.findById.mockResolvedValue(failed);
+      asReader.templateVersionRepository.findById.mockResolvedValue(failed);
+
+      const results = await Promise.allSettled([asEditor.service.findDeployableVersion(failed.id), asReader.service.findDeployableVersion(failed.id)]);
+
+      expect(results).toEqual([
+        { status: "fulfilled", value: { templateId: template.id, versionId: failed.id } },
+        { status: "rejected", reason: expect.objectContaining({ status: 404, message: "Template version not found" }) }
+      ]);
+    });
+
     it("lets an editor deploy an earlier version", async () => {
       const template = createTemplateRow();
       const earlier = createVersion({ templateId: template.id, version: 1 });
@@ -599,10 +702,11 @@ describe(MarketplaceTemplateService.name, () => {
       isFeatured: false,
       moderationStatus: "active",
       currentVersionId: faker.string.uuid(),
+      publishedAt: null,
       createdAt: faker.date.past(),
       updatedAt: faker.date.recent(),
       authorUsername: faker.internet.userName(),
-      publisher: { name: faker.company.name(), slug: faker.lorem.slug(), type: "team" },
+      publisher: { name: faker.company.name(), slug: faker.lorem.slug(), type: "team", handle: null },
       ...overrides
     };
   }
@@ -618,6 +722,7 @@ describe(MarketplaceTemplateService.name, () => {
       resources: { cpu: 1, memoryBytes: 1024, storageBytes: 1024 },
       imageDigests: {},
       status: "live",
+      checkResults: null,
       changes: ["first_version"],
       createdById: faker.string.uuid(),
       createdBy: { username: faker.internet.userName() },

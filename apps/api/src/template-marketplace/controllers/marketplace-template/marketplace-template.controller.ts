@@ -7,6 +7,11 @@ import type {
   TemplateVersionSummaryResponse
 } from "@src/template-marketplace/http-schemas/marketplace-template.schema";
 import type {
+  GetPublishReadinessResponse,
+  PublishUserTemplateRequest,
+  PublishUserTemplateResponse
+} from "@src/template-marketplace/http-schemas/template-publish.schema";
+import type {
   CreateUserTemplateRequest,
   CreateUserTemplateResponse,
   CreateUserTemplateVersionRequest,
@@ -23,6 +28,7 @@ import {
   type PublishedTemplateVersion,
   type UserTemplateListItem
 } from "@src/template-marketplace/services/marketplace-template/marketplace-template.service";
+import { TemplatePublishService } from "@src/template-marketplace/services/template-publish/template-publish.service";
 import { TemplateWriterService } from "@src/template-marketplace/services/template-writer/template-writer.service";
 
 function toVersionSummaryResponse({ createdById: _createdById, createdAt, ...version }: ListedTemplateVersion): TemplateVersionSummaryResponse {
@@ -33,11 +39,19 @@ function toVersionResponse({ createdById: _createdById, createdAt, ...version }:
   return { ...version, createdAt: createdAt.toISOString() };
 }
 
-function toTemplateResponse({ createdAt, updatedAt, currentVersion, usage, ...template }: MarketplaceTemplateOutput): GetUserTemplateResponse["data"] {
+function toTemplateResponse({
+  createdAt,
+  updatedAt,
+  publishedAt,
+  currentVersion,
+  usage,
+  ...template
+}: MarketplaceTemplateOutput): GetUserTemplateResponse["data"] {
   return {
     ...template,
     createdAt: createdAt.toISOString(),
     updatedAt: updatedAt.toISOString(),
+    publishedAt: publishedAt?.toISOString() ?? null,
     currentVersion: currentVersion && toVersionResponse(currentVersion),
     usage: { ...usage, lastDeployedAt: usage.lastDeployedAt?.toISOString() ?? null }
   };
@@ -56,7 +70,8 @@ function toListItemResponse({ updatedAt, currentVersion, usage, ...item }: UserT
 export class MarketplaceTemplateController {
   constructor(
     private readonly marketplaceTemplateService: MarketplaceTemplateService,
-    private readonly templateWriterService: TemplateWriterService
+    private readonly templateWriterService: TemplateWriterService,
+    private readonly templatePublishService: TemplatePublishService
   ) {}
 
   async getTemplate(id: string): Promise<GetUserTemplateResponse> {
@@ -75,6 +90,14 @@ export class MarketplaceTemplateController {
 
   async updateTemplate(id: string, { data }: UpdateUserTemplateRequest): Promise<UpdateUserTemplateResponse> {
     return { data: toTemplateResponse(await this.templateWriterService.updateSettings(id, data)) };
+  }
+
+  async getPublishReadiness(id: string): Promise<GetPublishReadinessResponse> {
+    return { data: await this.templatePublishService.getReadiness(id) };
+  }
+
+  async publishTemplate(id: string, { data }: PublishUserTemplateRequest): Promise<PublishUserTemplateResponse> {
+    return { data: toTemplateResponse(await this.templatePublishService.publish(id, data.acceptedTermsVersion)) };
   }
 
   async deleteTemplate(id: string): Promise<void> {

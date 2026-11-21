@@ -6,6 +6,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { app } from "@src/rest-app";
 import { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
 import type { UserOutput } from "@src/user/repositories";
@@ -42,8 +44,8 @@ describe("User templates", () => {
       });
     });
 
-    it("saves a public template as public but not listed", async () => {
-      const { user, token } = await setup();
+    it("saves a public template as public but not listed while template_marketplace is off", async () => {
+      const { user, token } = await setup({ isMarketplaceOn: false });
 
       const response = await saveTemplate(token, { ...buildTemplate(), isPublic: true });
 
@@ -77,8 +79,8 @@ describe("User templates", () => {
       expect(await templateVersionRepository.findCurrent(id)).toMatchObject({ version: 2, sdl: "version: '2.1'" });
     });
 
-    it("keeps visibility in step with isPublic on an update", async () => {
-      const { token } = await setup();
+    it("keeps visibility in step with isPublic on an update while template_marketplace is off", async () => {
+      const { token } = await setup({ isMarketplaceOn: false });
       const template = buildTemplate();
       const id = await (await saveTemplate(token, template)).text();
 
@@ -103,8 +105,8 @@ describe("User templates", () => {
     it("keeps a listed public template listed when it is re-saved public", async () => {
       const { token } = await setup();
       const template = { ...buildTemplate(), isPublic: true };
-      const id = await (await saveTemplate(token, template)).text();
-      await setStoredState(id, { isListed: true });
+      const id = await (await saveTemplate(token, { ...template, isPublic: false })).text();
+      await setStoredState(id, { visibility: "public", isPublic: true, isListed: true });
 
       await saveTemplate(token, { ...template, id });
 
@@ -148,8 +150,36 @@ describe("User templates", () => {
       expect(await findStoredTemplate(id)).toMatchObject({ isPublic: false, visibility: "private", isListed: true });
     });
 
-    it("repairs a public template stored as private when it is saved public", async () => {
+    it("answers 409 to a save that would create a public template while template_marketplace is on, and creates it private", async () => {
       const { token } = await setup();
+      const template = buildTemplate();
+
+      const refused = await saveTemplate(token, { ...template, isPublic: true });
+
+      expect(refused.status).toBe(409);
+      expect(await refused.json()).toMatchObject({ code: "template_publish_gate_required" });
+
+      const saved = await saveTemplate(token, { ...template, isPublic: false });
+
+      expect(saved.status).toBe(200);
+      expect(await findStoredTemplate(await saved.text())).toMatchObject({ visibility: "private", isPublic: false });
+    });
+
+    it("answers 409 to a save that would make a private template public while template_marketplace is on, and changes nothing", async () => {
+      const { token } = await setup();
+      const template = buildTemplate();
+      const id = await (await saveTemplate(token, template)).text();
+
+      const response = await saveTemplate(token, { ...template, id, sdl: 'version: "2.1"', isPublic: true });
+
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({ code: "template_publish_gate_required" });
+      expect(await findStoredTemplate(id)).toMatchObject({ visibility: "private", isPublic: false, sdl: template.sdl });
+      expect(await templateVersionRepository.listByTemplate(id)).toHaveLength(1);
+    });
+
+    it("repairs a public template stored as private when it is saved public while template_marketplace is off", async () => {
+      const { token } = await setup({ isMarketplaceOn: false });
       const template = { ...buildTemplate(), isPublic: true };
       const id = await (await saveTemplate(token, template)).text();
       await setStoredState(id, { visibility: "private", isListed: true });
@@ -206,7 +236,10 @@ describe("User templates", () => {
     });
   }
 
-  async function setStoredState(id: string, state: { sdl?: string; visibility?: "private" | "organization" | "public"; isListed?: boolean }) {
+  async function setStoredState(
+    id: string,
+    state: { sdl?: string; visibility?: "private" | "organization" | "public"; isPublic?: boolean; isListed?: boolean }
+  ) {
     const templates = resolveTable("Templates");
     await container.resolve<ApiPgDatabase>(POSTGRES_DB).update(templates).set(state).where(eq(templates.id, id));
   }
@@ -226,9 +259,11 @@ describe("User templates", () => {
     });
   }
 
-  async function setup() {
+  async function setup({ isMarketplaceOn = true }: { isMarketplaceOn?: boolean } = {}) {
     const user = await userRepository.create({ userId: faker.string.uuid() });
     const token = faker.string.alphanumeric(40);
+
+    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => isMarketplaceOn || flag !== FeatureFlags.TEMPLATE_MARKETPLACE);
 
     vi.spyOn(userAuthTokenService, "getValidUserId").mockImplementation(async received => (received.replace(/^Bearer +/i, "") === token ? user.userId! : null));
 

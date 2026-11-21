@@ -1227,6 +1227,50 @@ describe(StripeTransactionRepository.name, () => {
     });
   });
 
+  describe("hasSucceededPayment", () => {
+    it.each([
+      { type: "payment_intent" as const, status: "succeeded" as const, expected: true },
+      { type: "payment_intent" as const, status: "refunded" as const, expected: false },
+      { type: "payment_intent" as const, status: "pending" as const, expected: false },
+      { type: "payment_intent" as const, status: "failed" as const, expected: false },
+      { type: "coupon_claim" as const, status: "succeeded" as const, expected: false },
+      { type: "manual_credit" as const, status: "succeeded" as const, expected: false },
+      { type: "affiliate_commission" as const, status: "succeeded" as const, expected: false }
+    ])("answers $expected for an organization whose only transaction is a $status $type", async ({ type, status, expected }) => {
+      const { stripeTransactionRepository, createTestTransaction } = setup();
+      const transaction = await createTestTransaction({ type, status });
+
+      await expect(stripeTransactionRepository.hasSucceededPayment(transaction.organizationId)).resolves.toBe(expected);
+    });
+
+    it("answers false for an organization whose only payment was lost to a dispute, and true once it has an undisputed one", async () => {
+      const { stripeTransactionRepository, createTestTransaction } = setup();
+      const disputed = await createTestTransaction({ type: "payment_intent", status: "succeeded" });
+      await stripeTransactionRepository.updateById(disputed.id, { disputeClosedAt: new Date(), disputeLostAt: new Date() });
+
+      await expect(stripeTransactionRepository.hasSucceededPayment(disputed.organizationId)).resolves.toBe(false);
+
+      await stripeTransactionRepository.create({
+        userId: disputed.userId,
+        organizationId: disputed.organizationId,
+        type: "payment_intent",
+        status: "succeeded",
+        amount: 2000,
+        currency: "usd"
+      });
+
+      await expect(stripeTransactionRepository.hasSucceededPayment(disputed.organizationId)).resolves.toBe(true);
+    });
+
+    it("answers false for an organization that paid nothing while another one did", async () => {
+      const { stripeTransactionRepository, createTestTransaction, createTestUser } = setup();
+      await createTestTransaction();
+      const other = await createTestUser();
+
+      await expect(stripeTransactionRepository.hasSucceededPayment(await seedPersonalOrganizationIdOf(other.id))).resolves.toBe(false);
+    });
+  });
+
   describe("hasCompletedPaidTransactionOfAtLeast", () => {
     it.each([
       { amount: 10000, expected: true },
