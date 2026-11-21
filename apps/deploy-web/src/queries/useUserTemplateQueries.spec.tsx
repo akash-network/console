@@ -13,6 +13,7 @@ import { TabOrganization } from "@src/services/tab-organization/tab-organization
 import type { OrganizationOutput } from "@src/types/organization";
 import type { RenderAppHookOptions } from "../../tests/unit/query-client";
 import {
+  useCommunityTemplates,
   useCreateTemplateMutation,
   useCreateTemplateVersionMutation,
   useDeleteMarketplaceTemplateMutation,
@@ -171,6 +172,37 @@ describe("useUserTemplateQueries", () => {
 
       expect(result.current.fetchStatus).toBe("idle");
       expect(getUserTemplateVersion).not.toHaveBeenCalled();
+    });
+  });
+
+  describe(useCommunityTemplates.name, () => {
+    it("unwraps the community gallery and asks once while the answer is fresh", async () => {
+      const { result, listCommunityTemplates, queryClient } = setup({ useHook: () => useCommunityTemplates({ enabled: true }) });
+
+      await waitFor(() => expect(result.current.data).toEqual(COMMUNITY_GALLERY));
+      expect(listCommunityTemplates).toHaveBeenCalledWith(undefined);
+      expect(
+        queryClient
+          .getQueryCache()
+          .find({ queryKey: ["v1", "listCommunityTemplates"] })
+          ?.isStale()
+      ).toBe(false);
+    });
+
+    it("stays idle while the marketplace is off", () => {
+      const { result, listCommunityTemplates } = setup({ useHook: () => useCommunityTemplates({ enabled: false }) });
+
+      expect(result.current.fetchStatus).toBe("idle");
+      expect(listCommunityTemplates).not.toHaveBeenCalled();
+    });
+
+    it("does not report a refusal, such as a gallery the API has switched off, and reports a server error", async () => {
+      const { result, queryClient } = setup({ useHook: () => useCommunityTemplates({ enabled: true }) });
+      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+      const query = queryClient.getQueryCache().find({ queryKey: ["v1", "listCommunityTemplates"] });
+      expect(shouldReportError(new ApiError(404, null, "404"), query?.meta)).toBe(false);
+      expect(shouldReportError(new ApiError(500, null, "500"), query?.meta)).toBe(true);
     });
   });
 
@@ -410,6 +442,7 @@ describe("useUserTemplateQueries", () => {
     const listUserTemplateVersions = vi.fn().mockResolvedValue({ data: [VERSION] });
     const getUserTemplateVersion = vi.fn().mockResolvedValue({ data: VERSION });
     const listUserTemplates = vi.fn().mockResolvedValue({ data: [LIST_ITEM] });
+    const listCommunityTemplates = vi.fn().mockResolvedValue({ data: COMMUNITY_GALLERY });
     input.listedTemplates?.forEach(templates => listUserTemplates.mockResolvedValueOnce({ data: templates }));
     const createUserTemplate = vi.fn().mockResolvedValue({ data: TEMPLATE });
     const createUserTemplateVersion = vi.fn().mockResolvedValue({ data: VERSION });
@@ -426,6 +459,7 @@ describe("useUserTemplateQueries", () => {
         listUserTemplateVersions,
         getUserTemplateVersion,
         listUserTemplates,
+        listCommunityTemplates,
         createUserTemplate,
         createUserTemplateVersion,
         updateUserTemplate,
@@ -481,6 +515,7 @@ describe("useUserTemplateQueries", () => {
       listUserTemplateVersions,
       getUserTemplateVersion,
       listUserTemplates,
+      listCommunityTemplates,
       createUserTemplate,
       createUserTemplateVersion,
       updateUserTemplate,
@@ -509,4 +544,5 @@ const TEMPLATE = { id: "tpl-1", title: "Llama server", usage: { ...USAGE, stillU
 
 const VERSION = { version: 2, deploys: 1 };
 
+const COMMUNITY_GALLERY = { templates: [{ id: "tpl-1", title: "Llama server" }], officialUsage: { llama: { deploys: 3, stillUpAfter24h: null, forks: 0 } } };
 const LIST_ITEM = { id: "tpl-1", title: "Llama server", usage: USAGE };

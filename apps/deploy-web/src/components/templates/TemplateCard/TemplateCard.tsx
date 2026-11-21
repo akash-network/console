@@ -40,7 +40,7 @@ export const TemplateCard: FC<TemplateCardProps> = ({ template, isPopular }) => 
   </Link>
 );
 
-const HardwareProfile: FC<{ hardware: TemplateHardware }> = ({ hardware }) => (
+export const HardwareProfile: FC<{ hardware: TemplateHardware }> = ({ hardware }) => (
   <ul aria-label="Hardware" className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
     {hardware.gpu && <HardwareStat icon={Gpu} label="GPU" value={describeGpu(hardware.gpu)} />}
     <HardwareStat icon={Cpu} label="vCPU" value={String(roundDecimal(hardware.cpu, 2))} />

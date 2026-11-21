@@ -92,6 +92,143 @@ describe(TemplatePage.name, () => {
     expect(screen.queryByText(/deploys?\b/)).not.toBeInTheDocument();
   });
 
+  it("adds forks and favorites to the usage line, in the singular for one", () => {
+    const { unmount } = setup({
+      template: { ...TEMPLATE, usage: { deploys: 1284, lastDeployedAt: null, stillUpAfter24h: 0.94, forks: 1037, favorites: 214 } }
+    });
+    expect(screen.getByText("1,284 deploys · 94% still up after 24 h · 1,037 forks · 214 favorites")).toBeInTheDocument();
+    unmount();
+
+    setup({ template: { ...TEMPLATE, usage: { deploys: 0, lastDeployedAt: null, stillUpAfter24h: null, forks: 1, favorites: 1 } } });
+    expect(screen.getByText("1 fork · 1 favorite")).toBeInTheDocument();
+  });
+
+  describe("trust signals", () => {
+    const PUBLISHER = {
+      name: "Lambda Garage",
+      slug: "lambda-garage",
+      type: "team" as const,
+      handle: "lambda-garage",
+      verified: true,
+      memberSince: "2025-07-11T12:00:00.000Z",
+      counts: { templates: 7, deploys: 18400 }
+    };
+    const COMMUNITY_TEMPLATE = { ...TEMPLATE, visibility: "public" as const, isListed: true, publishedAt: "2026-10-30T12:00:00.000Z", publisher: PUBLISHER };
+
+    it("warns that a public community template is not reviewed by Akash and names its publisher", () => {
+      const { TemplateReviewNotice } = setup({ template: COMMUNITY_TEMPLATE });
+
+      expect(TemplateReviewNotice).toHaveBeenLastCalledWith({ isOfficial: false, publisherName: "Lambda Garage" }, expect.anything());
+      expect(screen.getByText("Community")).toBeInTheDocument();
+      expect(screen.queryByText("Official")).not.toBeInTheDocument();
+    });
+
+    it("says an Official template is Official instead", () => {
+      const { TemplateReviewNotice } = setup({ template: { ...COMMUNITY_TEMPLATE, isOfficial: true } });
+
+      expect(TemplateReviewNotice).toHaveBeenLastCalledWith({ isOfficial: true, publisherName: "Lambda Garage" }, expect.anything());
+      expect(screen.getByText("Official")).toBeInTheDocument();
+      expect(screen.queryByText("Community")).not.toBeInTheDocument();
+    });
+
+    it("passes no publisher name when the template has no publisher", () => {
+      const { TemplateReviewNotice, TemplatePublisherCard } = setup({ template: { ...COMMUNITY_TEMPLATE, publisher: null } });
+
+      expect(TemplateReviewNotice).toHaveBeenLastCalledWith({ isOfficial: false, publisherName: undefined }, expect.anything());
+      expect(TemplatePublisherCard).not.toHaveBeenCalled();
+    });
+
+    it("shows the publisher card with the publish date and the current version", () => {
+      const { TemplatePublisherCard } = setup({ template: COMMUNITY_TEMPLATE });
+
+      const props = TemplatePublisherCard.mock.lastCall?.[0];
+      expect(props).toMatchObject({ publishedAt: "2026-10-30T12:00:00.000Z", currentVersion: CURRENT_VERSION.version });
+      expect(props?.publisher.name).toBe("Lambda Garage");
+      expect(props?.publisher.verified).toBe(true);
+      expect(props?.publisher.counts.deploys).toBe(18400);
+    });
+
+    it("shows the publisher card without a version for a template that has none", () => {
+      const { TemplatePublisherCard } = setup({ template: { ...COMMUNITY_TEMPLATE, currentVersion: null } });
+
+      expect(TemplatePublisherCard).toHaveBeenLastCalledWith(expect.objectContaining({ currentVersion: undefined }), expect.anything());
+    });
+
+    it.each(["private", "organization"] as const)("shows neither the notice, the badge nor the publisher card on a %s template", visibility => {
+      const { TemplateReviewNotice, TemplatePublisherCard } = setup({ template: { ...COMMUNITY_TEMPLATE, visibility, isOfficial: true } });
+
+      expect(TemplateReviewNotice).not.toHaveBeenCalled();
+      expect(TemplatePublisherCard).not.toHaveBeenCalled();
+      expect(screen.queryByText("Community")).not.toBeInTheDocument();
+      expect(screen.queryByText("Official")).not.toBeInTheDocument();
+    });
+
+    it("says what a fork was forked from and links to it", () => {
+      setup({ template: { ...TEMPLATE, copiedFromId: "tpl-source", copiedFrom: { id: "tpl-source", title: "Open WebUI + vLLM original" } } });
+
+      expect(screen.getByText(/Forked from/)).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Open WebUI + vLLM original" })).toHaveAttribute("href", "/template/tpl-source");
+    });
+
+    it("says nothing about a source the viewer can no longer read", () => {
+      setup({ template: { ...TEMPLATE, copiedFromId: null, copiedFrom: null } });
+
+      expect(screen.queryByText(/Forked from/)).not.toBeInTheDocument();
+    });
+
+    it("renders markup in the title of the forked template as text", () => {
+      const hostile = "<img src=x onerror=alert(1)>";
+      setup({ template: { ...TEMPLATE, copiedFromId: "tpl-source", copiedFrom: { id: "tpl-source", title: hostile } } });
+
+      expect(screen.getByRole("link", { name: hostile })).toBeInTheDocument();
+      expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("fork", () => {
+    const PUBLIC_TEMPLATE = { ...TEMPLATE, visibility: "public" as const };
+
+    it("opens Configure in template mode with the current version of a public template", () => {
+      setup({ template: PUBLIC_TEMPLATE });
+
+      expect(screen.getByRole("link", { name: "Fork" })).toHaveAttribute(
+        "href",
+        UrlService.configureTemplate({ mode: "new", copyFromTemplateId: TEMPLATE_ID, copyFromVersion: CURRENT_VERSION.version })
+      );
+    });
+
+    it("forks the version an editor is looking at", async () => {
+      setup({ template: { ...PUBLIC_TEMPLATE, canEdit: true }, tab: "versions" });
+
+      await userEvent.click(screen.getByRole("button", { name: "View v2" }));
+
+      expect(screen.getByRole("link", { name: "Fork" })).toHaveAttribute(
+        "href",
+        UrlService.configureTemplate({ mode: "new", copyFromTemplateId: TEMPLATE_ID, copyFromVersion: 2 })
+      );
+    });
+
+    it("sends a signed-out visitor to sign in and back into the fork", () => {
+      setup({ template: PUBLIC_TEMPLATE, isSignedIn: false });
+
+      const forkUrl = UrlService.configureTemplate({ mode: "new", copyFromTemplateId: TEMPLATE_ID, copyFromVersion: CURRENT_VERSION.version });
+      expect(screen.getByRole("link", { name: "Fork" })).toHaveAttribute("href", UrlService.newLogin({ returnTo: forkUrl }));
+      expect(UrlService.newLogin({ returnTo: forkUrl })).toContain(encodeURIComponent(forkUrl));
+    });
+
+    it.each(["private", "organization"] as const)("offers no fork on a %s template", visibility => {
+      setup({ template: { ...TEMPLATE, visibility } });
+
+      expect(screen.queryByRole("link", { name: "Fork" })).not.toBeInTheDocument();
+    });
+
+    it("offers no fork on a public template without a saved version", () => {
+      setup({ template: { ...PUBLIC_TEMPLATE, currentVersion: null } });
+
+      expect(screen.queryByRole("link", { name: "Fork" })).not.toBeInTheDocument();
+    });
+  });
+
   it("shows editors Edit configuration and Settings, and viewers neither", () => {
     const { unmount } = setup({ template: { ...TEMPLATE, canEdit: true } });
 
@@ -765,6 +902,8 @@ describe(TemplatePage.name, () => {
       </>
     ));
     const RemovedTemplateNotice = vi.fn<typeof DEPENDENCIES.RemovedTemplateNotice>(() => null);
+    const TemplateReviewNotice = vi.fn<typeof DEPENDENCIES.TemplateReviewNotice>(() => null);
+    const TemplatePublisherCard = vi.fn<typeof DEPENDENCIES.TemplatePublisherCard>(() => null);
 
     const dependencies = MockComponents(DEPENDENCIES, {
       Layout,
@@ -778,6 +917,8 @@ describe(TemplatePage.name, () => {
       ShareTemplateDialog,
       ReportTemplateDialog,
       RemovedTemplateNotice,
+      TemplateReviewNotice,
+      TemplatePublisherCard,
       useActiveOrganization: () => activeOrganization,
       useMarketplaceTemplate,
       useTemplateVersions,
@@ -813,6 +954,8 @@ describe(TemplatePage.name, () => {
       ShareTemplateDialog,
       ReportTemplateDialog,
       RemovedTemplateNotice,
+      TemplateReviewNotice,
+      TemplatePublisherCard,
       addFavorite,
       removeFavorite,
       useMarketplaceTemplate,
