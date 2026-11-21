@@ -46868,12 +46868,20 @@
                 "items": {
                   "$ref": "#/components/schemas/TemplateAskedValue"
                 }
+              },
+              "imageDigests": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "The digest each image resolved to after the version was saved, by image as the SDL writes it; an image is missing until it resolves or when its registry does not answer anonymously"
               }
             },
             "required": [
               "sdl",
               "readme",
-              "askedValues"
+              "askedValues",
+              "imageDigests"
             ]
           }
         ]
@@ -47063,7 +47071,7 @@
                   "failed_checks",
                   "rejected"
                 ],
-                "description": "A `failed_checks` version failed the publish checks of a public template, never became the current version and is shown to editors only"
+                "description": "A `failed_checks` version failed the publish checks of a public template, a `held` one waits for staff review and a `rejected` one was turned down; none of them became the current version and they are shown to editors only"
               },
               "checkResults": {
                 "type": "object",
@@ -47108,6 +47116,25 @@
                 },
                 "description": "What this version changed from the one before it, null for a version saved before changes were recorded"
               },
+              "holdReasons": {
+                "type": "array",
+                "nullable": true,
+                "items": {
+                  "$ref": "#/components/schemas/TemplateVersionHoldReason"
+                },
+                "description": "Why the version was held for staff review, for callers who may change the template; null for everyone else and for a version that never waited"
+              },
+              "reviewedAt": {
+                "type": "string",
+                "nullable": true,
+                "format": "date-time",
+                "description": "When staff approved or rejected the version, for callers who may change the template; null for everyone else"
+              },
+              "reviewNote": {
+                "type": "string",
+                "nullable": true,
+                "description": "What staff wrote when they reviewed the version, for callers who may change the template; null for everyone else"
+              },
               "createdBy": {
                 "type": "object",
                 "nullable": true,
@@ -47137,6 +47164,13 @@
                 "items": {
                   "$ref": "#/components/schemas/TemplateAskedValue"
                 }
+              },
+              "imageDigests": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "The digest each image resolved to after the version was saved, by image as the SDL writes it; an image is missing until it resolves or when its registry does not answer anonymously"
               }
             },
             "required": [
@@ -47147,11 +47181,15 @@
               "status",
               "checkResults",
               "changes",
+              "holdReasons",
+              "reviewedAt",
+              "reviewNote",
               "createdBy",
               "createdAt",
               "sdl",
               "readme",
-              "askedValues"
+              "askedValues",
+              "imageDigests"
             ],
             "description": "Its readme falls back to the template's description and its resources to the SDL's, for versions saved before they were recorded"
           },
@@ -47479,6 +47517,12 @@
             "nullable": true,
             "format": "uuid"
           },
+          "publishedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "description": "When the template first went public through the publish checks, kept after it is made private again; null before"
+          },
           "updatedAt": {
             "type": "string",
             "format": "date-time"
@@ -47512,6 +47556,31 @@
               "createdAt"
             ],
             "description": "Null on a template an older API pod saved without a version"
+          },
+          "latestVersion": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "version": {
+                "type": "integer",
+                "minimum": 0,
+                "exclusiveMinimum": true
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "live",
+                  "held",
+                  "failed_checks",
+                  "rejected"
+                ]
+              }
+            },
+            "required": [
+              "version",
+              "status"
+            ],
+            "description": "The newest version saved, whatever its status; null for callers who may not change the template"
           },
           "lastEditedBy": {
             "type": "object",
@@ -47562,8 +47631,10 @@
           "moderationStatus",
           "projectId",
           "copiedFromId",
+          "publishedAt",
           "updatedAt",
           "currentVersion",
+          "latestVersion",
           "lastEditedBy",
           "canEdit",
           "usage"
@@ -47875,6 +47946,46 @@
           "data"
         ]
       },
+      "TemplateVersionHoldReason": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "official_template",
+              "image_repository_changed",
+              "global_port_added"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "description": "Why the version waits for review, as plain text"
+          },
+          "service": {
+            "type": "string",
+            "description": "The SDL service the reason is about"
+          },
+          "image": {
+            "type": "string",
+            "description": "The image the version runs from a repository the current version does not"
+          },
+          "previousImage": {
+            "type": "string",
+            "description": "The image the same service runs in the current version"
+          },
+          "port": {
+            "type": "integer",
+            "description": "The container port the version newly opens to the internet"
+          },
+          "protocol": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "message"
+        ]
+      },
       "TemplateVersionFields": {
         "type": "object",
         "properties": {
@@ -47941,7 +48052,7 @@
               "failed_checks",
               "rejected"
             ],
-            "description": "A `failed_checks` version failed the publish checks of a public template, never became the current version and is shown to editors only"
+            "description": "A `failed_checks` version failed the publish checks of a public template, a `held` one waits for staff review and a `rejected` one was turned down; none of them became the current version and they are shown to editors only"
           },
           "checkResults": {
             "type": "object",
@@ -47986,6 +48097,25 @@
             },
             "description": "What this version changed from the one before it, null for a version saved before changes were recorded"
           },
+          "holdReasons": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "$ref": "#/components/schemas/TemplateVersionHoldReason"
+            },
+            "description": "Why the version was held for staff review, for callers who may change the template; null for everyone else and for a version that never waited"
+          },
+          "reviewedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "description": "When staff approved or rejected the version, for callers who may change the template; null for everyone else"
+          },
+          "reviewNote": {
+            "type": "string",
+            "nullable": true,
+            "description": "What staff wrote when they reviewed the version, for callers who may change the template; null for everyone else"
+          },
           "createdBy": {
             "type": "object",
             "nullable": true,
@@ -48012,6 +48142,9 @@
           "status",
           "checkResults",
           "changes",
+          "holdReasons",
+          "reviewedAt",
+          "reviewNote",
           "createdBy",
           "createdAt"
         ]

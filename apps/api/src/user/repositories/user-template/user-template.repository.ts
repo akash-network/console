@@ -51,6 +51,7 @@ type TemplateRow = ApiPgTables["Templates"]["$inferSelect"];
 
 export interface TemplateVersionState {
   organizationId: string;
+  isOfficial: boolean;
   isPublic: boolean;
   visibility: TemplateVisibility;
   publishedAt: Date | null;
@@ -198,6 +199,7 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
     const [state] = await this.cursor
       .select({
         organizationId: this.table.organizationId,
+        isOfficial: this.table.isOfficial,
         isPublic: this.table.isPublic,
         visibility: this.table.visibility,
         publishedAt: this.table.publishedAt,

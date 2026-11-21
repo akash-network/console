@@ -2,8 +2,9 @@ import { faker } from "@faker-js/faker";
 import { subHours } from "date-fns";
 import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
-import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
@@ -43,6 +44,10 @@ const SDL = [
 ].join("\n");
 
 describe("Marketplace templates", () => {
+  beforeAll(async () => {
+    await startJobQueues();
+  }, 20_000);
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -130,9 +135,13 @@ describe("Marketplace templates", () => {
             readme: "# Readme",
             askedValues: [],
             resources: { cpu: 1, memoryBytes: 2, storageBytes: 3 },
+            imageDigests: {},
             status: "live",
             checkResults: null,
             changes: ["first_version"],
+            holdReasons: null,
+            reviewedAt: null,
+            reviewNote: null,
             createdBy: { username: author.username },
             createdAt: version.createdAt.toISOString()
           },
@@ -349,9 +358,13 @@ describe("Marketplace templates", () => {
           readme: "first",
           askedValues: [],
           resources: null,
+          imageDigests: {},
           status: "live",
           checkResults: null,
           changes: ["first_version"],
+          holdReasons: null,
+          reviewedAt: null,
+          reviewNote: null,
           createdBy: null,
           createdAt: first.createdAt.toISOString()
         }
@@ -485,6 +498,9 @@ describe("Marketplace templates", () => {
       status: "live",
       checkResults: null,
       changes,
+      holdReasons: null,
+      reviewedAt: null,
+      reviewNote: null,
       createdBy: null,
       createdAt: createdAt.toISOString(),
       deploys: 0

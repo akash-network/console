@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, sql } from "drizzle-orm";
 import createError from "http-errors";
 import { singleton } from "tsyringe";
 
@@ -13,6 +13,7 @@ import {
   type TemplateVersionChange,
   type VersionContent
 } from "@src/template-marketplace/lib/version-changes/summarize-version-changes";
+import type { TemplateVersionHoldReason } from "@src/template-marketplace/lib/version-hold/version-hold-reasons";
 import type { TemplateVersionStatus } from "@src/template-marketplace/model-schemas/template-version/template-version.schema";
 
 type Table = ApiPgTables["TemplateVersions"];
@@ -35,6 +36,10 @@ export type TemplateVersionOutput = {
   /** Null on a version saved while the template was not public and never published since. */
   checkResults: PublishCheckResults | null;
   changes: TemplateVersionChange[] | null;
+  /** Why the version was saved as `held`, null on a version that never waited for review. */
+  holdReasons: TemplateVersionHoldReason[] | null;
+  reviewedAt: Date | null;
+  reviewNote: string | null;
   createdById: string | null;
   createdBy: { username: string } | null;
   createdAt: Date;
@@ -54,7 +59,17 @@ export type AppendTemplateVersionInput = {
   readmesShown?: { current: string | null; next: string | null };
   /** Given for a version of a public template; a version that failed them is stored without becoming the current one. */
   checkResults?: PublishCheckResults;
+  /** Given for a version that passed its checks and still waits for staff; it is stored as `held` without becoming the current one. */
+  holdReasons?: TemplateVersionHoldReason[];
 };
+
+export type NewestTemplateVersion = Pick<TemplateVersionOutput, "version" | "status">;
+
+function statusOf({ checkResults, holdReasons }: AppendTemplateVersionInput): TemplateVersionStatus {
+  if (checkResults && !hasPassedPublishChecks(checkResults)) return "failed_checks";
+
+  return holdReasons?.length ? "held" : "live";
+}
 
 export const TEMPLATE_VERSION_CONFLICT_ERROR_CODE = "template_version_conflict";
 
@@ -94,6 +109,8 @@ export class TemplateVersionRepository extends BaseRepository<Table, TemplateVer
       const current = stored && input.readmesShown ? { ...stored, readme: input.readmesShown.current } : stored;
       const nextReadmeShown = input.readmesShown ? input.readmesShown.next : input.readme ?? null;
 
+      const status = statusOf(input);
+
       const [{ next }] = await tx
         .select({ next: sql<number>`coalesce(max(${this.table.version}), 0) + 1` })
         .from(this.table)
@@ -110,7 +127,8 @@ export class TemplateVersionRepository extends BaseRepository<Table, TemplateVer
           resources: input.resources,
           changes: summarizeVersionChanges(current, { sdl: input.sdl, readme: nextReadmeShown, askedValues: input.askedValues ?? [] }),
           checkResults: input.checkResults,
-          status: input.checkResults && !hasPassedPublishChecks(input.checkResults) ? "failed_checks" : "live",
+          status,
+          holdReasons: status === "held" ? input.holdReasons : undefined,
           createdById: input.createdById
         })
         .returning();
@@ -164,6 +182,9 @@ export class TemplateVersionRepository extends BaseRepository<Table, TemplateVer
         status: this.table.status,
         checkResults: this.table.checkResults,
         changes: this.table.changes,
+        holdReasons: this.table.holdReasons,
+        reviewedAt: this.table.reviewedAt,
+        reviewNote: this.table.reviewNote,
         createdById: this.table.createdById,
         username: this.users.username,
         createdAt: this.table.createdAt
@@ -179,6 +200,42 @@ export class TemplateVersionRepository extends BaseRepository<Table, TemplateVer
   /** The one column written after a version is saved: what the publish gate found in content that stays as it was. */
   async recordCheckResults(id: string, checkResults: PublishCheckResults): Promise<void> {
     await this.cursor.update(this.table).set({ checkResults }).where(eq(this.table.id, id));
+  }
+
+  /** Keeps a digest already recorded, since only staff accepting an image change may move the one a version is held to. */
+  async recordImageDigests(id: string, imageDigests: Record<string, string>): Promise<void> {
+    await this.cursor
+      .update(this.table)
+      .set({ imageDigests: sql`${JSON.stringify(imageDigests)}::jsonb || ${this.table.imageDigests}` })
+      .where(eq(this.table.id, id));
+  }
+
+  /** Unscoped, so it must run only for a version staff approved or rolled back to, on the template row the caller locked. */
+  async makeCurrent(templateId: string, versionId: string): Promise<void> {
+    await this.cursor.update(this.templates).set({ currentVersionId: versionId }).where(eq(this.templates.id, templateId));
+  }
+
+  /** A newer version that is live or still waiting for review is the one the publisher means to ship, so an older one approved late must not replace it. */
+  async hasNewerLiveOrHeld(templateId: string, version: number): Promise<boolean> {
+    const [newer] = await this.cursor
+      .select({ id: this.table.id })
+      .from(this.table)
+      .where(and(eq(this.table.templateId, templateId), gt(this.table.version, version), inArray(this.table.status, ["live", "held"])))
+      .limit(1);
+
+    return !!newer;
+  }
+
+  async findNewestOf(templateIds: string[]): Promise<Map<string, NewestTemplateVersion>> {
+    if (templateIds.length === 0) return new Map();
+
+    const rows = await this.cursor
+      .selectDistinctOn([this.table.templateId], { templateId: this.table.templateId, version: this.table.version, status: this.table.status })
+      .from(this.table)
+      .where(inArray(this.table.templateId, templateIds))
+      .orderBy(this.table.templateId, desc(this.table.version));
+
+    return new Map(rows.map(({ templateId, ...newest }) => [templateId, newest]));
   }
 
   async #readContent(tx: ApiTransaction, versionId: string): Promise<VersionContent | undefined> {
@@ -222,8 +279,7 @@ export class TemplateVersionRepository extends BaseRepository<Table, TemplateVer
     throw new Error(IMMUTABLE_MESSAGE);
   }
 
-  /** Staff review columns stay out until a reader serves them to the template's editors alone. */
-  protected toOutput({ reviewedAt: _reviewedAt, reviewNote: _reviewNote, ...row }: Partial<Row>, username?: string | null): TemplateVersionOutput {
+  protected toOutput(row: Partial<Row>, username?: string | null): TemplateVersionOutput {
     return { ...row, createdBy: username ? { username } : null } as TemplateVersionOutput;
   }
 }

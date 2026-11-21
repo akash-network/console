@@ -36,7 +36,8 @@ export type NewTemplateInput = {
   storage: number;
 };
 
-export type TemplateVersionMirror = Pick<Row, "sdl" | "cpu" | "ram" | "storage"> & { description: string };
+/** A mirror without a description leaves the stored one alone, for a version that shows it in place of a readme of its own. */
+export type TemplateVersionMirror = Pick<Row, "sdl" | "cpu" | "ram" | "storage"> & { description?: string };
 
 export type TemplateSettingsUpdate = Partial<Pick<Row, "title" | "summary" | "icon" | "categories" | "visibility" | "isPublic">>;
 
@@ -63,6 +64,7 @@ export type UserTemplateListRow = Pick<
   | "visibility"
   | "isListed"
   | "moderationStatus"
+  | "publishedAt"
   | "updatedAt"
 > & {
   currentVersion: { version: number; status: TemplateVersionStatus; createdAt: Date } | null;
@@ -150,6 +152,7 @@ export class MarketplaceTemplateRepository extends OrgScopedRepository<Table, Pa
         visibility: this.table.visibility,
         isListed: this.table.isListed,
         moderationStatus: this.table.moderationStatus,
+        publishedAt: this.table.publishedAt,
         updatedAt: this.table.updatedAt,
         currentVersion: { version: this.versions.version, status: this.versions.status, createdAt: this.versions.createdAt },
         lastEditedByUsername: this.users.username

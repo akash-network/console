@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { PublishCheck, PublishCheckResults } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
 import { templateModerationActionEnum } from "@src/template-marketplace/model-schemas/template-moderation-event/template-moderation-event.schema";
-import { failedCheckMessagesOf, MAX_ISSUES_IN_NOTICE, publisherNoticeKindOf } from "./publisher-notice";
+import { failedCheckMessagesOf, holdReasonMessagesOf, MAX_ISSUES_IN_NOTICE, publisherNoticeKindOf } from "./publisher-notice";
 
 describe(publisherNoticeKindOf.name, () => {
   it("names the notice of each staff action a publisher is told about, and none for the rest", () => {
@@ -72,4 +72,26 @@ describe(failedCheckMessagesOf.name, () => {
   function resultsOf(checks: PublishCheck[]): PublishCheckResults {
     return { ranAt: "2026-11-18T00:00:00.000Z", checks };
   }
+});
+
+describe(holdReasonMessagesOf.name, () => {
+  it("lists why the version waits, in the order the reasons were found", () => {
+    const messages = holdReasonMessagesOf([
+      { kind: "official_template", message: "Official templates are always reviewed." },
+      { kind: "global_port_added", message: "Opens port 22.", service: "web", port: 22, protocol: "tcp" }
+    ]);
+
+    expect(messages).toEqual(["Official templates are always reviewed.", "Opens port 22."]);
+  });
+
+  it("lists nothing for a version that never waited", () => {
+    expect(holdReasonMessagesOf(null)).toEqual([]);
+    expect(holdReasonMessagesOf([])).toEqual([]);
+  });
+
+  it("cuts a long list and says how many more there are", () => {
+    const reasons = Array.from({ length: MAX_ISSUES_IN_NOTICE + 1 }, (_, index) => ({ kind: "global_port_added" as const, message: `Reason ${index + 1}` }));
+
+    expect(holdReasonMessagesOf(reasons)).toEqual(["Reason 1", "Reason 2", "Reason 3", "Reason 4", "Reason 5", "And 1 more."]);
+  });
 });

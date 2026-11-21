@@ -13,11 +13,14 @@ import { contentCarriedByLegacySave } from "@src/template-marketplace/lib/legacy
 import { hasPassedPublishChecks, type PublishCheckResults, toPublishCheck } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
 import { findReadmeSecretIssues } from "@src/template-marketplace/lib/publish-checks/publish-checks";
 import { createChecksFailedError, createPublishGateRequiredError } from "@src/template-marketplace/lib/publish-requirements/publish-refusals";
+import { createVersionReviewRequiredError } from "@src/template-marketplace/lib/version-hold/version-review-required-error";
 import { TemplateRemovalRepository } from "@src/template-marketplace/repositories/template-removal/template-removal.repository";
 import { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
 import { PublishChecksService } from "@src/template-marketplace/services/publish-checks/publish-checks.service";
+import { TemplateImageDigestJobService } from "@src/template-marketplace/services/template-image-digest-job/template-image-digest-job.service";
 import { TemplateRateLimiterService } from "@src/template-marketplace/services/template-rate-limiter/template-rate-limiter.service";
 import { TemplateUsageService } from "@src/template-marketplace/services/template-usage/template-usage.service";
+import { TemplateVersionHoldService } from "@src/template-marketplace/services/template-version-hold/template-version-hold.service";
 import type { TemplateVisibility } from "@src/user/model-schemas/template/template.schema";
 import {
   TemplateInput,
@@ -52,6 +55,8 @@ export class UserTemplatesService {
   readonly #templateRateLimiterService: TemplateRateLimiterService;
   readonly #executionContextService: ExecutionContextService;
   readonly #templateRemovalRepository: TemplateRemovalRepository;
+  readonly #templateVersionHoldService: TemplateVersionHoldService;
+  readonly #templateImageDigestJobService: TemplateImageDigestJobService;
 
   constructor(
     userTemplateRepository: UserTemplateRepository,
@@ -64,7 +69,9 @@ export class UserTemplatesService {
     featureFlagsService: FeatureFlagsService,
     templateRateLimiterService: TemplateRateLimiterService,
     executionContextService: ExecutionContextService,
-    templateRemovalRepository: TemplateRemovalRepository
+    templateRemovalRepository: TemplateRemovalRepository,
+    templateVersionHoldService: TemplateVersionHoldService,
+    templateImageDigestJobService: TemplateImageDigestJobService
   ) {
     this.#userTemplateRepository = userTemplateRepository;
     this.#authService = authService;
@@ -77,6 +84,8 @@ export class UserTemplatesService {
     this.#templateRateLimiterService = templateRateLimiterService;
     this.#executionContextService = executionContextService;
     this.#templateRemovalRepository = templateRemovalRepository;
+    this.#templateVersionHoldService = templateVersionHoldService;
+    this.#templateImageDigestJobService = templateImageDigestJobService;
   }
 
   async getTemplateById(id: string, userId: string = ""): Promise<(TemplateOutput & { isFavorite?: boolean }) | null> {
@@ -119,7 +128,8 @@ export class UserTemplatesService {
     return await this.#txService.transaction(async () => {
       await this.#assertWithinRateLimits("create", this.#executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId);
       const templateId = await repository.createTemplate(userId, template, { projectId: filingProjectId, copiedFromId: id, authorId });
-      await this.#templateVersionRepository.appendVersion({ templateId, sdl: template.sdl, resources, createdById: authorId });
+      const firstVersion = await this.#templateVersionRepository.appendVersion({ templateId, sdl: template.sdl, resources, createdById: authorId });
+      await this.#resolveImageDigestsOf(firstVersion.id);
 
       return templateId;
     });
@@ -201,11 +211,15 @@ export class UserTemplatesService {
           })
         : undefined;
 
+      if (isNewVersion && this.#featureFlagsService.isEnabled(FeatureFlags.TEMPLATE_MARKETPLACE)) {
+        await this.#assertNeedsNoStaffReview(id, template.sdl, stored);
+      }
+
       await repository.updateTemplate(id, userId, visibilityPatch(template, stored));
 
       if (isNewVersion) {
         const readmesShown = { current: readmeShownBy(stored.currentVersionReadme, stored.description), next: nextReadmeShown };
-        await this.#templateVersionRepository.appendVersion({
+        const appended = await this.#templateVersionRepository.appendVersion({
           templateId: id,
           sdl: template.sdl,
           resources,
@@ -214,6 +228,7 @@ export class UserTemplatesService {
           readmesShown,
           checkResults
         });
+        await this.#resolveImageDigestsOf(appended.id);
       }
     });
   }
@@ -228,6 +243,22 @@ export class UserTemplatesService {
     if (!organizationId || !this.#featureFlagsService.isEnabled(FeatureFlags.TEMPLATE_MARKETPLACE)) return;
 
     await this.#templateRateLimiterService.assertWithinLimits(action, { userId: this.#authService.currentUser.id, organizationId });
+  }
+
+  /** This route makes every version it saves the current one, so a change that must wait for staff is refused here and saved from the editor instead, whatever the template's visibility: a risky version saved in private would go live unreviewed when it is published again. */
+  async #assertNeedsNoStaffReview(id: string, sdl: string, stored: TemplateVersionState): Promise<void> {
+    const holdReasons = await this.#templateVersionHoldService.findHoldReasons(
+      { id, organizationId: stored.organizationId, isOfficial: stored.isOfficial },
+      stored.currentVersionSdl ?? "",
+      sdl
+    );
+
+    if (holdReasons.length > 0) throw createVersionReviewRequiredError(holdReasons);
+  }
+
+  /** Digests are only read with the marketplace on, and with it off this route must reach no registry. */
+  async #resolveImageDigestsOf(versionId: string): Promise<void> {
+    if (this.#featureFlagsService.isEnabled(FeatureFlags.TEMPLATE_MARKETPLACE)) await this.#templateImageDigestJobService.schedule(versionId);
   }
 
   /** With the marketplace on, only the publish route makes a template public, since it alone knows the requirements, the terms and the checks. */

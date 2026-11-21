@@ -5,6 +5,7 @@ import type { TemplateHardware } from "@src/template/types/template";
 import type { AskedValue } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
 import type { PublishCheckResults } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
 import type { TemplateVersionChange } from "@src/template-marketplace/lib/version-changes/summarize-version-changes";
+import type { TemplateVersionHoldReason } from "@src/template-marketplace/lib/version-hold/version-hold-reasons";
 import { Templates } from "@src/user/model-schemas/template/template.schema";
 import { Users } from "@src/user/model-schemas/user/user.schema";
 
@@ -37,6 +38,8 @@ export const TemplateVersions = pgTable(
     changes: jsonb("changes").$type<TemplateVersionChange[]>(),
     checkResults: jsonb("check_results").$type<PublishCheckResults>(),
     status: templateVersionStatusEnum("status").default("live").notNull(),
+    /** Why a version was saved as `held`, kept after staff approve or reject it. */
+    holdReasons: jsonb("hold_reasons").$type<TemplateVersionHoldReason[]>(),
     /** Written by the admin app when staff approve or reject a held version. */
     reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
     reviewNote: text("review_note"),

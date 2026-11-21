@@ -12,11 +12,14 @@ import type { FeatureFlagsService } from "@src/core/services/feature-flags/featu
 import type { DeploymentProjectService } from "@src/deployment/services/deployment-project/deployment-project.service";
 import { summarizeTemplateHardware } from "@src/template/utils/template-hardware/template-hardware";
 import type { PublishCheckResults } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
+import type { TemplateVersionHoldReason } from "@src/template-marketplace/lib/version-hold/version-hold-reasons";
 import type { TemplateRemovalRepository } from "@src/template-marketplace/repositories/template-removal/template-removal.repository";
-import type { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
+import type { TemplateVersionOutput, TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
 import type { PublishChecksService } from "@src/template-marketplace/services/publish-checks/publish-checks.service";
+import type { TemplateImageDigestJobService } from "@src/template-marketplace/services/template-image-digest-job/template-image-digest-job.service";
 import type { TemplateRateLimiterService } from "@src/template-marketplace/services/template-rate-limiter/template-rate-limiter.service";
 import type { TemplateUsageService } from "@src/template-marketplace/services/template-usage/template-usage.service";
+import type { TemplateVersionHoldService } from "@src/template-marketplace/services/template-version-hold/template-version-hold.service";
 import type { UserOutput } from "@src/user/repositories";
 import type { TemplateInput, TemplateOutput, TemplateVersionState, UserTemplateRepository } from "../../repositories/user-template/user-template.repository";
 import { UserTemplatesService } from "./user-templates.service";
@@ -773,6 +776,148 @@ describe(UserTemplatesService.name, () => {
     });
   });
 
+  describe("when a save would need staff review", () => {
+    const HOLD_REASONS: TemplateVersionHoldReason[] = [{ kind: "official_template", message: "Official templates are always reviewed." }];
+
+    it("refuses a new version of a public template that would wait for staff, and writes nothing", async () => {
+      const { service, userTemplateRepository, templateVersionRepository, templateVersionHoldService } = setup({
+        isMarketplaceOn: true,
+        holdReasons: HOLD_REASONS
+      });
+      const stored = createVersionState({ visibility: "public", isPublic: true, isOfficial: true, currentVersionSdl: "version: '2.0'" });
+      userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+      userTemplateRepository.findVersionState.mockResolvedValue(stored);
+      const data = { ...createTemplateInput(), sdl: VALID_SDL };
+
+      const error = await service.saveTemplate("template-id", "user-id", data).catch((rejection: unknown) => rejection);
+
+      expect(error).toMatchObject({ status: 409, errorCode: "template_version_review_required", data: { holdReasons: HOLD_REASONS } });
+      expect(templateVersionHoldService.findHoldReasons).toHaveBeenCalledWith(
+        { id: "template-id", organizationId: stored.organizationId, isOfficial: true },
+        "version: '2.0'",
+        VALID_SDL
+      );
+      expect(userTemplateRepository.updateTemplate).not.toHaveBeenCalled();
+      expect(templateVersionRepository.appendVersion).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      {
+        name: "went through the gate and is kept private",
+        visibility: "private" as const,
+        isPublic: undefined,
+        publishedAt: new Date("2026-10-01T00:00:00.000Z")
+      },
+      {
+        name: "went through the gate and is made private by the same save",
+        visibility: "public" as const,
+        isPublic: false,
+        publishedAt: new Date("2026-10-01T00:00:00.000Z")
+      },
+      { name: "was public before the gate and is made private by the same save", visibility: "public" as const, isPublic: false, publishedAt: null },
+      { name: "was public before the gate and is private now", visibility: "private" as const, isPublic: undefined, publishedAt: null },
+      { name: "is shared with its organization", visibility: "organization" as const, isPublic: undefined, publishedAt: null }
+    ])("refuses a risky new version of a template that $name", async ({ visibility, isPublic, publishedAt }) => {
+      const { service, userTemplateRepository, templateVersionRepository } = setup({ isMarketplaceOn: true, holdReasons: HOLD_REASONS });
+      const stored = createVersionState({ visibility, isPublic: visibility === "public", publishedAt, currentVersionSdl: "version: '2.0'" });
+      userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+      userTemplateRepository.findVersionState.mockResolvedValue(stored);
+
+      const error = await service
+        .saveTemplate("template-id", "user-id", { ...createTemplateInput(), sdl: VALID_SDL, isPublic })
+        .catch((rejection: unknown) => rejection);
+
+      expect(error).toMatchObject({ status: 409, errorCode: "template_version_review_required" });
+      expect(templateVersionRepository.appendVersion).not.toHaveBeenCalled();
+    });
+
+    it("judges a public template that has no version yet against an empty SDL", async () => {
+      const { service, userTemplateRepository, templateVersionHoldService } = setup({ isMarketplaceOn: true });
+      const stored = createVersionState({ visibility: "public", isPublic: true, currentVersionId: null, currentVersionSdl: null });
+      userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+      userTemplateRepository.findVersionState.mockResolvedValue(stored);
+      const data = createTemplateInput();
+
+      await service.saveTemplate("template-id", "user-id", data);
+
+      expect(templateVersionHoldService.findHoldReasons).toHaveBeenCalledWith(expect.objectContaining({ isOfficial: false }), "", data.sdl);
+    });
+
+    it("saves a new version of a public template that needs no review", async () => {
+      const { service, userTemplateRepository, templateVersionRepository } = setup({ isMarketplaceOn: true });
+      userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+      userTemplateRepository.findVersionState.mockResolvedValue(createVersionState({ visibility: "public", isPublic: true }));
+
+      await service.saveTemplate("template-id", "user-id", createTemplateInput());
+
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      {
+        name: "the marketplace is off",
+        isMarketplaceOn: false,
+        stored: { visibility: "public" as const, isPublic: true },
+        isPublic: undefined,
+        keepsSdl: false
+      },
+      {
+        name: "the marketplace is off for a private template that went through the gate",
+        isMarketplaceOn: false,
+        stored: { visibility: "private" as const, isPublic: false, publishedAt: new Date("2026-10-01T00:00:00.000Z") },
+        isPublic: undefined,
+        keepsSdl: false
+      },
+      { name: "the save keeps the SDL", isMarketplaceOn: true, stored: { visibility: "public" as const, isPublic: true }, isPublic: undefined, keepsSdl: true }
+    ])("asks for no review when $name", async ({ isMarketplaceOn, stored, isPublic, keepsSdl }) => {
+      const { service, userTemplateRepository, templateVersionHoldService } = setup({ isMarketplaceOn, holdReasons: HOLD_REASONS });
+      const data = { ...createTemplateInput(), isPublic };
+      userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+      userTemplateRepository.findVersionState.mockResolvedValue(createVersionState({ ...stored, ...(keepsSdl && { currentVersionSdl: data.sdl }) }));
+
+      await service.saveTemplate("template-id", "user-id", data);
+
+      expect(templateVersionHoldService.findHoldReasons).not.toHaveBeenCalled();
+      expect(userTemplateRepository.updateTemplate).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("image digests", () => {
+    it("queues the digests of a new template's first version and of a new version while template_marketplace is on", async () => {
+      const { service, userTemplateRepository, templateImageDigestJobService, appendedVersion, user } = setup({ isMarketplaceOn: true });
+      userTemplateRepository.createTemplate.mockResolvedValue(faker.string.uuid());
+
+      await service.saveTemplate(undefined, user.userId!, { ...createTemplateInput(), sdl: VALID_SDL, isPublic: false });
+
+      expect(templateImageDigestJobService.schedule).toHaveBeenCalledTimes(1);
+      expect(templateImageDigestJobService.schedule).toHaveBeenLastCalledWith(appendedVersion.id);
+
+      userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+      await service.saveTemplate("template-id", user.userId!, { ...createTemplateInput(), isPublic: false });
+
+      expect(templateImageDigestJobService.schedule).toHaveBeenCalledTimes(2);
+      expect(templateImageDigestJobService.schedule).toHaveBeenLastCalledWith(appendedVersion.id);
+    });
+
+    it("reaches for no registry while template_marketplace is off, or when a save records no version", async () => {
+      const off = setup({ isMarketplaceOn: false });
+      off.userTemplateRepository.createTemplate.mockResolvedValue(faker.string.uuid());
+      await off.service.saveTemplate(undefined, off.user.userId!, { ...createTemplateInput(), sdl: VALID_SDL });
+      off.userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+      await off.service.saveTemplate("template-id", off.user.userId!, createTemplateInput());
+
+      const sameSdl = setup({ isMarketplaceOn: true });
+      const data = { ...createTemplateInput(), isPublic: false };
+      sameSdl.userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+      sameSdl.userTemplateRepository.findVersionState.mockResolvedValue(createVersionState({ currentVersionSdl: data.sdl }));
+      await sameSdl.service.saveTemplate("template-id", sameSdl.user.userId!, data);
+
+      expect(off.templateVersionRepository.appendVersion).toHaveBeenCalledTimes(2);
+      expect(off.templateImageDigestJobService.schedule).not.toHaveBeenCalled();
+      expect(sameSdl.templateImageDigestJobService.schedule).not.toHaveBeenCalled();
+    });
+  });
+
   describe("update", () => {
     it("calls repository updateById with correct parameters", async () => {
       const { service, userTemplateRepository, ability } = setup();
@@ -1002,7 +1147,15 @@ describe(UserTemplatesService.name, () => {
     });
   });
 
-  function setup(input: { canReadTemplates?: boolean; isMarketplaceOn?: boolean; checkResults?: PublishCheckResults; hasNoOrganization?: boolean } = {}) {
+  function setup(
+    input: {
+      canReadTemplates?: boolean;
+      isMarketplaceOn?: boolean;
+      checkResults?: PublishCheckResults;
+      hasNoOrganization?: boolean;
+      holdReasons?: TemplateVersionHoldReason[];
+    } = {}
+  ) {
     const ability = createMongoAbility<MongoAbility>(input.canReadTemplates === false ? [] : [{ action: "read", subject: "Template" }]);
     const userTemplateRepository: MockProxy<UserTemplateRepository> = mock<UserTemplateRepository>();
     userTemplateRepository.accessibleBy.mockReturnValue(userTemplateRepository);
@@ -1012,6 +1165,8 @@ describe(UserTemplatesService.name, () => {
     const user = mock<UserOutput>({ id: faker.string.uuid(), userId: faker.string.uuid() });
     authService.currentUser = user;
     const templateVersionRepository = mock<TemplateVersionRepository>();
+    const appendedVersion = mock<TemplateVersionOutput>({ id: faker.string.uuid() });
+    templateVersionRepository.appendVersion.mockResolvedValue(appendedVersion);
     userTemplateRepository.findVersionState.mockResolvedValue(createVersionState());
     const txService = mock<TxService>();
     txService.transaction.mockImplementation(async cb => await cb());
@@ -1027,6 +1182,9 @@ describe(UserTemplatesService.name, () => {
       .calledWith("ORGANIZATION_CONTEXT")
       .mockReturnValue(input.hasNoOrganization ? undefined : createOrganizationContext({ organizationId: activeOrganizationId }));
     const templateRemovalRepository = mock<TemplateRemovalRepository>();
+    const templateVersionHoldService = mock<TemplateVersionHoldService>();
+    templateVersionHoldService.findHoldReasons.mockResolvedValue(input.holdReasons ?? []);
+    const templateImageDigestJobService = mock<TemplateImageDigestJobService>();
     const service = new UserTemplatesService(
       userTemplateRepository,
       authService,
@@ -1038,7 +1196,9 @@ describe(UserTemplatesService.name, () => {
       featureFlagsService,
       templateRateLimiterService,
       executionContextService,
-      templateRemovalRepository
+      templateRemovalRepository,
+      templateVersionHoldService,
+      templateImageDigestJobService
     );
 
     return {
@@ -1053,13 +1213,17 @@ describe(UserTemplatesService.name, () => {
       publishChecksService,
       templateRateLimiterService,
       activeOrganizationId,
-      templateRemovalRepository
+      templateRemovalRepository,
+      templateVersionHoldService,
+      templateImageDigestJobService,
+      appendedVersion
     };
   }
 
   function createVersionState(overrides: Partial<TemplateVersionState> = {}): TemplateVersionState {
     return {
       organizationId: faker.string.uuid(),
+      isOfficial: false,
       isPublic: false,
       visibility: "private",
       publishedAt: null,

@@ -5,6 +5,7 @@ import { TemplateHardwareSchema } from "@src/template/http-schemas/template.sche
 import { AskedValueSchema } from "@src/template-marketplace/lib/asked-values/asked-values.schema";
 import { PUBLISH_CHECK_ISSUE_FIELDS, PUBLISH_CHECK_KEYS, PUBLISH_CHECK_STATUSES } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
 import { TEMPLATE_VERSION_CHANGES } from "@src/template-marketplace/lib/version-changes/summarize-version-changes";
+import { TEMPLATE_VERSION_HOLD_KINDS } from "@src/template-marketplace/lib/version-hold/version-hold-reasons";
 import { templateVersionStatusEnum } from "@src/template-marketplace/model-schemas/template-version/template-version.schema";
 import { templateModerationStatusEnum, templateVisibilityEnum } from "@src/user/model-schemas/template/template.schema";
 
@@ -34,16 +35,27 @@ export const PublishCheckSchema = z
         service: z.string().optional().openapi({ description: "The SDL service the issue is in" }),
         variable: z.string().optional().openapi({ description: "The env variable or asked value the issue is in" }),
         image: z.string().optional().openapi({ description: "The container image the issue is about" }),
-        field: z
-          .enum(PUBLISH_CHECK_ISSUE_FIELDS)
-          .optional()
-          .openapi({ description: "The name a reserved word was found in, the text a line holding a credential was found in, or the text that is over its length limit" })
+        field: z.enum(PUBLISH_CHECK_ISSUE_FIELDS).optional().openapi({
+          description: "The name a reserved word was found in, the text a line holding a credential was found in, or the text that is over its length limit"
+        })
       })
     )
   })
   .openapi("TemplatePublishCheck");
 
 const PublishCheckResultsSchema = z.object({ ranAt: z.string().datetime(), checks: z.array(PublishCheckSchema) });
+
+export const TemplateVersionHoldReasonSchema = z
+  .object({
+    kind: z.enum(TEMPLATE_VERSION_HOLD_KINDS),
+    message: z.string().openapi({ description: "Why the version waits for review, as plain text" }),
+    service: z.string().optional().openapi({ description: "The SDL service the reason is about" }),
+    image: z.string().optional().openapi({ description: "The image the version runs from a repository the current version does not" }),
+    previousImage: z.string().optional().openapi({ description: "The image the same service runs in the current version" }),
+    port: z.number().int().optional().openapi({ description: "The container port the version newly opens to the internet" }),
+    protocol: z.string().optional()
+  })
+  .openapi("TemplateVersionHoldReason");
 
 const TemplateVersionFieldsSchema = z
   .object({
@@ -52,7 +64,8 @@ const TemplateVersionFieldsSchema = z
     version: z.number().int().positive(),
     resources: TemplateHardwareSchema.nullable().openapi({ description: "Null when the version recorded none" }),
     status: z.enum(templateVersionStatusEnum.enumValues).openapi({
-      description: "A `failed_checks` version failed the publish checks of a public template, never became the current version and is shown to editors only"
+      description:
+        "A `failed_checks` version failed the publish checks of a public template, a `held` one waits for staff review and a `rejected` one was turned down; none of them became the current version and they are shown to editors only"
     }),
     checkResults: PublishCheckResultsSchema.nullable().openapi({
       description: "What the publish checks found, for callers who may change the template; null for everyone else and for a version they never ran on"
@@ -61,6 +74,19 @@ const TemplateVersionFieldsSchema = z
       .array(z.enum(TEMPLATE_VERSION_CHANGES))
       .nullable()
       .openapi({ description: "What this version changed from the one before it, null for a version saved before changes were recorded" }),
+    holdReasons: z.array(TemplateVersionHoldReasonSchema).nullable().openapi({
+      description:
+        "Why the version was held for staff review, for callers who may change the template; null for everyone else and for a version that never waited"
+    }),
+    reviewedAt: z
+      .string()
+      .datetime()
+      .nullable()
+      .openapi({ description: "When staff approved or rejected the version, for callers who may change the template; null for everyone else" }),
+    reviewNote: z
+      .string()
+      .nullable()
+      .openapi({ description: "What staff wrote when they reviewed the version, for callers who may change the template; null for everyone else" }),
     createdBy: z.object({ username: z.string() }).nullable().openapi({ description: "Null when the creator deleted their account or has no username" }),
     createdAt: z.string().datetime()
   })
@@ -75,7 +101,11 @@ export const TemplateVersionSummarySchema = TemplateVersionFieldsSchema.extend({
 export const TemplateVersionSchema = TemplateVersionFieldsSchema.extend({
   sdl: z.string(),
   readme: z.string().nullable(),
-  askedValues: z.array(AskedValueSchema)
+  askedValues: z.array(AskedValueSchema),
+  imageDigests: z.record(z.string()).openapi({
+    description:
+      "The digest each image resolved to after the version was saved, by image as the SDL writes it; an image is missing until it resolves or when its registry does not answer anonymously"
+  })
 }).openapi("TemplateVersion");
 
 /** zod-to-openapi drops `nullable` from a named schema's `$ref`, so a nullable version inlines its shape. */
