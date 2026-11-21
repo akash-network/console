@@ -87,7 +87,9 @@ export const ShareTemplateDialog: FC<ShareTemplateDialogProps> = ({ template, or
   const { mutateAsync: publish, isPending: isPublishing } = d.usePublishTemplateMutation();
   const { mutateAsync: updateSettings, isPending: isChangingVisibility } = d.useUpdateTemplateSettingsMutation();
   const [savedChange, setSavedChange] = useState<SavedSharingChange>();
-  const sharing = savedChange && isSameSharing(savedChange.from, template) ? savedChange.to : template;
+  const isSavedChangeCurrent = !!savedChange && isSameSharing(savedChange.from, template);
+  if (savedChange && !isSavedChangeCurrent) setSavedChange(undefined);
+  const sharing = isSavedChangeCurrent ? savedChange.to : template;
   const [selected, setSelected] = useState<TemplateVisibility>(sharing.visibility);
   const [acceptedTermsVersion, setAcceptedTermsVersion] = useState<string>();
   const [isConfirmingUnpublish, setIsConfirmingUnpublish] = useState(false);

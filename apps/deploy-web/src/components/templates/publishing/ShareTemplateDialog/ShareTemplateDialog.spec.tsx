@@ -598,6 +598,23 @@ describe(ShareTemplateDialog.name, () => {
       expect(updateSettings).toHaveBeenCalledTimes(1);
     });
 
+    it("asks before unpublishing a template published again after the dialog made it private", async () => {
+      const { updateSettings, showTemplate } = setup({ template: IN_GALLERY });
+
+      fireEvent.click(screen.getByRole("radio", { name: /^Private/ }));
+      fireEvent.click(screen.getByRole("button", { name: "Make private" }));
+      await userEvent.click(screen.getByRole("button", { name: "Make private" }));
+      showTemplate({ ...IN_GALLERY, visibility: "private", isListed: false });
+      showTemplate(IN_GALLERY);
+
+      expect(screen.getByRole("radio", { name: /^Public Current/ })).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("radio", { name: /^Organization/ }));
+      await userEvent.click(screen.getByRole("button", { name: "Share with organization only" }));
+
+      expect(screen.getByText("Take it out of the gallery?")).toBeInTheDocument();
+      expect(updateSettings).toHaveBeenCalledTimes(1);
+    });
+
     it.each([
       ["its visibility", { visibility: "organization" }, /^Organization Current/],
       ["its listing", { isListed: false }, /^Public Current/],
