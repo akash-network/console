@@ -150,6 +150,7 @@ const createUserTemplateRoute = createRoute({
     404: {
       description: "The project does not exist, or the template copied from does not exist or the caller may not read it (`template_copy_source_not_found`)"
     },
+    410: { description: "The template copied from was public once and has since been removed (`template_removed`, with the `title` it had)" },
     429: { description: RATE_LIMITED_DESCRIPTION }
   }
 });

@@ -20096,6 +20096,13 @@ export interface operations {
         };
         content?: never;
       };
+      /** @description The template copied from was public once and has since been removed (`template_removed`, with the `title` it had) */
+      410: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
       /** @description The caller or the organization reached a limit; `Retry-After` tells when to try again (`template_rate_limited`) */
       429: {
         headers: {

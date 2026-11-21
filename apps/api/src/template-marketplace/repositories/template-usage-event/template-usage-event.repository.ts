@@ -99,12 +99,7 @@ export class TemplateUsageEventRepository {
       .from(this.table)
       .innerJoin(this.templates, eq(this.table.templateRef, sql`${this.templates.id}::text`))
       .where(
-        and(
-          this.#shownTemplateEvents,
-          inArray(this.templates.id, templateIds),
-          inArray(this.table.action, SUMMARIZED_ACTIONS),
-          or(ne(this.templates.visibility, "public"), sql`${this.table.organizationId} is distinct from ${this.templates.organizationId}`)
-        )
+        and(this.#shownTemplateEvents, inArray(this.templates.id, templateIds), inArray(this.table.action, SUMMARIZED_ACTIONS), this.#countedForItsTemplate)
       )
       .groupBy(this.table.templateRef);
     const summaries = new Map(templateIds.map(id => [id, NO_TEMPLATE_USAGE]));
@@ -136,11 +131,21 @@ export class TemplateUsageEventRepository {
     return new Map(rows.map(({ templateRef, ...counts }) => [templateRef, toUsageSummary(counts)]));
   }
 
+  /** Leaves out what the template's own count leaves out, so its versions add up to it. */
   async countDeploysByVersion(templateId: string): Promise<Map<string, number>> {
     const rows = await this.#cursor
       .select({ versionId: this.table.templateVersionId, deploys: sql<number>`count(*)`.mapWith(Number) })
       .from(this.table)
-      .where(and(this.#shownTemplateEvents, eq(this.table.templateRef, templateId), eq(this.table.action, "deploy"), isNotNull(this.table.templateVersionId)))
+      .innerJoin(this.templates, eq(this.templates.id, templateId))
+      .where(
+        and(
+          this.#shownTemplateEvents,
+          eq(this.table.templateRef, templateId),
+          eq(this.table.action, "deploy"),
+          isNotNull(this.table.templateVersionId),
+          this.#countedForItsTemplate
+        )
+      )
       .groupBy(this.table.templateVersionId);
 
     return new Map(rows.map(({ versionId, deploys }) => [versionId!, deploys]));
@@ -176,6 +181,11 @@ export class TemplateUsageEventRepository {
       .limit(limit);
 
     return rows.map(({ templateId, currentVersionId }) => ({ templateId, currentVersionId: currentVersionId! }));
+  }
+
+  /** A public template's own organization cannot raise its numbers; a template only that organization can use has nobody else to count. */
+  get #countedForItsTemplate() {
+    return or(ne(this.templates.visibility, "public"), sql`${this.table.organizationId} is distinct from ${this.templates.organizationId}`);
   }
 
   get #usageCounts() {

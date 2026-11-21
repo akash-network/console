@@ -285,7 +285,7 @@ describe(TemplateUsageEventRepository.name, () => {
   describe("countDeploysByVersion", () => {
     it("counts the template's mainnet deploys per version", async () => {
       const { repository } = setup();
-      const template = faker.string.uuid();
+      const { id: template } = await seedPublishedTemplate();
       const [first, second, unused] = [faker.string.uuid(), faker.string.uuid(), faker.string.uuid()];
       await seedEvents([
         { templateRef: template, templateVersionId: first, action: "deploy" },
@@ -305,6 +305,43 @@ describe(TemplateUsageEventRepository.name, () => {
           [second, 2]
         ])
       );
+    });
+
+    it("leaves a public template's own organization out of each version, and counts it for a template only that organization can use", async () => {
+      const { repository } = setup();
+      const [publisher, stranger] = await Promise.all([seedOrganization(), seedOrganization()]);
+      const [published, kept] = await Promise.all([
+        seedPublishedTemplate({ organizationId: publisher.id, visibility: "public" }),
+        seedPublishedTemplate({ organizationId: publisher.id, visibility: "organization" })
+      ]);
+      const [first, second] = [faker.string.uuid(), faker.string.uuid()];
+      const eventsOf = (templateRef: string) => [
+        ...times(2, () => ({ templateRef, templateVersionId: first, action: "deploy" as const, organizationId: publisher.id })),
+        { templateRef, templateVersionId: first, action: "deploy" as const, organizationId: stranger.id },
+        { templateRef, templateVersionId: second, action: "deploy" as const, organizationId: null }
+      ];
+      await seedEvents([...eventsOf(published.id), ...eventsOf(kept.id)]);
+
+      expect(await repository.countDeploysByVersion(published.id)).toEqual(
+        new Map([
+          [first, 1],
+          [second, 1]
+        ])
+      );
+      expect(await repository.countDeploysByVersion(kept.id)).toEqual(
+        new Map([
+          [first, 3],
+          [second, 1]
+        ])
+      );
+    });
+
+    it("counts nothing for a template that is gone", async () => {
+      const { repository } = setup();
+      const template = faker.string.uuid();
+      await seedEvents([{ templateRef: template, templateVersionId: faker.string.uuid(), action: "deploy" }]);
+
+      expect(await repository.countDeploysByVersion(template)).toEqual(new Map());
     });
   });
 
