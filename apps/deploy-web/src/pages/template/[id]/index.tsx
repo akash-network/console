@@ -8,6 +8,7 @@ export default TemplateRoute;
 
 export const getServerSideProps = defineServerSideProps({
   route: "/template/[id]",
+  public: true,
   schema: z.object({
     params: z.object({
       id: z.string()

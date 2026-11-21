@@ -8,7 +8,6 @@ import { TooltipProvider } from "@akashnetwork/ui/components";
 import { CustomSnackbarProvider, PopupProvider } from "@akashnetwork/ui/context";
 import { cn } from "@akashnetwork/ui/utils";
 import { AppCacheProvider } from "@mui/material-nextjs/v14-pagesRouter";
-import { QueryClientProvider } from "@tanstack/react-query";
 import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
 import { Provider as JotaiProvider } from "jotai";
@@ -30,9 +29,11 @@ import { AddCreditsHost } from "@src/components/billing-usage/AddCreditsHost/Add
 import { CloseDeploymentConfirmHost } from "@src/components/deployments/CloseDeploymentConfirmHost/CloseDeploymentConfirmHost";
 import { DeploymentCopyCleanup } from "@src/components/deployments/DeploymentCopyCleanup/DeploymentCopyCleanup";
 import { RequireFairUsePolicy } from "@src/components/fair-use-policy/RequireFairUsePolicy/RequireFairUsePolicy";
+import { AppQueryClientProvider } from "@src/components/layout/AppQueryClientProvider/AppQueryClientProvider";
 import { AppThemeProvider } from "@src/components/layout/AppThemeProvider";
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
 import { PageHead } from "@src/components/layout/PageHead";
+import { SignedInHosts } from "@src/components/layout/SignedInHosts/SignedInHosts";
 import { RequireOnboarding } from "@src/components/onboarding/RequireOnboarding/RequireOnboarding";
 import { AccountDeletedNotice } from "@src/components/user/AccountDeletedNotice/AccountDeletedNotice";
 import { UserProviders } from "@src/components/user/UserProviders/UserProviders";
@@ -44,9 +45,10 @@ import { FlagProvider, WaitForFeatureFlags } from "@src/context/FlagProvider/Fla
 import { OrganizationProvider } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { PaymentPollingProvider } from "@src/context/PaymentPollingProvider";
 import { ServicesProvider } from "@src/context/ServicesProvider";
-import { RootContainerProvider, useRootContainer } from "@src/context/ServicesProvider/RootContainerProvider";
+import { RootContainerProvider } from "@src/context/ServicesProvider/RootContainerProvider";
 import { WalletProvider } from "@src/context/WalletProvider";
 import type { PageWithAuth } from "@src/lib/pages/definePublicPage";
+import { readVisitorAccess } from "@src/lib/pages/visitorAccess/visitorAccess";
 import { store } from "@src/store/global-store";
 import { tolerateTranslatorDomEdits } from "@src/utils/tolerateTranslatorDomEdits/tolerateTranslatorDomEdits";
 
@@ -69,29 +71,32 @@ if (typeof window !== "undefined") {
 
 const App: React.FunctionComponent<Props> = props => {
   const { Component, pageProps } = props;
-  const isPublic = (Component as PageWithAuth).auth === "public";
+  const visitorAccess = readVisitorAccess(pageProps);
+  const isPublic = (Component as PageWithAuth).auth === "public" || !!visitorAccess;
 
   return (
     <AppRoot {...props}>
       <BootLoadingProvider>
-        <UserProviders>
+        <UserProviders isRenderedForVisitor={!!visitorAccess}>
           <AccountCreatedTracker />
           <AccountDeletedNotice />
           <RequireAuth isPublic={isPublic}>
-            <FlagProvider>
+            <FlagProvider bootstrap={visitorAccess?.featureToggles}>
               <OrganizationProvider>
                 <WalletProvider>
                   <PaymentPollingProvider>
-                    <AddCreditsHost />
-                    <DeploymentCopyCleanup />
-                    <CloseDeploymentConfirmHost />
-                    <ActivityHost />
-                    <DeploymentReadyHost />
-                    <WhatsNewHost />
-                    <AssistantHost />
+                    <SignedInHosts isRenderedForVisitor={!!visitorAccess}>
+                      <AddCreditsHost />
+                      <DeploymentCopyCleanup />
+                      <CloseDeploymentConfirmHost />
+                      <ActivityHost />
+                      <DeploymentReadyHost />
+                      <WhatsNewHost />
+                      <AssistantHost />
+                    </SignedInHosts>
                     <NavigationGuardProvider>
                       <RequireOnboarding isPublic={isPublic}>
-                        <WaitForFeatureFlags>
+                        <WaitForFeatureFlags isBootstrapped={!!visitorAccess}>
                           <RequireFairUsePolicy isPublic={isPublic}>
                             <Component {...pageProps} />
                           </RequireFairUsePolicy>
@@ -115,7 +120,6 @@ const LocalNoteManager = dynamic(() => import("@src/components/LocalNoteManager/
   ssr: false
 });
 function AppRoot(props: Props & { children: React.ReactNode }) {
-  const { queryClient } = useRootContainer();
   return (
     <main className={cn("h-full bg-background font-sans antialiased", GeistSans.variable, GeistMono.variable)}>
       <PageHead pageSeo={props.pageProps.seo} />
@@ -124,7 +128,7 @@ function AppRoot(props: Props & { children: React.ReactNode }) {
         <AppCacheProvider {...props}>
           <CustomIntlProvider>
             <JotaiProvider store={store}>
-              <QueryClientProvider client={queryClient}>
+              <AppQueryClientProvider dehydratedState={props.pageProps.dehydratedState}>
                 <AppThemeProvider>
                   <ColorModeProvider>
                     <CustomSnackbarProvider containerClassName={TOASTS_BESIDE_ASSISTANT_PANEL}>
@@ -142,7 +146,7 @@ function AppRoot(props: Props & { children: React.ReactNode }) {
                     </CustomSnackbarProvider>
                   </ColorModeProvider>
                 </AppThemeProvider>
-              </QueryClientProvider>
+              </AppQueryClientProvider>
             </JotaiProvider>
           </CustomIntlProvider>
         </AppCacheProvider>

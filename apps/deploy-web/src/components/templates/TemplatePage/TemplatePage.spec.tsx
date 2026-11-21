@@ -721,10 +721,43 @@ describe(TemplatePage.name, () => {
     expect(screen.getByRole("button", { name: "Favorite" })).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("offers no favorite without a session", () => {
+  it("sends a visitor who favorites to sign in and back to the template, without asking the API", async () => {
+    const { router, addFavorite, removeFavorite } = setup({ isSignedIn: false });
+    expect(screen.getByRole("button", { name: "Favorite" })).toHaveAttribute("aria-pressed", "false");
+
+    await userEvent.click(screen.getByRole("button", { name: "Favorite" }));
+
+    expect(router.push).toHaveBeenCalledWith(UrlService.newLogin({ returnTo: UrlService.template(TEMPLATE_ID) }));
+    expect(addFavorite).not.toHaveBeenCalled();
+    expect(removeFavorite).not.toHaveBeenCalled();
+  });
+
+  it("sends a visitor who deploys to sign in and on to Configure with the template", () => {
     setup({ isSignedIn: false });
 
-    expect(screen.queryByRole("button", { name: "Favorite" })).not.toBeInTheDocument();
+    const deployUrl = UrlService.configureDeployment({ userTemplateId: TEMPLATE_ID, templateVersion: CURRENT_VERSION.version });
+    expect(screen.getByRole("link", { name: "Deploy" })).toHaveAttribute("href", UrlService.newLogin({ returnTo: deployUrl }));
+    expect(UrlService.newLogin({ returnTo: deployUrl })).toContain(encodeURIComponent(deployUrl));
+  });
+
+  describe("when the server already learned the template was removed", () => {
+    it("shows the removed page with the title and asks the API for nothing", () => {
+      const { RemovedTemplateNotice, NextSeo, useMarketplaceTemplate, useTemplateVersions } = setup({
+        removedOnServer: { title: "Open WebUI + vLLM" },
+        isSignedIn: false
+      });
+
+      expect(RemovedTemplateNotice).toHaveBeenCalledWith({ title: "Open WebUI + vLLM", isSignedIn: false }, expect.anything());
+      expect(NextSeo).toHaveBeenCalledWith(expect.objectContaining({ title: "Template removed", noindex: true }), expect.anything());
+      expect(useMarketplaceTemplate).toHaveBeenCalledWith(undefined);
+      expect(useTemplateVersions).toHaveBeenCalledWith(TEMPLATE_ID, { enabled: false });
+    });
+
+    it("shows the removed page without a title when the API no longer gives one", () => {
+      const { RemovedTemplateNotice } = setup({ removedOnServer: { title: null }, isSignedIn: false });
+
+      expect(RemovedTemplateNotice).toHaveBeenCalledWith({ title: undefined, isSignedIn: false }, expect.anything());
+    });
   });
 
   describe("sharing", () => {
@@ -838,6 +871,7 @@ describe(TemplatePage.name, () => {
     isFavoriteFailing?: boolean;
     isFavoriteChangeHeld?: boolean;
     arrivalSource?: string;
+    removedOnServer?: { title: string | null };
     TemplateReadmeTab?: typeof DEPENDENCIES.TemplateReadmeTab;
   }) {
     const refetch = vi.fn();
@@ -853,11 +887,12 @@ describe(TemplatePage.name, () => {
     const addFavorite = vi.fn<FavoriteMutation["mutateAsync"]>(changeFavorite);
     const removeFavorite = vi.fn<FavoriteMutation["mutateAsync"]>(changeFavorite);
 
-    let templateQuery: TemplateQuery = input.isLoading
-      ? mock<TemplateQuery>({ data: undefined, isLoading: true, isError: false, error: null, refetch })
-      : input.error
-        ? mock<TemplateQuery>({ data: undefined, isLoading: false, isError: true, error: input.error, refetch })
-        : mock<TemplateQuery>({ data: structuredClone(input.template ?? TEMPLATE), isLoading: false, isError: false, error: null, refetch });
+    let templateQuery: TemplateQuery =
+      input.isLoading || input.removedOnServer
+        ? mock<TemplateQuery>({ data: undefined, isLoading: true, isError: false, error: null, refetch })
+        : input.error
+          ? mock<TemplateQuery>({ data: undefined, isLoading: false, isError: true, error: input.error, refetch })
+          : mock<TemplateQuery>({ data: structuredClone(input.template ?? TEMPLATE), isLoading: false, isError: false, error: null, refetch });
     let versionsQuery = input.isLoadingVersions
       ? mock<VersionsQuery>({ data: undefined, isError: false })
       : input.versionsError
@@ -954,7 +989,7 @@ describe(TemplatePage.name, () => {
 
     const renderPage = () => (
       <TestContainerProvider services={{ analyticsService: () => analyticsService }}>
-        <TemplatePage id={TEMPLATE_ID} dependencies={dependencies} />
+        <TemplatePage id={TEMPLATE_ID} removedTemplate={input.removedOnServer} dependencies={dependencies} />
       </TestContainerProvider>
     );
     const { unmount, rerender } = render(renderPage());

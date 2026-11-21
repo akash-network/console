@@ -1,5 +1,5 @@
 import type * as unleashModule from "@unleash/nextjs";
-import type { Context } from "@unleash/nextjs";
+import type { Context, IToggle } from "@unleash/nextjs";
 import type { GetServerSidePropsContext } from "next";
 
 import type { ServerEnvConfig } from "@src/config/env-config.schema";
@@ -37,5 +37,16 @@ export class FeatureFlagService {
     const sessionId = this.extractSessionId(ctx);
 
     return await this.getFlag(name, { sessionId, ...extraContext });
+  }
+
+  /** Every flag as the request's visitor gets it, for a server render the browser has to repeat; empty when every flag is forced on, which the browser forces too. */
+  async evaluateTogglesForCtx(ctx: Pick<GetServerSidePropsContext, "req">, extraContext: Context = {}): Promise<IToggle[]> {
+    if (this.config.NEXT_PUBLIC_UNLEASH_ENABLE_ALL) return [];
+
+    const definitions = await this.unleash.getDefinitions({
+      fetchOptions: { next: { revalidate: 15 } }
+    });
+
+    return this.unleash.evaluateFlags(definitions, { sessionId: this.extractSessionId(ctx), ...extraContext }).toggles;
   }
 }

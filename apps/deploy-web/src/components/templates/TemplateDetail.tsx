@@ -13,6 +13,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import { useHasInAppHistory } from "@src/hooks/useHasInAppHistory";
+import { useUser } from "@src/hooks/useUser";
 import type { ApiTemplate } from "@src/types";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
@@ -25,6 +26,7 @@ const OVERLINE_CLASSES = "font-mono text-[10px] font-semibold uppercase tracking
 export const DEPENDENCIES = {
   useRouter,
   useHasInAppHistory,
+  useUser,
   useWallet,
   useFlag,
   useServices,
@@ -49,6 +51,8 @@ export const TemplateDetail: FC<TemplateDetailProps> = ({ template, dependencies
   const blockedGpuModels = publicConfig.NEXT_PUBLIC_MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS;
   const isGpuBlockedForTrial = useMemo(() => needsTrialBlockedGpu(template.deploy, blockedGpuModels), [template.deploy, blockedGpuModels]);
   const offersTrialGpuAlternatives = isIntentFirst && isTrialing && isGpuBlockedForTrial;
+  const { user } = d.useUser();
+  const deployUrl = UrlService.configureDeployment({ templateId: template.id });
 
   const returnToPreviousPage = (event: MouseEvent<HTMLAnchorElement>) => {
     if (!hasInAppHistory || isOpeningElsewhere(event)) return;
@@ -82,7 +86,7 @@ export const TemplateDetail: FC<TemplateDetailProps> = ({ template, dependencies
           </div>
 
           <Link
-            href={UrlService.configureDeployment({ templateId: template.id })}
+            href={user?.userId ? deployUrl : UrlService.newLogin({ returnTo: deployUrl })}
             className={cn(buttonVariants(), "shrink-0 gap-2 rounded-[10px] font-semibold")}
           >
             Deploy template

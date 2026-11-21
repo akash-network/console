@@ -3,12 +3,13 @@ import { mock } from "vitest-mock-extended";
 
 import type { EnhancedTemplateCategory } from "@src/queries/useTemplateQuery";
 import type { CommunityTemplateGallery } from "@src/types/marketplace-template";
+import type { GalleryFirstPage } from "./galleryFirstPage";
 import type { GallerySort, GallerySource } from "./galleryView";
 import type { CommunityGallery, CommunityGalleryInput, DEPENDENCIES } from "./useCommunityGallery";
 import { useCommunityGallery } from "./useCommunityGallery";
 
 import { renderHook } from "@testing-library/react";
-import { buildCommunityTemplateCard } from "@tests/seeders/communityTemplate";
+import { buildCommunityTemplateCard, buildGalleryEntry } from "@tests/seeders/communityTemplate";
 
 type CommunityQuery = ReturnType<typeof DEPENDENCIES.useCommunityTemplates>;
 
@@ -238,12 +239,92 @@ describe(useCommunityGallery.name, () => {
     return galleryOf(result).shownEntries.map(entry => entry.title);
   }
 
+  describe("with the first screen a server render worked out", () => {
+    const FIRST_PAGE: GalleryFirstPage = {
+      view: { category: null, search: "", source: "all", sort: "popular" },
+      selectedCategory: null,
+      filters: [{ category: null, label: "All", count: 41 }],
+      sourceCounts: { all: 41, official: 30, community: 11 },
+      shownEntries: [buildGalleryEntry({ title: "Server rendered" })],
+      trendingEntries: [buildGalleryEntry({ title: "Server trending" })]
+    };
+
+    it("shows that screen, with its counts, while the community list loads", () => {
+      const { result } = setup({ firstPage: FIRST_PAGE, community: null, isLoading: true });
+
+      expect(result.current).toEqual({
+        selectedCategory: null,
+        filters: FIRST_PAGE.filters,
+        sourceCounts: FIRST_PAGE.sourceCounts,
+        shownEntries: FIRST_PAGE.shownEntries,
+        trendingEntries: FIRST_PAGE.trendingEntries,
+        isShowingFirstPage: true,
+        isLoadingCommunity: false,
+        hasCommunityFailed: false,
+        retryCommunity: expect.any(Function)
+      });
+    });
+
+    it("keeps showing it while only the awesome-akash list is still loading", () => {
+      const { result } = setup({ firstPage: FIRST_PAGE, categories: [], isLoadingCategories: true });
+
+      expect((result.current as CommunityGallery).isShowingFirstPage).toBe(true);
+      expect((result.current as CommunityGallery).shownEntries).toEqual(FIRST_PAGE.shownEntries);
+    });
+
+    it("moves to the lists once both have loaded", () => {
+      const { result, rerenderWith } = setup({ firstPage: FIRST_PAGE, categories: [], isLoadingCategories: true });
+
+      rerenderWith({ categories: CATEGORIES, isLoadingCategories: false });
+
+      const gallery = result.current as CommunityGallery;
+      expect(gallery.isShowingFirstPage).toBe(false);
+      expect(gallery.shownEntries.map(entry => entry.title)).not.toContain("Server rendered");
+      expect(gallery.sourceCounts.all).toBe(gallery.shownEntries.length);
+    });
+
+    it.each([{ search: "llama" }, { sort: "newest" as const }, { source: "community" as const }, { category: "Games" }])(
+      "shows the loading state instead once the visitor asks for another view (%j) before the lists have loaded",
+      view => {
+        const { result } = setup({ firstPage: FIRST_PAGE, community: null, isLoading: true, view });
+
+        const gallery = result.current as CommunityGallery;
+        expect(gallery.isShowingFirstPage).toBe(false);
+        expect(gallery.isLoadingCommunity).toBe(true);
+        expect(gallery.shownEntries.map(entry => entry.title)).not.toContain("Server rendered");
+      }
+    );
+
+    it("retries the community list from the first screen too", () => {
+      const { result, refetch } = setup({ firstPage: FIRST_PAGE, community: null, isLoading: true });
+
+      (result.current as CommunityGallery).retryCommunity();
+
+      expect(refetch).toHaveBeenCalledOnce();
+    });
+
+    it("stays null while the marketplace is off", () => {
+      const { result } = setup({ firstPage: FIRST_PAGE, isEnabled: false, community: null, isLoading: true });
+
+      expect(result.current).toBeNull();
+    });
+  });
+
+  it("says it is not showing a server-rendered screen when it was given none", () => {
+    const { result } = setup({ community: null, isLoading: true });
+
+    expect((result.current as CommunityGallery).isShowingFirstPage).toBe(false);
+    expect((result.current as CommunityGallery).isLoadingCommunity).toBe(true);
+  });
+
   function setup(input: {
     isEnabled?: boolean;
     categories?: EnhancedTemplateCategory[];
     community?: CommunityTemplateGallery | null;
     isLoading?: boolean;
     isError?: boolean;
+    isLoadingCategories?: boolean;
+    firstPage?: GalleryFirstPage;
     view?: { category?: string | null; search?: string; source?: GallerySource; sort?: GallerySort };
   }) {
     const refetch = vi.fn();
@@ -254,6 +335,8 @@ describe(useCommunityGallery.name, () => {
     let hookInput: CommunityGalleryInput = {
       isEnabled: input.isEnabled ?? true,
       categories: input.categories ?? CATEGORIES,
+      isLoadingCategories: input.isLoadingCategories,
+      firstPage: input.firstPage,
       view: { category: null, search: "", source: "all", sort: "popular", ...input.view }
     };
 
@@ -263,12 +346,15 @@ describe(useCommunityGallery.name, () => {
       isEnabled?: boolean;
       categories?: EnhancedTemplateCategory[];
       community?: CommunityTemplateGallery;
+      isLoadingCategories?: boolean;
       view?: Partial<CommunityGalleryInput["view"]>;
     }) => {
       if (change.community) query = toQuery(change.community);
       hookInput = {
         isEnabled: change.isEnabled ?? hookInput.isEnabled,
         categories: change.categories ?? hookInput.categories,
+        isLoadingCategories: change.isLoadingCategories ?? hookInput.isLoadingCategories,
+        firstPage: hookInput.firstPage,
         view: { category: null, search: "", source: "all", sort: "popular", ...change.view }
       };
       rerender();

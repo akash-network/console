@@ -25,15 +25,28 @@ describe(FlagProvider.name, () => {
     expect(screen.getByTestId("flag-context-user-sync").textContent).toBe("my-user-id");
   });
 
+  it("starts the flag client from the flags a server render was made under", () => {
+    const bootstrap = [{ name: "template_marketplace", enabled: true, variant: { name: "disabled", enabled: false }, impressionData: false }];
+    setup({ bootstrap });
+
+    expect(screen.getByTestId("flag-provider")).toHaveAttribute("data-bootstrap", JSON.stringify(bootstrap));
+  });
+
+  it("starts the flag client with no flags of its own on every other page", () => {
+    setup({});
+
+    expect(screen.getByTestId("flag-provider")).not.toHaveAttribute("data-bootstrap");
+  });
+
   it("renders children without waiting for feature flags", () => {
     setup({ isLoading: true });
 
     expect(screen.getByTestId("child")).toBeInTheDocument();
   });
 
-  function setup(input: { userId?: string; isLoading?: boolean }) {
+  function setup(input: { userId?: string; isLoading?: boolean; bootstrap?: Props["bootstrap"] }) {
     const FlagProviderStub = ({ config, children }: ComponentProps<Components["FlagProvider"]>) => (
-      <div data-testid="flag-provider">
+      <div data-testid="flag-provider" data-bootstrap={config?.bootstrap && JSON.stringify(config.bootstrap)}>
         {config?.context?.userId}
         {children}
       </div>
@@ -46,7 +59,7 @@ describe(FlagProvider.name, () => {
       });
 
     render(
-      <FlagProvider components={{ FlagProvider: FlagProviderStub, FlagContextUserSync: FlagContextUserSyncStub, useUser }}>
+      <FlagProvider bootstrap={input.bootstrap} components={{ FlagProvider: FlagProviderStub, FlagContextUserSync: FlagContextUserSyncStub, useUser }}>
         <div data-testid="child" />
       </FlagProvider>
     );
@@ -175,6 +188,12 @@ describe(WaitForFeatureFlags.name, () => {
     expect(screen.getByTestId("child")).toBeInTheDocument();
   });
 
+  it("renders children at once when the flags came with the page, ready or not", () => {
+    setup({ isReady: false, isBootstrapped: true });
+
+    expect(screen.getByTestId("child")).toBeInTheDocument();
+  });
+
   it("shows a loader instead of children while the client is not ready", () => {
     setup({ isReady: false });
     expect(screen.queryByTestId("child")).not.toBeInTheDocument();
@@ -243,7 +262,7 @@ describe(WaitForFeatureFlags.name, () => {
     }
   });
 
-  function setup(input: { isReady: boolean }) {
+  function setup(input: { isReady: boolean; isBootstrapped?: boolean }) {
     const listeners: Record<string, () => void> = {};
     const client = mock<ReturnType<typeof WAIT_FOR_FEATURE_FLAGS_DEPENDENCIES.useUnleashClient>>();
     client.isReady.mockReturnValue(input.isReady);
@@ -253,7 +272,7 @@ describe(WaitForFeatureFlags.name, () => {
     });
 
     const { unmount } = render(
-      <WaitForFeatureFlags dependencies={{ useUnleashClient: () => client }}>
+      <WaitForFeatureFlags isBootstrapped={input.isBootstrapped} dependencies={{ useUnleashClient: () => client }}>
         <div data-testid="child" />
       </WaitForFeatureFlags>
     );

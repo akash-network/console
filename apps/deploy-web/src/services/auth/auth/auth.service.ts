@@ -5,10 +5,11 @@ import { forgetInvitationToken } from "@src/lib/organization-invitation/invitati
 export class AuthService {
   readonly #cacheStorage: CacheStorage | undefined;
 
+  /** The location is read off `globalThis` because a page rendered on the server for a visitor builds this service where there is no `window`. */
   constructor(
     private readonly urlService: AuthUrlService,
     private readonly internalApiHttpClient: HttpClient,
-    private readonly location = window.location,
+    private readonly location: Location = globalThis.location,
     cacheStorage: CacheStorage | undefined = globalThis.caches
   ) {
     this.#cacheStorage = cacheStorage;

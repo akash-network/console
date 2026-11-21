@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { TemplateCategory, TemplateHttpService, TemplateOutput, TemplateOutputSummary } from "@akashnetwork/http-sdk";
+import type { TemplateHttpService, TemplateOutput } from "@akashnetwork/http-sdk";
 import { Snackbar } from "@akashnetwork/ui/components";
 import type { QueryKey, UseQueryOptions } from "@tanstack/react-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -10,6 +10,10 @@ import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import type { ITemplate } from "@src/types";
 import { QueryKeys } from "./queryKeys";
+import type { CategoriesAndTemplates } from "./templateCategories";
+import { toCategoriesAndTemplates } from "./templateCategories";
+
+export type { CategoriesAndTemplates, EnhancedTemplateCategory, TemplateOutputSummaryWithCategory } from "./templateCategories";
 
 export function useUserTemplates(username: string, options?: Omit<UseQueryOptions<ITemplate[], Error, any, QueryKey>, "queryKey" | "queryFn">) {
   const { consoleApiHttpClient } = useServices();
@@ -133,35 +137,7 @@ export function useRemoveFavoriteTemplate(id: string) {
 async function getTemplates(templateService: TemplateHttpService) {
   const response = await templateService.findGroupedByCategory();
 
-  if (!response.data) {
-    return { categories: [], templates: [] };
-  }
-
-  const categories = response.data.filter(x => !!x.templates?.length);
-  const modifiedCategories = categories.map(category => {
-    const templatesWithCategory = category.templates.map(template => ({
-      ...template,
-      category: category.title
-    }));
-
-    return { ...category, templates: templatesWithCategory };
-  });
-  const templates = modifiedCategories.flatMap(category => category.templates);
-
-  return { categories: modifiedCategories, templates };
-}
-
-export interface EnhancedTemplateCategory extends Omit<TemplateCategory, "templates"> {
-  templates: TemplateOutputSummaryWithCategory[];
-}
-
-export interface TemplateOutputSummaryWithCategory extends TemplateOutputSummary {
-  category: TemplateCategory["title"];
-}
-
-export interface CategoriesAndTemplates {
-  categories: EnhancedTemplateCategory[];
-  templates: TemplateOutputSummaryWithCategory[];
+  return toCategoriesAndTemplates(response.data);
 }
 
 export interface CategoriesAndTemplatesResult extends CategoriesAndTemplates {

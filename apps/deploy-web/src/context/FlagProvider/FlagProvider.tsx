@@ -1,5 +1,6 @@
 import type { FC, ReactNode } from "react";
 import { useEffect, useState } from "react";
+import type { IToggle } from "@unleash/nextjs";
 import { FlagProvider as FlagProviderOriginal, useUnleashClient } from "@unleash/nextjs";
 
 import { BootLoading } from "@src/context/BootLoadingProvider/BootLoadingProvider";
@@ -35,9 +36,13 @@ const COMPONENTS = {
   useUser
 };
 
-export type Props = { components?: typeof COMPONENTS };
+export type Props = {
+  /** The flags a server render was made under, which the first render in the browser has to repeat before Unleash has answered. */
+  bootstrap?: IToggle[];
+  components?: typeof COMPONENTS;
+};
 
-export const FlagProvider: FCWithChildren<Props> = ({ children, components: c = COMPONENTS }) => {
+export const FlagProvider: FCWithChildren<Props> = ({ children, bootstrap, components: c = COMPONENTS }) => {
   const { publicConfig } = useServices();
   const { user } = c.useUser();
   const isEnableAll = publicConfig.NEXT_PUBLIC_UNLEASH_ENABLE_ALL;
@@ -49,6 +54,7 @@ export const FlagProvider: FCWithChildren<Props> = ({ children, components: c = 
           userId: user?.id,
           sessionId: getSessionId()
         },
+        bootstrap,
         fetch: isEnableAll ? () => new Response(JSON.stringify({ toggles: [] })) : undefined
       }}
     >
@@ -97,20 +103,25 @@ export function useFeatureFlagsReady(d: typeof WAIT_FOR_FEATURE_FLAGS_DEPENDENCI
 
 export function WaitForFeatureFlags({
   children,
+  isBootstrapped,
   dependencies: d = WAIT_FOR_FEATURE_FLAGS_DEPENDENCIES
 }: {
   children: ReactNode;
+  /** True when the flags came with the page, so there is nothing to wait for. */
+  isBootstrapped?: boolean;
   dependencies?: typeof WAIT_FOR_FEATURE_FLAGS_DEPENDENCIES;
 }) {
   const isReady = useFeatureFlagsReady(d);
 
-  if (!isReady) {
+  if (!isReady && !isBootstrapped) {
     return <BootLoading />;
   }
   return <>{children}</>;
 }
 
 function getSessionId(): string | undefined {
+  if (typeof document === "undefined") return undefined;
+
   const m = document.cookie.match(/(?:^|; )unleash-session-id=([^;]+)/);
   return m?.[1];
 }
