@@ -20,7 +20,12 @@ describe(parseImageReference.name, () => {
     { image: "registry.hub.docker.com/acme/web", expected: { registry: "docker.io", repository: "acme/web" } },
     { image: "GHCR.io/Acme/Web:2", expected: { registry: "ghcr.io", repository: "acme/web", tag: "2" } },
     { image: "acme/web", expected: { registry: "docker.io", repository: "acme/web" } },
-    { image: "library/web", expected: { registry: "docker.io", repository: "library/web" } },
+    { image: "library/web", expected: { registry: "docker.io", repository: "web" } },
+    { image: "library/web:2", expected: { registry: "docker.io", repository: "web", tag: "2" } },
+    { image: "library/acme/web", expected: { registry: "docker.io", repository: "library/acme/web" } },
+    { image: "docker.io/library/acme/web", expected: { registry: "docker.io", repository: "library/acme/web" } },
+    { image: "libraryx/web", expected: { registry: "docker.io", repository: "libraryx/web" } },
+    { image: "acme/library/web", expected: { registry: "docker.io", repository: "acme/library/web" } },
     { image: "nginx:", expected: { registry: "docker.io", repository: "nginx" } },
     {
       image: "nginx@sha256:0123456789abcdef",
@@ -54,6 +59,7 @@ describe(imageRepositoryOf.name, () => {
   it.each([
     { image: "nginx:1.27", repository: "docker.io/nginx" },
     { image: "docker.io/library/nginx:1.28", repository: "docker.io/nginx" },
+    { image: "library/nginx:1.28", repository: "docker.io/nginx" },
     { image: "registry-1.docker.io/library/nginx@sha256:0123456789abcdef", repository: "docker.io/nginx" },
     { image: "acme/nginx:1.27", repository: "docker.io/acme/nginx" },
     { image: "ghcr.io/acme/nginx:1.27", repository: "ghcr.io/acme/nginx" },

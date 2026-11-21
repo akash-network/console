@@ -1,13 +1,15 @@
 export type ImageReference = {
   /** Lowercased, with every Docker Hub alias read as `docker.io`, which is also what an image naming no registry means. */
   registry: string;
-  /** Lowercased, without the registry host, the tag or the digest, and without Docker Hub's implicit `library/`. */
+  /** Lowercased, without the registry host, the tag or the digest, and without the `library/` Docker Hub puts before an official image. */
   repository: string;
   tag?: string;
   digest?: string;
 };
 
 export const DOCKER_HUB_REGISTRY = "docker.io";
+
+const OFFICIAL_PREFIX = "library/";
 
 const DOCKER_HUB_HOSTS = new Set([DOCKER_HUB_REGISTRY, "index.docker.io", "registry-1.docker.io", "registry.hub.docker.com"]);
 
@@ -47,8 +49,17 @@ function splitOnce(text: string, separator: string): [string, string] {
 function splitRegistry(path: string): Pick<ImageReference, "registry" | "repository"> {
   const [first, rest] = splitOnce(path, "/");
 
-  if (!rest || !(first.includes(".") || first.includes(":") || first === "localhost")) return { registry: DOCKER_HUB_REGISTRY, repository: path };
+  const namesRegistry = !!rest && (first.includes(".") || first.includes(":") || first === "localhost");
+
+  if (!namesRegistry) return { registry: DOCKER_HUB_REGISTRY, repository: withoutOfficialPrefix(path) };
   if (!DOCKER_HUB_HOSTS.has(first)) return { registry: first, repository: rest };
 
-  return { registry: DOCKER_HUB_REGISTRY, repository: rest.startsWith("library/") ? rest.slice("library/".length) : rest };
+  return { registry: DOCKER_HUB_REGISTRY, repository: withoutOfficialPrefix(rest) };
+}
+
+/** Docker Hub serves `library/nginx` and `nginx` as one repository, while a deeper path under `library/` is a repository of its own. */
+function withoutOfficialPrefix(repository: string): string {
+  const name = repository.startsWith(OFFICIAL_PREFIX) ? repository.slice(OFFICIAL_PREFIX.length) : repository;
+
+  return name.includes("/") ? repository : name;
 }

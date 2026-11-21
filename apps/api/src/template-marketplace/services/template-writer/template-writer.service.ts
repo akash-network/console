@@ -74,6 +74,11 @@ function readmeShownFor(base: TemplateVersionOutput | undefined, template: Store
   return base?.readme ?? (template.description || null);
 }
 
+/** A base that a newer version replaced keeps its own id, so the append answers the conflict. */
+function currentVersionExpectedFrom(base: TemplateVersionOutput, current: TemplateVersionOutput | undefined): string {
+  return current && current.version < base.version ? current.id : base.id;
+}
+
 /** The legacy `isPublic` flag must stay equal to a public visibility, and settings only set private or organization ones. */
 function settingsUpdateOf({ summary, ...patch }: TemplateSettingsPatch): TemplateSettingsUpdate {
   return {
@@ -169,8 +174,8 @@ export class TemplateWriterService {
       const template = await this.templateWriteAccessService.lockWritable(id, "update");
       await this.templateRateLimiterService.assertWithinLimits("version", { userId: createdById, organizationId: template.organizationId });
       const base = template.currentVersionId ? await this.#findBaseVersion(id, input.baseVersion) : undefined;
-      const currentReadmeShown = readmeShownFor(base, template);
-      const readme = input.readme === undefined ? currentReadmeShown : input.readme;
+      const current = await this.#findVersionShownToday(base, template);
+      const readme = input.readme === undefined ? readmeShownFor(base, template) : input.readme;
       const checkResults = template.visibility === "public" ? await this.#runPublishChecks(template, { ...input, readme }) : undefined;
       const appended = await this.templateVersionRepository.appendVersion({
         templateId: id,
@@ -179,8 +184,8 @@ export class TemplateWriterService {
         askedValues: input.askedValues,
         resources: hardware ?? null,
         createdById,
-        expectedCurrentVersionId: base && (await this.#currentVersionExpectedFrom(base, template)),
-        readmesShown: { current: currentReadmeShown, next: readme },
+        expectedCurrentVersionId: base && currentVersionExpectedFrom(base, current),
+        readmesShown: { current: readmeShownFor(current, template), next: readme },
         checkResults,
         holdReasons: this.#isJudgedForHold(checkResults) ? await this.#findHoldReasons(template, input.sdl) : undefined
       });
@@ -256,13 +261,11 @@ export class TemplateWriterService {
     return base;
   }
 
-  /** A version that failed its checks, waits for review or was rejected never became the current one, so a save edited from it is held to the version that was current when it was saved. */
-  async #currentVersionExpectedFrom(base: TemplateVersionOutput, template: StoredTemplate): Promise<string | undefined> {
-    if (base.status === "live") return base.id;
+  /** A version that failed its checks, waits for review or was rejected never became the current one, so a save edited from it is compared with the version people read today and held to it. */
+  async #findVersionShownToday(base: TemplateVersionOutput | undefined, template: StoredTemplate): Promise<TemplateVersionOutput | undefined> {
+    if (!base || base.status === "live") return base;
 
-    const current = await this.templateVersionRepository.findCurrent(template.id);
-
-    return current && current.version < base.version ? current.id : base.id;
+    return await this.templateVersionRepository.findCurrent(template.id);
   }
 
   /** A template that is not public is judged too, or a risky version of a popular or Official one saved in private would go live unreviewed when it is published again. */

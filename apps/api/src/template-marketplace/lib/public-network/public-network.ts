@@ -3,7 +3,7 @@ import { BlockList, isIP, type LookupFunction } from "node:net";
 
 export const FORBIDDEN_ADDRESS_ERROR_CODE = "EFORBIDDEN";
 
-/** Covers loopback, private, carrier-grade NAT, link-local (which holds the cloud metadata addresses), unique-local, multicast, reserved and documentation ranges, and the IPv6 forms that wrap an IPv4 address; `BlockList` reads an IPv4-mapped IPv6 address by its IPv4 rules. */
+/** Covers loopback, private, carrier-grade NAT, link-local (which holds the cloud metadata addresses), unique-local, site-local, multicast, reserved and documentation ranges, and the IPv6 forms that wrap an IPv4 address; `BlockList` reads an IPv4-mapped IPv6 address by its IPv4 rules. */
 const NON_PUBLIC_ADDRESSES = new BlockList();
 NON_PUBLIC_ADDRESSES.addSubnet("0.0.0.0", 8, "ipv4");
 NON_PUBLIC_ADDRESSES.addSubnet("10.0.0.0", 8, "ipv4");
@@ -28,6 +28,7 @@ NON_PUBLIC_ADDRESSES.addSubnet("2001:db8::", 32, "ipv6");
 NON_PUBLIC_ADDRESSES.addSubnet("2002::", 16, "ipv6");
 NON_PUBLIC_ADDRESSES.addSubnet("fc00::", 7, "ipv6");
 NON_PUBLIC_ADDRESSES.addSubnet("fe80::", 10, "ipv6");
+NON_PUBLIC_ADDRESSES.addSubnet("fec0::", 10, "ipv6");
 NON_PUBLIC_ADDRESSES.addSubnet("ff00::", 8, "ipv6");
 
 type BaseLookup = (

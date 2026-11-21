@@ -65,6 +65,7 @@ describe(ImageRegistryClient.name, () => {
 
     it.each([
       { image: "docker.io/library/nginx:1.27", path: "/v2/library/nginx/manifests/1.27" },
+      { image: "library/nginx:1.27", path: "/v2/library/nginx/manifests/1.27" },
       { image: "registry-1.docker.io/library/nginx:1.27", path: "/v2/library/nginx/manifests/1.27" },
       { image: "index.docker.io/acme/web", path: "/v2/acme/web/manifests/latest" },
       { image: "Acme/Web:V2", path: "/v2/acme/web/manifests/V2" },

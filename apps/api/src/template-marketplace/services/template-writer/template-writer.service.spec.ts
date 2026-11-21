@@ -577,7 +577,7 @@ describe(TemplateWriterService.name, () => {
     it("holds a save edited from a failed version to the version that was current when it failed", async () => {
       const template = createTemplateRow({ visibility: "public", isPublic: true });
       const failedBase = createVersion({ templateId: template.id, version: 3, status: "failed_checks", readme: "# Failed draft" });
-      const current = createVersion({ templateId: template.id, version: 2 });
+      const current = createVersion({ templateId: template.id, version: 2, readme: "# Read today" });
       const { service, templateVersionRepository } = setup({ template, base: failedBase });
       templateVersionRepository.findCurrent.mockResolvedValue(current);
 
@@ -585,7 +585,11 @@ describe(TemplateWriterService.name, () => {
 
       expect(templateVersionRepository.findCurrent).toHaveBeenCalledWith(template.id);
       expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(
-        expect.objectContaining({ expectedCurrentVersionId: current.id, readmesShown: { current: "# Failed draft", next: "# Failed draft" } })
+        expect.objectContaining({
+          expectedCurrentVersionId: current.id,
+          readme: "# Failed draft",
+          readmesShown: { current: "# Read today", next: "# Failed draft" }
+        })
       );
     });
 
@@ -764,6 +768,47 @@ describe(TemplateWriterService.name, () => {
       await service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [], baseVersion: 3 });
 
       expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(expect.objectContaining({ expectedCurrentVersionId: current.id }));
+    });
+
+    it.each(["held", "rejected"] as const)(
+      "carries the readme of a %s version forward and tells its change against the readme people read today",
+      async status => {
+        const template = createTemplateRow({ visibility: "public", isPublic: true });
+        const base = createVersion({ templateId: template.id, version: 3, status, readme: "# Edited" });
+        const { service, templateVersionRepository } = setup({ template, base });
+        templateVersionRepository.findCurrent.mockResolvedValue(createVersion({ templateId: template.id, version: 2, readme: "# Read today" }));
+
+        await service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [], baseVersion: 3 });
+
+        expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(
+          expect.objectContaining({ readme: "# Edited", readmesShown: { current: "# Read today", next: "# Edited" } })
+        );
+      }
+    );
+
+    it("tells the readme change of a save edited from a held version against the legacy description when the version read today has no readme", async () => {
+      const template = createTemplateRow({ visibility: "public", isPublic: true, description: "Legacy description" });
+      const base = createVersion({ templateId: template.id, version: 3, status: "held", readme: "# Edited" });
+      const { service, templateVersionRepository } = setup({ template, base });
+      templateVersionRepository.findCurrent.mockResolvedValue(createVersion({ templateId: template.id, version: 2, readme: null }));
+
+      await service.appendVersion(template.id, { sdl: buildSdl(), askedValues: [], baseVersion: 3 });
+
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(
+        expect.objectContaining({ readmesShown: { current: "Legacy description", next: "# Edited" } })
+      );
+    });
+
+    it("holds a save edited from the live version to it and tells the readme change against its readme", async () => {
+      const template = createTemplateRow();
+      const base = createVersion({ templateId: template.id, readme: "# Before" });
+      const { service, templateVersionRepository } = setup({ template, base });
+
+      await service.appendVersion(template.id, { sdl: buildSdl(), readme: "# After", askedValues: [], baseVersion: 1 });
+
+      expect(templateVersionRepository.appendVersion).toHaveBeenCalledWith(
+        expect.objectContaining({ expectedCurrentVersionId: base.id, readmesShown: { current: "# Before", next: "# After" } })
+      );
     });
 
     it("refuses nothing itself for a save edited from a held version a newer one replaced, leaving the conflict to the append", async () => {

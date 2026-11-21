@@ -41,6 +41,8 @@ describe(isPublicAddress.name, () => {
     "fd00:ec2::254",
     "fe80::1",
     "febf::1",
+    "fec0::1",
+    "feff:ffff::1",
     "ff02::1"
   ])("refuses %s", address => {
     expect(isPublicAddress(address)).toBe(false);
