@@ -35,9 +35,9 @@ describe(loadTemplateDetailRouteProps.name, () => {
   });
 
   it("serves a visitor the same page, marked as rendered for a visitor", async () => {
-    const { context, template } = buildMarketplaceRouteContext({ session: "none", flag: "on" });
+    const { context, template, marketplaceVisitorReads } = buildMarketplaceRouteContext({ session: "none", flag: "on" });
     const llama = mock<TemplateOutput>({ id: TEMPLATE_ID, name: "Llama chat", summary: "", logoUrl: "" });
-    template.findById.mockResolvedValue(llama);
+    marketplaceVisitorReads.awesomeAkashTemplate.mockResolvedValue({ status: "found", data: llama });
 
     expect(await loadTemplateDetailRouteProps(TEMPLATE_ID, context)).toEqual({
       props: {
@@ -51,6 +51,22 @@ describe(loadTemplateDetailRouteProps.name, () => {
         }
       }
     });
+    expect(marketplaceVisitorReads.awesomeAkashTemplate).toHaveBeenCalledWith(TEMPLATE_ID);
+    expect(template.findById).not.toHaveBeenCalled();
+  });
+
+  it("sends a visitor to the gallery when the template could not be read in time", async () => {
+    const { context, marketplaceVisitorReads } = buildMarketplaceRouteContext({ session: "none", flag: "on" });
+    marketplaceVisitorReads.awesomeAkashTemplate.mockResolvedValue({ status: "unavailable" });
+
+    expect(await loadTemplateDetailRouteProps(TEMPLATE_ID, context)).toEqual({ redirect: { destination: "/templates", permanent: false } });
+  });
+
+  it("answers not found to a visitor for a template the list does not have", async () => {
+    const { context, marketplaceVisitorReads } = buildMarketplaceRouteContext({ session: "none", flag: "on" });
+    marketplaceVisitorReads.awesomeAkashTemplate.mockResolvedValue({ status: "missing" });
+
+    expect(await loadTemplateDetailRouteProps("unknown", context)).toEqual({ notFound: true });
   });
 
   it("shortens a long summary in the description", async () => {
@@ -71,10 +87,11 @@ describe(loadTemplateDetailRouteProps.name, () => {
     expect(template.findById).not.toHaveBeenCalled();
   });
 
-  it("answers not found for a template the list does not have", async () => {
-    const { context, template } = buildMarketplaceRouteContext({ session: "valid", flag: "on" });
+  it("answers not found to a member for a template the list does not have", async () => {
+    const { context, template, marketplaceVisitorReads } = buildMarketplaceRouteContext({ session: "valid", flag: "on" });
     template.findById.mockResolvedValue(undefined as never);
 
     expect(await loadTemplateDetailRouteProps("unknown", context)).toEqual({ notFound: true });
+    expect(marketplaceVisitorReads.awesomeAkashTemplate).not.toHaveBeenCalled();
   });
 });

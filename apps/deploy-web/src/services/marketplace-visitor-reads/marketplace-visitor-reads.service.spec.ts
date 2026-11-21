@@ -1,6 +1,7 @@
-import type { TemplateHttpService } from "@akashnetwork/http-sdk";
+import type { TemplateHttpService, TemplateOutput } from "@akashnetwork/http-sdk";
 import type { LoggerService } from "@akashnetwork/logging";
 import { ApiError } from "@akashnetwork/openapi-sdk";
+import { AxiosError, AxiosHeaders } from "axios";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -10,6 +11,7 @@ import { MarketplaceVisitorReadsService, VISITOR_READ_TIMEOUT_MS } from "./marke
 import { buildMarketplaceTemplate } from "@tests/seeders/userTemplate";
 
 const TEMPLATE_ID = "0b6bbd9c-5a3e-4d0a-9d0c-6f1a2b3c4d5e";
+const AWESOME_AKASH_ID = "akash-network-awesome-akash-llama";
 
 type Api = ReturnType<typeof createApiSdk>;
 
@@ -207,6 +209,109 @@ describe(MarketplaceVisitorReadsService.name, () => {
     });
   });
 
+  describe("awesomeAkashTemplate", () => {
+    it("reads an awesome-akash template once every five minutes", async () => {
+      const { service, templateService, llama, clock } = setup();
+
+      expect(await service.awesomeAkashTemplate(AWESOME_AKASH_ID)).toEqual({ status: "found", data: llama });
+      clock.now = 5 * 60_000 - 1;
+      await service.awesomeAkashTemplate(AWESOME_AKASH_ID);
+      expect(templateService.findById).toHaveBeenCalledTimes(1);
+      expect(templateService.findById).toHaveBeenCalledWith(AWESOME_AKASH_ID);
+
+      clock.now = 5 * 60_000;
+      await service.awesomeAkashTemplate(AWESOME_AKASH_ID);
+      expect(templateService.findById).toHaveBeenCalledTimes(2);
+    });
+
+    it("keeps each template under its own id", async () => {
+      const { service, templateService } = setup();
+
+      await service.awesomeAkashTemplate(AWESOME_AKASH_ID);
+      await service.awesomeAkashTemplate("akash-network-awesome-akash-grafana");
+
+      expect(templateService.findById).toHaveBeenCalledTimes(2);
+    });
+
+    it.each(["", "../secrets", "a/b", "-leading-dash", "a".repeat(256), "id with space"])(
+      "answers missing without asking for the impossible id %j",
+      async id => {
+        const { service, templateService } = setup();
+
+        expect(await service.awesomeAkashTemplate(id)).toEqual({ status: "missing" });
+        expect(templateService.findById).not.toHaveBeenCalled();
+      }
+    );
+
+    it("asks for the longest id a template can have", async () => {
+      const { service, templateService } = setup();
+      const longestId = `A${"._-9".repeat(63)}zz`;
+
+      await service.awesomeAkashTemplate(longestId);
+
+      expect(longestId).toHaveLength(255);
+      expect(templateService.findById).toHaveBeenCalledWith(longestId);
+    });
+
+    it.each([400, 404])("answers missing when the list answers %i", async status => {
+      const { service, templateService, logger } = setup();
+      templateService.findById.mockRejectedValue(buildHttpError(status));
+
+      expect(await service.awesomeAkashTemplate(AWESOME_AKASH_ID)).toEqual({ status: "missing" });
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it("answers missing when the list answers with no template", async () => {
+      const { service, templateService } = setup();
+      templateService.findById.mockResolvedValue(undefined as never);
+
+      expect(await service.awesomeAkashTemplate(AWESOME_AKASH_ID)).toEqual({ status: "missing" });
+    });
+
+    it("names the template read when it fails, and asks again the next time", async () => {
+      const { service, templateService, logger, llama } = setup();
+      const error = buildHttpError(503);
+      templateService.findById.mockRejectedValueOnce(error);
+
+      expect(await service.awesomeAkashTemplate(AWESOME_AKASH_ID)).toEqual({ status: "unavailable" });
+      expect(logger.warn).toHaveBeenCalledWith({ event: "MARKETPLACE_VISITOR_READ_FAILED", read: "awesome_akash_template", error });
+      expect(await service.awesomeAkashTemplate(AWESOME_AKASH_ID)).toEqual({ status: "found", data: llama });
+    });
+
+    it("answers unavailable for a failure that carries no response", async () => {
+      const { service, templateService } = setup();
+      templateService.findById.mockRejectedValue(new AxiosError("socket hang up"));
+
+      expect(await service.awesomeAkashTemplate(AWESOME_AKASH_ID)).toEqual({ status: "unavailable" });
+    });
+
+    it("gives up on a slow list after the timeout", async () => {
+      vi.useFakeTimers();
+      try {
+        const { service, templateService } = setup({ timeoutMs: 1_000 });
+        templateService.findById.mockReturnValue(new Promise(() => undefined));
+
+        const read = service.awesomeAkashTemplate(AWESOME_AKASH_ID);
+        await vi.advanceTimersByTimeAsync(1_000);
+
+        expect(await read).toEqual({ status: "unavailable" });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  function buildHttpError(status: number) {
+    const config = { headers: new AxiosHeaders() };
+    return new AxiosError(`Request failed with status code ${status}`, "ERR_BAD_RESPONSE", config, undefined, {
+      status,
+      statusText: "",
+      data: undefined,
+      headers: {},
+      config
+    });
+  }
+
   function setup(input: { timeoutMs?: number } = { timeoutMs: 1_000 }) {
     const templateAnswer = { data: buildMarketplaceTemplate({ id: TEMPLATE_ID, visibility: "public" }) };
     const publisherAnswer = mock<Awaited<ReturnType<Api["v1"]["getTemplatePublisher"]>>>();
@@ -215,12 +320,14 @@ describe(MarketplaceVisitorReadsService.name, () => {
     v1.getUserTemplate.mockResolvedValue(templateAnswer);
     v1.getTemplatePublisher.mockResolvedValue(publisherAnswer);
     v1.listCommunityTemplates.mockResolvedValue(galleryAnswer);
-    const templateService = mock<Pick<TemplateHttpService, "findGroupedByCategory">>();
+    const templateService = mock<Pick<TemplateHttpService, "findGroupedByCategory" | "findById">>();
     templateService.findGroupedByCategory.mockResolvedValue({ data: [{ title: "Tools", templates: [] }] });
+    const llama = mock<TemplateOutput>({ id: AWESOME_AKASH_ID, name: "Llama chat" });
+    templateService.findById.mockResolvedValue(llama);
     const logger = mock<Pick<LoggerService, "warn">>();
     const clock = { now: 0 };
     const service = new MarketplaceVisitorReadsService(mock<Api>({ v1 }), templateService, logger, { timeoutMs: input.timeoutMs, now: () => clock.now });
 
-    return { service, v1, templateService, logger, clock, templateAnswer, publisherAnswer, galleryAnswer };
+    return { service, v1, templateService, logger, clock, templateAnswer, publisherAnswer, galleryAnswer, llama };
   }
 });
