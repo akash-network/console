@@ -3,8 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DeploymentsListSource, DeploymentsListSourceInput } from "@src/components/deployments/DeploymentsList/useApiDeploymentsListSource";
+import type { DeploymentManagement } from "@src/hooks/useCanManageDeployment/useCanManageDeployment";
 import type { LeaseDto, ListedDeploymentDto } from "@src/types/deployment";
-import { parseQuery } from "./commandMenuSearch";
+import { parseQuery, rankSections } from "./commandMenuSearch";
 import type { CommandItem } from "./useCommandMenuItems";
 import type { DEPENDENCIES } from "./useCommandMenuItems";
 import { useCommandMenuItems } from "./useCommandMenuItems";
@@ -43,7 +44,13 @@ describe(useCommandMenuItems.name, () => {
         { id: "action-deploy-from-template", label: "Deploy from a template", keywords: "templates catalog", action: "deploy_from_template" },
         { id: "action-add-funds", label: "Add funds", keywords: "billing balance top up credit", action: "add_funds" },
         { id: "action-toggle-theme", label: "Switch to dark theme", keywords: "theme appearance mode dark light", action: "toggle_theme" },
-        { id: "action-keyboard-shortcuts", label: "Keyboard shortcuts", keywords: "help hotkeys keys", action: "keyboard_shortcuts" }
+        { id: "action-keyboard-shortcuts", label: "Keyboard shortcuts", keywords: "help hotkeys keys", action: "keyboard_shortcuts" },
+        {
+          id: "action-variables-and-secrets-guide",
+          label: "Learn about variables & secrets",
+          keywords: "secrets variables environment env vars sealed docs help",
+          action: "open_variables_and_secrets_guide"
+        }
       ]);
     });
 
@@ -57,7 +64,8 @@ describe(useCommandMenuItems.name, () => {
         "action-deploy-from-template": undefined,
         "action-add-funds": undefined,
         "action-toggle-theme": undefined,
-        "action-keyboard-shortcuts": { keys: ["?"] }
+        "action-keyboard-shortcuts": { keys: ["?"] },
+        "action-variables-and-secrets-guide": undefined
       });
     });
 
@@ -106,10 +114,78 @@ describe(useCommandMenuItems.name, () => {
       expect(openAddCredits).not.toHaveBeenCalled();
     });
 
-    it("keeps the user on the page only for the theme switch", () => {
-      const { sections } = setup({ active: [deployment({ dseq: "100" })] });
+    it("keeps the user on the page only for the theme switch and the guide opened in a new tab", () => {
+      const { sections } = setup({ pathname: "/deployments/100", active: [deployment({ dseq: "100" })] });
 
-      expect(sections.flatMap(section => section.items.filter(item => item.staysOnPage).map(item => item.id))).toEqual(["action-toggle-theme"]);
+      expect(sections.flatMap(section => section.items.filter(item => item.staysOnPage).map(item => item.id))).toEqual([
+        "action-toggle-theme",
+        "action-variables-and-secrets-guide"
+      ]);
+    });
+
+    it("offers to edit the variables and secrets of the deployment being viewed", () => {
+      const { itemsOf } = setup({ pathname: "/deployments/100" });
+
+      expect(itemsOf("actions").find(item => item.id === "action-edit-variables-and-secrets")).toMatchObject({
+        label: "Edit variables & secrets",
+        keywords: "secrets variables environment env vars sealed",
+        action: "edit_variables_and_secrets"
+      });
+    });
+
+    it("asks whether the caller may manage the deployment being viewed", () => {
+      const { useCanManageDeployment } = setup({ pathname: "/deployments/100" });
+
+      expect(useCanManageDeployment).toHaveBeenCalledWith("100");
+    });
+
+    it("asks about no deployment away from a deployment page", () => {
+      const { useCanManageDeployment } = setup({ pathname: "/deployments" });
+
+      expect(useCanManageDeployment).toHaveBeenCalledWith("");
+    });
+
+    it("leaves out editing variables and secrets when the caller may not manage the deployment being viewed", () => {
+      const { itemsOf } = setup({ pathname: "/deployments/100", canManage: false });
+
+      expect(itemsOf("actions").map(item => item.id)).not.toContain("action-edit-variables-and-secrets");
+    });
+
+    it("opens the update tab of the deployment being viewed", () => {
+      const { run, push } = setup({ pathname: "/deployments/100/" });
+
+      run("actions", "Edit variables & secrets");
+
+      expect(push).toHaveBeenCalledWith("/deployments/100?tab=UPDATE");
+    });
+
+    it.each(["/deployments", "/deployments/100/logs", "/templates/100", "/x/deployments/100", "/deployments/abc", null])(
+      "leaves out editing variables and secrets on %s",
+      pathname => {
+        const { itemsOf } = setup({ pathname });
+
+        expect(itemsOf("actions").map(item => item.id)).not.toContain("action-edit-variables-and-secrets");
+      }
+    );
+
+    it.each(["secrets", "variables", "environment", "env", "Secret"])("puts variables and secrets first when searching for '%s'", query => {
+      const { sections } = setup({ pathname: "/deployments/100", query });
+
+      expect(
+        rankSections(sections, parseQuery(query))[0]
+          .items.slice(0, 2)
+          .map(item => item.id)
+      ).toEqual(["action-edit-variables-and-secrets", "action-variables-and-secrets-guide"]);
+    });
+
+    it("opens the variables and secrets guide in a new tab", () => {
+      const { run } = setup({});
+      const open = vi.spyOn(window, "open").mockReturnValue(null);
+
+      run("actions", "Learn about variables & secrets");
+
+      expect(open).toHaveBeenCalledWith("https://akash.network/docs/learn/core-concepts/environment-secrets/", "_blank", "noopener,noreferrer");
+      open.mockRestore();
     });
 
     it("switches a dark theme to light", () => {
@@ -273,6 +349,8 @@ describe(useCommandMenuItems.name, () => {
     closed?: ListedDeploymentDto[];
     resolvedTheme?: string;
     isEmailVerified?: boolean;
+    pathname?: string | null;
+    canManage?: boolean;
   }) {
     document.cookie = "theme=; path=/; Max-Age=0";
     const push = vi.fn();
@@ -284,14 +362,17 @@ describe(useCommandMenuItems.name, () => {
       if (input.isEmailVerified ?? true) proceed();
     });
     const useApiDeploymentsListSource = vi.fn((_request: DeploymentsListSourceInput) => listSource(input.active ?? [], input.closed ?? []));
+    const useCanManageDeployment = vi.fn((_dseq: string) => mock<DeploymentManagement>({ canManage: input.canManage ?? true }));
 
     const dependencies: typeof DEPENDENCIES = {
       useRouter: () => mock<AppRouterInstance>({ push }),
+      usePathname: () => input.pathname as string,
       useTheme: () => mock<ReturnType<typeof DEPENDENCIES.useTheme>>({ resolvedTheme: input.resolvedTheme ?? "light", setTheme }),
       useAddCredits: () => openAddCredits,
       useRunWhenEmailVerified: () => runWhenEmailVerified,
       useStartDeployment: () => startDeployment,
-      useApiDeploymentsListSource
+      useApiDeploymentsListSource,
+      useCanManageDeployment
     };
 
     const { result } = renderHook(() => useCommandMenuItems({ parsed: parseQuery(input.input ?? input.query ?? ""), onShowShortcuts }, dependencies));
@@ -302,6 +383,6 @@ describe(useCommandMenuItems.name, () => {
         .find(item => item.label === label)
         ?.run();
 
-    return { sections, itemsOf, run, push, onShowShortcuts, setTheme, openAddCredits, runWhenEmailVerified, startDeployment, useApiDeploymentsListSource };
+    return { sections, itemsOf, run, push, onShowShortcuts, setTheme, openAddCredits, runWhenEmailVerified, startDeployment, useApiDeploymentsListSource, useCanManageDeployment };
   }
 });

@@ -46,6 +46,12 @@ describe(useCanManageDeployment.name, () => {
     expect(result.current.isLoading).toBe(false);
   });
 
+  it("reads no location without a deployment", () => {
+    const { useDeploymentLocationQuery } = setup({ dseq: "", projectId: undefined, manageableProjectIds: [] });
+
+    expect(useDeploymentLocationQuery).toHaveBeenCalledWith("", { enabled: false });
+  });
+
   it("has decided as soon as the caller may manage the deployment", () => {
     const { result } = setup({ projectId: undefined, manageableProjectIds: [], managesEveryProject: true, isLoadingAccess: true, isLoadingLocation: true });
 
@@ -105,6 +111,7 @@ describe(useCanManageDeployment.name, () => {
   });
 
   function setup(input: {
+    dseq?: string;
     canChangeDeployments?: boolean;
     projectId: string | undefined;
     manageableProjectIds: string[];
@@ -149,7 +156,7 @@ describe(useCanManageDeployment.name, () => {
       useDeploymentLocationQuery
     };
 
-    const hook = renderHook(() => useCanManageDeployment("100", dependencies));
+    const hook = renderHook(() => useCanManageDeployment(input.dseq ?? "100", dependencies));
 
     return { ...hook, canManageDeployments, useDeploymentLocationQuery, retryAccess, refetchLocation };
   }
