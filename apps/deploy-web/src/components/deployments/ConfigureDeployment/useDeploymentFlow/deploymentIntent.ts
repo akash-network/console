@@ -2,6 +2,14 @@ export type SdlStrategy = "default" | "edit";
 export type BidStrategy = "auto" | "select";
 export type TemplateMode = "new" | "edit";
 
+export interface GpuIntent {
+  vendor: "nvidia";
+  model: string;
+  count: number;
+  memory?: string;
+  interface?: string;
+}
+
 export interface DeploymentIntent {
   templateId?: string;
   /** A user-authored template (`?userTemplateId=`), resolved against the private user-template API rather than the public gallery. */
@@ -19,6 +27,10 @@ export interface DeploymentIntent {
   vm: boolean;
   /** Onboarding's Deploy image entry (`?exampleImage=true`): the form seeds a working example image instead of a blank one. */
   exampleImage?: boolean;
+  /** A GPU setup linked from a GPU alert email (`?gpuVendor=&gpuModel=&gpuCount=`): the form seeds its first service with it instead of the blank one. */
+  gpu?: GpuIntent;
+  /** The organization a link asks to open in (`?org=`), carried through URL rewrites until the organization provider has switched to it and dropped it. */
+  organizationId?: string;
   /** Authoring a template (`?templateMode=`) rather than deploying: `edit` saves a new version of `userTemplateId`. */
   templateMode?: TemplateMode;
   /** A new template copied from this template's `copyFromVersion`. */
@@ -30,6 +42,8 @@ export interface DeploymentIntent {
   sourceDseq?: string;
 }
 
+const MAX_LINKED_GPU_COUNT = 64;
+
 interface ParseInput {
   /** The optional catch-all route segment (`/configure/[[...dseq]]`); the deployment's dseq once it exists. */
   dseqSegment: string | undefined;
@@ -39,6 +53,8 @@ interface ParseInput {
 interface ParseOptions {
   /** Without it the URL parses exactly as it did before the template marketplace: no template mode and no template version. */
   isTemplateModeEnabled: boolean;
+  /** Without it the GPU params of a GPU alert link are ignored. */
+  isGpuAlertsEnabled: boolean;
 }
 
 /**
@@ -54,12 +70,12 @@ interface ParseOptions {
  */
 export function parseDeploymentIntent(
   { dseqSegment, searchParams }: ParseInput,
-  { isTemplateModeEnabled }: ParseOptions = { isTemplateModeEnabled: false }
+  { isTemplateModeEnabled, isGpuAlertsEnabled }: ParseOptions = { isTemplateModeEnabled: false, isGpuAlertsEnabled: false }
 ): DeploymentIntent {
   const templateMode = isTemplateModeEnabled ? toTemplateMode(searchParams.get("templateMode")) : undefined;
   if (templateMode) return parseTemplateIntent(templateMode, searchParams);
 
-  const intent = parseDeployIntent(dseqSegment, searchParams);
+  const intent = parseDeployIntent(dseqSegment, searchParams, isGpuAlertsEnabled);
   const templateVersion = isTemplateModeEnabled && intent.userTemplateId ? toVersion(searchParams.get("templateVersion")) : undefined;
   return templateVersion ? { ...intent, templateVersion } : intent;
 }
@@ -94,7 +110,7 @@ function newFieldsOf(searchParams: URLSearchParams): Partial<DeploymentIntent> {
   };
 }
 
-function parseDeployIntent(dseqSegment: string | undefined, searchParams: URLSearchParams): DeploymentIntent {
+function parseDeployIntent(dseqSegment: string | undefined, searchParams: URLSearchParams, isGpuAlertsEnabled: boolean): DeploymentIntent {
   const vm = searchParams.get("vm") === "true";
   const templateId = vm ? undefined : searchParams.get("templateId") ?? undefined;
   const userTemplateId = vm || templateId ? undefined : searchParams.get("userTemplateId") || undefined;
@@ -102,7 +118,43 @@ function parseDeployIntent(dseqSegment: string | undefined, searchParams: URLSea
   const bidStrategy = toBidStrategy(searchParams.get("bid-strategy"));
   const draftId = searchParams.get("draftId") || undefined;
   const exampleImage = !vm && searchParams.get("exampleImage") === "true";
-  return { templateId, userTemplateId, sdlStrategy, bidStrategy, dseq: dseqSegment || undefined, draftId, vm, exampleImage };
+  const gpu = !isGpuAlertsEnabled || vm || templateId || userTemplateId ? undefined : toGpuIntent(searchParams);
+  const organizationId = searchParams.get("org") || undefined;
+  return {
+    templateId,
+    userTemplateId,
+    sdlStrategy,
+    bidStrategy,
+    dseq: dseqSegment || undefined,
+    draftId,
+    vm,
+    exampleImage,
+    ...(gpu ? { gpu } : {}),
+    ...(organizationId ? { organizationId } : {})
+  };
+}
+
+function toGpuIntent(searchParams: URLSearchParams): GpuIntent | undefined {
+  const model = searchParams.get("gpuModel");
+  const count = searchParams.get("gpuCount") ?? "";
+  if (searchParams.get("gpuVendor") !== "nvidia" || !model || !/^\d+$/.test(count) || Number(count) < 1 || Number(count) > MAX_LINKED_GPU_COUNT)
+    return undefined;
+  const memory = toGpuMemory(searchParams.get("gpuMemory"));
+  const gpuInterface = toGpuInterface(searchParams.get("gpuInterface"));
+  return { vendor: "nvidia", model, count: Number(count), ...(memory ? { memory } : {}), ...(gpuInterface ? { interface: gpuInterface } : {}) };
+}
+
+/** Providers advertise the interconnect as `sxm` or `pcie` and the SDL accepts nothing else, so a generation suffix like `sxm5` is folded and anything unrecognized is left out. */
+function toGpuInterface(value: string | null): string | undefined {
+  const lowered = value?.toLowerCase() ?? "";
+  if (lowered.startsWith("sxm")) return "sxm";
+  if (lowered.startsWith("pcie")) return "pcie";
+  return undefined;
+}
+
+function toGpuMemory(value: string | null): string | undefined {
+  const match = /^(\d+)gi$/i.exec(value ?? "");
+  return match ? `${match[1]}Gi` : undefined;
 }
 
 function toTemplateMode(value: string | null): TemplateMode | undefined {

@@ -2,10 +2,10 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
 
-export function useHardwareRequestsQuery() {
+export function useHardwareRequestsQuery(options?: { enabled?: boolean }) {
   const { api } = useServices();
 
-  return api.v1.listHardwareRequests.useQuery(undefined, { select: response => response.data });
+  return api.v1.listHardwareRequests.useQuery(undefined, { select: response => response.data, enabled: options?.enabled });
 }
 
 export function useHardwareRequestOffersQuery(hardwareRequestId: string) {

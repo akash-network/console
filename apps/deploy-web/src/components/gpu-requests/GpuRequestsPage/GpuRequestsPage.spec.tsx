@@ -107,7 +107,34 @@ describe(GpuRequestsPage.name, () => {
     expect(screen.queryByText("Loading your requests…")).not.toBeInTheDocument();
   });
 
+  it("shows only the alerts when gpu quote requests are off", () => {
+    const { GpuAlertsSection, GpuRequestCard, SettingsLayout } = setup({ requests: [buildHardwareRequest()], flags: { gpu_availability_alerts: true } });
+
+    expect(GpuAlertsSection).toHaveBeenCalled();
+    expect(GpuRequestCard).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "New request" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "No GPU requests yet" })).not.toBeInTheDocument();
+    expect(SettingsLayout).toHaveBeenCalledWith(expect.objectContaining({ title: "GPU alerts" }), expect.anything());
+  });
+
+  it("shows the alerts below the requests when both are on", () => {
+    const { GpuAlertsSection, GpuRequestCard } = setup({
+      requests: [buildHardwareRequest()],
+      flags: { gpu_quote_requests: true, gpu_availability_alerts: true }
+    });
+
+    expect(GpuRequestCard).toHaveBeenCalled();
+    expect(GpuAlertsSection).toHaveBeenCalled();
+  });
+
+  it("leaves the alerts out when only quote requests are on", () => {
+    const { GpuAlertsSection } = setup({ requests: [] });
+
+    expect(GpuAlertsSection).not.toHaveBeenCalled();
+  });
+
   function setup(input: {
+    flags?: Partial<Record<"gpu_quote_requests" | "gpu_availability_alerts", boolean>>;
     requests?: HardwareRequest[];
     isLoading?: boolean;
     isError?: boolean;
@@ -118,6 +145,8 @@ describe(GpuRequestsPage.name, () => {
     const GpuRequestCard = vi.fn<typeof DEPENDENCIES.GpuRequestCard>(() => null);
     const WithdrawGpuRequestDialog = vi.fn<typeof DEPENDENCIES.WithdrawGpuRequestDialog>(() => <div>Withdraw dialog</div>);
     const GpuQuoteRequestFlow = vi.fn<typeof DEPENDENCIES.GpuQuoteRequestFlow>(() => <div>GPU quote request</div>);
+    const GpuAlertsSection = vi.fn<typeof DEPENDENCIES.GpuAlertsSection>(() => null);
+    const enabledFlags: Record<string, boolean> = input.flags ?? { gpu_quote_requests: true };
     const SettingsLayout = vi.fn(({ headerActions, children }: PropsWithChildren<{ headerActions?: ReactNode }>) => (
       <div>
         {headerActions}
@@ -130,6 +159,8 @@ describe(GpuRequestsPage.name, () => {
       GpuRequestCard,
       GpuQuoteRequestFlow,
       WithdrawGpuRequestDialog,
+      GpuAlertsSection,
+      useFlag: flag => enabledFlags[flag] ?? false,
       useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: input.isSignedOut ? undefined : { id: "me" } }),
       useActiveOrganization: () =>
         mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
@@ -145,6 +176,6 @@ describe(GpuRequestsPage.name, () => {
 
     render(<GpuRequestsPage requestId={input.requestId} dependencies={dependencies} />);
 
-    return { GpuRequestCard, GpuQuoteRequestFlow, SettingsLayout, WithdrawGpuRequestDialog };
+    return { GpuAlertsSection, GpuRequestCard, GpuQuoteRequestFlow, SettingsLayout, WithdrawGpuRequestDialog };
   }
 });

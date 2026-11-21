@@ -31,7 +31,8 @@ export function useSettingsNavLinks({ dependencies: d = DEPENDENCIES }: { depend
   const showsGeneral = !!activeOrganization && hasGeneralSettingsPage(activeOrganization.type);
   const showsMembers = !!activeOrganization && hasMembersPage(activeOrganization.type);
   const showsBillingAndUsage = !activeOrganization || canViewBillingAndUsage(activeOrganization.role);
-  const showsGpuRequests = d.useFlag("gpu_quote_requests");
+  const showsGpuQuoteRequests = d.useFlag("gpu_quote_requests");
+  const showsGpuAlerts = d.useFlag("gpu_availability_alerts");
   const showsReferrals = isAffiliateProgramEnabled && !!affiliateProfile;
 
   return [
@@ -41,7 +42,16 @@ export function useSettingsNavLinks({ dependencies: d = DEPENDENCIES }: { depend
     { title: "API Keys", url: UrlService.userApiKeys(), isActive: isRouteActive(pathname, "/user/api-keys"), icon: KeyRound },
     ...(showsBillingAndUsage ? [{ title: "Usage", url: UrlService.usage(), isActive: isRouteActive(pathname, "/usage"), icon: ChartColumnIncreasing }] : []),
     { title: "Alerts", url: UrlService.alerts(), isActive: isRouteActive(pathname, "/alerts"), icon: MessageSquareWarning },
-    ...(showsGpuRequests ? [{ title: "GPU requests", url: UrlService.gpuRequests(), isActive: isRouteActive(pathname, "/gpu-requests"), icon: Cpu }] : []),
+    ...(showsGpuQuoteRequests || showsGpuAlerts
+      ? [
+          {
+            title: showsGpuQuoteRequests ? "GPU requests" : "GPU alerts",
+            url: UrlService.gpuRequests(),
+            isActive: isRouteActive(pathname, "/gpu-requests"),
+            icon: Cpu
+          }
+        ]
+      : []),
     ...(showsReferrals ? [{ title: "Referrals", url: UrlService.referrals(), isActive: isRouteActive(pathname, "/referrals"), icon: Gift }] : [])
   ];
 }

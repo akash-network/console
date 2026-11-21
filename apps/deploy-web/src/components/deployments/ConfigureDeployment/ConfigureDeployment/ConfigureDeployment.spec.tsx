@@ -9,6 +9,7 @@ import { mock } from "vitest-mock-extended";
 
 import { useMarkAutoDeployStart, useTakeAutoDeployStart } from "@src/hooks/useAutoDeployStart/useAutoDeployStart";
 import type { Activity } from "@src/queries/useLatestActivitiesQuery";
+import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import sdlStore from "@src/store/sdlStore";
 import type { ITemplate, TemplateCreation } from "@src/types";
 import type { MarketplaceTemplate, TemplateAskedValue, TemplateVersionDetail } from "@src/types/marketplace-template";
@@ -17,6 +18,7 @@ import type { DEPENDENCIES as GUARD_DEPENDENCIES, ResumeResolution } from "../Re
 import { ResumeDeploymentGuard as RealResumeDeploymentGuard } from "../ResumeDeploymentGuard/ResumeDeploymentGuard";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
+import { buildConfigureUrl } from "../useDeploymentFlow/useDeploymentFlow";
 import type { DEPENDENCIES } from "./ConfigureDeployment";
 import { ConfigureDeployment } from "./ConfigureDeployment";
 
@@ -182,6 +184,108 @@ describe(ConfigureDeployment.name, () => {
       expect.objectContaining({ initialSdl: undefined, intent: expect.objectContaining({ exampleImage: true }) }),
       expect.anything()
     );
+  });
+
+  it("starts the configuration with the linked gpu setup", () => {
+    const { ConfigureDeploymentForm, analyticsService } = setup({
+      templateId: null,
+      gpuQuery: "gpuVendor=nvidia&gpuModel=h100&gpuCount=8&gpuMemory=80Gi&gpuInterface=sxm",
+      deploySdl: mock<TemplateCreation>({ content: "carried: sdl" })
+    });
+
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        initialSdl: undefined,
+        intent: expect.objectContaining({ gpu: { vendor: "nvidia", model: "h100", count: 8, memory: "80Gi", interface: "sxm" } })
+      }),
+      expect.anything()
+    );
+    expect(analyticsService.track).toHaveBeenCalledTimes(1);
+    expect(analyticsService.track).toHaveBeenCalledWith("gpu_alert_deploy_opened", expect.objectContaining({ model: "h100", gpuCount: 8 }));
+  });
+
+  it("keeps the linked gpu setup and organization when the draft id is written into the url", () => {
+    const { ConfigureDeploymentForm, analyticsService, currentUrl } = setup({
+      templateId: null,
+      gpuQuery: "gpuVendor=nvidia&gpuModel=a100&gpuCount=4&gpuMemory=40Gi&gpuInterface=pcie&org=org-1",
+      persistsDraftIdThroughRouter: true,
+      routerWritesUrl: true,
+      deploySdl: mock<TemplateCreation>({ content: "carried: sdl" })
+    });
+
+    expect(currentUrl()).toMatchObject({
+      draftId: "minted-id",
+      gpuVendor: "nvidia",
+      gpuModel: "a100",
+      gpuCount: "4",
+      gpuMemory: "40Gi",
+      gpuInterface: "pcie",
+      org: "org-1"
+    });
+    expect(ConfigureDeploymentForm.mock.lastCall?.[0]).toMatchObject({
+      initialSdl: undefined,
+      intent: { gpu: { vendor: "nvidia", model: "a100", count: 4, memory: "40Gi", interface: "pcie" }, organizationId: "org-1" }
+    });
+    expect(analyticsService.track).toHaveBeenCalledTimes(1);
+  });
+
+  it("tracks once when the organization param is stripped from the url", () => {
+    const { analyticsService, currentUrl, router } = setup({
+      templateId: null,
+      gpuQuery: "gpuVendor=nvidia&gpuModel=h100&gpuCount=8&org=org-1",
+      routerWritesUrl: true
+    });
+
+    act(() => {
+      router.replace("/new-deployment/configure?gpuVendor=nvidia&gpuModel=h100&gpuCount=8");
+    });
+
+    expect(currentUrl()).not.toHaveProperty("org");
+    expect(analyticsService.track).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not track a link that is opened again with its draft id", () => {
+    const { analyticsService } = setup({
+      templateId: null,
+      draftId: "draft-1",
+      drafts: { "draft-1": { sdl: "restored: sdl" } },
+      gpuQuery: "gpuVendor=nvidia&gpuModel=l40s&gpuCount=3"
+    });
+
+    expect(analyticsService.track).not.toHaveBeenCalled();
+  });
+
+  it("ignores the linked gpu setup when a template is given", () => {
+    const { ConfigureDeploymentForm, analyticsService } = setup({ templateId: helloWorldTemplate.code, gpuQuery: "gpuVendor=nvidia&gpuModel=h100&gpuCount=5" });
+
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(expect.objectContaining({ intent: expect.objectContaining({ gpu: undefined }) }), expect.anything());
+    expect(analyticsService.track).not.toHaveBeenCalled();
+  });
+
+  it("restores the draft's sdl rather than the linked gpu setup", () => {
+    const { ConfigureDeploymentForm } = setup({
+      templateId: null,
+      draftId: "draft-1",
+      drafts: { "draft-1": { sdl: "restored: sdl" } },
+      gpuQuery: "gpuVendor=nvidia&gpuModel=h100&gpuCount=6"
+    });
+
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(expect.objectContaining({ initialSdl: "restored: sdl" }), expect.anything());
+  });
+
+  it("ignores the linked gpu setup when the alerts flag is off", () => {
+    const { ConfigureDeploymentForm, analyticsService } = setup({
+      templateId: null,
+      isGpuAlertsEnabled: false,
+      gpuQuery: "gpuVendor=nvidia&gpuModel=h100&gpuCount=7",
+      deploySdl: mock<TemplateCreation>({ content: "carried: sdl" })
+    });
+
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(
+      expect.objectContaining({ initialSdl: "carried: sdl", intent: expect.objectContaining({ gpu: undefined }) }),
+      expect.anything()
+    );
+    expect(analyticsService.track).not.toHaveBeenCalled();
   });
 
   it("still restores the draft's persisted SDL on a vm entry", () => {
@@ -1560,6 +1664,9 @@ describe(ConfigureDeployment.name, () => {
     deploySdl?: TemplateCreation | null;
     vm?: boolean;
     exampleImage?: boolean;
+    gpuQuery?: string;
+    isGpuAlertsEnabled?: boolean;
+    persistsDraftIdThroughRouter?: boolean;
     resume?: ResumeResolution;
     dseq?: string;
     autoDeployStart?: string;
@@ -1579,6 +1686,7 @@ describe(ConfigureDeployment.name, () => {
     urlTemplateVersion?: string;
     routerWritesUrl?: boolean;
   }) {
+    sessionStorage.clear();
     const store = createStore();
     store.set(sdlStore.deploySdl, input.deploySdl ?? null);
     const wrapper = ({ children }: PropsWithChildren) => <JotaiStoreProvider store={store}>{children}</JotaiStoreProvider>;
@@ -1628,6 +1736,10 @@ describe(ConfigureDeployment.name, () => {
       const current = input.drafts ? draftFollowingTheUrl(input.drafts, intent, isDraftReadFailed) : draft;
       useEffect(
         function writeMintedDraftIdIntoUrl() {
+          if (input.persistsDraftIdThroughRouter && intent.draftId !== current.draftId) {
+            router.replace(buildConfigureUrl({ ...intent, draftId: current.draftId }, intent.dseq, intent.bidStrategy), undefined, { shallow: true });
+            return;
+          }
           if (!input.writesMintedDraftIdToUrl || intent.draftId === current.draftId) return;
           writeUrl({ params: new URLSearchParams({ ...Object.fromEntries(params), draftId: current.draftId }), dseq: intent.dseq });
         },
@@ -1652,6 +1764,7 @@ describe(ConfigureDeployment.name, () => {
     if (input.bidStrategy) query["bid-strategy"] = input.bidStrategy;
     if (input.vm) query.vm = "true";
     if (input.exampleImage) query.exampleImage = "true";
+    new URLSearchParams(input.gpuQuery).forEach((value, key) => (query[key] = value));
     if (input.drafts && input.draftId) query.draftId = input.draftId;
     if (input.templateMode) query.templateMode = input.templateMode;
     if (input.templateMode && input.draftId) query.draftId = input.draftId;
@@ -1684,6 +1797,7 @@ describe(ConfigureDeployment.name, () => {
         <>{children(input.resume ?? { activeLeases: [] })}</>
       )
     );
+    const analyticsService = mock<AnalyticsService>();
     const dependencies: typeof DEPENDENCIES = {
       Layout: vi.fn(({ children }) => <div data-testid="layout-mock">{children}</div>) as never,
       NextSeo: vi.fn(() => null) as never,
@@ -1697,13 +1811,15 @@ describe(ConfigureDeployment.name, () => {
       useUserTemplate: useUserTemplate as never,
       useMarketplaceTemplate: useMarketplaceTemplate as never,
       useTemplateVersion: useTemplateVersion as never,
-      useFlag: flag => flag === "template_marketplace" && !!input.isTemplateMarketplaceEnabled,
+      useFlag: flag =>
+        (flag === "template_marketplace" && !!input.isTemplateMarketplaceEnabled) || (flag === "gpu_availability_alerts" && input.isGpuAlertsEnabled !== false),
       useRouter: () => router,
       useConfigureDraft: useConfigureDraft as never,
       useTakeAutoDeployStart,
       useSearchParams: () => params as unknown as ReadonlyURLSearchParams,
       useParams: (() => (dseq ? { dseq: [dseq] } : {})) as never,
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
+      useServices: () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService }),
       Snackbar: vi.fn(() => null) as never
     };
 
@@ -1781,6 +1897,7 @@ describe(ConfigureDeployment.name, () => {
     };
 
     return {
+      analyticsService,
       ConfigureDeploymentForm,
       ConfigureTemplateForm,
       useMarketplaceTemplate,

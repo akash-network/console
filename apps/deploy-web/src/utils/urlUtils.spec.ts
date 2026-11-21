@@ -82,6 +82,20 @@ describe(UrlService.configureDeployment.name, () => {
     expect(UrlService.configureDeployment({ userTemplateId: "user-1" })).toBe("/new-deployment/configure?userTemplateId=user-1");
   });
 
+  it("carries a linked gpu setup and organization", () => {
+    expect(
+      UrlService.configureDeployment({
+        gpuVendor: "nvidia",
+        gpuModel: "h100",
+        gpuCount: 8,
+        gpuMemory: "80Gi",
+        gpuInterface: "sxm",
+        draftId: "d1",
+        org: "org-1"
+      })
+    ).toBe("/new-deployment/configure?draftId=d1&gpuVendor=nvidia&gpuModel=h100&gpuCount=8&gpuMemory=80Gi&gpuInterface=sxm&org=org-1");
+  });
+
   it("builds an example image path", () => {
     expect(UrlService.configureDeployment({ exampleImage: true })).toBe("/new-deployment/configure?exampleImage=true");
   });
