@@ -37,7 +37,7 @@ export const PublishCheckSchema = z
         field: z
           .enum(PUBLISH_CHECK_ISSUE_FIELDS)
           .optional()
-          .openapi({ description: "The name a reserved word was found in, or the text a line holding a credential was found in" })
+          .openapi({ description: "The name a reserved word was found in, the text a line holding a credential was found in, or the text that is over its length limit" })
       })
     )
   })

@@ -1,17 +1,20 @@
 import { subject } from "@casl/ability";
 import assert from "http-assert";
+import createError from "http-errors";
 import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { OrganizationType } from "@src/organization/model-schemas/organization/organization.schema";
 import { summarizeTemplateHardware } from "@src/template/utils/template-hardware/template-hardware";
+import { createTemplateRemovedError } from "@src/template-marketplace/lib/template-removed/template-removed-error";
 import { findTemplateWriteRefusal, isInActiveOrganization } from "@src/template-marketplace/lib/template-write-access/template-write-access";
 import {
   MarketplaceTemplateRepository,
   type MarketplaceTemplateRow,
   type UserTemplateListRow
 } from "@src/template-marketplace/repositories/marketplace-template/marketplace-template.repository";
+import { TemplateRemovalRepository } from "@src/template-marketplace/repositories/template-removal/template-removal.repository";
 import {
   NO_TEMPLATE_USAGE,
   TemplateUsageEventRepository,
@@ -101,7 +104,8 @@ export class MarketplaceTemplateService {
     private readonly userTemplateRepository: UserTemplateRepository,
     private readonly authService: AuthService,
     private readonly executionContextService: ExecutionContextService,
-    private readonly templateUsageEventRepository: TemplateUsageEventRepository
+    private readonly templateUsageEventRepository: TemplateUsageEventRepository,
+    private readonly templateRemovalRepository: TemplateRemovalRepository
   ) {}
 
   /** Reads the version the readable row pointed at rather than the template's latest pointer, which a save that also hides the template may have moved since. */
@@ -200,12 +204,15 @@ export class MarketplaceTemplateService {
     return { templateId: template.id, versionId: version.id };
   }
 
-  /** Answers 404 rather than 403 for a template the caller may not read, so its existence does not leak. */
+  /** Answers 404 rather than 403 for a template the caller may not read, so its existence does not leak, and 410 for a removed one that was once public. */
   async findReadable(id: string): Promise<MarketplaceTemplateRow> {
     const template = await this.#findReadableOrNone(id);
-    assert(template, 404, "Template not found");
 
-    return template;
+    if (template) return template;
+
+    const removedTitle = await this.templateRemovalRepository.findRemovedTitle(id);
+
+    throw removedTitle === undefined ? createError(404, "Template not found") : createTemplateRemovedError(removedTitle);
   }
 
   async #findReadableOrNone(id: string): Promise<MarketplaceTemplateRow | undefined> {

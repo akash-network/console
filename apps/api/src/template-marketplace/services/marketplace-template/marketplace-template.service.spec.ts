@@ -11,6 +11,7 @@ import type {
   MarketplaceTemplateRow,
   UserTemplateListRow
 } from "@src/template-marketplace/repositories/marketplace-template/marketplace-template.repository";
+import type { TemplateRemovalRepository } from "@src/template-marketplace/repositories/template-removal/template-removal.repository";
 import type {
   TemplateUsageEventRepository,
   TemplateUsageSummary
@@ -329,6 +330,34 @@ describe(MarketplaceTemplateService.name, () => {
       expect(result.canEdit).toBe(false);
     });
 
+    it("answers 410 with the title for a removed template that was once public", async () => {
+      const id = faker.string.uuid();
+      const { service, templateRemovalRepository } = setup({ template: undefined, removedTitle: "Llama 3.1 Chat" });
+
+      await expect(service.getTemplate(id)).rejects.toMatchObject({
+        status: 410,
+        message: "This template was removed",
+        errorCode: "template_removed",
+        data: { title: "Llama 3.1 Chat" }
+      });
+      expect(templateRemovalRepository.findRemovedTitle).toHaveBeenCalledWith(id);
+    });
+
+    it("answers 410 for a removed template whose title is empty", async () => {
+      const { service } = setup({ template: undefined, removedTitle: "" });
+
+      await expect(service.getTemplate(faker.string.uuid())).rejects.toMatchObject({ status: 410, data: { title: "" } });
+    });
+
+    it("looks for no removed page behind a template the caller may read", async () => {
+      const template = createTemplateRow();
+      const { service, templateRemovalRepository } = setup({ template });
+
+      await service.getTemplate(template.id);
+
+      expect(templateRemovalRepository.findRemovedTitle).not.toHaveBeenCalled();
+    });
+
     it("refuses an unreadable template with 404", async () => {
       const { service, templateVersionRepository } = setup({ template: undefined });
 
@@ -520,6 +549,15 @@ describe(MarketplaceTemplateService.name, () => {
       ]);
     });
 
+    it("answers 404 rather than the removed page for a version of a removed template", async () => {
+      const version = createVersion();
+      const { service, templateVersionRepository, templateRemovalRepository } = setup({ template: undefined, removedTitle: "Llama 3.1 Chat" });
+      templateVersionRepository.findById.mockResolvedValue(version);
+
+      await expect(service.findDeployableVersion(version.id)).rejects.toMatchObject({ status: 404, message: "Template version not found" });
+      expect(templateRemovalRepository.findRemovedTitle).not.toHaveBeenCalled();
+    });
+
     it("lets an editor deploy an earlier version", async () => {
       const template = createTemplateRow();
       const earlier = createVersion({ templateId: template.id, version: 1 });
@@ -703,6 +741,8 @@ describe(MarketplaceTemplateService.name, () => {
       moderationStatus: "active",
       currentVersionId: faker.string.uuid(),
       publishedAt: null,
+      removedAt: null,
+      removedBy: null,
       createdAt: faker.date.past(),
       updatedAt: faker.date.recent(),
       authorUsername: faker.internet.userName(),
@@ -745,6 +785,7 @@ describe(MarketplaceTemplateService.name, () => {
       user?: Partial<UserOutput> | null;
       activeOrganizationId?: string | null;
       usages?: Map<string, TemplateUsageSummary>;
+      removedTitle?: string;
     } = {}
   ) {
     const ability = createMongoAbility<MongoAbility>(input.rules ?? []);
@@ -771,15 +812,28 @@ describe(MarketplaceTemplateService.name, () => {
     const templateUsageEventRepository = mock<TemplateUsageEventRepository>();
     templateUsageEventRepository.summarize.mockResolvedValue(input.usages ?? new Map());
     templateUsageEventRepository.countDeploysByVersion.mockResolvedValue(new Map());
+    const templateRemovalRepository = mock<TemplateRemovalRepository>();
+    templateRemovalRepository.findRemovedTitle.mockResolvedValue(input.removedTitle);
     const service = new MarketplaceTemplateService(
       repository,
       templateVersionRepository,
       userTemplateRepository,
       authService,
       executionContextService,
-      templateUsageEventRepository
+      templateUsageEventRepository,
+      templateRemovalRepository
     );
 
-    return { service, repository, readableRepository, templateVersionRepository, userTemplateRepository, templateUsageEventRepository, ability, user };
+    return {
+      service,
+      repository,
+      readableRepository,
+      templateVersionRepository,
+      userTemplateRepository,
+      templateUsageEventRepository,
+      templateRemovalRepository,
+      ability,
+      user
+    };
   }
 });

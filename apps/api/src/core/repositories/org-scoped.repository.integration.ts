@@ -144,11 +144,17 @@ describe(OrgScopedRepository.name, () => {
         "template_usage_events",
         "template_terms_acceptances"
       ];
+      const tablesOfStaffRecordsAboutAnOrganization = ["template_moderation_events"];
+      const exemptTables = [
+        ...tablesOwnedByAnOrganizationRatherThanFiledInOne,
+        ...tablesOfOneUserGroupedByOrganization,
+        ...tablesOfStaffRecordsAboutAnOrganization
+      ];
       const organizationTables = API_PG_TABLE_NAMES.map((name): unknown => resolveTable(name))
         .filter((table): table is PgTable => is(table, PgTable))
         .filter(table => Object.values(getTableColumns(table)).some(column => column.name === "organization_id"))
         .map(table => getTableName(table))
-        .filter(table => ![...tablesOwnedByAnOrganizationRatherThanFiledInOne, ...tablesOfOneUserGroupedByOrganization].includes(table));
+        .filter(table => !exemptTables.includes(table));
 
       const repositories = await loadRepositories();
       const scopedTables = repositories.filter(repository => repository instanceof OrgScopedRepository).map(repository => getTableName(repository["table"]));

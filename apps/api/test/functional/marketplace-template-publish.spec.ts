@@ -1,22 +1,25 @@
 import { faker } from "@faker-js/faker";
 import { asc, eq, sql } from "drizzle-orm";
 import { container } from "tsyringe";
-import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import type { ApiPgDatabase } from "@src/core";
-import { POSTGRES_DB, resolveTable } from "@src/core";
+import { JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { app } from "@src/rest-app";
 import type { PublishCheck } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
 import { COMMUNITY_TEMPLATE_TERMS_VERSION } from "@src/template-marketplace/lib/publish-requirements/publish-requirements";
 import { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
+import { NotifyTemplatePublishers } from "@src/template-marketplace/services/notify-template-publishers/notify-template-publishers.job";
 import type { TemplateVisibility } from "@src/user/model-schemas/template/template.schema";
 import type { UserOutput } from "@src/user/repositories";
 
 import { seedOrganizationMember, seedOrganizationWithOwner, seedProjectMember } from "@test/seeders/db/organization.seeder";
 import { seedPersonalOrganizationOf, seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { findJobRows } from "@test/services/job-queue-harness";
 
 const MEBIBYTE = 1024 ** 2;
 const GIBIBYTE = 1024 ** 3;
@@ -27,7 +30,11 @@ const ALL_MET = [
   { key: "publisher_role", met: true },
   { key: "publisher_in_good_standing", met: true }
 ];
-const ALL_PASSED = ["sdl_valid", "no_secrets", "images_allowed", "fixed_tags", "name_not_reserved"].map(key => ({ key, status: "passed", issues: [] }));
+const ALL_PASSED = ["sdl_valid", "no_secrets", "images_allowed", "fixed_tags", "name_not_reserved", "text_within_limits"].map(key => ({
+  key,
+  status: "passed",
+  issues: []
+}));
 const LATEST_TAG_ISSUE = {
   message:
     'Service "web" uses nginx:latest, and the latest tag changes whenever the image is rebuilt. Pick a version tag such as nginx:1.2.3, or a digest, so the image can\'t change after the template is public.',
@@ -47,6 +54,10 @@ type ReadinessBody = {
 type ErrorBody = { message: string; code: string; data: Record<string, unknown> };
 
 describe("Marketplace template publishing", () => {
+  beforeAll(async () => {
+    await startJobQueues();
+  }, 20_000);
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -180,7 +191,8 @@ describe("Marketplace template publishing", () => {
         { key: "no_secrets", status: "failed" },
         { key: "images_allowed", status: "failed" },
         { key: "fixed_tags", status: "failed" },
-        { key: "name_not_reserved", status: "failed" }
+        { key: "name_not_reserved", status: "failed" },
+        { key: "text_within_limits", status: "passed" }
       ]);
       expect(data.checks.flatMap(check => check.issues)).toEqual([
         {
@@ -208,6 +220,27 @@ describe("Marketplace template publishing", () => {
         }
       ]);
       expect(JSON.stringify(data)).not.toContain(PROVIDER_KEY);
+    });
+
+    it("fails the text check of a template whose title outgrew what a public template allows, and refuses to publish it", async () => {
+      const { owner, team, project, actAs } = await setup();
+      const title = "L".repeat(81);
+      const template = await seedTemplate({ author: owner, organizationId: team.id, projectId: project.id, title });
+
+      const { data } = (await (await actAs(owner)(`/v1/user-templates/${template.id}/publish-readiness`)).json()) as ReadinessBody;
+      const response = await actAs(owner)(`/v1/user-templates/${template.id}/publish`, { method: "POST", body: ACCEPT_TERMS });
+
+      expect(data.canPublish).toBe(false);
+      expect(data.checks.filter(check => check.status === "failed")).toEqual([
+        {
+          key: "text_within_limits",
+          status: "failed",
+          issues: [{ message: "The title is 81 characters long, and a public template allows 80. Shorten it in the template's settings.", field: "title" }]
+        }
+      ]);
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ code: "template_publish_checks_failed" });
+      expect(await storedTemplate(template.id)).toMatchObject({ visibility: "private" });
     });
 
     it("fails the SDL check of a legacy template whose SDL was never validated", async () => {
@@ -541,6 +574,7 @@ describe("Marketplace template publishing", () => {
       expect(data).toMatchObject({ version: 2, status: "live" });
       expect(data.checkResults.checks).toEqual(ALL_PASSED);
       expect(await storedTemplate(published.id)).toMatchObject({ currentVersionId: data.id, sdl: buildSdl({ image: "nginx:1.26" }) });
+      expect(await findJobRows(NotifyTemplatePublishers[JOB_NAME], { data: { versionId: data.id } })).toEqual([]);
     });
 
     it("stores a version that fails the checks without making it current, and answers why", async () => {
@@ -553,9 +587,12 @@ describe("Marketplace template publishing", () => {
       });
 
       expect(response.status).toBe(201);
-      const { data } = (await response.json()) as { data: { checkResults: { checks: PublishCheck[] } } };
+      const { data } = (await response.json()) as { data: { id: string; checkResults: { checks: PublishCheck[] } } };
       expect(data).toMatchObject({ version: 2, status: "failed_checks", sdl: buildSdl({ image: "nginx:latest" }) });
       expect(data.checkResults.checks).toContainEqual({ key: "fixed_tags", status: "failed", issues: [LATEST_TAG_ISSUE] });
+      expect(await findJobRows(NotifyTemplatePublishers[JOB_NAME], { data: { versionId: data.id } })).toMatchObject([
+        { data: { source: "version_failed_checks", versionId: data.id, savedByUserId: owner.id }, retry_limit: 10 }
+      ]);
       expect(await storedTemplate(published.id)).toMatchObject({ currentVersionId: before.currentVersionId, sdl: before.sdl, visibility: "public" });
 
       const [forEditor, forVisitor, failedForVisitor, failedForEditor, templateForVisitor] = await Promise.all([

@@ -13,6 +13,7 @@ import { contentCarriedByLegacySave } from "@src/template-marketplace/lib/legacy
 import { hasPassedPublishChecks, type PublishCheckResults, toPublishCheck } from "@src/template-marketplace/lib/publish-checks/publish-check-results";
 import { findReadmeSecretIssues } from "@src/template-marketplace/lib/publish-checks/publish-checks";
 import { createChecksFailedError, createPublishGateRequiredError } from "@src/template-marketplace/lib/publish-requirements/publish-refusals";
+import { TemplateRemovalRepository } from "@src/template-marketplace/repositories/template-removal/template-removal.repository";
 import { TemplateVersionRepository } from "@src/template-marketplace/repositories/template-version/template-version.repository";
 import { PublishChecksService } from "@src/template-marketplace/services/publish-checks/publish-checks.service";
 import { TemplateRateLimiterService } from "@src/template-marketplace/services/template-rate-limiter/template-rate-limiter.service";
@@ -50,6 +51,7 @@ export class UserTemplatesService {
   readonly #featureFlagsService: FeatureFlagsService;
   readonly #templateRateLimiterService: TemplateRateLimiterService;
   readonly #executionContextService: ExecutionContextService;
+  readonly #templateRemovalRepository: TemplateRemovalRepository;
 
   constructor(
     userTemplateRepository: UserTemplateRepository,
@@ -61,7 +63,8 @@ export class UserTemplatesService {
     publishChecksService: PublishChecksService,
     featureFlagsService: FeatureFlagsService,
     templateRateLimiterService: TemplateRateLimiterService,
-    executionContextService: ExecutionContextService
+    executionContextService: ExecutionContextService,
+    templateRemovalRepository: TemplateRemovalRepository
   ) {
     this.#userTemplateRepository = userTemplateRepository;
     this.#authService = authService;
@@ -73,6 +76,7 @@ export class UserTemplatesService {
     this.#featureFlagsService = featureFlagsService;
     this.#templateRateLimiterService = templateRateLimiterService;
     this.#executionContextService = executionContextService;
+    this.#templateRemovalRepository = templateRemovalRepository;
   }
 
   async getTemplateById(id: string, userId: string = ""): Promise<(TemplateOutput & { isFavorite?: boolean }) | null> {
@@ -133,8 +137,17 @@ export class UserTemplatesService {
     });
   }
 
+  /** A template that went public through the publish gate keeps its emptied row, so the link shared while it was public can say it was removed. */
   async deleteTemplate(userId: string, id: string): Promise<void> {
-    await this.#writableBy("delete").deleteById(id, userId);
+    const repository = this.#writableBy("delete");
+
+    await this.#txService.transaction(async () => {
+      if (await repository.markRemovedIfEverPublic(id, userId)) {
+        await this.#templateRemovalRepository.emptyRemoved(id, "owner");
+      } else {
+        await repository.deleteById(id, userId);
+      }
+    });
   }
 
   async getFavoriteTemplates(userId: string): Promise<Pick<TemplateOutput, "id" | "title" | "description">[]> {
@@ -182,6 +195,7 @@ export class UserTemplatesService {
 
       const checkResults = this.#staysPublicAfterPublishGate(template, stored)
         ? await this.#findPassingPublishChecks(template, stored.organizationId, {
+            summary: stored.summary,
             readme: nextReadmeShown,
             askedValues: (isNewVersion ? carried.askedValues : stored.currentVersionAskedValues) ?? []
           })
@@ -239,7 +253,7 @@ export class UserTemplatesService {
   async #findPassingPublishChecks(
     template: TemplateInput,
     organizationId: string,
-    content: { readme: string | null; askedValues: AskedValue[] }
+    content: { summary: string | null; readme: string | null; askedValues: AskedValue[] }
   ): Promise<PublishCheckResults> {
     const checkResults = await this.#publishChecksService.run({ sdl: template.sdl, title: template.title, organizationId, ...content });
 

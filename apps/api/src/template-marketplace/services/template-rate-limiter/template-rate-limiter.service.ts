@@ -66,6 +66,11 @@ export class TemplateRateLimiterService {
         counted: "published templates",
         perUser: { max: config.TEMPLATE_PUBLISH_LIMIT_PER_USER, windowSeconds: config.TEMPLATE_PUBLISH_LIMIT_WINDOW_SECONDS },
         perOrganization: { max: config.TEMPLATE_PUBLISH_LIMIT_PER_ORGANIZATION, windowSeconds: config.TEMPLATE_PUBLISH_LIMIT_WINDOW_SECONDS }
+      },
+      report: {
+        counted: "template reports",
+        perUser: { max: config.TEMPLATE_REPORT_LIMIT_PER_USER, windowSeconds: config.TEMPLATE_REPORT_LIMIT_WINDOW_SECONDS },
+        perOrganization: { max: config.TEMPLATE_REPORT_LIMIT_PER_ORGANIZATION, windowSeconds: config.TEMPLATE_REPORT_LIMIT_WINDOW_SECONDS }
       }
     }[action];
   }

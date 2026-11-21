@@ -11,6 +11,7 @@ import type {
   PublishUserTemplateRequest,
   PublishUserTemplateResponse
 } from "@src/template-marketplace/http-schemas/template-publish.schema";
+import type { CreateTemplateReportRequest, CreateTemplateReportResponse } from "@src/template-marketplace/http-schemas/template-report.schema";
 import type {
   CreateUserTemplateRequest,
   CreateUserTemplateResponse,
@@ -29,6 +30,7 @@ import {
   type UserTemplateListItem
 } from "@src/template-marketplace/services/marketplace-template/marketplace-template.service";
 import { TemplatePublishService } from "@src/template-marketplace/services/template-publish/template-publish.service";
+import { TemplateReportService } from "@src/template-marketplace/services/template-report/template-report.service";
 import { TemplateWriterService } from "@src/template-marketplace/services/template-writer/template-writer.service";
 
 function toVersionSummaryResponse({ createdById: _createdById, createdAt, ...version }: ListedTemplateVersion): TemplateVersionSummaryResponse {
@@ -71,7 +73,8 @@ export class MarketplaceTemplateController {
   constructor(
     private readonly marketplaceTemplateService: MarketplaceTemplateService,
     private readonly templateWriterService: TemplateWriterService,
-    private readonly templatePublishService: TemplatePublishService
+    private readonly templatePublishService: TemplatePublishService,
+    private readonly templateReportService: TemplateReportService
   ) {}
 
   async getTemplate(id: string): Promise<GetUserTemplateResponse> {
@@ -98,6 +101,12 @@ export class MarketplaceTemplateController {
 
   async publishTemplate(id: string, { data }: PublishUserTemplateRequest): Promise<PublishUserTemplateResponse> {
     return { data: toTemplateResponse(await this.templatePublishService.publish(id, data.acceptedTermsVersion)) };
+  }
+
+  async reportTemplate(id: string, { data }: CreateTemplateReportRequest): Promise<CreateTemplateReportResponse> {
+    const { createdAt, ...report } = await this.templateReportService.report(id, data);
+
+    return { data: { ...report, createdAt: createdAt.toISOString() } };
   }
 
   async deleteTemplate(id: string): Promise<void> {

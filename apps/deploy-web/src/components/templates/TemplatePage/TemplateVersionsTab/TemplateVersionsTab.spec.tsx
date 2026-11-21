@@ -133,6 +133,16 @@ describe(TemplateVersionsTab.name, () => {
     expect(within(publishedRow).getByText("Current")).toBeInTheDocument();
   });
 
+  it("labels a version staff rejected", () => {
+    const rejected = buildTemplateVersionSummary({ version: 2, status: "rejected" });
+    const published = buildTemplateVersionSummary({ version: 1, status: "live" });
+    setup({ versions: [rejected, published], currentVersion: 1, canEdit: false });
+
+    const [rejectedRow] = screen.getAllByRole("row").slice(1);
+    expect(within(rejectedRow).getByText("Rejected by staff")).toBeInTheDocument();
+    expect(within(rejectedRow).queryByText("Current")).not.toBeInTheDocument();
+  });
+
   it("shows a non-editor only the current version", () => {
     const { useTemplateVersion } = setup({ versions: [V3], currentVersion: 3, canEdit: false });
 

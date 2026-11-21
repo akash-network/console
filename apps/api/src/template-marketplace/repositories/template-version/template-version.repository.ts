@@ -222,7 +222,8 @@ export class TemplateVersionRepository extends BaseRepository<Table, TemplateVer
     throw new Error(IMMUTABLE_MESSAGE);
   }
 
-  protected toOutput(row: Partial<Row>, username?: string | null): TemplateVersionOutput {
+  /** Staff review columns stay out until a reader serves them to the template's editors alone. */
+  protected toOutput({ reviewedAt: _reviewedAt, reviewNote: _reviewNote, ...row }: Partial<Row>, username?: string | null): TemplateVersionOutput {
     return { ...row, createdBy: username ? { username } : null } as TemplateVersionOutput;
   }
 }

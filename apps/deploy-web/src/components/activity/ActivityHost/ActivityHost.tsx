@@ -96,6 +96,7 @@ const ANNOUNCEMENTS: Record<
   },
   deployment_rename: () => undefined,
   gpu_request_update: () => undefined,
+  template_update: () => undefined,
   lease_create: ({ status, meta }, labelDeployment) => {
     if (status === "succeeded" || meta.error?.code === CLOSED_WHILE_MATCHING) return undefined;
 

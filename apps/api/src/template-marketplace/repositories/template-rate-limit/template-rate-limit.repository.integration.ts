@@ -8,6 +8,7 @@ import { TxService } from "@src/core/services";
 import { TemplateRateLimitRepository } from "./template-rate-limit.repository";
 
 import { seedOrganization } from "@test/seeders/db/organization.seeder";
+import { seedTemplate, seedTemplateVersion } from "@test/seeders/db/template.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 
 const HOUR = { windowSeconds: 3600 };
@@ -103,6 +104,22 @@ describe(TemplateRateLimitRepository.name, () => {
       expect(await repository.findSecondsUntilRoom("publish", { organizationId: organization.id }, { max: 3, ...HOUR })).toBeUndefined();
     });
 
+    it("counts reports by who filed them and by the organization they were filed from", async () => {
+      const { repository, user, organization } = await setup();
+      const [otherUser, otherOrganization] = await Promise.all([seedUser(), seedOrganization()]);
+      await seedReports([
+        { reporterUserId: user.id, reporterOrganizationId: organization.id, minutesAgo: 45 },
+        { reporterUserId: otherUser.id, reporterOrganizationId: organization.id, minutesAgo: 15 },
+        { reporterUserId: user.id, reporterOrganizationId: otherOrganization.id, minutesAgo: 5 },
+        { reporterUserId: user.id, reporterOrganizationId: organization.id, minutesAgo: 90 }
+      ]);
+
+      expectAbout(await repository.findSecondsUntilRoom("report", { userId: user.id }, { max: 2, ...HOUR }), 15 * 60);
+      expectAbout(await repository.findSecondsUntilRoom("report", { organizationId: organization.id }, { max: 2, ...HOUR }), 15 * 60);
+      expect(await repository.findSecondsUntilRoom("report", { userId: user.id }, { max: 3, ...HOUR })).toBeUndefined();
+      expect(await repository.findSecondsUntilRoom("report", { organizationId: organization.id }, { max: 3, ...HOUR })).toBeUndefined();
+    });
+
     it("counts with a window other than an hour", async () => {
       const { repository, user, organization } = await setup();
       await seedTemplates({ authorId: user.id, organizationId: organization.id, minutesAgo: [5, 20] });
@@ -178,6 +195,17 @@ describe(TemplateRateLimitRepository.name, () => {
       .resolve<ApiPgDatabase>(POSTGRES_DB)
       .insert(resolveTable("TemplateTermsAcceptances"))
       .values(acceptances.map(({ minutesAgo, ...acceptance }) => ({ ...acceptance, termsVersion: "2026-11", acceptedAt: minutesAgoSql(minutesAgo) })));
+  }
+
+  async function seedReports(reports: { reporterUserId: string; reporterOrganizationId: string; minutesAgo: number }[]) {
+    for (const { minutesAgo, ...report } of reports) {
+      const template = await seedTemplate();
+      const version = await seedTemplateVersion({ templateId: template.id });
+      await container
+        .resolve<ApiPgDatabase>(POSTGRES_DB)
+        .insert(resolveTable("TemplateReports"))
+        .values({ ...report, templateId: template.id, templateVersionId: version.id, reason: "spam", createdAt: minutesAgoSql(minutesAgo) });
+    }
   }
 
   async function setup() {

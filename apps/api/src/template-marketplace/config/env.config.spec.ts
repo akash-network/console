@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { envSchema } from "./env.config";
 
 describe("envSchema", () => {
-  it("defaults to hourly limits on creating and saving and a daily limit on publishing", () => {
+  it("defaults to hourly limits on creating and saving and daily limits on publishing and reporting", () => {
     expect(envSchema.parse({})).toEqual({
       TEMPLATE_CREATE_LIMIT_PER_USER: 20,
       TEMPLATE_CREATE_LIMIT_PER_ORGANIZATION: 60,
@@ -13,7 +13,10 @@ describe("envSchema", () => {
       TEMPLATE_VERSION_LIMIT_WINDOW_SECONDS: 3600,
       TEMPLATE_PUBLISH_LIMIT_PER_USER: 10,
       TEMPLATE_PUBLISH_LIMIT_PER_ORGANIZATION: 30,
-      TEMPLATE_PUBLISH_LIMIT_WINDOW_SECONDS: 86400
+      TEMPLATE_PUBLISH_LIMIT_WINDOW_SECONDS: 86400,
+      TEMPLATE_REPORT_LIMIT_PER_USER: 10,
+      TEMPLATE_REPORT_LIMIT_PER_ORGANIZATION: 30,
+      TEMPLATE_REPORT_LIMIT_WINDOW_SECONDS: 86400
     });
   });
 
@@ -28,7 +31,10 @@ describe("envSchema", () => {
         TEMPLATE_VERSION_LIMIT_WINDOW_SECONDS: "6",
         TEMPLATE_PUBLISH_LIMIT_PER_USER: "7",
         TEMPLATE_PUBLISH_LIMIT_PER_ORGANIZATION: "8",
-        TEMPLATE_PUBLISH_LIMIT_WINDOW_SECONDS: "9"
+        TEMPLATE_PUBLISH_LIMIT_WINDOW_SECONDS: "9",
+        TEMPLATE_REPORT_LIMIT_PER_USER: "10",
+        TEMPLATE_REPORT_LIMIT_PER_ORGANIZATION: "11",
+        TEMPLATE_REPORT_LIMIT_WINDOW_SECONDS: "12"
       })
     ).toEqual({
       TEMPLATE_CREATE_LIMIT_PER_USER: 1,
@@ -39,7 +45,10 @@ describe("envSchema", () => {
       TEMPLATE_VERSION_LIMIT_WINDOW_SECONDS: 6,
       TEMPLATE_PUBLISH_LIMIT_PER_USER: 7,
       TEMPLATE_PUBLISH_LIMIT_PER_ORGANIZATION: 8,
-      TEMPLATE_PUBLISH_LIMIT_WINDOW_SECONDS: 9
+      TEMPLATE_PUBLISH_LIMIT_WINDOW_SECONDS: 9,
+      TEMPLATE_REPORT_LIMIT_PER_USER: 10,
+      TEMPLATE_REPORT_LIMIT_PER_ORGANIZATION: 11,
+      TEMPLATE_REPORT_LIMIT_WINDOW_SECONDS: 12
     });
   });
 
@@ -56,6 +65,7 @@ describe("envSchema", () => {
     expect(() => envSchema.parse({ TEMPLATE_PUBLISH_LIMIT_WINDOW_SECONDS: String(longestWindowSeconds + 1) })).toThrow();
     expect(() => envSchema.parse({ TEMPLATE_CREATE_LIMIT_WINDOW_SECONDS: "10000000000000" })).toThrow();
     expect(() => envSchema.parse({ TEMPLATE_VERSION_LIMIT_WINDOW_SECONDS: "10000000000000" })).toThrow();
+    expect(() => envSchema.parse({ TEMPLATE_REPORT_LIMIT_WINDOW_SECONDS: "10000000000000" })).toThrow();
   });
 
   it.each(["", "   "])("falls back to the default for a window set to %j", blank => {

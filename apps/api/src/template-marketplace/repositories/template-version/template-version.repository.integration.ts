@@ -392,6 +392,30 @@ describe(TemplateVersionRepository.name, () => {
     });
   });
 
+  describe("staff review columns", () => {
+    it("keeps the review note and time out of every version it reads or appends", async () => {
+      const { repository } = setup();
+      const template = await seedTemplate();
+      const appended = await repository.appendVersion({ templateId: template.id, sdl: "sdl" });
+      const versions = resolveTable("TemplateVersions");
+      await container
+        .resolve<ApiPgDatabase>(POSTGRES_DB)
+        .update(versions)
+        .set({ reviewedAt: new Date(), reviewNote: "Approved after a look at the image." })
+        .where(eq(versions.id, appended.id));
+
+      const read = [
+        appended,
+        await repository.findById(appended.id),
+        await repository.findCurrent(template.id),
+        await repository.findByTemplateAndVersion(template.id, 1),
+        await repository.appendVersion({ templateId: template.id, sdl: "sdl 2" })
+      ];
+
+      expect(read.map(version => Object.keys(version!).filter(key => key.startsWith("review")))).toEqual([[], [], [], [], []]);
+    });
+  });
+
   describe("listByTemplate", () => {
     it("lists versions newest first without their sdl", async () => {
       const { repository } = setup();
