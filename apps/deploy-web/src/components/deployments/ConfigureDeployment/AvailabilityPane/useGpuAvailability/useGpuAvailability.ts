@@ -6,8 +6,8 @@ import { useGpuModels } from "@src/queries/useGpuQuery";
 import { usePlacementOptions } from "@src/queries/usePlacementOptions";
 import { SCREENING_DEBOUNCE_MS, SCREENING_MAX_WAIT_MS, useScreenedProviderCounts } from "@src/queries/useScreenedProviders";
 import type { PlacementType, SdlBuilderFormValuesType } from "@src/types";
-import type { GpuAvailabilityModel } from "../gpuAvailability/gpuAvailability";
-import { candidateGpuModels, rankGpuAlternatives, requestedGpuLabel, requestedGpuOf } from "../gpuAvailability/gpuAvailability";
+import type { GpuAvailabilityModel, NotifiableGpuSetup } from "../gpuAvailability/gpuAvailability";
+import { candidateGpuModels, notifiableGpuOf, rankGpuAlternatives, requestedGpuLabel, requestedGpuOf } from "../gpuAvailability/gpuAvailability";
 import { screeningRequestOf, withGpuModel, withoutGpu } from "../gpuVariants/gpuVariants";
 
 export const DEPENDENCIES = { usePlacementOptions, useGpuModels, useScreenedProviderCounts };
@@ -18,6 +18,8 @@ export interface GpuAvailability {
   requestedLabel: string;
   /** False while no service of the placement asks for a GPU, so the current request has no GPUs to count. */
   requestsGpu: boolean;
+  /** The waitlist matches exact pools, so a model-less or non-nvidia request has nothing to wait for. */
+  notifiableGpu: NotifiableGpuSetup | null;
   alternatives: GpuAvailabilityModel[];
   noGpuCount: number | null;
   isChecking: boolean;
@@ -54,6 +56,7 @@ export function useGpuAvailability(
   return {
     requestedLabel: requestedGpuLabel(requested, catalog),
     requestsGpu: requested !== null,
+    notifiableGpu: notifiableGpuOf(pacedValues.services, placement.id),
     alternatives,
     noGpuCount: requested ? counts[candidates.length].count : null,
     isChecking,

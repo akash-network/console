@@ -17,4 +17,5 @@ export type FeatureFlag =
   | "gpu_quote_requests"
   | "user_feedback_loop"
   | "affiliate_program"
-  | "template_marketplace";
+  | "template_marketplace"
+  | "gpu_availability_alerts";

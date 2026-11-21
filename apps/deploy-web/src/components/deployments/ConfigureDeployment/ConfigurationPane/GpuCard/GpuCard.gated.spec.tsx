@@ -147,6 +147,7 @@ describe("GpuCard trial gate", () => {
       return result;
     };
     const useFieldError: typeof DEPENDENCIES.useFieldError = () => ({ error: undefined });
+    const useNotifyMe: typeof DEPENDENCIES.useNotifyMe = () => mock<ReturnType<typeof DEPENDENCIES.useNotifyMe>>({ isEnabled: false });
 
     const placementOptionsQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.usePlacementOptions>>(), {
       data: input.availableGpus && { regions: [], gpus: input.availableGpus }
@@ -157,6 +158,8 @@ describe("GpuCard trial gate", () => {
         const offered = input.availableGpus?.flatMap(vendor => vendor.models).find(candidate => candidate.name === model.name);
         return { count: offered?.providerCount ?? 0, gpuCount: offered?.availableUnits ?? 0, isLoading: false };
       });
+
+    const useScreenedNoGpuCount: typeof DEPENDENCIES.useScreenedNoGpuCount = () => null;
 
     const Wrapper = ({ children }: PropsWithChildren) => {
       const form = useForm<SdlBuilderFormValuesType>({ defaultValues: values, mode: "onChange" });
@@ -169,7 +172,7 @@ describe("GpuCard trial gate", () => {
           serviceIndex={0}
           isBlockedModel={input.isBlockedModel}
           onUnlock={input.onUnlock}
-          dependencies={{ ...DEPENDENCIES, useGpuModels, useFieldError, usePlacementOptions, useScreenedGpuModelCounts }}
+          dependencies={{ ...DEPENDENCIES, useGpuModels, useFieldError, useNotifyMe, usePlacementOptions, useScreenedGpuModelCounts, useScreenedNoGpuCount }}
         />
       </Wrapper>
     );

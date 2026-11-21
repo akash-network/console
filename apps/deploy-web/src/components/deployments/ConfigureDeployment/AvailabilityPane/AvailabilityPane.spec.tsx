@@ -409,6 +409,155 @@ describe(AvailabilityPane.name, () => {
     });
   });
 
+  describe("when gpu alerts are on", () => {
+    const h100 = { vendor: "nvidia", model: "h100", memory: "80Gi", interface: "sxm", gpuCount: 8 } as const;
+
+    it("offers notify me when the gpu is why nothing fits", async () => {
+      const { notify } = setup({
+        isAlertsEnabled: true,
+        hasPlacementWithoutProviders: true,
+        eligibleCount: 0,
+        gpuAvailability: { requestsGpu: true, requestedLabel: "H100", notifiableGpu: h100, noGpuCount: 5 }
+      });
+
+      expect(screen.queryByRole("button", { name: "Request this hardware" })).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "Notify me when available" }));
+
+      expect(notify).toHaveBeenCalledWith(h100, "no_fit");
+    });
+
+    it("keeps reserve capacity as the secondary action", async () => {
+      const { onRequestComputeForNoFit } = setup({
+        isAlertsEnabled: true,
+        isQuoteFlowEnabled: true,
+        hasPlacementWithoutProviders: true,
+        eligibleCount: 0,
+        gpuAvailability: { requestsGpu: true, notifiableGpu: h100, noGpuCount: 5 }
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "Need it guaranteed? Reserve capacity" }));
+
+      expect(onRequestComputeForNoFit).toHaveBeenCalled();
+    });
+
+    it("shows the place in line instead of the button once already waiting", () => {
+      setup({
+        isAlertsEnabled: true,
+        waitingPlace: 4,
+        hasPlacementWithoutProviders: true,
+        eligibleCount: 0,
+        gpuAvailability: { requestsGpu: true, notifiableGpu: h100, noGpuCount: 5 }
+      });
+
+      expect(screen.getByText("Waiting · #4 in line")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Notify me when available" })).not.toBeInTheDocument();
+    });
+
+    it("offers to switch the count when already waiting for another number of gpus", async () => {
+      const { notify } = setup({
+        isAlertsEnabled: true,
+        waitingPlace: 4,
+        waitingGpuCount: 1,
+        hasPlacementWithoutProviders: true,
+        eligibleCount: 0,
+        gpuAvailability: { requestsGpu: true, notifiableGpu: h100, noGpuCount: 5 }
+      });
+
+      expect(screen.getByText(/Waiting for 1×/)).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "Switch to 8×" }));
+
+      expect(notify).toHaveBeenCalledWith(h100, "no_fit");
+    });
+
+    it("leaves the cpu-only no-fit message unchanged", () => {
+      setup({
+        isAlertsEnabled: true,
+        isQuoteFlowEnabled: true,
+        hasPlacementWithoutProviders: true,
+        eligibleCount: 0,
+        gpuAvailability: { requestsGpu: false, notifiableGpu: null }
+      });
+
+      expect(screen.queryByRole("button", { name: "Notify me when available" })).not.toBeInTheDocument();
+      expect(screen.getByText("No provider can host this configuration right now. Change the resources or widen the region.")).toBeInTheDocument();
+    });
+
+    it("keeps today's message when the region is why nothing fits", () => {
+      setup({
+        isAlertsEnabled: true,
+        isQuoteFlowEnabled: true,
+        hasPlacementWithoutProviders: true,
+        eligibleCount: 0,
+        gpuAvailability: { requestsGpu: true, noGpuCount: 0, notifiableGpu: h100 }
+      });
+
+      expect(screen.queryByRole("button", { name: "Notify me when available" })).not.toBeInTheDocument();
+      expect(screen.getByRole("region", { name: "We can source this for you" })).toBeInTheDocument();
+    });
+
+    it("keeps today's message when another placement is the one that fails", () => {
+      setup({
+        isAlertsEnabled: true,
+        isQuoteFlowEnabled: true,
+        placementCount: 2,
+        hasPlacementWithoutProviders: true,
+        eligibleCount: 3,
+        gpuAvailability: { requestsGpu: true, noGpuCount: 5, notifiableGpu: h100 }
+      });
+
+      expect(screen.queryByRole("button", { name: "Notify me when available" })).not.toBeInTheDocument();
+    });
+
+    it("leaves out the reserve link while quotes are off", () => {
+      setup({
+        isAlertsEnabled: true,
+        isQuoteFlowEnabled: false,
+        hasPlacementWithoutProviders: true,
+        eligibleCount: 0,
+        gpuAvailability: { requestsGpu: true, noGpuCount: 5, notifiableGpu: h100 }
+      });
+
+      expect(screen.getByRole("button", { name: "Notify me when available" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Need it guaranteed? Reserve capacity" })).not.toBeInTheDocument();
+      expect(screen.getByText("Change the resources or request compute.")).toBeInTheDocument();
+    });
+
+    it("keeps the hint to lower a requirement or widen the region while quotes are on", () => {
+      setup({
+        isAlertsEnabled: true,
+        isQuoteFlowEnabled: true,
+        hasPlacementWithoutProviders: true,
+        eligibleCount: 0,
+        gpuAvailability: { requestsGpu: true, noGpuCount: 5, notifiableGpu: h100 }
+      });
+
+      expect(screen.getByText("You can also lower a hardware requirement or widen the region.")).toBeInTheDocument();
+    });
+
+    it("keeps today's sourcing card for a gpu that cannot be waited for", () => {
+      setup({
+        isAlertsEnabled: true,
+        isQuoteFlowEnabled: true,
+        hasPlacementWithoutProviders: true,
+        eligibleCount: 0,
+        gpuAvailability: { requestsGpu: true, notifiableGpu: null }
+      });
+
+      expect(screen.getByRole("region", { name: "We can source this for you" })).toBeInTheDocument();
+    });
+  });
+
+  it("keeps today's sourcing card when gpu alerts are off", () => {
+    setup({
+      isQuoteFlowEnabled: true,
+      hasPlacementWithoutProviders: true,
+      gpuAvailability: { requestsGpu: true, noGpuCount: 5, notifiableGpu: { vendor: "nvidia", model: "h100", gpuCount: 1 } }
+    });
+
+    expect(screen.queryByRole("button", { name: "Notify me when available" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Request this hardware" })).toBeInTheDocument();
+  });
+
   it("keeps a suspended user from choosing a provider", async () => {
     const { onChooseProvider } = setup({ accountStatus: "suspended" });
 
@@ -438,6 +587,9 @@ describe(AvailabilityPane.name, () => {
     isQuoteFlowEnabled?: boolean;
     accountStatus?: AccountStatus;
     blockedReason?: string;
+    isAlertsEnabled?: boolean;
+    waitingPlace?: number;
+    waitingGpuCount?: number;
   }) {
     const onChooseProvider = vi.fn();
     const onRequestCompute = vi.fn();
@@ -457,6 +609,7 @@ describe(AvailabilityPane.name, () => {
       (): GpuAvailability => ({
         requestedLabel: "No GPU",
         requestsGpu: false,
+        notifiableGpu: null,
         alternatives: [
           { key: "nvidia/rtx4090", vendor: "nvidia", name: "rtx4090", label: "RTX 4090", providerCount: 9, gpuCount: 36 },
           { key: "nvidia/h100", vendor: "nvidia", name: "h100", label: "H100", providerCount: 4, gpuCount: 12 }
@@ -467,6 +620,20 @@ describe(AvailabilityPane.name, () => {
         ...input.gpuAvailability
       })
     );
+    const notify = vi.fn();
+    const useNotifyMe: typeof DEPENDENCIES.useNotifyMe = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useNotifyMe>>({
+        isEnabled: !!input.isAlertsEnabled,
+        notify,
+        findEntry: () =>
+          input.waitingPlace
+            ? mock<NonNullable<ReturnType<ReturnType<typeof DEPENDENCIES.useNotifyMe>["findEntry"]>>>({
+                placeInLine: input.waitingPlace,
+                gpuCount: input.waitingGpuCount ?? 8
+              })
+            : undefined,
+        isPending: false
+      });
     const useGpuQuantityAvailability = vi.fn((): GpuQuantityAvailability[] => input.gpuQuantities ?? []);
     const gpuSelection = mock<GpuSelectionActions>({ canSelect: input.canSelect ?? (() => true) });
     const useGpuSelection = vi.fn(() => gpuSelection);
@@ -482,6 +649,7 @@ describe(AvailabilityPane.name, () => {
       InvalidSpecReasons: () => <p>Settings to fix</p>,
       NotBiddingNotice,
       useFlag: flag => flag === "gpu_quote_requests" && !!input.isQuoteFlowEnabled,
+      useNotifyMe,
       AccountSpendGate: accountActionGatesFor(input.accountStatus ?? "active").AccountSpendGate
     };
 
@@ -507,6 +675,7 @@ describe(AvailabilityPane.name, () => {
       onRequestCompute,
       onRequestComputeForUnlikelyBids,
       onRequestComputeForNoFit,
+      notify,
       NotBiddingNotice,
       useScreenedProviders,
       useGpuAvailability,
