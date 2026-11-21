@@ -5,6 +5,7 @@ import type { NextSeoProps } from "next-seo/lib/types";
 import { resolveMarketplaceAudience } from "@src/components/templates/visitorPages/resolveMarketplaceAudience";
 import type { AppTypedContext } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 import type { VisitorPageProps } from "@src/lib/pages/visitorAccess/visitorAccess";
+import { AWESOME_AKASH_TEMPLATE_TITLE_PREFIX } from "@src/services/analytics/marketplace-page-title.plugin";
 import { getShortText } from "@src/utils/stringUtils";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 
@@ -23,7 +24,7 @@ export async function loadTemplateDetailRouteProps(templateId: string, context: 
 
   const url = `${domainName}${UrlService.templateDetails(templateId)}`;
   const description = getShortText(template.summary || "", 140);
-  const title = `Template detail ${template.name}`;
+  const title = `${AWESOME_AKASH_TEMPLATE_TITLE_PREFIX}${template.name}`;
 
   return {
     props: {

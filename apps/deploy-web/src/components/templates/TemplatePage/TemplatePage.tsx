@@ -35,6 +35,8 @@ import { readRemovedTemplate } from "@src/components/templates/removed/readRemov
 import { RemovedTemplateNotice } from "@src/components/templates/removed/RemovedTemplateNotice/RemovedTemplateNotice";
 import { canReportTemplate } from "@src/components/templates/reporting/reportEligibility";
 import { ReportTemplateDialog } from "@src/components/templates/reporting/ReportTemplateDialog/ReportTemplateDialog";
+import { describeConsoleTemplate } from "@src/components/templates/templateEvents/templateEvents";
+import { useTrackTemplateEvent } from "@src/components/templates/templateEvents/useTrackTemplateEvent";
 import { TemplateIcon } from "@src/components/templates/TemplateIcon/TemplateIcon";
 import { TemplateVisibilityBadge } from "@src/components/templates/TemplateVisibilityBadge/TemplateVisibilityBadge";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
@@ -73,7 +75,8 @@ export const DEPENDENCIES = {
   useCustomUser,
   useActiveOrganization,
   useSnackbar,
-  useRouter
+  useRouter,
+  useTrackTemplateEvent
 };
 
 const TABS = ["readme", "configuration", "versions", "settings"] as const;
@@ -116,6 +119,7 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, removedTemplate: remov
   const { analyticsService } = useServices();
   const arrivalSource = router.query[TEMPLATE_ARRIVAL_SOURCE_PARAM];
   const hasRecordedArrival = useRef(false);
+  d.useTrackTemplateEvent("template_page_viewed", template && describeConsoleTemplate(template, template.currentVersion?.version));
 
   useEffect(
     function followFavoriteFromServer() {

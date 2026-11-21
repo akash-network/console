@@ -987,6 +987,91 @@ describe(ConfigureDeployment.name, () => {
       expect(props?.intent).not.toHaveProperty("templateVersionId");
     }
 
+    describe("the Configure open event", () => {
+      it("names the community template and the version Configure opened for", () => {
+        const { useTrackTemplateEvent } = setup({
+          userTemplateId: "tpl-9",
+          isTemplateMarketplaceEnabled: true,
+          marketplaceTemplate: { isSuccess: true, data: deployableTemplate({ visibility: "public" }) }
+        });
+
+        expect(useTrackTemplateEvent).toHaveBeenLastCalledWith("template_configure_opened", { source: "community", templateId: "tpl-9", templateVersion: 4 });
+      });
+
+      it("names the version the address asked for rather than the current one", () => {
+        const { useTrackTemplateEvent } = setup({
+          userTemplateId: "tpl-9",
+          urlTemplateVersion: "2",
+          isTemplateMarketplaceEnabled: true,
+          marketplaceTemplate: { isSuccess: true, data: deployableTemplate({ isOfficial: true }) },
+          templateVersion: { isSuccess: true, data: buildTemplateVersion({ id: "ver-2", templateId: "tpl-9", version: 2, sdl: OLDER_SDL }) }
+        });
+
+        expect(useTrackTemplateEvent).toHaveBeenLastCalledWith("template_configure_opened", { source: "official", templateId: "tpl-9", templateVersion: 2 });
+      });
+
+      it("waits for the template before naming it", () => {
+        const { useTrackTemplateEvent, rerenderWithMarketplaceTemplate } = setup({
+          userTemplateId: "tpl-9",
+          isTemplateMarketplaceEnabled: true,
+          marketplaceTemplate: { isLoading: true }
+        });
+        expect(useTrackTemplateEvent).toHaveBeenLastCalledWith("template_configure_opened", undefined);
+
+        rerenderWithMarketplaceTemplate({ isSuccess: true, data: deployableTemplate({ visibility: "private" }) });
+
+        expect(useTrackTemplateEvent).toHaveBeenLastCalledWith("template_configure_opened", { source: "private", templateId: "tpl-9", templateVersion: 4 });
+      });
+
+      it("names an awesome-akash template as Official, without a version", () => {
+        const { useTrackTemplateEvent } = setup({ templateId: "tpl-1", isTemplateMarketplaceEnabled: true });
+
+        expect(useTrackTemplateEvent).toHaveBeenLastCalledWith("template_configure_opened", { source: "official", templateId: "tpl-1", templateVersion: null });
+      });
+
+      it("keeps naming the template after the screen writes its draft id into the address", () => {
+        const { useTrackTemplateEvent, currentUrl } = setup({
+          templateId: helloWorldTemplate.code,
+          isTemplateMarketplaceEnabled: true,
+          drafts: {},
+          writesMintedDraftIdToUrl: true
+        });
+
+        expect(currentUrl()).toMatchObject({ draftId: "minted-id" });
+        expect(useTrackTemplateEvent).toHaveBeenLastCalledWith("template_configure_opened", {
+          source: "official",
+          templateId: helloWorldTemplate.code,
+          templateVersion: null
+        });
+      });
+
+      it("names nothing when the address resumes a draft, which a reload does", () => {
+        const { useTrackTemplateEvent } = setup({
+          templateId: "tpl-1",
+          isTemplateMarketplaceEnabled: true,
+          draftId: "resumed",
+          drafts: { resumed: { sdl: "resumed: sdl" } }
+        });
+
+        expect(useTrackTemplateEvent.mock.calls).not.toHaveLength(0);
+        expect(useTrackTemplateEvent.mock.calls.every(([, subject]) => subject === undefined)).toBe(true);
+      });
+
+      it("names nothing while the template marketplace is off", () => {
+        const { useTrackTemplateEvent } = setup({ templateId: "tpl-1" });
+
+        expect(useTrackTemplateEvent.mock.calls).not.toHaveLength(0);
+        expect(useTrackTemplateEvent.mock.calls.every(([, subject]) => subject === undefined)).toBe(true);
+      });
+
+      it("names nothing when Configure opens without a template", () => {
+        const { useTrackTemplateEvent } = setup({ templateId: null, isTemplateMarketplaceEnabled: true });
+
+        expect(useTrackTemplateEvent.mock.calls).not.toHaveLength(0);
+        expect(useTrackTemplateEvent.mock.calls.every(([, subject]) => subject === undefined)).toBe(true);
+      });
+    });
+
     function deployableTemplate(overrides: Partial<MarketplaceTemplate> = {}) {
       return buildMarketplaceTemplate({
         id: "tpl-9",
@@ -1715,6 +1800,7 @@ describe(ConfigureDeployment.name, () => {
     const RemovedTemplateNotice = vi.fn<typeof DEPENDENCIES.RemovedTemplateNotice>(({ title }) => <p>Removed: {title}</p>);
     const useTemplateVersion = vi.fn(() => templateVersionResult as never);
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>();
+    const useTrackTemplateEvent = vi.fn<typeof DEPENDENCIES.useTrackTemplateEvent>();
     const DeploymentFlowProvider = vi.fn(function FlowProviderMock({ children }) {
       const [flow] = useState(() => mock<DeploymentFlow>({ phase: "configuring", dseq: null, pendingClose: null, ...input.flow }));
       return <>{children({ flow })}</>;
@@ -1810,6 +1896,7 @@ describe(ConfigureDeployment.name, () => {
       useSearchParams: () => params as unknown as ReadonlyURLSearchParams,
       useParams: (() => (dseq ? { dseq: [dseq] } : {})) as never,
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
+      useTrackTemplateEvent,
       Snackbar: vi.fn(() => null) as never
     };
 
@@ -1892,6 +1979,7 @@ describe(ConfigureDeployment.name, () => {
       RemovedTemplateNotice,
       useMarketplaceTemplate,
       useTemplateVersion,
+      useTrackTemplateEvent,
       router,
       AutoDeployFlow,
       DeploymentFlowProvider,

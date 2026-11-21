@@ -15,7 +15,7 @@ describe(buildTemplateSeo.name, () => {
     const template = buildMarketplaceTemplate({ ...LISTED, id: TEMPLATE_ID, title: "Llama chat server", summary: "An OpenAI-compatible endpoint." });
 
     expect(buildTemplateSeo(template)).toEqual({
-      title: "Llama chat server",
+      title: "Llama chat server · Template",
       description: "An OpenAI-compatible endpoint.",
       canonical: TEMPLATE_URL,
       noindex: false,
@@ -87,7 +87,8 @@ describe(buildTemplateSeo.name, () => {
       buildMarketplaceTemplate({ ...LISTED, title: '"><script>alert(1)</script>', summary: "</title><img src=x onerror=alert(2)>" })
     );
 
-    expect(seo.title).toBe('"><script>alert(1)</script>');
+    expect(seo.title).toBe('"><script>alert(1)</script> · Template');
+    expect(seo.openGraph?.title).toBe('"><script>alert(1)</script>');
     expect(seo.description).toBe("</title><img src=x onerror=alert(2)>");
     expect(seo.openGraph?.images?.[0].alt).toBe('"><script>alert(1)</script> on Akash Console');
   });
