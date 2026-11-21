@@ -55,6 +55,7 @@ import {
   FallbackDeploymentListResponseSchema,
   GetDeploymentInfoResponseSchema
 } from "@src/deployment/http-schemas/deployment-rpc.schema";
+import { ListDeploymentSecretsParamsSchema, ListDeploymentSecretsResponseSchema } from "@src/deployment/http-schemas/deployment-secret.schema";
 import {
   PROJECT_FORBIDDEN_DESCRIPTION,
   RECORD_UNFILED_DESCRIPTION,
@@ -98,6 +99,50 @@ deploymentsRouter.openapi(getRoute, async function routeGetDeployment(c) {
   const { dseq } = c.req.valid("param");
   const result = await container.resolve(DeploymentController).findByDseq(dseq);
   return c.json(result, 200);
+});
+
+const listSecretsRoute = createRoute({
+  method: "get",
+  path: "/v1/deployments/{dseq}/secrets",
+  summary: "List a deployment's secrets",
+  description:
+    "Lists each secret the SDL the console stored for this deployment references, by name, with every service environment variable or private registry credential it fills. Names and places are read from the stored SDL alone: no value is ever returned, and none is decrypted to answer.",
+  operationId: "listDeploymentSecrets",
+  tags: ["Deployments"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  request: {
+    params: ListDeploymentSecretsParamsSchema
+  },
+  responses: {
+    200: {
+      description: "Returns the deployment's secrets without their values",
+      content: {
+        "application/json": {
+          schema: ListDeploymentSecretsResponseSchema
+        }
+      }
+    },
+    404: {
+      description: "No deployment of yours matches `dseq`, or the console holds no definition for it",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    500: {
+      description: "The SDL recorded for this deployment could not be read: `code` is `stored_sdl_unreadable`, which is permanent, so a retry cannot help",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    }
+  }
+});
+deploymentsRouter.openapi(listSecretsRoute, async function routeListDeploymentSecrets(c) {
+  const { dseq } = c.req.valid("param");
+  return c.json(await container.resolve(DeploymentController).listSecrets(dseq), 200);
 });
 
 const getInfoRoute = createRoute({

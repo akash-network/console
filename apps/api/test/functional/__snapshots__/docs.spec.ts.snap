@@ -13991,6 +13991,193 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/deployments/{dseq}/secrets": {
+      "get": {
+        "description": "Lists each secret the SDL the console stored for this deployment references, by name, with every service environment variable or private registry credential it fills. Names and places are read from the stored SDL alone: no value is ever returned, and none is decrypted to answer.",
+        "operationId": "listDeploymentSecrets",
+        "parameters": [
+          {
+            "description": "Deployment sequence number",
+            "in": "path",
+            "name": "dseq",
+            "required": true,
+            "schema": {
+              "description": "Deployment sequence number",
+              "pattern": "^0*[1-9]\\d*$",
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "secrets": {
+                          "description": "Each secret the deployment's SDL references, listed once and sorted by name. Values are never returned.",
+                          "items": {
+                            "properties": {
+                              "name": {
+                                "description": "Name the secret is stored under, as an \`ac-secret://NAME\` reference in the deployment's SDL spells it. Includes names the console chose itself when it sealed a value for you, such as \`s0_e1\`.",
+                                "type": "string",
+                              },
+                              "usedBy": {
+                                "description": "Every place the SDL uses the secret, in the order the SDL lists its services, environment variables before registry credentials within a service. An entry carries \`env\` for an environment variable and \`credential\` for a registry credential.",
+                                "items": {
+                                  "anyOf": [
+                                    {
+                                      "description": "The secret is the value of one of the service's environment variables.",
+                                      "properties": {
+                                        "env": {
+                                          "description": "Environment variable of the service whose value is the secret.",
+                                          "type": "string",
+                                        },
+                                        "service": {
+                                          "description": "Name of the service, as the deployment's SDL declares it.",
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "service",
+                                        "env",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    {
+                                      "description": "The secret is the username or password the service pulls its image from a private registry with.",
+                                      "properties": {
+                                        "credential": {
+                                          "description": "Half of the service's private registry credentials the secret fills.",
+                                          "enum": [
+                                            "username",
+                                            "password",
+                                          ],
+                                          "type": "string",
+                                        },
+                                        "service": {
+                                          "description": "Name of the service, as the deployment's SDL declares it.",
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "service",
+                                        "credential",
+                                      ],
+                                      "type": "object",
+                                    },
+                                  ],
+                                },
+                                "type": "array",
+                              },
+                            },
+                            "required": [
+                              "name",
+                              "usedBy",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                      },
+                      "required": [
+                        "secrets",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Returns the deployment's secrets without their values",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "No deployment of yours matches \`dseq\`, or the console holds no definition for it",
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The SDL recorded for this deployment could not be read: \`code\` is \`stored_sdl_unreadable\`, which is permanent, so a retry cannot help",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "List a deployment's secrets",
+        "tags": [
+          "Deployments",
+        ],
+      },
+    },
     "/v1/deposit-deployment": {
       "post": {
         "deprecated": true,

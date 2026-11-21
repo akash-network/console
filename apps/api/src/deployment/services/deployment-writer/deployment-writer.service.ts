@@ -96,7 +96,8 @@ import {
   exceedsSubmittableLength,
   EXPANDED_SDL_TOO_LARGE_MESSAGE,
   parseSdlForStorage,
-  sdlForStorage
+  sdlForStorage,
+  STORED_SDL_UNREADABLE_ERROR_CODE
 } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import { findMissingGlobalExposure } from "@src/deployment/utils/sdl-manifest/sdl-manifest";
 import { failedUpdateActivityOf, pendingUpdateActivityOf, renamedActivityOf, updatedActivityOf } from "@src/deployment/utils/update-activity/update-activity";
@@ -113,9 +114,6 @@ import { UNKNOWN_DB_PLACEHOLDER } from "../fallback-deployment-reader/fallback-d
 import { StaleManagedDeploymentsCleanerService } from "../stale-managed-deployments-cleaner/stale-managed-deployments-cleaner.service";
 
 const SECRET_REFERENCE_KIND = "secret";
-
-/** Distinct from the sealed-secret failure so a client can tell which half of the stored state it cannot read, both being permanent. */
-const STORED_SDL_UNREADABLE_ERROR_CODE = "stored_sdl_unreadable";
 
 /** A seal made against a retired key also answers a bare 409, and only this one is cured by reloading the definition rather than resealing. */
 const DEFINITION_CHANGED_ERROR_CODE = "deployment_definition_changed";
