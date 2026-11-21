@@ -18,7 +18,6 @@ import {
   TabsTrigger
 } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { formatDistanceToNowStrict } from "date-fns";
 import { ArrowRight, ChevronRight, Flag, GitFork, RefreshCw, Share2, SlidersHorizontal, Star, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -28,6 +27,7 @@ import { useSnackbar } from "notistack";
 import Layout from "@src/components/layout/Layout";
 import { NotFoundPage } from "@src/components/shared/NotFoundPage/NotFoundPage";
 import { OfficialBadge } from "@src/components/templates/communityGallery/GalleryEntryCard/GalleryEntryCard";
+import { formatTimeSince } from "@src/components/templates/marketplaceDates/marketplaceDates";
 import { buildTemplateSeo } from "@src/components/templates/marketplaceSeo/marketplaceSeo";
 import { DEPLOY_BADGE_SOURCE, isDeployBadgeArrival, TEMPLATE_ARRIVAL_SOURCE_PARAM } from "@src/components/templates/publishing/deployBadge";
 import { ShareTemplateDialog } from "@src/components/templates/publishing/ShareTemplateDialog/ShareTemplateDialog";
@@ -175,7 +175,7 @@ export const TemplatePage: FC<TemplatePageProps> = ({ id, removedTemplate: remov
   const requestedTab = router.query.tab;
   const activeTab = tabs.find(tab => tab === requestedTab) ?? "readme";
   const isFavorite = favoriteOverride ?? template.isFavorite;
-  const usageParts = describeUsage(template.usage);
+  const usageParts = describeUsage(template.usage, templateQuery.dataUpdatedAt);
   const canReport = canReportTemplate(template, { username: user?.username, organizations });
   const isPublic = template.visibility === "public";
   const forkUrl =
@@ -451,11 +451,11 @@ const TabNotice: FC<{ children: ReactNode }> = ({ children }) => (
   <p className="rounded-[14px] border border-dashed border-border bg-card px-6 py-14 text-center text-sm text-muted-foreground">{children}</p>
 );
 
-function describeUsage(usage: MarketplaceTemplate["usage"]): string[] {
+function describeUsage(usage: MarketplaceTemplate["usage"], readAt: number): string[] {
   const parts: string[] = [];
   if (usage.deploys > 0) parts.push(`${NUMBER_FORMAT.format(usage.deploys)} ${usage.deploys === 1 ? "deploy" : "deploys"}`);
   if (usage.stillUpAfter24h !== null) parts.push(`${Math.round(usage.stillUpAfter24h * 100)}% still up after 24 h`);
-  if (usage.lastDeployedAt) parts.push(`Last deployed ${formatDistanceToNowStrict(new Date(usage.lastDeployedAt), { addSuffix: true })}`);
+  if (usage.lastDeployedAt) parts.push(`Last deployed ${formatTimeSince(usage.lastDeployedAt, readAt)}`);
   if (usage.forks > 0) parts.push(`${NUMBER_FORMAT.format(usage.forks)} ${usage.forks === 1 ? "fork" : "forks"}`);
   if (usage.favorites > 0) parts.push(`${NUMBER_FORMAT.format(usage.favorites)} ${usage.favorites === 1 ? "favorite" : "favorites"}`);
   return parts;
