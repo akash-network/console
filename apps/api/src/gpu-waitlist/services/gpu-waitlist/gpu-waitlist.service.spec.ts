@@ -95,6 +95,21 @@ describe(GpuWaitlistService.name, () => {
       expect(repository.create).not.toHaveBeenCalled();
     });
 
+    it.each(["nvlink", "SX M", "infiniband"])("refuses an interface outside the PCIe and SXM families, such as %s, with 400", async gpuInterface => {
+      const { service, repository } = setup();
+
+      await expect(service.join({ ...INPUT, interface: gpuInterface })).rejects.toMatchObject({ status: 400 });
+      expect(repository.create).not.toHaveBeenCalled();
+    });
+
+    it.each(["pcie", "PCIe", "sxm", "sxm4", "SXM5"])("files an interface of the PCIe or SXM family written as %s", async gpuInterface => {
+      const { service, repository } = setup();
+
+      await service.join({ ...INPUT, interface: gpuInterface });
+
+      expect(repository.create).toHaveBeenCalledWith(expect.objectContaining({ interface: gpuInterface.toLowerCase() }));
+    });
+
     it("finds an existing entry under the normalised pool key", async () => {
       const existing = anEntry({ memory: "80Gi", poolKey: "nvidia/h100/80gi/*" });
       const { service, repository } = setup({ existing });

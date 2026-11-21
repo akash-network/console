@@ -135,7 +135,8 @@ describe("GPU waitlist", () => {
       { case: "a memory of a wildcard", override: { memory: "*" } },
       { case: "a model that grows when lowercased", override: { model: "\u0130".repeat(100) } },
       { case: "a model an SDL attribute cannot carry", override: { model: "H100 SXM" } },
-      { case: "memory that is not a size in Gi", override: { memory: "80GB" } }
+      { case: "memory that is not a size in Gi", override: { memory: "80GB" } },
+      { case: "an interface outside the PCIe and SXM families", override: { interface: "nvlink" } }
     ])("rejects $case", async ({ override }) => {
       const { alice } = await setup();
 
