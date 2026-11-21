@@ -38,6 +38,9 @@ import {
   PatchDeploymentAcceptedResponse,
   PatchDeploymentRequest,
   PatchDeploymentResponse,
+  ReplaceDeploymentDefinitionAcceptedResponse,
+  ReplaceDeploymentDefinitionRequest,
+  ReplaceDeploymentDefinitionResponse,
   UpdateDeploymentRequest
 } from "@src/deployment/http-schemas/deployment.schema";
 import { DeploymentSettingRepository, type DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
@@ -75,7 +78,7 @@ import {
 } from "@src/deployment/services/reconcile-deployment-update/reconcile-deployment-update.job";
 import { type ResolvedSdl, SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlPatchService } from "@src/deployment/services/sdl-patch/sdl-patch.service";
-import { MAX_ECHOED_REFERENCE_LENGTH, SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
+import { MAX_ECHOED_REFERENCE_LENGTH, SdlReferenceService, type SdlReferenceSlot } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { SdlSecretsService, unreferencedNameError } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import { SdlSecretsDerivationService, type SealedEnv } from "@src/deployment/services/sdl-secrets-derivation/sdl-secrets-derivation.service";
 import { SdlSecretsInheritanceService } from "@src/deployment/services/sdl-secrets-inheritance/sdl-secrets-inheritance.service";
@@ -123,6 +126,9 @@ const RESOURCES_CHANGED_ERROR_CODE = "deployment_resources_changed";
 
 /** A deployment the console never recorded an SDL for has nothing to patch, and the SDL is deliberately not accepted from the request. */
 const NOT_PATCHABLE_MESSAGE = "This deployment has no SDL recorded by the console, so there is nothing to patch";
+
+const NOT_REPLACEABLE_MESSAGE =
+  "This deployment has no SDL recorded by the console, so there is nothing to replace. Record the definition it runs with POST /v1/deployments/{dseq}/definition first";
 
 /** Recording never replaces a held definition, whose stored token may carry values the caller cannot resupply. */
 const DEFINITION_EXISTS_ERROR_CODE = "deployment_definition_exists";
@@ -233,13 +239,24 @@ type StoredDefinition = {
 
 type PatchWrite = {
   definition: Parameters<DeploymentSettingRepository["replaceDefinitionIfVersionMatches"]>[0];
-  counts: { patchedServiceCount: number; secretCount: number; guarded: boolean };
+  savedEvent: "DEPLOYMENT_PATCH_APPLIED" | "DEPLOYMENT_DEFINITION_REPLACED";
+  /** Logged as they are beside `savedEvent`, so each kind of write keeps the fields its log queries already read. */
+  counts: Record<string, number | boolean>;
   saved: SavedPatch;
   filedUserId: string;
   /** Absent for a deployment filed before organizations, whose row only its user reaches. */
   organizationId?: string;
   prepared: PreparedPatch;
 };
+
+/** A variable is matched by name rather than position, because a patch re-appends what it writes and so moves it. */
+function slotIdentityOf(slot: SdlReferenceSlot): string {
+  return JSON.stringify(slot.envVariable === undefined ? [slot.instancePath] : [slot.serviceName, slot.envVariable]);
+}
+
+function serviceNamesOf(...documents: SDLInput[]): string[] {
+  return [...new Set(documents.flatMap(document => Object.keys(document.services ?? {})))];
+}
 
 function isRenameOnly(input: PatchDeploymentRequest["data"]): input is PatchDeploymentRequest["data"] & { name: string } {
   return input.name !== undefined && !assignsAnyServiceField(input.services) && !input.sealedSecrets && !input.secretEnv?.length;
@@ -651,6 +668,13 @@ export class DeploymentWriterService {
 
   /** `dseq` is a log field only, so a create can run this before minting one and still say which request it refused. */
   #storedSdlOf(submittedSdl: string, sealedEnv: SealedEnv, dseq?: string): { sdl: string; storedDocument: SDLInput; derived: SdlSecrets } {
+    const parsed = this.#parseSubmitted(submittedSdl, dseq);
+    const derived = this.#takeValuesOutOf(parsed.document, { sealedEnv });
+
+    return { sdl: this.#serializeSubmitted(parsed, dseq), storedDocument: parsed.document, derived };
+  }
+
+  #parseSubmitted(submittedSdl: string, dseq?: string): StorableSdl {
     const parsed = parseSdlForStorage(submittedSdl);
 
     if (parsed.document === null) {
@@ -661,14 +685,17 @@ export class DeploymentWriterService {
       throw this.#rejectUnstorableSdl("expands-too-large", { dseq, length: submittedSdl.length });
     }
 
-    const derived = this.#takeValuesOutOf(parsed.document, { sealedEnv });
+    return parsed;
+  }
+
+  #serializeSubmitted(parsed: StorableSdl, dseq?: string): string {
     const { sdl, length } = sdlForStorage(parsed, SDL_MAX_LENGTH);
 
     if (sdl === null) {
       throw this.#rejectUnstorableSdl("too-large", { dseq, length });
     }
 
-    return { sdl, storedDocument: parsed.document, derived };
+    return sdl;
   }
 
   /** Runs before the document is measured, so that what the size guard bounds is exactly what gets stored. */
@@ -963,13 +990,35 @@ export class DeploymentWriterService {
       return await this.#renameByUserIdAndDseq(userId, dseq, input.name, ability);
     }
 
-    const write = await this.#preparePatch(userId, dseq, input, ability);
+    return await this.#saveAndApply(await this.#preparePatch(userId, dseq, input, ability), ability);
+  }
+
+  /** Guarded and applied exactly as a patch is, so the two cannot drift; only the document comes from the request rather than from the stored one. */
+  public async replaceDefinitionByUserIdAndDseq(
+    userId: string,
+    dseq: string,
+    input: ReplaceDeploymentDefinitionRequest["data"],
+    ability: AnyAbility
+  ): Promise<ReplaceDeploymentDefinitionResponse["data"]> {
+    return await this.#saveAndApply(await this.#prepareReplace(userId, dseq, input, ability), ability);
+  }
+
+  public async replaceDefinitionInBackgroundByUserIdAndDseq(
+    userId: string,
+    dseq: string,
+    input: ReplaceDeploymentDefinitionRequest["data"],
+    ability: AnyAbility
+  ): Promise<ReplaceDeploymentDefinitionAcceptedResponse["data"]> {
+    return await this.#saveForBackgroundApply(await this.#prepareReplace(userId, dseq, input, ability), ability);
+  }
+
+  async #saveAndApply(write: PatchWrite, ability: AnyAbility): Promise<ReplaceDeploymentDefinitionResponse["data"]> {
     const { name } = await this.#savePatch(write, ability);
     await this.#recordTeamUpdate(write);
 
     await this.#applyRecordingOutcome(write, ability);
 
-    const updatedDeployment = await this.deploymentReaderService.findByWalletAndDseq(write.prepared.wallet, dseq);
+    const updatedDeployment = await this.deploymentReaderService.findByWalletAndDseq(write.prepared.wallet, write.saved.dseq);
 
     return { ...updatedDeployment, name, manifestVersion: write.saved.manifestVersion };
   }
@@ -985,8 +1034,11 @@ export class DeploymentWriterService {
       return await this.#renameByUserIdAndDseq(userId, dseq, input.name, ability);
     }
 
-    const write = await this.#preparePatch(userId, dseq, input, ability);
+    return await this.#saveForBackgroundApply(await this.#preparePatch(userId, dseq, input, ability), ability);
+  }
 
+  async #saveForBackgroundApply(write: PatchWrite, ability: AnyAbility): Promise<PatchDeploymentAcceptedResponse["data"]> {
+    const { userId, dseq } = write.saved;
     const accepted = await this.txService.transaction(async () => {
       await this.#savePatch(write, ability);
       const { saved, organizationId, prepared } = write;
@@ -1129,6 +1181,7 @@ export class DeploymentWriterService {
         name: input.name,
         expectedManifestVersion: input.ifManifestVersion ?? stored.manifestVersion
       },
+      savedEvent: "DEPLOYMENT_PATCH_APPLIED",
       counts: {
         patchedServiceCount: Object.keys(input.services ?? {}).length,
         secretCount: Object.keys(merged).length,
@@ -1141,14 +1194,80 @@ export class DeploymentWriterService {
     };
   }
 
-  async #savePatch({ definition, counts, saved }: PatchWrite, ability: AnyAbility): Promise<{ name: string | null }> {
+  /** Every check that can refuse the replacement runs here, as for a patch, so a refusal leaves the row untouched. */
+  async #prepareReplace(userId: string, dseq: string, input: ReplaceDeploymentDefinitionRequest["data"], ability: AnyAbility): Promise<PatchWrite> {
+    const wallet = await this.walletReaderService.getWalletByUserId(userId);
+    const filedUserId = await this.signerService.filedUserIdOf(wallet, userId, dseq);
+    const stored = await this.#findStoredDefinition({ userId: filedUserId, dseq }, ability, NOT_REPLACEABLE_MESSAGE);
+    const storedDocument = this.#parseStored(stored.sdl, { userId, dseq }).document;
+    const submitted = this.#parseSubmitted(input.sdl, dseq);
+    const document = submitted.document;
+
+    const changes = deploymentChangesOf({
+      name: { from: stored.name, to: input.name },
+      services: { before: storedDocument.services, after: document.services, patched: serviceNamesOf(storedDocument, document) }
+    });
+    const onlyAt = this.#positionsToDerive({ document, storedDocument, secretEnv: input.secretEnv });
+    const derived = this.#takeValuesOutOf(document, { sealedEnv: sealedEnvOf(input), onlyAt });
+    const sdl = this.#serializeSubmitted(submitted, dseq);
+
+    const held = stored.sealedSecrets
+      ? await this.sdlSecretsService.openStored({ userId: filedUserId, organizationId: stored.organizationId ?? null, dseq, sealedSecrets: stored.sealedSecrets })
+      : {};
+    const supplied = await this.#receiveSecrets(input, held);
+    const merged = this.#storedSecretsOf({ inherited: held, supplied, derived }, document);
+    this.sdlSecretsService.assertStorable(merged, "stored");
+
+    const { manifestVersion, manifest } = await this.#resolveDeployableSdl(sdl, { secrets: merged, isTrialing: !!wallet.isTrialing });
+    const { deployment, groupSpecs } = await this.deploymentReaderService.findWithGroupSpecsByWalletAndDseq(wallet, dseq);
+    this.#assertResourcesUnchanged(manifest.groupSpecs, groupSpecs);
+
+    const recordedVersion = Buffer.from(manifestVersion).toString("base64");
+    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: filedUserId, teamId: teamIdOf(wallet), dseq, secrets: merged });
+
+    return {
+      definition: {
+        userId: filedUserId,
+        dseq,
+        sdl,
+        manifestVersion: recordedVersion,
+        sealedSecrets,
+        name: input.name,
+        expectedManifestVersion: input.ifManifestVersion ?? stored.manifestVersion
+      },
+      savedEvent: "DEPLOYMENT_DEFINITION_REPLACED",
+      counts: {
+        serviceCount: Object.keys(document.services ?? {}).length,
+        keptSecretCount: Object.keys(merged).filter(name => Object.hasOwn(held, name) && merged[name] === held[name]).length,
+        secretCount: Object.keys(merged).length,
+        guarded: input.ifManifestVersion !== undefined
+      },
+      saved: { userId, dseq, manifestVersion: recordedVersion, ...organizationWalletOf(wallet), ...(changes ? { changes } : {}) },
+      filedUserId,
+      organizationId: stored.organizationId,
+      prepared: { actingUserId: userId, wallet, dseq, resolved: { manifestVersion, manifest }, deployment }
+    };
+  }
+
+  /** A value left as the deployment stores it keeps what it holds, so resubmitting a document unchanged never seals away a variable its owner could read. */
+  #positionsToDerive(input: { document: SDLInput; storedDocument: SDLInput; secretEnv?: string[] }): ReadonlySet<string> {
+    const storedValues = new Map(this.sdlReferenceService.slotsOf(input.storedDocument).map(slot => [slotIdentityOf(slot), slot.value]));
+    const namedSecret = new Set(input.secretEnv ?? []);
+    const positions = this.sdlReferenceService
+      .slotsOf(input.document)
+      .filter(slot => storedValues.get(slotIdentityOf(slot)) !== slot.value || (slot.envVariable !== undefined && namedSecret.has(slot.envVariable)));
+
+    return new Set(positions.map(slot => slot.instancePath));
+  }
+
+  async #savePatch({ definition, savedEvent, counts, saved }: PatchWrite, ability: AnyAbility): Promise<{ name: string | null }> {
     const recorded = await this.deploymentSettingRepository.accessibleBy(ability, "update").replaceDefinitionIfVersionMatches(definition);
 
     if (!recorded) {
       throw createError(409, "Deployment definition changed concurrently, please retry", { errorCode: DEFINITION_CHANGED_ERROR_CODE });
     }
 
-    this.logger.info({ event: "DEPLOYMENT_PATCH_APPLIED", userId: saved.userId, dseq: saved.dseq, ...counts });
+    this.logger.info({ event: savedEvent, userId: saved.userId, dseq: saved.dseq, ...counts });
 
     return { name: recorded.name };
   }
