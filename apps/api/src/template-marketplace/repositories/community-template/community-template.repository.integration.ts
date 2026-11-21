@@ -96,6 +96,19 @@ describe(CommunityTemplateRepository.name, () => {
       expect(fourKept.map(row => row.id)).toEqual([newestBarelyUsed.id, newerUnscored.id, olderRunnerUp.id, oldFavorite.id]);
     });
 
+    it("ranks a template never scored like one scored zero at the limit, keeping the newer of the two", async () => {
+      const { repository, organization } = await setup();
+      const [olderScoredZero, newerUnscored] = await Promise.all(
+        [2, 1].map(daysAgo => seedTemplate({ ...listed(organization.id), publishedAt: subDays(new Date(), daysAgo) }))
+      );
+      await Promise.all([olderScoredZero, newerUnscored].map(template => seedTemplateVersion({ templateId: template.id })));
+      await seedTemplateScore({ templateRef: olderScoredZero.id, popularScore: 0 });
+
+      const rows = await repository.list({ organizationId: organization.id, limit: 1 });
+
+      expect(rows.map(row => row.id)).toEqual([newerUnscored.id]);
+    });
+
     it("orders templates published at the same moment by id", async () => {
       const { repository, organization } = await setup();
       const publishedAt = subDays(new Date(), 1);

@@ -148,8 +148,20 @@ export class TemplateUsageService {
     });
     if (!isCounted || !source.currentVersionId) return;
 
-    const copied = await this.templateUsageEventRepository.findTemplateOfVersion(source.currentVersionId);
-    if (copied) this.txService.afterCommit(() => this.#track("fork", fork.userId, trackedConsoleTemplate(copied)));
+    const copiedVersionId = source.currentVersionId;
+    this.txService.afterCommit(() => {
+      this.#trackFork(copiedVersionId, fork.userId).catch(() => undefined);
+    });
+  }
+
+  /** Looks the copied template up after the copy is committed, so a slow or failed lookup costs the fork nothing. */
+  async #trackFork(copiedVersionId: string, userId: string): Promise<void> {
+    try {
+      const copied = await this.txService.outsideTransaction(() => this.templateUsageEventRepository.findTemplateOfVersion(copiedVersionId));
+      if (copied) this.#track("fork", userId, trackedConsoleTemplate(copied));
+    } catch (error) {
+      this.logger.warn({ event: "TEMPLATE_USAGE_TRACK_FAILED", action: "fork", error });
+    }
   }
 
   /** Analytics is told once per counted event and only of users the marketplace is on for, and a failure to tell it costs the caller nothing. */

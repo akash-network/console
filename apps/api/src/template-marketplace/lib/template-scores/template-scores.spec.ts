@@ -186,6 +186,21 @@ describe(scoreTemplate.name, () => {
       expect(underTheFloor.breakdown.trending.current).toEqual({ paid: 0, trial: 16, weighted: 4 });
     });
 
+    it("reads a weighted count just under the minimum volume as under it, though it rounds to it", () => {
+      const { trendingScore, isTrending, breakdown } = scoreTemplate([trialUsers(0, 5)], 0, { ...SETTINGS, trialWeight: 0.999999 });
+
+      expect(trendingScore).toBe(0);
+      expect(isTrending).toBe(false);
+      expect(breakdown.trending).toMatchObject({ current: { weighted: 5 }, meetsMinVolume: false });
+    });
+
+    it("reaches the minimum volume with a weighted count that is exactly it, whatever the floating point error of the trial weight", () => {
+      const { isTrending, breakdown } = scoreTemplate([trialUsers(0, 100)], 0, { ...SETTINGS, trialWeight: 0.29, trendingMinVolume: 29 });
+
+      expect(isTrending).toBe(true);
+      expect(breakdown.trending).toMatchObject({ current: { weighted: 29 }, meetsMinVolume: true });
+    });
+
     it("rounds the weighted counts and the growth to four decimals", () => {
       const { trendingScore, breakdown } = scoreTemplate([{ ageDays: 0, paid: 7, trial: 3 }, paidUsers(7, 6)], 0, { ...SETTINGS, trialWeight: 0.1 });
 

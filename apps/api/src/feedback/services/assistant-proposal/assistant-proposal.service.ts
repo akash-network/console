@@ -211,6 +211,7 @@ export class AssistantProposalService {
   }
 
   async #openInEditor({ dseq, templateId, sdl }: ProposalArguments<"open_in_editor">, context: ProposalContext): Promise<AssistantActionOf<"open_in_editor">> {
+    if (sdl && templateId) this.accountTools.refuseMarketplaceTemplate(templateId);
     const template = templateId ? await this.accountTools.templateReview(templateId) : undefined;
 
     return {

@@ -563,10 +563,11 @@ describe(TemplateUsageService.name, () => {
       await service.recordFork(source, fork);
 
       expect(analyticsService.track).not.toHaveBeenCalled();
+      expect(templateUsageEventRepository.findTemplateOfVersion).not.toHaveBeenCalled();
+
+      await commit();
+
       expect(templateUsageEventRepository.findTemplateOfVersion).toHaveBeenCalledWith(source.currentVersionId);
-
-      commit();
-
       expect(analyticsService.track.mock.calls).toEqual([
         [fork.userId, "template_forked", { source: "official", template_id: source.id, template_version: 5, network: "mainnet" }, { insertId: undefined }]
       ]);
@@ -594,10 +595,27 @@ describe(TemplateUsageService.name, () => {
       expect(templateUsageEventRepository.findTemplateOfVersion).not.toHaveBeenCalled();
 
       await service.recordFork({ id: faker.string.uuid(), organizationId: faker.string.uuid(), currentVersionId: faker.string.uuid() }, fork);
-      commit();
+      await commit();
 
       expect(templateUsageEventRepository.findTemplateOfVersion).toHaveBeenCalledTimes(1);
-      expect(txService.afterCommit).not.toHaveBeenCalled();
+      expect(txService.afterCommit).toHaveBeenCalledTimes(1);
+      expect(analyticsService.track).not.toHaveBeenCalled();
+    });
+
+    it("keeps a committed fork when the copied template cannot be looked up for analytics", async () => {
+      const { service, analyticsService, templateUsageEventRepository, logger, commit } = setup();
+      const error = new Error("statement timeout");
+      templateUsageEventRepository.findTemplateOfVersion.mockRejectedValue(error);
+
+      await expect(
+        service.recordFork(
+          { id: faker.string.uuid(), organizationId: faker.string.uuid(), currentVersionId: faker.string.uuid() },
+          { userId: faker.string.uuid(), organizationId: faker.string.uuid() }
+        )
+      ).resolves.toBeUndefined();
+      await commit();
+
+      expect(logger.warn).toHaveBeenCalledWith({ event: "TEMPLATE_USAGE_TRACK_FAILED", action: "fork", error });
       expect(analyticsService.track).not.toHaveBeenCalled();
     });
   });
@@ -715,7 +733,10 @@ describe(TemplateUsageService.name, () => {
       executionContextService,
       analyticsService,
       featureFlags,
-      commit: () => runAfterCommit.forEach(run => run())
+      commit: async () => {
+        runAfterCommit.forEach(run => run());
+        await new Promise(resolve => setImmediate(resolve));
+      }
     };
   }
 });

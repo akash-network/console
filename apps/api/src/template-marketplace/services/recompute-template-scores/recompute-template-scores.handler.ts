@@ -65,10 +65,8 @@ export class RecomputeTemplateScoresHandler implements JobHandler<RecomputeTempl
 
     const settings = scoringSettingsOf(this.config);
     const counted = { now, maxTemplates: this.config.TEMPLATE_SCORE_MAX_TEMPLATES };
-    const [userDays, weeklyDeployers] = await Promise.all([
-      this.templateScoreRepository.findStillRunningUserDays({ ...counted, lookbackDays: scoreLookbackDays(settings) }),
-      this.templateScoreRepository.countWeeklyDeployers(counted)
-    ]);
+    const userDays = await this.templateScoreRepository.findStillRunningUserDays({ ...counted, lookbackDays: scoreLookbackDays(settings) });
+    const weeklyDeployers = await this.templateScoreRepository.countWeeklyDeployers({ ...counted, including: userDays });
     const { written, deleted } = await this.templateScoreRepository.replaceAll(scoreTemplates(userDays, weeklyDeployers, settings), now);
 
     this.logger.info({ event: "TEMPLATE_SCORES_RECOMPUTED", templates: written, deleted });

@@ -51,6 +51,9 @@ export type ScoredTemplate = ScoredTemplateKey & TemplateScore;
 
 const SCORE_DECIMALS = 4;
 
+/** A trial weight times a count can land a hair under a whole number, and a weighted count of exactly the minimum must still reach it. */
+const MIN_VOLUME_TOLERANCE = 1e-9;
+
 function rounded(value: number): number {
   const scale = 10 ** SCORE_DECIMALS;
 
@@ -74,7 +77,11 @@ function weightedUserDays(userDays: StillRunningUserDays[], trialWeight: number)
   const paid = sumOf(userDays.map(day => day.paid));
   const trial = sumOf(userDays.map(day => day.trial));
 
-  return { paid, trial, weighted: rounded(paid + trial * trialWeight) };
+  return { paid, trial, weighted: paid + trial * trialWeight };
+}
+
+function publishedUserDays(userDays: WeightedUserDays): WeightedUserDays {
+  return { ...userDays, weighted: rounded(userDays.weighted) };
 }
 
 function agedWithin(userDays: StillRunningUserDays[], fromDays: number, toDays: number): StillRunningUserDays[] {
@@ -104,13 +111,20 @@ function popularOf(userDays: StillRunningUserDays[], { trialWeight, popularHalfL
 function trendingOf(userDays: StillRunningUserDays[], { trialWeight, trendingWindowDays, trendingMinVolume }: ScoringSettings) {
   const current = weightedUserDays(agedWithin(userDays, 0, trendingWindowDays), trialWeight);
   const previous = weightedUserDays(agedWithin(userDays, trendingWindowDays, 2 * trendingWindowDays), trialWeight);
-  const meetsMinVolume = Math.max(current.weighted, previous.weighted) >= trendingMinVolume;
+  const meetsMinVolume = Math.max(current.weighted, previous.weighted) + MIN_VOLUME_TOLERANCE >= trendingMinVolume;
   const score = meetsMinVolume ? rounded((current.weighted - previous.weighted) / Math.max(previous.weighted, trendingMinVolume)) : 0;
 
   return {
     score,
     isTrending: score > 0,
-    breakdown: { windowDays: trendingWindowDays, minVolume: trendingMinVolume, trialWeight, current, previous, meetsMinVolume }
+    breakdown: {
+      windowDays: trendingWindowDays,
+      minVolume: trendingMinVolume,
+      trialWeight,
+      current: publishedUserDays(current),
+      previous: publishedUserDays(previous),
+      meetsMinVolume
+    }
   };
 }
 

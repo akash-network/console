@@ -74,15 +74,31 @@ export class TemplateScoreRepository {
     return [...rows];
   }
 
-  /** Counts the same people the held-version rule does: mainnet deployers of the last week from outside the publishing organization. */
-  async countWeeklyDeployers({ now, maxTemplates }: CountedWindow): Promise<(ScoredTemplateKey & { weeklyDeployers: number })[]> {
+  /** Counts the same people the held-version rule does: mainnet deployers of the last week from outside the publishing organization, for the most deployed templates and for every one named in `including`. */
+  async countWeeklyDeployers({
+    now,
+    maxTemplates,
+    including = []
+  }: CountedWindow & { including?: ScoredTemplateKey[] }): Promise<(ScoredTemplateKey & { weeklyDeployers: number })[]> {
+    const included = JSON.stringify(including.map(({ source, templateRef }) => ({ source, templateRef })));
     const rows = await this.#cursor.execute<ScoredTemplateKey & { weeklyDeployers: number }>(sql`
-      with counted as (${this.#countedEvents("deploy", now, WEEKLY_DEPLOYER_DAYS)})
-      select source, template_ref as "templateRef", count(distinct user_id)::int as "weeklyDeployers"
-      from counted
-      group by source, template_ref
+      with counted as (${this.#countedEvents("deploy", now, WEEKLY_DEPLOYER_DAYS)}),
+      counts as (
+        select source, template_ref, count(distinct user_id)::int as weekly_deployers
+        from counted
+        group by source, template_ref
+      ),
+      ranked as (
+        select source, template_ref, weekly_deployers, row_number() over (order by weekly_deployers desc, source, template_ref) as rank
+        from counts
+      )
+      select source, template_ref as "templateRef", weekly_deployers as "weeklyDeployers"
+      from ranked
+      where rank <= ${maxTemplates}
+        or (source::text, template_ref) in (
+          select included.source, included."templateRef" from jsonb_to_recordset(${included}::jsonb) as included(source text, "templateRef" text)
+        )
       order by 3 desc, 1, 2
-      limit ${maxTemplates}
     `);
 
     return [...rows];

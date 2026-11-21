@@ -455,6 +455,30 @@ describe(AssistantProposalService.name, () => {
       await expect(propose(service, "open_in_editor", { templateId: COMMUNITY_TEMPLATE_ID, sdl: PLACED_SDL })).rejects.toBe(refusal);
     });
 
+    it("refuses an SDL that names a community template next to a deployment, before reading either", async () => {
+      const { service, accountTools, deploymentController } = setup();
+      const refusal = new AssistantToolError("It only opens in Configure.");
+      accountTools.refuseMarketplaceTemplate.mockImplementation(() => {
+        throw refusal;
+      });
+
+      await expect(propose(service, "open_in_editor", { dseq: "42", templateId: COMMUNITY_TEMPLATE_ID, sdl: PLACED_SDL })).rejects.toBe(refusal);
+      expect(accountTools.refuseMarketplaceTemplate).toHaveBeenCalledWith(COMMUNITY_TEMPLATE_ID);
+      expect(accountTools.templateReview).not.toHaveBeenCalled();
+      expect(deploymentController.findByDseq).not.toHaveBeenCalled();
+    });
+
+    it("lets a community template open in Configure when no SDL comes with it", async () => {
+      const { service, accountTools } = setup();
+      accountTools.refuseMarketplaceTemplate.mockImplementation(() => {
+        throw new AssistantToolError("It only opens in Configure.");
+      });
+      accountTools.templateReview.mockResolvedValue({ source: "console", reviewedByAkash: false });
+
+      expect(await propose(service, "open_in_editor", { templateId: COMMUNITY_TEMPLATE_ID })).toMatchObject({ templateId: COMMUNITY_TEMPLATE_ID, sdl: null });
+      expect(accountTools.refuseMarketplaceTemplate).not.toHaveBeenCalled();
+    });
+
     it("opens an edit of a template that renames its placement at the same price", async () => {
       const { service, accountTools } = setup();
       accountTools.templateSdl.mockResolvedValue(ASSISTANT_TEST_SDL);

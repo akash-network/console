@@ -82,7 +82,7 @@ export class CommunityTemplateRepository {
       .innerJoin(this.publishers, eq(this.publishers.organizationId, this.templates.organizationId))
       .leftJoin(this.scores, and(eq(this.scores.source, "console"), eq(this.scores.templateRef, sql`${this.templates.id}::text`)))
       .where(and(listedTemplate(), organizationId ? eq(this.templates.organizationId, organizationId) : undefined))
-      .orderBy(sql`${this.scores.popularScore} desc nulls last`, desc(this.templates.publishedAt), this.templates.id)
+      .orderBy(sql`coalesce(${this.scores.popularScore}, 0) desc`, desc(this.templates.publishedAt), this.templates.id)
       .limit(limit);
 
     return rows

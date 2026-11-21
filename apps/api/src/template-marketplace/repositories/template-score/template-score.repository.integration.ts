@@ -196,6 +196,30 @@ describe(TemplateScoreRepository.name, () => {
 
       expect(await repository.countWeeklyDeployers({ now: NOW, maxTemplates: 1 })).toEqual([{ source: "console", templateRef: busier.id, weeklyDeployers: 2 }]);
     });
+
+    it("also counts every template it is asked to include, past the cap, and nothing for one nobody deployed", async () => {
+      const { repository, template } = await setup();
+      const busier = await seedTemplate({ visibility: "public" });
+      const undeployed = await seedTemplate({ visibility: "public" });
+      await deployed(template.id);
+      await Promise.all([deployed(busier.id), deployed(busier.id)]);
+      await deployed("akash-network-awesome-akash-comfyui", { source: "awesome_akash" });
+
+      const counts = await repository.countWeeklyDeployers({
+        now: NOW,
+        maxTemplates: 1,
+        including: [
+          { source: "console", templateRef: template.id },
+          { source: "console", templateRef: undeployed.id },
+          { source: "console", templateRef: "akash-network-awesome-akash-comfyui" }
+        ]
+      });
+
+      expect(counts).toEqual([
+        { source: "console", templateRef: busier.id, weeklyDeployers: 2 },
+        { source: "console", templateRef: template.id, weeklyDeployers: 1 }
+      ]);
+    });
   });
 
   describe("replaceAll", () => {
