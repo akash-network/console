@@ -255,9 +255,13 @@ const SearchableSelectList: FC<SharedProps & { selection: Selection }> = ({
   );
 };
 
-/** cmdk handles Enter and the arrow keys on its root and would pick another row instead of pressing the action. */
+/** cmdk handles Enter, the arrow keys and its ctrl bindings on its root and would pick another row instead of pressing the action. */
+const KEYS_CMDK_HANDLES = new Set(["Enter", "ArrowUp", "ArrowDown", "Home", "End"]);
+
 function stopCommandKeyHandling(event: KeyboardEvent<HTMLElement>) {
-  event.stopPropagation();
+  if (KEYS_CMDK_HANDLES.has(event.key) || event.ctrlKey) {
+    event.stopPropagation();
+  }
 }
 
 const SectionHeading: FC<{ label: string; hintLabel?: ReactNode }> = ({ label, hintLabel }) => (
